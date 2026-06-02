@@ -10,7 +10,7 @@ from specify_cli.upgrade.migrations.m_3_2_9_sync_state_gitignore import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 def test_detect_true_when_sync_state_missing(tmp_path: Path) -> None:

@@ -11,7 +11,6 @@ Provides:
 - Save/delete for project profiles
 """
 
-import warnings
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
@@ -21,14 +20,33 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from doctrine.drg.loader import DRGLoadError, load_graph
+from doctrine.drg.models import DRGGraph, NodeKind, Relation
+from doctrine.shared.exceptions import InlineReferenceRejectedError
 from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
 
+from .diagnostics import SkippedProfile
 from .profile import AgentProfile, Role, TaskContext
-from .validation import reject_agent_profile_inline_refs
+from .validation import reject_agent_profile_inline_refs, validate_agent_profile_yaml
 
 _MAX_LOW_WORKLOAD = 2
 _MAX_MEDIUM_WORKLOAD = 4
 _AGENT_PROFILE_GLOB = "*.agent.yaml"
+
+#: Layer ordinals used to sort skipped-profile diagnostics deterministically
+#: (NFR-002). Built-in records come first, then org, then project; within a
+#: layer records are ordered by path.
+_LAYER_RANK: dict[str, int] = {"builtin": 0, "org": 1, "project": 2}
+
+
+def _profile_urn(profile_id: str) -> str:
+    """Return the DRG node URN for an agent-profile id."""
+    return f"{NodeKind.AGENT_PROFILE.value}:{profile_id}"
+
+
+def _profile_id_from_urn(urn: str) -> str:
+    """Return the profile id from an ``agent_profile:<id>`` URN."""
+    return urn.split(":", 1)[1] if ":" in urn else urn
 
 
 def _filter_candidates_by_role(candidates: list[AgentProfile], required_role: str | None) -> list[AgentProfile]:
@@ -111,8 +129,18 @@ def _complexity_adjustment(is_specialist: bool, complexity: str) -> float:
     return {"low": 1.0, "medium": 1.0, "high": 0.9}.get(complexity, 1.0)
 
 
-def _score_profile(context: TaskContext, profile: AgentProfile) -> float:
-    """Compute the full adjusted DDR-011 score for a profile against a task context."""
+def _score_profile(
+    context: TaskContext,
+    profile: AgentProfile,
+    *,
+    is_specialist: bool = False,
+) -> float:
+    """Compute the full adjusted DDR-011 score for a profile against a task context.
+
+    ``is_specialist`` reflects whether the profile has a lineage parent. Lineage
+    is no longer carried on the profile itself (FR-002): it is resolved from the
+    DRG ``specializes_from`` edges by the caller and passed in here.
+    """
     base_score = (
         _language_signal(context, profile) * 0.40
         + _framework_signal(context, profile) * 0.20
@@ -122,7 +150,7 @@ def _score_profile(context: TaskContext, profile: AgentProfile) -> float:
     )
     penalty = _workload_penalty(context.current_workload or 0)
     complexity_adj = _complexity_adjustment(
-        profile.specializes_from is not None,
+        is_specialist,
         context.complexity or "medium",
     )
     # When no context signals match (base_score=0), routing_priority becomes dominant.
@@ -198,6 +226,7 @@ class AgentProfileRepository:
         org_dirs: list[Path] | None = None,
         project_dir: Path | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
+        drg: DRGGraph | None = None,
     ):
         """Initialize repository with built-in, org, and/or project directories.
 
@@ -208,13 +237,20 @@ class AgentProfileRepository:
                 earlier ones for the same profile-id (FR-006, C-004).
             project_dir: Directory containing project-specific profiles (optional)
             active_languages: Language filter; None means no filtering
+            drg: Doctrine Relationship Graph used to resolve profile lineage
+                (``specializes_from`` edges). When ``None``, the shipped built-in
+                graph (``src/doctrine/graph.yaml``) is loaded. Lineage is read
+                exclusively from this graph; the retired ``specializes-from``
+                profile field is no longer consulted (FR-002, C-009).
         """
         self._profiles: dict[str, AgentProfile] = {}
         self._provenance: dict[str, str] = {}
+        self._skipped: list[SkippedProfile] = []
         self._built_in_dir = built_in_dir or self._default_built_in_dir()
         self._org_dirs: list[Path] = list(org_dirs) if org_dirs else []
         self._project_dir = project_dir
         self._active_languages = None if active_languages is None else normalize_languages(active_languages)
+        self._drg: DRGGraph = drg if drg is not None else self._default_drg()
         self._hierarchy_index: dict[str, list[str]] | None = None
         self._load()
 
@@ -229,151 +265,234 @@ class AgentProfileRepository:
         except (ModuleNotFoundError, TypeError):
             return Path(__file__).parent / "built-in"
 
+    @staticmethod
+    def _default_drg_path() -> Path:
+        """Locate the shipped built-in DRG graph (``src/doctrine/graph.yaml``)."""
+        try:
+            resource = files("doctrine")
+            if hasattr(resource, "joinpath"):
+                return Path(str(resource.joinpath("graph.yaml")))
+            return Path(str(resource)) / "graph.yaml"
+        except (ModuleNotFoundError, TypeError):
+            return Path(__file__).parent.parent / "graph.yaml"
+
+    @classmethod
+    def _default_drg(cls) -> DRGGraph:
+        """Load the shipped DRG graph used to resolve lineage.
+
+        If the shipped graph cannot be loaded, lineage resolution degrades to an
+        empty graph (no parents) rather than crashing the whole repository load.
+        """
+        path = cls._default_drg_path()
+        try:
+            return load_graph(path)
+        except DRGLoadError:
+            return DRGGraph(
+                schema_version="1.0",
+                generated_at="1970-01-01T00:00:00Z",
+                generated_by="agent_profiles.repository:_default_drg",
+                nodes=[],
+                edges=[],
+            )
+
+    def _record_skip(
+        self,
+        *,
+        layer: str,
+        path: Path | str,
+        profile_id: str | None,
+        error_summary: str,
+    ) -> None:
+        """Record a skipped profile file for later diagnostic inspection."""
+        self._skipped.append(
+            SkippedProfile(
+                layer=layer,
+                path=str(path),
+                profile_id=profile_id,
+                error_summary=error_summary,
+            )
+        )
+
+    def skipped_profiles(self) -> list[SkippedProfile]:
+        """Return a deterministically-sorted copy of skipped-profile diagnostics.
+
+        Records are sorted by ``(layer_rank, path)`` so two loads of the same
+        inputs produce identical ordering (NFR-002). For valid built-in inputs
+        this list is empty (NFR-005). ``list_all()`` is unaffected and remains
+        valid-only (FR-006).
+        """
+        return sorted(
+            self._skipped,
+            key=lambda s: (_LAYER_RANK.get(s.layer, len(_LAYER_RANK)), s.path),
+        )
+
     def _load(self) -> None:
-        """Load profiles from built-in, org, and project directories."""
+        """Load profiles from built-in, org, and project layers.
+
+        All three layers share a single per-layer loader (:meth:`_load_layer`).
+        Built-in profiles are loaded first (root layer), then each org pack in
+        declaration order, then the project layer; later layers override
+        earlier ones for the same profile-id (FR-006, C-004). Files that cannot
+        be loaded are recorded via :meth:`_record_skip` rather than dropped
+        silently (FR-005/006/007).
+        """
         yaml = YAML(typ="safe")
-        built_in_profiles: dict[str, AgentProfile] = {}
 
-        if self._built_in_dir.exists():
-            for yaml_file in self._built_in_dir.rglob(_AGENT_PROFILE_GLOB):
-                try:
-                    data = yaml.load(yaml_file)
-                    if data is None:
-                        continue
-                    reject_agent_profile_inline_refs(
-                        data, file_path=str(yaml_file)
-                    )
-                    profile = AgentProfile.model_validate(data)
-                    if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
-                        continue
-                    built_in_profiles[profile.profile_id] = profile
-                except (YAMLError, ValidationError, OSError) as e:
-                    warnings.warn(
-                        f"Skipping invalid built-in profile {yaml_file.name}: {e}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
+        # Built-in layer is the merge base. Its successfully-loaded profiles are
+        # the override targets for org/project layers.
+        built_in_profiles = self._load_layer(
+            yaml,
+            directory=self._built_in_dir,
+            layer="builtin",
+            built_in_profiles={},
+            recursive=True,
+        )
 
-        # Start with built-in profiles; tag all as 'builtin'
-        self._profiles = built_in_profiles.copy()
-        self._provenance = dict.fromkeys(self._profiles, "builtin")
-
-        # Load and merge org profiles from each configured pack in declaration order;
-        # later packs override earlier ones (FR-006, C-004).
+        # Org packs, then project, overlay onto the same store in order.
         for org_dir in self._org_dirs:
-            self._load_org_profiles_from_dir(yaml, org_dir, built_in_profiles)
+            self._load_layer(
+                yaml,
+                directory=org_dir,
+                layer="org",
+                built_in_profiles=built_in_profiles,
+                recursive=False,
+            )
 
-        # Load and merge project profiles
-        if self._project_dir and self._project_dir.exists():
-            for yaml_file in self._project_dir.glob(_AGENT_PROFILE_GLOB):
-                try:
-                    data = yaml.load(yaml_file)
-                    if data is None:
-                        continue
-                    reject_agent_profile_inline_refs(
-                        data, file_path=str(yaml_file)
-                    )
+        if self._project_dir is not None:
+            self._load_layer(
+                yaml,
+                directory=self._project_dir,
+                layer="project",
+                built_in_profiles=built_in_profiles,
+                recursive=False,
+            )
 
-                    profile_id = data.get("profile-id") or data.get("profile_id")
-                    if not profile_id:
-                        warnings.warn(
-                            f"Skipping project profile {yaml_file.name}: no profile-id",
-                            UserWarning,
-                            stacklevel=2,
-                        )
-                        continue
-
-                    # Check if this is an override or new profile
-                    if profile_id in built_in_profiles:
-                        # Merge with built-in profile
-                        merged = self._merge_profiles(built_in_profiles[profile_id], data)
-                        if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
-                            continue
-                        self._record_profile_collision_if_present(
-                            profile_id=profile_id,
-                            higher_layer="project",
-                            higher_data=data,
-                        )
-                        self._profiles[profile_id] = merged
-                        self._provenance[profile_id] = "project"
-                    else:
-                        # New project-only profile
-                        profile = AgentProfile.model_validate(data)
-                        if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
-                            continue
-                        self._record_profile_collision_if_present(
-                            profile_id=profile.profile_id,
-                            higher_layer="project",
-                            higher_data=data,
-                        )
-                        self._profiles[profile.profile_id] = profile
-                        self._provenance[profile.profile_id] = "project"
-                except (YAMLError, ValidationError, OSError) as e:
-                    warnings.warn(
-                        f"Skipping invalid project profile {yaml_file.name}: {e}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
-
-    def _load_org_profiles_from_dir(
+    def _load_layer(
         self,
         yaml: YAML,
-        org_dir: Path,
+        *,
+        directory: Path,
+        layer: str,
         built_in_profiles: dict[str, AgentProfile],
-    ) -> None:
-        """Load profiles from one org pack directory; merge or add into self._profiles.
+        recursive: bool,
+    ) -> dict[str, AgentProfile]:
+        """Load every profile file from one layer directory into ``self._profiles``.
 
-        Existence check is done here so the caller can iterate ``self._org_dirs``
-        unconditionally. Each artifact loaded from this dir is tagged with
-        provenance ``"org"``; subsequent packs (later in declaration order) may
-        override the same profile-id via the caller's loop.
+        This is the single shared loader for the built-in, org, and project
+        layers (R-011-B: collapse the three duplicated loops). Scans are sorted
+        so record/override order is deterministic (NFR-002). Each unloadable
+        file is recorded with :meth:`_record_skip`; valid files are stored and
+        tagged with ``layer`` provenance.
+
+        For the built-in layer, the loaded profiles double as the override
+        targets returned to the caller. For org/project layers, a profile-id
+        already present in ``built_in_profiles`` is field-merged onto the
+        built-in base; otherwise it is added as a new profile. Collisions with
+        an already-loaded profile emit a layer-collision warning.
+
+        Returns the mapping of profile-id -> profile loaded from this layer
+        (used by the caller to seed ``built_in_profiles``).
         """
-        if not org_dir.exists():
-            return
-        for yaml_file in org_dir.glob(_AGENT_PROFILE_GLOB):
+        loaded: dict[str, AgentProfile] = {}
+        if not directory.exists():
+            return loaded
+
+        scan = directory.rglob(_AGENT_PROFILE_GLOB) if recursive else directory.glob(_AGENT_PROFILE_GLOB)
+        for yaml_file in sorted(scan):
             try:
                 data = yaml.load(yaml_file)
-                if data is None:
-                    continue
+            except (YAMLError, OSError) as exc:
+                self._record_skip(
+                    layer=layer,
+                    path=yaml_file,
+                    profile_id=None,
+                    error_summary=f"YAML/read error: {exc}",
+                )
+                continue
+
+            if data is None:
+                self._record_skip(
+                    layer=layer,
+                    path=yaml_file,
+                    profile_id=None,
+                    error_summary="Empty profile file (no YAML document)",
+                )
+                continue
+
+            profile_id = data.get("profile-id") or data.get("profile_id") if isinstance(data, dict) else None
+
+            # Inline-reference rejection is a *surfaced skip*, consistent with the
+            # ``diagnostics.py`` docstring (FR-003 / I-9). Loading is eager and
+            # all-or-nothing: a propagated raise would abort the whole layer load
+            # and blank out valid sibling profiles (the #1584 false-healthy
+            # class). We catch it here — where the YAML is in hand, so we can
+            # populate ``profile_id`` (the exception lacks it, DD-2) and a clear,
+            # readable ``error_summary`` (forbidden field + migration hint) — and
+            # record it via ``_record_skip``. Valid siblings keep loading.
+            try:
                 reject_agent_profile_inline_refs(data, file_path=str(yaml_file))
+            except InlineReferenceRejectedError as exc:
+                self._record_skip(
+                    layer=layer,
+                    path=yaml_file,
+                    profile_id=profile_id,
+                    error_summary=(
+                        f"Forbidden inline-reference field '{exc.forbidden_field}'. "
+                        f"{exc.migration_hint}"
+                    ),
+                )
+                continue
 
-                profile_id = data.get("profile-id") or data.get("profile_id")
-                if not profile_id:
-                    warnings.warn(
-                        f"Skipping org profile {yaml_file.name}: no profile-id",
-                        UserWarning,
-                        stacklevel=2,
-                    )
-                    continue
+            if not profile_id:
+                schema_errors = (
+                    validate_agent_profile_yaml(data) if isinstance(data, dict) else []
+                )
+                summary = (
+                    "; ".join(schema_errors)
+                    if schema_errors
+                    else "Missing required 'profile-id'"
+                )
+                self._record_skip(
+                    layer=layer,
+                    path=yaml_file,
+                    profile_id=None,
+                    error_summary=summary,
+                )
+                continue
 
-                if profile_id in built_in_profiles:
-                    merged = self._merge_profiles(built_in_profiles[profile_id], data)
-                    if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
-                        continue
-                    self._record_profile_collision_if_present(
-                        profile_id=profile_id,
-                        higher_layer="org",
-                        higher_data=data,
-                    )
-                    self._profiles[profile_id] = merged
-                    self._provenance[profile_id] = "org"
+            try:
+                if layer != "builtin" and profile_id in built_in_profiles:
+                    profile = self._merge_profiles(built_in_profiles[profile_id], data)
                 else:
                     profile = AgentProfile.model_validate(data)
-                    if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
-                        continue
-                    self._record_profile_collision_if_present(
-                        profile_id=profile.profile_id,
-                        higher_layer="org",
-                        higher_data=data,
-                    )
-                    self._profiles[profile.profile_id] = profile
-                    self._provenance[profile.profile_id] = "org"
-            except (YAMLError, ValidationError, OSError) as e:
-                warnings.warn(
-                    f"Skipping invalid org profile {yaml_file.name}: {e}",
-                    UserWarning,
-                    stacklevel=2,
+            except ValidationError as exc:
+                schema_errors = (
+                    validate_agent_profile_yaml(data) if isinstance(data, dict) else []
                 )
+                summary = "; ".join(schema_errors) if schema_errors else str(exc)
+                self._record_skip(
+                    layer=layer,
+                    path=yaml_file,
+                    profile_id=profile_id,
+                    error_summary=summary,
+                )
+                continue
+
+            if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
+                continue
+
+            if layer != "builtin":
+                self._record_profile_collision_if_present(
+                    profile_id=profile.profile_id,
+                    higher_layer=layer,
+                    higher_data=data,
+                )
+
+            self._profiles[profile.profile_id] = profile
+            self._provenance[profile.profile_id] = layer
+            loaded[profile.profile_id] = profile
+
+        return loaded
 
     def _record_profile_collision_if_present(
         self,
@@ -465,19 +584,34 @@ class AgentProfileRepository:
         normalized_role = Role(role_value)
         return [p for p in self._profiles.values() if normalized_role in p.roles]
 
+    def _lineage_parent(self, profile_id: str) -> str | None:
+        """Return the lineage parent of ``profile_id`` via the DRG, or ``None``.
+
+        Lineage is authored as ``specializes_from`` edges in the DRG
+        (``agent_profile:<child> --specializes_from--> agent_profile:<parent>``)
+        and is the single source of truth (FR-002, C-009). The retired
+        ``specializes-from`` profile field is no longer consulted.
+
+        A profile may declare at most one lineage parent; if several edges are
+        present the first by sorted target id is returned for determinism.
+        """
+        edges = self._drg.edges_from(_profile_urn(profile_id), Relation.SPECIALIZES_FROM)
+        if not edges:
+            return None
+        parents = sorted(_profile_id_from_urn(e.target) for e in edges)
+        return parents[0]
+
     def _build_hierarchy_index(self) -> None:
-        """Build hierarchy index mapping parent_id -> [child_ids]."""
+        """Build hierarchy index mapping parent_id -> [child_ids] from the DRG."""
         if self._hierarchy_index is not None:
             return
 
         index: dict[str, list[str]] = {}
 
-        for profile in self._profiles.values():
-            if profile.specializes_from:
-                parent_id = profile.specializes_from
-                if parent_id not in index:
-                    index[parent_id] = []
-                index[parent_id].append(profile.profile_id)
+        for profile_id in self._profiles:
+            parent_id = self._lineage_parent(profile_id)
+            if parent_id:
+                index.setdefault(parent_id, []).append(profile_id)
 
         self._hierarchy_index = index
 
@@ -507,22 +641,21 @@ class AgentProfileRepository:
         Returns:
             Ordered list of ancestor profile IDs (immediate parent first)
         """
-        ancestors = []
+        ancestors: list[str] = []
         current_id = profile_id
-        visited = set()
+        visited: set[str] = {profile_id}
 
-        while current_id in self._profiles:
-            profile = self._profiles[current_id]
-            if not profile.specializes_from:
+        while True:
+            parent_id = self._lineage_parent(current_id)
+            if not parent_id:
                 break
-
-            if profile.specializes_from in visited:
+            if parent_id in visited:
                 # Cycle detected - stop
                 break
 
-            ancestors.append(profile.specializes_from)
-            visited.add(current_id)
-            current_id = profile.specializes_from
+            ancestors.append(parent_id)
+            visited.add(parent_id)
+            current_id = parent_id
 
         return ancestors
 
@@ -534,11 +667,11 @@ class AgentProfileRepository:
         """
         self._build_hierarchy_index()
 
-        # Find roots (profiles with no specializes_from)
+        # Find roots (profiles with no lineage parent in the DRG)
         roots = [
-            p.profile_id
-            for p in self._profiles.values()
-            if not p.specializes_from
+            profile_id
+            for profile_id in self._profiles
+            if not self._lineage_parent(profile_id)
         ]
 
         def build_subtree(profile_id: str) -> dict[str, Any]:
@@ -567,7 +700,7 @@ class AgentProfileRepository:
         in_stack: set[str] = set()
 
         def has_cycle(profile_id: str) -> bool:
-            """DFS to detect cycles."""
+            """DFS to detect cycles via DRG lineage edges."""
             if profile_id in in_stack:
                 return True
             if profile_id in visited:
@@ -576,8 +709,8 @@ class AgentProfileRepository:
             visited.add(profile_id)
             in_stack.add(profile_id)
 
-            profile = self._profiles.get(profile_id)
-            if profile and profile.specializes_from and has_cycle(profile.specializes_from):
+            parent_id = self._lineage_parent(profile_id)
+            if parent_id and has_cycle(parent_id):
                 return True
 
             in_stack.remove(profile_id)
@@ -587,12 +720,13 @@ class AgentProfileRepository:
             if profile_id not in visited and has_cycle(profile_id):
                 errors.append(f"Cycle detected in hierarchy involving {profile_id}")
 
-        # Check for orphaned references
-        for profile in self._profiles.values():
-            if profile.specializes_from and profile.specializes_from not in self._profiles:
+        # Check for orphaned references (lineage parent not loaded as a profile)
+        for profile_id in self._profiles:
+            parent_id = self._lineage_parent(profile_id)
+            if parent_id and parent_id not in self._profiles:
                 errors.append(
-                    f"Orphaned reference: {profile.profile_id} specializes from "
-                    f"nonexistent {profile.specializes_from}"
+                    f"Orphaned reference: {profile_id} specializes from "
+                    f"nonexistent {parent_id}"
                 )
 
         return errors
@@ -627,7 +761,15 @@ class AgentProfileRepository:
         if not candidates:
             return None
 
-        return max(candidates, key=lambda p: _score_profile(context, p))
+        # A profile is a "specialist" when it has a lineage parent in the DRG.
+        return max(
+            candidates,
+            key=lambda p: _score_profile(
+                context,
+                p,
+                is_specialist=self._lineage_parent(p.profile_id) is not None,
+            ),
+        )
 
     def resolve_profile(self, profile_id: str) -> AgentProfile:
         """Resolve a profile with inherited fields from its ancestor chain.
@@ -643,10 +785,12 @@ class AgentProfileRepository:
 
         chain: list[AgentProfile] = [profile]
         visited: set[str] = {profile.profile_id}
-        current = profile
+        current_id = profile.profile_id
 
-        while current.specializes_from:
-            parent_id = current.specializes_from
+        while True:
+            parent_id = self._lineage_parent(current_id)
+            if not parent_id:
+                break
             if parent_id in visited:
                 raise ValueError(f"Cycle detected while resolving profile '{profile_id}'")
 
@@ -659,7 +803,7 @@ class AgentProfileRepository:
 
             visited.add(parent.profile_id)
             chain.append(parent)
-            current = parent
+            current_id = parent.profile_id
 
         # Build from root -> ... -> child using union merge for list-type fields.
         merged: dict[str, Any] = {}
@@ -741,8 +885,15 @@ class AgentProfileRepository:
                     yaml = YAML(typ="safe")
                     data = yaml.load(built_in_yaml)
                     built_in_profile = AgentProfile.model_validate(data)
-                except (YAMLError, ValidationError, TypeError):
-                    pass  # silently skip invalid built-in YAML during revert
+                except (YAMLError, ValidationError, TypeError) as exc:
+                    # Record rather than silently swallow the failed revert so the
+                    # skipped built-in remains observable (FR-005/006/007).
+                    self._record_skip(
+                        layer="builtin",
+                        path=built_in_yaml,
+                        profile_id=profile_id,
+                        error_summary=f"Failed to revert to built-in during delete(): {exc}",
+                    )
 
         if built_in_profile:
             # Revert to built-in version

@@ -5,9 +5,34 @@ Defines Styleguide and AntiPattern Pydantic models and StyleguideScope enum.
 """
 
 from enum import StrEnum
-from typing import Self
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+_RETIRED_RELATIONSHIP_FIELDS = ("enhances", "overrides")
+
+
+def _reject_retired_relationship_fields(kind: str, data: Any) -> Any:
+    """Raise an actionable error if a retired relationship key is authored.
+
+    The ``enhances``/``overrides`` fields were retired in the FR-028 hard
+    cutover. Relationships are now authored exclusively as DRG fragment edges
+    merged into ``src/doctrine/graph.yaml``, never as inline artifact fields.
+    """
+    if not isinstance(data, dict):
+        return data
+    present = [field for field in _RETIRED_RELATIONSHIP_FIELDS if field in data]
+    if present:
+        keys = ", ".join(repr(field) for field in present)
+        raise ValueError(
+            f"Retired relationship field(s) {keys} on {kind} are no longer "
+            f"accepted (FR-028 hard cutover). Author the relationship as a DRG "
+            f"fragment edge in a `drg/` fragment "
+            f"(e.g. {{source: <kind>:<id>, target: <kind>:<id>, "
+            f"relation: enhances|overrides}}) merged into "
+            f"src/doctrine/graph.yaml — not as an inline artifact field."
+        )
+    return data
 
 
 class StyleguideScope(StrEnum):
@@ -57,14 +82,6 @@ class Styleguide(BaseModel):
     schema_version: str = Field(pattern=r"^1\.0$", alias="schema_version")
     title: str
     scope: StyleguideScope
-    overrides: str | None = Field(
-        default=None,
-        description="ID of a built-in styleguide this artifact replaces in full.",
-    )
-    enhances: str | None = Field(
-        default=None,
-        description="ID of a built-in styleguide this artifact augments via field-merge.",
-    )
     principles: list[str] = Field(min_length=1)
     patterns: list[Pattern] = Field(default_factory=list, min_length=1)
     anti_patterns: list[AntiPattern] = Field(default_factory=list, min_length=1)
@@ -73,10 +90,7 @@ class Styleguide(BaseModel):
     applies_to_languages: list[str] = Field(default_factory=list)
     references: list[str] = Field(default_factory=list)
 
-    @model_validator(mode="after")
-    def _augmentation_intent_is_exclusive(self) -> Self:
-        if self.overrides is not None and self.enhances is not None:
-            raise ValueError(
-                f"overrides and enhances are mutually exclusive on styleguide {self.id}"
-            )
-        return self
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_retired_relationship_fields(cls, data: Any) -> Any:
+        return _reject_retired_relationship_fields("styleguide", data)

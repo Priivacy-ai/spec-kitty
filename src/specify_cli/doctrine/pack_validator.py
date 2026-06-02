@@ -60,21 +60,21 @@ __all__ = [
 
 
 # ---------------------------------------------------------------------------
-# Plural artifact kinds that carry the augmentation vocabulary (WP05 + WP06):
-# tactics, styleguides, paradigms, procedures, agent_profiles.
-# Kept in sync with ``doctrine.drg.org_pack_loader._AUGMENTATION_PLURAL_TO_KIND``;
-# the contract test sweep guards against drift between the two declarations.
+# Plural artifact kinds that carry the augmentation vocabulary.
+#
+# FR-030 single-source: derived from
+# ``doctrine.drg.org_pack_loader.augmentation_plural_kinds()`` rather than a
+# second hand-synced table. Adding an augmentation-eligible kind is a one-line
+# change at that single source and both the loader auto-emitter and this
+# validator pick it up. Coverage is the full augmentation-eligible set:
+# the original five (tactics, styleguides, paradigms, procedures,
+# agent_profiles) plus the newly-covered kinds (directives, toolguides,
+# mission_step_contracts, mission_types — FR-028, FR-032).
 # ---------------------------------------------------------------------------
 
-_AUGMENTATION_PLURAL_KINDS: frozenset[str] = frozenset(
-    {
-        "tactics",
-        "styleguides",
-        "paradigms",
-        "procedures",
-        "agent_profiles",
-    }
-)
+from doctrine.drg.org_pack_loader import augmentation_plural_kinds
+
+_AUGMENTATION_PLURAL_KINDS: frozenset[str] = augmentation_plural_kinds()
 
 
 # ---------------------------------------------------------------------------
@@ -378,6 +378,25 @@ def validate_pack(pack_dir: Path) -> ValidationResult:
     )
     errors.extend(intent_errors)
     advisories.extend(intent_advisories)
+
+    # FR-031 (T016): apply the SAME intent-aware precedence to augmentation
+    # relationships authored as DRG **fragment edges** — the authoring surface
+    # for the newly-covered kinds (directives, toolguides, mission step
+    # contracts, mission types), which under the locked fragment-only model
+    # (data-model §3) cannot carry the legacy ``enhances`` / ``overrides``
+    # fields. Reading fragment edges gives the new kinds parity with the
+    # original five: declared intent suppresses the same-ID advisory, an
+    # unknown target hard-errors, and both relations on one source ->
+    # ``intent_conflict``.
+    if drg_dir.is_dir():
+        fragment_intent = _collect_fragment_edge_intent(drg_dir)
+        frag_errors, frag_advisories = _intent_aware_collision_messages_from_edges(
+            fragment_intent,
+            built_in_ids_per_kind,
+            pack_artifacts_data,
+        )
+        errors.extend(frag_errors)
+        advisories.extend(frag_advisories)
 
     # T044: validate optional org-charter.yaml (best-effort — module may be
     # absent in early-mission states before WP09 ships).
@@ -708,6 +727,153 @@ def _intent_aware_collision_messages(
             # 6. Neither declared and no built-in collision -> no message.
 
     return errors, advisories
+
+
+# ---------------------------------------------------------------------------
+# Fragment-edge intent pass (FR-031, T016) — parity for the newly-covered kinds
+# ---------------------------------------------------------------------------
+
+
+def _urn_to_plural(urn: str) -> tuple[str, str] | None:
+    """Split a ``kind:id`` URN into ``(plural_dir, artifact_id)``.
+
+    Returns ``None`` when the URN is malformed or its singular kind has no
+    plural directory in the augmentation-eligible set.
+    """
+    singular, sep, artifact_id = urn.partition(":")
+    if not sep or not singular or not artifact_id:
+        return None
+    plural = _SINGULAR_TO_PLURAL_AUGMENTATION.get(singular)
+    if plural is None:
+        return None
+    return plural, artifact_id
+
+
+def _collect_fragment_edge_intent(
+    drg_dir: Path,
+) -> dict[str, dict[str, tuple[dict[str, str], Path]]]:
+    """Read augmentation/lineage intent from DRG fragment edges.
+
+    Returns ``{plural: {artifact_id: (intent, fragment_path)}}`` where
+    *intent* maps the declared relation name (``enhances`` / ``overrides``) to
+    its target artifact id. ``specializes_from`` is a lineage relation, not an
+    augmentation-collision intent, so it is intentionally not folded into the
+    same-ID/unknown-target precedence here (it neither suppresses nor conflicts
+    with augmentation intent). Best-effort: unparseable fragments are skipped
+    (``_validate_drg`` surfaces those load errors).
+    """
+    from doctrine.drg.models import Relation
+
+    try:
+        from doctrine.drg.loader import DRGLoadError, load_graph
+    except ModuleNotFoundError:  # pragma: no cover - doctrine always present
+        return {}
+
+    augmentation_relations = {Relation.ENHANCES.value, Relation.OVERRIDES.value}
+    intent: dict[str, dict[str, tuple[dict[str, str], Path]]] = {}
+    for fragment in sorted(drg_dir.glob("*.graph.yaml")):
+        try:
+            graph = load_graph(fragment)
+        except DRGLoadError:
+            continue
+        for edge in graph.edges:
+            relation = edge.relation.value
+            if relation not in augmentation_relations:
+                continue
+            source = _urn_to_plural(edge.source)
+            target = _urn_to_plural(edge.target)
+            if source is None or target is None:
+                continue
+            plural, art_id = source
+            if plural not in _AUGMENTATION_PLURAL_KINDS:
+                continue
+            record = intent.setdefault(plural, {}).setdefault(art_id, ({}, fragment))[0]
+            record[relation] = target[1]
+    return intent
+
+
+def _intent_aware_collision_messages_from_edges(
+    fragment_intent: dict[str, dict[str, tuple[dict[str, str], Path]]],
+    built_in_ids_per_kind: dict[str, set[str]],
+    field_artifacts: dict[str, dict[str, tuple[dict[str, Any], Path]]],
+) -> tuple[list[ValidationIssue], list[ValidationIssue]]:
+    """Apply the intent-aware precedence to fragment-authored augmentation edges.
+
+    Mirrors :func:`_intent_aware_collision_messages` but sources intent from
+    fragment edges. Artifacts already covered by the field-based pass
+    (*field_artifacts*) are skipped to avoid duplicate diagnostics.
+
+    Precedence (parity with the original five, FR-031):
+
+    1. both ``enhances`` and ``overrides`` declared for one source ->
+       ``intent_conflict`` ERROR.
+    2. target not a known built-in -> ``unknown_target`` ERROR.
+    3. valid intent declared -> suppress the same-ID advisory (no message).
+    """
+    errors: list[ValidationIssue] = []
+    advisories: list[ValidationIssue] = []
+
+    for plural in sorted(fragment_intent):
+        built_ins = built_in_ids_per_kind.get(plural, set())
+        singular = _kind_singular(plural)
+        field_ids = set(field_artifacts.get(plural, {}))
+        for art_id in sorted(fragment_intent[plural]):
+            if art_id in field_ids:
+                continue
+            record, fragment = fragment_intent[plural][art_id]
+            overrides_target = record.get("overrides")
+            enhances_target = record.get("enhances")
+
+            if overrides_target and enhances_target:
+                errors.append(
+                    ValidationIssue(
+                        severity="error",
+                        artifact_type=plural,
+                        artifact_id=art_id,
+                        file=str(fragment),
+                        message=(
+                            f"overrides and enhances are mutually exclusive on "
+                            f"{singular} {art_id} (declared via DRG fragment edges)"
+                        ),
+                        category="intent_conflict",
+                    )
+                )
+                continue
+
+            for relation, target in (
+                ("overrides", overrides_target),
+                ("enhances", enhances_target),
+            ):
+                if target and target not in built_ins:
+                    errors.append(
+                        ValidationIssue(
+                            severity="error",
+                            artifact_type=plural,
+                            artifact_id=art_id,
+                            file=str(fragment),
+                            message=(
+                                f"{singular} {art_id} declares {relation}: "
+                                f"{target} (via DRG fragment edge), but no "
+                                f"built-in {singular} with that id exists"
+                            ),
+                            category="unknown_target",
+                        )
+                    )
+            # Valid declared intent suppresses the same-ID advisory: emit nothing.
+
+    return errors, advisories
+
+
+#: Singular URN kind -> plural directory, restricted to augmentation-eligible
+#: kinds. Derived from the single source in ``org_pack_loader`` (FR-030) so the
+#: fragment-edge intent pass never re-declares the kind set.
+def _build_singular_to_plural() -> dict[str, str]:
+    from doctrine.drg.org_pack_loader import AUGMENTATION_ELIGIBLE_KINDS
+
+    return dict(AUGMENTATION_ELIGIBLE_KINDS)
+
+
+_SINGULAR_TO_PLURAL_AUGMENTATION: dict[str, str] = _build_singular_to_plural()
 
 
 # ---------------------------------------------------------------------------

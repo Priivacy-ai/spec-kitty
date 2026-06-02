@@ -605,10 +605,15 @@ class TestFetchSelectorRecovery:
             lambda repo_root, org_roots=None: _StubService(),
         )
 
-        with pytest.raises(ValueError, match="Unsupported --include selector kind"):
+        # WP17 (FR-034): ``template`` is now a supported kind routed through
+        # the canonical ArtifactKind resolver, so an unknown selector kind must
+        # use a token that is genuinely outside the vocabulary. The resolver
+        # fails closed with the canonical "Unknown artifact kind token" error
+        # (no silent fallback) instead of the old per-surface message.
+        with pytest.raises(ValueError, match="Unknown artifact kind token"):
             context_module.build_charter_context_include(
                 tmp_path,
-                "template:mission",
+                "bogus-kind:mission",
             )
 
     def test_styleguide_selector_round_trips_through_context_include(

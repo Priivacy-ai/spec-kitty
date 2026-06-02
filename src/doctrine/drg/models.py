@@ -47,11 +47,22 @@ class NodeKind(StrEnum):
 class Relation(StrEnum):
     """Typed edge relations in the DRG.
 
-    ``ENHANCES`` and ``OVERRIDES`` form the augmentation pair (FR-014, mission
-    ``charter-ux-and-org-pack-vocabulary-01KSAF14``): a pack artifact declares
-    ``enhances: <id>`` to field-merge into a built-in, or ``overrides: <id>``
-    to declare a full replacement. ``REPLACES`` is retained for backward
-    compatibility with existing hand-authored fragments (R-2).
+    Lineage vs. delegation vs. augmentation are three distinct concepts and
+    MUST NOT be conflated (FR-001, FR-002):
+
+    - ``SPECIALIZES_FROM`` (lineage): a profile/artifact derives from a parent,
+      narrowing or extending it. This is a *static composition* relation used
+      for inheritance/specialization (FR-001). It is deliberately separate from
+      ``DELEGATES_TO`` so lineage never leaks into runtime handoff traversal.
+    - ``DELEGATES_TO`` (delegation): a *runtime handoff* relation -- one agent
+      hands work to another at execution time (FR-002). It is never inferred
+      from lineage.
+    - ``ENHANCES`` / ``OVERRIDES`` (augmentation pair, FR-014, mission
+      ``charter-ux-and-org-pack-vocabulary-01KSAF14``): a pack artifact declares
+      ``enhances: <id>`` to field-merge into a built-in, or ``overrides: <id>``
+      to declare a full replacement.
+    - ``REPLACES`` is retained for backward compatibility with existing
+      hand-authored fragments (R-2).
     """
 
     REQUIRES = "requires"
@@ -62,6 +73,7 @@ class Relation(StrEnum):
     INSTANTIATES = "instantiates"
     REPLACES = "replaces"
     DELEGATES_TO = "delegates_to"
+    SPECIALIZES_FROM = "specializes_from"
     ENHANCES = "enhances"
     OVERRIDES = "overrides"
 
@@ -139,6 +151,26 @@ class DRGGraph(BaseModel):
             e
             for e in self.edges
             if e.source == urn and (relation is None or e.relation == relation)
+        ]
+
+    def edges_to(
+        self,
+        urn: str,
+        relation: Relation | None = None,
+    ) -> list[DRGEdge]:
+        """Return incoming edges to *urn*, optionally filtered by *relation*.
+
+        Reverse-adjacency mirror of :meth:`edges_from`: an edge is incoming when
+        its ``target`` equals *urn*. Used by cascade traversal (e.g. Wave 3
+        deactivation) that needs to find every node pointing *at* a given URN.
+
+        Implemented as an O(E) scan for parity with :meth:`edges_from`; no
+        reverse index is pre-built.
+        """
+        return [
+            e
+            for e in self.edges
+            if e.target == urn and (relation is None or e.relation == relation)
         ]
 
     def get_node(self, urn: str) -> DRGNode | None:

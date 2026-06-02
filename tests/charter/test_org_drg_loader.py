@@ -26,6 +26,7 @@ from charter.drg import (
     OrgDRGFragment,
     OrgPackMissingError,
     Relation,
+    UnknownRelationError,
     load_org_drg,
     merge_three_layers,
 )
@@ -552,9 +553,20 @@ class TestMergeThreeLayers:
         ]
         assert len(cross_edges) == 1
 
-    def test_edge_with_unknown_relation_dropped_silently(self) -> None:
-        """Unknown relation labels are dropped (the lint pipeline handles
-        them as advisory findings); they do NOT raise."""
+    def test_edge_with_unknown_relation_raises(self) -> None:
+        """FR-003 / C0.3 (mission
+        ``org-doctrine-profile-integrity-activation-closure-01KT1TV1`` WP03):
+        an unknown relation label now fails closed with a structured
+        :class:`UnknownRelationError` instead of being silently dropped.
+
+        This supersedes the pre-WP03 ``..._dropped_silently`` contract: the
+        org-fragment path previously returned ``None`` for an unrecognised
+        relation, dropping the edge without trace, while the project-fragment
+        Pydantic path rejected the same input loudly. WP03 normalises that
+        asymmetry — shipped, org, and project fragments now reject an unknown
+        relation identically. The raised error names the offending relation,
+        the source fragment, and the valid token set.
+        """
         built_in = _empty_built_in()
         fragment = OrgDRGFragment.model_validate(
             {
@@ -572,10 +584,13 @@ class TestMergeThreeLayers:
                 ],
             }
         )
-        merged = merge_three_layers(
-            built_in=built_in, org_fragments=[fragment], project=None
-        )
-        assert merged.edges == []
+        with pytest.raises(UnknownRelationError) as exc_info:
+            merge_three_layers(
+                built_in=built_in, org_fragments=[fragment], project=None
+            )
+        assert exc_info.value.relation == "frobnicates"
+        assert "rel-pack" in exc_info.value.source_marker
+        assert "frobnicates" in str(exc_info.value)
 
     def test_multiple_conflict_kinds_reported_together(self) -> None:
         """``OrgDRGConflictError.conflicts`` lists every conflict so

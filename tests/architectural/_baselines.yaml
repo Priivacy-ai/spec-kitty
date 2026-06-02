@@ -19,13 +19,16 @@
 # tests/architectural/test_no_dead_modules.py
 # Per-category breakdown (FR-112 refactor).
 test_no_dead_modules:
-  # justification: 75 auto-discovered migration modules under
+  # justification: 76 auto-discovered migration modules under
   # src/specify_cli/upgrade/migrations/m_*.py. +3 for
   # m_3_2_0rc28_github_diff_attributes, m_3_2_7_activate_builtin_mission_types
   # (WP01 gap filled here), and m_3_2_8_default_charter_pack (WP05,
   # charter-pack-activation-layer-01KSYE4V). +1 for
-  # m_3_2_6_charter_manifest_defaults_repair (upstream #1480). Growth here is expected/routine.
-  category_1_auto_discovered_migrations: 75
+  # m_3_2_6_charter_manifest_defaults_repair (upstream #1480). +1 (76->77,
+  # org-doctrine-profile-integrity-closeout WP04): the upstream rebase added
+  # m_3_2_9_sync_state_gitignore, allowlisted in _CATEGORY_1 here. Growth here
+  # is expected/routine.
+  category_1_auto_discovered_migrations: 77
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live
@@ -113,29 +116,48 @@ test_all_declarations_required:
 # major release; target = 0 by Slice G. Cat-B is informational until
 # a follow-up mission widens C-007 beyond charter+kernel.
 test_no_dead_symbols:
-  # justification: 13 pre-existing charter+kernel public symbols whose
+  # justification: 12 pre-existing charter+kernel public symbols whose
   # ``__all__`` membership was inherited from before WP02 and whose
   # lack of runtime callers reflects a "library written but never
   # wired" carry-over. WP02 left their public-API contracts intact;
-  # a future mission must wire / prune / delete each.
-  category_a_slice_f_deferred: 13
-  # justification: 276 pre-existing public symbols across doctrine +
+  # a future mission must wire / prune / delete each. 13->12: shrank when
+  # WP03 (org-doctrine close-out) wired one Cat-A symbol; locked in here.
+  category_a_slice_f_deferred: 12
+  # justification: 271 pre-existing public symbols across doctrine +
   # specify_cli whose ``__all__`` predates the WP02 gate. C-007 /
   # FR-121 scopes WP02 to charter+kernel; this category is the
   # carry-over surface for the next mission that widens the convention.
-  category_b_grandfathered_legacy: 275
-  # Removal trigger reached (post-merge remediation cycle 1, 2026-05-19):
-  # prompt_builder imports build_with_scope which pulls CharterScope*
-  # into the live src/ import graph. All four symbols now have live
-  # callers; category shrunk from 4 to 0.
-  category_c_wp_in_flight_charter_scope: 6  # justification: OperationalContext family (×4) + ConsistencyReport + ContextPreconditionError; ProjectContext/run_consistency_check wired in charter-pack-activation-layer-01KSYE4V post-merge remediation
+  # 275->271 (org-doctrine close-out WP04): removed 5 now-wired/dropped
+  # stale entries (charter.pack_context::CharterPackConfigError,
+  # status.lifecycle_events::{mission_event_log_path,read_lifecycle_events},
+  # and the two events.py re-exports SignificanceEvaluatedPayload /
+  # TimeoutExpiredPayload dropped from __all__ while keeping imports).
+  category_b_grandfathered_legacy: 271
+  # 6->4 (org-doctrine close-out WP04): removed the now-wired
+  # charter.invocation_context::{OperationalContext,build_operational_context}
+  # (WP14 added live src/ callers). Remaining 4: the two require_active_*
+  # method entries, ContextPreconditionError, ConsistencyReport.
+  category_c_wp_in_flight_charter_scope: 4
   # WP11 removal trigger reached: all 4 workflow registry symbols now have
   # live src/ callers (planner.py imports get_workflow, UnknownWorkflowError,
   # list_available_workflows from workflow_registry, and ActionStep from
   # workflow_schema). Category shrunk to 0.
   category_c_wp_in_flight_workflow_registry: 0
-  # justification: 13 new public symbols introduced by WP05/WP06 of mission
+  # justification: 8 type/error symbols introduced by WP05/WP06 of mission
   # charter-pack-activation-layer-01KSYE4V whose production callers (CLI
   # activation command, DRG pipeline) are in-flight in later WPs of the same
   # mission. All symbols ship ahead of wiring per the activation-layer design.
   category_c_wp_in_flight_charter_activation: 8  # justification: activate_cmd removed from __all__ (typer callback, consistent with deactivate/list); remaining 8 are type/error symbols with no direct src/ caller yet
+  # justification: 15 mission-authored charter/doctrine public symbols
+  # re-allowlisted by org-doctrine-profile-integrity-closeout WP04 (the
+  # parent's WP15 allowlist was dropped in the specify_cli.next->runtime.next
+  # upstream rebase). Re-derived against the live import graph after WP03's
+  # charter.template_catalog facade landed (the 4 doctrine.template_catalog
+  # accessors remain genuinely unimported). Tracker: WP06/T021 (DIRECTIVE_013).
+  category_c_org_doctrine_closeout: 15
+  # justification: 5 pre-existing upstream specify_cli.coordination.status_service
+  # public symbols (landed on upstream/main via #1614, no live caller there);
+  # surfaced in the close-out branch via the upstream rebase. NOT this mission's
+  # code; allowlisted-with-tracker so the gate is GREEN. Tracker (DIRECTIVE_013):
+  # Priivacy-ai/spec-kitty#1622 (wire or prune; then shrink this baseline).
+  category_c_upstream_status_service: 5

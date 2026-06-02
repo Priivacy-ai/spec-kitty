@@ -8,7 +8,32 @@ import pytest
 
 from doctrine.agent_profiles.profile import TaskContext
 from doctrine.agent_profiles.repository import AgentProfileRepository
+from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+
+
+def _lineage_drg(*pairs: tuple[str, str]) -> DRGGraph:
+    """Build a DRG with ``specializes_from`` edges for ``(child, parent)`` pairs.
+
+    Lineage is authored as DRG edges (FR-002 / WP05); the retired
+    ``specializes-from`` profile field is gone.
+    """
+    ids = {pid for pair in pairs for pid in pair}
+    return DRGGraph(
+        schema_version="1.0",
+        generated_at="2026-06-02T00:00:00Z",
+        generated_by="test_profile_inheritance",
+        nodes=[DRGNode(urn=f"agent_profile:{pid}", kind=NodeKind.AGENT_PROFILE) for pid in sorted(ids)],
+        edges=[
+            DRGEdge(
+                source=f"agent_profile:{child}",
+                target=f"agent_profile:{parent}",
+                relation=Relation.SPECIALIZES_FROM,
+            )
+            for child, parent in pairs
+        ],
+    )
 
 
 
@@ -47,7 +72,6 @@ name: Python Pedro
 roles:
   - implementer
 purpose: Python specialist
-specializes-from: implementer
 specialization:
   primary-focus: python implementation
 specialization-context:
@@ -66,14 +90,14 @@ name: Backend Pedro
 roles:
   - implementer
 purpose: Backend specialist
-specializes-from: python-pedro
 specialization:
   primary-focus: backend apis
 """,
         encoding="utf-8",
     )
 
-    return AgentProfileRepository(built_in_dir=shipped, project_dir=None)
+    drg = _lineage_drg(("python-pedro", "implementer"), ("backend-pedro", "python-pedro"))
+    return AgentProfileRepository(built_in_dir=shipped, project_dir=None, drg=drg)
 
 
 def test_resolve_profile_inherits_missing_fields(inheritance_repo: AgentProfileRepository) -> None:
@@ -103,14 +127,15 @@ name: Orphan
 roles:
   - implementer
 purpose: orphan
-specializes-from: missing-parent
 specialization:
   primary-focus: orphan
 """,
         encoding="utf-8",
     )
 
-    repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
+    repo = AgentProfileRepository(
+        built_in_dir=shipped, project_dir=None, drg=_lineage_drg(("orphan", "missing-parent"))
+    )
 
     with pytest.raises(KeyError, match="missing-parent"):
         repo.resolve_profile("orphan")
@@ -125,7 +150,6 @@ name: A
 roles:
   - implementer
 purpose: a
-specializes-from: b
 specialization:
   primary-focus: a
 """,
@@ -137,14 +161,15 @@ name: B
 roles:
   - implementer
 purpose: b
-specializes-from: a
 specialization:
   primary-focus: b
 """,
         encoding="utf-8",
     )
 
-    repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
+    repo = AgentProfileRepository(
+        built_in_dir=shipped, project_dir=None, drg=_lineage_drg(("a", "b"), ("b", "a"))
+    )
 
     with pytest.raises(ValueError, match="Cycle detected"):
         repo.resolve_profile("a")
@@ -202,7 +227,6 @@ name: Child
 roles:
   - implementer
 purpose: Child profile
-specializes-from: base
 specialization:
   primary-focus: child focus
 directive-references:
@@ -225,7 +249,6 @@ name: Grandchild
 roles:
   - implementer
 purpose: Grandchild profile
-specializes-from: child
 specialization:
   primary-focus: grandchild focus
 """,
@@ -238,7 +261,6 @@ name: Child Excluding
 roles:
   - implementer
 purpose: Child that excludes a directive value
-specializes-from: base
 specialization:
   primary-focus: excluding focus
 directive-references:
@@ -252,7 +274,12 @@ excluding:
         encoding="utf-8",
     )
 
-    return AgentProfileRepository(built_in_dir=shipped, project_dir=None)
+    drg = _lineage_drg(
+        ("child", "base"),
+        ("grandchild", "child"),
+        ("child-excluding", "base"),
+    )
+    return AgentProfileRepository(built_in_dir=shipped, project_dir=None, drg=drg)
 
 
 def test_unspecified_fields_inherited(us6_repo: AgentProfileRepository) -> None:
@@ -327,14 +354,15 @@ name: Orphan
 roles:
   - implementer
 purpose: orphan
-specializes-from: nonexistent-parent
 specialization:
   primary-focus: orphan
 """,
         encoding="utf-8",
     )
 
-    repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
+    repo = AgentProfileRepository(
+        built_in_dir=shipped, project_dir=None, drg=_lineage_drg(("orphan", "nonexistent-parent"))
+    )
 
     with pytest.raises(KeyError, match="nonexistent-parent"):
         repo.resolve_profile("orphan")
@@ -375,8 +403,10 @@ def test_resolved_specialist_profiles_include_base_tactic_references(
     profiles = {p.profile_id: p for p in shipped_repo.list_all()}
 
     violations: list[str] = []
-    for profile_id, profile in profiles.items():
-        base_id = getattr(profile, "specializes_from", None)
+    for profile_id in profiles:
+        # Lineage parent is resolved from the DRG (FR-002 / WP05), not a field.
+        ancestors = shipped_repo.get_ancestors(profile_id)
+        base_id = ancestors[0] if ancestors else None
         if not base_id or base_id not in profiles:
             continue
 
@@ -437,8 +467,10 @@ specialization:
     profiles = {p.profile_id: p for p in repo.list_all()}
 
     violations = []
-    for pid, p in profiles.items():
-        base_id = getattr(p, "specializes_from", None)
+    for pid in profiles:
+        # No DRG lineage edges supplied → no specialization pairs.
+        ancestors = repo.get_ancestors(pid)
+        base_id = ancestors[0] if ancestors else None
         if not base_id or base_id not in profiles:
             continue
         violations.append(f"unexpected specialization found: {pid} -> {base_id}")
@@ -479,7 +511,6 @@ tactic-references:
 name: Specialist
 roles: [implementer]
 purpose: Specialist
-specializes-from: base-impl
 specialization:
   primary-focus: specialist work
 tactic-references:
@@ -491,7 +522,9 @@ tactic-references:
         encoding="utf-8",
     )
 
-    repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
+    repo = AgentProfileRepository(
+        built_in_dir=shipped, project_dir=None, drg=_lineage_drg(("specialist-impl", "base-impl"))
+    )
     resolved = repo.resolve_profile("specialist-impl")
 
     merged_tactic_ids = {ref.id for ref in resolved.tactic_references}

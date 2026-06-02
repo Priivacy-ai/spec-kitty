@@ -19,11 +19,41 @@ The generated schema targets Draft 2020-12 (like all other generated schemas).
 
 from __future__ import annotations
 
-from typing import Self
+from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from doctrine.agent_profiles.schema_version import AGENT_PROFILE_SCHEMA_VERSION_PATTERN
+
+# Relationship fields retired in the FR-028 hard cutover. Agent-profile YAML
+# uses kebab-case keys, so both the snake_case and kebab-case spellings are
+# rejected. Lineage (``specializes-from``) and augmentation
+# (``enhances``/``overrides``) are authored as DRG fragment edges merged into
+# ``src/doctrine/graph.yaml`` — never as inline profile fields.
+_RETIRED_PROFILE_RELATIONSHIP_KEYS = (
+    "specializes_from",
+    "specializes-from",
+    "enhances",
+    "overrides",
+)
+
+
+def _reject_retired_profile_relationship_fields(data: Any) -> Any:
+    """Raise an actionable error if a retired relationship key is authored."""
+    if not isinstance(data, dict):
+        return data
+    present = [key for key in _RETIRED_PROFILE_RELATIONSHIP_KEYS if key in data]
+    if present:
+        keys = ", ".join(repr(key) for key in present)
+        raise ValueError(
+            f"Retired relationship field(s) {keys} on agent profile are no "
+            f"longer accepted (FR-028 hard cutover). Author lineage and "
+            f"augmentation as DRG fragment edges in a `drg/` fragment "
+            f"(e.g. {{source: agent_profile:<id>, target: agent_profile:<id>, "
+            f"relation: specializes_from|enhances|overrides}}) merged into "
+            f"src/doctrine/graph.yaml — not as inline profile fields."
+        )
+    return data
 
 
 # ---------------------------------------------------------------------------
@@ -189,17 +219,6 @@ class AgentProfileSchema(BaseModel):
     sentinel: bool = Field(default=False)
     tags: list[str] = Field(default_factory=list)
     capabilities: list[str] = Field(default_factory=list)
-    specializes_from: str | None = Field(default=None, alias="specializes-from")
-    overrides: str | None = Field(
-        default=None,
-        pattern=r"^[a-z][a-z0-9-]*$",
-        description="ID of a built-in agent profile this artifact replaces in full.",
-    )
-    enhances: str | None = Field(
-        default=None,
-        pattern=r"^[a-z][a-z0-9-]*$",
-        description="ID of a built-in agent profile this artifact augments via field-merge.",
-    )
     routing_priority: int | None = Field(default=None, alias="routing-priority", ge=0, le=100)
     max_concurrent_tasks: int | None = Field(default=None, alias="max-concurrent-tasks", ge=1)
     applies_to_languages: list[str] = Field(default_factory=list)
@@ -248,6 +267,11 @@ class AgentProfileSchema(BaseModel):
     self_review_protocol: SelfReviewProtocol | None = Field(
         default=None, alias="self-review-protocol"
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_retired_relationship_fields(cls, data: Any) -> Any:
+        return _reject_retired_profile_relationship_fields(data)
 
     @model_validator(mode="after")
     def _requires_role_or_roles(self) -> Self:

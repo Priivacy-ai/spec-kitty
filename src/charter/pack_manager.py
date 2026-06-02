@@ -1,74 +1,245 @@
-"""Charter pack activation manager (FR-001, FR-002).
+"""Charter pack activation manager (FR-001, FR-002, FR-026, FR-027).
 
 Provides ``CharterPackManager`` — the single interface for activating and
-deactivating doctrine artifacts in a project's ``.kittify/config.yaml``.
+deactivating doctrine artifacts in a project's ``.kittify/config.yaml`` and for
+discovering which artifacts are *available* across the built-in, org-pack, and
+project doctrine layers.
 
 All mutating methods use ``ruamel.yaml`` round-trip mode so that existing
 comments and formatting in ``config.yaml`` are preserved across writes.
 
-Key constants
--------------
-``YAML_KEY_MAP`` — maps CLI kind names (hyphenated) to ``config.yaml`` YAML
-keys.  The outlier is ``mission-type`` → ``mission_type_activations`` (not
-``activated_mission_types``).  All other kinds follow the ``activated_<plural>``
-pattern.
+Canonical kind vocabulary (FR-027, R-009)
+-----------------------------------------
+There is **no** second kind enumeration in this module. Kind validation routes
+through :meth:`doctrine.artifact_kinds.ArtifactKind.from_operator_token` (the
+single canonical resolver, WP01), and ``mission-type`` is the one charter-tier
+token that is *not* an :class:`ArtifactKind` member (handled explicitly).
 
-Cascade deferral (FR-006/007)
-------------------------------
-``activate()`` and ``deactivate()`` accept ``cascade=True`` but DRG edge
-traversal is **not** implemented in this WP.  A warning is emitted when
-``cascade=True`` is passed.  FR-006 (warn on no-cascade) is satisfied by
-a static coherence hint emitted on every activation; FR-007 (cascade
-execute) is explicitly deferred to a follow-on mission.  This is
-intentional scope control, not a defect.
+``YAML_KEY_MAP`` is **derived** from the canonical charter kind universe
+(:data:`doctrine.artifact_kinds.CHARTER_KIND_TOKENS`): every kind maps to
+``activated_<plural>`` except the ``mission-type`` outlier
+(``mission_type_activations``).
 
-Layer rule
-----------
-This module MUST NOT import from ``specify_cli`` (C-001, hard ratchet pinned
-by ``tests/architectural/test_layer_rules.py``).
+Layer model (FR-026)
+--------------------
+``list_available`` scans the *built-in* layer plus any caller-supplied org /
+project doctrine roots, returning artifact IDs taken from each artifact's
+``id:`` field (not the filename stem). :meth:`list_available_detailed` exposes
+the same scan annotated by source layer for ``charter list --all`` (WP16).
+
+Org/project roots are passed in **as data** (C-008): ``specify_cli`` resolves
+them and hands them to this module. This module MUST NOT import from
+``specify_cli`` (C-001, hard ratchet pinned by
+``tests/architectural/test_layer_rules.py``).
+
+Activation seam (FR-011/012, NFR-003)
+-------------------------------------
+``activate()`` and ``deactivate()`` are thin wrappers over the pure
+:mod:`charter.activation_engine` plan/commit seam (WP10): they load the config,
+discover the available-ID universe, call ``plan_activation`` /
+``plan_deactivation`` (which validate *before* computing any post-state), and
+then perform the single ``commit_plan`` write. The legacy ``sys.exit(1)`` in
+``deactivate`` is gone — the engine raises a typed
+:class:`~charter.activation_engine.NoActivationRestrictionsError` that the CLI
+(WP12) surfaces.
+
+Cascade parameter (FR-006/007)
+--------------------------------
+``activate()`` and ``deactivate()`` accept a ``cascade`` parameter for
+signature stability, but DRG edge traversal is owned by the CLI layer
+(``charter.cascade``). **No warning is emitted** when ``cascade=True`` is
+passed; the parameter is silently accepted and forwarded. FR-007 (cascade
+execute) is a CLI-level concern — ``pack_manager`` does not interpret or act
+on this flag.
 """
 
 from __future__ import annotations
 
-import sys
+import functools
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
+
+from charter.activation_engine import (
+    NoActivationRestrictionsError,
+    UnknownActivationIdError,
+    commit_plan,
+    plan_activation,
+    plan_deactivation,
+)
+from doctrine.artifact_kinds import (
+    CHARTER_KIND_TOKENS,
+    MISSION_TYPE_TOKEN,
+    ArtifactKind,
+    MissionTypeNotAnArtifactKind,
+)
 
 if TYPE_CHECKING:
     from charter.invocation_context import ProjectContext
 
 __all__ = [
     "ActivationResult",
+    "AvailableArtifact",
     "CharterPackManager",
     "MergeResult",
     "YAML_KEY_MAP",
 ]
+# ``AvailableArtifact`` is exported now that ``charter list --all`` (WP16)
+# imports it as a live ``src/`` consumer (it is the per-layer value object
+# returned by ``list_available_detailed``). Before WP16 the symbol-level
+# dead-code gate (tests/architectural/test_no_dead_symbols.py) required a live
+# importer before the symbol could be exported; WP16 is that importer.
 
 # ---------------------------------------------------------------------------
-# YAML_KEY_MAP
+# Canonical kind tables (derived from the WP01 resolver — no re-enumeration)
 # ---------------------------------------------------------------------------
 
-#: Maps CLI kind names (hyphenated) to ``config.yaml`` YAML keys.
-#: The ``mission-type`` → ``mission_type_activations`` mapping is the outlier:
-#: it does NOT follow the ``activated_*`` pattern.  All other kinds do.
+
+def _yaml_key_for_token(token: str) -> str:
+    """Return the ``config.yaml`` activation key for a charter kind *token*.
+
+    The ``mission-type`` token is the documented outlier
+    (``mission_type_activations``); every other kind follows the
+    ``activated_<plural>`` pattern, with the plural taken from the canonical
+    :class:`ArtifactKind` rather than a hand-maintained table (R-009 / CC-4).
+    """
+    if token == MISSION_TYPE_TOKEN:
+        return "mission_type_activations"
+    return f"activated_{ArtifactKind.from_operator_token(token).plural}"
+
+
+#: Maps charter kind operator tokens (hyphenated CLI surface) to ``config.yaml``
+#: activation keys. Derived from :data:`CHARTER_KIND_TOKENS` (the canonical kind
+#: universe, WP01) so no second kind enumeration is maintained here.
+#:
+#: The ``mission-type`` → ``mission_type_activations`` mapping is the outlier;
+#: all other kinds follow the ``activated_<plural>`` pattern.
 YAML_KEY_MAP: dict[str, str] = {
-    "mission-type": "mission_type_activations",
-    "directive": "activated_directives",
-    "tactic": "activated_tactics",
-    "styleguide": "activated_styleguides",
-    "toolguide": "activated_toolguides",
-    "paradigm": "activated_paradigms",
-    "procedure": "activated_procedures",
-    "agent-profile": "activated_agent_profiles",
-    "mission-step-contract": "activated_mission_step_contracts",
+    token: _yaml_key_for_token(token) for token in CHARTER_KIND_TOKENS
 }
+
+
+#: Layer segments scanned for artifact availability (FR-026), in precedence
+#: order. ``specify_cli`` resolves the org/project *roots* (C-008); this module
+#: only knows the directory-segment names.
+_LAYER_SEGMENTS: tuple[str, ...] = ("built-in", "org", "project")
+
+
+def _resolve_kind(token: str) -> ArtifactKind | None:
+    """Resolve a charter kind *token* to its :class:`ArtifactKind`.
+
+    Returns ``None`` for the ``mission-type`` token (which is part of the
+    charter kind universe but is *not* an :class:`ArtifactKind` member — it is
+    handled mission-tier). Raises :class:`ValueError` for any token outside the
+    canonical universe.
+
+    This is the **single** kind-resolution path in ``pack_manager`` (R-009 /
+    CC-4); the kind set is never re-declared here.
+    """
+    try:
+        return ArtifactKind.from_operator_token(token)
+    except MissionTypeNotAnArtifactKind:
+        return None
+
+
+def _scan_layout_for(kind: ArtifactKind | None) -> tuple[str, str, bool]:
+    """Return ``(base_dir, glob_pattern, layered)`` for a charter kind.
+
+    ``base_dir`` is relative to ``src/`` (the parent of the ``charter`` package
+    root). ``layered`` indicates whether the per-layer ``{built-in, org,
+    project}`` segment is appended under ``base_dir`` (FR-026); kinds that live
+    in a flat directory (``mission-type``) iterate that directory directly.
+
+    The glob pattern is taken from :attr:`ArtifactKind.glob_pattern` (WP01) for
+    artifact kinds — suffixes are never re-declared here (T041). ``mission-type``
+    is not an :class:`ArtifactKind`, so its flat-directory layout and ``*.yaml``
+    glob are spelled out explicitly.
+
+    Two base-dir outliers do not follow ``doctrine/<plural>``:
+
+    * ``mission-step-contract`` lives under
+      ``doctrine/missions/built_in_step_contracts`` (a flat directory, not a
+      ``built-in`` layer segment) — historically there is no org/project layer
+      for step contracts, so ``layered`` is ``False``.
+    * ``mission-type`` lives under ``doctrine/missions/mission_types`` (flat).
+
+    Templates (FR-025) are intentionally **not** handled here; ``template`` is
+    resolved mission-tier with mission-qualified IDs by WP18, which extends this
+    catalog via :meth:`list_available_detailed`.
+    """
+    if kind is None:
+        # mission-type: flat mission-tier directory, not an ArtifactKind.
+        return ("doctrine/missions/mission_types", "*.yaml", False)
+    if kind is ArtifactKind.MISSION_STEP_CONTRACT:
+        # Step contracts live in a single flat directory (no layer segment).
+        return ("doctrine/missions/built_in_step_contracts", kind.glob_pattern, False)
+    # The 7 standard artifact kinds: doctrine/<plural>/<layer>/ with the
+    # canonical glob from ArtifactKind.
+    return (f"doctrine/{kind.plural}", kind.glob_pattern, True)
+
+
+def _config_stem(path: Path) -> str:
+    """Return the config/file-stem ID for an artifact path.
+
+    The config stem is the filename with all extension suffixes removed
+    (e.g. ``001-architectural-integrity-standard.directive.yaml`` →
+    ``001-architectural-integrity-standard``). Mirrors
+    :func:`charter.kind_vocabulary._config_stem`.
+    """
+    return path.name.split(".", 1)[0]
+
+
+#: YAML field that holds an artifact's canonical ID, per kind. Most artifacts
+#: use ``id``; agent profiles use ``profile-id`` (matching the WP01 resolver and
+#: ``catalog._load_yaml_id_catalog``).
+_ID_FIELD_BY_KIND: dict[ArtifactKind, str] = {
+    ArtifactKind.AGENT_PROFILE: "profile-id",
+}
+
+
+def _declared_id(path: Path, kind: ArtifactKind | None, yaml: YAML) -> str | None:
+    """Return the artifact's declared ``id:`` (URN-side) field, or ``None``.
+
+    Reads the same field the WP01 resolver and ``catalog._extract_artifact_id``
+    read (``id`` for most kinds, ``profile-id`` for agent profiles). Returns
+    ``None`` when the file is unreadable, not a mapping, or carries no ``id:``.
+    """
+    id_field = _ID_FIELD_BY_KIND.get(kind, "id") if kind is not None else "id"
+    try:
+        data = yaml.load(path.read_text(encoding="utf-8")) or {}
+    except (OSError, YAMLError, TypeError):
+        return None
+    if isinstance(data, dict):
+        raw_id = str(data.get(id_field, "")).strip()
+        if raw_id:
+            return raw_id
+    return None
+
 
 # ---------------------------------------------------------------------------
 # Value objects
 # ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class AvailableArtifact:
+    """A single available artifact, annotated by its source layer (FR-026).
+
+    Attributes
+    ----------
+    artifact_id:
+        The artifact's canonical ``id:`` value (R-011-D), e.g.
+        ``"001-architectural-integrity-standard"``.
+    layer:
+        The source layer the artifact was discovered in: ``"built-in"``,
+        ``"org"``, or ``"project"``.
+    """
+
+    artifact_id: str
+    layer: str
 
 
 @dataclass
@@ -98,20 +269,8 @@ class MergeResult:
 
 _DEFAULT_PACK_PATH = Path(__file__).parent / "packs" / "default.yaml"
 
-#: Maps CLI kind names to (doctrine_relative_dir, filename_suffix) tuples.
-#: The ``relative_dir`` is relative to ``src/`` (i.e. the parent of the
-#: ``charter`` package root).
-_KIND_TO_DOCTRINE_DIR: dict[str, tuple[str, str]] = {
-    "directive": ("doctrine/directives/built-in", ".directive.yaml"),
-    "tactic": ("doctrine/tactics/built-in", ".tactic.yaml"),
-    "styleguide": ("doctrine/styleguides/built-in", ".styleguide.yaml"),
-    "toolguide": ("doctrine/toolguides/built-in", ".toolguide.yaml"),
-    "paradigm": ("doctrine/paradigms/built-in", ".paradigm.yaml"),
-    "procedure": ("doctrine/procedures/built-in", ".procedure.yaml"),
-    "agent-profile": ("doctrine/agent_profiles/built-in", ".agent.yaml"),
-    "mission-type": ("doctrine/missions/mission_types", ".yaml"),
-    "mission-step-contract": ("doctrine/missions/built_in_step_contracts", ".step-contract.yaml"),
-}
+#: Doctrine is installed alongside the charter package in ``src/``.
+_SRC_ROOT = Path(__file__).parent.parent  # src/charter/.. → src/
 
 
 def _load_config(config_path: Path) -> tuple[Any, YAML]:
@@ -152,7 +311,7 @@ def _save_config(config_path: Path, data: Any, yaml: YAML) -> None:
 
 def _load_default_pack() -> dict[str, list[str]]:
     """Load the built-in default pack IDs from the shipped default.yaml."""
-    import yaml as _yaml  # type: ignore[import-untyped]  # PyYAML stubs optional
+    import yaml as _yaml
 
     with _DEFAULT_PACK_PATH.open("r", encoding="utf-8") as fh:
         raw: Any = _yaml.safe_load(fh)
@@ -167,11 +326,25 @@ def _load_default_pack() -> dict[str, list[str]]:
 
 
 class CharterPackManager:
-    """Manages activation/deactivation of doctrine artifacts in a project's charter pack.
+    """Manages activation/deactivation and availability of doctrine artifacts.
 
-    All methods read from and write to ``.kittify/config.yaml`` using
-    ``ruamel.yaml`` round-trip mode (comments and formatting preserved).
+    All mutating methods read from and write to ``.kittify/config.yaml`` using
+    ``ruamel.yaml`` round-trip mode (comments and formatting preserved), and
+    delegate the validate/plan/commit logic to :mod:`charter.activation_engine`.
     """
+
+    def _require_kind(self, kind: str) -> ArtifactKind | None:
+        """Validate *kind* against the canonical universe.
+
+        Returns the :class:`ArtifactKind` (or ``None`` for ``mission-type``).
+        Raises :class:`ValueError` with the legacy ``Unknown activation kind``
+        message for tokens outside the charter kind universe.
+        """
+        if kind not in YAML_KEY_MAP:
+            raise ValueError(
+                f"Unknown activation kind '{kind}'. Valid kinds: {sorted(YAML_KEY_MAP)}"
+            )
+        return _resolve_kind(kind)
 
     def activate(
         self,
@@ -179,25 +352,33 @@ class CharterPackManager:
         kind: str,
         artifact_id: str,
         *,
-        cascade: bool = False,
+        cascade: bool = False,  # noqa: ARG002 — kept for caller API stability
+        layer_roots: dict[str, Path] | None = None,
     ) -> ActivationResult:
         """Activate ``artifact_id`` for ``kind`` in the project charter pack.
 
-        If the kind has no explicit activation set in ``config.yaml``, the
-        default pack is materialized first (all built-in IDs for the kind are
-        written), then ``artifact_id`` is appended.
+        Thin wrapper over :func:`charter.activation_engine.plan_activation` +
+        :func:`~charter.activation_engine.commit_plan` (WP10). The engine
+        validates the artifact ID *before* computing any post-state and
+        materializes the default pack into the plan when the kind has no
+        explicit activation set (FR-021); this method performs the single
+        ``commit_plan`` write.
 
         Parameters
         ----------
         ctx:
             Project context providing access to the repository root.
         kind:
-            CLI kind name (e.g. ``"directive"``, ``"mission-type"``).
+            Charter kind operator token (e.g. ``"directive"``,
+            ``"mission-type"``).
         artifact_id:
-            Artifact ID to activate (e.g. ``"001-architectural-integrity-standard"``).
+            Artifact ID to activate.
         cascade:
-            Accepted but DRG edge traversal is deferred to a follow-on mission.
-            A warning is emitted when ``True``.
+            Accepted for signature stability; DRG edge traversal is handled by
+            the CLI-level ``charter cascade`` command. No warning is emitted.
+        layer_roots:
+            Optional org/project doctrine roots, passed as data by CLI callers.
+            When omitted, validation remains built-in-only for compatibility.
 
         Returns
         -------
@@ -207,54 +388,37 @@ class CharterPackManager:
         Raises
         ------
         ValueError
-            If ``kind`` is not in ``YAML_KEY_MAP``.
+            If ``kind`` is not in the canonical charter kind universe, or the
+            artifact ID is unknown (the engine raises the typed
+            :class:`~charter.activation_engine.UnknownActivationIdError`, a
+            ``ValueError`` subclass).
         """
+        self._require_kind(kind)
+        yaml_key = YAML_KEY_MAP[kind]
+
         repo_root = ctx.require_repo_root()
         config_path = repo_root / ".kittify" / "config.yaml"
-
-        if kind not in YAML_KEY_MAP:
-            raise ValueError(f"Unknown activation kind '{kind}'. Valid kinds: {sorted(YAML_KEY_MAP)}")
-        if artifact_id not in self.list_available(ctx, kind):
-            raise ValueError(f"Unknown artifact ID '{artifact_id}' for kind '{kind}'. Run `charter list --show-available` to inspect available IDs.")
-
-        yaml_key = YAML_KEY_MAP[kind]
         data, yaml_inst = _load_config(config_path)
-        result = ActivationResult()
 
-        # Materialize from default pack if this kind is absent
-        current_raw = _activation_list_or_error(data, yaml_key)
-        if current_raw is None:
-            default_pack = _load_default_pack()
-            default_ids: list[str] = default_pack.get(yaml_key, [])
-            data[yaml_key] = list(default_ids)
-            current_raw = data[yaml_key]
-            result.warnings.append(f"Kind '{kind}' had no explicit activation set. Initialized from default pack ({len(default_ids)} entries).")
+        available = self.list_available(ctx, kind, layer_roots=layer_roots)
+        default_pack = _load_default_pack()
+        default_ids = default_pack.get(yaml_key, [])
 
-        current: list[str] = [str(item) for item in current_raw]
-        if artifact_id not in current:
-            current.append(artifact_id)
-            data[yaml_key] = current
-            result.activated.append(artifact_id)
-        else:
-            result.warnings.append(f"'{artifact_id}' is already activated for kind '{kind}'.")
+        # plan_activation validates BEFORE computing any post-state (NFR-003);
+        # on an unknown ID it raises UnknownActivationIdError and no write
+        # happens.
+        plan = plan_activation(
+            kind,
+            artifact_id,
+            yaml_key=yaml_key,
+            available_ids=available,
+            config_data=data,
+            default_ids=default_ids,
+        )
 
-        # FR-006: warn about non-cascaded cross-kind dependencies (static hint;
-        # DRG traversal deferred to follow-on mission per FR-007).
-        if not cascade and result.activated:
-            result.warnings.append(
-                f"'{artifact_id}' may reference artifacts of other kinds that were "
-                "not activated. Run `charter pack consistency-check` to verify "
-                "coherence, or re-run with `--cascade` to activate referenced kinds "
-                "automatically (cascade execution deferred to a follow-on mission)."
-            )
-        if cascade:
-            result.warnings.append(
-                "cascade=True requested but DRG edge traversal is not yet implemented "
-                "(deferred to follow-on mission). Manual activation of cross-kind "
-                "dependencies may be required."
-            )
+        result = ActivationResult(activated=list(plan.activated), warnings=list(plan.warnings))
 
-        _save_config(config_path, data, yaml_inst)
+        commit_plan(config_path, data, plan, save=functools.partial(_save_config, yaml=yaml_inst))
         return result
 
     def deactivate(
@@ -263,21 +427,32 @@ class CharterPackManager:
         kind: str,
         artifact_id: str,
         *,
-        cascade: bool = False,
+        cascade: bool = False,  # noqa: ARG002 — kept for caller API stability
+        layer_roots: dict[str, Path] | None = None,  # noqa: ARG002 — symmetry with activate
     ) -> ActivationResult:
         """Deactivate ``artifact_id`` for ``kind`` in the project charter pack.
+
+        Thin wrapper over :func:`charter.activation_engine.plan_deactivation` +
+        :func:`~charter.activation_engine.commit_plan` (WP10). A kind with no
+        explicit activation set has no known baseline, so the engine raises a
+        typed :class:`~charter.activation_engine.NoActivationRestrictionsError`
+        (the CLI, WP12, surfaces the "run upgrade first" guidance) — there is no
+        ``sys.exit`` here.
 
         Parameters
         ----------
         ctx:
             Project context providing access to the repository root.
         kind:
-            CLI kind name (e.g. ``"directive"``).
+            Charter kind operator token (e.g. ``"directive"``).
         artifact_id:
             Artifact ID to deactivate.
         cascade:
-            Accepted but DRG shared-reference analysis is deferred.
-            A warning is emitted when ``True``.
+            Accepted for signature stability; DRG shared-reference analysis is
+            handled by the CLI-level ``charter cascade`` command. No warning is emitted.
+        layer_roots:
+            Accepted for caller symmetry with ``activate``. Deactivation validates
+            against the current activation list, not the availability catalog.
 
         Returns
         -------
@@ -287,59 +462,40 @@ class CharterPackManager:
         Raises
         ------
         ValueError
-            If ``kind`` is not in ``YAML_KEY_MAP``.
-        SystemExit(1)
-            If the kind has no explicit activation set (None-state). The
-            operator must run ``spec-kitty upgrade`` first.
+            If ``kind`` is not in the canonical charter kind universe.
+        NoActivationRestrictionsError
+            If the kind has no explicit activation set (the engine raises this;
+            the CLI surfaces the upgrade guidance).
         """
+        self._require_kind(kind)
+        yaml_key = YAML_KEY_MAP[kind]
+
         repo_root = ctx.require_repo_root()
         config_path = repo_root / ".kittify" / "config.yaml"
-
-        if kind not in YAML_KEY_MAP:
-            raise ValueError(f"Unknown activation kind '{kind}'. Valid kinds: {sorted(YAML_KEY_MAP)}")
-
-        yaml_key = YAML_KEY_MAP[kind]
         data, yaml_inst = _load_config(config_path)
-        result = ActivationResult()
 
-        current_raw = _activation_list_or_error(data, yaml_key)
-        if current_raw is None:
-            # None-state: the project has not been upgraded to the pack model.
-            # Modifying individual activations is unsafe without a known baseline.
-            print(
-                f"Error: Kind '{kind}' has no explicit activation set. "
-                f"Run 'spec-kitty upgrade' to initialize the default pack "
-                f"before modifying individual activations.",
-                file=sys.stderr,
-            )
-            sys.exit(1)
+        plan = plan_deactivation(
+            kind,
+            artifact_id,
+            yaml_key=yaml_key,
+            config_data=data,
+        )
 
-        current: list[str] = [str(item) for item in current_raw]
+        result = ActivationResult(deactivated=list(plan.deactivated), warnings=list(plan.warnings))
 
-        if artifact_id not in current:
-            result.warnings.append(f"'{artifact_id}' is not in the activation set for kind '{kind}'. Nothing to deactivate.")
+        # No-op removal (ID not present): nothing to write, leave config bytes
+        # untouched.
+        if not plan.deactivated:
             return result
 
-        current.remove(artifact_id)
-        data[yaml_key] = current
-        result.deactivated.append(artifact_id)
-
-        # Cascade: DRG shared-reference analysis deferred to follow-on mission.
-        if cascade:
-            result.warnings.append(
-                "cascade=True requested but DRG shared-reference analysis is not yet "
-                "implemented (deferred to follow-on mission). Cross-kind cascade "
-                "deactivation was skipped."
-            )
-
-        _save_config(config_path, data, yaml_inst)
+        commit_plan(config_path, data, plan, save=functools.partial(_save_config, yaml=yaml_inst))
         return result
 
     def list_activated(
         self,
         ctx: ProjectContext,
     ) -> dict[str, frozenset[str] | None]:
-        """Return activated artifact IDs keyed by CLI kind name.
+        """Return activated artifact IDs keyed by charter kind token.
 
         A ``None`` value means the kind has no explicit activation set
         in ``config.yaml`` (the project has not yet been upgraded to
@@ -353,7 +509,7 @@ class CharterPackManager:
         Returns
         -------
         dict[str, frozenset[str] | None]
-            Mapping of CLI kind name to activated IDs (or ``None``).
+            Mapping of charter kind token to activated IDs (or ``None``).
         """
         repo_root = ctx.require_repo_root()
         config_path = repo_root / ".kittify" / "config.yaml"
@@ -368,52 +524,146 @@ class CharterPackManager:
                 result[kind] = frozenset(str(item) for item in raw)
         return result
 
-    def list_available(
+    def _scan_layer_dirs(
         self,
-        ctx: ProjectContext,  # noqa: ARG002 — reserved for future org-pack support
-        kind: str,
-    ) -> frozenset[str]:
-        """Return all artifact IDs available in doctrine for ``kind``.
+        kind_token: str,
+        *,
+        layer_roots: dict[str, Path] | None,
+    ) -> list[tuple[str, Path]]:
+        """Return ``(layer, directory)`` pairs to scan for *kind_token*.
 
-        Scans the built-in doctrine filesystem for files matching the
-        kind's suffix pattern and returns their stem IDs.
+        The built-in layer is rooted under the installed doctrine package
+        (``src/doctrine``). Org/project roots are supplied **as data** (C-008):
+        each value in *layer_roots* is the doctrine root for that layer, and the
+        kind's base dir is resolved beneath it. Non-existent directories are
+        skipped so a layer that is simply not present contributes nothing.
+        """
+        kind = _resolve_kind(kind_token)
+        base_dir, _glob, layered = _scan_layout_for(kind)
+        roots: dict[str, Path] = {"built-in": _SRC_ROOT}
+        if layer_roots:
+            roots.update(layer_roots)
+
+        dirs: list[tuple[str, Path]] = []
+        for layer in _LAYER_SEGMENTS:
+            root = roots.get(layer)
+            if root is None:
+                continue
+            if layered:
+                candidate = root / base_dir / layer
+            elif layer == "built-in":
+                # Flat-directory kinds (mission-type / step contracts) only have
+                # the built-in layer.
+                candidate = root / base_dir
+            else:
+                continue
+            if candidate.is_dir():
+                dirs.append((layer, candidate))
+        return dirs
+
+    def list_available_detailed(
+        self,
+        ctx: ProjectContext,  # noqa: ARG002 — kept for signature symmetry; roots are data (C-008)
+        kind: str,
+        *,
+        layer_roots: dict[str, Path] | None = None,
+    ) -> list[AvailableArtifact]:
+        """Return available artifacts for *kind*, annotated by source layer.
+
+        Scans the built-in layer plus any caller-supplied org / project doctrine
+        roots (FR-026), reading each artifact's ``id:`` field (R-011-D) rather
+        than its filename stem. Org/project roots are passed in **as data**
+        (C-008); this method never imports ``specify_cli`` and performs no root
+        resolution of its own.
 
         Parameters
         ----------
         ctx:
-            Project context (unused for filesystem scanning but kept for
-            consistency and future org-pack support).
+            Project context (unused for scanning; roots are passed as data).
         kind:
-            CLI kind name (e.g. ``"directive"``).
+            Charter kind operator token (e.g. ``"directive"``).
+        layer_roots:
+            Optional mapping of layer name (``"org"`` / ``"project"``) to the
+            resolved doctrine root for that layer. When omitted, only the
+            built-in layer is scanned (backward compatible).
 
         Returns
         -------
-        frozenset[str]
-            Set of available artifact IDs.  Empty if the doctrine directory
-            does not exist.
+        list[AvailableArtifact]
+            One entry per discovered artifact, with its operator-facing
+            config-stem ID (the form used in ``config.yaml`` activation lists,
+            e.g. ``"003-decision-documentation-requirement"``) and its source
+            layer. Files that do not parse or carry no ``id:`` field are skipped
+            — R-011-D id-awareness: the catalog validates the declared ``id:``
+            rather than blindly trusting the filename. When the same ID appears
+            in multiple layers, each layer yields its own entry (the caller
+            decides precedence/rendering).
 
         Raises
         ------
         ValueError
-            If ``kind`` is not in ``_KIND_TO_DOCTRINE_DIR``.
+            If ``kind`` is not in the canonical charter kind universe.
         """
-        if kind not in _KIND_TO_DOCTRINE_DIR:
-            raise ValueError(f"Unknown activation kind '{kind}'. Valid kinds: {sorted(_KIND_TO_DOCTRINE_DIR)}")
+        kind_enum = self._require_kind(kind)
+        yaml = YAML(typ="safe")
+        _base_dir, glob, _layered = _scan_layout_for(kind_enum)
+        if not glob:
+            # template kind has no glob; resolved mission-tier by WP18.
+            return []
 
-        rel_dir, suffix = _KIND_TO_DOCTRINE_DIR[kind]
-        # Doctrine is installed alongside the charter package in src/
-        src_root = Path(__file__).parent.parent  # src/charter/.. → src/
-        doctrine_dir = src_root / rel_dir
+        entries: list[AvailableArtifact] = []
+        for layer, scan_dir in self._scan_layer_dirs(kind, layer_roots=layer_roots):
+            for yaml_file in sorted(scan_dir.rglob(glob)):
+                # R-011-D: confirm the artifact declares an ``id:`` (parse it)
+                # rather than trusting the filename; surface the operator-facing
+                # config-stem ID that ``config.yaml`` activation lists use.
+                if _declared_id(yaml_file, kind_enum, yaml) is None:
+                    continue
+                entries.append(
+                    AvailableArtifact(artifact_id=_config_stem(yaml_file), layer=layer)
+                )
+        return entries
 
-        if not doctrine_dir.is_dir():
-            return frozenset()
+    def list_available(
+        self,
+        ctx: ProjectContext,
+        kind: str,
+        *,
+        layer_roots: dict[str, Path] | None = None,
+    ) -> frozenset[str]:
+        """Return the set of available artifact IDs for *kind* across layers.
 
-        ids: set[str] = set()
-        for yaml_file in doctrine_dir.rglob(f"*{suffix}"):
-            # Strip the suffix to get the ID
-            stem = yaml_file.name[: -len(suffix)]
-            ids.add(stem)
-        return frozenset(ids)
+        Backward-compatible flat view over :meth:`list_available_detailed`:
+        returns the union of artifact ``id:`` values across the built-in, org,
+        and project layers (FR-026). Existing callers
+        (``consistency_check``, ``charter list --show-available``) keep the
+        ``frozenset[str]`` contract; ``layer_roots`` is keyword-only with a safe
+        default so the built-in-only call site is unchanged.
+
+        Parameters
+        ----------
+        ctx:
+            Project context (roots are passed as data, C-008).
+        kind:
+            Charter kind operator token (e.g. ``"directive"``).
+        layer_roots:
+            Optional mapping of org/project layer name to its doctrine root.
+
+        Returns
+        -------
+        frozenset[str]
+            Available artifact IDs (from each artifact's ``id:`` field). Empty
+            when no scannable directory exists for the kind.
+
+        Raises
+        ------
+        ValueError
+            If ``kind`` is not in the canonical charter kind universe.
+        """
+        return frozenset(
+            entry.artifact_id
+            for entry in self.list_available_detailed(ctx, kind, layer_roots=layer_roots)
+        )
 
     def merge_defaults(
         self,
@@ -468,3 +718,8 @@ class CharterPackManager:
             _save_config(config_path, data, yaml_inst)
 
         return result
+
+
+# Re-export the engine's structured errors for callers that import them from
+# ``pack_manager`` (the CLI, WP12, catches these to surface guidance).
+__all__ += ["NoActivationRestrictionsError", "UnknownActivationIdError"]

@@ -299,7 +299,18 @@ def test_procedure_repository_rejects_step_level_inline_refs(tmp_path: Path) -> 
     assert HINT_PATTERN.match(err.migration_hint)
 
 
-def test_agent_profile_repository_rejects_inline_refs(tmp_path: Path) -> None:
+def test_agent_profile_repository_surfaces_inline_refs_as_skip(tmp_path: Path) -> None:
+    """Agent-profile inline-ref rejection is a *surfaced skip*, not a raise (WP01).
+
+    Unlike the other doctrine repositories (which still propagate the raise so
+    the author fixes the YAML), the agent-profile loader catches the inline-ref
+    rejection in ``_load_layer`` and records it via ``skipped_profiles()`` so
+    valid sibling profiles keep loading and the doctor ``doctor doctrine`` health
+    surface can report ``healthy=false`` without blanking the surface (#1584
+    false-healthy class). A general caller never silently returns a wrong/empty
+    result — the skip is loud and carries the readable error (operator
+    preference: loud over hidden).
+    """
     from doctrine.agent_profiles.repository import AgentProfileRepository
 
     built_in_dir = tmp_path / "agent_profiles_shipped"
@@ -312,7 +323,17 @@ def test_agent_profile_repository_rejects_inline_refs(tmp_path: Path) -> None:
         "applies_to: [software-dev]\n",
     )
 
-    with pytest.raises(InlineReferenceRejectedError) as excinfo:
-        AgentProfileRepository(built_in_dir=built_in_dir, project_dir=None)
-    assert excinfo.value.artifact_kind == "agent_profile"
-    assert excinfo.value.forbidden_field == "applies_to"
+    # The constructor no longer raises; the invalid profile becomes a skip.
+    repo = AgentProfileRepository(built_in_dir=built_in_dir, project_dir=None)
+
+    skipped = repo.skipped_profiles()
+    bad = [s for s in skipped if s.path.endswith("bad.agent.yaml")]
+    assert bad, "inline-ref profile must be surfaced as a skip"
+    skip = bad[0]
+    # The load-layer skip has the YAML in hand, so profile_id is populated.
+    assert skip.profile_id == "bad-profile"
+    # The error summary names the forbidden field + a migration hint.
+    assert "applies_to" in skip.error_summary
+    assert "graph.yaml" in skip.error_summary
+    # The invalid profile is not loaded as a usable profile.
+    assert repo.get("bad-profile") is None

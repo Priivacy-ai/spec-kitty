@@ -27,6 +27,13 @@ from spec_kitty_events.mission_next import (
     NextStepAutoCompletedPayload,
     NextStepIssuedPayload,
 )
+# WP04 (org-doctrine-profile-integrity-closeout, T014): these two payloads
+# are imported for use as annotations on the emitter Protocol/impl below
+# (``emit_significance_evaluated`` / ``emit_decision_timeout_expired``).
+# They are intentionally NOT re-exported in ``__all__`` — consumers resolve
+# the canonical payloads from ``significance.py`` directly. Keeping these
+# imports (annotation-only) while dropping them from ``__all__`` clears the
+# dead-symbol gate without breaking any annotation.
 from runtime.next._internal_runtime.significance import (
     SignificanceEvaluatedPayload,
     TimeoutExpiredPayload,
@@ -47,8 +54,6 @@ __all__ = [
     "MissionRunStartedPayload",
     "NextStepAutoCompletedPayload",
     "NextStepIssuedPayload",
-    "SignificanceEvaluatedPayload",
-    "TimeoutExpiredPayload",
     "RuntimeEventEmitter",
     "NullEmitter",
     "JsonlEventLog",

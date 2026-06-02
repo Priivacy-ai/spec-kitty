@@ -7,7 +7,6 @@ roles:
 applies_to_languages:
   - javascript
   - typescript
-specializes-from: implementer-ivan
 capabilities:
   - nodejs-http-api-implementation
   - async-promise-discipline

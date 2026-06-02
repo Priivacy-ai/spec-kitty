@@ -1,0 +1,381 @@
+"""Pure plan/commit seam for charter activation (FR-011, FR-012, FR-021, NFR-003).
+
+This module makes "validation provably precedes the single config write" a
+*structural* property instead of an implementation detail. The previous
+``CharterPackManager.activate`` body (``pack_manager.py``) interleaved
+validation, default-pack materialization, list mutation, and the single
+``_save_config`` write. That made the NFR-003 invariant ("config bytes
+unchanged after any activation failure") true only by careful ordering and
+hard to test in isolation.
+
+The seam splits that into two functions:
+
+* :func:`plan_activation` / :func:`plan_deactivation` — **pure**. They read the
+  already-loaded config data, validate the kind + artifact ID (raising a
+  structured :class:`UnknownActivationIdError` *before* computing any
+  post-state), and return an :class:`ActivationPlan` describing the in-memory
+  post-state. They never write. Default-pack materialization is computed *into*
+  the plan, so a failing plan never stages a half-materialized list.
+* :func:`commit_plan` — performs the single ``_save_config`` write applying
+  ``plan.new_list``. Nothing is written when there is no plan (a raised
+  ``plan_*`` never reaches ``commit_plan``).
+
+Consumers
+---------
+* ``pack_manager`` (WP09) will thin ``activate``/``deactivate`` to call this
+  engine. The :class:`ActivationPlan` and the structured error are the seam
+  surface.
+* The CLI (WP12) renders ``plan.warnings`` and the structured error message.
+
+Layering
+--------
+Charter layer: this module may import ``doctrine`` and ``kernel`` but never
+``specify_cli`` (C-001). The available-ID universe and the loaded config data
+are passed in **as data** (C-008); this module performs no filesystem
+discovery and no ``config.yaml`` load of its own. The single write in
+:func:`commit_plan` delegates to the caller-supplied ``save`` callable so the
+engine stays free of an I/O dependency on ``pack_manager`` internals.
+
+FR-021 (backward compatibility)
+-------------------------------
+A project with **no explicit activation restrictions** for a kind (the YAML key
+is absent — the ``None``-state) keeps behaving exactly as before PR #1535:
+:func:`plan_activation` materializes the supplied default-pack list into the
+plan first, then appends the requested ID, and records the same initialization
+warning. Deactivation against a ``None``-state kind is reported as a
+structured :class:`NoActivationRestrictionsError` (the CLI surfaces the
+"run upgrade first" guidance) rather than silently fabricating a list.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+__all__ = [
+    "ActivationPlan",
+    "NoActivationRestrictionsError",
+    "UnknownActivationIdError",
+    "commit_plan",
+    "plan_activation",
+    "plan_deactivation",
+]
+
+
+# ---------------------------------------------------------------------------
+# Structured errors
+# ---------------------------------------------------------------------------
+
+
+class UnknownActivationIdError(ValueError):
+    """Raised when an activation artifact ID is unknown for its kind (FR-012).
+
+    The message names the kind, the missing ID, and the recovery path so the
+    error is actionable without grepping (Contract C3.1). The structured
+    attributes let the CLI (WP12) render the same facts without re-parsing the
+    string.
+    """
+
+    def __init__(self, kind: str, artifact_id: str) -> None:
+        self.kind = kind
+        self.artifact_id = artifact_id
+        super().__init__(
+            f"Unknown {kind} ID {artifact_id!r}. "
+            f"No artifact with that ID is available for kind {kind!r}. "
+            f"Run `charter list --show-available` to inspect available IDs, "
+            f"or `doctor doctrine` to verify the doctrine corpus is intact."
+        )
+
+
+class NoActivationRestrictionsError(RuntimeError):
+    """Raised when deactivating a kind that has no explicit activation set.
+
+    A kind with no explicit activation set (the YAML key is absent) has no
+    known baseline, so removing a single ID would be unsafe. The operator must
+    initialize the default pack first. Replaces the legacy ``sys.exit(1)`` in
+    ``pack_manager.deactivate`` so the engine never touches process state
+    (the CLI surfaces the guidance).
+    """
+
+    def __init__(self, kind: str) -> None:
+        self.kind = kind
+        super().__init__(
+            f"Kind {kind!r} has no explicit activation set. "
+            f"Run `spec-kitty upgrade` to initialize the default pack before "
+            f"modifying individual activations."
+        )
+
+
+# ---------------------------------------------------------------------------
+# ActivationPlan value object (data model §6)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ActivationPlan:
+    """In-memory description of a single activation/deactivation post-state.
+
+    Produced purely by :func:`plan_activation` / :func:`plan_deactivation` and
+    applied (single write) by :func:`commit_plan`. The plan carries the *full*
+    post-state list (``new_list``) — including any default-pack materialization
+    — so the commit is a single assignment and a failing plan never leaves a
+    half-materialized list behind (NFR-003).
+
+    Attributes
+    ----------
+    yaml_key:
+        The resolved ``config.yaml`` key the plan targets (e.g.
+        ``"activated_directives"``).
+    new_list:
+        The post-state list to write for ``yaml_key``.
+    warnings:
+        Operator-facing warnings (default-pack initialization, no-cascade
+        skipped references (FR-013), mission-type step removal). The CLU/CLI
+        renders these for any kind without special-casing.
+    cascade_targets:
+        Cascade activation/deactivation targets keyed by kind → IDs. Empty in
+        WP10 (the cascade engine lands in WP11); the field exists so the seam
+        shape is stable for WP11 and the CLI (WP12) needs no shape change.
+    activated:
+        IDs newly added by this plan (empty when the ID was already present).
+    deactivated:
+        IDs removed by this plan (empty for an activation plan or a no-op
+        removal).
+    """
+
+    yaml_key: str
+    new_list: list[str]
+    warnings: list[str] = field(default_factory=list)
+    cascade_targets: dict[str, list[str]] = field(default_factory=dict)
+    activated: list[str] = field(default_factory=list)
+    deactivated: list[str] = field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Pure helpers
+# ---------------------------------------------------------------------------
+
+
+def _current_list(config_data: Mapping[str, Any], yaml_key: str) -> list[str] | None:
+    """Return the current activation list for *yaml_key*, or ``None`` if absent.
+
+    ``None`` is the no-restrictions / unupgraded state (FR-021). A present but
+    non-list value is a malformed config and fails closed.
+    """
+    if yaml_key not in config_data:
+        return None
+    raw = config_data[yaml_key]
+    if raw is None:
+        return None
+    if not isinstance(raw, list):
+        raise ValueError(
+            f".kittify/config.yaml key {yaml_key!r} must be a list, "
+            f"got {type(raw).__name__}."
+        )
+    return [str(item) for item in raw]
+
+
+# ---------------------------------------------------------------------------
+# Pure planning (no writes)
+# ---------------------------------------------------------------------------
+
+
+def plan_activation(
+    kind: str,
+    artifact_id: str,
+    *,
+    yaml_key: str,
+    available_ids: Iterable[str],
+    config_data: Mapping[str, Any],
+    default_ids: Iterable[str] = (),
+    cascade_scope: Any = None,  # noqa: ANN401, ARG001 - WP11 CascadeScope; threaded, not consumed here
+) -> ActivationPlan:
+    """Compute the post-state for activating *artifact_id* — purely (FR-011/012).
+
+    Validation order is the structural NFR-003 guarantee: the artifact ID is
+    checked against *available_ids* **before** any post-state is computed. On an
+    unknown ID an :class:`UnknownActivationIdError` is raised and **no plan is
+    returned**, so :func:`commit_plan` is never reached and nothing is written.
+
+    FR-021: when the kind has no explicit activation set (``yaml_key`` absent in
+    ``config_data``), the supplied *default_ids* are materialized into the plan
+    first, mirroring the pre-PR-#1535 behavior, then *artifact_id* is appended.
+
+    Parameters
+    ----------
+    kind:
+        CLI kind token (e.g. ``"directive"``), used only for error/warning text.
+    artifact_id:
+        The config-stem artifact ID to activate.
+    yaml_key:
+        Resolved ``config.yaml`` key for *kind* (caller supplies it as data).
+    available_ids:
+        The universe of valid artifact IDs for *kind* (caller-discovered).
+    config_data:
+        The already-loaded ``config.yaml`` mapping (read-only here).
+    default_ids:
+        Default-pack IDs for *kind*, materialized when the kind is in the
+        no-restrictions state (FR-021).
+    cascade_scope:
+        Reserved for the WP11 cascade engine; threaded but not consumed here
+        (never collapsed to a bool — Contract C3.3).
+
+    Returns
+    -------
+    ActivationPlan
+        The full in-memory post-state.
+
+    Raises
+    ------
+    UnknownActivationIdError
+        If *artifact_id* is not in *available_ids* (raised before any post-state
+        is computed — FR-011/012, NFR-003).
+    ValueError
+        If ``config_data[yaml_key]`` is present but not a list (malformed
+        config, fail-closed).
+    """
+    # FR-011/012/NFR-003: validate BEFORE computing any post-state.
+    if artifact_id not in set(available_ids):
+        raise UnknownActivationIdError(kind, artifact_id)
+
+    warnings: list[str] = []
+    current = _current_list(config_data, yaml_key)
+
+    if current is None:
+        # FR-021: no explicit activation set — materialize the default pack
+        # into the plan (not onto disk) before appending.
+        materialized = list(default_ids)
+        warnings.append(
+            f"Kind {kind!r} had no explicit activation set. "
+            f"Initialized from default pack ({len(materialized)} entries)."
+        )
+        new_list = list(materialized)
+    else:
+        new_list = list(current)
+
+    activated: list[str] = []
+    if artifact_id in new_list:
+        warnings.append(f"{artifact_id!r} is already activated for kind {kind!r}.")
+    else:
+        new_list.append(artifact_id)
+        activated.append(artifact_id)
+
+    return ActivationPlan(
+        yaml_key=yaml_key,
+        new_list=new_list,
+        warnings=warnings,
+        activated=activated,
+    )
+
+
+def plan_deactivation(
+    kind: str,
+    artifact_id: str,
+    *,
+    yaml_key: str,
+    config_data: Mapping[str, Any],
+    cascade_scope: Any = None,  # noqa: ANN401, ARG001 - WP11 CascadeScope; threaded, not consumed here
+) -> ActivationPlan:
+    """Compute the post-state for deactivating *artifact_id* — purely.
+
+    Mirrors :func:`plan_activation` on the removal side. A kind with no explicit
+    activation set has no known baseline, so this raises
+    :class:`NoActivationRestrictionsError` (no write) instead of fabricating a
+    list. Removing an ID that is not present is a no-op plan (the ``new_list``
+    equals the current list) with an explanatory warning.
+
+    Parameters
+    ----------
+    kind:
+        CLI kind token, used only for error/warning text.
+    artifact_id:
+        The config-stem artifact ID to deactivate.
+    yaml_key:
+        Resolved ``config.yaml`` key for *kind*.
+    config_data:
+        The already-loaded ``config.yaml`` mapping (read-only here).
+    cascade_scope:
+        Reserved for the WP11 cascade engine; threaded but not consumed here.
+
+    Returns
+    -------
+    ActivationPlan
+        The full in-memory post-state.
+
+    Raises
+    ------
+    NoActivationRestrictionsError
+        If *kind* has no explicit activation set (``yaml_key`` absent).
+    ValueError
+        If ``config_data[yaml_key]`` is present but not a list.
+    """
+    current = _current_list(config_data, yaml_key)
+    if current is None:
+        raise NoActivationRestrictionsError(kind)
+
+    warnings: list[str] = []
+    new_list = list(current)
+    deactivated: list[str] = []
+
+    if artifact_id in new_list:
+        new_list.remove(artifact_id)
+        deactivated.append(artifact_id)
+    else:
+        warnings.append(
+            f"{artifact_id!r} is not in the activation set for kind {kind!r}. "
+            f"Nothing to deactivate."
+        )
+
+    return ActivationPlan(
+        yaml_key=yaml_key,
+        new_list=new_list,
+        warnings=warnings,
+        deactivated=deactivated,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Single-write commit
+# ---------------------------------------------------------------------------
+
+
+def commit_plan(
+    config_path: Path,
+    config_data: dict[str, Any],
+    plan: ActivationPlan,
+    *,
+    save: Callable[[Path, dict[str, Any]], None],
+) -> ActivationPlan:
+    """Apply *plan* to *config_data* and persist it with a single write.
+
+    The caller passes the *same* config mapping it handed to ``plan_*`` (so
+    round-trip metadata such as ruamel comments is preserved) and a ``save``
+    callable that performs the actual ``_save_config`` write. This is the
+    **only** write path: ``plan_*`` raised before producing a plan means
+    ``commit_plan`` is never called and nothing is written (NFR-003).
+
+    Parameters
+    ----------
+    config_path:
+        Destination ``config.yaml`` path (passed through to ``save``).
+    config_data:
+        The mutable config mapping; ``plan.yaml_key`` is assigned
+        ``plan.new_list`` in place before the write.
+    plan:
+        The plan produced by :func:`plan_activation` / :func:`plan_deactivation`.
+    save:
+        Single-write callable, e.g. ``functools.partial(_save_config,
+        yaml=yaml_inst)`` from ``pack_manager``.
+
+    Returns
+    -------
+    ActivationPlan
+        The committed plan (returned for convenient result chaining).
+    """
+    config_data[plan.yaml_key] = list(plan.new_list)
+    save(config_path, config_data)
+    return plan

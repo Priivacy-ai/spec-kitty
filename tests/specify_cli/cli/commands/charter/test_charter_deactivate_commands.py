@@ -99,16 +99,21 @@ class TestDeactivateUnknownKind:
 
 
 class TestDeactivateNoneState:
-    def test_none_state_exits_1_with_upgrade_guidance(self, empty_project_root: Path) -> None:
-        """Deactivating from None-state (no activation key) exits 1 with upgrade guidance."""
+    def test_none_state_exits_one_with_upgrade_guidance(self, empty_project_root: Path) -> None:
+        """Deactivating from None-state exits 1 with rendered upgrade guidance (WP12/T054).
+
+        WP09 replaced the legacy ``sys.exit(1)`` in ``CharterPackManager.deactivate``
+        with the engine's typed ``NoActivationRestrictionsError`` (carrying the
+        "run upgrade first" guidance). WP12 now **catches** that error in the CLI and
+        renders it as a clean exit-1 with guidance (no propagated exception) — the
+        behavior previously deferred to WP12. Assert the WP12 contract here.
+        """
         result = runner.invoke(
             charter_app,
             ["deactivate", "--repo-root", str(empty_project_root), "directive", "some-directive"],
         )
         assert result.exit_code == 1
-        # CharterPackManager calls sys.exit(1) for None-state;
-        # CLI intercepts and prints upgrade guidance.
-        assert "spec-kitty upgrade" in result.output or "upgrade" in result.output.lower()
+        assert "spec-kitty upgrade" in result.output
 
 
 # ---------------------------------------------------------------------------
@@ -152,8 +157,8 @@ class TestDeactivateCascade:
 
         assert result.exit_code == 0, result.output
 
-    def test_cascade_emits_warning(self, project_root_with_directive: Path) -> None:
-        """--cascade emits the deferred-DRG warning from CharterPackManager."""
+    def test_cascade_no_deferral_warning(self, project_root_with_directive: Path) -> None:
+        """--cascade does NOT emit stale deferral warnings (SC-005 / DD-4)."""
         result = runner.invoke(
             charter_app,
             [
@@ -167,8 +172,10 @@ class TestDeactivateCascade:
             ],
             catch_exceptions=False,
         )
-        # DRG cascade is deferred; a warning is expected
-        assert "cascade" in result.output.lower() or "Warning" in result.output
+        assert result.exit_code == 0, result.output
+        # SC-005: stale deferral strings must be absent
+        assert "not yet implemented" not in result.output
+        assert "deferred" not in result.output.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -183,3 +190,68 @@ class TestDeactivateSharedArtifactSkipped:
         # Not in set → warning, exit 0
         assert result.exit_code == 0, result.output
         assert "Warning" in result.output or "not in" in result.output.lower()
+
+
+# ---------------------------------------------------------------------------
+# T017 — cascade-output absence test (SC-005)
+# ---------------------------------------------------------------------------
+
+
+class TestDeactivateCascadeOutputAbsence:
+    """Verify that stale deferral warning strings are absent from --cascade deactivate output."""
+
+    def test_deactivate_cascade_no_not_yet_implemented(self, project_root_with_directive: Path) -> None:
+        """'not yet implemented' must not appear in charter deactivate --cascade output."""
+        result = runner.invoke(
+            charter_app,
+            [
+                "deactivate",
+                "--repo-root",
+                str(project_root_with_directive),
+                "--cascade",
+                "all",
+                "directive",
+                "some-directive",
+            ],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+        assert "not yet implemented" not in result.output
+
+    def test_deactivate_cascade_no_deferred(self, project_root_with_directive: Path) -> None:
+        """'deferred' must not appear in charter deactivate --cascade output."""
+        result = runner.invoke(
+            charter_app,
+            [
+                "deactivate",
+                "--repo-root",
+                str(project_root_with_directive),
+                "--cascade",
+                "all",
+                "directive",
+                "some-directive",
+            ],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+        assert "deferred" not in result.output.lower()
+
+    def test_deactivate_cascade_still_deactivates(self, project_root_with_directive: Path) -> None:
+        """cascade=True still deactivates the target artifact (real behavior unchanged)."""
+        result = runner.invoke(
+            charter_app,
+            [
+                "deactivate",
+                "--repo-root",
+                str(project_root_with_directive),
+                "--cascade",
+                "all",
+                "directive",
+                "some-directive",
+            ],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+        config = project_root_with_directive / ".kittify" / "config.yaml"
+        data = yaml.safe_load(config.read_text())
+        assert "some-directive" not in (data.get("activated_directives") or [])

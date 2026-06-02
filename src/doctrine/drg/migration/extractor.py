@@ -41,6 +41,30 @@ _KIND_MAP: dict[str, NodeKind] = {
 _SKIP_REF_TYPES: frozenset[str] = frozenset()
 
 _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
+    # WP06/WP07 (FR-001/FR-028 hard cutover): built-in profile lineage is now
+    # authored directly as DRG ``specializes_from`` edges. The legacy
+    # ``specializes-from`` profile field has been retired (and is rejected by the
+    # profile model), so these edges are the single source of lineage truth.
+    (
+        "agent_profile:python-pedro",
+        "agent_profile:implementer-ivan",
+        Relation.SPECIALIZES_FROM,
+    ),
+    (
+        "agent_profile:java-jenny",
+        "agent_profile:implementer-ivan",
+        Relation.SPECIALIZES_FROM,
+    ),
+    (
+        "agent_profile:node-norris",
+        "agent_profile:implementer-ivan",
+        Relation.SPECIALIZES_FROM,
+    ),
+    (
+        "agent_profile:frontend-freddy",
+        "agent_profile:implementer-ivan",
+        Relation.SPECIALIZES_FROM,
+    ),
     (
         "paradigm:specification-by-example",
         "tactic:acceptance-test-first",

@@ -16,6 +16,12 @@ from pathlib import Path
 
 import pytest
 
+# Architectural invariant scan that shells out to ``git grep`` over the live
+# repo, so it carries both the architectural-gate marker and ``git_repo``
+# (Rule 1 of test_pytest_marker_correctness: git subprocess users must be
+# visible to CI's ``-m git_repo`` filter).
+pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
+
 
 # Build forbidden terms from fragments so this test file does not contain
 # the literal strings (otherwise the test would flag itself).

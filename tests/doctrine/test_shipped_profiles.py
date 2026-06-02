@@ -309,14 +309,23 @@ class TestShippedProfilesHierarchy:
         errors = repo.validate_hierarchy()
         assert errors == [], "Hierarchy validation failed:\n" + "\n".join(f"  - {e}" for e in errors)
 
-    def test_specializes_from_targets_exist(self, all_profiles: list[AgentProfile]):
-        """Any shipped profile that specializes from another must reference an existing shipped profile."""
+    def test_specializes_from_targets_exist(
+        self, repo: AgentProfileRepository, all_profiles: list[AgentProfile]
+    ):
+        """Any shipped profile that specializes from another must reference an existing shipped profile.
+
+        Lineage is now sourced from the DRG ``specializes_from`` edges
+        (FR-002 / WP05), not the retired ``specializes-from`` profile field.
+        """
         shipped_ids = {p.profile_id for p in all_profiles}
         for profile in all_profiles:
-            if profile.specializes_from is not None:
-                assert profile.specializes_from in shipped_ids, (
+            # Immediate lineage parent (if any) per the DRG.
+            ancestors = repo.get_ancestors(profile.profile_id)
+            if ancestors:
+                parent = ancestors[0]
+                assert parent in shipped_ids, (
                     f"Shipped profile '{profile.profile_id}' specializes from "
-                    f"'{profile.specializes_from}', which is not a shipped profile"
+                    f"'{parent}', which is not a shipped profile"
                 )
 
 

@@ -2280,6 +2280,13 @@
   current_target: true
   citation_refs: []
   notes: Explanation; provisional current — confirm in WP08 IA review.
+- path: docs/explanation/doctrine-relationships.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: C
+  current_target: true
+  citation_refs: []
+  notes: Explanation of the doctrine relationship graph (DRG) relations (specializes_from lineage, references, augmentation); added by the org-doctrine-profile-integrity mission.
 - path: docs/explanation/documentation-mission.md
   tag: current
   divio_type: explanation

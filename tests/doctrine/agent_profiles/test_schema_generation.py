@@ -19,13 +19,19 @@ BUILT_IN_DIR = (
 )
 
 
-def test_generated_agent_profile_schema_preserves_extension_fields() -> None:
-    """Schema model must not drop shipped scoping and augmentation fields."""
+def test_generated_agent_profile_schema_retires_relationship_fields() -> None:
+    """Schema must drop the retired augmentation/lineage fields (WP06 FR-028).
+
+    ``overrides``/``enhances``/``specializes_from`` are no longer profile fields —
+    lineage and augmentation are authored as DRG edges. Scoping fields such as
+    ``applies_to_languages`` remain.
+    """
     schema = generate_schema("agent-profile")
     properties = schema["properties"]
 
-    assert "overrides" in properties
-    assert "enhances" in properties
+    assert "overrides" not in properties
+    assert "enhances" not in properties
+    assert "specializes_from" not in properties
     assert "applies_to_languages" in properties
     assert schema["anyOf"] == [{"required": ["role"]}, {"required": ["roles"]}]
 
@@ -43,8 +49,13 @@ def test_generated_agent_profile_schema_validates_shipped_scoped_profile() -> No
 
 
 @pytest.mark.parametrize("field_name", ["overrides", "enhances"])
-def test_generated_agent_profile_schema_validates_augmentation_fields(field_name: str) -> None:
-    """Generated schema must accept declared profile override/enhance intent."""
+def test_generated_agent_profile_schema_rejects_retired_augmentation_fields(field_name: str) -> None:
+    """Generated schema must REJECT the retired override/enhance fields (WP06 FR-028).
+
+    These augmentation intents are now authored as DRG edges, not profile fields;
+    the schema sets ``additionalProperties: false`` so a profile that still declares
+    them fails validation.
+    """
     profile = {
         "profile-id": "org-python-pedro",
         "name": "Org Python Pedro",
@@ -57,4 +68,4 @@ def test_generated_agent_profile_schema_validates_augmentation_fields(field_name
     validator = jsonschema.Draft202012Validator(generate_schema("agent-profile"))
     errors = sorted(validator.iter_errors(profile), key=lambda error: list(error.path))
 
-    assert errors == []
+    assert errors, f"schema must reject retired field {field_name!r}"

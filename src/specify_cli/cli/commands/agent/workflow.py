@@ -1260,6 +1260,28 @@ def implement(
             _pre_emit_status_bytes = (
                 _status_path_pre.read_bytes() if _status_path_pre.exists() else None
             )
+
+            # FR-017 / NFR-004: build and validate the runtime OperationalContext
+            # via the shared claim builder BEFORE emitting the claim status event
+            # or allocating any worktree. The builder is read-only; running its
+            # guard here means a missing-context precondition failure aborts
+            # before start_implementation_status, leaving zero new status events
+            # and zero new worktree paths.
+            from specify_cli.next.runtime_bridge import build_operational_context_for_claim
+
+            operational_context = build_operational_context_for_claim(
+                repo_root=main_repo_root,
+                feature_dir=_impl_feature_dir,
+                mission_slug=mission_slug,
+                wp_id=normalized_wp_id,
+                actor=_actor,
+                active_model=agent or _wp_agent_assignment.model,
+                active_role=_wp_agent_assignment.role or _actor,
+                current_activity="implement",
+                active_profile=_wp_agent_assignment.profile_id,
+            )
+            operational_context.require_active_role()
+
             try:
                 start_implementation_status(
                     feature_dir=_impl_feature_dir,

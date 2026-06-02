@@ -65,7 +65,6 @@ class TestAgentProfileOne:
             schema_version="1.0",
             role=Role.ARCHITECT,
             capabilities=["read", "write", "search", "edit", "bash"],
-            specializes_from=None,
             routing_priority=50,
             max_concurrent_tasks=3,
             context_sources=ContextSources(

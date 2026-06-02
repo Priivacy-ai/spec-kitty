@@ -1,0 +1,15 @@
+{
+  "base_branch": "mission/org-doctrine-profile-integrity-activation-closure",
+  "coordination_branch": "mission/org-doctrine-profile-integrity-activation-closure",
+  "created_at": "2026-06-02T06:26:30.390124+00:00",
+  "friendly_name": "Org Doctrine Profile Integrity — Review Close-Out",
+  "merge_target_branch": "mission/org-doctrine-profile-integrity-activation-closure",
+  "mission_id": "01KT3G68VNA6QF8GKXDA40H8VD",
+  "mission_number": null,
+  "mission_slug": "org-doctrine-profile-integrity-closeout-01KT3G68",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Org Doctrine Profile Integrity — Review Close-Out on mission/org-doctrine-profile-integrity-activation-closure so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Remediate the 12 adversarial-review findings (I-1..I-12) before merging the org-doctrine-profile-integrity mission.",
+  "slug": "org-doctrine-profile-integrity-closeout-01KT3G68",
+  "target_branch": "mission/org-doctrine-profile-integrity-activation-closure"
+}

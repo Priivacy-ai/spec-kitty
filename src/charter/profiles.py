@@ -13,6 +13,7 @@ doctrine.agent_profiles.profile.AgentProfile``).
 """
 
 from doctrine.agent_profiles.capabilities import DEFAULT_ROLE_CAPABILITIES
+from doctrine.agent_profiles.diagnostics import SkippedProfile
 from doctrine.agent_profiles.profile import AgentProfile, Role
 from doctrine.agent_profiles.repository import AgentProfileRepository
 
@@ -21,4 +22,5 @@ __all__ = [
     "AgentProfileRepository",
     "DEFAULT_ROLE_CAPABILITIES",
     "Role",
+    "SkippedProfile",
 ]

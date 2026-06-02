@@ -175,7 +175,10 @@ class TestActivateInvalidKind:
             manager.activate(ctx, kind="nonexistent-kind", artifact_id="x")
 
     def test_raises_value_error_for_unknown_artifact_id(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
-        with pytest.raises(ValueError, match="Unknown artifact ID"):
+        # WP09 delegates activation to the engine, which raises the typed
+        # UnknownActivationIdError (a ValueError subclass) with the actionable
+        # "Unknown <kind> ID ..." message.
+        with pytest.raises(ValueError, match="Unknown directive ID"):
             manager.activate(ctx, kind="directive", artifact_id="not-a-real-directive")
 
 
@@ -185,18 +188,22 @@ class TestActivateInvalidKind:
 
 
 class TestDeactivateNoneState:
-    def test_exits_with_upgrade_guidance_when_no_activation_set(
+    def test_raises_typed_error_when_no_activation_set(
         self,
         manager: CharterPackManager,
         ctx: ProjectContext,
-        capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """deactivate() on a None-state kind must exit 1 with guidance message."""
-        with pytest.raises(SystemExit) as exc_info:
+        """deactivate() on a None-state kind raises the typed engine error.
+
+        WP09/T042: the legacy ``sys.exit(1)`` is gone — the activation engine
+        raises NoActivationRestrictionsError (carrying the "run upgrade first"
+        guidance) for the CLI (WP12) to surface, so the engine/manager never
+        touch process state.
+        """
+        from charter.activation_engine import NoActivationRestrictionsError
+
+        with pytest.raises(NoActivationRestrictionsError, match="spec-kitty upgrade"):
             manager.deactivate(ctx, kind="directive", artifact_id="something")
-        assert exc_info.value.code == 1
-        captured = capsys.readouterr()
-        assert "spec-kitty upgrade" in captured.err
 
 
 # ---------------------------------------------------------------------------
@@ -325,8 +332,8 @@ class TestMergeDefaults:
 
 
 class TestActivateCascadeWarning:
-    def test_cascade_true_appends_warning(self, manager: CharterPackManager, project_root: Path) -> None:
-        """activate(cascade=True) emits a warning that DRG traversal is deferred."""
+    def test_cascade_true_does_not_append_manager_warning(self, manager: CharterPackManager, project_root: Path) -> None:
+        """activate(cascade=True) keeps manager warnings scoped to activation state."""
         config = project_root / ".kittify" / "config.yaml"
         config.write_text(
             "activated_directives:\n  - 001-architectural-integrity-standard\n",
@@ -339,7 +346,7 @@ class TestActivateCascadeWarning:
             artifact_id="003-decision-documentation-requirement",
             cascade=True,
         )
-        assert any("cascade" in w.lower() for w in result.warnings)
+        assert not any("cascade" in w.lower() for w in result.warnings)
 
 
 # ---------------------------------------------------------------------------
@@ -348,13 +355,13 @@ class TestActivateCascadeWarning:
 
 
 class TestDeactivateCascadeAndInvalidKind:
-    def test_cascade_true_appends_warning(self, manager: CharterPackManager, project_root: Path) -> None:
-        """deactivate(cascade=True) emits a warning that cascade analysis is deferred."""
+    def test_cascade_true_does_not_append_manager_warning(self, manager: CharterPackManager, project_root: Path) -> None:
+        """deactivate(cascade=True) keeps manager warnings scoped to activation state."""
         config = project_root / ".kittify" / "config.yaml"
         config.write_text("activated_directives:\n  - to-remove\n", encoding="utf-8")
         ctx = ProjectContext.from_repo(project_root)
         result = manager.deactivate(ctx, kind="directive", artifact_id="to-remove", cascade=True)
-        assert any("cascade" in w.lower() for w in result.warnings)
+        assert not any("cascade" in w.lower() for w in result.warnings)
 
     def test_raises_value_error_for_unknown_kind(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
         """deactivate() with an unknown kind raises ValueError."""

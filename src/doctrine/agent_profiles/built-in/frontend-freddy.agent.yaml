@@ -9,7 +9,6 @@ applies_to_languages:
   - typescript
   - html
   - css
-specializes-from: implementer-ivan
 capabilities:
   - browser-component-implementation
   - wcag-accessibility-compliance
