@@ -263,3 +263,36 @@ class TestDecisionGitLogSafeCommitWorktreeRoot:
             log.emit_decision_input_requested(req_payload)
 
         assert len(safe_commit_calls) == 0
+
+
+# ---------------------------------------------------------------------------
+# T021: NFR-004 — _wrap_with_decision_git_log never raises when coord absent
+# ---------------------------------------------------------------------------
+
+class TestNFR004FallbackNoRaise:
+    """NFR-004: _wrap_with_decision_git_log must not abort when coord worktree absent (T021)."""
+
+    def test_decision_log_construction_does_not_abort_when_coord_worktree_missing(
+        self, tmp_path: Path
+    ) -> None:
+        """_wrap_with_decision_git_log never raises when coord worktree absent (NFR-004)."""
+        from runtime.next.runtime_bridge import _wrap_with_decision_git_log
+
+        repo_root = tmp_path / "repo"
+        repo_root.mkdir()
+        mission_slug = "my-mission-ABCD1234"
+        # Do NOT create the coord worktree — simulates pre-init or legacy mission
+
+        mock_emitter = MagicMock(spec=SyncRuntimeEventEmitter)
+
+        # Must not raise under any circumstance
+        try:
+            wrapped = _wrap_with_decision_git_log(mock_emitter, mission_slug, repo_root)
+        except Exception as exc:
+            pytest.fail(
+                f"_wrap_with_decision_git_log raised {type(exc).__name__} when "
+                f"coord worktree was absent — violates NFR-004: {exc}"
+            )
+
+        # Wrapped result is usable (either DecisionGitLog or plain emitter)
+        assert wrapped is not None

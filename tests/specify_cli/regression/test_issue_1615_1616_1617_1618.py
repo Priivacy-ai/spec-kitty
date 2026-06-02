@@ -23,6 +23,71 @@ import pytest
 
 pytestmark = [pytest.mark.regression]
 
+# ---------------------------------------------------------------------------
+# FR-017: source-scanning guards — stale strings must be absent, resolver
+#         imports must be present (guards against re-introduction)
+# ---------------------------------------------------------------------------
+
+REPO_ROOT = Path(__file__).parents[3]  # tests/specify_cli/regression/ → repo root (worktree root)
+
+
+def _read(rel_path: str) -> str:
+    return (REPO_ROOT / rel_path).read_text(encoding="utf-8")
+
+
+# --- #1616: stale prompt strings must not reappear ---
+
+def test_no_stale_status_in_main_repo_string() -> None:
+    """workflow.py must not say status lives in main repo."""
+    src = _read("src/specify_cli/cli/commands/agent/workflow.py")
+    assert "Spec, plan, tasks, and status live in main repo" not in src, (
+        "Stale prompt string from #1616 re-introduced in workflow.py"
+    )
+
+
+def test_no_stale_auto_commit_to_target_branch() -> None:
+    """workflow.py must not say status auto-commits to target_branch."""
+    src = _read("src/specify_cli/cli/commands/agent/workflow.py")
+    assert "auto-commit to {target_branch} branch" not in src, (
+        "Stale prompt string from #1616 re-introduced in workflow.py"
+    )
+
+
+def test_no_stale_for_review_to_in_progress() -> None:
+    """workflow.py review docstring must not say for_review to in_progress."""
+    src = _read("src/specify_cli/cli/commands/agent/workflow.py")
+    assert "for_review to in_progress" not in src, (
+        "Stale docstring from #1616 re-introduced in workflow.py"
+    )
+
+
+def test_no_stale_done_only_dependency() -> None:
+    """Doctrine implement prompt must not require only 'done' status."""
+    src = _read(
+        "src/doctrine/missions/mission-steps/software-dev/implement/prompt.md"
+    )
+    assert "in `done` status before proceeding" not in src, (
+        "Stale dependency condition from #1616 re-introduced in implement/prompt.md"
+    )
+
+
+# --- #1615: coord-aware resolver must be present ---
+
+def test_resolve_mission_read_path_used_in_implement() -> None:
+    """implement.py must import or reference resolve_mission_read_path."""
+    src = _read("src/specify_cli/cli/commands/implement.py")
+    assert "resolve_mission_read_path" in src, (
+        "coord-aware resolver not present in implement.py (#1615 regression)"
+    )
+
+
+def test_resolve_mission_read_path_used_in_orchestrator_api() -> None:
+    """orchestrator_api/commands.py must use resolve_mission_read_path."""
+    src = _read("src/specify_cli/orchestrator_api/commands.py")
+    assert "resolve_mission_read_path" in src, (
+        "coord-aware resolver not present in orchestrator_api/commands.py (#1615 regression)"
+    )
+
 
 # ---------------------------------------------------------------------------
 # #1615: implement.py reads status from coord worktree when present
