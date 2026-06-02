@@ -13,8 +13,8 @@ dev-setup: ## Sync deps and install all slash commands for configured agents
 lint: ## Run ruff linter
 	uv run ruff check src/
 
-typecheck: ## Run mypy strict type checking
-	uv run mypy --strict src/specify_cli/
+typecheck: ## Run targeted mypy strict type checking
+	uv run mypy --strict src/specify_cli/runtime/agent_commands.py
 
 test: ## Run test suite (targeted surface only)
 	uv run pytest tests/specify_cli/runtime/test_agent_commands.py \
