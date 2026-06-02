@@ -1,7 +1,7 @@
 {
-  "event_count": 6,
-  "last_event_id": "01KT4ZSQ6ZZ18XJW7A59EAV3C5",
-  "materialized_at": "2026-06-02T20:18:30.751274+00:00",
+  "event_count": 7,
+  "last_event_id": "01KT4ZZK9B3H76HQ2WXENA0D1S",
+  "materialized_at": "2026-06-02T20:21:43.339365+00:00",
   "mission_number": "",
   "mission_slug": "pi-and-letta-agent-support-01KT4Q26",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 2,
+    "for_review": 1,
+    "in_progress": 1,
     "in_review": 0,
     "planned": 0
   },
@@ -27,9 +27,9 @@
     "WP02": {
       "actor": "user",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KT4ZSQ6ZZ18XJW7A59EAV3C5",
-      "last_transition_at": "2026-06-02T20:18:30.751274+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KT4ZZK9B3H76HQ2WXENA0D1S",
+      "last_transition_at": "2026-06-02T20:21:43.339365+00:00"
     }
   }
 }
