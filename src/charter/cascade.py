@@ -1,0 +1,528 @@
+"""Scoped, shared-reference-safe cascade engine over the merged DRG.
+
+This module is the consumer of the ``cascade_scope`` value threaded — but not
+consumed — through :mod:`charter.activation_engine` (WP10). It turns a single
+``charter activate`` / ``charter deactivate`` request into the set of *referenced*
+artifacts that should cascade, as **pure graph logic** over the merged Doctrine
+Reference Graph (DRG). There are **no per-kind special cases** (FR-016, C-005,
+I-AC3): every decision branches on graph reachability, never on ``kind ==``.
+
+Design (FR-013..016, data model §6, contracts C3.2/C3.3/C3.4)
+------------------------------------------------------------
+
+* :class:`CascadeScope` is an explicit value object. ``--cascade all`` parses to
+  :data:`CascadeScope.ALL` (the all-kind shorthand); ``--cascade
+  agent-profile,tactic`` parses to an explicit ``frozenset`` of
+  :class:`~doctrine.artifact_kinds.ArtifactKind`. **Absence** of ``--cascade``
+  parses to ``None`` and **never** means all (Contract C3.3). The scope string is
+  never collapsed to a bool.
+
+* :func:`cascade_activation_targets` walks the DRG **forward** along the doctrine
+  reference relations (:data:`REFERENCE_RELATIONS`) from the activation source,
+  bucketing reachable artifacts by kind, then keeps only the kinds the scope
+  selects (FR-014). Kinds referenced but *outside* the scope are reported as
+  skipped-by-scope.
+
+* :func:`referenced_but_not_cascaded` is the no-cascade path (FR-013): when
+  ``--cascade`` is absent it returns the referenced-but-not-activated artifacts
+  (by kind) plus a recovery hint so the CLI (WP12) can warn (Contract C3.2).
+
+* :func:`deactivation_plan` is the shared-reference-safe removal path
+  (FR-015/016, C-005, I-AC2). A cascade candidate is **exclusive** iff it is
+  unreachable (forward closure over :data:`REFERENCE_RELATIONS`) from **every**
+  other still-activated source once ``target_urn`` is removed. Exclusive
+  candidates are deactivated; **shared** candidates are skipped and the still-
+  referencing active source is named. No shared artifact is ever removed
+  (Contract C3.4). Exclusivity is computed via reverse reachability — the inverse
+  of the forward closure, using ``edges_to`` adjacency — over the merged DRG.
+
+Layering
+--------
+Charter layer: this module imports only ``doctrine`` (the DRG models, query
+primitives, and the canonical :class:`ArtifactKind`). It never imports
+``specify_cli`` (C-001) and performs no I/O — it is pure graph logic over data
+handed in by the caller (the CLI in WP12).
+
+Wiring note (C-007)
+-------------------
+The public symbols below gain their first caller in **WP12** (the charter
+activation CLI), which depends on this WP and merges after it. WP10 already
+threads a ``cascade_scope`` parameter into ``plan_activation`` /
+``plan_deactivation`` for the seam shape; WP12 will parse the CLI string with
+:meth:`CascadeScope.parse`, call into this engine, and fold the results into the
+``ActivationPlan.cascade_targets`` / ``warnings`` fields. The dead-symbol gate is
+satisfied at mission-merge per the WP11 Definition of Done.
+"""
+
+from __future__ import annotations
+
+from collections import deque
+from dataclasses import dataclass, field
+from typing import ClassVar
+
+from doctrine.artifact_kinds import ArtifactKind
+from doctrine.drg.models import DRGEdge, DRGGraph, Relation
+
+__all__ = [
+    "REFERENCE_RELATIONS",
+    "CascadeScope",
+    "DeactivationPlan",
+    "ReferencedArtifact",
+    "SharedSkip",
+    "cascade_activation_targets",
+    "deactivation_plan",
+    "referenced_but_not_cascaded",
+]
+
+
+#: The doctrine reference relations the cascade follows. A cascade activates the
+#: artifacts an activated artifact *references*; per R-012 / FR-016 the DRG is the
+#: canonical reference model, so cascade traversal is opt-in by this relation set
+#: rather than per-kind logic. ``REQUIRES`` (hard dependency) and ``SUGGESTS``
+#: (soft recommendation) are the legacy charter-resolver reference set
+#: (see :func:`doctrine.drg.query.resolve_transitive_refs`).
+REFERENCE_RELATIONS: frozenset[Relation] = frozenset(
+    {Relation.REQUIRES, Relation.SUGGESTS}
+)
+
+#: Recovery hint surfaced with the no-cascade warning (FR-013, Contract C3.2).
+_NO_CASCADE_HINT: str = (
+    "Re-run with `--cascade <scope>` (e.g. `--cascade all` for every referenced "
+    "kind) to activate the referenced artifacts, or run `charter consistency-check` "
+    "to confirm the activation set is coherent."
+)
+
+
+def _kind_of(urn: str) -> ArtifactKind | None:
+    """Resolve the :class:`ArtifactKind` for a URN's ``<kind>:`` prefix.
+
+    Returns ``None`` when the prefix is not one of the eight canonical artifact
+    kinds (e.g. ``action:``, ``glossary:`` nodes, or a malformed URN). Cascade
+    only ever activates/deactivates artifact-kind nodes, so non-artifact nodes
+    are simply not cascade candidates — this keeps the engine kind-agnostic
+    (it never branches on a *specific* kind, only on whether the node is an
+    artifact at all).
+    """
+    prefix = urn.split(":", 1)[0] if ":" in urn else urn
+    try:
+        return ArtifactKind(prefix)
+    except ValueError:
+        return None
+
+
+def _bare_id(urn: str) -> str:
+    """Strip the ``<kind>:`` prefix from *urn*, returning the bare artifact ID."""
+    return urn.split(":", 1)[1] if ":" in urn else urn
+
+
+# ---------------------------------------------------------------------------
+# CascadeScope value object (T048; data model §6; Contract C3.3)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class CascadeScope:
+    """Explicit cascade scope: the all-kind shorthand or an explicit kind set.
+
+    Either :data:`is_all` is ``True`` (the ``--cascade all`` shorthand, which
+    selects *every* referenced kind) or :attr:`kinds` is an explicit, non-empty
+    ``frozenset`` of :class:`ArtifactKind`. **Absence** of ``--cascade`` is
+    represented as ``None`` at call sites (never a :class:`CascadeScope`) and
+    **never** means all (Contract C3.3). The scope is a value object, not a bool
+    — the requested scope survives intact from CLI to engine.
+    """
+
+    is_all: bool = False
+    kinds: frozenset[ArtifactKind] = field(default_factory=frozenset)
+
+    #: The literal CLI token for the all-kind shorthand.
+    ALL_TOKEN: ClassVar[str] = "all"  # noqa: S105 - CLI scope token, not a secret
+
+    def __post_init__(self) -> None:
+        if self.is_all and self.kinds:
+            raise ValueError(
+                "CascadeScope is either the all-kind shorthand (is_all=True) or an "
+                "explicit kind set, not both."
+            )
+        if not self.is_all and not self.kinds:
+            raise ValueError(
+                "CascadeScope with is_all=False requires at least one kind. "
+                "Use scope=None at the call site to express 'no cascade'."
+            )
+
+    def selects(self, kind: ArtifactKind) -> bool:
+        """Return ``True`` when *kind* is in scope (always ``True`` for ``ALL``)."""
+        return self.is_all or kind in self.kinds
+
+    @classmethod
+    def all(cls) -> CascadeScope:
+        """Return the explicit all-kind shorthand scope (``--cascade all``)."""
+        return cls(is_all=True)
+
+    @classmethod
+    def parse(cls, raw: str | None) -> CascadeScope | None:
+        """Parse a raw CLI ``--cascade`` value into a :class:`CascadeScope`.
+
+        Parameters
+        ----------
+        raw:
+            The raw CLI string. ``None`` (flag absent) or an empty/whitespace
+            string returns ``None`` — **no cascade** (never all, Contract C3.3).
+            ``"all"`` returns the all-kind shorthand. A comma-separated list of
+            operator kind tokens (e.g. ``"agent-profile,tactic"``) returns an
+            explicit kind set; each token is resolved through
+            :meth:`ArtifactKind.from_operator_token`, so a hyphenated or
+            underscored token both work and an unknown token raises a structured
+            ``ValueError`` (no silent fallback — R-009).
+
+        Returns
+        -------
+        CascadeScope | None
+            ``None`` for absent/empty input; otherwise the parsed scope.
+
+        Raises
+        ------
+        ValueError
+            If a kind token is not a known operator kind token (the message
+            lists the valid tokens). ``mission-type`` raises the distinct
+            :class:`~doctrine.artifact_kinds.MissionTypeNotAnArtifactKind`
+            (a ``ValueError`` subclass) since it is not an artifact kind.
+        """
+        if raw is None:
+            return None
+        stripped = raw.strip()
+        if not stripped:
+            return None
+        if stripped.lower() == cls.ALL_TOKEN:
+            return cls.all()
+        tokens = [tok.strip() for tok in stripped.split(",") if tok.strip()]
+        if not tokens:
+            return None
+        kinds = frozenset(ArtifactKind.from_operator_token(tok) for tok in tokens)
+        return cls(kinds=kinds)
+
+
+# ---------------------------------------------------------------------------
+# Forward reachability (shared primitive)
+# ---------------------------------------------------------------------------
+
+
+def _forward_reference_closure(
+    adj: dict[str, list[str]],
+    sources: set[str],
+) -> set[str]:
+    """Forward transitive closure over a pre-built reference adjacency.
+
+    BFS from *sources* following *adj*; returns every reachable URN **excluding**
+    the seed sources themselves (the cascade targets are the artifacts a source
+    *references*, not the source). ``adj`` is the forward adjacency restricted to
+    :data:`REFERENCE_RELATIONS`.
+    """
+    visited: set[str] = set(sources)
+    queue: deque[str] = deque(sources)
+    while queue:
+        current = queue.popleft()
+        for neighbor in adj.get(current, ()):
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.append(neighbor)
+    return visited - sources
+
+
+def _reference_adjacency(edges: list[DRGEdge]) -> dict[str, list[str]]:
+    """Build forward adjacency (source → [target]) over :data:`REFERENCE_RELATIONS`."""
+    adj: dict[str, list[str]] = {}
+    for edge in edges:
+        if edge.relation in REFERENCE_RELATIONS:
+            adj.setdefault(edge.source, []).append(edge.target)
+    return adj
+
+
+def _referenced_artifacts(graph: DRGGraph, source_urn: str) -> list[ReferencedArtifact]:
+    """Return artifact-kind nodes referenced (transitively) from *source_urn*.
+
+    Pure forward closure over :data:`REFERENCE_RELATIONS`, filtered to nodes that
+    are themselves artifact kinds (non-artifact nodes — actions, glossary — are
+    never cascade candidates). Result is sorted by ``(kind, artifact_id)`` for
+    deterministic rendering.
+    """
+    adj = _reference_adjacency(graph.edges)
+    reachable = _forward_reference_closure(adj, {source_urn})
+    refs: list[ReferencedArtifact] = []
+    for urn in reachable:
+        kind = _kind_of(urn)
+        if kind is None:
+            continue
+        refs.append(ReferencedArtifact(kind=kind, artifact_id=_bare_id(urn), urn=urn))
+    refs.sort(key=lambda r: (r.kind.value, r.artifact_id))
+    return refs
+
+
+# ---------------------------------------------------------------------------
+# Referenced-artifact record (no-cascade warning + activation report)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ReferencedArtifact:
+    """A single artifact referenced from an activation source.
+
+    Carries both the bucketed kind and the bare config ID so the CLI can render a
+    per-kind list and the engine can fold IDs into ``cascade_targets``.
+    """
+
+    kind: ArtifactKind
+    artifact_id: str
+    urn: str
+
+
+# ---------------------------------------------------------------------------
+# T049 — scoped cascade activation (FR-014, Contract C3.3)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class CascadeActivationResult:
+    """Outcome of a scoped cascade activation.
+
+    Attributes
+    ----------
+    activated:
+        Kind → sorted bare IDs that fall **within** scope and were selected for
+        activation. ``--cascade all`` returns every referenced kind here.
+    skipped_by_scope:
+        Kind → sorted bare IDs that were referenced but fall **outside** scope.
+        These are reported so the operator sees exactly what the explicit scope
+        excluded (auditability, R-005).
+    """
+
+    activated: dict[str, list[str]] = field(default_factory=dict)
+    skipped_by_scope: dict[str, list[str]] = field(default_factory=dict)
+
+
+def cascade_activation_targets(
+    graph: DRGGraph,
+    source_urn: str,
+    scope: CascadeScope,
+) -> CascadeActivationResult:
+    """Compute scoped cascade activation targets for *source_urn* (FR-014).
+
+    Walks the DRG forward along :data:`REFERENCE_RELATIONS` from *source_urn*,
+    buckets the referenced artifact-kind nodes by kind, and partitions them by
+    *scope*: kinds the scope selects go to ``activated``; kinds it does not go to
+    ``skipped_by_scope``. ``--cascade all`` selects every referenced kind. Pure
+    graph logic — the partition branches only on :meth:`CascadeScope.selects`,
+    never on a specific kind (FR-016).
+
+    Parameters
+    ----------
+    graph:
+        The merged DRG (already validated upstream).
+    source_urn:
+        Full URN of the artifact being activated (e.g.
+        ``"agent_profile:python-pedro"``).
+    scope:
+        The explicit cascade scope (never ``None`` here — the caller routes the
+        no-cascade case to :func:`referenced_but_not_cascaded`).
+
+    Returns
+    -------
+    CascadeActivationResult
+        Per-kind activated IDs and per-kind skipped-by-scope IDs, each list
+        sorted for deterministic rendering.
+    """
+    activated: dict[str, list[str]] = {}
+    skipped: dict[str, list[str]] = {}
+    for ref in _referenced_artifacts(graph, source_urn):
+        bucket = activated if scope.selects(ref.kind) else skipped
+        bucket.setdefault(ref.kind.value, []).append(ref.artifact_id)
+    for table in (activated, skipped):
+        for ids in table.values():
+            ids.sort()
+    return CascadeActivationResult(activated=activated, skipped_by_scope=skipped)
+
+
+# ---------------------------------------------------------------------------
+# T050 — no-cascade warning (FR-013, Contract C3.2)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class NoCascadeReport:
+    """The data the CLI needs to warn when ``--cascade`` is absent (FR-013).
+
+    Attributes
+    ----------
+    source_urn:
+        The artifact that was activated directly.
+    skipped:
+        Per-kind sorted bare IDs that *would* have cascaded but were not
+        activated (because no ``--cascade`` was supplied).
+    recovery_hint:
+        Actionable recovery string naming the ``--cascade`` re-run and the
+        consistency-check (Contract C3.2).
+    """
+
+    source_urn: str
+    skipped: dict[str, list[str]] = field(default_factory=dict)
+    recovery_hint: str = _NO_CASCADE_HINT
+
+    @property
+    def has_skipped(self) -> bool:
+        """``True`` when at least one referenced artifact was not cascaded."""
+        return any(self.skipped.values())
+
+
+def referenced_but_not_cascaded(
+    graph: DRGGraph,
+    source_urn: str,
+) -> NoCascadeReport:
+    """Return the referenced-but-not-cascaded artifacts for the no-cascade warning.
+
+    The FR-013 path: when ``charter activate`` runs **without** ``--cascade``, the
+    direct activation still completes, but the operator should be warned about the
+    referenced artifacts that were *not* activated. This returns those artifacts
+    bucketed by kind plus a recovery hint (Contract C3.2). Pure forward closure
+    over :data:`REFERENCE_RELATIONS`; no per-kind logic.
+
+    Parameters
+    ----------
+    graph:
+        The merged DRG.
+    source_urn:
+        Full URN of the artifact that was activated directly.
+
+    Returns
+    -------
+    NoCascadeReport
+        The skipped reference kinds (sorted IDs) and the recovery hint. When the
+        source references nothing, ``skipped`` is empty and ``has_skipped`` is
+        ``False`` (the caller emits no warning).
+    """
+    skipped: dict[str, list[str]] = {}
+    for ref in _referenced_artifacts(graph, source_urn):
+        skipped.setdefault(ref.kind.value, []).append(ref.artifact_id)
+    for ids in skipped.values():
+        ids.sort()
+    return NoCascadeReport(source_urn=source_urn, skipped=skipped)
+
+
+# ---------------------------------------------------------------------------
+# T051 — shared-reference-safe deactivation (FR-015/016, C-005, Contract C3.4)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SharedSkip:
+    """A cascade candidate skipped because it is still referenced (C-005).
+
+    Attributes
+    ----------
+    urn:
+        The shared candidate's URN (not deactivated).
+    referencing_active_urn:
+        A still-activated source that continues to reference *urn*. Named in the
+        report so the operator understands *why* it was kept (Contract C3.4).
+    """
+
+    urn: str
+    referencing_active_urn: str
+
+
+@dataclass(frozen=True)
+class DeactivationPlan:
+    """Result of a shared-reference-safe cascade deactivation (FR-015/016).
+
+    Attributes
+    ----------
+    deactivate:
+        Sorted URNs of cascade candidates that are **exclusive** to the removed
+        target (unreachable from every other still-activated source) and may be
+        deactivated.
+    skipped_shared:
+        :class:`SharedSkip` records for candidates that remain reachable from
+        another still-activated source — kept (never removed) with the
+        referencing source named (Contract C3.4, no silent removal).
+    """
+
+    deactivate: list[str] = field(default_factory=list)
+    skipped_shared: list[SharedSkip] = field(default_factory=list)
+
+
+def deactivation_plan(
+    graph: DRGGraph,
+    target_urn: str,
+    scope: CascadeScope,
+    *,
+    active_urns: set[str],
+) -> DeactivationPlan:
+    """Compute a shared-reference-safe cascade deactivation plan (FR-015/016, C-005).
+
+    The candidate set is the in-scope artifacts referenced (forward closure over
+    :data:`REFERENCE_RELATIONS`) by *target_urn*. A candidate is **exclusive** —
+    and therefore safe to deactivate — iff it is unreachable from **every** other
+    still-activated source once *target_urn* is removed from the active set.
+    Exclusivity is determined by reverse reachability over the merged DRG: the
+    candidate is kept if it lies in the forward reference closure of any remaining
+    active source. Shared candidates are recorded in ``skipped_shared`` with the
+    still-referencing active source named, and are **never** removed (Contract
+    C3.4, I-AC2). Pure graph logic — no ``kind ==`` branches (FR-016, I-AC3).
+
+    Parameters
+    ----------
+    graph:
+        The merged DRG.
+    target_urn:
+        Full URN of the artifact being deactivated.
+    scope:
+        Cascade scope limiting which referenced kinds are candidates for
+        cascade deactivation.
+    active_urns:
+        The set of currently-activated source URNs (the activation set *before*
+        this deactivation). *target_urn* is removed from this set when computing
+        the "other still-activated sources" so its own references never keep a
+        candidate alive.
+
+    Returns
+    -------
+    DeactivationPlan
+        ``deactivate`` (sorted exclusive URNs) and ``skipped_shared``
+        (sorted by candidate URN).
+    """
+    adj = _reference_adjacency(graph.edges)
+
+    # Candidate set: in-scope artifacts referenced by the target.
+    candidates: set[str] = set()
+    for ref in _referenced_artifacts(graph, target_urn):
+        if scope.selects(ref.kind):
+            candidates.add(ref.urn)
+
+    # Remaining active sources (target excluded — its references must not keep a
+    # candidate alive). For each remaining source, the set of artifacts it still
+    # reaches; mapped back so we can name a referencing source for shared skips.
+    remaining_sources = active_urns - {target_urn}
+    reachable_by_source: dict[str, set[str]] = {
+        source: _forward_reference_closure(adj, {source})
+        for source in remaining_sources
+    }
+
+    deactivate: list[str] = []
+    skipped_shared: list[SharedSkip] = []
+    for candidate in candidates:
+        # Find a still-active source (deterministic: lowest URN) that still
+        # references the candidate. If one exists the candidate is shared.
+        referencing = sorted(
+            source
+            for source, reached in reachable_by_source.items()
+            if candidate in reached
+        )
+        if referencing:
+            skipped_shared.append(
+                SharedSkip(urn=candidate, referencing_active_urn=referencing[0])
+            )
+        else:
+            deactivate.append(candidate)
+
+    deactivate.sort()
+    skipped_shared.sort(key=lambda s: s.urn)
+    return DeactivationPlan(deactivate=deactivate, skipped_shared=skipped_shared)
