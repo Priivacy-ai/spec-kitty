@@ -24,6 +24,9 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-pi-and-letta-agent-support-01KT4Q26
+base_commit: be3123202b5184c61ffd6d133429ea3f9668938d
+created_at: '2026-06-02T20:17:30.282550+00:00'
 subtasks:
 - T001
 - T002
@@ -31,7 +34,8 @@ subtasks:
 - T004
 - T005
 phase: Phase 0 - Foundation
-agent: claude
+agent: "claude:claude-sonnet-4-6:implementer-ivan:reviewer"
+shell_pid: "35915"
 history:
 - timestamp: '2026-06-02T17:52:08Z'
   lane: planned
@@ -256,3 +260,11 @@ The existing `m_2_1_1_repair_skill_pack` migration handles skill repair for agen
 - Confirm skill repair is gated on actual absence (not always triggered).
 - Confirm unconfigured agents (e.g., `claude`-only project) see no changes to `.gitignore`.
 - Run `pytest tests/specify_cli/regression/` to confirm no parity regressions.
+
+## Activity Log
+
+- 2026-06-02T20:17:53Z – claude – shell_pid=17073 – Moved to in_progress
+- 2026-06-02T20:18:22Z – user – shell_pid=18226 – Assigned agent via action command
+- 2026-06-02T20:23:30Z – user – shell_pid=18226 – Migration + tests implemented, mypy + ruff clean
+- 2026-06-02T20:23:55Z – claude:claude-sonnet-4-6:implementer-ivan:reviewer – shell_pid=35915 – Started review via action command
+- 2026-06-02T20:25:51Z – claude:claude-sonnet-4-6:implementer-ivan:reviewer – shell_pid=35915 – Review passed: migration idempotent, 8 tests pass, regression suite clean

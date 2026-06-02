@@ -38,11 +38,11 @@ Most of the Pi and Letta implementation (config registration, Agent Skills, init
 
 **Included subtasks**:
 
-- [ ] T001 Write `m_3_2_10_pi_letta_backfill.py` migration class skeleton (WP01)
-- [ ] T002 Implement gitignore backfill logic for `.pi/` and `.letta/` (WP01)
-- [ ] T003 Implement skill-pack trigger for missing `.agents/skills/spec-kitty.*` files (WP01)
-- [ ] T004 Register migration in the migration chain and set target_version (WP01)
-- [ ] T005 Write integration tests covering both agents, idempotency, and dry-run (WP01)
+- [x] T001 Write `m_3_2_10_pi_letta_backfill.py` migration class skeleton (WP01)
+- [x] T002 Implement gitignore backfill logic for `.pi/` and `.letta/` (WP01)
+- [x] T003 Implement skill-pack trigger for missing `.agents/skills/spec-kitty.*` files (WP01)
+- [x] T004 Register migration in the migration chain and set target_version (WP01)
+- [x] T005 Write integration tests covering both agents, idempotency, and dry-run (WP01)
 
 **Implementation sketch**:
 1. Create `src/specify_cli/upgrade/migrations/m_3_2_10_pi_letta_backfill.py` using `BaseMigration` + `@MigrationRegistry.register`.
@@ -68,10 +68,10 @@ Most of the Pi and Letta implementation (config registration, Agent Skills, init
 
 **Included subtasks**:
 
-- [ ] T006 Write ADR for Pi agent skill-only support decision (WP02)
-- [ ] T007 Write ADR for Letta agent skill-only support decision (WP02)
-- [ ] T008 Update CLAUDE.md agent count (17 → 19) and Agent Skills Agents table (WP02)
-- [ ] T009 Close GitHub issues #1050 and #1054 with implementation summaries (WP02)
+- [x] T006 Write ADR for Pi agent skill-only support decision (WP02)
+- [x] T007 Write ADR for Letta agent skill-only support decision (WP02)
+- [x] T008 Update CLAUDE.md agent count (17 → 19) and Agent Skills Agents table (WP02)
+- [x] T009 Close GitHub issues #1050 and #1054 with implementation summaries (WP02)
 
 **Implementation sketch**:
 1. Write `architecture/3.x/adr/2026-06-02-1-pi-agent-skill-only-support.md` using the ADR template.
