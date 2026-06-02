@@ -34,8 +34,8 @@ subtasks:
 - T004
 - T005
 phase: Phase 0 - Foundation
-agent: "user"
-shell_pid: "18226"
+agent: "claude:claude-sonnet-4-6:implementer-ivan:reviewer"
+shell_pid: "35915"
 history:
 - timestamp: '2026-06-02T17:52:08Z'
   lane: planned
@@ -265,3 +265,5 @@ The existing `m_2_1_1_repair_skill_pack` migration handles skill repair for agen
 
 - 2026-06-02T20:17:53Z – claude – shell_pid=17073 – Moved to in_progress
 - 2026-06-02T20:18:22Z – user – shell_pid=18226 – Assigned agent via action command
+- 2026-06-02T20:23:30Z – user – shell_pid=18226 – Migration + tests implemented, mypy + ruff clean
+- 2026-06-02T20:23:55Z – claude:claude-sonnet-4-6:implementer-ivan:reviewer – shell_pid=35915 – Started review via action command
