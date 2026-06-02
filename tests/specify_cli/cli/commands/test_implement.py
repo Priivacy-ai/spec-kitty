@@ -17,8 +17,9 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import typer
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 def _make_meta(
@@ -170,6 +171,93 @@ class TestPlanningArtifactIdempotentCommit:
 
         # No empty commit was created on the coordination branch.
         assert git("rev-parse", coord_branch) == coord_before
+
+
+class TestStructuralPlanningArtifactsFailClosed:
+    """Deletions/renames of planning artifacts must FAIL CLOSED, not proceed.
+
+    The planning-artifact commit routes through ``BookkeepingTransaction.write_artifact``
+    — a write-only API that cannot remove an old path from the coordination branch.
+    Before this fix, a deleted/renamed artifact was silently dropped (the parser kept
+    only the rename's new path; the idempotency filter ``continue``d on a non-existent
+    source) and the claim PROCEEDED, leaving the coordination branch incoherent
+    (stale deleted/renamed-from artifacts) — #1598 review P1. The claim must refuse.
+    """
+
+    def _seeded_repo(self, tmp_path: Path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+
+        def git(*args: str) -> str:
+            return subprocess.run(
+                ["git", *args], cwd=repo, check=True, capture_output=True, text=True
+            ).stdout.strip()
+
+        git("init", "-q", "-b", "main")
+        git("config", "user.email", "t@example.com")
+        git("config", "user.name", "Test")
+        git("config", "commit.gpgsign", "false")
+        feature_dir = repo / "kitty-specs" / "demo-feature"
+        _make_meta(
+            feature_dir,
+            with_coord=True,
+            mission_id="01J6XW9K00000000000000000P",
+            mission_slug="demo-feature",
+        )
+        wp = feature_dir / "tasks" / "WP01.md"
+        wp.parent.mkdir(parents=True, exist_ok=True)
+        wp.write_text("lane: planned\n", encoding="utf-8")
+        git("add", "-A")
+        git("commit", "-q", "-m", "seed feature dir")
+        return repo, feature_dir, git, wp
+
+    def test_deleted_planning_artifact_fails_closed(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.implement import (
+            _ensure_planning_artifacts_committed_git,
+        )
+
+        repo, feature_dir, git, wp = self._seeded_repo(tmp_path)
+        head_before = git("rev-parse", "HEAD")
+
+        wp.unlink()  # unstaged deletion → porcelain " D kitty-specs/.../WP01.md"
+
+        with pytest.raises(typer.Exit):
+            _ensure_planning_artifacts_committed_git(
+                repo_root=repo,
+                feature_dir=feature_dir,
+                mission_slug="demo-feature",
+                wp_id="WP02",
+                planning_branch="main",
+                auto_commit=True,
+            )
+        # The claim refused: nothing was committed (no silent advance).
+        assert git("rev-parse", "HEAD") == head_before
+
+    def test_renamed_planning_artifact_fails_closed(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.implement import (
+            _ensure_planning_artifacts_committed_git,
+        )
+
+        repo, feature_dir, git, wp = self._seeded_repo(tmp_path)
+        head_before = git("rev-parse", "HEAD")
+
+        # Staged rename → porcelain "R  <old> -> <new>".
+        git(
+            "mv",
+            "kitty-specs/demo-feature/tasks/WP01.md",
+            "kitty-specs/demo-feature/tasks/WP01-renamed.md",
+        )
+
+        with pytest.raises(typer.Exit):
+            _ensure_planning_artifacts_committed_git(
+                repo_root=repo,
+                feature_dir=feature_dir,
+                mission_slug="demo-feature",
+                wp_id="WP02",
+                planning_branch="main",
+                auto_commit=True,
+            )
+        assert git("rev-parse", "HEAD") == head_before
 
 
 class TestPlanningArtifactPath:
