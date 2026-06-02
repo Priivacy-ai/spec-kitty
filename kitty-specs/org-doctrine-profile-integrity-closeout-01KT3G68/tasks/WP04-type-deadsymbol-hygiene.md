@@ -1,7 +1,8 @@
 ---
 work_package_id: WP04
 title: Type + dead-symbol gate hygiene
-dependencies: []
+dependencies:
+- WP03
 requirement_refs:
 - FR-005
 - FR-009
@@ -23,8 +24,9 @@ authoritative_surface: src/doctrine/drg/merge.py
 execution_mode: code_change
 owned_files:
 - src/doctrine/drg/merge.py
-- src/specify_cli/next/_internal_runtime/events.py
+- src/runtime/next/_internal_runtime/events.py
 - tests/architectural/test_no_dead_symbols.py
+- tests/architectural/_baselines.yaml
 role: implementer
 tags: []
 ---
@@ -33,7 +35,7 @@ tags: []
 Load `python-pedro` (implementer) via `/ad-hoc-profile-load` before anything else.
 
 ## Objective (FR-005, FR-009, FR-013 · finding I-3, I-6, I-11)
-Restore the `mypy --strict` gate on mission-authored `merge.py`, and make the parent mission's dead-symbol completion claim accurate.
+Restore the `mypy --strict` gate on mission-authored `merge.py`, and make **`test_no_dead_symbols` GREEN** (NFR-002). NOTE (survey H1, load-bearing): the gate has **~23 failing entries**, not the 2 `events.py` re-exports — the parent's WP15 allowlist (covering ~13 mission charter/doctrine symbols) was **dropped in the upstream rebase** (it conflicted with the `specify_cli.next`→`runtime.next` migration). This WP must re-derive the full allowlist, not just drop 2 re-exports.
 
 ## Subtasks
 ### T012 — Generic `_tag_source` (FR-005, I-3)
@@ -42,17 +44,23 @@ Restore the `mypy --strict` gate on mission-authored `merge.py`, and make the pa
 ### T013 — Provenance typing (FR-013, I-11) — OR tracker
 `merge.py:202` uses `object.__setattr__(obj, "provenance", source)` to monkey-patch a sidecar onto frozen Pydantic models — the upstream cause of T012's widening. If a clean typed approach is low-risk (e.g. a typed wrapper or a declared optional field), do it. Otherwise file a tracker issue and reference it in a code comment; this FR is "SHOULD … OR tracker."
 
-### T014 — Dead-symbol accuracy (FR-009, I-6)
-In `src/specify_cli/next/_internal_runtime/events.py`, remove `SignificanceEvaluatedPayload` and `TimeoutExpiredPayload` from `__all__` (canonical home + live callers are in `…_internal_runtime/significance.py`). **KEEP the `import` lines** — both are used as type annotations in `events.py` (~lines 81/83/114/117) (A6). Remove their two entries from `_SYMBOL_ALLOWLIST` in `tests/architectural/test_no_dead_symbols.py`. Keep `JsonlEventLog` allowlisted (genuinely no `src/` caller) with its rationale. Do NOT edit `_baselines.yaml` — the allowlist shrinkage only warns, and `_baselines.yaml` is owned by WP03.
+### T014 — Make `test_no_dead_symbols` GREEN: full dead-symbol re-derivation (FR-009, I-6; survey H1)
+Run the gate first to get the authoritative current lists, then in `tests/architectural/test_no_dead_symbols.py`:
+1. **Re-add the ~13 mission-authored symbols** to `_SYMBOL_ALLOWLIST` (a new Category-C `org-doctrine` block, with rationale + tracker), in the **current `runtime.*` namespace**: `charter.{activation_engine::ActivationPlan, cascade::{DeactivationPlan,REFERENCE_RELATIONS,ReferencedArtifact,SharedSkip}, drg::UnknownRelationError, kind_vocabulary::{CHARTER_KIND_TOKENS,MISSION_TYPE_TOKEN}}`, `doctrine.drg.org_pack_loader::{AUGMENTATION_RELATIONS,TOPOLOGY_KINDS,merge_topology_artifact}`, `doctrine.template_catalog::{template_id_for,template_node,template_nodes,template_urn}`, `specify_cli.cli.commands._doctrine_health::PackHealth`. (FR-006 wires some of these — re-run the gate after WP03 lands and allowlist only what remains genuinely unimported.)
+2. **REMOVE the 5 now-wired stale entries**: `charter.invocation_context::{OperationalContext,build_operational_context}` (WP14), `charter.pack_context::CharterPackConfigError` (WP12), `specify_cli.status.lifecycle_events::{mission_event_log_path,read_lifecycle_events}`.
+3. **Drop the 2 redundant `events.py` re-exports** from `__all__` in `src/runtime/next/_internal_runtime/events.py` (`SignificanceEvaluatedPayload`, `TimeoutExpiredPayload`) — **KEEP the `import` lines** (used as annotations, A6); remove their allowlist entries; keep `JsonlEventLog` allowlisted.
+4. **Allowlist-with-tracker the 5 upstream symbols** `specify_cli.coordination.status_service::{EventLogWriteTarget,StatusContractError,StatusReadSource,append_event_log_batch,read_wp_lane_actor}` — pre-existing on `upstream/main` (merged #1614); add with a DIRECTIVE_013 tracker reference (WP06/T021 files it). Do NOT fix upstream coordination code here.
+5. **Update `tests/architectural/_baselines.yaml`** dead-symbol category counts + `# justification:` for the net change (WP04 now owns `_baselines.yaml`).
 
 ### T015 — Verify
-`mypy --strict src/doctrine/drg/merge.py` → 0 errors; `PWHEADLESS=1 pytest tests/architectural/test_no_dead_symbols.py tests/specify_cli/next/ -q` green (the events consumers still resolve the payloads from `significance.py`).
+`mypy --strict src/doctrine/drg/merge.py` → 0 errors; `PWHEADLESS=1 pytest tests/architectural/test_no_dead_symbols.py tests/architectural/test_ratchet_baselines.py tests/runtime/next/ -q` GREEN (events consumers still resolve the payloads from `significance.py`; no symbol left flagged).
 
 ## Definition of Done
 - `mypy --strict src/doctrine/drg/merge.py` clean (SC-003).
-- `events.py.__all__` no longer lists the 2 payloads (imports retained); allowlist shrunk by 2; `test_no_dead_symbols` green (SC-009).
+- **`test_no_dead_symbols` is GREEN** (no symbol flagged): mission symbols re-allowlisted, 5 stale removed, 2 `events.py` re-exports dropped (imports retained), 5 upstream `status_service` allowlisted-with-tracker; `test_ratchet_baselines` green with updated `_baselines.yaml` (SC-009; NFR-002).
 - T013 either implemented or tracked with a referenced issue.
 - `ruff` clean on changed files.
+- **Run AFTER WP03** (its `charter.template_catalog` facade may make some `doctrine.template_catalog` symbols imported → allowlist only what remains).
 
 ## Reviewer guidance
 Confirm the `events.py` `import` lines are retained (only `__all__` membership removed) and no consumer breaks (grep importers of the two payloads). Confirm `_tag_source` is genuinely generic, not `# type: ignore`-masked.

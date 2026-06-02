@@ -26,7 +26,10 @@ Hardening close-out remediating findings I-1..I-12 (parent debrief). 6 work pack
 | T018 | Update existing `test_activate_cascade_calls_with_true` + `test_activate_cascade_flag_accepted` (DD-4) | WP05 | |
 | T019 | Populate parent `acceptance-matrix.json` with real per-FR criteria + test IDs; set `overall_verdict` | WP06 | [P] |
 | T020 | Add `CLAUDE.md` section (charter activation/cascade, kind vocabulary, `specializes_from`) | WP06 | [P] |
-| T021 | File tracker(s) for pre-existing failures (`ceremony`, `git_repo` markers) + doctor.py modularity (FR-012 deferred) | WP06 | |
+| T021 | File DIRECTIVE_013 trackers: 4 (corrected) `git_repo` gaps + upstream `status_service` debt + FR-012/013 deferrals | WP06 | |
+| T022 | Absorb `ceremony`→"status commit" fix (FR-015; flips legacy-terminology gate; closes #1563) | WP06 | [P] |
+
+> **Plan updated 2026-06-02** per `research/scope-increase-survey.md` (operator-approved absorptions): WP01 now closes the full fail-to-green *class* (FR-001) + pins the `doctor doctrine` CLI contract (FR-002); WP04 is **re-scoped** to make `test_no_dead_symbols` fully green (the parent's WP15 allowlist was dropped in the rebase) and **now depends on WP03** + owns `_baselines.yaml` (dead-symbol ratchet); WP03 adds the lazy-import annotations and no longer edits `_baselines.yaml`; WP06 adds the ADR cross-link + the `ceremony` fix (T022, FR-015) + corrected trackers.
 
 ## Work Packages
 
@@ -54,12 +57,12 @@ Hardening close-out remediating findings I-1..I-12 (parent debrief). 6 work pack
 **Dependencies:** none. **Note:** only module-level imports are gated; lazy `mission_type_repository`/`MissionTemplateRepository` imports are boundary-invisible — do not facade them. **Prompt:** `tasks/WP03-charter-boundary-facade.md`
 
 ### WP04 — Type + dead-symbol gate hygiene (I-3, I-6, I-11) — HIGH/MEDIUM
-**Goal:** `mypy --strict` clean on `merge.py`; FR-036 dead-symbol claim accurate. **Independent test:** `mypy --strict src/doctrine/drg/merge.py`; `test_no_dead_symbols`.
+**Goal:** `mypy --strict` clean on `merge.py`; **`test_no_dead_symbols` fully GREEN** (re-scoped — survey H1: ~23 entries, the parent's WP15 allowlist was dropped in the rebase). **Independent test:** `mypy --strict src/doctrine/drg/merge.py`; `test_no_dead_symbols` + `test_ratchet_baselines`.
 - [ ] T012 `_tag_source` generic (WP04)
 - [ ] T013 Provenance typing OR tracker (WP04)
-- [ ] T014 Drop 2 `events.py` `__all__` entries (keep imports) + allowlist (WP04)
-- [ ] T015 Verify gates (WP04)
-**Dependencies:** none. **Prompt:** `tasks/WP04-type-deadsymbol-hygiene.md`
+- [ ] T014 Full dead-symbol re-derivation: re-add ~13 mission symbols (`runtime.*` ns) + remove 5 stale + drop 2 `events.py` re-exports + allowlist-with-tracker 5 upstream `status_service` + update `_baselines.yaml` (WP04)
+- [ ] T015 Verify gates green (WP04)
+**Dependencies:** WP03 (its facade may wire some template_catalog symbols → allowlist only what remains); WP04 now owns `_baselines.yaml`. **Prompt:** `tasks/WP04-type-deadsymbol-hygiene.md`
 
 ### WP05 — Cascade output hygiene (I-5) — MEDIUM
 **Goal:** no stale "deferred"/"not yet implemented" cascade warnings; cascade still works. **Independent test:** cascade-output absence test (activate + deactivate).
@@ -71,9 +74,10 @@ Hardening close-out remediating findings I-1..I-12 (parent debrief). 6 work pack
 ### WP06 — Completion-proof + docs + trackers (I-7, I-8, I-10, I-12) — MEDIUM/LOW
 **Goal:** accurate acceptance matrix, synced CLAUDE.md, trackers for deferred/pre-existing items. **Independent test:** matrix has no pending/null; CLAUDE.md section present; trackers filed.
 - [ ] T019 Populate parent `acceptance-matrix.json` (WP06)
-- [ ] T020 CLAUDE.md section (WP06)
-- [ ] T021 Trackers (pre-existing failures + doctor modularity) (WP06)
-**Dependencies:** none (best landed last — T019 references the proving test IDs the other WPs add). **Prompt:** `tasks/WP06-completion-proof-docs.md`
+- [ ] T020 CLAUDE.md section + ADR `2026-05-16-1` cross-link (WP06)
+- [ ] T021 DIRECTIVE_013 trackers: 4 `git_repo` gaps + upstream `status_service` + FR-012/013 deferrals (WP06)
+- [ ] T022 Absorb `ceremony`→"status commit" (FR-015; closes #1563) (WP06)
+**Dependencies:** WP01-WP05 (best landed last — T019 references the proving test IDs). **Prompt:** `tasks/WP06-completion-proof-docs.md`
 
 ## Parallelization
 All six WPs touch disjoint files and are independently implementable in parallel. Suggested priority: WP01 + WP02 (merge blockers) first; WP06 best last (its matrix references the other WPs' test IDs).

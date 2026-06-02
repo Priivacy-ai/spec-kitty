@@ -25,6 +25,7 @@ owned_files:
 - src/doctrine/agent_profiles/repository.py
 - src/doctrine/agent_profiles/diagnostics.py
 - src/specify_cli/cli/commands/doctor.py
+- src/specify_cli/cli/commands/_doctrine_health.py
 - tests/specify_cli/test_doctor_doctrine.py
 role: implementer
 tags: []
@@ -40,16 +41,25 @@ Close the reintroduced #1584 "false-healthy" class: an org pack containing a pro
 Profile loading is **eager and all-or-nothing**: `repository._load()/list_all()` raises mid-iteration on `InlineReferenceRejectedError` (raised at `repository.py:~426`), aborting the whole layer load. `_collect_profile_health` (`doctor.py:~1955`) then swallows it via a broad `except Exception` and returns an **empty** report → `DoctrineHealthReport.healthy == all([]) == True` (`_doctrine_health.py:~112`). A consumer-only catch was reviewed and **rejected** — it cannot keep valid siblings visible. The fix is at the **load layer**.
 
 ## Subtasks
-### T001 — Load-layer skip + RC=1 on unhealthy (operator preference: loud over hidden)
-Two coupled changes:
-(a) In `repository._load_layer` (the per-file load loop), catch `InlineReferenceRejectedError` and route it through `_record_skip`, recording a `SkippedProfile{layer, path, profile_id, error_summary}`. The YAML is in hand here, so populate `profile_id` (the exception lacks it — DD-2) and a **clear, readable** `error_summary` (forbidden field + migration hint). Valid sibling profiles in the same/other layers MUST continue to load.
-(b) Make `doctor doctrine` exit **RC=1 when the report is unhealthy** (currently it always `raise typer.Exit(0)`). Per the operator preference — **a clear RC=1 with a surfaced error beats RC=0 hiding a defect** — change the command's exit to `raise typer.Exit(0 if report.healthy else 1)`. This reverses the earlier A3 "keep RC=0" scoping; it is now in scope. The minimal edit site is the `doctor doctrine` command body; if that requires editing `src/specify_cli/cli/commands/doctor.py`, add it to this WP's `owned_files` at implement time. Do NOT leave RC=0 on unhealthy.
+### T001 — Load-layer skip + structural `healthy`-honesty + RC=1 (close the fail-to-green CLASS, not one mask)
+The survey (debbie H2, proven) showed I-1 is one mask of a structural defect: `DoctrineHealthReport.healthy = all(packs)` is **vacuously `True` on empty** and **ignores `org_drg["errors"]`**, so several paths report green-when-broken. Make the whole class loud:
+(a) **Load-layer skip** — in `repository._load_layer` (per-file loop) catch `InlineReferenceRejectedError` → `_record_skip` a `SkippedProfile{layer, path, profile_id, error_summary}`; the YAML is in hand so populate `profile_id` (the exception lacks it — DD-2) and a **clear, readable** `error_summary` (forbidden field + migration hint). Valid siblings MUST keep loading.
+(b) **Honest `healthy` flag** (`_doctrine_health.py`, ~line 112): `DoctrineHealthReport.healthy` → `bool(self.packs) and all(...) and not self.org_drg.get("errors")` — kills the vacuous `all([])==True` AND the org-DRG-error blind spot.
+(c) **Collector records its crash** — `_collect_profile_health` (`doctor.py:~1955`) must record the load error (e.g. into `org_drg["errors"]` / a `profile_load_error`) instead of degrading to an empty (green) report; "collector crashed" must be distinguishable from "genuinely zero profiles."
+(d) **Human renderer default** (`doctor.py:~1892-1894`): a present pack with no/partial `pack_health` renders **degraded**, not green (`.get("healthy", False)`).
+(e) **RC=1 on unhealthy** — `doctor doctrine` currently always `raise typer.Exit(0)`; change to `raise typer.Exit(0 if report.healthy else 1)`. Loud-fail-with-traceability over hidden-fail (operator directive). The honest flag from (b) now drives the exit code.
+(Optional same-file boyscout: narrow `_build_pack_entries(registry: object)` to drop the `# type: ignore[attr-defined]` at `doctor.py:2093`.)
 
 ### T002 — Reconcile the inline-ref contract docs (I-9)
 `diagnostics.py:6` already calls inline-ref rejection a *skip reason*; `repository.py:~423-424` comments it as a *fail-closed propagation*. After T001(a) it is a **surfaced skip** — update the `repository.py` comment to match `diagnostics.py`. No contradictory wording may remain.
 
-### T003 — Integration test (ATDD, RED→GREEN)
-Add a case to `tests/specify_cli/test_doctor_doctrine.py` that builds a real on-disk org pack containing a profile with a forbidden inline-ref field (e.g. `tactic_refs`), runs `doctor doctrine --json` (CliRunner / real `DoctrineService`), and asserts: `healthy: false`; the invalid profile surfaced with `{path, id, error_summary}` carrying the readable error; **a valid sibling profile remains visible**; and **process exit code == 1**. This proves contract C1 + C2 (no fail-to-green) + RC=1. Give the new test a function-level `@pytest.mark.integration` override (real filesystem I/O; the file's module marker is `unit` — P-4). Confirm RED on current code before the fix.
+### T003 — Integration test + CLI-contract pin (ATDD, RED→GREEN; DIRECTIVE_030 producer-conformance)
+Add cases to `tests/specify_cli/test_doctor_doctrine.py` (CliRunner / real `DoctrineService`, function-level `@pytest.mark.integration` — the file's module marker is `unit`, P-4) that pin the whole fail-to-green class + the CLI contract:
+- inline-ref-invalid org profile (`tactic_refs`) → `healthy: false`, profile surfaced `{path, id, error_summary}` with the readable error, **valid sibling visible**, **exit_code == 1**;
+- collector-crash case → `healthy: false` + recorded error (not vacuous green);
+- non-empty `org_drg["errors"]` → `healthy: false`;
+- **contract pin** (#645): assert the stable `--json` health keys and the RC mapping (0 healthy / 1 unhealthy) so the surface cannot silently regress.
+Each must be RED on current code before the T001 fix.
 
 ### T004 — Regression-verify general callers
 The load-layer skip changes behavior for general callers (`resolve_profile`/`get_ancestors` no longer raise on inline-ref; the profile is a surfaced skip). Run `tests/doctrine/test_inline_ref_rejection.py` and `tests/doctrine/agent_profiles/`; adjust any test that asserted the raise to assert on `skipped_profiles()` (which carries the clear error) instead. NFR-001: no general-caller regression. A caller that genuinely needs to fail on a missing/invalid profile must raise a **clear error referencing `skipped_profiles()`** — never silently return a wrong/empty result (operator preference: loud over hidden).

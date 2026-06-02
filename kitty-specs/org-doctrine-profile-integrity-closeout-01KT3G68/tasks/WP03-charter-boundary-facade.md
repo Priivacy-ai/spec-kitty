@@ -25,7 +25,6 @@ owned_files:
 - src/specify_cli/cli/commands/charter/activate.py
 - src/specify_cli/cli/commands/charter/list_cmd.py
 - tests/architectural/test_runtime_charter_doctrine_boundary.py
-- tests/architectural/_baselines.yaml
 role: implementer
 tags: []
 ---
@@ -49,10 +48,10 @@ Pure re-export facade exposing `discover_templates`, `TemplateRef`, `TierRoot` f
 ### T009 — Repoint module-level imports
 - `activate.py:45`: `from doctrine.artifact_kinds import ArtifactKind, MissionTypeNotAnArtifactKind` → `from charter.kind_vocabulary import ...`.
 - `list_cmd.py:13-15`: `CHARTER_KIND_TOKENS` → `charter.kind_vocabulary`; `ResolutionTier` → `charter.resolution`; `TemplateRef, TierRoot, discover_templates` → `charter.template_catalog`.
-- Leave the lazy `doctrine.missions.*` imports untouched.
+- Leave the lazy `doctrine.missions.*` imports untouched, but **annotate them** (`activate.py:~117`, `list_cmd.py:~85`) with `# boundary: lazy import intentionally not facaded (PLC0415; boundary-invisible)` so a future cleanup can't promote them to module scope and reintroduce allowlist growth (protects the #1111 allowlist→0 win — survey A4).
 
 ### T010 — Allowlist → 0
-Remove both entries from `_BASELINE_ALLOWLIST` in `tests/architectural/test_runtime_charter_doctrine_boundary.py` (and the now-false justification comment). Set `tests/architectural/_baselines.yaml::test_runtime_charter_doctrine_boundary.baseline_allowlist` to `0`.
+Empty `_BASELINE_ALLOWLIST` in `tests/architectural/test_runtime_charter_doctrine_boundary.py` (remove both `activate.py`/`list_cmd.py` entries + the now-false justification comment). The ratchet baseline `test_runtime_charter_doctrine_boundary.baseline_allowlist` in `_baselines.yaml` is **already 0** on upstream, so the live count dropping 2→0 makes the gate pass — do **not** edit `_baselines.yaml` (owned by WP04 for the dead-symbol counts); just verify it reads 0.
 
 ### T011 — Verify
 `PWHEADLESS=1 pytest tests/architectural/test_runtime_charter_doctrine_boundary.py tests/architectural/test_ratchet_baselines.py -q` green; `grep -rn 'from doctrine' src/specify_cli/cli/commands/charter/{activate,list_cmd}.py` shows only the lazy (function-level) imports.
