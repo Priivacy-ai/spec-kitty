@@ -156,13 +156,10 @@ class TestMid8Extraction:
         # suffix present but not all-uppercase alphanumeric
         ("my-feature-abcd1234", ""),  # lowercase → not a ULID mid8
         # slug with numeric-only tail
-        ("feature-12345678", ""),
+        ("feature-12345678", "12345678"),
     ])
     def test_mid8_extraction(self, slug: str, expected_mid8: str) -> None:
-        """mid8 is extracted iff tail is exactly 8 uppercase alphanumeric chars (T020, T021)."""
-        mid8 = ""
-        if "-" in slug:
-            tail = slug.rsplit("-", 1)[-1]
-            if len(tail) == 8 and tail.isalnum() and tail.isupper():
-                mid8 = tail
-        assert mid8 == expected_mid8
+        """mid8 is extracted iff tail is exactly 8 Crockford base32 chars (T020, T021)."""
+        from specify_cli.lanes.branch_naming import mid8_from_slug
+
+        assert mid8_from_slug(slug) == expected_mid8

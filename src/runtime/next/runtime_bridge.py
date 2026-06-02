@@ -101,6 +101,19 @@ def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str:
     return mission_slug
 
 
+def _mission_declares_coordination_branch(mission_slug: str, repo_root: Path) -> bool:
+    """Return True when meta.json explicitly declares coord-branch topology."""
+    meta_path = repo_root / "kitty-specs" / mission_slug / "meta.json"
+    if not meta_path.exists():
+        return False
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    branch = meta.get("coordination_branch") if isinstance(meta, dict) else None
+    return isinstance(branch, str) and bool(branch.strip())
+
+
 def _wrap_with_decision_git_log(
     emitter: SyncRuntimeEventEmitter,
     mission_slug: str,
@@ -121,11 +134,26 @@ def _wrap_with_decision_git_log(
 
         # Resolve coord worktree path (pure static method, no side effects).
         # Extract mid8 from slug (post-083 slugs end in "-<8-char-ULID-prefix>").
-        # Fall back to repo_root for legacy missions or pre-init runs.
+        # Fall back to repo_root only for legacy missions or pre-init runs that
+        # do not yet declare coord-branch topology.  Modern missions with a
+        # missing coord worktree fail closed to avoid dirtying the primary
+        # checkout with coord-branch decision events.
         from specify_cli.lanes.branch_naming import mid8_from_slug as _mid8_from_slug
         _mid8 = _mid8_from_slug(mission_slug)
         _coord_path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, _mid8)
-        worktree_root = _coord_path if _coord_path.exists() else repo_root
+        if _coord_path.exists():
+            worktree_root = _coord_path
+        elif _mission_declares_coordination_branch(mission_slug, repo_root):
+            logger.warning(
+                "DecisionGitLog coordination worktree missing for mission %s "
+                "(expected=%s, destination_ref=%s); falling back to plain emitter.",
+                mission_slug,
+                _coord_path,
+                coordination_branch,
+            )
+            return emitter
+        else:
+            worktree_root = repo_root
 
         return DecisionGitLog(
             repo_root=repo_root,

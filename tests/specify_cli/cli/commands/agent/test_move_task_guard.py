@@ -66,12 +66,15 @@ class TestCoordTopologyActive:
             result = _coord_topology_active(tmp_path, "my-feature-01KT3YBD")
             assert result is False
 
-    def test_returns_false_for_numeric_suffix(self, tmp_path: Path) -> None:
-        """Numeric-only suffix is not a valid ULID mid8 → no coord check → False."""
+    def test_returns_true_for_numeric_suffix_when_coord_worktree_exists(self, tmp_path: Path) -> None:
+        """Numeric-only suffix is valid Crockford mid8 and can activate coord topology."""
         from specify_cli.cli.commands.agent.tasks import _coord_topology_active
 
-        slug = "feature-12345678"  # 8 chars but not uppercase alpha+num
-        assert _coord_topology_active(tmp_path, slug) is False
+        slug = "feature-12345678"
+        coord_path = tmp_path / ".worktrees" / "feature-12345678-coord"
+        coord_path.mkdir(parents=True)
+
+        assert _coord_topology_active(tmp_path, slug) is True
 
 
 # ---------------------------------------------------------------------------
@@ -142,7 +145,6 @@ class TestMoveTaskGuardCondition:
     def test_coord_topology_active_integrates_with_guard(self, tmp_path: Path) -> None:
         """End-to-end: coord worktree on disk → _coord_topology_active True → guard triggers."""
         from specify_cli.cli.commands.agent.tasks import _coord_topology_active
-        from specify_cli.git.commit_helpers import protected_branches
 
         slug = "my-feature-01KT3YBD"
         mid8 = "01KT3YBD"
@@ -165,3 +167,31 @@ class TestMoveTaskGuardCondition:
             skip = coord_active and "main" in pb(tmp_path)
 
         assert skip is True
+
+    def test_skip_target_branch_commit_true_for_coord_protected_target(
+        self, tmp_path: Path
+    ) -> None:
+        """Shared move-task guard bypasses early protected-branch refusal."""
+        from specify_cli.cli.commands.agent.tasks import _skip_target_branch_commit
+
+        slug = "my-feature-01KT3YBD"
+        coord_path = tmp_path / ".worktrees" / "my-feature-01KT3YBD-coord"
+        coord_path.mkdir(parents=True)
+
+        with patch(
+            "specify_cli.cli.commands.agent.tasks.protected_branches",
+            return_value=["main"],
+        ):
+            assert _skip_target_branch_commit(tmp_path, slug, "main") is True
+
+    def test_skip_target_branch_commit_false_for_legacy_protected_target(
+        self, tmp_path: Path
+    ) -> None:
+        """Legacy missions still refuse auto-commit on protected branches."""
+        from specify_cli.cli.commands.agent.tasks import _skip_target_branch_commit
+
+        with patch(
+            "specify_cli.cli.commands.agent.tasks.protected_branches",
+            return_value=["main"],
+        ):
+            assert _skip_target_branch_commit(tmp_path, "legacy-feature", "main") is False

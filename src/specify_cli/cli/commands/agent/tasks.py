@@ -757,6 +757,14 @@ def _coord_topology_active(repo_root: Path, mission_slug: str) -> bool:
         return False
 
 
+def _skip_target_branch_commit(repo_root: Path, mission_slug: str, target_branch: str) -> bool:
+    """Return True when coord topology makes protected target commits redundant."""
+    return (
+        _coord_topology_active(repo_root, mission_slug)
+        and target_branch in protected_branches(repo_root)
+    )
+
+
 def _status_event_result_fields(event: object | None) -> dict[str, str | None]:
     """Return JSON-safe status event fields for command output."""
     if event is None:
@@ -1644,7 +1652,11 @@ def move_task(
 
         # Ensure we operate on the target branch for this feature
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
-        if auto_commit:
+        skip_target_branch_commit = (
+            _skip_target_branch_commit(main_repo_root, mission_slug, target_branch)
+            if auto_commit else False
+        )
+        if auto_commit and not skip_target_branch_commit:
             protected_error = _protected_branch_status_commit_error(
                 target_branch,
                 main_repo_root,
@@ -2123,6 +2135,7 @@ def move_task(
             updated_doc = build_document(updated_front, updated_body, updated_padding)
 
             file_written = False
+            _skip_target_commit = skip_target_branch_commit
             if auto_commit:
                 spec_number = mission_slug.split("-")[0] if "-" in mission_slug else mission_slug
 
@@ -2133,15 +2146,9 @@ def move_task(
                 try:
                     actual_file_path = wp.path.resolve()
 
-                    write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
-                    file_written = True
-
                     # Commit the WP file together with all status artifacts
                     # so that events.jsonl, status.json, and tasks.md
                     # changes are captured in the same atomic commit.
-                    _skip_target_commit = _coord_topology_active(
-                        main_repo_root, mission_slug
-                    ) and target_branch in protected_branches(main_repo_root)
                     if _skip_target_commit:
                         if not json_output:
                             console.print(
@@ -2152,6 +2159,8 @@ def move_task(
                             )
                         commit_success = False
                     else:
+                        write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
+                        file_written = True
                         status_artifacts = _collect_status_artifacts(feature_dir)
                         commit_success = safe_commit(
                             repo_root=main_repo_root,
@@ -2164,9 +2173,8 @@ def move_task(
                     if commit_success:
                         if not json_output:
                             console.print(f"[cyan]→ Committed status change to {target_branch} branch[/cyan]")
-                    else:
-                        if not json_output:
-                            console.print("[yellow]Warning:[/yellow] Failed to auto-commit")
+                    elif not _skip_target_commit and not json_output:
+                        console.print("[yellow]Warning:[/yellow] Failed to auto-commit")
 
                 except Exception as e:
                     if not file_written:
@@ -2180,7 +2188,7 @@ def move_task(
             # Done AFTER the standard frontmatter write so we operate on the latest
             # on-disk content via the typed Pydantic model.
             tracker_ref_values = [t.strip() for t in (tracker_ref or []) if t and t.strip()]
-            if tracker_ref_values:
+            if tracker_ref_values and not _skip_target_commit:
                 try:
                     from specify_cli.frontmatter import write_frontmatter as _write_fm
                     from specify_cli.status.wp_metadata import (

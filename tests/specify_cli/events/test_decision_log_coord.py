@@ -177,6 +177,29 @@ class TestWrapWithDecisionGitLogCoordRouting:
         assert "worktree_root" in captured
         assert captured["worktree_root"] == tmp_path
 
+    def test_declared_coord_topology_missing_worktree_returns_plain_emitter(
+        self, tmp_path: Path
+    ) -> None:
+        """Modern missions do not write coord decision events into repo_root."""
+        from runtime.next.runtime_bridge import _wrap_with_decision_git_log
+
+        repo_root = tmp_path / "repo"
+        slug = "my-feature-01KT3YBD"
+        mission_dir = repo_root / "kitty-specs" / slug
+        mission_dir.mkdir(parents=True)
+        (mission_dir / "meta.json").write_text(
+            '{"coordination_branch":"kitty/mission-my-feature-01KT3YBD",'
+            '"mission_id":"01KT3YBDABCDEFGHIJKLMNOP"}',
+            encoding="utf-8",
+        )
+        inner = MagicMock(spec=SyncRuntimeEventEmitter)
+
+        with patch("specify_cli.events.decision_log.DecisionGitLog") as decision_log:
+            wrapped = _wrap_with_decision_git_log(inner, slug, repo_root)
+
+        assert wrapped is inner
+        decision_log.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 # T020: safe_commit called with correct worktree_root
