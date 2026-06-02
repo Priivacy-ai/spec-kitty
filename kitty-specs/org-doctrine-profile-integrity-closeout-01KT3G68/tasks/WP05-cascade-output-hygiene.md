@@ -30,7 +30,7 @@ tags: []
 Load `python-pedro` (implementer) via `/ad-hoc-profile-load` before anything else.
 
 ## Objective (FR-008 · finding I-5 — MEDIUM)
-`charter activate/deactivate --cascade` prints stale "cascade not yet implemented / deferred" warnings while cascade actually runs (FR-016/FR-020 violation; operator-trust). Remove them.
+`charter activate/deactivate --cascade` prints stale "cascade not yet implemented / deferred" warnings while cascade actually runs (parent FR-016/FR-020 violation; operator-trust). Remove them.
 
 ## Context (settled — `research.md` R3, `contracts/cascade-output.contract.md`)
 `pack_manager` has **two** deferral-warning branches: `if cascade:` (~424-429, "not yet implemented … deferred") AND `if not cascade:` (~417-423, "re-run with --cascade … cascade execution deferred"). Passing `cascade=False` does NOT work — it just fires the *other* branch (proven by 3 reviewers). The real cascade is CLI-owned via `charter.cascade`; `pack_manager`'s `cascade` parameter does **no real work** (`commit_plan` is identical regardless). So **delete both branches**.
