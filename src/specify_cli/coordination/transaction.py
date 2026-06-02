@@ -39,6 +39,10 @@ from specify_cli.coordination.policy import (
     WorkflowMutationPolicy,
     _normalize_ref,
 )
+from specify_cli.coordination.status_service import (
+    EventLogWriteContract,
+    append_event_log,
+)
 from specify_cli.coordination.types import (
     Allowed,
     CommitReceipt,
@@ -49,7 +53,6 @@ from specify_cli.coordination.types import (
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed, safe_commit
 from specify_cli.status import reducer as _reducer
-from specify_cli.status import store as _store
 from specify_cli.status.locking import (
     FeatureStatusLockTimeoutError,
     feature_status_lock,
@@ -819,7 +822,10 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         self.feature_dir.mkdir(parents=True, exist_ok=True)
 
         # Append + verify readback (matches existing emit pipeline).
-        _store.append_event_verified(self.feature_dir, event)
+        append_event_log(
+            EventLogWriteContract.coordination_transaction_append(self.feature_dir),
+            event,
+        )
         # Re-materialise status.json so an external observer sees
         # consistent state immediately after the event is durable.
         try:

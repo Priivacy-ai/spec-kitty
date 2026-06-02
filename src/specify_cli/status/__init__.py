@@ -35,6 +35,8 @@ from .store import (
     append_event,
     append_event_verified,
     append_events_atomic_verified,
+    append_primary_checkout_event_verified,
+    append_primary_checkout_events_atomic_verified,
     read_events,
     read_events_raw,
 )
@@ -145,6 +147,8 @@ __all__ = [
     "append_event",
     "append_event_verified",
     "append_events_atomic_verified",
+    "append_primary_checkout_event_verified",
+    "append_primary_checkout_events_atomic_verified",
     "emit_status_transition",
     "generate_status_view",
     "get_all_wp_lanes",
