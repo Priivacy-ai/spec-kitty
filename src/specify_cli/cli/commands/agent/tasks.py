@@ -749,9 +749,13 @@ def _coord_topology_active(repo_root: Path, mission_slug: str) -> bool:
     """Return True if the coordination worktree exists for this mission."""
     try:
         from specify_cli.coordination.workspace import CoordinationWorkspace
-
-        ws = CoordinationWorkspace(repo_root, mission_slug)
-        return ws.worktree_path.exists()
+        mid8 = ""
+        if "-" in mission_slug:
+            tail = mission_slug.rsplit("-", 1)[-1]
+            if len(tail) == 8 and tail.isalnum() and tail.isupper():
+                mid8 = tail
+        path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
+        return path.exists()
     except Exception:
         return False
 
