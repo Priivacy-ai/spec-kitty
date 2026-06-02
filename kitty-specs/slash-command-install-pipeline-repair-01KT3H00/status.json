@@ -1,7 +1,7 @@
 {
-  "event_count": 19,
-  "last_event_id": "01KT3K1GY88JQ138DZ2YKE0E5N",
-  "materialized_at": "2026-06-02T07:16:20.552890+00:00",
+  "event_count": 20,
+  "last_event_id": "01KT3K1HY7FCY0F3D8E5CCR89R",
+  "materialized_at": "2026-06-02T07:16:21.575702+00:00",
   "mission_number": "",
   "mission_slug": "slash-command-install-pipeline-repair-01KT3H00",
   "mission_type": "software-dev",
@@ -47,10 +47,10 @@
     },
     "WP05": {
       "actor": "finalize-tasks",
-      "force_count": 3,
+      "force_count": 4,
       "lane": "planned",
-      "last_event_id": "01KT3K13PFPP2PN5J0V5W7R6TY",
-      "last_transition_at": "2026-06-02T07:16:06.991492+00:00"
+      "last_event_id": "01KT3K1HY7FCY0F3D8E5CCR89R",
+      "last_transition_at": "2026-06-02T07:16:21.575702+00:00"
     }
   }
 }
