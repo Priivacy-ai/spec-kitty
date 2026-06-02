@@ -166,6 +166,27 @@ def test_run_consistency_check_returns_report_object(tmp_path: Path) -> None:
 
 
 @pytest.mark.doctrine
+def test_no_activation_keys_skips_doctrine_scan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A minimal project has no IDs to validate, so it must not scan doctrine."""
+    import charter.consistency_check as consistency_check
+
+    ctx = _ctx_with_config(tmp_path, "# minimal valid project\n")
+
+    def fail_scan(*_args: object, **_kwargs: object) -> dict[str, frozenset[str]]:
+        raise AssertionError("doctrine scan should not run without activation keys")
+
+    monkeypatch.setattr(consistency_check, "_collect_all_doctrine_ids", fail_scan)
+
+    report = run_consistency_check(ctx)
+
+    assert report.coherent is True
+    assert report.unknown_references == []
+
+
+@pytest.mark.doctrine
 def test_run_consistency_check_completes_within_2s(tmp_path: Path) -> None:
     """NFR-003: consistency check against the built-in doctrine must finish < 2s."""
     ctx = _ctx_with_config(tmp_path, "# minimal valid project\n")

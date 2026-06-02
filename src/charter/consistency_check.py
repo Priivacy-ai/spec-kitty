@@ -153,6 +153,11 @@ def _collect_all_doctrine_ids(
     return all_ids
 
 
+def _has_explicit_activation(raw_activated_by_kind: dict[str, list[str] | None]) -> bool:
+    """Return True when config.yaml contains at least one activation key."""
+    return any(raw is not None for raw in raw_activated_by_kind.values())
+
+
 def _split_urn(urn: str) -> tuple[str, str]:
     """Split ``"<kind>:<id>"`` into ``(kind, id)``.
 
@@ -348,6 +353,10 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         kind: None if raw is None else frozenset(raw)
         for kind, raw in raw_activated_by_kind.items()
     }
+
+    if not _has_explicit_activation(raw_activated_by_kind):
+        return ConsistencyReport(coherent=True)
+
     all_doctrine_ids = _collect_all_doctrine_ids(ctx, manager)
 
     _check_unknown_references(

@@ -332,8 +332,8 @@ class TestMergeDefaults:
 
 
 class TestActivateCascadeWarning:
-    def test_cascade_true_appends_warning(self, manager: CharterPackManager, project_root: Path) -> None:
-        """activate(cascade=True) emits a warning that DRG traversal is deferred."""
+    def test_cascade_true_does_not_append_manager_warning(self, manager: CharterPackManager, project_root: Path) -> None:
+        """activate(cascade=True) keeps manager warnings scoped to activation state."""
         config = project_root / ".kittify" / "config.yaml"
         config.write_text(
             "activated_directives:\n  - 001-architectural-integrity-standard\n",
@@ -346,7 +346,7 @@ class TestActivateCascadeWarning:
             artifact_id="003-decision-documentation-requirement",
             cascade=True,
         )
-        assert any("cascade" in w.lower() for w in result.warnings)
+        assert not any("cascade" in w.lower() for w in result.warnings)
 
 
 # ---------------------------------------------------------------------------
@@ -355,13 +355,13 @@ class TestActivateCascadeWarning:
 
 
 class TestDeactivateCascadeAndInvalidKind:
-    def test_cascade_true_appends_warning(self, manager: CharterPackManager, project_root: Path) -> None:
-        """deactivate(cascade=True) emits a warning that cascade analysis is deferred."""
+    def test_cascade_true_does_not_append_manager_warning(self, manager: CharterPackManager, project_root: Path) -> None:
+        """deactivate(cascade=True) keeps manager warnings scoped to activation state."""
         config = project_root / ".kittify" / "config.yaml"
         config.write_text("activated_directives:\n  - to-remove\n", encoding="utf-8")
         ctx = ProjectContext.from_repo(project_root)
         result = manager.deactivate(ctx, kind="directive", artifact_id="to-remove", cascade=True)
-        assert any("cascade" in w.lower() for w in result.warnings)
+        assert not any("cascade" in w.lower() for w in result.warnings)
 
     def test_raises_value_error_for_unknown_kind(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
         """deactivate() with an unknown kind raises ValueError."""
