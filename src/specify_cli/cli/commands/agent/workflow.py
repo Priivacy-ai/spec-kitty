@@ -34,6 +34,7 @@ contract.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import subprocess
@@ -239,6 +240,54 @@ def _canonical_status_feature_dir(main_repo_root: Path, mission_slug: str) -> Pa
     return resolve_mission_read_path(main_repo_root, mission_slug, mid8)
 
 
+def _merge_event_log_bytes(existing: bytes, incoming: bytes) -> bytes:
+    """Append-only union of two JSONL event logs, keyed by ``event_id`` (#1602).
+
+    The coordination branch's canonical ``status.events.jsonl`` is authoritative
+    and append-only: a workflow commit must NEVER drop an event already recorded
+    there. But the main-checkout copy fed into the coordination commit can lack
+    lane transitions that only live on the coordination branch (they are emitted
+    straight to the coord worktree), while carrying non-lane lifecycle/decision
+    envelope events the coord copy lacks. Overwriting the coord log with that copy
+    wipes the lane history — ``read_events()`` then returns 0 and the loop wedges
+    with "no canonical status".
+
+    This merge preserves every ``existing`` (coord) line in order, then appends
+    only ``incoming`` lines whose ``event_id`` (or, when absent, raw text) is not
+    already present. Net effect: the canonical log can never be clobbered, yet a
+    genuinely new transition still lands. Appended events are the chronologically
+    newest (the just-emitted transition) or non-lane events the reducer skips, so
+    ordering stays correct.
+    """
+
+    def _key(line: str) -> str:
+        try:
+            obj = json.loads(line)
+        except (json.JSONDecodeError, ValueError):
+            return f"raw:{line}"
+        if isinstance(obj, dict):
+            eid = obj.get("event_id")
+            if isinstance(eid, str) and eid:
+                return f"id:{eid}"
+        return f"raw:{line}"
+
+    existing_lines = [
+        line for line in existing.decode("utf-8", "replace").splitlines() if line.strip()
+    ]
+    seen = {_key(line) for line in existing_lines}
+    merged = list(existing_lines)
+    for line in incoming.decode("utf-8", "replace").splitlines():
+        if not line.strip():
+            continue
+        key = _key(line)
+        if key not in seen:
+            seen.add(key)
+            merged.append(line)
+    if not merged:
+        return b""
+    return ("\n".join(merged) + "\n").encode("utf-8")
+
+
 def _commit_via_coordination_transaction(
     *,
     coord_branch: str,
@@ -280,7 +329,16 @@ def _commit_via_coordination_transaction(
                 if txn_path.resolve() == path.resolve():
                     txn.stage_path(path)
                 else:
-                    txn.write_artifact(txn_path, path.read_bytes())
+                    incoming = path.read_bytes()
+                    # #1602: the canonical event log is append-only. Never let a
+                    # main-checkout copy overwrite (clobber) the coordination
+                    # branch's lane history — union-merge instead so existing
+                    # coord events always survive.
+                    if path.name == _STATUS_EVENTS_FILENAME and txn_path.exists():
+                        incoming = _merge_event_log_bytes(
+                            txn_path.read_bytes(), incoming
+                        )
+                    txn.write_artifact(txn_path, incoming)
             receipt = txn.commit(message)
     except BookkeepingPolicyRefused as policy_exc:
         _record_receipt(
