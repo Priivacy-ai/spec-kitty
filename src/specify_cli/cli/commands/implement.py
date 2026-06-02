@@ -809,6 +809,26 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                 ))
                 raise typer.Exit(1)
 
+        # FR-017 / NFR-004: build and validate the runtime OperationalContext
+        # BEFORE any worktree allocation. The shared claim builder is read-only
+        # (no worktree, no status event); calling its guards here means a
+        # missing-context precondition failure aborts before create_lane_workspace
+        # runs, so a failed claim leaves zero new worktree paths and zero new
+        # status events.
+        from specify_cli.next.runtime_bridge import build_operational_context_for_claim
+
+        operational_context = build_operational_context_for_claim(
+            repo_root=repo_root,
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            actor=actor or "implement-command",
+            active_model=actor,
+            active_role=actor or "implement-command",
+            current_activity="implement",
+        )
+        operational_context.require_active_role()
+
         resolved_workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
 
         lanes_manifest = None

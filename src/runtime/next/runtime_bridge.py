@@ -27,7 +27,10 @@ import shutil
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from charter.invocation_context import OperationalContext as OperationalContextT
 
 import yaml
 from runtime.next._internal_runtime import (
@@ -2009,6 +2012,163 @@ def get_or_start_run(
 
 
 # ---------------------------------------------------------------------------
+# OperationalContext wiring (FR-017, NFR-004)
+# ---------------------------------------------------------------------------
+
+
+def _resolve_run_dir_for_mission(
+    repo_root: Path, mission_slug: str
+) -> Path | None:
+    """Return the persisted run directory for ``mission_slug``, read-only.
+
+    Looks the run up in the durable ``feature-runs.json`` index without
+    starting a new run (unlike :func:`get_or_start_run`). Returns ``None`` when
+    no run has been recorded yet. This keeps OC construction at the claim sites
+    free of any run-start side effect (NFR-004).
+    """
+    index = _load_feature_runs(repo_root)
+    entry = index.get(mission_slug)
+    if not entry:
+        return None
+    run_dir_raw = entry.get("run_dir")
+    if not run_dir_raw:
+        return None
+    return Path(run_dir_raw)
+
+
+def _resolve_tech_stack_for_profile(
+    repo_root: Path, profile_id: str | None
+) -> frozenset[str]:
+    """Best-effort resolution of the in-scope tech stack for ``profile_id``.
+
+    The tech stack is sourced from the resolved agent profile's
+    ``applies_to_languages`` / specialization-context languages (charter/meta
+    per data-model §7). This is best-effort: any resolution failure yields an
+    empty frozenset rather than raising, so populating an
+    :class:`~charter.invocation_context.OperationalContext` never blocks a
+    claim or decision. The lookup is read-only and creates no worktree or
+    status side effects (NFR-004).
+    """
+    if not profile_id:
+        return frozenset()
+    try:
+        from doctrine.agent_profiles import AgentProfileRepository  # noqa: PLC0415
+
+        repo = AgentProfileRepository(project_dir=repo_root / ".kittify" / "doctrine")
+        profile = repo.resolve_profile(profile_id)
+    except Exception:
+        return frozenset()
+    if profile is None:
+        return frozenset()
+    languages: list[str] = list(getattr(profile, "applies_to_languages", []) or [])
+    spec_ctx = getattr(profile, "specialization_context", None)
+    if spec_ctx is not None:
+        languages.extend(getattr(spec_ctx, "languages", []) or [])
+    return frozenset(lang for lang in languages if lang)
+
+
+def build_operational_context_for_claim(
+    *,
+    repo_root: Path,
+    feature_dir: Path,  # noqa: ARG001 — accepted for call-site symmetry; OC fields derive from run state/profile
+    mission_slug: str,
+    wp_id: str,
+    actor: str | None,
+    active_model: str | None,
+    active_role: str | None,
+    current_activity: str = "implement",
+    active_profile: str | None = None,
+) -> OperationalContextT:
+    """Build a populated ``OperationalContext`` for a WP-claim call site.
+
+    Shared by the two claim entry points (``implement.py`` and
+    ``agent/workflow.py``) so OC-construction logic is not forked between them
+    (T062/T063). Resolves the active profile from the frozen mission template
+    step (via :func:`_resolve_step_agent_profile`) when the caller does not
+    supply one explicitly, and derives ``tech_stack`` from that profile.
+
+    This builder is read-only: it consults durable run state and profile
+    definitions but performs no worktree allocation and emits no status event,
+    so callers may invoke it before or after their own precondition checks
+    without violating NFR-004.
+
+    Args:
+        repo_root: Repository root.
+        feature_dir: Feature directory for the mission.
+        mission_slug: Mission slug (used to locate the run directory).
+        wp_id: Work package being claimed (current activity scope).
+        actor: Claim actor — becomes ``active_role`` when ``active_role`` is
+            not supplied.
+        active_model: The ``--agent`` value for the claim.
+        active_role: Explicit active role; falls back to ``actor``.
+        current_activity: Activity label (defaults to ``"implement"``).
+        active_profile: Explicit profile id; resolved from the template step
+            when ``None``.
+
+    Returns:
+        A populated :class:`~charter.invocation_context.OperationalContext`.
+    """
+    from charter.invocation_context import build_operational_context  # noqa: PLC0415
+
+    resolved_profile = active_profile
+    if resolved_profile is None:
+        try:
+            run_dir = _resolve_run_dir_for_mission(repo_root, mission_slug)
+            if run_dir is not None:
+                resolved_profile = _resolve_step_agent_profile(
+                    run_dir, current_activity
+                )
+        except Exception:
+            resolved_profile = None
+
+    return build_operational_context(
+        active_model=active_model,
+        active_profile=resolved_profile,
+        active_role=active_role or actor,
+        current_activity=current_activity or wp_id,
+        tech_stack=_resolve_tech_stack_for_profile(repo_root, resolved_profile),
+    )
+
+
+def _build_operational_context_for_decision(
+    *,
+    agent: str,
+    run_ref: MissionRunRef,
+    feature_dir: Path,  # noqa: ARG001 — part of the R-011-E helper contract; OC fields derive from run_ref/step_id
+    repo_root: Path,
+    step_id: str | None,
+    mission_state: str | None = None,
+) -> OperationalContextT:
+    """Build a populated ``OperationalContext`` for the ``next`` decision boundary.
+
+    Extracted helper (T064) so ``decide_next_via_runtime`` — already flagged
+    ``# noqa: C901`` — does not grow in complexity. Resolves the active profile
+    from the issued step via :func:`_resolve_step_agent_profile`, uses
+    ``step_id`` / ``mission_state`` as the current activity, and derives the
+    tech stack from the resolved profile. Read-only; no side effects (NFR-004).
+    """
+    from charter.invocation_context import build_operational_context  # noqa: PLC0415
+
+    activity = step_id or mission_state
+    resolved_profile: str | None = None
+    if step_id is not None:
+        try:
+            resolved_profile = _resolve_step_agent_profile(
+                Path(run_ref.run_dir), step_id
+            )
+        except Exception:
+            resolved_profile = None
+
+    return build_operational_context(
+        active_model=agent,
+        active_profile=resolved_profile,
+        active_role=agent,
+        current_activity=activity,
+        tech_stack=_resolve_tech_stack_for_profile(repo_root, resolved_profile),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Main bridge functions
 # ---------------------------------------------------------------------------
 
@@ -2102,6 +2262,26 @@ def decide_next_via_runtime(  # noqa: C901
         sync_emitter.seed_from_snapshot(snapshot)
     except Exception:
         current_step_id = None
+
+    # FR-017: populate the runtime OperationalContext at the `next` decision
+    # boundary via the extracted helper (keeps this C901 function flat). The
+    # builder is read-only — it never allocates a worktree or emits a status
+    # event (NFR-004).
+    operational_context = _build_operational_context_for_decision(
+        agent=agent,
+        run_ref=run_ref,
+        feature_dir=feature_dir,
+        repo_root=repo_root,
+        step_id=current_step_id,
+        mission_state=current_step_id,
+    )
+    logger.debug(
+        "decide_next operational context: model=%s profile=%s role=%s activity=%s",
+        operational_context.active_model,
+        operational_context.active_profile,
+        operational_context.active_role,
+        operational_context.current_activity,
+    )
 
     # WP iteration check: if we're on a WP step and WPs remain, don't advance runtime
     if result == "success" and current_step_id and _is_wp_iteration_step(current_step_id):
