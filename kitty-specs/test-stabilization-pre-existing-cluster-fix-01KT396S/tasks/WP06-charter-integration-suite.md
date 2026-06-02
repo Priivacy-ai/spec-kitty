@@ -8,7 +8,7 @@ requirement_refs:
 tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Execution worktree is allocated per lane from lanes.json. Implement on the lane-B worktree branch after WP02 is approved. Pull WP02 changes into the WP06 worktree before starting.
+branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T031
 - T032
@@ -24,8 +24,23 @@ authoritative_surface: src/specify_cli/charter_runtime/
 execution_mode: code_change
 owned_files:
 - src/specify_cli/charter_runtime/**/*.py
-- src/charter/**/*.py
-- tests/charter/**/*.py
+- src/charter/_activation_render.py
+- src/charter/_catalog_miss.py
+- src/charter/_diagnostics.py
+- src/charter/_doctrine_paths.py
+- src/charter/_drg_helpers.py
+- src/charter/_io.py
+- src/charter/activations.py
+- src/charter/bundle.py
+- src/charter/catalog.py
+- src/charter/compact.py
+- src/charter/compiler.py
+- src/charter/consistency_check.py
+- src/charter/context_renderers/**/*.py
+- src/charter/context.py
+- tests/charter/test_*.py
+- tests/charter/evidence/**/*.py
+- tests/charter/conftest.py
 role: implementer
 tags: []
 ---
