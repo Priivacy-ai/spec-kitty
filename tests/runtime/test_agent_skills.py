@@ -50,6 +50,96 @@ def test_global_bootstrap_preserves_non_spec_kitty_user_skills(tmp_path: Path, m
     assert mode & 0o200 == 0
 
 
+def test_global_bootstrap_removes_retired_paula_and_debbie_skills(
+    tmp_path: Path, monkeypatch
+) -> None:
+    home = tmp_path / "home"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
+
+    skills_root = tmp_path / "doctrine_skills"
+    _create_skill(skills_root, "spec-kitty-test-skill")
+    registry = SkillRegistry(skills_root)
+
+    for root in [
+        home / ".claude" / "skills",
+        home / ".agents" / "skills",
+    ]:
+        for retired_name in ["debugger-debbie", "paula-patterns"]:
+            retired_skill = root / retired_name / "SKILL.md"
+            retired_skill.parent.mkdir(parents=True, exist_ok=True)
+            retired_skill.write_text("# retired\n", encoding="utf-8")
+        custom_skill = root / "custom-skill" / "SKILL.md"
+        custom_skill.parent.mkdir(parents=True, exist_ok=True)
+        custom_skill.write_text("# custom\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "specify_cli.runtime.agent_skills._discover_registry",
+        lambda: registry,
+    )
+
+    ensure_global_agent_skills()
+
+    for root in [
+        home / ".claude" / "skills",
+        home / ".agents" / "skills",
+    ]:
+        assert not (root / "debugger-debbie").exists()
+        assert not (root / "paula-patterns").exists()
+        assert (root / "custom-skill" / "SKILL.md").is_file()
+
+
+def test_global_bootstrap_removes_readonly_retired_skill_tree(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from specify_cli.runtime import agent_skills
+
+    home = tmp_path / "home"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
+
+    skills_root = tmp_path / "doctrine_skills"
+    _create_skill(skills_root, "spec-kitty-test-skill")
+    registry = SkillRegistry(skills_root)
+
+    retired_skill = home / ".claude" / "skills" / "debugger-debbie" / "SKILL.md"
+    retired_skill.parent.mkdir(parents=True, exist_ok=True)
+    retired_skill.write_text("# retired\n", encoding="utf-8")
+    retired_skill.chmod(0o444)
+
+    real_rmtree = agent_skills.shutil.rmtree
+
+    def windows_like_rmtree(path: str | Path, onerror=None, **kwargs) -> None:
+        readonly_files = [
+            file_path
+            for file_path in Path(path).rglob("*")
+            if file_path.is_file() and not file_path.stat().st_mode & 0o200
+        ]
+        if readonly_files and onerror is None:
+            raise PermissionError(readonly_files[0])
+        for readonly_file in readonly_files:
+            assert onerror is not None
+
+            def remove_after_chmod(path_str: str) -> None:
+                target = Path(path_str)
+                if not target.stat().st_mode & 0o200:
+                    raise PermissionError(path_str)
+                target.unlink()
+
+            onerror(remove_after_chmod, str(readonly_file), PermissionError(str(readonly_file)))
+        real_rmtree(path, onerror=onerror, **kwargs)
+
+    monkeypatch.setattr(agent_skills.shutil, "rmtree", windows_like_rmtree)
+    monkeypatch.setattr(
+        "specify_cli.runtime.agent_skills._discover_registry",
+        lambda: registry,
+    )
+
+    ensure_global_agent_skills()
+
+    assert not retired_skill.parent.exists()
+
+
 def test_global_bootstrap_adds_frontmatter_to_plain_skill(
     tmp_path: Path, monkeypatch
 ) -> None:

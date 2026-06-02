@@ -51,20 +51,6 @@ def test_directive_040_loads(service: DoctrineService) -> None:
     assert any("five-paradigm" in procedure for procedure in directive.procedures)
 
 
-def test_debugger_debbie_skill_references_exist() -> None:
-    skill_root = BUILT_IN_ROOT / "skills" / "debugger-debbie"
-    skill_path = skill_root / "SKILL.md"
-
-    assert skill_path.is_file()
-    body = skill_path.read_text(encoding="utf-8")
-    for reference in [
-        "references/paradigm-prompts.md",
-        "references/orthogonality-matrix.md",
-    ]:
-        assert reference in body
-        assert (skill_root / reference).is_file()
-
-
 def test_debugger_debbie_graph_nodes_and_edges_exist() -> None:
     graph = load_graph(BUILT_IN_ROOT / "graph.yaml")
     nodes = graph.node_urns()

@@ -28,6 +28,10 @@ from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 
 DELIVERY_COPY = "copy"
 DELIVERY_SYMLINK = "symlink"
+RETIRED_CANONICAL_SKILL_NAMES = frozenset({
+    "debugger-debbie",
+    "paula-patterns",
+})
 
 
 def _make_path_writable(path: str | Path) -> None:
@@ -53,6 +57,18 @@ def _safe_unlink(path: Path) -> None:
 
 def _safe_rmtree(path: Path) -> None:
     shutil.rmtree(path, onerror=_force_writable_and_retry)
+
+
+def _remove_retired_skill_dirs(root: Path, canonical_names: set[str]) -> None:
+    retired_names = RETIRED_CANONICAL_SKILL_NAMES - canonical_names
+    for skill_name in retired_names:
+        dest = root / skill_name
+        if not dest.exists() and not dest.is_symlink():
+            continue
+        if dest.is_symlink() or dest.is_file():
+            _safe_unlink(dest)
+        else:
+            _safe_rmtree(dest)
 
 
 def _make_tree_read_only(root: Path) -> None:
@@ -247,6 +263,10 @@ def install_skills_for_agent(
     global_root = get_primary_global_skill_root(agent_key)
     if project_root is None or global_root is None:
         raise ValueError(f"Agent {agent_key!r} has no installable skill root")
+
+    canonical_names = {skill.name for skill in skills}
+    _remove_retired_skill_dirs(global_root, canonical_names)
+    _remove_retired_skill_dirs(project_path / project_root, canonical_names)
 
     all_entries: list[ManagedFileEntry] = []
 
