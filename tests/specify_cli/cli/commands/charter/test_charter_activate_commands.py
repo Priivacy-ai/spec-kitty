@@ -80,7 +80,11 @@ class TestActivateCommand:
     def test_activate_unknown_artifact_id_exits_1_without_mutating(self, project_root: Path) -> None:
         result = _invoke_activate(project_root, "directive", "not-a-real-directive")
         assert result.exit_code == 1
-        assert "Unknown artifact ID" in result.output
+        # WP09: activation now delegates to the engine, which raises the typed
+        # UnknownActivationIdError (a ValueError subclass) with an actionable
+        # "Unknown <kind> ID ..." message. The CLI's existing `except ValueError`
+        # still catches it and exits 1 without mutating config.yaml.
+        assert "Unknown directive ID" in result.output
 
         config = project_root / ".kittify" / "config.yaml"
         data = yaml.safe_load(config.read_text()) or {}
