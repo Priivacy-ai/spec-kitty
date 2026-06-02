@@ -239,6 +239,38 @@ class TestInstallSharedRootAgent:
         assert installed.is_file()
         assert not installed.is_symlink()
 
+    def test_install_removes_retired_paula_and_debbie_skill_dirs(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
+        skills_root = tmp_path / "skills_src"
+        project = tmp_path / "project"
+        project.mkdir()
+
+        for root in [
+            tmp_path / "home" / ".claude" / "skills",
+            project / ".claude" / "skills",
+        ]:
+            for retired_name in ["debugger-debbie", "paula-patterns"]:
+                retired_skill = root / retired_name / "SKILL.md"
+                retired_skill.parent.mkdir(parents=True, exist_ok=True)
+                retired_skill.write_text("# retired\n", encoding="utf-8")
+            custom_skill = root / "custom-skill" / "SKILL.md"
+            custom_skill.parent.mkdir(parents=True, exist_ok=True)
+            custom_skill.write_text("# custom\n", encoding="utf-8")
+
+        skill = _make_skill(skills_root, "my-skill")
+        install_skills_for_agent(project, "claude", [skill])
+
+        for root in [
+            tmp_path / "home" / ".claude" / "skills",
+            project / ".claude" / "skills",
+        ]:
+            assert not (root / "debugger-debbie").exists()
+            assert not (root / "paula-patterns").exists()
+            assert (root / "custom-skill" / "SKILL.md").is_file()
+            assert (root / "my-skill" / "SKILL.md").is_file()
+
 
 class TestInstallWrapperOnlyAgentSkipped:
     """test_install_wrapper_only_agent_skipped -- q gets nothing"""

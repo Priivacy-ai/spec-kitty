@@ -46,6 +46,7 @@ the same `profile-id`; project profiles have final precedence.
 | `implementer-ivan` | Implementer Ivan | implementer |
 | `java-jenny` | Java Jenny | implementer |
 | `node-norris` | Node Norris | implementer |
+| `paula-patterns` | Paula Patterns | architecture-scout |
 | `planner-priti` | Planner Priti | planner |
 | `python-pedro` | Python Pedro | implementer |
 | `researcher-robbie` | Researcher Robbie | researcher |

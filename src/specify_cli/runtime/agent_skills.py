@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import logging
 import shutil
+import stat
+from collections.abc import Callable
 from pathlib import Path
 
 from specify_cli.runtime.bootstrap import _get_cli_version, _lock_exclusive
 from specify_cli.runtime.home import get_kittify_home
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
+from specify_cli.skills.installer import RETIRED_CANONICAL_SKILL_NAMES
 from specify_cli.skills.paths import get_primary_global_skill_root, iter_installable_agents
 from specify_cli.skills.registry import SkillRegistry
 from specify_cli.template import get_local_repo_root
@@ -17,6 +20,31 @@ logger = logging.getLogger(__name__)
 
 _VERSION_FILENAME = "agent-skills.lock"
 _LOCK_FILENAME = ".agent-skills.lock"
+
+
+def _make_path_writable(path: str | Path) -> None:
+    path = Path(path)
+    try:
+        path.chmod(path.stat().st_mode | stat.S_IWRITE)
+    except OSError:
+        logger.debug("Could not make skill path writable: %s", path, exc_info=True)
+
+
+def _force_writable_and_retry(function: Callable[[str], object], path: str, _exc_info: object) -> None:
+    _make_path_writable(path)
+    function(path)
+
+
+def _safe_unlink(path: Path) -> None:
+    try:
+        path.unlink()
+    except PermissionError:
+        _make_path_writable(path)
+        path.unlink()
+
+
+def _safe_rmtree(path: Path) -> None:
+    shutil.rmtree(path, onerror=_force_writable_and_retry)
 
 
 def _discover_registry() -> SkillRegistry | None:
@@ -56,20 +84,24 @@ def _sync_skill_root(root: Path, registry: SkillRegistry) -> None:
     skills = registry.discover_skills()
     canonical_names = {skill.name for skill in skills}
 
+    retired_names = RETIRED_CANONICAL_SKILL_NAMES - canonical_names
     for existing in root.iterdir():
-        if existing.name.startswith("spec-kitty-") and existing.name not in canonical_names:
+        if (
+            existing.name.startswith("spec-kitty-")
+            or existing.name in retired_names
+        ) and existing.name not in canonical_names:
             if existing.is_symlink() or existing.is_file():
-                existing.unlink()
+                _safe_unlink(existing)
             elif existing.is_dir():
-                shutil.rmtree(existing)
+                _safe_rmtree(existing)
 
     for skill in skills:
         dest = root / skill.name
         if dest.exists() or dest.is_symlink():
             if dest.is_symlink() or dest.is_file():
-                dest.unlink()
+                _safe_unlink(dest)
             else:
-                shutil.rmtree(dest)
+                _safe_rmtree(dest)
         shutil.copytree(skill.skill_dir, dest)
         skill_md = dest / "SKILL.md"
         if skill_md.is_file():

@@ -92,6 +92,9 @@ nodes:
 - urn: agent_profile:node-norris
   kind: agent_profile
   label: Node Norris
+- urn: agent_profile:paula-patterns
+  kind: agent_profile
+  label: Paula Patterns
 - urn: agent_profile:planner-priti
   kind: agent_profile
   label: Planner Priti
@@ -1219,6 +1222,34 @@ edges:
   target: tactic:bug-fixing-checklist
   relation: requires
   reason: Reproduce server-side defects with a failing integration test before fixing production code
+- source: agent_profile:paula-patterns
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: agent_profile:paula-patterns
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:paula-patterns
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: agent_profile:paula-patterns
+  target: directive:DIRECTIVE_032
+  relation: requires
+- source: agent_profile:paula-patterns
+  target: tactic:anti-corruption-layer
+  relation: requires
+  reason: Use when external system details leak into domain or application decisions
+- source: agent_profile:paula-patterns
+  target: tactic:domain-event-capture
+  relation: requires
+  reason: Use when durable state transitions, replay, provenance, or event boundaries are missing
+- source: agent_profile:paula-patterns
+  target: tactic:paula-patterns-architecture-scout-review
+  relation: requires
+  reason: Canonical dispatch and synthesis procedure for the five architecture scouts and release-vs-long-term decision matrix
+- source: agent_profile:paula-patterns
+  target: tactic:review-intent-and-risk-first
+  relation: requires
+  reason: Evaluate whether the release fix closes the observed issue and what blast radius it carries before handoff
 - source: agent_profile:planner-priti
   target: directive:DIRECTIVE_003
   relation: requires

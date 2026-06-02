@@ -17,6 +17,7 @@ with the language name) extend the base `implementer-ivan` role for polyglot pro
 | `implementer-ivan.agent.yaml` | `implementer-ivan` | implementer |
 | `java-jenny.agent.yaml` | `java-jenny` | implementer (Java specialist) |
 | `node-norris.agent.yaml` | `node-norris` | implementer |
+| `paula-patterns.agent.yaml` | `paula-patterns` | architecture-scout |
 | `planner-priti.agent.yaml` | `planner-priti` | planner |
 | `python-pedro.agent.yaml` | `python-pedro` | implementer (Python specialist) |
 | `researcher-robbie.agent.yaml` | `researcher-robbie` | researcher |
