@@ -216,6 +216,7 @@ def test_runtime_gitignore_entries_exact():
         ".kittify/merge-state.json",
         ".kittify/missions/__pycache__/",
         ".kittify/runtime/",
+        ".kittify/sync-state.json",
         ".kittify/workspaces/",
     ]
     assert entries == expected

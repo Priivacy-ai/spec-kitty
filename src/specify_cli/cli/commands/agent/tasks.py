@@ -24,12 +24,15 @@ from specify_cli.sync.events import (
     emit_error_logged,
 )
 
-from specify_cli.coordination.status_transition import emit_status_transition_transactional
+from specify_cli.coordination.status_transition import (
+    emit_status_transition_transactional,
+    read_events_transactional,
+)
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.preflight import is_dossier_snapshot as _is_dossier_snapshot
 from specify_cli.status.progress import PROGRESS_SEMANTICS, compute_done_percentage, compute_weighted_progress
 from specify_cli.status.transitions import resolve_lane_alias
-from specify_cli.status.store import EventPersistenceError, EVENTS_FILENAME, read_events
+from specify_cli.status.store import EventPersistenceError, EVENTS_FILENAME
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.lanes.persistence import MissingLanesError
@@ -1949,7 +1952,13 @@ def move_task(
         with feature_status_lock(main_repo_root, mission_slug):
             event = None
             current_event_lane = None
-            for existing_event in reversed(read_events(feature_dir)):
+            for existing_event in reversed(
+                read_events_transactional(
+                    feature_dir=feature_dir,
+                    mission_slug=mission_slug,
+                    repo_root=main_repo_root,
+                )
+            ):
                 if existing_event.wp_id == task_id:
                     current_event_lane = str(existing_event.to_lane)
                     break

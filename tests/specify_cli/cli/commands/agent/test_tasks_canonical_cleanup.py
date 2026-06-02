@@ -233,7 +233,7 @@ class TestBodyNotesNoLane:
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
-    @patch("specify_cli.cli.commands.agent.tasks.read_events")
+    @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
@@ -250,7 +250,7 @@ class TestBodyNotesNoLane:
         mock_unchecked: MagicMock,
         mock_review_valid: MagicMock,
         mock_lock: MagicMock,
-        mock_read_events: MagicMock,
+        mock_read_events_transactional: MagicMock,
         mock_emit: MagicMock,
         mock_safe_commit: MagicMock,
         tmp_path: Path,
@@ -286,7 +286,9 @@ class TestBodyNotesNoLane:
         _seed_wp_lane(feature_dir, "WP01", "claimed")
 
         # Build a proper mock event for read_events that returns real events
-        mock_read_events.return_value = list(__import__("specify_cli.status.store", fromlist=["read_events"]).read_events(feature_dir))
+        mock_read_events_transactional.return_value = list(
+            __import__("specify_cli.status.store", fromlist=["read_events"]).read_events(feature_dir)
+        )
 
         mock_emit.return_value = MagicMock(to_lane=Lane.IN_PROGRESS)
         mock_safe_commit.return_value = True
@@ -384,7 +386,7 @@ class TestMoveTaskHardFail:
 
     @patch("specify_cli.cli.commands.agent.tasks.emit_error_logged")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
-    @patch("specify_cli.cli.commands.agent.tasks.read_events")
+    @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
@@ -399,7 +401,7 @@ class TestMoveTaskHardFail:
         mock_branch: MagicMock,
         mock_unchecked: MagicMock,
         mock_review_valid: MagicMock,
-        mock_read_events: MagicMock,
+        mock_read_events_transactional: MagicMock,
         mock_lock: MagicMock,
         _mock_emit_error_logged: MagicMock,
         tmp_path: Path,
@@ -417,7 +419,7 @@ class TestMoveTaskHardFail:
         mock_lock.return_value.__exit__ = MagicMock(return_value=False)
 
         # No events = no canonical state
-        mock_read_events.return_value = []
+        mock_read_events_transactional.return_value = []
 
         wp_file = feature_dir / "tasks" / "WP01-test.md"
         from specify_cli.tasks_support import WorkPackage
@@ -460,7 +462,7 @@ class TestMoveTaskHardFail:
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
-    @patch("specify_cli.cli.commands.agent.tasks.read_events")
+    @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
@@ -477,7 +479,7 @@ class TestMoveTaskHardFail:
         mock_unchecked: MagicMock,
         mock_review_valid: MagicMock,
         mock_lock: MagicMock,
-        mock_read_events: MagicMock,
+        mock_read_events_transactional: MagicMock,
         mock_emit: MagicMock,
         mock_safe_commit: MagicMock,
         tmp_path: Path,
@@ -500,7 +502,7 @@ class TestMoveTaskHardFail:
         # Return real events from the seeded store
         from specify_cli.status.store import read_events as real_read_events
 
-        mock_read_events.return_value = list(real_read_events(feature_dir))
+        mock_read_events_transactional.return_value = list(real_read_events(feature_dir))
 
         wp_file = feature_dir / "tasks" / "WP01-test.md"
         from specify_cli.tasks_support import WorkPackage

@@ -185,6 +185,35 @@ class TestSynthesizeHappyPath:
         ]
         assert data["warnings"] == []
 
+    def test_synthesize_non_json_reminds_to_commit_artifacts(self, tmp_path: Path) -> None:
+        """Successful human output names the KD-2 artifact commit step."""
+        _write_interview_answers(tmp_path)
+
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
+            mock_result = MagicMock()
+            mock_result.target_kind = "directive"
+            mock_result.target_slug = "mission-type-scope-directive"
+            mock_result.inputs_hash = "abc123def456"
+            mock_result.effective_adapter_id = "fixture"
+            mock_result.effective_adapter_version = "1.0.0"
+
+            with patch("charter.synthesizer.synthesize", return_value=mock_result), patch(
+                "specify_cli.cli.commands.charter._load_written_artifacts_from_manifest",
+                return_value=[
+                    {
+                        "path": ".kittify/charter/synthesis-manifest.yaml",
+                        "kind": "manifest",
+                        "slug": "synthesis",
+                        "artifact_id": None,
+                    }
+                ],
+            ):
+                result = runner.invoke(app, ["synthesize", "--adapter", "fixture"])
+
+        assert result.exit_code == 0, f"Expected exit 0: {result.output}"
+        assert "git add .kittify/charter/synthesis-manifest.yaml" in result.output
+        assert "git commit -m 'chore: charter synthesis artifacts'" in result.output
+
     def test_synthesize_dry_run_json(self, tmp_path: Path) -> None:
         """--dry-run --json returns staged artifacts and validated=true.
 

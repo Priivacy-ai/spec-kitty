@@ -17,6 +17,7 @@ from specify_cli.status.bootstrap import (
     bootstrap_canonical_state,
 )
 from specify_cli.status.store import EVENTS_FILENAME, read_events
+from specify_cli.status.models import StatusEvent
 
 
 # ---------------------------------------------------------------------------
@@ -162,6 +163,44 @@ class TestBootstrapSkipsInitialized:
 
         assert result.total_wps == 2
         assert result.already_initialized == 2
+        assert result.newly_seeded == 0
+
+    def test_uses_transactional_read_target(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        feature_dir = tmp_path / "kitty-specs" / "060-test"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+
+        _write_wp_file(tasks_dir, "WP01")
+
+        def fake_transactional_read(**kwargs: object) -> list[StatusEvent]:
+            assert kwargs["feature_dir"] == feature_dir
+            assert kwargs["mission_slug"] == "060-test"
+            event = {
+                "event_id": "01TESTWP0100000000000000",
+                "mission_slug": "060-test",
+                "wp_id": "WP01",
+                "from_lane": "planned",
+                "to_lane": "claimed",
+                "at": "2026-01-01T00:00:00+00:00",
+                "actor": "coord-branch",
+                "force": True,
+                "execution_mode": "worktree",
+                "reason": "already initialized elsewhere",
+                "review_ref": None,
+                "evidence": None,
+                "policy_metadata": None,
+            }
+            return [StatusEvent(**event)]
+
+        monkeypatch.setattr(
+            "specify_cli.status.bootstrap.read_events_transactional",
+            fake_transactional_read,
+        )
+
+        result = bootstrap_canonical_state(feature_dir, "060-test")
+
+        assert result.total_wps == 1
+        assert result.already_initialized == 1
         assert result.newly_seeded == 0
 
 

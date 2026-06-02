@@ -292,6 +292,37 @@ def read_current_wp_state_transactional(
         return lane, actor_key or None
 
 
+def read_events_transactional(
+    *,
+    feature_dir: Path,
+    mission_slug: str,
+    repo_root: Path | None = None,
+) -> list[StatusEvent]:
+    """Read status events from the same target transactional writes use."""
+    identity = _identity_for_request(
+        TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            wp_id="WP00",
+            to_lane=Lane.PLANNED,
+            actor="status-read",
+            repo_root=repo_root,
+        )
+    )
+    if not _transaction_topology_available(identity, mission_slug):
+        return read_events(identity.feature_dir)
+
+    with BookkeepingTransaction.acquire(
+        repo_root=identity.repo_root,
+        mission_id=identity.mission_id,
+        mission_slug=mission_slug,
+        mid8=identity.mid8,
+        destination_ref=identity.destination_ref,
+        operation="read status events",
+    ) as txn:
+        return read_events(txn.feature_dir)
+
+
 def has_transition_to_transactional(
     *,
     feature_dir: Path,

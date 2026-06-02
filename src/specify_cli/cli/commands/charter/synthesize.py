@@ -41,6 +41,15 @@ import specify_cli.cli.commands.charter as _charter_pkg
 __all__ = ["charter_synthesize"]
 
 
+def _print_synthesis_commit_reminder(console: Console) -> None:
+    console.print("[yellow]Synthesis artifacts written; commit provenance before continuing:[/yellow]")
+    console.print(
+        "  git add .kittify/charter/synthesis-manifest.yaml "
+        ".kittify/charter/provenance/ .kittify/doctrine/"
+    )
+    console.print("  git commit -m 'chore: charter synthesis artifacts'")
+
+
 @charter_app.command("synthesize")
 def charter_synthesize(  # noqa: C901
     # WP02 / FR-001..FR-005: this command body is the strict-JSON
@@ -251,6 +260,7 @@ def charter_synthesize(  # noqa: C901
             )
             for f in written:
                 console.print(f"  ✓ {f}")
+            _print_synthesis_commit_reminder(console)
             return
 
         # FR-001: when --json is set, evidence warnings MUST live inside the
@@ -399,6 +409,8 @@ def charter_synthesize(  # noqa: C901
         console.print("[green]Charter synthesis complete[/green]")
         console.print(f"Primary artifact: {result.target_kind}:{result.target_slug}")
         console.print(f"Adapter: {result.effective_adapter_id} v{result.effective_adapter_version}")
+        if written_artifacts_real:
+            _print_synthesis_commit_reminder(console)
 
     except typer.Exit:
         raise

@@ -18,10 +18,12 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from specify_cli.frontmatter import FrontmatterError
-from specify_cli.coordination.status_transition import emit_status_transition_transactional
+from specify_cli.coordination.status_transition import (
+    emit_status_transition_transactional,
+    read_events_transactional,
+)
 from specify_cli.status.models import TransitionRequest
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import read_events
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 
 logger = logging.getLogger(__name__)
@@ -123,8 +125,12 @@ def bootstrap_canonical_state(
 
     result.total_wps = len(wp_ids)
 
-    # Read existing events and build set of WP IDs that already have state
-    existing_events = read_events(feature_dir)
+    # Read existing events from the same branch/worktree targeted by the
+    # transactional writer, so coordination-branch missions do not reseed.
+    existing_events = read_events_transactional(
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+    )
     initialized_wp_ids: set[str] = {e.wp_id for e in existing_events}
 
     wps_to_seed = _classify_wp_ids(wp_ids, initialized_wp_ids, result)
