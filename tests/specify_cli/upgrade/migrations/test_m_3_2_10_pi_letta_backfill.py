@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from specify_cli.skills import command_installer, manifest_store
 from specify_cli.skills.command_installer import CANONICAL_COMMANDS
 from specify_cli.upgrade.migrations.m_3_2_10_pi_letta_backfill import (
     PiLettaBackfillMigration,
@@ -185,13 +186,14 @@ def test_skill_repair_triggered_when_skills_missing(tmp_path: Path) -> None:
 
 
 def test_no_skill_repair_when_skills_present(tmp_path: Path) -> None:
-    """Installer is NOT called when all skill files are already present."""
+    """Installer is NOT called when skill files and manifest ownership are present."""
     project = _make_project(
         tmp_path,
         agents=["pi"],
         gitignore_lines=[".pi/"],
-        install_skills=True,
+        install_skills=False,
     )
+    command_installer.install(project, "pi")
 
     with patch(
         "specify_cli.skills.command_installer.install"
@@ -202,3 +204,49 @@ def test_no_skill_repair_when_skills_present(tmp_path: Path) -> None:
     assert result.success
     mock_install.assert_not_called()
     assert result.changes_made == []
+
+
+def test_repairs_manifest_ownership_for_both_pi_and_letta(tmp_path: Path) -> None:
+    """Both configured agents must be recorded as command-skill owners."""
+    project = _make_project(
+        tmp_path,
+        agents=["pi", "letta"],
+        gitignore_lines=[".pi/", ".letta/"],
+        install_skills=False,
+    )
+
+    migration = PiLettaBackfillMigration()
+    assert migration.detect(project)
+
+    result = migration.apply(project)
+
+    assert result.success
+    manifest = manifest_store.load(project)
+    assert len(manifest.entries) == len(CANONICAL_COMMANDS)
+    for entry in manifest.entries:
+        assert entry.agents == ("letta", "pi")
+    assert not migration.detect(project)
+
+
+def test_repairs_manifest_ownership_when_shared_skills_already_exist(
+    tmp_path: Path,
+) -> None:
+    """Existing shared skills are incomplete until Pi/Letta own manifest entries."""
+    project = _make_project(
+        tmp_path,
+        agents=["pi", "letta"],
+        gitignore_lines=[".pi/", ".letta/"],
+        install_skills=False,
+    )
+    command_installer.install(project, "codex")
+
+    migration = PiLettaBackfillMigration()
+    assert migration.detect(project)
+
+    result = migration.apply(project)
+
+    assert result.success
+    manifest = manifest_store.load(project)
+    for entry in manifest.entries:
+        assert entry.agents == ("codex", "letta", "pi")
+    assert not migration.detect(project)

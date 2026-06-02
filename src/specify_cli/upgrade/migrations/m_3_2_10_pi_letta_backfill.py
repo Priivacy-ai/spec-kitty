@@ -39,6 +39,31 @@ def _skills_complete(project_path: Path) -> bool:
     return True
 
 
+def _agent_skill_manifest_complete(project_path: Path, agent_key: str) -> bool:
+    """Return True if every command-skill manifest entry claims *agent_key*."""
+    from specify_cli.skills.command_installer import CANONICAL_COMMANDS
+    from specify_cli.skills import manifest_store
+
+    try:
+        manifest = manifest_store.load(project_path)
+    except Exception:
+        return False
+
+    for cmd in CANONICAL_COMMANDS:
+        rel_path = f"{_SKILLS_ROOT}/spec-kitty.{cmd}/SKILL.md"
+        entry = manifest.find(rel_path)
+        if entry is None or agent_key not in entry.agents:
+            return False
+    return True
+
+
+def _agent_skills_complete(project_path: Path, agent_key: str) -> bool:
+    """Return True when files exist and manifest ownership is complete."""
+    return _skills_complete(project_path) and _agent_skill_manifest_complete(
+        project_path, agent_key
+    )
+
+
 @MigrationRegistry.register
 class PiLettaBackfillMigration(BaseMigration):
     """Backfill .pi/ and .letta/ gitignore entries and skill files for configured agents."""
@@ -75,8 +100,11 @@ class PiLettaBackfillMigration(BaseMigration):
             if entry not in gitignore_text:
                 return True
 
-        # Check for missing skill files.
-        return bool(pi_letta_configured and not _skills_complete(project_path))
+        # Check for missing skill files or missing per-agent manifest ownership.
+        return any(
+            not _agent_skills_complete(project_path, agent_key)
+            for agent_key in pi_letta_configured
+        )
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         if not project_path.exists():
@@ -123,7 +151,7 @@ class PiLettaBackfillMigration(BaseMigration):
             if agent_key not in configured:
                 continue
 
-            if _skills_complete(project_path):
+            if _agent_skills_complete(project_path, agent_key):
                 continue
 
             if dry_run:

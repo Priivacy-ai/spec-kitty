@@ -3104,6 +3104,14 @@
   current_target: true
   citation_refs: []
   notes: 3.2 harness setup and usage page.
+- path: docs/how-to/harnesses/letta.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: harnesses
+  current_target: true
+  citation_refs:
+    - https://docs.letta.com/letta-code/skills/
+  notes: 3.2 harness setup and usage page.
 - path: docs/how-to/harnesses/opencode.md
   tag: current
   divio_type: how-to

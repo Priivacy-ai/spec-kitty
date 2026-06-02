@@ -34,6 +34,7 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
+from specify_cli.skills.command_installer import CANONICAL_COMMANDS as COMMAND_SKILL_COMMANDS
 from specify_cli.template.asset_generator import render_command_template
 
 # ---------------------------------------------------------------------------
@@ -45,10 +46,10 @@ pytestmark = [pytest.mark.unit]
 TEMPLATES_DIR = (
     Path(__file__).parent.parent.parent.parent
     / "src"
-    / "specify_cli"
+    / "doctrine"
     / "missions"
+    / "mission-steps"
     / "software-dev"
-    / "command-templates"
 )
 
 BASELINE_DIR = Path(__file__).parent / "_twelve_agent_baseline"
@@ -57,10 +58,8 @@ BASELINE_DIR = Path(__file__).parent / "_twelve_agent_baseline"
 # Command-skill agents are absent: they use the Agent Skills pipeline.
 NON_MIGRATED_AGENTS: tuple[str, ...] = tuple(AGENT_COMMAND_CONFIG.keys())
 
-# Canonical command templates to test (one .md source file per command).
-CANONICAL_COMMANDS: tuple[str, ...] = tuple(
-    sorted(p.stem for p in TEMPLATES_DIR.glob("*.md"))
-)
+# Canonical command templates to test (one prompt.md source file per command).
+CANONICAL_COMMANDS: tuple[str, ...] = COMMAND_SKILL_COMMANDS
 
 # Fixed version for rendering (must match what was used when capturing the
 # baseline; see _twelve_agent_baseline/__init__.py).
@@ -89,7 +88,7 @@ def _render_for_agent(agent: str, command: str) -> str:
     marker in the output is stable across CLI upgrades and matches the
     committed baseline exactly.
     """
-    template_path = TEMPLATES_DIR / f"{command}.md"
+    template_path = TEMPLATES_DIR / command / "prompt.md"
     if not template_path.exists():
         pytest.skip(f"Template file missing: {template_path}")
 
