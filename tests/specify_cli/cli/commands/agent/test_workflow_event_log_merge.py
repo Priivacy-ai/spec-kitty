@@ -51,7 +51,6 @@ def _envelope_event(event_id: str, event_type: str) -> str:
             "aggregate_type": "Mission",
             "event_id": event_id,
             "event_type": event_type,
-            "payload": {"at": "2026-06-01T00:00:00Z"},
             "schema_version": "5.0.0",
             "timestamp": "2026-06-01T00:00:00+00:00",
         },

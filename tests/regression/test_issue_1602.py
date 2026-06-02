@@ -122,7 +122,6 @@ def _write_clobbering_main_copy(feature_dir: Path) -> Path:
                 "aggregate_type": "Mission",
                 "event_id": "01ENV160200000000000000001",
                 "event_type": "TasksStarted",
-                "payload": {"at": "2026-06-01T00:00:00Z"},
                 "schema_version": "5.0.0",
                 "timestamp": "2026-06-01T00:00:00+00:00",
             },
