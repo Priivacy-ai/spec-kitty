@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = [pytest.mark.unit]
+
 from charter.catalog import resolve_doctrine_root
 from charter.kind_vocabulary import (
     MissionTypeNotAnArtifactKind,

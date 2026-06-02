@@ -21,6 +21,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = [pytest.mark.unit]
+
 import charter.invocation_context as invocation_context
 from charter.invocation_context import (
     ContextPreconditionError,

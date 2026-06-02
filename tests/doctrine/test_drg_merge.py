@@ -28,6 +28,8 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+
 from doctrine.drg.merge import (
     OrgDRGConflictError,
     UnknownRelationError,
