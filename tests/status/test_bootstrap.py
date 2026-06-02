@@ -8,6 +8,7 @@ and handles edge cases gracefully.
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -57,6 +58,16 @@ def _write_event(feature_dir: Path, wp_id: str, mission_slug: str = "test-featur
     events_path.parent.mkdir(parents=True, exist_ok=True)
     with events_path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(event, sort_keys=True) + "\n")
+
+
+def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -229,6 +240,45 @@ class TestBootstrapDryRun:
         # No status.json
         status_path = feature_dir / "status.json"
         assert not status_path.exists()
+
+    def test_dry_run_coordination_branch_does_not_create_worktree(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _git(repo, "init", "-q", "-b", "main")
+        _git(repo, "config", "user.email", "t@example.invalid")
+        _git(repo, "config", "user.name", "Test")
+
+        mission_slug = "060-test"
+        mid8 = "01DRYRUN"
+        mission_dirname = f"{mission_slug}-{mid8}"
+        coord_branch = f"kitty/mission-{mission_dirname}"
+        feature_dir = repo / "kitty-specs" / mission_dirname
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text(
+            json.dumps(
+                {
+                    "mission_slug": mission_slug,
+                    "mission_id": "01DRYRUN0000000000000000",
+                    "mid8": mid8,
+                    "coordination_branch": coord_branch,
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        _write_wp_file(tasks_dir, "WP01")
+        _git(repo, "add", "kitty-specs")
+        _git(repo, "commit", "-q", "-m", "seed mission")
+        _git(repo, "branch", coord_branch)
+
+        result = bootstrap_canonical_state(feature_dir, mission_slug, dry_run=True)
+
+        assert result.total_wps == 1
+        assert result.newly_seeded == 1
+        assert result.wp_details["WP01"] == "would_seed"
+        assert not (repo / ".worktrees").exists()
+        assert _git(repo, "status", "--short").stdout == ""
 
     def test_dry_run_with_existing_events(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / "060-test"

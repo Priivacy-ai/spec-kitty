@@ -199,7 +199,7 @@ class TestVerdictGuardInMoveTask:
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
-    @patch("specify_cli.cli.commands.agent.tasks.read_events")
+    @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
@@ -272,7 +272,7 @@ class TestVerdictGuardInMoveTask:
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
-    @patch("specify_cli.cli.commands.agent.tasks.read_events")
+    @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
@@ -343,7 +343,7 @@ class TestVerdictGuardInMoveTask:
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
-    @patch("specify_cli.cli.commands.agent.tasks.read_events")
+    @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
@@ -416,7 +416,7 @@ class TestSkipReviewArtifactCheck:
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
-    @patch("specify_cli.cli.commands.agent.tasks.read_events")
+    @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
@@ -505,7 +505,7 @@ class TestSkipReviewArtifactCheck:
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
-    @patch("specify_cli.cli.commands.agent.tasks.read_events")
+    @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")

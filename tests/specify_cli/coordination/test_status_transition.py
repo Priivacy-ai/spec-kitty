@@ -102,6 +102,20 @@ def test_transactional_read_targets_coordination_branch(repo: Path) -> None:
     assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
 
 
+def test_transactional_read_does_not_create_coordination_worktree(repo: Path) -> None:
+    assert not (repo / ".worktrees").exists()
+
+    events = read_events_transactional(
+        feature_dir=repo / "kitty-specs" / MISSION_DIRNAME,
+        mission_slug=MISSION_SLUG,
+        repo_root=repo,
+    )
+
+    assert events == []
+    assert not (repo / ".worktrees").exists()
+    assert _git(repo, "status", "--short").stdout == ""
+
+
 def test_transactional_emit_skips_fanout_when_commit_rolls_back(
     repo: Path,
     mock_saas_sink: Any,

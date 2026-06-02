@@ -11,6 +11,7 @@ import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import cast
 
 from specify_cli.coordination.outbound import queue_saas_emission
 from specify_cli.coordination.transaction import BookkeepingTransaction
@@ -19,7 +20,7 @@ from specify_cli.status import emit as _emit
 from specify_cli.status.adapters import fire_dossier_sync
 from specify_cli.status.models import DoneEvidence, GuardContext, Lane, StatusEvent, TransitionRequest
 from specify_cli.status.reducer import reduce
-from specify_cli.status.store import read_events
+from specify_cli.status.store import EVENTS_FILENAME, read_events, read_events_from_text
 from specify_cli.status.transitions import resolve_lane_alias, validate_transition
 from specify_cli.workspace import canonicalize_feature_dir
 
@@ -75,6 +76,10 @@ def _branch_exists(repo_root: Path, branch: str) -> bool:
     return result.returncode == 0
 
 
+def _transaction_dir_name(mission_slug: str, mid8: str) -> str:
+    return mission_slug if mission_slug.endswith(f"-{mid8}") else f"{mission_slug}-{mid8}"
+
+
 def _transaction_topology_available(identity: _TransactionIdentity, mission_slug: str) -> bool:
     if not _repo_supports_transactions(identity.repo_root):
         return False
@@ -125,11 +130,7 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
     effective_mid8 = mid8 or (
         mission_id[:8] if mission_id and len(mission_id) >= 8 else (mission_slug.replace("-", "") + "00000000")[:8]
     )
-    transaction_dir_name = (
-        mission_slug
-        if mission_slug.endswith(f"-{effective_mid8}")
-        else f"{mission_slug}-{effective_mid8}"
-    )
+    transaction_dir_name = _transaction_dir_name(mission_slug, effective_mid8)
     return _TransactionIdentity(
         repo_root=repo_root,
         feature_dir=feature_dir,
@@ -229,6 +230,63 @@ def _defer_dossier_sync(
     txn.defer_outbound(lambda: fire_dossier_sync(feature_dir, mission_slug, repo_root))
 
 
+def _read_events_from_transaction_target(
+    identity: _TransactionIdentity,
+    mission_slug: str,
+) -> list[StatusEvent]:
+    """Read target status events without creating worktrees or commits."""
+    if not _transaction_topology_available(identity, mission_slug):
+        return read_events(identity.feature_dir)
+    if identity.coordination_branch is None:
+        return read_events(identity.feature_dir)
+
+    from specify_cli.coordination.workspace import CoordinationWorkspace  # noqa: PLC0415
+
+    worktree_root = CoordinationWorkspace.worktree_path(
+        identity.repo_root,
+        mission_slug,
+        identity.mid8,
+    )
+    transaction_feature_dir = worktree_root / "kitty-specs" / _transaction_dir_name(
+        mission_slug,
+        identity.mid8,
+    )
+    if worktree_root.exists():
+        return read_events(transaction_feature_dir)
+
+    events_ref = (
+        f"{identity.destination_ref}:"
+        f"kitty-specs/{transaction_feature_dir.name}/{EVENTS_FILENAME}"
+    )
+    result = subprocess.run(
+        ["git", "-C", str(identity.repo_root), "show", events_ref],
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if result.returncode != 0:
+        return []
+    return read_events_from_text(identity.feature_dir, result.stdout)
+
+
+def _state_from_events(events: list[StatusEvent], wp_id: str) -> tuple[Lane, str | None]:
+    if not events:
+        return Lane.PLANNED, None
+    snapshot = reduce(events)
+    state = snapshot.work_packages.get(wp_id)
+    if not state:
+        return Lane.PLANNED, None
+    try:
+        lane = Lane(str(state.get("lane", Lane.PLANNED)))
+    except ValueError:
+        lane = Lane.PLANNED
+    actor = state.get("actor")
+    actor_key = str(actor).strip() if actor is not None else ""
+    return lane, actor_key or None
+
+
 def read_current_wp_state_transactional(
     *,
     feature_dir: Path,
@@ -247,49 +305,15 @@ def read_current_wp_state_transactional(
             repo_root=repo_root,
         )
     )
-    if not _transaction_topology_available(identity, mission_slug):
-        events = read_events(identity.feature_dir)
-        if not events:
-            from specify_cli.status.lane_reader import get_wp_lane  # noqa: PLC0415
+    events = _read_events_from_transaction_target(identity, mission_slug)
+    if not events and not _transaction_topology_available(identity, mission_slug):
+        from specify_cli.status.lane_reader import get_wp_lane  # noqa: PLC0415
 
-            try:
-                return Lane(resolve_lane_alias(get_wp_lane(identity.feature_dir, wp_id))), None
-            except Exception:  # noqa: BLE001 -- non-git test fixtures may lack WP files
-                return Lane.PLANNED, None
-        snapshot = reduce(events)
-        state = snapshot.work_packages.get(wp_id)
-        if not state:
-            return Lane.PLANNED, None
         try:
-            lane = Lane(str(state.get("lane", Lane.PLANNED)))
-        except ValueError:
-            lane = Lane.PLANNED
-        actor = state.get("actor")
-        actor_key = str(actor).strip() if actor is not None else ""
-        return lane, actor_key or None
-
-    with BookkeepingTransaction.acquire(
-        repo_root=identity.repo_root,
-        mission_id=identity.mission_id,
-        mission_slug=mission_slug,
-        mid8=identity.mid8,
-        destination_ref=identity.destination_ref,
-        operation=f"read status state {wp_id}",
-    ) as txn:
-        events = read_events(txn.feature_dir)
-        if not events:
+            return Lane(resolve_lane_alias(get_wp_lane(identity.feature_dir, wp_id))), None
+        except Exception:  # noqa: BLE001 -- non-git test fixtures may lack WP files
             return Lane.PLANNED, None
-        snapshot = reduce(events)
-        state = snapshot.work_packages.get(wp_id)
-        if not state:
-            return Lane.PLANNED, None
-        try:
-            lane = Lane(str(state.get("lane", Lane.PLANNED)))
-        except ValueError:
-            lane = Lane.PLANNED
-        actor = state.get("actor")
-        actor_key = str(actor).strip() if actor is not None else ""
-        return lane, actor_key or None
+    return _state_from_events(events, wp_id)
 
 
 def read_events_transactional(
@@ -309,18 +333,7 @@ def read_events_transactional(
             repo_root=repo_root,
         )
     )
-    if not _transaction_topology_available(identity, mission_slug):
-        return read_events(identity.feature_dir)
-
-    with BookkeepingTransaction.acquire(
-        repo_root=identity.repo_root,
-        mission_id=identity.mission_id,
-        mission_slug=mission_slug,
-        mid8=identity.mid8,
-        destination_ref=identity.destination_ref,
-        operation="read status events",
-    ) as txn:
-        return read_events(txn.feature_dir)
+    return _read_events_from_transaction_target(identity, mission_slug)
 
 
 def has_transition_to_transactional(
@@ -342,24 +355,10 @@ def has_transition_to_transactional(
             repo_root=repo_root,
         )
     )
-    if not _transaction_topology_available(identity, mission_slug):
-        return any(
-            event.wp_id == wp_id and str(event.to_lane) == str(to_lane)
-            for event in read_events(identity.feature_dir)
-        )
-
-    with BookkeepingTransaction.acquire(
-        repo_root=identity.repo_root,
-        mission_id=identity.mission_id,
-        mission_slug=mission_slug,
-        mid8=identity.mid8,
-        destination_ref=identity.destination_ref,
-        operation=f"read status events {wp_id}",
-    ) as txn:
-        return any(
-            event.wp_id == wp_id and str(event.to_lane) == str(to_lane)
-            for event in read_events(txn.feature_dir)
-        )
+    return any(
+        event.wp_id == wp_id and str(event.to_lane) == str(to_lane)
+        for event in _read_events_from_transaction_target(identity, mission_slug)
+    )
 
 
 def emit_status_transition_transactional(
@@ -450,10 +449,13 @@ def emit_status_transition_batch_transactional(
 
     identity = _identity_for_request(first)
     if not _transaction_topology_available(identity, mission_slug):
-        return _emit.emit_status_transition_batch(
-            requests,
-            ensure_sync_daemon=ensure_sync_daemon,
-            sync_dossier=sync_dossier,
+        return cast(
+            list[StatusEvent],
+            _emit.emit_status_transition_batch(
+                requests,
+                ensure_sync_daemon=ensure_sync_daemon,
+                sync_dossier=sync_dossier,
+            ),
         )
 
     with BookkeepingTransaction.acquire(
