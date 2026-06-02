@@ -12,6 +12,8 @@ from specify_cli.template.asset_generator import (
 
 import pytest
 
+from specify_cli.core.config import AGENT_COMMAND_CONFIG
+
 pytestmark = [pytest.mark.unit]
 
 def _write_template(path: Path, with_agent_script: bool = True) -> None:
@@ -55,6 +57,49 @@ def test_render_command_template_generates_markdown(tmp_path: Path) -> None:
 
     assert "scripts:" not in output
     assert "Run echo hi $ARGUMENTS source env for codex." in output
+    assert "spec-kitty upgrade --agent-check --json" not in output
+
+
+def test_render_command_template_injects_claude_upgrade_check(tmp_path: Path) -> None:
+    template_path = tmp_path / "demo.md"
+    _write_template(template_path)
+
+    output = render_command_template(
+        template_path,
+        script_type="sh",
+        agent_key="claude",
+        arg_format="$ARGUMENTS",
+        extension="md",
+    )
+
+    assert "<!-- spec-kitty-command-version:" in output
+    assert "## Startup Upgrade Check" in output
+    assert "spec-kitty upgrade --agent-check --json" in output
+    assert output.index("<!-- spec-kitty-command-version:") < output.index("## Startup Upgrade Check")
+    assert output.index("## Startup Upgrade Check") < output.index("Run echo hi")
+
+
+@pytest.mark.parametrize("agent_key", sorted(AGENT_COMMAND_CONFIG))
+def test_render_command_template_injects_upgrade_check_for_all_command_agents(
+    tmp_path: Path,
+    agent_key: str,
+) -> None:
+    template_path = tmp_path / "demo.md"
+    _write_template(template_path)
+    config = AGENT_COMMAND_CONFIG[agent_key]
+
+    output = render_command_template(
+        template_path,
+        script_type="sh",
+        agent_key=agent_key,
+        arg_format=config["arg_format"],
+        extension=config["ext"],
+    )
+
+    searchable = tomllib.loads(output)["prompt"] if config["ext"] == "toml" else output
+    assert "## Startup Upgrade Check" in searchable
+    assert "spec-kitty upgrade --agent-check --json" in searchable
+    assert "Run echo hi" in searchable
 
 
 def test_render_command_template_handles_toml_extension(tmp_path: Path) -> None:

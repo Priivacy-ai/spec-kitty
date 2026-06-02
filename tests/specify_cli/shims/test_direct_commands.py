@@ -81,7 +81,8 @@ class TestDirectAcceptCommand:
     def test_accept_no_agent_flag(self) -> None:
         """Accept is feature-level -- no --agent flag in the canonical command."""
         content = generate_shim_content("accept", "claude", "$ARGUMENTS")
-        assert "--agent" not in content
+        assert "`spec-kitty agent mission accept $ARGUMENTS`" in content
+        assert "spec-kitty agent mission accept $ARGUMENTS --agent" not in content
 
 
 # ---------------------------------------------------------------------------

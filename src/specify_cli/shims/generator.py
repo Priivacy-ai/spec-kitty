@@ -119,16 +119,19 @@ def generate_shim_content(command: str, agent_name: str, arg_placeholder: str) -
     version = _get_cli_version()
     cli_call = _canonical_command(command, agent_name, arg_placeholder)
     description = SHIM_DESCRIPTIONS.get(command, f"spec-kitty {command}")
-    return (
-        "---\n"
-        f"description: {description}\n"
-        "---\n"
-        f"<!-- spec-kitty-command-version: {version} -->\n"
+    body = (
         "Run this exact command and treat its output as authoritative.\n"
         "Do not rediscover context from branches, files, prompt contents, or separate charter loads.\n"
         "When mission selection is required, pass --mission <handle> (mission_id, mid8, or mission_slug).\n"
         "\n"
         f"`{cli_call}`\n"
+    )
+    return (
+        "---\n"
+        f"description: {description}\n"
+        "---\n"
+        f"<!-- spec-kitty-command-version: {version} -->\n"
+        f"{body}"
     )
 
 

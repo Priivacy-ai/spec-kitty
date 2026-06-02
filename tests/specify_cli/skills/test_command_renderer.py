@@ -169,6 +169,14 @@ def test_unsupported_agent(tmp_path: Path) -> None:
     assert exc_info.value.context["agent_key"] == "claude"
 
 
+def test_render_includes_agent_upgrade_check() -> None:
+    skill = render(_all_templates()[0], "codex", _TEST_VERSION)
+
+    assert skill.body.startswith("## Startup Upgrade Check")
+    assert "spec-kitty upgrade --agent-check --json" in skill.body
+    assert "spec-kitty upgrade --agent-choice" in skill.body
+
+
 def test_template_not_found(tmp_path: Path) -> None:
     """Pointing to a non-existent template raises SkillRenderError(template_not_found)."""
     missing = tmp_path / "nonexistent.md"

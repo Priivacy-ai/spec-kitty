@@ -15,6 +15,7 @@ from specify_cli.shims.generator import (
     generate_shim_content_for_agent,
     generate_all_shims,
 )
+from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, CONSUMER_SKILLS, PROMPT_DRIVEN_COMMANDS
 
 
@@ -72,9 +73,8 @@ class TestGenerateShimContent:
     def test_total_line_count(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
         lines = content.rstrip("\n").splitlines()
-        # ---, description, ---, version marker, invariant, prohibition,
-        # mission hint, blank, CLI call
-        assert len(lines) == 9
+        assert len(lines) <= 10
+        assert "## Startup Upgrade Check" not in lines
 
     def test_starts_with_yaml_frontmatter(self) -> None:
         """Line 1 must be ``---`` so Claude Code parses the description."""
@@ -110,18 +110,24 @@ class TestGenerateShimContent:
         lines = content.splitlines()
         assert lines[3].startswith("<!-- spec-kitty-command-version:")
 
+    def test_command_instruction_after_version_marker(self) -> None:
+        content = generate_shim_content("implement", "claude", "$ARGUMENTS")
+        lines = content.splitlines()
+        assert lines[3].startswith("<!-- spec-kitty-command-version:")
+        assert lines[4] == "Run this exact command and treat its output as authoritative."
+        assert "spec-kitty upgrade --agent-check --json" not in content
+
     def test_invariant_line_position(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
         lines = content.splitlines()
-        # Line 0..2 frontmatter, line 3 marker, line 4 invariant
-        assert lines[4] == "Run this exact command and treat its output as authoritative."
+        assert lines.index("Run this exact command and treat its output as authoritative.") == 4
 
     def test_prohibition_line_position(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
         lines = content.splitlines()
-        assert lines[5] == (
+        assert (
             "Do not rediscover context from branches, files, prompt contents, or separate charter loads."
-        )
+        ) in lines
 
     def test_direct_implement_command(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
@@ -165,11 +171,9 @@ class TestGenerateShimContent:
     def test_shim_content_mission_hint_line(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
         lines = content.splitlines()
-        # Frontmatter occupies lines 0..2, version marker line 3, invariant
-        # line 4, prohibition line 5, mission hint line 6.
-        assert lines[6] == (
+        assert (
             "When mission selection is required, pass --mission <handle> (mission_id, mid8, or mission_slug)."
-        )
+        ) in lines
 
     def test_shim_content_version_marker_present_in_head(self) -> None:
         """Marker must appear in the file head (no longer line 0 — line 3)."""
@@ -411,6 +415,7 @@ class TestGenerateShimContentToml:
         parsed = tomllib.loads(content)
         assert "Run this exact command and treat its output as authoritative." in parsed["prompt"]
         assert "Do not rediscover context" in parsed["prompt"]
+        assert "spec-kitty upgrade --agent-check --json" not in parsed["prompt"]
 
     def test_canonical_cli_call_in_prompt(self) -> None:
         import tomllib
@@ -426,6 +431,15 @@ class TestGenerateShimContentToml:
 
 
 class TestGenerateShimContentForAgent:
+    @pytest.mark.parametrize("agent_key", sorted(AGENT_COMMAND_CONFIG))
+    def test_command_shims_do_not_embed_upgrade_check(self, agent_key: str) -> None:
+        import tomllib
+
+        content = generate_shim_content_for_agent("implement", agent_key)
+        searchable = tomllib.loads(content)["prompt"] if AGENT_COMMAND_CONFIG[agent_key]["ext"] == "toml" else content
+        assert "## Startup Upgrade Check" not in searchable
+        assert "spec-kitty upgrade --agent-check --json" not in searchable
+
     def test_gemini_returns_toml(self) -> None:
         import tomllib
 

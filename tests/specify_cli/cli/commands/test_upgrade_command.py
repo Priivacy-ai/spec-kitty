@@ -35,7 +35,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.upgrade import upgrade
 from specify_cli.compat.planner import Invocation as _Invocation
 from specify_cli.compat.planner import ProjectState
-from specify_cli.compat.provider import FakeLatestVersionProvider
+from specify_cli.compat.provider import FakeLatestVersionProvider, LatestVersionResult
 
 # ---------------------------------------------------------------------------
 # Contract path (relative to repo root)
@@ -190,6 +190,75 @@ def test_cli_and_project_mutex_error_message(tmp_path: Path) -> None:
     result = _invoke_upgrade(["--cli", "--project"], cwd=tmp_path)
     assert "--cli" in result.output or "cli" in result.output.lower()
     assert "--project" in result.output or "project" in result.output.lower()
+
+
+def test_agent_check_json_prompts_when_update_available(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.compat._detect.install_method import InstallMethod
+    from specify_cli.compat.cache import NagCache
+    from specify_cli.compat.provider import PyPIProvider
+
+    monkeypatch.setattr("specify_cli.compat.cache.NagCache.default", lambda: NagCache(tmp_path / "agent-cache.json"))
+    monkeypatch.setattr(
+        PyPIProvider,
+        "get_latest",
+        lambda self, package: LatestVersionResult("999.0.0", "pypi", None),
+    )
+    monkeypatch.setattr("specify_cli.compat.detect_install_method", lambda: InstallMethod.PIPX)
+
+    result = _invoke_upgrade(["--agent-check", "--json"], cwd=tmp_path)
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["schema_version"] == 1
+    assert payload["action"] == "prompt"
+    assert payload["latest_version"] == "999.0.0"
+    assert "upgrade_command" in payload
+
+
+def test_agent_check_guidance_when_upgrade_command_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from specify_cli.compat._detect.install_method import InstallMethod
+    from specify_cli.compat.cache import NagCache
+    from specify_cli.compat.provider import PyPIProvider
+
+    monkeypatch.setattr("specify_cli.compat.cache.NagCache.default", lambda: NagCache(tmp_path / "agent-cache.json"))
+    monkeypatch.setattr(
+        PyPIProvider,
+        "get_latest",
+        lambda self, package: LatestVersionResult("999.0.0", "pypi", None),
+    )
+    monkeypatch.setattr("specify_cli.compat.detect_install_method", lambda: InstallMethod.UNKNOWN)
+
+    result = _invoke_upgrade(["--agent-check", "--json"], cwd=tmp_path)
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["action"] == "guidance"
+    assert payload["reason"] == "manual_upgrade_required"
+    assert payload["upgrade_command"] is None
+    assert payload["upgrade_note"]
+
+
+def test_agent_choice_not_now_records_snooze(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.compat.cache import NagCache
+
+    cache = NagCache(tmp_path / "agent-cache.json")
+    monkeypatch.setattr("specify_cli.compat.cache.NagCache.default", lambda: cache)
+
+    result = _invoke_upgrade(
+        ["--agent-choice", "not_now", "--agent-latest", "999.0.0", "--json"],
+        cwd=tmp_path,
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["status"] == "recorded"
+    record = cache.read()
+    assert record is not None
+    assert record.remote_version_seen == "999.0.0"
+    assert record.snooze_step == "24h"
+    assert record.snoozed_until is not None
 
 
 # ---------------------------------------------------------------------------

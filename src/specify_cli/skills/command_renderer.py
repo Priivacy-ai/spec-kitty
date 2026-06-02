@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.skills._user_input_block import rewrite as _rewrite_user_input
+from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -488,7 +489,7 @@ def render(
     return RenderedSkill(
         name=name,
         frontmatter=frontmatter,
-        body=body,
+        body=prepend_agent_upgrade_check(body),
         source_template=template_path.resolve(),
         source_hash=source_hash,
         agent_key=agent_key,  # type: ignore[arg-type]
