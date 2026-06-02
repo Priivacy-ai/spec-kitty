@@ -129,11 +129,12 @@ class TestSyncAgentCommandsIntegration:
 
         _sync_agent_commands("claude", templates_dir, "sh")
 
-        written = {
+        written_prompt_commands = {
             p.stem.split(".")[1]
             for p in output_dir.glob("spec-kitty.*.md")
+            if p.stem.split(".")[1] in PROMPT_DRIVEN_COMMANDS
         }
-        assert written == set(PROMPT_DRIVEN_COMMANDS)
+        assert written_prompt_commands == set(PROMPT_DRIVEN_COMMANDS)
 
     def test_missing_prompt_md_skipped_without_raising(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

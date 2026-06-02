@@ -214,16 +214,100 @@ def _print_slash_command_report(
 
 
 def _repair_slash_command_state(
+    project_path: Path,
     configured_agents: list[str],
     gaps: list[SlashCommandGap],
 ) -> list[str]:
     """Reinstall missing/stale slash-command files. Returns list of repaired paths."""
+    del project_path
     if not gaps:
         return []
     from specify_cli.runtime.agent_commands import ensure_global_agent_commands
 
     ensure_global_agent_commands(agent_keys=configured_agents)
     return [str(g.expected_path) for g in gaps]
+
+
+def _slash_command_payload(
+    configured_agents: list[str],
+    gaps: list[SlashCommandGap],
+    repaired: list[str],
+    errors: list[str],
+) -> dict[str, object]:
+    """Build the JSON/human report payload for slash-command audit."""
+    return {
+        "configured_agents": configured_agents,
+        "gaps": [
+            {
+                "agent_key": gap.agent_key,
+                "command": gap.command,
+                "expected_path": str(gap.expected_path),
+                "status": gap.status,
+            }
+            for gap in gaps
+        ],
+        "repaired": repaired,
+        "errors": errors,
+        "ok": not gaps and not errors,
+    }
+
+
+def _load_and_optionally_repair_slash_commands(
+    project_path: Path,
+    fix: bool,
+) -> dict[str, object]:
+    """Load slash-command audit state and optionally repair detected gaps."""
+    slash_repaired: list[str] = []
+    slash_errors: list[str] = []
+    try:
+        configured_slash, slash_gaps = _load_slash_command_state(project_path)
+        if fix and slash_gaps:
+            slash_repaired = _repair_slash_command_state(
+                project_path,
+                configured_slash,
+                slash_gaps,
+            )
+            configured_slash, slash_gaps = _load_slash_command_state(project_path)
+    except Exception as exc:
+        configured_slash = []
+        slash_gaps = []
+        slash_errors = [str(exc)]
+
+    return _slash_command_payload(
+        configured_slash,
+        slash_gaps,
+        slash_repaired,
+        slash_errors,
+    )
+
+
+def _print_slash_command_payload(
+    slash_payload: dict[str, object],
+    fix: bool,
+) -> None:
+    """Render human output for slash-command audit payload."""
+    if slash_payload.get("errors"):
+        console.print("\n[bold red]Slash-command audit failed[/bold red]")
+        for error in list(slash_payload["errors"]):
+            console.print(f"  [red]![/red] {error}")
+        return
+
+    configured_slash = list(slash_payload["configured_agents"])
+    slash_gaps = [
+        SlashCommandGap(
+            str(gap["agent_key"]),
+            str(gap["command"]),
+            Path(str(gap["expected_path"])),
+            str(gap["status"]),
+        )
+        for gap in list(slash_payload["gaps"])
+        if isinstance(gap, dict)
+    ]
+    _print_slash_command_report(configured_slash, slash_gaps, fix)
+    if fix and slash_payload["repaired"]:
+        console.print(
+            f"\n[green]Repaired:[/green] {len(slash_payload['repaired'])} slash command file(s)"
+        )
 
 
 def _load_command_skill_state(
@@ -589,6 +673,10 @@ def skills(
             repair_errors,
         )
 
+        slash_payload = _load_and_optionally_repair_slash_commands(project_path, fix)
+        payload["slash_commands"] = slash_payload
+        payload["ok"] = bool(payload["ok"]) and bool(slash_payload["ok"])
+
     if json_output:
         console.print_json(json.dumps(payload, indent=2))
         raise typer.Exit(0 if payload["ok"] else 1)
@@ -596,20 +684,12 @@ def skills(
     _print_command_skill_report(payload, fix)
 
     # --- Slash Commands audit ---
-    slash_healthy = True
-    try:
-        configured_slash, slash_gaps = _load_slash_command_state(project_path)
-        slash_healthy = _print_slash_command_report(configured_slash, slash_gaps, fix)
-        if fix and slash_gaps:
-            repaired_slash = _repair_slash_command_state(configured_slash, slash_gaps)
-            console.print(f"\n[green]Repaired:[/green] {len(repaired_slash)} slash command file(s)")
-            _, remaining = _load_slash_command_state(project_path)
-            slash_healthy = not remaining
-    except Exception as exc:
-        logger.debug("Slash-command audit failed: %s", exc, exc_info=True)
+    slash_payload = payload["slash_commands"]
+    if not isinstance(slash_payload, dict):
+        slash_payload = {"ok": False, "errors": ["invalid slash-command payload"]}
+    _print_slash_command_payload(slash_payload, fix)
 
-    overall_healthy = bool(payload["ok"]) and slash_healthy
-    raise typer.Exit(0 if overall_healthy else 1)
+    raise typer.Exit(0 if payload["ok"] else 1)
 
 
 @app.command(name="state-roots")

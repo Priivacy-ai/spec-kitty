@@ -7,6 +7,7 @@ forward contract for WP02's implementation.
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -309,3 +310,46 @@ class TestDoctorSkillsFixIntegration:
         result = _repair_slash_command_state(tmp_path, ["claude"], gaps)
         assert len(result) == 2
         assert all(isinstance(p, str) for p in result)
+
+
+class TestDoctorSkillsJson:
+    """JSON mode must include slash-command health, not only Agent Skills."""
+
+    def test_json_reports_slash_command_gaps(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from typer.testing import CliRunner
+
+        from specify_cli.cli.commands import doctor
+
+        gap = doctor.SlashCommandGap(
+            "claude",
+            "specify",
+            tmp_path / "spec-kitty.specify.md",
+            "missing",
+        )
+        monkeypatch.setattr(doctor, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(
+            doctor,
+            "_load_command_skill_state",
+            lambda _project_path: (object(), object(), [], [], [], False),
+        )
+        monkeypatch.setattr(
+            doctor,
+            "_command_skill_payload",
+            lambda *_args: {"ok": True},
+        )
+        monkeypatch.setattr(
+            doctor,
+            "_load_slash_command_state",
+            lambda _project_path: (["claude"], [gap]),
+        )
+
+        result = CliRunner().invoke(doctor.app, ["skills", "--json"])
+
+        assert result.exit_code == 1
+        payload = json.loads(result.output)
+        assert payload["ok"] is False
+        assert payload["slash_commands"]["gaps"][0]["status"] == "missing"

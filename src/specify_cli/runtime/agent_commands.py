@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
+from typing import cast
 
 from specify_cli.core.config import DEFAULT_MISSION_KEY
 from specify_cli.runtime.bootstrap import _get_cli_version, _lock_exclusive
@@ -84,11 +85,12 @@ def _get_command_templates_dir() -> Path:
     """
     import doctrine  # noqa: PLC0415
 
-    doctrine_file: str | None = doctrine.__file__
+    doctrine_file = cast(str | None, doctrine.__file__)
     if doctrine_file is None:
         raise FileNotFoundError("doctrine package has no __file__; installation may be corrupted")
     doctrine_path: Path = Path(doctrine_file).parent
-    return doctrine_path / "missions" / "mission-steps" / DEFAULT_MISSION_KEY
+    mission_key = cast(str, DEFAULT_MISSION_KEY)
+    return doctrine_path / "missions" / "mission-steps" / mission_key
 
 
 def _resolve_script_type() -> str:
