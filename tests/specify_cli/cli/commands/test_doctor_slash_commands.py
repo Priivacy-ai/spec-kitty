@@ -315,6 +315,48 @@ class TestDoctorSkillsFixIntegration:
 class TestDoctorSkillsJson:
     """JSON mode must include slash-command health, not only Agent Skills."""
 
+    def test_root_startup_does_not_repair_before_doctor_skills(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """doctor skills must own slash-command repairs so JSON can report them."""
+        from types import SimpleNamespace
+
+        import specify_cli
+
+        calls: list[str] = []
+
+        monkeypatch.setattr(
+            specify_cli,
+            "root_callback",
+            lambda _ctx: None,
+        )
+        monkeypatch.setattr(
+            specify_cli,
+            "locate_project_root",
+            lambda: None,
+        )
+        monkeypatch.setattr(
+            "specify_cli.runtime.bootstrap.ensure_runtime",
+            lambda: None,
+        )
+        monkeypatch.setattr(
+            "specify_cli.runtime.agent_skills.ensure_global_agent_skills",
+            lambda: None,
+        )
+        monkeypatch.setattr(
+            "specify_cli.runtime.agent_commands.ensure_global_agent_commands",
+            lambda: calls.append("agent_commands"),
+        )
+        monkeypatch.setattr(
+            "sys.argv",
+            ["spec-kitty", "doctor", "skills", "--fix", "--json"],
+        )
+
+        specify_cli.main_callback(SimpleNamespace(invoked_subcommand="doctor"))
+
+        assert calls == []
+
     def test_json_reports_slash_command_gaps(
         self,
         tmp_path: Path,

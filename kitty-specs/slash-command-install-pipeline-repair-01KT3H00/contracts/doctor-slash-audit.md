@@ -1,11 +1,11 @@
 # Contract: Doctor Slash-Command Audit
 
-**Module**: `src/specify_cli/cli/commands/doctor.py`  
+**Module**: `src/specify_cli/cli/commands/doctor.py`
 **Subcommand**: `doctor skills`
 
 ## Scope
 
-Operates on: `set(config.available) ∩ set(AGENT_COMMAND_CONFIG.keys())`  
+Operates on: `set(config.available) ∩ set(AGENT_COMMAND_CONFIG.keys())`
 Explicitly excludes: agents in `SUPPORTED_AGENTS` (codex/vibe/pi/letta) — those are handled by the existing Agent Skills audit path.
 
 ## Read-only check output

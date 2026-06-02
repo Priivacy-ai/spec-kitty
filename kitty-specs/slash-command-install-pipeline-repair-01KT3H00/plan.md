@@ -1,19 +1,19 @@
 # Implementation Plan: Slash Command Install Pipeline Repair
 
-**Mission**: slash-command-install-pipeline-repair-01KT3H00  
-**Branch**: kitty/mission-slash-command-install-pipeline-repair-01KT3H00  
-**Merge target**: main  
+**Mission**: slash-command-install-pipeline-repair-01KT3H00
+**Branch**: kitty/mission-slash-command-install-pipeline-repair-01KT3H00
+**Merge target**: main
 **GitHub issues**: #1608, #1609, #1610
 
 ---
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+  
-**Primary Dependencies**: `doctrine` package (internal), `typer`, `rich`, `uv`  
-**Build/Package**: hatchling, editable install via `pip install -e .`  
-**Test Framework**: pytest, mypy --strict, ruff  
-**Key Files**: `src/specify_cli/runtime/agent_commands.py`, `src/specify_cli/cli/commands/doctor.py`, `src/specify_cli/core/config.py`, `pyproject.toml`  
+**Language/Version**: Python 3.11+
+**Primary Dependencies**: `doctrine` package (internal), `typer`, `rich`, `uv`
+**Build/Package**: hatchling, editable install via `pip install -e .`
+**Test Framework**: pytest, mypy --strict, ruff
+**Key Files**: `src/specify_cli/runtime/agent_commands.py`, `src/specify_cli/cli/commands/doctor.py`, `src/specify_cli/core/config.py`, `pyproject.toml`
 **Precedent**: `src/specify_cli/skills/command_installer.py` → `_package_templates_dir()` uses `doctrine.__file__` for template resolution (exact pattern to replicate)
 
 ---

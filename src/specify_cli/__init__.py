@@ -109,7 +109,8 @@ def main_callback(
 
     ensure_runtime()
     ensure_global_agent_skills()
-    ensure_global_agent_commands()
+    if not _is_doctor_skills_invocation(sys.argv):
+        ensure_global_agent_commands()
 
     # F-Pin-001 / 1A-16: Warn on runtime.pin_version for all project invocations.
     project_root = locate_project_root()
@@ -149,6 +150,17 @@ def _build_app() -> typer.Typer:
     )
     register_commands(app)
     return app
+
+
+def _is_doctor_skills_invocation(argv: list[str]) -> bool:
+    """Return True for ``spec-kitty doctor skills`` invocations.
+
+    ``doctor skills`` audits and reports slash-command gaps itself. Running the
+    startup slash-command repair first would hide those gaps from the doctor's
+    machine-readable repair payload.
+    """
+    args = [arg for arg in argv[1:] if not arg.startswith("-")]
+    return len(args) >= 2 and args[0] == "doctor" and args[1] == "skills"
 
 
 def _get_app() -> typer.Typer:

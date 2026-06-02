@@ -1,8 +1,8 @@
 # Tasks: Slash Command Install Pipeline Repair
 
-**Mission**: slash-command-install-pipeline-repair-01KT3H00  
-**Branch**: kitty/mission-slash-command-install-pipeline-repair-01KT3H00 → merges to: main  
-**GitHub issues**: #1608, #1609, #1610  
+**Mission**: slash-command-install-pipeline-repair-01KT3H00
+**Branch**: kitty/mission-slash-command-install-pipeline-repair-01KT3H00 → merges to: main
+**GitHub issues**: #1608, #1609, #1610
 **Generated**: 2026-06-02
 
 ---
@@ -45,10 +45,10 @@
 
 ## Work Package 01 — agent_commands.py Fix (resolver, renderer, lock)
 
-**Goal**: Fix all three broken behaviours in `agent_commands.py`: resolver returns doctrine-based `Path`, renderer iterates per-step subdirs, lock written only after all syncs succeed.  
-**Priority**: P0 — all other WPs depend on this  
-**Estimated prompt size**: ~280 lines  
-**Requires**: nothing  
+**Goal**: Fix all three broken behaviours in `agent_commands.py`: resolver returns doctrine-based `Path`, renderer iterates per-step subdirs, lock written only after all syncs succeed.
+**Priority**: P0 — all other WPs depend on this
+**Estimated prompt size**: ~280 lines
+**Requires**: nothing
 **Blocks**: WP02, WP04
 
 ### ⚑ Preflight (before first implementation commit)
@@ -93,10 +93,10 @@ Use `Path(doctrine.__file__).parent / "missions" / "mission-steps" / "software-d
 
 ## Work Package 02 — doctor.py slash-command audit and --fix
 
-**Goal**: Add slash-command health check and repair to `doctor skills`; extend `ensure_global_agent_commands()` with `agent_keys` param.  
-**Priority**: P1  
-**Estimated prompt size**: ~340 lines  
-**Requires**: WP01  
+**Goal**: Add slash-command health check and repair to `doctor skills`; extend `ensure_global_agent_commands()` with `agent_keys` param.
+**Priority**: P1
+**Estimated prompt size**: ~340 lines
+**Requires**: WP01
 **Blocks**: WP03, WP05
 
 ### ⚑ ATDD-First commit (charter C-011 — mandatory)
@@ -140,10 +140,10 @@ Confirm this test is **RED** on `planning_base_branch`. Commit it alone before T
 
 ## Work Package 03 — Dev Bootstrap (Makefile + Docs)
 
-**Goal**: Add `Makefile` with `dev-setup` target and update contributor docs so developers can bootstrap a working environment in one step.  
-**Priority**: P1  
-**Estimated prompt size**: ~220 lines  
-**Requires**: WP02  
+**Goal**: Add `Makefile` with `dev-setup` target and update contributor docs so developers can bootstrap a working environment in one step.
+**Priority**: P1
+**Estimated prompt size**: ~220 lines
+**Requires**: WP02
 **Blocks**: nothing
 
 ### Subtasks
@@ -161,10 +161,10 @@ Confirm this test is **RED** on `planning_base_branch`. Commit it alone before T
 
 ## Work Package 04 — Runtime tests (agent_commands)
 
-**Goal**: Write unit and integration tests for the `agent_commands.py` fixes: resolver, per-step renderer, lock timing, stale-file removal.  
-**Priority**: P1  
-**Estimated prompt size**: ~320 lines  
-**Requires**: WP01  
+**Goal**: Write unit and integration tests for the `agent_commands.py` fixes: resolver, per-step renderer, lock timing, stale-file removal.
+**Priority**: P1
+**Estimated prompt size**: ~320 lines
+**Requires**: WP01
 **Blocks**: nothing
 
 ### Subtasks
@@ -181,12 +181,12 @@ Target: `tests/specify_cli/runtime/test_agent_commands.py`. Expand the ATDD stub
 
 ---
 
-## Work Package 05 — Doctor tests (slash-command audit, --fix, mypy)
+## Work Package 05 — Doctor tests (slash-command audit, --fix, targeted mypy)
 
-**Goal**: Write unit and integration tests for the `doctor skills` slash-command audit and `--fix` repair path. Includes mypy clean-bill sign-off.  
-**Priority**: P1  
-**Estimated prompt size**: ~380 lines  
-**Requires**: WP02  
+**Goal**: Write unit and integration tests for the `doctor skills` slash-command audit and `--fix` repair path. Includes targeted mypy sign-off for the runtime module changed by WP01.
+**Priority**: P1
+**Estimated prompt size**: ~380 lines
+**Requires**: WP02
 **Blocks**: nothing
 
 ### Subtasks
@@ -196,7 +196,7 @@ Target: `tests/specify_cli/runtime/test_agent_commands.py`. Expand the ATDD stub
 - [ ] T025 Test: doctor audit false-positive prevention (WP05)
 - [ ] T026 Test: --fix scope guard — only configured agents (WP05)
 - [ ] T027 Test: --fix idempotency — twice → identical state; also covers T016's early-return constraint (WP05)
-- [ ] T028 mypy --strict passes on all changed modules (WP05)
+- [ ] T028 mypy --strict passes on `src/specify_cli/runtime/agent_commands.py` (WP05)
 - [ ] T029 NFR-003 regression: run targeted Agent Skills doctor tests to confirm existing pipeline unaffected (WP05)
 
 ### Implementation Notes

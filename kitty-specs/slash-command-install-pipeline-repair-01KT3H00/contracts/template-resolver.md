@@ -1,6 +1,6 @@
 # Contract: Template Resolver
 
-**Module**: `src/specify_cli/runtime/agent_commands.py`  
+**Module**: `src/specify_cli/runtime/agent_commands.py`
 **Function**: `_get_command_templates_dir()`
 
 ## Pre-fix (broken)

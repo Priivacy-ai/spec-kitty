@@ -1,9 +1,9 @@
 # Slash Command Install Pipeline Repair
 
-**Mission ID**: 01KT3H00ZCKSC4KS6C7W68ZQZP  
-**Mission slug**: slash-command-install-pipeline-repair-01KT3H00  
-**Mission type**: software-dev  
-**Target branch**: main  
+**Mission ID**: 01KT3H00ZCKSC4KS6C7W68ZQZP
+**Mission slug**: slash-command-install-pipeline-repair-01KT3H00
+**Mission type**: software-dev
+**Target branch**: main
 **GitHub issues**: #1608, #1609, #1610
 
 ---
