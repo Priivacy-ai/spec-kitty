@@ -25,7 +25,7 @@ from specify_cli.status.models import StatusEvent
 # Helpers
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 def _write_wp_file(tasks_dir: Path, wp_id: str, title: str = "Test WP") -> Path:
     """Create a minimal WP markdown file with valid frontmatter."""

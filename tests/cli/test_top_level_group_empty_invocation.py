@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 import typer
 from typer.core import TyperGroup
 from typer.main import get_command
@@ -12,6 +13,9 @@ from specify_cli.cli.commands import (
     _top_level_group_name,
     register_commands,
 )
+
+# In-process Typer/CliRunner assertions; no subprocess, no filesystem.
+pytestmark = [pytest.mark.unit]
 
 
 def _registered_root() -> typer.Typer:

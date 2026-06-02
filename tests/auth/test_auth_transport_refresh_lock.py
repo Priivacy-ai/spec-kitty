@@ -14,6 +14,9 @@ from specify_cli.auth.transport import (
     reset_user_facing_dedup,
 )
 
+# Pure-logic transport tests (httpx mocks, asyncio); no subprocess/filesystem.
+pytestmark = [pytest.mark.unit]
+
 
 LOCK_MESSAGE = (
     "Another spec-kitty process is refreshing the auth session; retry in a moment."
