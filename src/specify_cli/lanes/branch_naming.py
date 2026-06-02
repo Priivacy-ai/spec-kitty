@@ -115,7 +115,7 @@ def mid8_from_slug(slug: str) -> str:
     if "-" not in slug:
         return ""
     tail = slug.rsplit("-", 1)[-1]
-    if len(tail) == 8 and tail.isalnum() and tail == tail.upper():
+    if _MID8_RE.match(tail):
         return tail
     return ""
 
