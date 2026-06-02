@@ -6,11 +6,36 @@ Cross-artifact relationships (paradigm → tactic, paradigm → directive) live 
 ``tactic_refs`` / ``paradigm_refs`` fields have been removed from this model.
 """
 
-from typing import Self
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from doctrine.shared.models import Contradiction
+
+_RETIRED_RELATIONSHIP_FIELDS = ("enhances", "overrides")
+
+
+def _reject_retired_relationship_fields(kind: str, data: Any) -> Any:
+    """Raise an actionable error if a retired relationship key is authored.
+
+    The ``enhances``/``overrides`` fields were retired in the FR-028 hard
+    cutover. Relationships are now authored exclusively as DRG fragment edges
+    merged into ``src/doctrine/graph.yaml``, never as inline artifact fields.
+    """
+    if not isinstance(data, dict):
+        return data
+    present = [field for field in _RETIRED_RELATIONSHIP_FIELDS if field in data]
+    if present:
+        keys = ", ".join(repr(field) for field in present)
+        raise ValueError(
+            f"Retired relationship field(s) {keys} on {kind} are no longer "
+            f"accepted (FR-028 hard cutover). Author the relationship as a DRG "
+            f"fragment edge in a `drg/` fragment "
+            f"(e.g. {{source: <kind>:<id>, target: <kind>:<id>, "
+            f"relation: enhances|overrides}}) merged into "
+            f"src/doctrine/graph.yaml — not as an inline artifact field."
+        )
+    return data
 
 
 class Paradigm(BaseModel):
@@ -26,21 +51,10 @@ class Paradigm(BaseModel):
     id: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
     name: str
     summary: str
-    overrides: str | None = Field(
-        default=None,
-        description="ID of a built-in paradigm this artifact replaces in full.",
-    )
-    enhances: str | None = Field(
-        default=None,
-        description="ID of a built-in paradigm this artifact augments via field-merge.",
-    )
     directive_refs: list[str] = Field(default_factory=list)
     opposed_by: list[Contradiction] = Field(default_factory=list)
 
-    @model_validator(mode="after")
-    def _augmentation_intent_is_exclusive(self) -> Self:
-        if self.overrides is not None and self.enhances is not None:
-            raise ValueError(
-                f"overrides and enhances are mutually exclusive on paradigm {self.id}"
-            )
-        return self
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_retired_relationship_fields(cls, data: Any) -> Any:
+        return _reject_retired_relationship_fields("paradigm", data)

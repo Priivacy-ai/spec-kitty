@@ -10,12 +10,45 @@ and directive adherence.
 from __future__ import annotations
 
 import warnings
-from typing import Annotated, Any, ClassVar, Self
+from typing import Annotated, Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.functional_validators import BeforeValidator
 
 from doctrine.agent_profiles.schema_version import AGENT_PROFILE_SCHEMA_VERSION_PATTERN
+
+
+# Relationship fields retired in the FR-028 hard cutover. Agent-profile YAML
+# uses kebab-case keys, so both spellings are rejected. Lineage
+# (``specializes-from``) and augmentation (``enhances``/``overrides``) are
+# authored as DRG fragment edges merged into ``src/doctrine/graph.yaml`` —
+# never as inline profile fields. NOTE: the lineage *resolver*
+# (``repository.py`` ``resolve_profile``/``get_ancestors``) migrates to read
+# the DRG edge in WP05; this WP only removes the field/accessors.
+_RETIRED_PROFILE_RELATIONSHIP_KEYS = (
+    "specializes_from",
+    "specializes-from",
+    "enhances",
+    "overrides",
+)
+
+
+def _reject_retired_profile_relationship_fields(data: Any) -> Any:
+    """Raise an actionable error if a retired relationship key is authored."""
+    if not isinstance(data, dict):
+        return data
+    present = [key for key in _RETIRED_PROFILE_RELATIONSHIP_KEYS if key in data]
+    if present:
+        keys = ", ".join(repr(key) for key in present)
+        raise ValueError(
+            f"Retired relationship field(s) {keys} on agent profile are no "
+            f"longer accepted (FR-028 hard cutover). Author lineage and "
+            f"augmentation as DRG fragment edges in a `drg/` fragment "
+            f"(e.g. {{source: agent_profile:<id>, target: agent_profile:<id>, "
+            f"relation: specializes_from|enhances|overrides}}) merged into "
+            f"src/doctrine/graph.yaml — not as inline profile fields."
+        )
+    return data
 
 
 def _normalize_role_value(value: str) -> str:
@@ -228,15 +261,6 @@ class AgentProfile(BaseModel):
     roles: list[Role] = Field(min_length=1)
     avatar_image: str | None = Field(default=None, alias="avatar-image")
     capabilities: list[str] = Field(default_factory=list)
-    specializes_from: str | None = Field(default=None, alias="specializes-from")
-    overrides: str | None = Field(
-        default=None,
-        description="ID of a built-in agent profile this artifact replaces in full.",
-    )
-    enhances: str | None = Field(
-        default=None,
-        description="ID of a built-in agent profile this artifact augments via field-merge.",
-    )
     routing_priority: int = Field(default=50, ge=0, le=100, alias="routing-priority")
     max_concurrent_tasks: int = Field(default=5, gt=0, alias="max-concurrent-tasks")
 
@@ -269,6 +293,7 @@ class AgentProfile(BaseModel):
     def _coerce_scalar_role(cls, data: Any) -> Any:
         if not isinstance(data, dict):
             return data
+        data = _reject_retired_profile_relationship_fields(data)
         has_role = "role" in data
         has_roles = "roles" in data
         if has_role and not has_roles:
@@ -307,15 +332,6 @@ class AgentProfile(BaseModel):
         if v <= 0:
             raise ValueError("max_concurrent_tasks must be greater than 0")
         return v
-
-    @model_validator(mode="after")
-    def _augmentation_intent_is_exclusive(self) -> Self:
-        """Reject pack artifacts that set both ``overrides`` and ``enhances``."""
-        if self.overrides is not None and self.enhances is not None:
-            raise ValueError(
-                f"overrides and enhances are mutually exclusive on agent profile {self.profile_id}"
-            )
-        return self
 
 
 # Task Context (input for matching)
