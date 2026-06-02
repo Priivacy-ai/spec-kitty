@@ -436,6 +436,21 @@ def extract_artifact_edges(  # noqa: C901
                     reason=ref.get("rationale"),
                 )
 
+            # WP07 (FR-001): profile lineage. The ``specializes-from`` field on a
+            # built-in profile names its parent profile; emit it as an
+            # authoritative ``specializes_from`` DRG edge so the shipped graph is
+            # the single source of lineage truth.
+            specializes_from = data.get("specializes-from")
+            if specializes_from:
+                _add_ref_edge(
+                    nodes_by_urn=nodes_by_urn,
+                    add_edge=_add_edge,
+                    source=src_urn,
+                    ref_type="agent_profile",
+                    ref_id=str(specializes_from),
+                    relation=Relation.SPECIALIZES_FROM,
+                )
+
     for source, target, relation in _CURATED_ARTIFACT_EDGES:
         source_kind = source.split(":", 1)[0]
         target_kind = target.split(":", 1)[0]

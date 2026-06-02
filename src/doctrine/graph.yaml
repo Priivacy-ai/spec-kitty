@@ -1128,6 +1128,9 @@ edges:
   target: directive:DIRECTIVE_031
   relation: requires
 - source: agent_profile:frontend-freddy
+  target: agent_profile:implementer-ivan
+  relation: specializes_from
+- source: agent_profile:frontend-freddy
   target: directive:DIRECTIVE_010
   relation: requires
 - source: agent_profile:frontend-freddy
@@ -1165,6 +1168,9 @@ edges:
   relation: requires
   reason: Enforce test-first defect resolution — write a failing reproduction test before modifying production code. All specialist profiles (java-jenny, python-pedro, frontend-freddy, node-norris) inherit this discipline via union merge.
 - source: agent_profile:java-jenny
+  target: agent_profile:implementer-ivan
+  relation: specializes_from
+- source: agent_profile:java-jenny
   target: directive:DIRECTIVE_010
   relation: requires
 - source: agent_profile:java-jenny
@@ -1187,6 +1193,9 @@ edges:
   target: tactic:behavior-driven-development
   relation: requires
   reason: BDD scenarios define acceptance criteria for Java features. Wire Gherkin scenarios via Cucumber-JVM as acceptance tests before implementing production code.
+- source: agent_profile:node-norris
+  target: agent_profile:implementer-ivan
+  relation: specializes_from
 - source: agent_profile:node-norris
   target: directive:DIRECTIVE_010
   relation: requires
@@ -1213,6 +1222,9 @@ edges:
 - source: agent_profile:planner-priti
   target: directive:DIRECTIVE_003
   relation: requires
+- source: agent_profile:python-pedro
+  target: agent_profile:implementer-ivan
+  relation: specializes_from
 - source: agent_profile:python-pedro
   target: directive:DIRECTIVE_010
   relation: requires
@@ -2313,23 +2325,3 @@ edges:
   target: tactic:test-minimisation
   relation: suggests
   when: Redundant test removal is only safe after the completion validation confirms coverage is intact
-# WP07 (FR-001/NFR-007) — built-in profile lineage migrated from the
-# ``specializes-from`` artifact field into authoritative DRG ``specializes_from``
-# edges. Each edge below corresponds 1:1 to a field-authored relationship in the
-# built-in agent profiles (zero-loss; see tests/doctrine/test_relationship_migration.py).
-- source: agent_profile:python-pedro
-  target: agent_profile:implementer-ivan
-  relation: specializes_from
-  reason: Python Pedro is a language-specialist implementer derived from Implementer Ivan
-- source: agent_profile:java-jenny
-  target: agent_profile:implementer-ivan
-  relation: specializes_from
-  reason: Java Jenny is a language-specialist implementer derived from Implementer Ivan
-- source: agent_profile:node-norris
-  target: agent_profile:implementer-ivan
-  relation: specializes_from
-  reason: Node Norris is a language-specialist implementer derived from Implementer Ivan
-- source: agent_profile:frontend-freddy
-  target: agent_profile:implementer-ivan
-  relation: specializes_from
-  reason: Frontend Freddy is a language-specialist implementer derived from Implementer Ivan
