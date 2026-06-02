@@ -20,7 +20,8 @@ subtasks:
 - T008
 - T009
 phase: Phase 0 - Closure
-agent: claude
+agent: "user"
+shell_pid: "18631"
 history:
 - timestamp: '2026-06-02T17:52:08Z'
   lane: planned
@@ -254,3 +255,7 @@ No `--base` flag needed — this WP has no dependencies and can run in parallel 
 - Confirm `CLAUDE.md` agent count is exactly 19 (not 18 or 20).
 - Confirm both GitHub issues show as CLOSED.
 - Confirm the ADR index README was updated.
+
+## Activity Log
+
+- 2026-06-02T20:18:31Z – user – shell_pid=18631 – Started implementation via action command
