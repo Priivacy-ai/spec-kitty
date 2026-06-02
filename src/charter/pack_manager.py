@@ -80,16 +80,16 @@ if TYPE_CHECKING:
 
 __all__ = [
     "ActivationResult",
+    "AvailableArtifact",
     "CharterPackManager",
     "MergeResult",
     "YAML_KEY_MAP",
 ]
-# NOTE: ``AvailableArtifact`` is intentionally *not* in ``__all__`` yet. It is a
-# public dataclass returned by ``list_available_detailed`` and is first imported
-# by ``charter list --all`` (WP16, which depends on WP09); the symbol-level
-# dead-code gate (tests/architectural/test_no_dead_symbols.py) requires a live
-# ``src/`` importer before a symbol is exported. WP16 adds it to ``__all__`` when
-# it wires the caller. It remains importable as ``pack_manager.AvailableArtifact``.
+# ``AvailableArtifact`` is exported now that ``charter list --all`` (WP16)
+# imports it as a live ``src/`` consumer (it is the per-layer value object
+# returned by ``list_available_detailed``). Before WP16 the symbol-level
+# dead-code gate (tests/architectural/test_no_dead_symbols.py) required a live
+# importer before the symbol could be exported; WP16 is that importer.
 
 # ---------------------------------------------------------------------------
 # Canonical kind tables (derived from the WP01 resolver — no re-enumeration)
