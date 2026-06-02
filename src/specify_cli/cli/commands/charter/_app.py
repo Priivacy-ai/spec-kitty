@@ -44,7 +44,9 @@ charter_app.add_typer(charter_bundle_app, name="bundle")
 # WP14 (FR-016): ``spec-kitty charter mission-type list`` — activated types only.
 charter_app.add_typer(charter_mission_type_app, name="mission-type")
 
-# WP15 (FR-008): ``spec-kitty charter activate mission-type <id>`` — in-flight warning.
+# WP06 (FR-004): ``spec-kitty charter activate <kind> <id>`` — pack activation.
+# (FR-008 governs only the in-flight step-removal warning branch reached for the
+# ``mission-type`` kind inside ``activate_cmd``, not this general registration.)
 charter_app.command("activate")(activate_cmd)
 
 # WP06 (FR-005): ``spec-kitty charter deactivate <kind> <id>`` — pack deactivation.
