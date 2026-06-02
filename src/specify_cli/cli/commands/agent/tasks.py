@@ -745,6 +745,17 @@ def _protected_branch_status_commit_error(branch: str, repo_root: Path, command:
     )
 
 
+def _coord_topology_active(repo_root: Path, mission_slug: str) -> bool:
+    """Return True if the coordination worktree exists for this mission."""
+    try:
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+
+        ws = CoordinationWorkspace(repo_root, mission_slug)
+        return ws.worktree_path.exists()
+    except Exception:
+        return False
+
+
 def _status_event_result_fields(event: object | None) -> dict[str, str | None]:
     """Return JSON-safe status event fields for command output."""
     if event is None:
@@ -2127,14 +2138,27 @@ def move_task(
                     # Commit the WP file together with all status artifacts
                     # so that events.jsonl, status.json, and tasks.md
                     # changes are captured in the same atomic commit.
-                    status_artifacts = _collect_status_artifacts(feature_dir)
-                    commit_success = safe_commit(
-                        repo_root=main_repo_root,
-                        worktree_root=main_repo_root,
-                        destination_ref=target_branch,
-                        message=commit_msg,
-                        paths=tuple([actual_file_path] + status_artifacts),
-                    )
+                    _skip_target_commit = _coord_topology_active(
+                        main_repo_root, mission_slug
+                    ) and target_branch in protected_branches(main_repo_root)
+                    if _skip_target_commit:
+                        if not json_output:
+                            console.print(
+                                f"[dim]Note: WP file update not committed to '{target_branch}' "
+                                "(protected branch, coord topology active). "
+                                "The status transition is committed to the coordination branch "
+                                "and is authoritative.[/dim]"
+                            )
+                        commit_success = False
+                    else:
+                        status_artifacts = _collect_status_artifacts(feature_dir)
+                        commit_success = safe_commit(
+                            repo_root=main_repo_root,
+                            worktree_root=main_repo_root,
+                            destination_ref=target_branch,
+                            message=commit_msg,
+                            paths=tuple([actual_file_path] + status_artifacts),
+                        )
 
                     if commit_success:
                         if not json_output:
