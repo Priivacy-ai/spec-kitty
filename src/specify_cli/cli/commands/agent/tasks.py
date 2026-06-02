@@ -765,6 +765,26 @@ def _skip_target_branch_commit(repo_root: Path, mission_slug: str, target_branch
     )
 
 
+def _coord_status_events_path(repo_root: Path, mission_slug: str) -> Path | None:
+    """Return coord-worktree status event path when coord topology is active."""
+    try:
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+        from specify_cli.lanes.branch_naming import mid8_from_slug
+
+        mid8 = mid8_from_slug(mission_slug)
+        if not mid8:
+            return None
+        mission_dir = (
+            mission_slug if mission_slug.endswith(f"-{mid8}") else f"{mission_slug}-{mid8}"
+        )
+        coord_root = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
+        if not coord_root.exists():
+            return None
+        return coord_root / "kitty-specs" / mission_dir / EVENTS_FILENAME
+    except Exception:
+        return None
+
+
 def _status_event_result_fields(event: object | None) -> dict[str, str | None]:
     """Return JSON-safe status event fields for command output."""
     if event is None:
@@ -1656,6 +1676,31 @@ def move_task(
             _skip_target_branch_commit(main_repo_root, mission_slug, target_branch)
             if auto_commit else False
         )
+        tracker_ref_values = [t.strip() for t in (tracker_ref or []) if t and t.strip()]
+        unsupported_skip_metadata: list[str] = []
+        if skip_target_branch_commit:
+            if tracker_ref_values:
+                unsupported_skip_metadata.append("tracker_refs")
+            if assignee:
+                unsupported_skip_metadata.append("assignee")
+            if shell_pid:
+                unsupported_skip_metadata.append("shell_pid")
+            if note:
+                unsupported_skip_metadata.append("activity_log")
+        if unsupported_skip_metadata:
+            _output_error(
+                json_output,
+                "Cannot persist WP frontmatter/activity metadata on protected "
+                f"branch '{target_branch}' while coordination topology is active: "
+                f"{', '.join(unsupported_skip_metadata)}. Rerun from an allowed "
+                "branch, omit those metadata flags, or use --no-auto-commit.",
+                diagnostic={
+                    "error": "WP_METADATA_UNSUPPORTED_ON_PROTECTED_COORD_BRANCH",
+                    "target_branch": target_branch,
+                    "fields": unsupported_skip_metadata,
+                },
+            )
+            raise typer.Exit(1)
         if auto_commit and not skip_target_branch_commit:
             protected_error = _protected_branch_status_commit_error(
                 target_branch,
@@ -2187,7 +2232,6 @@ def move_task(
             # T040 / FR-011 (F-10): persist --tracker-ref values into the WP frontmatter.
             # Done AFTER the standard frontmatter write so we operate on the latest
             # on-disk content via the typed Pydantic model.
-            tracker_ref_values = [t.strip() for t in (tracker_ref or []) if t and t.strip()]
             if tracker_ref_values and not _skip_target_commit:
                 try:
                     from specify_cli.frontmatter import write_frontmatter as _write_fm
@@ -2230,6 +2274,10 @@ def move_task(
 
         # Output result
         event_fields = _status_event_result_fields(event)
+        status_events_path = (
+            _coord_status_events_path(main_repo_root, mission_slug)
+            if skip_target_branch_commit else None
+        )
         result = {
             "result": "success",
             "task_id": task_id,
@@ -2239,8 +2287,16 @@ def move_task(
             "event_id": event_fields["event_id"],
             "work_package_id": task_id,
             "to_lane": event_fields["to_lane"] or canonical_lane,
-            "status_events_path": str(feature_dir / EVENTS_FILENAME),
+            "status_events_path": str(status_events_path or (feature_dir / EVENTS_FILENAME)),
         }
+        if skip_target_branch_commit:
+            result["wp_file_update"] = "skipped"
+            result["wp_file_update_reason"] = (
+                "protected branch with coordination topology; status event "
+                "is authoritative on the coordination branch"
+            )
+            if agent:
+                result["frontmatter_fields_skipped"] = ["agent"]
         if review_feedback_pointer is not None:
             result["review_feedback"] = review_feedback_pointer
 

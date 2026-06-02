@@ -168,6 +168,34 @@ class TestMoveTaskGuardCondition:
 
         assert skip is True
 
+    def test_coord_status_events_path_reports_coord_worktree_path(
+        self, tmp_path: Path
+    ) -> None:
+        """JSON payloads expose the coord status path in skip mode."""
+        from specify_cli.cli.commands.agent.tasks import _coord_status_events_path
+
+        slug = "my-feature-01KT3YBD"
+        coord_path = (
+            tmp_path
+            / ".worktrees"
+            / "my-feature-01KT3YBD-coord"
+            / "kitty-specs"
+            / slug
+        )
+        coord_path.mkdir(parents=True)
+
+        assert _coord_status_events_path(tmp_path, slug) == (
+            coord_path / "status.events.jsonl"
+        )
+
+    def test_coord_status_events_path_absent_for_legacy(
+        self, tmp_path: Path
+    ) -> None:
+        """Legacy missions keep primary status path reporting."""
+        from specify_cli.cli.commands.agent.tasks import _coord_status_events_path
+
+        assert _coord_status_events_path(tmp_path, "legacy-feature") is None
+
     def test_skip_target_branch_commit_true_for_coord_protected_target(
         self, tmp_path: Path
     ) -> None:

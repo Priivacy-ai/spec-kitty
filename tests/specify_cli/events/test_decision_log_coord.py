@@ -177,10 +177,10 @@ class TestWrapWithDecisionGitLogCoordRouting:
         assert "worktree_root" in captured
         assert captured["worktree_root"] == tmp_path
 
-    def test_declared_coord_topology_missing_worktree_returns_plain_emitter(
+    def test_declared_coord_topology_missing_worktree_resolves_coord_worktree(
         self, tmp_path: Path
     ) -> None:
-        """Modern missions do not write coord decision events into repo_root."""
+        """Modern missions create/use coord worktree instead of dropping audit."""
         from runtime.next.runtime_bridge import _wrap_with_decision_git_log
 
         repo_root = tmp_path / "repo"
@@ -193,12 +193,73 @@ class TestWrapWithDecisionGitLogCoordRouting:
             encoding="utf-8",
         )
         inner = MagicMock(spec=SyncRuntimeEventEmitter)
+        captured: dict[str, Any] = {}
 
-        with patch("specify_cli.events.decision_log.DecisionGitLog") as decision_log:
+        def _fake_resolve(repo_root_arg: Path, mission_slug: str, mid8: str) -> Path:
+            assert repo_root_arg == repo_root
+            assert mission_slug == slug
+            assert mid8 == "01KT3YBD"
+            coord_root = repo_root / ".worktrees" / "my-feature-01KT3YBD-coord"
+            coord_root.mkdir(parents=True)
+            return coord_root
+
+        def _fake_decision_git_log(
+            repo_root: Path,
+            worktree_root: Path,
+            destination_ref: str,
+            mission_slug: str,
+            *,
+            inner: Any,
+            mission_id: str = "",
+        ) -> Any:
+            captured["worktree_root"] = worktree_root
+            return inner
+
+        with (
+            patch(
+                "specify_cli.coordination.workspace.CoordinationWorkspace.resolve",
+                side_effect=_fake_resolve,
+            ),
+            patch(
+                "specify_cli.events.decision_log.DecisionGitLog",
+                side_effect=_fake_decision_git_log,
+            ),
+        ):
             wrapped = _wrap_with_decision_git_log(inner, slug, repo_root)
 
         assert wrapped is inner
-        decision_log.assert_not_called()
+        assert captured["worktree_root"] == (
+            repo_root / ".worktrees" / "my-feature-01KT3YBD-coord"
+        )
+
+    def test_declared_coord_topology_decision_log_failure_raises(
+        self, tmp_path: Path
+    ) -> None:
+        """Modern missions fail closed when durable decision audit cannot build."""
+        from runtime.next.runtime_bridge import (
+            DecisionGitLogUnavailable,
+            _wrap_with_decision_git_log,
+        )
+
+        repo_root = tmp_path / "repo"
+        slug = "my-feature-01KT3YBD"
+        mission_dir = repo_root / "kitty-specs" / slug
+        mission_dir.mkdir(parents=True)
+        (mission_dir / "meta.json").write_text(
+            '{"coordination_branch":"kitty/mission-my-feature-01KT3YBD",'
+            '"mission_id":"01KT3YBDABCDEFGHIJKLMNOP"}',
+            encoding="utf-8",
+        )
+        inner = MagicMock(spec=SyncRuntimeEventEmitter)
+
+        with (
+            patch(
+                "specify_cli.coordination.workspace.CoordinationWorkspace.resolve",
+                side_effect=RuntimeError("coord unavailable"),
+            ),
+            pytest.raises(DecisionGitLogUnavailable),
+        ):
+            _wrap_with_decision_git_log(inner, slug, repo_root)
 
 
 # ---------------------------------------------------------------------------

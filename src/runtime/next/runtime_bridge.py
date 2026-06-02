@@ -65,6 +65,10 @@ from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
 logger = logging.getLogger(__name__)
 
 
+class DecisionGitLogUnavailable(RuntimeError):
+    """Decision audit logging cannot be made durable for a modern mission."""
+
+
 def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:
     """Return the coordination branch for a mission from meta.json.
 
@@ -125,6 +129,9 @@ def _wrap_with_decision_git_log(
     the original emitter is returned unchanged so mission execution is not
     blocked.
     """
+    declared_coord_topology = _mission_declares_coordination_branch(
+        mission_slug, repo_root,
+    )
     try:
         from specify_cli.coordination.workspace import CoordinationWorkspace
         from specify_cli.events.decision_log import DecisionGitLog
@@ -143,15 +150,10 @@ def _wrap_with_decision_git_log(
         _coord_path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, _mid8)
         if _coord_path.exists():
             worktree_root = _coord_path
-        elif _mission_declares_coordination_branch(mission_slug, repo_root):
-            logger.warning(
-                "DecisionGitLog coordination worktree missing for mission %s "
-                "(expected=%s, destination_ref=%s); falling back to plain emitter.",
-                mission_slug,
-                _coord_path,
-                coordination_branch,
+        elif declared_coord_topology:
+            worktree_root = CoordinationWorkspace.resolve(
+                repo_root, mission_slug, _mid8,
             )
-            return emitter
         else:
             worktree_root = repo_root
 
@@ -163,7 +165,13 @@ def _wrap_with_decision_git_log(
             inner=emitter,
             mission_id=mission_id,
         )
-    except Exception:
+    except Exception as exc:
+        if declared_coord_topology:
+            raise DecisionGitLogUnavailable(
+                "DecisionGitLog construction failed for declared coordination "
+                f"topology mission {mission_slug!r}; refusing to continue "
+                "without durable decision evidence."
+            ) from exc
         logger.warning(
             "DecisionGitLog construction failed for mission %s; "
             "falling back to plain emitter.",

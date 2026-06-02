@@ -24,6 +24,7 @@ Spec source: FR-030, SC-02.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from specify_cli.coordination.workspace import CoordinationWorkspace
@@ -61,6 +62,18 @@ class StatusReadPathNotFound(Exception):
             f"(mid8={mid8!r}): checked {coord_candidate} and "
             f"{primary_candidate}"
         )
+
+
+def _declares_coordination_branch(path: Path) -> bool:
+    meta_path = path / "meta.json"
+    if not meta_path.exists():
+        return False
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    branch = meta.get("coordination_branch") if isinstance(meta, dict) else None
+    return isinstance(branch, str) and bool(branch.strip())
 
 
 def _compose_mission_dir(mission_slug: str, mid8: str) -> str:
@@ -134,9 +147,20 @@ def resolve_mission_read_path(
         if coord_candidate.exists():
             return coord_candidate
 
-    # Candidate 2: primary checkout (legacy + early lifecycle).
+    # Candidate 2: primary checkout (legacy + early lifecycle).  When the
+    # primary meta already declares coord-branch topology, falling back to this
+    # path would expose stale/empty status files.  Fail closed instead; callers
+    # that need branch-ref reads must use the explicit status read contract.
     primary_candidate = repo_root / "kitty-specs" / mission_dir_name
     if primary_candidate.exists():
+        if coord_candidate is not None and _declares_coordination_branch(primary_candidate):
+            raise StatusReadPathNotFound(
+                repo_root=repo_root,
+                mission_slug=mission_slug,
+                mid8=mid8 or "",
+                coord_candidate=coord_candidate,
+                primary_candidate=primary_candidate,
+            )
         return primary_candidate
 
     if require_exists:

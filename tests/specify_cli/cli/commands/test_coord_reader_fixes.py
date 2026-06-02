@@ -53,6 +53,28 @@ class TestResolveMissionReadPath:
         result = resolve_mission_read_path(tmp_path, slug, mid8)
         assert result == primary_mission_dir
 
+    def test_declared_coord_topology_missing_worktree_fails_closed(
+        self, tmp_path: Path
+    ) -> None:
+        """Modern coord missions must not read stale primary checkout state."""
+        from specify_cli.missions._read_path_resolver import (
+            StatusReadPathNotFound,
+            resolve_mission_read_path,
+        )
+
+        slug = "my-feature"
+        mid8 = "01KT3YBD"
+        primary_mission_dir = tmp_path / "kitty-specs" / f"{slug}-{mid8}"
+        primary_mission_dir.mkdir(parents=True)
+        (primary_mission_dir / "meta.json").write_text(
+            '{"coordination_branch":"kitty/mission-my-feature-01KT3YBD"}',
+            encoding="utf-8",
+        )
+        (primary_mission_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+
+        with pytest.raises(StatusReadPathNotFound):
+            resolve_mission_read_path(tmp_path, slug, mid8)
+
     def test_primary_returned_when_both_absent(self, tmp_path: Path) -> None:
         """When neither exists, returns primary candidate path (no error by default)."""
         from specify_cli.missions._read_path_resolver import resolve_mission_read_path
