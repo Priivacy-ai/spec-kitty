@@ -311,7 +311,7 @@ def _save_config(config_path: Path, data: Any, yaml: YAML) -> None:
 
 def _load_default_pack() -> dict[str, list[str]]:
     """Load the built-in default pack IDs from the shipped default.yaml."""
-    import yaml as _yaml  # type: ignore[import-untyped]  # PyYAML stubs optional
+    import yaml as _yaml
 
     with _DEFAULT_PACK_PATH.open("r", encoding="utf-8") as fh:
         raw: Any = _yaml.safe_load(fh)
@@ -353,6 +353,7 @@ class CharterPackManager:
         artifact_id: str,
         *,
         cascade: bool = False,  # noqa: ARG002 — kept for caller API stability
+        layer_roots: dict[str, Path] | None = None,
     ) -> ActivationResult:
         """Activate ``artifact_id`` for ``kind`` in the project charter pack.
 
@@ -375,6 +376,9 @@ class CharterPackManager:
         cascade:
             Accepted for signature stability; DRG edge traversal is handled by
             the CLI-level ``charter cascade`` command. No warning is emitted.
+        layer_roots:
+            Optional org/project doctrine roots, passed as data by CLI callers.
+            When omitted, validation remains built-in-only for compatibility.
 
         Returns
         -------
@@ -396,7 +400,7 @@ class CharterPackManager:
         config_path = repo_root / ".kittify" / "config.yaml"
         data, yaml_inst = _load_config(config_path)
 
-        available = self.list_available(ctx, kind)
+        available = self.list_available(ctx, kind, layer_roots=layer_roots)
         default_pack = _load_default_pack()
         default_ids = default_pack.get(yaml_key, [])
 
@@ -424,6 +428,7 @@ class CharterPackManager:
         artifact_id: str,
         *,
         cascade: bool = False,  # noqa: ARG002 — kept for caller API stability
+        layer_roots: dict[str, Path] | None = None,  # noqa: ARG002 — symmetry with activate
     ) -> ActivationResult:
         """Deactivate ``artifact_id`` for ``kind`` in the project charter pack.
 
@@ -445,6 +450,9 @@ class CharterPackManager:
         cascade:
             Accepted for signature stability; DRG shared-reference analysis is
             handled by the CLI-level ``charter cascade`` command. No warning is emitted.
+        layer_roots:
+            Accepted for caller symmetry with ``activate``. Deactivation validates
+            against the current activation list, not the availability catalog.
 
         Returns
         -------

@@ -45,13 +45,18 @@ from specify_cli.cli.commands.charter.activate import (
     render_pack_config_error,
     validate_pack_config,
 )
+from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
 
 __all__ = ["deactivate_cmd"]
 
 console = Console()
 
 
-def _source_urn(kind: str, artifact_id: str) -> str | None:
+def _source_urn(
+    kind: str,
+    artifact_id: str,
+    layer_roots: dict[str, Path] | None,
+) -> str | None:
     """Resolve the DRG source URN for ``(kind, config-stem artifact_id)`` or ``None``."""
     try:
         kind_enum = ArtifactKind.from_operator_token(kind)
@@ -59,13 +64,20 @@ def _source_urn(kind: str, artifact_id: str) -> str | None:
         return None
     try:
         return resolve_artifact_urn(
-            kind_enum, artifact_id, doctrine_root=resolve_doctrine_root()
+            kind_enum,
+            artifact_id,
+            doctrine_root=resolve_doctrine_root(),
+            layer_roots=layer_roots,
         )
     except UnknownArtifactIdError:
         return None
 
 
-def _active_urns(manager: CharterPackManager, ctx_project: ProjectContext) -> set[str]:
+def _active_urns(
+    manager: CharterPackManager,
+    ctx_project: ProjectContext,
+    layer_roots: dict[str, Path] | None,
+) -> set[str]:
     """Return the set of currently-activated artifact URNs across all kinds.
 
     Resolves each activated config-stem ID back to its DRG URN. IDs with no
@@ -85,7 +97,10 @@ def _active_urns(manager: CharterPackManager, ctx_project: ProjectContext) -> se
             try:
                 urns.add(
                     resolve_artifact_urn(
-                        kind_enum, config_id, doctrine_root=doctrine_root
+                        kind_enum,
+                        config_id,
+                        doctrine_root=doctrine_root,
+                        layer_roots=layer_roots,
                     )
                 )
             except UnknownArtifactIdError:
@@ -99,6 +114,7 @@ def _render_cascade_deactivation(
     target_urn: str,
     scope: CascadeScope,
     repo_root: Path,
+    layer_roots: dict[str, Path] | None,
 ) -> None:
     """Cascade-deactivate exclusive referenced artifacts; keep shared ones (FR-015/016).
 
@@ -110,7 +126,7 @@ def _render_cascade_deactivation(
     from charter._drg_helpers import load_validated_graph  # noqa: PLC0415
 
     graph = load_validated_graph(repo_root)
-    active = _active_urns(manager, ctx_project)
+    active = _active_urns(manager, ctx_project, layer_roots)
     plan = deactivation_plan(graph, target_urn, scope, active_urns=active)
     doctrine_root = resolve_doctrine_root()
 
@@ -118,11 +134,19 @@ def _render_cascade_deactivation(
         kind_value, _, _ = urn.partition(":")
         kind_token = ArtifactKind(kind_value).operator_token
         try:
-            config_id = resolve_config_id(urn, doctrine_root=doctrine_root)
+            config_id = resolve_config_id(
+                urn, doctrine_root=doctrine_root, layer_roots=layer_roots
+            )
         except (UnknownArtifactIdError, ValueError):
             config_id = urn.partition(":")[2]
         try:
-            manager.deactivate(ctx_project, kind_token, config_id, cascade=False)
+            manager.deactivate(
+                ctx_project,
+                kind_token,
+                config_id,
+                cascade=False,
+                layer_roots=layer_roots,
+            )
         except (ValueError, NoActivationRestrictionsError) as exc:
             console.print(
                 f"[yellow]Warning[/yellow]: could not cascade-deactivate "
@@ -178,10 +202,17 @@ def deactivate_cmd(
         raise typer.Exit(1) from exc
 
     ctx_project = ProjectContext(repo_root=repo_root)
+    layer_roots = resolve_layer_roots(repo_root)
     manager = CharterPackManager()
 
     try:
-        result = manager.deactivate(ctx_project, kind, artifact_id, cascade=scope is not None)
+        result = manager.deactivate(
+            ctx_project,
+            kind,
+            artifact_id,
+            cascade=scope is not None,
+            layer_roots=layer_roots,
+        )
     except NoActivationRestrictionsError as exc:
         # WP10 engine raises this for a None-state kind; surface the upgrade
         # guidance carried in the error and exit non-zero (no mutation).
@@ -201,7 +232,9 @@ def deactivate_cmd(
     # removed the target (so we never cascade off a no-op removal).
     if scope is None or not result.deactivated:
         return
-    target_urn = _source_urn(kind, artifact_id)
+    target_urn = _source_urn(kind, artifact_id, layer_roots)
     if target_urn is None:
         return
-    _render_cascade_deactivation(manager, ctx_project, target_urn, scope, repo_root)
+    _render_cascade_deactivation(
+        manager, ctx_project, target_urn, scope, repo_root, layer_roots
+    )

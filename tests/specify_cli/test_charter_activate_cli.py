@@ -18,6 +18,7 @@ references both directives and tactics (plus other kinds) in the DRG.
 
 from __future__ import annotations
 
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -71,6 +72,28 @@ def _deactivate(project_root: Path, *args: str) -> object:
     )
 
 
+def _list(project_root: Path, *args: str) -> object:
+    return runner.invoke(
+        charter_app,
+        ["list", "--repo-root", str(project_root), *args],
+        catch_exceptions=False,
+    )
+
+
+def _write_directive(directory: Path, stem: str, artifact_id: str) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / f"{stem}.directive.yaml").write_text(
+        textwrap.dedent(
+            f"""\
+            id: {artifact_id}
+            type: directive
+            title: {artifact_id}
+            """
+        ),
+        encoding="utf-8",
+    )
+
+
 # ---------------------------------------------------------------------------
 # T056 — command registration + dead-export removal
 # ---------------------------------------------------------------------------
@@ -96,6 +119,62 @@ class TestRegistration:
         assert not hasattr(deactivate_mod, "charter_deactivate_app")
         assert activate_mod.__all__ == ["activate_cmd"]
         assert deactivate_mod.__all__ == ["deactivate_cmd"]
+
+
+class TestLayerAwareActivation:
+    def test_org_artifact_listed_by_all_can_be_activated_and_deactivated(
+        self, project_root: Path, tmp_path: Path
+    ) -> None:
+        org_pack = tmp_path / "org-pack"
+        _write_directive(
+            org_pack / "doctrine" / "directives" / "org",
+            "900-org-only-directive",
+            "DIRECTIVE_900",
+        )
+        (project_root / ".kittify" / "config.yaml").write_text(
+            textwrap.dedent(
+                f"""\
+                doctrine:
+                  org:
+                    packs:
+                      - name: acme
+                        local_path: {org_pack}
+                """
+            ),
+            encoding="utf-8",
+        )
+
+        listed = _list(project_root, "--all")
+        assert listed.exit_code == 0, listed.output
+        assert "900-org-only-directive" in listed.output
+
+        activated = _activate(project_root, "directive", "900-org-only-directive")
+        assert activated.exit_code == 0, activated.output
+        data = _config(project_root)
+        assert "900-org-only-directive" in data["activated_directives"]
+
+        deactivated = _deactivate(project_root, "directive", "900-org-only-directive")
+        assert deactivated.exit_code == 0, deactivated.output
+        data = _config(project_root)
+        assert "900-org-only-directive" not in data["activated_directives"]
+
+    def test_project_artifact_listed_by_all_can_be_activated(
+        self, project_root: Path
+    ) -> None:
+        _write_directive(
+            project_root / ".kittify" / "doctrine" / "directives" / "project",
+            "950-project-only-directive",
+            "DIRECTIVE_950",
+        )
+
+        listed = _list(project_root, "--all")
+        assert listed.exit_code == 0, listed.output
+        assert "950-project-only-directive" in listed.output
+
+        activated = _activate(project_root, "directive", "950-project-only-directive")
+        assert activated.exit_code == 0, activated.output
+        data = _config(project_root)
+        assert "950-project-only-directive" in data["activated_directives"]
 
 
 # ---------------------------------------------------------------------------

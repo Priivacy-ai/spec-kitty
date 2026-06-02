@@ -14,6 +14,8 @@ from charter.pack_manager import AvailableArtifact, CharterPackManager
 from charter.resolution import ResolutionTier
 from charter.template_catalog import TemplateRef, TierRoot, discover_templates
 
+from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
+
 __all__ = ["charter_list_app"]
 
 charter_list_app = typer.Typer(
@@ -35,40 +37,6 @@ _KIND_ORDER: list[str] = list(CHARTER_KIND_TOKENS)
 #: are not a charter activation kind (no ``config.yaml`` activation list); they
 #: are surfaced here as an availability-only row (FR-025).
 _TEMPLATE_KIND = "template"
-
-
-def _resolve_layer_roots(repo_root: Path) -> dict[str, Path]:
-    """Resolve the org / project doctrine roots for *repo_root* (C-008).
-
-    Root resolution lives in ``specify_cli`` and the resolved paths are handed
-    to ``charter.pack_manager`` / ``doctrine.template_catalog`` **as data** — the
-    lower layers never reach into ``.kittify`` / org packs themselves.
-
-    Returns a mapping of layer name (``"org"`` / ``"project"``) to the doctrine
-    *root* (the parent of a ``doctrine/`` directory) for that layer, mirroring
-    the built-in layer's ``src/`` root. Only layers that exist on disk are
-    included; the built-in layer is always scanned by the manager itself.
-    """
-    from specify_cli.doctrine.config import resolve_org_roots
-
-    roots: dict[str, Path] = {}
-
-    # Project layer: ``.kittify/doctrine/<plural>/project/`` lives under
-    # ``<repo_root>/.kittify``, so the doctrine root is ``<repo_root>/.kittify``.
-    project_root = repo_root / ".kittify"
-    if (project_root / "doctrine").is_dir():
-        roots["project"] = project_root
-
-    # Org layer: each org pack ``local_path`` is itself a doctrine root
-    # (contains ``doctrine/...``). The first existing pack supplies the org
-    # layer (last-writer-wins on duplicates, which is fine — the manager yields
-    # a per-layer entry regardless).
-    for org_root in resolve_org_roots(repo_root):
-        if (org_root / "doctrine").is_dir():
-            roots["org"] = org_root
-            break
-
-    return roots
 
 
 def _template_tier_roots(repo_root: Path, layer_roots: dict[str, Path]) -> list[TierRoot]:
@@ -188,7 +156,7 @@ def list_cmd(
     activated_map = manager.list_activated(ctx)
 
     # Resolve org/project roots once when we need the layer-aware view (C-008).
-    layer_roots = _resolve_layer_roots(repo_root) if all_layers else None
+    layer_roots = resolve_layer_roots(repo_root) if all_layers else None
 
     table = Table(title="Charter Activation State", show_lines=True)
     table.add_column("Kind", style="bold cyan", no_wrap=True)

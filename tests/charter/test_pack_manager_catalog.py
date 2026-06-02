@@ -219,6 +219,31 @@ class TestActivationDelegation:
         data = yaml.safe_load((project_root / ".kittify" / "config.yaml").read_text())
         assert "025-boy-scout-rule" in data["activated_directives"]
 
+    def test_activate_accepts_org_layer_artifact(
+        self,
+        manager: CharterPackManager,
+        ctx: ProjectContext,
+        project_root: Path,
+        tmp_path: Path,
+    ) -> None:
+        org_root = tmp_path / "org-doctrine"
+        _write_directive(
+            org_root / "doctrine" / "directives" / "org",
+            "900-org-rule",
+            "DIRECTIVE_900",
+        )
+
+        result = manager.activate(
+            ctx,
+            kind="directive",
+            artifact_id="900-org-rule",
+            layer_roots={"org": org_root},
+        )
+
+        assert "900-org-rule" in result.activated
+        data = yaml.safe_load((project_root / ".kittify" / "config.yaml").read_text())
+        assert "900-org-rule" in data["activated_directives"]
+
     def test_activate_unknown_id_raises_typed_error_no_write(
         self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path
     ) -> None:

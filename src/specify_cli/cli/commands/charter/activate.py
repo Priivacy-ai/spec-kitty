@@ -45,6 +45,8 @@ from charter.kind_vocabulary import (
 from charter.pack_context import CharterPackConfigError, PackContext
 from charter.pack_manager import YAML_KEY_MAP, CharterPackManager
 
+from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
+
 __all__ = ["activate_cmd"]
 
 console = Console()
@@ -71,7 +73,11 @@ def validate_pack_config(repo_root: Path) -> None:
     PackContext.from_config(repo_root)
 
 
-def _source_urn(kind: str, artifact_id: str) -> str | None:
+def _source_urn(
+    kind: str,
+    artifact_id: str,
+    layer_roots: dict[str, Path] | None,
+) -> str | None:
     """Resolve the DRG source URN for ``(kind, config-stem artifact_id)``.
 
     Returns ``None`` when the kind has no DRG artifact-node representation
@@ -84,13 +90,21 @@ def _source_urn(kind: str, artifact_id: str) -> str | None:
         return None
     try:
         return resolve_artifact_urn(
-            kind_enum, artifact_id, doctrine_root=resolve_doctrine_root()
+            kind_enum,
+            artifact_id,
+            doctrine_root=resolve_doctrine_root(),
+            layer_roots=layer_roots,
         )
     except UnknownArtifactIdError:
         return None
 
 
-def _drg_id_to_config_id(kind_value: str, drg_id: str, doctrine_root: Path) -> str:
+def _drg_id_to_config_id(
+    kind_value: str,
+    drg_id: str,
+    doctrine_root: Path,
+    layer_roots: dict[str, Path] | None,
+) -> str:
     """Map a cascade-reported DRG bare ID back to its config-stem ID.
 
     The cascade engine works in DRG URN space (e.g. ``DIRECTIVE_001``) while
@@ -99,7 +113,11 @@ def _drg_id_to_config_id(kind_value: str, drg_id: str, doctrine_root: Path) -> s
     config stem resolves (so rendering never crashes on an orphan node).
     """
     try:
-        return resolve_config_id(f"{kind_value}:{drg_id}", doctrine_root=doctrine_root)
+        return resolve_config_id(
+            f"{kind_value}:{drg_id}",
+            doctrine_root=doctrine_root,
+            layer_roots=layer_roots,
+        )
     except (UnknownArtifactIdError, ValueError):
         return drg_id
 
@@ -149,6 +167,7 @@ def _render_cascade_activation(
     source_urn: str,
     scope: CascadeScope,
     repo_root: Path,
+    layer_roots: dict[str, Path] | None,
 ) -> None:
     """Activate scoped cascade targets and render the outcome (FR-014).
 
@@ -168,9 +187,17 @@ def _render_cascade_activation(
         for cascade_drg_id in result.activated[kind_value]:
             # The cascade engine reports DRG bare IDs; activation lists use
             # config-stem IDs. Resolve back through the kind-vocabulary bridge.
-            config_id = _drg_id_to_config_id(kind_value, cascade_drg_id, doctrine_root)
+            config_id = _drg_id_to_config_id(
+                kind_value, cascade_drg_id, doctrine_root, layer_roots
+            )
             try:
-                manager.activate(ctx_project, kind_token, config_id, cascade=False)
+                manager.activate(
+                    ctx_project,
+                    kind_token,
+                    config_id,
+                    cascade=False,
+                    layer_roots=layer_roots,
+                )
             except ValueError as exc:
                 console.print(
                     f"[yellow]Warning[/yellow]: could not cascade-activate "
@@ -184,13 +211,19 @@ def _render_cascade_activation(
     for kind_value in sorted(result.skipped_by_scope):
         kind_token = ArtifactKind(kind_value).operator_token
         for skipped_id in result.skipped_by_scope[kind_value]:
-            config_id = _drg_id_to_config_id(kind_value, skipped_id, doctrine_root)
+            config_id = _drg_id_to_config_id(
+                kind_value, skipped_id, doctrine_root, layer_roots
+            )
             console.print(
                 f"[dim]Skipped (out of scope)[/dim]: {kind_token}/{config_id}"
             )
 
 
-def _render_no_cascade_warning(source_urn: str, repo_root: Path) -> None:
+def _render_no_cascade_warning(
+    source_urn: str,
+    repo_root: Path,
+    layer_roots: dict[str, Path] | None,
+) -> None:
     """Warn about referenced-but-not-cascaded artifacts (FR-013, Contract C3.2)."""
     from charter._drg_helpers import load_validated_graph  # noqa: PLC0415
 
@@ -202,7 +235,9 @@ def _render_no_cascade_warning(source_urn: str, repo_root: Path) -> None:
     for kind_value in sorted(report.skipped):
         kind_token = ArtifactKind(kind_value).operator_token
         for skipped_drg_id in report.skipped[kind_value]:
-            config_id = _drg_id_to_config_id(kind_value, skipped_drg_id, doctrine_root)
+            config_id = _drg_id_to_config_id(
+                kind_value, skipped_drg_id, doctrine_root, layer_roots
+            )
             console.print(
                 f"[yellow]Warning[/yellow]: referenced {kind_token}/{config_id} "
                 f"was not activated (no --cascade)."
@@ -251,6 +286,7 @@ def activate_cmd(
         raise typer.Exit(1) from exc
 
     ctx_project = ProjectContext(repo_root=repo_root)
+    layer_roots = resolve_layer_roots(repo_root)
 
     # FR-008: in-flight step-removal warnings (generalized — no inline
     # `kind == "mission-type"` branch in the command flow).
@@ -258,7 +294,13 @@ def activate_cmd(
 
     manager = CharterPackManager()
     try:
-        result = manager.activate(ctx_project, kind, artifact_id, cascade=scope is not None)
+        result = manager.activate(
+            ctx_project,
+            kind,
+            artifact_id,
+            cascade=scope is not None,
+            layer_roots=layer_roots,
+        )
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
@@ -271,10 +313,12 @@ def activate_cmd(
     # FR-013/014: cascade is driven from the CLI via the WP11 engine over the
     # merged DRG (pack_manager's own cascade is deferred — the live wiring is
     # here). Resolve the source URN; mission-type / non-DRG kinds short-circuit.
-    source_urn = _source_urn(kind, artifact_id)
+    source_urn = _source_urn(kind, artifact_id, layer_roots)
     if source_urn is None:
         return
     if scope is None:
-        _render_no_cascade_warning(source_urn, repo_root)
+        _render_no_cascade_warning(source_urn, repo_root, layer_roots)
     else:
-        _render_cascade_activation(manager, ctx_project, source_urn, scope, repo_root)
+        _render_cascade_activation(
+            manager, ctx_project, source_urn, scope, repo_root, layer_roots
+        )

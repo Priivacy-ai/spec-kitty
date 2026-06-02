@@ -115,13 +115,15 @@ def _scan_roots(
     *,
     doctrine_root: Path,
     org_roots: list[Path] | None,
+    layer_roots: dict[str, Path] | None,
 ) -> list[Path]:
     """Return the directories to scan for *kind*, in precedence order.
 
-    Roots are supplied as data (C-008): ``doctrine_root`` is the resolved
-    doctrine package root, ``org_roots`` (optional) are caller-supplied org /
-    project doctrine roots. Each root contributes ``<root>/<plural>/built-in``.
-    Non-existent directories are skipped.
+    Roots are supplied as data (C-008). ``doctrine_root`` is the resolved
+    doctrine package root. ``org_roots`` preserves the legacy package-shaped
+    root contract where each root contributes ``<root>/<plural>/built-in``.
+    ``layer_roots`` is the modern charter layer map where each root contributes
+    ``<root>/doctrine/<plural>/<layer>``.
     """
     roots: list[Path] = [doctrine_root]
     if org_roots:
@@ -131,6 +133,11 @@ def _scan_roots(
         candidate = root / kind.plural / "built-in"
         if candidate.is_dir():
             dirs.append(candidate)
+    if layer_roots:
+        for layer, root in layer_roots.items():
+            candidate = root / "doctrine" / kind.plural / layer
+            if candidate.is_dir():
+                dirs.append(candidate)
     return dirs
 
 
@@ -139,12 +146,18 @@ def _iter_artifact_paths(
     *,
     doctrine_root: Path,
     org_roots: list[Path] | None,
+    layer_roots: dict[str, Path] | None,
 ) -> list[Path]:
     pattern = kind.glob_pattern
     if not pattern:
         return []
     paths: list[Path] = []
-    for scan_dir in _scan_roots(kind, doctrine_root=doctrine_root, org_roots=org_roots):
+    for scan_dir in _scan_roots(
+        kind,
+        doctrine_root=doctrine_root,
+        org_roots=org_roots,
+        layer_roots=layer_roots,
+    ):
         paths.extend(sorted(scan_dir.glob(pattern)))
     return paths
 
@@ -155,6 +168,7 @@ def resolve_artifact_urn(
     *,
     doctrine_root: Path,
     org_roots: list[Path] | None = None,
+    layer_roots: dict[str, Path] | None = None,
 ) -> str:
     """Resolve a config/file-stem ID to its DRG URN node ID.
 
@@ -168,6 +182,7 @@ def resolve_artifact_urn(
             ``"001-architectural-integrity-standard"``.
         doctrine_root: Resolved doctrine package root (passed as data, C-008).
         org_roots: Optional additional org/project doctrine roots to scan.
+        layer_roots: Optional modern layer map, e.g. ``{"org": <pack-root>}``.
 
     Returns:
         The DRG URN node ID, e.g. ``"directive:DIRECTIVE_001"``.
@@ -178,7 +193,12 @@ def resolve_artifact_urn(
     """
     yaml = YAML(typ="safe")
     id_field = _id_field_for(kind)
-    for path in _iter_artifact_paths(kind, doctrine_root=doctrine_root, org_roots=org_roots):
+    for path in _iter_artifact_paths(
+        kind,
+        doctrine_root=doctrine_root,
+        org_roots=org_roots,
+        layer_roots=layer_roots,
+    ):
         if _config_stem(path) == config_id:
             artifact_id = _read_id(path, id_field, yaml)
             if artifact_id:
@@ -194,6 +214,7 @@ def resolve_config_id(
     *,
     doctrine_root: Path,
     org_roots: list[Path] | None = None,
+    layer_roots: dict[str, Path] | None = None,
 ) -> str:
     """Resolve a DRG URN node ID back to its config/file-stem ID.
 
@@ -204,6 +225,7 @@ def resolve_config_id(
         urn: A DRG URN node ID, e.g. ``"directive:DIRECTIVE_001"``.
         doctrine_root: Resolved doctrine package root (passed as data, C-008).
         org_roots: Optional additional org/project doctrine roots to scan.
+        layer_roots: Optional modern layer map, e.g. ``{"org": <pack-root>}``.
 
     Returns:
         The config/file-stem ID, e.g. ``"001-architectural-integrity-standard"``.
@@ -227,7 +249,12 @@ def resolve_config_id(
 
     yaml = YAML(typ="safe")
     id_field = _id_field_for(kind)
-    for path in _iter_artifact_paths(kind, doctrine_root=doctrine_root, org_roots=org_roots):
+    for path in _iter_artifact_paths(
+        kind,
+        doctrine_root=doctrine_root,
+        org_roots=org_roots,
+        layer_roots=layer_roots,
+    ):
         if _read_id(path, id_field, yaml) == artifact_id:
             return _config_stem(path)
     raise UnknownArtifactIdError(
