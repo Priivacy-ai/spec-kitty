@@ -51,4 +51,3 @@
 
 ## Anti-findings (verified clean — no action)
 `activate_cmd`/`deactivate_cmd` top-level paths fail-closed (`Exit(1)`); `list_cmd.py`/`drg/merge.py` have no broad excepts; the WP05 per-file profile skip records every `SkippedProfile`; `diagnostics.py` is a pure dataclass; `ruff` clean on all touched src files; the boundary-ratchet + marker REDs are the **parent's own** RED→GREEN targets (WP03/WP02), not pre-existing-on-main (pedro).
-</content>
