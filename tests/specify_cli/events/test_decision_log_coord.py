@@ -14,6 +14,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.events.decision_log import DecisionGitLog
+from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
 from runtime.next._internal_runtime.events import NullEmitter
 
 pytestmark = [pytest.mark.unit]
@@ -92,7 +93,6 @@ class TestWrapWithDecisionGitLogCoordRouting:
     def test_coord_worktree_used_when_exists(self, tmp_path: Path) -> None:
         """When coord worktree directory exists, it becomes worktree_root (T018)."""
         from runtime.next.runtime_bridge import _wrap_with_decision_git_log
-        from runtime.next._internal_runtime.events import NullEmitter
 
         slug = "my-feature-01KT3YBD"
         mid8 = "01KT3YBD"
@@ -102,7 +102,7 @@ class TestWrapWithDecisionGitLogCoordRouting:
         coord_path = tmp_path / ".worktrees" / f"{base_slug}-{mid8}-coord"
         coord_path.mkdir(parents=True)
 
-        inner = NullEmitter()
+        inner = MagicMock(spec=SyncRuntimeEventEmitter)
 
         captured: dict[str, Any] = {}
 
@@ -140,10 +140,9 @@ class TestWrapWithDecisionGitLogCoordRouting:
     def test_repo_root_used_when_coord_absent(self, tmp_path: Path) -> None:
         """When coord worktree does not exist, repo_root becomes worktree_root (T019)."""
         from runtime.next.runtime_bridge import _wrap_with_decision_git_log
-        from runtime.next._internal_runtime.events import NullEmitter
 
         slug = "my-feature-01KT3YBD"
-        inner = NullEmitter()
+        inner = MagicMock(spec=SyncRuntimeEventEmitter)
 
         captured: dict[str, Any] = {}
 
@@ -205,13 +204,14 @@ class TestDecisionGitLogSafeCommitWorktreeRoot:
 
         log = _make_log(repo_root, worktree_root)
 
-        actor = RuntimeActorIdentity(actor_id="test-agent", actor_type="llm")
+        actor = RuntimeActorIdentity(actor_id="test-agent", actor_type="llm", provider=None, model=None, tool=None)
         req_payload = DecisionInputRequestedPayload(
             run_id="run-001",
             decision_id="dec-001",
             step_id="implement",
             question="Should I proceed?",
             actor=actor,
+            input_key=None,
         )
         ans_payload = DecisionInputAnsweredPayload(
             run_id="run-001",
@@ -248,13 +248,14 @@ class TestDecisionGitLogSafeCommitWorktreeRoot:
 
         log = _make_log(tmp_path, tmp_path)
 
-        actor = RuntimeActorIdentity(actor_id="test-agent", actor_type="llm")
+        actor = RuntimeActorIdentity(actor_id="test-agent", actor_type="llm", provider=None, model=None, tool=None)
         req_payload = DecisionInputRequestedPayload(
             run_id="run-001",
             decision_id="dec-001",
             step_id="implement",
             question="Should I proceed?",
             actor=actor,
+            input_key=None,
         )
 
         safe_commit_calls: list[Any] = []
