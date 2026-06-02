@@ -10,7 +10,7 @@ import subprocess
 from datetime import UTC, datetime
 from io import StringIO
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, NamedTuple
 
 import typer
 from pydantic import ValidationError
@@ -213,14 +213,67 @@ def _git_stdout(repo_root: Path, args: list[str]) -> str:
     return result.stdout.strip()
 
 
-def _feature_dir_status_paths(repo_root: Path, feature_dir: Path) -> list[str]:
-    output = _git_stdout(
-        repo_root,
-        ["status", "--porcelain", "--untracked-files=all", str(feature_dir)],
+class _PorcelainEntry(NamedTuple):
+    """A single ``git status --porcelain`` record for a feature-dir path.
+
+    ``xy`` is the 2-char status code, ``path`` the current/new repo-relative
+    path. ``is_structural`` marks deletions and renames/copies — changes that
+    ``BookkeepingTransaction.write_artifact`` (a write-only API) cannot apply,
+    so they must be committed to the coordination branch out-of-band or the
+    claim must fail closed rather than silently leave the branch incoherent.
+    """
+
+    xy: str
+    path: str
+    is_structural: bool
+
+
+def _feature_dir_status_entries(
+    repo_root: Path, feature_dir: Path
+) -> list[_PorcelainEntry]:
+    # NOTE: must read raw stdout here, NOT via _git_stdout(): porcelain v1 emits
+    # "XY<space>PATH" (a fixed 3-char prefix). For a tracked file that is
+    # modified-but-not-staged, X is a space (" M path"); _git_stdout()'s outer
+    # .strip() would remove the leading space of the *first* line, shifting its
+    # columns so line[3:] truncated the first path character ("kitty-specs" ->
+    # "itty-specs"). Parse column 3 from each *unstripped* line so the path is
+    # always intact, and classify deletions/renames as structural.
+    result = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all", str(feature_dir)],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
     )
-    if not output:
+    if result.returncode != 0:
         return []
-    return [line[3:].strip() for line in output.splitlines() if len(line) >= 4]
+    entries: list[_PorcelainEntry] = []
+    for line in result.stdout.splitlines():
+        if len(line) <= 3:
+            continue
+        xy = line[:2]
+        rest = line[3:]
+        if " -> " in rest:
+            # Rename/copy: "old -> new". The old path must be removed on coord —
+            # a write-only transaction cannot do that, so this is structural.
+            new_path = rest.split(" -> ", 1)[1].strip()
+            entries.append(_PorcelainEntry(xy=xy, path=new_path, is_structural=True))
+            continue
+        # Deletions (D in either index or worktree column) are structural too.
+        is_structural = "D" in xy
+        entries.append(_PorcelainEntry(xy=xy, path=rest.strip(), is_structural=is_structural))
+    return entries
+
+
+def _feature_dir_status_paths(repo_root: Path, feature_dir: Path) -> list[str]:
+    """Repo-relative paths of *writable* (non-structural) feature-dir changes."""
+    return [
+        e.path
+        for e in _feature_dir_status_entries(repo_root, feature_dir)
+        if not e.is_structural
+    ]
 
 
 def _print_uncommitted_planning_artifacts(files_to_commit: list[str]) -> None:
@@ -288,6 +341,48 @@ def _resolve_bookkeeping_transaction_identifiers(
     return coord_branch, mission_id, mid8, effective_mission_id, effective_mid8
 
 
+def _coord_branch_blob(repo_root: Path, ref: str, repo_rel_path: str) -> bytes | None:
+    """Return the bytes of *repo_rel_path* at *ref*, or ``None`` if absent there."""
+    result = subprocess.run(
+        ["git", "show", f"{ref}:{repo_rel_path}"],
+        cwd=repo_root,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def _files_changed_vs_ref(
+    repo_root: Path, files: list[str], ref: str | None
+) -> list[str]:
+    """Drop files whose working-tree content already matches *ref*.
+
+    The coordination model commits claim-time planning-artifact edits to the
+    coordination branch but leaves them uncommitted in the main checkout. The
+    next claim re-discovers those edits as "uncommitted" even though their
+    content is already on the coordination branch. Committing them again would
+    produce an empty commit, which ``safe_commit`` rejects ("git commit failed")
+    — silently blocking every claim after the first. Filtering to genuinely
+    changed files makes the planning-artifact commit idempotent.
+    """
+    if not ref:
+        return files
+    changed: list[str] = []
+    for repo_rel in files:
+        source = (repo_root / Path(repo_rel)).resolve()
+        if not source.exists():
+            # Defensive: callers pass only writable (non-structural) paths, which
+            # exist on disk. Structural deletions/renames are rejected upstream
+            # (fail-closed) before reaching here, so a missing path here is
+            # unexpected — skip it rather than crash the claim.
+            continue
+        if _coord_branch_blob(repo_root, ref, repo_rel) != source.read_bytes():
+            changed.append(repo_rel)
+    return changed
+
+
 def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestration helper; unrelated to issue #1386
     repo_root: Path,
     feature_dir: Path,
@@ -299,7 +394,45 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
 ) -> None:
     """Ensure planning artifacts are committed on the feature planning branch."""
     current_branch = _git_stdout(repo_root, ["rev-parse", "--abbrev-ref", "HEAD"])
-    files_to_commit = _feature_dir_status_paths(repo_root, feature_dir)
+    entries = _feature_dir_status_entries(repo_root, feature_dir)
+    if not entries:
+        return
+
+    # Fail closed on structural changes (deletions, renames, copies). The
+    # planning-artifact commit goes through ``BookkeepingTransaction.write_artifact``,
+    # a write-only API that cannot remove an old path from the coordination
+    # branch. Silently committing only the additions would leave the branch
+    # incoherent (stale deleted/renamed-from artifacts), so the claim must
+    # refuse rather than proceed — restoring the pre-idempotency fail-closed
+    # contract (#1598 review). The operator commits the structural change to the
+    # coordination branch out-of-band, then re-runs the claim.
+    structural = [e for e in entries if e.is_structural]
+    if structural:
+        console.print(
+            "\n[red]Error:[/red] Uncommitted structural planning-artifact changes "
+            "(deletions/renames) cannot be auto-committed to the coordination branch:"
+        )
+        for entry in structural:
+            console.print(f"  {entry.xy.strip() or entry.xy} {entry.path}")
+        console.print(
+            "\nCommit these structural changes to the coordination branch yourself "
+            "(e.g. `git rm`/`git mv` + commit), then re-run the claim."
+        )
+        raise typer.Exit(1)
+
+    files_to_commit = [e.path for e in entries]
+    if not files_to_commit:
+        return
+
+    # Idempotency guard: skip files already identical on the coordination branch
+    # so a re-discovered (but already-committed) edit does not produce an empty
+    # commit that ``safe_commit`` rejects. See ``_files_changed_vs_ref``.
+    coord_branch_for_filter = _resolve_bookkeeping_transaction_identifiers(
+        feature_dir, mission_slug
+    )[0]
+    files_to_commit = _files_changed_vs_ref(
+        repo_root, files_to_commit, coord_branch_for_filter
+    )
     if not files_to_commit:
         return
 
