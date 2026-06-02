@@ -99,25 +99,21 @@ class TestDeactivateUnknownKind:
 
 
 class TestDeactivateNoneState:
-    def test_none_state_raises_typed_error_with_upgrade_guidance(self, empty_project_root: Path) -> None:
-        """Deactivating from None-state raises the typed engine error (WP09/T042).
+    def test_none_state_exits_one_with_upgrade_guidance(self, empty_project_root: Path) -> None:
+        """Deactivating from None-state exits 1 with rendered upgrade guidance (WP12/T054).
 
-        WP09 replaces the legacy ``sys.exit(1)`` in ``CharterPackManager.deactivate``
+        WP09 replaced the legacy ``sys.exit(1)`` in ``CharterPackManager.deactivate``
         with the engine's typed ``NoActivationRestrictionsError`` (carrying the
-        "run upgrade first" guidance). Catching that error in the CLI and turning
-        it into a clean exit-1 with rendered guidance is **explicitly deferred to
-        WP12** ("surfaced by the CLI (WP12)"), which owns ``deactivate.py``. Until
-        WP12 lands, the error propagates through the runner; we assert the typed
-        error and its guidance text here.
+        "run upgrade first" guidance). WP12 now **catches** that error in the CLI and
+        renders it as a clean exit-1 with guidance (no propagated exception) — the
+        behavior previously deferred to WP12. Assert the WP12 contract here.
         """
-        from charter.activation_engine import NoActivationRestrictionsError
-
         result = runner.invoke(
             charter_app,
             ["deactivate", "--repo-root", str(empty_project_root), "directive", "some-directive"],
         )
-        assert isinstance(result.exception, NoActivationRestrictionsError)
-        assert "spec-kitty upgrade" in str(result.exception)
+        assert result.exit_code == 1
+        assert "spec-kitty upgrade" in result.output
 
 
 # ---------------------------------------------------------------------------
