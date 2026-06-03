@@ -169,12 +169,12 @@
 **Dependencies**: WP02, WP04, WP05
 
 **Subtasks**:
-- [ ] T032 Re-run grep investigation for remaining hardcoded paths (WP06)
-- [ ] T033 Update feature-runs.json write in runtime_bridge.py (mission_id + mission_slug) (WP06)
-- [ ] T034 Route runtime_bridge query-mode through resolve_action_context (WP06)
-- [ ] T035 Route workflow.py fix-mode through resolve_action_context (WP06)
-- [ ] T036 Delete unreachable path-builder helpers (WP06)
-- [ ] T037 Verify e2e ratchet green after all changes (WP06)
+- [x] T032 Re-run grep investigation for remaining hardcoded paths (WP06)
+- [x] T033 Update feature-runs.json write in runtime_bridge.py (mission_id + mission_slug) (WP06)
+- [x] T034 Route runtime_bridge query-mode through resolve_action_context (WP06)
+- [x] T035 Route workflow.py fix-mode through resolve_action_context (WP06)
+- [x] T036 Delete unreachable path-builder helpers (WP06)
+- [x] T037 Verify e2e ratchet green after all changes (WP06)
 
 **Success criteria**: `grep -rn 'kitty-specs.*mission_slug\|main_repo_root.*kitty\|feature_dir.*slug' src/ --include="*.py" | grep -v 'status/' | grep -v 'core/execution_context'` returns zero hits. e2e ratchet passes. `feature-runs.json` entries include `mission_id` and `mission_slug`.
 

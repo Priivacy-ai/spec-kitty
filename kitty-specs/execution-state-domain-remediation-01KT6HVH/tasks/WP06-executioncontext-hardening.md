@@ -16,6 +16,9 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-execution-state-domain-remediation-01KT6HVH
+base_commit: 427a014fb0d43f0796f3f6e20175cc868bf72887
+created_at: '2026-06-03T12:47:19.673758+00:00'
 subtasks:
 - T032
 - T033
@@ -23,7 +26,8 @@ subtasks:
 - T035
 - T036
 - T037
-agent: claude
+agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
+shell_pid: "31971"
 history:
 - date: '2026-06-03'
   event: created
@@ -232,3 +236,8 @@ Route all remaining residue path-building surfaces through the canonical `resolv
 - Check that `feature-runs.json` entries now include `mission_id` and `mission_slug` (add a test if not already covered)
 - Verify `BookkeepingTransaction` in `coordination/transaction.py` is still unchanged
 - Confirm the e2e ratchet is green (not just passing — check that it would fail on a known regression)
+
+## Activity Log
+
+- 2026-06-03T12:47:21Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=31971 – Assigned agent via action command
+- 2026-06-03T12:58:18Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=31971 – Implementation complete. T033: feature-runs.json write updated with mission_id/mission_slug. T034: query_current_state + answer_decision_via_runtime routed through _resolve_read_path. T035: _ensure_target_branch_checked_out uses get_feature_target_branch (canonical). T036: no dead helpers found. Lint: exit 0. Tests: 1113 passed, 1 pre-existing failure (test_detect_false_positive_worktree - unrelated to WP changes, verified by stash test).
