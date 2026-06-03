@@ -1,4 +1,4 @@
-"""Migration m_3_2_8_default_charter_pack: write per-kind activation keys.
+"""Migration m_3_2_0rc35_default_charter_pack: write per-kind activation keys.
 
 FR-002 / FR-003 — Existing projects that pre-date the per-kind charter
 activation keys (mission charter-pack-activation-layer-01KSYE4V) have no
@@ -31,8 +31,8 @@ any ``config.yaml`` write (NFR-002 / C-008).
 
 Version guard
 -------------
-``target_version = "3.2.8"`` means this migration NEVER fires against rc
-versions such as ``3.2.0rc30`` through the normal upgrade pipeline.  All
+``target_version = "3.2.0rc35"`` means this migration NEVER fires against rc
+versions newer than the package through the normal upgrade pipeline.  All
 tests MUST call ``detect()`` and ``apply()`` directly so the version check
 does not interfere.
 """
@@ -81,12 +81,12 @@ class DefaultCharterPackMigration(BaseMigration):
     DRG filter will use.
     """
 
-    migration_id = "3.2.8_default_charter_pack"
+    migration_id = "3.2.0rc35_default_charter_pack"
     description = (
         "Write per-kind activation keys from default.yaml into "
         ".kittify/config.yaml for projects that lack them (FR-002, FR-003)."
     )
-    target_version = "3.2.8"
+    target_version = "3.2.0rc35"
 
     def detect(self, project_path: Path) -> bool:
         """Return True when any per-kind activation key is absent from config.yaml.

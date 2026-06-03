@@ -19,8 +19,8 @@ from charter.versioning import (
 class CharterManifestDefaultsRepair(BaseMigration):
     """Repairs current v2 synthesis manifests from before built_in_only was serialized."""
 
-    migration_id = "3.2.6_charter_manifest_defaults_repair"
-    target_version = "3.2.6"
+    migration_id = "3.2.0rc35_charter_manifest_defaults_repair"
+    target_version = "3.2.0rc35"
     description = (
         "Repair current v2 charter synthesis manifests that predate verifier-visible "
         "manifest defaults."

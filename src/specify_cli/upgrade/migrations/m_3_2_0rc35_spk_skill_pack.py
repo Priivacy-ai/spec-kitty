@@ -1,4 +1,4 @@
-"""Migration: install the 3.2.0 public spk skill pack."""
+"""Migration: install the 3.2.0rc35 public spk skill pack."""
 
 from __future__ import annotations
 
@@ -79,9 +79,9 @@ def _skill_files_present(
 class SpkSkillPackMigration(BaseMigration):
     """Install the public spk skill hierarchy for already-initialized projects."""
 
-    migration_id = "3.2.0_spk_skill_pack"
+    migration_id = "3.2.0rc35_spk_skill_pack"
     description = "Install the public spk skill pack for configured skill-aware agents"
-    target_version = "3.2.0"
+    target_version = "3.2.0rc35"
 
     def detect(self, project_path: Path) -> bool:
         if not (project_path / ".kittify").is_dir():
@@ -155,7 +155,7 @@ class SpkSkillPackMigration(BaseMigration):
             errors.append("No managed skill files were installed for any configured agent")
             return MigrationResult(success=False, changes_made=changes, errors=errors)
 
-        manifest.spec_kitty_version = "3.2.0"
+        manifest.spec_kitty_version = "3.2.0rc35"
         save_manifest(manifest, project_path)
 
         preserved_paths = sorted(

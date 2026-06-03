@@ -183,9 +183,9 @@ def _print_superseded_notice(superseded: list[Path]) -> None:
 class CodexToSkillsMigration(BaseMigration):
     """Move Codex from .codex/prompts/ to .agents/skills/ (Agent Skills)."""
 
-    migration_id = "3.2.0_codex_to_skills"
+    migration_id = "3.2.0rc35_codex_to_skills"
     description = "Move Codex from .codex/prompts/ to .agents/skills/ (Agent Skills)"
-    target_version = "3.2.0"
+    target_version = "3.2.0rc35"
 
     def detect(self, project_path: Path) -> bool:
         """Return True if legacy .codex/prompts/spec-kitty.*.md files exist."""

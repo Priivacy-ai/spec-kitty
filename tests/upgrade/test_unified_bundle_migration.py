@@ -1,4 +1,4 @@
-"""Tests for m_3_2_3_unified_bundle migration (WP04).
+"""Tests for 3.2.0rc35_unified_bundle migration (WP04).
 
 Covers the FR-013 fixture matrix (5 cases) plus:
 
@@ -83,7 +83,7 @@ _CONTRACTS_SCHEMA_PATH = (
 @pytest.fixture
 def migration() -> Any:
     """Return a fresh migration instance (registration is side-effect-safe)."""
-    from specify_cli.upgrade.migrations.m_3_2_3_unified_bundle import (
+    from specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle import (
         UnifiedBundleMigration,
     )
 
@@ -416,7 +416,7 @@ def test_registry_discovers_migration() -> None:
     from specify_cli.upgrade.registry import MigrationRegistry
 
     ids = [m.migration_id for m in MigrationRegistry.get_all()]
-    assert "m_3_2_3_unified_bundle" in ids
+    assert "3.2.0rc35_unified_bundle" in ids
 
 
 # ---------------------------------------------------------------------------
@@ -472,7 +472,7 @@ def test_upgrade_cli_json_includes_migration_reports(
 
     Cycle-1 Finding 1 regression: running through the live ``MigrationRunner``
     on a 3.2.2 project whose derivatives are already fresh must still invoke
-    ``m_3_2_3_unified_bundle`` and emit a report. Previously the narrow
+    ``3.2.0rc35_unified_bundle`` and emit a report. Previously the narrow
     ``detect()`` caused the runner to silently skip.
     """
     from typer import Typer
@@ -492,7 +492,7 @@ def test_upgrade_cli_json_includes_migration_reports(
     runner = CliRunner()
     result = runner.invoke(
         app,
-        ["--target", "3.2.3", "--force", "--no-worktrees", "--json"],
+        ["--target", "3.2.0rc35", "--force", "--no-worktrees", "--json"],
         catch_exceptions=False,
     )
 
@@ -503,14 +503,14 @@ def test_upgrade_cli_json_includes_migration_reports(
     # Finding 2: the report must appear under migration_reports keyed by id.
     reports = payload.get("migration_reports")
     assert isinstance(reports, dict), f"missing migration_reports: {payload}"
-    unified = reports.get("m_3_2_3_unified_bundle")
+    unified = reports.get("3.2.0rc35_unified_bundle")
     assert unified is not None, f"missing unified-bundle report: {reports}"
 
     # Finding 1 regression: the migration ran through the live runner path
     # (not skipped by the narrow detect()) and produced a schema-shaped
     # report with charter_present=True.
-    assert unified["migration_id"] == "m_3_2_3_unified_bundle"
-    assert unified["target_version"] == "3.2.3"
+    assert unified["migration_id"] == "3.2.0rc35_unified_bundle"
+    assert unified["target_version"] == "3.2.0rc35"
     assert unified["charter_present"] is True
     assert "bundle_validation" in unified
     assert unified["bundle_validation"]["passed"] is True
@@ -548,14 +548,14 @@ def test_upgrade_cli_json_reports_no_charter_case(
     runner = CliRunner()
     result = runner.invoke(
         app,
-        ["--target", "3.2.3", "--force", "--no-worktrees", "--json"],
+        ["--target", "3.2.0rc35", "--force", "--no-worktrees", "--json"],
         catch_exceptions=False,
     )
 
     assert result.exit_code == 0, result.stdout
     payload: dict[str, Any] = json.loads(result.stdout.strip().splitlines()[-1])
     reports = payload.get("migration_reports", {})
-    unified = reports.get("m_3_2_3_unified_bundle")
+    unified = reports.get("3.2.0rc35_unified_bundle")
     assert unified is not None, f"missing report for no-charter case: {reports}"
     assert unified["charter_present"] is False
     assert unified["applied"] is False
@@ -598,21 +598,21 @@ def test_upgrade_runner_invokes_migration_on_stale_metadata(
     monkeypatch.chdir(project)
 
     runner = MigrationRunner(project)
-    result = runner.upgrade("3.2.3", include_worktrees=False, force=True)
+    result = runner.upgrade("3.2.0rc35", include_worktrees=False, force=True)
 
     assert result.success is True, result.errors
 
     # The migration must be visible to the runner (either applied or skipped),
     # NOT absent — absence is the cycle-1 bug signature.
     migration_ids_seen = set(result.migrations_applied) | set(result.migrations_skipped)
-    assert "m_3_2_3_unified_bundle" in migration_ids_seen, (
-        "m_3_2_3_unified_bundle was not invoked by the runner on a stale "
+    assert "3.2.0rc35_unified_bundle" in migration_ids_seen, (
+        "3.2.0rc35_unified_bundle was not invoked by the runner on a stale "
         "fixture — regression of review-cycle-1 Finding 1"
     )
 
     # And its structured payload must be captured for the CLI --json surface.
-    assert "m_3_2_3_unified_bundle" in result.migration_results
-    report_json = result.migration_results["m_3_2_3_unified_bundle"].changes_made[0]
+    assert "3.2.0rc35_unified_bundle" in result.migration_results
+    report_json = result.migration_results["3.2.0rc35_unified_bundle"].changes_made[0]
     report = json.loads(report_json)
     assert report["charter_present"] is True
     assert report["chokepoint_refreshed"] is True
@@ -632,13 +632,13 @@ def test_detect_returns_false_inside_linked_worktree(tmp_path: Path) -> None:
     Regression guard for a post-merge reviewer finding: the runner's
     ``_upgrade_worktrees`` loop iterates ``.worktrees/*`` on the default
     upgrade path. Before this fix ``detect()`` returned True
-    unconditionally, so the runner recorded ``m_3_2_3_unified_bundle`` as
+    unconditionally, so the runner recorded ``3.2.0rc35_unified_bundle`` as
     applied inside every worktree even though the chokepoint correctly
     materializes derivatives only at the canonical main-checkout root.
     That violates the migration's "NO worktree scanning, NO worktree
     mutation" contract (§C-011 / §C-012).
     """
-    from specify_cli.upgrade.migrations.m_3_2_3_unified_bundle import (
+    from specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle import (
         UnifiedBundleMigration,
     )
 
@@ -686,7 +686,7 @@ def test_detect_returns_false_inside_linked_worktree(tmp_path: Path) -> None:
 
     migration = UnifiedBundleMigration()
     assert migration.detect(main_root) is True, (
-        "detect(main_checkout) must be True so the migration runs on 3.2.3 upgrades"
+        "detect(main_checkout) must be True so the migration runs on 3.2.0rc35 upgrades"
     )
     assert migration.detect(worktree) is False, (
         "detect(linked_worktree) must be False so the runner's worktree loop "
@@ -702,7 +702,7 @@ def test_runner_include_worktrees_does_not_mutate_worktree_metadata(
     `detect(False)` alone is insufficient if the runner still records a
     "skipped / Not applicable" migration or bumps the worktree metadata
     version. Phase 2's contract is stricter: no worktree scanning and no
-    worktree mutation for `m_3_2_3_unified_bundle` on the default upgrade
+    worktree mutation for `3.2.0rc35_unified_bundle` on the default upgrade
     path.
     """
     from specify_cli.upgrade.runner import MigrationRunner
@@ -737,10 +737,10 @@ def test_runner_include_worktrees_does_not_mutate_worktree_metadata(
     _clear_resolver_cache()
 
     runner = MigrationRunner(project)
-    result = runner.upgrade("3.2.3", include_worktrees=True, force=True)
+    result = runner.upgrade("3.2.0rc35", include_worktrees=True, force=True)
 
     assert result.success is True, result.errors
     assert wt_metadata.read_text("utf-8") == before, (
         "worktree metadata changed even though "
-        "m_3_2_3_unified_bundle is out of scope for worktree upgrades"
+        "3.2.0rc35_unified_bundle is out of scope for worktree upgrades"
     )

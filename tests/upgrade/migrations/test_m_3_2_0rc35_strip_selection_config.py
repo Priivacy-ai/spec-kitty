@@ -1,4 +1,4 @@
-"""Tests for migration 3.2.1: strip selection block from config.yaml."""
+"""Tests for migration 3.2.0rc35: strip selection block from config.yaml."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import pytest
 
 pytestmark = pytest.mark.fast
 
-from specify_cli.upgrade.migrations.m_3_2_1_strip_selection_config import (
+from specify_cli.upgrade.migrations.m_3_2_0rc35_strip_selection_config import (
     StripSelectionConfigMigration,
 )
 

@@ -898,7 +898,7 @@ def upgrade(  # noqa: C901
             )
 
         # Surface per-migration schema-shaped JSON reports (e.g. the
-        # m_3_2_3_unified_bundle contract-shaped payload). Each migration
+        # 3.2.0rc35_unified_bundle contract-shaped payload). Each migration
         # emits its report as a single JSON string inside
         # ``MigrationResult.changes_made[0]``; decode it so operators see a
         # structured object rather than an opaque string.

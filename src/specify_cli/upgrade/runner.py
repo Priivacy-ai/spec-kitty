@@ -38,7 +38,7 @@ class UpgradeResult:
     dry_run: bool = False
     # Per-migration ``MigrationResult`` keyed by migration_id. Used by the
     # CLI --json path to surface schema-shaped reports emitted by individual
-    # migrations (e.g. m_3_2_3_unified_bundle's contract-shaped payload).
+    # migrations (e.g. 3.2.0rc35_unified_bundle's contract-shaped payload).
     migration_results: dict[str, MigrationResult] = field(default_factory=dict)
 
 

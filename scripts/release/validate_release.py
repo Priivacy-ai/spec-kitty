@@ -21,6 +21,7 @@ without additional bootstrapping beyond Python 3.11.
 from __future__ import annotations
 
 import argparse
+import ast
 import os
 import re
 import subprocess
@@ -339,6 +340,97 @@ def validate_version_progression(
     return None
 
 
+def _literal_string_assignments(path: Path) -> dict[str, str]:
+    """Return module/class string assignments from *path*.
+
+    This intentionally supports the simple migration-module patterns used in
+    ``src/specify_cli/upgrade/migrations``:
+    ``TARGET_VERSION = "X.Y.Z"`` and ``target_version = TARGET_VERSION``.
+    """
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError):
+        return {}
+
+    values: dict[str, str] = {}
+
+    def visit_body(body: list[ast.stmt]) -> None:
+        for stmt in body:
+            if isinstance(stmt, ast.Assign):
+                value: str | None = None
+                if isinstance(stmt.value, ast.Constant) and isinstance(stmt.value.value, str):
+                    value = stmt.value.value
+                elif isinstance(stmt.value, ast.Name):
+                    value = values.get(stmt.value.id)
+                if value is None:
+                    continue
+                for target in stmt.targets:
+                    if isinstance(target, ast.Name):
+                        values[target.id] = value
+            elif isinstance(stmt, ast.ClassDef):
+                visit_body(stmt.body)
+
+    visit_body(tree.body)
+    return values
+
+
+def load_migration_target_versions(repo_root: Path) -> list[str]:
+    """Read registered migration target versions from source files.
+
+    Missing source trees return an empty list so external package-level tests can
+    reuse the release validator without vendoring Spec Kitty's repository layout.
+    """
+    migrations_dir = repo_root / "src" / "specify_cli" / "upgrade" / "migrations"
+    if not migrations_dir.is_dir():
+        return []
+
+    targets: list[str] = []
+    for migration_file in sorted(migrations_dir.glob("m_*.py")):
+        values = _literal_string_assignments(migration_file)
+        target = values.get("target_version")
+        if target and RELEASE_VERSION_RE.match(target):
+            targets.append(target)
+    return targets
+
+
+def validate_release_covers_migration_targets(
+    release_version: str,
+    repo_root: Path,
+) -> ValidationIssue | None:
+    """Block releases that sit behind migration targets.
+
+    Users upgrading to a package version only run migrations whose
+    ``target_version`` is <= that package version. A migration target above the
+    package version, including above an RC, is therefore skipped by the real
+    upgrade path.
+    """
+    release_tuple = parse_release_version(release_version)
+    ahead: list[str] = []
+
+    for target in load_migration_target_versions(repo_root):
+        target_tuple = parse_release_version(target)
+        if target_tuple > release_tuple:
+            ahead.append(target)
+
+    if not ahead:
+        return None
+
+    unique_ahead = sorted(set(ahead), key=parse_release_version)
+    latest = unique_ahead[-1]
+    return ValidationIssue(
+        message=(
+            f"Release {release_version} is behind migration "
+            f"target(s): {', '.join(unique_ahead)}."
+        ),
+        hint=(
+            f"A user upgrading to {release_version} will not run migrations "
+            f"targeted after {release_version}. Retarget those migrations to "
+            f"{release_version}, or bump the package version to at least {latest} "
+            "before tagging."
+        ),
+    )
+
+
 def ensure_tag_matches_version(version: str, tag: str | None) -> ValidationIssue | None:
     expected = f"v{version}"
     if not tag:
@@ -382,6 +474,13 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
     metadata_issue = validate_metadata_yaml_version_sync(version, repo_root)
     if metadata_issue is not None:
         issues.append(metadata_issue)
+
+    migration_line_issue = validate_release_covers_migration_targets(
+        version,
+        repo_root,
+    )
+    if migration_line_issue is not None:
+        issues.append(migration_line_issue)
 
     if not changelog_has_entry(changelog_text, version):
         issues.append(

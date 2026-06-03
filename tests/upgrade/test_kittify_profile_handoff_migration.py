@@ -1,11 +1,11 @@
-"""Tests for m_3_2_4_kittify_profile_handoff migration."""
+"""Tests for m_3_2_0rc35_kittify_profile_handoff migration."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 
-from specify_cli.upgrade.migrations.m_3_2_4_kittify_profile_handoff import (
+from specify_cli.upgrade.migrations.m_3_2_0rc35_kittify_profile_handoff import (
     KittifyProfileHandoffMigration,
     _HANDOFF_SENTINEL,
     _PROFILE_LOAD_SENTINEL,
@@ -210,7 +210,7 @@ def test_skips_if_agents_skills_missing(tmp_path: Path) -> None:
 def test_migration_is_in_registry() -> None:
     from specify_cli.upgrade.registry import MigrationRegistry
     migration_ids = [m.migration_id for m in MigrationRegistry.get_all()]
-    assert "3.2.4_kittify_profile_handoff" in migration_ids
+    assert "3.2.0rc35_kittify_profile_handoff" in migration_ids
 
 
 # ---------------------------------------------------------------------------

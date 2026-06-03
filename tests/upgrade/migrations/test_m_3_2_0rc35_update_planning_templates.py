@@ -1,4 +1,4 @@
-"""Unit tests for m_3_2_0_update_planning_templates migration.
+"""Unit tests for m_3_2_0rc35_update_planning_templates migration.
 
 Covers:
 - T025: detect() returns True for stale files, False for fresh files, False for absent dirs
@@ -66,7 +66,7 @@ class TestDetect:
             _STALE_CONTENT,
         )
 
-        from specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates import (
+        from specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates import (
             UpdatePlanningTemplatesMigration,
         )
 
@@ -92,7 +92,7 @@ class TestDetect:
             _STALE_CONTENT,
         )
 
-        from specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates import (
+        from specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates import (
             UpdatePlanningTemplatesMigration,
         )
 
@@ -110,7 +110,7 @@ class TestDetect:
             _FRESH_CONTENT,
         )
 
-        from specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates import (
+        from specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates import (
             UpdatePlanningTemplatesMigration,
         )
 
@@ -122,7 +122,7 @@ class TestDetect:
         project = _setup_project(tmp_path, agents=["claude"])
         # No agent directories created at all
 
-        from specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates import (
+        from specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates import (
             UpdatePlanningTemplatesMigration,
         )
 
@@ -143,7 +143,7 @@ class TestDetect:
             _STALE_CONTENT,
         )
 
-        from specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates import (
+        from specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates import (
             UpdatePlanningTemplatesMigration,
         )
 
@@ -162,7 +162,7 @@ class TestDetect:
             _STALE_CONTENT,
         )
 
-        from specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates import (
+        from specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates import (
             UpdatePlanningTemplatesMigration,
         )
 
@@ -188,11 +188,11 @@ class TestApply:
         mock_tmpl_dir.__truediv__ = lambda self, name: mock_template_file
 
         patch_dir = patch(
-            "specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates._get_runtime_command_templates_dir",
+            "specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates._get_runtime_command_templates_dir",
             return_value=mock_tmpl_dir,
         )
         patch_render = patch(
-            "specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates._render_full_prompt",
+            "specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates._render_full_prompt",
             return_value=rendered_content,
         )
         return patch_dir, patch_render
@@ -208,7 +208,7 @@ class TestApply:
             _STALE_CONTENT,
         )
 
-        from specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates import (
+        from specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates import (
             UpdatePlanningTemplatesMigration,
         )
 
@@ -233,7 +233,7 @@ class TestApply:
             _FRESH_CONTENT,
         )
 
-        from specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates import (
+        from specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates import (
             UpdatePlanningTemplatesMigration,
         )
 
@@ -262,7 +262,7 @@ class TestApply:
         )
         original_content = stale_claude.read_text(encoding="utf-8")
 
-        from specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates import (
+        from specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates import (
             UpdatePlanningTemplatesMigration,
         )
 
@@ -290,7 +290,7 @@ class TestApply:
         )
         original = stale.read_text(encoding="utf-8")
 
-        from specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates import (
+        from specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates import (
             UpdatePlanningTemplatesMigration,
         )
 
@@ -315,13 +315,13 @@ class TestApply:
             _STALE_CONTENT,
         )
 
-        from specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates import (
+        from specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates import (
             UpdatePlanningTemplatesMigration,
         )
 
         migration = UpdatePlanningTemplatesMigration()
         with patch(
-            "specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates._get_runtime_command_templates_dir",
+            "specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates._get_runtime_command_templates_dir",
             return_value=None,
         ):
             result = migration.apply(project)
@@ -334,7 +334,7 @@ class TestApply:
         project = _setup_project(tmp_path, agents=["claude", "codex"])
         # No agent directories created
 
-        from specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates import (
+        from specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates import (
             UpdatePlanningTemplatesMigration,
         )
 
@@ -365,19 +365,19 @@ class TestRegistration:
         auto_discover_migrations()
 
         all_ids = list(MigrationRegistry._migrations.keys())
-        assert "3.2.0_update_planning_templates" in all_ids
+        assert "3.2.0rc35_update_planning_templates" in all_ids
 
     def test_migration_has_correct_target_version(self) -> None:
-        """target_version is '3.2.0'."""
-        from specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates import (
+        """target_version is '3.2.0rc35'."""
+        from specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates import (
             UpdatePlanningTemplatesMigration,
         )
 
-        assert UpdatePlanningTemplatesMigration.target_version == "3.2.0"
+        assert UpdatePlanningTemplatesMigration.target_version == "3.2.0rc35"
 
     def test_migration_has_description(self) -> None:
         """description is a non-empty string."""
-        from specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates import (
+        from specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates import (
             UpdatePlanningTemplatesMigration,
         )
 
@@ -385,8 +385,8 @@ class TestRegistration:
 
     def test_migration_id_is_correct(self) -> None:
         """migration_id matches expected value."""
-        from specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates import (
+        from specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates import (
             UpdatePlanningTemplatesMigration,
         )
 
-        assert UpdatePlanningTemplatesMigration.migration_id == "3.2.0_update_planning_templates"
+        assert UpdatePlanningTemplatesMigration.migration_id == "3.2.0rc35_update_planning_templates"

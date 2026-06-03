@@ -68,9 +68,9 @@ def _agent_skills_complete(project_path: Path, agent_key: str) -> bool:
 class PiLettaBackfillMigration(BaseMigration):
     """Backfill .pi/ and .letta/ gitignore entries and skill files for configured agents."""
 
-    migration_id = "3.2.10_pi_letta_agent_backfill"
+    migration_id = "3.2.0rc35_pi_letta_agent_backfill"
     description = "Backfill .pi/ and .letta/ gitignore entries and skill files for configured agents"
-    target_version = "3.2.10"
+    target_version = "3.2.0rc35"
 
     def detect(self, project_path: Path) -> bool:
         """Return True when the project needs pi/letta gitignore or skill backfill."""

@@ -1,8 +1,8 @@
-"""Tests for migration m_3_2_8_default_charter_pack.
+"""Tests for migration m_3_2_0rc35_default_charter_pack.
 
 All tests call ``detect()`` and ``apply()`` directly on a
 ``DefaultCharterPackMigration`` instance.  They do NOT invoke the upgrade
-pipeline so that the ``target_version = "3.2.8"`` guard (which prevents the
+pipeline so that the ``target_version = "3.2.0rc35"`` guard (which prevents the
 migration from firing against rc builds) does not interfere with the test
 suite.
 """
@@ -20,8 +20,8 @@ from ruamel.yaml import YAML
 
 from charter.drg import DRGGraph, DRGNode, NodeKind, filter_graph_by_activation
 from charter.pack_context import PackContext
-from specify_cli.upgrade.migrations import m_3_2_8_default_charter_pack
-from specify_cli.upgrade.migrations.m_3_2_8_default_charter_pack import (
+from specify_cli.upgrade.migrations import m_3_2_0rc35_default_charter_pack
+from specify_cli.upgrade.migrations.m_3_2_0rc35_default_charter_pack import (
     DefaultCharterPackMigration,
     _DEFAULT_YAML_PATH,
     _PER_KIND_KEYS,
@@ -109,7 +109,7 @@ def test_apply_writes_absent_keys_from_default_pack(tmp_path: Path) -> None:
 
         m = DefaultCharterPackMigration()
         with patch.object(
-            m_3_2_8_default_charter_pack, "_DEFAULT_YAML_PATH", fixture_pack
+            m_3_2_0rc35_default_charter_pack, "_DEFAULT_YAML_PATH", fixture_pack
         ):
             result = m.apply(tmp_path)
 
@@ -178,7 +178,7 @@ def test_apply_does_not_overwrite_existing_keys(tmp_path: Path) -> None:
         dump_yaml.dump(fixture_data, fh)
 
     m = DefaultCharterPackMigration()
-    with patch.object(m_3_2_8_default_charter_pack, "_DEFAULT_YAML_PATH", fixture_pack):
+    with patch.object(m_3_2_0rc35_default_charter_pack, "_DEFAULT_YAML_PATH", fixture_pack):
         result = m.apply(tmp_path)
 
     assert result.success is True
@@ -213,7 +213,7 @@ def test_apply_creates_backup_when_charter_md_exists(tmp_path: Path) -> None:
         dump_yaml.dump(fixture_data, fh)
 
     m = DefaultCharterPackMigration()
-    with patch.object(m_3_2_8_default_charter_pack, "_DEFAULT_YAML_PATH", fixture_pack):
+    with patch.object(m_3_2_0rc35_default_charter_pack, "_DEFAULT_YAML_PATH", fixture_pack):
         result = m.apply(tmp_path)
 
     assert result.success is True
@@ -239,7 +239,7 @@ def test_apply_handles_missing_default_yaml_gracefully(tmp_path: Path) -> None:
     nonexistent = tmp_path / "does-not-exist" / "default.yaml"
 
     m = DefaultCharterPackMigration()
-    with patch.object(m_3_2_8_default_charter_pack, "_DEFAULT_YAML_PATH", nonexistent):
+    with patch.object(m_3_2_0rc35_default_charter_pack, "_DEFAULT_YAML_PATH", nonexistent):
         result = m.apply(tmp_path)
 
     assert result.success is False

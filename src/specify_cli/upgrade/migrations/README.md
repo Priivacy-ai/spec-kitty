@@ -1,27 +1,24 @@
-# Migrations — Forward-Staged Convention
-
-*(Q7 resolution: forward-staged migrations convention documented per FR-301.)*
-
-The migration chain target **may lead** `pyproject.toml`'s version. The version
-bump is a separate release step, run by the release maintainer after the
-migration is verified at HEAD.
+# Migrations — Version Alignment Convention
 
 ## Why
 
-This keeps the migration chain testable and reviewable as a separate
-artifact, decoupled from PyPI cut decisions. Pre-release verification
-(`spec-kitty doctor upgrade --dry-run`) can target the next version
-without forcing a release.
+The upgrade runner selects migrations by comparing project version,
+`target_version`, and the installed package version. If a migration target is
+newer than the package version, users upgrading to that package will skip that
+migration. This is especially dangerous for release candidates: `3.2.0` is
+newer than `3.2.0rc35`.
 
 ## Convention
 
-- New migration files land at `m_X_Y_Z_<slug>.py` where `X.Y.Z` is the
-  **target version**. The version may not yet be in `pyproject.toml`.
-- The release process bumps `pyproject.toml` AND tags the release in the
-  same commit; the migration is already present in the tag.
+- New migration files land at `m_X_Y_Z[_preN]_<slug>.py` where the encoded
+  version is the package version that first ships the migration.
+- `target_version` must be less than or equal to the current
+  `pyproject.toml` version.
+- A release PR that adds or retargets migrations must keep `pyproject.toml`,
+  `.kittify/metadata.yaml`, migration filenames, and migration `target_version`
+  values aligned.
 - `test_migration_chain_integrity.py` enforces ordering and contiguity of
-  the chain. Forward-staged migrations are valid: the gate allows the chain
-  target to be ahead of `pyproject.toml`'s current version.
+  the chain.
 
 ## Writing a Migration
 
@@ -68,8 +65,6 @@ If the gate fails after adding a migration, check:
 
 ## See Also
 
-- `spec.md FR-301` — forward-staged migrations requirement
-- `plan.md Q7` — resolution of the forward-staged convention question
 - `tests/architectural/test_migration_chain_integrity.py` — the gate
 - `base.py` — `BaseMigration` ABC
 - `m_0_9_1_complete_lane_migration.py` — `get_agent_dirs_for_project` helper

@@ -1,4 +1,4 @@
-"""Migration m_3_2_7_activate_builtin_mission_types: add mission_type_activations.
+"""Migration m_3_2_0rc35_activate_builtin_mission_types: add mission_type_activations.
 
 FR-019 — Existing projects that pre-date the charter mission-type-activation
 feature (mission charter-doctrine-mission-type-configuration-01KSWJVX) have no
@@ -43,12 +43,12 @@ class ActivateBuiltinMissionTypesMigration(BaseMigration):
     activation explicit so the config always reflects the effective state.
     """
 
-    migration_id = "3.2.7_activate_builtin_mission_types"
+    migration_id = "3.2.0rc35_activate_builtin_mission_types"
     description = (
         "Add mission_type_activations: [software-dev, documentation, research, plan] "
         "to .kittify/config.yaml for projects that do not yet have the key (FR-019)."
     )
-    target_version = "3.2.7"
+    target_version = "3.2.0rc35"
 
     def detect(self, project_path: Path) -> bool:
         """Return True when config.yaml exists but lacks mission_type_activations.

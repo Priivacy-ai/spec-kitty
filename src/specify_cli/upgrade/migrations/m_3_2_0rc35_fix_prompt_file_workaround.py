@@ -38,12 +38,12 @@ _OLD_MARKERS = [
 class FixPromptFileWorkaroundMigration(BaseMigration):
     """Refresh runtime-next SKILL.md copies after the WP06 contract change."""
 
-    migration_id = "3.2.5_fix_prompt_file_workaround"
+    migration_id = "3.2.0rc35_fix_prompt_file_workaround"
     description = (
         "Remove `prompt_file == null` workaround text from runtime-next skill; "
         "kind=step now always carries a resolvable prompt_file (#336 / #844)."
     )
-    target_version = "3.2.5"
+    target_version = "3.2.0rc35"
 
     def detect(self, project_path: Path) -> bool:
         return any(

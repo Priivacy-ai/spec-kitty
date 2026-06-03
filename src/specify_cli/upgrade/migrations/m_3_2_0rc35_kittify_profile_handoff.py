@@ -1,4 +1,4 @@
-"""Migration 3.2.4: add agent-profile load and review-handoff guidance.
+"""Migration 3.2.0rc35: add agent-profile load and review-handoff guidance.
 
 Updates four installed artifact paths in client projects so that agents load
 the correct persona before implementing or reviewing a WP:
@@ -39,8 +39,8 @@ from .base import BaseMigration, MigrationResult
 
 logger = logging.getLogger(__name__)
 
-MIGRATION_ID = "m_3_2_4_kittify_profile_handoff"
-TARGET_VERSION = "3.2.4"
+MIGRATION_ID = "m_3_2_0rc35_kittify_profile_handoff"
+TARGET_VERSION = "3.2.0rc35"
 
 # ---------------------------------------------------------------------------
 # Sentinel strings used for idempotency checks
@@ -220,12 +220,12 @@ def _apply_patch_to_file(
 class KittifyProfileHandoffMigration(BaseMigration):
     """Add agent-profile load and review-handoff guidance to installed templates."""
 
-    migration_id = "3.2.4_kittify_profile_handoff"
+    migration_id = "3.2.0rc35_kittify_profile_handoff"
     description = (
         "Insert profile-load and review-handoff blocks into .kittify command "
         "templates and .agents/skills skill files"
     )
-    target_version = "3.2.4"
+    target_version = "3.2.0rc35"
 
     def can_apply(self, _project_path: Path) -> tuple[bool, str]:
         """Always safe to apply — patches are additive and idempotent."""

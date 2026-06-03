@@ -1,4 +1,4 @@
-"""Tests for CharterBundleV2Migration (m_3_2_6_charter_bundle_v2).
+"""Tests for CharterBundleV2Migration (m_3_2_0rc35_charter_bundle_v2).
 
 Covers:
 - T018: detect / apply / idempotency / dry_run / metadata stamp
@@ -10,10 +10,10 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from specify_cli.upgrade.migrations.m_3_2_6_charter_bundle_v2 import (
+from specify_cli.upgrade.migrations.m_3_2_0rc35_charter_bundle_v2 import (
     CharterBundleV2Migration,
 )
-from specify_cli.upgrade.migrations.m_3_2_6_charter_manifest_defaults_repair import (
+from specify_cli.upgrade.migrations.m_3_2_0rc35_charter_manifest_defaults_repair import (
     CharterManifestDefaultsRepair,
 )
 
@@ -114,7 +114,7 @@ def _create_v2_bundle(project_path: Path) -> None:
             "generated_at": "2026-01-01T00:00:00Z",
             "source_section": "review_policy",
             "source_urns": ["drg:directive:DIR-001"],
-            "synthesizer_version": "3.2.6",
+            "synthesizer_version": "3.2.0rc35",
             "synthesis_run_id": "01TEST000000000000000000001",
             "produced_at": "2026-01-01T00:00:00+00:00",
             "source_input_ids": ["drg:directive:DIR-001"],
@@ -133,7 +133,7 @@ def _create_v2_bundle(project_path: Path) -> None:
         "run_id": "01TEST000000000000000000001",
         "adapter_id": "fixture",
         "adapter_version": "1.0.0",
-        "synthesizer_version": "3.2.6",
+        "synthesizer_version": "3.2.0rc35",
         "artifacts": [],
         "built_in_only": False,
     }
@@ -148,7 +148,7 @@ def _create_v2_bundle(project_path: Path) -> None:
             "run_id": "01TEST000000000000000000001",
             "adapter_id": "fixture",
             "adapter_version": "1.0.0",
-            "synthesizer_version": "3.2.6",
+            "synthesizer_version": "3.2.0rc35",
             "manifest_hash": manifest_hash,
             "artifacts": [],
             "built_in_only": False,
@@ -221,8 +221,8 @@ def test_registry_includes_current_version_manifest_repair(tmp_path: Path) -> No
     _create_legacy_v2_bundle_without_built_in_only(tmp_path)
 
     migrations = MigrationRegistry.get_applicable(
-        "3.2.6",
-        "3.2.6",
+        "3.2.0rc35",
+        "3.2.0rc35",
         project_path=tmp_path,
     )
 
@@ -244,7 +244,7 @@ def test_runner_repairs_current_v2_after_original_migration_was_recorded(
     from specify_cli.upgrade.runner import MigrationRunner
 
     _create_legacy_v2_bundle_without_built_in_only(tmp_path)
-    metadata = ProjectMetadata(version="3.2.6", initialized_at=datetime.now())
+    metadata = ProjectMetadata(version="3.2.0rc35", initialized_at=datetime.now())
     metadata.record_migration(
         CharterBundleV2Migration.migration_id,
         "success",
@@ -253,7 +253,7 @@ def test_runner_repairs_current_v2_after_original_migration_was_recorded(
     metadata.save(tmp_path / ".kittify")
 
     runner = MigrationRunner(tmp_path)
-    monkeypatch.setattr(runner.detector, "detect_version", lambda: "3.2.6")
+    monkeypatch.setattr(runner.detector, "detect_version", lambda: "3.2.0rc35")
     monkeypatch.setattr(
         "specify_cli.upgrade.runner.MigrationRegistry.get_applicable",
         lambda _from, _to, project_path=None: [  # noqa: ARG005
@@ -262,7 +262,7 @@ def test_runner_repairs_current_v2_after_original_migration_was_recorded(
         ],
     )
 
-    result = runner.upgrade("3.2.6", include_worktrees=False)
+    result = runner.upgrade("3.2.0rc35", include_worktrees=False)
 
     assert result.success is True
     assert result.migrations_skipped == [CharterBundleV2Migration.migration_id]

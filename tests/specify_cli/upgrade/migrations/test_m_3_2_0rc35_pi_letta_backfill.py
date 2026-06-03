@@ -1,4 +1,4 @@
-"""Integration tests for the 3.2.10 Pi/Letta gitignore and skill backfill migration.
+"""Integration tests for the 3.2.0rc350 Pi/Letta gitignore and skill backfill migration.
 
 All tests operate on real filesystem paths via ``tmp_path``.  Installer calls
 that would require a full package wheel are patched with ``unittest.mock`` so
@@ -14,7 +14,7 @@ import pytest
 
 from specify_cli.skills import command_installer, manifest_store
 from specify_cli.skills.command_installer import CANONICAL_COMMANDS
-from specify_cli.upgrade.migrations.m_3_2_10_pi_letta_backfill import (
+from specify_cli.upgrade.migrations.m_3_2_0rc35_pi_letta_backfill import (
     PiLettaBackfillMigration,
 )
 

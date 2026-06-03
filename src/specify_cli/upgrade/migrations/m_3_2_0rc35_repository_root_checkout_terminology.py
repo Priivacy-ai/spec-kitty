@@ -1,4 +1,4 @@
-"""Migration 3.2.4: normalize branch-intent terminology in generated command files.
+"""Migration 3.2.0rc35: normalize branch-intent terminology in generated command files.
 
 Older generated slash-command files may still use:
 - ``project root checkout``
@@ -82,13 +82,13 @@ def _needs_fix(project_path: Path) -> list[Path]:
 class RepositoryRootCheckoutTerminologyMigration(BaseMigration):
     """Normalize checkout-vs-branch terminology in generated command files."""
 
-    migration_id = "3.2.4_repository_root_checkout_terminology"
+    migration_id = "3.2.0rc35_repository_root_checkout_terminology"
     description = (
         "Replace stale 'project root checkout' and generic 'main repository' "
         "phrasing in generated command files with the canonical "
         "'repository root checkout' terminology"
     )
-    target_version = "3.2.4"
+    target_version = "3.2.0rc35"
 
     def detect(self, project_path: Path) -> bool:
         return len(_needs_fix(project_path)) > 0
