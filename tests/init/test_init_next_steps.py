@@ -94,6 +94,16 @@ def test_init_next_steps_names_spec_kitty_next(
         f"Actual console output:\n{output}"
     )
 
+    assert "$spec-kitty.specify" in output, (
+        "Codex init next steps must use Codex skill invocation syntax.\n"
+        f"Actual console output:\n{output}"
+    )
+
+    assert "/spec-kitty.dashboard" not in output, (
+        "Codex init next steps must not list slash commands that are not installed as command skills.\n"
+        f"Actual console output:\n{output}"
+    )
+
     # The bare top-level CLI invocation must NOT appear
     assert "spec-kitty implement WP" not in output, (
         "Found forbidden string 'spec-kitty implement WP' in init console output — "

@@ -52,3 +52,19 @@ def test_remove_pi_letta_removes_skill_claims(tmp_path: Path, agent_key: str) ->
     config = load_agent_config(tmp_path)
     assert agent_key not in config.available
     assert manifest_store.load(tmp_path).entries == []
+
+
+def test_sync_create_missing_reinstalls_codex_command_skills(tmp_path: Path) -> None:
+    _write_config(tmp_path, ["codex"])
+
+    with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=tmp_path):
+        result = runner.invoke(app, ["sync", "--create-missing"])
+
+    assert result.exit_code == 0, result.output
+    assert "Unknown agent: codex" not in result.output
+
+    manifest = manifest_store.load(tmp_path)
+    assert len(manifest.entries) == len(command_installer.CANONICAL_COMMANDS)
+    for entry in manifest.entries:
+        assert entry.agents == ("codex",)
+        assert (tmp_path / entry.path).is_file()

@@ -53,6 +53,7 @@ _ensure_executable_scripts: Callable[[Path, StepTracker | None], None] | None = 
 
 _logger = logging.getLogger(__name__)
 _EVENT_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log"
+_COMMAND_SKILL_AGENTS = {"codex", "pi", "letta"}
 _GITHUB_DIFF_GITATTRIBUTES_ENTRIES = (
     "kitty-specs/**/status.json linguist-generated=true",
     "kitty-specs/**/status.events.jsonl linguist-generated=true",
@@ -386,6 +387,60 @@ def _is_non_interactive_mode(flag: bool) -> bool:
     if _is_truthy_env(os.environ.get("SPEC_KITTY_NON_INTERACTIVE")):
         return True
     return not sys.stdin.isatty()
+
+
+def _primary_next_step_agent(selected_agents: list[str]) -> str:
+    """Choose the selected harness whose command syntax should drive init UX."""
+    for agent in selected_agents:
+        if agent in _COMMAND_SKILL_AGENTS:
+            return agent
+    return selected_agents[0]
+
+
+def _agent_command_token(agent_key: str, command: str) -> str:
+    """Render the command token visible inside the selected harness."""
+    if agent_key == "codex":
+        return f"$spec-kitty.{command}"
+    if agent_key == "pi":
+        return f"/skill:spec-kitty.{command}"
+    if agent_key == "letta":
+        return f"spec-kitty.{command}"
+    return f"/spec-kitty.{command}"
+
+
+def _workflow_lines_for_agent(agent_key: str) -> tuple[str, list[str]]:
+    """Return next-step heading and installed workflow commands for a harness."""
+    if agent_key in _COMMAND_SKILL_AGENTS:
+        heading = "Build your specification with command skills (in workflow order):"
+        commands = [
+            ("charter", "Establish project principles"),
+            ("specify", "Create baseline specification"),
+            ("plan", "Create implementation plan"),
+            ("research", "Run mission-specific Phase 0 research scaffolding"),
+            ("tasks", "Generate work packages"),
+            ("tasks-outline", "Create package outline"),
+            ("tasks-packages", "Generate work packages from outline"),
+            ("tasks-finalize", "Finalize generated work packages"),
+            ("review", "Review prompts and move them to /tasks/done/"),
+        ]
+    else:
+        heading = "Build your specification with slash commands (in workflow order):"
+        commands = [
+            ("dashboard", "Open the real-time kanban dashboard"),
+            ("charter", "Establish project principles"),
+            ("specify", "Create baseline specification"),
+            ("plan", "Create implementation plan"),
+            ("research", "Run mission-specific Phase 0 research scaffolding"),
+            ("tasks", "Generate work packages"),
+            ("review", "Review prompts and move them to /tasks/done/"),
+            ("accept", "Run acceptance checks and verify mission complete"),
+            ("merge", "Merge mission into target branch and cleanup worktree"),
+        ]
+
+    return heading, [
+        f"   - [cyan]{_agent_command_token(agent_key, command)}[/] - {description}"
+        for command, description in commands
+    ]
 
 
 
@@ -853,7 +908,7 @@ def init(  # noqa: C901
         "cursor": ".cursor/",
         "qwen": ".qwen/",
         "opencode": ".opencode/",
-        "codex": ".codex/",
+        "codex": ".agents/skills/",
         "vibe": ".vibe/",
         "windsurf": ".windsurf/",
         "kilocode": ".kilocode/",
@@ -863,8 +918,8 @@ def init(  # noqa: C901
         "roo": ".roo/",
         "q": ".amazonq/",
         "kiro": ".kiro/",
-        "pi": ".pi/",
-        "letta": ".letta/",
+        "pi": ".agents/skills/",
+        "letta": ".agents/skills/",
     }
 
     notice_entries = []
@@ -907,22 +962,17 @@ def init(  # noqa: C901
     step_num += 1
 
     steps_lines.append(
-        f"{step_num}. Available missions: [cyan]software-dev[/cyan], [cyan]research[/cyan] (selected per-mission during [cyan]/spec-kitty.specify[/cyan])"  # noqa: E501
+        f"{step_num}. Available missions: [cyan]software-dev[/cyan], [cyan]research[/cyan] "
+        f"(selected per-mission during [cyan]{_agent_command_token(_primary_next_step_agent(selected_agents), 'specify')}[/cyan])"
     )
     step_num += 1
 
-    steps_lines.append(f"{step_num}. Build your specification with slash commands (in workflow order):")
+    primary_agent = _primary_next_step_agent(selected_agents)
+    workflow_heading, workflow_lines = _workflow_lines_for_agent(primary_agent)
+    steps_lines.append(f"{step_num}. {workflow_heading}")
     step_num += 1
 
-    steps_lines.append("   - [cyan]/spec-kitty.dashboard[/] - Open the real-time kanban dashboard")
-    steps_lines.append("   - [cyan]/spec-kitty.charter[/]   - Establish project principles")
-    steps_lines.append("   - [cyan]/spec-kitty.specify[/]   - Create baseline specification")
-    steps_lines.append("   - [cyan]/spec-kitty.plan[/]      - Create implementation plan")
-    steps_lines.append("   - [cyan]/spec-kitty.research[/]  - Run mission-specific Phase 0 research scaffolding")
-    steps_lines.append("   - [cyan]/spec-kitty.tasks[/]     - Generate work packages")
-    steps_lines.append("   - [cyan]/spec-kitty.review[/]    - Review prompts and move them to /tasks/done/")
-    steps_lines.append("   - [cyan]/spec-kitty.accept[/]    - Run acceptance checks and verify mission complete")
-    steps_lines.append("   - [cyan]/spec-kitty.merge[/]     - Merge mission into target branch and cleanup worktree")
+    steps_lines.extend(workflow_lines)
     steps_lines.append("   - [cyan]spec-kitty retrospect summary[/] - Review retrospective status after merge")
     step_num += 1
 
@@ -999,7 +1049,8 @@ def init(  # noqa: C901
     enhancement_lines = [
         "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",
         "",
-        "○ [cyan]/spec-kitty.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/spec-kitty.tasks[/])",  # noqa: E501
+        f"○ [cyan]{_agent_command_token(primary_agent, 'analyze')}[/] [bright_black](optional)[/bright_black] - "
+        f"Cross-artifact consistency & alignment report (after [cyan]{_agent_command_token(primary_agent, 'tasks')}[/])",
     ]
     enhancements_panel = Panel("\n".join(enhancement_lines), title="Enhancement Commands", border_style="cyan", padding=(1, 2))
     _console.print()

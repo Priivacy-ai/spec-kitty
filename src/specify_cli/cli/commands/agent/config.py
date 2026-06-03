@@ -122,7 +122,13 @@ def _load_config_or_exit(repo_root: Path) -> AgentConfig:
         raise typer.Exit(1)
 
 
-def _register_skill_agent(repo_root: Path, config: AgentConfig, agent_key: str) -> tuple[bool, str | None]:
+def _register_skill_agent(
+    repo_root: Path,
+    config: AgentConfig,
+    agent_key: str,
+    *,
+    update_config: bool = True,
+) -> tuple[bool, str | None]:
     """Install command skills for skill-only agents and update config."""
     from specify_cli.skills import command_installer  # noqa: PLC0415
     from specify_cli.skills.vibe_config import ensure_project_skill_path  # noqa: PLC0415
@@ -132,7 +138,8 @@ def _register_skill_agent(repo_root: Path, config: AgentConfig, agent_key: str) 
         if agent_key == "vibe":
             ensure_project_skill_path(repo_root)
         installed = len(report.added) + len(report.reused_shared)
-        config.available.append(agent_key)
+        if update_config:
+            config.available.append(agent_key)
         console.print(
             f"[green]✓[/green] Registered {agent_key} "
             f"({installed} command skills in .agents/skills/)"
@@ -219,6 +226,19 @@ def _check_or_create_configured_agent_dirs(repo_root: Path, config: AgentConfig)
                 console.print(
                     f"  [yellow]⚠[/yellow] Global commands missing for {agent_key} at {_display_path(global_dir)}"
                 )
+            continue
+
+        if agent_key in SKILL_ONLY_AGENTS:
+            ok, error = _register_skill_agent(
+                repo_root,
+                config,
+                agent_key,
+                update_config=False,
+            )
+            if ok:
+                changes_made = True
+            elif error:
+                console.print(f"  [red]✗[/red] {error}")
             continue
 
         agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
