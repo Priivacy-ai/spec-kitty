@@ -343,15 +343,63 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 ---
 
+### Base Branch
+
+| | |
+|---|---|
+| **Definition** | Overloaded key with two distinct scopes. (1) At the **mission level** (branch-context JSON output): alias for `target_branch` — the branch the mission is rooted in; `base_branch` and `target_branch` carry the same value in branch-context output. (2) At the **worktree/WP level** (WP prompt frontmatter): the specific git branch from which the individual lane worktree was created; this may be a lane branch (e.g. `kitty/mission-010-feature-lane-a`) rather than the target branch itself. JSON key: `base_branch`. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [Target Branch](#target-branch), [Planning Base Branch](#planning-base-branch), [Lane](#lane) |
+
+---
+
+### Current Branch
+
+| | |
+|---|---|
+| **Definition** | The git branch checked out in the main repository at the moment a workflow command is invoked. Read ephemerally from the working tree; never persisted in any mission artifact. Exposed as `current_branch` / `CURRENT_BRANCH` in branch-context JSON output. Since WP07 (FR-012), spec-kitty does **not** use `current_branch` to derive the mission target — it reads `target_branch` from `meta.json` instead, so the branch contract is stable regardless of which branch the operator is on. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [Target Branch](#target-branch), [Base Branch](#base-branch) |
+
+---
+
+### Merge Target Branch
+
+| | |
+|---|---|
+| **Definition** | The branch where completed work-package code must ultimately land. Stored in every WP prompt's frontmatter (alongside `planning_base_branch`) to give implementing agents an explicit merge destination. In `meta.json`: legacy alias for `target_branch`, read as a fallback by `resolve_planning_branch_from_meta()` for pre-WP03 missions. In 3.x all three — `target_branch`, `planning_base_branch`, and `merge_target_branch` — carry the same value; the separation makes intent explicit in agent-facing prompts and prevents the "prep branch leak" (pre-WP07 pattern). JSON key: `merge_target_branch`. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [Target Branch](#target-branch), [Planning Base Branch](#planning-base-branch), [Work Package](#work-package) |
+
+---
+
+### Planning Base Branch
+
+| | |
+|---|---|
+| **Definition** | The branch active in the repository root checkout when WP prompts were generated (at `finalize-tasks` time). Stored in every WP prompt's frontmatter and in `lanes.json` to root lane-worktree allocation correctly regardless of which branch the operator is on when running `finalize-tasks`. In 3.x equals `target_branch`. Introduced alongside `merge_target_branch` to close the "prep branch leak" bug (pre-WP07): when `finalize-tasks` ran from a temporary `prep/...` branch, that branch leaked into WP frontmatter and crashed lane allocation once the prep branch was deleted. JSON key: `planning_base_branch`. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [Target Branch](#target-branch), [Merge Target Branch](#merge-target-branch), [Lane](#lane), [Work Package](#work-package) |
+
+---
+
 ### Target Branch
 
 | | |
 |---|---|
-| **Definition** | Mission-level routing value indicating which repository line receives lifecycle/status commits for that mission. |
+| **Definition** | The git branch on which a mission's code, planning artifacts, and status events must ultimately land. Persisted in `meta.json` under the key `target_branch` at `mission create` time and never overwritten. Read by `resolve_planning_branch_from_meta()` as the canonical key; `merge_target_branch` is its legacy alias in older `meta.json` fixtures. Since WP07 (FR-012), all downstream commands — `finalize-tasks`, `implement`, `review`, `merge` — derive the branch contract from this stored value, not from `current_branch` at invocation time. In branch-context JSON output, `target_branch` and `base_branch` carry the same value at the mission level. |
 | **Context** | Orchestration |
 | **Status** | canonical |
-| **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Mission](#mission), [Lane](#lane), [Work Package](#work-package) |
+| **Applicable to** | `2.x`, `3.x` |
+| **Related terms** | [Base Branch](#base-branch), [Planning Base Branch](#planning-base-branch), [Merge Target Branch](#merge-target-branch), [Current Branch](#current-branch), [Mission](#mission) |
 
 ---
 
