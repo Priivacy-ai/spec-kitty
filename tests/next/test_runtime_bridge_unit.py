@@ -1081,6 +1081,63 @@ class TestAtomicTaskSteps:
         assert failures == []
 
     @pytest.mark.git_repo
+    def test_tasks_packages_guard_rejects_indented_legacy_tasks_md_heading(self, tmp_path: Path) -> None:
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "| ID | Requirement | Acceptance Criteria | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| FR-001 | First | Covered by WP01. | proposed |\n",
+            encoding="utf-8",
+        )
+        (feature_dir / "tasks.md").write_text(
+            "  ## Work Package WP01\n\n**Requirement Refs**: FR-001\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.next.runtime_bridge import _check_cli_guards
+
+        failures = _check_cli_guards("tasks_packages", feature_dir)
+        assert failures
+        assert "missing refs for WPs: WP01" in failures[0]
+
+    @pytest.mark.git_repo
+    def test_tasks_packages_guard_accepts_tab_after_hashes_in_legacy_tasks_md_heading(self, tmp_path: Path) -> None:
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "| ID | Requirement | Acceptance Criteria | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| FR-001 | First | Covered by WP01. | proposed |\n",
+            encoding="utf-8",
+        )
+        (feature_dir / "tasks.md").write_text(
+            "##\tWork Package WP01\n\n**Requirement Refs**: FR-001\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.next.runtime_bridge import _check_cli_guards
+
+        failures = _check_cli_guards("tasks_packages", feature_dir)
+        assert failures == []
+
+    @pytest.mark.git_repo
     def test_tasks_packages_guard_blocks_missing_requirement_refs(self, tmp_path: Path) -> None:
         """WP has no requirement_refs at all → missing-refs branch."""
         repo_root = _scaffold_project(tmp_path)

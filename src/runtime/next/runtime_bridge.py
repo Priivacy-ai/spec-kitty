@@ -192,43 +192,20 @@ class QueryModeValidationError(ValueError):
 # ---------------------------------------------------------------------------
 
 _FEATURE_RUNS_FILE = "feature-runs.json"
-
-
-def _wp_heading_id(line: str) -> str | None:
-    """Return the WP id carried by a markdown heading line, if any."""
-    heading = line.lstrip()
-    hash_count = len(heading) - len(heading.lstrip("#"))
-    if not 2 <= hash_count <= 4:
-        return None
-    if len(heading) <= hash_count or heading[hash_count] != " ":
-        return None
-
-    title = heading[hash_count:].strip()
-    if title.startswith("Work Package "):
-        title = title.removeprefix("Work Package ").lstrip()
-    if len(title) < 4 or not title.startswith("WP"):
-        return None
-    if not title[2:4].isdigit():
-        return None
-    if len(title) > 4 and title[4] not in {":", " ", "\t"}:
-        return None
-    return title[:4]
+_WP_SECTION_HEADING_RE = re.compile(
+    r"(?m)^#{2,4}\s+(?:Work Package\s+)?(WP\d{2})(?:\b|:)",
+)
 
 
 def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
     """Extract WP sections from tasks.md keyed by WP ID."""
     sections: dict[str, str] = {}
-    matches: list[tuple[str, int, int]] = []
-    offset = 0
-    for line in tasks_content.splitlines(keepends=True):
-        wp_id = _wp_heading_id(line)
-        if wp_id is not None:
-            matches.append((wp_id, offset, offset + len(line)))
-        offset += len(line)
+    matches = list(_WP_SECTION_HEADING_RE.finditer(tasks_content))
 
-    for idx, (wp_id, _heading_start, heading_end) in enumerate(matches):
-        start = heading_end
-        end = matches[idx + 1][1] if idx + 1 < len(matches) else len(tasks_content)
+    for idx, match in enumerate(matches):
+        wp_id = match.group(1)
+        start = match.end()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(tasks_content)
         sections[wp_id] = tasks_content[start:end]
 
     return sections
