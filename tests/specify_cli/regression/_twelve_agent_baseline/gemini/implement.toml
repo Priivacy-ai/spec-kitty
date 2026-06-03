@@ -279,7 +279,7 @@ After completing bulk renames:
 3. **Search command template and agent directories** explicitly:
    ```bash
    grep -rn "old_term" src/specify_cli/missions/*/command-.kittify/templates/
-   grep -rn "old_term" .claude/commands/ .codex/prompts/ .opencode/command/
+   grep -rn "old_term" .claude/commands/ .agents/skills/ .opencode/command/
    grep -rn "old_term" .github/prompts/ .gemini/commands/ .cursor/commands/
    grep -rn "old_term" .qwen/commands/ .kilocode/workflows/ .windsurf/workflows/
    grep -rn "old_term" .augment/commands/ .roo/commands/ .amazonq/prompts/

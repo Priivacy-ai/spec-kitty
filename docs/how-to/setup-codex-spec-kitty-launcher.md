@@ -1,48 +1,55 @@
 ---
-title: "Set Up a Codex Launcher for Spec Kitty"
-description: "Configure a `kitty_cdx` launcher that uses repository-local `.codex` state and activates `.venv` when available."
+title: Set Up Codex for Spec Kitty
+description: Configure Codex CLI to load Spec Kitty project-local Agent Skills from `.agents/skills/`.
 ---
 
-# Set Up a Codex Launcher for Spec Kitty
+# Set Up Codex for Spec Kitty
 
-Use this guide to launch `codex` with repository-local configuration by default:
+Codex CLI uses Spec Kitty's project-local Agent Skills. Spec Kitty installs one
+skill package per command under `.agents/skills/spec-kitty.<command>/SKILL.md`.
 
-- `CODEX_HOME` points at this repo's `.codex`
-- local Python environments are activated when available
-- tooling-specific setup scripts live under `scripts/tool_configs`
+Use this guide when an existing project does not show `$spec-kitty.*` skills in
+Codex, or when you want a small launcher that enters the repo and activates the
+local Python environment before starting Codex.
 
-## Linux / Mac Instructions
-
-### Prerequisites
+## Prerequisites
 
 - You are working in the `spec-kitty` repository root.
 - `codex` is installed and available on your `PATH`.
-- You have shell startup files (`~/.bash_aliases`, `~/.bashrc`, or `~/.zshrc`).
-
-### 1. Add the shared Python environment helper
-
-Create `scripts/tool_configs/python_environment.sh`:
+- Spec Kitty has been initialized or synced for Codex:
 
 ```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-activate_python_environment() {
-  local repo_root="${1:-$(pwd)}"
-  local venv_dir="${repo_root}/.venv"
-  local activate_script="${venv_dir}/bin/activate"
-
-  if [[ -f "${activate_script}" ]]; then
-    set +u
-    . "${activate_script}"
-    set -u
-  fi
-}
+spec-kitty init --ai codex
+# or, for an existing project
+spec-kitty agent config add codex
+spec-kitty agent config sync
 ```
 
-This function is reusable for other tooling launch scripts.
+## Verify the skill packages
 
-### 2. Configure the launcher
+Confirm the generated skills exist:
+
+```bash
+ls .agents/skills/
+ls .agents/skills/spec-kitty.specify/SKILL.md
+```
+
+Codex should expose these as `$spec-kitty.<command>` skills, for example:
+
+```text
+$spec-kitty.specify
+$spec-kitty.plan
+$spec-kitty.tasks
+$spec-kitty.implement
+```
+
+If the packages are missing, regenerate them:
+
+```bash
+spec-kitty agent config sync
+```
+
+## Optional launcher
 
 Create `scripts/tool_configs/kitty-cdx.sh`:
 
@@ -53,16 +60,19 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 
-export CODEX_HOME="${REPO_ROOT}/.codex"
 CODEX_BIN="$(type -P codex || true)"
-
 if [[ -z "${CODEX_BIN}" ]]; then
   echo "codex executable was not found in PATH" >&2
   exit 127
 fi
 
-. "${SCRIPT_DIR}/python_environment.sh"
-activate_python_environment "${REPO_ROOT}"
+cd "${REPO_ROOT}"
+
+if [[ -f ".venv/bin/activate" ]]; then
+  set +u
+  . ".venv/bin/activate"
+  set -u
+fi
 
 exec "${CODEX_BIN}" "$@"
 ```
@@ -73,49 +83,13 @@ Make it executable:
 chmod +x scripts/tool_configs/kitty-cdx.sh
 ```
 
-### 3. Create a dedicated `kittyrc` alias file
-
-Create `~/.kittyrc`:
+Add a shell alias:
 
 ```bash
-# Kitty shell customizations
-alias kitty_cdx='$CODE_DIRECTORY/spec-kitty/scripts/tool_configs/kitty-cdx.sh'
+alias kitty_cdx='/path/to/spec-kitty/scripts/tool_configs/kitty-cdx.sh'
 ```
 
-### 4. Source `kittyrc` from one startup file only
-
-To avoid duplicate chain-loading, add this to exactly one file. In this setup, use `~/.bash_aliases`:
-
-```bash
-[ -f "$HOME/.kittyrc" ] && source "$HOME/.kittyrc"
-```
-
-If your `~/.zshrc` already sources `~/.bash_aliases`, this keeps the setup centralized.
-
-### 5. Optional: Add short aliases for `prompts:spec-kitty.*`
-
-Codex prompt files in `.codex/prompts` are surfaced with the `prompts:` namespace.
-If you want shorter commands, add wrapper aliases in `~/.kittyrc`:
-
-```bash
-alias sk_spec='kitty_cdx "prompts:spec-kitty.specify"'
-alias sk_plan='kitty_cdx "prompts:spec-kitty.plan"'
-alias sk_tasks='kitty_cdx "prompts:spec-kitty.tasks"'
-alias sk_impl='kitty_cdx "prompts:spec-kitty.implement"'
-alias sk_review='kitty_cdx "prompts:spec-kitty.review"'
-alias sk_merge='kitty_cdx "prompts:spec-kitty.merge"'
-alias sk_status='kitty_cdx "prompts:spec-kitty.status"'
-```
-
-## Windows Instructions
-
-### Prerequisites
-
-- You are working in the `spec-kitty` repository root.
-- `codex` is installed and available on your `PATH`.
-- PowerShell is your active shell.
-
-### 1. Add a PowerShell launcher script
+## Windows launcher
 
 Create `scripts/tool_configs/kitty-cdx.ps1`:
 
@@ -123,13 +97,14 @@ Create `scripts/tool_configs/kitty-cdx.ps1`:
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$RepoRoot = Resolve-Path (Join-Path $ScriptDir "..\\..")
+$RepoRoot = Resolve-Path (Join-Path $ScriptDir "..\..")
 
-$env:CODEX_HOME = Join-Path $RepoRoot ".codex"
 $CodexCommand = Get-Command codex -CommandType Application -ErrorAction Stop
 $CodexPath = $CodexCommand.Source
 
-$activate = Join-Path $RepoRoot ".venv\\Scripts\\Activate.ps1"
+Set-Location $RepoRoot
+
+$activate = Join-Path $RepoRoot ".venv\Scripts\Activate.ps1"
 if (Test-Path $activate) {
     . $activate
 }
@@ -137,16 +112,7 @@ if (Test-Path $activate) {
 & $CodexPath @args
 ```
 
-### 2. Add a `kitty_cdx` function in your PowerShell profile
-
-Open your profile:
-
-```powershell
-if (!(Test-Path $PROFILE)) { New-Item -ItemType File -Path $PROFILE -Force | Out-Null }
-notepad $PROFILE
-```
-
-Add this function (update the path for your machine):
+Add a `kitty_cdx` function in your PowerShell profile:
 
 ```powershell
 function kitty_cdx {
@@ -160,151 +126,13 @@ Reload your profile:
 . $PROFILE
 ```
 
-### 3. If script execution is blocked
-
-Run once:
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-```
-
-## Verification
-
-Linux/macOS:
-
-```bash
-source ~/.bashrc 2>/dev/null || true
-source ~/.zshrc 2>/dev/null || true
-type kitty_cdx
-kitty_cdx --help
-```
-
-Windows PowerShell:
-
-```powershell
-. $PROFILE
-Get-Command kitty_cdx
-kitty_cdx --help
-```
-
-Expected result:
-
-- `kitty_cdx` resolves to the launcher script
-- Codex launches with repo `.codex` state
-- if a local `.venv` exists, environment activation is applied before launch
-
 ## Troubleshooting
 
-### `kitty_cdx: command not found`
-
-- **Symptoms**: shell does not recognize the alias or function.
-- **Cause**: `~/.kittyrc`/profile is not sourced in the active shell.
-- **Fix**:
-
-```bash
-grep -n 'source "$HOME/.kittyrc"' ~/.bash_aliases ~/.bashrc ~/.zshrc
-```
-
-On PowerShell, reload profile and verify function definition:
-
-```powershell
-. $PROFILE
-Get-Command kitty_cdx
-```
-
-### `.venv` is ignored
-
-- **Symptoms**: tool resolution does not come from local virtual environment.
-- **Cause**: activation script is missing or invalid.
-- **Fix (Linux/macOS)**:
-
-```bash
-ls -la .venv/bin/activate
-```
-
-- **Fix (Windows)**:
-
-```powershell
-Test-Path .venv\Scripts\Activate.ps1
-```
-
-## Glossary Observations in Invocation Payloads
-
-When Spec Kitty processes a request through the invocation executor, it runs a
-glossary conflict scan (the *glossary chokepoint*) before returning the response.
-The scan result is attached to `InvocationPayload` as the `glossary_observations`
-field and is included in the dict returned by `InvocationPayload.to_dict()`.
-
-### `glossary_observations` field
-
-`to_dict()` includes the key `"glossary_observations"` whose value is a dict with
-the following structure (produced by `GlossaryObservationBundle.to_dict()`):
-
-```json
-{
-  "matched_urns": ["glossary:d93244e7"],
-  "high_severity": [],
-  "all_conflicts": [],
-  "tokens_checked": 12,
-  "duration_ms": 3.2,
-  "error_msg": null
-}
-```
-
-Example with a conflict on the term "lane":
-
-```json
-{
-  "matched_urns": ["glossary:d93244e7"],
-  "high_severity": [
-    {
-      "term": "lane",
-      "conflict_type": "ambiguous_scope",
-      "severity": "HIGH",
-      "candidate_senses": ["execution lane (WP routing)", "git branch lane (worktree)"]
-    }
-  ],
-  "all_conflicts": [ ... ],
-  "tokens_checked": 8,
-  "duration_ms": 2.7,
-  "error_msg": null
-}
-```
-
-### High-severity rendering contract
-
-Host agents (Codex and others) consuming `InvocationPayload.to_dict()` should
-apply the following rendering contract:
-
-- **If `high_severity` is non-empty**: prepend an inline warning before the
-  governance context delivered to the model. For example:
-  ```
-  [GLOSSARY WARNING] The following terms carry HIGH-severity semantic conflicts:
-  lane (glossary:d93244e7) — ambiguous_scope. Review usage before proceeding.
-  ```
-- **If `high_severity` is empty but `all_conflicts` is non-empty**: optionally
-  surface a lower-priority notice; no blocking required.
-- **If `error_msg` is non-null**: log the warning and do not block. The invocation
-  completes normally; the glossary scan degraded gracefully.
-- **If `all_conflicts` is empty and `error_msg` is null**: the invocation is
-  clean. No glossary notice is needed.
-
-### Trail behaviour
-
-A `glossary_checked` event is appended to the Tier 1 JSONL trail **only** when
-`all_conflicts` is non-empty OR `error_msg` is set. Clean invocations produce no
-`glossary_checked` line. See [Trail Model](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/trail-model.md) for the full event
-taxonomy.
-
-## Command Reference
-
-- [CLI Commands](../reference/cli-commands.md)
-
-## See Also
-
-- [Install & Upgrade](install-spec-kitty.md)
-- [Manage Agents](manage-agents.md)
-
-## Background
-
-- [Spec-Driven Development](../explanation/spec-driven-development.md)
+- **Codex does not show `$spec-kitty.*` skills.**
+  Run `spec-kitty agent config sync`, confirm `.agents/skills/spec-kitty.*/SKILL.md`
+  exists, and restart Codex.
+- **Only old prompt-style commands appear.**
+  Refresh the project with `spec-kitty upgrade --project` and re-run
+  `spec-kitty agent config sync`.
+- **Launcher cannot find `codex`.**
+  Install Codex CLI or put its binary on `PATH`, then re-run `kitty_cdx`.

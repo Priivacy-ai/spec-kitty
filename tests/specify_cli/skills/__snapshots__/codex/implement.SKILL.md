@@ -151,8 +151,8 @@ available profile for the WP's `task_type` and `authoritative_surface`.
 
 ### 3. Verify Dependencies
 
-Confirm all dependency WPs are in `done` status before proceeding.
-If any are not done, stop and report which dependencies are blocking.
+Confirm all dependency WPs are in `approved` or `done` status before proceeding.
+If any are not approved or done, stop and report which dependencies are blocking.
 
 ### 4. Implement Subtasks
 
@@ -278,7 +278,7 @@ After completing bulk renames:
 3. **Search command template and agent directories** explicitly:
    ```bash
    grep -rn "old_term" src/specify_cli/missions/*/command-templates/
-   grep -rn "old_term" .claude/commands/ .codex/prompts/ .opencode/command/
+   grep -rn "old_term" .claude/commands/ .agents/skills/ .opencode/command/
    grep -rn "old_term" .github/prompts/ .gemini/commands/ .cursor/commands/
    grep -rn "old_term" .qwen/commands/ .kilocode/workflows/ .windsurf/workflows/
    grep -rn "old_term" .augment/commands/ .roo/commands/ .amazonq/prompts/

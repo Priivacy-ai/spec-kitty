@@ -242,7 +242,7 @@ Include the correct implementation command:
 - `spec-kitty agent action implement WP01 --agent <name>`
 - `spec-kitty agent action implement WP02 --agent <name>`
 
-`finalize_tasks` computes execution lanes from dependencies and write ownership. Agents never choose a base branch manually.
+`finalize_tasks` computes execution lanes from dependencies and write ownership. Agents never choose a base branch<!-- glossary:glossary:base-branch --> manually.
 
 **Ownership rules**:
 - `owned_files`: List of glob patterns for files this WP touches — no two WPs may overlap.

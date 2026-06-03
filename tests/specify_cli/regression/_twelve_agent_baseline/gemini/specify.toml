@@ -112,7 +112,7 @@ spec-kitty agent mission branch-context --json --target-branch <intended-branch>
 Parse the JSON and, in your next reply, explicitly tell the user:
 
 - Current branch<!-- glossary:glossary:current-branch --> at workflow start: `current_branch`
-- Default planning/base branch if you create the mission right now: `planning_base_branch<!-- glossary:glossary:planning_base_branch -->`
+- Default planning/base branch<!-- glossary:glossary:base-branch --> if you create the mission right now: `planning_base_branch<!-- glossary:glossary:planning_base_branch -->`
 - Final merge target for completed changes: `merge_target_branch<!-- glossary:glossary:merge_target_branch -->`
 - Whether `branch_matches_target` is true or false
 - If that is not the intended landing branch, stop and ask which branch should receive this feature before you run `create`

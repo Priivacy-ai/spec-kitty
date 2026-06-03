@@ -192,15 +192,13 @@ spec-kitty init my-project --ai windsurf
 
 | Property | Value |
 |----------|-------|
-| Directory | `.codex/` |
-| Commands subdirectory | `prompts/` |
+| Directory | `.agents/skills/` |
+| Commands subdirectory | `spec-kitty.<command>/SKILL.md` |
 | CLI flag | `--ai codex` |
 | Status | Supported |
 
-**Environment Variable**: Set `CODEX_HOME` to point to your project:
-```bash
-export CODEX_HOME="$(pwd)/.codex"
-```
+Codex uses project-local Agent Skills. Spec Kitty installs one `SKILL.md`
+package per command under `.agents/skills/spec-kitty.<command>/`.
 
 **Usage**:
 ```bash
@@ -390,9 +388,10 @@ Command-skill hosts use the same Spec Kitty workflow commands but expose them th
 
 **Kiro / Amazon Q**: Slash-command arguments only pass through when the full invocation is shell-quoted (e.g. `kiro '@speckit.specify <description>'`). Without quoting, the trailing text is not forwarded to `$ARGUMENTS`. See [kirodotdev/Kiro#4141](https://github.com/kirodotdev/Kiro/issues/4141).
 
-**Codex**: Ensure `CODEX_HOME` is set:
+**Codex**: Confirm project-local Agent Skills exist:
 ```bash
-export CODEX_HOME="$(pwd)/.codex"
+ls .agents/skills/spec-kitty.specify/SKILL.md
+spec-kitty agent config sync
 ```
 
 ---

@@ -43,7 +43,7 @@ spec-kitty upgrade [OPTIONS]
 Project upgrade walks pending migrations in version order. For each migration, it may:
 
 1. **Read `.kittify/config.yaml`** to learn which agents are configured. Migrations are *config-aware* and only touch directories for agents you have enabled.
-2. **Refresh agent command directories** for configured agents (`.claude/commands/`, `.codex/skills/spec-kitty.*/`, `.amazonq/prompts/`, etc.) from the CLI's bundled source templates.
+2. **Refresh agent command directories** for configured agents (`.claude/commands/`, `.agents/skills/spec-kitty.*/`, `.amazonq/prompts/`, etc.) from the CLI's bundled source templates.
 3. **Update `.kittify/` scaffold files** — `memory/`, `command-skills-manifest.json`, and config schemas — to the new layout.
 4. **Bump `.kittify/metadata.yaml`** to record the new schema version after each migration step.
 5. **Leave user data alone** — `kitty-specs/`, `architecture/`, `docs/`, `src/`, and anything else you author is untouched.
@@ -97,7 +97,7 @@ Project upgrades modify version-controlled files. Inspect with git before commit
 
 ```bash
 git status
-git diff .kittify/ .claude/ .codex/ .gemini/
+git diff .kittify/ .claude/ .agents/skills/ .gemini/
 ```
 
 Typical changes:
@@ -109,7 +109,7 @@ Typical changes:
 Commit the result:
 
 ```bash
-git add .kittify/ .claude/ .codex/
+git add .kittify/ .claude/ .agents/skills/
 git commit -m "chore: upgrade Spec Kitty project to <version>"
 ```
 
