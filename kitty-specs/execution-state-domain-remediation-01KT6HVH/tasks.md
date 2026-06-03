@@ -63,11 +63,11 @@
 **Dependencies**: none
 
 **Subtasks**:
-- [ ] T001 Author ADR 1: four-bounded-module domain model + status ownership (WP01)
-- [ ] T002 Author ADR 2: ExecutionContext OHS + CommitTarget atomicity (WP01)
-- [ ] T003 Author ADR 3: Effector/Actor model (WP01)
-- [ ] T004 Add/update glossary entries (WP01)
-- [ ] T005 Commit ADRs + glossary and verify CI (WP01)
+- [x] T001 Author ADR 1: four-bounded-module domain model + status ownership (WP01)
+- [x] T002 Author ADR 2: ExecutionContext OHS + CommitTarget atomicity (WP01)
+- [x] T003 Author ADR 3: Effector/Actor model (WP01)
+- [x] T004 Add/update glossary entries (WP01)
+- [x] T005 Commit ADRs + glossary and verify CI (WP01)
 
 **Success criteria**: Three ADR files exist at `architecture/3.x/adr/2026-06-03-*.md` and are merged to `main`. Glossary entries for all five terms updated. CI green.
 

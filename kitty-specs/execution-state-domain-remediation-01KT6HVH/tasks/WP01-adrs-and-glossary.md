@@ -199,3 +199,8 @@ The execution-state remediation (#1619) requires vocabulary and architectural de
 ## Reviewer Guidance
 
 Check that each ADR has concrete decisions (not just problem descriptions), that the four module names match those in `spec.md`, and that the Effector "docs only" decision is unambiguous.
+
+## Activity Log
+
+- 2026-06-03T11:25:59Z – claude – Claiming WP01 for planning artifact implementation
+- 2026-06-03T11:29:18Z – claude – Implementation complete. Three ADRs authored (domain model, ExecutionContext owner, Effector model) and five glossary terms added (GovernanceContext, ExecutionContext, InfraContext, Effector, communication artefact). All committed to coordination branch. No Python changes; no tests or ruff required for planning_artifact WP.
