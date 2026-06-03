@@ -21,7 +21,7 @@ model (`17`) to code: map every model element to a **package home**, an **API en
 | ↳ **GovernanceContext** | per-domain Context | `charter/context.py` (action-scoped bundle) | `build_charter_context` / `_load_action_doctrine_bundle` | exists |
 | **Mission Management** | domain (module) | `kitty-specs/<slug>/` artefacts + planning cmds (`cli/commands/agent/tasks.py`, `agent/mission.py`) | `tasks-finalize`, `mission` CRUD, `bootstrap_canonical_state` | **exists** |
 | ↳ **Mission / WorkPackage** | aggregates | `kitty-specs/` + `status/wp_metadata.py` | WP frontmatter + status events | exists |
-| **Status / Kanban** | **shared context (seam)** | `src/specify_cli/status/` | `status/__init__.py` facade (`read_events`/`reduce`/`materialize`/`get_wp_lane`/`emit_*`) | **exists; boundary NOT enforced → [#1664](https://github.com/Priivacy-ai/spec-kitty/issues/1664)** |
+| **Status / Kanban** | **Mission Management-owned; OHS facade** | `src/specify_cli/status/` | `status/__init__.py` facade (`read_events`/`reduce`/`materialize`/`get_wp_lane`/`emit_*`) | **exists; boundary NOT enforced → [#1664](https://github.com/Priivacy-ai/spec-kitty/issues/1664)**. Decided 2026-06-03: Status belongs to Mission Management — it publishes a facade, all other domains are consumers. Shared-context framing removed. |
 | ↳ **`MissionStatus` aggregate** | aggregate root | (would wrap `status/`) | `MissionStatus.load/claim/transition/save` | **net-new** (today: free functions over `Lane`/`StatusEvent`) |
 | **Execution / Runtime** | domain (module) | `src/runtime/next/_internal_runtime/` (canonical) + `runtime_bridge.py` | `decide_next`, `start_mission_run`, `get_or_start_run` | **exists** |
 | ↳ **MissionRun** | aggregate | `runtime/next/_internal_runtime/{schema,engine}.py` | `MissionRunSnapshot` / `MissionRunRef` | exists; **can't name its Mission → [#1663](https://github.com/Priivacy-ai/spec-kitty/issues/1663)** |
@@ -107,7 +107,7 @@ Constraints from `16` H6 / `tests/architectural/test_layer_rules.py`:
   clarity. **Constraint:** it must be **registered in the layer meta-guard** (`_DEFINED_LAYERS` in both
   `conftest.py` and `test_layer_rules.py`), or `test_no_unregistered_src_packages` fails. The hardened
   `ExecutionContext` (today `core/execution_context.py`) migrates *into* this umbrella under Strangler.
-- **`MissionStatus` aggregate** wraps `status/` — lives in `src/specify_cli/status/` (the shared context).
+- **`MissionStatus` aggregate** wraps `status/` — lives in `src/specify_cli/status/` (Mission Management's module). **Full read+write interface from day one** (no stepping-stone `MissionStatusAuthority`); `BookkeepingTransaction` is infrastructure called internally by the aggregate; domain invariants already live in `status/transitions.py`. Decided 2026-06-03.
 - **`Effector`/`Actor` type — DECIDED: named-in-docs for now** (not a code type yet). Rationale below (§3).
   If materialized later, a low-layer shared type (`kernel/` or `actor.py`) so the three vocabularies converge without an illegal up-import.
 
@@ -137,8 +137,7 @@ Ordered by isolation / value, tied to the filed issues and the keepers:
 
 1. **Build the e2e ratchet** — `next → implement → move-task → review → status` parity from **main and
    lane CWD** (#1619 AC-5). The gate that proves a surface was unified, not re-masked. *(do first)*
-2. **Enforce the Status boundary** (#1664) — make the planning↔execution seam an actually-bounded
-   shared context (import test mirroring `test_shared_package_boundary.py`).
+2. **Enforce the Status boundary** (#1664) — make the Mission Management-owned `status/` module an actually-bounded domain (import test mirroring `test_shared_package_boundary.py`).
 3. **Harden ExecutionContext** — route the residue surfaces (`02` §4: `agent/status.py`, `runtime_bridge`
    query-mode, `workflow.py` fix-mode, …) through `resolve_action_context`; delete duplicated path-builders.
 4. **Consolidate the 3 context projections** → one communication-artefact contract (§2). **(Raised — §2:
@@ -146,8 +145,7 @@ Ordered by isolation / value, tied to the filed issues and the keepers:
 5. **MissionRun → Mission reference** (#1663) — contained; unblocks "runtime knows its mission".
 6. **Effector unification** (§3) — converge the Actor vocabularies. *(Deferred; trade-off in §3.)*
 7. **Commit-seam atomicity** — make `(worktree_root, destination_ref)` a single self-validating
-   **CommitTarget** owned by the operation (one atomicity domain), closing #1618/#1348. **Must be
-   validated by Debugger Debbie against the live `safe_commit` call graph before final sign-off / implementation.**
+   **CommitTarget** owned by the operation (one atomicity domain), closing #1618/#1348. **Gate cleared (2026-06-03):** forensic pass of the `safe_commit` call graph confirms the invariant is already enforced — `safe_commit` asserts `worktree.HEAD == destination_ref` before any staging, keyword-only args, `mypy --strict` enforced, no silent fallback. 7 direct call sites; all clean. `CommitTarget` is therefore an ergonomic improvement on clean code, not a safety gate. Safe to implement at step 7 with no design risk to steps 1–6.
 
 ---
 
@@ -162,20 +160,18 @@ the execution spine; Context is per-domain; Shared Kernel is a code module.
 1. **Effector** — **named-in-docs for now** (no code type until actor-kind drift causes a concrete bug). (§3)
 2. **`mission_runtime/`** — **net-new umbrella** (Screaming Architecture + Strangler), registered in the layer meta-guard. (§4)
 
-**Decided (Stijn, 2026-06-03) cont'd:**
+**Decided (Stijn + @robertDouglass, 2026-06-03) cont'd:**
 3. **Atomicity (I-4) — DECIDED: enforce** `(worktree_root, destination_ref)` as a single self-validating
-   **CommitTarget** (Option B; one atomicity domain → *closes* #1618/#1348, not just avoids). **Gate:**
-   Debugger Debbie validates the rationale against the live `safe_commit` call graph **before final
-   sign-off / implementation.** (§5/6; background below)
+   **CommitTarget** (Option B; one atomicity domain → *closes* #1618/#1348, not just avoids). **Gate cleared:** forensic pass of the `safe_commit` call graph confirms the invariant is already structurally enforced by `safe_commit` itself (HEAD assertion before staging, `mypy --strict`, no fallback). 7 direct call sites, all clean. `CommitTarget` is ergonomic hardening of clean code; safe to implement at step 7 with no design risk to steps 1–6. (§5/6; background below)
 4. **Communication-artefact contract — DECIDED: one assembly**, prompt-text + JSON as serializations of
    the same assembled context. **Priority raised** (not step-5 cleanup) — it is the mechanism for
    enforceable, transition-current Effector profile/charter loading and removes the UI display drift (§2).
+5. **`MissionStatus` aggregate — DECIDED: build full aggregate directly; no stepping stone.** Status belongs to Mission Management (not a shared context). `MissionStatus` owns both read path and write path; `BookkeepingTransaction` stays as infrastructure called internally. Domain invariants already in `status/transitions.py` — they move into the aggregate, not into `BookkeepingTransaction`. No `MissionStatusAuthority` intermediate. Decided 2026-06-03 (@robertDouglass).
+6. **Naming ratification (DIRECTIVE_032) — DECIDED:** GovernanceContext / ExecutionContext / InfraContext / Effector / communication-artefact ratified. ADR required before code lands. Decided 2026-06-03 (@robertDouglass).
 
-**Open (no decision):**
-5. **`MissionStatus` aggregate now, or keep free functions** behind the hardened facade? (`07` §4)
-6. **Naming ratification** (DIRECTIVE_032) — lock GovernanceContext / ExecutionContext / InfraContext / Effector / communication-artefact into the glossary + an ADR before code. *(open — no decision)*
+### Background (Q3 resolved, Q4 background retained)
 
-### Background for the two pending questions (Q3, Q4)
+> **Q3 resolved 2026-06-03:** forensic pass complete — see §7 item 3 above.
 
 **Q3 — `worktree_root == destination_ref` (the commit-atomicity invariant).** A commit goes through
 `safe_commit(repo_root, worktree_root, destination_ref, …)`. `worktree_root` = the git worktree you
@@ -203,8 +199,10 @@ context** (not three independent objects) — vs. leaving the projections separa
 ---
 
 ## 8. Path to a decided design
-1. **Ratify vocabulary** (Q6) → glossary + ADR(s) under `architecture/3.x/adr/`: (a) the domain model
-   (`17`); (b) ExecutionContext owner + one-atomicity-domain commit rule; (c) Effector/Actor unification.
+
+> **All §7 questions decided as of 2026-06-03.** Remaining work is ADR drafting + implementation.
+
+1. **Draft ADRs** (vocabulary ratified per DIRECTIVE_032) → `architecture/3.x/adr/`: (a) domain model (`17`) + Status ownership; (b) ExecutionContext owner + one-atomicity-domain commit rule; (c) Effector/Actor.
 2. **Build the e2e ratchet** (step 6.1).
 3. **Strangler increments** in the order of §6, each gated by the ratchet.
 4. **Close #1619** when no raw mission-state reads remain outside the resolver (except documented fallbacks) and the e2e parity test is green from both CWDs.

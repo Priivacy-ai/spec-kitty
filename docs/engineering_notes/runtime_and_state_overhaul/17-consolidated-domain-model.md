@@ -38,7 +38,7 @@ Stijn's conceptual refinements. This is the model we map onto `06` (technical co
 | **Governance** | domain | Charter ⊕ Doctrine — beliefs & rules; holds **GovernanceContext**, MissionType/MissionStep, AgentProfile | `src/charter/` ⊕ `src/doctrine/` (two clean contexts under one umbrella) |
 | **Mission Management** | domain | intent & planning (durable) — Mission, WorkPackage | `kitty-specs/` + planning commands |
 | **Execution / Runtime** | domain | the doing (ephemeral) — MissionRun, **ExecutionContext**, **Effector** | `src/runtime/next/_internal_runtime/` (canonical; *not* `specify_cli/next`) |
-| **Status / Kanban** | **shared context (seam)** | the lane FSM + event log; the contract by which planning ↔ execution communicate WP state | `src/specify_cli/status/` (needs import-boundary enforcement) |
+| **Status / Kanban** | **Mission Management-owned (OHS facade)** | the lane FSM + event log; owned by Mission Management, which publishes a facade — Execution/Runtime and other domains are consumers only. Decided 2026-06-03: shared-context framing was wrong; ownership prevents invariant drift. | `src/specify_cli/status/` (boundary NOT enforced → #1664) |
 | **Shared Kernel** | **code module** | cross-domain commons: path · identity · status resolvers (OHS facades) | `core/paths.py`, `workspace/root_resolver.py`, `mission_metadata`, `resolve_action_context`, `resolve_mission_read_path` |
 
 ### Context is per-domain (not one box)
@@ -78,7 +78,7 @@ graph TD
     RUN["MissionRun"]
   end
 
-  STATUS["STATUS / KANBAN — shared context (seam)<br/>Lane · StatusEvent · event log"]:::seam
+  STATUS["STATUS / KANBAN<br/>Lane · StatusEvent · event log<br/><i>owned by Mission Management;<br/>published via OHS facade</i>"]:::dom
   SK["Shared Kernel (code module)<br/>path / identity / status resolvers (OHS facades)"]:::shared
   INFRA["InfraContext (ambient)<br/>shipped roots · ~/.kittify · ~/.spec-kitty"]:::shared
   PROMPT["Executor Prompt<br/>communication artefact"]:::art
@@ -93,8 +93,8 @@ graph TD
   EFF -->|effects change in| MWP
   ACTOR -. correlates to .-> EFF
   GC -. beliefs .-> EFF
-  STATUS <-->|WP state| MM
-  STATUS <-->|WP state| EXEC
+  MM -->|owns / emits to| STATUS
+  STATUS -->|WP state (read via facade)| EXEC
   GC -->|built via| SK
   EC -->|built via| SK
   INFRA -->|built via| SK
@@ -111,7 +111,7 @@ graph TD
 |---------|--------|------|
 | Governance (Charter⊕Doctrine), GovernanceContext | exists | `charter/` ⊕ `doctrine/` |
 | Mission Management (Mission, WP) | exists | `kitty-specs/` + planning cmds |
-| Status/kanban shared context | exists; **needs boundary enforcement** | `specify_cli/status/` |
+| Status/kanban (Mission Management-owned, OHS facade) | exists; **needs boundary enforcement (#1664)** | `specify_cli/status/` |
 | Execution/Runtime, MissionRun | exists | `runtime/next/_internal_runtime/` |
 | ExecutionContext (= hardened ActionContext) | exists; **to harden** | `core/execution_context.py` |
 | Shared Kernel (resolvers) | exists | `core/paths.py`, `workspace/root_resolver.py`, … |
