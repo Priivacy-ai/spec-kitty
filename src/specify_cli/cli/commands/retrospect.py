@@ -11,6 +11,8 @@ Source-of-truth contract:
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 import contextlib
 import json
 import subprocess
@@ -372,7 +374,7 @@ def create_cmd(
         )
 
     # Auto-commit if enabled
-    events_path = repo_root / "kitty-specs" / record.mission_slug / "status.events.jsonl"
+    events_path = resolve_feature_dir_for_mission(repo_root, record.mission_slug) / "status.events.jsonl"
     _maybe_auto_commit(
         repo_root,
         [record_path, events_path],
@@ -783,7 +785,7 @@ def backfill_cmd(  # noqa: C901
     # Auto-commit created records
     if created_paths and not dry_run:
         event_paths = [
-            repo_root / "kitty-specs" / str(c.get("mission_slug", "")) / "status.events.jsonl"
+            resolve_feature_dir_for_mission(repo_root, str(c.get("mission_slug", ""))) / "status.events.jsonl"
             for c in created
             if not c.get("dry_run")
         ]
@@ -905,8 +907,8 @@ def summary_cmd(  # noqa: C901
     resolved_project: Path = project.resolve() if project is not None else Path.cwd()
 
     has_kittify = (resolved_project / ".kittify").exists()
-    has_kitty_specs = (resolved_project / "kitty-specs").exists()
-    if not has_kittify and not has_kitty_specs:
+    has_mission_specs = (resolved_project / KITTY_SPECS_DIR).exists()
+    if not has_kittify and not has_mission_specs:
         _err_console.print(
             "[red]Error:[/red] Project root invalid: "
             f"neither .kittify/ nor kitty-specs/ found in {resolved_project}"
@@ -972,7 +974,7 @@ def summary_cmd(  # noqa: C901
             # Classify against mission dir AND kitty-specs dir (for event log)
             feature_dir_for_classify: Path | None = None
             if mission_slug:
-                kitty_dir = resolved_project / "kitty-specs" / mission_slug
+                kitty_dir = resolve_feature_dir_for_mission(resolved_project, mission_slug)
                 if kitty_dir.is_dir():
                     feature_dir_for_classify = kitty_dir
             if feature_dir_for_classify is None:

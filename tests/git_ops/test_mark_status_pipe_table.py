@@ -405,11 +405,12 @@ class TestTasksTemplateCheckboxFormat:
         return (
             repo_root
             / "src"
-            / "specify_cli"
+            / "doctrine"
             / "missions"
+            / "mission-steps"
             / "software-dev"
-            / "templates"
-            / "tasks-template.md"
+            / "tasks"
+            / "prompt.md"
         )
 
     def test_template_mentions_checkbox_format(self):

@@ -11,6 +11,7 @@ authoritative-surface, and execution-mode consistency checks.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import fnmatch
 import logging
 from dataclasses import dataclass, field
@@ -32,7 +33,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 # Paths considered "planning only" for execution_mode consistency checks.
-_PLANNING_PREFIXES = ("kitty-specs/", "docs/")
+_PLANNING_PREFIXES = (f"{KITTY_SPECS_DIR}/", "docs/")
 # Paths considered "code" for execution_mode consistency checks.
 _CODE_PREFIXES = ("src/", "tests/")
 

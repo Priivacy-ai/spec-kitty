@@ -29,6 +29,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+
 if TYPE_CHECKING:
     pass
 
@@ -178,9 +180,9 @@ class MissionStatus:
 
             mission_dir_name = _compose_mission_dir(mission_slug, mid8)
             coord_root = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
-            coord_candidate = coord_root / "kitty-specs" / mission_dir_name
+            coord_candidate = coord_root / KITTY_SPECS_DIR / mission_dir_name
 
-        primary_candidate = repo_root / "kitty-specs" / mission_slug
+        primary_candidate = repo_root / KITTY_SPECS_DIR / mission_slug
 
         # 3. Resolve topology & read_dir.
         if coord_candidate is not None and coord_candidate.exists():
@@ -227,7 +229,7 @@ class MissionStatus:
             ``(mission_id, coordination_branch)`` — either may be ``None`` for
             legacy missions.
         """
-        meta_path = repo_root / "kitty-specs" / mission_slug / "meta.json"
+        meta_path = repo_root / KITTY_SPECS_DIR / mission_slug / "meta.json"
         if not meta_path.exists():
             return None, None
         try:
@@ -242,7 +244,7 @@ class MissionStatus:
             raise MissionMetadataUnavailable(
                 mission_slug=mission_slug,
                 meta_path=meta_path,
-                primary_candidate=repo_root / "kitty-specs" / mission_slug,
+                primary_candidate=repo_root / KITTY_SPECS_DIR / mission_slug,
                 reason=str(exc),
             ) from exc
         if not isinstance(meta, dict):
@@ -254,7 +256,7 @@ class MissionStatus:
             raise MissionMetadataUnavailable(
                 mission_slug=mission_slug,
                 meta_path=meta_path,
-                primary_candidate=repo_root / "kitty-specs" / mission_slug,
+                primary_candidate=repo_root / KITTY_SPECS_DIR / mission_slug,
                 reason=f"expected object, got {type(meta).__name__}",
             )
 
@@ -263,7 +265,7 @@ class MissionStatus:
             raise MissionMetadataUnavailable(
                 mission_slug=mission_slug,
                 meta_path=meta_path,
-                primary_candidate=repo_root / "kitty-specs" / mission_slug,
+                primary_candidate=repo_root / KITTY_SPECS_DIR / mission_slug,
                 reason=f"mission_id must be string or null, got {type(mission_id_value).__name__}",
             )
 
@@ -276,7 +278,7 @@ class MissionStatus:
             raise MissionMetadataUnavailable(
                 mission_slug=mission_slug,
                 meta_path=meta_path,
-                primary_candidate=repo_root / "kitty-specs" / mission_slug,
+                primary_candidate=repo_root / KITTY_SPECS_DIR / mission_slug,
                 reason=f"coordination_branch must be string or null, got {type(coord_branch).__name__}",
             )
         coordination_branch = coord_branch.strip() if isinstance(coord_branch, str) and coord_branch.strip() else None

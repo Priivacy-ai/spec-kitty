@@ -139,13 +139,13 @@ def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
         assert f"needs.{job_name}.result" in script
 
 
-def test_release_publish_does_not_require_downstream_evidence_before_pypi() -> None:
+def test_release_publish_requires_downstream_consumer_evidence_before_pypi() -> None:
     workflow = load_workflow("release.yml")
     jobs = workflow["jobs"]
     publish_job = jobs["publish-pypi"]
 
-    assert "downstream-consumer-verify" not in jobs
-    assert publish_job["needs"] == "build-release"
+    assert "downstream-consumer-verify" in jobs
+    assert set(publish_job["needs"]) == {"build-release", "downstream-consumer-verify"}
 
 
 def test_release_verifies_pypi_exact_install_after_publish() -> None:
@@ -164,13 +164,12 @@ def test_publish_release_does_not_require_canary_verification_artifact() -> None
 
     assert "canary-verify" not in jobs
     publish = jobs["publish-pypi"]
-    assert publish["needs"] == "build-release"
+    assert set(publish["needs"]) == {"build-release", "downstream-consumer-verify"}
 
     publish_dump = repr(publish)
     assert "actions/checkout" in publish_dump
     assert publish["permissions"]["contents"] == "write"
     assert "canary" not in publish_dump.lower()
-    assert "downstream" not in publish_dump.lower()
     assert "Create GitHub Release" in publish_dump
     assert "Create GitHub Release" not in repr(jobs["build-release"])
     assert "sbom.cdx.json" in repr(jobs["build-release"])

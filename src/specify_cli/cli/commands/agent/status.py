@@ -7,6 +7,7 @@ Provides CLI access to the status emit/materialize pipeline:
 
 from __future__ import annotations
 
+from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
 import json
 import logging
 from pathlib import Path
@@ -76,7 +77,7 @@ def _find_mission_slug(
 
     raw_handle = selector.canonical_value
     if repo_root is not None:
-        legacy_dir = get_main_repo_root(repo_root) / "kitty-specs" / raw_handle
+        legacy_dir = candidate_feature_dir_for_mission(get_main_repo_root(repo_root), raw_handle)
         if legacy_dir.exists():
             return raw_handle
         try:

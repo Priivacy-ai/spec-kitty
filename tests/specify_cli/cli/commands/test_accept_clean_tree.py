@@ -104,6 +104,9 @@ def _create_lane_feature(
     for fname in ("spec.md", "plan.md", "tasks.md"):
         (feature_dir / fname).write_text(f"# {fname}\nDone.\n")
 
+    for dirname in ("src", "tests", "contracts", "docs"):
+        (repo_root / dirname).mkdir()
+
     (tasks_dir / "WP01-test.md").write_text(
         "---\n"
         'work_package_id: "WP01"\n'

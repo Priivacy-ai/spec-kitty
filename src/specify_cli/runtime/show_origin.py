@@ -86,7 +86,32 @@ def _discover_command_names(mission: str) -> list[str]:
         pkg_cmd_dir = pkg_root / mission / "command-templates"
         if pkg_cmd_dir.is_dir():
             names.update(f.name for f in pkg_cmd_dir.iterdir() if f.is_file() and f.suffix == ".md")
+        pkg_steps_dir = pkg_root / "mission-steps" / mission
+        if pkg_steps_dir.is_dir():
+            names.update(
+                f"{step_dir.name}.md"
+                for step_dir in pkg_steps_dir.iterdir()
+                if step_dir.is_dir() and (step_dir / "prompt.md").is_file()
+            )
     except OSError:
+        pass
+
+    try:
+        import doctrine  # noqa: PLC0415
+
+        doctrine_steps = (
+            Path(doctrine.__file__).parent
+            / "missions"
+            / "mission-steps"
+            / mission
+        )
+        if doctrine_steps.is_dir():
+            names.update(
+                f"{step_dir.name}.md"
+                for step_dir in doctrine_steps.iterdir()
+                if step_dir.is_dir() and (step_dir / "prompt.md").is_file()
+            )
+    except ImportError:
         pass
 
     if not names:

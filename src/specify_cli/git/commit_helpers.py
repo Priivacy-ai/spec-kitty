@@ -58,6 +58,7 @@ Any new exception requires a doctrine-level decision (DIRECTIVE_003).
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import contextlib
 import logging
 import os
@@ -466,9 +467,8 @@ def _is_protected_branch_exception(commit_message: str) -> bool:
     )
 
 
-def protected_branch_bypass_enabled() -> bool:
-    allowed_values = {"1", "true", "yes"}
-    return os.environ.get("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "").lower() in allowed_values
+def _test_mode_allows_protected_branch() -> bool:
+    return os.environ.get("SPEC_KITTY_TEST_MODE", "").lower() in {"1", "true", "yes"}
 
 
 def assert_staging_area_matches_expected(
@@ -757,7 +757,7 @@ def _derive_mission_id(paths: list[str]) -> str:
     for p in paths:
         parts = Path(p).parts
         for i, part in enumerate(parts):
-            if part == "kitty-specs" and i + 1 < len(parts):
+            if part == KITTY_SPECS_DIR and i + 1 < len(parts):
                 return parts[i + 1]
     return ""
 
@@ -788,6 +788,7 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
     destination_ref: str,
     message: str,
     paths: tuple[Path, ...],
+    allow_protected_branch_in_test_mode: bool = False,
 ) -> CommitResult:
     """Commit ``paths`` to ``destination_ref`` inside ``worktree_root``.
 
@@ -826,6 +827,9 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
         message: The commit message.
         paths: Tuple of file paths to commit. Absolute paths are resolved
             relative to ``worktree_root`` when possible.
+        allow_protected_branch_in_test_mode: Explicit test-only escape hatch
+            for internal callers that intentionally exercise protected-branch
+            writes. Defaults to ``False`` so direct helper use fails closed.
 
     Returns:
         :class:`CommitResult` carrying the new commit SHA, the declared
@@ -883,8 +887,11 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
     )
     if (
         is_protected
-        and not protected_branch_bypass_enabled()
         and not _is_protected_branch_exception(message)
+        and not (
+            allow_protected_branch_in_test_mode
+            and _test_mode_allows_protected_branch()
+        )
     ):
         raise ProtectedBranchRefused(
             destination_ref=destination_ref,
@@ -1011,21 +1018,21 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
     # Emit a LocalCommit frame for any paths under kitty-specs/ (FR-010–FR-017).
     # This is fire-and-forget: failures are logged and swallowed so a notification
     # failure never aborts a successful commit.
-    kitty_specs_files = [
+    mission_specs_files = [
         str(Path(p).relative_to(worktree_root)) if Path(p).is_absolute() else str(p)
         for p in paths
-        if "kitty-specs" in Path(p).parts
+        if KITTY_SPECS_DIR in Path(p).parts
     ]
-    if kitty_specs_files:
+    if mission_specs_files:
         try:
             from specify_cli.sync.local_commit import emit_local_commit  # noqa: PLC0415
 
             emit_local_commit(
                 repo_root=repo_root,
                 git_hash=new_sha,
-                mission_id=_derive_mission_id(kitty_specs_files),
+                mission_id=_derive_mission_id(mission_specs_files),
                 build_id=_get_current_build_id(repo_root),
-                changed_files=kitty_specs_files,
+                changed_files=mission_specs_files,
                 committed_at=datetime.now(UTC).isoformat(),
             )
         except Exception:  # noqa: BLE001

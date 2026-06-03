@@ -113,10 +113,10 @@ def get_merge_order(
     return result
 
 
-def assign_next_mission_number(target_branch_path: Path, kitty_specs_dir: Path) -> int:
+def assign_next_mission_number(target_branch_path: Path, mission_specs_dir: Path) -> int:
     """Compute the next dense integer ``mission_number`` for the target branch.
 
-    Walks ``kitty_specs_dir`` (which should reflect the checked-out target
+    Walks ``mission_specs_dir`` (which should reflect the checked-out target
     branch's ``kitty-specs/`` view), reads every mission's ``meta.json`` via
     the canonical metadata loader, collects all non-null integer
     ``mission_number`` values, and returns ``max(collected) + 1`` -- or ``1``
@@ -133,9 +133,9 @@ def assign_next_mission_number(target_branch_path: Path, kitty_specs_dir: Path) 
             (e.g. the merge worktree at
             ``.kittify/runtime/merge/<mission_id>/workspace/``). Currently
             unused for I/O -- present in the signature so callers explicitly
-            document which branch's view they are reading.  ``kitty_specs_dir``
+            document which branch's view they are reading.  ``mission_specs_dir``
             must be a child of (or otherwise consistent with) this path.
-        kitty_specs_dir: Path to the ``kitty-specs/`` directory on the
+        mission_specs_dir: Path to the ``kitty-specs/`` directory on the
             target branch worktree.  Each immediate subdirectory containing a
             ``meta.json`` is treated as a mission.
 
@@ -156,11 +156,11 @@ def assign_next_mission_number(target_branch_path: Path, kitty_specs_dir: Path) 
 
     del target_branch_path  # Documentation only -- see docstring.
 
-    if not kitty_specs_dir.exists() or not kitty_specs_dir.is_dir():
+    if not mission_specs_dir.exists() or not mission_specs_dir.is_dir():
         return 1
 
     collected: list[int] = []
-    for child in sorted(kitty_specs_dir.iterdir()):
+    for child in sorted(mission_specs_dir.iterdir()):
         if not child.is_dir():
             continue
         if not (child / "meta.json").exists():

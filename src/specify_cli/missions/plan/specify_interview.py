@@ -16,6 +16,7 @@ infrastructure already used by charter.py.
 
 from __future__ import annotations
 
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 import contextlib
 import json
 from pathlib import Path
@@ -52,7 +53,7 @@ def _resolve_actor() -> str:
 
 def _get_mission_id(repo_root: Path, mission_slug: str) -> str | None:
     """Read mission_id (ULID) from kitty-specs/<slug>/meta.json."""
-    meta_path = repo_root / "kitty-specs" / mission_slug / "meta.json"
+    meta_path = resolve_feature_dir_for_mission(repo_root, mission_slug) / "meta.json"
     with contextlib.suppress(Exception):
         data = json.loads(meta_path.read_text(encoding="utf-8"))
         return data.get("mission_id") or None

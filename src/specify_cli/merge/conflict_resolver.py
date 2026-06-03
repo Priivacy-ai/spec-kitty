@@ -14,6 +14,7 @@ Rules:
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 import subprocess
 from dataclasses import dataclass, field
@@ -102,7 +103,7 @@ def classify_conflict(file_path: str) -> ConflictType:
 
     # WP prompt files (frontmatter markdown under kitty-specs/*/tasks/)
     if (
-        "kitty-specs/" in normalized
+        f"{KITTY_SPECS_DIR}/" in normalized
         and "/tasks/" in normalized
         and normalized.endswith(".md")
     ):

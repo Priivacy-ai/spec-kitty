@@ -10,6 +10,7 @@ All recovery transitions use actor="recovery" for auditability.
 
 from __future__ import annotations
 
+from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
 import logging
 import subprocess
 from dataclasses import dataclass, field
@@ -306,7 +307,7 @@ def scan_recovery_state(  # noqa: C901
     even though they have no live branch — callers can check the
     ``resolution_note`` field to distinguish these from real recovery cases.
     """
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
 
     # Collect all lane branches (skip the mission integration branch itself)
     branches = _list_mission_branches(repo_root, mission_slug)
@@ -560,7 +561,7 @@ def recover_context(
     When the context file is missing but the branch and worktree exist,
     reconstruct the context from available metadata.
     """
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
     worktree_path = repo_root / ".worktrees" / f"{mission_slug}-{state.lane_id}"
 
     # Get base info from lanes.json
@@ -613,7 +614,7 @@ def reconcile_status(
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
     from specify_cli.status import TransitionRequest  # noqa: PLC0415
 
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
     current_lane = state.status_lane
 
     # Determine target lane based on evidence

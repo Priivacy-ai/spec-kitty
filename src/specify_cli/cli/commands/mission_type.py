@@ -14,6 +14,8 @@ surface; they operate on per-mission metadata, not doctrine mission types.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 import json
 from pathlib import Path
 from collections.abc import Iterable
@@ -209,10 +211,10 @@ def current_cmd(
             "or run from within a mission worktree."
         )
         # Optionally list available missions
-        kitty_specs = project_root / "kitty-specs"
-        if kitty_specs.is_dir():
+        mission_specs = project_root / KITTY_SPECS_DIR
+        if mission_specs.is_dir():
             missions = sorted(
-                d.name for d in kitty_specs.iterdir()
+                d.name for d in mission_specs.iterdir()
                 if d.is_dir() and d.name[0:1].isdigit()
             )
             if missions:
@@ -245,7 +247,7 @@ def current_cmd(
             raise typer.Exit(1) from exc
 
     try:
-        feature_dir = project_root / "kitty-specs" / mission_slug
+        feature_dir = resolve_feature_dir_for_mission(project_root, mission_slug)
         if not feature_dir.exists():
             console.print(f"[red]Mission not found:[/red] {mission_slug}")
             raise typer.Exit(1)
@@ -549,7 +551,7 @@ def close_cmd(
         )
         raise typer.Exit(1)
 
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
     if not feature_dir.exists():
         console.print(f"[red]Mission not found:[/red] {mission_slug}")
         raise typer.Exit(1)

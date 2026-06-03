@@ -8,6 +8,7 @@ for diagnostics.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 import subprocess
 from dataclasses import dataclass, field
@@ -134,7 +135,7 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
 
     main_repo_root = get_main_repo_root(repo_root)
     target_branch = get_feature_target_branch(main_repo_root, mission_slug)
-    feature_dir = main_repo_root / "kitty-specs" / mission_slug
+    feature_dir = main_repo_root / KITTY_SPECS_DIR / mission_slug
     identity = resolve_mission_identity(feature_dir)
     lanes_manifest = read_lanes_json(feature_dir)
     graph = build_dependency_graph(feature_dir)

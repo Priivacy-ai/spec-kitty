@@ -3,6 +3,8 @@ Manifest system for spec-kitty file verification.
 This module generates and checks expected files based on the mission context.
 """
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import subprocess
@@ -161,9 +163,9 @@ class WorktreeStatus:
         features = self._get_features_from_branches()
 
         # Get features from kitty-specs
-        kitty_specs = self.repo_root / "kitty-specs"
-        if kitty_specs.exists():
-            for feature_dir in kitty_specs.iterdir():
+        mission_specs = self.repo_root / KITTY_SPECS_DIR
+        if mission_specs.exists():
+            for feature_dir in mission_specs.iterdir():
                 if feature_dir.is_dir() and feature_dir.name[0].isdigit() and "-" in feature_dir.name:
                     features.add(feature_dir.name)
 
@@ -239,12 +241,12 @@ class WorktreeStatus:
             status["worktree_exists"] = True
             status["worktree_path"] = str(worktree_path)
 
-        main_artifacts_path = self.repo_root / "kitty-specs" / feature
+        main_artifacts_path = resolve_feature_dir_for_mission(self.repo_root, feature)
         if main_artifacts_path.exists():
             status["artifacts_in_main"] = [a.name for a in main_artifacts_path.glob("*.md")]
 
         if status["worktree_exists"]:
-            wt_artifacts = worktree_path / "kitty-specs" / feature
+            wt_artifacts = candidate_feature_dir_for_mission(worktree_path, feature)
             if wt_artifacts.exists():
                 status["artifacts_in_worktree"] = [a.name for a in wt_artifacts.glob("*.md")]
 

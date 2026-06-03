@@ -5,6 +5,7 @@ which allow Spec Kitty to support multiple domains (software dev, research,
 writing, etc.) with domain-specific templates, workflows, and validation.
 """
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 import os
 import warnings
@@ -55,6 +56,21 @@ MISSION_COMPAT_IGNORED_FIELDS: tuple[str, ...] = (
     "inputs",
     "outputs",
 )
+
+
+def _packaged_missions_dir() -> Path:
+    return Path(__file__).resolve().parent / "missions"
+
+
+def _mission_dir_if_valid(path: Path) -> Path | None:
+    return path if path.is_dir() and (path / "mission.yaml").exists() else None
+
+
+def _mission_path_by_name(mission_name: str, kittify_dir: Path) -> Path | None:
+    project_path = _mission_dir_if_valid(kittify_dir / "missions" / mission_name)
+    if project_path is not None:
+        return project_path
+    return _mission_dir_if_valid(_packaged_missions_dir() / mission_name)
 
 
 class PhaseConfig(BaseModel):
@@ -451,6 +467,11 @@ def get_active_mission(project_root: Path | None = None) -> Mission:
         mission_path = kittify_dir / "missions" / "software-dev"
 
     if not mission_path.exists():
+        packaged_path = _mission_path_by_name(mission_path.name, kittify_dir)
+        if packaged_path is not None:
+            mission_path = packaged_path
+
+    if not mission_path.exists():
         raise MissionNotFoundError(f"Active mission directory not found: {mission_path}\nAvailable missions: {list_available_missions(kittify_dir)}")
 
     return Mission(mission_path)
@@ -468,15 +489,13 @@ def list_available_missions(kittify_dir: Path | None = None) -> list[str]:
     if kittify_dir is None:
         kittify_dir = Path.cwd() / ".kittify"
 
-    missions_dir = kittify_dir / "missions"
-
-    if not missions_dir.exists():
-        return []
-
-    missions = []
-    for mission_dir in missions_dir.iterdir():
-        if mission_dir.is_dir() and (mission_dir / "mission.yaml").exists():
-            missions.append(mission_dir.name)
+    missions = set()
+    for missions_dir in (kittify_dir / "missions", _packaged_missions_dir()):
+        if not missions_dir.exists():
+            continue
+        for mission_dir in missions_dir.iterdir():
+            if _mission_dir_if_valid(mission_dir) is not None:
+                missions.add(mission_dir.name)
 
     return sorted(missions)
 
@@ -497,21 +516,11 @@ def get_mission_by_name(mission_name: str, kittify_dir: Path | None = None) -> M
     if kittify_dir is None:
         kittify_dir = Path.cwd() / ".kittify"
 
-    mission_path = kittify_dir / "missions" / mission_name
+    mission_path = _mission_path_by_name(mission_name, kittify_dir)
 
-    if not mission_path.exists():
-        project_root = kittify_dir.parent
-        try:
-            from specify_cli.runtime.resolver import resolve_mission
-
-            resolved = resolve_mission(mission_name, project_root)
-            return Mission(resolved.path.parent)
-        except FileNotFoundError:
-            available = list_available_missions(kittify_dir)
-            raise MissionNotFoundError(
-                f"Mission '{mission_name}' not found.\n"
-                f"Available missions: {', '.join(available) if available else 'none'}"
-            ) from None
+    if mission_path is None:
+        available = list_available_missions(kittify_dir)
+        raise MissionNotFoundError(f"Mission '{mission_name}' not found.\nAvailable missions: {', '.join(available) if available else 'none'}")
 
     return Mission(mission_path)
 
@@ -643,7 +652,7 @@ def validate_deliverables_path(deliverables_path: str) -> tuple[bool, str]:
     path = deliverables_path.strip().rstrip("/")
 
     # Check if inside kitty-specs/
-    if path.startswith("kitty-specs/") or path.startswith("kitty-specs"):
+    if path.startswith(f"{KITTY_SPECS_DIR}/") or path.startswith(KITTY_SPECS_DIR):
         return False, "deliverables_path must NOT be inside kitty-specs/ (reserved for planning artifacts)"
 
     # Check if just 'research/' at root
@@ -723,23 +732,20 @@ def discover_missions(project_root: Path | None = None) -> dict[str, tuple[Missi
 
     kittify_dir = project_root / ".kittify"
 
-    if not kittify_dir.exists():
-        return {}
-
-    missions_dir = kittify_dir / "missions"
-
-    if not missions_dir.exists():
-        return {}
-
     missions: dict[str, tuple[Mission, str]] = {}
 
-    for mission_dir in missions_dir.iterdir():
-        if mission_dir.is_dir() and (mission_dir / "mission.yaml").exists():
+    for missions_dir, source in (
+        (_packaged_missions_dir(), "built-in"),
+        (kittify_dir / "missions", "project"),
+    ):
+        if not missions_dir.exists():
+            continue
+        for mission_dir in missions_dir.iterdir():
+            if _mission_dir_if_valid(mission_dir) is None:
+                continue
             try:
                 mission = Mission(mission_dir)
-                # For now, all missions are "project" source
-                # (built-in and project share same location in .kittify/missions/)
-                missions[mission_dir.name] = (mission, "project")
+                missions[mission_dir.name] = (mission, source)
             except MissionError as e:
                 warnings.warn(f"Skipping invalid mission '{mission_dir.name}': {e}", stacklevel=2)
 

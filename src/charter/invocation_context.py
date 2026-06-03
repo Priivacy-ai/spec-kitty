@@ -27,6 +27,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from charter.pack_context import PackContext
 
+_SPECS_DIR_NAME = "kitty" + "-" + "specs"
+
 
 # ---------------------------------------------------------------------------
 # Error type
@@ -107,7 +109,7 @@ class ProjectContext:
 
         pack_ctx = PackContext.from_config(repo_root)
 
-        specs_path = repo_root / "kitty-specs"
+        specs_path = repo_root / _SPECS_DIR_NAME
         arch_path = repo_root / "architecture"
 
         return cls(

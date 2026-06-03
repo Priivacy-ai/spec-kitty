@@ -17,6 +17,7 @@ mission_id resolution:
 
 from __future__ import annotations
 
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -113,7 +114,7 @@ def _resolve_mission_id(repo_root: Path, mission_slug: str) -> str:
     Raises:
         DecisionError(MISSION_NOT_FOUND): if meta.json is missing or has no mission_id.
     """
-    meta_path = repo_root / "kitty-specs" / mission_slug / "meta.json"
+    meta_path = resolve_feature_dir_for_mission(repo_root, mission_slug) / "meta.json"
     if not meta_path.exists():
         raise DecisionError(
             code=DecisionErrorCode.MISSION_NOT_FOUND,
@@ -140,7 +141,7 @@ def _resolve_mission_id(repo_root: Path, mission_slug: str) -> str:
 
 def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
     """Return kitty-specs/<mission_slug>/."""
-    return repo_root / "kitty-specs" / mission_slug
+    return resolve_feature_dir_for_mission(repo_root, mission_slug)
 
 
 def _events_path(repo_root: Path, mission_slug: str) -> Path:

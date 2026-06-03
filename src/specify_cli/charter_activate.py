@@ -104,11 +104,11 @@ def find_removed_steps(
 
 def scan_inflight_missions(
     removed_steps: list[str],
-    kitty_specs_dir: Path,
+    mission_specs_dir: Path,
 ) -> list[StepRemovalWarning]:
     """Scan all missions for WPs in-flight for the removed steps.
 
-    For each removed step ID, inspect every mission in ``kitty_specs_dir``
+    For each removed step ID, inspect every mission in ``mission_specs_dir``
     for WPs in a non-terminal (in-flight) lane.
 
     The step→lane mapping uses a simplified heuristic: any WP in an
@@ -123,7 +123,7 @@ def scan_inflight_missions(
     ----------
     removed_steps:
         Step IDs removed by the incoming override.
-    kitty_specs_dir:
+    mission_specs_dir:
         The ``kitty-specs/`` directory in the repository root.
 
     Returns
@@ -142,8 +142,8 @@ def scan_inflight_missions(
     # each removed step (conservative: all removed steps get the same set).
     all_inflight: list[AffectedMission] = []
 
-    if kitty_specs_dir.is_dir():
-        for mission_dir in sorted(kitty_specs_dir.iterdir()):
+    if mission_specs_dir.is_dir():
+        for mission_dir in sorted(mission_specs_dir.iterdir()):
             if not mission_dir.is_dir():
                 continue
 

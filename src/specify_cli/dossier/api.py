@@ -13,6 +13,7 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/tasks/WP06-ap
 
 from __future__ import annotations
 
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -223,7 +224,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
         """
         try:
             # Load snapshot
-            feature_dir = self.repo_root / "kitty-specs" / mission_slug
+            feature_dir = resolve_feature_dir_for_mission(self.repo_root, mission_slug)
             snapshot = load_snapshot(feature_dir, mission_slug)
 
             if not snapshot:
@@ -393,7 +394,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
             SnapshotExportResponse or error dict (SaaS import-compatible)
         """
         try:
-            feature_dir = self.repo_root / "kitty-specs" / mission_slug
+            feature_dir = resolve_feature_dir_for_mission(self.repo_root, mission_slug)
             snapshot = load_snapshot(feature_dir, mission_slug)
 
             if not snapshot:
@@ -431,7 +432,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
         Raises:
             ValueError, TypeError on invalid snapshot data
         """
-        feature_dir = self.repo_root / "kitty-specs" / mission_slug
+        feature_dir = resolve_feature_dir_for_mission(self.repo_root, mission_slug)
         snapshot = load_snapshot(feature_dir, mission_slug)
 
         if not snapshot:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
 import json
 from pathlib import Path
 from typing import Any, Annotated
@@ -35,7 +36,7 @@ def _resolve_feature_dir(
     """
     if not feature:
         return None
-    feature_dir = project_root / "kitty-specs" / feature.strip()
+    feature_dir = candidate_feature_dir_for_mission(project_root, feature.strip())
     return feature_dir if feature_dir.is_dir() else None
 
 TOOL_LABELS = [

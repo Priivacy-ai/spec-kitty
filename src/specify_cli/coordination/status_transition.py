@@ -7,6 +7,7 @@ bookkeeping commit succeeds.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -43,7 +44,7 @@ class _TransactionIdentity:
 def _repo_root_for_feature(feature_dir: Path, repo_root: Path | None) -> Path:
     if repo_root is not None:
         return repo_root
-    if feature_dir.parent.name == "kitty-specs":
+    if feature_dir.parent.name == KITTY_SPECS_DIR:
         return feature_dir.parent.parent
     return feature_dir
 
@@ -256,7 +257,7 @@ def _read_events_from_transaction_target(
         mission_slug,
         identity.mid8,
     )
-    transaction_feature_dir = worktree_root / "kitty-specs" / _transaction_dir_name(
+    transaction_feature_dir = worktree_root / KITTY_SPECS_DIR / _transaction_dir_name(
         mission_slug,
         identity.mid8,
     )
@@ -324,7 +325,7 @@ def _read_contract_from_transaction_target(
         mission_slug,
         identity.mid8,
     )
-    transaction_feature_dir = worktree_root / "kitty-specs" / _transaction_dir_name(
+    transaction_feature_dir = worktree_root / KITTY_SPECS_DIR / _transaction_dir_name(
         mission_slug,
         identity.mid8,
     )
@@ -389,6 +390,7 @@ def emit_status_transition_transactional(
     ensure_sync_daemon: bool = True,
     sync_dossier: bool = True,
     operation: str | None = None,
+    allow_protected_branch_in_test_mode: bool = False,
 ) -> StatusEvent:
     """Validate, append, commit, then fan out one status transition."""
     feature_dir = request.feature_dir or request.mission_dir
@@ -411,6 +413,7 @@ def emit_status_transition_transactional(
         mid8=identity.mid8,
         destination_ref=identity.destination_ref,
         operation=operation or f"status transition {request.wp_id}",
+        allow_protected_branch_in_test_mode=allow_protected_branch_in_test_mode,
     ) as txn:
         mission_id_for_event = None if identity.mission_id.startswith("legacy-") else identity.mission_id
         from_lane = str(_emit._derive_from_lane(txn.feature_dir, request.wp_id))
@@ -459,6 +462,7 @@ def emit_status_transition_batch_transactional(
     ensure_sync_daemon: bool = True,
     sync_dossier: bool = True,
     operation: str | None = None,
+    allow_protected_branch_in_test_mode: bool = False,
 ) -> list[StatusEvent]:
     """Validate, append, commit, then fan out a same-WP transition batch."""
     if not requests:
@@ -487,6 +491,7 @@ def emit_status_transition_batch_transactional(
         mid8=identity.mid8,
         destination_ref=identity.destination_ref,
         operation=operation or f"status transition batch {first.wp_id}",
+        allow_protected_branch_in_test_mode=allow_protected_branch_in_test_mode,
     ) as txn:
         mission_id_for_event = None if identity.mission_id.startswith("legacy-") else identity.mission_id
         from_lane = str(_emit._derive_from_lane(txn.feature_dir, first.wp_id))

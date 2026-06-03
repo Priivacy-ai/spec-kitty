@@ -42,6 +42,8 @@ class GitChangeSet:
         message: The would-be commit message (diagnostic only).
         operation: A short diagnostic label naming the caller's intent
             (e.g. ``"emit_status_transition"``).
+        allow_protected_branch_in_test_mode: Explicit, env-gated test-only
+            escape hatch for legacy no-worktree fixtures.
     """
 
     destination_ref: str
@@ -50,6 +52,7 @@ class GitChangeSet:
     paths: tuple[Path, ...]
     message: str
     operation: str
+    allow_protected_branch_in_test_mode: bool = False
 
 
 @dataclass(frozen=True)

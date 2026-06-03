@@ -17,7 +17,6 @@ from __future__ import annotations
 import logging
 import sys
 import warnings
-from importlib.util import find_spec
 from pathlib import Path
 
 # Single source of truth for the resolution enum / result dataclass.
@@ -176,6 +175,8 @@ def _resolve_asset(
     try:
         pkg_missions = get_package_asset_root()
         pkg_path = pkg_missions / mission / subdir / name
+        if subdir == "command-templates" and not pkg_path.is_file():
+            pkg_path = pkg_missions / "mission-steps" / mission / Path(name).stem / "prompt.md"
         if pkg_path.is_file():
             return ResolutionResult(
                 path=pkg_path,
@@ -185,37 +186,26 @@ def _resolve_asset(
     except FileNotFoundError:
         pass
 
-    # Compatibility package tier: command skills moved from
-    # specify_cli/missions/<mission>/command-templates/*.md to
-    # doctrine/missions/mission-steps/<mission>/<command>/prompt.md.
-    if subdir == "command-templates" and name.endswith(".md"):
-        loaded_doctrine = sys.modules.get("doctrine")
-        loaded_file = getattr(loaded_doctrine, "__file__", None)
-        if isinstance(loaded_file, str) and loaded_file:
-            doctrine_path = Path(loaded_file).parent
-        else:
-            try:
-                spec = find_spec("doctrine")
-            except (ModuleNotFoundError, ValueError):
-                spec = None
-            locations = list(spec.submodule_search_locations or ()) if spec is not None else []
-            doctrine_path = Path(locations[0]) if locations else None
-        if doctrine_path is not None:
-            command_name = name.removesuffix(".md")
-            step_prompt = (
-                doctrine_path
+    if subdir == "command-templates":
+        try:
+            import doctrine  # noqa: PLC0415
+
+            doctrine_path = (
+                Path(doctrine.__file__).parent
                 / "missions"
                 / "mission-steps"
                 / mission
-                / command_name
+                / Path(name).stem
                 / "prompt.md"
             )
-            if step_prompt.is_file():
+            if doctrine_path.is_file():
                 return ResolutionResult(
-                    path=step_prompt,
+                    path=doctrine_path,
                     tier=ResolutionTier.PACKAGE_DEFAULT,
                     mission=mission,
                 )
+        except ImportError:
+            pass
 
     raise FileNotFoundError(
         f"Asset '{name}' not found in any resolution tier "

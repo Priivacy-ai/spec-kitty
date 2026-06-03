@@ -35,6 +35,13 @@ _FEATURE_WP_METADATA_ERROR_CACHE: dict[tuple[str, str], dict[str, ValueError]] =
 _FEATURE_WP_METADATA_SNAPSHOT_CACHE: dict[tuple[str, str], tuple[tuple[str, int], ...]] = {}
 
 
+def _resolve_feature_dir(repo_root: Path, mission_slug: str) -> Path:
+    from specify_cli.lanes.branch_naming import mid8_from_slug
+    from specify_cli.missions._read_path_resolver import resolve_mission_read_path
+
+    return resolve_mission_read_path(repo_root, mission_slug, mid8_from_slug(mission_slug))
+
+
 @dataclass(frozen=True)
 class NormalizedWorkPackage:
     """Mission-scoped in-memory normalized WP metadata.
@@ -354,7 +361,7 @@ def resolve_active_wp_for_branch(
         )
 
     context = matching_contexts[0]
-    feature_dir = repo_root / "kitty-specs" / context.mission_slug
+    feature_dir = _resolve_feature_dir(repo_root, context.mission_slug)
     lane_wp_ids = _context_lane_wp_ids(context)
 
     if not feature_dir.is_dir():
@@ -550,7 +557,7 @@ def build_normalized_wp_index(
     callers share one canonical classification result.
     """
     cache_key = _normalized_feature_cache_key(repo_root, mission_slug)
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir = _resolve_feature_dir(repo_root, mission_slug)
     tasks_dir = feature_dir / "tasks"
     snapshot = _normalized_feature_snapshot(tasks_dir)
     cached = _FEATURE_WP_METADATA_CACHE.get(cache_key)
@@ -598,7 +605,7 @@ def get_normalized_wp(
         error = _FEATURE_WP_METADATA_ERROR_CACHE.get(cache_key, {}).get(wp_id)
         if error is not None:
             raise error
-        raise ValueError(f"Work package {wp_id} was not found under {repo_root / 'kitty-specs' / mission_slug / 'tasks'}")
+        raise ValueError(f"Work package {wp_id} was not found under {_resolve_feature_dir(repo_root, mission_slug) / 'tasks'}")
     return entry
 
 
@@ -636,7 +643,7 @@ def resolve_workspace_for_wp(
         )
         # Try to populate lane_wp_ids from lanes.json if available.
         lane_wp_ids: list[str] = []
-        feature_dir = repo_root / "kitty-specs" / mission_slug
+        feature_dir = _resolve_feature_dir(repo_root, mission_slug)
         lanes_manifest = read_lanes_json(feature_dir)
         if lanes_manifest is not None:
             planning_lane = lanes_manifest.lane_for_wp(wp_id)
@@ -674,7 +681,7 @@ def resolve_workspace_for_wp(
             context=context,
         )
 
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir = _resolve_feature_dir(repo_root, mission_slug)
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.compute import PLANNING_LANE_ID
     from specify_cli.lanes.persistence import require_lanes_json
@@ -730,7 +737,7 @@ def resolve_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:
         if candidate.is_dir():
             return candidate
 
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir = _resolve_feature_dir(repo_root, mission_slug)
     from specify_cli.lanes.persistence import read_lanes_json
 
     lanes_manifest = read_lanes_json(feature_dir)

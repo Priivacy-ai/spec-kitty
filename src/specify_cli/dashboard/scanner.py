@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 import logging
 import os
@@ -312,7 +313,7 @@ def gather_feature_paths(project_dir: Path) -> dict[str, Path]:
         for worktree_dir in worktrees_root.iterdir():
             if not worktree_dir.is_dir():
                 continue
-            wt_specs = worktree_dir / "kitty-specs"
+            wt_specs = worktree_dir / KITTY_SPECS_DIR
             if not wt_specs.exists():
                 continue
             for feature_dir in wt_specs.iterdir():
@@ -321,7 +322,7 @@ def gather_feature_paths(project_dir: Path) -> dict[str, Path]:
 
     # Then scan main repo (higher priority - source of truth)
     # This will overwrite any worktree paths with the same feature name
-    root_specs = project_dir / "kitty-specs"
+    root_specs = project_dir / KITTY_SPECS_DIR
     if root_specs.exists():
         for feature_dir in root_specs.iterdir():
             if feature_dir.is_dir():

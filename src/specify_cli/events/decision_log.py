@@ -11,6 +11,7 @@ See: spec-kitty #1546
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 import logging
 from datetime import UTC, datetime
@@ -84,7 +85,7 @@ class DecisionGitLog:
         self._mission_id = mission_id or mission_slug
         self._inner = inner
         self._decisions_file = (
-            worktree_root / "kitty-specs" / mission_slug / "decisions.events.jsonl"
+            worktree_root / KITTY_SPECS_DIR / mission_slug / "decisions.events.jsonl"
         )
 
     # ------------------------------------------------------------------

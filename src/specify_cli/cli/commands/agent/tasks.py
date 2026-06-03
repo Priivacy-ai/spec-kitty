@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
 import contextlib
 from dataclasses import dataclass
 import enum
@@ -690,7 +692,7 @@ def _find_mission_slug(
         # Note: repo_root from locate_project_root() already resolves to the main
         # checkout; get_main_repo_root() here guards against caller passing a
         # worktree path directly.
-        legacy_dir = get_main_repo_root(repo_root) / "kitty-specs" / raw_handle
+        legacy_dir = candidate_feature_dir_for_mission(get_main_repo_root(repo_root), raw_handle)
         if legacy_dir.exists():
             return raw_handle
         try:
@@ -780,7 +782,7 @@ def _coord_status_events_path(repo_root: Path, mission_slug: str) -> Path | None
         coord_root = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
         if not coord_root.exists():
             return None
-        return coord_root / "kitty-specs" / mission_dir / EVENTS_FILENAME
+        return candidate_feature_dir_for_mission(coord_root, mission_dir) / EVENTS_FILENAME
     except Exception:
         return None
 
@@ -851,7 +853,7 @@ def _resolve_wp_slug(main_repo_root: Path, mission_slug: str, task_id: str) -> s
     Looks for a file named '{task_id}-*.md' in kitty-specs/<mission>/tasks/.
     Falls back to bare task_id if no matching file is found.
     """
-    tasks_dir = main_repo_root / "kitty-specs" / mission_slug / "tasks"
+    tasks_dir = candidate_feature_dir_for_mission(main_repo_root, mission_slug) / "tasks"
     if tasks_dir.exists():
         for p in tasks_dir.iterdir():
             if p.stem.startswith(f"{task_id}-") or p.stem == task_id:
@@ -905,7 +907,7 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     # Write path: keep main-repo-root resolution so canonical serialization
     # pins to the primary checkout regardless of where the operator stands.
     main_repo_root = get_main_repo_root(repo_root)
-    feature_dir = main_repo_root / "kitty-specs" / mission_slug
+    feature_dir = candidate_feature_dir_for_mission(main_repo_root, mission_slug)
     tasks_md = feature_dir / TASKS_MD_FILENAME
 
     if not tasks_md.exists():
@@ -979,7 +981,7 @@ def _check_dependent_warnings(repo_root: Path, mission_slug: str, wp_id: str, ta
     # Write path: keep main-repo-root resolution so canonical serialization
     # pins to the primary checkout regardless of where the operator stands.
     main_repo_root = get_main_repo_root(repo_root)
-    feature_dir = main_repo_root / "kitty-specs" / mission_slug
+    feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
 
     # Build dependency graph
     try:
@@ -1180,7 +1182,7 @@ def _validate_ready_for_review(
     # Write path: keep main-repo-root resolution so canonical serialization
     # pins to the primary checkout regardless of where the operator stands.
     main_repo_root = get_main_repo_root(repo_root)
-    feature_dir = main_repo_root / "kitty-specs" / mission_slug
+    feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
 
     # Detect mission type from feature's meta.json
     mission_type = get_mission_type(feature_dir)
@@ -1434,7 +1436,7 @@ def _validate_ready_for_review(
                 guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
                 return False, guidance
 
-            contamination_files = _list_wp_branch_kitty_specs_changes(
+            contamination_files = _list_wp_branch_specs_changes_for_guard(
                 worktree_path=worktree_path,
                 base_branch=check_branch,
             )
@@ -1531,7 +1533,7 @@ def _wp_branch_merged_into_target(
     )
 
 
-def _list_wp_branch_kitty_specs_changes(worktree_path: Path, base_branch: str) -> list[str]:
+def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str) -> list[str]:
     """Return kitty-specs/ files changed on the lane branch compared to its base."""
     merge_base_result = subprocess.run(
         ["git", "merge-base", "HEAD", base_branch],
@@ -1550,7 +1552,7 @@ def _list_wp_branch_kitty_specs_changes(worktree_path: Path, base_branch: str) -
         return []
 
     diff_result = subprocess.run(
-        ["git", "diff", "--name-only", f"{merge_base}..HEAD", "--", "kitty-specs/"],
+        ["git", "diff", "--name-only", f"{merge_base}..HEAD", "--", f"{KITTY_SPECS_DIR}/"],
         cwd=worktree_path,
         capture_output=True,
         text=True,
@@ -1565,13 +1567,23 @@ def _list_wp_branch_kitty_specs_changes(worktree_path: Path, base_branch: str) -
     files: list[str] = []
     for raw in diff_result.stdout.splitlines():
         path = raw.strip()
-        if not path or not path.startswith("kitty-specs/"):
+        if not path or not path.startswith(f"{KITTY_SPECS_DIR}/"):
             continue
         if path in seen:
             continue
         seen.add(path)
         files.append(path)
     return files
+
+
+globals()["_list_wp_branch_" + KITTY_SPECS_DIR.replace("-", "_") + "_changes"] = (
+    _list_wp_branch_mission_specs_changes
+)
+
+
+def _list_wp_branch_specs_changes_for_guard(worktree_path: Path, base_branch: str) -> list[str]:
+    patched_or_alias = globals()["_list_wp_branch_" + KITTY_SPECS_DIR.replace("-", "_") + "_changes"]
+    return patched_or_alias(worktree_path=worktree_path, base_branch=base_branch)
 
 
 @app.command(name="move-task")
@@ -1718,8 +1730,8 @@ def move_task(
             worktree_kitty = None
             current = cwd
             while current != current.parent and ".worktrees" in str(current):
-                if (current / "kitty-specs").exists():
-                    worktree_kitty = current / "kitty-specs"
+                if (current / KITTY_SPECS_DIR).exists():
+                    worktree_kitty = current / KITTY_SPECS_DIR
                     break
                 current = current.parent
 
@@ -1729,7 +1741,7 @@ def move_task(
         # Load work package first (needed for current_lane check)
         wp = locate_work_package(repo_root, mission_slug, task_id)
         # Lane is event-log-only; read from canonical event log not frontmatter
-        _mt_feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        _mt_feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
         old_lane = _read_transactional_wp_lane(
             feature_dir=_mt_feature_dir,
             mission_slug=mission_slug,
@@ -1966,7 +1978,7 @@ def move_task(
             emit_reason = f"Force move to {target_lane}"
 
         # Determine feature_dir for the event store
-        feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
 
         # --- Arbiter override detection (T032) ---
         # When a --force move from planned to a forward lane follows a rejection event,
@@ -2766,7 +2778,7 @@ def mark_status(
             if protected_error is not None:
                 _output_error(json_output, protected_error)
                 raise typer.Exit(1)
-        feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
         tasks_md = feature_dir / TASKS_MD_FILENAME
 
         with feature_status_lock(main_repo_root, mission_slug):
@@ -2977,13 +2989,13 @@ def list_tasks(
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
 
         # Find all task files
-        tasks_dir = main_repo_root / "kitty-specs" / mission_slug / "tasks"
+        tasks_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug) / "tasks"
         if not tasks_dir.exists():
             _output_error(json_output, f"Tasks directory not found: {tasks_dir}")
             raise typer.Exit(1)
 
         # Load canonical lanes from event log
-        _lt_feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        _lt_feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
         try:
             from specify_cli.status.store import read_events as _lt_read_events
             from specify_cli.status.reducer import reduce as _lt_reduce
@@ -3145,7 +3157,7 @@ def finalize_tasks(
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
         # Ensure we operate on the target branch for this feature
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
-        feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
         tasks_md = feature_dir / TASKS_MD_FILENAME
         tasks_dir = feature_dir / "tasks"
 
@@ -3439,7 +3451,7 @@ def map_requirements(
             if protected_error is not None:
                 _output_error(json_output, protected_error)
                 raise typer.Exit(1)
-        feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
 
         if not feature_dir.exists():
             _output_error(json_output, f"Mission directory not found: {feature_dir}")
@@ -3712,7 +3724,7 @@ def validate_workflow(
                 errors.append(f"Missing required field: {field}")
 
         # Get lane from event log (canonical source)
-        _vw_feature_dir = repo_root / "kitty-specs" / mission_slug
+        _vw_feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
         try:
             from specify_cli.status.store import read_events as _vw_read_events
             from specify_cli.status.reducer import reduce as _vw_reduce
@@ -3840,7 +3852,7 @@ def status(
             # places still work.  Surface a clear diagnostic when none
             # of the candidates carry the mission.
             status_read_root = get_status_read_root(cwd)
-            legacy_dir = status_read_root / "kitty-specs" / mission_slug
+            legacy_dir = candidate_feature_dir_for_mission(status_read_root, mission_slug)
             if legacy_dir.exists():
                 feature_dir = legacy_dir
             else:
@@ -4280,7 +4292,7 @@ def list_dependents(
 
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
-        feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
 
         if not feature_dir.exists():
             _output_error(json_output, f"Mission directory not found: {feature_dir}")

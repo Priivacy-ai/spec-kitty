@@ -29,6 +29,7 @@ git configuration or sparse-checkout state; remediation lives in WP03.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import enum
 import json
 import logging
@@ -253,7 +254,7 @@ def _read_patterns(path: Path) -> frozenset[str] | None:
 
 
 def _load_managed_lane_policies(repo_root: Path) -> tuple[_ManagedLanePolicy, ...]:
-    specs_dir = repo_root / "kitty-specs"
+    specs_dir = repo_root / KITTY_SPECS_DIR
     if not specs_dir.is_dir():
         return ()
 

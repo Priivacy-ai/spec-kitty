@@ -20,6 +20,7 @@ Interactive mode (default):   prompt before each non-UTF-8 file.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -106,9 +107,9 @@ def _collect_charter_files(project_root: Path) -> list[Path]:
     """
     files: list[Path] = []
 
-    kitty_specs = project_root / "kitty-specs"
-    if kitty_specs.is_dir():
-        for mission_dir in sorted(kitty_specs.iterdir()):
+    mission_specs = project_root / KITTY_SPECS_DIR
+    if mission_specs.is_dir():
+        for mission_dir in sorted(mission_specs.iterdir()):
             if not mission_dir.is_dir():
                 continue
             charter_dir = mission_dir / "charter"

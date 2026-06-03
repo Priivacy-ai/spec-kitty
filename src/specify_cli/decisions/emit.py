@@ -24,6 +24,7 @@ Public API:
 
 from __future__ import annotations
 
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -67,7 +68,7 @@ def _now_utc() -> datetime:
 
 def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
     """Return ``kitty-specs/<mission_slug>/``."""
-    return repo_root / "kitty-specs" / mission_slug
+    return resolve_feature_dir_for_mission(repo_root, mission_slug)
 
 
 def _events_path(repo_root: Path, mission_slug: str) -> Path:

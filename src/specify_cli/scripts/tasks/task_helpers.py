@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 import json
 import re
 import subprocess
@@ -165,7 +167,7 @@ def normalize_note(note: str | None, target_lane: str) -> str:
 
 def detect_conflicting_wp_status(status_lines: list[str], feature: str, old_path: Path, new_path: Path) -> list[str]:
     """Return staged work-package entries unrelated to the requested move."""
-    base_path = Path("kitty-specs") / feature / "tasks"
+    base_path = Path(KITTY_SPECS_DIR) / feature / "tasks"
     prefix = f"{base_path.as_posix()}/"
     allowed = {
         str(old_path).lstrip("./"),
@@ -362,7 +364,7 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     Legacy format: WP files in tasks/{lane}/ subdirectories
     New format: WP files in flat tasks/ directory with canonical status in the event log
     """
-    feature_path = repo_root / "kitty-specs" / feature
+    feature_path = resolve_feature_dir_for_mission(repo_root, feature)
     tasks_root = feature_path / "tasks"
     if not tasks_root.exists():
         raise TaskCliError(f"Feature '{feature}' has no tasks directory at {tasks_root}.")

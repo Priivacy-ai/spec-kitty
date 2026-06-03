@@ -11,6 +11,8 @@ from collections.abc import Sequence
 
 from rich.console import Console
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+
 ConsoleType = Console | None
 
 
@@ -366,7 +368,7 @@ def resolve_target_branch(
             raise RuntimeError("Could not determine current branch")
 
     # Read target branch from meta.json
-    meta_file = repo_path / "kitty-specs" / mission_slug / "meta.json"
+    meta_file = repo_path / KITTY_SPECS_DIR / mission_slug / "meta.json"
     fallback = resolve_primary_branch(repo_path)
     target = fallback
     if meta_file.exists():

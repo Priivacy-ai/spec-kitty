@@ -12,6 +12,7 @@ The override:
 from __future__ import annotations
 
 import logging
+import json
 import subprocess
 from pathlib import Path
 
@@ -42,6 +43,20 @@ def _init_git_repo(repo: Path) -> None:
     _run(["git", "-C", str(repo), "config", "user.email", "test@test.com"])
     _run(["git", "-C", str(repo), "config", "user.name", "Test"])
     _run(["git", "-C", str(repo), "config", "commit.gpgsign", "false"])
+    (repo / ".kittify").mkdir()
+    (repo / ".kittify" / "config.yaml").write_text("version: 1\n", encoding="utf-8")
+    mission_dir = repo / "kitty-specs" / "feat-test"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": "feat-test",
+                "mission_id": "01KFEATTEST000000000000000",
+                "target_branch": "main",
+            }
+        ),
+        encoding="utf-8",
+    )
     (repo / "README.md").write_text("init\n")
     _run(["git", "-C", str(repo), "add", "."])
     _run(["git", "-C", str(repo), "commit", "-m", "init"])

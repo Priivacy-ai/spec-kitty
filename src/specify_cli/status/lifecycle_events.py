@@ -35,6 +35,7 @@ with the typed contracts.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import contextlib
 import json
 import logging
@@ -187,7 +188,7 @@ def _repo_root_for_lifecycle_log(log_path: Path | None) -> Path | None:
         return resolved.parent.parent
     if (
         resolved.name == MISSION_EVENTS_FILENAME
-        and resolved.parent.parent.name == "kitty-specs"
+        and resolved.parent.parent.name == KITTY_SPECS_DIR
     ):
         return resolved.parent.parent.parent
     return None

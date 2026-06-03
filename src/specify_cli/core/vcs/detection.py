@@ -8,6 +8,7 @@ It detects whether git is available and returns the appropriate implementation.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 import re
 import shutil
@@ -124,7 +125,7 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
     # Strategy 1: Check if path is directly inside kitty-specs/###-feature/
     # e.g., /repo/kitty-specs/015-feature/tasks/WP01.md
     for parent in [current, *current.parents]:
-        if parent.parent and parent.parent.name == "kitty-specs":
+        if parent.parent and parent.parent.name == KITTY_SPECS_DIR:
             # parent is a feature directory like kitty-specs/015-feature/
             meta_path = parent / "meta.json"
             if meta_path.is_file():
@@ -156,10 +157,10 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
                 feature_num = match.group(1)
                 # Find main repo (parent of .worktrees)
                 main_repo = worktree_root.parent.parent
-                kitty_specs = main_repo / "kitty-specs"
-                if kitty_specs.is_dir():
+                mission_specs = main_repo / KITTY_SPECS_DIR
+                if mission_specs.is_dir():
                     # Find the specific feature directory matching feature_num
-                    for feature_dir in kitty_specs.iterdir():
+                    for feature_dir in mission_specs.iterdir():
                         if feature_dir.is_dir() and feature_dir.name.startswith(
                             f"{feature_num}-"
                         ):

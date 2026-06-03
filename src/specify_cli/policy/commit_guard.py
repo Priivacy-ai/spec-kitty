@@ -6,6 +6,7 @@ scope and blocks modifications to kitty-specs/ from implementation branches.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import fnmatch
 import re
 from dataclasses import dataclass, field
@@ -80,9 +81,9 @@ def validate_staged_files(
         )
 
     # Check kitty-specs/ protection.
-    if policy.block_kitty_specs:
+    if policy.block_mission_specs:
         for f in staged_files:
-            if f.startswith("kitty-specs/"):
+            if f.startswith(f"{KITTY_SPECS_DIR}/"):
                 violations.append(
                     f"Protected path: {f} — implementation branches must not modify kitty-specs/"
                 )
@@ -104,7 +105,7 @@ def validate_staged_files(
 
     if policy.enforce_ownership and effective_owned_files and not (ownership_scope and ownership_scope.diagnostic_code):
         for f in staged_files:
-            if f.startswith("kitty-specs/"):
+            if f.startswith(f"{KITTY_SPECS_DIR}/"):
                 continue  # Already flagged above
             if not _matches_any_glob(f, effective_owned_files):
                 violations.append(_format_scope_violation(f, effective_owned_files, ownership_scope))

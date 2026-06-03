@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import logging
 import platform
 import sys
@@ -298,7 +299,7 @@ class MigrationRunner:
             wt_kittify = worktree / KITTIFY_DIR
             has_upgradeable_state = wt_kittify.exists() or (
                 bool(worktree_migrations)
-                and ((worktree / "kitty-specs").exists() or (worktree / ".specify").exists())
+                and ((worktree / KITTY_SPECS_DIR).exists() or (worktree / ".specify").exists())
             )
             if not has_upgradeable_state:
                 continue

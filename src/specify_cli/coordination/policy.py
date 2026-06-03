@@ -17,6 +17,7 @@ Spec source: FR-019, FR-020, FR-021, C-012, C-016, NFR-007, NFR-008.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -26,10 +27,7 @@ from specify_cli.coordination.types import (
     PolicyVerdict,
     Refused,
 )
-from specify_cli.git.commit_helpers import (
-    protected_branch_bypass_enabled,
-    protected_branches,
-)
+from specify_cli.git.commit_helpers import protected_branches
 
 
 def _normalize_ref(raw: str) -> str:
@@ -201,7 +199,13 @@ class WorkflowMutationPolicy:
         # there is exactly one source of truth for which branches are
         # protected.
         protected = protected_branches(repo_root)
-        if ref in protected and not protected_branch_bypass_enabled():
+        if (
+            ref in protected
+            and not (
+                change_set.allow_protected_branch_in_test_mode
+                and os.environ.get("SPEC_KITTY_TEST_MODE", "").lower() in {"1", "true", "yes"}
+            )
+        ):
             return Refused(
                 error_code="PROTECTED_BRANCH_REFUSED",
                 message=(

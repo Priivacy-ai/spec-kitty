@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 import argparse
 import json
 import os
@@ -210,7 +212,7 @@ _legacy_warning_shown = False
 def _check_legacy_format(feature: str, repo_root: Path) -> bool:
     """Check for legacy format and warn once. Returns True if legacy format detected."""
     global _legacy_warning_shown
-    feature_path = repo_root / "kitty-specs" / feature
+    feature_path = resolve_feature_dir_for_mission(repo_root, feature)
     if is_legacy_format(feature_path):
         if not _legacy_warning_shown:
             print("\n" + "=" * 60, file=sys.stderr)
@@ -314,7 +316,7 @@ def history_command(args: argparse.Namespace) -> None:
 
 def list_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
-    feature_path = repo_root / "kitty-specs" / args.feature
+    feature_path = resolve_feature_dir_for_mission(repo_root, args.feature)
     feature_dir = feature_path / "tasks"
     if not feature_dir.exists():
         raise TaskCliError(f"Feature '{args.feature}' has no tasks directory at {feature_dir}.")
@@ -619,7 +621,7 @@ def _prepare_merge_metadata(
     strategy: str,
     pushed: bool,
 ) -> Path | None:
-    feature_dir = repo_root / "kitty-specs" / feature
+    feature_dir = resolve_feature_dir_for_mission(repo_root, feature)
     feature_dir.mkdir(parents=True, exist_ok=True)
     meta_path = feature_dir / "meta.json"
 

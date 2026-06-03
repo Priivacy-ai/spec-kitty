@@ -97,6 +97,21 @@ def _write_modern_meta(repo: Path, coordination_branch: str = COORD_BRANCH) -> N
     )
 
 
+def _write_legacy_meta(repo: Path) -> None:
+    feature_dir = repo / "kitty-specs" / FEATURE_DIRNAME
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        (
+            "{\n"
+            f'  "mission_id": "{MISSION_ID}",\n'
+            f'  "mission_slug": "{FEATURE_DIRNAME}",\n'
+            '  "target_branch": "main"\n'
+            "}\n"
+        ),
+        encoding="utf-8",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Happy path
 # ---------------------------------------------------------------------------
@@ -180,6 +195,37 @@ def test_append_event_then_commit_returns_receipt(repo: Path) -> None:
     events = _store.read_events(feature_dir)
     assert len(events) == 1
     assert events[0].event_id == event.event_id
+
+
+def test_legacy_transaction_appends_to_primary_checkout(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Legacy no-coordination-branch missions write through primary contract."""
+    _write_legacy_meta(repo)
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
+
+    event = _make_event()
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="legacy_emit",
+        allow_protected_branch_in_test_mode=True,
+    ) as txn:
+        assert txn.worktree_root == repo
+        assert txn.destination_ref == "main"
+        txn.append_event(event)
+        txn.commit("status: legacy emit")
+
+    events = _store.read_events(repo / "kitty-specs" / FEATURE_DIRNAME)
+    assert [existing.event_id for existing in events] == [event.event_id]
+    assert not (
+        repo / ".worktrees" / f"{FEATURE_DIRNAME}-coord" / "kitty-specs" / FEATURE_DIRNAME
+    ).exists()
 
 
 # ---------------------------------------------------------------------------

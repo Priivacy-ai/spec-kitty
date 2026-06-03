@@ -8,6 +8,8 @@ ReviewResult derivation.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
 import re
 import subprocess
 from dataclasses import dataclass
@@ -179,7 +181,7 @@ def resolve_review_cycle_pointer(repo_root: Path, pointer: str) -> ResolvedRevie
         parts = validate_review_cycle_pointer(value)
         candidate = (
             repo_root
-            / "kitty-specs"
+            / KITTY_SPECS_DIR
             / parts.mission_slug
             / "tasks"
             / parts.wp_slug
@@ -259,7 +261,7 @@ def create_rejected_review_cycle(
     safe_mission_slug = _validate_segment("mission_slug", mission_slug)
     safe_wp_slug = _validate_segment("wp_slug", wp_slug)
     safe_wp_id = _validate_segment("wp_id", wp_id)
-    sub_artifact_dir = main_repo_root / "kitty-specs" / safe_mission_slug / "tasks" / safe_wp_slug
+    sub_artifact_dir = candidate_feature_dir_for_mission(main_repo_root, safe_mission_slug) / "tasks" / safe_wp_slug
     cycle_n = ReviewCycleArtifact.next_cycle_number(sub_artifact_dir)
     filename = _validate_review_cycle_filename(f"review-cycle-{cycle_n}.md")
     pointer = build_review_cycle_pointer(safe_mission_slug, safe_wp_slug, filename)

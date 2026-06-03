@@ -13,6 +13,8 @@ All subcommands output JSON to stdout and exit 0 on success, 1 on structured err
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 import json
 import re as _re
 from pathlib import Path
@@ -80,7 +82,7 @@ def _resolve_repo_root_and_slug(mission_handle: str) -> tuple[Path, str]:
     candidate: Path | None = None
     current = cwd
     for _ in range(20):
-        if (current / "kitty-specs").is_dir():
+        if (current / KITTY_SPECS_DIR).is_dir():
             candidate = current
             break
         parent = current.parent
@@ -92,8 +94,8 @@ def _resolve_repo_root_and_slug(mission_handle: str) -> tuple[Path, str]:
 
     # Verify the resolved mission path stays within kitty-specs/ even after
     # Path normalization (defence-in-depth against any edge cases in slug parsing).
-    resolved = (repo_root / "kitty-specs" / mission_handle).resolve()
-    base = (repo_root / "kitty-specs").resolve()
+    resolved = (resolve_feature_dir_for_mission(repo_root, mission_handle)).resolve()
+    base = (repo_root / KITTY_SPECS_DIR).resolve()
     if not str(resolved).startswith(str(base) + "/") and resolved != base:
         raise typer.BadParameter(
             f"Mission path would escape kitty-specs/: {mission_handle!r}",

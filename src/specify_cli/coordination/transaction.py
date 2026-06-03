@@ -18,6 +18,7 @@ C-013, NFR-001, NFR-008, NFR-010.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import errno
 import json as _json
 import logging
@@ -140,7 +141,7 @@ _SNAPSHOT_FILENAME = "status.json"
 _SAFE_PATH_SEGMENT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
-def _kitty_specs_dir_name(mission_slug: str, mid8: str) -> str:
+def _mission_specs_dir_name(mission_slug: str, mid8: str) -> str:
     """Return the kitty-specs sub-directory name for this mission.
 
     Mirrors the heuristic in
@@ -205,8 +206,8 @@ def _is_legacy_mission(repo_root: Path, mission_slug: str, mid8: str) -> bool:
       mission legacy — FR-018 idempotency re-creates it.  Only the
       ``meta.json`` field is consulted.
     """
-    kitty_dir_name = _kitty_specs_dir_name(mission_slug, mid8)
-    meta_path = repo_root / "kitty-specs" / kitty_dir_name / "meta.json"
+    kitty_dir_name = _mission_specs_dir_name(mission_slug, mid8)
+    meta_path = repo_root / KITTY_SPECS_DIR / kitty_dir_name / "meta.json"
     if not meta_path.exists():
         return False
     try:
@@ -225,8 +226,8 @@ def _coordination_branch_from_meta(
     repo_root: Path, mission_slug: str, mid8: str,
 ) -> str | None:
     """Return explicit ``coordination_branch`` from meta.json, if trustworthy."""
-    kitty_dir_name = _kitty_specs_dir_name(mission_slug, mid8)
-    meta_path = repo_root / "kitty-specs" / kitty_dir_name / "meta.json"
+    kitty_dir_name = _mission_specs_dir_name(mission_slug, mid8)
+    meta_path = repo_root / KITTY_SPECS_DIR / kitty_dir_name / "meta.json"
     if not meta_path.exists():
         return None
     try:
@@ -552,7 +553,6 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         pre_emit_size: int,
         pre_emit_events_existed: bool,
         lock_cm: AbstractContextManager[Path],
-        legacy_mode: bool = False,
     ) -> None:
         # Note: most attributes are public-but-immutable-by-convention.
         # ``mypy --strict`` is satisfied because we do not annotate them
@@ -570,7 +570,6 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         self._pre_emit_size = pre_emit_size
         self._pre_emit_events_existed = pre_emit_events_existed
         self._lock_cm = lock_cm
-        self._legacy_mode = legacy_mode
 
         # Per-transaction mutable state.
         self._event_ids: list[str] = []
@@ -590,6 +589,8 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         self._commit_recovery_failed_after_commit = False
         self._explicit_commit_message: str | None = None
         self._explicit_commit_receipt: CommitReceipt | None = None
+        self._allow_protected_branch_in_test_mode = False
+        self._legacy_mode = False
 
     # ---- acquire ----
 
@@ -604,6 +605,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         destination_ref: str,
         operation: str,
         timeout: float = 30.0,
+        allow_protected_branch_in_test_mode: bool = False,
     ) -> BookkeepingTransaction:
         """Construct, lock, and run the pre-flight policy gate.
 
@@ -645,6 +647,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 normalised_ref=normalised_ref,
                 operation=operation,
                 lock_cm=lock_cm,
+                allow_protected_branch_in_test_mode=allow_protected_branch_in_test_mode,
             )
         except Exception:
             lock_cm.__exit__(None, None, None)
@@ -662,6 +665,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         normalised_ref: str,
         operation: str,
         lock_cm: AbstractContextManager[Path],
+        allow_protected_branch_in_test_mode: bool = False,
     ) -> BookkeepingTransaction:
         safe_mission_slug = _validate_safe_segment("mission_slug", mission_slug)
         safe_mid8 = _validate_safe_segment("mid8", mid8)
@@ -712,6 +716,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 paths=(),
                 message=f"<pending: {operation}>",
                 operation=operation,
+                allow_protected_branch_in_test_mode=allow_protected_branch_in_test_mode,
             )
             caller_verdict = WorkflowMutationPolicy.assert_allowed(caller_change_set)
             if isinstance(caller_verdict, Refused):
@@ -754,8 +759,8 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # there is no sparse-checkout policy on the lane, so the files
         # are physically present and the surgical truncate rollback
         # works against the lane worktree without modification.
-        kitty_dir_name = _kitty_specs_dir_name(safe_mission_slug, safe_mid8)
-        feature_dir = worktree_root / "kitty-specs" / kitty_dir_name
+        kitty_dir_name = _mission_specs_dir_name(safe_mission_slug, safe_mid8)
+        feature_dir = worktree_root / KITTY_SPECS_DIR / kitty_dir_name
         events_path = feature_dir / _EVENTS_FILENAME
         snapshot_path = feature_dir / _SNAPSHOT_FILENAME
 
@@ -769,6 +774,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             paths=(events_path, snapshot_path),
             message=f"<pending: {operation}>",
             operation=operation,
+            allow_protected_branch_in_test_mode=allow_protected_branch_in_test_mode,
         )
         verdict = WorkflowMutationPolicy.assert_allowed(change_set)
         if isinstance(verdict, Refused):
@@ -799,8 +805,9 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             pre_emit_size=pre_emit_size,
             pre_emit_events_existed=pre_emit_events_existed,
             lock_cm=lock_cm,
-            legacy_mode=legacy_mode,
         )
+        txn._allow_protected_branch_in_test_mode = allow_protected_branch_in_test_mode
+        txn._legacy_mode = legacy_mode
         return txn
 
     # ---- context-manager protocol ----
@@ -878,11 +885,14 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         self.feature_dir.mkdir(parents=True, exist_ok=True)
 
         # Append + verify readback (matches existing emit pipeline).
-        write_contract = (
-            EventLogWriteContract.legacy_lane_append(self.feature_dir)
-            if self._legacy_mode
-            else EventLogWriteContract.coordination_transaction_append(self.feature_dir)
-        )
+        if self._legacy_mode and ".worktrees" not in self.feature_dir.parts:
+            write_contract = EventLogWriteContract.primary_checkout_append(
+                self.feature_dir
+            )
+        else:
+            write_contract = EventLogWriteContract.coordination_transaction_append(
+                self.feature_dir
+            )
         append_event_log(
             write_contract,
             event,
@@ -993,6 +1003,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 destination_ref=self.destination_ref,
                 message=message,
                 paths=tuple(self._staged_paths),
+                allow_protected_branch_in_test_mode=self._allow_protected_branch_in_test_mode,
             )
         except SafeCommitRecoveryFailed as exc:
             if exc.commit_sha is None:

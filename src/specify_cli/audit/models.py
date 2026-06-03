@@ -10,6 +10,7 @@ This module defines the core types used throughout the audit package:
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -29,7 +30,7 @@ TEAMSPACE_BLOCKER_CODES: frozenset[str] = frozenset(
     }
 )
 
-_MISSION_ROOT_DIRNAME = "kitty-specs"
+_MISSION_ROOT_DIRNAME = KITTY_SPECS_DIR
 
 
 def _stable_mission_dir_for_json(mission_dir: Path, mission_slug: str) -> str:
@@ -190,7 +191,7 @@ class RepoAuditReport:
 class AuditOptions:
     """Engine configuration passed to ``run_audit()``.
 
-    ``scan_root`` defaults to ``repo_root / "kitty-specs"`` when ``None``
+    ``scan_root`` defaults to ``repo_root / KITTY_SPECS_DIR`` when ``None``
     (never hardcoded here — the engine resolves the default at call time).
     ``fail_on`` is ``None`` for "always exit 0"; set to ``Severity.ERROR``
     to fail on errors only, ``Severity.WARNING`` for errors+warnings, etc.

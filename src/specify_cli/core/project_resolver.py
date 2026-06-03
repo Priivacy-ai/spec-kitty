@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from pathlib import Path
 
 from rich.console import Console
@@ -81,18 +82,18 @@ def resolve_worktree_aware_feature_dir(
     for idx, part in enumerate(parts):
         if part == ".worktrees" and idx + 1 < len(parts) and parts[idx + 1] == mission_slug:
             worktree_root = Path(*parts[: idx + 2])
-            feature_dir = worktree_root / "kitty-specs" / mission_slug
+            feature_dir = worktree_root / KITTY_SPECS_DIR / mission_slug
             resolved_console.print(f"[green]✓[/green] Using worktree location: {feature_dir}")
             return feature_dir
 
     worktree_path = repo_root / ".worktrees" / mission_slug
     if worktree_path.exists():
-        feature_dir = worktree_path / "kitty-specs" / mission_slug
+        feature_dir = worktree_path / KITTY_SPECS_DIR / mission_slug
         resolved_console.print(f"[green]✓[/green] Found worktree, using: {feature_dir}")
         resolved_console.print(f"[yellow]Tip:[/yellow] Run commands from {worktree_path} for better isolation")
         return feature_dir
 
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir = repo_root / KITTY_SPECS_DIR / mission_slug
     resolved_console.print(f"[yellow]⚠[/yellow] No worktree found, using root location: {feature_dir}")
     resolved_console.print(
         f"[yellow]Tip:[/yellow] Consider creating a worktree with: git worktree add .worktrees/{mission_slug} {mission_slug}"  # noqa: E501

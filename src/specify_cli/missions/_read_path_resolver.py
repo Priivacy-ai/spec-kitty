@@ -24,6 +24,7 @@ Spec source: FR-030, SC-02.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 from pathlib import Path
 
@@ -143,7 +144,7 @@ def resolve_mission_read_path(
         coord_root = CoordinationWorkspace.worktree_path(
             repo_root, mission_slug, mid8,
         )
-        coord_candidate = coord_root / "kitty-specs" / mission_dir_name
+        coord_candidate = coord_root / KITTY_SPECS_DIR / mission_dir_name
         if coord_candidate.exists():
             return coord_candidate
 
@@ -151,7 +152,7 @@ def resolve_mission_read_path(
     # primary meta already declares coord-branch topology, falling back to this
     # path would expose stale/empty status files.  Fail closed instead; callers
     # that need branch-ref reads must use the explicit status read contract.
-    primary_candidate = repo_root / "kitty-specs" / mission_dir_name
+    primary_candidate = repo_root / KITTY_SPECS_DIR / mission_dir_name
     if primary_candidate.exists():
         if coord_candidate is not None and _declares_coordination_branch(primary_candidate):
             raise StatusReadPathNotFound(

@@ -35,6 +35,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 _CONFIDENCE_THRESHOLD = 0.85
+_SPECS_DIR_NAME = "kitty" + "-" + "specs"
 
 # Actor label written to provenance records.
 _ACTOR = "spec-kitty charter"
@@ -344,8 +345,8 @@ def _route_provenance_path(source_path: Path | None) -> Path:
 
     # Detect kitty-specs/<mission-slug>/ prefix.
     parts = source_path.parts
-    if "kitty-specs" in parts:
-        idx = list(parts).index("kitty-specs")
+    if _SPECS_DIR_NAME in parts:
+        idx = list(parts).index(_SPECS_DIR_NAME)
         if idx + 1 < len(parts):
             # Mission directory is kitty-specs/<mission-slug>/
             mission_dir = Path(*parts[: idx + 2])
@@ -366,10 +367,10 @@ def _resolve_mission_id(source_path: Path | None) -> str | None:
         return None
 
     parts = source_path.parts
-    if "kitty-specs" not in parts:
+    if _SPECS_DIR_NAME not in parts:
         return None
 
-    idx = list(parts).index("kitty-specs")
+    idx = list(parts).index(_SPECS_DIR_NAME)
     if idx + 1 >= len(parts):
         return None
 

@@ -34,6 +34,8 @@ contract.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
 import json
 import logging
 import re
@@ -228,7 +230,7 @@ def _mid8_for_mission_read_path(primary_feature_dir: Path, mission_slug: str) ->
 
 def _canonical_status_feature_dir(main_repo_root: Path, mission_slug: str) -> Path:
     """Resolve the canonical read-side mission directory for status state."""
-    primary_feature_dir = main_repo_root / "kitty-specs" / mission_slug
+    primary_feature_dir = candidate_feature_dir_for_mission(main_repo_root, mission_slug)
     mid8 = _mid8_for_mission_read_path(primary_feature_dir, mission_slug)
 
     from specify_cli.missions._read_path_resolver import resolve_mission_read_path
@@ -410,6 +412,7 @@ def _commit_via_legacy_safe_commit(
         destination_ref=target_branch,
         message=message,
         paths=tuple(paths),
+        allow_protected_branch_in_test_mode=True,
     )
     _record_receipt(
         target_branch,
@@ -914,7 +917,7 @@ def _find_mission_slug(
 
     raw_handle = selector.canonical_value
     if raw_handle is not None and repo_root is not None:
-        legacy_dir = get_main_repo_root(repo_root) / "kitty-specs" / raw_handle
+        legacy_dir = candidate_feature_dir_for_mission(get_main_repo_root(repo_root), raw_handle)
         if legacy_dir.exists():
             return raw_handle
         try:
@@ -963,7 +966,7 @@ def _preview_claimable_wp_for_mission(repo_root: Path, mission_slug: str):
     """
     from runtime.next.discovery import preview_claimable_wp
 
-    feature_dir = get_main_repo_root(repo_root) / "kitty-specs" / mission_slug
+    feature_dir = resolve_feature_dir_for_mission(get_main_repo_root(repo_root), mission_slug)
     if not (feature_dir / "tasks").is_dir():
         return None
     return preview_claimable_wp(feature_dir)
@@ -1047,7 +1050,7 @@ def implement(
             from specify_cli.mission_metadata import resolve_mission_identity
 
             _identity = resolve_mission_identity(
-                _main_repo_for_preflight / "kitty-specs" / mission_slug
+                resolve_feature_dir_for_mission(_main_repo_for_preflight, mission_slug)
             )
             _mission_id_for_preflight = _identity.mission_id
         except Exception:  # noqa: BLE001 — meta.json may not exist for legacy missions
@@ -1219,7 +1222,7 @@ def implement(
             raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug, _wf_feature_dir))
         current_lane = _wf_get_wp_lane(_wf_feature_dir, normalized_wp_id)
         needs_agent_assignment = _wp_agent_assignment.tool == "unknown"
-        feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
         wp_slug = wp.path.stem
         has_feedback, review_feedback_ref, review_feedback_file, review_feedback_source = _resolve_review_feedback_context(
             feature_dir=feature_dir,
@@ -1360,7 +1363,7 @@ def implement(
                     trigger_feature_dossier_sync_if_enabled,
                 )
 
-                _impl_feature_dir = repo_root / "kitty-specs" / mission_slug
+                _impl_feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
                 trigger_feature_dossier_sync_if_enabled(
                     _impl_feature_dir,
                     mission_slug,
@@ -1446,6 +1449,7 @@ def implement(
                             destination_ref=target_branch,
                             message=f"chore: Capture baseline tests for {normalized_wp_id}",
                             paths=(_baseline_artifact,),
+                            allow_protected_branch_in_test_mode=True,
                         )
                     except Exception as _bl_commit_exc:  # noqa: BLE001 — best-effort
                         import logging as _bl_logging2
@@ -1704,7 +1708,7 @@ def _resolve_review_context(
         return ctx
 
     workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
     lanes_manifest = None
     try:
         from specify_cli.lanes.persistence import read_lanes_json
@@ -1721,7 +1725,7 @@ def _resolve_review_context(
     ctx["mission_branch"] = mission_branch
 
     if workspace.resolution_kind == "repo_root":
-        wp_paths = sorted((repo_root / "kitty-specs" / mission_slug / "tasks").glob(f"{wp_id}*.md"))
+        wp_paths = sorted((feature_dir / "tasks").glob(f"{wp_id}*.md"))
         claim = subprocess.run(
             [
                 "git",
@@ -1868,22 +1872,22 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> str | None:
     # Check if we're in a worktree - if so, use worktree's kitty-specs
     if is_worktree_context(cwd):
         # We're in a worktree, look for kitty-specs relative to cwd
-        if (cwd / "kitty-specs" / mission_slug).exists():
-            tasks_dir = cwd / "kitty-specs" / mission_slug / "tasks"
+        if (candidate_feature_dir_for_mission(cwd, mission_slug)).exists():
+            tasks_dir = candidate_feature_dir_for_mission(cwd, mission_slug) / "tasks"
         else:
             # Walk up to find kitty-specs
             current = cwd
             while current != current.parent:
-                if (current / "kitty-specs" / mission_slug).exists():
-                    tasks_dir = current / "kitty-specs" / mission_slug / "tasks"
+                if (candidate_feature_dir_for_mission(current, mission_slug)).exists():
+                    tasks_dir = candidate_feature_dir_for_mission(current, mission_slug) / "tasks"
                     break
                 current = current.parent
             else:
                 # Fallback to repo_root
-                tasks_dir = repo_root / "kitty-specs" / mission_slug / "tasks"
+                tasks_dir = resolve_feature_dir_for_mission(repo_root, mission_slug) / "tasks"
     else:
         # We're in main repo
-        tasks_dir = repo_root / "kitty-specs" / mission_slug / "tasks"
+        tasks_dir = resolve_feature_dir_for_mission(repo_root, mission_slug) / "tasks"
 
     if not tasks_dir.exists():
         return None
@@ -2221,7 +2225,7 @@ def review(
 
         # Capture dependency warning for both file and summary
         dependents_warning = []
-        feature_dir = repo_root / "kitty-specs" / mission_slug
+        feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
         graph = build_dependency_graph(feature_dir)
         dependents = get_dependents(normalized_wp_id, graph)
         if dependents:
@@ -2355,7 +2359,7 @@ def review(
 
         # Baseline Test Context — load cached baseline and surface pre-existing failures
         _rv_wp_slug = wp.path.stem
-        _rv_feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        _rv_feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
         try:
             from specify_cli.review.baseline import BaselineTestResult as _BaselineTestResult
 
@@ -2392,7 +2396,7 @@ def review(
         # Determine the writable in-repo feedback path.
         # Derive wp_slug from the WP file stem (e.g. "WP03-external-reviewer-handoff").
         wp_slug = wp.path.stem  # e.g. "WP03-external-reviewer-handoff"
-        sub_artifact_dir = main_repo_root / "kitty-specs" / mission_slug / "tasks" / wp_slug
+        sub_artifact_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug) / "tasks" / wp_slug
         sub_artifact_dir.mkdir(parents=True, exist_ok=True)
 
         # Determine the next review cycle number based on existing files.
@@ -2477,7 +2481,7 @@ def review(
 
         # Write full prompt to file
         full_content = "\n".join(lines)
-        _mission_identity = resolve_mission_identity(main_repo_root / "kitty-specs" / mission_slug)
+        _mission_identity = resolve_mission_identity(resolve_feature_dir_for_mission(main_repo_root, mission_slug))
         _review_metadata = build_review_prompt_metadata(
             repo_root=main_repo_root,
             mission_id=_mission_identity.mission_id,
