@@ -276,3 +276,7 @@ Create an architectural boundary test that enforces the `status/` module facade 
 - Run the bypass grep before and after to verify count drops to zero in owned directories
 - Check that the pytestarch rule would have caught the original violations (not vacuously passing)
 - Verify `coordination/status_transition.py` exemption is explicit and justified in code comment
+
+## Activity Log
+
+- 2026-06-03T12:40:00Z – claude – Implementation complete. Lint: exit 0 (all checks passed). Tests: all WP03 boundary tests pass (4/4). Full suite: pre-existing failures only (test_detect_false_positive_worktree, test_detect_without_repo_markers, test_no_new_dead_modules, test_no_public_symbol_in_all_is_unimported, test_growing_an_allowlist_above_baseline_fails - all confirmed pre-existing).

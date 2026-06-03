@@ -103,13 +103,13 @@
 **Dependencies**: WP02
 
 **Subtasks**:
-- [ ] T011 Create test_status_module_boundary.py with pytestarch rule (WP03)
-- [ ] T012 Add AST scanner pass (WP03)
-- [ ] T013 Add injection proof test (WP03)
-- [ ] T014 Run grep audit — enumerate all bypass imports (WP03)
-- [ ] T015 Fix all bypass imports in non-status, non-owned files (WP03)
-- [ ] T016 Verify coordination/status_transition.py exemption (WP03)
-- [ ] T017 Confirm boundary test passes and CI green (WP03)
+- [x] T011 Create test_status_module_boundary.py with pytestarch rule (WP03)
+- [x] T012 Add AST scanner pass (WP03)
+- [x] T013 Add injection proof test (WP03)
+- [x] T014 Run grep audit — enumerate all bypass imports (WP03)
+- [x] T015 Fix all bypass imports in non-status, non-owned files (WP03)
+- [x] T016 Verify coordination/status_transition.py exemption (WP03)
+- [x] T017 Confirm boundary test passes and CI green (WP03)
 
 **Success criteria**: `test_status_module_boundary.py` passes. `grep -r "from specify_cli.status\." src/ --include="*.py"` (outside `status/`) returns zero hits (excluding exempt files).
 
