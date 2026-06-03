@@ -139,6 +139,16 @@ Operator in Governance + Integrate); the **Executor Prompt is a Published Langua
 (4-way), not a 2-domain DTO. Lesson: the last turns' strategic-DDD *labels* got ahead of the evidence;
 `09` was closer to right. A 6-item consolidation checklist (`15`) must be cleared before mapping to `06`.
 
+**Codebase reassessment fan-out (`16`).** Ran a 6-agent Debbie/Pedro fan-out validating the dialectic's
+sharpened hypotheses against code. **All confirmed**, plus emergent findings: Context = Shared Kernel +
+OHS (H1); **Status/kanban is a first-class shared context** and the planning↔execution seam, but its
+public API is bypassed ~245:6 (H2); Actor is cross-domain *and* fragmented across 3 vocabularies (H3);
+the prompt is a Published Language and there are **three** parallel context projections (H4); MissionRun
+can't name its Mission — `inputs["mission_slug"]` is write-only dead code (H5); and package-graph
+corrections — canonical runtime is `runtime/next/_internal_runtime` (CLAUDE.md ref is **stale**),
+runtime↔specify_cli is bidirectional/unenforced, `MissionStatus`/`mission_runtime/` are net-new and
+layer-meta-guarded (H6). The model is validated; doc 16 is the evidence base for the `06` concretization.
+
 ## Where we are now
 
 - **Phase 1 (grounding + reconnaissance): complete** — docs `01`–`08`.
