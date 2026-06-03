@@ -13,13 +13,17 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-execution-state-domain-remediation-01KT6HVH
+base_commit: 0987196e8f2a21dc10b839ed2b271e4fa89e1d0b
+created_at: '2026-06-03T11:39:10.141562+00:00'
 subtasks:
 - T006
 - T007
 - T008
 - T009
 - T010
-agent: claude
+agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
+shell_pid: "43370"
 history:
 - date: '2026-06-03'
   event: created
@@ -220,3 +224,8 @@ Verify that:
 1. The test uses subprocess `cwd=` for CWD simulation, not `os.chdir()`
 2. `test_ratchet_catches_divergence` actually fails when CWD-parity is broken (not vacuously passing)
 3. The CI path filter covers all execution-context-adjacent files
+
+## Activity Log
+
+- 2026-06-03T11:39:12Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=43370 – Assigned agent via action command
+- 2026-06-03T11:48:29Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=43370 – Implementation complete. Lint: exit 0 (ruff check clean). Tests: 2 passed (test_cwd_parity + test_ratchet_catches_divergence). CI path filter added for execution_context paths.

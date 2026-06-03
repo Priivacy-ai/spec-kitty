@@ -83,11 +83,11 @@
 **Dependencies**: WP01
 
 **Subtasks**:
-- [ ] T006 Create e2e ratchet test fixture (WP02)
-- [ ] T007 Implement main-CWD command sequence invocations (WP02)
-- [ ] T008 Implement lane-CWD command sequence invocations (WP02)
-- [ ] T009 Add parity assertions (WP02)
-- [ ] T010 Register test in CI path filter (WP02)
+- [x] T006 Create e2e ratchet test fixture (WP02)
+- [x] T007 Implement main-CWD command sequence invocations (WP02)
+- [x] T008 Implement lane-CWD command sequence invocations (WP02)
+- [x] T009 Add parity assertions (WP02)
+- [x] T010 Register test in CI path filter (WP02)
 
 **Success criteria**: `tests/architectural/test_execution_context_parity.py` exists, passes locally, and is registered in CI. Test fails if a surface re-derives context independently.
 
