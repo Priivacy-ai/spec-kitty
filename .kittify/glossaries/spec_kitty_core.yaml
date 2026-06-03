@@ -18,6 +18,17 @@ terms:
     confidence: 0.9
     status: active
 
+  - surface: base branch
+    definition: >
+      At the mission level (branch-context output): alias for target_branch — the branch the
+      mission is rooted in. At the worktree/WP level (WP prompt frontmatter): the specific git
+      branch from which the individual lane worktree was created; may be a lane branch (e.g.
+      kitty/mission-010-feature-lane-a) rather than the target branch itself. The same key
+      therefore has different scopes: in branch-context JSON base_branch == target_branch;
+      in WP frontmatter base_branch records the worktree's immediate parent.
+    confidence: 0.9
+    status: active
+
   - surface: build
     definition: One checkout or worktree of one repository with its own execution context.
     confidence: 1.0
@@ -58,8 +69,6 @@ terms:
 
   - surface: ceremony commit
     definition: "DEPRECATED. Replaced by `status commit`. This term obscures intent and is forbidden in active source. See the canonical `status commit` entry."
-    confidence: 1.0
-    status: deprecated
 
   - surface: change mode
     definition: "A mission-level metadata flag (change_mode: bulk_edit) that activates the bulk-edit guardrail workflow, requiring an occurrence map before any work package may be approved."
@@ -91,7 +100,14 @@ terms:
     status: draft
 
   - surface: current branch
-    definition: The branch checked out in the active checkout when a planning-stage command starts.
+    definition: >
+      The git branch checked out in the main repository at the moment a spec-kitty workflow
+      command (specify, plan, tasks, implement) is invoked. Read ephemerally from the working
+      tree; never persisted in any mission artifact. Exposed as current_branch / CURRENT_BRANCH
+      in branch-context JSON output. Since WP07 (FR-012), spec-kitty refuses to derive the
+      mission target from current_branch — it reads target_branch from meta.json instead, so
+      the branch contract is stable regardless of which branch the operator is on when driving
+      the mission.
     confidence: 1.0
     status: active
 
@@ -252,7 +268,15 @@ terms:
     status: draft
 
   - surface: merge_target_branch
-    definition: Canonical branch-context alias for the branch completed work should merge into unless explicitly overridden at merge time.
+    definition: >
+      The branch where completed work-package code must ultimately land. Stored in every WP
+      prompt's frontmatter (alongside planning_base_branch) to give implementing agents an
+      explicit merge destination. In meta.json: legacy alias for target_branch, read as a
+      fallback by resolve_planning_branch_from_meta() when target_branch is absent (pre-WP03
+      missions). In 3.x all three — target_branch, planning_base_branch, and
+      merge_target_branch — carry the same value; the separation makes intent explicit in
+      agent-facing prompts and prevents the "prep branch leak" (pre-WP07 pattern in which
+      finalize-tasks inherited the current branch instead of the persisted target).
     confidence: 1.0
     status: active
 
@@ -328,7 +352,14 @@ terms:
     status: deprecated
 
   - surface: planning_base_branch
-    definition: "Canonical branch-context alias for the branch planning should treat as the mission's intended landing branch."
+    definition: >
+      The branch that was active in the repository root checkout when WP prompts were generated
+      (at finalize-tasks time). Stored in every WP prompt's frontmatter and in lanes.json to
+      root lane-worktree allocation correctly regardless of which branch the operator is on
+      when running finalize-tasks. In 3.x equals target_branch. Introduced alongside
+      merge_target_branch to close the "prep branch leak" bug (pre-WP07): when finalize-tasks
+      ran from a temporary prep/... branch, that branch leaked into WP frontmatter and crashed
+      lane allocation once the prep branch was deleted.
     confidence: 1.0
     status: active
 
@@ -491,7 +522,15 @@ terms:
     status: active
 
   - surface: target branch
-    definition: "The branch the mission's planning artifacts and merge intent are recorded against. Defaults to the current branch unless the user or command explicitly overrides it."
+    definition: >
+      The git branch on which a mission's code, planning artifacts, and status events must
+      ultimately land. Persisted in meta.json under the key target_branch at mission-create
+      time and never overwritten. Read by resolve_planning_branch_from_meta() as the canonical
+      key; merge_target_branch is its legacy alias in older meta.json fixtures. Since WP07
+      (FR-012), all downstream commands — finalize-tasks, implement, review, merge — derive
+      the branch contract from this stored value, not from the operator's current_branch at
+      invocation time. In branch-context JSON output, target_branch and base_branch carry the
+      same value when queried at the mission level.
     confidence: 1.0
     status: active
 
