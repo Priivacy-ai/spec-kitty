@@ -59,7 +59,7 @@ Options:
 | `auto_refresh_applied` | `true` iff `--auto-refresh` was honoured AND at least one refresh action ran. |
 | `auto_refresh_actions` | Ordered list of exact commands executed. |
 | `blocked_reason` | Non-null iff `passed=false` AND `auto_refresh_applied=false`. The string MUST include an actionable next command. |
-| `warnings` | Structured non-blocking advisory messages. Human warning text MUST NOT be prepended to JSON stdout. |
+| `warnings` | Optional structured non-blocking advisory messages. Omitted when empty for backward compatibility. Human warning text MUST NOT be prepended to JSON stdout. |
 
 Fresh projects with no authored charter stack (`charter_source`, `synced_bundle`, and `synthesized_drg` all `missing`) are advisory only for read-only/dashboard consumers that explicitly enable missing-charter tolerance. In that mode the runner returns `passed=true`, marks checks `skipped`, and places the missing-charter guidance in `warnings`. Mutation gates leave this tolerance disabled so actions that require charter-derived state still fail closed.
 
