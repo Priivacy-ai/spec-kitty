@@ -691,9 +691,21 @@ class TestTasksMarkdownParsing:
 
         sections = _parse_wp_sections_from_tasks_md(tasks_md)
 
-        assert sections["WP01"].startswith(" Build parser\n")
+        assert sections["WP01"].startswith(": Build parser\n")
         assert "Requirements Refs: FR-001, NFR-002" in sections["WP01"]
         assert sections["WP02"] == "\nRequirements: FR-003\n"
+
+    def test_parse_wp_sections_accepts_legacy_work_package_spacing(self) -> None:
+        from specify_cli.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
+
+        tasks_md = (
+            "## Work Package    WP01: Build parser\n"
+            "Requirements Refs: FR-001, NFR-002\n"
+        )
+
+        assert _parse_requirement_refs_from_tasks_md(tasks_md) == {
+            "WP01": ["FR-001", "NFR-002"]
+        }
 
     def test_parse_requirement_refs_completes_under_budget_on_adversarial_input(self) -> None:
         from specify_cli.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
