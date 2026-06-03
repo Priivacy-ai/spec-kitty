@@ -1,4 +1,4 @@
-"""Migration 3.2.1: Remove agents.selection block from .kittify/config.yaml.
+"""Migration 3.2.0rc35: Remove agents.selection block from .kittify/config.yaml.
 
 The preferred_implementer and preferred_reviewer fields were stored in
 agents.selection but the methods that would have acted on them were never
@@ -28,9 +28,9 @@ from .base import BaseMigration, MigrationResult
 class StripSelectionConfigMigration(BaseMigration):
     """Remove agents.selection.preferred_implementer/reviewer from config.yaml."""
 
-    migration_id = "3.2.1_strip_selection_config"
+    migration_id = "3.2.0rc35_strip_selection_config"
     description = "Remove selection block from .kittify/config.yaml"
-    target_version = "3.2.1"
+    target_version = "3.2.0rc35"
 
     def detect(self, project_path: Path) -> bool:
         """Return True if any root key has a 'selection' sub-key in config.yaml.

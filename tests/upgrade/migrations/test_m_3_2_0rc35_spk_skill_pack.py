@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.skills.registry import SkillRegistry
-from specify_cli.upgrade.migrations.m_3_2_0_spk_skill_pack import (
+from specify_cli.upgrade.migrations.m_3_2_0rc35_spk_skill_pack import (
     SpkSkillPackMigration,
 )
 
@@ -65,7 +65,7 @@ def test_detects_missing_spk_skill_for_installable_agent(
     _patch_home(tmp_path, monkeypatch)
 
     with patch(
-        "specify_cli.upgrade.migrations.m_3_2_0_spk_skill_pack._discover_registry",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_spk_skill_pack._discover_registry",
         return_value=SkillRegistry(skills_root),
     ):
         assert SpkSkillPackMigration().detect(project) is True
@@ -80,7 +80,7 @@ def test_apply_installs_spk_skill_and_reference(
     _patch_home(tmp_path, monkeypatch)
 
     with patch(
-        "specify_cli.upgrade.migrations.m_3_2_0_spk_skill_pack._discover_registry",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_spk_skill_pack._discover_registry",
         return_value=SkillRegistry(skills_root),
     ):
         result = SpkSkillPackMigration().apply(project)
@@ -97,7 +97,7 @@ def test_apply_installs_spk_skill_and_reference(
     ).exists()
 
     manifest = json.loads((project / ".kittify" / "skills-manifest.json").read_text())
-    assert manifest["spec_kitty_version"] == "3.2.0"
+    assert manifest["spec_kitty_version"] == "3.2.0rc35"
     assert any(entry["skill_name"] == "spk-start-here" for entry in manifest["entries"])
 
 
@@ -111,7 +111,7 @@ def test_detect_false_after_apply(
     _patch_home(tmp_path, monkeypatch)
 
     with patch(
-        "specify_cli.upgrade.migrations.m_3_2_0_spk_skill_pack._discover_registry",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_spk_skill_pack._discover_registry",
         return_value=registry,
     ):
         result = SpkSkillPackMigration().apply(project)
@@ -128,7 +128,7 @@ def test_skips_wrapper_only_agents(
     _patch_home(tmp_path, monkeypatch)
 
     with patch(
-        "specify_cli.upgrade.migrations.m_3_2_0_spk_skill_pack._discover_registry",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_spk_skill_pack._discover_registry",
         return_value=SkillRegistry(skills_root),
     ):
         assert SpkSkillPackMigration().detect(project) is False

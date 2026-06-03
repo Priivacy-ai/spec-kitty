@@ -53,9 +53,9 @@ def _untrack(project_path: Path, relative_path: str) -> bool:
 class KittifyRuntimeGitHygieneMigration(BaseMigration):
     """Ignore sync state and untrack known local-runtime files."""
 
-    migration_id = "3.2.9_kittify_runtime_git_hygiene"
+    migration_id = "3.2.0rc35_kittify_runtime_git_hygiene"
     description = "Repair local-runtime .kittify gitignore and tracked-file state"
-    target_version = "3.2.9"
+    target_version = "3.2.0rc35"
 
     def detect(self, project_path: Path) -> bool:
         gitignore_path = project_path / ".gitignore"

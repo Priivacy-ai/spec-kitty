@@ -1,4 +1,4 @@
-"""Tests for m_3_2_7_activate_builtin_mission_types migration (WP12 / FR-019).
+"""Tests for m_3_2_0rc35_activate_builtin_mission_types migration (WP12 / FR-019).
 
 Covers:
 * Migration on project without mission_type_activations — adds all four built-ins.
@@ -19,7 +19,7 @@ import pytest
 
 pytestmark = pytest.mark.fast
 
-from specify_cli.upgrade.migrations.m_3_2_7_activate_builtin_mission_types import (
+from specify_cli.upgrade.migrations.m_3_2_0rc35_activate_builtin_mission_types import (
     ActivateBuiltinMissionTypesMigration,
     _BUILTIN_MISSION_TYPES,
 )

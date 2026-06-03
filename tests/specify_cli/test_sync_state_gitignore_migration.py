@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.upgrade.migrations.m_3_2_9_sync_state_gitignore import (
+from specify_cli.upgrade.migrations.m_3_2_0rc35_sync_state_gitignore import (
     KittifyRuntimeGitHygieneMigration,
 )
 

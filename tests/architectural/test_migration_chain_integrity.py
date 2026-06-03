@@ -47,14 +47,13 @@ Algorithm
      **minor-bump** (``cur.minor == prev.minor + 1``) are normal.
    * **patch-bump** (``cur.micro == prev.micro + 1``) is normal.
 
-5. After the walk, assert that the chain's terminal target version,
-   stripped of pre/post/dev release suffixes, is **at least** the
-   project version from ``pyproject.toml`` (also stripped).
+5. After the walk, assert that the chain's terminal target version is
+   **not newer than** the project version from ``pyproject.toml``.
 
-   * If the chain end is **behind** pyproject -- HARD FAIL: the chain
-     does not cover the currently-released version.
-   * If the chain end is **ahead** of pyproject -- OK: forward-looking
-     migrations for upcoming releases are normal.
+   * If the chain end is **behind** pyproject -- OK only when the release has
+     no migration at its exact version.
+   * If the chain end is **ahead** of pyproject -- HARD FAIL: a user upgrading
+     to the current package version will not run that migration.
 
 The ``_KNOWN_LINE_JUMPS`` set is the ratchet for legitimate historical
 discontinuities (e.g. 1.x was never released; the codebase jumped
@@ -113,16 +112,6 @@ _KNOWN_LINE_JUMPS: frozenset[tuple[str, str]] = frozenset(
         ("2.2.0", "3.0.0"),
     }
 )
-
-
-def _strip_postfix(version: str) -> str:
-    """Strip pre/post/dev release suffixes, returning ``X.Y.Z`` form.
-
-    Uses ``packaging.version.Version.base_version``, which drops
-    ``rc``, ``a``, ``b``, ``.dev``, ``.post`` and similar suffixes
-    while preserving the canonical numeric core.
-    """
-    return Version(version).base_version
 
 
 def _classify_step(prev: Version, cur: Version) -> str:
@@ -313,14 +302,12 @@ def test_migration_chain_is_consistent_and_uninterrupted() -> None:
     )
 
 
-def test_migration_chain_reaches_current_project_version() -> None:
-    """The chain's terminal target MUST cover the current pyproject version.
+def test_migration_chain_does_not_exceed_current_project_version() -> None:
+    """The chain's terminal target MUST NOT exceed the pyproject version.
 
-    Strips pre/post/dev suffixes from both sides before comparing.
-    The chain may target a version *ahead* of pyproject (forward-looking
-    migrations for upcoming releases are normal), but must never lag
-    behind: a user upgrading to the currently-released version must have
-    a path covered by registered migrations.
+    The upgrade runner only applies migrations whose target_version is less
+    than or equal to the installed package version. A migration target ahead of
+    pyproject is therefore skipped by real users.
     """
     auto_discover_migrations()
 
@@ -328,17 +315,13 @@ def test_migration_chain_reaches_current_project_version() -> None:
     assert migrations, "MigrationRegistry is empty after discovery."
 
     chain_terminal = migrations[-1].target_version
-    chain_terminal_base = _strip_postfix(chain_terminal)
 
     project_version = _project_version()
-    project_base = _strip_postfix(project_version)
 
-    assert Version(chain_terminal_base) >= Version(project_base), (
+    assert Version(chain_terminal) <= Version(project_version), (
         f"Migration chain terminates at {chain_terminal} "
-        f"(base {chain_terminal_base}), but pyproject.toml declares "
-        f"version {project_version} (base {project_base}). "
-        "The chain must cover the current release: a user upgrading "
-        "to the released version would have no migration path beyond "
-        f"{chain_terminal_base}. Add the missing migration(s) or "
-        "downgrade pyproject.toml to a version the chain reaches."
+        f"but pyproject.toml declares version {project_version}. "
+        "Migrations newer than the package version are skipped by "
+        "spec-kitty upgrade. Retarget the migration to the current package "
+        "version or bump pyproject.toml before release."
     )

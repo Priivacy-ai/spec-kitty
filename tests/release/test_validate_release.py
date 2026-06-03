@@ -87,6 +87,29 @@ def changelog_for_versions(*versions: tuple[str, str]) -> str:
     return "\n".join(sections)
 
 
+def write_migration(tmp_path: Path, filename: str, target_version: str) -> None:
+    migrations_dir = tmp_path / "src" / "specify_cli" / "upgrade" / "migrations"
+    migrations_dir.mkdir(parents=True, exist_ok=True)
+    (migrations_dir / filename).write_text(
+        dedent(
+            f"""
+            from specify_cli.upgrade.registry import MigrationRegistry
+            from .base import BaseMigration
+
+            TARGET_VERSION = "{target_version}"
+
+            @MigrationRegistry.register
+            class ExampleMigration(BaseMigration):
+                migration_id = "{filename.removesuffix('.py')}"
+                description = "test migration"
+                target_version = TARGET_VERSION
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+
 def test_branch_mode_succeeds_with_version_bump(tmp_path: Path) -> None:
     init_repo(tmp_path)
     write_release_files(
@@ -106,6 +129,61 @@ def test_branch_mode_succeeds_with_version_bump(tmp_path: Path) -> None:
         ),
     )
     stage_and_commit(tmp_path, "chore: prep 0.2.4")
+
+    result = run_validator(tmp_path, "--mode", "branch")
+
+    assert result.returncode == 0, result.stderr
+    assert "All required checks passed." in result.stdout
+
+
+def test_prerelease_fails_when_migration_target_is_newer_than_package(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "3.2.0rc34",
+        changelog_for_versions(("3.2.0rc34", "- Prior candidate")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap 3.2.0rc34")
+    tag(tmp_path, "v3.2.0rc34")
+
+    write_release_files(
+        tmp_path,
+        "3.2.0rc35",
+        changelog_for_versions(
+            ("3.2.0rc35", "- Candidate"),
+            ("3.2.0rc34", "- Prior candidate"),
+        ),
+    )
+    write_migration(tmp_path, "m_3_2_0_final_repair.py", "3.2.0")
+    stage_and_commit(tmp_path, "chore: prep 3.2.0rc35")
+
+    result = run_validator(tmp_path, "--mode", "branch")
+
+    assert result.returncode == 1
+    assert "Release 3.2.0rc35 is behind migration target(s): 3.2.0" in result.stderr
+    assert "A user upgrading to 3.2.0rc35 will not run migrations targeted after 3.2.0rc35" in result.stderr
+
+
+def test_prerelease_accepts_migration_targets_at_candidate_version(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "3.2.0rc34",
+        changelog_for_versions(("3.2.0rc34", "- Prior candidate")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap 3.2.0rc34")
+    tag(tmp_path, "v3.2.0rc34")
+
+    write_release_files(
+        tmp_path,
+        "3.2.0rc35",
+        changelog_for_versions(
+            ("3.2.0rc35", "- Candidate"),
+            ("3.2.0rc34", "- Prior candidate"),
+        ),
+    )
+    write_migration(tmp_path, "m_3_2_0rc35_late_repair.py", "3.2.0rc35")
+    stage_and_commit(tmp_path, "chore: prep 3.2.0rc35")
 
     result = run_validator(tmp_path, "--mode", "branch")
 

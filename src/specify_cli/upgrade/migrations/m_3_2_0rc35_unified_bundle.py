@@ -1,4 +1,4 @@
-"""Migration m_3_2_3_unified_bundle: advance project to unified bundle (v1.0.0).
+"""Migration 3.2.0rc35_unified_bundle: advance project to unified bundle (v1.0.0).
 
 Phase 2 migration. On apply:
     (a) Detect whether ``.kittify/charter/charter.md`` exists at the canonical root.
@@ -37,8 +37,8 @@ from typing import Any
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
-MIGRATION_ID = "m_3_2_3_unified_bundle"
-TARGET_VERSION = "3.2.3"
+MIGRATION_ID = "3.2.0rc35_unified_bundle"
+TARGET_VERSION = "3.2.0rc35"
 
 
 def _build_report(
@@ -79,7 +79,7 @@ def _default_bundle_validation() -> dict[str, Any]:
 
 @MigrationRegistry.register
 class UnifiedBundleMigration(BaseMigration):
-    """Seal the project at 3.2.3: ensure derivatives via the chokepoint, validate bundle.
+    """Seal the project at 3.2.0rc35: ensure derivatives via the chokepoint, validate bundle.
 
     The migration is intentionally narrow. It performs NO worktree scanning,
     NO symlink operations, and NO ``.gitignore`` edits — v1.0.0 manifest

@@ -4,15 +4,20 @@ Validates that migrations are auto-discovered from filesystem
 without requiring manual imports in __init__.py.
 """
 
-import pytest
+import tomllib
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
+from packaging.version import Version
 
 
 from specify_cli.upgrade.migrations import MigrationDiscoveryError, auto_discover_migrations
 from specify_cli.upgrade.registry import MigrationRegistry
 
 pytestmark = pytest.mark.fast
+REPO_ROOT = Path(__file__).parent.parent.parent
+MIGRATIONS_DIR = REPO_ROOT / "src" / "specify_cli" / "upgrade" / "migrations"
 
 
 class TestAutoDiscovery:
@@ -24,8 +29,7 @@ class TestAutoDiscovery:
         MigrationRegistry.clear()
 
         # Count migration files in directory
-        migrations_dir = Path(__file__).parent.parent.parent / "src" / "specify_cli" / "upgrade" / "migrations"
-        migration_files = list(migrations_dir.glob("m_*.py"))
+        migration_files = list(MIGRATIONS_DIR.glob("m_*.py"))
         expected_count = len(migration_files)
 
         # Run auto-discovery
@@ -118,11 +122,32 @@ class TestAutoDiscovery:
         versions = [m.target_version for m in migrations]
 
         # Verify they're in ascending order
-        from packaging.version import Version
-
         sorted_versions = sorted(versions, key=Version)
 
         assert versions == sorted_versions, "Migrations should be sorted by target_version"
+
+    def test_discovered_migration_targets_do_not_exceed_package_version(self):
+        """Migrations newer than the installed package are skipped by upgrade."""
+        project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())
+        package_version = Version(project["project"]["version"])
+
+        MigrationRegistry.clear()
+        auto_discover_migrations()
+
+        ahead = [
+            migration
+            for migration in MigrationRegistry.get_all()
+            if Version(migration.target_version) > package_version
+        ]
+
+        assert ahead == [], (
+            f"Migration target(s) exceed package version {package_version}: "
+            + ", ".join(
+                f"{migration.migration_id} -> {migration.target_version}"
+                for migration in ahead
+            )
+            + ". A user upgrading to the current package will not run them."
+        )
 
     def test_import_does_not_auto_discover(self):
         """Importing the migrations package does not load every migration."""
@@ -134,9 +159,7 @@ class TestAutoDiscovery:
 
     def test_all_migration_files_have_registration_decorator(self):
         """All m_*.py files use @MigrationRegistry.register decorator."""
-        migrations_dir = Path(__file__).parent.parent.parent / "src" / "specify_cli" / "upgrade" / "migrations"
-
-        for migration_file in migrations_dir.glob("m_*.py"):
+        for migration_file in MIGRATIONS_DIR.glob("m_*.py"):
             # Read file content
             content = migration_file.read_text()
 

@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.skills.command_installer import CANONICAL_COMMANDS
-from specify_cli.upgrade.migrations.m_3_2_0_codex_to_skills import (
+from specify_cli.upgrade.migrations.m_3_2_0rc35_codex_to_skills import (
     CodexToSkillsMigration,
     _classify,
 )

@@ -21,12 +21,12 @@
 test_no_dead_modules:
   # justification: 76 auto-discovered migration modules under
   # src/specify_cli/upgrade/migrations/m_*.py. +3 for
-  # m_3_2_0rc28_github_diff_attributes, m_3_2_7_activate_builtin_mission_types
-  # (WP01 gap filled here), and m_3_2_8_default_charter_pack (WP05,
+  # m_3_2_0rc28_github_diff_attributes, m_3_2_0rc35_activate_builtin_mission_types
+  # (WP01 gap filled here), and m_3_2_0rc35_default_charter_pack (WP05,
   # charter-pack-activation-layer-01KSYE4V). +1 for
-  # m_3_2_6_charter_manifest_defaults_repair (upstream #1480). +1 (76->77,
+  # m_3_2_0rc35_charter_manifest_defaults_repair (upstream #1480). +1 (76->77,
   # org-doctrine-profile-integrity-closeout WP04): the upstream rebase added
-  # m_3_2_9_sync_state_gitignore, allowlisted in _CATEGORY_1 here. Growth here
+  # m_3_2_0rc35_sync_state_gitignore, allowlisted in _CATEGORY_1 here. Growth here
   # is expected/routine.
   category_1_auto_discovered_migrations: 77
   # justification: 3 schema generator modules consumed by

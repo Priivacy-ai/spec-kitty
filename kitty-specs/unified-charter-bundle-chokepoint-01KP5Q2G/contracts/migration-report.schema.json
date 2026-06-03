@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://spec-kitty.dev/schemas/migration-report/m_3_2_3_unified_bundle.json",
-  "title": "MigrationReport (m_3_2_3_unified_bundle)",
-  "description": "Structured JSON output emitted by the m_3_2_3_unified_bundle migration when run via `spec-kitty upgrade --json`. Tested by tests/upgrade/test_unified_bundle_migration.py against the FR-013 fixture matrix. v1.0.0 scope: the migration does NOT scan worktrees, does NOT remove charter-related symlinks (no such symlinks exist for the charter bundle), and does NOT reconcile .gitignore (v1.0.0 manifest matches current .gitignore verbatim). The migration exists to (a) seal the project version at 3.2.3, (b) ensure derivatives are present via the chokepoint, and (c) validate the bundle against the manifest.",
+  "$id": "https://spec-kitty.dev/schemas/migration-report/m_3_2_0rc35_unified_bundle.json",
+  "title": "MigrationReport (m_3_2_0rc35_unified_bundle)",
+  "description": "Structured JSON output emitted by the m_3_2_0rc35_unified_bundle migration when run via `spec-kitty upgrade --json`. Tested by tests/upgrade/test_unified_bundle_migration.py against the FR-013 fixture matrix. v1.0.0 scope: the migration does NOT scan worktrees, does NOT remove charter-related symlinks (no such symlinks exist for the charter bundle), and does NOT reconcile .gitignore (v1.0.0 manifest matches current .gitignore verbatim). The migration exists to (a) seal the project version at 3.2.0rc35, (b) ensure derivatives are present via the chokepoint, and (c) validate the bundle against the manifest.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -18,12 +18,12 @@
   "properties": {
     "migration_id": {
       "type": "string",
-      "const": "m_3_2_3_unified_bundle",
+      "const": "3.2.0rc35_unified_bundle",
       "description": "Literal identifier of this migration."
     },
     "target_version": {
       "type": "string",
-      "const": "3.2.3",
+      "const": "3.2.0rc35",
       "description": "Literal target version the migration advances the project to."
     },
     "applied": {

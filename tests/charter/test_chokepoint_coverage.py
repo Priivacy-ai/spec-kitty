@@ -24,8 +24,8 @@ wrapper that does). The carve-out list is explicit and narrow:
   * ``src/charter/context.py`` lines 385-398 — context-state.json write
     region (C-012). The rest of the file IS in scope and flips through
     the chokepoint.
-  * ``src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py`` —
-    bootstrap migration (future).
+  * ``src/specify_cli/upgrade/migrations/m_3_2_0rc35_unified_bundle.py`` —
+    bootstrap migration.
   * ``src/charter/extractor.py``
     — producers of governance/directives/metadata.yaml; they WRITE, not
     READ, those files.
@@ -69,8 +69,8 @@ _CARVE_OUTS: frozenset[str] = frozenset(
         "src/charter/hasher.py",
         # Schema definitions — string literals only
         "src/charter/schemas.py",
-        # Future bootstrap migration
-        "src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py",
+        # Bootstrap migration
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc35_unified_bundle.py",
         # Doctrine layer cannot import the charter layer (architectural rule
         # ``kernel <- doctrine <- charter <- specify_cli`` — see
         # tests/architectural/test_layer_rules.py::TestDoctrineIsolation).
@@ -157,11 +157,26 @@ def _find_derivative_reader_calls(tree: ast.Module, source: str) -> list[tuple[i
 
     The caller owns carve-out filtering; this function reports raw hits.
     """
+    parent_map: dict[ast.AST, ast.AST] = {}
+    for parent in ast.walk(tree):
+        for child in ast.iter_child_nodes(parent):
+            parent_map[child] = parent
+
+    def enclosing_source(node: ast.AST) -> str:
+        current = node
+        while current in parent_map:
+            current = parent_map[current]
+            if isinstance(current, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+                return ast.get_source_segment(source, current) or ""
+        return source
+
     hits: list[tuple[int, str]] = []
-    is_charter_context = _source_mentions_charter_dir(source)
     for node in ast.walk(tree):
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
-            if node.value in _DERIVATIVE_FILENAMES and is_charter_context:
+            if (
+                node.value in _DERIVATIVE_FILENAMES
+                and _source_mentions_charter_dir(enclosing_source(node))
+            ):
                 hits.append((node.lineno, f"literal:{node.value}"))
         elif isinstance(node, ast.Call):
             func = node.func
@@ -239,8 +254,9 @@ def test_carve_out_files_exist() -> None:
     masks a newly-introduced reader that would otherwise be flagged.
     """
     missing = [rel for rel in _CARVE_OUTS if not (_REPO_ROOT / rel).exists()]
-    # m_3_2_3_unified_bundle.py is forward-looking; tolerate its absence.
-    missing = [rel for rel in missing if "m_3_2_3_unified_bundle" not in rel]
+    # 3.2.0rc35_unified_bundle.py may be absent on branches before the
+    # migration lands; tolerate that during cross-branch checks.
+    missing = [rel for rel in missing if "m_3_2_0rc35_unified_bundle" not in rel]
     assert not missing, f"Carve-out entries reference missing files: {missing}"
 
 

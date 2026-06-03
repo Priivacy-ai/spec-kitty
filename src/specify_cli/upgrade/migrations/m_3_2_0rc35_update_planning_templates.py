@@ -51,12 +51,12 @@ _COMMANDS_TO_UPDATE = ("tasks-outline", "tasks-packages")
 class UpdatePlanningTemplatesMigration(BaseMigration):
     """Replace pre-3.2.0 tasks-outline / tasks-packages with wps.yaml-based versions."""
 
-    migration_id = "3.2.0_update_planning_templates"
+    migration_id = "3.2.0rc35_update_planning_templates"
     description = (
         "Update tasks-outline and tasks-packages command files from prose tasks.md "
         "authoring to structured wps.yaml manifest authoring"
     )
-    target_version = "3.2.0"
+    target_version = "3.2.0rc35"
 
     def detect(self, project_path: Path) -> bool:
         """Return True if any tasks-outline command file contains the stale marker.

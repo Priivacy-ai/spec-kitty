@@ -1,5 +1,5 @@
 """Known filenames for .codex/prompts/spec-kitty.*.md produced by Spec Kitty
-releases before 3.2.0.  Used by m_3_2_0_codex_to_skills to classify files as
+releases before 3.2.0.  Used by m_3_2_0rc35_codex_to_skills to classify files as
 owned vs third-party.
 
 Simplification (Option A — filename-only matching)

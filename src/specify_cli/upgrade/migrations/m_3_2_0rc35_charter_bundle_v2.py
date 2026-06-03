@@ -1,4 +1,4 @@
-"""Migration m_3_2_6_charter_bundle_v2: upgrade charter bundle schema from v1 to v2.
+"""Migration m_3_2_0rc35_charter_bundle_v2: upgrade charter bundle schema from v1 to v2.
 
 Phase 7 provenance hardening — adds mandatory ``synthesizer_version``,
 ``source_input_ids``, ``produced_at``, ``synthesis_run_id`` fields to all
@@ -31,8 +31,8 @@ from charter.versioning import (
 class CharterBundleV2Migration(BaseMigration):
     """Upgrades charter doctrine bundles from v1 to v2 (Phase 7 hardening)."""
 
-    migration_id = "3.2.6_charter_bundle_v2"
-    target_version = "3.2.6"
+    migration_id = "3.2.0rc35_charter_bundle_v2"
+    target_version = "3.2.0rc35"
     description = (
         "Upgrade charter bundle schema from v1 to v2 (Phase 7 provenance hardening): "
         "adds synthesizer_version, source_input_ids, produced_at, synthesis_run_id "

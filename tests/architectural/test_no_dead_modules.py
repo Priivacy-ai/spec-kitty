@@ -175,35 +175,35 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_1_1_direct_canonical_commands",
         "specify_cli.upgrade.migrations.m_3_1_1_event_log_merge_driver",
         "specify_cli.upgrade.migrations.m_3_1_1_normalize_status_json",
-        "specify_cli.upgrade.migrations.m_3_2_0_codex_to_skills",
-        "specify_cli.upgrade.migrations.m_3_2_0_update_planning_templates",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_codex_to_skills",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates",
         "specify_cli.upgrade.migrations.m_3_2_0a4_normalize_mission_lifecycle",
         "specify_cli.upgrade.migrations.m_3_2_0a4_safe_globalize_commands",
-        "specify_cli.upgrade.migrations.m_3_2_1_strip_selection_config",
-        "specify_cli.upgrade.migrations.m_3_2_3_unified_bundle",
-        "specify_cli.upgrade.migrations.m_3_2_4_kittify_profile_handoff",
-        "specify_cli.upgrade.migrations.m_3_2_4_repository_root_checkout_terminology",
-        "specify_cli.upgrade.migrations.m_3_2_5_fix_prompt_file_workaround",
-        "specify_cli.upgrade.migrations.m_3_2_6_charter_bundle_v2",
-        "specify_cli.upgrade.migrations.m_3_2_6_charter_manifest_defaults_repair",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_strip_selection_config",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_kittify_profile_handoff",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_repository_root_checkout_terminology",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_fix_prompt_file_workaround",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_charter_bundle_v2",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_charter_manifest_defaults_repair",
         # NOTE: WP01 (charter-pack-activation-layer-01KSYE4V) was expected to
         # add the three entries below.  They are added here as a WP01 gap fix
         # so the WP05 architectural gate passes before lanes are merged.
         "specify_cli.upgrade.migrations.m_3_2_0rc28_github_diff_attributes",
         "specify_cli.upgrade.migrations.m_3_2_0rc30_fix_runtime_next_result_default",
-        "specify_cli.upgrade.migrations.m_3_2_7_activate_builtin_mission_types",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_activate_builtin_mission_types",
         # WP05 (charter-pack-activation-layer-01KSYE4V) migration added here.
-        "specify_cli.upgrade.migrations.m_3_2_8_default_charter_pack",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_default_charter_pack",
         # org-doctrine-profile-integrity-closeout WP04: upstream rebase added
         # this auto-discovered migration (loaded via pkgutil.iter_modules in
         # migrations/__init__.py, never statically imported -> always an
         # allowlisted Cat-1 orphan by design). Test-exercised by
         # tests/specify_cli/test_sync_state_gitignore_migration.py.
-        "specify_cli.upgrade.migrations.m_3_2_9_sync_state_gitignore",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_sync_state_gitignore",
         # pi-and-letta-agent-support-01KT4Q26 WP01: backfill migration for
         # .pi/ and .letta/ gitignore entries and skill-pack repair.
         # Auto-discovered via pkgutil.iter_modules; never statically imported.
-        "specify_cli.upgrade.migrations.m_3_2_10_pi_letta_backfill",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_pi_letta_backfill",
     }
 )
 
