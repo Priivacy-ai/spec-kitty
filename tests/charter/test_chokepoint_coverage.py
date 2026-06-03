@@ -153,11 +153,26 @@ def _find_derivative_reader_calls(tree: ast.Module, source: str) -> list[tuple[i
 
     The caller owns carve-out filtering; this function reports raw hits.
     """
+    parent_map: dict[ast.AST, ast.AST] = {}
+    for parent in ast.walk(tree):
+        for child in ast.iter_child_nodes(parent):
+            parent_map[child] = parent
+
+    def enclosing_source(node: ast.AST) -> str:
+        current = node
+        while current in parent_map:
+            current = parent_map[current]
+            if isinstance(current, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+                return ast.get_source_segment(source, current) or ""
+        return source
+
     hits: list[tuple[int, str]] = []
-    is_charter_context = _source_mentions_charter_dir(source)
     for node in ast.walk(tree):
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
-            if node.value in _DERIVATIVE_FILENAMES and is_charter_context:
+            if (
+                node.value in _DERIVATIVE_FILENAMES
+                and _source_mentions_charter_dir(enclosing_source(node))
+            ):
                 hits.append((node.lineno, f"literal:{node.value}"))
         elif isinstance(node, ast.Call):
             func = node.func
