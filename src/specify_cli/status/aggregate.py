@@ -24,12 +24,15 @@ Key constraints
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     pass
+
+_logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -58,6 +61,29 @@ class CoordAuthorityUnavailable(RuntimeError):
             f"Expected coord path: {coord_candidate}. "
             f"Primary checkout (stale, not used): {primary_candidate}. "
             "Either materialise the coordination worktree or investigate why it is missing."
+        )
+
+
+class MissionMetadataUnavailable(RuntimeError):
+    """Raised when an existing mission ``meta.json`` cannot be trusted."""
+
+    def __init__(
+        self,
+        *,
+        mission_slug: str,
+        meta_path: Path,
+        primary_candidate: Path,
+        reason: str,
+    ) -> None:
+        self.mission_slug = mission_slug
+        self.meta_path = meta_path
+        self.primary_candidate = primary_candidate
+        super().__init__(
+            f"Mission metadata unavailable for mission {mission_slug!r}. "
+            f"meta.json path: {meta_path}. "
+            f"Primary checkout (not used): {primary_candidate}. "
+            f"Reason: {reason}. "
+            "Fix meta.json before reading mission status."
         )
 
 
@@ -134,6 +160,8 @@ class MissionStatus:
         Raises:
             CoordAuthorityUnavailable: When coord topology is declared but
                 the coord worktree is missing.
+            MissionMetadataUnavailable: When ``meta.json`` exists but cannot
+                be parsed as a trusted object.
         """
         # 1. Load meta.json (best-effort; legacy missions may not have one)
         mission_id, declares_coord_branch = cls._read_meta(repo_root, mission_slug)
@@ -197,16 +225,53 @@ class MissionStatus:
             return None, False
         try:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            return None, False
+        except (OSError, json.JSONDecodeError) as exc:
+            _logger.warning(
+                "_read_meta: failed to read/parse meta.json for mission %r at %s: %s",
+                mission_slug,
+                meta_path,
+                exc,
+            )
+            raise MissionMetadataUnavailable(
+                mission_slug=mission_slug,
+                meta_path=meta_path,
+                primary_candidate=repo_root / "kitty-specs" / mission_slug,
+                reason=str(exc),
+            ) from exc
         if not isinstance(meta, dict):
-            return None, False
+            _logger.warning(
+                "_read_meta: meta.json for mission %r is not a dict (got %s)",
+                mission_slug,
+                type(meta).__name__,
+            )
+            raise MissionMetadataUnavailable(
+                mission_slug=mission_slug,
+                meta_path=meta_path,
+                primary_candidate=repo_root / "kitty-specs" / mission_slug,
+                reason=f"expected object, got {type(meta).__name__}",
+            )
 
-        mission_id = meta.get("mission_id") or None
+        mission_id_value = meta.get("mission_id")
+        if mission_id_value is not None and not isinstance(mission_id_value, str):
+            raise MissionMetadataUnavailable(
+                mission_slug=mission_slug,
+                meta_path=meta_path,
+                primary_candidate=repo_root / "kitty-specs" / mission_slug,
+                reason=f"mission_id must be string or null, got {type(mission_id_value).__name__}",
+            )
+
+        mission_id = mission_id_value or None
         if isinstance(mission_id, str) and not mission_id.strip():
             mission_id = None
 
         coord_branch = meta.get("coordination_branch")
+        if coord_branch is not None and not isinstance(coord_branch, str):
+            raise MissionMetadataUnavailable(
+                mission_slug=mission_slug,
+                meta_path=meta_path,
+                primary_candidate=repo_root / "kitty-specs" / mission_slug,
+                reason=f"coordination_branch must be string or null, got {type(coord_branch).__name__}",
+            )
         declares_coord_branch = isinstance(coord_branch, str) and bool(coord_branch.strip())
 
         return mission_id, declares_coord_branch
@@ -333,5 +398,6 @@ class MissionStatus:
 __all__ = [
     "ActiveWPStatus",
     "CoordAuthorityUnavailable",
+    "MissionMetadataUnavailable",
     "MissionStatus",
 ]

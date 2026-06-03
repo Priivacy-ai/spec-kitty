@@ -109,6 +109,7 @@ from .validate import (
 from .aggregate import (
     ActiveWPStatus,
     CoordAuthorityUnavailable,
+    MissionMetadataUnavailable,
     MissionStatus,
 )
 
@@ -118,6 +119,7 @@ __all__ = [
     "ALLOWED_TRANSITIONS",
     "CoordAuthorityUnavailable",
     "GuardContext",
+    "MissionMetadataUnavailable",
     "MissionStatus",
     "TransitionRequest",
     "CanonicalStatusNotFoundError",

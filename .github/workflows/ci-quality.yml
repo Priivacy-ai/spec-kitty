@@ -1182,7 +1182,9 @@ jobs:
   # ---------------------------------------------------------------------------
   # integration-tests-core-misc: architectural + git_repo tests for execution
   # context parity. Runs after fast-tests-core-misc passes.
-  # Triggered by core_misc or execution_context path filters.
+  # Triggered by core_misc or execution_context path filters. Execution-context
+  # only changes run the parity gate instead of the full catch-all integration
+  # suite so status/runtime edits do not inherit unrelated core-misc debt.
   # ---------------------------------------------------------------------------
   integration-tests-core-misc:
     runs-on: ubuntu-latest
@@ -1200,6 +1202,15 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — core misc"
         run: |
+          if [ "${{ needs.changes.outputs.core_misc }}" != "true" ] && [ "${{ needs.changes.outputs.execution_context }}" = "true" ]; then
+            uv run python -m pytest \
+              tests/architectural/test_execution_context_parity.py \
+              -q --tb=short \
+              --cov=src/specify_cli \
+              --cov-report=xml:out/reports/coverage/coverage-integration-core-misc.xml
+            exit $?
+          fi
+
           uv run python -m pytest \
             --ignore=tests/doctrine \
             --ignore=tests/kernel \

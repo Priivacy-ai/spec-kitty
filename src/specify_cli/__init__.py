@@ -96,7 +96,7 @@ def main_callback(
     """Main callback for root CLI setup."""
     import sys
 
-    if _is_doctor_restart_daemon_invocation(sys.argv):
+    if _is_doctor_restart_daemon_invocation(sys.argv) or _is_next_invocation(sys.argv):
         return
 
     root_callback(ctx)
@@ -161,6 +161,23 @@ def _is_doctor_skills_invocation(argv: list[str]) -> bool:
     """
     args = [arg for arg in argv[1:] if not arg.startswith("-")]
     return len(args) >= 2 and args[0] == "doctor" and args[1] == "skills"
+
+
+def _is_next_invocation(argv: list[str]) -> bool:
+    """Return True for direct ``spec-kitty next`` invocations.
+
+    ``next`` is the startup-sensitive mission loop command. It performs its
+    own project-root resolution, charter preflight, and command validation, so
+    the root callback must not run global asset repair on this path.
+    """
+    for arg in argv[1:]:
+        if arg in {"--help", "-h"}:
+            return False
+        if arg == "next":
+            return True
+        if not arg.startswith("-"):
+            return False
+    return False
 
 
 def _get_app() -> typer.Typer:
@@ -322,6 +339,10 @@ def main() -> None:
         raise typer.Exit(1)
 
     _get_app()()
+
+
+if _is_doctor_restart_daemon_process_fast_path(sys.argv):
+    _run_doctor_restart_daemon_process_fast_path(sys.argv)
 
 
 __all__ = ["main", "app", "__version__"]

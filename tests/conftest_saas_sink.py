@@ -68,6 +68,10 @@ def mock_saas_sink(monkeypatch: pytest.MonkeyPatch) -> Iterator[_RecordingSink]:
       * ``specify_cli.status.adapters.fire_saas_fanout`` — the canonical
         import path. Existing callers that import the symbol at module
         load time see the patched version.
+      * ``specify_cli.status.fire_saas_fanout`` — the package-root
+        re-export. ``coordination.outbound`` imports this symbol lazily,
+        so SaaS-enabled tests must patch it too or they can fall through
+        to registered real sync handlers.
       * ``specify_cli.status.emit.fire_saas_fanout`` — emit.py imports
         the symbol at its module top, so monkeypatching the source alone
         does not catch its already-bound reference.
@@ -83,6 +87,10 @@ def mock_saas_sink(monkeypatch: pytest.MonkeyPatch) -> Iterator[_RecordingSink]:
     # Primary boundary
     monkeypatch.setattr(
         "specify_cli.status.adapters.fire_saas_fanout",
+        sink,
+    )
+    monkeypatch.setattr(
+        "specify_cli.status.fire_saas_fanout",
         sink,
     )
 

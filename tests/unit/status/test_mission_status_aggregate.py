@@ -199,6 +199,66 @@ class TestLoadCoordUnavailableFailsClosed:
         with pytest.raises(CoordAuthorityUnavailable):
             MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
 
+    def test_corrupt_meta_fails_closed_instead_of_legacy_fallback(self, tmp_path: Path) -> None:
+        """Existing but corrupt meta.json cannot degrade to a primary-checkout read."""
+        slug = "corrupt-meta-feature"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        (mission_dir / "meta.json").write_text(
+            '{"mission_id":"01CORRUPT12345678901234","coordination_branch":',
+            encoding="utf-8",
+        )
+        _write_events_file(mission_dir, [
+            _make_event(slug, "WP01", "planned", "claimed"),
+        ])
+
+        from specify_cli.status.aggregate import MissionMetadataUnavailable, MissionStatus
+
+        with pytest.raises(MissionMetadataUnavailable) as exc_info:
+            MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+        exc = exc_info.value
+        assert exc.mission_slug == slug
+        assert exc.primary_candidate == mission_dir
+
+    def test_non_dict_meta_fails_closed_instead_of_legacy_fallback(self, tmp_path: Path) -> None:
+        """Existing meta.json must be an object before topology can be trusted."""
+        slug = "array-meta-feature"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        (mission_dir / "meta.json").write_text("[]", encoding="utf-8")
+
+        from specify_cli.status.aggregate import MissionMetadataUnavailable, MissionStatus
+
+        with pytest.raises(MissionMetadataUnavailable, match="expected object"):
+            MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+    def test_non_string_mission_id_fails_closed(self, tmp_path: Path) -> None:
+        """Malformed mission_id cannot be laundered into a legacy read."""
+        slug = "bad-mission-id-feature"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        (mission_dir / "meta.json").write_text(
+            '{"mission_id": ["01BAD"], "coordination_branch": "kitty/mission-bad"}',
+            encoding="utf-8",
+        )
+
+        from specify_cli.status.aggregate import MissionMetadataUnavailable, MissionStatus
+
+        with pytest.raises(MissionMetadataUnavailable, match="mission_id must be string"):
+            MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+    def test_non_string_coordination_branch_fails_closed(self, tmp_path: Path) -> None:
+        """Malformed coordination_branch cannot degrade to primary checkout."""
+        slug = "bad-coord-branch-feature"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        (mission_dir / "meta.json").write_text(
+            '{"mission_id": "01BADCOORD12345678901234", "coordination_branch": 123}',
+            encoding="utf-8",
+        )
+
+        from specify_cli.status.aggregate import MissionMetadataUnavailable, MissionStatus
+
+        with pytest.raises(MissionMetadataUnavailable, match="coordination_branch must be string"):
+            MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
 
 # ---------------------------------------------------------------------------
 # T025.4 — MissionStatus.claim() returns correct lane
@@ -305,9 +365,109 @@ class TestStatusFacadeExports:
     def test_coord_authority_unavailable_importable_from_status(self) -> None:
         from specify_cli.status import CoordAuthorityUnavailable  # noqa: F401
 
+    def test_mission_metadata_unavailable_importable_from_status(self) -> None:
+        from specify_cli.status import MissionMetadataUnavailable  # noqa: F401
+
     def test_all_three_in_dunder_all(self) -> None:
         import specify_cli.status as status_mod
 
         assert "MissionStatus" in status_mod.__all__
         assert "ActiveWPStatus" in status_mod.__all__
         assert "CoordAuthorityUnavailable" in status_mod.__all__
+        assert "MissionMetadataUnavailable" in status_mod.__all__
+
+
+# ---------------------------------------------------------------------------
+# FR-019 / FR-020 — MissionStatus.transition() and .save() unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestTransitionHappyPath:
+    def test_transition_validates_then_applies(self, tmp_path: Path) -> None:
+        """transition() rejects illegal transitions before calling BookkeepingTransaction."""
+        slug = "034-transition-test"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        _write_events_file(mission_dir, [
+            _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH01"),
+        ])
+
+        from specify_cli.status import InvalidTransitionError, TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+        # planned → claimed → in_progress is valid from 'claimed'
+        # But planned → approved is illegal
+        bad_request = TransitionRequest(
+            wp_id="WP01",
+            to_lane="approved",
+            actor="claude",
+            feature_dir=ms.read_dir,
+            mission_slug=slug,
+        )
+        with pytest.raises((InvalidTransitionError, Exception)) as exc_info:
+            ms.transition(bad_request)
+        # Must raise — must NOT silently succeed or call BookkeepingTransaction
+        assert exc_info.value is not None
+
+    def test_transition_raises_invalid_transition_error_on_illegal_move(self, tmp_path: Path) -> None:
+        """transition() raises InvalidTransitionError, not a generic exception."""
+        slug = "034-invalid-transition"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        _write_events_file(mission_dir, [
+            _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH20"),
+        ])
+
+        from specify_cli.status import InvalidTransitionError, TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+        # 'done' is only reachable via merge — transitioning directly is illegal
+        bad_request = TransitionRequest(
+            wp_id="WP01",
+            to_lane="done",
+            actor="claude",
+            feature_dir=ms.read_dir,
+            mission_slug=slug,
+        )
+        with pytest.raises(InvalidTransitionError):
+            ms.transition(bad_request)
+
+
+class TestSaveReturnType:
+    def test_save_calls_bookkeeping_transaction_and_returns_commit_receipt(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """save() calls BookkeepingTransaction.acquire() and returns its CommitReceipt."""
+        slug = "034-save-test"
+        _make_mission_dir(tmp_path, slug)
+
+        from specify_cli.status.aggregate import MissionStatus
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+        # Patch BookkeepingTransaction.acquire to avoid real git operations
+        commit_receipt_sentinel = object()
+
+        class _FakeCommit:
+            def commit(self, operation: str) -> object:
+                return commit_receipt_sentinel
+
+        class _FakeCtx:
+            def __enter__(self) -> _FakeCommit:
+                return _FakeCommit()
+
+            def __exit__(self, *args: object) -> None:
+                pass
+
+        import specify_cli.coordination.transaction as txn_mod
+
+        monkeypatch.setattr(
+            txn_mod.BookkeepingTransaction,
+            "acquire",
+            classmethod(lambda cls, **kw: _FakeCtx()),
+        )
+
+        receipt = ms.save(operation="test-save")
+        assert receipt is commit_receipt_sentinel

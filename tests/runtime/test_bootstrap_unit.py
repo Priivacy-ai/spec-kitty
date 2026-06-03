@@ -787,6 +787,36 @@ class TestVersionPinWiredIntoCallback:
         ensure_skills_mock.assert_not_called()
         ensure_commands_mock.assert_not_called()
 
+    def test_main_callback_skips_runtime_bootstrap_for_next(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """next is startup-sensitive and must not pay global asset repair cost."""
+        ensure_runtime_mock = MagicMock()
+        ensure_skills_mock = MagicMock()
+        ensure_commands_mock = MagicMock()
+        root_callback_mock = MagicMock()
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["spec-kitty", "next", "--agent", "test", "--mission", "demo", "--json"],
+        )
+
+        with (
+            patch("specify_cli.runtime.bootstrap.ensure_runtime", ensure_runtime_mock),
+            patch("specify_cli.runtime.agent_skills.ensure_global_agent_skills", ensure_skills_mock),
+            patch("specify_cli.runtime.agent_commands.ensure_global_agent_commands", ensure_commands_mock),
+            patch("specify_cli.root_callback", root_callback_mock),
+        ):
+            from specify_cli import main_callback
+
+            main_callback(MagicMock(), version=False)
+
+        root_callback_mock.assert_not_called()
+        ensure_runtime_mock.assert_not_called()
+        ensure_skills_mock.assert_not_called()
+        ensure_commands_mock.assert_not_called()
+
     def test_restart_daemon_process_fast_path_allows_only_json(self) -> None:
         """Process fast path bypasses Typer only for the machine-output form."""
         from specify_cli import _is_doctor_restart_daemon_process_fast_path

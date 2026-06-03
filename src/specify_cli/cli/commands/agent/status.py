@@ -124,7 +124,7 @@ def _resolve_feature_dir(
     Raises:
         typer.Exit: If resolution fails
     """
-    from specify_cli.status import MissionStatus, CoordAuthorityUnavailable
+    from specify_cli.status import CoordAuthorityUnavailable, MissionMetadataUnavailable, MissionStatus
 
     cwd = Path.cwd().resolve()
     repo_root = locate_project_root(cwd)
@@ -144,7 +144,7 @@ def _resolve_feature_dir(
     try:
         ms = MissionStatus.load(repo_root=main_repo_root, mission_slug=mission_slug)
         feature_dir = ms.read_dir
-    except CoordAuthorityUnavailable as exc:
+    except (CoordAuthorityUnavailable, MissionMetadataUnavailable) as exc:
         _output_error(json_output, str(exc))
         raise typer.Exit(1)
 
@@ -167,12 +167,12 @@ def _resolve_feature_dir_for_repo(
     Raises:
         typer.Exit: If CoordAuthorityUnavailable is raised.
     """
-    from specify_cli.status import CoordAuthorityUnavailable, MissionStatus
+    from specify_cli.status import CoordAuthorityUnavailable, MissionMetadataUnavailable, MissionStatus
 
     try:
         ms = MissionStatus.load(repo_root=main_repo_root, mission_slug=mission_slug)
         return ms.read_dir, mission_slug, main_repo_root
-    except CoordAuthorityUnavailable as exc:
+    except (CoordAuthorityUnavailable, MissionMetadataUnavailable) as exc:
         _output_error(json_output, str(exc))
         raise typer.Exit(1)
 
