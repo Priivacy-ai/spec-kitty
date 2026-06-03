@@ -18,12 +18,12 @@ are inline where useful.
 
 ## Tier 1 — Domain overview & interrelations
 
-> **⚠ Reconciliation pending — see [15](./15-dialectic-on-the-domain-model.md).** A dialectic on this
-> Tier 1 **refuted** three labels below: Context is a **Shared Kernel / OHS** (not an Execution
-> subdomain); Actor is **cross-domain** (not realized-only-in-Execution); the Executor Prompt is a
-> **Published Language / OHS projection** (not a 2-domain DTO). The Mission-aggregate ≠ MissionRun-aggregate
-> *cut* survives. Treat the boxes below as an **aggregate + context sketch (names provisional)** until
-> reconciled per `15` §"Consolidation checklist".
+> **⚠ Superseded by [17](./17-consolidated-domain-model.md)** (the consolidated, code-validated baseline).
+> The dialectic (`15`) + fan-out (`16`) reworked this Tier 1: **ExecutionContext** does live in Execution,
+> but the shared resolver math is a **Shared Kernel code module**; **Context is per-domain**
+> (GovernanceContext / ExecutionContext / InfraContext); **Status/kanban** is its own shared context;
+> **Actor↔Effector** (Effector = Actor realized in Execution); the prompt is a **communication artefact**.
+> Read `17` for the current model; the diagrams below are retained as the journey's intermediate sketch.
 
 **Three top-level domains**, with **Context as a subdomain of Execution** and two boundary/cross-cutting
 concepts (**Actor**, **Executor Prompt**). *(Refined from an earlier "four domains" draft per Stijn's
