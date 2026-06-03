@@ -53,6 +53,17 @@ ExecutionContext) and produces the artefact the Effector consumes — with the J
 *view* of the ExecutionContext, not a fourth independent thing. This is the technical form of "domains
 exchange communication artefacts through API entry points."
 
+> **Higher-priority than first ranked (Stijn, 2026-06-03).** This is not just cleanup — the drift between
+> the projections is an active correctness problem feeding two concerns:
+> 1. **"The Effector must load applicable profile + charter guidance before performing work."** Today
+>    this is a **single line in the prompt**, *not* updated on lane transitions / reassignments, and *not*
+>    enforced by the Python harness. One assembled artefact (re-rendered per transition) is the mechanism
+>    that makes profile/charter loading current and enforceable.
+> 2. **UI display drift.** The dashboard shows a single **effector string**, while the WP metadata holds
+>    the profile/role values assigned at `tasks-finalize`. They disagree because they are different
+>    projections. Consolidating the assembly removes the drift.
+> → Raised in the Strangler sequence (§6) accordingly.
+
 ---
 
 ## 3. The `Effector` type (net-new) — unify the fragmented Actor
@@ -73,6 +84,10 @@ The Actor metamodel is fragmented across **three vocabularies** (`16` H3): runti
   over-engineer). **Trigger to materialize:** the first concrete actor-kind-mismatch bug, or when a
   feature needs to join those logs on actor identity. Until then, "Effector" is modeling vocabulary
   (the Actor realized in Execution), captured in the docs.
+- *Trade-off (record for the decision):* **CON** — a first-class type adds surface area and risks
+  over-modelling / over-engineering a concept that is today just an actor string. **PRO** — if modeled
+  as an **enum** (+ identity), it buys cross-surface consistency and type-safety (no more `"agent"` vs
+  `"llm"` ambiguity, no unvalidated free-form `actor` strings).
 
 ---
 
@@ -126,10 +141,13 @@ Ordered by isolation / value, tied to the filed issues and the keepers:
    shared context (import test mirroring `test_shared_package_boundary.py`).
 3. **Harden ExecutionContext** — route the residue surfaces (`02` §4: `agent/status.py`, `runtime_bridge`
    query-mode, `workflow.py` fix-mode, …) through `resolve_action_context`; delete duplicated path-builders.
-4. **MissionRun → Mission reference** (#1663) — contained; unblocks "runtime knows its mission".
-5. **Consolidate the 3 context projections** → one communication-artefact contract (§2).
-6. **Effector unification** (§3) — converge the 3 Actor vocabularies.
-7. **Commit-seam atomicity** (Option B, I-4) — close #1618/#1348 (`worktree_root == destination_ref`).
+4. **Consolidate the 3 context projections** → one communication-artefact contract (§2). **(Raised — §2:
+   fixes the un-enforced/un-updated Effector profile+charter loading and the UI single-string drift.)**
+5. **MissionRun → Mission reference** (#1663) — contained; unblocks "runtime knows its mission".
+6. **Effector unification** (§3) — converge the Actor vocabularies. *(Deferred; trade-off in §3.)*
+7. **Commit-seam atomicity** — make `(worktree_root, destination_ref)` a single self-validating
+   **CommitTarget** owned by the operation (one atomicity domain), closing #1618/#1348. **Must be
+   validated by Debugger Debbie against the live `safe_commit` call graph before final sign-off / implementation.**
 
 ---
 
@@ -144,10 +162,17 @@ the execution spine; Context is per-domain; Shared Kernel is a code module.
 1. **Effector** — **named-in-docs for now** (no code type until actor-kind drift causes a concrete bug). (§3)
 2. **`mission_runtime/`** — **net-new umbrella** (Screaming Architecture + Strangler), registered in the layer meta-guard. (§4)
 
-**Open:**
-3. **Atomicity (I-4)** — enforce `worktree_root == destination_ref` in the seam (Option B), or guideline? *(pending Stijn background → decision; see "Background" below)* (§5/6)
-4. **Communication-artefact contract** — one assembly with `to_dict()` as a view, or keep projections separate? *(pending Stijn background → decision)* (§2)
-5. **`MissionStatus` aggregate now, or keep free functions** behind the hardened facade? *(open — no decision)* (`07` §4)
+**Decided (Stijn, 2026-06-03) cont'd:**
+3. **Atomicity (I-4) — DECIDED: enforce** `(worktree_root, destination_ref)` as a single self-validating
+   **CommitTarget** (Option B; one atomicity domain → *closes* #1618/#1348, not just avoids). **Gate:**
+   Debugger Debbie validates the rationale against the live `safe_commit` call graph **before final
+   sign-off / implementation.** (§5/6; background below)
+4. **Communication-artefact contract — DECIDED: one assembly**, prompt-text + JSON as serializations of
+   the same assembled context. **Priority raised** (not step-5 cleanup) — it is the mechanism for
+   enforceable, transition-current Effector profile/charter loading and removes the UI display drift (§2).
+
+**Open (no decision):**
+5. **`MissionStatus` aggregate now, or keep free functions** behind the hardened facade? (`07` §4)
 6. **Naming ratification** (DIRECTIVE_032) — lock GovernanceContext / ExecutionContext / InfraContext / Effector / communication-artefact into the glossary + an ADR before code. *(open — no decision)*
 
 ### Background for the two pending questions (Q3, Q4)
