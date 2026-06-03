@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from specify_cli.review.artifacts import rejected_review_artifact_for_terminal_lane
-from specify_cli.status.reducer import materialize
+from specify_cli.status import materialize
 
 REJECTED_REVIEW_ARTIFACT_CONFLICT = "REJECTED_REVIEW_ARTIFACT_CONFLICT"
 REJECTED_REVIEW_ARTIFACT_INVARIANT = (

@@ -103,7 +103,7 @@ def _send_to_saas(
     routes through the SaaS sync wiring.  Callers that already have a
     structured ``StatusEvent`` need only pass it through.
     """
-    from specify_cli.status.adapters import fire_saas_fanout  # noqa: PLC0415
+    from specify_cli.status import fire_saas_fanout  # noqa: PLC0415
 
     _ = repo_root
     fire_saas_fanout(

@@ -121,7 +121,7 @@ class EventLogWriteContract:
 
 def read_event_log(contract: EventLogReadContract) -> list[StatusEvent]:
     """Read events from the contract's explicit source without mutation."""
-    from specify_cli.status.store import EVENTS_FILENAME, read_events, read_events_from_text
+    from specify_cli.status import EVENTS_FILENAME, read_events, read_events_from_text  # noqa: PLC0415
 
     if not isinstance(contract, EventLogReadContract):
         raise StatusContractError("read_event_log requires EventLogReadContract")
@@ -181,8 +181,7 @@ def wp_lane_actor_from_events(
     wp_id: str,
 ) -> tuple[Lane, str | None]:
     """Reduce already-read events into a WP lane/actor snapshot."""
-    from specify_cli.status.models import Lane
-    from specify_cli.status.reducer import reduce
+    from specify_cli.status import Lane, reduce  # noqa: PLC0415
 
     if not events:
         return Lane.PLANNED, None

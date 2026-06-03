@@ -22,9 +22,9 @@ from specify_cli.core.paths import (
     locate_project_root,
 )
 from specify_cli.mission_metadata import resolve_mission_identity
-from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.progress import PROGRESS_SEMANTICS, compute_done_percentage, compute_weighted_progress
-from specify_cli.status.wp_state import wp_state_for
+from specify_cli.status import Lane, StatusEvent
+from specify_cli.status import PROGRESS_SEMANTICS, compute_done_percentage, compute_weighted_progress
+from specify_cli.status import wp_state_for
 from specify_cli.task_utils import extract_scalar, split_frontmatter
 
 console = Console()
@@ -146,8 +146,7 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
         )
 
         # Build lane map from event log (canonical source of truth)
-        from specify_cli.status.reducer import reduce
-        from specify_cli.status.store import read_events
+        from specify_cli.status import reduce, read_events  # noqa: PLC0415
         events = read_events(feature_dir)
         snapshot = reduce(events)
         # snapshot.work_packages: {wp_id: {"lane": ..., ...}}

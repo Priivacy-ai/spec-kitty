@@ -2114,11 +2114,14 @@ def get_or_start_run(
 
     # Persist to index
     resolved_mission_type = _mission_key_for_run_ref(run_ref, mission_type)
+    resolved_mission_id = _resolve_mission_ulid(mission_slug, repo_root)
     index[mission_slug] = {
         "run_id": run_ref.run_id,
         "run_dir": run_ref.run_dir,
         "mission_type": resolved_mission_type,
         "mission_key": resolved_mission_type,
+        "mission_id": resolved_mission_id,
+        "mission_slug": mission_slug,
     }
     _save_feature_runs(repo_root, index)
 
@@ -2979,8 +2982,28 @@ def query_current_state(  # noqa: C901
         mission_slug: Mission slug (e.g. '069-planning-pipeline-integrity').
         repo_root: Repository root path.
     """
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    from specify_cli.core.execution_context import ActionContextError, resolve_action_context
+
     now = datetime.now(UTC).isoformat()
+    try:
+        _ctx = resolve_action_context(
+            repo_root,
+            action="tasks",
+            feature=mission_slug,
+        )
+        feature_dir = Path(_ctx.feature_dir)
+    except ActionContextError:
+        # Mission directory not found — return not-found Decision immediately.
+        return Decision(
+            kind=DecisionKind.query,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission="unknown",
+            mission_state="unknown",
+            timestamp=now,
+            is_query=True,
+            reason=None,
+        )
 
     if not feature_dir.is_dir():
         return Decision(
@@ -3110,8 +3133,15 @@ def answer_decision_via_runtime(
     CLI answers are human-authored by default even though the command still
     carries an ``--agent`` identity for the surrounding mission loop.
     """
-    mission_type = get_mission_type(repo_root / "kitty-specs" / mission_slug)
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    from specify_cli.core.execution_context import resolve_action_context
+
+    _ctx = resolve_action_context(
+        repo_root,
+        action="tasks",
+        feature=mission_slug,
+    )
+    feature_dir = Path(_ctx.feature_dir)
+    mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
     sync_emitter = SyncRuntimeEventEmitter.for_feature(
         feature_dir=feature_dir,

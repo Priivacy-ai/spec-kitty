@@ -114,12 +114,18 @@ def _resolve_feature_dir(
 ) -> tuple[Path, str, Path]:
     """Resolve mission directory, mission slug, and repo root.
 
+    Uses ``MissionStatus.load()`` to resolve the coord-aware read path so
+    that coordination-topology missions read from the coord worktree rather
+    than the (potentially stale) primary checkout.
+
     Returns:
         (feature_dir, mission_slug, repo_root)
 
     Raises:
         typer.Exit: If resolution fails
     """
+    from specify_cli.status import MissionStatus, CoordAuthorityUnavailable
+
     cwd = Path.cwd().resolve()
     repo_root = locate_project_root(cwd)
 
@@ -134,9 +140,41 @@ def _resolve_feature_dir(
         repo_root=repo_root,
     )
     main_repo_root = get_main_repo_root(repo_root)
-    feature_dir = main_repo_root / "kitty-specs" / mission_slug
+
+    try:
+        ms = MissionStatus.load(repo_root=main_repo_root, mission_slug=mission_slug)
+        feature_dir = ms.read_dir
+    except CoordAuthorityUnavailable as exc:
+        _output_error(json_output, str(exc))
+        raise typer.Exit(1)
 
     return feature_dir, mission_slug, main_repo_root
+
+
+def _resolve_feature_dir_for_repo(
+    main_repo_root: Path,
+    mission_slug: str,
+    json_output: bool = False,
+) -> tuple[Path, str, Path]:
+    """Resolve coord-aware feature_dir given an already-resolved main_repo_root.
+
+    Factored out to avoid duplicating MissionStatus.load + CoordAuthorityUnavailable
+    handling across multiple commands (reduces cyclomatic complexity).
+
+    Returns:
+        (feature_dir, mission_slug, main_repo_root)
+
+    Raises:
+        typer.Exit: If CoordAuthorityUnavailable is raised.
+    """
+    from specify_cli.status import CoordAuthorityUnavailable, MissionStatus
+
+    try:
+        ms = MissionStatus.load(repo_root=main_repo_root, mission_slug=mission_slug)
+        return ms.read_dir, mission_slug, main_repo_root
+    except CoordAuthorityUnavailable as exc:
+        _output_error(json_output, str(exc))
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -207,8 +245,8 @@ def emit(
         # Resolve feature slug
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
-        # Construct mission directory
-        feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        # Resolve coord-aware mission directory via MissionStatus aggregate
+        feature_dir, _, _ = _resolve_feature_dir_for_repo(main_repo_root, mission_slug, json_output)
 
         # Parse evidence JSON if provided
         evidence = None
@@ -315,8 +353,8 @@ def materialize(
         # Resolve feature slug
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
-        # Construct mission directory
-        feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        # Resolve coord-aware mission directory via MissionStatus aggregate
+        feature_dir, _, _ = _resolve_feature_dir_for_repo(main_repo_root, mission_slug, json_output)
 
         # Lazy import to avoid circular imports
         from specify_cli.status.reducer import materialize as do_materialize
@@ -780,14 +818,11 @@ def validate(
     mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
     main_repo_root = get_main_repo_root(repo_root)
-    feature_dir = main_repo_root / "kitty-specs" / mission_slug
+    feature_dir, _, _ = _resolve_feature_dir_for_repo(main_repo_root, mission_slug, json_output)
 
     if not feature_dir.exists():
         msg = f"Mission directory not found: {feature_dir}"
-        if json_output:
-            print(json.dumps({"error": msg}))
-        else:
-            console.print(f"[red]Error:[/red] {msg}")
+        _output_error(json_output, msg)
         raise typer.Exit(1)
 
     result = ValidationResult()

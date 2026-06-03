@@ -56,7 +56,7 @@ from specify_cli.core.dependency_graph import (
     dependency_readiness_for_wp,
     get_dependents,
 )
-from specify_cli.core.paths import get_main_repo_root, is_worktree_context, locate_project_root
+from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root, is_worktree_context, locate_project_root
 from specify_cli.lanes.branch_naming import mid8_from_slug
 from specify_cli.core.utils import write_text_within_directory
 from specify_cli.git import safe_commit
@@ -837,8 +837,14 @@ def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tup
 
     Returns the planning repo root and the user's current branch.
     Shows a consistent branch banner.
+
+    Routes target-branch resolution through ``resolve_action_context`` (FR-033:
+    ExecutionContext hardening — route residue surfaces).  This is the canonical
+    OHS entry point; ``target_branch`` is read from its returned ActionContext
+    rather than derived independently.
     """
-    from specify_cli.core.git_ops import get_current_branch, resolve_target_branch
+    from specify_cli.core.execution_context import ActionContextError, resolve_action_context
+    from specify_cli.core.git_ops import get_current_branch
 
     main_repo_root = get_main_repo_root(repo_root)
 
@@ -848,17 +854,27 @@ def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tup
         print("Error: Detached HEAD — checkout a branch before continuing.")
         raise typer.Exit(1)
 
-    # Resolve branch routing (unified logic, no auto-checkout)
-    resolution = resolve_target_branch(mission_slug, main_repo_root, current_branch, respect_current=True)
+    # Canonical target-branch resolution through the OHS entry point.
+    try:
+        _ctx = resolve_action_context(
+            main_repo_root,
+            action="tasks",
+            feature=mission_slug,
+        )
+        target = _ctx.target_branch
+    except ActionContextError:
+        # Fall back to the direct helper if execution context cannot be resolved
+        # (e.g. mission directory not yet created during early planning).
+        target = get_feature_target_branch(main_repo_root, mission_slug)
 
     # Show consistent branch banner
-    if not resolution.should_notify:
+    if current_branch == target:
         print(f"Branch: {current_branch} (target for this mission)")
     else:
-        print(f"Branch: on '{resolution.current}', mission targets '{resolution.target}'")
+        print(f"Branch: on '{current_branch}', mission targets '{target}'")
 
     # Return current branch (no checkout performed)
-    return main_repo_root, resolution.current
+    return main_repo_root, current_branch
 
 
 def _find_mission_slug(

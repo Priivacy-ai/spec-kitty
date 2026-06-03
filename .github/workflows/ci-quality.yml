@@ -93,6 +93,7 @@ jobs:
       agent: ${{ inputs.run_all && 'true' || steps.filter.outputs.agent }}
       kernel: ${{ inputs.run_all && 'true' || steps.filter.outputs.kernel }}
       doctrine: ${{ inputs.run_all && 'true' || steps.filter.outputs.doctrine }}
+      execution_context: ${{ inputs.run_all && 'true' || steps.filter.outputs.execution_context }}
       e2e: ${{ inputs.run_all && 'true' || steps.filter.outputs.e2e }}
     steps:
       - uses: actions/checkout@v6
@@ -200,6 +201,12 @@ jobs:
               - 'src/doctrine/**'
               - '.kittify/doctrine/overlays/**'
               - 'tests/doctrine/**'
+            execution_context:
+              - 'src/specify_cli/core/execution_context.py'
+              - 'src/specify_cli/status/**'
+              - 'src/runtime/next/**'
+              - 'src/specify_cli/cli/commands/agent/**'
+              - 'tests/architectural/test_execution_context_parity.py'
 
   lint:
     runs-on: ubuntu-latest
@@ -1130,7 +1137,7 @@ jobs:
     needs: [changes, kernel-tests, fast-tests-doctrine]
     if: >-
       always() &&
-      needs.changes.outputs.core_misc == 'true' &&
+      (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true') &&
       needs.kernel-tests.result != 'failure' &&
       needs.fast-tests-doctrine.result != 'failure'
     steps:
@@ -1170,6 +1177,58 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: fast-test-core-misc-reports
+          path: out/reports/
+
+  # ---------------------------------------------------------------------------
+  # integration-tests-core-misc: architectural + git_repo tests for execution
+  # context parity. Runs after fast-tests-core-misc passes.
+  # Triggered by core_misc or execution_context path filters.
+  # ---------------------------------------------------------------------------
+  integration-tests-core-misc:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-core-misc]
+    if: >-
+      always() &&
+      (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true') &&
+      needs.fast-tests-core-misc.result != 'failure'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: '3.12'
+      - run: uv sync --frozen --all-extras
+      - run: mkdir -p out/reports/coverage
+      - name: "Run integration tests — core misc"
+        run: |
+          uv run python -m pytest \
+            --ignore=tests/doctrine \
+            --ignore=tests/kernel \
+            --ignore=tests/status \
+            --ignore=tests/specify_cli/status \
+            --ignore=tests/sync \
+            --ignore=tests/merge \
+            --ignore=tests/missions \
+            --ignore=tests/post_merge \
+            --ignore=tests/release \
+            --ignore=tests/review \
+            --ignore=tests/next \
+            --ignore=tests/specify_cli/next \
+            --ignore=tests/lanes \
+            --ignore=tests/test_dashboard \
+            --ignore=tests/upgrade \
+            --ignore=tests/cli \
+            --ignore=tests/runtime \
+            --ignore=tests/charter \
+            --ignore=tests/agent \
+            -m 'not windows_ci and (git_repo or integration or architectural)' \
+            -q --tb=short \
+            --cov=src/specify_cli \
+            --cov-report=xml:out/reports/coverage/coverage-integration-core-misc.xml
+      - name: "Upload integration-core-misc coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-core-misc-reports
           path: out/reports/
 
   # ---------------------------------------------------------------------------
@@ -1900,6 +1959,7 @@ jobs:
       - integration-tests-dashboard
       - integration-tests-upgrade
       - integration-tests-cli
+      - integration-tests-core-misc
       - fast-tests-core-misc
     if: always() && github.event_name == 'pull_request'
 
@@ -2062,6 +2122,7 @@ jobs:
       - integration-tests-upgrade
       - integration-tests-cli
       - integration-tests-agent
+      - integration-tests-core-misc
       - slow-tests
       - e2e-cross-cutting
     if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
@@ -2554,6 +2615,7 @@ jobs:
       - integration-tests-upgrade
       - integration-tests-cli
       - integration-tests-agent
+      - integration-tests-core-misc
       - restart-daemon-nfr-timing
       - build-wheel
       - clean-install-verification
@@ -2602,6 +2664,7 @@ jobs:
             "${{ needs.integration-tests-upgrade.result }}" \
             "${{ needs.integration-tests-cli.result }}" \
             "${{ needs.integration-tests-agent.result }}" \
+            "${{ needs.integration-tests-core-misc.result }}" \
             "${{ needs.restart-daemon-nfr-timing.result }}" \
             "${{ needs.build-wheel.result }}" \
             "${{ needs.clean-install-verification.result }}" \

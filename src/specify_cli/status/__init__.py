@@ -38,6 +38,7 @@ from .store import (
     append_primary_checkout_event_verified,
     append_primary_checkout_events_atomic_verified,
     read_events,
+    read_events_from_text,
     read_events_raw,
 )
 from .transitions import (
@@ -78,10 +79,15 @@ from .views import (
 )
 from .progress import (
     DEFAULT_LANE_WEIGHTS,
+    PROGRESS_SEMANTICS,
     ProgressResult,
     WPProgress,
+    compute_done_percentage,
     compute_weighted_progress,
     generate_progress_json,
+)
+from .adapters import (
+    fire_saas_fanout,
 )
 from .lifecycle import (
     DERIVED_LIFECYCLE_FILENAME,
@@ -100,11 +106,19 @@ from .validate import (
     validate_materialization_drift,
     validate_transition_legality,
 )
+from .aggregate import (
+    ActiveWPStatus,
+    CoordAuthorityUnavailable,
+    MissionStatus,
+)
 
 __all__ = [
+    "ActiveWPStatus",
     "AgentAssignment",
     "ALLOWED_TRANSITIONS",
+    "CoordAuthorityUnavailable",
     "GuardContext",
+    "MissionStatus",
     "TransitionRequest",
     "CanonicalStatusNotFoundError",
     "DEFAULT_LANE_WEIGHTS",
@@ -119,6 +133,8 @@ __all__ = [
     "TransitionContext",
     "WPProgress",
     "WPState",
+    "PROGRESS_SEMANTICS",
+    "compute_done_percentage",
     "compute_weighted_progress",
     "derive_mission_lifecycle",
     "generate_lifecycle_json",
@@ -157,7 +173,9 @@ __all__ = [
     "is_terminal",
     "materialize",
     "materialize_to_json",
+    "fire_saas_fanout",
     "read_events",
+    "read_events_from_text",
     "read_events_raw",
     "read_wp_frontmatter",
     "reduce",

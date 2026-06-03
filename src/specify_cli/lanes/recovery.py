@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from specify_cli.lanes.branch_naming import parse_lane_id_from_branch
-from specify_cli.status.models import Lane
+from specify_cli.status import Lane
 from specify_cli.workspace.context import (
     WorkspaceContext,
     list_contexts,
@@ -51,8 +51,7 @@ def _get_recovery_transitions(current_lane: Lane) -> list[Lane]:
 
     Returns an empty list when no recovery transition is possible.
     """
-    from specify_cli.status.transitions import validate_transition
-    from specify_cli.status.models import GuardContext
+    from specify_cli.status import validate_transition, GuardContext  # noqa: PLC0415
 
     # Ordered progression that recovery may advance through, capped at ceiling
     _PROGRESSION = [Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS]
@@ -179,8 +178,7 @@ def _worktree_exists_for_branch(repo_root: Path, branch: str) -> Path | None:
 def _get_wp_lane_from_events(feature_dir: Path, wp_id: str) -> str:
     """Get the current lane for a WP from the status event log."""
     try:
-        from specify_cli.status.reducer import reduce
-        from specify_cli.status.store import read_events
+        from specify_cli.status import reduce, read_events  # noqa: PLC0415
 
         events = read_events(feature_dir)
         if events:
@@ -267,8 +265,7 @@ def _get_all_wp_lanes_from_events(feature_dir: Path) -> dict[str, str]:
     Returns an empty dict when the event log is absent or unreadable.
     """
     try:
-        from specify_cli.status.reducer import reduce
-        from specify_cli.status.store import read_events
+        from specify_cli.status import reduce, read_events  # noqa: PLC0415
 
         events = read_events(feature_dir)
         if not events:
@@ -614,7 +611,7 @@ def reconcile_status(
     Returns the number of transitions emitted.
     """
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
-    from specify_cli.status.models import TransitionRequest
+    from specify_cli.status import TransitionRequest  # noqa: PLC0415
 
     feature_dir = repo_root / "kitty-specs" / mission_slug
     current_lane = state.status_lane

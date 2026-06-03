@@ -535,6 +535,11 @@ class MissionRunSnapshot(BaseModel):
     pending_decisions: dict[str, Any] = Field(default_factory=dict)  # decision_id -> request data
     blocked_reason: str | None = None
 
+    # NEW — back-references to the concrete Mission (FR-024/FR-025)
+    # Optional for backward-compat: existing on-disk state.json files load with None defaults.
+    mission_id: str | None = None    # canonical ULID from meta.json
+    mission_slug: str | None = None  # human-readable slug
+
 
 # ---------------------------------------------------------------------------
 # Template loading

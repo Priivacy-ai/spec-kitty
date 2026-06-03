@@ -95,6 +95,10 @@ class MissionRunRef(BaseModel):
     run_id: str
     run_dir: str
     mission_key: str
+    # NEW — back-references to the concrete Mission (FR-026/FR-027)
+    # Optional for backward-compat: existing runs without these fields load with None defaults.
+    mission_id: str | None = None    # canonical ULID from meta.json
+    mission_slug: str | None = None  # human-readable slug
 
 
 def _runtime_runs_dir(run_store: Path | None = None) -> Path:
@@ -187,6 +191,8 @@ def start_mission_run(
     emitter: RuntimeEventEmitter | None = None,
     template_override: MissionTemplate | None = None,
     template_path_override: str | None = None,
+    mission_slug: str | None = None,   # NEW — FR-028/FR-029: back-ref to concrete mission
+    mission_id: str | None = None,     # NEW — FR-028/FR-029: canonical ULID from meta.json
 ) -> MissionRunRef:
     """Start and persist a new mission run with template freezing."""
     emitter = emitter or NullEmitter()
@@ -215,6 +221,8 @@ def start_mission_run(
         decisions={},
         pending_decisions={},
         blocked_reason=None,
+        mission_id=mission_id,
+        mission_slug=mission_slug,
     )
     _write_snapshot(run_dir, snapshot)
     actor = RuntimeActorIdentity(
@@ -224,7 +232,13 @@ def start_mission_run(
     _append_event(run_dir, MISSION_RUN_STARTED, payload.model_dump(mode="json"))
     emitter.emit_mission_run_started(payload)
 
-    return MissionRunRef(run_id=run_id, run_dir=str(run_dir), mission_key=template.mission.key)
+    return MissionRunRef(
+        run_id=run_id,
+        run_dir=str(run_dir),
+        mission_key=template.mission.key,
+        mission_id=mission_id,
+        mission_slug=mission_slug,
+    )
 
 
 def next_step(  # noqa: C901
@@ -290,6 +304,8 @@ def next_step(  # noqa: C901
             decisions=snapshot.decisions,
             pending_decisions=snapshot.pending_decisions,
             blocked_reason=blocked_reason,
+            mission_id=snapshot.mission_id,
+            mission_slug=snapshot.mission_slug,
         )
         ac_actor = RuntimeActorIdentity(
             actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None
@@ -376,6 +392,8 @@ def next_step(  # noqa: C901
                     decisions=decisions,
                     pending_decisions=pending_decisions,
                     blocked_reason=snapshot.blocked_reason,
+                    mission_id=snapshot.mission_id,
+                    mission_slug=snapshot.mission_slug,
                 )
                 # Re-plan with updated state to get the actual next decision
                 decision = plan_next(
@@ -479,6 +497,8 @@ def next_step(  # noqa: C901
         decisions=decisions,
         pending_decisions=pending_decisions,
         blocked_reason=snapshot.blocked_reason,
+        mission_id=snapshot.mission_id,
+        mission_slug=snapshot.mission_slug,
     )
     _write_snapshot(run_dir, snapshot)
 
@@ -690,6 +710,8 @@ def provide_decision_answer(  # noqa: C901
         decisions=decisions,
         pending_decisions=pending,
         blocked_reason=blocked_reason,
+        mission_id=snapshot.mission_id,
+        mission_slug=snapshot.mission_slug,
     )
     _write_snapshot(run_dir, snapshot)
 
@@ -840,6 +862,8 @@ def notify_decision_timeout(
         decisions=updated_decisions,
         pending_decisions=snapshot.pending_decisions,
         blocked_reason=snapshot.blocked_reason,
+        mission_id=snapshot.mission_id,
+        mission_slug=snapshot.mission_slug,
     )
 
     # Save to state.json
