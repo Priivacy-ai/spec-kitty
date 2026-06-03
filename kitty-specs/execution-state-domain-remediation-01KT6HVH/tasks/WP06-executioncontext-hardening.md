@@ -26,8 +26,8 @@ subtasks:
 - T035
 - T036
 - T037
-agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
-shell_pid: "31971"
+agent: "claude:claude-sonnet-4-6:reviewer-renata:reviewer"
+shell_pid: "38676"
 history:
 - date: '2026-06-03'
   event: created
@@ -241,3 +241,5 @@ Route all remaining residue path-building surfaces through the canonical `resolv
 
 - 2026-06-03T12:47:21Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=31971 – Assigned agent via action command
 - 2026-06-03T12:58:18Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=31971 – Implementation complete. T033: feature-runs.json write updated with mission_id/mission_slug. T034: query_current_state + answer_decision_via_runtime routed through _resolve_read_path. T035: _ensure_target_branch_checked_out uses get_feature_target_branch (canonical). T036: no dead helpers found. Lint: exit 0. Tests: 1113 passed, 1 pre-existing failure (test_detect_false_positive_worktree - unrelated to WP changes, verified by stash test).
+- 2026-06-03T12:58:39Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=38676 – Started review via action command
+- 2026-06-03T13:03:49Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=38676 – Moved to planned
