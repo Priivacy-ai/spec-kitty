@@ -529,6 +529,9 @@ nodes:
   label: Secure Regex — Avoid Catastrophic Backtracking
 - urn: tactic:single-diagram-architecture
   kind: tactic
+- urn: tactic:split-brain-authority-detection
+  kind: tactic
+  label: Split Brain Authority Detection
 - urn: tactic:stakeholder-alignment
   kind: tactic
   label: Stakeholder Alignment
