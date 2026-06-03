@@ -59,6 +59,10 @@ _CARVE_OUTS: frozenset[str] = frozenset(
         "src/charter/resolution.py",
         # Producers (they WRITE, not read manifest derivatives)
         "src/charter/extractor.py",
+        # Project init stamps the top-level ``.kittify/metadata.yaml`` file.
+        # This is project bootstrap metadata, not the charter bundle's
+        # ``.kittify/charter/metadata.yaml`` derivative surface.
+        "src/specify_cli/cli/commands/init.py",
         # Compiler pipeline (C-012 — references.yaml, out of v1.0.0 scope)
         "src/charter/compiler.py",
         # metadata.yaml hash-reader used by the chokepoint itself

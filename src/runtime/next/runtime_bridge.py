@@ -64,6 +64,8 @@ from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
 
 logger = logging.getLogger(__name__)
 
+_MISSION_META_FILENAME = "meta.json"
+
 
 class DecisionGitLogUnavailable(RuntimeError):
     """Decision audit logging cannot be made durable for a modern mission."""
@@ -75,7 +77,7 @@ def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:
     Falls back to ``kitty/mission-<slug>`` when meta.json is absent or
     does not carry the ``coordination_branch`` key.
     """
-    meta_path = repo_root / "kitty-specs" / mission_slug / "meta.json"
+    meta_path = repo_root / "kitty-specs" / mission_slug / _MISSION_META_FILENAME
     if meta_path.exists():
         try:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
@@ -93,7 +95,7 @@ def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str:
     Returns the ULID string when present, or the slug as a fallback so that
     callers always receive a non-empty identifier.
     """
-    meta_path = repo_root / "kitty-specs" / mission_slug / "meta.json"
+    meta_path = repo_root / "kitty-specs" / mission_slug / _MISSION_META_FILENAME
     if meta_path.exists():
         try:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
@@ -107,7 +109,7 @@ def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str:
 
 def _mission_declares_coordination_branch(mission_slug: str, repo_root: Path) -> bool:
     """Return True when meta.json explicitly declares coord-branch topology."""
-    meta_path = repo_root / "kitty-specs" / mission_slug / "meta.json"
+    meta_path = repo_root / "kitty-specs" / mission_slug / _MISSION_META_FILENAME
     if not meta_path.exists():
         return False
     try:
@@ -190,17 +192,15 @@ class QueryModeValidationError(ValueError):
 # ---------------------------------------------------------------------------
 
 _FEATURE_RUNS_FILE = "feature-runs.json"
+_WP_SECTION_HEADING_RE = re.compile(
+    r"(?m)^#{2,4}\s+(?:Work Package\s+)?(WP\d{2})(?:\b|:)",
+)
 
 
 def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
     """Extract WP sections from tasks.md keyed by WP ID."""
     sections: dict[str, str] = {}
-    matches = list(
-        re.finditer(
-            r"(?m)^#{2,4}\s+(?:Work Package\s+)?(WP\d{2})(?:\b|:)",
-            tasks_content,
-        )
-    )
+    matches = list(_WP_SECTION_HEADING_RE.finditer(tasks_content))
 
     for idx, match in enumerate(matches):
         wp_id = match.group(1)
@@ -338,7 +338,7 @@ def _resolve_mission_id_for_terminus(feature_dir: Path) -> str:
     when meta.json is missing or malformed (older missions predating the
     ULID identity rollout); the gate handles missing identities defensively.
     """
-    meta_path = feature_dir / "meta.json"
+    meta_path = feature_dir / _MISSION_META_FILENAME
     if not meta_path.exists():
         return feature_dir.name
     try:

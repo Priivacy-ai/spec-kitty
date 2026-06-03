@@ -960,7 +960,7 @@ def resolve_context(
     context_name: str,
     context_type: ContextType,
     available_bindings: dict[str, Any],
-    registry: ContextTypeRegistry,  # noqa: ARG001
+    _registry: ContextTypeRegistry,
     local_discovery_root: Path | None = None
 ) -> Any | RemediationPayload:
     """Resolve a context using the 5-point precedence chain.
@@ -1252,7 +1252,7 @@ def _resolve_mission_metadata(
 
 def _resolve_local_discovery(
     context_name: str,
-    context_type: ContextType,  # noqa: ARG001
+    _context_type: ContextType,
     available_bindings: dict[str, Any],
     local_discovery_root: Path
 ) -> list[dict[str, Any]]:
