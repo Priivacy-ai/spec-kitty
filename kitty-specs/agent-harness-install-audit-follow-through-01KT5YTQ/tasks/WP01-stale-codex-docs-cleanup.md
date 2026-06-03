@@ -13,6 +13,9 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-agent-harness-install-audit-follow-through-01KT5YTQ
+base_commit: 10d49722f492481e3be4b331aca8543cbb0bd06b
+created_at: '2026-06-03T06:45:29.551011+00:00'
 subtasks:
 - T001
 - T002
@@ -20,7 +23,8 @@ subtasks:
 - T004
 - T005
 - T006
-agent: claude
+agent: "claude:sonnet:orchestrator:orchestrator"
+shell_pid: "41631"
 history:
 - date: '2026-06-03'
   status: planned
@@ -217,3 +221,7 @@ If any results remain in active how-to or reference docs: fix them before markin
 ## Reviewer Guidance
 
 Verify: run the post-edit grep command above. Any result in `docs/how-to/` or `docs/reference/` is a defect. Check `setup-codex-spec-kitty-launcher.md` specifically — it should describe the current `.agents/skills/` model, not the retired `.codex/` model. Confirm `docs/development/` files were NOT touched.
+
+## Activity Log
+
+- 2026-06-03T06:45:32Z – claude:sonnet:orchestrator:orchestrator – shell_pid=41631 – Assigned agent via action command
