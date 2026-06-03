@@ -6,7 +6,7 @@ description: "Configure the Use Spec Kitty in Kiro harness for Spec Kitty 3.2 co
 # Use Spec Kitty in Kiro
 
 > **Tier:** **partial** — bootstrap-only surface in 3.2. Promote to `supported` once the full `/spec-kitty.*` set is verified end-to-end.
-> **Citation (accessed 2026-05-21):** <https://kiro.dev/docs>
+> **Citation (accessed 2026-06-03):** <https://kiro.dev/docs>
 
 ## Prerequisites
 
@@ -22,6 +22,17 @@ description: "Configure the Use Spec Kitty in Kiro harness for Spec Kitty 3.2 co
 Kiro is the rebrand-target of Amazon Q. In 3.2 the Spec Kitty installer ships a **bootstrap-only** surface for Kiro — the directory layout is in place, but the full `/spec-kitty.*` command set is not yet integration-tested end-to-end against this harness. Expect feature parity with Amazon Q at the prompt-file level; verify each command before relying on it for production missions.
 
 The promotion criteria (`partial → supported`) are maintained in `docs/development/3-2-harness-research-method.md` §6.
+
+## Plugin-install classification
+
+Kiro is **prompt-only** for Spec Kitty 3.3 plugin-install planning. Current
+public Kiro docs describe steering files, hooks, MCP configuration, and prompt
+surfaces, but do not document a plugin or Powers bundle primitive that Spec
+Kitty can install as a packaged command-skill equivalent.
+
+Spec Kitty therefore keeps Kiro out of #1635 plugin-install scope until an
+upstream package primitive is documented and smoke-tested. Continue using the
+`.kiro/prompts/` surface for bootstrap coverage.
 
 ## Where Spec Kitty installs files
 
@@ -67,4 +78,4 @@ If Kiro's current syntax differs, consult the host docs at <https://kiro.dev/doc
 
 ## Where to learn more about Kiro
 
-Authoritative documentation: <https://kiro.dev/docs> (accessed 2026-05-21).
+Authoritative documentation: <https://kiro.dev/docs> (accessed 2026-06-03).

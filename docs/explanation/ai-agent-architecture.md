@@ -51,7 +51,7 @@ These agents run inside an IDE or editor:
 | Kilocode | `.kilocode/workflows/` | Markdown |
 | Augment Code | `.augment/commands/` | Markdown |
 | Roo Cline | `.roo/commands/` | Markdown |
-| GitHub Codex | `.codex/prompts/` | Markdown |
+| Codex CLI | `.agents/skills/spec-kitty.<command>/SKILL.md` | Agent Skill |
 
 ## Agent-Specific Directories
 

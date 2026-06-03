@@ -276,7 +276,7 @@ If the mission is not a bulk edit<!-- glossary:glossary:bulk-edit -->, skip this
 
    Before proceeding, explicitly state to the user:
    - Current branch<!-- glossary:glossary:current-branch --> at plan start
-   - Intended planning/base branch
+   - Intended planning/base branch<!-- glossary:glossary:base-branch -->
    - Final merge target for completed changes
    - Whether `branch_matches_target` says the current branch matches that intended target
 

@@ -3062,6 +3062,14 @@
   current_target: true
   citation_refs: []
   notes: 3.2 harness setup and usage page.
+- path: docs/how-to/harnesses/antigravity.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: harnesses
+  current_target: true
+  citation_refs:
+    - https://www.antigravity.google/docs/rules-workflows
+  notes: 3.2 harness setup and usage page; partial until live CLI workflow smoke evidence is recorded.
 - path: docs/how-to/harnesses/augment.md
   tag: current
   divio_type: how-to
