@@ -363,7 +363,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [Target Branch](#target-branch), [Branch Context](#branch-context) |
+| **Related terms** | [Target Branch](#target-branch), [Base Branch](#base-branch) |
 
 ---
 

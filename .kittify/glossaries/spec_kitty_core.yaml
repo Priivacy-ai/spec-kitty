@@ -69,6 +69,8 @@ terms:
 
   - surface: ceremony commit
     definition: "DEPRECATED. Replaced by `status commit`. This term obscures intent and is forbidden in active source. See the canonical `status commit` entry."
+    confidence: 1.0
+    status: deprecated
 
   - surface: change mode
     definition: "A mission-level metadata flag (change_mode: bulk_edit) that activates the bulk-edit guardrail workflow, requiring an occurrence map before any work package may be approved."
