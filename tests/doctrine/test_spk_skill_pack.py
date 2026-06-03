@@ -21,7 +21,6 @@ SPK_SKILLS = {
     "spk-gate-merge",
     "spk-gate-mission-review",
     "spk-gate-retrospective",
-    "spk-integrate-ci",
     "spk-integrate-orchestrator-api",
     "spk-meta-skill-authoring",
     "spk-meta-skill-map",

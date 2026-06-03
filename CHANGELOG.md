@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc36] - 2026-06-03
+
+### Changed
+
+- Polished 3.2 CLI UX around init next steps, scaffold state, widen guidance,
+  and charter preflight output.
+- Updated agent harness installation guidance and snapshots for Codex, Kiro,
+  Antigravity, and public harness docs.
+- Added execution-state/runtime architecture notes covering mission vs.
+  MissionRun boundaries and context decomposition.
+- Hardened release-candidate CI around charter checks, workflow status
+  coordination, and Next runtime task parsing.
+
 ## [3.2.0rc35] - 2026-06-02
 
 ### Added

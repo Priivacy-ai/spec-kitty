@@ -63,7 +63,14 @@ def test_wheel_contains_only_known_packages(build_artifacts: dict[str, Path]) ->
     """Verify wheel only contains known package directories."""
     wheel_path = build_artifacts["wheel"]
 
-    known_prefixes = ("specify_cli/", "doctrine/", "charter/", "kernel/")
+    known_prefixes = (
+        "specify_cli/",
+        "doctrine/",
+        "charter/",
+        "kernel/",
+        "glossary/",
+        "runtime/",
+    )
 
     with zipfile.ZipFile(wheel_path) as zf:
         all_files = [f for f in zf.namelist() if ".dist-info/" not in f]

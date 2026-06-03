@@ -2227,6 +2227,139 @@
   current_target: false
   citation_refs: []
   notes: Index for engineering reflection notes.
+- path: docs/engineering_notes/runtime_and_state_overhaul/01-ticket-capture.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal runtime/state overhaul engineering note.
+- path: docs/engineering_notes/runtime_and_state_overhaul/02-current-state-map.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal runtime/state overhaul engineering note.
+- path: docs/engineering_notes/runtime_and_state_overhaul/03-architecture-context.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal runtime/state overhaul engineering note.
+- path: docs/engineering_notes/runtime_and_state_overhaul/04-doctrine-constraints.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal runtime/state overhaul engineering note.
+- path: docs/engineering_notes/runtime_and_state_overhaul/05-architectural-synthesis.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal runtime/state overhaul engineering note.
+- path: docs/engineering_notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal runtime/state overhaul engineering note.
+- path: docs/engineering_notes/runtime_and_state_overhaul/07-existing-pattern-and-domain-extraction.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal runtime/state overhaul engineering note.
+- path: docs/engineering_notes/runtime_and_state_overhaul/08-architecture-phase-1-summary.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal runtime/state overhaul engineering note.
+- path: docs/engineering_notes/runtime_and_state_overhaul/09-context-decomposition-model.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal runtime/state overhaul engineering note.
+- path: docs/engineering_notes/runtime_and_state_overhaul/10-context-needs-capture.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal runtime/state overhaul engineering note.
+- path: docs/engineering_notes/runtime_and_state_overhaul/11-dialectic-and-revised-claims.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal runtime/state overhaul engineering note.
+- path: docs/engineering_notes/runtime_and_state_overhaul/12-actor-mental-model.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal runtime/state overhaul engineering note.
+- path: docs/engineering_notes/runtime_and_state_overhaul/13-dialectic-mission-vs-missionrun.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal runtime/state overhaul engineering note.
+- path: docs/engineering_notes/runtime_and_state_overhaul/14-model-diagrams.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal runtime/state overhaul engineering note.
+- path: docs/engineering_notes/runtime_and_state_overhaul/15-dialectic-on-the-domain-model.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal runtime/state overhaul engineering note.
+- path: docs/engineering_notes/runtime_and_state_overhaul/16-codebase-reassessment-fanout.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal runtime/state overhaul engineering note.
+- path: docs/engineering_notes/runtime_and_state_overhaul/17-consolidated-domain-model.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal runtime/state overhaul engineering note.
+- path: docs/engineering_notes/runtime_and_state_overhaul/README.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Index for runtime/state overhaul engineering notes.
+- path: docs/engineering_notes/runtime_and_state_overhaul/SESSION-RECAP.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Runtime/state overhaul session recap.
 - path: docs/engineering_notes/triage/2026-05-25-01KSF9HJ-dir013-sub-issues.md
   tag: internal
   divio_type: none

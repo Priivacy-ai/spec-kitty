@@ -57,7 +57,6 @@
 ## Integration
 
 - `spk-integrate-orchestrator-api`: external orchestrator API.
-- `spk-integrate-ci`: CI and automation.
 
 ## Meta
 

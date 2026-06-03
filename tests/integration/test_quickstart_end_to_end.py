@@ -432,10 +432,10 @@ class TestStep4_PackValidatorVocabulary:
         assert f"enhances: {_BUILT_IN_TACTIC_ID}" in msg, msg
         assert f"overrides: {_BUILT_IN_TACTIC_ID}" in msg, msg
 
-    def test_step4b_declared_enhances_suppresses_advisory(
+    def test_step4b_inline_enhances_is_rejected_after_hard_cutover(
         self, tmp_path: Path
     ) -> None:
-        """Declared ``enhances`` against a valid built-in -> advisory gone."""
+        """Inline ``enhances`` is retired; DRG fragment edges own relationships."""
         if not _has_built_in_doctrine():
             pytest.skip("shipped doctrine not on disk in this environment")
 
@@ -448,21 +448,13 @@ class TestStep4_PackValidatorVocabulary:
         )
         result = validate_pack(tmp_path)
 
-        # No same_id_collision advisory for the declared-intent artifact.
-        collision = [
-            a
-            for a in result.advisories
-            if a.artifact_id == _BUILT_IN_TACTIC_ID
-            and a.category == "same_id_collision"
-        ]
-        assert collision == [], (
-            f"Declared `enhances` MUST suppress same_id_collision; "
-            f"saw: {result.advisories}"
-        )
-        # And no schema errors from the partial fields (pack validator's
-        # schema check passes — the advisory pass is the only relevant
-        # gate for this case).
-        assert result.ok is True, result.errors
+        assert result.ok is False
+        assert any(
+            issue.artifact_id == _BUILT_IN_TACTIC_ID
+            and issue.category == "schema_invalid"
+            and "Retired relationship field(s) 'enhances'" in issue.message
+            for issue in result.errors
+        ), result.errors
 
     def test_step4b_unknown_enhances_target_errors(
         self, tmp_path: Path

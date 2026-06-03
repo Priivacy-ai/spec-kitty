@@ -99,7 +99,6 @@ the public user-facing hierarchy moves to `spk-*`.
 | `spk-doctrine-profile-load` | Agent profiles |
 | `spk-doctrine-bulk-edit` | Bulk-edit classification |
 | `spk-integrate-orchestrator-api` | External orchestrator API |
-| `spk-integrate-ci` | CI and automation |
 | `spk-meta-skill-map` | Discovery and naming convention |
 | `spk-meta-skill-authoring` | Future skill authoring |
 
