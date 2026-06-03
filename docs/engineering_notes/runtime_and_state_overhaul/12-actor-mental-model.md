@@ -101,6 +101,12 @@ graph TD
 **Actor** is not a fourth sibling of human/agent/system — it is the **metamodel abstraction** above
 them: *someone or something that effects change upon the system.* It **disambiguates** into three concrete kinds:
 
+> **Domain placement (per `14` Tier 1):** the Actor is **realized in the Execution/Runtime domain** —
+> "effecting change" is a practical, execution-layer act. Its **beliefs** (profile, directives, sense
+> of self) are sourced from **Governance**; the Actor *as a change-effector* is strictly practical.
+> The **Executor Prompt** that carries its three senses is the **DTO at the Mission-Management ↔
+> Execution boundary**, assembled using Governance (rules/profile) + Context (environment).
+
 | Actor kind | Self (identity) | How it perceives | Spec-kitty representation |
 |------------|-----------------|------------------|---------------------------|
 | **AgentProfile** (LLM agent) | the profile *is* its self — identity, boundaries, canonical verbs | **all senses injected** via the rendered prompt | `AgentProfile` (doctrine) bound at governed invocation |

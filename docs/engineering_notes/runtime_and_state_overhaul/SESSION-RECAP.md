@@ -122,6 +122,15 @@ Mission) — a real smell adjacent to #1619. We also captured **dialectical rese
 doctrine tactic** (`src/doctrine/tactics/built-in/analysis/dialectic-research.tactic.yaml`, registered
 in the DRG).
 
+**Model diagrams + domain remediation (`14`).** Compiled the concept map into a multi-tier set
+(Tier 1 domains + interrelations, Tier 2 drill-downs, a BPMN swimlane, and the governed-invocation
+sequence). Stijn then refined the domain model: **three top-level domains** — **Governance** (beliefs
+& rules), **Mission Management** (intent & planning, durable), **Execution/Runtime** (the doing,
+ephemeral) — with **Context/Environment a supporting *subdomain* of Execution**, **Actor realized in
+Execution** (beliefs sourced from Governance), and the **Executor Prompt a boundary DTO** between
+Mission Management and Execution (aligned via Governance + Context). Mission is a *concept* in Mission
+Management (not Runtime — ADR 2026-04-04-2 planning/runtime split); MissionType is a Governance artifact.
+
 ## Where we are now
 
 - **Phase 1 (grounding + reconnaissance): complete** — docs `01`–`08`.
