@@ -900,18 +900,18 @@ def collect_feature_summary(
 
     _validate_wp_readiness(expected_wp_ids, snapshot_wps, status_feature_dir / EVENTS_FILENAME, activity_issues)
 
-    unchecked_tasks = _find_unchecked_tasks(feature_dir / TASKS_FILE)
+    unchecked_tasks = _find_unchecked_tasks(status_feature_dir / TASKS_FILE)
     needs_clarification = _check_needs_clarification(
         [
-            feature_dir / "spec.md",
-            feature_dir / "plan.md",
-            feature_dir / "quickstart.md",
-            feature_dir / TASKS_FILE,
-            feature_dir / "research.md",
-            feature_dir / "data-model.md",
+            status_feature_dir / "spec.md",
+            status_feature_dir / "plan.md",
+            status_feature_dir / "quickstart.md",
+            status_feature_dir / TASKS_FILE,
+            status_feature_dir / "research.md",
+            status_feature_dir / "data-model.md",
         ]
     )
-    missing_required, missing_optional = _missing_artifacts(feature_dir)
+    missing_required, missing_optional = _missing_artifacts(status_feature_dir)
 
     path_violations: list[str] = []
     try:

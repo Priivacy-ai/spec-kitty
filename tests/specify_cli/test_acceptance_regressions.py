@@ -261,6 +261,57 @@ def test_collect_feature_summary_does_not_dirty_repo(tmp_path: Path) -> None:
     assert summary2.git_dirty == [], f"Second call dirtied the repo: {summary2.git_dirty}"
 
 
+def test_collect_feature_summary_checks_required_artifacts_in_coord_worktree(tmp_path: Path) -> None:
+    """Regression: coord topology stores canonical planning artifacts in the coord worktree."""
+    repo_root, feature_dir = _create_test_feature(tmp_path)
+    mid8 = "01ABCDEF"
+    coord_feature_dir = (
+        repo_root
+        / ".worktrees"
+        / f"{_FEATURE_SLUG}-{mid8}-coord"
+        / "kitty-specs"
+        / f"{_FEATURE_SLUG}-{mid8}"
+    )
+    coord_feature_dir.mkdir(parents=True)
+
+    for path in feature_dir.rglob("*"):
+        if path.is_file():
+            target = coord_feature_dir / path.relative_to(feature_dir)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(path.read_bytes())
+
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["mid8"] = mid8
+    meta["coordination_branch"] = f"kitty/mission-{_FEATURE_SLUG}-{mid8}"
+    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    (coord_feature_dir / "meta.json").write_text(
+        json.dumps(meta, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    (repo_root / ".gitignore").write_text(".worktrees/\n", encoding="utf-8")
+    (coord_feature_dir / "tasks.md").write_text("# tasks.md\n- [ ] Coord-only unfinished task\n", encoding="utf-8")
+    (coord_feature_dir / "spec.md").write_text(
+        "# spec.md\n[NEEDS CLARIFICATION: coord marker] <!-- decision_id: 01KS0ABCDEF0123456789ABCDE -->\n",
+        encoding="utf-8",
+    )
+    for artifact_name in ("spec.md", "plan.md", "tasks.md"):
+        (feature_dir / artifact_name).unlink()
+    subprocess.run(["git", "-C", str(repo_root), "add", "-A"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "commit", "-m", "Simulate coord-only required artifacts"],
+        check=True,
+        capture_output=True,
+    )
+
+    summary = collect_feature_summary(repo_root, _FEATURE_SLUG)
+
+    assert summary.feature_dir == feature_dir
+    assert summary.missing_artifacts == []
+    assert summary.unchecked_tasks == ["- [ ] Coord-only unfinished task"]
+    assert summary.needs_clarification == [str(coord_feature_dir / "spec.md")]
+
+
 def test_collect_feature_summary_blocks_workflow_changes_without_runner_evidence(tmp_path: Path) -> None:
     repo_root, _feature_dir = _create_test_feature(tmp_path)
     subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
