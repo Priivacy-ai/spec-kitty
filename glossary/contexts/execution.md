@@ -156,3 +156,71 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Alias** | AFK mode |
 | **Related terms** | [Collaboration Mode](#collaboration-mode), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic) |
 
+---
+
+### GovernanceContext
+
+| | |
+|---|---|
+| **Definition** | The resolved set of Charter and Doctrine artifacts active for an operation. Owned by the Governance bounded module. Resolved once per operation and passed down; never re-derived mid-operation. |
+| **Context** | Execution |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Owner** | Governance module |
+| **Related terms** | [ExecutionContext](#executioncontext), [InfraContext](#infracontext), [Charter](./governance.md#charter) |
+
+---
+
+### ExecutionContext
+
+| | |
+|---|---|
+| **Definition** | The resolved set of workspace root, branch name, feature directory, and WP identity for an operation. Owned by `core/execution_context.py` (Open Host Service facade). Resolved once per operation via `resolve_action_context`; never re-derived from CWD by individual command surfaces. |
+| **Context** | Execution |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Owner** | Execution module (`src/specify_cli/core/execution_context.py`) |
+| **OHS entry point** | `resolve_action_context` |
+| **Related terms** | [GovernanceContext](#governancecontext), [InfraContext](#infracontext) |
+
+---
+
+### InfraContext
+
+| | |
+|---|---|
+| **Definition** | The resolved set of infrastructure credentials and endpoints for an operation, including git remote URL, CI endpoint, and any external service tokens. Owned by the Execution module. |
+| **Context** | Execution |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Owner** | Execution module |
+| **Related terms** | [ExecutionContext](#executioncontext), [GovernanceContext](#governancecontext) |
+
+---
+
+### Effector
+
+| | |
+|---|---|
+| **Definition** | The Actor realized inside the Execution domain — the execution-bound realization of an Actor that performs actions within a mission run, producing or consuming communication artefacts (commits, PRs, comments). Named concept in docs only; no code type until a concrete actor-kind-mismatch bug triggers materialization. |
+| **Context** | Execution |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Materialization trigger** | First concrete actor-kind-mismatch bug, or first feature requiring cross-log (status/retrospective/run) actor identity join |
+| **Placement when materialized** | `src/specify_cli/kernel/actor.py` (Shared Kernel layer) |
+| **Related terms** | [communication artefact](#communication-artefact) |
+| **ADR** | `architecture/3.x/adr/2026-06-03-3-effector-actor-model.md` |
+
+---
+
+### communication artefact
+
+| | |
+|---|---|
+| **Definition** | A durable artifact produced or consumed by an Effector during a mission run (for example, a commit, a pull request, a review comment). Distinct from planning artifacts (spec, plan, tasks) which are produced before execution begins. |
+| **Context** | Execution |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Examples** | git commit, pull request, PR comment, CI run result |
+| **Related terms** | [Effector](#effector) |
+

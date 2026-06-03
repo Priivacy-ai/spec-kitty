@@ -53,3 +53,6 @@ Use the shared template at [`../../adr-template.md`](../../adr-template.md).
 | 2026-05-19 | [Retrospective default-on policy architecture](2026-05-19-1-retrospective-default-policy-architecture.md) |
 | 2026-06-02 | [Pi agent is skill-only: no prompt templates, invoker deferred](2026-06-02-1-pi-agent-skill-only-support.md) |
 | 2026-06-02 | [Letta agent is skill-only: no slash-command templates, invoker and session model deferred](2026-06-02-2-letta-agent-skill-only-support.md) |
+| 2026-06-03 | [Execution-state domain model](2026-06-03-1-execution-state-domain-model.md) |
+| 2026-06-03 | [ExecutionContext owner and CommitTarget atomicity](2026-06-03-2-executioncontext-owner-and-committarget.md) |
+| 2026-06-03 | [Effector/Actor model](2026-06-03-3-effector-actor-model.md) |
