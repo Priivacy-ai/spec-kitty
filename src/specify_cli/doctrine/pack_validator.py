@@ -371,10 +371,18 @@ def validate_pack(pack_dir: Path) -> ValidationResult:
 
     # FR-011..FR-013 (WP06 T037): intent-aware collision messages. This replaces
     # the legacy unconditional ``_built_in_id_collision_advisories`` pass.
+    # FR-028 hard cutover retired ``enhances``/``overrides`` inline fields on
+    # tactics and styleguides.  Pre-collect DRG fragment intent so the
+    # field-based pass can suppress same-ID advisories for artifacts whose
+    # intent is declared via DRG edges instead of inline fields.
     built_in_ids_per_kind = _load_built_in_ids_per_kind()
+    fragment_intent: dict = {}
+    if drg_dir.is_dir():
+        fragment_intent = _collect_fragment_edge_intent(drg_dir)
     intent_errors, intent_advisories = _intent_aware_collision_messages(
         pack_artifacts_data,
         built_in_ids_per_kind,
+        fragment_intent=fragment_intent,
     )
     errors.extend(intent_errors)
     advisories.extend(intent_advisories)
@@ -389,7 +397,6 @@ def validate_pack(pack_dir: Path) -> ValidationResult:
     # unknown target hard-errors, and both relations on one source ->
     # ``intent_conflict``.
     if drg_dir.is_dir():
-        fragment_intent = _collect_fragment_edge_intent(drg_dir)
         frag_errors, frag_advisories = _intent_aware_collision_messages_from_edges(
             fragment_intent,
             built_in_ids_per_kind,
@@ -617,6 +624,7 @@ def _load_built_in_ids_per_kind() -> dict[str, set[str]]:
 def _intent_aware_collision_messages(
     pack_artifacts: dict[str, dict[str, tuple[dict[str, Any], Path]]],
     built_in_ids_per_kind: dict[str, set[str]],
+    fragment_intent: dict | None = None,
 ) -> tuple[list[ValidationIssue], list[ValidationIssue]]:
     """Emit intent-aware errors and advisories for pack artifacts.
 
@@ -628,6 +636,9 @@ def _intent_aware_collision_messages(
     3. ``enhances`` references unknown built-in ID -> ``unknown_target`` ERROR.
     4. Either field declared and target valid -> suppress advisory.
     5. Neither declared, ID matches built-in -> ``same_id_collision`` ADVISORY (reworded).
+       Exception: if ``fragment_intent`` carries a valid declared intent via DRG
+       edge (FR-028 migration path for kinds where inline fields are retired), the
+       advisory is suppressed here to maintain parity.
     6. Neither declared, no built-in collision -> nothing.
 
     Returns ``(errors, advisories)``.
@@ -708,6 +719,16 @@ def _intent_aware_collision_messages(
 
             # 5. Neither declared and ID matches built-in -> reworded advisory.
             if art_id in built_ins:
+                # FR-028 migration path: inline fields retired on some kinds;
+                # check DRG fragment edges as the authoritative intent source.
+                if fragment_intent is not None:
+                    edge_record = (fragment_intent.get(plural) or {}).get(art_id)
+                    if edge_record is not None:
+                        intent_map = edge_record[0] if isinstance(edge_record, tuple) else edge_record
+                        edge_enhances = intent_map.get("enhances") if isinstance(intent_map, dict) else None
+                        edge_overrides = intent_map.get("overrides") if isinstance(intent_map, dict) else None
+                        if edge_enhances == art_id or edge_overrides == art_id:
+                            continue  # valid declared intent via DRG edge suppresses advisory
                 advisories.append(
                     ValidationIssue(
                         severity="advisory",
@@ -819,7 +840,32 @@ def _intent_aware_collision_messages_from_edges(
         field_ids = set(field_artifacts.get(plural, {}))
         for art_id in sorted(fragment_intent[plural]):
             if art_id in field_ids:
-                continue
+                # Skip when the field-based path declared intent via inline
+                # fields — it owns the advisory for that artifact.
+                # Also skip when the artifact ID does NOT collide with a
+                # built-in: no advisory was produced by the field-based path
+                # and processing the edge here would produce a spurious
+                # ``unknown_target`` error for self-referential augmentation
+                # edges that declare intent on non-built-in IDs.
+                #
+                # FR-028 retired ``enhances``/``overrides`` inline fields on
+                # tactics and styleguides. For those artifacts the field-based
+                # path produces a ``same_id_collision`` advisory (no inline
+                # intent) even though the edge-based path carries the correct
+                # declared intent.  We must NOT skip those artifacts so the
+                # edge-based path can suppress the advisory.
+                field_data = field_artifacts.get(plural, {}).get(art_id)
+                has_field_intent = False
+                if field_data is not None:
+                    raw_data = field_data[0]
+                    has_field_intent = bool(
+                        raw_data.get("enhances") or raw_data.get("overrides")
+                    )
+                has_builtin_collision = art_id in built_ins
+                if has_field_intent or not has_builtin_collision:
+                    continue  # field-based path handles it, or no collision exists
+                # Fall through: built-in collision exists but inline intent was
+                # retired (FR-028); edge-based path takes over.
             record, fragment = fragment_intent[plural][art_id]
             overrides_target = record.get("overrides")
             enhances_target = record.get("enhances")
