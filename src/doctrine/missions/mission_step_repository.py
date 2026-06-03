@@ -60,6 +60,7 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 _YAML = YAML(typ="safe")
+_STEP_FILENAME = "step.yaml"
 
 # ---------------------------------------------------------------------------
 # Public value objects
@@ -133,6 +134,28 @@ def _load_step_yaml(step_file: Path) -> MissionStep | None:
         return MissionStep.model_validate(mapped)
     except Exception:  # noqa: BLE001
         return None
+
+
+def _add_step_ids_from_dir(step_ids: set[str], mission_type_dir: Path) -> None:
+    """Add step ids from ``mission_type_dir`` when ``step.yaml`` exists."""
+    if not mission_type_dir.is_dir():
+        return
+    for entry in mission_type_dir.iterdir():
+        if entry.is_dir() and (entry / _STEP_FILENAME).exists():
+            step_ids.add(entry.name)
+
+
+def _project_mission_type_dir(
+    pack_context: _PackContextLike, mission_type_id: str,
+) -> Path:
+    """Return the project override directory for a mission type."""
+    return (
+        pack_context.repo_root
+        / ".kittify"
+        / "overrides"
+        / "mission-steps"
+        / mission_type_id
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -248,11 +271,7 @@ class MissionStepRepository:
         step_ids: set[str] = set()
 
         # Built-in layer
-        builtin_mt_dir = self._builtin_root / mission_type_id
-        if builtin_mt_dir.is_dir():
-            for entry in builtin_mt_dir.iterdir():
-                if entry.is_dir() and (entry / "step.yaml").exists():
-                    step_ids.add(entry.name)
+        _add_step_ids_from_dir(step_ids, self._builtin_root / mission_type_id)
 
         # Org layer (collect any extra step_ids present in org packs)
         if pack_context is not None:
@@ -260,17 +279,9 @@ class MissionStepRepository:
 
         # Project layer (collect any extra step_ids present in project overrides)
         if pack_context is not None:
-            project_mt_dir = (
-                pack_context.repo_root
-                / ".kittify"
-                / "overrides"
-                / "mission-steps"
-                / mission_type_id
+            _add_step_ids_from_dir(
+                step_ids, _project_mission_type_dir(pack_context, mission_type_id),
             )
-            if project_mt_dir.is_dir():
-                for entry in project_mt_dir.iterdir():
-                    if entry.is_dir() and (entry / "step.yaml").exists():
-                        step_ids.add(entry.name)
 
         # Resolve each step_id through the full layer stack.
         for step_id in step_ids:
@@ -298,17 +309,14 @@ class MissionStepRepository:
             if pack_root == builtin_pack_root:
                 continue
             org_mt_dir = pack_root / "mission-steps" / mission_type_id
-            if org_mt_dir.is_dir():
-                for entry in org_mt_dir.iterdir():
-                    if entry.is_dir() and (entry / "step.yaml").exists():
-                        step_ids.add(entry.name)
+            _add_step_ids_from_dir(step_ids, org_mt_dir)
         return step_ids
 
     def _resolve_builtin_layer(
         self, mission_type_id: str, step_id: str
     ) -> MissionStep | None:
         """Attempt to load ``{builtin_steps_root}/{mission_type_id}/{step_id}/step.yaml``."""
-        step_file = self._builtin_root / mission_type_id / step_id / "step.yaml"
+        step_file = self._builtin_root / mission_type_id / step_id / _STEP_FILENAME
         return _load_step_yaml(step_file)
 
     def _resolve_org_layer(
@@ -334,7 +342,7 @@ class MissionStepRepository:
             if pack_root == builtin_pack_root:
                 continue
             step_file = (
-                pack_root / "mission-steps" / mission_type_id / step_id / "step.yaml"
+                pack_root / "mission-steps" / mission_type_id / step_id / _STEP_FILENAME
             )
             step = _load_step_yaml(step_file)
             if step is not None:
@@ -351,13 +359,7 @@ class MissionStepRepository:
 
         Project-layer shadow wins over both org and built-in layers.
         """
-        step_file = (
-            pack_context.repo_root
-            / ".kittify"
-            / "overrides"
-            / "mission-steps"
-            / mission_type_id
-            / step_id
-            / "step.yaml"
-        )
+        step_file = _project_mission_type_dir(
+            pack_context, mission_type_id,
+        ) / step_id / _STEP_FILENAME
         return _load_step_yaml(step_file)

@@ -126,6 +126,9 @@ YAML_KEY_MAP: dict[str, str] = {
 #: order. ``specify_cli`` resolves the org/project *roots* (C-008); this module
 #: only knows the directory-segment names.
 _LAYER_SEGMENTS: tuple[str, ...] = ("built-in", "org", "project")
+_KITTIFY_DIRNAME = ".kittify"
+_CONFIG_FILENAME = "config.yaml"
+_CHARTER_FILENAME = "charter.md"
 
 
 def _resolve_kind(token: str) -> ArtifactKind | None:
@@ -397,7 +400,7 @@ class CharterPackManager:
         yaml_key = YAML_KEY_MAP[kind]
 
         repo_root = ctx.require_repo_root()
-        config_path = repo_root / ".kittify" / "config.yaml"
+        config_path = repo_root / _KITTIFY_DIRNAME / _CONFIG_FILENAME
         data, yaml_inst = _load_config(config_path)
 
         available = self.list_available(ctx, kind, layer_roots=layer_roots)
@@ -471,7 +474,7 @@ class CharterPackManager:
         yaml_key = YAML_KEY_MAP[kind]
 
         repo_root = ctx.require_repo_root()
-        config_path = repo_root / ".kittify" / "config.yaml"
+        config_path = repo_root / _KITTIFY_DIRNAME / _CONFIG_FILENAME
         data, yaml_inst = _load_config(config_path)
 
         plan = plan_deactivation(
@@ -512,7 +515,7 @@ class CharterPackManager:
             Mapping of charter kind token to activated IDs (or ``None``).
         """
         repo_root = ctx.require_repo_root()
-        config_path = repo_root / ".kittify" / "config.yaml"
+        config_path = repo_root / _KITTIFY_DIRNAME / _CONFIG_FILENAME
         data, _ = _load_config(config_path)
 
         result: dict[str, frozenset[str] | None] = {}
@@ -604,6 +607,7 @@ class CharterPackManager:
         ValueError
             If ``kind`` is not in the canonical charter kind universe.
         """
+        _ = ctx
         kind_enum = self._require_kind(kind)
         yaml = YAML(typ="safe")
         _base_dir, glob, _layered = _scan_layout_for(kind_enum)
@@ -688,15 +692,15 @@ class CharterPackManager:
         from datetime import UTC, datetime
 
         repo_root = ctx.require_repo_root()
-        config_path = repo_root / ".kittify" / "config.yaml"
-        charter_path = repo_root / ".kittify" / "charter" / "charter.md"
+        config_path = repo_root / _KITTIFY_DIRNAME / _CONFIG_FILENAME
+        charter_path = repo_root / _KITTIFY_DIRNAME / "charter" / _CHARTER_FILENAME
 
         result = MergeResult()
 
         # Backup charter.md if it exists before any write
         if charter_path.exists():
             ts = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%SZ")
-            backup_dir = repo_root / ".kittify" / "charter" / "backups"
+            backup_dir = repo_root / _KITTIFY_DIRNAME / "charter" / "backups"
             backup_dir.mkdir(parents=True, exist_ok=True)
             backup_path = backup_dir / f"charter-{ts}.md"
             backup_path.write_bytes(charter_path.read_bytes())
