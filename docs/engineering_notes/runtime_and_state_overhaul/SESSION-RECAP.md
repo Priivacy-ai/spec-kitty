@@ -149,6 +149,20 @@ corrections — canonical runtime is `runtime/next/_internal_runtime` (CLAUDE.md
 runtime↔specify_cli is bidirectional/unenforced, `MissionStatus`/`mission_runtime/` are net-new and
 layer-meta-guarded (H6). The model is validated; doc 16 is the evidence base for the `06` concretization.
 
+**Consolidation + `06` technical mapping.** Folded Stijn's vocabulary refinements into doc 17 (Context
+is per-domain — GovernanceContext/ExecutionContext/InfraContext; Shared Kernel is a code module;
+Effector = Actor realized in Execution; prompt = communication artefact; "domains as bounded modules
+with external API entry points" is the conceptual→technical hinge). Filed the free-wins **#1663**
+(MissionRun can't name its Mission) and **#1664** (status/ public API not enforced); fixed the stale
+CLAUDE.md runtime path. Rewrote **doc 06** as the technical concretization: every model element → package
+home + API entry point + status (exists/to-harden/net-new), the communication-artefact + Effector
+targets, and a 7-step Strangler sequence (e2e ratchet → status boundary → harden ExecutionContext →
+MissionRun ref → consolidate projections → Effector → commit-seam atomicity).
+
+**Handover:** this design set is being handed to Robert for revision, refinement, and finalization into
+ADRs / stable architectural documentation, to serve as the guideline for missions addressing #1619 and
+related domain-violation / architectural-design issues.
+
 ## Where we are now
 
 - **Phase 1 (grounding + reconnaissance): complete** — docs `01`–`08`.
