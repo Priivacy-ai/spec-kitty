@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.10] - 2026-06-03
+
+### Fixed
+
+- Fresh `pipx` and `uv tool` installs now include `click`, fixing
+  `ModuleNotFoundError: No module named 'click'` at CLI startup when Typer
+  resolves to a version that no longer depends on Click.
+
 ## [3.1.9] - 2026-05-21
 
 ### Fixed

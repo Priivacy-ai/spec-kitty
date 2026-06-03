@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "3.1.9"
+version = "3.1.10"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -50,6 +50,7 @@ classifiers = [
 ]
 dependencies = [
     "typer>=0.24.1",
+    "click>=8.2.1",  # Used directly by CLI modules; typer>=0.26 no longer depends on click
     "rich>=14.3.3",
     "httpx[socks]>=0.28.1",
     "platformdirs>=4.9.2",
