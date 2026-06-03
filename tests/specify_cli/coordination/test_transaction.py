@@ -81,6 +81,22 @@ def _make_event(wp_id: str = "WP01", to_lane: str = "claimed") -> StatusEvent:
     )
 
 
+def _write_modern_meta(repo: Path, coordination_branch: str = COORD_BRANCH) -> None:
+    feature_dir = repo / "kitty-specs" / FEATURE_DIRNAME
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        (
+            "{\n"
+            f'  "mission_id": "{MISSION_ID}",\n'
+            f'  "mission_slug": "{FEATURE_DIRNAME}",\n'
+            f'  "target_branch": "main",\n'
+            f'  "coordination_branch": "{coordination_branch}"\n'
+            "}\n"
+        ),
+        encoding="utf-8",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Happy path
 # ---------------------------------------------------------------------------
@@ -193,6 +209,39 @@ def test_policy_refusal_short_circuits_before_any_write(repo: Path) -> None:
     assert excinfo.value.verdict.error_code == "PROTECTED_BRANCH_REFUSED"
     # No event log ever materialised.
     assert not events_path.exists()
+
+
+def test_protected_target_ref_recovers_only_with_explicit_coord_meta(repo: Path) -> None:
+    """Modern meta can prove ``main`` is the target, not the bookkeeping destination."""
+    _write_modern_meta(repo)
+
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref="main",
+        operation="recover_target_ref",
+    ) as txn:
+        assert txn.destination_ref == COORD_BRANCH
+        assert txn.worktree_root == CoordinationWorkspace.worktree_path(repo, MISSION_SLUG, MID8)
+
+
+def test_protected_target_ref_with_mismatched_coord_meta_refused(repo: Path) -> None:
+    """A protected caller ref must not be laundered through spoofed coordination metadata."""
+    _write_modern_meta(repo, coordination_branch="kitty/mission-other-01J6XW9K")
+
+    with pytest.raises(BookkeepingPolicyRefused) as excinfo:
+        BookkeepingTransaction.acquire(
+            repo_root=repo,
+            mission_id=MISSION_ID,
+            mission_slug=MISSION_SLUG,
+            mid8=MID8,
+            destination_ref="main",
+            operation="recover_target_ref",
+        )
+
+    assert excinfo.value.verdict.error_code == "PROTECTED_BRANCH_REFUSED"
 
 
 def test_destination_ref_refs_heads_prefix_refused(repo: Path) -> None:
