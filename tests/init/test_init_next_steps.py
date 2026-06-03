@@ -94,12 +94,63 @@ def test_init_next_steps_names_spec_kitty_next(
         f"Actual console output:\n{output}"
     )
 
+    assert "$spec-kitty.specify" in output, (
+        "Codex init next steps must use Codex skill invocation syntax.\n"
+        f"Actual console output:\n{output}"
+    )
+
+    assert "/spec-kitty.dashboard" not in output, (
+        "Codex init next steps must not list slash commands that are not installed as command skills.\n"
+        f"Actual console output:\n{output}"
+    )
+
     # The bare top-level CLI invocation must NOT appear
     assert "spec-kitty implement WP" not in output, (
         "Found forbidden string 'spec-kitty implement WP' in init console output — "
         "this is the old top-level CLI path and must not appear.\n"
         f"Actual console output:\n{output}"
     )
+
+
+def test_init_letta_next_steps_use_slash_skill_syntax(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    app, buf = _make_app_with_buf()
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+
+    result = _run(app, ["init", "letta-proj", "--ai", "letta", "--non-interactive"])
+
+    assert result.exit_code == 0, f"init failed (exit_code={result.exit_code})"
+
+    output = buf.getvalue()
+    assert "/spec-kitty.specify" in output
+    assert "Use spec-kitty.specify" not in output
+
+
+def test_init_vibe_next_steps_list_only_installed_command_skills(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    app, buf = _make_app_with_buf()
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+
+    result = _run(app, ["init", "vibe-proj", "--ai", "vibe", "--non-interactive"])
+
+    assert result.exit_code == 0, f"init failed (exit_code={result.exit_code})"
+
+    output = buf.getvalue()
+    assert "Build your specification with command skills" in output
+    assert "/spec-kitty.tasks-finalize" in output
+    assert "/spec-kitty.dashboard" not in output
+    assert "/spec-kitty.accept" not in output
+    assert "/spec-kitty.merge" not in output
 
 
 # ---------------------------------------------------------------------------

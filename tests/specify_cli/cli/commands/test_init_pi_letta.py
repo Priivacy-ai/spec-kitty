@@ -48,7 +48,7 @@ def _fake_copy_package(project_path: Path) -> Path:
     ("agent_key", "agent_dir", "install_snippet", "usage_snippet"),
     [
         ("pi", ".pi/", "https://pi.dev/install.sh", "/skill:spec-kitty.specify"),
-        ("letta", ".letta/", "@letta-ai/letta-code", "Use spec-kitty.specify"),
+        ("letta", ".letta/", "@letta-ai/letta-code", "/spec-kitty.specify"),
     ],
 )
 def test_init_pi_letta_installs_command_skills_and_prints_next_steps(
