@@ -87,12 +87,12 @@ sites + `feature-runs.json` + additive legacy migration — **contained to `runt
 - Aside: **`dashboard/` is not layer-registered** (would flag the meta-test) — separate follow-up.
 
 ## Emergent findings (beyond the original hypotheses)
-1. **Status/kanban is a first-class shared context** — surface it explicitly; add import-boundary enforcement (H2).
+1. **Status/kanban is a first-class shared context** — surface it explicitly; add import-boundary enforcement (H2). **Filed: [#1664](https://github.com/Priivacy-ai/spec-kitty/issues/1664).**
 2. **Actor metamodel is fragmented** across 3 vocabularies — a unification candidate (answers the `12 §7` "shared Actor type?" question) (H3).
 3. **Three parallel context projections** (Prompt PL / ActionContext DTO / OperationalContext VO) — consolidation target (H4).
-4. **MissionRun→Mission reference gap** — small, contained, file a follow-up (H5).
+4. **MissionRun→Mission reference gap** — small, contained (H5). **Filed: [#1663](https://github.com/Priivacy-ai/spec-kitty/issues/1663).**
 5. **Stale/absent homes**: canonical runtime is `runtime.next` (not `specify_cli.next`); `mission_runtime/`
-   and `MissionStatus` are net-new and constrained by the layer meta-guard (H6). **CLAUDE.md has a stale runtime path.**
+   and `MissionStatus` are net-new and constrained by the layer meta-guard (H6). **CLAUDE.md stale runtime path: fixed in this branch.**
 
 ## Implications for the consolidated model + `06` mapping
 - **Confirm**: Mission≠MissionRun; MissionType ∈ Governance(doctrine); the execution spine.

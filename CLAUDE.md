@@ -988,7 +988,7 @@ unset GITHUB_TOKEN && gh auth status
 
 As of mission `shared-package-boundary-cutover-01KQ22DS` (2026-04-25):
 
-- **Runtime**: CLI-internal under `src/specify_cli/next/_internal_runtime/`. The standalone `spec-kitty-runtime` PyPI package is retired; the CLI does not depend on it.
+- **Runtime**: CLI-internal under `src/runtime/next/_internal_runtime/` (canonical). `src/specify_cli/next/` is a deprecation shim (`__deprecated__ = True`, removed in 3.3.0) re-exporting `runtime.next`; do not anchor new code there. The standalone `spec-kitty-runtime` PyPI package is retired; the CLI does not depend on it.
 - **Events**: external PyPI dependency. Consumed only via `spec_kitty_events.*` public imports. The vendored copy under `src/specify_cli/spec_kitty_events/` was removed.
 - **Tracker**: external PyPI dependency. Consumed only via `spec_kitty_tracker.*` public imports.
 - **Compatibility ranges** live in `pyproject.toml`; **exact pins** live in `uv.lock`.
