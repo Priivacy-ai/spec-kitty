@@ -529,6 +529,9 @@ nodes:
   label: Secure Regex — Avoid Catastrophic Backtracking
 - urn: tactic:single-diagram-architecture
   kind: tactic
+- urn: tactic:split-brain-authority-detection
+  kind: tactic
+  label: Split Brain Authority Detection
 - urn: tactic:stakeholder-alignment
   kind: tactic
   label: Stakeholder Alignment
@@ -2248,6 +2251,18 @@ edges:
   target: tactic:secure-design-checklist
   relation: suggests
   when: Treat regex hardening as a design-phase property of any component that parses untrusted input, not as a post-hoc fix
+- source: tactic:split-brain-authority-detection
+  target: tactic:forensic-repository-audit
+  relation: suggests
+  when: Use when repository history may reveal repeated fixes, reverts, or ownership churn around split brain incidents.
+- source: tactic:split-brain-authority-detection
+  target: tactic:premortem-risk-identification
+  relation: suggests
+  when: Use before introducing multiple writers, active-active regions, offline clients, queue workers, or control-plane rollouts.
+- source: tactic:split-brain-authority-detection
+  target: tactic:quality-gate-verification
+  relation: suggests
+  when: Use to prove the detector, chaos drill, or invariant test is part of the release gate.
 - source: tactic:stakeholder-alignment
   target: template:stakeholder-persona-template
   relation: suggests
