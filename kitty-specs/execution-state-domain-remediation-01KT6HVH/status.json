@@ -1,7 +1,7 @@
 {
-  "event_count": 21,
-  "last_event_id": "01KT6NZAH4AZ9Q440WNEF6VXBE",
-  "materialized_at": "2026-06-03T12:05:17.476888+00:00",
+  "event_count": 23,
+  "last_event_id": "01KT6P0ERN8RJP55P0753HT1PE",
+  "materialized_at": "2026-06-03T12:05:54.581039+00:00",
   "mission_number": "",
   "mission_slug": "execution-state-domain-remediation-01KT6HVH",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 4
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
@@ -39,11 +39,11 @@
       "last_transition_at": "2026-06-03T11:14:28.310874+00:00"
     },
     "WP04": {
-      "actor": "finalize-tasks",
+      "actor": "claude:claude-sonnet-4-6:python-pedro:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT6K298EP6ZJ57NECZ70YRPJ",
-      "last_transition_at": "2026-06-03T11:14:28.750917+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KT6P0ERN8RJP55P0753HT1PE",
+      "last_transition_at": "2026-06-03T12:05:54.581039+00:00"
     },
     "WP05": {
       "actor": "finalize-tasks",
