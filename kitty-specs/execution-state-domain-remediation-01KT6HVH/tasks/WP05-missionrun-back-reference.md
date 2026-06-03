@@ -14,6 +14,9 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-execution-state-domain-remediation-01KT6HVH
+base_commit: 8501abd1b9a0dd95272290bcda1e0ce4d3c94845
+created_at: '2026-06-03T12:06:17.834015+00:00'
 subtasks:
 - T026
 - T027
@@ -21,7 +24,8 @@ subtasks:
 - T029
 - T030
 - T031
-agent: claude
+agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
+shell_pid: "66734"
 history:
 - date: '2026-06-03'
   event: created
@@ -270,3 +274,7 @@ Add optional `mission_id` and `mission_slug` fields to `MissionRunSnapshot` and 
 - Verify `MissionRunStartedPayload` at ~line 465 is UNCHANGED (out of scope)
 - Check that all 6 snapshot-copy sites now carry `mission_id` and `mission_slug`
 - Confirm backward-compat test is present and passes with a snapshot that has no `mission_id` key
+
+## Activity Log
+
+- 2026-06-03T12:06:19Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=66734 – Assigned agent via action command
