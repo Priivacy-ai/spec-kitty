@@ -1,3 +1,8 @@
+---
+title: "How to Keep Main Clean"
+description: "How to keep main clean with Spec Kitty 3.2: Use this guide when you want planning to happen from the repository root checkout but you do not want the."
+---
+
 # How to Keep Main Clean
 
 Use this guide when you want planning to happen from the repository root checkout but you do not want the mission to target `main`.
@@ -20,7 +25,7 @@ spec-kitty agent mission branch-context --json
 
 If the JSON shows the current branch, `planning_base_branch`, and `merge_target_branch` all pointing at the branch you want, run `/spec-kitty.specify` normally from the repository root checkout.
 
-This is the simplest way to keep `main` clean: start from `develop`, `release/2.x`, or your feature integration branch before planning begins.
+This is the simplest way to keep `main` clean: start from `main`, your release branch, or your mission integration branch before planning begins.
 
 ## Pick an Explicit Target Branch
 
@@ -71,7 +76,7 @@ By default, `spec-kitty merge` lands in the mission's recorded target branch.
 Use this only when you intentionally need a different destination:
 
 ```bash
-spec-kitty merge --target release/2.x
+spec-kitty merge --target main
 ```
 
 If you are reaching for `--target`, confirm first that the mission was not simply created against the wrong target branch.

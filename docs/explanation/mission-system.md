@@ -1,3 +1,8 @@
+---
+title: "The Mission System Explained"
+description: "Explanation of The Mission System Explained in Spec Kitty 3.2, including the model, rationale, and operator implications."
+---
+
 # The Mission System Explained
 
 Spec Kitty's mission system lets you choose a workflow blueprint optimized for your type of work. This document explains why mission types exist, how they shape your experience, and how the pieces fit together.

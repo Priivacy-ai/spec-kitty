@@ -1,9 +1,14 @@
+---
+title: "Migration: Shared Package Boundary Cutover"
+description: "Migration guidance for Migration: Shared Package Boundary Cutover in Spec Kitty 3.2, including upgrade context and historical behavior boundaries."
+---
+
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
 # Migration: Shared Package Boundary Cutover
 
 **Mission**: `shared-package-boundary-cutover-01KQ22DS`
-**Released**: spec-kitty-cli 3.2.0 (unreleased at time of merge)
+**Released**: spec-kitty-cli 3.2.0
 **Audience**: operators upgrading `spec-kitty-cli` from a pre-cutover version.
 
 ## What changed
@@ -21,7 +26,7 @@ Concretely, after this release:
   spec-kitty-cli` remains supported inside a virtual environment or another
   intentionally managed Python environment.
 - `spec-kitty-events` and `spec-kitty-tracker` are pulled in transitively
-  with compatibility ranges (`>=4.0.0,<5.0.0` and `>=0.4,<0.5`,
+  with current 3.2 compatibility ranges (`>=5.2.0,<6.0.0` for events and the tracker range declared by the release,
   respectively); exact versions live in `uv.lock`.
 - `spec-kitty-runtime` is not installed and is not referenced.
 

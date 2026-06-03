@@ -1,3 +1,8 @@
+---
+title: "Execution Lanes"
+description: "Explanation of Execution Lanes in Spec Kitty 3.2, including the model, rationale, and operator implications."
+---
+
 # Execution Lanes
 
 Spec Kitty uses a lane-based execution model.

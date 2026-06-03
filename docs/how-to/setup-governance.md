@@ -1,6 +1,6 @@
 ---
-title: How to Set Up Project Governance
-description: Configure your project charter, generate structured governance config, and keep it in sync.
+title: "How to Set Up Project Governance"
+description: "Configure your project charter, generate structured governance config, and keep it in sync."
 ---
 
 # How to Set Up Project Governance

@@ -1,6 +1,6 @@
 ---
-title: How to Manage the Glossary
-description: Curate canonical terminology, resolve conflicts, and configure strictness enforcement.
+title: "How to Manage the Glossary"
+description: "Curate canonical terminology, resolve conflicts, and configure strictness enforcement."
 ---
 
 # How to Manage the Glossary

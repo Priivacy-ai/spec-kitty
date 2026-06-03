@@ -1,3 +1,8 @@
+---
+title: "How to Accept and Merge a Mission"
+description: "How to accept and merge a mission with Spec Kitty 3.2: Use this guide to validate mission readiness and merge to the mission's target branch."
+---
+
 # How to Accept and Merge a Mission
 
 Use this guide to validate mission readiness and merge to the mission's target branch.

@@ -1,3 +1,8 @@
+---
+title: "How to Review a Work Package"
+description: "How to review a work package with Spec Kitty 3.2: Use this guide to review a completed work package and update its lane."
+---
+
 # How to Review a Work Package
 
 Use this guide to review a completed work package and update its lane.

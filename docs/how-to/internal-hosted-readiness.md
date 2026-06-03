@@ -1,4 +1,6 @@
 ---
+title: "Internal Hosted-Readiness Mode (Pre-Launch)"
+description: "How to internal hosted-readiness mode (pre-launch) with Spec Kitty 3.2: Internal Hosted-Readiness Mode (Pre-Launch)."
 type: how-to
 audience: internal / pre-launch operators
 ---
@@ -8,7 +10,7 @@ audience: internal / pre-launch operators
 > **Audience:** internal contributors and dev operators who are dogfooding
 > the hidden hosted-readiness path. This page is **not** for end users.
 > The public Spec Kitty experience remains local-first; see the
-> [README](../../README.md) for the current default workflow.
+> [README](https://github.com/Priivacy-ai/spec-kitty/blob/main/README.md) for the current default workflow.
 
 ## When this page applies
 
@@ -34,7 +36,7 @@ output, no hosted auth probe, no tracker calls. With the variable set
 to a truthy value (`1`, `true`, `yes`, `on`, case-insensitive), the
 coordinator wakes up and the hosted readiness states become observable.
 The byte-stable disabled-state message and the truthy-value contract are
-defined in [`src/specify_cli/saas/rollout.py`](../../src/specify_cli/saas/rollout.py)
+defined in [`src/specify_cli/saas/rollout.py`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/specify_cli/saas/rollout.py)
 and asserted by tests; do not paraphrase that message in your own
 tooling.
 

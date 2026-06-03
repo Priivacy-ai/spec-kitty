@@ -1,6 +1,6 @@
 ---
-title: Charter CLI Reference
-description: Full reference for all spec-kitty charter subcommands, verified against live --help output.
+title: "Charter CLI Reference"
+description: "Full reference for all spec-kitty charter subcommands, verified against live --help output."
 ---
 
 # Charter CLI Reference

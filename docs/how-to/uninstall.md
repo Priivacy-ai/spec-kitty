@@ -1,4 +1,6 @@
 ---
+title: "Uninstall Spec Kitty"
+description: "How to uninstall spec kitty with Spec Kitty 3.2: Remove the spec-kitty CLI and, optionally, the project files it generated. This page also covers rollback."
 type: how-to
 audience: end-users
 ---

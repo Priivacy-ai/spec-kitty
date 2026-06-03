@@ -1,3 +1,8 @@
+---
+title: "The Runtime Loop Explained"
+description: "Explanation of The Runtime Loop Explained in Spec Kitty 3.2, including the model, rationale, and operator implications."
+---
+
 # The Runtime Loop Explained
 
 Spec Kitty offers two ways to advance work through a mission: slash commands and the runtime loop. This document explains the runtime loop -- what it is, when to use it, and how to interpret what it tells you.

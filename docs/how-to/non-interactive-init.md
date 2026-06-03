@@ -1,3 +1,8 @@
+---
+title: "Non-Interactive Init Mode"
+description: "How to non-interactive init mode with Spec Kitty 3.2: ✅ spec-kitty init IS fully non-interactive when --non-interactive (or the environment variable) is set."
+---
+
 # Non-Interactive Init Mode
 
 ## Summary

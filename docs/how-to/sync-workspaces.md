@@ -1,3 +1,8 @@
+---
+title: "How to Sync Workspaces"
+description: "How to sync workspaces with Spec Kitty 3.2: Keep your workspace up to date with upstream changes from dependent work packages."
+---
+
 # How to Sync Workspaces
 
 Keep your workspace up to date with upstream changes from dependent work packages.
@@ -13,7 +18,7 @@ You're working on WP02, and WP01 (which WP02 depends on) has changed. You need t
 ## Prerequisites
 
 - Active workspace created via `spec-kitty agent action implement WP## --agent <name>`
-- spec-kitty 0.12.0+
+- spec-kitty 3.2 or newer
 - Changes committed in the upstream workspace
 
 ---

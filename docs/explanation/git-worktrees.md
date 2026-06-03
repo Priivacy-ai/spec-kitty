@@ -1,3 +1,8 @@
+---
+title: "Git Worktrees Explained"
+description: "Explanation of Git Worktrees Explained in Spec Kitty 3.2, including the model, rationale, and operator implications."
+---
+
 # Git Worktrees Explained
 
 Git worktrees are the technology that enables Spec Kitty's parallel development model. This document explains what worktrees are, why Spec Kitty uses them, and how they work in the modern lane-based execution model.

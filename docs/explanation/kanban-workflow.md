@@ -1,3 +1,8 @@
+---
+title: "Kanban Workflow Explained"
+description: "Explanation of Kanban Workflow Explained in Spec Kitty 3.2, including the model, rationale, and operator implications."
+---
+
 # Kanban Workflow Explained
 
 Spec Kitty uses a kanban-style workflow to track work package progress. This document explains how lanes work, why we track status this way, and what happens when work moves between lanes.

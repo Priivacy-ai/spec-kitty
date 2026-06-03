@@ -1,3 +1,8 @@
+---
+title: "Mission Types Reference"
+description: "Reference for Mission Types Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+---
+
 # Mission Types Reference
 
 Spec Kitty supports three built-in mission types, each tailored to a different kind of work. A mission type is the reusable workflow blueprint. A mission is the concrete tracked item under `kitty-specs/<mission-slug>/`.

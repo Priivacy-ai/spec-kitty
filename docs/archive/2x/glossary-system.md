@@ -1,4 +1,9 @@
-> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.x](../3x/index.md) for current docs.
+---
+title: "2.x Glossary System"
+description: "Historical Spec Kitty 2.x archive page for 2.x Glossary System; use Spec Kitty 3.2 docs for current Charter-era workflows."
+---
+
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../3x/index.md) for current docs.
 
 # 2.x Glossary System
 
@@ -100,6 +105,6 @@ Doctrine artifacts for glossary curation:
 
 ## Learn More
 
-- **Step-by-step management**: [How to Manage the Glossary](../how-to/manage-glossary.md) -- listing terms, resolving conflicts, editing seed files, configuring strictness
-- **Spec-driven development**: [Spec-Driven Development Explained](../explanation/spec-driven-development.md) -- how the glossary fits into the broader specification workflow
-- **CLI reference**: [CLI Commands Reference](../reference/cli-commands.md) -- complete `glossary` subcommand details
+- **Step-by-step management**: [How to Manage the Glossary](../../how-to/manage-glossary.md) -- listing terms, resolving conflicts, editing seed files, configuring strictness
+- **Spec-driven development**: [Spec-Driven Development Explained](../../explanation/spec-driven-development.md) -- how the glossary fits into the broader specification workflow
+- **CLI reference**: [CLI Commands Reference](../../reference/cli-commands.md) -- complete `glossary` subcommand details

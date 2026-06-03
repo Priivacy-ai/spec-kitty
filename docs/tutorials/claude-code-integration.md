@@ -1,3 +1,8 @@
+---
+title: "Claude Code + Spec Kitty Integration Guide"
+description: "Tutorial for Claude Code + Spec Kitty Integration Guide in Spec Kitty 3.2: Claude Code + Spec Kitty Integration Guide."
+---
+
 # Claude Code + Spec Kitty Integration Guide
 
 **Complete workflow for using Spec Kitty with Claude Code CLI**
@@ -323,7 +328,7 @@ and WebSocket for live reload. Dark mode toggle.
 
 ### Starting the Dashboard
 
-`spec-kitty init` no longer auto-starts the dashboard in the current `3.1.x` flow. Start it when you want it:
+`spec-kitty init` no longer auto-starts the dashboard in the current `3.2` flow. Start it when you want it:
 
 ```bash
 spec-kitty dashboard --open

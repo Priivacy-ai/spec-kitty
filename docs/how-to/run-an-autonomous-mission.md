@@ -1,6 +1,6 @@
 ---
-title: Run an Autonomous Mission
-description: Run specify, plan, tasks, implementation review, mission review, and retrospective steps without manual merge workarounds.
+title: "Run an Autonomous Mission"
+description: "Run specify, plan, tasks, implementation review, mission review, and retrospective steps without manual merge workarounds."
 ---
 
 # Run an Autonomous Mission

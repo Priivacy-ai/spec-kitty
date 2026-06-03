@@ -1,6 +1,6 @@
 ---
-title: Orchestrator Quickstart
-description: Learn how Spec Kitty and spec-kitty-orchestrator work together to run a small mission through implementation and review.
+title: "Orchestrator Quickstart"
+description: "Learn how Spec Kitty and spec-kitty-orchestrator work together to run a small mission through implementation and review."
 ---
 
 # Orchestrator Quickstart

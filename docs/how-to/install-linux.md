@@ -1,4 +1,6 @@
 ---
+title: "Install Spec Kitty on Linux"
+description: "Install the Spec Kitty 3.2 CLI on Linux with pipx, uv, or a virtual environment and verify the command works."
 type: how-to
 audience: end-users
 os: linux

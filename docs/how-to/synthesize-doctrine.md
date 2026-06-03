@@ -1,6 +1,6 @@
 ---
-title: How to Synthesize and Maintain Doctrine
-description: Run charter synthesize and charter resynthesize, validate the bundle, check provenance, and recover from stale state.
+title: "How to Synthesize and Maintain Doctrine"
+description: "Run charter synthesize and charter resynthesize, validate the bundle, check provenance, and recover from stale state."
 ---
 
 # How to Synthesize and Maintain Doctrine

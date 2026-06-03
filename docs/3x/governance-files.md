@@ -1,6 +1,6 @@
 ---
-title: Governance Files Reference
-description: Authoritative reference for every file under .kittify/charter/ — who writes it, what it contains, and whether you can edit it.
+title: "Governance Files Reference"
+description: "Authoritative reference for every file under .kittify/charter/ — who writes it, what it contains, and whether you can edit it."
 ---
 
 # Governance Files Reference

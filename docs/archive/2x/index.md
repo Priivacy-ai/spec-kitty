@@ -1,14 +1,19 @@
-> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.x](../3x/index.md) for current docs.
+---
+title: "2.x Documentation (Archive)"
+description: "Historical Spec Kitty 2.x archive page for 2.x Documentation (Archive); use Spec Kitty 3.2 docs for current Charter-era workflows."
+---
+
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../3x/index.md) for current docs.
 
 # 2.x Documentation (Archive)
 
 > **Archive Notice**: This section documents Spec Kitty 2.x behavior. It is preserved
-> for historical reference only. For current 3.x Charter documentation, see
-> [3.x Docs (Current)](../3x/index.md).
+> for historical reference only. For current 3.2 documentation, see
+> [Spec Kitty 3.2 current overview](../../3x/index.md).
 
 `2.x` was the architecture track centered on doctrine-backed governance, living glossary
 semantics, and runtime-owned mission execution. These pages are archived so existing projects and
-contributors can understand older behavior; current projects should use the 3.x Charter docs.
+contributors can understand older behavior; current projects should use the 3.2 docs.
 
 ## Key 2.x Shifts
 
@@ -24,6 +29,12 @@ contributors can understand older behavior; current projects should use the 3.x 
 3. [Runtime and Missions](runtime-and-missions.md)
 4. [Orchestration and API Boundary](orchestration-and-api.md)
 5. [ADR Coverage](adr-coverage.md)
+
+## Current replacement
+
+- For new projects: start with [Spec Kitty 3.2 documentation](../../index.md).
+- For upgrades: use [Migration to Spec Kitty 3.2](../../migration/index.md).
+- For old behavior lookup: use this 2.x archive only for historical context.
 
 ## Architecture Repository Layout
 

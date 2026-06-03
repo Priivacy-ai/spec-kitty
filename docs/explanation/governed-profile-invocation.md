@@ -1,6 +1,6 @@
 ---
-title: Understanding Governed Profile Invocation
-description: How profile invocation works under governance — the (profile, action, governance-context) triple, modes, lifecycle, and the invocation trail.
+title: "Understanding Governed Profile Invocation"
+description: "How profile invocation works under governance — the (profile, action, governance-context) triple, modes, lifecycle, and the invocation trail."
 ---
 
 # Understanding Governed Profile Invocation

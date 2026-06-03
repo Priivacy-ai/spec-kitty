@@ -1,3 +1,8 @@
+---
+title: "Agent Plan Artifacts Reference"
+description: "Reference for Agent Plan Artifacts Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+---
+
 # Agent Plan Artifacts Reference
 
 This document catalogs whether each supported harness has a plan mode, where it

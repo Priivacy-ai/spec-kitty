@@ -1,6 +1,6 @@
 ---
-title: How Charter Works
-description: The Charter mental model — synthesis, DRG, governed context, and profile invocation.
+title: "How Charter Works"
+description: "The Charter mental model — synthesis, DRG, governed context, and profile invocation."
 ---
 
 # How Charter Works

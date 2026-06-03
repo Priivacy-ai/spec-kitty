@@ -1,6 +1,6 @@
 ---
-title: Multi-Agent Orchestration
-description: Coordination model for multi-agent delivery with a host-owned workflow state and external orchestration providers.
+title: "Multi-Agent Orchestration"
+description: "Coordination model for multi-agent delivery with a host-owned workflow state and external orchestration providers."
 ---
 
 # Multi-Agent Orchestration

@@ -1,3 +1,8 @@
+---
+title: "AI Agent Architecture Explained"
+description: "Explanation of AI Agent Architecture Explained in Spec Kitty 3.2, including the model, rationale, and operator implications."
+---
+
 # AI Agent Architecture Explained
 
 Spec Kitty supports 12 different AI agents, allowing teams to use their preferred tools. This document explains how the multi-agent system works and why it's designed this way.

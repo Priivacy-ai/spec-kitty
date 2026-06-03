@@ -1,4 +1,9 @@
-> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.x](../3x/index.md) for current docs.
+---
+title: "1.x Documentation (Legacy Track)"
+description: "Historical Spec Kitty 1.x archive page for 1.x Documentation (Legacy Track); use Spec Kitty 3.2 docs for current projects and upgrades."
+---
+
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../3x/index.md) for current docs.
 
 # 1.x Documentation (Legacy Track)
 
@@ -25,3 +30,9 @@ No new `1.x` PyPI releases are planned.
 2. [Artifacts and Commands](artifacts-and-commands.md)
 3. [Orchestration and API Boundary](orchestration-and-api.md)
 4. [Branch and Workspace Model](branches-and-workspaces.md)
+
+## Current replacement
+
+- For new projects: start with [Spec Kitty 3.2 documentation](../../index.md).
+- For upgrades: use [Migration to Spec Kitty 3.2](../../migration/index.md).
+- For old behavior lookup: use this 1.x archive only for historical context.

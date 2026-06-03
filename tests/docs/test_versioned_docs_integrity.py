@@ -1,4 +1,4 @@
-"""Versioned docs integrity checks for 1.x and 2.x tracks."""
+"""Versioned docs integrity checks for archived 1.x and 2.x tracks."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ pytestmark = [pytest.mark.unit]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCS_DIR = REPO_ROOT / "docs"
+ARCHIVE_DIR = DOCS_DIR / "archive"
 TRACKS = ("1x", "2x")
 
 LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
@@ -28,9 +29,9 @@ FORBIDDEN_TERMS = (
 
 
 def _collect_track_docs() -> list[Path]:
-    files: list[Path] = [DOCS_DIR / "index.md"]
+    files: list[Path] = [DOCS_DIR / "index.md", ARCHIVE_DIR / "index.md"]
     for track in TRACKS:
-        files.extend(sorted((DOCS_DIR / track).glob("*.md")))
+        files.extend(sorted((ARCHIVE_DIR / track).glob("*.md")))
     return files
 
 
@@ -58,10 +59,12 @@ def test_versioned_docs_required_files_exist() -> None:
     expected = [
         DOCS_DIR / "index.md",
         DOCS_DIR / "toc.yml",
-        DOCS_DIR / "1x" / "index.md",
-        DOCS_DIR / "1x" / "toc.yml",
-        DOCS_DIR / "2x" / "index.md",
-        DOCS_DIR / "2x" / "toc.yml",
+        ARCHIVE_DIR / "index.md",
+        ARCHIVE_DIR / "toc.yml",
+        ARCHIVE_DIR / "1x" / "index.md",
+        ARCHIVE_DIR / "1x" / "toc.yml",
+        ARCHIVE_DIR / "2x" / "index.md",
+        ARCHIVE_DIR / "2x" / "toc.yml",
     ]
     missing = [str(path.relative_to(REPO_ROOT)) for path in expected if not path.is_file()]
     assert not missing, f"Missing required versioned docs files: {missing}"
@@ -93,7 +96,7 @@ def test_versioned_docs_relative_links_resolve(source_path: Path) -> None:
 def test_versioned_docs_exclude_out_of_scope_terms() -> None:
     failures: list[str] = []
     for track in TRACKS:
-        for doc_path in sorted((DOCS_DIR / track).glob("*.md")):
+        for doc_path in sorted((ARCHIVE_DIR / track).glob("*.md")):
             text = doc_path.read_text(encoding="utf-8").lower()
             for term in FORBIDDEN_TERMS:
                 if term in text:

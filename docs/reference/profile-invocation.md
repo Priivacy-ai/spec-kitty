@@ -1,6 +1,6 @@
 ---
-title: Profile Invocation Reference
-description: Reference for ask/advise/do modes, profile-invocation complete, invocation trail fields, and lifecycle states.
+title: "Profile Invocation Reference"
+description: "Reference for ask/advise/do modes, profile-invocation complete, invocation trail fields, and lifecycle states."
 ---
 
 # Profile Invocation Reference

@@ -1,3 +1,8 @@
+---
+title: "Use Spec Kitty in Kiro"
+description: "Configure the Use Spec Kitty in Kiro harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
+---
+
 # Use Spec Kitty in Kiro
 
 > **Tier:** **partial** — bootstrap-only surface in 3.2. Promote to `supported` once the full `/spec-kitty.*` set is verified end-to-end.

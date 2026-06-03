@@ -1,6 +1,6 @@
 ---
-title: How to Switch Missions
-description: Choose and change missions to match software, research, or documentation workflows.
+title: "How to Switch Missions"
+description: "Choose and change missions to match software, research, or documentation workflows."
 ---
 
 # How to Switch Missions

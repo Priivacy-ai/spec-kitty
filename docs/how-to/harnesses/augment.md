@@ -1,3 +1,8 @@
+---
+title: "Use Spec Kitty in Augment Code (Auggie)"
+description: "Configure the Use Spec Kitty in Augment Code (Auggie) harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
+---
+
 # Use Spec Kitty in Augment Code (Auggie)
 
 > **Tier:** supported.

@@ -1,4 +1,6 @@
 ---
+title: "Launch-Readiness Behavior (Coming Soon)"
+description: "Explanation of Launch-Readiness Behavior (Coming Soon) in Spec Kitty 3.2, including the model, rationale, and operator implications."
 type: explanation
 audience: launch coordinators
 ---
@@ -8,7 +10,7 @@ audience: launch coordinators
 > **Status: pre-launch.** This page describes the behavior the Spec
 > Kitty CLI will adopt at the public Teamspace launch milestone.
 > **None of this is in effect today.** For today's local-first
-> experience, see the [README](../../README.md). For the internal
+> experience, see the [README](https://github.com/Priivacy-ai/spec-kitty/blob/main/README.md). For the internal
 > hosted-readiness preview that lets contributors dogfood the hidden
 > mode now, see
 > [Internal Hosted-Readiness Mode (Pre-Launch)](../how-to/internal-hosted-readiness.md).

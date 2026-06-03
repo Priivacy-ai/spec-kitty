@@ -1,6 +1,6 @@
 ---
-title: How to Use the Spec Kitty Dashboard
-description: Start, view, and manage the real-time kanban dashboard for Spec Kitty work packages.
+title: "How to Use the Spec Kitty Dashboard"
+description: "Start, view, and manage the real-time kanban dashboard for Spec Kitty work packages."
 ---
 
 # How to Use the Spec Kitty Dashboard
@@ -59,7 +59,7 @@ This stops the background process and clears the `.kittify/.dashboard` metadata.
 
 ## Dashboard Auto-Start
 
-`spec-kitty init` does not auto-start the dashboard in the current `3.1.x` flow. If dashboard metadata is missing or stale, run `spec-kitty dashboard` again to recreate it.
+`spec-kitty init` does not auto-start the dashboard in the current `3.2` flow. If dashboard metadata is missing or stale, run `spec-kitty dashboard` again to recreate it.
 
 ---
 

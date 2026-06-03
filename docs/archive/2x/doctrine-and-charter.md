@@ -1,4 +1,9 @@
-> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.x](../3x/index.md) for current docs.
+---
+title: "2.x Doctrine and Charter"
+description: "Historical Spec Kitty 2.x archive page for 2.x Doctrine and Charter; use Spec Kitty 3.2 docs for current Charter-era workflows."
+---
+
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../3x/index.md) for current docs.
 
 # 2.x Doctrine and Charter
 
@@ -117,7 +122,7 @@ Primary implementation:
 
 ## Learn More
 
-- **Step-by-step setup**: [How to Set Up Project Governance](../how-to/setup-governance.md) -- full walkthrough of interview, generate, and sync
-- **Agent management**: [How to Manage Agents](../how-to/manage-agents.md) -- configure which agents receive governance context
-- **Mission system**: [The Mission System Explained](../explanation/mission-system.md) -- how governance integrates with mission workflows
-- **CLI reference**: [CLI Commands Reference](../reference/cli-commands.md) -- complete `charter` subcommand details
+- **Step-by-step setup**: [How to Set Up Project Governance](../../how-to/setup-governance.md) -- full walkthrough of interview, generate, and sync
+- **Agent management**: [How to Manage Agents](../../how-to/manage-agents.md) -- configure which agents receive governance context
+- **Mission system**: [The Mission System Explained](../../explanation/mission-system.md) -- how governance integrates with mission workflows
+- **CLI reference**: [CLI Commands Reference](../../reference/cli-commands.md) -- complete `charter` subcommand details

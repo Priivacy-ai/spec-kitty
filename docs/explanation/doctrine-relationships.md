@@ -1,3 +1,8 @@
+---
+title: "Doctrine relationships: lineage, delegation, and augmentation"
+description: "Explanation of Doctrine relationships: lineage, delegation, and augmentation in Spec Kitty 3.2, including the model, rationale, and operator implications."
+---
+
 # Doctrine relationships: lineage, delegation, and augmentation
 
 This page explains how relationships between doctrine artifacts are modelled in
@@ -11,7 +16,7 @@ authored as fields on the artifacts themselves.
 > The deprecated `enhances:` / `overrides:` / `specializes-from:` *artifact
 > fields* are being retired (they become a hard error). The canonical relation
 > tokens live on the `Relation` enum in
-> [`src/doctrine/drg/models.py`](../../src/doctrine/drg/models.py).
+> [`src/doctrine/drg/models.py`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/drg/models.py).
 
 ## The three relationship families
 

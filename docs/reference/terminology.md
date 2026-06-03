@@ -1,3 +1,8 @@
+---
+title: "Terminology Reference"
+description: "Reference for Terminology Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+---
+
 # Terminology Reference
 
 This document defines the **target-state** canonical terminology for Spec Kitty's three-tier domain model and identity layer. All new code, CLI surfaces, documentation, and API contracts should converge on these terms.

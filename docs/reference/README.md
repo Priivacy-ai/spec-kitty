@@ -1,3 +1,8 @@
+---
+title: "Reference Documentation"
+description: "Reference for Reference Documentation in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+---
+
 # Reference Documentation
 
 This directory contains information-oriented reference documentation for Spec Kitty.

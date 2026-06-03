@@ -1,6 +1,6 @@
 ---
-title: Orchestrator API Reference
-description: Machine-contract API for external orchestration providers.
+title: "Orchestrator API Reference"
+description: "Machine-contract API for external orchestration providers."
 ---
 
 # Orchestrator API Reference

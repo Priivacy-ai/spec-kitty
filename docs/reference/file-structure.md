@@ -1,3 +1,8 @@
+---
+title: "File Structure Reference"
+description: "Reference for File Structure Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+---
+
 # File Structure Reference
 
 This document describes the complete directory structure of a Spec Kitty project.

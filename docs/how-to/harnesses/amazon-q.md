@@ -1,3 +1,8 @@
+---
+title: "Use Spec Kitty in Amazon Q CLI"
+description: "Configure the Use Spec Kitty in Amazon Q CLI harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
+---
+
 # Use Spec Kitty in Amazon Q CLI
 
 > **Tier:** supported. Retained as legacy alongside the Kiro rebrand per `CLAUDE.md`.

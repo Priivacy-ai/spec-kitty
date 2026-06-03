@@ -39,6 +39,8 @@ jobs:
         run: |
           cd docs
           docfx docfx.json
+          cd ..
+          python3 scripts/docs/seo_postprocess.py
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

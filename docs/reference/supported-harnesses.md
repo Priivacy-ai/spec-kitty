@@ -1,3 +1,8 @@
+---
+title: "Supported Harnesses"
+description: "Support matrix for Spec Kitty 3.2 AI coding harnesses, including first-class, supported, experimental, and unsupported hosts."
+---
+
 # Supported Harnesses
 
 This page is the canonical 5-tier support matrix for AI coding harnesses ("agents") that Spec Kitty integrates with. Each row conforms to the `HarnessEntry` schema in `kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/data-model.md`. The research procedure that backs each classification lives in `docs/development/3-2-harness-research-method.md`.

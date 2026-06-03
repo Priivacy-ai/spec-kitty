@@ -1,3 +1,8 @@
+---
+title: "How to Start an Ad-Hoc Specialist Session"
+description: "How to start an ad-hoc specialist session with Spec Kitty 3.2: How to Start an Ad-Hoc Specialist Session."
+---
+
 # How to Start an Ad-Hoc Specialist Session
 
 Use `/spec-kitty.profile-context` to open an interactive session with a named specialist agent — without starting a full mission. This is the right tool for exploration, quick questions, small fixes, and experimentation.

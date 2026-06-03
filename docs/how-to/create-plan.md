@@ -1,3 +1,8 @@
+---
+title: "How to Create a Technical Plan"
+description: "How to create a technical plan with Spec Kitty 3.2: Use this guide to turn a finished spec into a technical plan with /spec-kitty.plan."
+---
+
 # How to Create a Technical Plan
 
 Use this guide to turn a finished spec into a technical plan with `/spec-kitty.plan`.

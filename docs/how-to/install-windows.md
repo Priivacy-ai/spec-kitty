@@ -1,4 +1,6 @@
 ---
+title: "Install Spec Kitty on Windows"
+description: "Install the Spec Kitty 3.2 CLI on Windows 10 or 11 with PowerShell, pipx, uv, or a virtual environment."
 type: how-to
 audience: end-users
 os: windows

@@ -1,6 +1,6 @@
 ---
-title: How to Create an Org Doctrine Pack
-description: Author, validate, assemble, publish, and consume a spec-kitty org doctrine pack.
+title: "How to Create an Org Doctrine Pack"
+description: "Author, validate, assemble, publish, and consume a spec-kitty org doctrine pack."
 ---
 
 # How to Create an Org Doctrine Pack

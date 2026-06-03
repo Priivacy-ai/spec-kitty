@@ -1,6 +1,6 @@
 ---
-title: Troubleshooting Charter Failures
-description: Diagnose and fix stale bundle, missing doctrine, compact-context, retrospective gate, and synthesizer rejection failures.
+title: "Troubleshooting Charter Failures"
+description: "Diagnose and fix stale bundle, missing doctrine, compact-context, retrospective gate, and synthesizer rejection failures."
 ---
 
 # Troubleshooting Charter Failures

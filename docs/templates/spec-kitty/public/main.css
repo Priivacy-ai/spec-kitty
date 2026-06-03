@@ -13,6 +13,130 @@
     --sk-medium-text: #546e7a;
 }
 
+/* 3.2 docs landing page components */
+.sk-docs-hero {
+    background: var(--sk-surface-hero, #f7f8f4);
+    color: var(--sk-fg-default, var(--sk-dark-text));
+    border: var(--sk-border-width-1, 1px) solid var(--sk-border-default, #d7ded2);
+    border-radius: var(--sk-radius-lg, 8px);
+    padding: var(--sk-space-9, 2.5rem);
+    margin: 0 0 2rem;
+}
+
+.sk-eyebrow {
+    margin: 0 0 0.75rem;
+    color: var(--sk-fg-muted, var(--sk-medium-text));
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.sk-docs-hero h1 {
+    margin: 0;
+    max-width: 12ch;
+}
+
+.sk-docs-lead {
+    color: var(--sk-fg-body, var(--sk-dark-text));
+    font-size: 1.15rem;
+    line-height: 1.65;
+    max-width: 64ch;
+    margin: 1rem 0 0;
+}
+
+.sk-docs-actions,
+.sk-landing-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.sk-btn,
+.sk-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    border: var(--sk-border-width-1, 1px) solid var(--sk-border-default, #b8c3b1);
+    border-radius: var(--sk-radius-md, 7px);
+    background: var(--sk-surface-card, #ffffff);
+    color: var(--sk-fg-default, var(--sk-dark-text));
+    font-weight: 700;
+    padding: 0.65rem 1rem;
+    text-decoration: none;
+}
+
+.sk-btn:hover,
+.sk-action:hover,
+.sk-doc-card:hover {
+    border-color: var(--sk-border-strong, #7d9175);
+    text-decoration: none;
+}
+
+.sk-btn-primary,
+.sk-action-primary {
+    background: var(--sk-surface-primary, var(--sk-dark-text));
+    border-color: var(--sk-surface-primary, var(--sk-dark-text));
+    color: var(--sk-fg-on-primary, #ffffff);
+}
+
+.sk-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 1rem;
+    margin: 1rem 0 2rem;
+}
+
+.sk-doc-card,
+.sk-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-height: 10rem;
+    background: var(--sk-surface-card, #ffffff);
+    color: var(--sk-fg-on-card, var(--sk-dark-text));
+    border: var(--sk-border-width-1, 1px) solid var(--sk-border-default, #d7ded2);
+    border-radius: var(--sk-radius-md, 7px);
+    padding: 1.1rem;
+    text-decoration: none;
+}
+
+.sk-doc-card strong,
+.sk-card strong {
+    color: var(--sk-fg-default, var(--sk-dark-text));
+    font-size: 1.05rem;
+}
+
+.sk-card-kicker {
+    align-self: flex-start;
+    border-radius: 999px;
+    background: var(--sk-surface-tint-mint, rgba(123, 182, 97, 0.18));
+    color: var(--sk-fg-muted, var(--sk-dark-text));
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.55rem;
+}
+
+.sk-doc-card:focus-visible,
+.sk-card:focus-visible,
+.sk-btn:focus-visible,
+.sk-action:focus-visible {
+    outline: var(--sk-border-width-2, 2px) solid var(--sk-border-focus, var(--sk-baby-blue));
+    outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+    .sk-docs-hero {
+        padding: 1.5rem;
+    }
+
+    .sk-docs-hero h1 {
+        max-width: 100%;
+    }
+}
+
 /* Light Mode Overrides */
 [data-bs-theme="light"] {
     --bs-body-bg: var(--sk-baby-blue);

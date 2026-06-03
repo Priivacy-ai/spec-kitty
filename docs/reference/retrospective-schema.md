@@ -1,6 +1,6 @@
 ---
-title: Retrospective Schema and Events Reference
-description: retrospective.yaml field schema, proposal kinds, retrospective status events, and synthesizer exit codes.
+title: "Retrospective Schema and Events Reference"
+description: "retrospective.yaml field schema, proposal kinds, retrospective status events, and synthesizer exit codes."
 ---
 
 # Retrospective Schema and Events Reference

@@ -1,3 +1,8 @@
+---
+title: "Agent Subcommand Reference"
+description: "Reference for Agent Subcommand Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+---
+
 # Agent Subcommand Reference
 
 The `spec-kitty agent` commands are designed for AI agents and automation tooling. They generally emit JSON and update task metadata or mission artifacts directly.

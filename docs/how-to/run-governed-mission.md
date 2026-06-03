@@ -1,6 +1,6 @@
 ---
-title: How to Run a Governed Mission
-description: Run spec-kitty next with Charter context injection, read JSON output, handle composed steps and blocked decisions.
+title: "How to Run a Governed Mission"
+description: "Run spec-kitty next with Charter context injection, read JSON output, handle composed steps and blocked decisions."
 ---
 
 # How to Run a Governed Mission
