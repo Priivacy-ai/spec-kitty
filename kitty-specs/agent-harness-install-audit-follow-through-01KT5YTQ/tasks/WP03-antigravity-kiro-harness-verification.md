@@ -8,9 +8,9 @@ requirement_refs:
 - FR-011
 - FR-012
 tracker_refs: []
-planning_base_branch: main
-merge_target_branch: main
-branch_strategy: coordination branch kitty/mission-agent-harness-install-audit-follow-through-01KT5YTQ; execution worktree assigned per lanes.json
+planning_base_branch: kitty/mission-agent-harness-install-audit-follow-through-01KT5YTQ
+merge_target_branch: kitty/mission-agent-harness-install-audit-follow-through-01KT5YTQ
+branch_strategy: Planning artifacts for this mission were generated on kitty/mission-agent-harness-install-audit-follow-through-01KT5YTQ. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into kitty/mission-agent-harness-install-audit-follow-through-01KT5YTQ unless the human explicitly redirects the landing branch.
 subtasks:
 - T012
 - T013
