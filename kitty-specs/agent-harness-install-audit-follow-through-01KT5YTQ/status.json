@@ -1,7 +1,7 @@
 {
-  "event_count": 8,
-  "last_event_id": "01KT63TF754V95SX1MQDA84CR3",
-  "materialized_at": "2026-06-03T06:48:04.069224+00:00",
+  "event_count": 9,
+  "last_event_id": "01KT63ZYPBSZRFE18NSQNVXDA7",
+  "materialized_at": "2026-06-03T06:51:03.756033+00:00",
   "mission_number": "",
   "mission_slug": "agent-harness-install-audit-follow-through-01KT5YTQ",
   "mission_type": "software-dev",
@@ -11,18 +11,18 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 2,
+    "for_review": 1,
     "in_progress": 1,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
+      "actor": "claude:sonnet:orchestrator:reviewer",
       "force_count": 0,
-      "lane": "for_review",
-      "last_event_id": "01KT63TF754V95SX1MQDA84CR3",
-      "last_transition_at": "2026-06-03T06:48:04.069224+00:00"
+      "lane": "in_review",
+      "last_event_id": "01KT63ZYPBSZRFE18NSQNVXDA7",
+      "last_transition_at": "2026-06-03T06:51:03.756033+00:00"
     },
     "WP02": {
       "actor": "user",
