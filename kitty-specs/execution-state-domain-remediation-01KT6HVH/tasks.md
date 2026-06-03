@@ -148,12 +148,12 @@
 **Dependencies**: WP01
 
 **Subtasks**:
-- [ ] T026 Add optional mission_id + mission_slug to MissionRunSnapshot (WP05)
-- [ ] T027 Add optional mission_id + mission_slug to MissionRunRef (WP05)
-- [ ] T028 Plumb mission_id + mission_slug through start_mission_run (WP05)
-- [ ] T029 Update all 6 in-engine snapshot-copy sites (WP05)
-- [ ] T030 Remove dead inputs["mission_slug"] at engine.py:216 (WP05)
-- [ ] T031 Verify backward-compat: existing state.json loads without error (WP05)
+- [x] T026 Add optional mission_id + mission_slug to MissionRunSnapshot (WP05)
+- [x] T027 Add optional mission_id + mission_slug to MissionRunRef (WP05)
+- [x] T028 Plumb mission_id + mission_slug through start_mission_run (WP05)
+- [x] T029 Update all 6 in-engine snapshot-copy sites (WP05)
+- [x] T030 Remove dead inputs["mission_slug"] at engine.py:216 (WP05)
+- [x] T031 Verify backward-compat: existing state.json loads without error (WP05)
 
 **Success criteria**: `MissionRunSnapshot.mission_id` and `mission_slug` populated for new runs. Existing on-disk `state.json` files load with `None` defaults. Pydantic round-trip test passes.
 
