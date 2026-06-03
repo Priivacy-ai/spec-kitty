@@ -1,7 +1,7 @@
 ---
 affected_files:
-- src/runtime/next/runtime_bridge.py
-- src/specify_cli/cli/commands/agent/workflow.py
+- path: src/runtime/next/runtime_bridge.py
+- path: src/specify_cli/cli/commands/agent/workflow.py
 cycle_number: 3
 mission_slug: execution-state-domain-remediation-01KT6HVH
 reproduction_command:
