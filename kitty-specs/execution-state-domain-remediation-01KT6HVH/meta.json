@@ -1,4 +1,5 @@
 {
+  "baseline_merge_commit": "03fdfe3f3f5a93a43d0610e40f5e2446a6b6502b",
   "coordination_branch": "kitty/mission-execution-state-domain-remediation-01KT6HVH",
   "created_at": "2026-06-03T10:53:18.840173+00:00",
   "friendly_name": "Execution-State Domain Remediation — #1619 Strangler Fig",
