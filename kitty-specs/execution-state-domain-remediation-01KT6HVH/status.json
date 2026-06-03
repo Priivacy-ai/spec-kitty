@@ -1,12 +1,12 @@
 {
-  "event_count": 0,
-  "last_event_id": null,
-  "materialized_at": "",
+  "event_count": 47,
+  "last_event_id": "01KT6WSW40G0Q6P9DP902KYV7Z",
+  "materialized_at": "2026-06-03T14:04:38.912329+00:00",
   "mission_number": "",
-  "mission_slug": "",
+  "mission_slug": "execution-state-domain-remediation-01KT6HVH",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 0,
+    "approved": 6,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
@@ -16,5 +16,48 @@
     "in_review": 0,
     "planned": 0
   },
-  "work_packages": {}
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KT6MA722G8N67HYN0E707FXQ",
+      "last_transition_at": "2026-06-03T11:36:17.218042+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KT6NZAH4AZ9Q440WNEF6VXBE",
+      "last_transition_at": "2026-06-03T12:05:17.476888+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KT6RB2N96MTS1KQ4Q6MBF2YE",
+      "last_transition_at": "2026-06-03T12:46:39.785467+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KT6QCYMXZQDQ57P2E6062SH6",
+      "last_transition_at": "2026-06-03T12:30:12.637781+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KT6PP3690XPWJZ3BDMD0A21F",
+      "last_transition_at": "2026-06-03T12:17:43.625946+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 5,
+      "lane": "approved",
+      "last_event_id": "01KT6WSW40G0Q6P9DP902KYV7Z",
+      "last_transition_at": "2026-06-03T14:04:38.912329+00:00"
+    }
+  }
 }
