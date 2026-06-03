@@ -4,10 +4,7 @@ agents:
   available:
   - claude
   - codex
-  selection:
-    preferred_implementer: codex
-    preferred_reviewer: codex
-  auto_commit: true
+  auto_commit: false
 project:
   uuid: 8a4a7da6-a97c-4bb4-893a-b31664abfee4
   slug: spec-kitty

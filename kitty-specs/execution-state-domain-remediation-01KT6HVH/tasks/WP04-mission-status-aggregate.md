@@ -17,6 +17,9 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-execution-state-domain-remediation-01KT6HVH
+base_commit: 24a9a43e0bb553e9a6c4a2a242a7bfc89247eed8
+created_at: '2026-06-03T12:05:54.419299+00:00'
 subtasks:
 - T018
 - T019
@@ -26,7 +29,8 @@ subtasks:
 - T023
 - T024
 - T025
-agent: claude
+agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
+shell_pid: "66364"
 history:
 - date: '2026-06-03'
   event: created
@@ -346,3 +350,7 @@ Use the same detection pattern.
 - Verify `topology="coordination"` raises `CoordAuthorityUnavailable` when coord dir missing (not falls back)
 - Check that `agent/status.py` zero raw path constructions remain
 - Confirm `MissionStatus` and `ActiveWPStatus` appear in `status/__init__.py.__all__`
+
+## Activity Log
+
+- 2026-06-03T12:05:56Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=66364 – Assigned agent via action command
