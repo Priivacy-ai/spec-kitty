@@ -9,13 +9,17 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-agent-harness-install-audit-follow-through-01KT5YTQ
+base_commit: ac1aefe7d346ee250117f1d54d893b14afac982f
+created_at: '2026-06-03T06:45:42.647393+00:00'
 subtasks:
 - T007
 - T008
 - T009
 - T010
 - T011
-agent: claude
+agent: "claude:sonnet:orchestrator:orchestrator"
+shell_pid: "42946"
 history:
 - date: '2026-06-03'
   status: planned
@@ -187,3 +191,7 @@ The drift is around WP lifecycle dependency-gate wording: `approved or done` vs 
 ## Reviewer Guidance
 
 Run `uv run pytest tests/specify_cli/skills/test_command_renderer.py` — must show 102 passed. Inspect `git diff tests/specify_cli/skills/__snapshots__/` — the only change should be `done` → `approved or done` (or equivalent) in the dependency-gate clause. Flag any other snapshot changes as out-of-scope and requiring explanation.
+
+## Activity Log
+
+- 2026-06-03T06:45:45Z – claude:sonnet:orchestrator:orchestrator – shell_pid=42946 – Assigned agent via action command
