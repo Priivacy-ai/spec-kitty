@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -675,6 +676,44 @@ class TestGuardChecks:
 
         failures = _check_cli_guards("implement", feature_dir)
         assert len(failures) == 0
+
+
+class TestTasksMarkdownParsing:
+    def test_parse_wp_sections_preserves_same_line_suffix(self) -> None:
+        from specify_cli.next.runtime_bridge import _parse_wp_sections_from_tasks_md
+
+        tasks_md = (
+            "## Work Package WP01: Build parser\n"
+            "Requirements Refs: FR-001, NFR-002\n"
+            "### WP02\n"
+            "Requirements: FR-003\n"
+        )
+
+        sections = _parse_wp_sections_from_tasks_md(tasks_md)
+
+        assert sections["WP01"].startswith(" Build parser\n")
+        assert "Requirements Refs: FR-001, NFR-002" in sections["WP01"]
+        assert sections["WP02"] == "\nRequirements: FR-003\n"
+
+    def test_parse_requirement_refs_completes_under_budget_on_adversarial_input(self) -> None:
+        from specify_cli.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
+
+        filler = "".join("#### Not a work package heading\n" for _ in range(100_000))
+        tasks_md = (
+            f"{filler}"
+            "## Work Package WP01: Harden parser\n"
+            "Requirements Refs: FR-001, fr-002, C-003\n"
+        )
+
+        start = time.perf_counter()
+        refs = _parse_requirement_refs_from_tasks_md(tasks_md)
+        elapsed = time.perf_counter() - start
+
+        assert elapsed < 0.2, (
+            f"_parse_requirement_refs_from_tasks_md took {elapsed * 1000:.1f} ms on "
+            "adversarial tasks.md input; possible regex/backtracking regression."
+        )
+        assert refs == {"WP01": ["FR-001", "FR-002", "C-003"]}
 
 
 # ---------------------------------------------------------------------------
