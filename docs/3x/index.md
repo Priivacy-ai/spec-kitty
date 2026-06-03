@@ -86,7 +86,7 @@ Upgrading from an earlier version? See:
 
 ## What is archived
 
-Documentation for Spec Kitty 1.x and 2.x is preserved under [`docs/archive/`](../archive/index.md) for historical context. The 2.x governance model did not include the DRG-backed synthesis pipeline or the retrospective learning loop. If you are running a current project, use the 3.2 documentation above.
+Documentation for Spec Kitty 1.x and 2.x is preserved through the [migration hub](../migration/index.md) for historical context. The 2.x governance model did not include the DRG-backed synthesis pipeline or the retrospective learning loop. If you are running a current project, use the 3.2 documentation above.
 
 ---
 

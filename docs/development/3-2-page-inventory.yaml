@@ -1793,97 +1793,104 @@
   current_target: false
   citation_refs: []
   notes: Mission closeout retro for pre-doctrine test stabilization (01KSMG8Y).
-- path: docs/1x/artifacts-and-commands.md
+- path: docs/archive/index.md
   tag: archival
   divio_type: none
   owning_workstream: C
   current_target: false
   citation_refs: []
-  notes: 1.x archive page; WP09 moves to docs/archive/1x/ with archive banner.
-- path: docs/1x/branches-and-workspaces.md
+  notes: Historical archive landing page for preserved 1.x and 2.x documentation.
+- path: docs/archive/1x/artifacts-and-commands.md
   tag: archival
   divio_type: none
   owning_workstream: C
   current_target: false
   citation_refs: []
-  notes: 1.x archive page; WP09 moves to docs/archive/1x/ with archive banner.
-- path: docs/1x/index.md
+  notes: 1.x archive page moved under docs/archive/1x/ with archive banner.
+- path: docs/archive/1x/branches-and-workspaces.md
   tag: archival
   divio_type: none
   owning_workstream: C
   current_target: false
   citation_refs: []
-  notes: 1.x archive page; WP09 moves to docs/archive/1x/ with archive banner.
-- path: docs/1x/orchestration-and-api.md
+  notes: 1.x archive page moved under docs/archive/1x/ with archive banner.
+- path: docs/archive/1x/index.md
   tag: archival
   divio_type: none
   owning_workstream: C
   current_target: false
   citation_refs: []
-  notes: 1.x archive page; WP09 moves to docs/archive/1x/ with archive banner.
-- path: docs/1x/workflow.md
+  notes: 1.x archive page moved under docs/archive/1x/ with archive banner.
+- path: docs/archive/1x/orchestration-and-api.md
   tag: archival
   divio_type: none
   owning_workstream: C
   current_target: false
   citation_refs: []
-  notes: 1.x archive page; WP09 moves to docs/archive/1x/ with archive banner.
-- path: docs/2x/adr-coverage.md
+  notes: 1.x archive page moved under docs/archive/1x/ with archive banner.
+- path: docs/archive/1x/workflow.md
   tag: archival
   divio_type: none
   owning_workstream: C
   current_target: false
   citation_refs: []
-  notes: 2.x archive page; WP09 moves to docs/archive/2x/ with archive banner.
-- path: docs/2x/doctrine-and-charter.md
+  notes: 1.x archive page moved under docs/archive/1x/ with archive banner.
+- path: docs/archive/2x/adr-coverage.md
   tag: archival
   divio_type: none
   owning_workstream: C
   current_target: false
   citation_refs: []
-  notes: 2.x archive page; WP09 moves to docs/archive/2x/ with archive banner.
-- path: docs/2x/glossary-system.md
+  notes: 2.x archive page moved under docs/archive/2x/ with archive banner.
+- path: docs/archive/2x/doctrine-and-charter.md
   tag: archival
   divio_type: none
   owning_workstream: C
   current_target: false
   citation_refs: []
-  notes: 2.x archive page; WP09 moves to docs/archive/2x/ with archive banner.
-- path: docs/2x/index.md
+  notes: 2.x archive page moved under docs/archive/2x/ with archive banner.
+- path: docs/archive/2x/glossary-system.md
   tag: archival
   divio_type: none
   owning_workstream: C
   current_target: false
   citation_refs: []
-  notes: 2.x archive page; WP09 moves to docs/archive/2x/ with archive banner.
-- path: docs/2x/model-discipline-routing.md
+  notes: 2.x archive page moved under docs/archive/2x/ with archive banner.
+- path: docs/archive/2x/index.md
   tag: archival
   divio_type: none
   owning_workstream: C
   current_target: false
   citation_refs: []
-  notes: 2.x archive page; WP09 moves to docs/archive/2x/ with archive banner.
-- path: docs/2x/model-to-task_type.md
+  notes: 2.x archive page moved under docs/archive/2x/ with archive banner.
+- path: docs/archive/2x/model-discipline-routing.md
   tag: archival
   divio_type: none
   owning_workstream: C
   current_target: false
   citation_refs: []
-  notes: 2.x archive page; WP09 moves to docs/archive/2x/ with archive banner.
-- path: docs/2x/orchestration-and-api.md
+  notes: 2.x archive page moved under docs/archive/2x/ with archive banner.
+- path: docs/archive/2x/model-to-task_type.md
   tag: archival
   divio_type: none
   owning_workstream: C
   current_target: false
   citation_refs: []
-  notes: 2.x archive page; WP09 moves to docs/archive/2x/ with archive banner.
-- path: docs/2x/runtime-and-missions.md
+  notes: 2.x archive page moved under docs/archive/2x/ with archive banner.
+- path: docs/archive/2x/orchestration-and-api.md
   tag: archival
   divio_type: none
   owning_workstream: C
   current_target: false
   citation_refs: []
-  notes: 2.x archive page; WP09 moves to docs/archive/2x/ with archive banner.
+  notes: 2.x archive page moved under docs/archive/2x/ with archive banner.
+- path: docs/archive/2x/runtime-and-missions.md
+  tag: archival
+  divio_type: none
+  owning_workstream: C
+  current_target: false
+  citation_refs: []
+  notes: 2.x archive page moved under docs/archive/2x/ with archive banner.
 - path: docs/3x/charter-overview.md
   tag: current
   divio_type: none
@@ -2385,13 +2392,13 @@
   current_target: true
   citation_refs: []
   notes: Top-level docs page (host-surface-parity.md); provisional current.
-- path: docs/how-to/2-1-main-cutover-checklist.md
+- path: docs/migration/2-1-main-cutover-checklist.md
   tag: migration
   divio_type: how-to
   owning_workstream: C
   current_target: false
   citation_refs: []
-  notes: "2.1 → 2.x cutover checklist; reclassify migration. MANUAL_REVIEW: historical cutover content under how-to/ may belong in docs/migration/."
+  notes: "2.1 → 2.x cutover checklist moved under docs/migration/ for historical migration context."
 - path: docs/how-to/accept-and-merge.md
   tag: current
   divio_type: how-to
@@ -2640,13 +2647,20 @@
   current_target: true
   citation_refs: []
   notes: How-to; provisional current — confirm in WP08 IA review.
-- path: docs/how-to/upgrade-to-0-12-0.md
-  tag: current
+- path: docs/migration/index.md
+  tag: migration
+  divio_type: how-to
+  owning_workstream: C
+  current_target: false
+  citation_refs: []
+  notes: Migration hub for upgrading existing Spec Kitty projects to the current 3.2 documentation set.
+- path: docs/migration/upgrade-to-0-12-0.md
+  tag: migration
   divio_type: how-to
   owning_workstream: E
-  current_target: true
+  current_target: false
   citation_refs: []
-  notes: Install/lifecycle how-to; provisional current — confirm install matrix in WP10/WP11.
+  notes: Historical upgrade guide moved under docs/migration/ for older release cutover context.
 - path: docs/how-to/use-dashboard.md
   tag: current
   divio_type: how-to

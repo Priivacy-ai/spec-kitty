@@ -74,7 +74,6 @@ Use migration pages when moving an existing project into 3.2. They are not the c
 
 - [Migrating from 2.x / early 3.x](migration/from-charter-2x.md)
 - [Historical upgrade to 0.12.0](migration/upgrade-to-0-12-0.md)
-- [Archive: 2.x docs](archive/2x/index.md)
-- [Archive: 1.x docs](archive/1x/index.md)
+- [Migration hub and historical archive](migration/index.md)
 
 1.x and 2.x docs are preserved as historical archive. They should not be used to start a new 3.2 project.

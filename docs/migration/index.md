@@ -3,6 +3,8 @@ title: "Migration to Spec Kitty 3.2"
 description: "Migration hub for upgrading existing Spec Kitty projects to the current 3.2 Charter-era runtime and archive boundary."
 ---
 
+> Migration note: This page collects migration paths and historical cutover notes. For new projects, start with [Getting Started](../tutorials/getting-started.md).
+
 # Migration to Spec Kitty 3.2
 
 Use these pages when an existing project, script, or operator habit predates the current 3.2 documentation set. New projects should start with [Getting Started](../tutorials/getting-started.md) and the [3.2 current overview](../3x/index.md).
