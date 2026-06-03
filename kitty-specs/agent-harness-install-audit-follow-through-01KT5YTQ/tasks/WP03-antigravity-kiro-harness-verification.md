@@ -11,6 +11,9 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-agent-harness-install-audit-follow-through-01KT5YTQ
+base_commit: 39701e9f97ddf57af005c74f5b514bb5b9db1ecc
+created_at: '2026-06-03T06:45:54.931874+00:00'
 subtasks:
 - T012
 - T013
@@ -19,7 +22,8 @@ subtasks:
 - T016
 - T017
 - T018
-agent: claude
+agent: "claude:sonnet:orchestrator:orchestrator"
+shell_pid: "43179"
 history:
 - date: '2026-06-03'
   status: planned
@@ -267,3 +271,7 @@ Kiro classification (2026-06-03):
 ## Reviewer Guidance
 
 Check `docs/reference/supported-harnesses.md` for Antigravity and Kiro entries — both must be present, neither may present unverified claims as facts. For Kiro: the entry must have an explicit statement about 3.3 scope (in or out of #1635). Confirm `src/` was not touched. If Antigravity's entry says "unverified", that is a valid and acceptable outcome per the spec (NFR-003, C-001, C-002).
+
+## Activity Log
+
+- 2026-06-03T06:45:57Z – claude:sonnet:orchestrator:orchestrator – shell_pid=43179 – Assigned agent via action command
