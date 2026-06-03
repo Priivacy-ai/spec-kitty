@@ -278,3 +278,4 @@ Check `docs/reference/supported-harnesses.md` for Antigravity and Kiro entries �
 - 2026-06-03T06:52:25Z – claude:sonnet:orchestrator:orchestrator – shell_pid=43179 – Ready for review: Antigravity unverified (CLI not present on audit system, explicit dated record created); Kiro classified prompt-only, excluded from #1635 scope; all changes docs/ only. NOTE: kitty-specs touches in commit history are pre-existing (c215427fe) and cleanup commits; current HEAD matches base branch exactly for kitty-specs/.
 - 2026-06-03T06:52:55Z – claude:sonnet:orchestrator:reviewer – shell_pid=55860 – Started review via action command
 - 2026-06-03T06:55:36Z – claude:sonnet:orchestrator:reviewer – shell_pid=57190 – Started review via action command
+- 2026-06-03T07:06:55Z – claude:sonnet:orchestrator:reviewer – shell_pid=57190 – Done override: Feature merged to target branch
