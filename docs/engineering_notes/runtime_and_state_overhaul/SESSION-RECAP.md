@@ -78,20 +78,70 @@ the filesystem concept is a *different* fragment. Composites (`ReadContext`, `Wr
 `PromptContext`, …) are assembled from fragments per operation — which is how the atomicity invariant
 (I-4) and prompts-from-context (I-6) become true *by construction* rather than by discipline.
 
+## Phase 2 continued (2026-06-03, same session)
+
+After the first commit we kept going, and the work took two important turns:
+
+**Requirements capture (`10`).** We switched to specifying *what must be known* by each actor
+(code/user/agent) at each lifecycle step, across six dimensions, using three lenses **in order**:
+intuition → docs → code. Two facts looked conspicuously *unowned*: mission **phase** and
+**interaction policy** (parallelism/merge/workspace). Stijn added two corroborating intuitions — that
+behaviour binds to runtime state via an **activity ledger**, and that interaction strategy is usually
+a **charter default** overridable per run.
+
+**The dialectic (`11`).** We ran a corroborate-vs-refute pass (two agents, Architect Alphonso framing).
+The refutation landed real hits and **none of our four claims survived intact** — which was the most
+valuable outcome:
+- We were about to **reinvent `ActionContext`** (`core/execution_context.py:44`), which already
+  composes domain-owned context and is backed by an accepted ADR (2026-03-09-1, "prompts don't
+  discover context, commands do"). → **Harden `ActionContext`, don't greenfield.**
+- "Behaviour wrongly frozen" was wrong — behaviour is already resolved *live*; run-start freezing of
+  *topology* is a deliberate determinism contract (ADR 2026-02-17-1). Real fix = **one owner** for
+  profile resolution.
+- Interaction policy should be **resolved-and-frozen at plan time** (honoring the fail-closed
+  `lanes.json` ADR 2026-04-03-1), not per-run-mutable.
+- Mission "phase" is **distributed-first-class** already (`MissionOrchestration.states`, `MissionRunSnapshot`,
+  `WPState`); don't add a new enum — derive or wire.
+
+**The actor mental model (`12`).** Stepping up a level, Stijn framed an actor as needing a **sense of
+self, purpose, and environment** — which maps onto AgentProfile (self), MissionRun + Charter
+(purpose), and Context (environment). The punchline: **for an LLM agent the runtime is its sensory
+organ** — the prompt is its entire sensorium — so #1619 is really about *fixing the agent's
+perception of its environment*, not about paths. Refinements from Stijn folded in: **Constitution ==
+Charter** (Constitution deprecated); **Activity Ledger = MissionRun state**; **Actor is a metamodel
+concept** disambiguating into AgentProfile / Operator(Human-In-Charge) / External System; this model
+will likely become a published `docs/explanation/` doc once crystallized.
+
 ## Where we are now
 
 - **Phase 1 (grounding + reconnaissance): complete** — docs `01`–`08`.
-- **Phase 2 (conceptual modeling of Context): in progress** — doc `09` proposes the fragment/composite model and shows it satisfies every doctrine constraint while reusing existing code.
-- **Decided (working consensus):** a Mission-Run-scoped context family, assembled by a central
-  builder under a new `mission_runtime/` umbrella; extend the existing context family (don't
-  replace); split MissionFlow into extraction-now / config-driven-later; build the #1619 e2e
-  regression (main+lane CWD parity) first as the migration ratchet.
-- **Open (next session):** fragment naming ratification (DIRECTIVE_032), whether Infrastructure and
-  the per-invocation flags are their own fragments, composite granularity, whether the
-  `worktree==destination_ref` invariant becomes a `CommitTarget` type, and reconciling #1619 with epic #992.
+- **Phase 2 (conceptual modeling + requirements): in progress** — `09` (fragment model, now reframed
+  as the internals of a hardened `ActionContext`), `10` (needs capture), `11` (dialectic + revised
+  claims), `12` (actor mental model). Doc `09` proposes the fragment/composite model and shows it
+  satisfies every doctrine constraint while reusing existing code.
+- **Decided (working consensus, post-dialectic):**
+  - **Harden the existing `ActionContext`** (ADR 2026-03-09-1) and enforce its use — do NOT greenfield
+    a parallel context family. The `09` fragments are its *internal structure*; keep it a deep module.
+  - Complete the read/write/destination split and the `CommitTarget` (worktree==destination) kernel that
+    `ActionContext` lacks today (`02`, I-2/I-4).
+  - Interaction policy = **resolved-and-frozen at plan time** onto MissionRun/`lanes.json` (charter
+    default → config → plan resolution → frozen), not per-run-mutable. Merge strategy may stay late-bound.
+  - **Preserve** the run-start topology freeze (determinism, ADR 2026-02-17-1); fix behaviour to have a
+    **single resolution owner** (frozen-step vs frontmatter divergence).
+  - Don't add a `MissionPhase` enum — derive a coarse phase or wire `MissionOrchestration`.
+  - Split MissionFlow into extraction-now / config-driven-later; build the #1619 e2e regression
+    (main+lane CWD parity) first as the migration ratchet.
+- **Actor framing (`12`):** an actor needs sense of self (AgentProfile / Operator / External System),
+  purpose (MissionRun + Charter), environment (Context). For LLM agents the runtime is the sensory
+  organ, so #1619 = fixing agent perception.
+- **Open (next session):** harden-in-place vs Strangler-supersede for `ActionContext`; the
+  Activity-Ledger→environment projection (one-writer rule); whether to model the Operator's "self";
+  whether a thin shared `Actor` type is worth it; vocabulary ratification (DIRECTIVE_032); reconciling
+  #1619 with epic #992; then BPMN + interaction + model diagrams.
 
 ## How to engage
 
-- Comments/pushback most useful on `09` (the model) and the open questions in `09` §8 / `08` D1–D7.
+- Comments/pushback most useful on `11` (revised claims) and `12` (actor model), plus the open
+  questions in `11` §Next, `12` §7, `10`, and `09 §8`.
 - This is **not an ADR yet** — no code has changed. ADRs follow once we pick the design shape and
   ratify the vocabulary. Nothing here is binding; it's the reasoning trail toward a decision.

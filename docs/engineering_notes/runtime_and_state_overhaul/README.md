@@ -37,6 +37,9 @@ to a design, so the design conversation is anchored in evidence rather than memo
 | 07 | [07-existing-pattern-and-domain-extraction.md](./07-existing-pattern-and-domain-extraction.md) | The existing doctrine/charter infra-context pattern to mirror; the `OperationalContext` naming collision; MissionStatus aggregate + MissionFlow FSM extraction assessments (refines `06` §2/§6) |
 | 08 | [08-architecture-phase-1-summary.md](./08-architecture-phase-1-summary.md) | **Phase 1 checkpoint** — standalone summary of problem, findings, invariants, decided vs open |
 | 09 | [09-context-decomposition-model.md](./09-context-decomposition-model.md) | **Phase 2** — the conceptual model: Context as composition of domain-owned fragments (infra/filesystem/VC/preferences/state) → fit-for-purpose composites |
+| 10 | [10-context-needs-capture.md](./10-context-needs-capture.md) | **Phase 2 requirements** — what each actor (code/user/agent) must know at each lifecycle step, across the six dimensions. Lens 1 = intuition; lens 2/3 corroboration in `11` |
+| 11 | [11-dialectic-and-revised-claims.md](./11-dialectic-and-revised-claims.md) | **Dialectic** — corroborate-vs-refute pass on our claims. Key correction: harden the existing `ActionContext` (ADR 2026-03-09-1), don't greenfield; policy frozen-at-plan; behaviour single-owner; phase derived-not-added |
+| 12 | [12-actor-mental-model.md](./12-actor-mental-model.md) | **Abstraction level up** — the actor mental model: human / LLM / external system × {sense of self, purpose, environment} mapped to AgentProfile, Constitution/Charter, MissionRun, Context |
 | — | [SESSION-RECAP.md](./SESSION-RECAP.md) | Narrative of how this thinking unfolded — for contributors joining the thread |
 
 ## Source provenance

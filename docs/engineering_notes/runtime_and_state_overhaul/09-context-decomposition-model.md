@@ -6,6 +6,12 @@ of contextual information/config** — infrastructure, filesystem, version contr
 preferences, execution state — each modeled individually in its proper domain, then **aggregated by
 composition** into fit-for-purpose composites passed through the API.
 
+> **⚠ Revised by [11](./11-dialectic-and-revised-claims.md).** A corroborate-vs-refute pass found that
+> composed domain-owned context **already exists** as `ActionContext` (`core/execution_context.py:44`,
+> ADR 2026-03-09-1 "commands resolve context, prompts consume it"). The fragments below are best read
+> as the **internal structure of a hardened `ActionContext`**, not six new public objects — keep it a
+> deep module. Read `11` before treating this as the target.
+
 **Verdict up front: the hypothesis holds, and it is the right model.** It satisfies every doctrine
 constraint in `04`, it dissolves the `OperationalContext` naming collision (`07` §2), and ~4 of the
 ~6 fragments **already exist** in the codebase in some form. This document formalizes the model.
