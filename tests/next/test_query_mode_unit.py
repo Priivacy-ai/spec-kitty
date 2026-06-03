@@ -117,6 +117,42 @@ class TestQueryModeDoesNotAdvance:
         assert result.exit_code == 1
         assert "--agent is required when --result is provided" in result.output
 
+    def test_result_json_preflight_failure_returns_error_document(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        def fail_preflight(*_args, **_kwargs):
+            print("Error: charter_source missing; run `spec-kitty charter sync`", file=__import__("sys").stderr)
+            raise typer.Exit(1)
+
+        monkeypatch.setattr(
+            "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
+            fail_preflight,
+        )
+        with (
+            patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+        ):
+            result = runner.invoke(
+                cli_app,
+                [
+                    "next",
+                    "--mission",
+                    "069-test",
+                    "--agent",
+                    "codex",
+                    "--result",
+                    "success",
+                    "--json",
+                ],
+            )
+
+        assert result.exit_code == 1
+        payload = json.loads(result.stdout)
+        assert payload["error_code"] == "CHARTER_PREFLIGHT_FAILED"
+        assert "charter_source missing" in payload["blocked_reason"]
+
     def test_answer_requires_result_when_used_without_result(self, tmp_path: Path) -> None:
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
@@ -234,6 +270,42 @@ class TestQueryModeOutput:
 
         data = json.loads(result.output)
         assert data.get("is_query") is True
+
+    def test_json_stdout_is_single_json_value_when_preflight_emits_human_text(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Preflight advisory text belongs on stderr, never in ``next --json`` stdout."""
+        from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
+
+        mock_decision = _make_mock_decision(is_query=True)
+
+        def noisy_preflight(*_args, **_kwargs):
+            print("human charter advisory")
+            return CharterPreflightResult(passed=True, checks=[], warnings=["structured advisory"])
+
+        monkeypatch.setattr(
+            "specify_cli.charter_runtime.preflight.hook.run_preflight_for_dashboard",
+            noisy_preflight,
+        )
+
+        with (
+            patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["next", "--agent", "claude", "--mission", "069-test", "--json"],
+            )
+
+        assert result.exit_code == 0
+        payload = json.loads(result.stdout)
+        assert payload.get("is_query") is True
+        assert result.stdout.strip().startswith("{")
+        assert result.stdout.strip().endswith("}")
+        assert "human charter advisory" not in result.stdout
 
     def test_human_output_shows_not_started_preview_step(self, tmp_path: Path) -> None:
         mock_decision = _make_mock_decision(is_query=True, mission_state="not_started", preview_step="discovery")

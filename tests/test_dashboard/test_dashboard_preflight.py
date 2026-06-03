@@ -11,6 +11,7 @@ Verifies the FR-006 caller contract for the dashboard consumer:
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -131,6 +132,26 @@ def test_dashboard_hook_clears_warning_on_success(
     assert read_preflight_warning(tmp_path) is None
 
 
+def test_dashboard_hook_does_not_warning_log_optional_missing_charter(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Fresh projects without charter state are advisory, not warning-level spam."""
+    import subprocess
+
+    from specify_cli.charter_preflight import hook as hook_mod
+
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+
+    with caplog.at_level(logging.WARNING, logger=hook_mod.__name__):
+        result = hook_mod.run_preflight_for_dashboard(tmp_path)
+
+    assert result.passed is True
+    assert result.blocked_reason is None
+    assert result.warnings
+    assert caplog.records == []
+
+
 def test_null_project_config_enabled_still_runs_dashboard_preflight(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -152,7 +173,14 @@ def test_null_project_config_enabled_still_runs_dashboard_preflight(
     result = hook_mod.run_preflight_for_dashboard(tmp_path)
 
     assert result.passed is True
-    assert runner_calls == [{"repo_root": tmp_path, "auto_refresh": False, "strict": False}]
+    assert runner_calls == [
+        {
+            "repo_root": tmp_path,
+            "auto_refresh": False,
+            "allow_missing_charter": True,
+            "strict": False,
+        }
+    ]
 
 
 # ---------------------------------------------------------------------------

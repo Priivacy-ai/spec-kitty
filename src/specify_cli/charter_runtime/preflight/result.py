@@ -84,6 +84,8 @@ class CharterPreflightResult:
         blocked_reason: Non-``None`` iff ``passed`` is ``False`` AND
             ``auto_refresh_applied`` is ``False``.  The string MUST include
             an actionable next command.
+        warnings: Structured non-blocking operator notes.  Machine consumers
+            read these from JSON instead of scraping human warning text.
     """
 
     passed: bool
@@ -91,6 +93,7 @@ class CharterPreflightResult:
     auto_refresh_applied: bool = False
     auto_refresh_actions: list[str] = field(default_factory=list)
     blocked_reason: str | None = None
+    warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-ready dict matching the contract shape.
@@ -98,13 +101,16 @@ class CharterPreflightResult:
         Uses :func:`dataclasses.asdict` so frozen child dataclasses are
         flattened recursively.  Key ordering is fixed (insertion order).
         """
-        return {
+        payload: dict[str, object] = {
             "passed": self.passed,
             "checks": [asdict(c) for c in self.checks],
             "auto_refresh_applied": self.auto_refresh_applied,
             "auto_refresh_actions": list(self.auto_refresh_actions),
             "blocked_reason": self.blocked_reason,
         }
+        if self.warnings:
+            payload["warnings"] = list(self.warnings)
+        return payload
 
     def to_json(self) -> str:
         """Serialise to a stable JSON string with sorted keys.

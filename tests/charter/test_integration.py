@@ -182,23 +182,25 @@ class TestLoaderFunctions:
     def test_load_governance_config_missing_yaml_returns_empty(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
-        caplog.clear()
-        config = load_governance_config(tmp_path)
+        with caplog.at_level(logging.INFO, logger="charter.sync"):
+            config = load_governance_config(tmp_path)
 
         assert isinstance(config, GovernanceConfig)
         assert config.testing.min_coverage == 0
         assert config.testing.tdd_required is False
         assert any("governance.yaml not found and charter.md is absent" in record.message for record in caplog.records)
+        assert all(record.levelno < logging.WARNING for record in caplog.records)
 
     def test_load_directives_config_missing_yaml_returns_empty(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
-        caplog.clear()
-        config = load_directives_config(tmp_path)
+        with caplog.at_level(logging.INFO, logger="charter.sync"):
+            config = load_directives_config(tmp_path)
 
         assert isinstance(config, DirectivesConfig)
         assert len(config.directives) == 0
         assert any("directives.yaml not found and charter.md is absent" in record.message for record in caplog.records)
+        assert all(record.levelno < logging.WARNING for record in caplog.records)
 
     def test_load_governance_config_missing_yaml_auto_syncs_when_charter_present(self, tmp_path: Path) -> None:
         charter_dir = tmp_path / ".kittify" / "charter"

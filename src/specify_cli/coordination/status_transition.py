@@ -102,6 +102,10 @@ def _transaction_topology_available(identity: _TransactionIdentity, mission_slug
     )
 
 
+def _is_coordination_feature_dir(feature_dir: Path) -> bool:
+    return ".worktrees" in feature_dir.parts
+
+
 def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
     raw_feature_dir = request.feature_dir or request.mission_dir
     if raw_feature_dir is None:
@@ -239,6 +243,8 @@ def _read_events_from_transaction_target(
 ) -> list[StatusEvent]:
     """Read target status events without creating worktrees or commits."""
     if not _transaction_topology_available(identity, mission_slug):
+        if _is_coordination_feature_dir(identity.feature_dir):
+            return read_event_log(EventLogReadContract.coordination_worktree(identity.feature_dir))
         return read_event_log(EventLogReadContract.primary_checkout(identity.feature_dir))
     if identity.coordination_branch is None:
         return read_event_log(EventLogReadContract.primary_checkout(identity.feature_dir))
@@ -305,6 +311,8 @@ def _read_contract_from_transaction_target(
 ) -> EventLogReadContract:
     """Resolve the read-only contract for the transaction write target."""
     if not _transaction_topology_available(identity, mission_slug):
+        if _is_coordination_feature_dir(identity.feature_dir):
+            return EventLogReadContract.coordination_worktree(identity.feature_dir)
         return EventLogReadContract.primary_checkout(identity.feature_dir)
     if identity.coordination_branch is None:
         return EventLogReadContract.primary_checkout(identity.feature_dir)

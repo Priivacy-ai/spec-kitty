@@ -7,6 +7,7 @@ agent lifecycle implementations.
 from __future__ import annotations
 
 import contextlib
+import io
 import json
 import re
 from pathlib import Path
@@ -18,6 +19,7 @@ from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.commands.agent import mission as agent_feature
 from specify_cli.core.paths import locate_project_root
 from specify_cli.workspace.assert_initialized import (
+    SPEC_KITTY_REPO_NOT_INITIALIZED,
     SpecKittyNotInitialized,
     assert_initialized,
 )
@@ -40,7 +42,53 @@ PLAN_WIDEN_QUESTIONS: list[tuple[str, str]] = [
 _console = Console()
 
 
-def _enforce_initialized(*, require_specs: bool = True) -> None:
+def _scaffold_next_action(mission_slug: str) -> str:
+    return (
+        "Open spec_file and replace the scaffold with a complete specification; "
+        f"then run `spec-kitty plan --mission {mission_slug}`."
+    )
+
+
+def _with_specify_scaffold_state(payload: dict[str, object], mission_slug: str) -> dict[str, object]:
+    """Expose that direct ``spec-kitty specify`` only creates a scaffold."""
+    enriched = dict(payload)
+    enriched["scaffold_only"] = True
+    enriched["spec_state"] = "scaffold_only"
+    enriched["next_action"] = _scaffold_next_action(str(enriched.get("mission_slug") or mission_slug))
+    enriched["next_step"] = enriched["next_action"]
+    return enriched
+
+
+def _emit_scaffold_only_guidance(mission_slug: str) -> None:
+    _console.print("[yellow]Scaffold-only:[/yellow] spec.md was created as a scaffold; no complete spec was authored.")
+    _console.print(f"[cyan]Next:[/cyan] {_scaffold_next_action(mission_slug)}")
+
+
+def _create_mission_for_specify_json(slug: str, mission_type: str | None) -> None:
+    """Run mission creation and enrich its single JSON payload for direct specify."""
+    capture = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(capture):
+            agent_feature.create_mission(mission_slug=slug, mission_type=mission_type, json_output=True)
+    except typer.Exit:
+        print(capture.getvalue(), end="")
+        raise
+
+    output = capture.getvalue()
+    for line in output.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("{"):
+            continue
+        try:
+            payload = json.loads(stripped)
+        except json.JSONDecodeError:
+            continue
+        print(json.dumps(_with_specify_scaffold_state(payload, slug)))
+        return
+    print(output, end="")
+
+
+def _enforce_initialized(*, require_specs: bool = True, json_output: bool = False) -> None:
     """Fail-loud if the cwd's canonical repo is not a Spec Kitty project (FR-032).
 
     Symmetric with FR-005's no-silent-fallback selector stance: if the
@@ -52,6 +100,16 @@ def _enforce_initialized(*, require_specs: bool = True) -> None:
     try:
         assert_initialized(require_specs=require_specs)
     except SpecKittyNotInitialized as exc:
+        if json_output:
+            print(
+                json.dumps(
+                    {
+                        "error_code": SPEC_KITTY_REPO_NOT_INITIALIZED,
+                        "error": str(exc),
+                    }
+                )
+            )
+            raise typer.Exit(code=1) from exc
         _console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
@@ -71,7 +129,7 @@ def specify(
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Create a feature scaffold in kitty-specs/."""
-    _enforce_initialized(require_specs=False)
+    _enforce_initialized(require_specs=False, json_output=json_output)
     slug = _slugify_feature_input(feature)
     resolved_mission_type = mission_type
     if mission_type is not None or mission is not None:
@@ -84,7 +142,11 @@ def specify(
             command_hint="--mission-type <name>",
         )
         resolved_mission_type = resolved.canonical_value
-    agent_feature.create_mission(mission_slug=slug, mission_type=resolved_mission_type, json_output=json_output)
+    if json_output:
+        _create_mission_for_specify_json(slug, resolved_mission_type)
+    else:
+        agent_feature.create_mission(mission_slug=slug, mission_type=resolved_mission_type, json_output=False)
+        _emit_scaffold_only_guidance(slug)
 
     # FR-002: Wire widen-enabled interview for the specify flow.
     # Only run in interactive (non-JSON) mode so agent/script callers are unaffected.
@@ -108,7 +170,7 @@ def plan(
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Scaffold plan.md for a feature."""
-    _enforce_initialized()
+    _enforce_initialized(json_output=json_output)
     resolved_mission = None
     if mission is not None or feature is not None:
         resolved = resolve_selector(
@@ -185,7 +247,7 @@ def tasks(
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Finalize tasks metadata after task generation."""
-    _enforce_initialized()
+    _enforce_initialized(json_output=json_output)
     resolved_mission = None
     if mission is not None or feature is not None:
         try:

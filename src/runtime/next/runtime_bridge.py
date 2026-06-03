@@ -241,14 +241,27 @@ def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
     """Extract WP sections from tasks.md keyed by WP ID."""
     sections: dict[str, str] = {}
     matches: list[tuple[str, int, int]] = []
-    offset = 0
+    content_len = len(tasks_content)
+    search_at = 0
 
-    for line in tasks_content.splitlines(keepends=True):
+    while True:
+        wp_pos = tasks_content.find("WP", search_at)
+        if wp_pos == -1:
+            break
+
+        line_start = tasks_content.rfind("\n", 0, wp_pos) + 1
+        newline = tasks_content.find("\n", wp_pos)
+        line_end = content_len if newline == -1 else newline + 1
+        search_at = line_end
+
+        if not tasks_content.startswith("##", line_start):
+            continue
+
+        line = tasks_content[line_start:line_end]
         heading = _extract_wp_heading(line)
         if heading is not None:
             wp_id, matched_prefix_len = heading
-            matches.append((wp_id, offset + matched_prefix_len, offset))
-        offset += len(line)
+            matches.append((wp_id, line_start + matched_prefix_len, line_start))
 
     for idx, (wp_id, start, _line_start) in enumerate(matches):
         end = matches[idx + 1][2] if idx + 1 < len(matches) else len(tasks_content)
@@ -263,13 +276,19 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[
 
     for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items():
         refs: list[str] = []
-        ref_line_matches = re.findall(
-            r"\*?\*?Requirements?\s*(?:Refs)?\*?\*?\s*:\s*(.+)",
-            section_content,
-            re.IGNORECASE,
-        )
-        for match in ref_line_matches:
-            refs.extend(ref_id.upper() for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", match, re.IGNORECASE))
+        for line in section_content.splitlines():
+            if "Requirement" not in line and "requirement" not in line:
+                continue
+            ref_line_match = re.search(
+                r"\*?\*?Requirements?\s*(?:Refs)?\*?\*?\s*:\s*(.+)",
+                line,
+                re.IGNORECASE,
+            )
+            if ref_line_match:
+                refs.extend(
+                    ref_id.upper()
+                    for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", ref_line_match.group(1), re.IGNORECASE)
+                )
         requirement_refs[wp_id] = list(dict.fromkeys(refs))
 
     return requirement_refs

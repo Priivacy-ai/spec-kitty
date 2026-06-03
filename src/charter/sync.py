@@ -332,7 +332,7 @@ def load_governance_config(repo_root: Path) -> GovernanceConfig:
         if charter_path.exists():
             logger.warning("governance.yaml unavailable after charter auto-sync. Using empty governance config.")
         else:
-            logger.warning("governance.yaml not found and charter.md is absent. Using empty governance config.")
+            logger.info("governance.yaml not found and charter.md is absent. Using empty governance config.")
         return GovernanceConfig()
 
     # Check staleness
@@ -378,7 +378,7 @@ def load_directives_config(repo_root: Path) -> DirectivesConfig:
         if charter_path.exists():
             logger.warning("directives.yaml unavailable after charter auto-sync. Using empty directives config.")
         else:
-            logger.warning("directives.yaml not found and charter.md is absent. Using empty directives config.")
+            logger.info("directives.yaml not found and charter.md is absent. Using empty directives config.")
         return DirectivesConfig()
 
     metadata_path = charter_dir / _METADATA_FILENAME
