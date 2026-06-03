@@ -15,7 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fresh `pipx` and `uv tool` installs now include `click`, fixing
   `ModuleNotFoundError: No module named 'click'` at CLI startup when Typer
-  resolves to a version that no longer depends on Click.
+  resolves to a version that no longer depends on Click. Typer is also capped
+  below `0.26` because that line vendors Click and changes exception identity
+  used by CLI failure handling.
 
 ## [3.1.9] - 2026-05-21
 

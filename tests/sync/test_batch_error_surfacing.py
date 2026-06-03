@@ -17,8 +17,6 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-pytestmark = pytest.mark.fast
-
 from specify_cli.sync.batch import (
     BatchEventResult,
     BatchSyncResult,
@@ -33,6 +31,8 @@ from specify_cli.sync.batch import (
     CATEGORY_ACTIONS,
 )
 from specify_cli.sync.queue import OfflineQueue
+
+pytestmark = pytest.mark.fast
 
 
 # ────────────────────────────────────────────────────────────────
@@ -624,8 +624,11 @@ class TestBatchSyncEventResults:
         assert len(result.event_results) == 5
         assert all(r.error_category == "server_error" for r in result.event_results)
 
+    @patch("specify_cli.sync.batch.request_with_stdlib_fallback_sync", return_value=None)
     @patch("specify_cli.sync.batch.requests.post")
-    def test_timeout_populates_server_error_category(self, mock_post, small_queue):
+    def test_timeout_populates_server_error_category(
+        self, mock_post, _mock_fallback, small_queue
+    ):
         """Request timeout creates event_results with server_error category."""
         import requests as req
 
@@ -641,8 +644,11 @@ class TestBatchSyncEventResults:
         assert result.error_count == 5
         assert all(r.error_category == "server_error" for r in result.event_results)
 
+    @patch("specify_cli.sync.batch.request_with_stdlib_fallback_sync", return_value=None)
     @patch("specify_cli.sync.batch.requests.post")
-    def test_connection_error_populates_event_results(self, mock_post, small_queue):
+    def test_connection_error_populates_event_results(
+        self, mock_post, _mock_fallback, small_queue
+    ):
         """Connection error creates event_results with server_error category."""
         import requests as req
 

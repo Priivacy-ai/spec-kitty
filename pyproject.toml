@@ -49,8 +49,8 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "typer>=0.24.1",
-    "click>=8.2.1",  # Used directly by CLI modules; typer>=0.26 no longer depends on click
+    "typer>=0.24.1,<0.26",  # 0.26 vendors Click and changes typer.Exit identity
+    "click>=8.2.1",  # Used directly by CLI modules
     "rich>=14.3.3",
     "httpx[socks]>=0.28.1",
     "platformdirs>=4.9.2",
