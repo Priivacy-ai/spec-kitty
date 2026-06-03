@@ -70,7 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release metadata now aligns `.kittify/metadata.yaml` with `pyproject.toml`
   for `3.2.0rc33`.
 
-## [Unreleased - rc32 follow-ups]
+## [3.2.0rc32] - 2026-06-01
 
 ### Added
 
@@ -80,6 +80,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release authority now has a machine-readable shared-package compatibility
   manifest, plus gates that validate CLI ranges, `uv.lock`, SaaS consumer
   contracts, and exact PyPI installability for published artifacts.
+
+### Changed
+
+- Release metadata now aligns `.kittify/metadata.yaml` with `pyproject.toml`
+  for `3.2.0rc32`.
+- Glossary runtime modules are packaged under canonical top-level `glossary`
+  while `specify_cli.glossary` remains a registered compatibility shim.
 
 ### Fixed
 
@@ -119,16 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added migration guidance for constitution-era `.kittify/memory/constitution.md`
   and `.kittify/constitution/*` layouts.
 
-## [3.2.0rc32] - 2026-06-01
-
-### Changed
-
-- Release metadata now aligns `.kittify/metadata.yaml` with `pyproject.toml`
-  for `3.2.0rc32`.
-- Glossary runtime modules are packaged under canonical top-level `glossary`
-  while `specify_cli.glossary` remains a registered compatibility shim.
-
-## [3.2.0rc31] - 2026-05-31
+## [3.2.0rc31] (rolled into rc32)
 
 ### Fixed
 
@@ -190,21 +188,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test (`tests/architectural/test_tid251_enforcement.py`) pins the enforcement so it
   cannot silently regress to advisory. (Closes the adversarial review block on #1395.)
 
-## [Unreleased - 3.2.0]
-
-### Changed
-
-- Documented the host-surface parity matrix and Mode of Work governance layer
-  so advise/ask/do behavior has a visible README entry point.
-- Clarified correlation link and projection policy / read-model policy coverage
-  for the 3.2.0 trail-model tranche, including deferred Tier 2 items.
-
-### Deferred
-
-- Continued tracking deferred follow-up work such as
-  [#534](https://github.com/Priivacy-ai/spec-kitty/issues/534) outside the
-  3.2.0 readiness tranche.
-
 ## [3.2.0rc29] - 2026-05-29
 
 3.2.0rc29 rerolls the coordination branch atomic event-log candidate after
@@ -243,6 +226,10 @@ PR review and publishes the launch-readiness hardening merged after the yanked
 - Hardened release CI ownership by deduplicating release-readiness checks,
   adding installed-entrypoint smoke coverage, and preserving clean-install
   latency evidence.
+- Documented the host-surface parity matrix and Mode of Work governance layer
+  so advise/ask/do behavior has a visible README entry point.
+- Clarified correlation link and projection policy / read-model policy coverage
+  for the 3.2.0 trail-model tranche, including deferred Tier 2 items.
 
 ### Fixed
 
@@ -262,6 +249,12 @@ PR review and publishes the launch-readiness hardening merged after the yanked
   including uv-tool pytest remediation provenance fallbacks.
 - Restored compatibility for older unit-test fakes that do not expose the new
   coordination branch or commit-result fields.
+
+### Deferred
+
+- Continued tracking deferred follow-up work such as
+  [#534](https://github.com/Priivacy-ai/spec-kitty/issues/534) outside the
+  3.2.0 readiness tranche.
 
 ## [3.2.0rc28] - 2026-05-27
 
