@@ -1,0 +1,15 @@
+{
+  "coordination_branch": "kitty/mission-execution-state-domain-remediation-01KT6HVH",
+  "created_at": "2026-06-03T10:53:18.840173+00:00",
+  "friendly_name": "Execution-State Domain Remediation — #1619 Strangler Fig",
+  "mission_id": "01KT6HVH3QND4Q3KCGH2419N4J",
+  "mission_number": null,
+  "mission_slug": "execution-state-domain-remediation-01KT6HVH",
+  "mission_type": "software-dev",
+  "purpose_context": "The spec-kitty runtime has accumulated ~40 command surfaces that independently re-derive execution context (workspace path, feature dir, branch), causing divergent behavior when invoked from different working directories. This mission implements the full Strangler Fig sequence: ratify the domain model via ADRs, build an e2e parity ratchet to gate all changes, introduce the MissionStatus aggregate as the authoritative status owner for the Mission Management domain, enforce the status/ module boundary, add mission identity back-references to run snapshots, and route all residue path-building surfaces through the canonical resolve_action_context entry point.",
+  "purpose_tldr": "Eliminate CWD-dependent execution-context re-derivation across ~40 command surfaces by establishing authoritative domain boundaries and routing all surfaces through a single canonical resolver.",
+  "slug": "execution-state-domain-remediation-01KT6HVH",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-03T11:39:06.049425+00:00"
+}
