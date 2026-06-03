@@ -168,6 +168,59 @@ exactly the `ActionContext` we resolved to harden. The mental model and the plum
 
 ---
 
+## 5a. The Mission is a layered domain: mission state + work-package state
+
+> **⚠ Corrected by [13](./13-dialectic-mission-vs-missionrun.md).** This section originally attributed
+> the layered state to *MissionRun*. The dialectic on "Mission ≡ MissionRun" (refuted) showed the
+> layered, durable state belongs to the **Mission** (`kitty-specs/<slug>/`, git). The **Mission Run**
+> is the *ephemeral session instance that drives a Mission through its steps* (`.kittify/runtime/`,
+> gitignored, **1:many** to the Mission). Read below with "Mission" as the owner of the two layers.
+
+**Refinement (Stijn, 2026-06-03; ownership corrected per `13`):** the **Mission** is **not flat** — it
+is a two-layer system. This matters because the two layers hold *different senses* and change at
+*different rates*. (The **Mission Run** is a separate, ephemeral driver — see `13`.)
+
+```
+  MISSION RUN  (a persisted instance of purposeful work)
+  │
+  ├── MISSION-LEVEL STATE  (macro — one per run)
+  │     • identity: mission_id · mid8 · slug · mission_run_id · mission_type
+  │     • phase / lifecycle position           (distributed-first-class; see 11)
+  │     • topology: target branch · coordination branch · lanes plan
+  │     • interaction policy  (plan-time-frozen; see 11)
+  │     • activity ledger      (provenance of pursuit — MissionRun state)
+  │     • aggregate progress   (a roll-up of the WP layer)
+  │
+  └── WORK-PACKAGE STATE  (micro — one per WP)
+        • lane            (9-state FSM)                         ← PURPOSE (this unit)
+        • agent_profile · role                                 ← SELF (the bound actor)
+        • model · tool                                         ← execution preference
+        • work location: lane worktree / workspace_path        ← ENVIRONMENT (where)
+        • dependencies · evidence · claim/actor
+```
+
+**The key insight:** the **work-package layer is where the *governed invocation* binds an actor's
+three senses to a concrete unit of work.** The mission layer holds *standing* purpose, topology, and
+policy; the WP layer holds the *per-unit* instantiation — `agent_profile`/`role` (self),
+`lane`+intent (purpose-here), `work location`+`tool`+`model` (environment + execution preference).
+So §1's "self / purpose / environment" are **resolved at mission level but instantiated at WP level.**
+
+This is the actor-model restatement of the architecture's **two-dimensional accounting** commitment
+(ADR `2026-04-03-1`, see `03` A1: *"lanes own git, WPs own accounting; lane state AND WP state must
+both be visible"*). It also locates the prior work precisely: the **`MissionStatus` aggregate**
+(`07` §4 / `09` F5) **is the WP-layer state machine**; the **mission-level state is a distinct,
+smaller object** that references WP states by identity and rolls them up.
+
+**Open modeling question — the aggregate boundary.** Is MissionRun **one** aggregate root containing
+WP entities, or **two** aggregates (Mission state + WorkPackage state) referenced by identity? The
+Aggregate Design Rules (`04`: small aggregates, reference by identity, coordinate by events) and our
+own `07` §4 finding (dependency gating must live *outside* the per-WP aggregate because it crosses WP
+boundaries) both point toward **two aggregates** — a mission-level aggregate that references many
+WP-level aggregates by `mission_id`+`wp_id` and computes roll-up progress, rather than one giant
+mission aggregate. To confirm when we draw the model diagram.
+
+---
+
 ## 6. Why this framing earns its keep
 
 1. **A test for completeness.** Any step in idea→working-code can be checked: *does the actor have a

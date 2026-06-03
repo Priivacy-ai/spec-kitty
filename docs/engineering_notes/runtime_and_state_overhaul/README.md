@@ -39,7 +39,8 @@ to a design, so the design conversation is anchored in evidence rather than memo
 | 09 | [09-context-decomposition-model.md](./09-context-decomposition-model.md) | **Phase 2** — the conceptual model: Context as composition of domain-owned fragments (infra/filesystem/VC/preferences/state) → fit-for-purpose composites |
 | 10 | [10-context-needs-capture.md](./10-context-needs-capture.md) | **Phase 2 requirements** — what each actor (code/user/agent) must know at each lifecycle step, across the six dimensions. Lens 1 = intuition; lens 2/3 corroboration in `11` |
 | 11 | [11-dialectic-and-revised-claims.md](./11-dialectic-and-revised-claims.md) | **Dialectic** — corroborate-vs-refute pass on our claims. Key correction: harden the existing `ActionContext` (ADR 2026-03-09-1), don't greenfield; policy frozen-at-plan; behaviour single-owner; phase derived-not-added |
-| 12 | [12-actor-mental-model.md](./12-actor-mental-model.md) | **Abstraction level up** — the actor mental model: human / LLM / external system × {sense of self, purpose, environment} mapped to AgentProfile, Constitution/Charter, MissionRun, Context |
+| 12 | [12-actor-mental-model.md](./12-actor-mental-model.md) | **Abstraction level up** — the actor mental model: human / LLM / external system × {sense of self, purpose, environment} mapped to AgentProfile, Charter, Mission, Context. §5a: the Mission is layered (mission + WP state) |
+| 13 | [13-dialectic-mission-vs-missionrun.md](./13-dialectic-mission-vs-missionrun.md) | **Dialectic** — "Mission ≡ MissionRun?" **Refuted** (1:many cardinality; distinct storage/id/lifecycle). Salvaged: the layered state belongs to Mission; MissionRun is the ephemeral driver and is degenerate in code today |
 | — | [SESSION-RECAP.md](./SESSION-RECAP.md) | Narrative of how this thinking unfolded — for contributors joining the thread |
 
 ## Source provenance

@@ -112,6 +112,16 @@ Charter** (Constitution deprecated); **Activity Ledger = MissionRun state**; **A
 concept** disambiguating into AgentProfile / Operator(Human-In-Charge) / External System; this model
 will likely become a published `docs/explanation/` doc once crystallized.
 
+**Dialectic on "Mission ≡ MissionRun" (`13`).** Stijn proposed Mission and MissionRun are one concept
+(Mission = deprecated alias). A corroborate/refute run **refuted** it: the relationship is **1:many**
+(ephemeral query runs + cleanup re-runs), with distinct storage/id/lifecycle and a standing ADR that
+explicitly rejected collapsing them. Salvaged truths: (a) the **layered state** belongs to the
+**Mission**, not the Run — correcting `12` §5a; the **Mission Run** is the ephemeral 1:many *driver*;
+(b) Mission Run is **degenerate in code today** (uuid/proxy; its snapshot doesn't even reference its
+Mission) — a real smell adjacent to #1619. We also captured **dialectical research itself as a
+doctrine tactic** (`src/doctrine/tactics/built-in/analysis/dialectic-research.tactic.yaml`, registered
+in the DRG).
+
 ## Where we are now
 
 - **Phase 1 (grounding + reconnaissance): complete** — docs `01`–`08`.
