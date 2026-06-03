@@ -746,7 +746,8 @@ def _shared_artifact_guidance(workspace, repo_root: Path, mission_slug: str) -> 
     if workspace.lane_id:
         return [
             "📚 SHARED MISSION ARTIFACTS:",
-            "   Spec, plan, and tasks live in the main repo. Status authority is the coordination branch for modern missions.",
+            f"   Spec, plan, tasks, and status live in main repo: {repo_root}/kitty-specs/{mission_slug}/",
+            "   Status authority syncs through the coordination branch for modern missions.",
             "   Use this lane workspace for code/tests; do not expect shared mission artifacts here",
         ]
 
@@ -1267,7 +1268,7 @@ def implement(
 
             operational_context = build_operational_context_for_claim(
                 repo_root=main_repo_root,
-                feature_dir=_impl_feature_dir,
+                feature_dir=feature_dir,
                 mission_slug=mission_slug,
                 wp_id=normalized_wp_id,
                 actor=_actor,
