@@ -62,11 +62,17 @@ The Actor metamodel is fragmented across **three vocabularies** (`16` H3): runti
 (`retrospective/schema.py`), decisions `Literal["human","llm","service"]`, and free-form `str` in
 `status/emit.py`. The **Effector** is the execution-domain realization (`Effector = Actor ∩ Execution`).
 
-**Decision needed:** introduce a single `Effector`/`Actor` value type (kind + identity + sourced
-beliefs) that the runtime, decisions, status, and retrospective surfaces all use — or leave the
-vocabularies separate and only name "Effector" in docs. The fan-out makes this a *real* unification
-target, not vocabulary-only (answers `12 §7`). Likely home: a small shared type in `kernel/` or
-`status/` (consumed by both `runtime/` and `specify_cli/`), respecting the layer rules (§4).
+**DECIDED (Stijn, 2026-06-03): named-in-docs for now — no code type yet.**
+- *Rationale for a future type (the technical reason it exists):* the same concept ("who acted") is
+  typed **4 inconsistent ways** today, and the `status` actor is an unvalidated free string
+  (`"claude"`, `"merge"`). That is a latent drift/translation risk — e.g. is `"agent"` (retrospective)
+  the same kind as `"llm"` (runtime)? Joining the decisions/status/retrospective logs on actor identity
+  is currently lossy. A single frozen value type (`kind` enum + `id` + optional `profile_ref`) would
+  make actor-kind canonical across all four surfaces.
+- *Why defer:* it is a consistency risk, **not an active blocker** (DIRECTIVE_024 locality / don't
+  over-engineer). **Trigger to materialize:** the first concrete actor-kind-mismatch bug, or when a
+  feature needs to join those logs on actor identity. Until then, "Effector" is modeling vocabulary
+  (the Actor realized in Execution), captured in the docs.
 
 ---
 
@@ -80,13 +86,15 @@ Constraints from `16` H6 / `tests/architectural/test_layer_rules.py`:
   registered in `_DEFINED_LAYERS` (both `conftest.py` and `test_layer_rules.py`).
 
 **Placement decisions (revised from the old §4):**
-- **Do NOT greenfield a `mission_runtime/` umbrella by default.** Execution already has a home
-  (`src/runtime/next/`). Per the dialectic (`11`), **harden `ActionContext` in place**
-  (`core/execution_context.py`) and consume it from `runtime/` (allowed). This avoids the layer-registration cost.
+- **DECIDED (Stijn, 2026-06-03): a net-new `mission_runtime/` umbrella package.** Rationale: **Screaming
+  Architecture** (the package structure should name the domain) + **Strangler Fig** (the new home grows
+  alongside the old, surfaces migrate into it). This is preferred over harden-in-place for domain
+  clarity. **Constraint:** it must be **registered in the layer meta-guard** (`_DEFINED_LAYERS` in both
+  `conftest.py` and `test_layer_rules.py`), or `test_no_unregistered_src_packages` fails. The hardened
+  `ExecutionContext` (today `core/execution_context.py`) migrates *into* this umbrella under Strangler.
 - **`MissionStatus` aggregate** wraps `status/` — lives in `src/specify_cli/status/` (the shared context).
-- **`Effector`/`Actor` type** — a low-layer shared type (`kernel/` or a new `actor.py` consumed by
-  both runtime and specify_cli), so the three vocabularies can converge without an illegal up-import.
-- If a `mission_runtime/` umbrella is later justified, it must be a **registered** layer sibling, not a `specify_cli/*` package.
+- **`Effector`/`Actor` type — DECIDED: named-in-docs for now** (not a code type yet). Rationale below (§3).
+  If materialized later, a low-layer shared type (`kernel/` or `actor.py`) so the three vocabularies converge without an illegal up-import.
 
 ---
 
@@ -127,16 +135,45 @@ Ordered by isolation / value, tied to the filed issues and the keepers:
 
 ## 7. Open questions (now technical) + keepers
 
+> **Tracked in [#1666](https://github.com/Priivacy-ai/spec-kitty/issues/1666)** (child of #992, blocks #1619).
+
 **Keepers (code-validated, don't re-litigate):** Mission ≠ MissionRun; MissionType ∈ Governance(doctrine);
-the execution spine; Context is per-domain; Shared Kernel is a code module; harden-don't-greenfield.
+the execution spine; Context is per-domain; Shared Kernel is a code module.
+
+**Decided (Stijn, 2026-06-03):**
+1. **Effector** — **named-in-docs for now** (no code type until actor-kind drift causes a concrete bug). (§3)
+2. **`mission_runtime/`** — **net-new umbrella** (Screaming Architecture + Strangler), registered in the layer meta-guard. (§4)
 
 **Open:**
-1. **Effector home + shape** — shared type in `kernel/`, or named-in-docs only? (§3)
-2. **`mission_runtime/` — net-new umbrella or harden-in-place?** Lean: harden-in-place (§4).
-3. **Atomicity (I-4)** — enforce `worktree_root == destination_ref` in the seam (Option B), or guideline? (§5/6)
-4. **Communication-artefact contract** — one assembly with `to_dict()` as a view, or keep projections separate? (§2)
-5. **`MissionStatus` aggregate now, or keep free functions** behind the hardened facade? (`07` §4)
-6. **Naming ratification** (DIRECTIVE_032) — lock GovernanceContext / ExecutionContext / InfraContext / Effector / communication-artefact into the glossary + an ADR before code.
+3. **Atomicity (I-4)** — enforce `worktree_root == destination_ref` in the seam (Option B), or guideline? *(pending Stijn background → decision; see "Background" below)* (§5/6)
+4. **Communication-artefact contract** — one assembly with `to_dict()` as a view, or keep projections separate? *(pending Stijn background → decision)* (§2)
+5. **`MissionStatus` aggregate now, or keep free functions** behind the hardened facade? *(open — no decision)* (`07` §4)
+6. **Naming ratification** (DIRECTIVE_032) — lock GovernanceContext / ExecutionContext / InfraContext / Effector / communication-artefact into the glossary + an ADR before code. *(open — no decision)*
+
+### Background for the two pending questions (Q3, Q4)
+
+**Q3 — `worktree_root == destination_ref` (the commit-atomicity invariant).** A commit goes through
+`safe_commit(repo_root, worktree_root, destination_ref, …)`. `worktree_root` = the git worktree you
+commit *from* (lane / coord / main checkout — i.e. "where the Effector did the work"); `destination_ref`
+= the branch the commit should land *on*. The guard (`git/commit_helpers.py:858`) reads the worktree's
+HEAD and **rejects unless HEAD == destination_ref** — you can only commit to a branch your worktree is
+actually on. So it binds **two** facts: the **ExecutionContext** ("where the Effector works", the
+worktree) **and** a **VersionControl** fact (the destination branch). The #1619 bug class is callers
+passing a *mismatched* pair (worktree=main, destination=coord branch) → `safe_commit` says "checkout the
+coord branch in main" → the manual-branch-switching loop (#1617/#1618/#1348). **The decision:** make the
+pair a single self-validating value (the "CommitTarget") owned by the operation, so a status transition
+and its commit are **one atomicity domain** and a mismatched pair is *impossible to construct* (closes
+the class) — vs. keeping it a runtime check (avoids but doesn't close).
+
+**Q4 — communication-artefact contract.** The governed invocation currently emits **three** independent
+projections of the same underlying context (`16` H4): (1) the **Executor Prompt** rendered text
+(`prompt_builder.py`) the Effector reads; (2) **`ActionContext.to_dict()` JSON** for programmatic/shim
+consumers; (3) **`OperationalContext`** (a frozen VO of model/profile/role) built at the decision
+boundary, logged but *not* passed to the prompt builder. They are assembled separately from overlapping
+sources, so they can **drift** (e.g. the prompt's profile vs the logged `OperationalContext` profile).
+**The decision:** one assembly that renders the artefact from (intent · GovernanceContext ·
+ExecutionContext), with the prompt-text and the JSON as two **serializations of the same assembled
+context** (not three independent objects) — vs. leaving the projections separate. Lower priority (Strangler step 5; needs ExecutionContext hardened first).
 
 ---
 

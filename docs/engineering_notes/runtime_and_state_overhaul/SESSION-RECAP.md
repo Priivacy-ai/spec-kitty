@@ -163,6 +163,14 @@ MissionRun ref → consolidate projections → Effector → commit-seam atomicit
 ADRs / stable architectural documentation, to serve as the guideline for missions addressing #1619 and
 related domain-violation / architectural-design issues.
 
+**Tickets & decisions (2026-06-03):** #992 confirmed as the **parent epic**; created **#1666**
+(execution-state & context domain-boundary redesign — child of #992, **blocks** #1619) as the
+implementation tracker. Decisions: **`mission_runtime/` = net-new umbrella** (Screaming Architecture +
+Strangler, layer-registered); **Effector = named-in-docs for now** (materialize a code type only when
+actor-kind fragmentation causes a concrete bug). Pending background-then-decision: commit-atomicity
+(`worktree_root == destination_ref`) enforcement shape; communication-artefact contract. Open (no
+decision): `MissionStatus` aggregate timing; vocabulary ratification.
+
 ## Where we are now
 
 - **Phase 1 (grounding + reconnaissance): complete** — docs `01`–`08`.

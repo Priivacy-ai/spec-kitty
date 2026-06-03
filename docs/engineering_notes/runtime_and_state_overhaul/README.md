@@ -1,8 +1,11 @@
 # Runtime & State Overhaul — Engineering Notes
 
-**Status:** Grounding phase (design not yet decided)
+**Status:** Design exploration complete; handed to @robertDouglass for ADR finalization
 **Owner:** Architecture (Architect Alphonso persona) + Stijn Dejongh
+**Parent epic:** [Priivacy-ai/spec-kitty#992](https://github.com/Priivacy-ai/spec-kitty/issues/992) — *Epic: drain the bug queue by repairing domain boundaries* (this is its execution-state / context-ownership slice)
+**Redesign tracker:** [Priivacy-ai/spec-kitty#1666](https://github.com/Priivacy-ai/spec-kitty/issues/1666) — *Execution-state & context domain-boundary redesign* (child of #992, **blocks** #1619)
 **Anchor issue:** [Priivacy-ai/spec-kitty#1619](https://github.com/Priivacy-ai/spec-kitty/issues/1619) — *Epic: Unify mission execution context across coord/main/lane topology*
+**Down-payments:** [#1663](https://github.com/Priivacy-ai/spec-kitty/issues/1663) (MissionRun→Mission ref) · [#1664](https://github.com/Priivacy-ai/spec-kitty/issues/1664) (status/ boundary enforcement)
 **Started:** 2026-06-03
 
 ---
