@@ -552,6 +552,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         pre_emit_size: int,
         pre_emit_events_existed: bool,
         lock_cm: AbstractContextManager[Path],
+        legacy_mode: bool = False,
     ) -> None:
         # Note: most attributes are public-but-immutable-by-convention.
         # ``mypy --strict`` is satisfied because we do not annotate them
@@ -569,6 +570,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         self._pre_emit_size = pre_emit_size
         self._pre_emit_events_existed = pre_emit_events_existed
         self._lock_cm = lock_cm
+        self._legacy_mode = legacy_mode
 
         # Per-transaction mutable state.
         self._event_ids: list[str] = []
@@ -797,6 +799,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             pre_emit_size=pre_emit_size,
             pre_emit_events_existed=pre_emit_events_existed,
             lock_cm=lock_cm,
+            legacy_mode=legacy_mode,
         )
         return txn
 
@@ -875,8 +878,13 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         self.feature_dir.mkdir(parents=True, exist_ok=True)
 
         # Append + verify readback (matches existing emit pipeline).
+        write_contract = (
+            EventLogWriteContract.legacy_lane_append(self.feature_dir)
+            if self._legacy_mode
+            else EventLogWriteContract.coordination_transaction_append(self.feature_dir)
+        )
         append_event_log(
-            EventLogWriteContract.coordination_transaction_append(self.feature_dir),
+            write_contract,
             event,
         )
         # Re-materialise status.json so an external observer sees

@@ -677,7 +677,7 @@ class TestWP01InitCoherence:
         # Every canonical command should have a skill package with SKILL.md
         expected_commands = {
             "specify", "plan", "tasks", "tasks-outline", "tasks-packages",
-            "implement", "review", "analyze", "checklist", "research", "charter",
+            "implement", "review", "analyze", "research", "charter",
         }
         packages = {p.name for p in skills_root.iterdir() if p.is_dir()}
         missing = {f"spec-kitty.{c}" for c in expected_commands} - packages

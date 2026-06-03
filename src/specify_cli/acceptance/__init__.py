@@ -616,7 +616,7 @@ def _check_lane_gates(
     *,
     mutate_matrix: bool = True,
 ) -> None:
-    """Enforce lane-based acceptance gates: branch check + acceptance matrix."""
+    """Enforce lane-based acceptance gates and acceptance matrix."""
     from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
 
     try:
@@ -635,13 +635,32 @@ def _check_lane_gates(
     if lanes_manifest is None:
         return
 
-    if branch and branch != lanes_manifest.mission_branch:
-        message = f"Acceptance must run on mission branch {lanes_manifest.mission_branch}, not {branch}"
+    meta_target_branch = _target_branch_for_feature(feature_dir)
+    if meta_target_branch and meta_target_branch != lanes_manifest.target_branch:
+        message = (
+            "Acceptance target branch mismatch: "
+            f"meta.json targets {meta_target_branch}, lanes.json targets {lanes_manifest.target_branch}"
+        )
         activity_issues.append(message)
         blocked_checks.append(AcceptanceCheckDiagnostic(check="mission_branch", detail=message))
         _append_skipped_lane_checks(
             skipped_checks,
-            reason="current branch does not match the mission branch",
+            reason="meta.json target_branch does not match lanes.json target_branch",
+            include_matrix_presence=True,
+        )
+        return
+
+    allowed_branches = {lanes_manifest.mission_branch, lanes_manifest.target_branch}
+
+    if branch is None or branch not in allowed_branches:
+        allowed_label = ", ".join(sorted(branch_name for branch_name in allowed_branches if branch_name))
+        current_label = branch or "detached HEAD"
+        message = f"Acceptance must run on mission or target branch ({allowed_label}), not {current_label}"
+        activity_issues.append(message)
+        blocked_checks.append(AcceptanceCheckDiagnostic(check="mission_branch", detail=message))
+        _append_skipped_lane_checks(
+            skipped_checks,
+            reason="current branch is neither mission branch nor target branch",
             include_matrix_presence=True,
         )
         return
@@ -806,7 +825,7 @@ def _build_recommended_fix_order(
     if git_dirty:
         recommendations.append("Commit, stash, or discard working tree changes before acceptance.")
     if any(item.check == "mission_branch" for item in blocked_checks):
-        recommendations.append("Switch to the mission branch named in the branch failure.")
+        recommendations.append("Switch to the mission branch or configured target branch named in the branch failure.")
     if missing_artifacts:
         recommendations.append("Restore required mission artifacts before acceptance.")
     if metadata_issues:

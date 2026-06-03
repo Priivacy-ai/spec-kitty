@@ -14,6 +14,7 @@ from typing import Final
 
 from specify_cli.auth.session import require_private_team_id
 from specify_cli.auth.token_manager import TokenManager
+from specify_cli.sync.feature_flags import is_saas_sync_enabled
 
 _LOG = logging.getLogger(__name__)
 
@@ -45,6 +46,9 @@ def resolve_private_team_id_for_ingress(
     str | None
         A Private Teamspace id when one is available, otherwise None.
     """
+    if not is_saas_sync_enabled():
+        return None
+
     session = token_manager.get_current_session()
     team_id: str | None = (
         require_private_team_id(session)

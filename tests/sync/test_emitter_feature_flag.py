@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import Any
 from uuid import uuid4
 
+import pytest
+
+from specify_cli.sync._team import resolve_private_team_id_for_ingress
 from specify_cli.sync.emitter import EventEmitter
+
+
+pytestmark = [pytest.mark.fast]
 
 
 class _Clock:
@@ -63,4 +70,24 @@ def test_saas_flag_disabled_suppresses_direct_ingress_resolution(
     assert routed == [event]
     assert event["team_slug"] is None
     assert event["drain_blocked_reason"] == "sync_disabled"
+    assert "direct ingress skipped" not in caplog.text
+
+
+def test_direct_ingress_resolver_is_quiet_when_saas_flag_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
+
+    class _TokenManager:
+        def get_current_session(self) -> Any:
+            raise AssertionError("feature-disabled resolver should not inspect auth state")
+
+    assert (
+        resolve_private_team_id_for_ingress(
+            _TokenManager(),  # type: ignore[arg-type]
+            endpoint="/api/v1/events/batch/",
+        )
+        is None
+    )
     assert "direct ingress skipped" not in caplog.text

@@ -9,11 +9,10 @@ from __future__ import annotations
 
 import shutil
 import subprocess
-import tomllib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from textwrap import dedent
+import tomllib
 
 import pytest
 import yaml
@@ -28,25 +27,15 @@ E2E_STATUS_COMMIT_BRANCH = "e2e-status-commit"
 
 def _write_built_in_only_manifest(project: Path) -> None:
     """Seed fresh-project doctrine state for local workflow E2E fixtures."""
+    from specify_cli.cli.commands.charter._fresh_doctrine import _fresh_seed_manifest_text
+
+    graph_path = project / ".kittify" / "doctrine" / "graph.yaml"
+    if graph_path.exists():
+        graph_path.unlink()
+
     manifest_path = project / ".kittify" / "charter" / "synthesis-manifest.yaml"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest_path.write_text(
-        dedent(
-            """\
-            schema_version: '2'
-            mission_id: null
-            created_at: '2099-01-01T00:00:00+00:00'
-            run_id: 01JTESTRUNIDXXXXXXXXXXXXXX
-            adapter_id: test
-            adapter_version: '0.0.0'
-            synthesizer_version: '0.0.0'
-            manifest_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-            artifacts: []
-            built_in_only: true
-            """
-        ),
-        encoding="utf-8",
-    )
+    manifest_path.write_text(_fresh_seed_manifest_text(), encoding="utf-8")
 
 
 @pytest.fixture(autouse=True)

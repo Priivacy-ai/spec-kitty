@@ -25,7 +25,7 @@ from specify_cli.charter_preflight.dashboard_warning import (
 from specify_cli.charter_preflight.result import CharterPreflightResult
 
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 def _pass_result() -> CharterPreflightResult:

@@ -141,6 +141,112 @@ def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str) -> None:
     append_event(feature_dir, event)
 
 
+def test_move_task_for_review_without_agent_uses_assigned_actor(tmp_path: Path) -> None:
+    """Omitted --agent should not turn a normal handoff into a user override."""
+    mission_slug = "test-move-task-for-review-actor"
+    feature_dir, _wp_file = _build_wp_file(tmp_path, mission_slug, "WP01")
+    _seed_wp_event(feature_dir, "WP01", "in_progress")
+
+    with setup_mocked_env(
+        tmp_path,
+        mission_slug=mission_slug,
+        extra_patches={
+            "_validate_ready_for_review": (True, []),
+            "_check_unchecked_subtasks": [],
+        },
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "for_review",
+                "--mission",
+                mission_slug,
+                "--no-auto-commit",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    events = list((feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines())
+    emitted = json.loads(events[-1])
+    assert emitted["actor"] == "testbot"
+    assert emitted["to_lane"] == "for_review"
+    assert emitted["force"] is False
+
+
+def test_move_task_approval_without_agent_does_not_use_assigned_actor(tmp_path: Path) -> None:
+    """Omitted --agent on reviewer actions must not impersonate the implementer."""
+    mission_slug = "test-move-task-approval-actor"
+    feature_dir, _wp_file = _build_wp_file(tmp_path, mission_slug, "WP01")
+    _seed_wp_event(feature_dir, "WP01", "for_review")
+
+    with setup_mocked_env(
+        tmp_path,
+        mission_slug=mission_slug,
+        extra_patches={
+            "_validate_ready_for_review": (True, []),
+            "_check_unchecked_subtasks": [],
+        },
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "approved",
+                "--mission",
+                mission_slug,
+                "--no-auto-commit",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    events = [json.loads(line) for line in (feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
+    emitted = events[1:]
+    assert [event["to_lane"] for event in emitted] == ["in_review", "approved"]
+    assert {event["actor"] for event in emitted} == {"user"}
+
+
+def test_move_task_direct_approval_without_agent_uses_hop_specific_actors(tmp_path: Path) -> None:
+    """Composite moves attribute implementation and review hops separately."""
+    mission_slug = "test-move-task-direct-approval-actors"
+    feature_dir, _wp_file = _build_wp_file(tmp_path, mission_slug, "WP01")
+    _seed_wp_event(feature_dir, "WP01", "in_progress")
+
+    with setup_mocked_env(
+        tmp_path,
+        mission_slug=mission_slug,
+        extra_patches={
+            "_validate_ready_for_review": (True, []),
+            "_check_unchecked_subtasks": [],
+        },
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "approved",
+                "--mission",
+                mission_slug,
+                "--no-auto-commit",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    events = [json.loads(line) for line in (feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
+    emitted = events[1:]
+    assert [(event["to_lane"], event["actor"]) for event in emitted] == [
+        ("for_review", "testbot"),
+        ("in_review", "user"),
+        ("approved", "user"),
+    ]
+
+
 # ---------------------------------------------------------------------------
 # T007: _get_latest_review_cycle_verdict helper
 # ---------------------------------------------------------------------------

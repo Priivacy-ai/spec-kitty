@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import json
 
+import pytest
 import typer
 from typer.testing import CliRunner
 
 import specify_cli.cli.commands.lifecycle as lifecycle
 from specify_cli.cli.commands.lifecycle import specify
 from specify_cli.workspace.assert_initialized import SpecKittyNotInitialized
+
+
+pytestmark = [pytest.mark.fast]
 
 
 _app = typer.Typer()

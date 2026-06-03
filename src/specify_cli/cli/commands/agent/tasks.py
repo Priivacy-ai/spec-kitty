@@ -1955,16 +1955,15 @@ def move_task(
         elif old_lane == Lane.FOR_REVIEW and resolve_lane_alias(target_lane) in (Lane.IN_PROGRESS, Lane.PLANNED) and force:
             emit_review_ref = "force-override"
 
-        # Map --agent to actor; default to "user" if not provided
+        # Resolve the canonical lane for the emit pipeline
+        canonical_lane = resolve_lane_alias(target_lane)
+
         actor = agent or "user"
 
         # Build reason for emit (used by force transitions and some guards)
         emit_reason = note_text if note_text else None
         if force and not emit_reason:
             emit_reason = f"Force move to {target_lane}"
-
-        # Resolve the canonical lane for the emit pipeline
-        canonical_lane = resolve_lane_alias(target_lane)
 
         # Determine feature_dir for the event store
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
@@ -2076,6 +2075,19 @@ def move_task(
                 )
 
             for target in transition_targets:
+                from_lane_for_hop = event.to_lane if event is not None else resolve_lane_alias(current_event_lane)
+                # If --agent is omitted, preserve the WP's assigned agent only
+                # for implementation handoff hops; review/approval hops remain
+                # operator actions.
+                hop_actor = (
+                    agent
+                    or (
+                        current_agent
+                        if from_lane_for_hop == Lane.IN_PROGRESS and target == Lane.FOR_REVIEW
+                        else None
+                    )
+                    or "user"
+                )
                 # Auto-construct ReviewResult when hopping out of in_review
                 # (the review_result_required guard needs a structured outcome)
                 hop_review_result = None
@@ -2110,7 +2122,7 @@ def move_task(
 
                     review_section = evidence_dict.get("review", {})
                     hop_review_result = ReviewResult(
-                        reviewer=review_section.get("reviewer", actor),
+                        reviewer=review_section.get("reviewer", hop_actor),
                         verdict=review_section.get("verdict", Lane.APPROVED),
                         reference=review_section.get("reference", f"auto-forward:{task_id}"),
                     )
@@ -2119,7 +2131,7 @@ def move_task(
                     mission_slug=mission_slug,
                     wp_id=task_id,
                     to_lane=target,
-                    actor=actor,
+                    actor=hop_actor,
                     force=emit_force,
                     reason=emit_reason,
                     evidence=evidence_dict if target in (Lane.APPROVED, Lane.DONE) else None,

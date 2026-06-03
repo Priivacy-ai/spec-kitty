@@ -746,8 +746,8 @@ def _shared_artifact_guidance(workspace, repo_root: Path, mission_slug: str) -> 
     if workspace.lane_id:
         return [
             "📚 SHARED MISSION ARTIFACTS:",
-            f"   Spec, plan, tasks, and status live in main repo: {repo_root}/kitty-specs/{mission_slug}/",
-            "   Status authority syncs through the coordination branch for modern missions.",
+            f"   Spec, plan, and tasks are visible from the primary checkout: {repo_root}/kitty-specs/{mission_slug}/",
+            "   Status authority resolves through the coordination worktree for modern missions.",
             "   Use this lane workspace for code/tests; do not expect shared mission artifacts here",
         ]
 
