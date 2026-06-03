@@ -290,6 +290,11 @@ def test_collect_feature_summary_checks_required_artifacts_in_coord_worktree(tmp
         encoding="utf-8",
     )
     (repo_root / ".gitignore").write_text(".worktrees/\n", encoding="utf-8")
+    (coord_feature_dir / "tasks.md").write_text("# tasks.md\n- [ ] Coord-only unfinished task\n", encoding="utf-8")
+    (coord_feature_dir / "spec.md").write_text(
+        "# spec.md\n[NEEDS CLARIFICATION: coord marker] <!-- decision_id: 01KS0ABCDEF0123456789ABCDE -->\n",
+        encoding="utf-8",
+    )
     for artifact_name in ("spec.md", "plan.md", "tasks.md"):
         (feature_dir / artifact_name).unlink()
     subprocess.run(["git", "-C", str(repo_root), "add", "-A"], check=True, capture_output=True)
@@ -303,6 +308,8 @@ def test_collect_feature_summary_checks_required_artifacts_in_coord_worktree(tmp
 
     assert summary.feature_dir == feature_dir
     assert summary.missing_artifacts == []
+    assert summary.unchecked_tasks == ["- [ ] Coord-only unfinished task"]
+    assert summary.needs_clarification == [str(coord_feature_dir / "spec.md")]
 
 
 def test_collect_feature_summary_blocks_workflow_changes_without_runner_evidence(tmp_path: Path) -> None:
