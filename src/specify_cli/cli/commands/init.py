@@ -53,7 +53,7 @@ _ensure_executable_scripts: Callable[[Path, StepTracker | None], None] | None = 
 
 _logger = logging.getLogger(__name__)
 _EVENT_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log"
-_COMMAND_SKILL_AGENTS = {"codex", "pi", "letta"}
+_COMMAND_SKILL_AGENTS = {"codex", "vibe", "pi", "letta"}
 _GITHUB_DIFF_GITATTRIBUTES_ENTRIES = (
     "kitty-specs/**/status.json linguist-generated=true",
     "kitty-specs/**/status.events.jsonl linguist-generated=true",
@@ -404,7 +404,7 @@ def _agent_command_token(agent_key: str, command: str) -> str:
     if agent_key == "pi":
         return f"/skill:spec-kitty.{command}"
     if agent_key == "letta":
-        return f"spec-kitty.{command}"
+        return f"/spec-kitty.{command}"
     return f"/spec-kitty.{command}"
 
 
@@ -1035,7 +1035,7 @@ def init(  # noqa: C901
             "2. Launch Letta Code in this project:",
             "     [cyan]letta[/cyan]",
             "3. Ask Letta Code to use the Spec Kitty specify skill:",
-            "     [cyan]Use spec-kitty.specify to specify <describe what you want to build>[/cyan]",
+            "     [cyan]/spec-kitty.specify <describe what you want to build>[/cyan]",
         ]
         letta_panel = Panel(
             "\n".join(letta_steps_lines),

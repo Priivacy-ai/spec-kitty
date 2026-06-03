@@ -68,3 +68,23 @@ def test_sync_create_missing_reinstalls_codex_command_skills(tmp_path: Path) -> 
     for entry in manifest.entries:
         assert entry.agents == ("codex",)
         assert (tmp_path / entry.path).is_file()
+
+
+def test_sync_create_missing_fails_when_codex_repair_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_config(tmp_path, ["codex"])
+
+    def _fail_install(repo_root: Path, agent_key: str) -> object:
+        raise RuntimeError("installer boom")
+
+    monkeypatch.setattr(command_installer, "install", _fail_install)
+
+    with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=tmp_path):
+        result = runner.invoke(app, ["sync", "--create-missing"])
+
+    assert result.exit_code == 1
+    assert "Failed to install codex skills: installer boom" in result.output
+    assert "No changes needed" not in result.output
+    assert "Sync complete" not in result.output

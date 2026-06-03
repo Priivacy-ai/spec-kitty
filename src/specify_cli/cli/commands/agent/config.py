@@ -213,6 +213,7 @@ def _check_or_create_configured_agent_dirs(repo_root: Path, config: AgentConfig)
     """Check configured managed surfaces and create legacy local dirs if needed."""
     console.print("\n[cyan]Checking for missing directories...[/cyan]")
     changes_made = False
+    errors_found = False
     missions_dir = repo_root / ".kittify" / "missions" / "software-dev" / "command-templates"
 
     for agent_key in config.available:
@@ -239,11 +240,13 @@ def _check_or_create_configured_agent_dirs(repo_root: Path, config: AgentConfig)
                 changes_made = True
             elif error:
                 console.print(f"  [red]✗[/red] {error}")
+                errors_found = True
             continue
 
         agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
         if not agent_dir_info:
             console.print(f"  [yellow]⚠[/yellow] Unknown agent: {agent_key}")
+            errors_found = True
             continue
 
         agent_root, subdir = agent_dir_info
@@ -262,6 +265,10 @@ def _check_or_create_configured_agent_dirs(repo_root: Path, config: AgentConfig)
             changes_made = True
         except OSError as exc:
             console.print(f"  [red]✗[/red] Failed to create {agent_root}/{subdir}/: {exc}")
+            errors_found = True
+
+    if errors_found:
+        raise typer.Exit(1)
 
     return changes_made
 

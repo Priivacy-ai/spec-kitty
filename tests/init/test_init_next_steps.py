@@ -112,6 +112,47 @@ def test_init_next_steps_names_spec_kitty_next(
     )
 
 
+def test_init_letta_next_steps_use_slash_skill_syntax(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    app, buf = _make_app_with_buf()
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+
+    result = _run(app, ["init", "letta-proj", "--ai", "letta", "--non-interactive"])
+
+    assert result.exit_code == 0, f"init failed (exit_code={result.exit_code})"
+
+    output = buf.getvalue()
+    assert "/spec-kitty.specify" in output
+    assert "Use spec-kitty.specify" not in output
+
+
+def test_init_vibe_next_steps_list_only_installed_command_skills(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    app, buf = _make_app_with_buf()
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+
+    result = _run(app, ["init", "vibe-proj", "--ai", "vibe", "--non-interactive"])
+
+    assert result.exit_code == 0, f"init failed (exit_code={result.exit_code})"
+
+    output = buf.getvalue()
+    assert "Build your specification with command skills" in output
+    assert "/spec-kitty.tasks-finalize" in output
+    assert "/spec-kitty.dashboard" not in output
+    assert "/spec-kitty.accept" not in output
+    assert "/spec-kitty.merge" not in output
+
+
 # ---------------------------------------------------------------------------
 # T1.4b: The literal commit string must be absent from src/
 # ---------------------------------------------------------------------------
