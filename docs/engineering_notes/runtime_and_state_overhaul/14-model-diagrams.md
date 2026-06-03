@@ -18,9 +18,16 @@ are inline where useful.
 
 ## Tier 1 — Domain overview & interrelations
 
+> **⚠ Reconciliation pending — see [15](./15-dialectic-on-the-domain-model.md).** A dialectic on this
+> Tier 1 **refuted** three labels below: Context is a **Shared Kernel / OHS** (not an Execution
+> subdomain); Actor is **cross-domain** (not realized-only-in-Execution); the Executor Prompt is a
+> **Published Language / OHS projection** (not a 2-domain DTO). The Mission-aggregate ≠ MissionRun-aggregate
+> *cut* survives. Treat the boxes below as an **aggregate + context sketch (names provisional)** until
+> reconciled per `15` §"Consolidation checklist".
+
 **Three top-level domains**, with **Context as a subdomain of Execution** and two boundary/cross-cutting
 concepts (**Actor**, **Executor Prompt**). *(Refined from an earlier "four domains" draft per Stijn's
-cross-tier feedback — see the refinements note below.)*
+cross-tier feedback — see the refinements note below; partially refuted by `15`.)*
 
 - **Governance** (Charter · Doctrine) — *beliefs & rules*: Directive · Tactic · Paradigm · AgentProfile · **MissionType**.
 - **Mission Management** *(intent & planning; durable · git · `kitty-specs/`)* — **Mission** · **WorkPackage** · **Lane/Status** (MissionStatus agg). Identity: `mission_id`.

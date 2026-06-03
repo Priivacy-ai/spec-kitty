@@ -131,6 +131,14 @@ Execution** (beliefs sourced from Governance), and the **Executor Prompt a bound
 Mission Management and Execution (aligned via Governance + Context). Mission is a *concept* in Mission
 Management (not Runtime — ADR 2026-04-04-2 planning/runtime split); MissionType is a Governance artifact.
 
+**Dialectic on the refined design (`15`).** Stress-tested the Tier-1 domain model. The **core
+survives** (Mission-aggregate ≠ MissionRun-aggregate; 1:many; ADR+CI backed), but **three recent
+refinements were refuted**, mostly by our *own* earlier docs (03/06/09) and code: Context is a **Shared
+Kernel / OHS** (not a subdomain of Execution); **Actor is cross-domain** (the swimlane itself puts the
+Operator in Governance + Integrate); the **Executor Prompt is a Published Language / OHS projection**
+(4-way), not a 2-domain DTO. Lesson: the last turns' strategic-DDD *labels* got ahead of the evidence;
+`09` was closer to right. A 6-item consolidation checklist (`15`) must be cleared before mapping to `06`.
+
 ## Where we are now
 
 - **Phase 1 (grounding + reconnaissance): complete** — docs `01`–`08`.
