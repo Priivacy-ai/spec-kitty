@@ -24,8 +24,8 @@ subtasks:
 - T029
 - T030
 - T031
-agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
-shell_pid: "66734"
+agent: "claude:claude-sonnet-4-6:reviewer-renata:reviewer"
+shell_pid: "72675"
 history:
 - date: '2026-06-03'
   event: created
@@ -279,3 +279,7 @@ Add optional `mission_id` and `mission_slug` fields to `MissionRunSnapshot` and 
 
 - 2026-06-03T12:06:19Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=66734 – Assigned agent via action command
 - 2026-06-03T12:13:49Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=66734 – Implementation complete. Lint: exit 0. Tests: 1113 passed, 1 pre-existing unrelated failure (test_detect_false_positive_worktree). New backward-compat tests: 8 passed.
+- 2026-06-03T12:14:22Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=71790 – Started review via action command
+- 2026-06-03T12:14:32Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=71871 – Started review via action command
+- 2026-06-03T12:14:58Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=72675 – Started review via action command
+- 2026-06-03T12:17:44Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=72675 – Review passed (cycle 1): MissionRunSnapshot and MissionRunRef both gain optional mission_id/mission_slug with None defaults for backward-compat. All 6 snapshot-copy sites in engine.py carry fields through. 8/8 unit tests pass, ruff clean on all changed files. No modifications outside owned_files.

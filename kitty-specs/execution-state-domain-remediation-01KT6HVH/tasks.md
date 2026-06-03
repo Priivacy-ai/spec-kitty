@@ -125,14 +125,14 @@
 **Dependencies**: WP02
 
 **Subtasks**:
-- [ ] T018 Create aggregate.py with ActiveWPStatus dataclass (WP04)
-- [ ] T019 Implement MissionStatus.load() with topology resolution + fail-closed (WP04)
-- [ ] T020 Implement MissionStatus.claim() using coord-aware read path (WP04)
-- [ ] T021 Implement MissionStatus.transition() calling BookkeepingTransaction internally (WP04)
-- [ ] T022 Implement MissionStatus.save() returning CommitReceipt (WP04)
-- [ ] T023 Export MissionStatus + ActiveWPStatus in status/__init__.py (WP04)
-- [ ] T024 Migrate agent/status.py to MissionStatus.load() + .claim() (WP04)
-- [ ] T025 Write unit tests for MissionStatus (WP04)
+- [x] T018 Create aggregate.py with ActiveWPStatus dataclass (WP04)
+- [x] T019 Implement MissionStatus.load() with topology resolution + fail-closed (WP04)
+- [x] T020 Implement MissionStatus.claim() using coord-aware read path (WP04)
+- [x] T021 Implement MissionStatus.transition() calling BookkeepingTransaction internally (WP04)
+- [x] T022 Implement MissionStatus.save() returning CommitReceipt (WP04)
+- [x] T023 Export MissionStatus + ActiveWPStatus in status/__init__.py (WP04)
+- [x] T024 Migrate agent/status.py to MissionStatus.load() + .claim() (WP04)
+- [x] T025 Write unit tests for MissionStatus (WP04)
 
 **Success criteria**: `MissionStatus` and `ActiveWPStatus` exist in `status/__init__.py` exports. `agent/status.py` contains no raw `main_repo_root / "kitty-specs"` path construction. Coord-topology missions fail closed when coord unavailable. e2e ratchet (WP02) stays green.
 
