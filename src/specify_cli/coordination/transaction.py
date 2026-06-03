@@ -691,6 +691,12 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                     f"Failed to resolve coordination worktree for "
                     f"{safe_mission_slug}-{safe_mid8}: {exc}"
                 ) from exc
+            # Status events must be committed to the coordination branch,
+            # not the caller-supplied destination (which may be "main").
+            # Mirror the legacy path's destination_ref override (lines above).
+            coord_branch = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
+            normalised_ref = _normalize_ref(coord_branch)
+            destination_ref = normalised_ref
 
         # 3. Compute the feature_dir + status files INSIDE the resolved
         # worktree.  Both paths (coord and legacy lane) host the
