@@ -155,40 +155,75 @@ graph TD
 > whose subject is that Work Package; the **Actor** *consumes* the prompt. (This static view is the
 > structural counterpart to the governed-invocation sequence below.)
 
-### 2b · Mission domain (the layered work) — corrected per `13`
+### 2b · Mission Management domain (the layered work) — corrected per `13`
+
+Cross-domain concepts dashed. Shows the same execution spine as 2a, from the Mission-Management side:
+a **Mission Step** (Governance) *targets* a **Work Package**; a **Mission Run** (Execution) *drives*
+the Mission and *issues* that step.
 
 ```mermaid
 graph TD
-  MT["Mission Type<br/>action_sequence · templates · guards"]
+  classDef ext fill:#f4f4f4,stroke:#888,stroke-dasharray:3 2;
+  MT["Mission Type (Governance)"]:::ext
+  MS["Mission Step (Governance)"]:::ext
+  RUN["Mission Run (Execution)"]:::ext
   M["Mission (durable · kitty-specs/&lt;slug&gt;/ · git)<br/>[PURPOSE — now]"]
   ML["mission-level state<br/>identity(mission_id) · type · phase* · topology · interaction policy*"]
   WLAYER["work-package-level state = MissionStatus aggregate"]
   WP["Work Package (1:N)<br/>lane (9-state FSM) · agent_profile · role · location · model · tool · evidence · deps"]
-  MT -->|"instantiated as &nbsp;1:N"| M
+  MT -->|"instantiated as  1:N"| M
   M --> ML
   M --> WLAYER
-  WLAYER -->|"one per &nbsp;1:N"| WP
+  WLAYER -->|"tracks  1:N"| WP
+  RUN -.->|"drives  1:N"| M
+  RUN -.->|"issues the current"| MS
+  MS -.->|"(implement / review) targets"| WP
 ```
 
 > Disambiguation: the **layered state lives on the Mission** (not the Run — `13`). Mission-level =
-> identity/type/phase/topology/policy; WP-level = the `MissionStatus` aggregate. `*` = provisional
+> identity/type/phase/topology/policy; WP-level = the `MissionStatus` aggregate. The execution spine
+> (dashed) is consistent with 2a/2c: **Mission Run → Mission Step → Work Package**. `*` = provisional
 > (phase derived-not-enum; interaction policy resolved-and-frozen at plan time).
 
-### 2c · Runtime domain (the ephemeral driver) — corrected per `13`
+### 2c · Execution / Runtime domain (driver + Actor + Context) — corrected per `13`
+
+The domain now drawn in full: it **contains** the Mission Run, the **Actor** (realized here), and the
+**Context** subdomain; it reaches *out* (dashed) to Governance (Mission Step) and Mission Management
+(Mission, Work Package). Same spine as 2a/2b.
 
 ```mermaid
 graph TD
-  M["Mission (durable)"]
-  R["Mission Run<br/>(ephemeral · .kittify/runtime/runs/&lt;run_id&gt; · gitignored)"]
-  FT["frozen template + hash"]; IS["issued step"]; DEC["decisions / pending"]; BR["blocked_reason"]; AL["Activity Ledger<br/>(provenance — MissionRun state)"]
-  M -->|"driven by &nbsp;1:N"| R
+  classDef ext fill:#f4f4f4,stroke:#888,stroke-dasharray:3 2;
+  classDef sup fill:#eafff0,stroke:#2b8c4b,stroke-width:1px;
+
+  MS["Mission Step (Governance)"]:::ext
+  M["Mission (Mission Mgmt)"]:::ext
+  WP["Work Package (Mission Mgmt)"]:::ext
+
+  subgraph EXEC["EXECUTION / RUNTIME domain"]
+    R["Mission Run<br/>(ephemeral · .kittify/runtime/runs/&lt;run_id&gt;)"]
+    FT["frozen template + hash"]; IS["issued step"]; DEC["decisions / pending"]; BR["blocked_reason"]; AL["Activity Ledger (provenance)"]
+    ACTOR["Actor (change-effector)"]
+    subgraph CTX["Context / Environment (supporting subdomain)"]
+      CTXc["ActionContext (read / write / destination)"]:::sup
+    end
+  end
+
+  M -.->|"driven by  1:N"| R
   R --> FT & IS & DEC & BR & AL
+  R -->|"issues the current"| MS
+  MS -.->|"(implement / review) targets"| WP
+  R -->|"governed invocation → assigns step"| ACTOR
+  ACTOR -->|"senses"| CTXc
+  ACTOR -.->|"produces evidence"| M
   R -.->|"* should reference its Mission (current gap)"| M
 ```
 
 > Disambiguation: a **Mission Run is one pass an actor makes through a Mission's steps** — ephemeral,
-> 1:N to the Mission. Today it's degenerate: its snapshot stores the mission *type* but not the
-> mission id/slug (`13`) — the dashed edge is the gap to close.
+> 1:N to the Mission. The Execution domain *contains* the Run, the **Actor** (realized here; beliefs
+> from Governance — 2d), and the **Context** subdomain (2e). Today the Run is degenerate: its snapshot
+> stores the mission *type* but not the mission id/slug (`13`) — the dashed `should reference its
+> Mission` edge is the gap to close.
 
 ### 2d · Actor (metamodel → kinds; realized in Execution)
 
@@ -219,10 +254,13 @@ graph TD
   AC["Context = hardened ActionContext<br/>(deep module · ADR 2026-03-09-1<br/>'commands resolve context, prompts consume it')"]
   ID["Mission Identity"]; FS["Filesystem layout"]; VC["Version-control scape"]; ST["Status snapshot (read view)"]; PRf["Execution prefs<br/>(OperationalContext)"]
   RC["ReadContext"]; WC["WriteContext<br/>(atomicity: worktree == destination_ref)"]; PC["PromptContext"]
+  classDef ext fill:#f4f4f4,stroke:#888,stroke-dasharray:3 2;
+  PROMPT["Executor Prompt (DTO)"]:::ext
   AC --> ID & FS & VC & ST & PRf
   AC -->|"projects per operation"| RC
   AC -->|"projects per operation"| WC
   AC -->|"projects per operation"| PC
+  PC -.->|"aligns: environment → feeds"| PROMPT
 ```
 
 > Disambiguation: Context is a **supporting subdomain of Execution/Runtime** — it exists to serve the
