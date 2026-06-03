@@ -1,3 +1,8 @@
+---
+title: "2.1 Main-Branch Cutover Checklist"
+description: "Migration guidance for 2.1 Main-Branch Cutover Checklist in Spec Kitty 3.2, including upgrade context and historical behavior boundaries."
+---
+
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
 # 2.1 Main-Branch Cutover Checklist

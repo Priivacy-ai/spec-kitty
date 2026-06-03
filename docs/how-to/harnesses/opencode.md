@@ -1,3 +1,8 @@
+---
+title: "Use Spec Kitty in OpenCode"
+description: "Configure the Use Spec Kitty in OpenCode harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
+---
+
 # Use Spec Kitty in OpenCode
 
 > **Tier:** supported.

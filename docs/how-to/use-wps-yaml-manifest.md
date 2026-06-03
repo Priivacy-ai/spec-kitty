@@ -1,3 +1,8 @@
+---
+title: "Use the wps.yaml Manifest"
+description: "How to use the wps.yaml manifest with Spec Kitty 3.2: Learn about the structured work-package manifest format introduced in 3.1.0 and how it fits into the."
+---
+
 # Use the `wps.yaml` Manifest
 
 Learn about the structured work-package manifest format introduced in 3.1.0 and how it fits into the `finalize-tasks` workflow.

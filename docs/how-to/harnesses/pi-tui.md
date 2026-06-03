@@ -1,3 +1,8 @@
+---
+title: "Use Spec Kitty in Pi TUI"
+description: "Configure the Use Spec Kitty in Pi TUI harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
+---
+
 # Use Spec Kitty in Pi TUI
 
 > **Tier:** **partial** — Spec Kitty installs Pi command-skill packages in 3.2, but real-session smoke evidence is not yet recorded.

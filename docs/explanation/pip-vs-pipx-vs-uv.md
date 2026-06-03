@@ -1,4 +1,6 @@
 ---
+title: "Pip vs pipx vs uv — which installer should you use?"
+description: "Explanation of Pip vs pipx vs uv — which installer should you use? in Spec Kitty 3.2, including the model, rationale, and operator implications."
 type: explanation
 audience: end-users
 ---

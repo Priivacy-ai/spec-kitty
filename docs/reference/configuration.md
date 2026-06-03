@@ -1,3 +1,8 @@
+---
+title: "Configuration Reference"
+description: "Reference for Configuration Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+---
+
 # Configuration Reference
 
 This document describes all configuration files used by Spec Kitty.

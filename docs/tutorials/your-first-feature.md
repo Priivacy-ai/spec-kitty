@@ -1,3 +1,8 @@
+---
+title: "Your First Feature: Complete Workflow"
+description: "Walk through a complete Spec Kitty 3.2 mission from specification through plan, tasks, implementation, review, and merge."
+---
+
 # Your First Feature: Complete Workflow
 
 **Divio type**: Tutorial

@@ -1,3 +1,8 @@
+---
+title: "Supported AI Agents Reference"
+description: "Reference for Supported AI Agents Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+---
+
 # Supported AI Agents Reference
 
 Spec Kitty currently exposes **17 agent surfaces**: 13 slash-command or prompt-file hosts and 4 project-local command-skill hosts.

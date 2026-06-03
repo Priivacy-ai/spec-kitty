@@ -1,3 +1,8 @@
+---
+title: "Review Spec Kitty Artifacts with PlanBridge"
+description: "How to review spec kitty artifacts with planbridge with Spec Kitty 3.2: Review Spec Kitty Artifacts with PlanBridge."
+---
+
 # Review Spec Kitty Artifacts with PlanBridge
 
 Use this guide when you want inline browser comments on the `spec.md`, `plan.md`, and `tasks.md` files that Spec Kitty creates before implementation begins.

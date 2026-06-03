@@ -1,0 +1,29 @@
+# Spec Kitty Documentation
+
+Spec Kitty 3.2 is the current documentation set for the Spec Kitty CLI, Charter governance model, AI harness integration, mission runtime, and project upgrade workflows.
+
+## Current Version Stance
+
+- Current docs: https://docs.spec-kitty.ai/
+- Current overview: https://docs.spec-kitty.ai/3x/
+- Current runtime model: Charter-era Spec Kitty 3.2
+- Current project governance source: `.kittify/charter/charter.md`
+- Current mission loop command: `spec-kitty next --agent <name> --mission <slug>`
+- Historical 1.x and 2.x pages are archived under `/archive/` and are not the starting point for new projects.
+
+## Best Entry Points
+
+- New users: https://docs.spec-kitty.ai/tutorials/getting-started.html
+- Upgrading projects: https://docs.spec-kitty.ai/migration/
+- Installing or upgrading CLI/project state: https://docs.spec-kitty.ai/how-to/install-and-upgrade.html
+- Harness support matrix: https://docs.spec-kitty.ai/reference/supported-harnesses.html
+- CLI reference: https://docs.spec-kitty.ai/reference/cli-commands.html
+- Charter model explanation: https://docs.spec-kitty.ai/3x/charter-overview.html
+- Historical archive: https://docs.spec-kitty.ai/archive/
+
+## Documentation Types
+
+- Tutorials teach complete guided workflows.
+- How-to guides solve specific operator tasks.
+- Reference pages define exact CLI, file, schema, and environment behavior.
+- Explanation pages describe mental models, architecture, and tradeoffs.

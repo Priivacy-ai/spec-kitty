@@ -1,3 +1,8 @@
+---
+title: "How to Troubleshoot Merge Issues"
+description: "How to troubleshoot merge issues with Spec Kitty 3.2: Use this guide to recover from interrupted merges, resolve conflicts, and fix pre-flight failures."
+---
+
 # How to Troubleshoot Merge Issues
 
 Use this guide to recover from interrupted merges, resolve conflicts, and fix pre-flight failures.

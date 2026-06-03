@@ -1,3 +1,8 @@
+---
+title: "Installation Guide"
+description: "Install Spec Kitty 3.2 on macOS, Linux, or Windows, then verify the CLI and required AI coding agent setup."
+---
+
 # Installation Guide
 
 > Spec Kitty is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). Installation commands below target the spec-kitty distribution while crediting the original project.

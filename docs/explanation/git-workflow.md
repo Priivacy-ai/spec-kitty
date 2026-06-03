@@ -1,3 +1,8 @@
+---
+title: "Git Workflow: Who Does What"
+description: "Explanation of Git Workflow: Who Does What in Spec Kitty 3.2, including the model, rationale, and operator implications."
+---
+
 # Git Workflow: Who Does What
 
 Spec Kitty draws a hard line between **infrastructure git** and **content git**. Python handles all the plumbing -- resolving execution workspaces, creating worktrees, committing status changes, merging branches, cleaning up. Agents (and humans) handle all the content -- writing code, committing implementations, rebasing, and resolving conflicts.

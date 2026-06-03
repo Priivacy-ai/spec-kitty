@@ -1,3 +1,8 @@
+---
+title: "Slash Command Reference"
+description: "Reference for Slash Command Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+---
+
 # Slash Command Reference
 
 Slash commands are invoked inside your AI agent (Claude Code, Codex CLI, Cursor, etc.). They are generated from Spec Kitty command templates and typically accept optional free-form arguments.

@@ -1,3 +1,8 @@
+---
+title: "Understanding Spec Kitty Missions"
+description: "Tutorial for Understanding Spec Kitty Missions in Spec Kitty 3.2: Spec Kitty supports four mission types that tailor the workflow and artifacts to your goal."
+---
+
 # Understanding Spec Kitty Missions
 
 **Divio type**: Tutorial

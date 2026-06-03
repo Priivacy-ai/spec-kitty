@@ -1,3 +1,8 @@
+---
+title: "Bulk-edit gate reference"
+description: "Reference for Bulk-edit gate reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+---
+
 # Bulk-edit gate reference
 
 When a mission's `meta.json` declares `change_mode: bulk_edit`, the planning

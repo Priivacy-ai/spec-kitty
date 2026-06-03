@@ -1,4 +1,6 @@
 ---
+title: "spec-kitty init lifecycle"
+description: "Reference for spec-kitty init lifecycle in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
 type: reference
 audience: end-users
 ---

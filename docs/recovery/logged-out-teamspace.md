@@ -1,3 +1,8 @@
+---
+title: "Recovery: Logged out on a connected teamspace"
+description: "Recovery guide for Recovery: Logged out on a connected teamspace in Spec Kitty 3.2, including symptoms, repair steps, and expected outcomes."
+---
+
 # Recovery: Logged out on a connected teamspace
 
 When a repository is connected to a Spec Kitty teamspace but the local CLI

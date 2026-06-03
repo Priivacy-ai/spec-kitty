@@ -1,6 +1,6 @@
 ---
-title: Set Up a Codex Launcher for Spec Kitty
-description: Configure a `kitty_cdx` launcher that uses repository-local `.codex` state and activates `.venv` when available.
+title: "Set Up a Codex Launcher for Spec Kitty"
+description: "Configure a `kitty_cdx` launcher that uses repository-local `.codex` state and activates `.venv` when available."
 ---
 
 # Set Up a Codex Launcher for Spec Kitty

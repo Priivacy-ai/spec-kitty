@@ -1,3 +1,8 @@
+---
+title: "How to Keep Main Clean"
+description: "How to keep main clean with Spec Kitty 3.2: Use this guide when you want planning to happen from the repository root checkout but you do not want the."
+---
+
 # How to Keep Main Clean
 
 Use this guide when you want planning to happen from the repository root checkout but you do not want the mission to target `main`.

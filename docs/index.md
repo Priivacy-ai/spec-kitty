@@ -1,11 +1,11 @@
 ---
-title: Spec Kitty 3.2 Documentation
-description: Current Spec Kitty 3.2 documentation for new adopters, upgrade operators, harness users, and CLI integrators.
+title: "Spec Kitty 3.2 Documentation"
+description: "Current Spec Kitty 3.2 documentation for new adopters, upgrade operators, harness users, and CLI integrators."
 ---
 
 <section class="sk-docs-hero" aria-labelledby="sk-docs-title">
   <p class="sk-eyebrow">Spec Kitty 3.2</p>
-  <h1 id="sk-docs-title">Spec Kitty documentation</h1>
+  <h1 id="sk-docs-title">Spec Kitty 3.2 documentation</h1>
   <p class="sk-docs-lead">Install the CLI, run missions through your AI harness, and keep specs, plans, work packages, and review evidence aligned.</p>
   <nav class="sk-docs-actions" aria-label="Primary documentation paths">
     <a class="sk-btn sk-btn-primary" href="tutorials/getting-started.md">Start from zero</a>
@@ -15,6 +15,14 @@ description: Current Spec Kitty 3.2 documentation for new adopters, upgrade oper
 </section>
 
 Spec Kitty 3.2 is the current documentation set. Use it when you are installing Spec Kitty for the first time, upgrading an existing project, running missions through an AI harness, or checking exact CLI behavior.
+
+## Answer summary
+
+- Current target version: Spec Kitty 3.2.
+- Current runtime model: Charter-era missions with governed context injection.
+- Current governance source: `.kittify/charter/charter.md`.
+- Current mission loop: `spec-kitty next --agent <name> --mission <slug>`.
+- Upgrade path: start at [Migration to Spec Kitty 3.2](migration/index.md), then follow the current install and project upgrade guides.
 
 ## Choose your path
 
@@ -54,7 +62,7 @@ The current docs keep the four Divio types separate so you can choose by intent:
 
 ## Current 3.2 surface
 
-- [3.x / 3.2 overview](3x/index.md) explains the current Charter-era model.
+- [3.2 current overview](3x/index.md) explains the current Charter-era model.
 - [Install and upgrade guides](how-to/upgrade-project.md) are the source of truth for current project files.
 - [Supported harnesses](reference/supported-harnesses.md) shows the host support matrix.
 - [Slash commands](reference/slash-commands.md) maps host command files to Spec Kitty actions.

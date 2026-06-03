@@ -1,6 +1,6 @@
 ---
-title: Historical Archive
-description: Historical Spec Kitty 1.x and 2.x documentation preserved for migration and audit context.
+title: "Historical Archive"
+description: "Historical Spec Kitty 1.x and 2.x documentation archive, preserved for audits and older project behavior lookup."
 ---
 
 # Historical Archive
@@ -15,5 +15,11 @@ This section preserves previous Spec Kitty release documentation for historical 
 ## Current Guidance
 
 - [Start with Spec Kitty 3.2](../index.md)
-- [3.x / 3.2 overview](../3x/index.md)
-- [Migration to 3.2](../migration/from-charter-2x.md)
+- [3.2 current overview](../3x/index.md)
+- [Migration to 3.2](../migration/index.md)
+
+## Current replacement
+
+- For new projects: start with [Getting Started](../tutorials/getting-started.md).
+- For upgrades: use [Migration to Spec Kitty 3.2](../migration/index.md).
+- For old behavior lookup: stay in this archive and treat claims as version-scoped.

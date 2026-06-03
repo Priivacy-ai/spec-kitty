@@ -1,4 +1,6 @@
 ---
+title: "Internal Hosted-Readiness Mode (Pre-Launch)"
+description: "How to internal hosted-readiness mode (pre-launch) with Spec Kitty 3.2: Internal Hosted-Readiness Mode (Pre-Launch)."
 type: how-to
 audience: internal / pre-launch operators
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Tutorial: Governed Charter Workflow End-to-End"
-description: Learn to set up governance, synthesize doctrine, and run a governed mission action from scratch.
+description: "Learn to set up governance, synthesize doctrine, and run a governed mission action from scratch."
 ---
 
 # Tutorial: Governed Charter Workflow End-to-End

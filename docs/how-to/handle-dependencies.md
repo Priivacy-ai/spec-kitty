@@ -1,6 +1,6 @@
 ---
-title: How to Handle Work Package Dependencies
-description: Declare, implement, and maintain dependencies between work packages in Spec Kitty.
+title: "How to Handle Work Package Dependencies"
+description: "Declare, implement, and maintain dependencies between work packages in Spec Kitty."
 ---
 
 # How to Handle Work Package Dependencies

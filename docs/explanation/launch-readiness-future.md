@@ -1,4 +1,6 @@
 ---
+title: "Launch-Readiness Behavior (Coming Soon)"
+description: "Explanation of Launch-Readiness Behavior (Coming Soon) in Spec Kitty 3.2, including the model, rationale, and operator implications."
 type: explanation
 audience: launch coordinators
 ---

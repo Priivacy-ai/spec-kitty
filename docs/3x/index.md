@@ -1,11 +1,19 @@
 ---
-title: Spec Kitty 3.2 current overview
-description: Landing page for current Spec Kitty 3.2 Charter-era documentation.
+title: "Spec Kitty 3.2 current overview"
+description: "Landing page for current Spec Kitty 3.2 Charter-era documentation."
 ---
 
 # Spec Kitty 3.2 current overview
 
 You are looking at Spec Kitty 3.2 documentation. This is the current product surface for new projects and upgrades.
+
+## Answer summary
+
+- Current target version: Spec Kitty 3.2.
+- Current runtime model: Charter-era missions with governed context injection.
+- Current governance source: `.kittify/charter/charter.md`.
+- Current mission loop: `spec-kitty next --agent <name> --mission <slug>`.
+- Upgrade path: [Migration to Spec Kitty 3.2](../migration/index.md).
 
 ## What is Charter?
 

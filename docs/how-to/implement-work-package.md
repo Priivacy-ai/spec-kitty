@@ -1,3 +1,8 @@
+---
+title: "How to Implement a Work Package"
+description: "How to implement a work package with Spec Kitty 3.2: Use this guide to implement a single work package (WP) in its execution workspace."
+---
+
 # How to Implement a Work Package
 
 Use this guide to implement a single work package (WP) in its execution workspace.

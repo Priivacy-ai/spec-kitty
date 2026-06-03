@@ -1,3 +1,8 @@
+---
+title: "2.x Documentation (Archive)"
+description: "Historical Spec Kitty 2.x archive page for 2.x Documentation (Archive); use Spec Kitty 3.2 docs for current Charter-era workflows."
+---
+
 > Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../3x/index.md) for current docs.
 
 # 2.x Documentation (Archive)
@@ -24,6 +29,12 @@ contributors can understand older behavior; current projects should use the 3.2 
 3. [Runtime and Missions](runtime-and-missions.md)
 4. [Orchestration and API Boundary](orchestration-and-api.md)
 5. [ADR Coverage](adr-coverage.md)
+
+## Current replacement
+
+- For new projects: start with [Spec Kitty 3.2 documentation](../../index.md).
+- For upgrades: use [Migration to Spec Kitty 3.2](../../migration/index.md).
+- For old behavior lookup: use this 2.x archive only for historical context.
 
 ## Architecture Repository Layout
 

@@ -1,3 +1,8 @@
+---
+title: "Getting Started with Spec Kitty"
+description: "Install Spec Kitty 3.2, initialize a project, and create your first mission with a guided beginner workflow."
+---
+
 # Getting Started with Spec Kitty
 
 **Divio type**: Tutorial

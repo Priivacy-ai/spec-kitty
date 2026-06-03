@@ -1,3 +1,8 @@
+---
+title: "Use Spec Kitty in Windsurf"
+description: "Configure the Use Spec Kitty in Windsurf harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
+---
+
 # Use Spec Kitty in Windsurf
 
 > **Tier:** supported. Workflow mechanism.

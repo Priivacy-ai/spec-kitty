@@ -1,3 +1,8 @@
+---
+title: "finalize-tasks internals reference"
+description: "Reference for finalize-tasks internals reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+---
+
 # `finalize-tasks` internals reference
 
 Two non-obvious behaviours an operator may encounter when running

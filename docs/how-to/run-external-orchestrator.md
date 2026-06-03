@@ -1,6 +1,6 @@
 ---
-title: Run the External Orchestrator
-description: Use spec-kitty-orchestrator with spec-kitty orchestrator-api to automate multi-agent WP execution.
+title: "Run the External Orchestrator"
+description: "Use spec-kitty-orchestrator with spec-kitty orchestrator-api to automate multi-agent WP execution."
 ---
 
 # Run the External Orchestrator

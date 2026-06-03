@@ -50,7 +50,13 @@
     "resource": [
       {
         "files": [
-          "assets/**"
+          "assets/**",
+          "robots.txt",
+          "CNAME",
+          ".nojekyll",
+          "llms.txt",
+          "1x/*.html",
+          "2x/*.html"
         ]
       }
     ],
@@ -82,6 +88,7 @@
     "globalMetadata": {
       "_appTitle": "Spec Kitty Documentation",
       "_appName": "Spec Kitty",
+      "_siteUrl": "https://docs.spec-kitty.ai/",
       "_appFooter": "Spec Kitty documentation — current 3.2 tutorials, how-to guides, reference, and explanations · <a href=\"https://docs.spec-kitty.ai/archive/1x/\">1.x historical archive</a> · <a href=\"https://docs.spec-kitty.ai/archive/2x/\">2.x historical archive</a>",
       "_enableSearch": true,
       "_disableContribution": false,

@@ -1,3 +1,8 @@
+---
+title: "Doctrine relationships: lineage, delegation, and augmentation"
+description: "Explanation of Doctrine relationships: lineage, delegation, and augmentation in Spec Kitty 3.2, including the model, rationale, and operator implications."
+---
+
 # Doctrine relationships: lineage, delegation, and augmentation
 
 This page explains how relationships between doctrine artifacts are modelled in

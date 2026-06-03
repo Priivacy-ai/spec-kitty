@@ -1,3 +1,8 @@
+---
+title: "Use Spec Kitty in Codex CLI"
+description: "Configure the Use Spec Kitty in Codex CLI harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
+---
+
 # Use Spec Kitty in Codex CLI
 
 > **Tier:** first_class — heaviest Agent Skills integration.

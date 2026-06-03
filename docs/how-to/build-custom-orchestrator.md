@@ -1,6 +1,6 @@
 ---
-title: Build a Custom Orchestrator
-description: Implement your own external orchestration runtime against spec-kitty orchestrator-api.
+title: "Build a Custom Orchestrator"
+description: "Implement your own external orchestration runtime against spec-kitty orchestrator-api."
 ---
 
 # Build a Custom Orchestrator

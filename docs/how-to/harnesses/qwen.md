@@ -1,3 +1,8 @@
+---
+title: "Use Spec Kitty in Qwen Code"
+description: "Configure the Use Spec Kitty in Qwen Code harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
+---
+
 # Use Spec Kitty in Qwen Code
 
 > **Tier:** supported.

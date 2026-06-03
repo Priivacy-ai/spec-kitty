@@ -1,6 +1,6 @@
 ---
-title: Claude Code Workflow
-description: End-to-end guide for running Spec Kitty with the Claude Code CLI and kanban dashboard.
+title: "Claude Code Workflow"
+description: "End-to-end guide for running Spec Kitty with the Claude Code CLI and kanban dashboard."
 ---
 
 # Claude Code Workflow

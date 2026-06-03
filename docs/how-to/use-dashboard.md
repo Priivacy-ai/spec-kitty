@@ -1,6 +1,6 @@
 ---
-title: How to Use the Spec Kitty Dashboard
-description: Start, view, and manage the real-time kanban dashboard for Spec Kitty work packages.
+title: "How to Use the Spec Kitty Dashboard"
+description: "Start, view, and manage the real-time kanban dashboard for Spec Kitty work packages."
 ---
 
 # How to Use the Spec Kitty Dashboard

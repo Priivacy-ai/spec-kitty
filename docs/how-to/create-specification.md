@@ -1,3 +1,8 @@
+---
+title: "How to Create a Feature Specification"
+description: "How to create a feature specification with Spec Kitty 3.2: Use this guide to capture a new feature specification with /spec-kitty.specify."
+---
+
 # How to Create a Feature Specification
 
 Use this guide to capture a new feature specification with `/spec-kitty.specify`.

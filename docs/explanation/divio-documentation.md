@@ -1,3 +1,8 @@
+---
+title: "Why the Divio Documentation System?"
+description: "Explanation of Why the Divio Documentation System? in Spec Kitty 3.2, including the model, rationale, and operator implications."
+---
+
 # Why the Divio Documentation System?
 
 Spec Kitty uses the Divio documentation system to organize its docs. This document explains why we chose this system and how it works.

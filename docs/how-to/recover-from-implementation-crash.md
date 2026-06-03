@@ -1,3 +1,8 @@
+---
+title: "Recover from an Implementation Crash"
+description: "How to recover from an implementation crash with Spec Kitty 3.2: Learn how to restore a work package that is stuck in inprogress after an agent crash or."
+---
+
 # Recover from an Implementation Crash
 
 Learn how to restore a work package that is stuck in `in_progress` after an agent crash or process kill.

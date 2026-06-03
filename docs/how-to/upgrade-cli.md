@@ -1,4 +1,6 @@
 ---
+title: "Upgrade the Spec Kitty CLI"
+description: "Upgrade the Spec Kitty CLI to 3.2, verify the installed binary, and know when project migrations are still required."
 type: how-to
 audience: end-users
 ---

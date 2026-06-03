@@ -1,3 +1,8 @@
+---
+title: "How to Sync Workspaces"
+description: "How to sync workspaces with Spec Kitty 3.2: Keep your workspace up to date with upstream changes from dependent work packages."
+---
+
 # How to Sync Workspaces
 
 Keep your workspace up to date with upstream changes from dependent work packages.

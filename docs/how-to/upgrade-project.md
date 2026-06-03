@@ -1,4 +1,6 @@
 ---
+title: "Upgrade an existing Spec Kitty project"
+description: "Upgrade an existing project to the Spec Kitty 3.2 schema after installing the current CLI, with validation and recovery steps."
 type: how-to
 audience: end-users
 ---

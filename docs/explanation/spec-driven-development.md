@@ -1,3 +1,8 @@
+---
+title: "Spec-Driven Development Explained"
+description: "Explanation of Spec-Driven Development Explained in Spec Kitty 3.2, including the model, rationale, and operator implications."
+---
+
 # Spec-Driven Development Explained
 
 Spec-driven development is the methodology at the heart of Spec Kitty. This document explains what it is, why it matters, and when to use it.

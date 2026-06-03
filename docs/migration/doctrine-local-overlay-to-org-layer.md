@@ -1,8 +1,6 @@
-> Migration note: This page guides users moving from earlier Spec Kitty releases to the 3.2 documentation and runtime model.
-
 ---
-title: Migrating Shared Doctrine to the Org Layer
-description: Move shared governance artifacts out of project-local `.kittify/doctrine/` and into a proper org doctrine pack, including how to deal with deprecated constitution-era paths.
+title: "Migrating Shared Doctrine to the Org Layer"
+description: "Move shared governance artifacts out of project-local `.kittify/doctrine/` and into a proper org doctrine pack, including how to deal with deprecated constitution-era paths."
 ---
 
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.

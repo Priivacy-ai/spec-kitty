@@ -1,3 +1,8 @@
+---
+title: "Event Envelope Reference"
+description: "Reference for Event Envelope Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+---
+
 # Event Envelope Reference
 
 This document describes the vendored machine-facing contract enforced by
