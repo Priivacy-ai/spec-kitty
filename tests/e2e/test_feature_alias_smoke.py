@@ -205,7 +205,16 @@ def test_feature_alias_routes_to_mission(tmp_path: Path) -> None:
         )
         create_payload = json.loads(json_line)
         slug = create_payload["mission_slug"]
-        feature_dir = project / "kitty-specs" / slug
+        mission_id = create_payload["mission_id"]
+        mid8 = mission_id[:8]
+
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+
+        primary_feature_dir = project / "kitty-specs" / slug
+        coord_root = CoordinationWorkspace.resolve(project, slug, mid8)
+        feature_dir = coord_root / "kitty-specs" / slug
+        if not feature_dir.exists():
+            shutil.copytree(primary_feature_dir, feature_dir)
         assert feature_dir.exists()
 
         # 2. Seed one WP so the JSON branch is exercised.

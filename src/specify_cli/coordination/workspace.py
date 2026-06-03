@@ -175,6 +175,8 @@ class CoordinationWorkspace:
         subprocess.run(
             ["git", "-C", str(repo_root), "worktree", "add", str(path), branch],
             check=True,
+            capture_output=True,
+            text=True,
         )
         return path
 
