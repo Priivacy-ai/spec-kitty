@@ -1,4 +1,4 @@
-> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.x](../3x/index.md) for current docs.
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../3x/index.md) for current docs.
 
 # 2.x Model Discipline and Cost-Aware Routing (Draft)
 
@@ -21,7 +21,7 @@ In current 2.x flow, task execution is agent-selected by the operator (`--agent 
 2. Tool selection uses the `agents.available` list order with first-available fallback (
    `src/specify_cli/core/tool_config.py`).
 3. Agent profiles already support weighted matching by task context, but no model-cost dimension (`src/doctrine/agent_profiles/repository.py`).
-4. Doctrine artifacts already provide governance hooks (directives, toolguides) for 2.x (`docs/2x/doctrine-and-charter.md`).
+4. Doctrine artifacts already provide governance hooks (directives, toolguides) for 2.x (`docs/archive/2x/doctrine-and-charter.md`).
 
 ## Proposed User Journey
 

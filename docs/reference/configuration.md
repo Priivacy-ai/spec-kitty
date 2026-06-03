@@ -240,7 +240,7 @@ artifacts:
 
 ---
 
-## VCS Configuration (0.12.0+)
+## VCS configuration
 
 Spec Kitty uses Git as the version control backend. Configuration options control VCS detection and behavior.
 

@@ -1,3 +1,5 @@
+> Migration note: This page guides users moving from earlier Spec Kitty releases to the 3.2 documentation and runtime model.
+
 ---
 title: Migrating from 2.x / Early 3.x Charter Projects
 description: What changed when upgrading from Spec Kitty 2.x or early 3.x to current Charter-era 3.x, migration steps, and known failure modes.
@@ -196,4 +198,4 @@ If you encounter issues not covered here, see
 - [How to Synthesize and Maintain Doctrine](../how-to/synthesize-doctrine.md)
 - [Troubleshooting Charter Failures](../how-to/troubleshoot-charter.md)
 - [Spec Kitty 3.x — Charter Era](../3x/index.md)
-- [Spec Kitty 2.x Docs (archived)](../2x/index.md)
+- [Spec Kitty 2.x Docs (archived)](../archive/2x/index.md)

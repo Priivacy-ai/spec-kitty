@@ -1,6 +1,6 @@
 # Environment Variables Reference
 
-This page lists the user-facing environment variables that are active in the current `3.1.x` CLI surface.
+This page lists the user-facing environment variables that are active in the current `3.2` CLI surface.
 
 ---
 

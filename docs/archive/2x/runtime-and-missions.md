@@ -1,4 +1,4 @@
-> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.x](../3x/index.md) for current docs.
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../3x/index.md) for current docs.
 
 # 2.x Runtime, Mission Types, and Missions
 
@@ -123,7 +123,7 @@ See [Orchestration and API Boundary](orchestration-and-api.md) for operator and 
 
 ## Learn More
 
-- **Deep dive on missions**: [The Mission System Explained](../explanation/mission-system.md) -- why missions exist, how they shape your experience, detailed comparison of all four built-in missions
-- **Kanban workflow**: [Kanban Workflow Explained](../explanation/kanban-workflow.md) -- how lanes work and what happens when work moves between them
-- **Workspace model**: [Execution Workspace Model](../explanation/execution-lanes.md) -- lane-based worktrees only
-- **CLI reference**: [CLI Commands Reference](../reference/cli-commands.md) -- complete `next`, `mission`, and `status` subcommand details
+- **Deep dive on missions**: [The Mission System Explained](../../explanation/mission-system.md) -- why missions exist, how they shape your experience, detailed comparison of all four built-in missions
+- **Kanban workflow**: [Kanban Workflow Explained](../../explanation/kanban-workflow.md) -- how lanes work and what happens when work moves between them
+- **Workspace model**: [Execution Workspace Model](../../explanation/execution-lanes.md) -- lane-based worktrees only
+- **CLI reference**: [CLI Commands Reference](../../reference/cli-commands.md) -- complete `next`, `mission`, and `status` subcommand details

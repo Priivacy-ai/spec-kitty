@@ -1,3 +1,5 @@
+> Migration note: This page documents a historical upgrade path to Spec Kitty 0.12.0. For current 3.2 upgrades, use [Upgrade the Spec Kitty CLI](../how-to/upgrade-cli.md) and [Upgrade project files](../how-to/upgrade-project.md).
+
 # Upgrading to Spec Kitty 0.12.0
 
 **Key Change**: Agent management is now **config-driven**. Migrations respect your configuration choices instead of recreating deleted agent directories.
@@ -82,4 +84,4 @@ spec-kitty agent config add claude codex
 **Q: How do I ensure an agent doesn't come back after upgrade?**
 - A: Use `spec-kitty agent config remove <agent>` before upgrading. This removes it from `config.yaml`.
 
-For command details, see [Managing AI Agents](manage-agents.md).
+For command details, see [Managing AI Agents](../how-to/manage-agents.md).

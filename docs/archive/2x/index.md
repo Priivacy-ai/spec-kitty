@@ -1,14 +1,14 @@
-> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.x](../3x/index.md) for current docs.
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../3x/index.md) for current docs.
 
 # 2.x Documentation (Archive)
 
 > **Archive Notice**: This section documents Spec Kitty 2.x behavior. It is preserved
-> for historical reference only. For current 3.x Charter documentation, see
-> [3.x Docs (Current)](../3x/index.md).
+> for historical reference only. For current 3.2 documentation, see
+> [Spec Kitty 3.2 current overview](../../3x/index.md).
 
 `2.x` was the architecture track centered on doctrine-backed governance, living glossary
 semantics, and runtime-owned mission execution. These pages are archived so existing projects and
-contributors can understand older behavior; current projects should use the 3.x Charter docs.
+contributors can understand older behavior; current projects should use the 3.2 docs.
 
 ## Key 2.x Shifts
 

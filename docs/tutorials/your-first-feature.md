@@ -154,7 +154,7 @@ For the full retrospective workflow, see
 
 ## Troubleshooting
 
-- **"Planning created a worktree"**: Planning stays in the repository root checkout in `3.1.x`. If you see an unexpected planning worktree, upgrade with `spec-kitty upgrade`.
+- **"Planning created a worktree"**: Planning stays in the repository root checkout in the current 3.2 workflow. If you see an unexpected planning worktree, upgrade with `spec-kitty upgrade`.
 - **"I want to plan from here but not land on `main`"**: Stay in the repository root checkout and choose the right target branch first. See [How to Keep Main Clean](../how-to/keep-main-clean.md).
 - **"WP has dependencies"**: Keep following the `spec-kitty next` decisions; the runtime will only issue implementation work when its dependencies are satisfied.
 - **Review fails validation**: Run `spec-kitty validate-tasks --fix` and re-run `/spec-kitty.review`.

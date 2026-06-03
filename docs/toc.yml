@@ -1,12 +1,24 @@
-- name: Tutorials
-  href: tutorials/
-- name: How-To Guides
-  href: how-to/
-- name: Reference
-  href: reference/
-- name: Explanation
-  href: explanation/
-- name: Migration
+- name: Home
+  href: index.md
+- name: 3.2 Current
+  items:
+    - name: Tutorials
+      href: tutorials/
+    - name: How-To Guides
+      href: how-to/
+    - name: Reference
+      href: reference/
+    - name: Explanation
+      href: explanation/
+    - name: 3.x / Charter Era
+      href: 3x/
+- name: Migration to 3.2
   href: migration/
-- name: 3.x Docs (Current)
-  href: 3x/
+- name: Historical Archive
+  items:
+    - name: Archive Overview
+      href: archive/
+    - name: Archive (2.x)
+      href: archive/2x/
+    - name: Archive (1.x)
+      href: archive/1x/

@@ -106,7 +106,7 @@ Migrations are idempotent and applied in version order.
 When a newer CLI version is available, Spec Kitty prints one line before normal output:
 
 ```
-Spec Kitty 2.0.14 is available; you have 2.0.11.
+Spec Kitty 3.2.1 is available; you have 3.2.0.
 Upgrade with: pipx upgrade spec-kitty-cli
 ```
 

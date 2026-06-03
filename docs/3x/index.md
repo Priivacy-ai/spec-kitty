@@ -1,11 +1,11 @@
 ---
-title: Spec Kitty 3.x — Charter Era
-description: Landing page for current Spec Kitty 3.x Charter-era documentation.
+title: Spec Kitty 3.2 current overview
+description: Landing page for current Spec Kitty 3.2 Charter-era documentation.
 ---
 
-# Spec Kitty 3.x — Charter Era
+# Spec Kitty 3.2 current overview
 
-You are looking at Spec Kitty 3.x Charter-era documentation. This is the current product.
+You are looking at Spec Kitty 3.2 documentation. This is the current product surface for new projects and upgrades.
 
 ## What is Charter?
 
@@ -26,17 +26,17 @@ For the full mental model, see [How Charter Works](charter-overview.md).
 
 ---
 
-## Documentation by Type
+## Documentation by type
 
-### Tutorials — Learning-Oriented
+### Tutorials — learning-oriented
 
 Step-by-step walkthroughs for new users.
 
 - [Governed Charter Workflow End-to-End](../tutorials/charter-governed-workflow.md) — Start from a fresh repo, set up governance, synthesize doctrine, and run a governed mission action
 - [Getting Started with Spec Kitty](../tutorials/getting-started.md) — First project from scratch
-- [Your First Feature](../tutorials/your-first-feature.md) — Implement a feature with the full workflow
+- [Multi-Agent Workflow](../tutorials/multi-agent-workflow.md) — Run a mission across multiple harnesses
 
-### How-To Guides — Task-Oriented
+### How-to guides — task-oriented
 
 Focused guides for specific operator tasks.
 
@@ -47,7 +47,7 @@ Focused guides for specific operator tasks.
 - [How to Use the Retrospective Learning Loop](../how-to/use-retrospective-learning.md) — `retrospect summary`, `agent retrospect synthesize`
 - [Troubleshooting Charter Failures](../how-to/troubleshoot-charter.md) — Stale bundle, missing doctrine, compact-context, retro gate failures
 
-### Reference — Authoritative Specifications
+### Reference — authoritative specifications
 
 Precise CLI and schema references.
 
@@ -57,7 +57,7 @@ Precise CLI and schema references.
 - [Retrospective Schema Reference](../reference/retrospective-schema.md) — `retrospective.yaml` schema, proposal kinds, exit codes
 - [Governance Files Reference](governance-files.md) — Every file in `.kittify/charter/`
 
-### Explanation — Conceptual Background
+### Explanation — conceptual background
 
 Understanding-oriented pages that explain why things work the way they do.
 
@@ -76,15 +76,13 @@ Upgrading from an earlier version? See:
 
 ---
 
-## What Is Archived
+## What is archived
 
-Documentation for Spec Kitty 2.x is preserved under `docs/2x/` for reference. The
-2.x governance model did not include the DRG-backed synthesis pipeline or the retrospective
-learning loop. If you are running a current project, use the 3.x documentation above.
+Documentation for Spec Kitty 1.x and 2.x is preserved under [`docs/archive/`](../archive/index.md) for historical context. The 2.x governance model did not include the DRG-backed synthesis pipeline or the retrospective learning loop. If you are running a current project, use the 3.2 documentation above.
 
 ---
 
-## See Also
+## See also
 
 - [How Charter Works](charter-overview.md) — deeper mental model
 - [Governance Files Reference](governance-files.md) — file reference

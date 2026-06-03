@@ -1,4 +1,4 @@
-> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.x](../3x/index.md) for current docs.
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../3x/index.md) for current docs.
 
 # 2.x Orchestration and API Boundary
 
@@ -39,6 +39,6 @@ Implement your orchestration loop against `orchestrator-api`; do not import host
 
 ## References
 
-1. [Run External Orchestrator](../how-to/run-external-orchestrator.md)
-2. [Build Custom Orchestrator](../how-to/build-custom-orchestrator.md)
-3. [Orchestrator API Reference](../reference/orchestrator-api.md)
+1. [Run External Orchestrator](../../how-to/run-external-orchestrator.md)
+2. [Build Custom Orchestrator](../../how-to/build-custom-orchestrator.md)
+3. [Orchestrator API Reference](../../reference/orchestrator-api.md)

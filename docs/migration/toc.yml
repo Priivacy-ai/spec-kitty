@@ -1,6 +1,26 @@
-- name: Migrating from 2.x / Early 3.x
+- name: Migrating from 2.x / early 3.x
   href: from-charter-2x.md
-- name: TeamSpace Mission-State Repair
+- name: Historical 2.1 cutover
+  href: 2-1-main-cutover-checklist.md
+- name: Historical upgrade to 0.12.0
+  href: upgrade-to-0-12-0.md
+- name: TeamSpace mission-state repair
   href: teamspace-mission-state-repair.md
-- name: Migrating Shared Doctrine to the Org Layer
+- name: TeamSpace mission-state closeout
+  href: teamspace-mission-state-920-closeout.md
+- name: Charter ownership consolidation
+  href: charter-ownership-consolidation.md
+- name: Cross-repo E2E gate
+  href: cross-repo-e2e-gate.md
+- name: Doctrine local overlay to org layer
   href: doctrine-local-overlay-to-org-layer.md
+- name: Feature flag deprecation
+  href: feature-flag-deprecation.md
+- name: Mission ID canonical identity
+  href: mission-id-canonical-identity.md
+- name: Mission type flag deprecation
+  href: mission-type-flag-deprecation.md
+- name: Retrospective events upstream
+  href: retrospective-events-upstream.md
+- name: Shared package boundary cutover
+  href: shared-package-boundary-cutover.md
