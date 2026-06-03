@@ -48,7 +48,11 @@ from ._fixtures import (
 def test_fresh_repo_passes(tmp_path: Path) -> None:
     """When charter, bundle, and synthesized DRG are all fresh, preflight passes."""
     make_fresh_repo(tmp_path)
-    result = run_charter_preflight(tmp_path, auto_refresh=False)
+    result = run_charter_preflight(
+        tmp_path,
+        auto_refresh=False,
+        allow_missing_charter=True,
+    )
     assert isinstance(result, CharterPreflightResult)
     assert result.passed is True
     assert result.blocked_reason is None
@@ -76,6 +80,36 @@ def test_built_in_only_passes(tmp_path: Path) -> None:
     assert result.passed is True
     drg = next(c for c in result.checks if c.name == "synthesized_drg")
     assert drg.state == "built_in_only"
+
+
+def test_missing_charter_in_fresh_project_is_advisory_not_blocking(tmp_path: Path) -> None:
+    """A never-initialized charter stack is optional and must not warn-spam callers."""
+    init_git_repo(tmp_path)
+
+    result = run_charter_preflight(
+        tmp_path,
+        auto_refresh=False,
+        allow_missing_charter=True,
+    )
+
+    assert result.passed is True
+    assert result.blocked_reason is None
+    assert [c.state for c in result.checks] == ["skipped", "skipped", "skipped"]
+    assert result.warnings == [
+        "project charter is not initialized; run `spec-kitty charter generate` "
+        "when this project is ready for charter-governed workflows"
+    ]
+
+
+def test_missing_charter_blocks_mutation_gates_by_default(tmp_path: Path) -> None:
+    """Shared runner fails closed unless a read-only/dashboard caller opts in."""
+    init_git_repo(tmp_path)
+
+    result = run_charter_preflight(tmp_path, auto_refresh=False)
+
+    assert result.passed is False
+    assert result.blocked_reason is not None
+    assert [c.state for c in result.checks] == ["missing", "missing", "missing"]
 
 
 # ---------------------------------------------------------------------------
@@ -266,6 +300,23 @@ def test_to_dict_and_to_json_shape(tmp_path: Path) -> None:
     # to_json round-trips.
     parsed = json.loads(result.to_json())
     assert parsed == as_dict
+
+
+def test_to_dict_includes_warnings_only_when_present(tmp_path: Path) -> None:
+    """The advisory field is additive only when callers need it."""
+    init_git_repo(tmp_path)
+    result = run_charter_preflight(
+        tmp_path,
+        auto_refresh=False,
+        allow_missing_charter=True,
+    )
+
+    as_dict = result.to_dict()
+
+    assert as_dict["warnings"] == [
+        "project charter is not initialized; run `spec-kitty charter generate` "
+        "when this project is ready for charter-governed workflows"
+    ]
 
 
 def test_check_dataclass_is_frozen() -> None:

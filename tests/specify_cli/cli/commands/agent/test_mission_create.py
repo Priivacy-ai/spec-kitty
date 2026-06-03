@@ -338,6 +338,9 @@ def test_create_json_output_contains_coordination_branch(tmp_path: Path) -> None
     assert "coordination_branch" in payload
     assert payload["coordination_branch"].startswith("kitty/mission-cli-json-test-")
     assert payload["coordination_branch_created"] is True
+    assert payload["scaffold_only"] is True
+    assert payload["requires_agent_authoring"] is True
+    assert payload["plan_guard"] == "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED"
 
 
 def test_pr_bound_create_json_refuses_with_json_instead_of_prompt_abort(tmp_path: Path) -> None:

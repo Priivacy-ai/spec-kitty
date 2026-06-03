@@ -113,6 +113,7 @@ def run_preflight_for_dashboard(repo_root: Path) -> CharterPreflightResult:
     result = run_charter_preflight(
         repo_root=repo_root,
         auto_refresh=cfg.auto_refresh,
+        allow_missing_charter=True,
         strict=False,
     )
     if result.passed:

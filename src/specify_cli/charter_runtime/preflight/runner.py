@@ -59,6 +59,11 @@ _LAYER_ORDER: tuple[tuple[str, str], ...] = (
 # Passing states — see contracts/charter-preflight-json.md "State semantics".
 _PASS_STATES: frozenset[str] = frozenset({"fresh", "skipped", "built_in_only"})
 
+_FRESH_PROJECT_MISSING_CHARTER_WARNING = (
+    "project charter is not initialized; run `spec-kitty charter generate` "
+    "when this project is ready for charter-governed workflows"
+)
+
 # Refresh-step timeout.  Overridable via env so very slow CI runners can
 # extend the deadline without code changes (risk note in WP03 spec).
 _REFRESH_TIMEOUT_ENV = "SPEC_KITTY_PREFLIGHT_TIMEOUT_SECS"
@@ -87,6 +92,7 @@ def run_charter_preflight(
     repo_root: Path,
     *,
     auto_refresh: bool = False,
+    allow_missing_charter: bool = False,
     strict: bool = False,  # noqa: ARG001 — surfaced for caller symmetry; consumed by CLI exit-code mapping, not by the runner itself.
 ) -> CharterPreflightResult:
     """Compute charter freshness, optionally refresh, return a result.
@@ -97,6 +103,10 @@ def run_charter_preflight(
             checks rather than exceptions.
         auto_refresh: When ``True`` AND the worktree has no uncommitted
             generated artifacts, attempt the safe refresh sequence.
+        allow_missing_charter: Treat a fully absent charter stack as advisory.
+            Read-only/dashboard consumers may enable this for fresh projects;
+            mutation gates leave it disabled so missing governance still fails
+            closed when the workflow requires charter-derived state.
         strict: Accepted for API symmetry with the CLI flag.  The runner
             itself does not change behaviour based on ``strict`` — the CLI
             wrapper translates ``passed=False`` + ``strict=True`` into exit
@@ -109,6 +119,25 @@ def run_charter_preflight(
     """
     freshness = compute_freshness(repo_root)
     checks = _build_checks(freshness)
+
+    if allow_missing_charter and _is_optional_missing_charter_fresh_project(checks):
+        return CharterPreflightResult(
+            passed=True,
+            checks=[
+                CharterPreflightCheck(
+                    name=c.name,
+                    state="skipped",
+                    detail="project charter is not initialized",
+                    remediation=None,
+                )
+                for c in checks
+            ],
+            auto_refresh_applied=False,
+            auto_refresh_actions=[],
+            blocked_reason=None,
+            warnings=[_FRESH_PROJECT_MISSING_CHARTER_WARNING],
+        )
+
     passed = all(c.state in _PASS_STATES for c in checks)
 
     if passed:
@@ -166,6 +195,21 @@ def _build_checks(freshness: CharterFreshness) -> list[CharterPreflightCheck]:
             )
         )
     return result
+
+
+def _is_optional_missing_charter_fresh_project(checks: list[CharterPreflightCheck]) -> bool:
+    """Return True for a never-initialized charter stack.
+
+    Missing project charter is optional in a fresh project.  Treat only the
+    fully absent stack as advisory; partial/generated residue still blocks so
+    stale charter state remains visible.
+    """
+    states = {c.name: c.state for c in checks}
+    return states == {
+        "charter_source": "missing",
+        "synced_bundle": "missing",
+        "synthesized_drg": "missing",
+    }
 
 
 def _default_detail(label: str, state: str, last_change: str | None) -> str:

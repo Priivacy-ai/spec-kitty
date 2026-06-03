@@ -1,8 +1,8 @@
-"""T1.4 — Regression tests: init next-steps output names spec-kitty next.
+"""Regression tests: init next-steps output is concise and actionable.
 
 Verifies:
 - Captured output contains "spec-kitty next"
-- Captured output contains "spec-kitty agent action implement"
+- Non-git targets promote git init as the required next action
 - Captured output does NOT contain "spec-kitty implement WP" (bare top-level CLI)
 - The literal string "Initial commit from Specify template" is absent from src/
 
@@ -58,16 +58,16 @@ def _fake_copy_package(project_path: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# T1.4: Next-steps output names spec-kitty next + agent action
+# T1.4: Next-steps output names spec-kitty next + first workflow path
 # ---------------------------------------------------------------------------
 
 def test_init_next_steps_names_spec_kitty_next(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """T1.4: init output contains 'spec-kitty next' and 'spec-kitty agent action implement'.
+    """T1.4: init output contains a concise first-run path and mission loop.
 
-    Also asserts the bare top-level CLI invocation 'spec-kitty implement WP' is absent.
+    Also asserts old dense per-WP command catalog entries are absent.
     """
     app, buf = _make_app_with_buf()
 
@@ -88,16 +88,16 @@ def test_init_next_steps_names_spec_kitty_next(
         f"Actual console output:\n{output}"
     )
 
-    # The per-WP implement verb must appear
-    assert "spec-kitty agent action implement" in output, (
-        "Expected 'spec-kitty agent action implement' in init console output, but it was absent.\n"
-        f"Actual console output:\n{output}"
-    )
-
     assert "$spec-kitty.specify" in output, (
         "Codex init next steps must use Codex skill invocation syntax.\n"
         f"Actual console output:\n{output}"
     )
+    assert "$spec-kitty.plan" in output
+    assert "$spec-kitty.tasks" in output
+    assert "Required:" in output
+    assert "git init" in output
+    assert "4. Run the mission loop" in output
+    assert "5." not in output
 
     assert "/spec-kitty.dashboard" not in output, (
         "Codex init next steps must not list slash commands that are not installed as command skills.\n"
@@ -110,6 +110,7 @@ def test_init_next_steps_names_spec_kitty_next(
         "this is the old top-level CLI path and must not appear.\n"
         f"Actual console output:\n{output}"
     )
+    assert "spec-kitty agent action implement" not in output
 
 
 def test_init_letta_next_steps_use_slash_skill_syntax(
@@ -146,8 +147,10 @@ def test_init_vibe_next_steps_list_only_installed_command_skills(
     assert result.exit_code == 0, f"init failed (exit_code={result.exit_code})"
 
     output = buf.getvalue()
-    assert "Build your specification with command skills" in output
-    assert "/spec-kitty.tasks-finalize" in output
+    assert "Build with command skills" in output
+    assert "/spec-kitty.specify" in output
+    assert "/spec-kitty.plan" in output
+    assert "/spec-kitty.tasks" in output
     assert "/spec-kitty.dashboard" not in output
     assert "/spec-kitty.accept" not in output
     assert "/spec-kitty.merge" not in output

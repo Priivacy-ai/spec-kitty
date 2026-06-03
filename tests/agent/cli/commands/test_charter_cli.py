@@ -258,6 +258,25 @@ def test_context_compact_mode_auto_syncs_missing_extracted_artifacts(tmp_path: P
         assert "Run 'spec-kitty charter sync'" not in second.stdout
 
 
+def test_context_json_stdout_is_single_json_value_for_missing_charter(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
+        mock_find_root.return_value = repo_root
+
+        result = runner.invoke(app, ["context", "--action", "specify", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["success"] is True
+    assert payload["project_charter"]["present"] is False
+    assert result.stdout.strip().startswith("{")
+    assert result.stdout.strip().endswith("}")
+    assert "WARNING" not in result.stdout
+    assert "WARNING" not in result.stderr
+
+
 def test_help_output() -> None:
     result = runner.invoke(app, ["--help"])
 

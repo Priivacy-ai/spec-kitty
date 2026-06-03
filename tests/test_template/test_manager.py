@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 import pytest
+from rich.console import Console
 
 from specify_cli.template import manager, get_local_repo_root
 from specify_cli.template.manager import copy_specify_base_from_local
@@ -23,6 +25,21 @@ def test_get_local_repo_root_prefers_env(monkeypatch: pytest.MonkeyPatch, tmp_pa
         assert repo_root == tmp_path.resolve()
     finally:
         monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
+
+
+def test_get_local_repo_root_invalid_env_clarifies_packaged_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    output = io.StringIO()
+    monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(tmp_path))
+    monkeypatch.setattr(manager, "console", Console(file=output, force_terminal=False, width=240))
+
+    repo_root = get_local_repo_root()
+
+    assert repo_root is None or repo_root.exists()
+    assert "not a Spec Kitty checkout/template root" in output.getvalue()
+    assert "using packaged templates" in output.getvalue()
 
 
 def test_copy_specify_base_from_local_copies_expected_assets(tmp_path: Path) -> None:

@@ -892,7 +892,13 @@ def create_mission(
             "created_at": str(result.meta.get("created_at", "")),
             "created_files": [str(spec_file), str(meta_file), str(tasks_readme)],
             "write_mode": "update_existing_files",
-            "next_step": "Read then update spec_file/meta_file; do not recreate with blind write.",
+            "scaffold_only": True,
+            "requires_agent_authoring": True,
+            "plan_guard": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
+            "next_step": (
+                "Created scaffold only. Run `/spec-kitty.specify <intent>` in your agent "
+                "or edit and commit spec_file before `spec-kitty plan`."
+            ),
             "origin_binding": {
                 "attempted": result.origin_binding_attempted,
                 "succeeded": result.origin_binding_succeeded,
@@ -926,6 +932,10 @@ def create_mission(
         # Issue #846: spec.md is no longer auto-committed at create time.
         # The agent commits it from /spec-kitty.specify after writing substantive content.
         console.print(f"   Meta committed to {result.target_branch}; spec.md scaffold left untracked")
+        console.print(
+            "   [yellow]Scaffold only:[/yellow] run [cyan]/spec-kitty.specify <intent>[/cyan] "
+            "in your agent, or edit and commit spec.md before planning."
+        )
 
 
 @app.command(name="check-prerequisites")

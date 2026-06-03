@@ -100,19 +100,7 @@ def next_step(
     # has not yet been synthesized (e.g., fresh clones, test envs).
     from pathlib import Path as _Path
 
-    if result is not None:
-        from specify_cli.charter_runtime.preflight.hook import run_preflight_or_abort
-
-        run_preflight_or_abort(_Path(str(repo_root)), consumer="next")
-    else:
-        from specify_cli.charter_runtime.preflight.hook import run_preflight_for_dashboard
-
-        # Query mode: warn-and-continue. The dashboard helper logs at
-        # warning level on failure and returns without raising. We
-        # explicitly ignore the result here because query mode does not
-        # mutate state and the operator is only asking "what is my
-        # mission state?".
-        run_preflight_for_dashboard(_Path(str(repo_root)))
+    _run_charter_preflight_for_next(_Path(str(repo_root)), advancing=result is not None, json_output=json_output)
 
     mission_slug = _resolve_mission_slug(mission, feature)
     _validate_result_and_answer(result, answer, json_output)
@@ -276,6 +264,43 @@ def _maybe_emit_runtime_notice(json_output: bool) -> None:
     # combine stderr into result.output.
     if not json_output:
         maybe_emit_runtime_pkg_notice()
+
+
+def _run_charter_preflight_for_next(repo_root, *, advancing: bool, json_output: bool) -> None:
+    """Run charter preflight without letting advisory text contaminate JSON stdout."""
+    if advancing:
+        from specify_cli.charter_runtime.preflight.hook import run_preflight_or_abort
+
+        if json_output:
+            stderr_buffer = io.StringIO()
+            error_payload: dict[str, str] | None = None
+            with (
+                contextlib.redirect_stdout(sys.stderr),
+                contextlib.redirect_stderr(stderr_buffer),
+            ):
+                try:
+                    run_preflight_or_abort(repo_root, consumer="next")
+                    return
+                except typer.Exit:
+                    message = stderr_buffer.getvalue().strip() or "charter preflight failed"
+                    blocked_reason = message.removeprefix("Error: ").strip()
+                    error_payload = {
+                        "error_code": "CHARTER_PREFLIGHT_FAILED",
+                        "error": message,
+                        "blocked_reason": blocked_reason,
+                    }
+            if error_payload is not None:
+                print(json.dumps(error_payload))
+                raise typer.Exit(1)
+        run_preflight_or_abort(repo_root, consumer="next")
+        return
+
+    from specify_cli.charter_runtime.preflight.hook import run_preflight_for_dashboard
+
+    # Query mode is read-only: warn-and-continue, like dashboard.
+    stdout_redirect = contextlib.redirect_stdout(sys.stderr) if json_output else contextlib.nullcontext()
+    with stdout_redirect:
+        run_preflight_for_dashboard(repo_root)
 
 
 def _resolve_mission_slug(mission: str | None, feature: str | None) -> str:

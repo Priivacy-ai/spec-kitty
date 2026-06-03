@@ -176,7 +176,7 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
         if (override / ".kittify" / "templates" / "command-templates").exists():
             return override
         console.print(
-            f"[yellow]--template-root set to {override}, but src/doctrine/templates/command-templates not found there. Ignoring.[/yellow]"  # noqa: E501
+            f"[yellow]--template-root {override} is not a Spec Kitty checkout/template root; using packaged templates.[/yellow]"  # noqa: E501
         )
 
     # Check environment variable
@@ -189,7 +189,7 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
         if (root_path / ".kittify" / "templates" / "command-templates").exists():
             return root_path
         console.print(
-            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT set to {root_path}, but src/doctrine/templates/command-templates not found there. Ignoring.[/yellow]"  # noqa: E501
+            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT {root_path} is not a Spec Kitty checkout/template root; using packaged templates.[/yellow]"  # noqa: E501
         )
 
     # Check package location

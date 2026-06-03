@@ -411,34 +411,22 @@ def _agent_command_token(agent_key: str, command: str) -> str:
 def _workflow_lines_for_agent(agent_key: str) -> tuple[str, list[str]]:
     """Return next-step heading and installed workflow commands for a harness."""
     if agent_key in _COMMAND_SKILL_AGENTS:
-        heading = "Build your specification with command skills (in workflow order):"
+        heading = "Build with command skills:"
         commands = [
-            ("charter", "Establish project principles"),
-            ("specify", "Create baseline specification"),
-            ("plan", "Create implementation plan"),
-            ("research", "Run mission-specific Phase 0 research scaffolding"),
-            ("tasks", "Generate work packages"),
-            ("tasks-outline", "Create package outline"),
-            ("tasks-packages", "Generate work packages from outline"),
-            ("tasks-finalize", "Finalize generated work packages"),
-            ("review", "Review prompts and move them to /tasks/done/"),
+            ("specify", "write the spec"),
+            ("plan", "write the plan"),
+            ("tasks", "create work packages"),
         ]
     else:
-        heading = "Build your specification with slash commands (in workflow order):"
+        heading = "Build with slash commands:"
         commands = [
-            ("dashboard", "Open the real-time kanban dashboard"),
-            ("charter", "Establish project principles"),
-            ("specify", "Create baseline specification"),
-            ("plan", "Create implementation plan"),
-            ("research", "Run mission-specific Phase 0 research scaffolding"),
-            ("tasks", "Generate work packages"),
-            ("review", "Review prompts and move them to /tasks/done/"),
-            ("accept", "Run acceptance checks and verify mission complete"),
-            ("merge", "Merge mission into target branch and cleanup worktree"),
+            ("specify", "write the spec"),
+            ("plan", "write the plan"),
+            ("tasks", "create work packages"),
         ]
 
     return heading, [
-        f"   - [cyan]{_agent_command_token(agent_key, command)}[/] - {description}"
+        f"[cyan]{_agent_command_token(agent_key, command)}[/] ({description})"
         for command, description in commands
     ]
 
@@ -618,8 +606,8 @@ def init(  # noqa: C901
         probe_dir = project_path if project_path.exists() else project_path.parent
         if not _is_inside_git_work_tree(probe_dir):
             _console.print(
-                "[yellow]ℹ Target is not a git repository[/yellow] — "
-                "run `git init` here before using `spec-kitty agent ...` commands."
+                "[yellow]Target is not a git repository.[/yellow] "
+                "After init, run `git init` in the target before using `spec-kitty agent ...` commands."
             )
     except VCSNotFoundError:
         # git not available - not an error, just informational
@@ -944,46 +932,48 @@ def init(  # noqa: C901
         _console.print()
         _console.print(security_notice)
 
-    # Boxed "Next steps" section
-    steps_lines = []
-    # FR-005 (#636): When the target is NOT inside a git work tree, prepend
-    # a "Run git init" bullet ABOVE all other next-step items so it is the
-    # first thing the user sees. Recompute against the now-existing
-    # project_path (not the parent) for the post-init check.
-    if not _is_inside_git_work_tree(project_path):
-        steps_lines.append(
-            "○ [yellow]Run [cyan]git init[/cyan][/yellow] - this directory is not yet a git repository"
-        )
+    # Boxed "Next steps" section. Keep first-run guidance short: immediate
+    # setup blocker, first workflow command, then optional tools.
+    steps_lines = [
+        f"Project: [green]{project_path}[/green]",
+        f"Agents: [cyan]{', '.join(selected_agents)}[/cyan]",
+    ]
+    # FR-005 (#636): when target is not inside a git work tree, make git init
+    # a numbered required action. Recompute against the now-existing project_path.
+    inside_git = _is_inside_git_work_tree(project_path)
+    steps_lines.append(
+        "Git: [green]ready[/green]" if inside_git else "Git: [yellow]not initialized[/yellow]"
+    )
+    steps_lines.append("")
     step_num = 1
     if not here:
-        steps_lines.append(f"{step_num}. Go to the project folder: [cyan]cd {project_name}[/cyan]")
+        steps_lines.append(f"{step_num}. Enter the project: [cyan]cd {project_name}[/cyan]")
+        step_num += 1
     else:
-        steps_lines.append(f"{step_num}. You're already in the project directory!")
-    step_num += 1
-
-    steps_lines.append(
-        f"{step_num}. Available missions: [cyan]software-dev[/cyan], [cyan]research[/cyan] "
-        f"(selected per-mission during [cyan]{_agent_command_token(_primary_next_step_agent(selected_agents), 'specify')}[/cyan])"
-    )
-    step_num += 1
+        steps_lines.append(f"{step_num}. Stay in this project directory.")
+        step_num += 1
+    if not inside_git:
+        steps_lines.append(
+            f"{step_num}. [yellow]Required:[/yellow] run [cyan]git init[/cyan] here before agent/worktree commands"
+        )
+        step_num += 1
 
     primary_agent = _primary_next_step_agent(selected_agents)
     workflow_heading, workflow_lines = _workflow_lines_for_agent(primary_agent)
-    steps_lines.append(f"{step_num}. {workflow_heading}")
+    steps_lines.append(f"{step_num}. {workflow_heading} {' -> '.join(workflow_lines)}")
     step_num += 1
 
-    steps_lines.extend(workflow_lines)
-    steps_lines.append("   - [cyan]spec-kitty retrospect summary[/] - Review retrospective status after merge")
-    step_num += 1
-
-    # T003: Canonical post-#555 agent loop path
-    steps_lines.append(f"{step_num}. Run your agent loop (canonical workflow):")
-    steps_lines.append("   [dim]Enter the mission loop:[/dim]")
-    steps_lines.append("     [cyan]spec-kitty next --agent <agent> --mission <slug>[/cyan]")
+    steps_lines.append(
+        f"{step_num}. Run the mission loop: [cyan]spec-kitty next --agent <agent> --mission <slug>[/cyan]"
+    )
     steps_lines.append("")
-    steps_lines.append("   [dim]Your agent will call per-WP actions:[/dim]")
-    steps_lines.append("     [cyan]spec-kitty agent action implement <WP> --agent <name>[/cyan]  [dim](implement a work package)[/dim]")  # noqa: E501
-    steps_lines.append("     [cyan]spec-kitty agent action review    <WP> --agent <name>[/cyan]  [dim](review a work package)[/dim]")  # noqa: E501
+    steps_lines.append("[dim]Optional[/dim]")
+    steps_lines.append(f"- [cyan]{_agent_command_token(primary_agent, 'charter')}[/cyan] - add project governance when needed")
+    steps_lines.append("- [cyan]spec-kitty dashboard[/cyan] - open local project dashboard")
+    steps_lines.append("- [cyan]spec-kitty retrospect summary[/cyan] - review learning status after merge")
+    steps_lines.append(f"- [cyan]{_agent_command_token(primary_agent, 'analyze')}[/cyan] - check artifact alignment")
+    steps_lines.append("")
+    steps_lines.append("[dim]Docs: https://docs.spec-kitty.ai/[/dim]")
 
     steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1, 2))
     _console.print()
@@ -1047,12 +1037,12 @@ def init(  # noqa: C901
         _console.print(letta_panel)
 
     enhancement_lines = [
-        "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",
+        "Optional quality checks.",
         "",
         f"○ [cyan]{_agent_command_token(primary_agent, 'analyze')}[/] [bright_black](optional)[/bright_black] - "
         f"Cross-artifact consistency & alignment report (after [cyan]{_agent_command_token(primary_agent, 'tasks')}[/])",
     ]
-    enhancements_panel = Panel("\n".join(enhancement_lines), title="Enhancement Commands", border_style="cyan", padding=(1, 2))
+    enhancements_panel = Panel("\n".join(enhancement_lines), title="Optional Enhancements", border_style="cyan", padding=(1, 2))
     _console.print()
     _console.print(enhancements_panel)
 

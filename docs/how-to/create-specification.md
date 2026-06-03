@@ -21,6 +21,8 @@ In your agent:
 
 Run it from the repository root checkout. Planning artifacts are created in `kitty-specs/` on the mission's target branch, and no worktrees are created during specify. If you do not pass `--target-branch`, Spec Kitty uses the current branch.
 
+When you run the direct CLI form (`spec-kitty specify <description>`), it creates the mission scaffold and marks the result as scaffold-only. Fill `spec.md` with the complete specification before running `spec-kitty plan --mission <mission>`.
+
 ## The Discovery Interview
 
 After the command, the CLI interviews you for missing details. You must answer each question before the spec is generated. Expect the agent to respond with `WAITING_FOR_DISCOVERY_INPUT` until the interview is complete.
@@ -37,7 +39,7 @@ After the command, the CLI interviews you for missing details. You must answer e
 /spec-kitty.specify Build a photo organizer that groups albums by date and supports drag-and-drop reordering.
 ```
 
-During discovery, answer follow-up questions (roles, constraints, success criteria). Once complete, the spec is written to `kitty-specs/<feature>/spec.md` on the mission's target branch.
+During discovery, answer follow-up questions (roles, constraints, success criteria). Once complete, write the specification content to `kitty-specs/<feature>/spec.md` on the mission's target branch.
 
 ## Troubleshooting
 
