@@ -2757,18 +2757,47 @@ def finalize_tasks(
                     console.print("[dim]Tasks unchanged, no commit needed[/dim]")
             else:
                 # Commit with descriptive message (safe_commit preserves staging area)
+                # Planning artifacts must land on the coordination branch, not on the
+                # final merge target (e.g. "main"), which is protected.
+                # locate_project_root() always returns the MAIN checkout (by design),
+                # but safe_commit requires worktree_root HEAD == destination_ref.
+                # When a coord worktree exists, use it as worktree_root.
+                coord_branch_for_commit = (
+                    meta.get("coordination_branch") if meta else None
+                ) or target_branch
+                _commit_worktree_root = repo_root
+                _commit_files = files_to_commit
+                if coord_branch_for_commit != target_branch and meta:
+                    _raw_mid = meta.get("mission_id")
+                    _mid8 = _raw_mid[:8] if isinstance(_raw_mid, str) and len(_raw_mid) >= 8 else None
+                    if _mid8:
+                        from specify_cli.coordination.workspace import CoordinationWorkspace as _CW
+                        import shutil as _shutil
+                        _coord_wt = _CW.worktree_path(repo_root, mission_slug, _mid8)
+                        if _coord_wt.exists():
+                            _commit_worktree_root = _coord_wt
+                            # Files were written to the main checkout; copy to the
+                            # coord worktree before staging so safe_commit can find them.
+                            _coord_files = []
+                            for _src in files_to_commit:
+                                _dst = _coord_wt / _src.relative_to(repo_root)
+                                if _src.exists():
+                                    _dst.parent.mkdir(parents=True, exist_ok=True)
+                                    _shutil.copy2(_src, _dst)
+                                _coord_files.append(_dst)
+                            _commit_files = _coord_files
                 commit_msg = f"Add tasks for feature {mission_slug}"
                 commit_success = safe_commit(
                     repo_root=repo_root,
-                    worktree_root=repo_root,
-                    destination_ref=target_branch,
+                    worktree_root=_commit_worktree_root,
+                    destination_ref=coord_branch_for_commit,
                     message=commit_msg,
-                    paths=tuple(files_to_commit),
+                    paths=tuple(_commit_files),
                 )
 
                 if commit_success:
                     # Commit succeeded - get hash
-                    _rc, stdout, _stderr = run_command(["git", "rev-parse", "HEAD"], check_return=True, capture=True, cwd=repo_root)
+                    _rc, stdout, _stderr = run_command(["git", "rev-parse", "HEAD"], check_return=True, capture=True, cwd=_commit_worktree_root)
                     commit_hash = stdout.strip()
                     commit_created = True
 

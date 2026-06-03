@@ -221,6 +221,27 @@ def _is_legacy_mission(repo_root: Path, mission_slug: str, mid8: str) -> bool:
     return not data.get("coordination_branch")
 
 
+def _coordination_branch_from_meta(
+    repo_root: Path, mission_slug: str, mid8: str,
+) -> str | None:
+    """Return explicit ``coordination_branch`` from meta.json, if trustworthy."""
+    kitty_dir_name = _kitty_specs_dir_name(mission_slug, mid8)
+    meta_path = repo_root / "kitty-specs" / kitty_dir_name / "meta.json"
+    if not meta_path.exists():
+        return None
+    try:
+        data = _json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, _json.JSONDecodeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    raw_branch = data.get("coordination_branch")
+    if not isinstance(raw_branch, str):
+        return None
+    branch = raw_branch.strip()
+    return branch or None
+
+
 def _resolve_legacy_lane_destination(
     _repo_root: Path,
 ) -> tuple[Path, str]:
@@ -681,6 +702,33 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             destination_ref = normalised_ref
             _emit_legacy_warning_once(repo_root, mission_id, safe_mission_slug)
         else:
+            coord_branch = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
+            caller_change_set = GitChangeSet(
+                destination_ref=destination_ref,
+                repo_root=repo_root,
+                worktree_root=repo_root,
+                paths=(),
+                message=f"<pending: {operation}>",
+                operation=operation,
+            )
+            caller_verdict = WorkflowMutationPolicy.assert_allowed(caller_change_set)
+            if isinstance(caller_verdict, Refused):
+                explicit_coord_branch = _coordination_branch_from_meta(
+                    repo_root, safe_mission_slug, safe_mid8,
+                )
+                can_recover_to_coord_branch = (
+                    caller_verdict.error_code == "PROTECTED_BRANCH_REFUSED"
+                    and explicit_coord_branch == coord_branch
+                )
+                allow_coord_resolution_to_report_missing_branch = (
+                    caller_verdict.error_code == "DESTINATION_REF_NOT_FOUND"
+                    and destination_ref == coord_branch
+                )
+                if not (
+                    can_recover_to_coord_branch
+                    or allow_coord_resolution_to_report_missing_branch
+                ):
+                    raise BookkeepingPolicyRefused(caller_verdict)
             # New topology — create coord worktree on first call.
             try:
                 worktree_root = CoordinationWorkspace.resolve(
@@ -691,6 +739,11 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                     f"Failed to resolve coordination worktree for "
                     f"{safe_mission_slug}-{safe_mid8}: {exc}"
                 ) from exc
+            # Status events must be committed to the coordination branch,
+            # not the caller-supplied destination (which may be "main").
+            # Mirror the legacy path's destination_ref override (lines above).
+            normalised_ref = _normalize_ref(coord_branch)
+            destination_ref = normalised_ref
 
         # 3. Compute the feature_dir + status files INSIDE the resolved
         # worktree.  Both paths (coord and legacy lane) host the
