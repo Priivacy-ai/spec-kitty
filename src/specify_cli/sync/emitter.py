@@ -43,6 +43,7 @@ from spec_kitty_events import normalize_event_id as _normalize_event_id
 
 from .clock import LamportClock
 from .config import SyncConfig
+from .feature_flags import is_saas_sync_enabled
 from .queue import OfflineQueue
 from .routing import is_sync_enabled_for_checkout
 
@@ -1622,6 +1623,8 @@ class EventEmitter:
         downstream symptom like "no_team".
         """
         try:
+            if not is_saas_sync_enabled():
+                return "sync_disabled"
             if not is_sync_enabled_for_checkout():
                 return "sync_disabled"
         except Exception:
@@ -1678,11 +1681,11 @@ class EventEmitter:
             )
 
             # Resolve identity, team_slug (may be None), and git metadata.
-            # team_slug=None is now a valid "pending routing" state; the
-            # strict resolver still warns via its structured logger so
-            # operators see the ingress-safety boundary.
+            # When the global SaaS feature flag is disabled, avoid even
+            # touching the direct-ingress Teamspace resolver; feature-disabled
+            # runs should not emit feature-specific warnings.
             identity = self._get_identity()
-            team_slug = self._get_team_slug()
+            team_slug = self._get_team_slug() if is_saas_sync_enabled() else None
             git_meta = self._get_git_metadata()
 
             # Classify the drain blocker (None means ready to ship).
