@@ -911,7 +911,7 @@ def collect_feature_summary(
             feature_dir / "data-model.md",
         ]
     )
-    missing_required, missing_optional = _missing_artifacts(feature_dir)
+    missing_required, missing_optional = _missing_artifacts(status_feature_dir)
 
     path_violations: list[str] = []
     try:
