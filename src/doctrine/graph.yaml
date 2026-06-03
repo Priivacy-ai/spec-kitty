@@ -377,6 +377,9 @@ nodes:
 - urn: tactic:development-bdd
   kind: tactic
   label: BDD as Behavioral Contract Design
+- urn: tactic:dialectic-research
+  kind: tactic
+  label: Dialectical Research
 - urn: tactic:documentation-curation-audit
   kind: tactic
   label: Documentation Curation Audit
@@ -2371,3 +2374,11 @@ edges:
   target: tactic:test-minimisation
   relation: suggests
   when: Redundant test removal is only safe after the completion validation confirms coverage is intact
+- source: tactic:dialectic-research
+  target: directive:DIRECTIVE_032
+  relation: suggests
+  when: The claim under test hinges on terminology that may carry different meanings.
+- source: tactic:dialectic-research
+  target: tactic:bounded-context-identification
+  relation: suggests
+  when: The theory concerns whether two terms name one concept or two.
