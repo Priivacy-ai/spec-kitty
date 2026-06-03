@@ -197,3 +197,4 @@ Run `uv run pytest tests/specify_cli/skills/test_command_renderer.py` — must s
 - 2026-06-03T06:45:45Z – claude:sonnet:orchestrator:orchestrator – shell_pid=42946 – Assigned agent via action command
 - 2026-06-03T06:47:58Z – claude:sonnet:orchestrator:orchestrator – shell_pid=42946 – Ready for review: fixed pre-existing snapshot drift in codex-implement and vibe-implement test cases. Source template wording was already correct; only committed snapshots were stale. 102 tests pass.
 - 2026-06-03T06:51:13Z – claude:sonnet:orchestrator:reviewer – shell_pid=51938 – Started review via action command
+- 2026-06-03T07:06:52Z – claude:sonnet:orchestrator:reviewer – shell_pid=51938 – Done override: Feature merged to target branch
