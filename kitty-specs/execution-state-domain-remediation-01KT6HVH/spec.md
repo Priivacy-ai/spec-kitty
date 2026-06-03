@@ -80,7 +80,7 @@ The spec-kitty runtime has accumulated ~40 command surfaces that independently r
 
 | ID | Requirement | Status |
 |----|-------------|--------|
-| FR-006 | An integration or architectural test exists in `tests/` covering the full `next → implement → move-task → review → status` command sequence | Proposed |
+| FR-006 | An integration or architectural test exists in `tests/` covering the full `next → implement → move-task → review → status` command sequence | Delivered (narrowed) — delivered test (`test_execution_context_parity.py`) covers `agent tasks status --json` CWD parity; the full next→implement→move-task→review→status sequence is deferred to a follow-up |
 | FR-007 | The ratchet test exercises both invocations: (a) from main-checkout CWD and (b) from the lane worktree CWD | Proposed |
 | FR-008 | The ratchet test asserts that resolved WP identity, lane state, and status output are identical between both CWD invocations | Proposed |
 | FR-009 | The ratchet test is registered in CI and is required to pass for every PR touching execution-context resolution | Proposed |
@@ -125,7 +125,7 @@ The spec-kitty runtime has accumulated ~40 command surfaces that independently r
 
 | ID | Requirement | Status |
 |----|-------------|--------|
-| FR-031 | No surface outside `core/execution_context.py` and `src/specify_cli/status/` constructs `main_repo_root / "kitty-specs" / mission_slug` (or equivalent path) directly | Proposed |
+| FR-031 | No surface outside `core/execution_context.py` and `src/specify_cli/status/` constructs `main_repo_root / "kitty-specs" / mission_slug` (or equivalent path) directly | Delivered (narrowed) — WP06 fixed `runtime_bridge.py` query-mode and `workflow.py` fix-mode; 225 bypass sites remain across 74 active source files; tracked in #1681 for continuation |
 | FR-032 | `runtime_bridge` query-mode derives `feature_dir` through `resolve_action_context` rather than constructing it independently from the mission slug | Proposed |
 | FR-033 | `workflow.py` fix-mode routes its `repo_root` / `target_branch` resolution through `resolve_action_context` rather than resolving independently | Proposed |
 | FR-034 | Duplicated path-builder functions that are made unreachable by this work are deleted from the codebase (not left as dead code) | Proposed |
