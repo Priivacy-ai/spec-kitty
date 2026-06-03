@@ -23,8 +23,8 @@ subtasks:
 - T004
 - T005
 - T006
-agent: "claude:sonnet:orchestrator:orchestrator"
-shell_pid: "41631"
+agent: "claude:sonnet:orchestrator:reviewer"
+shell_pid: "51739"
 history:
 - date: '2026-06-03'
   status: planned
@@ -225,3 +225,5 @@ Verify: run the post-edit grep command above. Any result in `docs/how-to/` or `d
 ## Activity Log
 
 - 2026-06-03T06:45:32Z – claude:sonnet:orchestrator:orchestrator – shell_pid=41631 – Assigned agent via action command
+- 2026-06-03T06:48:05Z – claude:sonnet:orchestrator:orchestrator – shell_pid=41631 – Ready for review: removed all stale .codex/ install paths from 6 docs files, replaced with .agents/skills/ canonical paths
+- 2026-06-03T06:51:04Z – claude:sonnet:orchestrator:reviewer – shell_pid=51739 – Started review via action command
