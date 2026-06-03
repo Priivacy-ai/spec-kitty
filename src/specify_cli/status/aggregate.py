@@ -24,15 +24,12 @@ Key constraints
 from __future__ import annotations
 
 import json
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     pass
-
-_logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -200,22 +197,9 @@ class MissionStatus:
             return None, False
         try:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            _logger.warning(
-                "_read_meta: failed to read/parse meta.json for mission %r at %s: %s — "
-                "topology detection degraded; coord-topology will NOT be detected",
-                mission_slug,
-                meta_path,
-                exc,
-            )
+        except (OSError, json.JSONDecodeError):
             return None, False
         if not isinstance(meta, dict):
-            _logger.warning(
-                "_read_meta: meta.json for mission %r is not a dict (got %s) — "
-                "topology detection degraded",
-                mission_slug,
-                type(meta).__name__,
-            )
             return None, False
 
         mission_id = meta.get("mission_id") or None

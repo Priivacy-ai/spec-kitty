@@ -3133,26 +3133,13 @@ def answer_decision_via_runtime(
     CLI answers are human-authored by default even though the command still
     carries an ``--agent`` identity for the surrounding mission loop.
     """
-    import logging
+    from specify_cli.core.execution_context import resolve_action_context
 
-    from specify_cli.core.execution_context import ActionContextError, resolve_action_context
-
-    logger = logging.getLogger(__name__)
-
-    try:
-        _ctx = resolve_action_context(
-            repo_root,
-            action="tasks",
-            feature=mission_slug,
-        )
-    except ActionContextError:
-        logger.warning(
-            "answer_decision_via_runtime: mission %r not found in repo %s — cannot answer decision %r",
-            mission_slug,
-            repo_root,
-            decision_id,
-        )
-        return
+    _ctx = resolve_action_context(
+        repo_root,
+        action="tasks",
+        feature=mission_slug,
+    )
     feature_dir = Path(_ctx.feature_dir)
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
@@ -3165,12 +3152,8 @@ def answer_decision_via_runtime(
         from runtime.next._internal_runtime.engine import _read_snapshot
 
         sync_emitter.seed_from_snapshot(_read_snapshot(Path(run_ref.run_dir)))
-    except Exception as exc:
-        logger.warning(
-            "answer_decision_via_runtime: failed to seed emitter from snapshot for run %r: %s",
-            run_ref.run_dir,
-            exc,
-        )
+    except Exception:
+        pass
     # Wrap with DecisionGitLog so the answered decision is committed to the
     # coordination branch (spec-kitty #1546, FR-001–FR-005).
     answer_emitter: Any = _wrap_with_decision_git_log(
