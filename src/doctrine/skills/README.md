@@ -37,7 +37,73 @@ Skills should teach agents to load doctrine **iteratively**:
 3. When stuck or need guidance: pull specific tactic/directive by ID.
 4. Never: load the full doctrine catalog into prompt context upfront.
 
-## Inventory
+## Naming Convention
+
+Spec Kitty 3.2.0 public operating skills use short hierarchical names:
+`spk-<family>-<action-or-topic>`.
+
+Families:
+
+- `spk-start-*`: onboarding, first use, command map, agent surface.
+- `spk-mission-*`: specify, research, plan, tasks, documentation, mission
+  type selection.
+- `spk-run-*`: runtime-next, program orchestration, implementation/review
+  loops, single-WP review, blocked recovery.
+- `spk-gate-*`: accept, merge, mission review, retrospective.
+- `spk-admin-*`: setup, agent config, upgrade, dashboard/status.
+- `spk-team-*`: auth, sync, tracker, connectors.
+- `spk-doctrine-*`: charter, glossary, SPDD, profile load, bulk-edit policy.
+- `spk-integrate-*`: orchestrator API, CI, external automation.
+- `spk-meta-*`: skill discovery and future skill authoring.
+
+Generated slash-command skills keep their command names
+(`spec-kitty.<command>`) for slash-command compatibility. Existing
+`spec-kitty-*` skills remain legacy aliases or detailed workflow guides while
+the public user-facing hierarchy moves to `spk-*`.
+
+## Public `spk-*` Inventory
+
+| Skill | Purpose |
+|---|---|
+| `spk-start-here` | First route for users and agents |
+| `spk-start-first-feature` | First mission walkthrough |
+| `spk-start-command-map` | Command-to-skill map |
+| `spk-start-agent-surface` | Agent host compatibility |
+| `spk-mission-specify` | Specification phase |
+| `spk-mission-plan` | Planning phase |
+| `spk-mission-tasks` | Tasks and WP authoring |
+| `spk-mission-types` | Mission type selection |
+| `spk-mission-research` | Research workflows |
+| `spk-mission-documentation` | Documentation missions |
+| `spk-run-next` | Runtime-next control loop |
+| `spk-run-program-orchestrate` | Multi-mission program orchestration |
+| `spk-run-implement-review` | WP implementation/review orchestration |
+| `spk-run-review-wp` | Single-WP review |
+| `spk-run-blocked-recovery` | Blocked-state recovery |
+| `spk-gate-accept` | Accept gate |
+| `spk-gate-merge` | Merge gate |
+| `spk-gate-mission-review` | Post-merge mission review |
+| `spk-gate-retrospective` | Post-merge retrospective |
+| `spk-admin-setup-doctor` | Install and repair |
+| `spk-admin-agent-config` | Agent setup |
+| `spk-admin-upgrade` | Upgrade and migrations |
+| `spk-admin-dashboard` | Status and dashboard |
+| `spk-admin-git-workflow` | Git and worktree workflows |
+| `spk-team-auth` | Auth and accounts |
+| `spk-team-sync` | Hosted/team sync |
+| `spk-team-tracker` | Tracker workflows |
+| `spk-team-connectors` | Connector integrations |
+| `spk-doctrine-charter` | Charter workflows |
+| `spk-doctrine-glossary` | Terminology |
+| `spk-doctrine-spdd-reasons` | REASONS Canvas |
+| `spk-doctrine-profile-load` | Agent profiles |
+| `spk-doctrine-bulk-edit` | Bulk-edit classification |
+| `spk-integrate-orchestrator-api` | External orchestrator API |
+| `spk-integrate-ci` | CI and automation |
+| `spk-meta-skill-map` | Discovery and naming convention |
+| `spk-meta-skill-authoring` | Future skill authoring |
+
+## Legacy / Detailed Workflow Inventory
 
 | Skill | Purpose |
 |---|---|
