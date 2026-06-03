@@ -140,9 +140,9 @@ Ordered by isolation / value, tied to the filed issues and the keepers:
 2. **Enforce the Status boundary** (#1664) — make the Mission Management-owned `status/` module an actually-bounded domain (import test mirroring `test_shared_package_boundary.py`).
 3. **Harden ExecutionContext** — route the residue surfaces (`02` §4: `agent/status.py`, `runtime_bridge`
    query-mode, `workflow.py` fix-mode, …) through `resolve_action_context`; delete duplicated path-builders.
-4. **Consolidate the 3 context projections** → one communication-artefact contract (§2). **(Raised — §2:
+4. **MissionRun → Mission reference** (#1663) — contained; unblocks "runtime knows its mission".
+5. **Consolidate the 3 context projections** → one communication-artefact contract (§2). **(Raised — §2:
    fixes the un-enforced/un-updated Effector profile+charter loading and the UI single-string drift.)**
-5. **MissionRun → Mission reference** (#1663) — contained; unblocks "runtime knows its mission".
 6. **Effector unification** (§3) — converge the Actor vocabularies. *(Deferred; trade-off in §3.)*
 7. **Commit-seam atomicity** — make `(worktree_root, destination_ref)` a single self-validating
    **CommitTarget** owned by the operation (one atomicity domain), closing #1618/#1348. **Gate cleared (2026-06-03):** forensic pass of the `safe_commit` call graph confirms the invariant is already enforced — `safe_commit` asserts `worktree.HEAD == destination_ref` before any staging, keyword-only args, `mypy --strict` enforced, no silent fallback. 7 direct call sites; all clean. `CommitTarget` is therefore an ergonomic improvement on clean code, not a safety gate. Safe to implement at step 7 with no design risk to steps 1–6.
