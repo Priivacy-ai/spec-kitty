@@ -227,3 +227,4 @@ Verify: run the post-edit grep command above. Any result in `docs/how-to/` or `d
 - 2026-06-03T06:45:32Z – claude:sonnet:orchestrator:orchestrator – shell_pid=41631 – Assigned agent via action command
 - 2026-06-03T06:48:05Z – claude:sonnet:orchestrator:orchestrator – shell_pid=41631 – Ready for review: removed all stale .codex/ install paths from 6 docs files, replaced with .agents/skills/ canonical paths
 - 2026-06-03T06:51:04Z – claude:sonnet:orchestrator:reviewer – shell_pid=51739 – Started review via action command
+- 2026-06-03T07:06:49Z – claude:sonnet:orchestrator:reviewer – shell_pid=51739 – Done override: Feature merged to target branch
