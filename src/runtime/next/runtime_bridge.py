@@ -64,7 +64,10 @@ from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
 
 logger = logging.getLogger(__name__)
 
-_MISSION_META_FILENAME = "meta.json"
+KITTIFY_DIR = ".kittify"
+META_JSON = "meta.json"
+MISSION_RUNTIME_YAML = "mission-runtime.yaml"
+MISSION_YAML = "mission.yaml"
 
 
 class DecisionGitLogUnavailable(RuntimeError):
@@ -77,7 +80,7 @@ def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:
     Falls back to ``kitty/mission-<slug>`` when meta.json is absent or
     does not carry the ``coordination_branch`` key.
     """
-    meta_path = repo_root / "kitty-specs" / mission_slug / _MISSION_META_FILENAME
+    meta_path = repo_root / "kitty-specs" / mission_slug / META_JSON
     if meta_path.exists():
         try:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
@@ -95,7 +98,7 @@ def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str:
     Returns the ULID string when present, or the slug as a fallback so that
     callers always receive a non-empty identifier.
     """
-    meta_path = repo_root / "kitty-specs" / mission_slug / _MISSION_META_FILENAME
+    meta_path = repo_root / "kitty-specs" / mission_slug / META_JSON
     if meta_path.exists():
         try:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
@@ -109,7 +112,7 @@ def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str:
 
 def _mission_declares_coordination_branch(mission_slug: str, repo_root: Path) -> bool:
     """Return True when meta.json explicitly declares coord-branch topology."""
-    meta_path = repo_root / "kitty-specs" / mission_slug / _MISSION_META_FILENAME
+    meta_path = repo_root / "kitty-specs" / mission_slug / META_JSON
     if not meta_path.exists():
         return False
     try:
@@ -192,20 +195,63 @@ class QueryModeValidationError(ValueError):
 # ---------------------------------------------------------------------------
 
 _FEATURE_RUNS_FILE = "feature-runs.json"
-_WP_SECTION_HEADING_RE = re.compile(
-    r"(?m)^#{2,4}\s+(?:Work Package\s+)?(WP\d{2})(?:\b|:)",
-)
+
+
+def _extract_wp_heading(line: str) -> tuple[str, int] | None:
+    """Return ``(wp_id, matched_prefix_len)`` for a tasks.md WP heading line."""
+    heading_level = 0
+    while heading_level < len(line) and line[heading_level] == "#":
+        heading_level += 1
+    if heading_level < 2 or heading_level > 4:
+        return None
+    if heading_level >= len(line) or not line[heading_level].isspace():
+        return None
+
+    cursor = heading_level
+    while cursor < len(line) and line[cursor].isspace():
+        cursor += 1
+
+    work_package_prefix = "Work Package"
+    if line.startswith(work_package_prefix, cursor):
+        prefix_end = cursor + len(work_package_prefix)
+        if prefix_end >= len(line) or not line[prefix_end].isspace():
+            return None
+        cursor = prefix_end
+        while cursor < len(line) and line[cursor].isspace():
+            cursor += 1
+
+    if not line.startswith("WP", cursor):
+        return None
+    digit_start = cursor + 2
+    digit_end = digit_start + 2
+    if digit_end > len(line) or not line[digit_start:digit_end].isdigit():
+        return None
+
+    wp_id = line[cursor:digit_end]
+    if digit_end == len(line):
+        return wp_id, digit_end
+
+    trailing = line[digit_end]
+    if trailing == ":" or not (trailing.isalnum() or trailing == "_"):
+        return wp_id, digit_end
+    return None
 
 
 def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
     """Extract WP sections from tasks.md keyed by WP ID."""
     sections: dict[str, str] = {}
-    matches = list(_WP_SECTION_HEADING_RE.finditer(tasks_content))
+    matches: list[tuple[str, int, int]] = []
+    offset = 0
 
-    for idx, match in enumerate(matches):
-        wp_id = match.group(1)
-        start = match.end()
-        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(tasks_content)
+    for line in tasks_content.splitlines(keepends=True):
+        heading = _extract_wp_heading(line)
+        if heading is not None:
+            wp_id, matched_prefix_len = heading
+            matches.append((wp_id, offset + matched_prefix_len, offset))
+        offset += len(line)
+
+    for idx, (wp_id, start, _line_start) in enumerate(matches):
+        end = matches[idx + 1][2] if idx + 1 < len(matches) else len(tasks_content)
         sections[wp_id] = tasks_content[start:end]
 
     return sections
@@ -338,7 +384,7 @@ def _resolve_mission_id_for_terminus(feature_dir: Path) -> str:
     when meta.json is missing or malformed (older missions predating the
     ULID identity rollout); the gate handles missing identities defensively.
     """
-    meta_path = feature_dir / _MISSION_META_FILENAME
+    meta_path = feature_dir / META_JSON
     if not meta_path.exists():
         return feature_dir.name
     try:
@@ -651,7 +697,7 @@ def _classify_and_emit_failure(
 
 
 def _feature_runs_path(repo_root: Path) -> Path:
-    return repo_root / ".kittify" / "runtime" / _FEATURE_RUNS_FILE
+    return repo_root / KITTIFY_DIR / "runtime" / _FEATURE_RUNS_FILE
 
 
 def _load_feature_runs(repo_root: Path) -> dict[str, dict[str, str]]:
@@ -1125,7 +1171,7 @@ def _resolve_runtime_contract_for_step(
         if contract_ref:
             repository = MissionStepContractRepository(
                 project_dir=repo_root
-                / ".kittify"
+                / KITTIFY_DIR
                 / "doctrine"
                 / "mission_step_contracts"
             )
@@ -1803,7 +1849,7 @@ def _split_env_paths(value: str) -> list[Path]:
 
 
 def _project_config_pack_paths(repo_root: Path) -> list[Path]:
-    config_file = repo_root / ".kittify" / "config.yaml"
+    config_file = repo_root / KITTIFY_DIR / "config.yaml"
     if not config_file.exists():
         return []
     try:
@@ -1820,17 +1866,17 @@ def _candidate_templates_for_root(root: Path, mission_type: str) -> list[Path]:
     candidates: list[Path] = []
 
     if root.is_file():
-        if root.name in {"mission-runtime.yaml", "mission.yaml"}:
+        if root.name in {MISSION_RUNTIME_YAML, MISSION_YAML}:
             candidates.append(root)
     elif root.exists() and root.is_dir():
         candidates.extend(
             [
-                root / mission_type / "mission-runtime.yaml",
-                root / mission_type / "mission.yaml",
-                root / "missions" / mission_type / "mission-runtime.yaml",
-                root / "missions" / mission_type / "mission.yaml",
-                root / "mission-runtime.yaml",
-                root / "mission.yaml",
+                root / mission_type / MISSION_RUNTIME_YAML,
+                root / mission_type / MISSION_YAML,
+                root / "missions" / mission_type / MISSION_RUNTIME_YAML,
+                root / "missions" / mission_type / MISSION_YAML,
+                root / MISSION_RUNTIME_YAML,
+                root / MISSION_YAML,
             ]
         )
 
@@ -1861,8 +1907,8 @@ def _resolve_runtime_template_in_root(root: Path, mission_type: str) -> Path | N
 
         paths_to_try = [candidate]
         # Prefer mission-runtime.yaml sidecar when candidate is mission.yaml.
-        if candidate.name == "mission.yaml":
-            runtime_sidecar = candidate.with_name("mission-runtime.yaml")
+        if candidate.name == MISSION_YAML:
+            runtime_sidecar = candidate.with_name(MISSION_RUNTIME_YAML)
             if runtime_sidecar.exists() and runtime_sidecar.is_file():
                 paths_to_try = [runtime_sidecar, candidate]
 
@@ -1891,11 +1937,11 @@ def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
     project_tiers: list[list[Path]] = [
         list(context.explicit_paths),
         _split_env_paths(env_value),
-        [repo_root / ".kittify" / "overrides" / "missions"],
-        [repo_root / ".kittify" / "missions"],
+        [repo_root / KITTIFY_DIR / "overrides" / "missions"],
+        [repo_root / KITTIFY_DIR / "missions"],
         _project_config_pack_paths(repo_root),
     ]
-    global_tier = [context.user_home / ".kittify" / "missions"]
+    global_tier = [context.user_home / KITTIFY_DIR / "missions"]
     builtin_tier = list(context.builtin_roots)
     tiers = (
         project_tiers + [builtin_tier, global_tier]
@@ -1922,7 +1968,7 @@ def _workflow_runtime_template(
     """Compose a runtime template when mission meta selects a workflow."""
     del mission_type
     mission_dir = repo_root / "kitty-specs" / mission_slug
-    meta_path = mission_dir / "meta.json"
+    meta_path = mission_dir / META_JSON
     if not meta_path.exists():
         return None, None
 
@@ -2029,7 +2075,7 @@ def get_or_start_run(
             )
 
     # Start a new run
-    run_store = repo_root / ".kittify" / "runtime" / "runs"
+    run_store = repo_root / KITTIFY_DIR / "runtime" / "runs"
     template_key = _runtime_template_key(mission_type, repo_root)
     template_override, template_path_override = _workflow_runtime_template(
         mission_slug, mission_type, repo_root, template_key
@@ -2103,7 +2149,7 @@ def _resolve_tech_stack_for_profile(
     try:
         from doctrine.agent_profiles import AgentProfileRepository  # noqa: PLC0415
 
-        repo = AgentProfileRepository(project_dir=repo_root / ".kittify" / "doctrine")
+        repo = AgentProfileRepository(project_dir=repo_root / KITTIFY_DIR / "doctrine")
         profile = repo.resolve_profile(profile_id)
     except Exception:
         return frozenset()
