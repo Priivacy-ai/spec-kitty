@@ -698,7 +698,8 @@ def test_implement_prompt_points_to_shared_mission_artifacts(workflow_repo: Path
     prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md"
     content = prompt_file.read_text(encoding="utf-8")
     assert "📚 SHARED MISSION ARTIFACTS:" in content
-    assert f"Spec, plan, tasks, and status live in main repo: {workflow_repo}/kitty-specs/{feature_slug}/" in content
+    assert f"Spec, plan, and tasks are visible from the primary checkout: {workflow_repo}/kitty-specs/{feature_slug}/" in content
+    assert "Status authority resolves through the coordination worktree for modern missions." in content
     assert "Use this lane workspace for code/tests; do not expect shared mission artifacts here" in content
 
 
@@ -714,7 +715,8 @@ def test_review_prompt_points_to_shared_mission_artifacts(workflow_repo: Path) -
     prompt_file = _prompt_path_from_output(result.stdout)
     content = prompt_file.read_text(encoding="utf-8")
     assert "📚 SHARED MISSION ARTIFACTS:" in content
-    assert f"Spec, plan, tasks, and status live in main repo: {workflow_repo}/kitty-specs/{feature_slug}/" in content
+    assert f"Spec, plan, and tasks are visible from the primary checkout: {workflow_repo}/kitty-specs/{feature_slug}/" in content
+    assert "Status authority resolves through the coordination worktree for modern missions." in content
     assert "Use this lane workspace for code/tests; do not expect shared mission artifacts here" in content
 
 

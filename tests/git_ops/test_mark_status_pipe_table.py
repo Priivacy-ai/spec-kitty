@@ -408,8 +408,8 @@ class TestTasksTemplateCheckboxFormat:
             / "specify_cli"
             / "missions"
             / "software-dev"
-            / "command-templates"
-            / "tasks.md"
+            / "templates"
+            / "tasks-template.md"
         )
 
     def test_template_mentions_checkbox_format(self):

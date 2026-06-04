@@ -403,6 +403,7 @@ class TestModeSwitchFallsThroughOnResolved:
 def workflow_cli_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
     # Bypass the protected-branch guard for test fixtures on 'main'.
     monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
+    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
 
     repo = tmp_path / "repo"
     repo.mkdir()

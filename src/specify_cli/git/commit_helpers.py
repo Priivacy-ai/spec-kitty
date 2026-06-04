@@ -466,6 +466,11 @@ def _is_protected_branch_exception(commit_message: str) -> bool:
     )
 
 
+def protected_branch_bypass_enabled() -> bool:
+    allowed_values = {"1", "true", "yes"}
+    return os.environ.get("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "").lower() in allowed_values
+
+
 def assert_staging_area_matches_expected(
     repo_path: Path,
     expected_paths: Sequence[str],
@@ -876,7 +881,11 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
         destination_ref in protected_branches(repo_root)
         or destination_ref in protected_branches(worktree_root)
     )
-    if is_protected and not _is_protected_branch_exception(message):
+    if (
+        is_protected
+        and not protected_branch_bypass_enabled()
+        and not _is_protected_branch_exception(message)
+    ):
         raise ProtectedBranchRefused(
             destination_ref=destination_ref,
             worktree_root=worktree_root,

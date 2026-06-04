@@ -33,6 +33,18 @@ from specify_cli.core.context_validation import (
 pytestmark = pytest.mark.non_sandbox
 
 
+def _hide_ambient_repo_markers(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Hide .kittify/.git markers above tmp_path for negative detection tests."""
+    original_exists = Path.exists
+
+    def exists(path: Path) -> bool:
+        if path.name in {".kittify", ".git"} and not path.parent.is_relative_to(tmp_path):
+            return False
+        return original_exists(path)
+
+    monkeypatch.setattr(Path, "exists", exists)
+
+
 class TestContextDetection:
     """Tests for context detection logic."""
 
@@ -120,8 +132,9 @@ class TestContextDetection:
         assert ctx.location == ExecutionContext.MAIN_REPO
         assert ctx.cwd == tmp_path
 
-    def test_detect_false_positive_worktree(self, tmp_path: Path):
+    def test_detect_false_positive_worktree(self, tmp_path: Path, monkeypatch):
         """Directory named .worktrees outside project root should not false-positive."""
+        _hide_ambient_repo_markers(monkeypatch, tmp_path)
         fake_worktree = tmp_path / ".worktrees" / "not-a-worktree"
         fake_worktree.mkdir(parents=True)
 
@@ -425,8 +438,9 @@ class TestWorktreeNestingPrevention:
 class TestEdgeCases:
     """Tests for edge cases in context detection."""
 
-    def test_detect_without_repo_markers(self, tmp_path: Path):
+    def test_detect_without_repo_markers(self, tmp_path: Path, monkeypatch):
         """Test detection when no .kittify or .git found."""
+        _hide_ambient_repo_markers(monkeypatch, tmp_path)
         # Empty directory
         empty_dir = tmp_path / "no-repo"
         empty_dir.mkdir()

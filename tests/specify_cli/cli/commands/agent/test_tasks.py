@@ -16,18 +16,23 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from typer.testing import CliRunner
 from typer.main import get_command
+from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import (
+    _VALID_VERDICTS,
     _get_latest_review_cycle_verdict,
     _lane_targets_for_emit,
     _wp_lane_from_status_events,
-    _VALID_VERDICTS,
     app,
 )
+from specify_cli.status.lifecycle_events import (
+    REVIEWER_SELF_APPROVAL,
+    mission_event_log_path,
+    read_lifecycle_events,
+)
+from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
-from specify_cli.status.models import StatusEvent, Lane
 from tests.mocked_env import setup_mocked_env
 
 pytestmark = pytest.mark.fast
@@ -139,6 +144,174 @@ def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str) -> None:
         execution_mode="worktree",
     )
     append_event(feature_dir, event)
+
+
+def _latest_activity_line(wp_file: Path) -> str:
+    lines = [
+        line
+        for line in wp_file.read_text(encoding="utf-8").splitlines()
+        if line.startswith("- ")
+    ]
+    assert lines, "WP Activity Log is empty"
+    return lines[-1]
+
+
+def test_move_task_for_review_without_agent_uses_assigned_actor(tmp_path: Path) -> None:
+    """Omitted --agent should not turn a normal handoff into a user override."""
+    mission_slug = "test-move-task-for-review-actor"
+    feature_dir, _wp_file = _build_wp_file(tmp_path, mission_slug, "WP01")
+    _seed_wp_event(feature_dir, "WP01", "in_progress")
+
+    with setup_mocked_env(
+        tmp_path,
+        mission_slug=mission_slug,
+        extra_patches={
+            "_validate_ready_for_review": (True, []),
+            "_check_unchecked_subtasks": [],
+        },
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "for_review",
+                "--mission",
+                mission_slug,
+                "--no-auto-commit",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    events = list((feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines())
+    emitted = json.loads(events[-1])
+    assert emitted["actor"] == "testbot"
+    assert emitted["to_lane"] == "for_review"
+    assert emitted["force"] is False
+
+
+def test_move_task_approval_without_agent_does_not_use_assigned_actor(tmp_path: Path) -> None:
+    """Omitted --agent on reviewer actions must not impersonate the implementer."""
+    mission_slug = "test-move-task-approval-actor"
+    feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, "WP01")
+    _seed_wp_event(feature_dir, "WP01", "for_review")
+
+    with setup_mocked_env(
+        tmp_path,
+        mission_slug=mission_slug,
+        extra_patches={
+            "_validate_ready_for_review": (True, []),
+            "_check_unchecked_subtasks": [],
+        },
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "approved",
+                "--mission",
+                mission_slug,
+                "--no-auto-commit",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    events = [json.loads(line) for line in (feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
+    emitted = events[1:]
+    assert [event["to_lane"] for event in emitted] == ["in_review", "approved"]
+    assert {event["actor"] for event in emitted} == {"user"}
+    latest_activity = _latest_activity_line(wp_file)
+    assert " – user – " in latest_activity
+    assert " – testbot – " not in latest_activity
+
+
+def test_move_task_direct_approval_without_agent_uses_hop_specific_actors(tmp_path: Path) -> None:
+    """Composite moves attribute implementation and review hops separately."""
+    mission_slug = "test-move-task-direct-approval-actors"
+    feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, "WP01")
+    _seed_wp_event(feature_dir, "WP01", "in_progress")
+
+    with setup_mocked_env(
+        tmp_path,
+        mission_slug=mission_slug,
+        extra_patches={
+            "_validate_ready_for_review": (True, []),
+            "_check_unchecked_subtasks": [],
+        },
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "approved",
+                "--mission",
+                mission_slug,
+                "--no-auto-commit",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    events = [json.loads(line) for line in (feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
+    emitted = events[1:]
+    assert [(event["to_lane"], event["actor"]) for event in emitted] == [
+        ("for_review", "testbot"),
+        ("in_review", "user"),
+        ("approved", "user"),
+    ]
+    latest_activity = _latest_activity_line(wp_file)
+    assert " – user – " in latest_activity
+    assert " – testbot – " not in latest_activity
+
+
+def test_move_task_self_review_fallback_without_agent_records_operator(tmp_path: Path) -> None:
+    """Self-review fallback payload must not impersonate the assigned implementer."""
+    mission_slug = "test-move-task-self-review-actor"
+    feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, "WP01")
+    _seed_wp_event(feature_dir, "WP01", "for_review")
+
+    with setup_mocked_env(
+        tmp_path,
+        mission_slug=mission_slug,
+        extra_patches={
+            "_validate_ready_for_review": (True, []),
+            "_check_unchecked_subtasks": [],
+        },
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "approved",
+                "--mission",
+                mission_slug,
+                "--force",
+                "--self-review-fallback",
+                "--intended-reviewer",
+                "reviewbot",
+                "--reviewer-failure-reason",
+                "review agent exited 1",
+                "--no-auto-commit",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    lifecycle_events = [
+        event
+        for event in read_lifecycle_events(mission_event_log_path(feature_dir))
+        if event.get("event_type") == REVIEWER_SELF_APPROVAL
+    ]
+    assert len(lifecycle_events) == 1
+    assert lifecycle_events[0]["payload"]["implementing_actor"] == "user"
+    latest_activity = _latest_activity_line(wp_file)
+    assert " – user – " in latest_activity
+    assert " – testbot – " not in latest_activity
 
 
 # ---------------------------------------------------------------------------
