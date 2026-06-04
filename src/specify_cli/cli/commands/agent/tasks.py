@@ -2074,6 +2074,7 @@ def move_task(
                     uninitialized_status_error(mission_slug, task_id, feature_dir)
                 )
 
+            final_hop_actor = actor
             for target in transition_targets:
                 from_lane_for_hop = event.to_lane if event is not None else resolve_lane_alias(current_event_lane)
                 # If --agent is omitted, preserve the WP's assigned agent only
@@ -2142,6 +2143,7 @@ def move_task(
                     repo_root=main_repo_root,
                     review_result=hop_review_result,
                 ))
+                final_hop_actor = hop_actor
                 # review_ref only applies to rollback transitions, never to forward chain hops
                 emit_review_ref = None
 
@@ -2152,7 +2154,7 @@ def move_task(
                     feature_dir,
                     mission_slug=mission_slug,
                     wp_id=task_id,
-                    implementing_actor=actor,
+                    implementing_actor=final_hop_actor,
                     intended_reviewer=(intended_reviewer or "").strip(),
                     failure_reason=(reviewer_failure_reason or "").strip(),
                     fallback_approved=True,
@@ -2178,7 +2180,7 @@ def move_task(
 
             # Build history entry
             timestamp = datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
-            agent_name = agent or extract_scalar(updated_front, "agent") or "unknown"
+            agent_name = final_hop_actor or "unknown"
             shell_pid_val = shell_pid or extract_scalar(updated_front, "shell_pid") or ""
             note_text = note_text or f"Moved to {target_lane}"
 
