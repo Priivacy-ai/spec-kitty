@@ -26,6 +26,7 @@ import os
 
 _EVENTS_MODULE = ".events"
 _FEATURE_FLAGS_MODULE = ".feature_flags"
+_LOCAL_COMMIT_MODULE = ".local_commit"
 
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     # Keep package init cheap. Importing a sync submodule such as
@@ -73,12 +74,12 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "get_sync_daemon_status": (".daemon", "get_sync_daemon_status"),
     "stop_sync_daemon": (".daemon", "stop_sync_daemon"),
     # LocalCommit core (WP05): SyncState and frame lifecycle.
-    "SyncState": (".local_commit", "SyncState"),
-    "load_sync_state": (".local_commit", "load_sync_state"),
-    "save_sync_state": (".local_commit", "save_sync_state"),
-    "emit_local_commit": (".local_commit", "emit_local_commit"),
-    "flush_pending_local_commits": (".local_commit", "flush_pending_local_commits"),
-    "record_local_commit_ack": (".local_commit", "record_local_commit_ack"),
+    "SyncState": (_LOCAL_COMMIT_MODULE, "SyncState"),
+    "load_sync_state": (_LOCAL_COMMIT_MODULE, "load_sync_state"),
+    "save_sync_state": (_LOCAL_COMMIT_MODULE, "save_sync_state"),
+    "emit_local_commit": (_LOCAL_COMMIT_MODULE, "emit_local_commit"),
+    "flush_pending_local_commits": (_LOCAL_COMMIT_MODULE, "flush_pending_local_commits"),
+    "record_local_commit_ack": (_LOCAL_COMMIT_MODULE, "record_local_commit_ack"),
 }
 
 

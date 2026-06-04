@@ -372,7 +372,7 @@ class WebSocketClient:
         msg_type = data.get("type")
 
         if msg_type == "snapshot":
-            await self._handle_snapshot(data)
+            self._handle_snapshot(data)
         elif msg_type == "event":
             await self._handle_event(data)
         elif msg_type == "ping":
@@ -396,7 +396,7 @@ class WebSocketClient:
         else:
             logger.warning("Expected snapshot, got %s", data.get("type"))
 
-    async def _handle_snapshot(self, data: dict):
+    def _handle_snapshot(self, data: dict):
         """Process snapshot"""
         # Store snapshot data locally if needed
         pass
