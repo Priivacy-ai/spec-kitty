@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc37] - 2026-06-04
+
+### Added
+
+- Added execution-state domain remediation artifacts, ADRs, and glossary
+  context covering ExecutionContext ownership, command targets, effector
+  actors, mission/MissionRun boundaries, and status aggregate behavior.
+- Added architectural ratchets for execution-context parity, status module
+  boundaries, and raw `kitty-specs/<mission>` path construction.
+
+### Changed
+
+- Routed command and runtime path handling through shared execution-context and
+  feature-directory resolution so raw mission spec paths consistently resolve
+  through the active action context.
+- Refreshed Contextive execution glossary and doctrine skill metadata while
+  removing the retired `spk-integrate-ci` skill from the bundled doctrine pack.
+- Hardened release-candidate CI ownership and release workflow checks around
+  path filters, candidate metadata, and downstream compatibility validation.
+
+### Fixed
+
+- Fixed 3.1.10 acceptance and move-task regressions across transactional
+  coordination, protected branch bypass handling, and clean-tree acceptance
+  fixtures.
+- Suppressed SaaS ingress warnings when SaaS sync is disabled.
+- Addressed low-risk Sonar cleanup findings and mission-review follow-up
+  issues from execution-state domain remediation.
+
 ## [3.2.0rc36] - 2026-06-03
 
 ### Changed
