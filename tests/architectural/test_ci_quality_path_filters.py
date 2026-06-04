@@ -59,3 +59,16 @@ def test_lanes_filter_and_jobs_include_lanes_package_tests() -> None:
     )
     assert "tests/specify_cli/lanes/" in fast_run
     assert "tests/specify_cli/lanes/" in integration_run
+
+
+def test_execution_context_only_core_misc_runs_focused_parity_gate() -> None:
+    """Execution-context-only changes must still run the CWD parity ratchet."""
+    run_script = _job_run_script(
+        "integration-tests-core-misc",
+        "Run integration tests — core misc",
+    )
+
+    assert 'needs.changes.outputs.core_misc }}" != "true"' in run_script
+    assert 'needs.changes.outputs.execution_context }}" = "true"' in run_script
+    assert "tests/architectural/test_execution_context_parity.py" in run_script
+    assert "coverage-integration-core-misc.xml" in run_script

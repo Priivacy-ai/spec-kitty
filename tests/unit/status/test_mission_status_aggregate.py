@@ -10,6 +10,7 @@ Covers:
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -45,6 +46,29 @@ def _write_events_file(mission_dir: Path, events: list[dict] | None = None) -> N
     if events:
         lines = "\n".join(json.dumps(e) for e in events)
     (mission_dir / "status.events.jsonl").write_text(lines, encoding="utf-8")
+
+
+def _git(repo: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(repo), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+def _make_git_repo(path: Path) -> Path:
+    repo = path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True, text=True)
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test User")
+    (repo / ".kittify").mkdir()
+    (repo / "README.md").write_text("test repo\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "init")
+    return repo
 
 
 def _make_event(
@@ -199,6 +223,66 @@ class TestLoadCoordUnavailableFailsClosed:
         with pytest.raises(CoordAuthorityUnavailable):
             MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
 
+    def test_corrupt_meta_fails_closed_instead_of_legacy_fallback(self, tmp_path: Path) -> None:
+        """Existing but corrupt meta.json cannot degrade to a primary-checkout read."""
+        slug = "corrupt-meta-feature"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        (mission_dir / "meta.json").write_text(
+            '{"mission_id":"01CORRUPT12345678901234","coordination_branch":',
+            encoding="utf-8",
+        )
+        _write_events_file(mission_dir, [
+            _make_event(slug, "WP01", "planned", "claimed"),
+        ])
+
+        from specify_cli.status.aggregate import MissionMetadataUnavailable, MissionStatus
+
+        with pytest.raises(MissionMetadataUnavailable) as exc_info:
+            MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+        exc = exc_info.value
+        assert exc.mission_slug == slug
+        assert exc.primary_candidate == mission_dir
+
+    def test_non_dict_meta_fails_closed_instead_of_legacy_fallback(self, tmp_path: Path) -> None:
+        """Existing meta.json must be an object before topology can be trusted."""
+        slug = "array-meta-feature"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        (mission_dir / "meta.json").write_text("[]", encoding="utf-8")
+
+        from specify_cli.status.aggregate import MissionMetadataUnavailable, MissionStatus
+
+        with pytest.raises(MissionMetadataUnavailable, match="expected object"):
+            MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+    def test_non_string_mission_id_fails_closed(self, tmp_path: Path) -> None:
+        """Malformed mission_id cannot be laundered into a legacy read."""
+        slug = "bad-mission-id-feature"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        (mission_dir / "meta.json").write_text(
+            '{"mission_id": ["01BAD"], "coordination_branch": "kitty/mission-bad"}',
+            encoding="utf-8",
+        )
+
+        from specify_cli.status.aggregate import MissionMetadataUnavailable, MissionStatus
+
+        with pytest.raises(MissionMetadataUnavailable, match="mission_id must be string"):
+            MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+    def test_non_string_coordination_branch_fails_closed(self, tmp_path: Path) -> None:
+        """Malformed coordination_branch cannot degrade to primary checkout."""
+        slug = "bad-coord-branch-feature"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        (mission_dir / "meta.json").write_text(
+            '{"mission_id": "01BADCOORD12345678901234", "coordination_branch": 123}',
+            encoding="utf-8",
+        )
+
+        from specify_cli.status.aggregate import MissionMetadataUnavailable, MissionStatus
+
+        with pytest.raises(MissionMetadataUnavailable, match="coordination_branch must be string"):
+            MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
 
 # ---------------------------------------------------------------------------
 # T025.4 — MissionStatus.claim() returns correct lane
@@ -305,9 +389,149 @@ class TestStatusFacadeExports:
     def test_coord_authority_unavailable_importable_from_status(self) -> None:
         from specify_cli.status import CoordAuthorityUnavailable  # noqa: F401
 
+    def test_mission_metadata_unavailable_importable_from_status(self) -> None:
+        from specify_cli.status import MissionMetadataUnavailable  # noqa: F401
+
     def test_all_three_in_dunder_all(self) -> None:
         import specify_cli.status as status_mod
 
         assert "MissionStatus" in status_mod.__all__
         assert "ActiveWPStatus" in status_mod.__all__
         assert "CoordAuthorityUnavailable" in status_mod.__all__
+        assert "MissionMetadataUnavailable" in status_mod.__all__
+
+
+# ---------------------------------------------------------------------------
+# FR-019 / FR-020 — MissionStatus.transition() and .save() unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestTransitionHappyPath:
+    def test_transition_validates_then_applies(self, tmp_path: Path) -> None:
+        """transition() rejects illegal transitions before calling BookkeepingTransaction."""
+        slug = "034-transition-test"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        _write_events_file(mission_dir, [
+            _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH01"),
+        ])
+
+        from specify_cli.status import InvalidTransitionError, TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+        # planned → claimed → in_progress is valid from 'claimed'
+        # But planned → approved is illegal
+        bad_request = TransitionRequest(
+            wp_id="WP01",
+            to_lane="approved",
+            actor="claude",
+            feature_dir=ms.read_dir,
+            mission_slug=slug,
+        )
+        with pytest.raises((InvalidTransitionError, Exception)) as exc_info:
+            ms.transition(bad_request)
+        # Must raise — must NOT silently succeed or call BookkeepingTransaction
+        assert exc_info.value is not None
+
+    def test_transition_raises_invalid_transition_error_on_illegal_move(self, tmp_path: Path) -> None:
+        """transition() raises InvalidTransitionError, not a generic exception."""
+        slug = "034-invalid-transition"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        _write_events_file(mission_dir, [
+            _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH20"),
+        ])
+
+        from specify_cli.status import InvalidTransitionError, TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+        # 'done' is only reachable via merge — transitioning directly is illegal
+        bad_request = TransitionRequest(
+            wp_id="WP01",
+            to_lane="done",
+            actor="claude",
+            feature_dir=ms.read_dir,
+            mission_slug=slug,
+        )
+        with pytest.raises(InvalidTransitionError):
+            ms.transition(bad_request)
+
+
+class TestSaveReturnType:
+    def test_save_uses_real_bookkeeping_transaction_and_returns_commit_receipt(
+        self, tmp_path: Path
+    ) -> None:
+        """save() commits status artifacts through the real BookkeepingTransaction."""
+        slug = "save-modern"
+        mission_id = "01SAVE12345678901234567890"
+        mid8 = mission_id[:8]
+        coord_branch = f"kitty/mission-{slug}-{mid8}"
+        repo = _make_git_repo(tmp_path)
+
+        from specify_cli.status.aggregate import MissionStatus
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+
+        primary_dir = _make_mission_dir(repo, slug)
+        _write_meta(primary_dir, mission_id=mission_id, coordination_branch=coord_branch)
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-m", "add mission meta")
+        _git(repo, "branch", coord_branch)
+
+        coord_root = CoordinationWorkspace.resolve(repo, slug, mid8)
+        coord_dir = coord_root / "kitty-specs" / f"{slug}-{mid8}"
+        coord_dir.mkdir(parents=True)
+        events_path = coord_dir / "status.events.jsonl"
+        events_path.write_text(
+            json.dumps(_make_event(slug, "WP01", "planned", "claimed")) + "\n",
+            encoding="utf-8",
+        )
+
+        ms = MissionStatus.load(repo_root=repo, mission_slug=slug)
+        receipt = ms.save(operation="test-save")
+
+        assert receipt.destination_ref == coord_branch
+        assert receipt.commit_sha
+        committed = _git(repo, "show", f"{coord_branch}:kitty-specs/{slug}-{mid8}/status.events.jsonl")
+        assert "WP01" in committed
+
+    def test_save_supports_identity_bearing_legacy_mission(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Legacy missions with mission_id but no coord branch commit on current branch."""
+        base_slug = "save-legacy"
+        mission_id = "01LEGACY45678901234567890"
+        mid8 = mission_id[:8]
+        slug = f"{base_slug}-{mid8}"
+        repo = _make_git_repo(tmp_path)
+        _git(repo, "checkout", "-b", "legacy-lane")
+        monkeypatch.chdir(repo)
+
+        mission_dir = _make_mission_dir(repo, slug)
+        _write_meta(mission_dir, mission_id=mission_id)
+        events_path = mission_dir / "status.events.jsonl"
+        events_path.write_text(
+            json.dumps(_make_event(slug, "WP02", "planned", "claimed")) + "\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.status.aggregate import MissionStatus
+
+        ms = MissionStatus.load(repo_root=repo, mission_slug=slug)
+        receipt = ms.save(operation="test-save-legacy")
+
+        assert receipt.destination_ref == "legacy-lane"
+        committed = _git(repo, "show", f"legacy-lane:kitty-specs/{slug}/status.events.jsonl")
+        assert "WP02" in committed
+
+    def test_save_fails_closed_without_mission_identity(self, tmp_path: Path) -> None:
+        """No-meta missions cannot be persisted through BookkeepingTransaction."""
+        slug = "034-save-test"
+        _make_mission_dir(tmp_path, slug)
+
+        from specify_cli.status.aggregate import MissionMetadataUnavailable, MissionStatus
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+        with pytest.raises(MissionMetadataUnavailable, match="mission_id is required"):
+            ms.save(operation="test-save")

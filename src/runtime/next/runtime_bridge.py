@@ -43,7 +43,7 @@ from runtime.next._internal_runtime import (
     provide_decision_answer as runtime_provide_decision_answer,
     start_mission_run,
 )
-from runtime.next._internal_runtime.schema import ActorIdentity, load_mission_template_file
+from runtime.next._internal_runtime.schema import ActorIdentity, MissionRuntimeError, load_mission_template_file
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.mission import get_mission_type
@@ -2290,6 +2290,16 @@ def _build_operational_context_for_decision(
 # ---------------------------------------------------------------------------
 
 
+def _resolve_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
+    """Resolve a mission dir for runtime reads without importing CLI context."""
+    from specify_cli.lanes.branch_naming import mid8_from_slug as _mid8_from_slug
+    from specify_cli.mission_read_path import (
+        resolve_mission_read_path as _resolve_read_path,
+    )
+
+    return _resolve_read_path(repo_root, mission_slug, _mid8_from_slug(mission_slug))
+
+
 def decide_next_via_runtime(  # noqa: C901
     agent: str,
     mission_slug: str,
@@ -2307,14 +2317,7 @@ def decide_next_via_runtime(  # noqa: C901
     4. For non-WP steps: call next_step(run_ref, agent, result) directly
     5. Map NextDecision -> Decision (preserving JSON contract)
     """
-    from specify_cli.missions._read_path_resolver import (
-        resolve_mission_read_path as _resolve_read_path,
-    )
-    from specify_cli.lanes.branch_naming import mid8_from_slug as _mid8_from_slug
-
-    _mid8 = _mid8_from_slug(mission_slug)
-
-    feature_dir = _resolve_read_path(repo_root, mission_slug, _mid8)
+    feature_dir = _resolve_runtime_feature_dir(repo_root, mission_slug)
     now = datetime.now(UTC).isoformat()
 
     if not feature_dir.is_dir():
@@ -3133,14 +3136,39 @@ def answer_decision_via_runtime(
     CLI answers are human-authored by default even though the command still
     carries an ``--agent`` identity for the surrounding mission loop.
     """
-    from specify_cli.core.execution_context import resolve_action_context
+    import logging
 
-    _ctx = resolve_action_context(
-        repo_root,
-        action="tasks",
-        feature=mission_slug,
-    )
-    feature_dir = Path(_ctx.feature_dir)
+    logger = logging.getLogger(__name__)
+
+    from specify_cli.core.execution_context import ActionContextError, resolve_action_context
+
+    try:
+        _ctx = resolve_action_context(
+            repo_root,
+            action="tasks",
+            feature=mission_slug,
+        )
+        feature_dir = Path(_ctx.feature_dir)
+    except ActionContextError as exc:
+        logger.warning(
+            "answer_decision_via_runtime: mission %r not found in repo %s — cannot answer decision %r",
+            mission_slug,
+            repo_root,
+            decision_id,
+        )
+        raise MissionRuntimeError(
+            f"Mission {mission_slug!r} not found; cannot answer decision {decision_id!r}"
+        ) from exc
+    if not feature_dir.is_dir():
+        logger.warning(
+            "answer_decision_via_runtime: mission %r resolved to missing dir %s — cannot answer decision %r",
+            mission_slug,
+            feature_dir,
+            decision_id,
+        )
+        raise MissionRuntimeError(
+            f"Mission {mission_slug!r} not found; cannot answer decision {decision_id!r}"
+        )
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
     sync_emitter = SyncRuntimeEventEmitter.for_feature(
@@ -3152,8 +3180,12 @@ def answer_decision_via_runtime(
         from runtime.next._internal_runtime.engine import _read_snapshot
 
         sync_emitter.seed_from_snapshot(_read_snapshot(Path(run_ref.run_dir)))
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(
+            "answer_decision_via_runtime: failed to seed emitter from snapshot for run %r: %s",
+            run_ref.run_dir,
+            exc,
+        )
     # Wrap with DecisionGitLog so the answered decision is committed to the
     # coordination branch (spec-kitty #1546, FR-001–FR-005).
     answer_emitter: Any = _wrap_with_decision_git_log(

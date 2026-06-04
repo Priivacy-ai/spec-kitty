@@ -99,18 +99,27 @@ def main_callback(
     if _is_doctor_restart_daemon_invocation(sys.argv):
         return
 
-    root_callback(ctx)
+    next_fast_path = _is_next_invocation(sys.argv)
+    if not next_fast_path:
+        root_callback(ctx)
 
-    # FR-002: Ensure global runtime (~/.kittify/) is populated and current.
-    # Must run BEFORE check_version_pin() so global assets are available.
-    from specify_cli.runtime.agent_commands import ensure_global_agent_commands
-    from specify_cli.runtime.agent_skills import ensure_global_agent_skills
-    from specify_cli.runtime.bootstrap import check_version_pin, ensure_runtime
+        # FR-002: Ensure global runtime (~/.kittify/) is populated and current.
+        # Must run BEFORE check_version_pin() so global assets are available.
+        from specify_cli.runtime.agent_commands import ensure_global_agent_commands
+        from specify_cli.runtime.agent_skills import ensure_global_agent_skills
+        from specify_cli.runtime.bootstrap import ensure_runtime
 
-    ensure_runtime()
-    ensure_global_agent_skills()
-    if not _is_doctor_skills_invocation(sys.argv):
-        ensure_global_agent_commands()
+        ensure_runtime()
+        ensure_global_agent_skills()
+        if not _is_doctor_skills_invocation(sys.argv):
+            ensure_global_agent_commands()
+
+    _run_startup_project_gates(ctx)
+
+
+def _run_startup_project_gates(ctx: typer.Context) -> None:
+    """Run project-local safety gates shared by normal and startup-fast paths."""
+    from specify_cli.runtime.bootstrap import check_version_pin
 
     # F-Pin-001 / 1A-16: Warn on runtime.pin_version for all project invocations.
     project_root = locate_project_root()
@@ -161,6 +170,23 @@ def _is_doctor_skills_invocation(argv: list[str]) -> bool:
     """
     args = [arg for arg in argv[1:] if not arg.startswith("-")]
     return len(args) >= 2 and args[0] == "doctor" and args[1] == "skills"
+
+
+def _is_next_invocation(argv: list[str]) -> bool:
+    """Return True for direct ``spec-kitty next`` invocations.
+
+    ``next`` is the startup-sensitive mission loop command. It performs its
+    own project-root resolution, charter preflight, and command validation, so
+    the root callback must not run global asset repair on this path.
+    """
+    for arg in argv[1:]:
+        if arg in {"--help", "-h"}:
+            return False
+        if arg == "next":
+            return True
+        if not arg.startswith("-"):
+            return False
+    return False
 
 
 def _get_app() -> typer.Typer:
@@ -322,6 +348,10 @@ def main() -> None:
         raise typer.Exit(1)
 
     _get_app()()
+
+
+if _is_doctor_restart_daemon_process_fast_path(sys.argv):
+    _run_doctor_restart_daemon_process_fast_path(sys.argv)
 
 
 __all__ = ["main", "app", "__version__"]

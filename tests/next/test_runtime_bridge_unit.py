@@ -386,6 +386,20 @@ class TestGetOrStartRun:
         assert "042-test-feature" in index
         assert "run_id" in index["042-test-feature"]
 
+    def test_feature_runs_index_includes_mission_id_and_slug(self, tmp_path: Path) -> None:
+        """FR-028: feature-runs.json entries must include mission_id and mission_slug (WP06)."""
+        repo_root = _scaffold_project(tmp_path)
+
+        from specify_cli.next.runtime_bridge import get_or_start_run, _load_feature_runs
+
+        get_or_start_run("042-test-feature", repo_root, "software-dev")
+        index = _load_feature_runs(repo_root)
+        entry = index["042-test-feature"]
+        # mission_slug must always be present and match the key
+        assert entry.get("mission_slug") == "042-test-feature"
+        # mission_id may be None when no meta.json exists, but the key must be present
+        assert "mission_id" in entry
+
 
 class TestRuntimeBridgeCompatibilityHelpers:
     def test_mission_key_for_run_ref_prefers_mission_type(self, tmp_path: Path) -> None:
@@ -770,6 +784,31 @@ class TestMapRuntimeDecision:
 
 class TestAnswerDecision:
     pytestmark = pytest.mark.git_repo
+
+    def test_query_and_answer_paths_use_resolve_action_context(self) -> None:
+        """FR-032: runtime query/answer surfaces stay on canonical ExecutionContext."""
+        import inspect
+
+        from specify_cli.next import runtime_bridge
+
+        assert "resolve_action_context" in inspect.getsource(runtime_bridge.query_current_state)
+        assert "resolve_action_context" in inspect.getsource(runtime_bridge.answer_decision_via_runtime)
+
+    def test_answer_missing_mission_raises(self, tmp_path: Path) -> None:
+        """Missing mission must fail, not log and report a successful no-op answer."""
+        repo_root = _scaffold_project(tmp_path)
+
+        from specify_cli.next.runtime_bridge import answer_decision_via_runtime
+        from specify_cli.next._internal_runtime.schema import MissionRuntimeError
+
+        with pytest.raises(MissionRuntimeError, match="cannot answer decision"):
+            answer_decision_via_runtime(
+                "missing-feature",
+                "decision-001",
+                "yes",
+                "test",
+                repo_root,
+            )
 
     def test_answer_without_pending_raises(self, tmp_path: Path) -> None:
         """Answering when no decisions pending raises error."""
