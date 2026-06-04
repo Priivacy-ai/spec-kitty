@@ -165,6 +165,9 @@ jobs:
       - name: Check distributions
         run: twine check dist/*
 
+      - name: Check exact wheel install
+        run: python scripts/release/check_exact_install.py --package spec-kitty-cli --console-script spec-kitty --console-arg=--version
+
       - name: Record artifact checksums
         run: |
           sha256sum dist/* > SHA256SUMS.txt
