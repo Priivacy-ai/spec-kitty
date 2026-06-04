@@ -12,6 +12,7 @@ All errors surface as :class:`OriginBindingError`.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import logging
 import re
 from pathlib import Path
@@ -428,7 +429,7 @@ def _resolve_repo_root(feature_dir: Path) -> Path:
     resolved = feature_dir.resolve()
 
     for parent in [resolved.parent, *resolved.parents]:
-        if parent.name == "kitty-specs":
+        if parent.name == KITTY_SPECS_DIR:
             repo_root = parent.parent
             if (repo_root / ".kittify").is_dir():
                 return repo_root

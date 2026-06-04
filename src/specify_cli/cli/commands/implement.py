@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
 import functools
 import json
 import os
@@ -151,7 +152,7 @@ def detect_feature_context(
 
 def find_wp_file(repo_root: Path, mission_slug: str, wp_id: str) -> Path:
     """Find the markdown file for a work package."""
-    tasks_dir = repo_root / "kitty-specs" / mission_slug / "tasks"
+    tasks_dir = resolve_feature_dir_for_mission(repo_root, mission_slug) / "tasks"
     if not tasks_dir.exists():
         raise FileNotFoundError(f"Tasks directory not found: {tasks_dir}")
 
@@ -235,7 +236,7 @@ def _feature_dir_status_entries(
     # "XY<space>PATH" (a fixed 3-char prefix). For a tracked file that is
     # modified-but-not-staged, X is a space (" M path"); _git_stdout()'s outer
     # .strip() would remove the leading space of the *first* line, shifting its
-    # columns so line[3:] truncated the first path character ("kitty-specs" ->
+    # columns so line[3:] truncated the first path character (KITTY_SPECS_DIR ->
     # "itty-specs"). Parse column 3 from each *unstripped* line so the path is
     # always intact, and classify deletions/renames as structural.
     result = subprocess.run(
@@ -383,6 +384,19 @@ def _files_changed_vs_ref(
     return changed
 
 
+def _feature_dir_file_paths(repo_root: Path, feature_dir: Path) -> list[str]:
+    repo_root_resolved = repo_root.resolve()
+    paths: list[str] = []
+    for path in sorted(feature_dir.rglob("*")):
+        if not path.is_file():
+            continue
+        try:
+            paths.append(path.resolve().relative_to(repo_root_resolved).as_posix())
+        except ValueError:
+            continue
+    return paths
+
+
 def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestration helper; unrelated to issue #1386
     repo_root: Path,
     feature_dir: Path,
@@ -395,8 +409,6 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     """Ensure planning artifacts are committed on the feature planning branch."""
     current_branch = _git_stdout(repo_root, ["rev-parse", "--abbrev-ref", "HEAD"])
     entries = _feature_dir_status_entries(repo_root, feature_dir)
-    if not entries:
-        return
 
     # Fail closed on structural changes (deletions, renames, copies). The
     # planning-artifact commit goes through ``BookkeepingTransaction.write_artifact``,
@@ -420,30 +432,37 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
         )
         raise typer.Exit(1)
 
-    files_to_commit = [e.path for e in entries]
+    coord_branch_for_filter = _resolve_bookkeeping_transaction_identifiers(
+        feature_dir, mission_slug
+    )[0]
+
+    status_paths = [e.path for e in entries]
+    files_to_commit = list(status_paths)
+    if coord_branch_for_filter:
+        files_to_commit.extend(_feature_dir_file_paths(repo_root, feature_dir))
+    files_to_commit = list(dict.fromkeys(files_to_commit))
     if not files_to_commit:
         return
 
     # Idempotency guard: skip files already identical on the coordination branch
     # so a re-discovered (but already-committed) edit does not produce an empty
     # commit that ``safe_commit`` rejects. See ``_files_changed_vs_ref``.
-    coord_branch_for_filter = _resolve_bookkeeping_transaction_identifiers(
-        feature_dir, mission_slug
-    )[0]
     files_to_commit = _files_changed_vs_ref(
         repo_root, files_to_commit, coord_branch_for_filter
     )
     if not files_to_commit:
         return
 
-    _print_uncommitted_planning_artifacts(files_to_commit)
-    _print_planning_artifact_commit_instructions(
-        current_branch,
-        planning_branch,
-        auto_commit,
-        feature_dir,
-        mission_slug,
-    )
+    status_paths_to_commit = set(_files_changed_vs_ref(repo_root, status_paths, coord_branch_for_filter))
+    if status_paths_to_commit:
+        _print_uncommitted_planning_artifacts(files_to_commit)
+        _print_planning_artifact_commit_instructions(
+            current_branch,
+            planning_branch,
+            auto_commit,
+            feature_dir,
+            mission_slug,
+        )
 
     commit_msg = (
         f"chore: planning artifacts for {mission_slug}\n\n"
@@ -723,7 +742,9 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         if auto_commit is None:
             auto_commit = get_auto_commit_default(repo_root)
         _feature_number, mission_slug = detect_feature_context(mission, feature, repo_root=repo_root)
-        feature_dir = repo_root / "kitty-specs" / mission_slug
+        feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+        if not (feature_dir / "meta.json").exists():
+            feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
         wp_file = find_wp_file(repo_root, mission_slug, wp_id)
         declared_deps = parse_wp_dependencies(wp_file)
         tracker.complete("detect", f"Feature: {mission_slug}")

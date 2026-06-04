@@ -6,6 +6,7 @@ to display beautiful status boards without going through the CLI.
 
 from __future__ import annotations
 
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 import re
 from collections import Counter
 from datetime import UTC, datetime
@@ -116,7 +117,7 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
         main_repo_root = get_status_read_root()
 
         # Locate feature directory
-        feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
 
         if not feature_dir.exists():
             console.print(f"[red]Error:[/red] Feature directory not found: {feature_dir}")

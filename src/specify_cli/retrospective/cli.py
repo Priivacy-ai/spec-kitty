@@ -12,6 +12,7 @@ Source-of-truth:
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 import sys
 from datetime import date, datetime, timezone
@@ -237,8 +238,8 @@ def summary_cmd(
 
     # Validate project root: exit 1 if neither .kittify/ nor kitty-specs/ exists
     has_kittify = (resolved_project / ".kittify").exists()
-    has_kitty_specs = (resolved_project / "kitty-specs").exists()
-    if not has_kittify and not has_kitty_specs:
+    has_mission_specs = (resolved_project / KITTY_SPECS_DIR).exists()
+    if not has_kittify and not has_mission_specs:
         _err_console.print(
             "[red]Error:[/red] Project root invalid: "
             f"neither .kittify/ nor kitty-specs/ found in {resolved_project}"

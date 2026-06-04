@@ -8,6 +8,7 @@ useful for CI pipelines, debugging, and external SaaS consumers.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 from datetime import datetime, UTC
 from typing import Annotated, Any
@@ -60,7 +61,7 @@ def materialize(
         console.print("[red]Error:[/red] Not in a spec-kitty project")
         raise typer.Exit(1)
 
-    specs_dir = repo_root / "kitty-specs"
+    specs_dir = repo_root / KITTY_SPECS_DIR
     derived_dir = repo_root / ".kittify" / "derived"
     derived_dir.mkdir(parents=True, exist_ok=True)
 

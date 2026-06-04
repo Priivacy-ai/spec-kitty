@@ -7,6 +7,7 @@ command ``create()`` is a thin wrapper around this function.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import contextlib
 import json
 import logging
@@ -310,7 +311,7 @@ def create_mission_core(
     human_slug = strip_numeric_prefix(mission_slug)
     mission_slug_formatted = f"{human_slug}-{mid8(mission_id)}"
 
-    feature_dir = resolved_root / "kitty-specs" / mission_slug_formatted
+    feature_dir = resolved_root / KITTY_SPECS_DIR / mission_slug_formatted
     feature_dir.mkdir(parents=True, exist_ok=True)
 
     (feature_dir / "checklists").mkdir(exist_ok=True)

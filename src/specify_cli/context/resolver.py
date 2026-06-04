@@ -15,6 +15,7 @@ from pathlib import Path
 from ulid import ULID
 from ruamel.yaml import YAML
 
+from specify_cli.core.execution_context import ActionContextError
 from specify_cli.context.errors import (
     FeatureNotFoundError,
     MissingArgumentError,
@@ -27,6 +28,7 @@ from specify_cli.context.store import save_context
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.mission_metadata import mission_identity_fields
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
 
 
@@ -154,7 +156,14 @@ def resolve_context(
     project_uuid = _read_project_uuid(repo_root)
 
     # 2. Locate feature directory
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    try:
+        feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+    except ActionContextError as exc:
+        msg = (
+            f"Feature directory not found for '{mission_slug}'. "
+            "Check that the mission slug is correct."
+        )
+        raise FeatureNotFoundError(msg) from exc
     if not feature_dir.exists():
         msg = f"Feature directory not found: {feature_dir}. Check that '{mission_slug}' is the correct feature slug."
         raise FeatureNotFoundError(msg)

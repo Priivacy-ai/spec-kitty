@@ -40,6 +40,7 @@ All I/O is synchronous file reads; no subprocesses are spawned.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 import logging
 import re
@@ -188,7 +189,7 @@ def audit_repo(repo_root: Path) -> list[IdentityState]:
     Returns:
         Sorted list of :class:`IdentityState` objects, one per mission directory.
     """
-    specs_dir = repo_root / "kitty-specs"
+    specs_dir = repo_root / KITTY_SPECS_DIR
     if not specs_dir.exists():
         return []
 
@@ -255,7 +256,7 @@ def find_duplicate_prefixes(repo_root: Path) -> dict[str, list[IdentityState]]:
         ``{"NNN": [<IdentityState>, ...]}`` for every duplicated prefix.
         Empty dict when no duplicates exist.
     """
-    specs_dir = repo_root / "kitty-specs"
+    specs_dir = repo_root / KITTY_SPECS_DIR
     if not specs_dir.exists():
         return {}
 

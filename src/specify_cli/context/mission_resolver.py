@@ -26,6 +26,7 @@ profiling shows it is needed.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 import re
 from dataclasses import dataclass
@@ -134,7 +135,7 @@ def _build_index(repo_root: Path) -> list[ResolvedMission]:
     Missions whose ``meta.json`` lacks a ``mission_id`` are silently skipped.
     Non-directory entries (e.g. ``README.md``) are also skipped.
     """
-    specs_dir = repo_root / "kitty-specs"
+    specs_dir = repo_root / KITTY_SPECS_DIR
     if not specs_dir.exists():
         return []
 

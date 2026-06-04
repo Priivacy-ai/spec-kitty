@@ -21,6 +21,8 @@ Design invariants:
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 import contextlib
 import json
 import logging
@@ -36,7 +38,7 @@ logger = logging.getLogger(__name__)
 # Four parents up from state.py → repo root, then into kitty-specs.
 _SCHEMA_PATH = (
     Path(__file__).parent.parent.parent.parent
-    / "kitty-specs"
+    / KITTY_SPECS_DIR
     / "cli-widen-mode-and-write-back-01KPXFGJ"
     / "contracts"
     / "widen-state.schema.json"
@@ -58,7 +60,7 @@ class WidenPendingStore:
     """
 
     def __init__(self, repo_root: Path, mission_slug: str) -> None:
-        self._path = repo_root / "kitty-specs" / mission_slug / "widen-pending.jsonl"
+        self._path = resolve_feature_dir_for_mission(repo_root, mission_slug) / "widen-pending.jsonl"
 
     @property
     def path(self) -> Path:

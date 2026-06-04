@@ -174,6 +174,7 @@ def safe_commit_command(
                 destination_ref=destination_ref,
                 message=message,
                 paths=tuple(normalized_files),
+                allow_protected_branch_in_test_mode=False,
             )
             committed = True
 

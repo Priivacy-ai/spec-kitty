@@ -11,6 +11,7 @@ Usage:
 
 from __future__ import annotations
 
+from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
 import logging
 import threading
 import json
@@ -114,7 +115,7 @@ def _resolve_mission_id_for_slug(repo_root: Path | None, mission_slug: str | Non
     if repo_root is None or not mission_slug:
         return None
 
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
     if not feature_dir.is_dir():
         return None
 

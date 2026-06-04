@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 import enum as _enum
 import json
 import logging
@@ -809,7 +811,7 @@ def _scope_to_mission(
     filtered = [s for s in all_states if s.slug == mission]
     if filtered:
         return filtered
-    target_dir = repo_root / "kitty-specs" / mission
+    target_dir = resolve_feature_dir_for_mission(repo_root, mission)
     if target_dir.is_dir():
         return [classify_mission(target_dir)]
     return []
@@ -3136,7 +3138,7 @@ def coordination_health(
     findings: list[DoctorFinding] = []
     findings.extend(_check_git_version())
 
-    specs_dir = repo_root / "kitty-specs"
+    specs_dir = repo_root / KITTY_SPECS_DIR
     if specs_dir.exists():
         for mission_dir in sorted(specs_dir.iterdir()):
             if not mission_dir.is_dir():

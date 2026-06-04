@@ -1,4 +1,4 @@
-"""Architect-remediation lock for ADR ``2026-05-16-1`` (doctrine layer merge).
+"""Regression locks for retired inline doctrine relationship fields.
 
 Mission ``charter-ux-and-org-pack-vocabulary-01KSAF14`` / WP10 / T057.
 
@@ -6,30 +6,9 @@ The point of this test is to FREEZE the field-merge semantics described in
 ``architecture/3.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md`` and in
 ``kitty-specs/charter-ux-and-org-pack-vocabulary-01KSAF14/quickstart.md`` §4a.
 
-ADR-ratified semantics (Option C — field-level merge):
-
-* When a pack tactic uses the same ``id`` as a built-in and provides only a
-  subset of fields, the pack's fields override the built-in's fields and the
-  built-in's other fields fall through unchanged.
-* In particular, fields the pack OMITS entirely (key not present in YAML) MUST
-  survive from the built-in — that is the central operator-ergonomic promise
-  of field-merge (operators write short, focused overrides).
-
-This test exercises ``BaseDoctrineRepository._merge`` end-to-end through
-:class:`doctrine.tactics.repository.TacticRepository`, which is the public path
-operators actually traverse when a pack lands.
-
-If a future refactor changes ``_merge`` to full-replace, this test catches it.
-That is the architect-ratified intent.
-
-Note on a secondary edge:
-The quickstart copy also discusses ``steps: []`` from the pack. The Tactic
-schema has ``min_length=1`` on ``steps``, so an empty-``steps`` override is
-rejected at validation time (the merge result is discarded and the built-in is
-left in place — i.e. the built-in survives, but for a different reason than
-"empty == not provided"). We assert the actual end-state ("built-in survives")
-without claiming a misleading mechanism — see the schema-rejection variant at
-the end of this file.
+FR-028 retired inline ``enhances`` / ``overrides`` fields on doctrine artifacts.
+Relationships now belong in DRG fragments. Stale packs that still author inline
+relationship fields must be rejected without replacing the built-in artifact.
 """
 
 from __future__ import annotations
@@ -103,6 +82,7 @@ def _write_partial_pack_tactic(
         f"id: {_BUILT_IN_TACTIC_ID}",
         f"name: {overrides_fields['name']}",
         f"purpose: {overrides_fields['purpose']}",
+        f"enhances: {_BUILT_IN_TACTIC_ID}",
     ]
     (pack_dir / f"{_BUILT_IN_TACTIC_ID}.tactic.yaml").write_text(
         "\n".join(body_lines) + "\n", encoding="utf-8"
@@ -141,40 +121,25 @@ class TestMergeDirectInvariants:
         ``_merge``; the loaded set is irrelevant)."""
         return TacticRepository(built_in_dir=tmp_path / "empty-built-in")
 
-    def test_omitted_fields_fall_through_from_built_in(self, tmp_path: Path) -> None:
-        """Pack provides only ``name`` and ``purpose``; omits everything else.
+    def test_inline_enhances_is_rejected_at_merge_boundary(self, tmp_path: Path) -> None:
+        """Inline ``enhances`` must fail closed; DRG fragments own relationships."""
+        from pydantic import ValidationError
 
-        Architect-ratified: pack values for ``name``/``purpose`` override; the
-        omitted fields (``steps``, ``failure_modes``, ``applies_to_languages``)
-        retain the built-in values.
-        """
         repo = self._empty_repo(tmp_path)
         built_in = self._built_in_tactic()
 
-        # Pack data omits most fields so the merge must fall through to the built-in.
+        # Pack data — note ``enhances`` is set; everything else is intentionally
+        # absent so the merge must fall through to the built-in.
         pack_data = {
             "schema_version": "1.0",
             "id": _BUILT_IN_TACTIC_ID,
             "name": "Pack Name",
             "purpose": "Pack purpose.",
+            "enhances": _BUILT_IN_TACTIC_ID,
         }
 
-        merged = repo._merge(built_in, pack_data)
-
-        # Pack values win for fields the pack provided.
-        assert merged.name == "Pack Name", "pack name must override built-in"
-        assert merged.purpose == "Pack purpose.", "pack purpose must override built-in"
-        # Built-in values survive for fields the pack OMITTED.
-        merged_step_titles = tuple(s.title for s in merged.steps)
-        assert merged_step_titles == _BUILT_IN_STEP_TITLES, (
-            "omitted `steps` MUST fall through from built-in (ADR 2026-05-16-1)"
-        )
-        assert tuple(merged.failure_modes) == _BUILT_IN_FAILURE_MODES, (
-            "omitted `failure_modes` MUST fall through from built-in"
-        )
-        assert tuple(merged.applies_to_languages) == _BUILT_IN_LANGUAGES, (
-            "omitted `applies_to_languages` MUST fall through from built-in"
-        )
+        with pytest.raises(ValidationError, match="Retired relationship field"):
+            repo._merge(built_in, pack_data)
 
     def test_built_in_survives_when_pack_provides_invalid_empty_steps(
         self, tmp_path: Path
@@ -201,17 +166,17 @@ class TestMergeDirectInvariants:
             "schema_version": "1.0",
             "id": _BUILT_IN_TACTIC_ID,
             "name": "Pack Name",
+            "enhances": _BUILT_IN_TACTIC_ID,
             "steps": [],  # would erase to empty if accepted
         }
 
         with pytest.raises(ValidationError) as exc_info:
             repo._merge(built_in, pack_data)
 
-        # The error MUST be about the empty steps, not some incidental issue.
+        # The retired relationship field is rejected before any legacy
+        # empty-steps merge semantics can apply.
         msg = str(exc_info.value)
-        assert "steps" in msg and (
-            "at least 1" in msg or "too_short" in msg or "min_length" in msg
-        ), msg
+        assert "Retired relationship field" in msg
 
 
 # ---------------------------------------------------------------------------
@@ -238,14 +203,13 @@ class TestPartialOverrideThroughRepositoryLoader:
             f"loaded tactics: {[t.id for t in repo.list_all()]}"
         )
 
-        # Pack-provided fields override.
-        assert merged.name == "Pack Name"
-        assert merged.purpose == "Pack purpose."
+        # Stale inline relationship packs are skipped; built-in survives.
+        assert merged.name == _BUILT_IN_NAME
+        assert merged.purpose == _BUILT_IN_PURPOSE
 
         # Pack-omitted fields fall through from built-in.
         assert tuple(s.title for s in merged.steps) == _BUILT_IN_STEP_TITLES
         assert tuple(merged.failure_modes) == _BUILT_IN_FAILURE_MODES
         assert tuple(merged.applies_to_languages) == _BUILT_IN_LANGUAGES
 
-        # Provenance attribution names the org layer.
-        assert repo.get_provenance(_BUILT_IN_TACTIC_ID) == "org"
+        assert repo.get_provenance(_BUILT_IN_TACTIC_ID) == "builtin"

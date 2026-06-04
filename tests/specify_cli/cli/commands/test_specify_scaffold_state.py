@@ -11,8 +11,7 @@ from specify_cli.cli.commands.lifecycle import specify
 from specify_cli.workspace.assert_initialized import SpecKittyNotInitialized
 
 
-pytestmark = [pytest.mark.fast]
-
+pytestmark = [pytest.mark.unit]
 
 _app = typer.Typer()
 _app.command()(specify)

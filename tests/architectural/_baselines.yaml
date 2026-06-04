@@ -26,9 +26,10 @@ test_no_dead_modules:
   # charter-pack-activation-layer-01KSYE4V). +1 for
   # m_3_2_0rc35_charter_manifest_defaults_repair (upstream #1480). +1 (76->77,
   # org-doctrine-profile-integrity-closeout WP04): the upstream rebase added
-  # m_3_2_0rc35_sync_state_gitignore, allowlisted in _CATEGORY_1 here. Growth here
+  # m_3_2_0rc35_sync_state_gitignore, allowlisted in _CATEGORY_1 here. +1 for
+  # m_3_2_0rc35_spk_skill_pack, another auto-discovered migration. Growth here
   # is expected/routine.
-  category_1_auto_discovered_migrations: 79  # justification: +2 auto-discovered 3.2.0 migrations, including spk skill-pack, loaded via pkgutil.iter_modules.
+  category_1_auto_discovered_migrations: 79  # justification: auto-discovered migration m_3_2_0rc35_spk_skill_pack is loaded dynamically by the migration runner, not statically imported.
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live

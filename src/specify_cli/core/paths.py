@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 import os
 from pathlib import Path
@@ -392,7 +393,7 @@ def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
     from specify_cli.core.git_ops import resolve_primary_branch
 
     main_root = get_main_repo_root(repo_root)
-    meta_file = main_root / "kitty-specs" / mission_slug / "meta.json"
+    meta_file = main_root / KITTY_SPECS_DIR / mission_slug / "meta.json"
     fallback = resolve_primary_branch(main_root)
 
     if not meta_file.exists():
@@ -436,10 +437,10 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
         root = locate_project_root()
         if root is None:
             raise RuntimeError("project root not found")
-        kitty_specs = root / "kitty-specs"
-        if kitty_specs.is_dir():
+        mission_specs = root / KITTY_SPECS_DIR
+        if mission_specs.is_dir():
             slugs = sorted(
-                d.name for d in kitty_specs.iterdir()
+                d.name for d in mission_specs.iterdir()
                 if d.is_dir() and not d.name.startswith(".")
             )
             if slugs:
@@ -458,7 +459,7 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
             if root is None:
                 raise RuntimeError("project root not found")
             first = sorted(
-                d.name for d in (root / "kitty-specs").iterdir()
+                d.name for d in (root / KITTY_SPECS_DIR).iterdir()
                 if d.is_dir() and not d.name.startswith(".")
             )[0]
             example_slug = first

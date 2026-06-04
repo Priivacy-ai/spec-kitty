@@ -53,7 +53,7 @@ class TestKittySpecsProtection:
             staged_files=["kitty-specs/057/spec.md"],
             owned_files=["src/**"],
             branch_name="kitty/mission-057-feat-lane-a",
-            policy=CommitGuardConfig(block_kitty_specs=False),
+            policy=CommitGuardConfig(block_mission_specs=False),
         )
         assert result.allowed is True
         assert len(result.violations) == 0

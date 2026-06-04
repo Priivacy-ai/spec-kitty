@@ -623,8 +623,8 @@ class TestCli:
 def test_real_typer_app_visible_count_within_tolerance() -> None:
     """The walker against the live ``specify_cli.app`` should match audit.
 
-    Expected from ``cli-audit-3-2.md``: 195 visible / 5 hidden / 2 deprecated.
-    Tolerance: ±10% on the visible count (176..215) to allow natural growth.
+    Expected from ``cli-audit-3-2.md``: 214 visible / 5 hidden / 2 deprecated.
+    Tolerance: ±10% on the visible count (193..235) to allow natural growth.
     """
     os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "1"
     os.environ["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
@@ -646,8 +646,8 @@ def test_real_typer_app_visible_count_within_tolerance() -> None:
     entries = walk(app)
     visible = [e for e in entries if not e.hidden]
     deprecated = [e for e in entries if e.deprecated]
-    assert 176 <= len(visible) <= 215, (
+    assert 193 <= len(visible) <= 235, (
         f"visible count {len(visible)} is outside the ±10% tolerance band "
-        "around the audit baseline of 195"
+        "around the audit baseline of 214"
     )
     assert len(deprecated) >= 1

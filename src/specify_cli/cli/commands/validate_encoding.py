@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from pathlib import Path
 from typing import Annotated
 
@@ -39,12 +40,12 @@ def validate_encoding(
 
     if check_all:
         # Validate all features
-        kitty_specs = repo_root / "kitty-specs"
-        if not kitty_specs.exists():
+        mission_specs = repo_root / KITTY_SPECS_DIR
+        if not mission_specs.exists():
             console.print("[yellow]No kitty-specs directory found.[/yellow]")
             raise typer.Exit(0)
 
-        feature_dirs = [d for d in kitty_specs.iterdir() if d.is_dir()]
+        feature_dirs = [d for d in mission_specs.iterdir() if d.is_dir()]
         if not feature_dirs:
             console.print("[yellow]No feature directories found.[/yellow]")
             raise typer.Exit(0)

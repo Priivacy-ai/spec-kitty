@@ -15,6 +15,7 @@ file-system write to an unrelated repo.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from pathlib import Path
 
 from .root_resolver import (
@@ -31,7 +32,7 @@ __all__ = [
 SPEC_KITTY_REPO_NOT_INITIALIZED = "SPEC_KITTY_REPO_NOT_INITIALIZED"
 KITTIFY_DIRNAME = ".kittify"
 CONFIG_FILENAME = "config.yaml"
-SPECS_DIRNAME = "kitty-specs"
+SPECS_DIRNAME = KITTY_SPECS_DIR
 
 
 class SpecKittyNotInitialized(Exception):

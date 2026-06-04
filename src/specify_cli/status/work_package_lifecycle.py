@@ -7,6 +7,7 @@ creation stays with the caller; durable lane transitions live here.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -59,7 +60,7 @@ class WorkPackageStartResult:
 def _repo_root_for_lock(feature_dir: Path, repo_root: Path | None) -> Path:
     if repo_root is not None:
         return repo_root
-    if feature_dir.parent.name == "kitty-specs":
+    if feature_dir.parent.name == KITTY_SPECS_DIR:
         return feature_dir.parent.parent
     return feature_dir
 

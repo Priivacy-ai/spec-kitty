@@ -20,6 +20,7 @@ opened directly from the next command.
 
 from __future__ import annotations
 
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 import contextlib
 import io
 import importlib
@@ -164,7 +165,10 @@ def _pair_previous_lifecycle_record(
     from specify_cli.mission_metadata import resolve_mission_identity
 
     repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
-    feature_dir = repo_root_path / "kitty-specs" / mission_slug
+    try:
+        feature_dir = resolve_feature_dir_for_mission(repo_root_path, mission_slug)
+    except Exception:
+        return
 
     try:
         identity = resolve_mission_identity(feature_dir)
@@ -227,7 +231,10 @@ def _write_issuance_lifecycle_record(
         return
 
     repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
-    feature_dir = repo_root_path / "kitty-specs" / mission_slug
+    try:
+        feature_dir = resolve_feature_dir_for_mission(repo_root_path, mission_slug)
+    except Exception:
+        return
 
     try:
         identity = resolve_mission_identity(feature_dir)
@@ -390,7 +397,10 @@ def _run_query_mode(
 def _emit_mission_next_invoked(agent: str, result: str, mission_slug: str, repo_root: object, decision) -> None:
     from specify_cli.mission_v1.events import emit_event
 
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    try:
+        feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+    except Exception:
+        feature_dir = None
     emit_event(
         "MissionNextInvoked",
         {
@@ -402,7 +412,7 @@ def _emit_mission_next_invoked(agent: str, result: str, mission_slug: str, repo_
             "mission_state": decision.mission_state,
         },
         mission_name=decision.mission,
-        feature_dir=feature_dir if feature_dir.is_dir() else None,
+        feature_dir=feature_dir if feature_dir is not None and feature_dir.is_dir() else None,
     )
 
 
@@ -438,7 +448,7 @@ def _handle_answer(
         runtime_bridge = _runtime_bridge_module()
         from specify_cli.mission import get_mission_type
 
-        feature_dir = repo_root_path / "kitty-specs" / mission_slug
+        feature_dir = resolve_feature_dir_for_mission(repo_root_path, mission_slug)
         mission_type = get_mission_type(feature_dir)
         run_ref = runtime_bridge.get_or_start_run(mission_slug, repo_root_path, mission_type)
 

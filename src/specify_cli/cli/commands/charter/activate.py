@@ -23,6 +23,7 @@ WP11 scoped cascade engine into the CLI surface:
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from pathlib import Path
 
 import typer
@@ -157,7 +158,7 @@ def _emit_step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) ->
 
     removed = find_removed_steps(current_seq, incoming_seq)
     if removed:
-        step_warnings = scan_inflight_missions(removed, repo_root / "kitty-specs")
+        step_warnings = scan_inflight_missions(removed, repo_root / KITTY_SPECS_DIR)
         emit_step_removal_warnings(step_warnings, console)
 
 

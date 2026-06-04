@@ -6,6 +6,7 @@ Zero network calls (FR-014).
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 import subprocess
 from pathlib import Path
@@ -213,12 +214,12 @@ def build_changelog_block(
     if since_tag is not None:
         since_date = _tag_commit_date(repo_root, since_tag)
 
-    kitty_specs_dir = repo_root / "kitty-specs"
-    if not kitty_specs_dir.exists():
+    mission_specs_dir = repo_root / KITTY_SPECS_DIR
+    if not mission_specs_dir.exists():
         return ("", [])
 
     mission_dirs = sorted(
-        [d for d in kitty_specs_dir.iterdir() if d.is_dir()],
+        [d for d in mission_specs_dir.iterdir() if d.is_dir()],
         key=lambda d: d.name,
     )
 

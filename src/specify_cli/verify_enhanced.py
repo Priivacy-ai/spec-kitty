@@ -2,6 +2,8 @@
 Enhanced verify_setup implementation for spec-kitty.
 """
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 import logging
 import subprocess
 from collections import defaultdict
@@ -89,7 +91,7 @@ def run_enhanced_verify(
     if feature_dir is not None:
         mission_type = _resolve_mission_from_feature(feature_dir)
     elif feature:
-        candidate = project_root / "kitty-specs" / feature
+        candidate = resolve_feature_dir_for_mission(project_root, feature)
         if candidate.is_dir():
             mission_type = _resolve_mission_from_feature(candidate)
 
@@ -206,7 +208,7 @@ def run_enhanced_verify(
         if not feature:
             raise ValueError("No --mission provided; skipping feature analysis.")
         mission_slug = feature.strip()
-        resolved_feature_dir = feature_dir or project_root / "kitty-specs" / mission_slug
+        resolved_feature_dir = feature_dir or resolve_feature_dir_for_mission(project_root, mission_slug)
         identity = resolve_mission_identity(resolved_feature_dir)
 
         output_data["feature_detection"] = {

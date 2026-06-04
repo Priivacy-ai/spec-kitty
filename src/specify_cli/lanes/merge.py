@@ -14,6 +14,7 @@ Strategy note (FR-006, FR-007):
 
 from __future__ import annotations
 
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -59,7 +60,7 @@ def _resolve_lane_manifest(
     """Return the provided manifest or load it from disk."""
     if lanes_manifest is not None:
         return lanes_manifest
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
     return read_lanes_json(feature_dir)
 
 
@@ -189,7 +190,7 @@ def merge_mission_to_target(
         MissionMergeResult with success/error status.
     """
     if lanes_manifest is None:
-        feature_dir = repo_root / "kitty-specs" / mission_slug
+        feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
         lanes_manifest = read_lanes_json(feature_dir)
         if lanes_manifest is None:
             return MissionMergeResult(

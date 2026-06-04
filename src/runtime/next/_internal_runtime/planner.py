@@ -25,10 +25,6 @@ Layer rule (C-001 / NFR-003): this module lives inside the runtime package
 no ``charter``, ``doctrine`` (Python modules), or ``kernel`` imports.
 """
 
-# Internalized from spec-kitty-runtime 0.4.3 as part of
-# `shared-package-boundary-cutover-01KQ22DS` (mission). See
-# `runtime-standalone-package-retirement-01KQ20Z8` for the upstream
-# public-API inventory.
 from __future__ import annotations
 
 import dataclasses
@@ -37,6 +33,12 @@ import json
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+
+# Internalized from spec-kitty-runtime 0.4.3 as part of
+# `shared-package-boundary-cutover-01KQ22DS` (mission). See
+# `runtime-standalone-package-retirement-01KQ20Z8` for the upstream
+# public-API inventory.
 from runtime.next._internal_runtime.schema import (
     AuditStep,
     DecisionRequest,
@@ -194,7 +196,7 @@ def _infer_project_root(mission_dir: Path) -> Path | None:
     for candidate in (current, *current.parents):
         if (candidate / ".kittify").exists():
             return candidate
-        if candidate.name == "kitty-specs":
+        if candidate.name == KITTY_SPECS_DIR:
             return candidate.parent
     return None
 

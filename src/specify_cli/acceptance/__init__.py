@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 import logging
 import os
 import re
@@ -262,7 +263,7 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
     Legacy format: WP files in tasks/{lane}/ subdirectories
     New format: WP files in flat tasks/ directory with lane in frontmatter
     """
-    feature_path = repo_root / "kitty-specs" / feature
+    feature_path = resolve_feature_dir_for_mission(repo_root, feature)
     tasks_dir = feature_path / "tasks"
     if not tasks_dir.exists():
         raise AcceptanceError(f"Feature '{feature}' has no tasks directory at {tasks_dir}.")
@@ -448,7 +449,7 @@ def normalize_feature_encoding(repo_root: Path, feature: str) -> list[Path]:
         "\u00b7": "*",  # Middle dot -> asterisk
     }
 
-    feature_dir = repo_root / "kitty-specs" / feature
+    feature_dir = resolve_feature_dir_for_mission(repo_root, feature)
     if not feature_dir.exists():
         return []
 
@@ -859,7 +860,7 @@ def collect_feature_summary(
     strict_metadata: bool = True,
     mutate_matrix: bool = True,
 ) -> AcceptanceSummary:
-    feature_dir = repo_root / "kitty-specs" / feature
+    feature_dir = resolve_feature_dir_for_mission(repo_root, feature)
     tasks_dir = feature_dir / "tasks"
     if not feature_dir.exists():
         raise AcceptanceError(f"Mission directory not found: {feature_dir}")

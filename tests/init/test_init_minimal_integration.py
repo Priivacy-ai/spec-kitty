@@ -216,12 +216,7 @@ class TestInitResolvesFromGlobal:
         assert "Spec template" in result.path.read_text()
 
     def test_resolve_command_finds_package_tier_after_wp01(self, tmp_path, monkeypatch):
-        """WP01: command-templates restored to package; resolve_command resolves from package tier.
-
-        WP10 removed command-templates from the package. WP01 (feature 058) restored
-        them. This test verifies the resolver now finds specify.md at the PACKAGE tier
-        when no higher-priority tier (project/global) has the file.
-        """
+        """Package command resolution maps to doctrine mission-step prompts."""
         global_home = tmp_path / "global"
         _populate_global_runtime(global_home)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
@@ -232,10 +227,10 @@ class TestInitResolvesFromGlobal:
 
         from specify_cli.runtime.resolver import resolve_command, ResolutionTier
 
-        # WP01: command-templates were restored to the package; resolver finds them
         result = resolve_command("specify.md", project, mission="software-dev")
         assert result.tier == ResolutionTier.PACKAGE_DEFAULT
         assert result.path.exists()
+        assert result.path.name == "prompt.md"
 
     def test_resolve_mission_from_global(self, tmp_path, monkeypatch):
         """After minimal init, mission.yaml resolves from global tier."""

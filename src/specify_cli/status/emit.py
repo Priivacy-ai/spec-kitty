@@ -23,6 +23,7 @@ Pipeline order (critical -- do not reorder):
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import logging
 import re
 from datetime import datetime, timedelta, UTC
@@ -355,7 +356,7 @@ def _feature_status_lock_root(feature_dir: Path, repo_root: Path | None) -> Path
     """Resolve the repo root used for per-feature status locking."""
     if repo_root is not None:
         return repo_root
-    if feature_dir.parent.name == "kitty-specs":
+    if feature_dir.parent.name == KITTY_SPECS_DIR:
         return feature_dir.parent.parent
     return feature_dir
 

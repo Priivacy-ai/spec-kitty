@@ -17,6 +17,7 @@ Design decision:
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import contextlib
 import datetime
 import json
@@ -72,7 +73,7 @@ def _resolve_mission_dir(mission_handle: str, repo_root: Path) -> Path | None:
 
     Returns the feature_dir Path on success, or None if not found.
     """
-    specs_root = repo_root / "kitty-specs"
+    specs_root = repo_root / KITTY_SPECS_DIR
     if not specs_root.exists():
         return None
 
@@ -862,7 +863,7 @@ def generate_retrospective(
     feature_dir = _resolve_mission_dir(mission_handle, repo_root)
     if feature_dir is None:
         raise FileNotFoundError(
-            f"Mission {mission_handle!r} not found under {repo_root / 'kitty-specs'}. "
+            f"Mission {mission_handle!r} not found under {repo_root / KITTY_SPECS_DIR}. "
             "Check the mission handle (slug, mission_id, or directory name)."
         )
 

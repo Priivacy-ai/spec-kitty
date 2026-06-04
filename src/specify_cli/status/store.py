@@ -17,6 +17,7 @@ Back-compat reader (T024, FR-023):
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 import logging
 import os
@@ -112,18 +113,18 @@ class _SlugResolver:
         # feature_dir is the directory that owns status.events.jsonl.
         # The slug→dir mapping uses sibling kitty-specs directories.
         self._feature_dir = feature_dir
-        self._kitty_specs_root: Path | None = self._find_kitty_specs_root()
+        self._mission_specs_root: Path | None = self._find_mission_specs_root()
         self._cache: dict[str, str | None] = {}
 
-    def _find_kitty_specs_root(self) -> Path | None:
+    def _find_mission_specs_root(self) -> Path | None:
         """Walk up from feature_dir to find the kitty-specs root."""
         candidate = self._feature_dir.parent
         # feature_dir is typically kitty-specs/<slug>/ — so parent is kitty-specs/
-        if candidate.name == "kitty-specs":
+        if candidate.name == KITTY_SPECS_DIR:
             return candidate
         # In case we're already inside a deeper structure, try two levels up
         two_up = candidate.parent
-        if two_up.name == "kitty-specs":
+        if two_up.name == KITTY_SPECS_DIR:
             return two_up
         # Otherwise, fall back to the parent (best effort)
         return candidate
@@ -131,7 +132,7 @@ class _SlugResolver:
     def resolve(self, mission_slug: str) -> str | None:
         """Return the mission_id for *mission_slug*, or None if unresolvable.
 
-        Reads ``<kitty_specs_root>/<mission_slug>/meta.json`` and extracts
+        Reads ``<mission_specs_root>/<mission_slug>/meta.json`` and extracts
         the ``mission_id`` field.  Returns None if the file is missing,
         the field is absent, or JSON is malformed (logs a warning).
         """
@@ -139,8 +140,8 @@ class _SlugResolver:
             return self._cache[mission_slug]
 
         mission_id: str | None = None
-        if self._kitty_specs_root is not None:
-            meta_path = self._kitty_specs_root / mission_slug / "meta.json"
+        if self._mission_specs_root is not None:
+            meta_path = self._mission_specs_root / mission_slug / "meta.json"
             if meta_path.exists():
                 try:
                     data = json.loads(meta_path.read_text(encoding="utf-8"))

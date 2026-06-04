@@ -30,6 +30,7 @@ process is in the picture.
 
 from __future__ import annotations
 
+from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
 import contextlib
 import json
 from dataclasses import dataclass, field
@@ -155,7 +156,7 @@ def run_custom_mission(
             },
         )
 
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
     _ensure_feature_metadata(feature_dir, mission_key)
 
     return RunCustomMissionResult(

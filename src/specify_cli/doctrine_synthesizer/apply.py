@@ -24,6 +24,8 @@ Source-of-truth:
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 import json
 import logging
 from pathlib import Path
@@ -146,7 +148,7 @@ def _load_event_ids(feature_dir: Path) -> set[str]:
 
 def _feature_dir(repo_root: Path, mission_slug: str) -> Path:
     """Return the kitty-specs feature directory for *mission_slug*."""
-    return repo_root / "kitty-specs" / mission_slug
+    return resolve_feature_dir_for_mission(repo_root, mission_slug)
 
 
 # ---------------------------------------------------------------------------
@@ -577,11 +579,11 @@ def _resolve_source_event_ids(mission_id: MissionId, repo_root: Path) -> set[str
     """
     import json as _json
 
-    kitty_specs = repo_root / "kitty-specs"
-    if not kitty_specs.exists():
+    mission_specs = repo_root / KITTY_SPECS_DIR
+    if not mission_specs.exists():
         return set()
 
-    for mission_dir in kitty_specs.iterdir():
+    for mission_dir in mission_specs.iterdir():
         if not mission_dir.is_dir():
             continue
         meta_path = mission_dir / "meta.json"
@@ -731,7 +733,7 @@ def _apply_one(
     # Emit proposal.applied event
     # Derive mission_slug from kitty-specs/<slug> by probing meta.json
     mission_slug = _slug_for_mission(mission_id, repo_root)
-    feature_dir = repo_root / "kitty-specs" / mission_slug if mission_slug else None
+    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug) if mission_slug else None
 
     event_id: str | None = None
     if feature_dir is not None:
@@ -768,10 +770,10 @@ def _slug_for_mission(mission_id: MissionId, repo_root: Path) -> str | None:
     """Find the mission_slug for a given mission_id by scanning kitty-specs/."""
     import json as _json
 
-    kitty_specs = repo_root / "kitty-specs"
-    if not kitty_specs.exists():
+    mission_specs = repo_root / KITTY_SPECS_DIR
+    if not mission_specs.exists():
         return None
-    for mission_dir in kitty_specs.iterdir():
+    for mission_dir in mission_specs.iterdir():
         if not mission_dir.is_dir():
             continue
         meta_path = mission_dir / "meta.json"
@@ -804,7 +806,7 @@ def _emit_conflict_rejections(
     if mission_slug is None:
         return []
 
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
     emitted: list[EventId] = []
 
     # Emit one rejection event per proposal in any conflict group

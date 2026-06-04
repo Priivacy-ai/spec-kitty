@@ -20,6 +20,7 @@ Determinism contract (D4):
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -107,7 +108,7 @@ def _scan_missions(
     """Walk *scan_root* and classify each mission directory.
 
     Args:
-        scan_root: Directory to walk (usually ``repo_root / "kitty-specs"``).
+        scan_root: Directory to walk (usually ``repo_root / KITTY_SPECS_DIR``).
         allowed_dirs: When not None, only directories in this set are processed.
             Pass ``frozenset()`` to produce an empty scan result.
         identity_index: Mapping of ``{mission_slug: IdentityState}`` built from
@@ -416,7 +417,7 @@ def run_audit(options: AuditOptions) -> RepoAuditReport:
 
     Args:
         options: Engine configuration.  ``scan_root`` defaults to
-            ``options.repo_root / "kitty-specs"`` when None.
+            ``options.repo_root / KITTY_SPECS_DIR`` when None.
 
     Returns:
         :class:`~specify_cli.audit.models.RepoAuditReport` with all findings.
@@ -425,7 +426,7 @@ def run_audit(options: AuditOptions) -> RepoAuditReport:
         AmbiguousHandleError: ``options.mission_filter`` matches > 1 mission.
         MissionNotFoundError: ``options.mission_filter`` matches 0 missions.
     """
-    scan_root = options.scan_root or (options.repo_root / "kitty-specs")
+    scan_root = options.scan_root or (options.repo_root / KITTY_SPECS_DIR)
 
     # CRITICAL: identity functions (audit_repo, find_duplicate_prefixes) take
     # repo_root and internally append /kitty-specs.  They must NOT receive

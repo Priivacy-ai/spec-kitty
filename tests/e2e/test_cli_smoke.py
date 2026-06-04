@@ -381,10 +381,14 @@ Create a hello module.
 
         # move-task may return non-zero if preflight checks fail (dirty worktree, etc.)
         # The important thing is that we exercised the full sequence.
-        # We check that the WP file was updated if the command succeeded.
+        # We check that canonical status state was updated if the command succeeded.
         if result.returncode == 0:
-            wp01_updated = wp01_path.read_text(encoding="utf-8")
-            assert "for_review" in wp01_updated, "WP01 not moved to for_review"
+            status_paths = [
+                feature_dir / "status.events.jsonl",
+                repo / ".worktrees" / f"{mission_slug}-coord" / "kitty-specs" / mission_slug / "status.events.jsonl",
+            ]
+            status_text = "\n".join(path.read_text(encoding="utf-8") for path in status_paths if path.exists())
+            assert '"to_lane": "for_review"' in status_text, "WP01 not moved to for_review"
 
         # === Final verification: all artifacts exist ===
         assert (feature_dir / "spec.md").exists(), "spec.md missing at end"

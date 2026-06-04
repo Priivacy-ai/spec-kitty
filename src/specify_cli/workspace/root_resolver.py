@@ -29,6 +29,7 @@ call :func:`_reset_cache`.
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from pathlib import Path
 from threading import Lock
 
@@ -164,7 +165,7 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
 def canonicalize_feature_dir(feature_dir: Path) -> Path:
     """Return the canonical-root version of ``feature_dir`` when possible.
 
-    Many emit callers construct ``feature_dir = repo_root / "kitty-specs" /
+    Many emit callers construct ``feature_dir = repo_root / KITTY_SPECS_DIR /
     <slug>`` from a *worktree* repo_root. When that happens, status emit,
     charter writes, and config writes would land inside the worktree's
     stale copy of the mission artifacts instead of the canonical repo.
@@ -184,7 +185,7 @@ def canonicalize_feature_dir(feature_dir: Path) -> Path:
     """
     feature_dir = Path(feature_dir)
     parent = feature_dir.parent
-    if parent.name != "kitty-specs":
+    if parent.name != KITTY_SPECS_DIR:
         return feature_dir
 
     for candidate in (feature_dir, *feature_dir.parents):
@@ -196,7 +197,7 @@ def canonicalize_feature_dir(feature_dir: Path) -> Path:
     except WorkspaceRootNotFound:
         return feature_dir
 
-    canonical_feature_dir = canonical_root / "kitty-specs" / feature_dir.name
+    canonical_feature_dir = canonical_root / KITTY_SPECS_DIR / feature_dir.name
     # Only redirect when the canonical path actually exists; this keeps
     # tests that build ad-hoc feature dirs outside a git repo working.
     if canonical_feature_dir.exists():

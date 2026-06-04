@@ -17,6 +17,7 @@ policy registered so it cannot see ``status.events.jsonl`` or
 
 from __future__ import annotations
 
+from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
 import json
 import subprocess
 from pathlib import Path
@@ -125,7 +126,7 @@ def _read_coordination_branch(
     ``kitty-specs/<mission_slug>/meta.json`` — the same place WP03's
     mission_create writes it.
     """
-    meta_path = repo_root / "kitty-specs" / mission_slug / "meta.json"
+    meta_path = candidate_feature_dir_for_mission(repo_root, mission_slug) / "meta.json"
     if not meta_path.exists():
         return None
     try:

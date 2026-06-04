@@ -24,6 +24,7 @@ FR-024 compliance:
 
 from __future__ import annotations
 
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
 import json
 import logging
 from dataclasses import dataclass, field
@@ -332,7 +333,7 @@ def emit_captured(
     if not record.mission_slug:
         raise ValueError("record.mission_slug must be non-empty to determine feature_dir")
 
-    feature_dir = repo_root / "kitty-specs" / record.mission_slug
+    feature_dir = resolve_feature_dir_for_mission(repo_root, record.mission_slug)
     lamport = _next_lamport(feature_dir)
     event_id = _generate_ulid()
     at = _now_utc()
@@ -406,7 +407,7 @@ def emit_capture_failed(
     if not mission_slug:
         raise ValueError("mission_slug must be non-empty to determine feature_dir")
 
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
     lamport = _next_lamport(feature_dir)
     event_id = _generate_ulid()
     at = _now_utc()
@@ -475,7 +476,7 @@ def emit_skipped(
     if not mission_slug:
         raise ValueError("mission_slug must be non-empty to determine feature_dir")
 
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
     lamport = _next_lamport(feature_dir)
     event_id = _generate_ulid()
     at = _now_utc()

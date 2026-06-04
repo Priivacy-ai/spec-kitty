@@ -23,6 +23,13 @@ LANE_ALIASES: dict[str, str] = {"doing": "in_progress"}
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
+def _resolve_feature_dir(repo_root: Path, feature: str) -> Path:
+    from specify_cli.lanes.branch_naming import mid8_from_slug
+    from specify_cli.missions._read_path_resolver import resolve_mission_read_path
+
+    return resolve_mission_read_path(repo_root, feature, mid8_from_slug(feature))
+
+
 class TaskCliError(RuntimeError):
     """Raised when task operations cannot be completed safely."""
 
@@ -305,7 +312,7 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     # Always use main repo's kitty-specs - it's the source of truth
     # This fixes the bug where worktree's stale kitty-specs/ would be used
     main_root = get_main_repo_root(repo_root)
-    feature_path = main_root / "kitty-specs" / feature
+    feature_path = _resolve_feature_dir(main_root, feature)
 
     tasks_root = feature_path / "tasks"
     if not tasks_root.exists():

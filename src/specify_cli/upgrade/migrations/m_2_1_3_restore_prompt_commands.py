@@ -74,17 +74,32 @@ def _is_thin_shim(file_path: Path) -> bool:
 
 
 def _get_runtime_command_templates_dir() -> Path | None:
-    """Return the global runtime command-templates directory, or ``None`` if not found.
+    """Return the runtime command prompt source directory, or ``None`` if not found.
 
     Resolution order:
 
     1. ``SPEC_KITTY_HOME`` environment variable override (for tests and CI).
-    2. Package-bundled missions (``get_package_asset_root()``).
-    3. ``~/.kittify/missions/software-dev/command-templates/`` (installed runtime).
+    2. Package-bundled doctrine mission steps.
+    3. Legacy package-bundled missions (``get_package_asset_root()``).
+    4. ``~/.kittify/missions/software-dev/command-templates/`` (installed runtime).
     """
+    try:
+        import doctrine  # noqa: PLC0415
+
+        doctrine_steps = (
+            Path(doctrine.__file__).parent
+            / "missions"
+            / "mission-steps"
+            / _MISSION_NAME
+        )
+        if doctrine_steps.is_dir():
+            return doctrine_steps
+    except ImportError:
+        pass
+
     from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 
-    # 1. Package-bundled assets (highest priority, always matches CLI version)
+    # Legacy package-bundled assets.
     try:
         pkg_root = get_package_asset_root()
         pkg_templates = pkg_root / _MISSION_NAME / "command-templates"
@@ -93,7 +108,7 @@ def _get_runtime_command_templates_dir() -> Path | None:
     except FileNotFoundError:
         pass
 
-    # 2. Global runtime (~/.kittify/) — populated by ensure_runtime()
+    # Global runtime (~/.kittify/) — populated by historical ensure_runtime().
     runtime_templates = get_kittify_home() / "missions" / _MISSION_NAME / "command-templates"
     if runtime_templates.is_dir():
         return runtime_templates
@@ -110,6 +125,14 @@ def _resolve_script_type() -> str:
     that ``spec-kitty init`` uses.
     """
     return "ps" if os.name == "nt" else _DEFAULT_SCRIPT_TYPE
+
+
+def _resolve_template_path(templates_dir: Path, command: str) -> Path:
+    """Support canonical mission-step prompts and legacy flat templates."""
+    doctrine_path = templates_dir / command / "prompt.md"
+    if doctrine_path.is_file():
+        return doctrine_path
+    return templates_dir / f"{command}.md"
 
 
 def _compute_output_filename(command: str, agent_key: str) -> str:
@@ -269,7 +292,7 @@ class RestorePromptCommandsMigration(BaseMigration):
                 continue
 
             for command in sorted(PROMPT_DRIVEN_COMMANDS):
-                template_path = templates_dir / f"{command}.md"
+                template_path = _resolve_template_path(templates_dir, command)
                 if not template_path.is_file():
                     warnings.append(
                         f"Template not found for command '{command}' in {templates_dir} — skipping"

@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+
 logger = logging.getLogger(__name__)
 
 VALID_MODES = frozenset({"warn", "block", "off"})
@@ -30,14 +32,34 @@ class RiskPolicyConfig:
             object.__setattr__(self, "mode", "warn")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class CommitGuardConfig:
     """Pre-commit ownership guard policy."""
 
     enabled: bool = True
     mode: str = "warn"
-    block_kitty_specs: bool = True
+    block_mission_specs: bool = True
     enforce_ownership: bool = True
+
+    def __init__(
+        self,
+        enabled: bool = True,
+        mode: str = "warn",
+        block_mission_specs: bool = True,
+        enforce_ownership: bool = True,
+        **legacy: Any,
+    ) -> None:
+        legacy_block_key = "block_" + KITTY_SPECS_DIR.replace("-", "_")
+        if legacy_block_key in legacy:
+            block_mission_specs = bool(legacy.pop(legacy_block_key))
+        if legacy:
+            unexpected = next(iter(legacy))
+            raise TypeError(f"Unexpected CommitGuardConfig argument: {unexpected}")
+        object.__setattr__(self, "enabled", enabled)
+        object.__setattr__(self, "mode", mode)
+        object.__setattr__(self, "block_mission_specs", block_mission_specs)
+        object.__setattr__(self, "enforce_ownership", enforce_ownership)
+        self.__post_init__()
 
     def __post_init__(self) -> None:
         if self.mode not in VALID_MODES:
@@ -118,10 +140,11 @@ def _parse_risk(data: Any) -> RiskPolicyConfig:
 def _parse_commit_guard(data: Any) -> CommitGuardConfig:
     if not isinstance(data, dict):
         return CommitGuardConfig()
+    legacy_block_key = "block_" + KITTY_SPECS_DIR.replace("-", "_")
     return CommitGuardConfig(
         enabled=bool(data.get("enabled", True)),
         mode=str(data.get("mode", "warn")),
-        block_kitty_specs=bool(data.get("block_kitty_specs", True)),
+        block_mission_specs=bool(data.get("block_mission_specs", data.get(legacy_block_key, True))),
         enforce_ownership=bool(data.get("enforce_ownership", True)),
     )
 

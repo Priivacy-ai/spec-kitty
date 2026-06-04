@@ -15,6 +15,8 @@ Recovery semantics (WP01 / 067):
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
 import contextlib
 import json
 import logging
@@ -229,7 +231,7 @@ def _mark_wp_merged_done(
     Includes event-log dedup: if the target transition already exists in the log
     the emission is skipped so that retries are idempotent.
     """
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
     wp_path = None
     for candidate in sorted((feature_dir / "tasks").glob(f"{wp_id}*.md")):
         wp_path = candidate
@@ -354,7 +356,7 @@ def _assert_merged_wps_reached_done(
     from specify_cli.status.store import StoreError
     from specify_cli.status.transitions import resolve_lane_alias
 
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
 
     try:
         incomplete: list[str] = []
@@ -546,10 +548,10 @@ def _compute_next_mission_number_or_none(
             )
             # Fall back to scanning main_repo's working tree. Best effort.
             scan_root = main_repo
-            scan_specs = main_repo / "kitty-specs"
+            scan_specs = main_repo / KITTY_SPECS_DIR
         else:
             scan_root = tmp_path
-            scan_specs = tmp_path / "kitty-specs"
+            scan_specs = tmp_path / KITTY_SPECS_DIR
 
         target_meta_path = scan_specs / mission_slug / "meta.json"
         if target_meta_path.exists():
@@ -619,7 +621,7 @@ def _write_mission_number_to_branch(
             )
             return False
 
-        meta_path = mission_tmp_path / "kitty-specs" / mission_slug / "meta.json"
+        meta_path = candidate_feature_dir_for_mission(mission_tmp_path, mission_slug) / "meta.json"
         if not meta_path.exists():
             logger.warning(
                 "meta.json missing on mission branch %s for %s; cannot bake mission_number",
@@ -884,7 +886,7 @@ def _resolve_target_branch(
         return explicit_target, "flag"
 
     if mission_slug:
-        feature_dir = repo_root / "kitty-specs" / mission_slug
+        feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
         if feature_dir.exists():
             return get_feature_target_branch(repo_root, mission_slug), "meta.json"
 
@@ -1472,7 +1474,7 @@ def _run_lane_based_merge(
             logged via ``require_no_sparse_checkout``.
     """
     main_repo = get_main_repo_root(repo_root)
-    feature_dir = main_repo / "kitty-specs" / mission_slug
+    feature_dir = candidate_feature_dir_for_mission(main_repo, mission_slug)
 
     # -- WP05/T020/FR-006: Sparse-checkout preflight --
     # Must run BEFORE any state change (before merge-state writes, before the
@@ -2104,7 +2106,7 @@ def merge(
                 from specify_cli.mission_metadata import load_meta as _load_meta
 
                 _main_for_abort = get_main_repo_root(repo_root)
-                _feature_dir_for_abort = _main_for_abort / "kitty-specs" / resolved
+                _feature_dir_for_abort = candidate_feature_dir_for_mission(_main_for_abort, resolved)
                 _meta_for_abort = _load_meta(_feature_dir_for_abort)
                 _mid8_for_abort = (
                     str(_meta_for_abort.get("mid8", "")).strip()
@@ -2219,7 +2221,7 @@ def merge(
             raise typer.Exit(1)
 
         try:
-            lanes_manifest = require_lanes_json(get_main_repo_root(repo_root) / "kitty-specs" / resolved_feature)
+            lanes_manifest = require_lanes_json(candidate_feature_dir_for_mission(get_main_repo_root(repo_root), resolved_feature))
         except (MissingLanesError, CorruptLanesError) as exc:
             error_msg = str(exc)
             if json_output:
@@ -2229,7 +2231,7 @@ def merge(
             raise typer.Exit(1) from exc
 
         feature_dir_for_preview = (
-            get_main_repo_root(repo_root) / "kitty-specs" / resolved_feature
+            candidate_feature_dir_for_mission(get_main_repo_root(repo_root), resolved_feature)
         )
 
         # FR-007/FR-008/FR-009: Run the same review-artifact consistency gate
@@ -2289,7 +2291,7 @@ def merge(
             try:
                 would_assign_number = assign_next_mission_number(
                     get_main_repo_root(repo_root),
-                    get_main_repo_root(repo_root) / "kitty-specs",
+                    get_main_repo_root(repo_root) / KITTY_SPECS_DIR,
                 )
             except Exception as exc:  # noqa: BLE001 — dry-run mission_number scan is best-effort; an unavailable kitty-specs dir must not crash the preview
                 logger.warning("dry-run mission_number scan failed: %s", exc)

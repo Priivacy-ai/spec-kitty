@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from pathlib import Path
 
 from packaging.version import InvalidVersion, Version
@@ -36,4 +37,4 @@ def uses_centralized_runtime(project_path: Path) -> bool:
     # Metadata-less worktrees can still be runtime-managed in 2.x, but
     # metadata-less repos that already have .kittify/ are ambiguous and
     # should continue to receive the legacy repair migrations.
-    return not kittify_dir.exists() and (project_path / "kitty-specs").exists()
+    return not kittify_dir.exists() and (project_path / KITTY_SPECS_DIR).exists()

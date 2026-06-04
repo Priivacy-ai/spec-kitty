@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -33,7 +34,7 @@ class TeamspaceMissionStateReadiness:
 def check_teamspace_mission_state_readiness(repo_root: Path) -> TeamspaceMissionStateReadiness:
     """Return mission-state readiness for TeamSpace connect/import paths."""
     repo_root = repo_root.resolve()
-    if not (repo_root / "kitty-specs").is_dir():
+    if not (repo_root / KITTY_SPECS_DIR).is_dir():
         return TeamspaceMissionStateReadiness(repo_root=repo_root)
 
     try:

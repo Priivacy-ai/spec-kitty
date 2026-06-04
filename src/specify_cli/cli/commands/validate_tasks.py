@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 import os
 from pathlib import Path
 from typing import Optional
@@ -57,16 +58,16 @@ def validate_tasks(
 
     if check_all:
         # Validate all features
-        kitty_specs = repo_root / "kitty-specs"
+        mission_specs = repo_root / KITTY_SPECS_DIR
         worktrees = repo_root / ".worktrees"
 
         feature_dirs = []
-        if kitty_specs.exists():
-            feature_dirs.extend([d for d in kitty_specs.iterdir() if d.is_dir()])
+        if mission_specs.exists():
+            feature_dirs.extend([d for d in mission_specs.iterdir() if d.is_dir()])
         if worktrees.exists():
             for wt_dir in worktrees.iterdir():
                 if wt_dir.is_dir():
-                    wt_specs = wt_dir / "kitty-specs"
+                    wt_specs = wt_dir / KITTY_SPECS_DIR
                     if wt_specs.exists():
                         feature_dirs.extend([d for d in wt_specs.iterdir() if d.is_dir()])
 

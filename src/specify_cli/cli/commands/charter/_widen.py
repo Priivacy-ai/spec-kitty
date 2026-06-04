@@ -8,6 +8,7 @@ imported by other modules and by tests) and are re-exported from the package
 """
 from __future__ import annotations
 
+from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
 import contextlib
 import json
 import threading
@@ -48,7 +49,7 @@ def _get_mission_id(repo_root: Path, mission_slug: str) -> str | None:
 
     Returns ``None`` if the file is absent or malformed.
     """
-    meta_path = repo_root / "kitty-specs" / mission_slug / "meta.json"
+    meta_path = candidate_feature_dir_for_mission(repo_root, mission_slug) / "meta.json"
     with contextlib.suppress(Exception):
         data = json.loads(meta_path.read_text(encoding="utf-8"))
         return data.get("mission_id") or None

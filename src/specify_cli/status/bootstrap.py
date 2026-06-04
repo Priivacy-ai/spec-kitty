@@ -93,6 +93,7 @@ def bootstrap_canonical_state(
     mission_slug: str,
     *,
     dry_run: bool = False,
+    allow_protected_branch_in_test_mode: bool = False,
 ) -> BootstrapResult:
     """Ensure every WP in a feature has canonical status state.
 
@@ -109,6 +110,8 @@ def bootstrap_canonical_state(
         mission_slug: Feature identifier (e.g. ``"060-feature-name"``).
         dry_run: If ``True``, report what would happen without mutating
             any files.
+        allow_protected_branch_in_test_mode: Explicit, env-gated test-only
+            escape hatch for legacy no-worktree fixtures.
 
     Returns:
         A :class:`BootstrapResult` with counts and per-WP detail strings.
@@ -152,7 +155,8 @@ def bootstrap_canonical_state(
                 actor="finalize-tasks",
                 force=True,
                 reason="canonical bootstrap",
-            )
+            ),
+            allow_protected_branch_in_test_mode=allow_protected_branch_in_test_mode,
         )
         result.newly_seeded += 1
         result.wp_details[wp_id] = _INITIALIZED

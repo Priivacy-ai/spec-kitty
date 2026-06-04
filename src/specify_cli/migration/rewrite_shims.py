@@ -43,10 +43,24 @@ class RewriteResult:
 
 
 def _get_command_templates_dir() -> Path | None:
-    """Return the package-bundled command-templates directory, or ``None``."""
+    """Return the bundled command prompt source directory, or ``None``."""
+    try:
+        import doctrine  # noqa: PLC0415
+
+        doctrine_steps = (
+            Path(doctrine.__file__).parent
+            / "missions"
+            / "mission-steps"
+            / _MISSION_NAME
+        )
+        if doctrine_steps.is_dir():
+            return doctrine_steps
+    except ImportError:
+        pass
+
     from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 
-    # 1. Package-bundled assets (highest priority, always matches CLI version)
+    # Legacy package-bundled assets.
     try:
         pkg_root = get_package_asset_root()
         pkg_templates = pkg_root / _MISSION_NAME / "command-templates"
@@ -55,7 +69,7 @@ def _get_command_templates_dir() -> Path | None:
     except FileNotFoundError:
         pass
 
-    # 2. Global runtime (~/.kittify/) — populated by ensure_runtime()
+    # Global runtime (~/.kittify/) — populated by historical ensure_runtime().
     runtime_templates = get_kittify_home() / "missions" / _MISSION_NAME / "command-templates"
     if runtime_templates.is_dir():
         return runtime_templates
@@ -121,7 +135,9 @@ def _generate_prompt_templates(repo_root: Path) -> list[Path]:
         agent_cmd_dir.mkdir(parents=True, exist_ok=True)
 
         for command in sorted(PROMPT_DRIVEN_COMMANDS):
-            template_path = templates_dir / f"{command}.md"
+            template_path = templates_dir / command / "prompt.md"
+            if not template_path.is_file():
+                template_path = templates_dir / f"{command}.md"
             if not template_path.is_file():
                 logger.warning("Template not found: %s — skipping", template_path)
                 continue

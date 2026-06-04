@@ -46,6 +46,7 @@ from runtime.next._internal_runtime import (
 from runtime.next._internal_runtime.schema import ActorIdentity, MissionRuntimeError, load_mission_template_file
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.mission import get_mission_type
 from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
 from specify_cli.status.models import Lane
@@ -74,13 +75,17 @@ class DecisionGitLogUnavailable(RuntimeError):
     """Decision audit logging cannot be made durable for a modern mission."""
 
 
+def _primary_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
+    return Path(repo_root, KITTY_SPECS_DIR, mission_slug)
+
+
 def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:
     """Return the coordination branch for a mission from meta.json.
 
     Falls back to ``kitty/mission-<slug>`` when meta.json is absent or
     does not carry the ``coordination_branch`` key.
     """
-    meta_path = repo_root / "kitty-specs" / mission_slug / META_JSON
+    meta_path = _primary_runtime_feature_dir(repo_root, mission_slug) / META_JSON
     if meta_path.exists():
         try:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
@@ -98,7 +103,7 @@ def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str:
     Returns the ULID string when present, or the slug as a fallback so that
     callers always receive a non-empty identifier.
     """
-    meta_path = repo_root / "kitty-specs" / mission_slug / META_JSON
+    meta_path = _primary_runtime_feature_dir(repo_root, mission_slug) / META_JSON
     if meta_path.exists():
         try:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
@@ -112,7 +117,7 @@ def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str:
 
 def _mission_declares_coordination_branch(mission_slug: str, repo_root: Path) -> bool:
     """Return True when meta.json explicitly declares coord-branch topology."""
-    meta_path = repo_root / "kitty-specs" / mission_slug / META_JSON
+    meta_path = _primary_runtime_feature_dir(repo_root, mission_slug) / META_JSON
     if not meta_path.exists():
         return False
     try:
@@ -1986,7 +1991,7 @@ def _workflow_runtime_template(
 ):
     """Compose a runtime template when mission meta selects a workflow."""
     del mission_type
-    mission_dir = repo_root / "kitty-specs" / mission_slug
+    mission_dir = _resolve_runtime_feature_dir(repo_root, mission_slug)
     meta_path = mission_dir / META_JSON
     if not meta_path.exists():
         return None, None

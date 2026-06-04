@@ -542,6 +542,7 @@ def teamspace_dry_run(
     event_cls, validate_event, package_version = _load_events_contract()
     mission_dirs = _select_mission_dirs(repo_root.resolve(), scan_root=scan_root, mission=mission)
     audit_errors = _teamspace_audit_blockers(repo_root.resolve(), scan_root=scan_root, mission_dirs=mission_dirs)
+    audit_errors = [error for error in audit_errors if not _is_nonfatal_side_log_record(error)]
     if audit_errors:
         return TeamspaceDryRunReport(
             schema_version=CANONICAL_ENVELOPE_SCHEMA_VERSION,
@@ -646,12 +647,13 @@ def teamspace_dry_run(
                     }
                 )
 
+    fatal_errors = [error for error in errors if not _is_nonfatal_side_log_record(error)]
     return TeamspaceDryRunReport(
         schema_version=CANONICAL_ENVELOPE_SCHEMA_VERSION,
         events_package_version=package_version,
         envelope_count=count,
-        valid=not errors,
-        errors=tuple(errors),
+        valid=not fatal_errors,
+        errors=tuple(fatal_errors),
         row_mappings=tuple(row_mappings),
         context_warnings=tuple(context_warnings),
         side_logs=tuple(side_logs),
@@ -670,23 +672,14 @@ def _teamspace_audit_blockers(
 
     report = run_audit(AuditOptions(repo_root=repo_root, scan_root=scan_root))
     selected_slugs = {path.name for path in mission_dirs}
-    side_log_artifacts = {
-        "decisions/events.jsonl",
-        "handoff/events.jsonl",
-        "mission-events.jsonl",
-    }
     errors: list[dict[str, object]] = []
     for result in report.missions:
         if result.mission_slug not in selected_slugs:
             continue
         for finding in result.findings:
-            if any(
-                finding.artifact_path == artifact
-                or finding.artifact_path.endswith(f"/{artifact}")
-                for artifact in side_log_artifacts
-            ):
-                continue
             if not is_teamspace_blocker(finding):
+                continue
+            if _is_out_of_scope_side_log_path(finding.artifact_path):
                 continue
             errors.append(
                 {
@@ -710,6 +703,23 @@ def _teamspace_audit_blockers(
             str(item["artifact_path"]),
             str(item["finding_code"]),
         ),
+    )
+
+
+def _is_out_of_scope_side_log_path(artifact_path: str) -> bool:
+    return (
+        artifact_path.endswith("/mission-events.jsonl")
+        or "/decisions/events.jsonl" in artifact_path
+        or "/handoff/events.jsonl" in artifact_path
+        or "/_archive/" in artifact_path
+        or artifact_path.endswith("/run.events.jsonl")
+    )
+
+
+def _is_nonfatal_side_log_record(record: Mapping[str, object]) -> bool:
+    return (
+        record.get("reason") == "out_of_scope_for_launch_import"
+        and str(record.get("disposition", "")).startswith("skipped_")
     )
 
 
@@ -792,11 +802,17 @@ def _status_event_to_teamspace_envelope(
             repo_slug=repo_slug,
         )
 
+    from_lane = str(status_event.from_lane)
+    to_lane = str(status_event.to_lane)
+    if status_event.from_lane is Lane.IN_PROGRESS and status_event.to_lane is Lane.IN_REVIEW:
+        # Older local logs skipped the explicit for_review queue lane.
+        from_lane = str(Lane.FOR_REVIEW)
+
     payload = {
         "mission_slug": status_event.mission_slug,
         "wp_id": status_event.wp_id,
-        "from_lane": _teamspace_lane_value(status_event, "from"),
-        "to_lane": _teamspace_lane_value(status_event, "to"),
+        "from_lane": from_lane,
+        "to_lane": to_lane,
         "actor": status_event.actor,
         "force": status_event.force,
         "reason": status_event.reason,
@@ -823,20 +839,6 @@ def _status_event_to_teamspace_envelope(
         ),
         "schema_version": CANONICAL_ENVELOPE_SCHEMA_VERSION,
     }
-
-
-def _teamspace_lane_value(status_event: StatusEvent, field: str) -> str:
-    """Return a TeamSpace-contract-compatible lane for historical imports."""
-    if (
-        field == "to"
-        and status_event.from_lane == Lane.IN_PROGRESS
-        and status_event.to_lane == Lane.IN_REVIEW
-        and status_event.review_ref is None
-    ):
-        return str(Lane.FOR_REVIEW)
-    if field == "from":
-        return str(status_event.from_lane)
-    return str(status_event.to_lane)
 
 
 def _historical_teamspace_evidence(

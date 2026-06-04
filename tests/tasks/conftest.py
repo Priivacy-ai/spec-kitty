@@ -62,6 +62,8 @@ def create_mission_fast(project: Path, slug: str, number: int = 1) -> Path:
     feature_dir.mkdir(parents=True, exist_ok=True)
     (feature_dir / "checklists").mkdir(exist_ok=True)
     (feature_dir / "research").mkdir(exist_ok=True)
+    for dirname in ("src", "tests", "contracts", "docs"):
+        (project / dirname).mkdir(exist_ok=True)
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(exist_ok=True)
 

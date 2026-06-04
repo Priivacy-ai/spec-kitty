@@ -139,7 +139,10 @@ class MissionTemplateRepository:
     def get_command_template(self, mission: str, name: str) -> TemplateResult | None:
         """Read a command template's content from doctrine assets.
 
-        Looks for ``<missions_root>/<mission>/command-templates/<name>.md``.
+        Looks first for legacy
+        ``<missions_root>/<mission>/command-templates/<name>.md``, then for
+        canonical mission-step prompts at
+        ``<missions_root>/mission-steps/<mission>/<name>/prompt.md``.
 
         Args:
             mission: Mission name (e.g. ``"software-dev"``).
@@ -153,7 +156,7 @@ class MissionTemplateRepository:
             return None
         try:
             content = path.read_text(encoding="utf-8")
-            origin = f"doctrine/{mission}/command-templates/{name}.md"
+            origin = self._command_template_origin(mission, name, path)
             return TemplateResult(content=content, origin=origin)
         except (OSError, UnicodeDecodeError):
             return None
@@ -189,14 +192,23 @@ class MissionTemplateRepository:
         Returns:
             Sorted list of template names WITHOUT ``.md`` extension
             (e.g. ``["implement", "plan", "specify", "tasks"]``).
-            Empty list if mission or command-templates dir doesn't exist.
+            Empty list if neither the legacy command-template directory nor
+            the canonical mission-step prompt directory exists.
         """
         cmd_dir = self._root / mission / "command-templates"
-        if not cmd_dir.is_dir():
+        if cmd_dir.is_dir():
+            return sorted(
+                p.stem for p in cmd_dir.iterdir()
+                if p.is_file() and p.suffix == ".md" and p.name != "README.md"
+            )
+
+        steps_dir = self._root / "mission-steps" / mission
+        if not steps_dir.is_dir():
             return []
         return sorted(
-            p.stem for p in cmd_dir.iterdir()
-            if p.is_file() and p.suffix == ".md" and p.name != "README.md"
+            step_dir.name
+            for step_dir in steps_dir.iterdir()
+            if step_dir.is_dir() and (step_dir / "prompt.md").is_file()
         )
 
     def list_content_templates(self, mission: str) -> list[str]:
@@ -324,7 +336,8 @@ class MissionTemplateRepository:
     def _command_template_path(self, mission: str, name: str) -> Path | None:
         """Return the path to a command template Markdown file.
 
-        Looks for ``<missions_root>/<mission>/command-templates/<name>.md``.
+        Looks for the legacy command-template file first, then the canonical
+        mission-step prompt file.
 
         Args:
             mission: Mission name (e.g. ``"software-dev"``).
@@ -334,7 +347,16 @@ class MissionTemplateRepository:
             Path if the file exists, else ``None``.
         """
         path = self._root / mission / "command-templates" / f"{name}.md"
-        return path if path.is_file() else None
+        if path.is_file():
+            return path
+        step_prompt = self._root / "mission-steps" / mission / name / "prompt.md"
+        return step_prompt if step_prompt.is_file() else None
+
+    def _command_template_origin(self, mission: str, name: str, path: Path) -> str:
+        legacy = self._root / mission / "command-templates" / f"{name}.md"
+        if path == legacy:
+            return f"doctrine/{mission}/command-templates/{name}.md"
+        return f"doctrine/mission-steps/{mission}/{name}/prompt.md"
 
     def _content_template_path(self, mission: str, name: str) -> Path | None:
         """Return the path to a content template file.
