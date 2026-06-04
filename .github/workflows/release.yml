@@ -4,9 +4,25 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to publish, e.g. v3.2.0rc37'
+        required: true
+        type: string
+      skip_downstream:
+        description: 'Manual maintainer waiver for downstream-consumer-verify'
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: write
+
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  RELEASE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  SKIP_DOWNSTREAM: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_downstream || false }}
 
 jobs:
   build-release:
@@ -20,6 +36,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -86,12 +103,12 @@ jobs:
           exit ${PIPESTATUS[0]}
 
       - name: Validate release metadata
-        run: python scripts/release/validate_release.py --mode tag --tag "${GITHUB_REF_NAME}" --tag-pattern "v*.*.*"
+        run: python scripts/release/validate_release.py --mode tag --tag "${RELEASE_TAG}" --tag-pattern "v*.*.*"
 
       - name: Classify release channel
         id: release_channel
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc|alpha|beta)[0-9]*$ ]]; then
             echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
           else
@@ -261,6 +278,7 @@ jobs:
   downstream-consumer-verify:
     name: Verify downstream consumer compatibility
     needs: build-release
+    if: ${{ env.SKIP_DOWNSTREAM != 'true' }}
     runs-on: ubuntu-latest
     env:
       REPO_OWNER: ${{ github.repository_owner }}
@@ -303,7 +321,7 @@ jobs:
               json.dumps(
                   {
                       "status": "passed",
-                      "candidate_version": os.environ["GITHUB_REF_NAME"].removeprefix("v"),
+                      "candidate_version": os.environ["RELEASE_TAG"].removeprefix("v"),
                       "scenario": "spec-kitty-end-to-end-testing/scenarios/contract_drift_caught.py",
                   },
                   indent=2,
@@ -324,6 +342,7 @@ jobs:
   publish-pypi:
     name: Publish to PyPI
     needs: [build-release, downstream-consumer-verify]
+    if: ${{ always() && needs.build-release.result == 'success' && (needs.downstream-consumer-verify.result == 'success' || env.SKIP_DOWNSTREAM == 'true') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -336,6 +355,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -351,14 +371,14 @@ jobs:
       - name: Extract changelog for release
         id: changelog
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           python scripts/release/extract_changelog.py "${VERSION}" > release-notes.md
           cat release-notes.md
 
       - name: Classify release channel
         id: release_channel
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc|alpha|beta)[0-9]*$ ]]; then
             echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
           else
@@ -368,8 +388,8 @@ jobs:
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3.0.0
-        if: startsWith(github.ref, 'refs/tags/')
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
           body_path: release-notes.md
           files: |
             dist/*.whl
@@ -391,6 +411,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -399,7 +421,7 @@ jobs:
 
       - name: Verify exact install from PyPI
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           python scripts/release/check_exact_install.py \
             --package spec-kitty-cli \
             --version "$VERSION" \

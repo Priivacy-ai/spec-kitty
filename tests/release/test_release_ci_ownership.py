@@ -148,6 +148,23 @@ def test_release_publish_requires_downstream_consumer_evidence_before_pypi() -> 
     assert set(publish_job["needs"]) == {"build-release", "downstream-consumer-verify"}
 
 
+def test_release_manual_dispatch_can_skip_downstream_with_explicit_waiver() -> None:
+    workflow = load_workflow("release.yml")
+    workflow_on = on_section(workflow)
+    inputs = workflow_on["workflow_dispatch"]["inputs"]
+    jobs = workflow["jobs"]
+
+    assert inputs["tag"]["required"] is True
+    assert inputs["skip_downstream"]["required"] is True
+    assert jobs["downstream-consumer-verify"]["if"] == "${{ env.SKIP_DOWNSTREAM != 'true' }}"
+
+    publish_if = jobs["publish-pypi"]["if"]
+    assert "always()" in publish_if
+    assert "needs.build-release.result == 'success'" in publish_if
+    assert "needs.downstream-consumer-verify.result == 'success'" in publish_if
+    assert "env.SKIP_DOWNSTREAM == 'true'" in publish_if
+
+
 def test_release_verifies_pypi_exact_install_after_publish() -> None:
     workflow = load_workflow("release.yml")
     job = workflow["jobs"]["verify-pypi-installability"]
