@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from charter.pack_context import PackContext
 
-_SPECS_DIR_NAME = "kitty" + "-" + "specs"
+_SPECS_DIR_NAME = "kitty-specs"
 
 
 # ---------------------------------------------------------------------------

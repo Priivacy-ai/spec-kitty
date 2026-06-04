@@ -468,7 +468,11 @@ def _is_protected_branch_exception(commit_message: str) -> bool:
 
 
 def _test_mode_allows_protected_branch() -> bool:
-    return os.environ.get("SPEC_KITTY_TEST_MODE", "").lower() in {"1", "true", "yes"}
+    _ALLOWED = {"1", "true", "yes"}
+    return (
+        os.environ.get("SPEC_KITTY_TEST_MODE", "").lower() in _ALLOWED
+        or os.environ.get("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "").lower() in _ALLOWED
+    )
 
 
 def assert_staging_area_matches_expected(

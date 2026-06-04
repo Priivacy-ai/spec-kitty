@@ -12,7 +12,7 @@ pytestmark = [pytest.mark.architectural]
 
 _SRC_ROOT = Path("src")
 _RAW_PATTERN = re.compile(r'"kitty-specs"|"kitty\.specs"|kitty_specs')
-_SEMANTIC_PATTERN = re.compile(r"/ KITTY_SPECS_DIR /")
+_SEMANTIC_PATTERN = re.compile(r"KITTY_SPECS_DIR\s*/\s*\w")
 
 _RAW_EXEMPT_PARTS = (
     "status/",
@@ -22,6 +22,10 @@ _RAW_EXEMPT_PARTS = (
     "core/paths.py",
     "missions/_read_path_resolver.py",
     "migration/",
+    # charter/ uses "kitty-specs" for string membership testing on path parts
+    # (e.g. `if _SPECS_DIR_NAME in parts:`), not for path construction.
+    # It is a separate package that does not import from specify_cli.
+    "charter/",
 )
 
 _SEMANTIC_CONSTRUCTOR_FILES = {

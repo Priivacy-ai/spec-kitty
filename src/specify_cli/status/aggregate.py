@@ -396,8 +396,8 @@ class MissionStatus:
         if self.mission_id is None or not self.mid8:
             raise MissionMetadataUnavailable(
                 mission_slug=self.mission_slug,
-                meta_path=self.repo_root / "kitty-specs" / self.mission_slug / "meta.json",
-                primary_candidate=self.repo_root / "kitty-specs" / self.mission_slug,
+                meta_path=self.repo_root / KITTY_SPECS_DIR / self.mission_slug / "meta.json",
+                primary_candidate=self.repo_root / KITTY_SPECS_DIR / self.mission_slug,
                 reason="mission_id is required to persist via BookkeepingTransaction",
             )
         destination_ref = self.coordination_branch or f"kitty/mission-{self.mission_slug}"

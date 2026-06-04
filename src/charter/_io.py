@@ -35,7 +35,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 _CONFIDENCE_THRESHOLD = 0.85
-_SPECS_DIR_NAME = "kitty" + "-" + "specs"
+_SPECS_DIR_NAME = "kitty-specs"
 
 # Actor label written to provenance records.
 _ACTOR = "spec-kitty charter"
