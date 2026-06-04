@@ -156,13 +156,17 @@ def test_release_manual_dispatch_can_skip_downstream_with_explicit_waiver() -> N
 
     assert inputs["tag"]["required"] is True
     assert inputs["skip_downstream"]["required"] is True
-    assert jobs["downstream-consumer-verify"]["if"] == "${{ env.SKIP_DOWNSTREAM != 'true' }}"
+    assert (
+        jobs["downstream-consumer-verify"]["if"]
+        == "${{ github.event_name != 'workflow_dispatch' || inputs.skip_downstream != true }}"
+    )
 
     publish_if = jobs["publish-pypi"]["if"]
     assert "always()" in publish_if
     assert "needs.build-release.result == 'success'" in publish_if
     assert "needs.downstream-consumer-verify.result == 'success'" in publish_if
-    assert "env.SKIP_DOWNSTREAM == 'true'" in publish_if
+    assert "github.event_name == 'workflow_dispatch'" in publish_if
+    assert "inputs.skip_downstream == true" in publish_if
 
 
 def test_release_verifies_pypi_exact_install_after_publish() -> None:
