@@ -132,6 +132,8 @@ class MissionStatus:
     mid8: str
     topology: Literal["legacy", "coordination"]
     read_dir: Path
+    repo_root: Path
+    coordination_branch: str | None = None
 
     # ------------------------------------------------------------------
     # Factory
@@ -164,7 +166,8 @@ class MissionStatus:
                 be parsed as a trusted object.
         """
         # 1. Load meta.json (best-effort; legacy missions may not have one)
-        mission_id, declares_coord_branch = cls._read_meta(repo_root, mission_slug)
+        mission_id, coordination_branch = cls._read_meta(repo_root, mission_slug)
+        declares_coord_branch = coordination_branch is not None
         mid8 = mission_id[:8] if mission_id else ""
 
         # 2. Build candidate paths using the same helper as _read_path_resolver.
@@ -187,6 +190,8 @@ class MissionStatus:
                 mid8=mid8,
                 topology="coordination",
                 read_dir=coord_candidate,
+                repo_root=repo_root,
+                coordination_branch=coordination_branch,
             )
 
         # Coord topology declared but worktree is missing → fail closed.
@@ -204,6 +209,8 @@ class MissionStatus:
             mid8=mid8,
             topology="legacy",
             read_dir=primary_candidate,
+            repo_root=repo_root,
+            coordination_branch=coordination_branch,
         )
 
     # ------------------------------------------------------------------
@@ -213,16 +220,16 @@ class MissionStatus:
     @staticmethod
     def _read_meta(
         repo_root: Path, mission_slug: str
-    ) -> tuple[str | None, bool]:
+    ) -> tuple[str | None, str | None]:
         """Read ``meta.json`` and extract identity fields.
 
         Returns:
-            ``(mission_id, declares_coord_branch)`` — either may be
-            ``None`` / ``False`` for legacy missions.
+            ``(mission_id, coordination_branch)`` — either may be ``None`` for
+            legacy missions.
         """
         meta_path = repo_root / "kitty-specs" / mission_slug / "meta.json"
         if not meta_path.exists():
-            return None, False
+            return None, None
         try:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
@@ -272,9 +279,9 @@ class MissionStatus:
                 primary_candidate=repo_root / "kitty-specs" / mission_slug,
                 reason=f"coordination_branch must be string or null, got {type(coord_branch).__name__}",
             )
-        declares_coord_branch = isinstance(coord_branch, str) and bool(coord_branch.strip())
+        coordination_branch = coord_branch.strip() if isinstance(coord_branch, str) and coord_branch.strip() else None
 
-        return mission_id, declares_coord_branch
+        return mission_id, coordination_branch
 
     # ------------------------------------------------------------------
     # Domain operations
@@ -384,14 +391,27 @@ class MissionStatus:
         """
         from specify_cli.coordination.transaction import BookkeepingTransaction
 
+        if self.mission_id is None or not self.mid8:
+            raise MissionMetadataUnavailable(
+                mission_slug=self.mission_slug,
+                meta_path=self.repo_root / "kitty-specs" / self.mission_slug / "meta.json",
+                primary_candidate=self.repo_root / "kitty-specs" / self.mission_slug,
+                reason="mission_id is required to persist via BookkeepingTransaction",
+            )
+        destination_ref = self.coordination_branch or f"kitty/mission-{self.mission_slug}"
+
         with BookkeepingTransaction.acquire(
-            repo_root=self.read_dir,
-            mission_id=self.mission_id or f"legacy-{self.mission_slug}",
+            repo_root=self.repo_root,
+            mission_id=self.mission_id,
             mission_slug=self.mission_slug,
             mid8=self.mid8,
-            destination_ref=f"kitty/mission-{self.mission_slug}",
+            destination_ref=destination_ref,
             operation=operation,
         ) as txn:
+            for artifact_name in ("status.events.jsonl", "status.json"):
+                artifact = txn.feature_dir / artifact_name
+                if artifact.exists():
+                    txn.stage_path(artifact)
             return txn.commit(operation)
 
 

@@ -2985,8 +2985,28 @@ def query_current_state(  # noqa: C901
         mission_slug: Mission slug (e.g. '069-planning-pipeline-integrity').
         repo_root: Repository root path.
     """
+    from specify_cli.core.execution_context import ActionContextError, resolve_action_context
+
     now = datetime.now(UTC).isoformat()
-    feature_dir = _resolve_runtime_feature_dir(repo_root, mission_slug)
+    try:
+        _ctx = resolve_action_context(
+            repo_root,
+            action="tasks",
+            feature=mission_slug,
+        )
+        feature_dir = Path(_ctx.feature_dir)
+    except ActionContextError:
+        # Mission directory not found — return not-found Decision immediately.
+        return Decision(
+            kind=DecisionKind.query,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission="unknown",
+            mission_state="unknown",
+            timestamp=now,
+            is_query=True,
+            reason=None,
+        )
 
     if not feature_dir.is_dir():
         return Decision(
@@ -3120,12 +3140,30 @@ def answer_decision_via_runtime(
 
     logger = logging.getLogger(__name__)
 
-    feature_dir = _resolve_runtime_feature_dir(repo_root, mission_slug)
-    if not feature_dir.is_dir():
+    from specify_cli.core.execution_context import ActionContextError, resolve_action_context
+
+    try:
+        _ctx = resolve_action_context(
+            repo_root,
+            action="tasks",
+            feature=mission_slug,
+        )
+        feature_dir = Path(_ctx.feature_dir)
+    except ActionContextError as exc:
         logger.warning(
             "answer_decision_via_runtime: mission %r not found in repo %s — cannot answer decision %r",
             mission_slug,
             repo_root,
+            decision_id,
+        )
+        raise MissionRuntimeError(
+            f"Mission {mission_slug!r} not found; cannot answer decision {decision_id!r}"
+        ) from exc
+    if not feature_dir.is_dir():
+        logger.warning(
+            "answer_decision_via_runtime: mission %r resolved to missing dir %s — cannot answer decision %r",
+            mission_slug,
+            feature_dir,
             decision_id,
         )
         raise MissionRuntimeError(

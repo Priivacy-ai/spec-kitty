@@ -96,21 +96,30 @@ def main_callback(
     """Main callback for root CLI setup."""
     import sys
 
-    if _is_doctor_restart_daemon_invocation(sys.argv) or _is_next_invocation(sys.argv):
+    if _is_doctor_restart_daemon_invocation(sys.argv):
         return
 
-    root_callback(ctx)
+    next_fast_path = _is_next_invocation(sys.argv)
+    if not next_fast_path:
+        root_callback(ctx)
 
-    # FR-002: Ensure global runtime (~/.kittify/) is populated and current.
-    # Must run BEFORE check_version_pin() so global assets are available.
-    from specify_cli.runtime.agent_commands import ensure_global_agent_commands
-    from specify_cli.runtime.agent_skills import ensure_global_agent_skills
-    from specify_cli.runtime.bootstrap import check_version_pin, ensure_runtime
+        # FR-002: Ensure global runtime (~/.kittify/) is populated and current.
+        # Must run BEFORE check_version_pin() so global assets are available.
+        from specify_cli.runtime.agent_commands import ensure_global_agent_commands
+        from specify_cli.runtime.agent_skills import ensure_global_agent_skills
+        from specify_cli.runtime.bootstrap import ensure_runtime
 
-    ensure_runtime()
-    ensure_global_agent_skills()
-    if not _is_doctor_skills_invocation(sys.argv):
-        ensure_global_agent_commands()
+        ensure_runtime()
+        ensure_global_agent_skills()
+        if not _is_doctor_skills_invocation(sys.argv):
+            ensure_global_agent_commands()
+
+    _run_startup_project_gates(ctx)
+
+
+def _run_startup_project_gates(ctx: typer.Context) -> None:
+    """Run project-local safety gates shared by normal and startup-fast paths."""
+    from specify_cli.runtime.bootstrap import check_version_pin
 
     # F-Pin-001 / 1A-16: Warn on runtime.pin_version for all project invocations.
     project_root = locate_project_root()

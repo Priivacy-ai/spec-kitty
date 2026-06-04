@@ -785,6 +785,15 @@ class TestMapRuntimeDecision:
 class TestAnswerDecision:
     pytestmark = pytest.mark.git_repo
 
+    def test_query_and_answer_paths_use_resolve_action_context(self) -> None:
+        """FR-032: runtime query/answer surfaces stay on canonical ExecutionContext."""
+        import inspect
+
+        from specify_cli.next import runtime_bridge
+
+        assert "resolve_action_context" in inspect.getsource(runtime_bridge.query_current_state)
+        assert "resolve_action_context" in inspect.getsource(runtime_bridge.answer_decision_via_runtime)
+
     def test_answer_missing_mission_raises(self, tmp_path: Path) -> None:
         """Missing mission must fail, not log and report a successful no-op answer."""
         repo_root = _scaffold_project(tmp_path)

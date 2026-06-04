@@ -10,6 +10,7 @@ Covers:
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -45,6 +46,29 @@ def _write_events_file(mission_dir: Path, events: list[dict] | None = None) -> N
     if events:
         lines = "\n".join(json.dumps(e) for e in events)
     (mission_dir / "status.events.jsonl").write_text(lines, encoding="utf-8")
+
+
+def _git(repo: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(repo), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+def _make_git_repo(path: Path) -> Path:
+    repo = path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True, text=True)
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test User")
+    (repo / ".kittify").mkdir()
+    (repo / "README.md").write_text("test repo\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "init")
+    return repo
 
 
 def _make_event(
@@ -436,38 +460,78 @@ class TestTransitionHappyPath:
 
 
 class TestSaveReturnType:
-    def test_save_calls_bookkeeping_transaction_and_returns_commit_receipt(
+    def test_save_uses_real_bookkeeping_transaction_and_returns_commit_receipt(
+        self, tmp_path: Path
+    ) -> None:
+        """save() commits status artifacts through the real BookkeepingTransaction."""
+        slug = "save-modern"
+        mission_id = "01SAVE12345678901234567890"
+        mid8 = mission_id[:8]
+        coord_branch = f"kitty/mission-{slug}-{mid8}"
+        repo = _make_git_repo(tmp_path)
+
+        from specify_cli.status.aggregate import MissionStatus
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+
+        primary_dir = _make_mission_dir(repo, slug)
+        _write_meta(primary_dir, mission_id=mission_id, coordination_branch=coord_branch)
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-m", "add mission meta")
+        _git(repo, "branch", coord_branch)
+
+        coord_root = CoordinationWorkspace.resolve(repo, slug, mid8)
+        coord_dir = coord_root / "kitty-specs" / f"{slug}-{mid8}"
+        coord_dir.mkdir(parents=True)
+        events_path = coord_dir / "status.events.jsonl"
+        events_path.write_text(
+            json.dumps(_make_event(slug, "WP01", "planned", "claimed")) + "\n",
+            encoding="utf-8",
+        )
+
+        ms = MissionStatus.load(repo_root=repo, mission_slug=slug)
+        receipt = ms.save(operation="test-save")
+
+        assert receipt.destination_ref == coord_branch
+        assert receipt.commit_sha
+        committed = _git(repo, "show", f"{coord_branch}:kitty-specs/{slug}-{mid8}/status.events.jsonl")
+        assert "WP01" in committed
+
+    def test_save_supports_identity_bearing_legacy_mission(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """save() calls BookkeepingTransaction.acquire() and returns its CommitReceipt."""
-        slug = "034-save-test"
-        _make_mission_dir(tmp_path, slug)
+        """Legacy missions with mission_id but no coord branch commit on current branch."""
+        base_slug = "save-legacy"
+        mission_id = "01LEGACY45678901234567890"
+        mid8 = mission_id[:8]
+        slug = f"{base_slug}-{mid8}"
+        repo = _make_git_repo(tmp_path)
+        _git(repo, "checkout", "-b", "legacy-lane")
+        monkeypatch.chdir(repo)
+
+        mission_dir = _make_mission_dir(repo, slug)
+        _write_meta(mission_dir, mission_id=mission_id)
+        events_path = mission_dir / "status.events.jsonl"
+        events_path.write_text(
+            json.dumps(_make_event(slug, "WP02", "planned", "claimed")) + "\n",
+            encoding="utf-8",
+        )
 
         from specify_cli.status.aggregate import MissionStatus
 
+        ms = MissionStatus.load(repo_root=repo, mission_slug=slug)
+        receipt = ms.save(operation="test-save-legacy")
+
+        assert receipt.destination_ref == "legacy-lane"
+        committed = _git(repo, "show", f"legacy-lane:kitty-specs/{slug}/status.events.jsonl")
+        assert "WP02" in committed
+
+    def test_save_fails_closed_without_mission_identity(self, tmp_path: Path) -> None:
+        """No-meta missions cannot be persisted through BookkeepingTransaction."""
+        slug = "034-save-test"
+        _make_mission_dir(tmp_path, slug)
+
+        from specify_cli.status.aggregate import MissionMetadataUnavailable, MissionStatus
+
         ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
-
-        # Patch BookkeepingTransaction.acquire to avoid real git operations
-        commit_receipt_sentinel = object()
-
-        class _FakeCommit:
-            def commit(self, operation: str) -> object:
-                return commit_receipt_sentinel
-
-        class _FakeCtx:
-            def __enter__(self) -> _FakeCommit:
-                return _FakeCommit()
-
-            def __exit__(self, *args: object) -> None:
-                pass
-
-        import specify_cli.coordination.transaction as txn_mod
-
-        monkeypatch.setattr(
-            txn_mod.BookkeepingTransaction,
-            "acquire",
-            classmethod(lambda cls, **kw: _FakeCtx()),
-        )
-
-        receipt = ms.save(operation="test-save")
-        assert receipt is commit_receipt_sentinel
+        with pytest.raises(MissionMetadataUnavailable, match="mission_id is required"):
+            ms.save(operation="test-save")
