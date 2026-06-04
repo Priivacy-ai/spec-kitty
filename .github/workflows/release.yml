@@ -278,7 +278,7 @@ jobs:
   downstream-consumer-verify:
     name: Verify downstream consumer compatibility
     needs: build-release
-    if: ${{ env.SKIP_DOWNSTREAM != 'true' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.skip_downstream != true }}
     runs-on: ubuntu-latest
     env:
       REPO_OWNER: ${{ github.repository_owner }}
@@ -342,7 +342,7 @@ jobs:
   publish-pypi:
     name: Publish to PyPI
     needs: [build-release, downstream-consumer-verify]
-    if: ${{ always() && needs.build-release.result == 'success' && (needs.downstream-consumer-verify.result == 'success' || env.SKIP_DOWNSTREAM == 'true') }}
+    if: ${{ always() && needs.build-release.result == 'success' && (needs.downstream-consumer-verify.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.skip_downstream == true)) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
