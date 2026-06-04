@@ -143,7 +143,7 @@ def emit_local_commit(
 
     # Attempt immediate send if connected; errors are swallowed so the caller
     # (a git-hook or CLI command) is never interrupted.
-    client = _get_saas_client(repo_root)
+    client = _get_saas_client()
     if client is not None:
         try:
             _send_event(client, frame)
@@ -218,7 +218,7 @@ def record_local_commit_ack(repo_root: Path, git_hash: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _get_saas_client(repo_root: Path) -> Any | None:  # noqa: ARG001
+def _get_saas_client() -> Any | None:
     """Return a connected WebSocketClient if available; ``None`` otherwise.
 
     Mirrors ``specify_cli.invocation.propagator._get_saas_client``.

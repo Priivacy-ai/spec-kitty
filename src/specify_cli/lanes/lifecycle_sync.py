@@ -13,6 +13,7 @@ from specify_cli.lanes.models import ExecutionLane
 from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
 
 LANE_AUTO_REBASE_FAILED = "LANE_AUTO_REBASE_FAILED"
+WORKTREES_DIRNAME = ".worktrees"
 
 
 @dataclass(frozen=True)
@@ -130,7 +131,7 @@ def sync_lane_after_coordination_commit(
         raise LaneAutoRebaseSyncError(
             lane_id="unknown",
             lane_branch="unknown",
-            lane_worktree_path=repo_root / ".worktrees" / f"{mission_slug}-unknown",
+            lane_worktree_path=repo_root / WORKTREES_DIRNAME / f"{mission_slug}-unknown",
             coordination_branch=coordination_branch,
             coordination_head=_git_stdout(repo_root, "rev-parse", coordination_branch),
             halt_reason=str(exc),
@@ -145,14 +146,14 @@ def sync_lane_after_coordination_commit(
 
     lane_branch = _resolve_lane_branch(
         repo_root,
-        repo_root / ".worktrees" / f"{mission_slug}-{lane.lane_id}",
+        repo_root / WORKTREES_DIRNAME / f"{mission_slug}-{lane.lane_id}",
         mission_slug,
         lane,
         planning_base_branch=lanes_manifest.target_branch,
         mission_id=lanes_manifest.mission_id,
     )
     coordination_head = _git_stdout(repo_root, "rev-parse", coordination_branch)
-    worktree_path = repo_root / ".worktrees" / f"{mission_slug}-{lane.lane_id}"
+    worktree_path = repo_root / WORKTREES_DIRNAME / f"{mission_slug}-{lane.lane_id}"
     if not (worktree_path / ".git").exists():
         worktree_path.parent.mkdir(parents=True, exist_ok=True)
         add_result = subprocess.run(
