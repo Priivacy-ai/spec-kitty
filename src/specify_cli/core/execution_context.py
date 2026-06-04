@@ -7,6 +7,7 @@ work package, workspace path, and any action-specific commands to run.
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal, Mapping, cast, get_args
@@ -90,6 +91,25 @@ def _resolve_mission_slug(
 
     # Derive mid8 from the post-WP03 ``<slug>-<mid8>`` shape when present.
     mid8 = mid8_from_slug(slug)
+    if not mid8:
+        meta_path = repo_root / "kitty-specs" / slug / "meta.json"
+        if meta_path.is_file():
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                meta = {}
+            if isinstance(meta, dict):
+                raw_mid8 = meta.get("mid8")
+                if isinstance(raw_mid8, str) and raw_mid8.strip():
+                    mid8 = raw_mid8.strip()
+                else:
+                    raw_mission_id = meta.get("mission_id")
+                    if isinstance(raw_mission_id, str) and len(raw_mission_id) >= 8:
+                        mid8 = raw_mission_id[:8]
+
+    primary_dir = repo_root / "kitty-specs" / slug
+    if primary_dir.exists() and not _declares_coordination_branch(primary_dir):
+        return slug, primary_dir
 
     # Late import to avoid a hard module-load dependency for legacy
     # consumers of execution_context that pre-date the resolver.
@@ -105,6 +125,18 @@ def _resolve_mission_slug(
             f"'{slug}' is the correct mission slug.",
         )
     return slug, feature_dir
+
+
+def _declares_coordination_branch(path: Path) -> bool:
+    meta_path = path / "meta.json"
+    if not meta_path.exists():
+        return False
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    branch = meta.get("coordination_branch") if isinstance(meta, dict) else None
+    return isinstance(branch, str) and bool(branch.strip())
 
 
 def _tasks_commands(mission_slug: str) -> dict[str, str]:

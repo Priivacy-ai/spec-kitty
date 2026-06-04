@@ -4,9 +4,9 @@ The canonical SaaS fanout boundary is
 :func:`specify_cli.status.adapters.fire_saas_fanout`.  The
 ``mock_saas_sink`` fixture patches that boundary in *both* its
 import-time location (``specify_cli.status.adapters.fire_saas_fanout``)
-and in the location where ``coordination.outbound`` performs its lazy
-import (``specify_cli.coordination.outbound._send_to_saas`` internally
-calls ``from specify_cli.status.adapters import fire_saas_fanout``).
+and in the public package location where ``coordination.outbound`` performs
+its architecture-compliant lazy import
+(``from specify_cli.status import fire_saas_fanout``).
 
 A separate file (not directly auto-loaded by pytest) keeps this fixture
 opt-in: tests that want to assert on outbound traffic do
@@ -68,14 +68,16 @@ def mock_saas_sink(monkeypatch: pytest.MonkeyPatch) -> Iterator[_RecordingSink]:
       * ``specify_cli.status.adapters.fire_saas_fanout`` — the canonical
         import path. Existing callers that import the symbol at module
         load time see the patched version.
+      * ``specify_cli.status.fire_saas_fanout`` — the public package boundary
+        used by coordination code.
       * ``specify_cli.status.emit.fire_saas_fanout`` — emit.py imports
         the symbol at its module top, so monkeypatching the source alone
         does not catch its already-bound reference.
 
     The fixture is **safe to combine** with ``coordination.outbound.``
     ``queue_saas_emission`` because that helper performs a lazy
-    ``from specify_cli.status.adapters import fire_saas_fanout`` inside
-    ``_send_to_saas`` — so the patched ``adapters`` attribute is read
+    ``from specify_cli.status import fire_saas_fanout`` inside
+    ``_send_to_saas`` — so the patched package attribute is read
     fresh on every call.
     """
     sink = _RecordingSink()
@@ -83,6 +85,10 @@ def mock_saas_sink(monkeypatch: pytest.MonkeyPatch) -> Iterator[_RecordingSink]:
     # Primary boundary
     monkeypatch.setattr(
         "specify_cli.status.adapters.fire_saas_fanout",
+        sink,
+    )
+    monkeypatch.setattr(
+        "specify_cli.status.fire_saas_fanout",
         sink,
     )
 

@@ -28,7 +28,7 @@ test_no_dead_modules:
   # org-doctrine-profile-integrity-closeout WP04): the upstream rebase added
   # m_3_2_0rc35_sync_state_gitignore, allowlisted in _CATEGORY_1 here. Growth here
   # is expected/routine.
-  category_1_auto_discovered_migrations: 77
+  category_1_auto_discovered_migrations: 79  # justification: +2 auto-discovered 3.2.0 migrations, including spk skill-pack, loaded via pkgutil.iter_modules.
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live

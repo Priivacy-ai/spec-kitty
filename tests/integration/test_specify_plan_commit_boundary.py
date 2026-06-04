@@ -273,10 +273,10 @@ def _run_setup_plan(repo: Path, mission_handle: str) -> dict[str, object]:
     ) -> tuple[str, str]:
         return ("main", "main")
 
-    # The protected-branch guard checks for SPEC_KITTY_TEST_MODE to bypass
-    # the 'main' branch protection for test fixtures.
-    _prev_test_mode = os.environ.get("SPEC_KITTY_TEST_MODE")
-    os.environ["SPEC_KITTY_TEST_MODE"] = "1"
+    # These fixtures intentionally exercise setup-plan commits on synthetic
+    # main branches; opt in through the explicit protected-branch test override.
+    _prev_allow = os.environ.get("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS")
+    os.environ["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = "1"
     try:
         with (
             patch.object(mission_module, "locate_project_root", return_value=repo),
@@ -303,10 +303,10 @@ def _run_setup_plan(repo: Path, mission_handle: str) -> dict[str, object]:
                 catch_exceptions=False,
             )
     finally:
-        if _prev_test_mode is None:
-            os.environ.pop("SPEC_KITTY_TEST_MODE", None)
+        if _prev_allow is None:
+            os.environ.pop("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", None)
         else:
-            os.environ["SPEC_KITTY_TEST_MODE"] = _prev_test_mode
+            os.environ["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = _prev_allow
     assert result.exit_code in (0, 1), f"unexpected exit {result.exit_code}: {result.output}"
     # Locate the JSON envelope in the output (commands print plain JSON).
     output = result.output.strip()

@@ -46,4 +46,4 @@ def prepend_agent_upgrade_check(body: str) -> str:
     return f"{AGENT_UPGRADE_CHECK_BLOCK}{separator}{body}"
 
 
-__all__ = ["AGENT_UPGRADE_CHECK_BLOCK", "prepend_agent_upgrade_check"]
+__all__ = ["prepend_agent_upgrade_check"]

@@ -23,6 +23,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from typer.main import get_command
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import charter_app
@@ -100,15 +101,27 @@ def _write_directive(directory: Path, stem: str, artifact_id: str) -> None:
 
 
 class TestRegistration:
+    def _assert_cascade_option_registered(self, command_name: str) -> None:
+        click_group = get_command(charter_app)
+        click_command = click_group.commands[command_name]
+        cascade_options = [
+            param
+            for param in click_command.params
+            if getattr(param, "name", None) == "cascade"
+        ]
+        assert cascade_options, f"{command_name} command is missing cascade parameter"
+        assert "--cascade" in cascade_options[0].opts
+        assert "Cascade" in cascade_options[0].help
+
     def test_activate_registered(self) -> None:
-        result = runner.invoke(charter_app, ["activate", "--help"])
+        result = runner.invoke(charter_app, ["activate", "--help"], terminal_width=160)
         assert result.exit_code == 0, result.output
-        assert "--cascade" in result.output
+        self._assert_cascade_option_registered("activate")
 
     def test_deactivate_registered(self) -> None:
-        result = runner.invoke(charter_app, ["deactivate", "--help"])
+        result = runner.invoke(charter_app, ["deactivate", "--help"], terminal_width=160)
         assert result.exit_code == 0, result.output
-        assert "--cascade" in result.output
+        self._assert_cascade_option_registered("deactivate")
 
     def test_dead_subapp_exports_removed(self) -> None:
         """``charter_activate_app`` / ``charter_deactivate_app`` are gone (FR-020)."""

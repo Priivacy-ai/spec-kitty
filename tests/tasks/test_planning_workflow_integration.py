@@ -20,6 +20,7 @@ pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]  # non_sandbox: run
 @pytest.fixture(autouse=True)
 def _disable_saas_sync_for_planning_workflow_tests(
     monkeypatch: pytest.MonkeyPatch,
+    isolated_env: dict[str, str],
 ) -> None:
     """Opt out of the autouse ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` fixture.
 
@@ -38,6 +39,8 @@ def _disable_saas_sync_for_planning_workflow_tests(
     SAAS-sync-disabled planning path.
     """
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    isolated_env.pop("SPEC_KITTY_ENABLE_SAAS_SYNC", None)
+    isolated_env["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = "1"
 
 SUBSTANTIVE_PLAN_TEMPLATE = """# Implementation Plan
 

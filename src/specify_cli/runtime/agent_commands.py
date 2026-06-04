@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
+from importlib.util import find_spec
 from pathlib import Path
-from typing import cast
 
 from specify_cli.core.config import DEFAULT_MISSION_KEY
 from specify_cli.runtime.bootstrap import _get_cli_version, _lock_exclusive
@@ -77,20 +78,34 @@ def get_global_command_dir(agent_key: str) -> Path:
 def _get_command_templates_dir() -> Path:
     """Return the command-templates directory from the doctrine package.
 
-    Uses ``doctrine.__file__`` as an anchor so this works identically in
-    editable and wheel installs — no hardcoded paths required.
+    Uses import metadata rather than ``import doctrine`` so CLI startup does
+    not execute doctrine's heavy validation imports before command dispatch.
 
     Raises ``FileNotFoundError`` if the doctrine package is absent, which
     indicates a corrupted install.
     """
-    import doctrine  # noqa: PLC0415
+    if os.environ.get("SPEC_KITTY_TEMPLATE_ROOT"):
+        from specify_cli.runtime.home import get_package_asset_root
 
-    doctrine_file = cast(str | None, doctrine.__file__)
-    if doctrine_file is None:
-        raise FileNotFoundError("doctrine package has no __file__; installation may be corrupted")
-    doctrine_path: Path = Path(doctrine_file).parent
-    mission_key = cast(str, DEFAULT_MISSION_KEY)
-    return doctrine_path / "missions" / "mission-steps" / mission_key
+        package_asset_root = get_package_asset_root()
+        legacy_command_templates = package_asset_root / DEFAULT_MISSION_KEY / "command-templates"
+        if legacy_command_templates.exists():
+            return legacy_command_templates
+
+    loaded_doctrine = sys.modules.get("doctrine")
+    loaded_file = getattr(loaded_doctrine, "__file__", None)
+    if isinstance(loaded_file, str) and loaded_file:
+        return Path(loaded_file).parent / "missions" / "mission-steps" / DEFAULT_MISSION_KEY
+
+    try:
+        spec = find_spec("doctrine")
+    except (ModuleNotFoundError, ValueError):
+        spec = None
+    locations = list(spec.submodule_search_locations or ()) if spec is not None else []
+    if not locations:
+        raise FileNotFoundError("doctrine package has no search location; installation may be corrupted")
+    doctrine_path = Path(locations[0])
+    return doctrine_path / "missions" / "mission-steps" / DEFAULT_MISSION_KEY
 
 
 def _resolve_script_type() -> str:

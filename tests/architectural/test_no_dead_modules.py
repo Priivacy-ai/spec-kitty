@@ -204,6 +204,8 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # .pi/ and .letta/ gitignore entries and skill-pack repair.
         # Auto-discovered via pkgutil.iter_modules; never statically imported.
         "specify_cli.upgrade.migrations.m_3_2_0rc35_pi_letta_backfill",
+        # 3.2.0 spk skill-pack migration; auto-discovered via pkgutil.
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_spk_skill_pack",
     }
 )
 

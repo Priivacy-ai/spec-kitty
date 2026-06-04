@@ -13,6 +13,9 @@ from pathlib import Path
 import pytest
 
 
+pytestmark = [pytest.mark.fast]
+
+
 # ---------------------------------------------------------------------------
 # ATDD stub (must have been RED before WP02 implementation)
 # ---------------------------------------------------------------------------

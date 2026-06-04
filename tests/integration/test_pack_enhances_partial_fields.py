@@ -8,7 +8,7 @@ The point of this test is to FREEZE the field-merge semantics described in
 
 ADR-ratified semantics (Option C — field-level merge):
 
-* When a pack tactic declares ``enhances: <built-in-id>`` and provides only a
+* When a pack tactic uses the same ``id`` as a built-in and provides only a
   subset of fields, the pack's fields override the built-in's fields and the
   built-in's other fields fall through unchanged.
 * In particular, fields the pack OMITS entirely (key not present in YAML) MUST
@@ -103,7 +103,6 @@ def _write_partial_pack_tactic(
         f"id: {_BUILT_IN_TACTIC_ID}",
         f"name: {overrides_fields['name']}",
         f"purpose: {overrides_fields['purpose']}",
-        f"enhances: {_BUILT_IN_TACTIC_ID}",
     ]
     (pack_dir / f"{_BUILT_IN_TACTIC_ID}.tactic.yaml").write_text(
         "\n".join(body_lines) + "\n", encoding="utf-8"
@@ -152,14 +151,12 @@ class TestMergeDirectInvariants:
         repo = self._empty_repo(tmp_path)
         built_in = self._built_in_tactic()
 
-        # Pack data — note ``enhances`` is set; everything else is intentionally
-        # absent so the merge must fall through to the built-in.
+        # Pack data omits most fields so the merge must fall through to the built-in.
         pack_data = {
             "schema_version": "1.0",
             "id": _BUILT_IN_TACTIC_ID,
             "name": "Pack Name",
             "purpose": "Pack purpose.",
-            "enhances": _BUILT_IN_TACTIC_ID,
         }
 
         merged = repo._merge(built_in, pack_data)
@@ -167,10 +164,6 @@ class TestMergeDirectInvariants:
         # Pack values win for fields the pack provided.
         assert merged.name == "Pack Name", "pack name must override built-in"
         assert merged.purpose == "Pack purpose.", "pack purpose must override built-in"
-        assert merged.enhances == _BUILT_IN_TACTIC_ID, (
-            "enhances declaration must be preserved on the merged result"
-        )
-
         # Built-in values survive for fields the pack OMITTED.
         merged_step_titles = tuple(s.title for s in merged.steps)
         assert merged_step_titles == _BUILT_IN_STEP_TITLES, (
@@ -208,7 +201,6 @@ class TestMergeDirectInvariants:
             "schema_version": "1.0",
             "id": _BUILT_IN_TACTIC_ID,
             "name": "Pack Name",
-            "enhances": _BUILT_IN_TACTIC_ID,
             "steps": [],  # would erase to empty if accepted
         }
 

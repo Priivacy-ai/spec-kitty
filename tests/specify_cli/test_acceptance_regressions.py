@@ -460,7 +460,7 @@ def test_perform_acceptance_persists_accept_commit(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_collect_feature_summary_reports_branch_mismatch_skipped_checks(tmp_path: Path) -> None:
+def test_collect_feature_summary_allows_main_branch_for_lane_acceptance(tmp_path: Path) -> None:
     repo_root, feature_dir = _create_test_feature(tmp_path)
     subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
 
@@ -472,12 +472,120 @@ def test_collect_feature_summary_reports_branch_mismatch_skipped_checks(tmp_path
 
     summary = collect_feature_summary(repo_root, _FEATURE_SLUG, mutate_matrix=False)
 
-    assert any("Acceptance must run on mission branch" in issue for issue in summary.activity_issues)
+    assert not any("Acceptance must run on mission branch" in issue for issue in summary.activity_issues)
+    assert not any(item.check == "mission_branch" for item in summary.blocked_checks)
+    assert any("Acceptance matrix" in issue and "required" in issue for issue in summary.activity_issues)
+    skipped = {item.check for item in summary.skipped_checks}
+    assert "acceptance_matrix_verdict" in skipped
+    assert not any("Switch to the mission branch" in item for item in summary.recommended_fix_order)
+    assert any("acceptance-matrix.json" in item for item in summary.recommended_fix_order)
+
+
+def test_collect_feature_summary_blocks_unrelated_branch_for_lane_acceptance(tmp_path: Path) -> None:
+    repo_root, feature_dir = _create_test_feature(tmp_path)
+    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
+
+    from tests.lane_test_utils import write_single_lane_manifest
+
+    write_single_lane_manifest(feature_dir)
+    subprocess.run(["git", "-C", str(repo_root), "add", "."], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo_root), "commit", "-m", "Add lanes manifest"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "checkout", "-b", "scratch/unrelated-operator-branch"],
+        check=True,
+        capture_output=True,
+    )
+
+    summary = collect_feature_summary(repo_root, _FEATURE_SLUG, mutate_matrix=False)
+
+    assert any("Acceptance must run on mission or target branch" in issue for issue in summary.activity_issues)
     assert any(item.check == "mission_branch" for item in summary.blocked_checks)
     skipped = {item.check for item in summary.skipped_checks}
     assert "acceptance_matrix_presence" in skipped
-    assert "acceptance_matrix_verdict" in skipped
-    assert any("Switch to the mission branch" in item for item in summary.recommended_fix_order)
+    assert any("mission branch or configured target branch" in item for item in summary.recommended_fix_order)
+    assert not any(item.check == "acceptance_matrix" for item in summary.blocked_checks)
+
+
+def test_collect_feature_summary_blocks_detached_head_for_lane_acceptance(tmp_path: Path) -> None:
+    repo_root, feature_dir = _create_test_feature(tmp_path)
+    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
+
+    from specify_cli.acceptance.matrix import AcceptanceCriterion, AcceptanceMatrix, write_acceptance_matrix
+    from tests.lane_test_utils import write_single_lane_manifest
+
+    write_single_lane_manifest(feature_dir)
+    write_acceptance_matrix(
+        feature_dir,
+        AcceptanceMatrix(
+            mission_slug=_FEATURE_SLUG,
+            criteria=[
+                AcceptanceCriterion(
+                    criterion_id="AC-01",
+                    description="Acceptance proof",
+                    proof_type="automated_test",
+                    evidence="pytest",
+                    pass_fail="pass",
+                    verified_by="ci",
+                )
+            ],
+        ),
+    )
+    subprocess.run(["git", "-C", str(repo_root), "add", "."], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo_root), "commit", "-m", "Add lane acceptance proof"], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo_root), "checkout", "--detach", "HEAD"], check=True, capture_output=True)
+
+    summary = collect_feature_summary(repo_root, _FEATURE_SLUG, mutate_matrix=False)
+
+    assert summary.branch is None
+    assert any("detached HEAD" in issue for issue in summary.activity_issues)
+    assert any(item.check == "mission_branch" for item in summary.blocked_checks)
+    skipped = {item.check for item in summary.skipped_checks}
+    assert "acceptance_matrix_presence" in skipped
+
+
+def test_collect_feature_summary_blocks_meta_lanes_target_branch_mismatch(tmp_path: Path) -> None:
+    repo_root, feature_dir = _create_test_feature(tmp_path)
+    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
+
+    from specify_cli.acceptance.matrix import AcceptanceCriterion, AcceptanceMatrix, write_acceptance_matrix
+    from tests.lane_test_utils import write_single_lane_manifest
+
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["target_branch"] = "scratch/unrelated-operator-branch"
+    meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+    write_single_lane_manifest(feature_dir, target_branch="main")
+    write_acceptance_matrix(
+        feature_dir,
+        AcceptanceMatrix(
+            mission_slug=_FEATURE_SLUG,
+            criteria=[
+                AcceptanceCriterion(
+                    criterion_id="AC-01",
+                    description="Acceptance proof",
+                    proof_type="automated_test",
+                    evidence="pytest",
+                    pass_fail="pass",
+                    verified_by="ci",
+                )
+            ],
+        ),
+    )
+    subprocess.run(["git", "-C", str(repo_root), "add", "."], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo_root), "commit", "-m", "Add divergent lane target"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "checkout", "-b", "scratch/unrelated-operator-branch"],
+        check=True,
+        capture_output=True,
+    )
+
+    summary = collect_feature_summary(repo_root, _FEATURE_SLUG, mutate_matrix=False)
+
+    assert summary.ok is False
+    assert any("Acceptance target branch mismatch" in issue for issue in summary.activity_issues)
+    assert any(item.check == "mission_branch" for item in summary.blocked_checks)
+    skipped = {item.check for item in summary.skipped_checks}
+    assert "acceptance_matrix_presence" in skipped
 
 
 def test_collect_feature_summary_reports_missing_matrix_skipped_checks(tmp_path: Path) -> None:

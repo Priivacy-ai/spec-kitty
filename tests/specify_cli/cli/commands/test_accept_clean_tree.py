@@ -79,6 +79,10 @@ def _create_lane_feature(
     # SPECIFY_REPO_ROOT env var set by the test) so mission resolution works
     # regardless of where pytest happens to run.
     (repo_root / ".kittify").mkdir()
+    for required_dir in ("src", "tests", "contracts", "docs"):
+        path = repo_root / required_dir
+        path.mkdir()
+        (path / ".gitkeep").write_text("")
 
     feature_dir = repo_root / "kitty-specs" / _SLUG
     tasks_dir = feature_dir / "tasks"

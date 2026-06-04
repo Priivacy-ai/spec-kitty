@@ -670,11 +670,22 @@ def _teamspace_audit_blockers(
 
     report = run_audit(AuditOptions(repo_root=repo_root, scan_root=scan_root))
     selected_slugs = {path.name for path in mission_dirs}
+    side_log_artifacts = {
+        "decisions/events.jsonl",
+        "handoff/events.jsonl",
+        "mission-events.jsonl",
+    }
     errors: list[dict[str, object]] = []
     for result in report.missions:
         if result.mission_slug not in selected_slugs:
             continue
         for finding in result.findings:
+            if any(
+                finding.artifact_path == artifact
+                or finding.artifact_path.endswith(f"/{artifact}")
+                for artifact in side_log_artifacts
+            ):
+                continue
             if not is_teamspace_blocker(finding):
                 continue
             errors.append(
@@ -784,8 +795,8 @@ def _status_event_to_teamspace_envelope(
     payload = {
         "mission_slug": status_event.mission_slug,
         "wp_id": status_event.wp_id,
-        "from_lane": str(status_event.from_lane),
-        "to_lane": str(status_event.to_lane),
+        "from_lane": _teamspace_lane_value(status_event, "from"),
+        "to_lane": _teamspace_lane_value(status_event, "to"),
         "actor": status_event.actor,
         "force": status_event.force,
         "reason": status_event.reason,
@@ -812,6 +823,20 @@ def _status_event_to_teamspace_envelope(
         ),
         "schema_version": CANONICAL_ENVELOPE_SCHEMA_VERSION,
     }
+
+
+def _teamspace_lane_value(status_event: StatusEvent, field: str) -> str:
+    """Return a TeamSpace-contract-compatible lane for historical imports."""
+    if (
+        field == "to"
+        and status_event.from_lane == Lane.IN_PROGRESS
+        and status_event.to_lane == Lane.IN_REVIEW
+        and status_event.review_ref is None
+    ):
+        return str(Lane.FOR_REVIEW)
+    if field == "from":
+        return str(status_event.from_lane)
+    return str(status_event.to_lane)
 
 
 def _historical_teamspace_evidence(

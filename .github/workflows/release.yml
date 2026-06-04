@@ -258,9 +258,72 @@ jobs:
             sbom.cdx.json
           retention-days: 30
 
+  downstream-consumer-verify:
+    name: Verify downstream consumer compatibility
+    needs: build-release
+    runs-on: ubuntu-latest
+    env:
+      REPO_OWNER: ${{ github.repository_owner }}
+      CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
+      HAS_SAAS_READ_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Download release distributions
+        uses: actions/download-artifact@v8
+        with:
+          name: release-distributions
+          path: release-distributions
+
+      - name: Check out downstream scenario suite
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ github.repository_owner }}/spec-kitty-end-to-end-testing
+          path: spec-kitty-end-to-end-testing
+          token: ${{ env.CROSS_REPO_TOKEN }}
+
+      - name: Run downstream contract-drift scenario
+        run: |
+          if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
+            echo "::error::SPEC_KITTY_SAAS_READ_TOKEN is required for downstream consumer verification before publish."
+            exit 1
+          fi
+
+          python spec-kitty-end-to-end-testing/scenarios/contract_drift_caught.py \
+            --candidate-dist "$PWD/release-distributions"
+
+          mkdir -p .kittify/release
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          Path(".kittify/release/downstream-verified.json").write_text(
+              json.dumps(
+                  {
+                      "status": "passed",
+                      "candidate_version": os.environ["GITHUB_REF_NAME"].removeprefix("v"),
+                      "scenario": "spec-kitty-end-to-end-testing/scenarios/contract_drift_caught.py",
+                  },
+                  indent=2,
+              )
+              + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Upload downstream verification evidence
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: downstream-verified
+          path: .kittify/release/downstream-verified.json
+          retention-days: 30
+
   publish-pypi:
     name: Publish to PyPI
-    needs: build-release
+    needs: [build-release, downstream-consumer-verify]
     runs-on: ubuntu-latest
     permissions:
       contents: write

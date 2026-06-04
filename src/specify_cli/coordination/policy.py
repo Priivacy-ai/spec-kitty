@@ -26,7 +26,10 @@ from specify_cli.coordination.types import (
     PolicyVerdict,
     Refused,
 )
-from specify_cli.git.commit_helpers import protected_branches
+from specify_cli.git.commit_helpers import (
+    protected_branch_bypass_enabled,
+    protected_branches,
+)
 
 
 def _normalize_ref(raw: str) -> str:
@@ -198,7 +201,7 @@ class WorkflowMutationPolicy:
         # there is exactly one source of truth for which branches are
         # protected.
         protected = protected_branches(repo_root)
-        if ref in protected:
+        if ref in protected and not protected_branch_bypass_enabled():
             return Refused(
                 error_code="PROTECTED_BRANCH_REFUSED",
                 message=(

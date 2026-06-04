@@ -80,31 +80,31 @@ def test_no_unhidden_feature_typer_options_in_commands_tree() -> None:
 def test_charter_lint_help_does_not_mention_feature_flag() -> None:
     """The historically-offending command surface must not advertise --feature.
 
-    ``charter.py:charter_lint`` was the load-bearing offender (issue
+    ``charter/lint.py:charter_lint`` was the load-bearing offender (issue
     flagged by WP04/05/06 reviewers). We snapshot the source line that
     declares the option and assert it carries ``hidden=True`` so a
     future regression is caught at the command-source layer too.
     """
-    charter_py = COMMANDS_DIR / "charter.py"
+    charter_py = COMMANDS_DIR / "charter" / "lint.py"
     text = charter_py.read_text(encoding="utf-8")
     feature_blocks = [
         block for block in _scan_typer_option_blocks(text) if '"--feature"' in block
     ]
-    assert feature_blocks, "Expected at least one --feature option block in charter.py"
+    assert feature_blocks, "Expected at least one --feature option block in charter/lint.py"
     for block in feature_blocks:
         assert "hidden=True" in block, (
-            "charter.py declares a --feature typer.Option without "
+            "charter/lint.py declares a --feature typer.Option without "
             f"hidden=True:\n{block}"
         )
 
 
 def test_charter_lint_offers_canonical_mission_option() -> None:
     """``charter lint`` must surface the canonical ``--mission`` selector."""
-    charter_py = COMMANDS_DIR / "charter.py"
+    charter_py = COMMANDS_DIR / "charter" / "lint.py"
     text = charter_py.read_text(encoding="utf-8")
     # We do not require a specific format, only that `--mission` is
     # declared somewhere within charter_lint's option declarations.
     assert '"--mission"' in text, (
-        "charter.py is expected to expose --mission as the canonical "
+        "charter/lint.py is expected to expose --mission as the canonical "
         "alternative to the hidden --feature alias."
     )

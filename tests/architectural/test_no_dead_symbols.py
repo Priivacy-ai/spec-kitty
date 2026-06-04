@@ -392,7 +392,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.validators.research::validate_citations",
         "specify_cli.validators.research::validate_source_register",
         "specify_cli.widen.interview_helpers::render_widen_hint_if_present",
-        "specify_cli.workspace.assert_initialized::SPEC_KITTY_REPO_NOT_INITIALIZED",
     }
 )
 
@@ -465,7 +464,6 @@ _CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH: frozenset[str] = frozenset(
         # function directly; the structured error code is exercised by
         # tests/integration/test_cli_status_mediation.py.
         "specify_cli.missions._read_path_resolver::STATUS_READ_PATH_NOT_FOUND_CODE",
-        "specify_cli.missions._read_path_resolver::StatusReadPathNotFound",
         # resolve_planning_branch_from_meta is the pure-helper variant
         # used by tests/specify_cli/cli/commands/agent/test_mission_finalize_tasks.py;
         # production callers route through the IO-shaped wrapper that

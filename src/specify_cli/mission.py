@@ -500,8 +500,18 @@ def get_mission_by_name(mission_name: str, kittify_dir: Path | None = None) -> M
     mission_path = kittify_dir / "missions" / mission_name
 
     if not mission_path.exists():
-        available = list_available_missions(kittify_dir)
-        raise MissionNotFoundError(f"Mission '{mission_name}' not found.\nAvailable missions: {', '.join(available) if available else 'none'}")
+        project_root = kittify_dir.parent
+        try:
+            from specify_cli.runtime.resolver import resolve_mission
+
+            resolved = resolve_mission(mission_name, project_root)
+            return Mission(resolved.path.parent)
+        except FileNotFoundError:
+            available = list_available_missions(kittify_dir)
+            raise MissionNotFoundError(
+                f"Mission '{mission_name}' not found.\n"
+                f"Available missions: {', '.join(available) if available else 'none'}"
+            ) from None
 
     return Mission(mission_path)
 
