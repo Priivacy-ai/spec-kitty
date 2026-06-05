@@ -1,12 +1,11 @@
 ---
 work_package_id: WP06
-title: Skill reconciliation + doc/CLI parity guard + glossary
+title: Skill reconciliation + doc/CLI parity guard
 dependencies:
 - WP04
 requirement_refs:
 - FR-017
 - FR-018
-- FR-019
 tracker_refs:
 - '1636'
 planning_base_branch: feature/status-writepath-profile-surface-remediation
@@ -15,7 +14,6 @@ branch_strategy: Planning artifacts for this mission were generated on feature/s
 subtasks:
 - T027
 - T028
-- T029
 - T030
 - T031
 phase: 'Lane B-core — #1636'
@@ -31,13 +29,12 @@ model: ''
 owned_files:
 - src/doctrine/skills/ad-hoc-profile-load/SKILL.md
 - tests/architectural/test_docs_cli_reference_parity.py
-- glossary/contexts/governance.md
 role: curator
 tags: []
 task_type: implement
 ---
 
-# Work Package Prompt: WP06 – Skill reconciliation + doc/CLI parity guard + glossary
+# Work Package Prompt: WP06 – Skill reconciliation + doc/CLI parity guard
 
 ## ⚡ Do This First: Load Agent Profile
 
@@ -51,9 +48,10 @@ Close the documentation half of #1636 and lock it against regression.
 
 - **FR-017**: reconcile `src/doctrine/skills/ad-hoc-profile-load/SKILL.md` — adopt/invoke steps point to `spec-kitty ask` / `advise`; profile-detail steps point to the new `profile show`; `hierarchy` / `init` / `create` references are either implemented elsewhere or removed. No step references a non-existent command.
 - **FR-018**: a doc/CLI parity guard test asserts every `spec-kitty agent profile <subcommand>` referenced in shipped skill docs maps to a registered Typer command.
-- **FR-019**: glossary entries for *abstract base profile*, *activation chokepoint*, and *activated vs available profile* (DIRECTIVE_032 — vocabulary before the `profile show` warning string ships).
 
-**Done when**: parity guard passes; the skill references only implemented commands; the glossary defines the three terms.
+> **FR-019 (glossary) moved to WP03** per the `/spec-kitty.analyze` I1 finding — the vocabulary must be ratified before WP04's warning string ships, and WP03 is dependency-free. WP06 may rely on those terms already existing.
+
+**Done when**: parity guard passes; the skill references only implemented commands.
 
 ## Context & Constraints
 
@@ -76,11 +74,6 @@ Close the documentation half of #1636 and lock it against regression.
 
 - **Steps**: add `tests/architectural/test_docs_cli_reference_parity.py` (or extend if present) to scan shipped skill docs for `spec-kitty agent profile <sub>` tokens and assert each `<sub>` is a registered command on the `profile` Typer app. Fail on any orphan reference.
 - **Files**: `tests/architectural/test_docs_cli_reference_parity.py`
-
-### Subtask T029 – Glossary terms [P]
-
-- **Steps**: add to `glossary/contexts/governance.md`: *abstract base profile* (a profile referenced via `specializes_from` that is not itself activated — a shared-element store, not directly selectable), *activation chokepoint* (the `charter.resolver.DoctrineService` activation filter), *activated vs available profile*. Follow the existing entry format in that file.
-- **Files**: `glossary/contexts/governance.md`
 
 ### Subtask T030 – Cross-link `profile show`
 

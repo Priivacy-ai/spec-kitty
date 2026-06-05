@@ -27,6 +27,7 @@ Two file-disjoint workstreams → three execution lanes:
 | T012 | Construct inner `DoctrineService` + wrap with `PackContext.from_config` | WP03 | |
 | T013 | Unit test: three-state activation filtering via factory | WP03 | [P] |
 | T014 | Layer-safety test: factory import does not break `doctrine ← charter` | WP03 | [P] |
+| T029 | Add glossary terms: *abstract base profile*, *activation chokepoint*, *activated vs available profile* (FR-019) | WP03 | [P] |
 | T015 | `profile list`: filter `ProfileRegistry` rows by activated set (FR-011) | WP04 | |
 | T016 | `profile list`: `--all` / `--show-available` annotated output (FR-012) | WP04 | |
 | T017 | `profile show <id>`: full resolved definition render + `--json` (FR-013) | WP04 | |
@@ -41,7 +42,6 @@ Two file-disjoint workstreams → three execution lanes:
 | T026 | Verify the other 5 `_build_doctrine_service` call sites are unchanged | WP05 | |
 | T027 | Reconcile `ad-hoc-profile-load/SKILL.md`: point to `ask`/`advise`/`show`; resolve `hierarchy`/`init`/`create` | WP06 | |
 | T028 | Doc/CLI parity guard test: every referenced `agent profile` subcommand is a registered command | WP06 | [P] |
-| T029 | Add glossary terms: *abstract base profile*, *activation chokepoint*, *activated vs available profile* | WP06 | [P] |
 | T030 | Cross-link the new `profile show` command surface in the skill steps | WP06 | |
 | T031 | Verify reconciled skill references only implemented commands | WP06 | |
 
@@ -79,17 +79,18 @@ Two file-disjoint workstreams → three execution lanes:
 
 **Risks**: shared P0 file owned by another contributor (C-008) — extend only, never weaken existing assertions.
 
-### WP03 — Activation-aware doctrine service factory (#1636 / FR-010)
-**Priority**: P1 · **Lane B-core** · **Depends on**: none · **Est.**: ~220 lines
+### WP03 — Activation-aware doctrine service factory + glossary terms (#1636 / FR-010, FR-019)
+**Priority**: P1 · **Lane B-core** · **Depends on**: none · **Est.**: ~260 lines
 
-**Goal**: One shared factory wrapping the inner `DoctrineService` in the activation-aware `charter.resolver.DoctrineService`, used by `profile show` and `--include`.
+**Goal**: One shared factory wrapping the inner `DoctrineService` in the activation-aware `charter.resolver.DoctrineService`, used by `profile show` and `--include`. Also lands the FR-019 glossary terms **here** (dependency-free, before WP04's warning string) per the analyze I1 fix (DIR-032 vocab-before-code).
 
-**Independent test**: factory returns a service whose `.agent_profiles` honors the three-state `activated_agent_profiles` contract.
+**Independent test**: factory returns a service whose `.agent_profiles` honors the three-state `activated_agent_profiles` contract; the three glossary terms are defined.
 
 - [ ] T011 Implement `build_activation_aware_doctrine_service(repo_root)` factory (WP03)
 - [ ] T012 Construct inner `DoctrineService` + wrap with `PackContext.from_config` (WP03)
 - [ ] T013 Unit test: three-state activation filtering via factory (WP03)
 - [ ] T014 Layer-safety test: factory import does not break `doctrine ← charter` (WP03)
+- [ ] T029 Add glossary terms: *abstract base profile*, *activation chokepoint*, *activated vs available profile* (FR-019) (WP03)
 
 ### WP04 — `profile list` (activation-aware) + `profile show` (#1636 / FR-011…015)
 **Priority**: P1 · **Lane B-core** · **Depends on**: WP03 · **Est.**: ~480 lines
@@ -121,16 +122,15 @@ Two file-disjoint workstreams → three execution lanes:
 - [ ] T025 Unit test: `--include agent-profile` inherits the activation gate (WP05)
 - [ ] T026 Verify the other 5 `_build_doctrine_service` call sites are unchanged (WP05)
 
-### WP06 — Skill reconciliation + parity guard + glossary (#1636 / FR-017, FR-018, FR-019)
-**Priority**: P2 · **Lane B-core** · **Depends on**: WP04 · **Est.**: ~300 lines
+### WP06 — Skill reconciliation + parity guard (#1636 / FR-017, FR-018)
+**Priority**: P2 · **Lane B-core** · **Depends on**: WP04 · **Est.**: ~250 lines
 
-**Goal**: Reconcile the `ad-hoc-profile-load` skill source so it references only real commands, add a doc/CLI parity guard, and land the DIR-032 glossary terms.
+**Goal**: Reconcile the `ad-hoc-profile-load` skill source so it references only real commands, and add a doc/CLI parity guard. (Glossary terms / FR-019 moved to WP03 per analyze I1.)
 
-**Independent test**: parity guard passes; skill references resolve to registered commands; glossary defines the new terms.
+**Independent test**: parity guard passes; skill references resolve to registered commands.
 
 - [ ] T027 Reconcile `ad-hoc-profile-load/SKILL.md`: point to `ask`/`advise`/`show`; resolve `hierarchy`/`init`/`create` (WP06)
 - [ ] T028 Doc/CLI parity guard test: every referenced `agent profile` subcommand is a registered command (WP06)
-- [ ] T029 Add glossary terms: *abstract base profile*, *activation chokepoint*, *activated vs available profile* (WP06)
 - [ ] T030 Cross-link the new `profile show` command surface in the skill steps (WP06)
 - [ ] T031 Verify reconciled skill references only implemented commands (WP06)
 

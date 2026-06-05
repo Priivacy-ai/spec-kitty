@@ -29,6 +29,7 @@
         "WP03"
       ],
       "write_scope": [
+        "glossary/contexts/governance.md",
         "src/specify_cli/doctrine_service_factory.py",
         "tests/specify_cli/test_doctrine_service_factory.py"
       ],
@@ -95,7 +96,6 @@
         "WP06"
       ],
       "write_scope": [
-        "glossary/contexts/governance.md",
         "src/doctrine/skills/ad-hoc-profile-load/SKILL.md",
         "tests/architectural/test_docs_cli_reference_parity.py"
       ],
@@ -110,7 +110,7 @@
       "parallel_group": 2
     }
   ],
-  "computed_at": "2026-06-05T08:43:05.634146+00:00",
+  "computed_at": "2026-06-05T10:26:51.932920+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": []
 }

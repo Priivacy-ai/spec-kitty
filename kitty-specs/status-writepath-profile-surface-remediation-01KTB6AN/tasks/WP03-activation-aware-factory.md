@@ -1,9 +1,10 @@
 ---
 work_package_id: WP03
-title: Activation-aware doctrine service factory
+title: Activation-aware doctrine service factory + glossary terms
 dependencies: []
 requirement_refs:
 - FR-010
+- FR-019
 tracker_refs:
 - '1636'
 planning_base_branch: feature/status-writepath-profile-surface-remediation
@@ -14,6 +15,7 @@ subtasks:
 - T012
 - T013
 - T014
+- T029
 phase: 'Lane B-core — #1636'
 agent: claude
 history:
@@ -27,6 +29,7 @@ model: ''
 owned_files:
 - src/specify_cli/doctrine_service_factory.py
 - tests/specify_cli/test_doctrine_service_factory.py
+- glossary/contexts/governance.md
 role: implementer
 tags: []
 task_type: implement
@@ -45,8 +48,9 @@ Use the `/ad-hoc-profile-load` skill to load `python-pedro` (role `implementer`)
 Provide a single construction seam so profile surfaces resolve through the existing charter activation chokepoint.
 
 - **FR-010**: `build_activation_aware_doctrine_service(repo_root) -> charter.resolver.DoctrineService` constructs the inner `doctrine.service.DoctrineService` and wraps it in `charter.resolver.DoctrineService(inner, pack_context=PackContext.from_config(repo_root))`.
+- **FR-019** (DIR-032, vocabulary-before-code): add the glossary terms *abstract base profile*, *activation chokepoint*, *activated vs available profile* **here in WP03** — the dependency-free, earliest profile-surface WP — so the vocabulary is ratified **before** WP04 ships the `profile show` warning string that uses "abstract base profile". (Moved from WP06 per the `/spec-kitty.analyze` I1 finding.)
 
-**Done when**: the factory exists, is typed, and its `.agent_profiles` honors the three-state `activated_agent_profiles` contract; import is layer-safe.
+**Done when**: the factory exists, is typed, and its `.agent_profiles` honors the three-state `activated_agent_profiles` contract; import is layer-safe; the three glossary terms are defined.
 
 ## Context & Constraints
 
@@ -79,6 +83,13 @@ Provide a single construction seam so profile surfaces resolve through the exist
 
 - **Steps**: assert importing the factory module does not import `specify_cli` from within `charter`/`doctrine` (guard the dependency direction). A lightweight import-order/`importlib` assertion is sufficient.
 - **Parallel?**: [P] with T013.
+
+### Subtask T029 – Glossary terms (FR-019)
+
+- **Purpose**: ratify vocabulary before the warning string ships (DIR-032).
+- **Steps**: add to `glossary/contexts/governance.md`, following the existing entry format: *abstract base profile* (a profile referenced via `specializes_from` that is not itself activated — a shared-element store, not directly selectable), *activation chokepoint* (the `charter.resolver.DoctrineService` activation filter), *activated vs available profile*.
+- **Files**: `glossary/contexts/governance.md`
+- **Parallel?**: [P] — independent of the factory code.
 
 ## Test Strategy
 
