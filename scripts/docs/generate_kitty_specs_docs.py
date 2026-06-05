@@ -6,6 +6,7 @@ import html
 import json
 import re
 import shutil
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "kitty-specs"
+GLOSSARY_SOURCE = ROOT / "glossary"
 DEST = ROOT / "docs" / "kitty-specs"
 
 LANES = ["planned", "doing", "for_review", "approved", "done"]
@@ -127,11 +129,35 @@ def inline_md(text: str) -> str:
     return value
 
 
-def markdown_to_html(markdown: str) -> str:
+def slugify(value: str) -> str:
+    slug = re.sub(r"<[^>]+>", "", value).lower()
+    slug = re.sub(r"[^a-z0-9]+", "-", slug).strip("-")
+    return slug or "section"
+
+
+def table_to_html(rows: list[str]) -> str:
+    parsed: list[list[str]] = []
+    for row in rows:
+        cells = [cell.strip() for cell in row.strip().strip("|").split("|")]
+        parsed.append(cells)
+    if len(parsed) < 2:
+        return "\n".join(f"<p>{inline_md(row)}</p>" for row in rows)
+    header = parsed[0]
+    body_rows = parsed[2:] if re.fullmatch(r"\s*\|?[\s:|\\-]+\|?\s*", rows[1]) else parsed[1:]
+    head_html = "".join(f"<th>{inline_md(cell)}</th>" for cell in header)
+    body_html = []
+    for row in body_rows:
+        cells = row + [""] * max(0, len(header) - len(row))
+        body_html.append("<tr>" + "".join(f"<td>{inline_md(cell)}</td>" for cell in cells[: len(header)]) + "</tr>")
+    return f"<table><thead><tr>{head_html}</tr></thead><tbody>{''.join(body_html)}</tbody></table>"
+
+
+def markdown_to_html(markdown: str) -> str:  # noqa: C901
     lines = markdown.splitlines()
     blocks: list[str] = []
     paragraph: list[str] = []
     list_items: list[str] = []
+    table_rows: list[str] = []
     in_code = False
     code_lang = ""
     code_lines: list[str] = []
@@ -147,6 +173,12 @@ def markdown_to_html(markdown: str) -> str:
         if list_items:
             blocks.append("<ul>" + "".join(f"<li>{item}</li>" for item in list_items) + "</ul>")
             list_items = []
+
+    def flush_table() -> None:
+        nonlocal table_rows
+        if table_rows:
+            blocks.append(table_to_html(table_rows))
+            table_rows = []
 
     for raw in lines:
         line = raw.rstrip()
@@ -170,17 +202,26 @@ def markdown_to_html(markdown: str) -> str:
         if not line.strip():
             flush_paragraph()
             flush_list()
+            flush_table()
+            continue
+        if line.lstrip().startswith("|") and line.rstrip().endswith("|"):
+            flush_paragraph()
+            flush_list()
+            table_rows.append(line)
             continue
         heading = re.match(r"^(#{1,6})\s+(.+)$", line)
         if heading:
             flush_paragraph()
             flush_list()
+            flush_table()
             level = min(len(heading.group(1)) + 1, 6)
-            blocks.append(f"<h{level}>{inline_md(heading.group(2))}</h{level}>")
+            text = heading.group(2)
+            blocks.append(f'<h{level} id="{esc(slugify(text))}">{inline_md(text)}</h{level}>')
             continue
         if re.match(r"^-{3,}$", line):
             flush_paragraph()
             flush_list()
+            flush_table()
             blocks.append("<hr>")
             continue
         bullet = re.match(r"^\s*[-*]\s+(.+)$", line)
@@ -198,6 +239,7 @@ def markdown_to_html(markdown: str) -> str:
         paragraph.append(line.strip())
     flush_paragraph()
     flush_list()
+    flush_table()
     return "\n".join(blocks)
 
 
@@ -211,14 +253,18 @@ def artifact_exists(mission: Mission, key: str, source: str | None) -> bool:
     return (mission.path / source).exists()
 
 
-def artifact_href(mission: Mission, key: str) -> str:
+def artifact_href(_mission: Mission, key: str) -> str:
     if key == "overview":
         return "index.html"
     return f"{key}.html"
 
 
-def dashboard_header(mission_list: list[Mission], active: Mission | None) -> str:
-    options = []
+def dashboard_header(
+    mission_list: list[Mission],
+    active: Mission | None,
+    section_name: str = "All mission runs",
+) -> str:
+    options = ['<option value="" selected>Select mission run...</option>'] if active is None else []
     for mission in mission_list:
         selected = " selected" if active and mission.slug == active.slug else ""
         option_href = f"../{mission.slug}/index.html" if active else f"{mission.slug}/index.html"
@@ -226,7 +272,7 @@ def dashboard_header(mission_list: list[Mission], active: Mission | None) -> str
             f'<option value="{esc(option_href)}"{selected}>{esc(mission.name)}</option>'
         )
     select = "\n".join(options)
-    name = active.name if active else "All mission runs"
+    name = active.name if active else section_name
     return f"""
 <div class="sk-dashboard">
   <div class="header">
@@ -275,7 +321,7 @@ def sidebar(mission: Mission, active_key: str) -> str:
 def stats(mission: Mission) -> dict[str, int | float]:
     summary = mission.status.get("summary") or {}
     wps = mission.status.get("work_packages") or {}
-    lane_counts = {lane: 0 for lane in LANES}
+    lane_counts = dict.fromkeys(LANES, 0)
     for wp in wps.values():
         lane = str(wp.get("lane") or "planned")
         if lane == "in_review":
@@ -285,10 +331,8 @@ def stats(mission: Mission) -> dict[str, int | float]:
     for key, value in summary.items():
         normalized = "for_review" if key == "in_review" else key
         if normalized in lane_counts and not wps:
-            try:
+            with suppress(TypeError, ValueError):
                 lane_counts[normalized] += int(value)
-            except (TypeError, ValueError):
-                pass
     total = sum(lane_counts.values())
     done = lane_counts["done"]
     pct = round(done / total * 100) if total else 0
@@ -300,11 +344,15 @@ def status_cards(mission: Mission, compact: bool = False) -> str:
     label = "Total Work Packages" if compact else "Total Tasks"
     return f"""
 <div class="status-summary">
-  <div class="status-card total"><div class="status-label">{label}</div><div class="status-value">{s['total']}</div><div class="status-detail">{s['planned']} planned</div></div>
+  <div class="status-card total"><div class="status-label">{label}</div><div class="status-value">{s['total']}</div>
+    <div class="status-detail">{s['planned']} planned</div></div>
   <div class="status-card progress"><div class="status-label">In Progress</div><div class="status-value">{s['doing']}</div></div>
   <div class="status-card review"><div class="status-label">Review</div><div class="status-value">{s['for_review']}</div></div>
   <div class="status-card approved"><div class="status-label">Approved</div><div class="status-value">{s['approved']}</div></div>
-  <div class="status-card completed"><div class="status-label">Completed</div><div class="status-value">{s['done']}</div><div class="status-detail">{s['weighted_percentage']}% done</div><div class="progress-bar"><div class="progress-fill" style="width: {s['weighted_percentage']}%"></div></div></div>
+  <div class="status-card completed"><div class="status-label">Completed</div><div class="status-value">{s['done']}</div>
+    <div class="status-detail">{s['weighted_percentage']}% done</div><div class="progress-bar">
+      <div class="progress-fill" style="width: {s['weighted_percentage']}%"></div>
+    </div></div>
 </div>
 """
 
@@ -463,11 +511,13 @@ def index_page(mission_list: list[Mission]) -> str:
   <div class="container">
     <div class="sidebar">
       <a class="sidebar-item active" href="./">📊 <span class="sidebar-label">All Mission Runs</span></a>
+      <a class="sidebar-item" href="glossary.html">📖 <span class="sidebar-label">Glossary</span></a>
     </div>
     <div class="main-content">
       <div class="content-card">
         <h2>Mission Runs</h2>
-        <p class="overview-context">Static mirror of the local Spec Kitty dashboard. Every mission and artifact has a stable URL for sharing, indexing, and AI answer engines.</p>
+        <p class="overview-context">Static mirror of the local Spec Kitty dashboard. Every mission and artifact has
+          a stable URL for sharing, indexing, and AI answer engines.</p>
         <div class="mission-grid">{''.join(cards)}</div>
       </div>
     </div>
@@ -482,8 +532,62 @@ def index_page(mission_list: list[Mission]) -> str:
     )
 
 
+def glossary_files() -> list[Path]:
+    files = [GLOSSARY_SOURCE / "README.md"]
+    files.extend(sorted((GLOSSARY_SOURCE / "contexts").glob("*.md")))
+    files.extend([GLOSSARY_SOURCE / "naming-decision-tool-vs-agent.md", GLOSSARY_SOURCE / "historical-terms.md"])
+    return [path for path in files if path.exists()]
+
+
+def glossary_page(mission_list: list[Mission]) -> str:
+    sections = []
+    links = []
+    for path in glossary_files():
+        rel = path.relative_to(ROOT).as_posix()
+        title = path.stem.replace("-", " ").replace("_", " ").title()
+        if path.name == "README.md":
+            title = "Glossary Overview"
+        elif path.parent.name == "contexts":
+            title = f"Context: {title}"
+        anchor = slugify(title)
+        links.append(f'<a class="artifact-row available" href="#{esc(anchor)}">📖 {esc(title)}</a>')
+        sections.append(
+            f'<section class="glossary-section" id="section-{esc(anchor)}">'
+            f'<div class="mission-number">{esc(rel)}</div>'
+            f"{markdown_to_html(read_text(path))}"
+            "</section>"
+        )
+    dashboard = (
+        dashboard_header(mission_list, None, "Glossary")
+        + f"""
+  <div class="container">
+    <div class="sidebar">
+      <a class="sidebar-item" href="./">📊 <span class="sidebar-label">All Mission Runs</span></a>
+      <a class="sidebar-item active" href="glossary.html">📖 <span class="sidebar-label">Glossary</span></a>
+    </div>
+    <div class="main-content">
+      <div class="content-card markdown-content">
+        <h2>Glossary</h2>
+        <p class="overview-context">Canonical Spec Kitty terminology, context domains, historical mappings, and naming decisions.</p>
+        <div class="artifacts-grid">{''.join(links)}</div>
+        {''.join(sections)}
+      </div>
+    </div>
+  </div>
+</div>
+"""
+    )
+    return html_document(
+        "Glossary",
+        "Canonical Spec Kitty terminology, context domains, historical mappings, and naming decisions.",
+        dashboard,
+    )
+
+
 def write_toc(mission_list: list[Mission]) -> None:
     lines = ["- name: Mission Runs", "  href: index.html", "  items:"]
+    lines.append("    - name: Glossary")
+    lines.append("      href: glossary.html")
     for mission in mission_list:
         lines.append(f"    - name: {json.dumps(mission.name, ensure_ascii=False)}")
         lines.append(f"      href: {mission.slug}/index.html")
@@ -496,6 +600,7 @@ def main() -> int:
     DEST.mkdir(parents=True)
     mission_list = missions()
     DEST.joinpath("index.html").write_text(index_page(mission_list), encoding="utf-8")
+    DEST.joinpath("glossary.html").write_text(glossary_page(mission_list), encoding="utf-8")
     write_toc(mission_list)
     for mission in mission_list:
         mission_dir = DEST / mission.slug

@@ -245,6 +245,40 @@ body.tex2jax_ignore > .sk-dashboard {
   margin-bottom: 12px;
 }
 
+.sk-dashboard .markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 18px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sk-dashboard .markdown-content th,
+.sk-dashboard .markdown-content td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: top;
+}
+
+.sk-dashboard .markdown-content th {
+  background: var(--creamy-white);
+  color: #1f2937;
+  font-weight: 700;
+}
+
+.sk-dashboard .markdown-content tr:last-child td {
+  border-bottom: 0;
+}
+
+.sk-dashboard .glossary-section {
+  padding-top: 18px;
+  margin-top: 18px;
+  border-top: 1px solid #e5e7eb;
+}
+
 .sk-dashboard .markdown-content code {
   background: #f3f4f6;
   padding: 2px 6px;
