@@ -20,6 +20,7 @@ from typer.testing import CliRunner
 from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
 
 from specify_cli.cli.commands.agent import workflow
+from specify_cli.analysis_report import write_analysis_report
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status.models import StatusEvent, Lane
 from specify_cli.status.store import append_event, read_events
@@ -76,6 +77,20 @@ def _write_wp_file(path: Path, wp_id: str, lane: str) -> None:
     write_frontmatter(path, frontmatter, body)
 
 
+def _write_current_analysis_report(feature_dir: Path, repo_root: Path) -> None:
+    """Write a current analysis report for implement success-path fixtures."""
+    (feature_dir / "spec.md").write_text("# Spec\n\nFR-001.\n", encoding="utf-8")
+    (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+    if not (feature_dir / "tasks.md").exists():
+        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+    write_analysis_report(
+        feature_dir=feature_dir,
+        repo_root=repo_root,
+        body="# Analysis\n\nCritical Issues Count: 0\nHigh Issues Count: 0\nPASS\n",
+        analyzer_agent="test",
+    )
+
+
 @pytest.fixture()
 def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     repo_root = tmp_path
@@ -117,6 +132,7 @@ class TestImplementBodyNoteLaneFree:
         _write_wp_file(wp_path, "WP01", lane="planned")
         # Seed canonical state so implement doesn't hard-fail
         _seed_wp_lane(feature_dir, "WP01", "planned")
+        _write_current_analysis_report(feature_dir, workflow_repo)
 
         workspace = lane_worktree_path(workflow_repo, mission_slug)
         workspace.mkdir(parents=True)
@@ -147,6 +163,7 @@ class TestImplementBodyNoteLaneFree:
         _write_wp_file(wp_path, "WP01", lane="doing")
         # Seed canonical state as in_progress (= doing)
         _seed_wp_lane(feature_dir, "WP01", "doing", actor="test-agent")
+        _write_current_analysis_report(feature_dir, workflow_repo)
 
         workspace = lane_worktree_path(workflow_repo, mission_slug)
         workspace.mkdir(parents=True)
@@ -268,6 +285,7 @@ class TestImplementHardFailNoCanonical:
         _write_wp_file(wp_path, "WP01", lane="planned")
         # Seed canonical state
         _seed_wp_lane(feature_dir, "WP01", "planned")
+        _write_current_analysis_report(feature_dir, workflow_repo)
 
         workspace = lane_worktree_path(workflow_repo, mission_slug)
         workspace.mkdir(parents=True)
@@ -293,6 +311,7 @@ class TestImplementHardFailNoCanonical:
         (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
         _write_wp_file(tasks_dir / "WP01-test.md", "WP01", lane="planned")
         _seed_wp_lane(feature_dir, "WP01", "planned")
+        _write_current_analysis_report(feature_dir, workflow_repo)
 
         workspace = lane_worktree_path(workflow_repo, mission_slug)
         workspace.mkdir(parents=True)
@@ -432,6 +451,7 @@ class TestPlanningArtifactWorkflowPrompt:
             encoding="utf-8",
         )
         _seed_wp_lane(feature_dir, "WP02", "planned")
+        _write_current_analysis_report(feature_dir, workflow_repo)
 
         result = CliRunner().invoke(
             workflow.app,
@@ -473,6 +493,7 @@ class TestPlanningArtifactWorkflowPrompt:
             encoding="utf-8",
         )
         _seed_wp_lane(feature_dir, "WP02", "planned")
+        _write_current_analysis_report(feature_dir, workflow_repo)
 
         result = CliRunner().invoke(
             workflow.app,
@@ -573,6 +594,7 @@ class TestImplementDependencyGate:
         self._scaffold_dependent_pair(feature_dir)
         # WP01 is only in_progress (not approved/done); WP02 stays planned.
         _seed_wp_lane(feature_dir, "WP01", "in_progress")
+        _seed_wp_lane(feature_dir, "WP02", "planned")
         # Workspace already resolves so creation is skipped and the gate is reached.
         lane_worktree_path(workflow_repo, mission_slug).mkdir(parents=True)
 
@@ -596,6 +618,7 @@ class TestImplementDependencyGate:
         # WP01 reverted to in_progress (unsatisfied); WP02 was already started.
         _seed_wp_lane(feature_dir, "WP01", "in_progress")
         _seed_wp_lane(feature_dir, "WP02", "in_progress", actor="test-agent")
+        _write_current_analysis_report(feature_dir, workflow_repo)
         lane_worktree_path(workflow_repo, mission_slug).mkdir(parents=True)
 
         result = CliRunner().invoke(

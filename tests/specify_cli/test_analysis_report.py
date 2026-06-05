@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from pathlib import Path
+import subprocess
 from types import SimpleNamespace
 
 import pytest
 import typer
 from typer.testing import CliRunner
+
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 from specify_cli.analysis_report import (
     ANALYSIS_REPORT_FILENAME,
@@ -21,6 +25,16 @@ def _write_required_artifacts(feature_dir):
     (feature_dir / "spec.md").write_text("# Spec\n\nFR-001.\n", encoding="utf-8")
     (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
     (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+
+
+def _init_committed_git_project(repo_root: Path, *, branch: str = "feature") -> None:
+    (repo_root / ".kittify").mkdir(exist_ok=True)
+    subprocess.run(["git", "init"], cwd=repo_root, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_root, check=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_root, check=True)
+    subprocess.run(["git", "branch", "-M", branch], cwd=repo_root, check=True)
+    subprocess.run(["git", "add", "."], cwd=repo_root, check=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=repo_root, check=True, capture_output=True)
 
 
 def test_write_analysis_report_records_input_hashes(tmp_path):
@@ -137,3 +151,51 @@ def test_record_analysis_command_persists_report(tmp_path, monkeypatch):
     assert frontmatter["analyzer_agent"] == "codex"
     assert frontmatter["input_artifacts"]["tasks.md"]["sha256"]
     assert "# Analysis" in body
+
+
+def test_record_analysis_refuses_dirty_worktree_before_write(tmp_path, monkeypatch):
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "sample-01KS"
+    _write_required_artifacts(feature_dir)
+    _init_committed_git_project(repo_root, branch="feature")
+    (repo_root / "dirty.txt").write_text("uncommitted\n", encoding="utf-8")
+    input_file = tmp_path.parent / f"{tmp_path.name}-analysis.md"
+    input_file.write_text("# Analysis\n\nPASS\n", encoding="utf-8")
+
+    monkeypatch.setattr("specify_cli.cli.commands.agent.mission.locate_project_root", lambda: repo_root)
+    monkeypatch.setattr("specify_cli.cli.commands.agent.mission.get_main_repo_root", lambda path: path)
+    emitted: dict[str, object] = {}
+    monkeypatch.setattr("specify_cli.cli.commands.agent.mission._emit_json", lambda payload: emitted.update(payload))
+
+    result = CliRunner().invoke(
+        mission_app,
+        ["record-analysis", "--mission", feature_dir.name, "--input-file", str(input_file), "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert emitted["error_code"] == "DIRTY_WORKTREE"
+    assert not (feature_dir / ANALYSIS_REPORT_FILENAME).exists()
+
+
+def test_record_analysis_refuses_protected_branch_before_write(tmp_path, monkeypatch):
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "sample-01KS"
+    _write_required_artifacts(feature_dir)
+    _init_committed_git_project(repo_root, branch="main")
+    input_file = tmp_path.parent / f"{tmp_path.name}-analysis.md"
+    input_file.write_text("# Analysis\n\nPASS\n", encoding="utf-8")
+
+    monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+    monkeypatch.setattr("specify_cli.cli.commands.agent.mission.locate_project_root", lambda: repo_root)
+    monkeypatch.setattr("specify_cli.cli.commands.agent.mission.get_main_repo_root", lambda path: path)
+    emitted: dict[str, object] = {}
+    monkeypatch.setattr("specify_cli.cli.commands.agent.mission._emit_json", lambda payload: emitted.update(payload))
+
+    result = CliRunner().invoke(
+        mission_app,
+        ["record-analysis", "--mission", feature_dir.name, "--input-file", str(input_file), "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert emitted["error_code"] == "PROTECTED_BRANCH_REFUSED"
+    assert not (feature_dir / ANALYSIS_REPORT_FILENAME).exists()

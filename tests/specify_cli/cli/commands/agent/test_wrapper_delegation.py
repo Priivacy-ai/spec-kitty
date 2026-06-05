@@ -13,6 +13,8 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent.mission import app
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.merge.config import MergeStrategy
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.store import append_event
 
 pytestmark = pytest.mark.fast
 
@@ -25,6 +27,44 @@ def _workspace(exists: bool) -> SimpleNamespace:
         worktree_path=Path("/tmp/spec-kitty-test-worktree"),
         resolution_kind="repo_root",
     )
+
+
+def _scaffold_implement_mission(repo_root: Path, mission_slug: str, wp_id: str = "WP01") -> Path:
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+    (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+    (feature_dir / "tasks.md").write_text(f"## {wp_id}\n", encoding="utf-8")
+    wp_path = tasks_dir / f"{wp_id}-test.md"
+    wp_path.write_text(
+        "---\n"
+        f"work_package_id: {wp_id}\n"
+        "subtasks: [T001]\n"
+        "title: Test WP\n"
+        "dependencies: []\n"
+        "execution_mode: code_change\n"
+        "owned_files:\n  - src/**\n"
+        "authoritative_surface: src/\n"
+        "---\n"
+        "# Test WP\n",
+        encoding="utf-8",
+    )
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=f"test-{wp_id}-planned",
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.PLANNED,
+            at="2026-01-01T00:00:00+00:00",
+            actor="test",
+            force=True,
+            execution_mode="worktree",
+        ),
+    )
+    return wp_path
 
 
 @patch("specify_cli.cli.commands.agent.mission.top_level_accept")
@@ -121,6 +161,7 @@ def test_agent_mission_merge_passes_explicit_wrapper_defaults(
 @patch("specify_cli.cli.commands.agent.workflow.top_level_implement")
 @patch("specify_cli.cli.commands.agent.workflow.resolve_workspace_for_wp")
 @patch("specify_cli.cli.commands.agent.workflow.locate_work_package")
+@patch("specify_cli.cli.commands.agent.workflow._require_current_analysis_report")
 @patch("specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out")
 @patch("specify_cli.cli.commands.agent.workflow.get_main_repo_root")
 @patch("specify_cli.cli.commands.agent.workflow.locate_project_root")
@@ -130,6 +171,7 @@ def test_agent_action_implement_passes_acknowledge_default_false(
     mock_locate_project_root: MagicMock,
     mock_get_main_repo_root: MagicMock,
     mock_ensure_target_branch_checked_out: MagicMock,
+    mock_require_current_analysis_report: MagicMock,
     mock_locate_work_package: MagicMock,
     mock_resolve_workspace_for_wp: MagicMock,
     mock_top_level_implement: MagicMock,
@@ -141,7 +183,9 @@ def test_agent_action_implement_passes_acknowledge_default_false(
     mock_locate_project_root.return_value = tmp_path
     mock_get_main_repo_root.return_value = tmp_path
     mock_ensure_target_branch_checked_out.return_value = (tmp_path, "main")
-    mock_locate_work_package.return_value = SimpleNamespace(path=tmp_path / "wp01.md")
+    wp_path = _scaffold_implement_mission(tmp_path, "demo-mission")
+    mock_locate_work_package.return_value = SimpleNamespace(path=wp_path)
+    mock_require_current_analysis_report.return_value = None
     mock_resolve_workspace_for_wp.return_value = _workspace(exists=False)
     mock_top_level_implement.side_effect = RuntimeError("stop after delegation")
 
@@ -162,6 +206,7 @@ def test_agent_action_implement_passes_acknowledge_default_false(
 @patch("specify_cli.cli.commands.agent.workflow.top_level_implement")
 @patch("specify_cli.cli.commands.agent.workflow.resolve_workspace_for_wp")
 @patch("specify_cli.cli.commands.agent.workflow.locate_work_package")
+@patch("specify_cli.cli.commands.agent.workflow._require_current_analysis_report")
 @patch("specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out")
 @patch("specify_cli.cli.commands.agent.workflow.get_main_repo_root")
 @patch("specify_cli.cli.commands.agent.workflow.locate_project_root")
@@ -171,6 +216,7 @@ def test_agent_action_implement_passes_acknowledge_true_when_requested(
     mock_locate_project_root: MagicMock,
     mock_get_main_repo_root: MagicMock,
     mock_ensure_target_branch_checked_out: MagicMock,
+    mock_require_current_analysis_report: MagicMock,
     mock_locate_work_package: MagicMock,
     mock_resolve_workspace_for_wp: MagicMock,
     mock_top_level_implement: MagicMock,
@@ -182,7 +228,9 @@ def test_agent_action_implement_passes_acknowledge_true_when_requested(
     mock_locate_project_root.return_value = tmp_path
     mock_get_main_repo_root.return_value = tmp_path
     mock_ensure_target_branch_checked_out.return_value = (tmp_path, "main")
-    mock_locate_work_package.return_value = SimpleNamespace(path=tmp_path / "wp01.md")
+    wp_path = _scaffold_implement_mission(tmp_path, "demo-mission")
+    mock_locate_work_package.return_value = SimpleNamespace(path=wp_path)
+    mock_require_current_analysis_report.return_value = None
     mock_resolve_workspace_for_wp.return_value = _workspace(exists=False)
     mock_top_level_implement.side_effect = RuntimeError("stop after delegation")
 

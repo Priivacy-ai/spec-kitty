@@ -391,6 +391,15 @@ def test_analyze_template_persists_analysis_report() -> None:
     ).read_text(encoding="utf-8")
     assert "analysis-report.md" in content
     assert "spec-kitty agent mission record-analysis --mission" in content
+    assert "Should all of these findings be addressed before moving on to implementation?" in content
+
+
+def test_tasks_template_offers_optional_analyze_quality_gate() -> None:
+    """tasks.md must offer analyze as optional QC before implement-review."""
+    content = _template_content("tasks")
+    assert "/spec-kitty-implement-review" in content
+    assert "Optional quality control gate before implementation" in content
+    assert "/spec-kitty.analyze" in content
 
 
 def test_tasks_template_has_ownership_guidance() -> None:

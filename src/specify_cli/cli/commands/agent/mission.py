@@ -37,7 +37,7 @@ from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.core.paths import (
     get_feature_target_branch,
 )
-from specify_cli.git import safe_commit
+from specify_cli.git import ProtectedBranchCommitError, assert_not_protected_branch, safe_commit
 from specify_cli.core.worktree import (
     validate_feature_structure,
 )
@@ -316,6 +316,69 @@ def _enforce_git_preflight(
         for cmd in cast(list[str], payload.get("remediation", [])):
             console.print(f"  - Run: {cmd}")
     raise typer.Exit(1)
+
+
+def _git_dirty_paths(repo_root: Path) -> list[str]:
+    """Return dirty paths from `git status --porcelain`, or an empty list outside git."""
+    if not is_git_repo(repo_root):
+        return []
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except FileNotFoundError:
+        return []
+    if result.returncode != 0:
+        raise RuntimeError((result.stderr or "git status failed").strip())
+    dirty: list[str] = []
+    for line in result.stdout.splitlines():
+        if not line.strip():
+            continue
+        dirty.append(line[3:].strip() if len(line) > 3 else line.strip())
+    return dirty
+
+
+def _enforce_analysis_report_write_preflight(repo_root: Path, *, json_output: bool) -> None:
+    """Fail before `record-analysis` mutates a mission artifact in unsafe git state."""
+    if not is_git_repo(repo_root):
+        return
+
+    try:
+        assert_not_protected_branch(repo_root, operation="record analysis report")
+    except ProtectedBranchCommitError as exc:
+        payload = {
+            "success": False,
+            "error_code": "PROTECTED_BRANCH_REFUSED",
+            "error": str(exc),
+        }
+        if json_output:
+            _emit_json(payload)
+        else:
+            console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from None
+
+    dirty_paths = _git_dirty_paths(repo_root)
+    if dirty_paths:
+        payload = {
+            "success": False,
+            "error_code": "DIRTY_WORKTREE",
+            "error": "Refusing to record analysis report with pre-existing dirty working tree.",
+            "dirty_paths": dirty_paths,
+            "remediation": ["Commit or stash existing changes, then rerun /spec-kitty.analyze."],
+        }
+        if json_output:
+            _emit_json(payload)
+        else:
+            console.print(f"[red]Error:[/red] {payload['error']}")
+            for path in dirty_paths:
+                console.print(f"  - {path}")
+        raise typer.Exit(1)
 
 
 def _show_branch_context(
@@ -1104,6 +1167,7 @@ def record_analysis(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
         repo_root = get_main_repo_root(repo_root)
+        _enforce_analysis_report_write_preflight(repo_root, json_output=json_output)
 
         try:
             feature_dir = _find_feature_directory(

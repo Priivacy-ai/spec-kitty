@@ -182,7 +182,7 @@ Draft a Markdown report with the following structure:
 
 ### 7. Persist Report Artifact
 
-Save the Markdown report body to `kitty-specs/<mission>/analysis-report.md` by running:
+Save the Markdown report body to `kitty-specs/<mission>/analysis-report.md` by running the recorder with a temp report file outside the repository checkout:
 
 ```bash
 spec-kitty agent mission record-analysis --mission <mission-slug> --input-file <path-to-temp-report.md> --json
@@ -206,7 +206,7 @@ At end of report, output a concise Next Actions block:
 
 ### 9. Offer Remediation
 
-Ask the user: "Would you like me to suggest concrete remediation edits for the top N issues?" (Do NOT apply them automatically.)
+Ask the user: "Should all of these findings be addressed before moving on to implementation? I can suggest concrete remediation edits for the findings you want to resolve." (Do NOT apply edits automatically.)
 
 ## Operating Principles
 
