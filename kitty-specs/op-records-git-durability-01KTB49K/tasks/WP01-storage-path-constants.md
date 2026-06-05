@@ -13,6 +13,9 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-op-records-git-durability-01KTB49K
+base_commit: 75c2b541c3cf7d082f12c599fdbe67965ca20a71
+created_at: '2026-06-05T06:22:51.349690+00:00'
 subtasks:
 - T001
 - T002
@@ -21,7 +24,8 @@ subtasks:
 - T005
 - T006
 - T007
-agent: claude
+agent: "claude:sonnet:python-pedro:implementer"
+shell_pid: "12604"
 history:
 - date: '2026-06-05'
   event: created
@@ -380,3 +384,7 @@ def test_mission_id_wp_id_included_when_set() -> None:
 - Confirm no propagator logic was changed (only the path constant)
 - Confirm no `.gitignore` was modified
 - Check test_writer.py T-002 includes the regression guard (`not exists at root`)
+
+## Activity Log
+
+- 2026-06-05T06:22:53Z – claude:sonnet:python-pedro:implementer – shell_pid=12604 – Assigned agent via action command
