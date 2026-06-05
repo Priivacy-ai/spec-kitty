@@ -129,10 +129,10 @@ Two file-disjoint workstreams → three execution lanes:
 
 **Independent test**: parity guard passes; skill references resolve to registered commands.
 
-- [ ] T027 Reconcile `ad-hoc-profile-load/SKILL.md`: point to `ask`/`advise`/`show`; resolve `hierarchy`/`init`/`create` (WP06)
-- [ ] T028 Doc/CLI parity guard test: every referenced `agent profile` subcommand is a registered command (WP06)
-- [ ] T030 Cross-link the new `profile show` command surface in the skill steps (WP06)
-- [ ] T031 Verify reconciled skill references only implemented commands (WP06)
+- [x] T027 Reconcile `ad-hoc-profile-load/SKILL.md`: point to `ask`/`advise`/`show`; resolve `hierarchy`/`init`/`create` (WP06)
+- [x] T028 Doc/CLI parity guard test: every referenced `agent profile` subcommand is a registered command (WP06)
+- [x] T030 Cross-link the new `profile show` command surface in the skill steps (WP06)
+- [x] T031 Verify reconciled skill references only implemented commands (WP06)
 
 **Risks**: edit the **source** template (`src/doctrine/skills/...`), never the generated agent copies (C-006).
 

@@ -17,7 +17,8 @@ subtasks:
 - T030
 - T031
 phase: 'Lane B-core — #1636'
-agent: claude
+agent: "claude"
+assignee: "claude"
 history:
 - at: '2026-06-05T08:32:05Z'
   actor: system
@@ -101,3 +102,5 @@ Close the documentation half of #1636 and lock it against regression.
 ## Activity Log
 
 - 2026-06-05T08:32:05Z – system – Prompt created.
+- 2026-06-05T12:58:54Z – claude – Moved to in_progress
+- 2026-06-05T12:58:55Z – claude – Implemented via bypass; tests green
