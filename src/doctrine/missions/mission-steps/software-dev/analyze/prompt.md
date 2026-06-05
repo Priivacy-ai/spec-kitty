@@ -17,7 +17,7 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 ## Operating Constraints
 
-**STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured analysis report. Offer an optional remediation plan (user must explicitly approve before any follow-up editing commands would be invoked manually).
+**NON-REMEDIATING**: Do **not** modify `spec.md`, `plan.md`, `tasks.md`, WP files, source code, or any remediation target. The only permitted file mutation is persisting this command's report to `kitty-specs/<mission>/analysis-report.md` via `spec-kitty agent mission record-analysis`. Offer an optional remediation plan only after the report is persisted (user must explicitly approve before any follow-up editing commands would be invoked manually).
 
 **Charter Authority**: The project charter (`/charter/charter.md`) is **non-negotiable** within this analysis scope. Charter conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit charter update outside `/analyze`.
 
@@ -122,7 +122,7 @@ Use this heuristic to prioritize findings:
 
 ### 6. Produce Compact Analysis Report
 
-Output a Markdown report (no file writes) with the following structure:
+Draft a Markdown report with the following structure:
 
 ## Specification Analysis Report
 
@@ -150,7 +150,23 @@ Output a Markdown report (no file writes) with the following structure:
 - Duplication Count
 - Critical Issues Count
 
-### 7. Provide Next Actions
+### 7. Persist Report Artifact
+
+Save the Markdown report body to `kitty-specs/<mission>/analysis-report.md` by running:
+
+```bash
+spec-kitty agent mission record-analysis --mission <mission-slug> --input-file <path-to-temp-report.md> --json
+```
+
+If your host supports piping reliable multiline stdin, this equivalent form is acceptable:
+
+```bash
+spec-kitty agent mission record-analysis --mission <mission-slug> --input-file - --json
+```
+
+Treat persistence failure as command failure. The command is not complete until the JSON response reports success and names `analysis-report.md`.
+
+### 8. Provide Next Actions
 
 At end of report, output a concise Next Actions block:
 
@@ -158,7 +174,7 @@ At end of report, output a concise Next Actions block:
 - If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
 - Provide explicit command suggestions: e.g., "Run /spec-kitty.specify with refinement", "Run /plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
 
-### 8. Offer Remediation
+### 9. Offer Remediation
 
 Ask the user: "Would you like me to suggest concrete remediation edits for the top N issues?" (Do NOT apply them automatically.)
 
@@ -173,7 +189,7 @@ Ask the user: "Would you like me to suggest concrete remediation edits for the t
 
 ### Analysis Guidelines
 
-- **NEVER modify files** (this is read-only analysis)
+- **NEVER modify source/planning files** other than the required `analysis-report.md` persistence step
 - **NEVER hallucinate missing sections** (if absent, report them accurately)
 - **Prioritize charter violations** (these are always CRITICAL)
 - **Use examples over exhaustive rules** (cite specific instances, not generic patterns)

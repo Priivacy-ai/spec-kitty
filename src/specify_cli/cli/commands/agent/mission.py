@@ -1080,6 +1080,98 @@ def check_prerequisites(
         raise typer.Exit(1) from None
 
 
+@app.command(name="record-analysis")
+def record_analysis(
+    feature: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
+    input_file: Annotated[
+        str,
+        typer.Option("--input-file", help="Markdown report path, or '-' to read report from stdin"),
+    ] = "-",
+    analyzer_agent: Annotated[
+        str | None,
+        typer.Option("--agent", help="Agent name that produced the analysis report"),
+    ] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+) -> None:
+    """Persist `/spec-kitty.analyze` output as `analysis-report.md`."""
+    try:
+        repo_root = locate_project_root()
+        if repo_root is None:
+            error_msg = "Could not locate project root"
+            if json_output:
+                _emit_json({"error": error_msg, "success": False})
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+        repo_root = get_main_repo_root(repo_root)
+
+        try:
+            feature_dir = _find_feature_directory(
+                repo_root,
+                Path.cwd().resolve(),
+                explicit_feature=feature,
+            )
+        except ValueError as detection_error:
+            payload = _build_setup_plan_detection_error(
+                repo_root,
+                str(detection_error),
+                feature,
+                error_code="FEATURE_CONTEXT_UNRESOLVED",
+                command_name="record-analysis",
+                command_args=["--json"] if json_output else [],
+            )
+            if json_output:
+                _emit_json(payload)
+            else:
+                console.print(f"[red]Error:[/red] {payload['error']}")
+            raise typer.Exit(1) from None
+
+        body = sys.stdin.read() if input_file == "-" else Path(input_file).read_text(encoding="utf-8")
+        if not body.strip():
+            error_msg = "Analysis report body is empty"
+            if json_output:
+                _emit_json({"error": error_msg, "success": False})
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
+        from specify_cli.analysis_report import write_analysis_report
+
+        result = write_analysis_report(
+            feature_dir=feature_dir,
+            repo_root=repo_root,
+            body=body,
+            analyzer_agent=analyzer_agent,
+        )
+
+        with contextlib.suppress(Exception):
+            from specify_cli.sync.dossier_pipeline import (
+                trigger_feature_dossier_sync_if_enabled,
+            )
+
+            trigger_feature_dossier_sync_if_enabled(
+                feature_dir,
+                result.mission_slug,
+                repo_root,
+            )
+
+        payload = {"success": True, "result": "success", **result.to_dict()}
+        if json_output:
+            _emit_json(payload)
+        else:
+            rel = result.path.relative_to(repo_root) if result.path.is_relative_to(repo_root) else result.path
+            console.print(f"[green]✓[/green] Analysis report persisted: {rel}")
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        if json_output:
+            _emit_json({"error": str(e), "success": False})
+        else:
+            console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from None
+
+
 @app.command(name="setup-plan")
 def setup_plan(
     feature: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,

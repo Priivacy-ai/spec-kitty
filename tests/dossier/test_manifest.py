@@ -411,6 +411,16 @@ class TestManifestIntegration:
         assert len(research) > 0
         assert research[0].path_pattern == "research.md"
 
+    def test_software_dev_implement_requires_analysis_report(self):
+        """software-dev manifest requires analysis-report.md before implement."""
+        manifest = ManifestRegistry.load_manifest("software-dev")
+        assert manifest is not None
+        specs = ManifestRegistry.get_required_artifacts(manifest, "implement")
+        report = [s for s in specs if s.artifact_key == "evidence.analysis-report"]
+        assert len(report) > 0
+        assert report[0].blocking is True
+        assert report[0].path_pattern == "analysis-report.md"
+
     def test_research_manifest_scoping_step_requires_spec(self):
         """research manifest requires spec.md at scoping step."""
         manifest = ManifestRegistry.load_manifest("research")

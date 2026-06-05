@@ -984,6 +984,26 @@ def _auto_claim_failure_message(preview: object | None) -> str:
     return "No planned work packages found. Specify a WP ID explicitly."
 
 
+def _require_current_analysis_report(feature_dir: Path, repo_root: Path, mission_slug: str) -> None:
+    """Block implementation until `/spec-kitty.analyze` is persisted and fresh."""
+    from specify_cli.analysis_report import check_analysis_report_current
+
+    analysis_freshness = check_analysis_report_current(feature_dir, repo_root)
+    if analysis_freshness.ok:
+        return
+    print("Error: analysis_report_required: /spec-kitty.analyze must be run before implementation.")
+    if analysis_freshness.missing:
+        print(f"  Missing: {analysis_freshness.path}")
+    elif analysis_freshness.reason:
+        print(f"  Reason: {analysis_freshness.reason}")
+    if analysis_freshness.mismatches:
+        print("  Stale inputs:")
+        for artifact_name in sorted(analysis_freshness.mismatches):
+            print(f"    - {artifact_name}")
+    print(f"  Run: /spec-kitty.analyze --mission {mission_slug}")
+    raise typer.Exit(1)
+
+
 @app.command(name="implement")
 def implement(
     wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
@@ -1073,6 +1093,8 @@ def implement(
         # Ensure planning repo is on the target branch before we start
         # (needed for auto-commits and status tracking inside this command)
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug)
+        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        _require_current_analysis_report(feature_dir, main_repo_root, mission_slug)
 
         # Determine which WP to implement
         if wp_id:

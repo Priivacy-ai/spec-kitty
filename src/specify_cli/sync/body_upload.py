@@ -35,6 +35,7 @@ _TOP_LEVEL_ARTIFACTS: frozenset[str] = frozenset(
         "spec.md",
         "plan.md",
         "tasks.md",
+        "analysis-report.md",
         "research.md",
         "quickstart.md",
         "data-model.md",
