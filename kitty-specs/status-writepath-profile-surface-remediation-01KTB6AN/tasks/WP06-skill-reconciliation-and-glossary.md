@@ -104,3 +104,4 @@ Close the documentation half of #1636 and lock it against regression.
 - 2026-06-05T08:32:05Z – system – Prompt created.
 - 2026-06-05T12:58:54Z – claude – Moved to in_progress
 - 2026-06-05T12:58:55Z – claude – Implemented via bypass; tests green
+- 2026-06-05T12:58:58Z – claude – WP06 done+tested
