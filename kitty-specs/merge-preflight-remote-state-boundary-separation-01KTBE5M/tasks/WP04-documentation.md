@@ -9,10 +9,14 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-merge-preflight-remote-state-boundary-separation-01KTBE5M
+base_commit: da5d7fcd99c07924bee12487d125e37ac2c39e74
+created_at: '2026-06-05T10:33:25.227036+00:00'
 subtasks:
 - T012
 - T013
-agent: claude
+agent: "claude:sonnet:curator-carla:reviewer"
+shell_pid: "59686"
 history:
 - date: '2026-06-05'
   author: spec-kitty.tasks
@@ -130,7 +134,7 @@ Remove the `AGENTS.md` guidance that advised users to use a PR-based workaround 
 **Planning base branch**: `main`
 **Merge target**: `main`
 
-To start: `spec-kitty agent action implement WP04 --agent claude --mission merge-preflight-remote-state-boundary-separation-01KTBE5M`
+To start: `spec-kitty agent action implement WP04 --agent claude`
 
 ---
 
@@ -145,3 +149,10 @@ To start: `spec-kitty agent action implement WP04 --agent claude --mission merge
 
 - **Over-removal**: Do not remove the diverged-state guidance for `--push` invocations. That guidance is still accurate and useful.
 - **CHANGELOG version placement**: If there is no `[Unreleased]` section and the current version is not obvious from the file header, add the entry under the most recent version section with a note that it is new in the next release.
+
+## Activity Log
+
+- 2026-06-05T10:33:26Z – claude:sonnet:curator-carla:curator – shell_pid=58918 – Assigned agent via action command
+- 2026-06-05T10:35:52Z – claude:sonnet:curator-carla:curator – shell_pid=58918 – Removed outdated origin-sync workaround from AGENTS.md, added CHANGELOG entry covering all three behaviour changes for #1706
+- 2026-06-05T10:36:07Z – claude:sonnet:curator-carla:reviewer – shell_pid=59686 – Started review via action command
+- 2026-06-05T10:36:51Z – user – shell_pid=59686 – Review passed: AGENTS.md workaround removed and replaced with accurate guidance, CHANGELOG covers all three changes for #1706

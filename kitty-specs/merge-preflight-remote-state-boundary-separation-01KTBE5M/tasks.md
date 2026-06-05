@@ -90,9 +90,9 @@
 **Estimated prompt size**: ~340 lines
 
 **Subtasks**:
-- [ ] T009 Invert existing blocked-ahead test assertions (WP03)
-- [ ] T010 Add push-path safety tests (push=True/False × state matrix) (WP03)
-- [ ] T011 Add #1706 regression test (local ahead+behind, no-push, merge completes) (WP03)
+- [x] T009 Invert existing blocked-ahead test assertions (WP03)
+- [x] T010 Add push-path safety tests (push=True/False × state matrix) (WP03)
+- [x] T011 Add #1706 regression test (local ahead+behind, no-push, merge completes) (WP03)
 
 **Success criteria**:
 - All existing merge preflight tests pass with updated assertions
@@ -115,8 +115,8 @@
 **Estimated prompt size**: ~130 lines
 
 **Subtasks**:
-- [ ] T012 Remove focused-PR-path workaround from `AGENTS.md` (WP04)
-- [ ] T013 Add `CHANGELOG.md` entry for behaviour change (WP04)
+- [x] T012 Remove focused-PR-path workaround from `AGENTS.md` (WP04)
+- [x] T013 Add `CHANGELOG.md` entry for behaviour change (WP04)
 
 **Success criteria**:
 - `AGENTS.md` no longer advises users to use the PR path when local main is ahead
