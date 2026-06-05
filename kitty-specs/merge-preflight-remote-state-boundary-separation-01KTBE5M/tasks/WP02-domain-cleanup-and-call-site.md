@@ -16,11 +16,15 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-merge-preflight-remote-state-boundary-separation-01KTBE5M
+base_commit: 3531dac3c883749696401221a004b1b81500cd5e
+created_at: '2026-06-05T10:22:25.811600+00:00'
 subtasks:
 - T006
 - T007
 - T008
-agent: claude
+agent: "claude:sonnet:reviewer:reviewer"
+shell_pid: "57432"
 history:
 - date: '2026-06-05'
   author: spec-kitty.tasks
@@ -43,18 +47,6 @@ Before reading anything else, load your assigned profile:
 ```
 /ad-hoc-profile-load implementer-ivan
 ```
-
----
-
-## ⚠️ ATDD-First Verification (Charter C-011 — binding)
-
-Before writing any implementation code in this WP, confirm that the ATDD failing tests from WP01 T000 exist on your lane branch (or on `planning_base_branch` after WP01 merges). Run:
-
-```bash
-pytest tests/merge/test_merge_preflight_atdd.py -v
-```
-
-The tests should be **RED** before your implementation and **GREEN** after T007 is complete. If the test file does not exist, stop and escalate — WP01 must be re-run with T000 first.
 
 ---
 
@@ -246,7 +238,7 @@ assert s.push_requested == False
 **Merge target**: `main`
 **Execution**: Worktree allocated by `finalize-tasks`. Depends on WP01 lane being merged first.
 
-To start: `spec-kitty agent action implement WP02 --agent claude --mission merge-preflight-remote-state-boundary-separation-01KTBE5M`
+To start: `spec-kitty agent action implement WP02 --agent claude`
 
 ---
 
@@ -264,3 +256,9 @@ To start: `spec-kitty agent action implement WP02 --agent claude --mission merge
 - **Push flag variable name**: The variable may be named `do_push` or similar in the CLI handler. Read the handler signature before T007 step 2.
 - **Resume path complexity**: The resume logic may be spread across multiple functions. Trace the full resume flow before T008 step 3 to avoid missing a code path.
 - **Behaviour regression for `--push` path**: The existing diverged-state guidance must be preserved exactly. Do not simplify the payload-building logic; only replace the fetch/inspect calls with `check_push_safety`.
+
+## Activity Log
+
+- 2026-06-05T10:22:27Z – claude:sonnet:implementer-ivan:implementer – shell_pid=53725 – Assigned agent via action command
+- 2026-06-05T10:30:23Z – claude:sonnet:implementer-ivan:implementer – shell_pid=53725 – Gated push-safety call behind if push:, cleaned preflight.py domain layer (re-exports push_preflight symbols for backward compat), added MergeState.push_requested, updated test semantics from ahead/behind-blocks to diverged-only-blocks per ADR 2026-06-05-1. mypy/ruff clean, 227 merge tests pass.
+- 2026-06-05T10:30:52Z – claude:sonnet:reviewer:reviewer – shell_pid=57432 – Started review via action command

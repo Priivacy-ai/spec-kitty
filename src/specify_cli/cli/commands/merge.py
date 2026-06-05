@@ -45,10 +45,10 @@ from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, 
 from specify_cli.merge.config import MergeStrategy, load_merge_config
 from specify_cli.merge.ordering import assign_next_mission_number
 from specify_cli.merge.preflight import (
-    TargetBranchSyncStatus,
-    inspect_target_branch_sync,
-    refresh_target_branch_tracking_ref,
     target_branch_sync_remediation,
+)
+from specify_cli.merge.push_preflight import (
+    TargetBranchSyncStatus,
 )
 from specify_cli.merge.state import (
     MergeLockError,
@@ -1229,10 +1229,14 @@ def _enforce_target_branch_sync_preflight(
     mission_slug: str | None,
     mission_branch: str | None = None,
     json_output: bool = False,
+    remote_name: str = "origin",
 ) -> None:
-    """Stop merge before mutation when the target branch is not synced."""
-    refresh = refresh_target_branch_tracking_ref(repo_root, target_branch)
-    if not refresh.success:
+    """Stop push before mutation when the target branch is not synced with remote."""
+    from specify_cli.merge.push_preflight import check_push_safety
+
+    result = check_push_safety(repo_root, target_branch, remote_name=remote_name)
+    if result.fetch_failed:
+        refresh = result.refresh_status
         payload = _target_branch_refresh_failed_payload(
             target_branch=target_branch,
             remote_name=refresh.remote_name,
@@ -1252,9 +1256,11 @@ def _enforce_target_branch_sync_preflight(
                 console.print(f"  - {line}")
         raise typer.Exit(1)
 
-    status = inspect_target_branch_sync(repo_root, target_branch)
-    if status.is_safe:
+    if result.is_safe_to_push:
         return
+
+    status = result.sync_status
+    assert status is not None  # is_safe_to_push is False only when sync_status is set
 
     payload = _target_branch_sync_payload(
         status,
@@ -1505,12 +1511,13 @@ def _run_lane_based_merge(
     if target_override:
         lanes_manifest.target_branch = target_override
 
-    _enforce_target_branch_sync_preflight(
-        main_repo,
-        target_branch=lanes_manifest.target_branch,
-        mission_slug=mission_slug,
-        mission_branch=lanes_manifest.mission_branch,
-    )
+    if push:
+        _enforce_target_branch_sync_preflight(
+            main_repo,
+            target_branch=lanes_manifest.target_branch,
+            mission_slug=mission_slug,
+            mission_branch=lanes_manifest.mission_branch,
+        )
 
     branch_ok, branch_blocker = _check_mission_branch(mission_slug, main_repo)
     if not branch_ok:
@@ -1586,6 +1593,7 @@ def _run_lane_based_merge_locked(
             mission_slug=mission_slug,
             target_branch=lanes_manifest.target_branch,
             wp_order=all_wp_ids,
+            push_requested=push,
         )
         save_state(state, main_repo)
 

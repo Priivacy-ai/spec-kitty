@@ -80,6 +80,7 @@ class MergeState:
     started_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     mission_number_baked: bool = False  # WP04 — set True once mission_number is committed
+    push_requested: bool = False  # WP02 — True when --push was passed at merge start
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""

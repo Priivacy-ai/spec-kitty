@@ -65,9 +65,9 @@
 **Estimated prompt size**: ~320 lines
 
 **Subtasks**:
-- [ ] T006 Strip domain-incompatible code from `preflight.py` (WP02)
-- [ ] T007 Gate `_enforce_target_branch_sync_preflight` with `if push:` in `merge.py` (WP02)
-- [ ] T008 Add `push_requested` field to `MergeState` with resume wiring (WP02)
+- [x] T006 Strip domain-incompatible code from `preflight.py` (WP02)
+- [x] T007 Gate `_enforce_target_branch_sync_preflight` with `if push:` in `merge.py` (WP02)
+- [x] T008 Add `push_requested` field to `MergeState` with resume wiring (WP02)
 
 **Success criteria**:
 - `spec-kitty merge` without `--push` completes without network I/O in a git fixture where local is ahead of origin
