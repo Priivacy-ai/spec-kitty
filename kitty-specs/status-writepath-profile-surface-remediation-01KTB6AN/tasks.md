@@ -99,14 +99,14 @@ Two file-disjoint workstreams → three execution lanes:
 
 **Independent test**: configured project lists only activated; unconfigured project unchanged; `show` gates non-activated ids; abstract-parent child resolves with a warning.
 
-- [ ] T015 `profile list`: filter `ProfileRegistry` rows by activated set (FR-011) (WP04)
-- [ ] T016 `profile list`: `--all` / `--show-available` annotated output (FR-012) (WP04)
-- [ ] T017 `profile show <id>`: full resolved definition render + `--json` (FR-013) (WP04)
-- [ ] T018 `profile show`: activation gate + `profile_not_activated` error (FR-014) (WP04)
-- [ ] T019 `profile show`: lineage Option A traversal + non-activated-parent warning (FR-015) (WP04)
-- [ ] T020 Unit tests: list filtering + NFR-001 byte-identity on unconfigured project (WP04)
-- [ ] T021 Unit tests: show gating, not-found schema, abstract-parent warning (WP04)
-- [ ] T022 `--all` bypass on `profile show` for inspection (WP04)
+- [x] T015 `profile list`: filter `ProfileRegistry` rows by activated set (FR-011) (WP04)
+- [x] T016 `profile list`: `--all` / `--show-available` annotated output (FR-012) (WP04)
+- [x] T017 `profile show <id>`: full resolved definition render + `--json` (FR-013) (WP04)
+- [x] T018 `profile show`: activation gate + `profile_not_activated` error (FR-014) (WP04)
+- [x] T019 `profile show`: lineage Option A traversal + non-activated-parent warning (FR-015) (WP04)
+- [x] T020 Unit tests: list filtering + NFR-001 byte-identity on unconfigured project (WP04)
+- [x] T021 Unit tests: show gating, not-found schema, abstract-parent warning (WP04)
+- [x] T022 `--all` bypass on `profile show` for inspection (WP04)
 
 **Risks**: `profile list` default change — keep byte-identical for unconfigured projects (NFR-001).
 

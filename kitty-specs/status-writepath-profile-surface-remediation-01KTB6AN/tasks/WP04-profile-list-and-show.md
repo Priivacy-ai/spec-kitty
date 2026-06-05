@@ -24,7 +24,8 @@ subtasks:
 - T021
 - T022
 phase: 'Lane B-core — #1636'
-agent: claude
+agent: "claude"
+assignee: "claude"
 history:
 - at: '2026-06-05T08:32:05Z'
   actor: system
@@ -125,3 +126,5 @@ Deliver the #1636 user-facing surfaces, routed through charter activation.
 ## Activity Log
 
 - 2026-06-05T08:32:05Z – system – Prompt created.
+- 2026-06-05T12:58:47Z – claude – Moved to in_progress
+- 2026-06-05T12:58:49Z – claude – Implemented via bypass; tests green
