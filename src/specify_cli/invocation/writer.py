@@ -157,6 +157,8 @@ class InvocationWriter:
             completed_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
             outcome=outcome,  # type: ignore[arg-type]
             evidence_ref=evidence_ref,
+            mission_id=first.get("mission_id"),  # type: ignore[arg-type]
+            wp_id=first.get("wp_id"),  # type: ignore[arg-type]
         )
         try:
             with path.open("a", encoding="utf-8") as f:

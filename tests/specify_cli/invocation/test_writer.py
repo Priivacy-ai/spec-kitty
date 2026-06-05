@@ -120,6 +120,27 @@ class TestWriteCompletedAppendsLine:
         completed = writer.write_completed(_INVOCATION_ID, tmp_path)
         assert completed.profile_id == "reviewer-fixture"
 
+    def test_write_completed_preserves_mission_correlation_from_started_event(
+        self, tmp_path: Path
+    ) -> None:
+        writer = InvocationWriter(tmp_path)
+        writer.write_started(
+            _make_record(
+                mission_id="01KTB49KJKRJ71YR8KERVDMHHA",
+                wp_id="WP01",
+            )
+        )
+
+        completed = writer.write_completed(_INVOCATION_ID, tmp_path, outcome="done")
+
+        assert completed.mission_id == "01KTB49KJKRJ71YR8KERVDMHHA"
+        assert completed.wp_id == "WP01"
+
+        file_path = writer.invocation_path(_INVOCATION_ID)
+        completed_data = json.loads(file_path.read_text(encoding="utf-8").splitlines()[1])
+        assert completed_data["mission_id"] == "01KTB49KJKRJ71YR8KERVDMHHA"
+        assert completed_data["wp_id"] == "WP01"
+
 
 class TestWriteStartedAppendOnly:
     def test_write_started_mode_is_exclusive_create(self, tmp_path: Path) -> None:

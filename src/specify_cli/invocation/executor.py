@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/mission_creation.py
 
 from charter.context import build_charter_context
+from specify_cli.git import safe_commit
 from specify_cli.invocation.errors import InvalidModeForEvidenceError, InvocationError
 from specify_cli.invocation.modes import ModeOfWork
 from specify_cli.invocation.propagator import InvocationSaaSPropagator
@@ -391,6 +392,39 @@ class ProfileInvocationExecutor:
             raise InvocationError(f"Invalid invocation record: {invocation_id}")
         return data
 
+    def _current_branch(self) -> str | None:
+        inside = _subprocess.run(
+            ["git", "-C", str(self._repo_root), "rev-parse", "--is-inside-work-tree"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if inside.returncode != 0 or inside.stdout.strip() != "true":
+            return None
+
+        symbolic = _subprocess.run(
+            ["git", "-C", str(self._repo_root), "symbolic-ref", "--quiet", "--short", "HEAD"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if symbolic.returncode == 0:
+            branch = symbolic.stdout.strip()
+            if branch:
+                return branch
+
+        abbrev = _subprocess.run(
+            ["git", "-C", str(self._repo_root), "rev-parse", "--abbrev-ref", "HEAD"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if abbrev.returncode == 0:
+            branch = abbrev.stdout.strip()
+            if branch and branch != "HEAD":
+                return branch
+        return None
+
     def _commit_op_record(self, invocation_id: str) -> None:
         """Best-effort git commit for one completed Op record."""
         try:
@@ -404,37 +438,17 @@ class ProfileInvocationExecutor:
             if index_path.exists():
                 paths.append(index_path.relative_to(self._repo_root))
 
-            path_args = [str(path) for path in paths]
-            _subprocess.run(
-                ["git", "-C", str(self._repo_root), "add", "--", *path_args],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            diff = _subprocess.run(
-                ["git", "-C", str(self._repo_root), "diff", "--cached", "--quiet", "--", *path_args],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            if diff.returncode == 0:
+            current_branch = self._current_branch()
+            if current_branch is None:
                 return
-            _subprocess.run(
-                [
-                    "git",
-                    "-C",
-                    str(self._repo_root),
-                    "commit",
-                    "--no-verify",
-                    "--only",
-                    "-m",
-                    message,
-                    "--",
-                    *path_args,
-                ],
-                check=True,
-                capture_output=True,
-                text=True,
+
+            safe_commit(
+                repo_root=self._repo_root,
+                worktree_root=self._repo_root,
+                destination_ref=current_branch,
+                message=message,
+                paths=tuple(paths),
+                allow_protected_branch_in_test_mode=True,
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("Op record auto-commit failed for %s: %r", invocation_id, exc)
