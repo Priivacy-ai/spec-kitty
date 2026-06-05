@@ -5,6 +5,10 @@ the same two-step flow:
 1. Merge each lane branch into the mission branch.
 2. Merge the mission branch into the target branch.
 
+Planning-artifact-only missions are the exception: their artifacts are already
+committed to the target branch, so merge performs closeout bookkeeping directly
+on that target branch without requiring a mission branch.
+
 Recovery semantics (WP01 / 067):
 - MergeState is created at merge start and updated after each WP mark-done.
 - On interruption, rerunning ``merge`` detects the existing state and resumes.
@@ -825,6 +829,38 @@ def _check_mission_branch(
     return False, blocker_payload
 
 
+def _is_planning_artifact_only_manifest(lanes_manifest: object) -> bool:
+    """Return True when every WP is in the canonical planning-artifact lane."""
+
+    from specify_cli.lanes.compute import PLANNING_LANE_ID
+
+    lanes = list(getattr(lanes_manifest, "lanes", []) or [])
+    return bool(lanes) and all(
+        getattr(lane, "lane_id", None) == PLANNING_LANE_ID for lane in lanes
+    )
+
+
+def _enforce_planning_artifact_target_branch(repo_root: Path, target_branch: str) -> None:
+    """Planning-only closeout writes directly to the target branch."""
+
+    retcode, stdout, _stderr = run_command(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    current_branch = stdout.strip() if retcode == 0 else ""
+    if current_branch == target_branch:
+        return
+
+    current_label = current_branch or "detached HEAD"
+    console.print(
+        "[red]Error:[/red] Planning-artifact-only merge must run on "
+        f"target branch {target_branch}, not {current_label}."
+    )
+    raise typer.Exit(1)
+
+
 def _enforce_git_preflight(repo_root: Path, *, json_output: bool) -> None:
     """Run git preflight checks and stop early with deterministic remediation."""
     if not (repo_root / ".git").exists():
@@ -1292,6 +1328,28 @@ def _effective_push_requested(
     return requested_push
 
 
+def _assign_planning_only_mission_number_if_needed(
+    main_repo: Path,
+    feature_dir: Path,
+) -> Path | None:
+    """Assign mission_number directly on target for planning-only closeout."""
+
+    if not needs_number_assignment(feature_dir):
+        return None
+
+    next_number = assign_next_mission_number(
+        main_repo,
+        main_repo / KITTY_SPECS_DIR,
+    )
+    meta = load_meta(feature_dir) or {}
+    meta["mission_number"] = next_number
+    write_meta(feature_dir, meta, validate=False)
+    console.print(
+        f"  [green]✓[/green] Assigned mission_number={next_number} on target branch"
+    )
+    return feature_dir / "meta.json"
+
+
 def _enforce_canonical_status_history(
     *,
     feature_dir: Path,
@@ -1525,6 +1583,7 @@ def _run_lane_based_merge(
     lanes_manifest = require_lanes_json(feature_dir)
     if target_override:
         lanes_manifest.target_branch = target_override
+    planning_artifact_only = _is_planning_artifact_only_manifest(lanes_manifest)
 
     # -- Resolve canonical mission_id from meta.json (P2 fix: use ULID, not slug) --
     identity = resolve_mission_identity(feature_dir)
@@ -1539,15 +1598,21 @@ def _run_lane_based_merge(
             mission_branch=lanes_manifest.mission_branch,
         )
 
-    branch_ok, branch_blocker = _check_mission_branch(mission_slug, main_repo)
-    if not branch_ok:
-        assert branch_blocker is not None
-        console.print(
-            "[red]Error:[/red] Missing mission branch: "
-            f"{branch_blocker['expected_branch']}. "
-            f"Run: {branch_blocker['remediation']}"
+    if planning_artifact_only:
+        _enforce_planning_artifact_target_branch(
+            main_repo,
+            lanes_manifest.target_branch,
         )
-        raise typer.Exit(1)
+    else:
+        branch_ok, branch_blocker = _check_mission_branch(mission_slug, main_repo)
+        if not branch_ok:
+            assert branch_blocker is not None
+            console.print(
+                "[red]Error:[/red] Missing mission branch: "
+                f"{branch_blocker['expected_branch']}. "
+                f"Run: {branch_blocker['remediation']}"
+            )
+            raise typer.Exit(1)
 
     # -- Acquire global merge lock to serialize concurrent merges --
     # The lock is keyed by a well-known sentinel so that merges of DIFFERENT
@@ -1605,6 +1670,7 @@ def _run_lane_based_merge_locked(
         wp_ids=all_wp_ids,
     )
 
+    planning_artifact_only = _is_planning_artifact_only_manifest(lanes_manifest)
     state = load_state(main_repo, canonical_id)
     is_resume = False
     if state is not None:
@@ -1625,6 +1691,11 @@ def _run_lane_based_merge_locked(
     console.print(f"[bold]Lane-based merge for {mission_slug}[/bold]")
     console.print(f"  Mission branch: {lanes_manifest.mission_branch}")
     console.print(f"  Lanes: {', '.join(ln.lane_id for ln in lanes_manifest.lanes)}")
+    if planning_artifact_only:
+        console.print(
+            "  [dim]Planning-artifact-only mission: target branch already "
+            "contains deliverables; branch merge steps will be skipped.[/dim]"
+        )
 
     policy = load_policy_config(main_repo)
     gate_eval = evaluate_merge_gates(
@@ -1666,6 +1737,12 @@ def _run_lane_based_merge_locked(
             console.print(f"  [dim]Skipping {lane.lane_id} (all WPs already done)[/dim]")
             continue
 
+        if planning_artifact_only and lane.lane_id == PLANNING_LANE_ID:
+            console.print(
+                f"  [green]✓[/green] {lane.lane_id} already on {lanes_manifest.target_branch}"
+            )
+            continue
+
         console.print(f"  [dim]Checking and merging {lane.lane_id}...[/dim]")
         lane_result = merge_lane_to_mission(main_repo, mission_slug, lane.lane_id, lanes_manifest)
         if lane_result.success:
@@ -1699,46 +1776,59 @@ def _run_lane_based_merge_locked(
     except Exception:  # noqa: BLE001 — meta.json may be missing/corrupt for legacy missions
         _baseline_mission_id = None
 
-    # -- WP10/T053/T055: assign dense integer mission_number on mission branch --
-    # Inside the global merge lock (acquire_merge_lock("__global_merge__"))
-    # which serializes ALL merge operations — same-mission and cross-mission.
-    # This guarantees the max+1 scan sees the most recent target state.
-    # WP04/FR-010/FR-011/FR-012: pass merge_state so the idempotency check
-    # (T025) and resume short-circuit (T026) can persist/read the baked flag.
-    _bake_mission_number_into_mission_branch(
-        main_repo=main_repo,
-        mission_slug=mission_slug,
-        mission_branch=lanes_manifest.mission_branch,
-        target_branch=lanes_manifest.target_branch,
-        dry_run=False,
-        merge_state=state,
-    )
-
-    # -- Mission-to-target merge (T010: honor strategy for this step only) --
-    console.print(f"  [dim]Merging mission branch into {lanes_manifest.target_branch}...[/dim]")
-    mission_result = merge_mission_to_target(
-        main_repo,
-        mission_slug,
-        lanes_manifest,
-        strategy=strategy,
-        allow_already_applied=is_resume,
-    )
-    mission_already_applied = getattr(mission_result, "already_applied", False) is True
-    if not mission_result.success:
-        # T005: tolerate already-merged on retry
-        already_merged = any("already" in e.lower() or "up to date" in e.lower() for e in mission_result.errors)
-        if is_resume and already_merged:
-            console.print(f"[dim]{lanes_manifest.mission_branch} already merged into {lanes_manifest.target_branch}[/dim]")
-        else:
-            for error in mission_result.errors:
-                console.print(f"[red]Error:[/red] {error}")
-            raise typer.Exit(1)
+    mission_number_meta_path: Path | None = None
+    mission_already_applied = False
+    if planning_artifact_only:
+        mission_number_meta_path = _assign_planning_only_mission_number_if_needed(
+            main_repo,
+            feature_dir,
+        )
+        console.print(
+            f"  [dim]Skipping mission branch merge; {lanes_manifest.target_branch} "
+            "is the planning artifact branch.[/dim]"
+        )
+        mission_already_applied = True
     else:
-        console.print(f"\n[green]✓[/green] {lanes_manifest.mission_branch} → {lanes_manifest.target_branch}")
-        if mission_already_applied:
-            console.print("  [dim]Mission changes already present on target; continuing bookkeeping.[/dim]")
-        if mission_result.commit:
-            console.print(f"  Commit: {mission_result.commit[:7]}")
+        # -- WP10/T053/T055: assign dense integer mission_number on mission branch --
+        # Inside the global merge lock (acquire_merge_lock("__global_merge__"))
+        # which serializes ALL merge operations — same-mission and cross-mission.
+        # This guarantees the max+1 scan sees the most recent target state.
+        # WP04/FR-010/FR-011/FR-012: pass merge_state so the idempotency check
+        # (T025) and resume short-circuit (T026) can persist/read the baked flag.
+        _bake_mission_number_into_mission_branch(
+            main_repo=main_repo,
+            mission_slug=mission_slug,
+            mission_branch=lanes_manifest.mission_branch,
+            target_branch=lanes_manifest.target_branch,
+            dry_run=False,
+            merge_state=state,
+        )
+
+        # -- Mission-to-target merge (T010: honor strategy for this step only) --
+        console.print(f"  [dim]Merging mission branch into {lanes_manifest.target_branch}...[/dim]")
+        mission_result = merge_mission_to_target(
+            main_repo,
+            mission_slug,
+            lanes_manifest,
+            strategy=strategy,
+            allow_already_applied=is_resume,
+        )
+        mission_already_applied = getattr(mission_result, "already_applied", False) is True
+        if not mission_result.success:
+            # T005: tolerate already-merged on retry
+            already_merged = any("already" in e.lower() or "up to date" in e.lower() for e in mission_result.errors)
+            if is_resume and already_merged:
+                console.print(f"[dim]{lanes_manifest.mission_branch} already merged into {lanes_manifest.target_branch}[/dim]")
+            else:
+                for error in mission_result.errors:
+                    console.print(f"[red]Error:[/red] {error}")
+                raise typer.Exit(1)
+        else:
+            console.print(f"\n[green]✓[/green] {lanes_manifest.mission_branch} → {lanes_manifest.target_branch}")
+            if mission_already_applied:
+                console.print("  [dim]Mission changes already present on target; continuing bookkeeping.[/dim]")
+            if mission_result.commit:
+                console.print(f"  Commit: {mission_result.commit[:7]}")
 
     # -- WP05/T006 FR-013: Post-merge working-tree refresh --
     # Re-sync the primary checkout against HEAD before done-event bookkeeping.
@@ -1854,8 +1944,11 @@ def _run_lane_based_merge_locked(
         feature_dir / _STATUS_EVENTS_FILENAME,
         feature_dir / _STATUS_FILENAME,
     ]
+    if mission_number_meta_path is not None:
+        files_to_commit.append(mission_number_meta_path)
     if baseline_meta_path is not None:
         files_to_commit.append(baseline_meta_path)
+    files_to_commit = list(dict.fromkeys(files_to_commit))
 
     has_bookkeeping_changes = _paths_have_status_changes(main_repo, files_to_commit)
     may_skip_empty_bookkeeping = is_resume or mission_already_applied

@@ -241,16 +241,18 @@ def _write_lanes_manifest(
     """Build a real LanesManifest with a code lane and a planning lane and write it to disk."""
     if mission_branch is None:
         mission_branch = f"kitty/mission-{slug}"
-    lanes: list[ExecutionLane] = [
-        ExecutionLane(
-            lane_id="lane-a",
-            wp_ids=tuple(code_wp_ids),
-            write_scope=("src/foo.py",),
-            predicted_surfaces=("code",),
-            depends_on_lanes=(),
-            parallel_group=0,
+    lanes: list[ExecutionLane] = []
+    if code_wp_ids:
+        lanes.append(
+            ExecutionLane(
+                lane_id="lane-a",
+                wp_ids=tuple(code_wp_ids),
+                write_scope=("src/foo.py",),
+                predicted_surfaces=("code",),
+                depends_on_lanes=(),
+                parallel_group=0,
+            )
         )
-    ]
     if planning_wp_ids:
         lanes.append(
             ExecutionLane(
@@ -461,6 +463,57 @@ class TestPlanningArtifactReachesTarget:
             f"present on main afterward.  This is the silent-data-loss case "
             f"FR-001 forbids."
         )
+
+    def test_planning_artifact_only_merge_does_not_require_mission_branch(
+        self, tmp_path: Path
+    ) -> None:
+        """All-planning research missions close from the target branch without a mission branch."""
+        slug = "real-merge-planning-only-research"
+        _init_git_repo(tmp_path)
+
+        feature_dir = tmp_path / "kitty-specs" / slug
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "tasks").mkdir(parents=True)
+        _write_meta(feature_dir, slug)
+        _write_lanes_manifest(
+            feature_dir,
+            slug,
+            code_wp_ids=[],
+            planning_wp_ids=["WP01", "WP02"],
+        )
+        _git(tmp_path, "add", ".")
+        _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap planning mission fixture")
+
+        planning_relpath = f"kitty-specs/{slug}/research/decision-A.md"
+        _commit_file(
+            tmp_path,
+            branch="main",
+            relpath=planning_relpath,
+            content="# Decision A\n\nPlanning artifact body.\n",
+            message=f"plan({slug}): commit planning artifact on target",
+        )
+
+        mission_branch = f"kitty/mission-{slug}"
+        missing_branch = subprocess.run(
+            ["git", "-C", str(tmp_path), "rev-parse", "--verify", f"refs/heads/{mission_branch}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert missing_branch.returncode != 0
+
+        with _real_merge_external_mocks(tmp_path):
+            _run_lane_based_merge(
+                repo_root=tmp_path,
+                mission_slug=slug,
+                push=False,
+                delete_branch=False,
+                remove_worktree=False,
+                strategy=MergeStrategy.SQUASH,
+                allow_sparse_checkout=True,
+            )
+
+        assert _file_on_branch(tmp_path, "main", planning_relpath)
 
     def test_planning_artifact_on_phantom_lane_branch_is_NOT_reached(
         self, tmp_path: Path
