@@ -481,6 +481,55 @@ def test_collect_feature_summary_allows_main_branch_for_lane_acceptance(tmp_path
     assert any("acceptance-matrix.json" in item for item in summary.recommended_fix_order)
 
 
+def test_collect_feature_summary_allows_planning_artifact_research_without_matrix(
+    tmp_path: Path,
+) -> None:
+    repo_root, feature_dir = _create_test_feature(tmp_path, "research-planning-only")
+    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
+    (repo_root / ".kittify").mkdir(exist_ok=True)
+
+    from tests.lane_test_utils import write_single_lane_manifest
+
+    deliverables_path = "docs/research/research-planning-only/"
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["mission_type"] = "research"
+    meta["mission"] = "research"
+    meta["deliverables_path"] = deliverables_path
+    meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+
+    for path_name in ("research", "data", "findings", "reports"):
+        directory = repo_root / deliverables_path / path_name
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / ".gitkeep").write_text("", encoding="utf-8")
+
+    write_single_lane_manifest(
+        feature_dir,
+        wp_ids=("WP01",),
+        lane_id="lane-planning",
+        write_scope=(f"{deliverables_path}**",),
+        predicted_surfaces=("planning",),
+    )
+    subprocess.run(["git", "-C", str(repo_root), "add", "-A"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "commit", "-m", "Add planning research artifacts"],
+        check=True,
+        capture_output=True,
+    )
+
+    summary = collect_feature_summary(repo_root, "research-planning-only", mutate_matrix=False)
+
+    assert summary.ok is True
+    assert not any("Acceptance matrix" in issue for issue in summary.activity_issues)
+    assert not any(item.check == "acceptance_matrix" for item in summary.blocked_checks)
+    assert not summary.path_violations
+    assert any(
+        item.check == "acceptance_matrix_presence"
+        and "planning_artifact-only" in item.detail
+        for item in summary.skipped_checks
+    )
+
+
 def test_collect_feature_summary_blocks_unrelated_branch_for_lane_acceptance(tmp_path: Path) -> None:
     repo_root, feature_dir = _create_test_feature(tmp_path)
     subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
