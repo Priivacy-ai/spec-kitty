@@ -467,7 +467,7 @@ def index_page(mission_list: list[Mission]) -> str:
     <div class="main-content">
       <div class="content-card">
         <h2>Mission Runs</h2>
-        <p class="overview-context">Static mirror of the local Spec Kitty dashboard. Every mission and artifact has a stable URL for sharing, indexing, and AI answer engines. Empty mission shells with zero work packages and 0% completion are omitted.</p>
+        <p class="overview-context">Static mirror of the local Spec Kitty dashboard. Every mission and artifact has a stable URL for sharing, indexing, and AI answer engines.</p>
         <div class="mission-grid">{''.join(cards)}</div>
       </div>
     </div>
@@ -494,12 +494,7 @@ def main() -> int:
     if DEST.exists():
         shutil.rmtree(DEST)
     DEST.mkdir(parents=True)
-    all_missions = missions()
-    mission_list = [
-        mission
-        for mission in all_missions
-        if stats(mission)["total"] != 0 or stats(mission)["weighted_percentage"] != 0
-    ]
+    mission_list = missions()
     DEST.joinpath("index.html").write_text(index_page(mission_list), encoding="utf-8")
     write_toc(mission_list)
     for mission in mission_list:
@@ -513,8 +508,7 @@ def main() -> int:
                 page(mission_list, mission, key, label, source),
                 encoding="utf-8",
             )
-    skipped = len(all_missions) - len(mission_list)
-    print(f"Generated {len(mission_list)} mission dashboards in {DEST} ({skipped} empty missions skipped)")
+    print(f"Generated {len(mission_list)} mission dashboards in {DEST}")
     return 0
 
 
