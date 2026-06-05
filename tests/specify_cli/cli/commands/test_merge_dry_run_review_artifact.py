@@ -21,6 +21,7 @@ import pytest
 
 from specify_cli.post_merge.review_artifact_consistency import (
     REJECTED_REVIEW_ARTIFACT_CONFLICT,
+    REVIEW_ARTIFACT_SCHEMA_INVALID,
     ReviewArtifactPreflightResult,
     run_review_artifact_consistency_preflight,
 )
@@ -55,6 +56,78 @@ def _write_review_artifact(
     path = artifact_dir / f"review-cycle-{cycle_number}.md"
     artifact.write(path)
     return path
+
+
+def _write_malformed_review_artifact(artifact_dir: Path) -> Path:
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    path = artifact_dir / "review-cycle-1.md"
+    path.write_text(
+        "---\n"
+        "affected_files:\n"
+        "  - src/foo.py\n"
+        "cycle_number: 1\n"
+        "mission_slug: release-320-workflow-reliability-01KQKV85\n"
+        "reviewed_at: '2026-05-14T12:00:00+00:00'\n"
+        "reviewer_agent: reviewer-renata\n"
+        "verdict: approved\n"
+        "wp_id: WP01\n"
+        "---\n"
+        "\n"
+        "# Review\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def _write_lanes_json(mission: object) -> None:
+    lanes_json = mission.mission_dir / "lanes.json"
+    lanes_json.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "mission_slug": mission.mission_slug,
+                "mission_id": mission.mission_id,
+                "mission_branch": f"kitty/mission-{mission.mission_slug}",
+                "target_branch": "main",
+                "lanes": [
+                    {
+                        "lane_id": "lane-a",
+                        "wp_ids": ["WP01"],
+                        "write_scope": [],
+                        "predicted_surfaces": [],
+                        "depends_on_lanes": [],
+                        "parallel_group": 0,
+                    }
+                ],
+                "computed_at": "2026-05-14T12:00:00+00:00",
+                "computed_from": "dependency_graph+ownership",
+                "planning_artifact_wps": [],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _patch_dry_run_git_boundaries(monkeypatch: pytest.MonkeyPatch, mission: object) -> None:
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.merge._enforce_git_preflight", lambda *a, **kw: None
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.merge.find_repo_root", lambda: mission.repo_root
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.merge.get_main_repo_root",
+        lambda _repo: mission.repo_root,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.merge._validate_target_branch",
+        lambda *a, **kw: None,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.merge._resolve_target_branch",
+        lambda *a, **kw: ("main", "cli"),
+    )
 
 
 def test_preflight_detects_rejected_review_artifact_on_approved_wp(
@@ -148,33 +221,7 @@ def test_dry_run_emits_rejected_review_artifact_conflict(
         mission_slug=mission.mission_slug,
     )
 
-    lanes_json = mission.mission_dir / "lanes.json"
-    lanes_json.write_text(
-        json.dumps(
-            {
-                "version": 1,
-                "mission_slug": mission.mission_slug,
-                "mission_id": mission.mission_id,
-                "mission_branch": f"kitty/mission-{mission.mission_slug}",
-                "target_branch": "main",
-                "lanes": [
-                    {
-                        "lane_id": "lane-a",
-                        "wp_ids": ["WP01"],
-                        "write_scope": [],
-                        "predicted_surfaces": [],
-                        "depends_on_lanes": [],
-                        "parallel_group": 0,
-                    }
-                ],
-                "computed_at": "2026-05-14T12:00:00+00:00",
-                "computed_from": "dependency_graph+ownership",
-                "planning_artifact_wps": [],
-            }
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    _write_lanes_json(mission)
 
     monkeypatch.chdir(mission.repo_root)
 
@@ -183,24 +230,7 @@ def test_dry_run_emits_rejected_review_artifact_conflict(
     runner = CliRunner()
 
     # Avoid the git preflight, which would fail in a non-git tmp dir.
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._enforce_git_preflight", lambda *a, **kw: None
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge.find_repo_root", lambda: mission.repo_root
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge.get_main_repo_root",
-        lambda _repo: mission.repo_root,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._validate_target_branch",
-        lambda *a, **kw: None,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._resolve_target_branch",
-        lambda *a, **kw: ("main", "cli"),
-    )
+    _patch_dry_run_git_boundaries(monkeypatch, mission)
 
     result = runner.invoke(
         app,
@@ -216,6 +246,55 @@ def test_dry_run_emits_rejected_review_artifact_conflict(
     assert payload["blockers"]
     assert payload["blockers"][0]["diagnostic_code"] == REJECTED_REVIEW_ARTIFACT_CONFLICT
     assert payload["blockers"][0]["branch_or_work_package"] == "WP01"
+
+
+def test_dry_run_emits_review_artifact_schema_invalid(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``merge --dry-run --json`` reports malformed review-cycle frontmatter."""
+    import typer
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.merge import merge
+
+    mission = create_mission_fixture(tmp_path)
+    write_work_package(mission, WorkPackageSpec(lane="approved"))
+    append_status_event(
+        mission,
+        from_lane=Lane.FOR_REVIEW,
+        to_lane=Lane.APPROVED,
+        event_id="01KRKTT5APPROVED00000006",
+    )
+    artifact_dir = mission.tasks_dir / "WP01-regression-harness"
+    _write_malformed_review_artifact(artifact_dir)
+    _write_lanes_json(mission)
+
+    monkeypatch.chdir(mission.repo_root)
+
+    app = typer.Typer()
+    app.command()(merge)
+    runner = CliRunner()
+
+    _patch_dry_run_git_boundaries(monkeypatch, mission)
+
+    result = runner.invoke(
+        app,
+        ["--mission", mission.mission_slug, "--dry-run", "--json"],
+    )
+
+    assert result.exit_code == 1, (
+        f"Expected exit 1, got {result.exit_code}\nstdout={result.stdout}\nstderr={result.stderr}"
+    )
+    payload = json.loads(result.stdout.strip().splitlines()[-1])
+    assert payload["blocked"] is True
+    assert payload["diagnostic_code"] == REVIEW_ARTIFACT_SCHEMA_INVALID
+    assert payload["blockers"][0]["diagnostic_code"] == REVIEW_ARTIFACT_SCHEMA_INVALID
+    assert payload["blockers"][0]["branch_or_work_package"] == "WP01"
+    assert (
+        payload["blockers"][0]["violated_invariant"]
+        == "review_cycle_frontmatter_must_match_schema"
+    )
+    assert "affected_files entries must be mappings" in payload["blockers"][0]["schema_error"]
 
 
 def test_dry_run_human_emits_rejected_review_artifact_conflict(
@@ -243,33 +322,7 @@ def test_dry_run_human_emits_rejected_review_artifact_conflict(
         mission_slug=mission.mission_slug,
     )
 
-    lanes_json = mission.mission_dir / "lanes.json"
-    lanes_json.write_text(
-        json.dumps(
-            {
-                "version": 1,
-                "mission_slug": mission.mission_slug,
-                "mission_id": mission.mission_id,
-                "mission_branch": f"kitty/mission-{mission.mission_slug}",
-                "target_branch": "main",
-                "lanes": [
-                    {
-                        "lane_id": "lane-a",
-                        "wp_ids": ["WP01"],
-                        "write_scope": [],
-                        "predicted_surfaces": [],
-                        "depends_on_lanes": [],
-                        "parallel_group": 0,
-                    }
-                ],
-                "computed_at": "2026-05-14T12:00:00+00:00",
-                "computed_from": "dependency_graph+ownership",
-                "planning_artifact_wps": [],
-            }
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    _write_lanes_json(mission)
 
     monkeypatch.chdir(mission.repo_root)
 
@@ -277,24 +330,7 @@ def test_dry_run_human_emits_rejected_review_artifact_conflict(
     app.command()(merge)
     runner = CliRunner()
 
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._enforce_git_preflight", lambda *a, **kw: None
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge.find_repo_root", lambda: mission.repo_root
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge.get_main_repo_root",
-        lambda _repo: mission.repo_root,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._validate_target_branch",
-        lambda *a, **kw: None,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._resolve_target_branch",
-        lambda *a, **kw: ("main", "cli"),
-    )
+    _patch_dry_run_git_boundaries(monkeypatch, mission)
 
     result = runner.invoke(app, ["--mission", mission.mission_slug, "--dry-run"])
 

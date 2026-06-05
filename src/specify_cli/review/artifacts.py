@@ -49,9 +49,23 @@ class AffectedFile:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> AffectedFile:
         """Deserialize from dict."""
+        if not isinstance(data, dict):
+            raise ValueError(
+                "affected_files entries must be mappings with a 'path' key"
+            )
+        path = data.get("path")
+        if not isinstance(path, str) or not path:
+            raise ValueError(
+                "affected_files entries must include a non-empty string 'path'"
+            )
+        line_range = data.get("line_range")
+        if line_range is not None and not isinstance(line_range, str):
+            raise ValueError(
+                "affected_files entry 'line_range' must be a string when present"
+            )
         return cls(
-            path=data["path"],
-            line_range=data.get("line_range"),
+            path=path,
+            line_range=line_range,
         )
 
 
