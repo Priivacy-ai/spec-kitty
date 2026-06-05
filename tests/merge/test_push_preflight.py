@@ -170,3 +170,35 @@ def test_push_blocked_but_local_results_preserved_when_diverged() -> None:
             assert result.sync_status.state == "diverged"
             # fetch_failed is False — the check ran, it's just unsafe to push
             assert result.fetch_failed is False
+
+
+def test_resume_preserves_original_push_request() -> None:
+    """A resumed merge keeps the original --push intent even if retry omits it."""
+    from specify_cli.cli.commands.merge import _effective_push_requested
+    from specify_cli.merge.state import MergeState
+
+    state = MergeState(
+        mission_id="mission-01KT",
+        mission_slug="mission-01KT",
+        target_branch="main",
+        wp_order=["WP01"],
+        push_requested=True,
+    )
+    with patch("specify_cli.cli.commands.merge.load_state", return_value=state):
+        assert _effective_push_requested(Path("/fake/repo"), "mission-01KT", False) is True
+
+
+def test_resume_cannot_add_push_to_local_only_merge() -> None:
+    """A resumed local-only merge ignores a later --push flag."""
+    from specify_cli.cli.commands.merge import _effective_push_requested
+    from specify_cli.merge.state import MergeState
+
+    state = MergeState(
+        mission_id="mission-01KT",
+        mission_slug="mission-01KT",
+        target_branch="main",
+        wp_order=["WP01"],
+        push_requested=False,
+    )
+    with patch("specify_cli.cli.commands.merge.load_state", return_value=state):
+        assert _effective_push_requested(Path("/fake/repo"), "mission-01KT", True) is False

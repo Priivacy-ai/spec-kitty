@@ -1232,7 +1232,7 @@ def _enforce_target_branch_sync_preflight(
     remote_name: str = "origin",
 ) -> None:
     """Stop push before mutation when the target branch is not synced with remote."""
-    from specify_cli.merge.push_preflight import TargetBranchPushSafetyResult, check_push_safety
+    from specify_cli.merge.push_preflight import check_push_safety
 
     result = check_push_safety(repo_root, target_branch, remote_name=remote_name)
     if result.fetch_failed:
@@ -1278,6 +1278,18 @@ def _enforce_target_branch_sync_preflight(
         for line in payload["remediation"]:
             console.print(f"  - {line}")
     raise typer.Exit(1)
+
+
+def _effective_push_requested(
+    repo_root: Path,
+    mission_id: str,
+    requested_push: bool,
+) -> bool:
+    """Return persisted push intent for resumptions, otherwise current CLI intent."""
+    state = load_state(repo_root, mission_id)
+    if state is not None:
+        return state.push_requested
+    return requested_push
 
 
 def _enforce_canonical_status_history(
@@ -1511,7 +1523,12 @@ def _run_lane_based_merge(
     if target_override:
         lanes_manifest.target_branch = target_override
 
-    if push:
+    # -- Resolve canonical mission_id from meta.json (P2 fix: use ULID, not slug) --
+    identity = resolve_mission_identity(feature_dir)
+    canonical_id = identity.mission_id or mission_slug  # fallback for legacy missions without ULID
+
+    effective_push = _effective_push_requested(main_repo, canonical_id, push)
+    if effective_push:
         _enforce_target_branch_sync_preflight(
             main_repo,
             target_branch=lanes_manifest.target_branch,
@@ -1528,10 +1545,6 @@ def _run_lane_based_merge(
             f"Run: {branch_blocker['remediation']}"
         )
         raise typer.Exit(1)
-
-    # -- Resolve canonical mission_id from meta.json (P2 fix: use ULID, not slug) --
-    identity = resolve_mission_identity(feature_dir)
-    canonical_id = identity.mission_id or mission_slug  # fallback for legacy missions without ULID
 
     # -- Acquire global merge lock to serialize concurrent merges --
     # The lock is keyed by a well-known sentinel so that merges of DIFFERENT
@@ -1550,7 +1563,7 @@ def _run_lane_based_merge(
             canonical_id=canonical_id,
             feature_dir=feature_dir,
             lanes_manifest=lanes_manifest,
-            push=push,
+            push=effective_push,
             delete_branch=delete_branch,
             remove_worktree=remove_worktree,
             strategy=strategy,

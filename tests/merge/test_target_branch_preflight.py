@@ -9,7 +9,6 @@ from types import SimpleNamespace
 import pytest
 import typer
 
-import specify_cli.merge.preflight as preflight_mod
 import specify_cli.merge.push_preflight as push_preflight_mod
 from specify_cli.cli.commands.merge import (
     _enforce_target_branch_sync_preflight,
