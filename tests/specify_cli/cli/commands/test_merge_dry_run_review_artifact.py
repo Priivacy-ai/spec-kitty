@@ -9,6 +9,7 @@ readiness signal. These tests lock the new behavior:
 * The shared preflight helper detects the same conflict the real gate detects.
 * Dry-run surfaces ``REJECTED_REVIEW_ARTIFACT_CONFLICT`` in JSON output.
 * Dry-run surfaces ``REJECTED_REVIEW_ARTIFACT_CONFLICT`` in human output.
+* Dry-run surfaces malformed review-cycle schema diagnostics in human output.
 * Dry-run success path is unchanged on a clean mission.
 """
 
@@ -338,3 +339,49 @@ def test_dry_run_human_emits_rejected_review_artifact_conflict(
     output = result.stdout
     assert REJECTED_REVIEW_ARTIFACT_CONFLICT in output
     assert "WP01" in output
+
+
+def test_dry_run_human_emits_review_artifact_schema_invalid(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``merge --dry-run`` prints labelled schema diagnostics without a traceback."""
+    import typer
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.merge import merge
+
+    mission = create_mission_fixture(tmp_path)
+    write_work_package(mission, WorkPackageSpec(lane="approved"))
+    append_status_event(
+        mission,
+        from_lane=Lane.FOR_REVIEW,
+        to_lane=Lane.APPROVED,
+        event_id="01KRKTT5APPROVED00000007",
+    )
+    artifact_dir = mission.tasks_dir / "WP01-regression-harness"
+    review_path = _write_malformed_review_artifact(artifact_dir)
+    _write_lanes_json(mission)
+
+    monkeypatch.chdir(mission.repo_root)
+
+    app = typer.Typer()
+    app.command()(merge)
+    runner = CliRunner()
+
+    _patch_dry_run_git_boundaries(monkeypatch, mission)
+
+    result = runner.invoke(app, ["--mission", mission.mission_slug, "--dry-run"])
+
+    assert result.exit_code == 1
+    output = result.stdout
+    unwrapped_output = output.replace("\n", "")
+    review_path_text = str(review_path.relative_to(mission.repo_root))
+    assert REVIEW_ARTIFACT_SCHEMA_INVALID in output
+    assert "branch_or_work_package: WP01" in output
+    assert (
+        "violated_invariant: review_cycle_frontmatter_must_match_schema" in output
+    )
+    assert f"latest_review_cycle_path: {review_path_text}" in unwrapped_output
+    assert "schema_error: Missing or invalid field in review artifact" in output
+    assert "affected_files entries must be mappings" in unwrapped_output
+    assert "Traceback" not in output

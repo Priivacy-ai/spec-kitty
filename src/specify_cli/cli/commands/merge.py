@@ -2310,6 +2310,16 @@ def merge(
                     console.print(
                         f"    branch_or_work_package: {diagnostic['branch_or_work_package']}"
                     )
+                    console.print(
+                        f"    violated_invariant: {diagnostic['violated_invariant']}"
+                    )
+                    console.print(
+                        f"    latest_review_cycle_path: {diagnostic['latest_review_cycle_path']}"
+                    )
+                    if "latest_review_cycle_verdict" in diagnostic:
+                        console.print(
+                            f"    latest_review_cycle_verdict: {diagnostic['latest_review_cycle_verdict']}"
+                        )
                     if "schema_error" in diagnostic:
                         console.print(f"    schema_error: {diagnostic['schema_error']}")
                     remediation = diagnostic.get("remediation", [])
