@@ -1,281 +1,41 @@
-# AGENTS.md
+# Spec Kitty Development Guidelines
 
-## About Spec Kitty and Spec Kitty CLI
-
-**Spec Kitty** is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). It continues to provide a comprehensive toolkit for implementing Spec-Driven Development (SDD) with clear, actionable specifications ahead of implementation.
-
-**Spec Kitty CLI** is the command-line interface that bootstraps projects with the Spec Kitty framework. It sets up the necessary directory structures, templates, and AI agent integrations to support the Spec-Driven Development workflow.
-
-Every command template leads with a discovery interview—the CLI will refuse to create specs or plans until the user answers its question set.
-
-The toolkit supports multiple AI coding assistants, allowing teams to use their preferred tools while maintaining consistent project structure and development practices.
+**Spec Kitty** is a toolkit for Spec-Driven Development (SDD) — clear, actionable specifications ahead of implementation, inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). **Spec Kitty CLI** bootstraps projects with the framework: directory structures, templates, and AI agent integrations. Every command template leads with a discovery interview; the CLI refuses to create specs or plans until the question set is answered.
 
 ---
 
-## Task Lane Management (Work Packages)
+## ⚠️ CRITICAL: Template Source Location
 
-**Flat Structure**: All work package (WP) files live in a flat `tasks/` directory. Lane status is tracked **only** in frontmatter - files never move between subdirectories.
+**Edit SOURCE files, NOT agent copies!**
 
-### Current System (v0.9.0+)
+| What | Location | Action |
+|------|----------|--------|
+| **SOURCE templates** | `src/doctrine/missions/mission-steps/` | ✅ EDIT THESE |
+| **Agent copies** | `.claude/`, `.amazonq/`, `.augment/`, etc. | ❌ DO NOT EDIT |
 
+Agent directories are **generated copies** deployed to consumer projects via `spec-kitty upgrade`. Template flow:
 ```
-kitty-specs/001-my-feature/tasks/
-  ├── WP01-setup.md        (lane: "planned")
-  ├── WP02-core.md         (lane: "doing")
-  ├── WP03-tests.md        (lane: "for_review")
-  └── WP04-docs.md         (lane: "done")
-```
-
-**Key principles:**
-- Lane is determined by `lane:` field in frontmatter (NOT directory location)
-- All WP files stay in flat `tasks/` directory
-- Use Python CLI commands to update lanes (updates frontmatter + activity log)
-
-### Moving Work Packages Between Lanes
-
-**Use the workflow commands (lane transitions are automatic):**
-```bash
-spec-kitty agent action implement WP01
-spec-kitty agent action review WP01
-```
-
-The workflow commands:
-1. Move planned → doing → for_review during implement
-2. Move for_review → doing → planned/done during review
-3. Update frontmatter and Activity Log
-4. Keep files in the flat tasks/ directory
-
-### Workflow Commands (Recommended for Agents)
-
-**For implementation:**
-```bash
-spec-kitty agent action implement [WP01]
-```
-- Auto-detects first WP with `lane: "planned"` if no ID provided
-- Moves WP to `lane: "doing"` automatically
-- Displays full prompt with "WHEN YOU'RE DONE" instructions
-
-**For review:**
-```bash
-spec-kitty agent action review [WP01]
-```
-- Auto-detects first WP with `lane: "for_review"` if no ID provided
-- Moves WP to `lane: "doing"` automatically
-- Displays full prompt with review instructions
-
-### Other Task Commands
-
-```bash
-# List all work packages for current feature
-spec-kitty agent tasks list-tasks
-
-# List tasks in specific lane
-spec-kitty agent tasks list-tasks --lane doing
-
-# Add a history entry without changing lanes
-spec-kitty agent tasks add-history WP01 --note "Progress update"
+src/doctrine/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURCE)
+    ↓ spec-kitty upgrade
+.claude/commands/, .amazonq/prompts/, ... (12 agent dirs + .agents/skills/)  (GENERATED)
 ```
 
 ---
 
-## General practices
+## Terminology Canon
 
-- Any changes to `__init__.py` for the Spec Kitty CLI require a version rev in `pyproject.toml` and addition of entries to `CHANGELOG.md`.
+- Canonical product term is **Mission** (plural: **Missions**).
+- `Feature` / `Features` are prohibited in canonical, operator, and user-facing language for active systems.
+- Do not introduce or preserve `feature*` aliases (API/query params, routes, fields, flags, env vars, command names, or docs) when the domain object is a Mission.
+- Historical archived artifacts may retain legacy wording only as immutable snapshots, explicitly marked legacy.
 
-## Adding New Agent Support
-
-This section explains how to add support for new AI agents/assistants to the Spec Kitty CLI. Use this guide as a reference when integrating new AI tools into the Spec-Driven Development workflow.
-
-### Overview
-
-Spec Kitty CLI supports multiple AI agents by generating agent-specific command files and directory structures when initializing projects. Each agent has its own conventions for:
-
-- **Command file formats** (Markdown, TOML, etc.)
-- **Directory structures** (`.claude/commands/`, `.windsurf/workflows/`, etc.)
-- **Command invocation patterns** (slash commands, CLI tools, etc.)
-- **Argument passing conventions** (`$ARGUMENTS`, `{{args}}`, etc.)
-
-### Current Supported Agents
-
-| Agent | Directory | Format | CLI Tool | Description |
-|-------|-----------|---------|----------|-------------|
-| **Claude Code** | `.claude/commands/` | Markdown | `claude` | Anthropic's Claude Code CLI |
-| **Gemini CLI** | `.gemini/commands/` | TOML | `gemini` | Google's Gemini CLI |
-| **GitHub Copilot** | `.github/prompts/` | Markdown | N/A (IDE-based) | GitHub Copilot in VS Code |
-| **Cursor** | `.cursor/commands/` | Markdown | `cursor-agent` | Cursor CLI |
-| **Qwen Code** | `.qwen/commands/` | TOML | `qwen` | Alibaba's Qwen Code CLI |
-| **opencode** | `.opencode/command/` | Markdown | `opencode` | opencode CLI |
-| **Windsurf** | `.windsurf/workflows/` | Markdown | N/A (IDE-based) | Windsurf IDE workflows |
-| **Amazon Q Developer CLI** | `.amazonq/prompts/` | Markdown | `q` | Amazon Q Developer CLI |
-
-
-### Step-by-Step Integration Guide
-
-Follow these steps to add a new agent (using Windsurf as an example):
-
-#### 1. Update AI_CHOICES Constant
-
-Add the new agent to the `AI_CHOICES` dictionary in `src/specify_cli/__init__.py`:
-
-```python
-AI_CHOICES = {
-    "copilot": "GitHub Copilot",
-    "claude": "Claude Code", 
-    "gemini": "Gemini CLI",
-    "cursor": "Cursor",
-    "qwen": "Qwen Code",
-    "opencode": "opencode",
-    "windsurf": "Windsurf",
-    "q": "Amazon Q Developer CLI"  # Add new agent here
-}
-```
-
-Also update the `agent_folder_map` in the same file to include the new agent's folder for the security notice:
-
-```python
-agent_folder_map = {
-    "claude": ".claude/",
-    "gemini": ".gemini/",
-    "cursor": ".cursor/",
-    "qwen": ".qwen/",
-    "opencode": ".opencode/",
-    "codex": ".codex/",
-    "windsurf": ".windsurf/",  
-    "kilocode": ".kilocode/",
-    "auggie": ".auggie/",
-    "copilot": ".github/",
-    "q": ".amazonq/" # Add new agent folder here
-}
-```
-
-#### 2. Update CLI Help Text
-
-Update all help text and examples to include the new agent:
-
-- Command option help: `--ai` parameter description
-- Function docstrings and examples
-- Error messages with agent lists
-
-#### 3. Update README Documentation
-
-Update the **Supported AI Agents** section in `README.md` to include the new agent:
-
-- Add the new agent to the table with appropriate support level (Full/Partial)
-- Include the agent's official website link
-- Add any relevant notes about the agent's implementation
-- Ensure the table formatting remains aligned and consistent
-
-#### 4. Update Release Package Script
-
-Modify `.github/workflows/scripts/create-release-packages.sh`:
-
-##### Add to ALL_AGENTS array:
-```bash
-ALL_AGENTS=(claude gemini copilot cursor qwen opencode windsurf q)
-```
-
-##### Add case statement for directory structure:
-```bash
-case $agent in
-  # ... existing cases ...
-  windsurf)
-    mkdir -p "$base_dir/.windsurf/workflows"
-    generate_commands windsurf md "\$ARGUMENTS" "$base_dir/.windsurf/workflows" "$script" ;;
-esac
-```
-
-#### 4. Update GitHub Release Script
-
-Modify `.github/workflows/scripts/create-github-release.sh` to include the new agent's packages:
-
-```bash
-gh release create "$VERSION" \
-  # ... existing packages ...
-  .genreleases/spec-kitty-template-windsurf-sh-"$VERSION".zip \
-  .genreleases/spec-kitty-template-windsurf-ps-"$VERSION".zip \
-  # Add new agent packages here
-```
-
-#### 5. Agent Context Management (v0.10.0+)
-
-> **Note:** As of v0.10.0, bash/PowerShell scripts were removed in favor of Python CLI commands.
-
-Agent context is now managed via the Python CLI:
-
-```bash
-# Update agent context programmatically
-spec-kitty agent context update
-
-# Or handle during feature workflow via slash commands
-# which automatically manage agent context
-```
-
-For adding new agent support, the key integration points are:
-
-1. **Add agent to AGENT_DIRS** in `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py`
-2. **Update init command** to generate commands for the new agent
-3. **Create command templates** if agent needs custom format (optional)
-
-All mission template content now lives exclusively in `doctrine/missions/`. Command templates are generated from there during project initialization.
-
-#### 6. Update CLI Tool Checks (Optional)
-
-For agents that require CLI tools, add checks in the `check()` command and agent validation:
-
-```python
-# In check() command
-tracker.add("windsurf", "Windsurf IDE (optional)")
-windsurf_ok = check_tool_for_tracker("windsurf", "https://windsurf.com/", tracker)
-
-# In init validation (only if CLI tool required)
-elif selected_ai == "windsurf":
-    if not check_tool("windsurf", "Install from: https://windsurf.com/"):
-        console.print("[red]Error:[/red] Windsurf CLI is required for Windsurf projects")
-        agent_tool_missing = True
-```
-
-**Note**: Skip CLI checks for IDE-based agents (Copilot, Windsurf).
-
-## Agent Categories
-
-### CLI-Based Agents
-Require a command-line tool to be installed:
-- **Claude Code**: `claude` CLI
-- **Gemini CLI**: `gemini` CLI  
-- **Cursor**: `cursor-agent` CLI
-- **Qwen Code**: `qwen` CLI
-- **opencode**: `opencode` CLI
-
-### IDE-Based Agents
-Work within integrated development environments:
-- **GitHub Copilot**: Built into VS Code/compatible editors
-- **Windsurf**: Built into Windsurf IDE
-
-## Command File Formats
-
-### Markdown Format
-Used by: Claude, Cursor, opencode, Windsurf, Amazon Q Developer
-
-```markdown
----
-description: "Command description"
 ---
 
-Command content with {SCRIPT} and $ARGUMENTS placeholders.
-```
+## Supported AI Agents
 
-### TOML Format
-Used by: Gemini, Qwen
+19 agents total: 13 slash-command, 6 Agent Skills. Update all command-layer agents when changing slash commands, migrations, or templates.
 
-```toml
-description = "Command description"
-
-prompt = """
-Command content with {SCRIPT} and {{args}} placeholders.
-"""
-```
-
-## Directory Conventions
+### Slash-Command Agents (13)
 
 | Agent | Directory | Subdirectory | Format |
 |-------|-----------|--------------|--------|
@@ -286,96 +46,449 @@ Command content with {SCRIPT} and {{args}} placeholders.
 | Qwen Code | `.qwen/` | `commands/` | TOML |
 | OpenCode | `.opencode/` | `command/` | Markdown |
 | Windsurf | `.windsurf/` | `workflows/` | Markdown |
-| GitHub Codex | `.codex/` | `prompts/` | Markdown |
 | Kilocode | `.kilocode/` | `workflows/` | Markdown |
 | Augment Code | `.augment/` | `commands/` | Markdown |
 | Roo Cline | `.roo/` | `commands/` | Markdown |
 | Amazon Q | `.amazonq/` | `prompts/` | Markdown |
+| Kiro | `.kiro/` | `prompts/` | Markdown |
+| Google Antigravity | `.agent/` | `workflows/` | Markdown |
 
-**Note**: Agent keys differ from directory names for some agents:
-- `copilot` → `.github/prompts` (not `.github`)
-- `auggie` → `.augment/commands` (not `.augment`)
-- `q` → `.amazonq/prompts` (not `.amazonq`)
+**Argument placeholders:** Markdown agents use `$ARGUMENTS`; TOML agents use `{{args}}`; `{SCRIPT}` is replaced with the actual script path; `__AGENT__` is replaced with the agent name.
 
-See [`src/specify_cli/agent_utils/directories.py`](src/specify_cli/agent_utils/directories.py) for the complete `AGENT_DIR_TO_KEY` mapping.
+### Agent Skills Agents (6)
 
-## Argument Patterns
+| Agent | Skills Root | Command Surface | Key |
+|-------|-------------|-----------------|-----|
+| Codex CLI | `.agents/skills/` | `$spec-kitty.<command>` | `codex` |
+| Mistral Vibe | `.agents/skills/` via `.vibe/config.toml` | `/spec-kitty.<command>` | `vibe` |
+| Pi | `.agents/skills/` | `/skill:spec-kitty.<command>` | `pi` |
+| Letta Code | `.agents/skills/` | Agent Skills | `letta` |
 
-Different agents use different argument placeholders:
-- **Markdown/prompt-based**: `$ARGUMENTS`
-- **TOML-based**: `{{args}}`
-- **Script placeholders**: `{SCRIPT}` (replaced with actual script path)
-- **Agent placeholders**: `__AGENT__` (replaced with agent name)
+Codex, Vibe, Pi, and Letta share `.agents/skills/spec-kitty.<command>/SKILL.md`. Manifest: `.kittify/command-skills-manifest.json`.
 
-## Testing New Agent Integration
+**Agent key mappings** (key differs from directory for some): `copilot` → `.github/prompts`, `auggie` → `.augment/commands`, `q` → `.amazonq/prompts`. Use `AGENT_DIR_TO_KEY` in [`src/specify_cli/agent_utils/directories.py`](src/specify_cli/agent_utils/directories.py) for conversions.
 
-1. **Build test**: Run package creation script locally
-2. **CLI test**: Test `spec-kitty init --ai <agent>` command
-3. **File generation**: Verify correct directory structure and files
-4. **Command validation**: Ensure generated commands work with the agent
-5. **Context update**: Test agent context update scripts
+**Canonical source**: `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py` → `AGENT_DIRS`
+
+**When modifying**: Migrations → use `get_agent_dirs_for_project()`. Template changes propagate via migration. Test at least `.claude`, `.codex`, `.opencode`.
+
+**Skills modules** (mission 083): `src/specify_cli/skills/` — `command_renderer.py`, `command_installer.py`, `manifest_store.py`.
+
+---
+
+## Agent Management
+
+**CRITICAL: `.kittify/config.yaml` is the single source of truth for agent configuration.**
+
+```bash
+spec-kitty agent config list/add/remove/status/sync
+```
+
+**DO:** Use CLI commands. Let migrations respect config. **DON'T:** Manually delete agent dirs without updating config. Modify `config.yaml` directly.
+
+### Writing Migrations
+
+Always use the config-aware helper:
+```python
+from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
+
+agent_dirs = get_agent_dirs_for_project(project_path)
+for agent_root, subdir in agent_dirs:
+    agent_dir = project_path / agent_root / subdir
+    if not agent_dir.exists():
+        continue  # respect deletions — never mkdir
+    # process agent...
+```
+
+**DON'T:** Hardcode `AGENT_DIRS`. Create missing dirs. Assume all 12 agents are present. Process agents not in `config.yaml`.
+
+**Key functions:**
+- `get_agent_dirs_for_project(project_path)` — (dir, subdir) tuples for configured agents
+- `load_agent_config(repo_root)` / `save_agent_config(repo_root, config)` — config I/O
+
+**See also:** ADR #6, `tests/specify_cli/test_agent_config_migration.py`, `tests/specify_cli/cli/commands/test_agent_config.py`
+
+### Adding New Agent Support
+
+1. **Add to `AI_CHOICES`** in `src/specify_cli/__init__.py` and `agent_folder_map`.
+2. **Update CLI help text** — `--ai` param description, docstrings, error messages.
+3. **Update `README.md`** Supported AI Agents section.
+4. **Update release script** `.github/workflows/scripts/create-release-packages.sh` — add to `ALL_AGENTS` array and case statement.
+5. **Update GitHub release script** `.github/workflows/scripts/create-github-release.sh` — add agent packages.
+6. **Add to `AGENT_DIRS`** in `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py`.
+7. **CLI tool check** (only for agents with required CLI tools, not IDE-based ones):
+   ```python
+   tracker.add("windsurf", "Windsurf IDE (optional)")
+   check_tool_for_tracker("windsurf", "https://windsurf.com/", tracker)
+   ```
+
+**Agent categories:**
+- *CLI-based* (require CLI tool): Claude Code (`claude`), Gemini (`gemini`), Cursor (`cursor-agent`), Qwen (`qwen`), opencode (`opencode`), Amazon Q (`q`)
+- *IDE-based* (no CLI check needed): GitHub Copilot (VS Code), Windsurf (Windsurf IDE)
+
+**Testing new agent:**
+1. Run package creation script locally
+2. `spec-kitty init --ai <agent>` and verify directory structure and files
+3. Confirm generated commands work with the agent
+
+**Common pitfalls:** Wrong argument placeholder format; directory naming deviates from agent convention; missing help text updates; unnecessary CLI checks for IDE-based agents.
+
+---
+
+## Project Structure
+
+```
+architecture/     # ADRs and technical specs
+src/specify_cli/
+  glossary/       # Glossary semantic integrity pipeline
+  next/           # Canonical mission-next command loop (shim — see Shared Package Boundary)
+tests/            # Test suite
+kitty-specs/      # Mission specs (dogfooding)
+docs/             # User documentation
+```
+
+New architectural designs → `architecture/` following `architecture/README.md` template.
+
+## Commands
+
+```bash
+pytest tests/
+ruff check .
+PWHEADLESS=1 pytest tests/   # headless (prevents browser windows)
+```
+
+## Code Style
+
+Python 3.11+. Follow standard conventions. Any changes to `__init__.py` require a version bump in `pyproject.toml` and a `CHANGELOG.md` entry.
+
+## Recent Changes
+
+- **068**: `src/specify_cli/post_merge/` (AST-based stale-assertion analyzer), `agent tests` CLI subgroup, `agent/release.py prep` subcommand, FR-019 safe_commit fix in `_run_lane_based_merge`, FR-021 `scan_recovery_state` + `implement --base`
+- **047**: Added typer, rich, ruamel.yaml, requests, pytest, mypy; SQLite OfflineQueue sibling table
+- **023**: Documentation sprint / agent management cleanup
+
+---
+
+## PyPI Release
+
+**CRITICAL: NEVER create releases without explicit user instruction. NEVER release manually — use the GitHub release process.**
+
+Only act on: "cut a release", "release v0.X.Y", "push to PyPI", or similar explicit instructions.
+
+```bash
+# 1. Bump version in pyproject.toml + add CHANGELOG.md entry
+# 2. Tag and push:
+git tag -a vX.Y.Z -m "Release vX.Y.Z - Brief description"
+git push origin vX.Y.Z
+# 3. Monitor: gh run list --workflow=release.yml --limit=1 && gh run watch <run_id>
+# 4. Verify: gh release view vX.Y.Z
+```
+
+Full docs: [CONTRIBUTING.md](CONTRIBUTING.md#release-process)
+
+---
+
+## Execution Workspace Strategy (2.x)
+
+- Planning happens in the main repo checkout (no worktrees created during planning).
+- `spec-kitty implement WP##` creates/reuses the execution workspace.
+  - `lanes.json` present → `.worktrees/<feature>-lane-<id>`
+  - `lanes.json` absent → legacy: `.worktrees/<feature>-WP##`
+
+**Planning artifacts** (committed to main before implementation):
+- `/spec-kitty.specify` → `kitty-specs/<mission>/`
+- `/spec-kitty.plan` → planning artifacts
+- `/spec-kitty.tasks` → `tasks.md` + `tasks/*.md`
+- `spec-kitty agent mission finalize-tasks` → validates deps, writes lane metadata
+
+**Implementation:** `spec-kitty implement WP##` is the only supported way to prepare a workspace. Agent commands must consume the resolved workspace path, not reconstruct it.
+
+**When modifying workspace/orchestration behavior:**
+1. Update runtime resolver logic first.
+2. Update agent wrappers to use the resolver.
+3. Update templates, skills, and docs together.
+
+**Testing:** Unit coverage for workspace resolution + integration coverage for `agent workflow implement/review`.
+
+**Status source of truth:** Feature metadata on main branch, not the open worktree.
+
+**References:** [execution-lanes.md](docs/explanation/execution-lanes.md), [git-worktrees.md](docs/explanation/git-worktrees.md)
+
+---
+
+## Merge & Preflight Patterns (0.11.0+)
+
+Merge progress saved in `.kittify/merge-state.json` for resumable operations.
+
+**MergeState fields** (`src/specify_cli/merge/state.py`):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `feature_slug` | `str` | Feature identifier |
+| `target_branch` | `str` | Branch being merged into |
+| `wp_order` | `list[str]` | Ordered WP IDs |
+| `completed_wps` | `list[str]` | Successfully merged WPs |
+| `current_wp` | `str\|None` | WP currently being merged |
+| `has_pending_conflicts` | `bool` | Unresolved git conflicts |
+| `strategy` | `str` | "merge", "squash", or "rebase" |
+| `started_at` / `updated_at` | `str` | ISO timestamps |
+
+Properties: `remaining_wps`, `progress_percent`. Import from `specify_cli.merge`: `MergeState`, `save_state`, `load_state`, `clear_state`, `has_active_merge`.
+
+**Pre-flight validation** (`run_preflight()`): checks all WPs have worktrees, all are clean, target not behind origin. Returns `PreflightResult` with `.passed`, `.wp_statuses`, `.errors`, `.warnings`. `WPStatus` fields: `wp_id`, `worktree_path`, `branch_name`, `is_clean`, `error`.
+
+**Common commands:**
+```bash
+spec-kitty merge --resume          # resume interrupted
+spec-kitty merge --abort           # start fresh
+spec-kitty merge --dry-run         # conflict forecast
+spec-kitty merge --feature 017-my-feature
+```
+
+**Implementation files:** `merge/state.py`, `merge/preflight.py`, `merge/executor.py`, `merge/forecast.py`, `merge/status_resolver.py`, `cli/commands/merge.py`
+
+---
+
+## Status Model Patterns (034+, 060 cleanup)
+
+Append-only event log (`status.events.jsonl`) is the **sole authority** for WP lane state. Frontmatter `lane` is retired (migration-only). Phase 2 is the only active model as of 3.0.
+
+**Event format:**
+```json
+{"actor":"claude","at":"2026-02-08T12:00:00+00:00","event_id":"01HXYZ...","evidence":null,"execution_mode":"worktree","feature_slug":"034-feature","force":false,"from_lane":"planned","reason":null,"review_ref":null,"to_lane":"claimed","wp_id":"WP01"}
+```
+
+**Key functions:**
+
+| Function | Module | Purpose |
+|----------|--------|---------|
+| `emit_status_transition()` | `status.emit` | Single entry point: validate → persist → materialize → views → SaaS |
+| `reduce()` | `status.reducer` | Deterministic event → snapshot |
+| `append_event()` / `read_events()` | `status.store` | JSONL I/O with corruption detection |
+| `validate_transition()` | `status.transitions` | Check (from, to) against matrix + guards |
+| `resolve_phase()` | `status.phase` | meta.json > config.yaml > default(1) |
+| `resolve_lane_alias()` | `status.transitions` | `doing` → `in_progress` at input boundaries |
+
+**9-lane state machine:**
+```
+planned → claimed → in_progress → for_review → in_review → approved → done
+```
+`blocked` reachable from all non-terminal. `canceled` reachable from all. Alias: `doing` → `in_progress` (never persisted). Terminal: `done`, `canceled` (force required to leave).
+
+**Dependency gating:** WPs with `dependencies` frontmatter cannot be claimed/implemented until every dependency is `approved` or `done`. Computed by `dependency_readiness_for_wp()` (`src/specify_cli/core/dependency_graph.py`). `approved` satisfies the gate — gating on `done` only would deadlock same-mission chains. Re-invoking `implement` on an `in_progress` WP is a no-op resume (not re-gated).
+
+**Quick status check (recommended for agents):**
+```bash
+spec-kitty agent tasks status
+spec-kitty agent tasks status --feature 012-documentation-mission
+```
+
+**Package:** `src/specify_cli/status/` — `models.py`, `transitions.py`, `reducer.py`, `store.py`, `phase.py`, `emit.py`, `lane_reader.py`, `bootstrap.py`, `legacy_bridge.py`, `validate.py`, `doctor.py`, `reconcile.py`, `migrate.py` (migration-only), `history_parser.py` (migration-only).
+
+**Common operations:**
+```python
+from specify_cli.status.emit import emit_status_transition
+event = emit_status_transition(
+    feature_dir=feature_dir, feature_slug="034-feature",
+    wp_id="WP01", to_lane="claimed", actor="claude",
+)
+
+from specify_cli.status.reducer import materialize
+snapshot = materialize(feature_dir)
+```
+
+**Docs:** [docs/status-model.md](docs/status-model.md), [data-model.md](kitty-specs/034-feature-status-state-model-remediation/data-model.md)
+
+---
+
+## Mission Identity Model (083+)
+
+Every mission carries a ULID-based `mission_id` in `meta.json`. `mission_number` is display-only, assigned at merge time. Fixes `NNN-` prefix collision on selectors, branches, and dashboards.
+
+| Field | Type | Role | When assigned |
+|-------|------|------|---------------|
+| `mission_id` | ULID (26 chars) | Canonical machine identity (immutable) | At `mission create` |
+| `mid8` | First 8 chars | Branch/worktree disambiguator | Derived |
+| `mission_slug` | kebab slug | Human handle | At `mission create` |
+| `mission_number` | `int\|None` | Display-only, `null` pre-merge | At merge via `max+1` |
+| `friendly_name` | string | Human display | At `mission create` |
+
+`mission_id` is the only runtime identity. `mission_number` is never used for lookup, locking, or routing.
+
+**Naming:** Branch: `kitty/mission-<slug>-<mid8>-lane-<id>` | Worktree: `.worktrees/<slug>-<mid8>-lane-<id>`
+
+**Selector disambiguation:** Resolves `mission_id` → `mid8` → `mission_slug`. Ambiguous handles → structured error, **no silent fallback** (WP07 — reintroducing fallback is a regression).
+
+**Migration** (pre-083 projects):
+```bash
+spec-kitty doctor identity --json        # audit
+spec-kitty migrate backfill-identity     # mint mission_id for legacy missions
+spec-kitty doctor identity --json        # confirm
+```
+
+Full runbook: [docs/migration/mission-id-canonical-identity.md](docs/migration/mission-id-canonical-identity.md)
+
+---
+
+## Shared Package Boundary (2026-04-25)
+
+- **Runtime:** `src/runtime/next/_internal_runtime/` (canonical). `src/specify_cli/next/` is a deprecation shim removed in 3.3.0 — do not anchor new code there. `spec-kitty-runtime` PyPI package is retired.
+- **Events / Tracker:** External PyPI dependencies. Consume only via `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports. Vendored copies removed.
+- **Dev editable/path overrides:** never committed in `pyproject.toml [tool.uv.sources]`. See [docs/development/local-overrides.md](docs/development/local-overrides.md).
+
+Enforced by `tests/architectural/test_shared_package_boundary.py`, `test_pyproject_shape.py`, and the `clean-install-verification` CI job.
+
+ADR: [`architecture/3.x/adr/2026-04-25-1-shared-package-boundary.md`](architecture/3.x/adr/2026-04-25-1-shared-package-boundary.md). Runbook: [`docs/migration/shared-package-boundary-cutover.md`](docs/migration/shared-package-boundary-cutover.md).
+
+---
+
+## Charter Activation and Doctrine Integrity Model
+
+Governing ADR: [`architecture/3.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md`](architecture/3.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md)
+
+### Activation Engine (`charter.activation_engine`)
+
+Plan/commit seam: `plan_activation()` validates (non-mutating); `commit_activation()` writes config only after plan succeeds. Never mutates config on validation failure (NFR-003). `CharterPackConfigError` → fail-closed.
+
+```python
+plan = plan_activation(kind="directive", artifact_id="010-...", pack_context=ctx)
+commit_activation(plan, project_root=Path("."))
+```
+
+### Charter Cascade (`charter.cascade`)
+
+Follows DRG `requires`/`suggests` edges (not hardcoded per-kind logic).
+
+```bash
+charter activate mission-type research --cascade all
+charter activate mission-type research --cascade agent-profile,tactic
+charter deactivate mission-type research --cascade all
+```
+
+Without `--cascade`: warns about skipped artifacts with a suggested recovery command. **Shared-reference safety (C-005):** cascade deactivation skips artifacts still referenced by another active artifact.
+
+### Canonical Kind Vocabulary
+
+`charter.kind_vocabulary.from_operator_token` normalizes operator-facing tokens at input boundaries:
+
+| Token | Canonical kind |
+|-------|----------------|
+| `agent-profile` | `agent_profile` |
+| `mission-step-contract` | `mission_step_contract` |
+| `directive` / `tactic` / `styleguide` / `toolguide` / `paradigm` / `template` | (same) |
+| `mission-type` | raises `MissionTypeNotAnArtifactKind` |
+
+### `specializes_from` DRG Lineage
+
+Profile lineage is a DRG edge (C-009 binding constraint), not a per-profile field. Declare in org-pack DRG YAML:
+```yaml
+edges:
+  - source: "urn:profile:my-analyst"
+    target: "urn:profile:researcher-ryan"
+    relation: specializes_from
+```
+
+- Distinct from `delegates_to` (runtime work handoff).
+- Resolved via `AgentProfileRepository.resolve_profile` DRG traversal. Retired per-profile field form rejected at load time.
+- `enhances` = field-merge (preserves action sequence + step I/O); `overrides` = full replacement. Silently dropping steps or stripping step I/O is rejected.
+
+### Profile Load Diagnostics
+
+`AgentProfileRepository.skipped_profiles` exposes load failures without filesystem rescans. Included in `spec-kitty doctor doctrine --json`. A pack with invalid profiles is NOT reported healthy even if DRG counts are valid (FR-010).
+
+### Deferred Items
+
+- [#1622](https://github.com/Priivacy-ai/spec-kitty/issues/1622): `coordination.status_service` dead-symbol debt
+- [#1623](https://github.com/Priivacy-ai/spec-kitty/issues/1623): `doctor.py` god-module split (FR-012)
+- [#1624](https://github.com/Priivacy-ai/spec-kitty/issues/1624): `_tag_source` provenance sidecar typing (FR-013)
+
+---
 
 ## Branch Protection and CI
 
-`main` has a **Protect Main Branch** CI workflow that fails on any direct push. This is intentional branch-protection policy enforcement, not a code bug.
+`main` has a **Protect Main Branch** CI workflow that fails on direct pushes. This is intentional policy enforcement, not a code bug.
 
-- `spec-kitty merge` may push directly to `main` by design when the local target branch is clean and intentionally ready to publish. The "Protect Main Branch" failure this causes is **expected and known** — do not attempt to fix it as a code-health failure.
-- If `spec-kitty merge` blocks because local `main` is ahead of or diverged from `origin/main`, do **not** advise `git push origin main` just to satisfy the preflight. First inspect both commit history and changed paths:
+- `spec-kitty merge` may push directly to `main` by design; the "Protect Main Branch" failure is **expected and known** — do not attempt to fix it as a code-health failure.
+- If `spec-kitty merge` blocks because local `main` is ahead of/diverged from `origin/main`, inspect before acting:
   ```bash
   git log --oneline --left-right --cherry-pick main...origin/main
   git diff --name-only origin/main...main
   ```
-- If the ahead commits include Spec Kitty orchestration history, agent state commits, worktree bookkeeping, unrelated missions, or any other change outside the deliverable, use the focused PR branch path from the merge preflight instead of pushing `main`.
-- Only recommend pushing `main` after verifying every ahead commit belongs on `main` now and the human explicitly wants direct-main delivery.
-- The only CI result relevant to code health is **CI Quality**. If that passes, the commit is clean.
-- Do not create extra PRs, force-push, or revert commits to address the Protect Main Branch failure.
-
-## Common Pitfalls
-
-1. **Missing CLI checks**: Only add for agents that actually have CLI tools
-2. **Wrong argument format**: Use correct placeholder format for each agent type
-3. **Directory naming**: Follow agent-specific conventions exactly
-4. **Help text inconsistency**: Update all user-facing text consistently
-
-## Future Considerations
-
-When adding new agents:
-- Consider the agent's native command/workflow patterns
-- Ensure compatibility with the Spec-Driven Development process
-- Document any special requirements or limitations
-- Update this guide with lessons learned
+- If ahead commits include orchestration history, agent state, worktree bookkeeping, or unrelated missions, use the focused PR branch path from the merge preflight instead of pushing `main`.
+- Only push `main` directly after verifying every ahead commit belongs on `main` and the user explicitly wants direct-main delivery.
+- The only CI result relevant to code health is **CI Quality**. Do not create extra PRs, force-push, or revert commits to address the Protect Main Branch failure.
 
 ---
 
-*This documentation should be updated whenever new agents are added to maintain accuracy and completeness.*
-
-## Docker Mode Policy for `spec-kitty-saas`
+## Docker Mode Policy (`spec-kitty-saas`)
 
 When work touches `/spec-kitty-saas`, use two explicit Docker modes:
 
-- `dev-live` for implementation and debugging loops:
-  - `make docker-app-up-live`
-  - `make docker-auth-check-live` (optional during active implementation)
-  - `make docker-app-down-live`
-- `prod-like` for pre-merge and pre-deploy gates:
-  - `make docker-app-up`
-  - `make docker-auth-check` (required before Fly promotion)
-  - `make docker-app-down`
+- **`dev-live`** (implementation/debug loops): `make docker-app-up-live`, `make docker-app-down-live`
+- **`prod-like`** (pre-merge/pre-deploy gate): `make docker-app-up`, `make docker-auth-check` (required before Fly promotion), `make docker-app-down`
 
-Rules:
-- Default to `dev-live` while editing Python, templates, or assets.
-- Before merge or Fly promotion, always run and pass the `prod-like` auth preflight.
-- If tracker connectors are missing in UI, verify waffle flag `tracker_connectors` is enabled for the team.
-- Use skill `$spec-kitty-docker-modes` for Docker mode operations and auth preflight workflows.
-- Runbook source of truth: `spec-kitty-saas/docs/docker-development-modes.md` in the sibling SaaS repo checkout.
+Default to `dev-live` while editing Python, templates, or assets. Always run and pass `prod-like` auth preflight before merge or Fly promotion. If tracker connectors are missing in UI, verify waffle flag `tracker_connectors` is enabled for the team.
 
+Runbook: `spec-kitty-saas/docs/docker-development-modes.md` in the sibling SaaS repo.
 
 ---
 
-## Terminology Canon (Mission vs Feature)
+## Documentation Mission Patterns (0.11.0+)
 
-- Canonical product term is **Mission** (plural: **Missions**).
-- `Feature` / `Features` are prohibited in canonical, operator, and user-facing language for active systems.
-- Hard-break policy: do not introduce or preserve `feature*` aliases (API/query params, routes, fields, flags, env vars, command names, or docs) when the domain object is a Mission.
-- Use `Mission` / `Missions` as the only canonical term in active codepaths and interfaces.
-- Historical archived artifacts may retain legacy wording only as immutable snapshots and must be explicitly marked legacy.
+**Modes:** `initial` (from scratch), `gap_filling` (audit + fill gaps), `feature_specific` (one feature/component).
+
+**Divio types:** Tutorial (learning), How-To (task), Reference (API, often auto-generated), Explanation (architecture/why).
+
+**Generators:** JSDoc (JS/TS, `npx`), Sphinx (Python, `sphinx-build`), rustdoc (Rust, `cargo`).
+
+**Workflow:**
+```bash
+/spec-kitty.specify  # prompts for iteration_mode, divio_types, target_audience, generators
+/spec-kitty.plan && /spec-kitty.tasks
+/spec-kitty.implement  # creates Divio templates, configures generators, generates API docs
+/spec-kitty.review && /spec-kitty.accept
+```
+
+**Gap-filling:** Auto-detects framework, classifies docs by Divio type, builds coverage matrix, prioritizes: HIGH (missing tutorials/reference for core), MEDIUM (how-tos for advanced), LOW (explanations). Output: `gap-analysis.md`.
+
+**Troubleshooting:**
+```bash
+pip install sphinx sphinx-rtd-theme    # Python generator
+npm install --save-dev jsdoc docdash   # JavaScript generator
+```
+Low-confidence classification: add `---\ntype: tutorial\n---` frontmatter. Unpopulated templates: replace all `[TODO: ...]` placeholders.
+
+**Implementation:** `src/specify_cli/missions/documentation/mission.yaml`, `doc_generators.py`, `gap_analysis.py`, `doc_state.py`. User guide: [docs/documentation-mission.md](docs/documentation-mission.md).
+
+---
+
+## GitHub CLI Authentication
+
+If `gh` fails with "Missing required token scopes" on org repos, `GITHUB_TOKEN` may have limited scopes. Unset it to use keyring auth (gho_* token with full `repo` scope):
+
+```bash
+unset GITHUB_TOKEN && gh auth status  # verify keyring token is active
+unset GITHUB_TOKEN && gh issue comment <issue> --body "..."
+```
+
+## Other Notes
+
+Never claim frontend works without Playwright proof. API responses don't guarantee UI works; frontend can fail silently (404 caught, shows fallback).
+
+---
+
+## Skill Routing
+
+When user's request matches a skill, invoke via Skill tool. When in doubt, invoke.
+
+- Product ideas/brainstorming → `/office-hours`
+- Strategy/scope → `/plan-ceo-review`
+- Architecture → `/plan-eng-review`
+- Design system/plan review → `/design-consultation` or `/plan-design-review`
+- Full review pipeline → `/autoplan`
+- Bugs/errors → `/investigate`
+- QA/testing → `/qa` or `/qa-only`
+- Code review/diff → `/review`
+- Visual polish → `/design-review`
+- Ship/deploy/PR → `/ship` or `/land-and-deploy`
+- Save/resume context → `/context-save` / `/context-restore`
