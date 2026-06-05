@@ -14,7 +14,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "kitty-specs"
-GLOSSARY_SOURCE = ROOT / "glossary"
+GLOSSARY_SEED = ROOT / ".kittify" / "glossaries" / "spec_kitty_core.yaml"
+GLOSSARY_TEMPLATE = ROOT / "src" / "specify_cli" / "dashboard" / "templates" / "glossary.html"
 DEST = ROOT / "docs" / "kitty-specs"
 
 LANES = ["planned", "doing", "for_review", "approved", "done"]
@@ -532,56 +533,84 @@ def index_page(mission_list: list[Mission]) -> str:
     )
 
 
-def glossary_files() -> list[Path]:
-    files = [GLOSSARY_SOURCE / "README.md"]
-    files.extend(sorted((GLOSSARY_SOURCE / "contexts").glob("*.md")))
-    files.extend([GLOSSARY_SOURCE / "naming-decision-tool-vs-agent.md", GLOSSARY_SOURCE / "historical-terms.md"])
-    return [path for path in files if path.exists()]
+def yaml_scalar(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        return value[1:-1]
+    return value
 
 
-def glossary_page(mission_list: list[Mission]) -> str:
-    sections = []
-    links = []
-    for path in glossary_files():
-        rel = path.relative_to(ROOT).as_posix()
-        title = path.stem.replace("-", " ").replace("_", " ").title()
-        if path.name == "README.md":
-            title = "Glossary Overview"
-        elif path.parent.name == "contexts":
-            title = f"Context: {title}"
-        anchor = slugify(title)
-        links.append(f'<a class="artifact-row available" href="#{esc(anchor)}">📖 {esc(title)}</a>')
-        sections.append(
-            f'<section class="glossary-section" id="section-{esc(anchor)}">'
-            f'<div class="mission-number">{esc(rel)}</div>'
-            f"{markdown_to_html(read_text(path))}"
-            "</section>"
-        )
-    dashboard = (
-        dashboard_header(mission_list, None, "Glossary")
-        + f"""
-  <div class="container">
-    <div class="sidebar">
-      <a class="sidebar-item" href="./">📊 <span class="sidebar-label">All Mission Runs</span></a>
-      <a class="sidebar-item active" href="glossary.html">📖 <span class="sidebar-label">Glossary</span></a>
-    </div>
-    <div class="main-content">
-      <div class="content-card markdown-content">
-        <h2>Glossary</h2>
-        <p class="overview-context">Canonical Spec Kitty terminology, context domains, historical mappings, and naming decisions.</p>
-        <div class="artifacts-grid">{''.join(links)}</div>
-        {''.join(sections)}
-      </div>
-    </div>
-  </div>
-</div>
+def parse_glossary_seed(path: Path) -> list[dict[str, str | float]]:
+    terms: list[dict[str, str | float]] = []
+    current: dict[str, str | float] | None = None
+    lines = path.read_text(encoding="utf-8").splitlines()
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        stripped = line.strip()
+        if line.startswith("  - "):
+            if current:
+                terms.append(current)
+            current = {}
+            key, _, value = stripped[2:].partition(":")
+            current[key.strip()] = yaml_scalar(value)
+            index += 1
+            continue
+        if current is not None and line.startswith("    ") and ":" in stripped:
+            key, _, value = stripped.partition(":")
+            key = key.strip()
+            value = value.strip()
+            if key == "definition" and value in {">", "|"}:
+                block_lines: list[str] = []
+                index += 1
+                while index < len(lines) and (lines[index].startswith("      ") or not lines[index].strip()):
+                    block_lines.append(lines[index][6:] if lines[index].startswith("      ") else "")
+                    index += 1
+                current[key] = "\n".join(block_lines).strip() if value == "|" else " ".join(part.strip() for part in block_lines).strip()
+                continue
+            if key == "confidence":
+                with suppress(ValueError):
+                    current[key] = float(value)
+            elif key in {"surface", "definition", "status"}:
+                current[key] = yaml_scalar(value)
+        index += 1
+    if current:
+        terms.append(current)
+    return [
+        {
+            "surface": str(term.get("surface") or ""),
+            "definition": str(term.get("definition") or ""),
+            "status": str(term.get("status") or "draft"),
+            "confidence": float(term.get("confidence") or 0.0),
+        }
+        for term in terms
+        if term.get("surface")
+    ]
+
+
+def glossary_page(_mission_list: list[Mission]) -> str:
+    terms = parse_glossary_seed(GLOSSARY_SEED)
+    template = GLOSSARY_TEMPLATE.read_text(encoding="utf-8")
+    static_loader = f"""
+async function loadTerms() {{
+  TERMS = {json.dumps(terms, ensure_ascii=False)};
+  VALIDATION_ERRORS = [];
+  renderValidationBanner();
+  updateStats();
+  buildAlphaNav();
+  render();
+}}
 """
+    template = re.sub(
+        r"async function loadTerms\(\) \{.*?\n\}\n\nfunction renderValidationBanner\(",
+        lambda _match: static_loader + "\nfunction renderValidationBanner(",
+        template,
+        count=1,
+        flags=re.DOTALL,
     )
-    return html_document(
-        "Glossary",
-        "Canonical Spec Kitty terminology, context domains, historical mappings, and naming decisions.",
-        dashboard,
-    )
+    template = template.replace('href="/" title="Dashboard Overview"', 'href="./" title="Mission Runs"')
+    template = template.replace('href="/glossary" title="Glossary"', 'href="glossary.html" title="Glossary"')
+    return template
 
 
 def write_toc(mission_list: list[Mission]) -> None:
