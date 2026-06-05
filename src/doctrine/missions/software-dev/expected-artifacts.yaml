@@ -39,9 +39,10 @@ required_by_step:
       blocking: true
 
   implement:
-    # Implementation step requires code changes tracked via git
-    # Filesystem artifacts not blocking (tracked via git)
-    []
+    - artifact_key: "evidence.analysis-report"
+      artifact_class: "evidence"
+      path_pattern: "analysis-report.md"
+      blocking: true
 
   review:
     # Review step checks code quality and completeness

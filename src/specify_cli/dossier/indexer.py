@@ -245,6 +245,8 @@ class Indexer:
         # Evidence artifacts (check before policy/input, as names may overlap)
         if name in ["research.md"]:
             return "evidence"
+        if name == "analysis-report.md":
+            return "evidence"
         if "test" in name or name.startswith("test_"):
             return "evidence"
         if "gap-analysis" in name:

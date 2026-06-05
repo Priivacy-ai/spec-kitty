@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from specify_cli.analysis_report import write_analysis_report
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -456,7 +457,15 @@ def workflow_cli_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[
         ),
     )
     (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
+    (feature_dir / "spec.md").write_text("# Spec\n\nFR-001.\n", encoding="utf-8")
+    (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
     _write_cli_wp(tasks_dir / "WP01-test-task.md")
+    write_analysis_report(
+        feature_dir=feature_dir,
+        repo_root=repo,
+        body="# Analysis\n\nCritical Issues Count: 0\nHigh Issues Count: 0\nPASS\n",
+        analyzer_agent="test",
+    )
 
     workspace = repo / ".worktrees" / f"{mission_slug}-lane-a"
     workspace.mkdir(parents=True)

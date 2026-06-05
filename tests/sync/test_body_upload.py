@@ -68,6 +68,9 @@ class TestSurfaceFiltering:
     def test_tasks_md_accepted(self) -> None:
         assert _is_supported_surface("tasks.md") is True
 
+    def test_analysis_report_md_accepted(self) -> None:
+        assert _is_supported_surface("analysis-report.md") is True
+
     def test_research_md_accepted(self) -> None:
         assert _is_supported_surface("research.md") is True
 

@@ -489,6 +489,8 @@ _Mission lifecycle commands for AI agents_
 │ create               Create new mission directory structure in the project   │
 │                      root checkout.                                          │
 │ check-prerequisites  Validate mission structure and prerequisites.           │
+│ record-analysis      Persist `/spec-kitty.analyze` output as                │
+│                      `analysis-report.md`.                                  │
 │ setup-plan           Scaffold implementation plan template in the project    │
 │                      root checkout.                                          │
 │ accept               Perform mission acceptance workflow.                    │
@@ -606,6 +608,24 @@ _Mission lifecycle commands for AI agents_
 │                                             (e.g., 'already-confirmed' to    │
 │                                             bypass the prompt)               │
 │ --help                                      Show this message and exit.      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent mission record-analysis
+
+```
+ Usage: spec-kitty agent mission record-analysis [OPTIONS]
+
+ Persist `/spec-kitty.analyze` output as `analysis-report.md`.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --mission           TEXT  Mission slug (e.g., '020-my-mission')              │
+│ --input-file        TEXT  Markdown report path, or '-' to read report from   │
+│                           stdin                                              │
+│                           [default: -]                                       │
+│ --agent             TEXT  Agent name that produced the analysis report       │
+│ --json                    Output JSON format                                 │
+│ --help                    Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

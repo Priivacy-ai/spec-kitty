@@ -286,10 +286,11 @@ Syntax format in this reference:
 
 **What it does**:
 - Reads spec, plan, tasks, and charter (if present).
-- Produces a read-only analysis report of gaps and conflicts.
+- Produces and persists an analysis report of gaps and conflicts.
+- Records source artifact hashes so implementation can reject stale analysis.
 
 **Creates/updates**:
-- `kitty-specs/<feature>/analysis.md`
+- `kitty-specs/<feature>/analysis-report.md`
 
 **Related**: `/spec-kitty.tasks`, `/spec-kitty.implement`
 

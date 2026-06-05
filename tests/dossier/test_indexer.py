@@ -153,6 +153,15 @@ class TestArtifactClassification:
         artifact_class = indexer._classify_artifact(gap_file, None)
         assert artifact_class == "evidence"
 
+    def test_classify_analysis_report_as_evidence(self, tmp_path):
+        """Classify analysis-report.md as evidence."""
+        report_file = tmp_path / "analysis-report.md"
+        report_file.write_text("# Analysis Report")
+
+        indexer = Indexer(ManifestRegistry())
+        artifact_class = indexer._classify_artifact(report_file, None)
+        assert artifact_class == "evidence"
+
     def test_classify_test_file_as_evidence(self, tmp_path):
         """Classify test_*.py files as evidence."""
         test_file = tmp_path / "test_something.py"
