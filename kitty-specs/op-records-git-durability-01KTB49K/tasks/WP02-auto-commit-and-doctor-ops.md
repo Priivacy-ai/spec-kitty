@@ -600,3 +600,4 @@ Find the `[Unreleased]` section (or the current version section) and add:
 - 2026-06-05T06:37:01Z – claude:sonnet:python-pedro:implementer – shell_pid=55376 – Assigned agent via action command
 - 2026-06-05T06:43:44Z – claude:sonnet:python-pedro:implementer – shell_pid=55376 – Auto-commit wired, doctor ops created, CLI subcommand added, tests passing, CHANGELOG updated
 - 2026-06-05T06:44:18Z – claude:sonnet:python-pedro:reviewer – shell_pid=86628 – Started review via action command
+- 2026-06-05T06:47:03Z – user – shell_pid=86628 – Moved to planned

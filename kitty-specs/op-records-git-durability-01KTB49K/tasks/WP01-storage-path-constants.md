@@ -390,3 +390,4 @@ def test_mission_id_wp_id_included_when_set() -> None:
 - 2026-06-05T06:22:53Z – claude:sonnet:python-pedro:implementer – shell_pid=12604 – Assigned agent via action command
 - 2026-06-05T06:31:58Z – claude:sonnet:python-pedro:implementer – shell_pid=12604 – 5 constants redirected to kitty-ops/, mission_id/wp_id fields added, tests passing
 - 2026-06-05T06:32:32Z – claude:sonnet:spec-kitty-reviewer:reviewer – shell_pid=46963 – Started review via action command
+- 2026-06-05T06:36:22Z – user – shell_pid=46963 – All 5 constants redirected to kitty-ops/, mission_id/wp_id fields present, tests passing
