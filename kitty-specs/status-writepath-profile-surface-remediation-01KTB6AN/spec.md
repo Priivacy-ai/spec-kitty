@@ -9,7 +9,7 @@
 
 Close two distinct but independently-shippable remediation gaps that a prior mission and a doctrine-skill drift left behind:
 
-1. **#1667 residual — `MissionStatus` write path.** *(Scope materially reduced after dialectic review — see `dialectic-review.md`.)* The aggregate's read path shipped in `01KT6HVH` (WP04); its write-method **test coverage and `_read_meta` fail-closed guard then shipped in PR #1682** (`cdc258002`) — which the original spec missed because it relied on the pre-#1682 review report. The genuine residual is: (a) a `mission_slug` validation guard at `load()` (FR-007), and (b) **wiring the live status-write surface through the aggregate** — `agent status emit` currently calls `emit_status_transition_transactional` directly, leaving #1667's single-domain-ownership intent (FR-019/020) unmet. **Operator decision (2026-06-05): fork Y** — route `agent status emit` through `MissionStatus.transition()/.save()` (FR-004) so the aggregate is the sole status-write entry point, accepting overlap with #1673. #1667 stays open and is delivered here.
+1. **#1667 residual — `MissionStatus` write path.** *(Scope materially reduced after dialectic review — see `dialectic-review.md`.)* The aggregate's read path shipped in `01KT6HVH` (WP04); its write-method **test coverage and `_read_meta` fail-closed guard then shipped in PR #1682** (`cdc258002`) — which the original spec missed because it relied on the pre-#1682 review report. The genuine residual is: (a) a `mission_slug` validation guard at `load()` (FR-007), and (b) **wiring the live status-write surface through the aggregate** — `agent status emit` currently calls `emit_status_transition_transactional` directly, leaving #1667's single-domain status-write ownership intent unmet. **Operator decision (2026-06-05): fork Y** — route `agent status emit` through `MissionStatus.transition()/.save()` (FR-004) so the aggregate is the sole status-write entry point, accepting overlap with #1673. #1667 stays open and is delivered here.
 
 2. **#1636 — profile-load command surfaces.** The `ad-hoc-profile-load` doctrine skill documents four CLI commands (`agent profile show / hierarchy / init / create`) that do not exist; only `agent profile list` does, and it is **activation-blind** (returns every profile on disk regardless of charter activation). This mission delivers an **activation-aware** `profile list` and a new `profile show`, routes them through the existing charter activation chokepoint, and reconciles the skill doc so the documented workflow stops failing.
 
@@ -54,13 +54,9 @@ After reconciliation, the `ad-hoc-profile-load` skill's Step 1 invokes a command
 |----|-------------|--------|
 > **REVISED after dialectic review (`dialectic-review.md`); D-1 resolved → fork Y.** Test coverage + `_read_meta` fail-closed were already delivered by **PR #1682 (`cdc258002`)** (struck rows below). Active Workstream A = **FR-004** (wire the live write surface through the aggregate), **FR-007** (slug guard), **FR-008** (ratchet over the write path).
 
-| ~~FR-001~~ | `transition()` happy-path coverage | **ALREADY DONE** — `tests/unit/status/test_mission_status_aggregate.py:410` (#1682) |
-| ~~FR-002~~ | `transition()` rejection-path coverage | **ALREADY DONE** — `…:437` raises `InvalidTransitionError` before append (#1682) |
-| ~~FR-003~~ | `save()` → `CommitReceipt` coverage | **ALREADY DONE** — `…:463,528` (#1682) |
-| ~~FR-005~~ | invariants inside `transition()` not `BookkeepingTransaction` | **ALREADY TRUE** — `aggregate.py:355` validates; never lived in `BookkeepingTransaction` |
-| ~~FR-006~~ | `_read_meta` fail-closed on non-absent I/O errors | **ALREADY DONE** — raises `MissionMetadataUnavailable` at `aggregate.py:244-278` (#1682) |
+| _(already delivered by PR #1682 — not re-scoped)_ | `transition()`/`save()` unit coverage, invariant placement, and `_read_meta` fail-closed all landed in `cdc258002` (`tests/unit/status/test_mission_status_aggregate.py:410-537`, `aggregate.py:244-278/355`). | Done upstream |
 | FR-007 | `MissionStatus.load()` validates `mission_slug` against `^[A-Za-z0-9_-]+$` (`.isascii()`) at entry, typed error on mismatch, regression coverage incl. an accented-Latin case (DIRECTIVE_010/011). **Genuinely new** — no validation in `load()` today. | Proposed |
-| FR-004 | **DECIDED → fork Y (operator, 2026-06-05).** Route the live status-write surface `agent status emit` (`cli/commands/agent/status.py:275`) through `MissionStatus.transition()` + `MissionStatus.save()` instead of calling `emit_status_transition_transactional` directly, so #1667's FR-019/FR-020 single-domain-ownership is genuinely realized (the aggregate becomes the sole entry point for status writes). The existing `TransitionRequest` is passed through unchanged; behavior is preserved (the aggregate already delegates to the same transactional path). **Overlap with #1673 residue routing is accepted.** | Proposed |
+| FR-004 | **DECIDED → fork Y (operator, 2026-06-05).** Route the live status-write surface `agent status emit` (`cli/commands/agent/status.py:275`) through `MissionStatus.transition()` + `MissionStatus.save()` instead of calling `emit_status_transition_transactional` directly, so #1667's single-domain status-write ownership is genuinely realized (the aggregate becomes the sole entry point for status writes). The existing `TransitionRequest` is passed through unchanged; behavior is preserved (the aggregate already delegates to the same transactional path). **Overlap with #1673 residue routing is accepted.** | Proposed |
 | FR-008 | Extend the #1672 parity ratchet (`tests/architectural/test_execution_context_parity.py`) to assert CWD-invariance of the status **write** transition driven via `agent status emit` (now routed through `MissionStatus.transition()`), across main-checkout and lane-worktree CWDs. Ratchet stays green (C-008). Narrow slice of #1672; full sequence stays owned by its assignee. | Proposed |
 
 ### Workstream B — Profile-load command surfaces (#1636)
@@ -139,7 +135,7 @@ Surfaced for `plan` to resolve — not hidden in plan detail (per spec-kitty spe
 
 | # | Decision | Status | Notes |
 |---|----------|--------|-------|
-| D-1 | **#1667 disposition.** | **RESOLVED → fork Y** (operator, 2026-06-05) | Wire `agent status emit` through `MissionStatus.transition()/.save()` (FR-004) for true FR-019/020 single-domain-ownership; #1667 stays open and is delivered by this mission. #1673 overlap accepted. FR-008 (ratchet over the write path) is now active. |
+| D-1 | **#1667 disposition.** | **RESOLVED → fork Y** (operator, 2026-06-05) | Wire `agent status emit` through `MissionStatus.transition()/.save()` (FR-004) for true single-domain status-write ownership; #1667 stays open and is delivered by this mission. #1673 overlap accepted. FR-008 (ratchet over the write path) is now active. |
 | D-2 | **Lineage activation gate (FR-015):** leaf-only gate, abstract parents allowed. | **RESOLVED → Option A + warning** | Operator decision 2026-06-05: supports abstract base profiles (non-activated shared-element stores); inheritance must warn, never be silent. |
 | D-3 | **#1672 scope:** narrow slice (extend ratchet over write path) vs. full e2e ratchet. | **RESOLVED → narrow slice (FR-008)** | Full #1672 remains owned by its assignee; bundling the P0 gate would muddy ownership. |
 | D-4 | **`profile show` not-found schema:** exact JSON shape of `profile_not_activated` (field names, candidate list ordering). | **OPEN (low-risk)** | Align with existing selector-disambiguation error shape; finalize in `plan`/contracts. |
@@ -159,51 +155,6 @@ Surfaced for `plan` to resolve — not hidden in plan detail (per spec-kitty spe
 
 ---
 
-## Suggested Contracts & Design (authoring input for `plan`)
+## Contracts & Design
 
-> This section is advisory design carried from the pre-spec investigation. The `plan` phase should ratify or revise it. Full current-state evidence lives in `research.md`.
-
-### §A — `MissionStatus` write path
-
-Verified current state (`src/specify_cli/status/aggregate.py`):
-- `transition(self, request: TransitionRequest) -> StatusEvent` (~L313-378) — implemented; delegates to `coordination/status_transition.emit_status_transition_transactional`. **Untested.**
-- `save(self, *, operation: str) -> CommitReceipt` (~L380-417) — implemented; persists via `BookkeepingTransaction`. **Untested.**
-- Domain validation already available: `status/transitions.validate_transition(from_lane, to_lane, ctx) -> (ok, error)`.
-
-Design:
-- **Do not** add a new abstraction. Test the existing methods and resolve the wiring question (FR-004): the existing live transactional caller is `emit_status_transition_transactional`; decide whether `agent/status.py` (or a workflow surface) should call `MissionStatus.transition()` directly, or whether the aggregate method is the sanctioned façade *over* that function and the "no live caller" finding is closed by documenting + testing that delegation.
-- Fail-closed hardening (FR-006/FR-007) are small guards at `load()`/`_read_meta` entry.
-
-### §B — Profile activation seam (the central design)
-
-The activation model already exists end-to-end; the fix is wiring, not new machinery.
-
-```
-.kittify/config.yaml :: activated_agent_profiles (3-state)
-   │ PackContext.from_config(repo_root).activated_agent_profiles
-   ▼
-charter.resolver.DoctrineService(inner, pack_context).agent_profiles   ← activation chokepoint (resolver.py:120-129)
-   ▲ reused by: charter list, charter generate, org-layer lint, runtime/next
-   │  NEW consumers routed through the shared factory:
-   ├── profile list   (default activated-only; --all/--show-available escape)
-   ├── profile show    (activation-gated leaf; lineage Option A + warning)
-   └── charter context --include agent-profile:<id>
-```
-
-Proposed factory (single construction seam, generalising `charter/generate.py:46-74`):
-
-```python
-def build_activation_aware_doctrine_service(repo_root: Path) -> "charter.resolver.DoctrineService":
-    from charter.resolver import DoctrineService as ActivationDoctrineService
-    from charter.pack_context import PackContext
-    from doctrine.service import DoctrineService as InnerDoctrineService
-    inner = InnerDoctrineService(built_in_root=..., project_root=..., org_roots=...)
-    return ActivationDoctrineService(inner, pack_context=PackContext.from_config(repo_root))
-```
-
-`profile show` resolution algorithm (lineage Option A):
-1. **Visibility gate** — `service.agent_profiles.get(id)`; if absent and not `--all` → `profile_not_activated` error listing activated candidates.
-2. **Definition resolution** — render the full profile; compose `specializes_from` lineage via the inner `AgentProfileRepository.resolve_profile(id)` (may traverse non-activated parents = abstract bases).
-3. **Warning** — if any traversed ancestor ∉ activated set, emit a user-facing warning naming them ("resolved via non-activated parent profile(s): … — these act as abstract bases and are not directly selectable").
-
-Decision recorded for `plan` to lift into a short design note (not a full ADR): **lineage gate = Option A**, rationale = supports abstract superclass parent profiles (shared-element stores that are intentionally not resolvable/activatable on their own), with an explicit warning so the inheritance is never silent.
+Detailed contracts, seam maps, and the activation algorithm now live in the planning artifacts (authored post-spec): **[plan.md](./plan.md)** (architecture, data flow, test strategy) and **[data-model.md](./data-model.md)** (factory signature, `profile show` resolution, `profile_not_activated` schema, invariants). Pre-spec evidence is in **[research.md](./research.md)**; the scope correction is in **[dialectic-review.md](./dialectic-review.md)**.
