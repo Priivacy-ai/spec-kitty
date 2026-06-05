@@ -19,6 +19,8 @@ from specify_cli.doctrine_service_factory import (
     build_activation_aware_doctrine_service,
 )
 
+pytestmark = [pytest.mark.doctrine]
+
 
 def _write_config(repo_root: Path, body: str) -> None:
     kittify = repo_root / ".kittify"

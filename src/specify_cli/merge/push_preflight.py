@@ -17,12 +17,7 @@ from pathlib import Path
 from typing import Literal
 
 __all__ = [
-    "TargetBranchSyncState",
     "TargetBranchSyncStatus",
-    "TargetBranchRefreshStatus",
-    "TargetBranchPushSafetyResult",
-    "refresh_target_branch_tracking_ref",
-    "inspect_target_branch_sync",
     "check_push_safety",
 ]
 
