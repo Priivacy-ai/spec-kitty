@@ -246,9 +246,11 @@ def test_synthesized_drg_invalid_on_conflict_state(tmp_path: Path) -> None:
     assert result.synthesized_drg.state == "invalid"
     assert result.synthesized_drg.detail is not None
     assert "stale artifact" in result.synthesized_drg.detail
-    assert result.synthesized_drg.remediation == (
-        "spec-kitty charter synthesize --force-overwrite"
-    )
+    # #1717 Fix B: the remediation must be a real, runnable command. The prior
+    # `--force-overwrite` flag does not exist on `charter synthesize`; plain
+    # `charter synthesize` self-heals (Fix A unlinks the stale graph.yaml).
+    assert result.synthesized_drg.remediation == "spec-kitty charter synthesize"
+    assert "--force-overwrite" not in (result.synthesized_drg.remediation or "")
 
 
 def test_synthesized_drg_fresh_when_graph_followed_bundle(tmp_path: Path) -> None:

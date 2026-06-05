@@ -290,7 +290,11 @@ def test_governance_context_uses_contract_action_when_hint_supplied(tmp_path: Pa
 
     result = _run_software_dev_specify(repo_root)
 
-    jsonl_files = sorted((repo_root / EVENTS_DIR).glob("*.jsonl"))
+    jsonl_files = sorted(
+        path
+        for path in (repo_root / EVENTS_DIR).glob("*.jsonl")
+        if "index" not in path.name  # exclude the ops-index file (lives in EVENTS_DIR since #1714)
+    )
     assert len(jsonl_files) == len(result.steps)
 
     for path in jsonl_files:
@@ -310,7 +314,11 @@ def test_composed_action_pairs_started_with_completed(tmp_path: Path) -> None:
 
     result = _run_software_dev_specify(repo_root)
 
-    jsonl_files = sorted((repo_root / EVENTS_DIR).glob("*.jsonl"))
+    jsonl_files = sorted(
+        path
+        for path in (repo_root / EVENTS_DIR).glob("*.jsonl")
+        if "index" not in path.name  # exclude the ops-index file (lives in EVENTS_DIR since #1714)
+    )
     assert len(jsonl_files) == len(result.steps)
 
     for path in jsonl_files:
@@ -373,7 +381,11 @@ def test_composed_step_failure_writes_failed_completion(tmp_path: Path) -> None:
             )
         )
 
-    jsonl_files = sorted((repo_root / EVENTS_DIR).glob("*.jsonl"))
+    jsonl_files = sorted(
+        path
+        for path in (repo_root / EVENTS_DIR).glob("*.jsonl")
+        if "index" not in path.name  # exclude the ops-index file (lives in EVENTS_DIR since #1714)
+    )
     # Two invocations: the first closed with done, the second closed with failed.
     assert len(jsonl_files) == 2
 
@@ -523,7 +535,11 @@ def test_composed_action_outcome_is_done_even_though_composition_does_not_run_ll
 
     result = _run_software_dev_specify(repo_root)
 
-    jsonl_files = sorted((repo_root / EVENTS_DIR).glob("*.jsonl"))
+    jsonl_files = sorted(
+        path
+        for path in (repo_root / EVENTS_DIR).glob("*.jsonl")
+        if "index" not in path.name  # exclude the ops-index file (lives in EVENTS_DIR since #1714)
+    )
     assert len(jsonl_files) == len(result.steps)
     assert jsonl_files, "expected at least one composed-step JSONL"
 

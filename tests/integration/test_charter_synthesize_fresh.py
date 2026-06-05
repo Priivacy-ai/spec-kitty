@@ -331,3 +331,42 @@ def test_synthesize_without_charter_md_fails_actionably(tmp_path: Path) -> None:
         f"error must name a remediation step (generate or interview). "
         f"output={combined!r}"
     )
+
+
+def test_synthesize_fresh_seed_unlinks_preexisting_graph(tmp_path: Path) -> None:
+    """#1717 Fix A: a fresh-seed synthesize (built_in_only) must remove a stale
+    project-local ``graph.yaml`` so the freshness XOR invariant holds.
+
+    Repro of the terminal "invalid" trap: a project carries a committed
+    ``.kittify/doctrine/graph.yaml`` from a prior synthesis era, but
+    ``generated/`` is now empty so synthesize takes the fresh-seed path and
+    writes a ``built_in_only: true`` manifest. If it leaves graph.yaml behind,
+    ``compute_freshness`` classifies the synthesized DRG as ``invalid`` with no
+    working remediation.
+    """
+    from specify_cli.charter_freshness import compute_freshness
+
+    _git_init(tmp_path)
+    _write_minimal_interview(tmp_path)
+    _run_generate(tmp_path)
+
+    # Seed a stale project-local graph.yaml (the orphan residue).
+    doctrine_dir = tmp_path / ".kittify" / "doctrine"
+    doctrine_dir.mkdir(parents=True, exist_ok=True)
+    stale_graph = doctrine_dir / "graph.yaml"
+    stale_graph.write_text("schema_version: '1.0'\nnodes: []\nedges: []\n", encoding="utf-8")
+
+    result = _run_synthesize(tmp_path, "--json")
+    assert result.exit_code == 0, f"synthesize failed: {result.stdout!r}"
+
+    # The fresh-seed (built_in_only) path must have removed the stale graph.
+    assert not stale_graph.exists(), (
+        "fresh-seed synthesize left a stale graph.yaml, producing the "
+        "built_in_only ∧ graph-present conflict (#1717)"
+    )
+    # And freshness must NOT be the terminal 'invalid' state.
+    freshness = compute_freshness(tmp_path)
+    assert freshness.synthesized_drg.state != "invalid", (
+        f"synthesized_drg is {freshness.synthesized_drg.state!r}; "
+        "fresh-seed must leave a consistent built_in_only state"
+    )

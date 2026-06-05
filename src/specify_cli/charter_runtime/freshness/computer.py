@@ -346,7 +346,10 @@ def _compute_synthesized_drg(
         return FreshnessSubState(
             state="invalid",
             last_change=_mtime_iso(graph_path),
-            remediation="spec-kitty charter synthesize --force-overwrite",
+            # #1717 Fix B: plain `charter synthesize` self-heals this state (the
+            # fresh-seed path unlinks the stale graph.yaml — Fix A). The prior
+            # `--force-overwrite` flag never existed on the command.
+            remediation="spec-kitty charter synthesize",
             detail=(
                 "synthesis manifest declares built_in_only=true but "
                 "graph.yaml exists; this is a stale artifact"

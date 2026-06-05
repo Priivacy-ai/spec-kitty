@@ -74,17 +74,23 @@ def resolve_mission_read_path(
     mission_dir_name = _compose_mission_dir(mission_slug, mid8)
 
     coord_candidate: Path | None = None
+    coord_worktree_materialized = False
     if mid8:
         coord_root = CoordinationWorkspace.worktree_path(
             repo_root, mission_slug, mid8,
         )
+        coord_worktree_materialized = coord_root.exists()
         coord_candidate = coord_root / KITTY_SPECS_DIR / mission_dir_name
         if coord_candidate.exists():
             return coord_candidate
 
     primary_candidate = repo_root / KITTY_SPECS_DIR / mission_dir_name
     if primary_candidate.exists():
-        if coord_candidate is not None and _declares_coordination_branch(primary_candidate):
+        if (
+            coord_candidate is not None
+            and coord_worktree_materialized
+            and _declares_coordination_branch(primary_candidate)
+        ):
             raise StatusReadPathNotFound(
                 repo_root=repo_root,
                 mission_slug=mission_slug,

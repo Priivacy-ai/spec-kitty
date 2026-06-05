@@ -477,5 +477,6 @@ def _has_generated_artifacts(repo_root: Path) -> bool:
 from specify_cli.cli.commands.charter._fresh_doctrine import (  # noqa: E402,F401
     _MINIMAL_FRESH_DOCTRINE_PROVENANCE_TEMPLATE,
     _materialize_fresh_doctrine,
+    _planned_fresh_doctrine_deletes,
     _planned_fresh_doctrine_paths,
 )

@@ -201,7 +201,11 @@ def test_three_delegated_steps_execute_end_to_end_via_profile_invocation_executo
     assert result.steps[0].unresolved_candidates == ("not-selected",)
     assert all(step.invocation_payload is not None for step in result.steps)
 
-    jsonl_files = sorted((repo_root / EVENTS_DIR).glob("*.jsonl"))
+    jsonl_files = sorted(
+        path
+        for path in (repo_root / EVENTS_DIR).glob("*.jsonl")
+        if "index" not in path.name  # exclude the ops-index file (lives in EVENTS_DIR since #1714)
+    )
     assert len(jsonl_files) == 3
 
 

@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-06-05T06:08:03.869790+00:00",
+  "friendly_name": "status writepath profile surface remediation",
+  "mission_id": "01KTB6AN8XJWN4ZVMHK4YBAYBY",
+  "mission_number": null,
+  "mission_slug": "status-writepath-profile-surface-remediation-01KTB6AN",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances status writepath profile surface remediation on feature/status-writepath-profile-surface-remediation so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "status writepath profile surface remediation",
+  "slug": "status-writepath-profile-surface-remediation-01KTB6AN",
+  "target_branch": "feature/status-writepath-profile-surface-remediation"
+}

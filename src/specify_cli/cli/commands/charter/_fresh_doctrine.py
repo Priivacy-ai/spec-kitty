@@ -110,6 +110,14 @@ def _materialize_fresh_doctrine(repo_root: Path) -> list[str]:
     if not manifest_path.exists() or manifest_path.read_text(encoding="utf-8") != manifest_text:
         manifest_path.write_text(manifest_text, encoding="utf-8")
 
+    # #1717 Fix A: the fresh-seed manifest declares built_in_only=true, so the
+    # FR-009 XOR invariant (graph.yaml XOR built_in_only) requires removing any
+    # stale project-local graph.yaml. Leaving it produces the terminal
+    # built_in_only ∧ graph-present "invalid" freshness state. Mirrors the
+    # synthesizer's own post-condition (project_drg.apply_post_condition,
+    # has_project_graph=False) for the path that bypasses the synthesizer.
+    (doctrine_dir / "graph.yaml").unlink(missing_ok=True)
+
     return [
         str(provenance_path.relative_to(repo_root)),
         str(manifest_path.relative_to(repo_root)),
@@ -120,7 +128,7 @@ def _planned_fresh_doctrine_paths(repo_root: Path) -> list[str]:
     """Return the repo-relative paths a fresh-project synthesize would write.
 
     Used by ``--dry-run`` on a fresh project (#839 follow-up): callers preview
-    the materialization without touching the filesystem. Must mirror the
+    the materialization without touching the filesystem. Must mirror the write
     output of :func:`_materialize_fresh_doctrine` exactly.
     """
     doctrine_dir = repo_root / ".kittify" / "doctrine"
@@ -129,3 +137,11 @@ def _planned_fresh_doctrine_paths(repo_root: Path) -> list[str]:
         str((doctrine_dir / "PROVENANCE.md").relative_to(repo_root)),
         str((charter_dir / "synthesis-manifest.yaml").relative_to(repo_root)),
     ]
+
+
+def _planned_fresh_doctrine_deletes(repo_root: Path) -> list[str]:
+    """Return repo-relative paths fresh-project synthesize would delete."""
+    graph_path = repo_root / ".kittify" / "doctrine" / "graph.yaml"
+    if not graph_path.exists():
+        return []
+    return [str(graph_path.relative_to(repo_root))]

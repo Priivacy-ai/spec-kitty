@@ -95,3 +95,39 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Charter Compiler](#charter-compiler), [Doctrine Catalog](./doctrine.md#doctrine-catalog) |
+
+---
+
+### Activation Chokepoint
+
+| | |
+|---|---|
+| **Definition** | The single activation filter applied by `charter.resolver.DoctrineService` (the activation-aware wrapper). It enforces the project charter's per-kind activation state on a doctrine service's `paradigms`, `procedures`, and `agent_profiles` surfaces, so every profile-resolving path passes through one consistent filter rather than re-implementing activation logic. The factory `specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service` is the single construction seam that routes callers through this chokepoint. |
+| **Context** | Governance |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [Activated vs Available Profile](#activated-vs-available-profile), [Abstract Base Profile](#abstract-base-profile) |
+
+---
+
+### Activated vs Available Profile
+
+| | |
+|---|---|
+| **Definition** | An **available** profile is any agent profile present in a doctrine layer (built-in, org pack, or project). An **activated** profile is an available profile that the project charter has explicitly turned on via `activated_agent_profiles`. Three-state semantics: when the key is absent, every available profile is activated; an explicit empty set activates none; an explicit set activates only the listed IDs. Only activated profiles are directly selectable by default surfaces; available-but-not-activated profiles surface only under `--all`/`--show-available`. |
+| **Context** | Governance |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [Activation Chokepoint](#activation-chokepoint), [Abstract Base Profile](#abstract-base-profile) |
+
+---
+
+### Abstract Base Profile
+
+| | |
+|---|---|
+| **Definition** | An agent profile that is referenced via a `specializes_from` lineage edge but is **not itself activated** in the project charter. It acts as a shared-element store that concrete profiles inherit from; it is not directly selectable as a runtime persona. Resolving a profile whose lineage traverses an abstract base (an ancestor not in the activated set) yields a lineage warning rather than an error. |
+| **Context** | Governance |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [Activated vs Available Profile](#activated-vs-available-profile), [Activation Chokepoint](#activation-chokepoint) |

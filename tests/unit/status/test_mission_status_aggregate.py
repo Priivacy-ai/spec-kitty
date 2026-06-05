@@ -174,23 +174,70 @@ class TestLoadCoordMission:
 
 
 # ---------------------------------------------------------------------------
-# T025.3 — Fail-closed: coord declared but worktree missing
+# T025.3 — Transitional coord topology
 # ---------------------------------------------------------------------------
 
 
 class TestLoadCoordUnavailableFailsClosed:
-    def test_raises_coord_authority_unavailable_when_coord_missing(self, tmp_path: Path) -> None:
-        """coord-topology declared but coord path not on disk → raises, does NOT fall back."""
+    def test_uses_primary_when_coord_declared_but_worktree_not_materialized(self, tmp_path: Path) -> None:
+        """coord branch declared but no worktree root yet → primary is authoritative."""
         slug = "test-feature"
         mission_id = "01TESTKITTY12345678901234"
 
-        # Primary mission dir with coord declaration, but NO coord worktree
         primary_mission_dir = _make_mission_dir(tmp_path, slug)
         _write_meta(
             primary_mission_dir,
             mission_id=mission_id,
             coordination_branch=f"kitty/mission-{slug}-{mission_id[:8]}",
         )
+
+        from specify_cli.status.aggregate import MissionStatus
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+        assert ms.topology == "legacy"
+        assert ms.read_dir == primary_mission_dir
+        assert ms.coordination_branch == f"kitty/mission-{slug}-{mission_id[:8]}"
+
+    def test_bare_modern_slug_uses_composed_primary_dir_before_coord_materialized(
+        self, tmp_path: Path
+    ) -> None:
+        """Bare slug mirrors read resolvers: primary dir is ``<slug>-<mid8>``."""
+        bare_slug = "demo-feature"
+        mission_id = "01ABCDEF1234567890123456"
+        mid8 = mission_id[:8]
+        full_slug = f"{bare_slug}-{mid8}"
+        primary_mission_dir = _make_mission_dir(tmp_path, full_slug)
+        _write_meta(
+            primary_mission_dir,
+            mission_id=mission_id,
+            coordination_branch=f"kitty/mission-{full_slug}",
+        )
+
+        from specify_cli.status.aggregate import MissionStatus
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=bare_slug)
+
+        assert ms.read_dir == primary_mission_dir
+        assert ms.mid8 == mid8
+
+    def test_fails_closed_when_coord_worktree_materialized_but_missing_mission_dir(self, tmp_path: Path) -> None:
+        """Materialized coord worktree without mission dir is stale/empty hazard."""
+        slug = "stale-feature"
+        mission_id = "01STALEKITTY1234567890AB"
+        mid8 = mission_id[:8]
+
+        primary_dir = _make_mission_dir(tmp_path, slug)
+        _write_meta(
+            primary_dir,
+            mission_id=mission_id,
+            coordination_branch=f"kitty/mission-{slug}-{mid8}",
+        )
+        _write_events_file(primary_dir, [
+            _make_event(slug, "WP01", "planned", "claimed"),
+        ])
+        # Root exists, but kitty-specs/<slug>-<mid8>/ is absent.
+        (tmp_path / ".worktrees" / f"{slug}-{mid8}-coord").mkdir(parents=True)
 
         from specify_cli.status.aggregate import CoordAuthorityUnavailable, MissionStatus
 
@@ -200,28 +247,6 @@ class TestLoadCoordUnavailableFailsClosed:
         exc = exc_info.value
         assert exc.mission_slug == slug
         assert "coordination worktree unavailable" in str(exc).lower()
-
-    def test_does_not_fall_back_to_primary_checkout(self, tmp_path: Path) -> None:
-        """No silent fallback: coord-declared mission without coord worktree raises."""
-        slug = "stale-feature"
-        mission_id = "01STALEKITTY1234567890AB"
-
-        # Primary has events (potentially stale)
-        primary_dir = _make_mission_dir(tmp_path, slug)
-        _write_meta(
-            primary_dir,
-            mission_id=mission_id,
-            coordination_branch=f"kitty/mission-{slug}-{mission_id[:8]}",
-        )
-        _write_events_file(primary_dir, [
-            _make_event(slug, "WP01", "planned", "claimed"),
-        ])
-
-        from specify_cli.status.aggregate import CoordAuthorityUnavailable, MissionStatus
-
-        # Even though primary has events, we MUST raise — not silently use primary
-        with pytest.raises(CoordAuthorityUnavailable):
-            MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
 
     def test_corrupt_meta_fails_closed_instead_of_legacy_fallback(self, tmp_path: Path) -> None:
         """Existing but corrupt meta.json cannot degrade to a primary-checkout read."""
@@ -415,7 +440,8 @@ class TestTransitionHappyPath:
             _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH01"),
         ])
 
-        from specify_cli.status import InvalidTransitionError, TransitionRequest
+        from specify_cli.status import TransitionRequest
+        from specify_cli.status.emit import TransitionError
         from specify_cli.status.aggregate import MissionStatus
 
         ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
@@ -429,20 +455,21 @@ class TestTransitionHappyPath:
             feature_dir=ms.read_dir,
             mission_slug=slug,
         )
-        with pytest.raises((InvalidTransitionError, Exception)) as exc_info:
+        with pytest.raises(TransitionError) as exc_info:
             ms.transition(bad_request)
         # Must raise — must NOT silently succeed or call BookkeepingTransaction
         assert exc_info.value is not None
 
-    def test_transition_raises_invalid_transition_error_on_illegal_move(self, tmp_path: Path) -> None:
-        """transition() raises InvalidTransitionError, not a generic exception."""
+    def test_transition_preserves_illegal_move_message(self, tmp_path: Path) -> None:
+        """transition() preserves validator diagnostics for illegal moves."""
         slug = "034-invalid-transition"
         mission_dir = _make_mission_dir(tmp_path, slug)
         _write_events_file(mission_dir, [
             _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH20"),
         ])
 
-        from specify_cli.status import InvalidTransitionError, TransitionRequest
+        from specify_cli.status import TransitionRequest
+        from specify_cli.status.emit import TransitionError
         from specify_cli.status.aggregate import MissionStatus
 
         ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
@@ -455,8 +482,302 @@ class TestTransitionHappyPath:
             feature_dir=ms.read_dir,
             mission_slug=slug,
         )
-        with pytest.raises(InvalidTransitionError):
+        with pytest.raises(TransitionError, match="Illegal transition: claimed -> done"):
             ms.transition(bad_request)
+
+    def test_transition_coerces_unparseable_lanes_in_error_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """transition() preserves unknown-lane diagnostics instead of crashing."""
+        slug = "034-coerce-bogus-lanes"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        _write_events_file(mission_dir, [
+            _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH21"),
+        ])
+
+        import specify_cli.status as status_pkg
+        from specify_cli.status import TransitionRequest
+        from specify_cli.status.emit import TransitionError
+        from specify_cli.status.aggregate import MissionStatus
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+        # Force the resolved from-lane to a non-Lane string so the from-lane
+        # coercion hits the ValueError -> Lane.PLANNED fallback.
+        monkeypatch.setattr(status_pkg, "get_wp_lane", lambda *a, **k: "uninitialized")
+
+        bad_request = TransitionRequest(
+            wp_id="WP01",
+            to_lane="not-a-real-lane",  # unparseable to-lane -> ValueError fallback too
+            actor="claude",
+            feature_dir=ms.read_dir,
+            mission_slug=slug,
+        )
+        with pytest.raises(TransitionError, match="Unknown lane"):
+            ms.transition(bad_request)
+
+    def test_transition_preserves_guard_error_for_missing_done_evidence(
+        self, tmp_path: Path
+    ) -> None:
+        """Guard failures keep transactional TransitionError text."""
+        slug = "034-done-missing-evidence"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        _write_events_file(mission_dir, [
+            _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH26"),
+            _make_event(slug, "WP01", "claimed", "in_progress", event_id="01HXYZ0123456789ABCDEFGH27"),
+            _make_event(slug, "WP01", "in_progress", "for_review", event_id="01HXYZ0123456789ABCDEFGH28"),
+            _make_event(slug, "WP01", "for_review", "approved", event_id="01HXYZ0123456789ABCDEFGH29"),
+        ])
+
+        from specify_cli.status import TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+        from specify_cli.status.emit import TransitionError
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+        with pytest.raises(TransitionError, match="requires evidence"):
+            ms.transition(
+                TransitionRequest(
+                    wp_id="WP01",
+                    to_lane="done",
+                    actor="claude",
+                    feature_dir=ms.read_dir,
+                    mission_slug=slug,
+                )
+            )
+
+    def test_transition_preserves_legacy_alias_noop(self, tmp_path: Path) -> None:
+        """Legacy alias self-transitions remain no-ops through the aggregate."""
+        slug = "034-doing-noop"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        _write_events_file(mission_dir, [
+            _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH30"),
+            _make_event(slug, "WP01", "claimed", "in_progress", event_id="01HXYZ0123456789ABCDEFGH31"),
+        ])
+        before = (mission_dir / "status.events.jsonl").read_text(encoding="utf-8")
+
+        from specify_cli.status import TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+        event = ms.transition(
+            TransitionRequest(
+                wp_id="WP01",
+                to_lane="doing",
+                actor="claude",
+                feature_dir=ms.read_dir,
+                mission_slug=slug,
+            )
+        )
+
+        assert str(event.from_lane) == "in_progress"
+        assert str(event.to_lane) == "in_progress"
+        assert (mission_dir / "status.events.jsonl").read_text(encoding="utf-8") == before
+
+    def test_transition_validates_against_coord_branch_when_worktree_absent(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Pre-validation reads coord branch state when no coord worktree exists."""
+        slug = "coord-ahead"
+        mission_id = "01ABCDEF1234567890123456"
+        mid8 = mission_id[:8]
+        coord_branch = f"kitty/mission-{slug}-{mid8}"
+        repo = _make_git_repo(tmp_path)
+
+        primary_dir = _make_mission_dir(repo, slug)
+        _write_meta(primary_dir, mission_id=mission_id, coordination_branch=coord_branch)
+        _write_events_file(primary_dir, [
+            _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH32"),
+        ])
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-m", "primary claimed")
+        _git(repo, "checkout", "-b", coord_branch)
+        coord_dir = repo / "kitty-specs" / f"{slug}-{mid8}"
+        coord_dir.mkdir(parents=True)
+        _write_events_file(coord_dir, [
+            _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH33"),
+            _make_event(slug, "WP01", "claimed", "in_progress", event_id="01HXYZ0123456789ABCDEFGH34"),
+        ])
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-m", "coord in progress")
+        _git(repo, "checkout", "main")
+
+        from specify_cli.status import TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+        import specify_cli.coordination.status_transition as status_transition
+
+        marker = object()
+        monkeypatch.setattr(
+            status_transition,
+            "emit_status_transition_transactional",
+            lambda *args, **kwargs: marker,
+        )
+
+        ms = MissionStatus.load(repo_root=repo, mission_slug=slug)
+        assert ms.read_dir == primary_dir
+        result = ms.transition(
+            TransitionRequest(
+                wp_id="WP01",
+                to_lane="for_review",
+                actor="claude",
+                feature_dir=ms.read_dir,
+                mission_slug=slug,
+                subtasks_complete=True,
+                implementation_evidence_present=True,
+                repo_root=repo,
+            )
+        )
+
+        assert result is marker
+
+    def test_transition_treats_empty_event_log_as_planned(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Empty canonical log matches legacy writer: first transition starts planned."""
+        slug = "034-empty-log-transition"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        _write_events_file(mission_dir, [])
+
+        from specify_cli.status import TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+        import specify_cli.coordination.status_transition as status_transition
+
+        marker = object()
+
+        def _fake_transactional(request, **kwargs):  # noqa: ANN001, ANN003
+            assert request.wp_id == "WP01"
+            assert request.to_lane == "claimed"
+            return marker
+
+        monkeypatch.setattr(
+            status_transition,
+            "emit_status_transition_transactional",
+            _fake_transactional,
+        )
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+        result = ms.transition(
+            TransitionRequest(
+                wp_id="WP01",
+                to_lane="claimed",
+                actor="claude",
+                feature_dir=ms.read_dir,
+                mission_slug=slug,
+            )
+        )
+
+        assert result is marker
+
+    def test_transition_treats_unknown_wp_in_nonempty_log_as_planned(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Unknown WP rows match legacy writer: no WP state means planned."""
+        slug = "034-unknown-wp-transition"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        _write_events_file(mission_dir, [
+            _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH22"),
+        ])
+
+        from specify_cli.status import TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+        import specify_cli.coordination.status_transition as status_transition
+
+        marker = object()
+
+        def _fake_transactional(request, **kwargs):  # noqa: ANN001, ANN003
+            assert request.wp_id == "WP99"
+            assert request.to_lane == "claimed"
+            return marker
+
+        monkeypatch.setattr(
+            status_transition,
+            "emit_status_transition_transactional",
+            _fake_transactional,
+        )
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+        result = ms.transition(
+            TransitionRequest(
+                wp_id="WP99",
+                to_lane="claimed",
+                actor="claude",
+                feature_dir=ms.read_dir,
+                mission_slug=slug,
+            )
+        )
+
+        assert result is marker
+
+    def test_transition_infers_workspace_context_for_claimed_to_in_progress(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Aggregate pre-validation mirrors legacy workspace-context inference."""
+        slug = "034-claimed-to-progress"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        _write_events_file(mission_dir, [
+            _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH23"),
+        ])
+
+        from specify_cli.status import TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+        import specify_cli.coordination.status_transition as status_transition
+
+        marker = object()
+        monkeypatch.setattr(
+            status_transition,
+            "emit_status_transition_transactional",
+            lambda *args, **kwargs: marker,
+        )
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+        result = ms.transition(
+            TransitionRequest(
+                wp_id="WP01",
+                to_lane="in_progress",
+                actor="claude",
+                feature_dir=ms.read_dir,
+                mission_slug=slug,
+            )
+        )
+
+        assert result is marker
+
+    def test_transition_infers_for_review_guards(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Aggregate pre-validation mirrors legacy for_review guard inference."""
+        slug = "034-progress-to-review"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        _write_events_file(mission_dir, [
+            _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH24"),
+            _make_event(slug, "WP01", "claimed", "in_progress", event_id="01HXYZ0123456789ABCDEFGH25"),
+        ])
+        (mission_dir / "tasks.md").write_text(
+            "### WP01: Implement\n\n- [x] T001 Done\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.status import TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+        import specify_cli.coordination.status_transition as status_transition
+
+        marker = object()
+        monkeypatch.setattr(
+            status_transition,
+            "emit_status_transition_transactional",
+            lambda *args, **kwargs: marker,
+        )
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+        result = ms.transition(
+            TransitionRequest(
+                wp_id="WP01",
+                to_lane="for_review",
+                actor="claude",
+                feature_dir=ms.read_dir,
+                mission_slug=slug,
+            )
+        )
+
+        assert result is marker
 
 
 class TestSaveReturnType:
@@ -535,3 +856,83 @@ class TestSaveReturnType:
         ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
         with pytest.raises(MissionMetadataUnavailable, match="mission_id is required"):
             ms.save(operation="test-save")
+
+
+# ---------------------------------------------------------------------------
+# FR-007 / DIRECTIVE_010 — mission_slug ASCII allowlist guard at load()
+# ---------------------------------------------------------------------------
+
+
+class TestMissionSlugAllowlistGuard:
+    """``MissionStatus.load()`` rejects slugs outside ``^[A-Za-z0-9_-]+$``."""
+
+    @pytest.mark.parametrize(
+        "slug",
+        [
+            "034-feature-name",
+            "test-feature",
+            "save-legacy-01ABCDEF",
+            "WP_underscored",
+            "ABC123",
+        ],
+    )
+    def test_normal_ascii_slug_passes(self, tmp_path: Path, slug: str) -> None:
+        """Identifier-safe ASCII slugs load without raising."""
+        _make_mission_dir(tmp_path, slug)
+
+        from specify_cli.status.aggregate import MissionStatus
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+        assert ms.mission_slug == slug
+        # The validated identifier must be pure ASCII (FR-007).
+        assert ms.mission_slug.isascii()
+
+    def test_accented_latin_slug_is_rejected(self, tmp_path: Path) -> None:
+        """An accented-Latin slug (non-ASCII) is rejected at load()."""
+        slug = "café-mission"
+        # Defensive: the offending slug must not be ASCII, otherwise the test
+        # would not exercise the .isascii() branch of the guard.
+        assert not slug.isascii()
+
+        from specify_cli.status.aggregate import InvalidMissionSlug, MissionStatus
+
+        with pytest.raises(InvalidMissionSlug) as exc_info:
+            MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+        assert exc_info.value.mission_slug == slug
+        assert slug in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        "slug",
+        [
+            "feature/with-slash",
+            "feature with space",
+            "feature.with.dot",
+            "feature$injection",
+            "..",
+            "",
+            "naïve",  # accented variant of a common ASCII word
+            "münchen-mission",
+        ],
+    )
+    def test_disallowed_slugs_are_rejected(self, tmp_path: Path, slug: str) -> None:
+        """Path-injection and non-ASCII slugs all raise InvalidMissionSlug."""
+        from specify_cli.status.aggregate import InvalidMissionSlug, MissionStatus
+
+        with pytest.raises(InvalidMissionSlug):
+            MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+    def test_invalid_mission_slug_is_value_error_subclass(self) -> None:
+        """InvalidMissionSlug is a ValueError so existing handlers can catch it."""
+        from specify_cli.status.aggregate import InvalidMissionSlug
+
+        assert issubclass(InvalidMissionSlug, ValueError)
+
+    def test_invalid_mission_slug_importable_from_status_aggregate(self) -> None:
+        from specify_cli.status.aggregate import InvalidMissionSlug  # noqa: F401
+
+    def test_invalid_mission_slug_in_aggregate_dunder_all(self) -> None:
+        import specify_cli.status.aggregate as aggregate_mod
+
+        assert "InvalidMissionSlug" in aggregate_mod.__all__

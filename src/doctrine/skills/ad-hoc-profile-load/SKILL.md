@@ -10,7 +10,7 @@ description: >-
   "initialize profile", "assume the designer identity".
   Does NOT handle: mission advancement (use runtime-next), charter
   interview/generation (use charter-doctrine), or profile creation
-  (use spec-kitty agent profile create).
+  (use the charter synthesize workflow / edit the profile YAML directly).
 argument-hint: "<profile-id>"
 ---
 
@@ -36,7 +36,8 @@ Do NOT use this when:
 
 - A mission is running and `spec-kitty next` is driving the loop — the
   runtime assigns profiles automatically via DDR-011 matching
-- The user wants to create a new profile — use `spec-kitty agent profile create`
+- The user wants to create a new profile — use the charter synthesize
+  workflow (`spec-kitty charter synthesize`) or author the profile YAML directly
 - The user wants to modify an existing profile — edit the YAML directly
 
 ---
@@ -46,10 +47,13 @@ Do NOT use this when:
 If the user names a profile directly, load it. If they describe a role or
 task, resolve the best match.
 
-**By explicit ID:**
+**Inspect by explicit ID** — read the full resolved definition before
+adopting it:
 
 ```bash
 spec-kitty agent profile show <profile-id>
+# Add --all to inspect a non-activated abstract base profile:
+spec-kitty agent profile show <profile-id> --all
 ```
 
 ```python
@@ -78,7 +82,18 @@ profile = repo.find_best_match(context)
 
 ```bash
 spec-kitty agent profile list
-spec-kitty agent profile hierarchy
+```
+
+**One-shot invocation (when the user wants a profile-governed answer rather
+than to adopt the role for the session):** route the request through the
+canonical invoke surfaces instead of loading the profile manually:
+
+```bash
+# Ask a named profile to handle a specific request:
+spec-kitty ask <profile-id> "<request>"
+
+# Or let the router pick a profile for the request:
+spec-kitty advise "<request>" --profile <profile-id>
 ```
 
 ---
@@ -202,16 +217,16 @@ for mode in profile.mode_defaults:
 ## Step 5: Tool Context Persistence (Optional)
 
 To persist the profile for the current tool so it loads automatically on
-next session:
+next session, start an ad-hoc specialist session via the slash command:
 
-```bash
-spec-kitty agent profile init <profile-id>
+```
+/spec-kitty.profile-context <profile-id>
 ```
 
-This writes a `spec-kitty.profile-context.md` file to the active tool's
-command directory (e.g., `.claude/commands/`, `.cursor/commands/`). The
-profile context is then available to the agent on every invocation until
-replaced.
+This anchors the named profile as the active advisory context for the tool
+so it is available to the agent on subsequent turns. For a single
+profile-governed answer without persisting context, use `spec-kitty ask`
+or `spec-kitty advise` (see Step 1).
 
 ---
 
@@ -221,14 +236,16 @@ replaced.
 # List profiles
 spec-kitty agent profile list
 
-# Inspect a profile
+# Inspect a profile (add --all for non-activated abstract base profiles)
 spec-kitty agent profile show architect
+spec-kitty agent profile show architect --all
 
-# View hierarchy
-spec-kitty agent profile hierarchy
+# One-shot profile-governed invocation
+spec-kitty ask architect "<request>"
+spec-kitty advise "<request>" --profile architect
 
-# Persist to tool context
-spec-kitty agent profile init architect
+# Persist a profile as the tool's advisory context (slash command)
+# /spec-kitty.profile-context architect
 ```
 
 ```python

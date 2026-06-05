@@ -20,6 +20,18 @@ runner = CliRunner()
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "profiles"
 
 
+def _strip_readiness_banner(output: str) -> str:
+    """Drop environment-specific connected-teamspace readiness banner."""
+    lines = output.splitlines()
+    if lines and lines[0].startswith("spec-kitty: logged_out_on_connected_teamspace "):
+        return "\n".join(lines[1:]) + ("\n" if output.endswith("\n") else "")
+    return output
+
+
+def _json_payload(output: str):
+    return json.loads(_strip_readiness_banner(output))
+
+
 def _setup_project(tmp_path: Path) -> Path:
     """Set up a minimal project structure with fixture profiles."""
     kittify_dir = tmp_path / ".kittify"
@@ -42,7 +54,7 @@ class TestProfilesListJsonOutput:
         with patch("specify_cli.cli.commands.profiles_cmd.find_repo_root", return_value=project):
             result = runner.invoke(cli_app, ["profiles", "list", "--json"])
         assert result.exit_code == 0, result.output
-        data = json.loads(result.output)
+        data = _json_payload(result.output)
         assert isinstance(data, list)
 
     def test_json_output_has_required_fields(self, tmp_path: Path) -> None:
@@ -50,7 +62,7 @@ class TestProfilesListJsonOutput:
         with patch("specify_cli.cli.commands.profiles_cmd.find_repo_root", return_value=project):
             result = runner.invoke(cli_app, ["profiles", "list", "--json"])
         assert result.exit_code == 0
-        profiles = json.loads(result.output)
+        profiles = _json_payload(result.output)
         assert len(profiles) >= 1
         for p in profiles:
             assert "profile_id" in p
@@ -65,7 +77,7 @@ class TestProfilesListJsonOutput:
         project = _setup_project(tmp_path)
         with patch("specify_cli.cli.commands.profiles_cmd.find_repo_root", return_value=project):
             result = runner.invoke(cli_app, ["profiles", "list", "--json"])
-        profiles = json.loads(result.output)
+        profiles = _json_payload(result.output)
         profile_ids = [p["profile_id"] for p in profiles]
         assert "implementer-fixture" in profile_ids
 
@@ -84,7 +96,7 @@ class TestProfilesListTableOutput:
         with patch("specify_cli.cli.commands.profiles_cmd.find_repo_root", return_value=project):
             result = runner.invoke(cli_app, ["profiles", "list"])
         assert result.exit_code == 0
-        assert "implementer-fixture" in result.output
+        assert "implementer-fixture" in _strip_readiness_banner(result.output)
 
 
 class TestProfilesListNoProfiles:
@@ -101,7 +113,7 @@ class TestProfilesListNoProfiles:
         ):
             result = runner.invoke(cli_app, ["profiles", "list", "--json"])
         assert result.exit_code == 0
-        assert result.output.strip() == "[]"
+        assert _strip_readiness_banner(result.output).strip() == "[]"
 
     def test_no_profiles_table_shows_helpful_message(self, tmp_path: Path) -> None:
         """When no profiles found, a helpful message is shown."""
@@ -116,7 +128,8 @@ class TestProfilesListNoProfiles:
         ):
             result = runner.invoke(cli_app, ["profiles", "list"])
         assert result.exit_code == 0
-        assert "No profiles" in result.output or "charter" in result.output.lower()
+        output = _strip_readiness_banner(result.output)
+        assert "No profiles" in output or "charter" in output.lower()
 
 
 class TestProfilesHelp:
@@ -132,7 +145,7 @@ class TestAgentProfileCompatibilityAlias:
         with patch("specify_cli.cli.commands.profiles_cmd.find_repo_root", return_value=project):
             result = runner.invoke(cli_app, ["agent", "profile", "list", "--json"])
         assert result.exit_code == 0, result.output
-        profiles = json.loads(result.output)
+        profiles = _json_payload(result.output)
         profile_ids = [p["profile_id"] for p in profiles]
         assert "implementer-fixture" in profile_ids
         assert all(p["identifier"] == p["profile_id"] for p in profiles)

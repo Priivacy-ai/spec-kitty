@@ -350,8 +350,24 @@ def build_charter_context_include(
     if resolved_kind is ArtifactKind.TEMPLATE:
         return _render_template_include(repo_root, identifier, selector)
 
-    service = _build_doctrine_service(repo_root, org_roots=org_roots)
     canonical_kind = resolved_kind.value
+    if canonical_kind == ArtifactKind.AGENT_PROFILE.value:
+        # FR-016: the agent-profile fetch path must inherit the charter
+        # activation gate, so it (and only it) uses the activation-aware
+        # service. Every other include kind stays on the unwrapped service.
+        gated_service = _build_activation_aware_doctrine_service(
+            repo_root, org_roots=org_roots
+        )
+        # For a kind with a registered renderer (agent_profile has one),
+        # _render_doctrine_artifact_include renders the activated profile or
+        # raises ("No agent_profile found ...") for a gated/missing one — it
+        # never returns None here, so a direct return is sufficient (no dead
+        # fall-through branch to guard).
+        return _render_doctrine_artifact_include(
+            gated_service, canonical_kind, identifier
+        )
+
+    service = _build_doctrine_service(repo_root, org_roots=org_roots)
     if canonical_kind == ArtifactKind.DIRECTIVE.value:
         return _render_directive_include(service, identifier, selector)
     if canonical_kind == ArtifactKind.TACTIC.value:
@@ -1268,6 +1284,42 @@ def _build_doctrine_service(repo_root: Path, *, org_roots: list[Path] | None = N
     if org_roots:
         kwargs["org_roots"] = org_roots
     return DoctrineService(**kwargs)
+
+
+def _build_activation_aware_doctrine_service(
+    repo_root: Path, *, org_roots: list[Path] | None = None
+) -> object:
+    """Build an *activation-aware* doctrine service for ``--include`` fetches.
+
+    FR-016: ``charter context --include agent-profile:<id>`` must inherit the
+    charter activation gate so that a non-activated profile is treated as a
+    structured miss rather than silently rendered. This is the **scoped**
+    counterpart to :func:`_build_doctrine_service`: it builds the same inner
+    service (identical kwargs) and wraps it with the activation-aware
+    :class:`charter.resolver.DoctrineService`, supplying a freshly constructed
+    :class:`~charter.pack_context.PackContext` for *repo_root*.
+
+    Only the ``agent-profile`` include branch routes through this helper; the
+    other five callers of :func:`_build_doctrine_service` are deliberately left
+    on the unwrapped service so their return type and behaviour are unchanged.
+
+    Backward compatibility: when the project declares no agent-profile
+    activation restriction (``activated_agent_profiles is None`` — the default
+    for projects without an explicit charter activation list), the wrapper has
+    no filtering to apply, so the inner service is returned unwrapped. This
+    keeps pre-#1636 behaviour byte-identical for unrestricted projects while
+    enforcing the gate as soon as a restriction is configured.
+    """
+    from charter.pack_context import PackContext
+    from charter.resolver import DoctrineService as ActivationAwareDoctrineService
+
+    inner = _build_doctrine_service(repo_root, org_roots=org_roots)
+    pack_context = PackContext.from_config(repo_root)
+    if pack_context.activated_agent_profiles is None:
+        # No activation restriction configured: the gate is a no-op, so return
+        # the unwrapped service (identical to the legacy fetch path).
+        return inner
+    return ActivationAwareDoctrineService(inner, pack_context=pack_context)
 
 
 def _normalize_directive_id(raw: str) -> str:

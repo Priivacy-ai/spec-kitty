@@ -18,7 +18,9 @@ from rich.console import Console
 from rich.table import Table
 
 from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
+from specify_cli.lanes.branch_naming import mid8_from_slug
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.status.store import EVENTS_FILENAME, EventPersistenceError, StoreError
 
@@ -32,6 +34,25 @@ app = typer.Typer(
 
 console = Console()
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
+
+
+def _resolve_bare_modern_mission_slug(repo_root: Path, raw_handle: str) -> str | None:
+    """Resolve ``human-slug`` to ``human-slug-<mid8>`` when exactly one dir exists."""
+    if mid8_from_slug(raw_handle):
+        return None
+
+    specs_dir = repo_root / KITTY_SPECS_DIR
+    if not specs_dir.is_dir():
+        return None
+
+    matches = [
+        meta_path.parent.name
+        for meta_path in sorted(specs_dir.glob(f"{raw_handle}-*/meta.json"))
+        if mid8_from_slug(meta_path.parent.name)
+    ]
+    if len(matches) != 1:
+        return None
+    return matches[0]
 
 
 def _find_mission_slug(
@@ -80,6 +101,8 @@ def _find_mission_slug(
         legacy_dir = candidate_feature_dir_for_mission(get_main_repo_root(repo_root), raw_handle)
         if legacy_dir.exists():
             return raw_handle
+        if resolved_bare := _resolve_bare_modern_mission_slug(get_main_repo_root(repo_root), raw_handle):
+            return resolved_bare
         try:
             resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
             return resolved.mission_slug
@@ -152,6 +175,35 @@ def _resolve_feature_dir(
     return feature_dir, mission_slug, main_repo_root
 
 
+def _resolve_mission_status_for_repo(
+    main_repo_root: Path,
+    mission_slug: str,
+    json_output: bool = False,
+) -> Any:
+    """Resolve the coord-aware ``MissionStatus`` aggregate for a mission.
+
+    Centralises ``MissionStatus.load`` + fail-closed error handling so callers
+    that need the aggregate itself (not just its ``read_dir``) do not have to
+    ``load()`` twice. FR-004 routes status writes through the returned
+    aggregate's ``transition()`` method.
+
+    Returns:
+        The resolved :class:`~specify_cli.status.MissionStatus` aggregate.
+
+    Raises:
+        typer.Exit: If the slug is invalid or the coord authority is
+            unavailable / metadata cannot be trusted (fail closed).
+    """
+    from specify_cli.status import CoordAuthorityUnavailable, MissionMetadataUnavailable, MissionStatus
+    from specify_cli.status.aggregate import InvalidMissionSlug
+
+    try:
+        return MissionStatus.load(repo_root=main_repo_root, mission_slug=mission_slug)
+    except (CoordAuthorityUnavailable, MissionMetadataUnavailable, InvalidMissionSlug) as exc:
+        _output_error(json_output, str(exc))
+        raise typer.Exit(1)
+
+
 def _resolve_feature_dir_for_repo(
     main_repo_root: Path,
     mission_slug: str,
@@ -168,14 +220,8 @@ def _resolve_feature_dir_for_repo(
     Raises:
         typer.Exit: If CoordAuthorityUnavailable is raised.
     """
-    from specify_cli.status import CoordAuthorityUnavailable, MissionMetadataUnavailable, MissionStatus
-
-    try:
-        ms = MissionStatus.load(repo_root=main_repo_root, mission_slug=mission_slug)
-        return ms.read_dir, mission_slug, main_repo_root
-    except (CoordAuthorityUnavailable, MissionMetadataUnavailable) as exc:
-        _output_error(json_output, str(exc))
-        raise typer.Exit(1)
+    ms = _resolve_mission_status_for_repo(main_repo_root, mission_slug, json_output)
+    return ms.read_dir, mission_slug, main_repo_root
 
 
 @app.command()
@@ -246,8 +292,11 @@ def emit(
         # Resolve feature slug
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
-        # Resolve coord-aware mission directory via MissionStatus aggregate
-        feature_dir, _, _ = _resolve_feature_dir_for_repo(main_repo_root, mission_slug, json_output)
+        # Resolve coord-aware mission aggregate via MissionStatus.load(). The
+        # aggregate is retained (not just its read_dir) so the write below can
+        # route through it without loading twice (FR-004).
+        ms = _resolve_mission_status_for_repo(main_repo_root, mission_slug, json_output)
+        feature_dir = ms.read_dir
 
         # Parse evidence JSON if provided
         evidence = None
@@ -264,15 +313,15 @@ def emit(
                 raise typer.Exit(1)
 
         # Lazy import to avoid circular imports
-        from specify_cli.coordination.status_transition import (
-            emit_status_transition_transactional,
-        )
         from specify_cli.status.emit import (
             TransitionError,
         )
         from specify_cli.status.models import TransitionRequest
 
-        event = emit_status_transition_transactional(TransitionRequest(
+        # FR-004: the MissionStatus aggregate is the sole write entry point.
+        # ms.transition() validates and delegates to the transactional path,
+        # so this is behavior-preserving relative to the prior direct call.
+        event = ms.transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             wp_id=wp_id,
@@ -289,6 +338,23 @@ def emit(
             repo_root=main_repo_root,
         ))
 
+        # ``transition()`` can materialize the coordination worktree and write
+        # there even when the initial aggregate read from primary during the
+        # create→first-write window. Reload so machine output points at the
+        # event log affected by this command.
+        output_feature_dir = feature_dir
+        try:
+            output_feature_dir = type(ms).load(
+                repo_root=main_repo_root,
+                mission_slug=mission_slug,
+            ).read_dir
+        except Exception as reload_exc:  # noqa: BLE001
+            logger.debug(
+                "Could not reload mission status after transition for %s: %s",
+                mission_slug,
+                reload_exc,
+            )
+
         # Build result
         result = {
             "event_id": event.event_id,
@@ -296,7 +362,7 @@ def emit(
             "work_package_id": event.wp_id,
             "from_lane": str(event.from_lane),
             "to_lane": str(event.to_lane),
-            "status_events_path": str(feature_dir / EVENTS_FILENAME),
+            "status_events_path": str(output_feature_dir / EVENTS_FILENAME),
             "actor": event.actor,
         }
 

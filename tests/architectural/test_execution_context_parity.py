@@ -8,6 +8,31 @@ invoked from the main-checkout CWD or a lane-worktree CWD.
 The ratchet gates WP03, WP04, and WP06: those WPs can only be considered
 merged once this test is green.
 
+Write-path extension (#1672 / FR-008)
+-------------------------------------
+The original ratchet only proved that the status **read** (``agent tasks
+status --json``) is CWD-invariant. The status-writepath-profile-surface
+remediation mission (#1672) routed the status **write** (``agent status
+emit``) through ``MissionStatus.transition()`` (WP01), whose write target is
+the coord-aware ``read_dir`` (the primary-checkout authority), not a directory
+re-derived from the caller's CWD.
+
+``test_cwd_parity_write`` extends the ratchet to prove that a write transition
+driven via ``agent status emit`` produces an **identical deterministic event
+identity** (``from_lane`` / ``to_lane`` / ``wp_id`` / ``actor``) and an
+**identical resulting persisted lane** regardless of whether ``emit`` is run
+from the main-checkout CWD or from a lane-worktree CWD, and that the write
+lands in the **main checkout's** event log in both cases.
+
+``test_write_ratchet_catches_divergence`` is the anti-vacuity proof for the
+write path: it mirrors ``test_ratchet_catches_divergence`` and demonstrates
+that if the write surface re-derived its target from the worktree CWD (a
+divergence), the worktree-local event log would diverge from the main-checkout
+authority — proving the write ratchet is not vacuously green.
+
+These additions are purely additive: they do not weaken or alter the existing
+read-parity assertions (C-008).
+
 Design principles
 -----------------
 * Uses ``subprocess`` with explicit ``cwd=`` — NEVER ``os.chdir()`` which
@@ -475,4 +500,277 @@ def test_ratchet_catches_divergence(tmp_path: Path) -> None:
         f"divergent transition. This means the divergent data in the worktree "
         f"cannot be used to detect a CWD routing regression. "
         f"Revise the test setup."
+    )
+
+
+# ---------------------------------------------------------------------------
+# WRITE-PATH RATCHET (#1672 / FR-008)
+# ---------------------------------------------------------------------------
+#
+# WP01 routed ``agent status emit`` through ``MissionStatus.transition()``,
+# whose write target is the coord-aware ``read_dir`` (the primary-checkout
+# authority). The tests below ratchet the CWD-invariance of that WRITE
+# transition. They reuse the proven ``_build_repo`` fixture helper and the same
+# ``_spec_kitty`` subprocess invocation (``sys.executable -m specify_cli``) as
+# the read-path tests, so they run under the identical CI job and markers
+# (``architectural``, ``git_repo``, ``non_sandbox``) with no new exclusion.
+# ---------------------------------------------------------------------------
+
+
+def _emit_status(
+    cwd: Path,
+    mission_slug: str,
+    wp_id: str,
+    to_lane: str,
+    actor: str,
+) -> dict:
+    """Run ``spec-kitty agent status emit ... --json`` and parse the output.
+
+    Returns the parsed JSON dict describing the emitted event.  Raises
+    ``AssertionError`` on non-zero exit so a CLI failure surfaces with full
+    diagnostics rather than an opaque ``KeyError`` downstream.
+    """
+    result = _spec_kitty(
+        [
+            "agent",
+            "status",
+            "emit",
+            wp_id,
+            "--to",
+            to_lane,
+            "--actor",
+            actor,
+            "--mission",
+            mission_slug,
+            "--json",
+        ],
+        cwd=cwd,
+    )
+    assert result.returncode == 0, (
+        f"spec-kitty agent status emit failed (cwd={cwd}):\n"
+        f"  stdout: {result.stdout.strip()[:500]}\n"
+        f"  stderr: {result.stderr.strip()[:500]}"
+    )
+    return json.loads(result.stdout)
+
+
+def _event_identity(emit_json: dict) -> dict[str, str]:
+    """Extract the *deterministic* identity of an emitted event.
+
+    The ``event_id`` is a freshly minted ULID and is therefore intentionally
+    excluded: it is unique per emission and would never match across two
+    independent writes.  The fields below are the parts of the event identity
+    that MUST be CWD-invariant for the same (wp, to_lane, actor) transition.
+    """
+    return {
+        "wp_id": emit_json["wp_id"],
+        "from_lane": emit_json["from_lane"],
+        "to_lane": emit_json["to_lane"],
+        "actor": emit_json["actor"],
+    }
+
+
+def test_cwd_parity_write(tmp_path: Path) -> None:
+    """CWD-invariance of the status WRITE transition (#1672 / FR-008).
+
+    Drives ``spec-kitty agent status emit WP01 --to claimed`` against two
+    *independent but identically seeded* repos:
+
+    * one write is issued from the **main-checkout CWD**
+    * the other is issued from the **lane-worktree CWD**
+
+    Two independent repos are used (rather than two writes against one repo)
+    so that each ``emit`` exercises the *same* ``planned -> claimed`` first
+    transition; issuing both against a single repo would make the second a
+    no-op / illegal re-transition and so would not test parity of the write.
+
+    The ratchet asserts that:
+
+    1. the **deterministic emitted event identity** (``from_lane`` /
+       ``to_lane`` / ``wp_id`` / ``actor``) is identical across both CWDs, and
+    2. the **resulting persisted lane** is identical (``claimed``), and
+    3. in BOTH cases the write landed in the **main checkout's** event log
+       (the coord-aware authority), NOT the worktree's ``kitty-specs/`` — i.e.
+       the write target is CWD-invariant.
+
+    Failure indicates that the write path re-derives its execution context /
+    target directory from the caller's CWD, which is the regression class this
+    write ratchet exists to catch.
+    """
+    # Repo A: write issued from the main-checkout CWD.
+    base_a = tmp_path / "a"
+    base_a.mkdir()
+    repo_a_root, _worktree_a = _build_repo(base_a)
+    # Repo B: write issued from the lane-worktree CWD.
+    base_b = tmp_path / "b"
+    base_b.mkdir()
+    repo_b_root, worktree_b = _build_repo(base_b)
+
+    mission_slug = _MISSION_SLUG
+
+    main_emit = _emit_status(
+        cwd=repo_a_root,
+        mission_slug=mission_slug,
+        wp_id="WP01",
+        to_lane="claimed",
+        actor="parity-writer",
+    )
+    lane_emit = _emit_status(
+        cwd=worktree_b,
+        mission_slug=mission_slug,
+        wp_id="WP01",
+        to_lane="claimed",
+        actor="parity-writer",
+    )
+
+    # (1) Deterministic event identity must match across CWDs.
+    assert _event_identity(main_emit) == _event_identity(lane_emit), (
+        "Write-path CWD divergence: the emitted event identity differs "
+        "depending on the caller's working directory.\n"
+        f"  from main-checkout CWD: {_event_identity(main_emit)!r}\n"
+        f"  from lane-worktree CWD: {_event_identity(lane_emit)!r}\n"
+        "The status write must produce the same (from_lane, to_lane, wp_id, "
+        "actor) transition regardless of CWD."
+    )
+
+    # Sanity: the transition is the expected planned -> claimed.
+    assert main_emit["from_lane"] == "planned"
+    assert main_emit["to_lane"] == "claimed"
+
+    # (2) The resulting persisted lane must be identical across both CWDs.
+    main_lanes = _wp_lanes(
+        _get_status_json(cwd=repo_a_root, mission_slug=mission_slug)
+    )
+    lane_lanes = _wp_lanes(
+        _get_status_json(cwd=repo_b_root, mission_slug=mission_slug)
+    )
+    assert main_lanes.get("WP01") == "claimed", (
+        f"Write from main-checkout CWD did not persist 'claimed'; "
+        f"got {main_lanes.get('WP01')!r}"
+    )
+    assert lane_lanes.get("WP01") == "claimed", (
+        f"Write from lane-worktree CWD did not persist 'claimed'; "
+        f"got {lane_lanes.get('WP01')!r}"
+    )
+    assert main_lanes.get("WP01") == lane_lanes.get("WP01"), (
+        "Write-path CWD divergence: the resulting lane differs across CWDs.\n"
+        f"  main-checkout CWD wrote -> {main_lanes.get('WP01')!r}\n"
+        f"  lane-worktree CWD wrote -> {lane_lanes.get('WP01')!r}"
+    )
+
+    # (3) The write issued from the worktree CWD must have landed in the MAIN
+    # checkout's event log (the coord-aware authority), NOT the worktree's own
+    # kitty-specs/. A divergent write target would write 'claimed' into the
+    # worktree copy instead.
+    from specify_cli.status.lane_reader import get_wp_lane
+
+    main_authority_dir = repo_b_root / "kitty-specs" / mission_slug
+    assert get_wp_lane(main_authority_dir, "WP01") == "claimed", (
+        "Write from the lane-worktree CWD did not land in the main checkout's "
+        "event log; the write target was re-derived from the worktree CWD."
+    )
+    # The worktree carries its own checked-out copy of the seeded event log
+    # (committed before the worktree was created). The write issued from the
+    # worktree CWD must NOT have touched that copy — its WP01 lane must remain
+    # the seeded ``planned``. If the write target were CWD-derived, this copy
+    # would read ``claimed`` instead.
+    worktree_feature_dir = worktree_b / "kitty-specs" / mission_slug
+    assert get_wp_lane(worktree_feature_dir, "WP01") == "planned", (
+        "Write from the lane-worktree CWD mutated the worktree-local event log "
+        f"at {worktree_feature_dir}; the write target must remain the "
+        "CWD-invariant main-checkout authority, leaving the worktree copy at "
+        "its seeded 'planned' state."
+    )
+
+
+def test_write_ratchet_catches_divergence(tmp_path: Path) -> None:
+    """Anti-vacuity proof for the WRITE ratchet (#1672 / FR-008).
+
+    Mirrors ``test_ratchet_catches_divergence`` for the write path. It proves
+    that the write ratchet would catch a genuine CWD-routing regression: if a
+    future change caused ``agent status emit`` to write into the worktree's own
+    ``kitty-specs/`` (instead of the CWD-invariant main-checkout authority), the
+    worktree-local event log would diverge from the main checkout — and
+    ``test_cwd_parity_write``'s assertion (3) would fail.
+
+    Construction (without relying on a real regression):
+
+    1. Build a repo with a worktree.
+    2. Issue a real write (``emit WP01 --to claimed``) from the worktree CWD.
+       Under the *current* (correct) implementation this lands in the main
+       checkout's event log.
+    3. Simulate the regression by writing a *divergent* event log directly into
+       the worktree's ``kitty-specs/`` that drives WP01 to ``in_progress``.
+    4. Assert the two surfaces disagree (main authority = ``claimed`` from the
+       real write; worktree-local = ``in_progress`` from the simulated
+       regression). This disagreement is exactly what the write ratchet would
+       surface if the write target were CWD-derived.
+
+    If the two surfaces agreed, the worktree-local data could not be used to
+    detect a write-target regression and the ratchet would be vacuous.
+    """
+    repo_root, worktree_path = _build_repo(tmp_path)
+    mission_slug = _MISSION_SLUG
+
+    # (2) Real write from the worktree CWD -> lands in the main authority.
+    _emit_status(
+        cwd=worktree_path,
+        mission_slug=mission_slug,
+        wp_id="WP01",
+        to_lane="claimed",
+        actor="parity-writer",
+    )
+
+    from specify_cli.status.lane_reader import get_wp_lane
+
+    main_authority_dir = repo_root / "kitty-specs" / mission_slug
+    main_wp1_lane = get_wp_lane(main_authority_dir, "WP01")
+    assert main_wp1_lane == "claimed", (
+        "Setup error: the real write from the worktree CWD should have "
+        f"persisted 'claimed' in the main authority; got {main_wp1_lane!r}."
+    )
+
+    # (3) Simulate a CWD-routing regression: write a divergent event log into
+    # the worktree's own kitty-specs/ that drives WP01 to 'in_progress'.
+    worktree_feature_dir = worktree_path / "kitty-specs" / mission_slug
+    worktree_feature_dir.mkdir(parents=True, exist_ok=True)
+    divergent_events = [
+        _make_status_event(
+            "WP01",
+            from_lane="planned",
+            to_lane="planned",
+            event_id="01TESTPARITY00000000000P01",
+            at="2026-06-03T10:00:00+00:00",
+        ),
+        _make_status_event(
+            "WP01",
+            from_lane="planned",
+            to_lane="in_progress",
+            event_id="01TESTPARITY0000WRITEDVRG01",
+            at="2026-06-03T11:00:00+00:00",
+        ),
+    ]
+    (worktree_feature_dir / "status.events.jsonl").write_text(
+        "\n".join(divergent_events) + "\n", encoding="utf-8"
+    )
+
+    from specify_cli.status.reducer import reduce
+    from specify_cli.status.store import read_events
+
+    worktree_snapshot = reduce(read_events(worktree_feature_dir))
+    worktree_wp1_lane = (
+        worktree_snapshot.work_packages.get("WP01", {}).get("lane", "planned")
+    )
+    assert worktree_wp1_lane == "in_progress", (
+        "Injection proof setup error: the simulated regression's worktree-local "
+        f"event log should show WP01 as 'in_progress'; got {worktree_wp1_lane!r}."
+    )
+
+    # (4) The main authority (real write) and the worktree-local (simulated
+    # regression) surfaces must disagree, proving the ratchet is not vacuous.
+    assert main_wp1_lane != worktree_wp1_lane, (
+        "Injection proof inconclusive: the main-checkout authority and the "
+        f"worktree-local event log both report {main_wp1_lane!r}. A write-target "
+        "CWD-routing regression could not be detected, so the write ratchet "
+        "would be vacuous. Revise the test setup."
     )
