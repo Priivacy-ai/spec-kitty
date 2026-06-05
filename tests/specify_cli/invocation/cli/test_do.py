@@ -251,6 +251,7 @@ class TestDoSuccessfulRouting:
                 ["do", "implement the feature"],
             )
         assert result.exit_code == 0, result.output
+        assert "Close this record" not in result.output
 
     def test_rich_output_surfaces_high_severity_glossary_warning(self, tmp_path: Path) -> None:
         """High-severity glossary conflicts should be shown inline before governance context."""

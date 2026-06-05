@@ -90,10 +90,6 @@ def _render_rich_payload(payload: InvocationPayload) -> None:
             "[yellow]Governance context unavailable.[/yellow] "
             "Run 'spec-kitty charter synthesize'."
         )
-    console.print(
-        f"\n[dim]Close this record:[/dim] "
-        f"spec-kitty profile-invocation complete --invocation-id {payload.invocation_id}"
-    )
 
 
 # ---------------------------------------------------------------------------
