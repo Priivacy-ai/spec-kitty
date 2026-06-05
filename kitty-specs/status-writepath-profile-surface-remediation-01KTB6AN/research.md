@@ -1,5 +1,7 @@
 # Research — MissionStatus Write-Path Completion & Profile-Load Surface Remediation
 
+> ⚠️ **CORRECTED after dialectic review (`dialectic-review.md`, 2026-06-05).** This research was originally built on the `01KT6HVH` **mission-review-report** (RISK-001/RISK-006), which was **stale**: PR #1682 (`cdc258002`) landed afterward and already (a) added `transition()`/`save()` unit tests at `tests/unit/status/test_mission_status_aggregate.py:410-537` and (b) made `_read_meta` fail-closed. Part-1 claims of "UNTESTED" and "silently returns (None,False)" below are **superseded** — see the strike-through corrections inline and the revised `spec.md`. The profile-load (Part 2) findings stand, with the FR-016 contract corrected (see `spec.md` FR-016 / `data-model.md`).
+
 Pre-spec investigation captured for the mission so `plan` builds on verified evidence rather than re-discovering it. All file:line citations verified on `feature/status-writepath-profile-surface-remediation` (base = `main` @ `7f0bb31d9`) on 2026-06-05.
 
 ---
@@ -14,16 +16,16 @@ Pre-spec investigation captured for the mission so `plan` builds on verified evi
 | `ActiveWPStatus` projection | `src/specify_cli/status/aggregate.py:98` | Shipped |
 | `MissionStatus.load(repo_root, mission_slug)` | `aggregate.py:145` | Shipped + **tested** (FR-017 ADEQUATE) |
 | `MissionStatus.claim(wp_id)` | `aggregate.py:292` | Shipped + **tested** (FR-018 ADEQUATE) |
-| `MissionStatus.transition(request)` | `aggregate.py:~313-378` | Shipped, **UNTESTED, no live caller** |
-| `MissionStatus.save(*, operation)` | `aggregate.py:~380-417` | Shipped, **UNTESTED, no live caller** |
+| `MissionStatus.transition(request)` | `aggregate.py:~355-378` | Shipped + **TESTED** (`tests/unit/status/test_mission_status_aggregate.py:410,437`, #1682). Still **no live production caller** |
+| `MissionStatus.save(*, operation)` | `aggregate.py:~397-417` | Shipped + **TESTED** (`…:463,528`, #1682). Still **no live production caller** |
 | `CoordAuthorityUnavailable` (fail-closed) | `aggregate.py:45` | Shipped |
 | `agent/status.py` read-path migration | `cli/commands/agent/status.py:146,174,250,358,822` | Shipped — uses `MissionStatus.load().read_dir`; zero raw `kitty-specs/mission_slug` reads |
 
 ### 1.2 The residual (from `01KT6HVH` mission-review-report.md)
 
-- **RISK-001 (HIGH):** `transition()` and `save()` are implemented but have **zero unit coverage** and **no live caller** in production `src/` outside `agent/status.py` (which only calls `.load()/.claim()`). FR-019/FR-020/FR-023 are therefore "implemented but unverifiable."
-- **RISK-006:** `MissionStatus._read_meta` silently returns `(None, False)` on I/O errors, making a genuine read failure indistinguishable from a legacy (no-meta) mission.
-- **Recommendation (review §286):** add unit tests for `transition()` (happy + rejection) and `save()` (happy + receipt); investigate whether `agent/status.py` was meant to call `.transition()` or whether a wiring point is missing → **this is open decision D-1**.
+- ~~**RISK-001 (HIGH):** zero unit coverage~~ → **RESOLVED by #1682** (tests added). The *only* surviving half is **no live production caller**: `agent status emit` calls `emit_status_transition_transactional` directly (`cli/commands/agent/status.py:275`), bypassing the aggregate. This is the open D-1 fork (wire vs close #1667).
+- ~~**RISK-006:** `_read_meta` silently returns `(None, False)`~~ → **RESOLVED by #1682**: `_read_meta` now raises `MissionMetadataUnavailable` on OSError/JSONDecodeError/non-dict/non-string fields (`aggregate.py:244-278`). FR-006 is a no-op.
+- **Genuinely remaining (Workstream A):** FR-007 slug allowlist guard in `load()` (confirmed absent) + the D-1 decision.
 
 ### 1.3 Reuse map for the write path
 

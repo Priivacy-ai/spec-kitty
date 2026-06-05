@@ -1,12 +1,14 @@
 # Data Model & Contracts
 
-Phase 1 design detail for `status-writepath-profile-surface-remediation-01KTB6AN`. Entities are mostly **existing**; this mission adds behavior, two CLI surfaces, one factory, and one error shape — not new persistent schema.
+> ⚠️ **Corrected after dialectic review.** Workstream A's test/`_read_meta` items were already delivered by PR #1682; FR-016/FR-011 contracts corrected below. See `dialectic-review.md` and revised `spec.md`.
+
+Phase 1 design detail for `status-writepath-profile-surface-remediation-01KTB6AN`. Entities are mostly **existing**; this mission adds (Workstream B) two CLI surfaces + one factory + one error shape, and (Workstream A) one `load()` slug guard plus an open #1667-disposition decision — not new persistent schema.
 
 ## Entities (existing — reused, not redefined)
 
 | Entity | Module | Change in this mission |
 |--------|--------|------------------------|
-| `MissionStatus` | `specify_cli/status/aggregate.py` | Behavior only: docstring write methods; `_read_meta` fail-closed; `load()` slug guard |
+| `MissionStatus` | `specify_cli/status/aggregate.py` | `load()` slug guard (FR-007) only. ~~docstring write methods / `_read_meta` fail-closed~~ already delivered by #1682. Write-surface wiring is the open D-1 fork. |
 | `ActiveWPStatus` | `specify_cli/status/aggregate.py` | None |
 | `TransitionRequest` | `specify_cli/status/models.py` | None (reused as `transition()` input) |
 | `StatusEvent` | `specify_cli/status/models.py` | None (return of `transition()`) |
@@ -29,18 +31,22 @@ def build_activation_aware_doctrine_service(repo_root: Path) -> "charter.resolve
     """
 ```
 
-**Placement decision:** `src/specify_cli/doctrine_service_factory.py` (new, thin) — importable by both `cli/commands/profiles_cmd.py` and, if needed, charter context callers in `specify_cli`. `charter/context.py`'s own `_build_doctrine_service` is updated independently inside `charter.*` (it cannot import `specify_cli`), wrapping with `PackContext` it already constructs at `context.py:244`.
+**Placement decision:** `src/specify_cli/doctrine_service_factory.py` (new, thin) — used by `profile show` (FR-013/014).
 
-### `profile list` (FR-011/012)
+**FR-016 correction (dialectic review):** `_build_doctrine_service` is at `charter/context.py:1235`, returns a plain `DoctrineService(**kwargs)` with **no `PackContext`**, and has **6 callers** (333/352/863/1373/2620 + `_maybe_build_doctrine_service@2887`). Do **not** blanket-wrap it (would change the return type for all 6). Instead add a **scoped** `_build_activation_aware_doctrine_service` inside `charter.context`, used **only** by the `agent-profile:<id>` include branch, constructing `PackContext.from_config(repo_root)` locally (the module already imports `PackContext` and constructs one in a *different* function near line 244 — that line is **not** inside `_build_doctrine_service`).
+
+### `profile list` (FR-011/012) — corrected to filter, not swap
+
+`profile list` today builds rows from `ProfileRegistry(repo_root).list_all()` (`profiles_cmd.py:30`), **not** from `doctrine.service`. To preserve the descriptor schema and NFR-001 byte-identity, **filter the existing `ProfileRegistry` rows** by the activated set — do **not** swap the data source to the wrapper dict.
 
 | Mode | Source | Rows |
 |------|--------|------|
-| default | `factory(repo_root).agent_profiles` | activated only |
-| `--all` | `inner.agent_profiles.list_all()` | every layer; columns add `source` + `state(activated|available)` |
-| `--show-available` | `inner.agent_profiles.list_all()` | activated + available-not-activated |
+| default | `ProfileRegistry.list_all()` **filtered by** `PackContext.from_config(repo_root).activated_agent_profiles` | activated only |
+| `--all` | `ProfileRegistry.list_all()` (unfiltered) | every layer; add `source` + `state(activated|available)` |
+| `--show-available` | `ProfileRegistry.list_all()` (unfiltered) | activated + available-not-activated |
 | `--json` | as above | JSON array of descriptors |
 
-Three-state preserved: absent key → all built-ins (unchanged default), empty set → none, explicit set → those.
+Three-state preserved: absent key → all (byte-identical to today), empty set → none, explicit set → those. The shared factory (`.agent_profiles` dict) is used only by `show`/`--include`, where no legacy schema is at stake.
 
 ### `profile show <id>` (FR-013/014/015)
 
