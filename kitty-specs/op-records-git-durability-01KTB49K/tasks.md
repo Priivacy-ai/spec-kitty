@@ -84,13 +84,13 @@ Move Op record storage from `.kittify/events/profile-invocations/` (gitignored) 
 
 **Included subtasks:**
 
-- [ ] T008 Wire git auto-commit in `complete_invocation()` in `executor.py` (WP02)
-- [ ] T009 Implement `list_orphan_ops()` in new `src/specify_cli/doctor/ops.py` (WP02)
-- [ ] T010 Wire `spec-kitty doctor ops` CLI subcommand in `doctor.py` (WP02)
-- [ ] T011 Add executor commit tests: T-003, T-004 (restore after clean), T-005 (orphan guard) (WP02)
-- [ ] T012 Add do-regression test (T-006) and mission_id/wp_id wiring test (T-007) (WP02)
-- [ ] T013 Create `test_doctor_ops.py` orphan detection + CLI integration tests (WP02)
-- [ ] T014 Add CHANGELOG entry for `.kittify/events/` abandonment (WP02)
+- [x] T008 Wire git auto-commit in `complete_invocation()` in `executor.py` (WP02)
+- [x] T009 Implement `list_orphan_ops()` in new `src/specify_cli/doctor/ops.py` (WP02)
+- [x] T010 Wire `spec-kitty doctor ops` CLI subcommand in `doctor.py` (WP02)
+- [x] T011 Add executor commit tests: T-003, T-004 (restore after clean), T-005 (orphan guard) (WP02)
+- [x] T012 Add do-regression test (T-006) and mission_id/wp_id wiring test (T-007) (WP02)
+- [x] T013 Create `test_doctor_ops.py` orphan detection + CLI integration tests (WP02)
+- [x] T014 Add CHANGELOG entry for `.kittify/events/` abandonment (WP02)
 
 **Implementation sketch**:
 1. Edit `executor.py`: add auto-commit after `write_completed()` in `complete_invocation()` — use subprocess git, catch errors, log at WARNING
