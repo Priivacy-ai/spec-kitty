@@ -2,107 +2,107 @@
   "mission_slug": "op-records-git-durability-01KTB49K",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
+      "description": "All Op records written to kitty-ops/ (git-tracked by absence from .gitignore)",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/invocation/test_writer.py::TestKittyOpsStorage::test_events_dir_is_kitty_ops — EVENTS_DIR == 'kitty-ops'; test_index_written_at_kitty_ops_ops_index confirms files land in kitty-ops/. .gitignore unchanged (verified by reviewer in both WP01 and WP02 cycles).",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:python-pedro:reviewer",
+      "verified_at": "2026-06-05T06:32:00Z",
+      "notes": ""
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
+      "description": "Op completion triggers auto-commit via direct git subprocess (not safe_commit); best-effort — failure logged at WARNING, does not block response",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/invocation/test_executor.py::TestAutoCommitOnCompleteInvocation::test_commit_appears_in_git_log (T-003) confirms commit lands in git log after complete_invocation(). test_commit_failure_does_not_raise confirms OSError is caught, WARNING logged, no exception propagated.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:python-pedro:reviewer",
+      "verified_at": "2026-06-05T08:47:00Z",
+      "notes": ""
     },
     {
       "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
+      "description": "Auto-commit message format: op(<profile-id>): <action> [<op-id-short>]",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/invocation/test_executor.py::TestAutoCommitOnCompleteInvocation::test_commit_appears_in_git_log reads git log and asserts message matches op(...): ... [...] pattern. Reviewer confirmed format in cycle-1 review.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:python-pedro:reviewer",
+      "verified_at": "2026-06-05T06:47:00Z",
+      "notes": ""
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
+      "description": "Orphan Ops (started but no completed event) are never auto-committed",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/invocation/test_executor.py::TestAutoCommitOnCompleteInvocation::test_orphan_not_committed (T-005) invokes write_started() only, then asserts the file does not appear in git log.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:python-pedro:reviewer",
+      "verified_at": "2026-06-05T06:47:00Z",
+      "notes": ""
     },
     {
       "criterion_id": "FR-005",
-      "description": "Verify FR-005 is satisfied",
+      "description": "spec-kitty doctor ops lists all orphan Op files in kitty-ops/",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/invocation/test_doctor_ops.py::TestDoctorOpsCLI::test_orphans_found_exits_1 and test_orphan_listed_in_cli_output confirm the subcommand lists orphans and exits 1. TestListOrphanOps (9 unit tests) covers all edge cases.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:python-pedro:reviewer",
+      "verified_at": "2026-06-05T08:47:00Z",
+      "notes": ""
     },
     {
       "criterion_id": "FR-006",
-      "description": "Verify FR-006 is satisfied",
+      "description": "InvocationRecord gains optional mission_id (str|None) and wp_id (str|None) fields",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/invocation/test_record.py::TestMissionIdWpIdFields::test_invocation_record_has_mission_id_and_wp_id confirms both fields exist with None defaults. test_mission_id_wp_id_included_when_set confirms fields are preserved when supplied.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:python-pedro:reviewer",
+      "verified_at": "2026-06-05T06:32:00Z",
+      "notes": ""
     },
     {
       "criterion_id": "FR-007",
-      "description": "Verify FR-007 is satisfied",
+      "description": "mission_id/wp_id are null for standalone invocations; populated when caller explicitly supplies them",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "test_executor.py::TestAutoCommitOnCompleteInvocation::test_mission_id_wp_id_none_for_standalone (T-007) confirms both fields are None when not supplied. test_record.py::test_mission_id_wp_id_excluded_when_none confirms excluded from model_dump(exclude_none=True).",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:python-pedro:reviewer",
+      "verified_at": "2026-06-05T08:47:00Z",
+      "notes": ""
     },
     {
       "criterion_id": "FR-008",
-      "description": "Verify FR-008 is satisfied",
+      "description": "do command writes Op record to kitty-ops/ and commits on completion (zero-persistence gap closed)",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "_commit_op_record() is called from complete_invocation() which is the shared completion path for ask, advise, and do commands. test_executor.py T-003 exercises complete_invocation() and confirms commit is produced. do command uses the same executor.complete_invocation() call path.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:python-pedro:reviewer",
+      "verified_at": "2026-06-05T08:47:00Z",
+      "notes": ""
     },
     {
       "criterion_id": "FR-009",
-      "description": "Verify FR-009 is satisfied",
+      "description": "Performance index maintained at kitty-ops/ops-index.jsonl",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/invocation/test_writer.py::TestKittyOpsStorage::test_index_written_at_kitty_ops_ops_index asserts index file exists at kitty-ops/ops-index.jsonl and NOT at root invocation-index.jsonl (regression guard).",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:python-pedro:reviewer",
+      "verified_at": "2026-06-05T06:32:00Z",
+      "notes": ""
     },
     {
       "criterion_id": "FR-010",
-      "description": "Verify FR-010 is satisfied",
+      "description": "Loop-lifecycle pairing log stored at kitty-ops/lifecycle.jsonl",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/invocation/test_writer.py::test_lifecycle_log_relative_path_is_kitty_ops asserts LIFECYCLE_LOG_RELATIVE_PATH == Path('kitty-ops') / 'lifecycle.jsonl'.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:python-pedro:reviewer",
+      "verified_at": "2026-06-05T06:32:00Z",
+      "notes": ""
     }
   ],
   "negative_invariants": []
