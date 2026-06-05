@@ -155,4 +155,3 @@ To start: `spec-kitty agent action implement WP04 --agent claude`
 - 2026-06-05T10:33:26Z – claude:sonnet:curator-carla:curator – shell_pid=58918 – Assigned agent via action command
 - 2026-06-05T10:35:52Z – claude:sonnet:curator-carla:curator – shell_pid=58918 – Removed outdated origin-sync workaround from AGENTS.md, added CHANGELOG entry covering all three behaviour changes for #1706
 - 2026-06-05T10:36:07Z – claude:sonnet:curator-carla:reviewer – shell_pid=59686 – Started review via action command
-- 2026-06-05T10:36:51Z – user – shell_pid=59686 – Review passed: AGENTS.md workaround removed and replaced with accurate guidance, CHANGELOG covers all three changes for #1706

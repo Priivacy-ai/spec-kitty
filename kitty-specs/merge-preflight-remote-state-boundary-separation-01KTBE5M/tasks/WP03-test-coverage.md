@@ -18,8 +18,8 @@ subtasks:
 - T009
 - T010
 - T011
-agent: "claude:sonnet:reviewer:reviewer"
-shell_pid: "65455"
+agent: "claude:sonnet:implementer-ivan:implementer"
+shell_pid: "58728"
 history:
 - date: '2026-06-05'
   author: spec-kitty.tasks
@@ -221,9 +221,3 @@ To start: `spec-kitty agent action implement WP03 --agent claude`
 ## Activity Log
 
 - 2026-06-05T10:33:18Z – claude:sonnet:implementer-ivan:implementer – shell_pid=58728 – Assigned agent via action command
-- 2026-06-05T10:38:52Z – claude:sonnet:implementer-ivan:implementer – shell_pid=58728 – All five origin-state × push/no-push combinations tested, #1706 regression test added, ATDD green, all tests pass
-- 2026-06-05T10:39:10Z – claude:sonnet:reviewer:reviewer – shell_pid=62355 – Started review via action command
-- 2026-06-05T10:41:12Z – user – shell_pid=62355 – Moved to planned
-- 2026-06-05T10:45:18Z – claude:sonnet:implementer-ivan:implementer – shell_pid=64225 – Started implementation via action command
-- 2026-06-05T10:46:36Z – claude:sonnet:implementer-ivan:implementer – shell_pid=64225 – Added missing test_merge_preflight_atdd.py, all 244 tests pass
-- 2026-06-05T10:46:52Z – claude:sonnet:reviewer:reviewer – shell_pid=65455 – Started review via action command
