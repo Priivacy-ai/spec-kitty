@@ -2,6 +2,7 @@
 _site/
 obj/
 .docfx/
+kitty-specs/
 
 # Temporary files
 *.tmp

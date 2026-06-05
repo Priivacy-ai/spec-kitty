@@ -37,6 +37,7 @@ jobs:
 
       - name: Build documentation
         run: |
+          python3 scripts/docs/generate_kitty_specs_docs.py
           cd docs
           docfx docfx.json
           cd ..

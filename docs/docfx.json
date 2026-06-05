@@ -55,6 +55,8 @@
           "CNAME",
           ".nojekyll",
           "llms.txt",
+          "kitty-specs/**/*.html",
+          "kitty-specs/toc.yml",
           "1x/*.html",
           "2x/*.html"
         ]
