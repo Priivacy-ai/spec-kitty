@@ -10,6 +10,7 @@ import pytest
 import typer
 
 import specify_cli.merge.preflight as preflight_mod
+import specify_cli.merge.push_preflight as push_preflight_mod
 from specify_cli.cli.commands.merge import (
     _enforce_target_branch_sync_preflight,
     _target_branch_sync_payload,
@@ -139,15 +140,16 @@ def test_target_branch_preflight_reports_no_tracking_when_rev_list_fails(
     synced_repo: tuple[Path, Path],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # After WP01/WP02: _git lives in push_preflight, not preflight
     repo, _origin = synced_repo
-    original_git = preflight_mod._git
+    original_git = push_preflight_mod._git
 
-    def fake_git(_repo_root: Path, args: list[str]) -> SimpleNamespace:
+    def fake_git(_repo_root: Path, args: list[str]) -> SimpleNamespace:  # type: ignore[return]
         if args[:2] == ["rev-list", "--left-right"]:
             return SimpleNamespace(returncode=1, stdout="", stderr="bad revision")
         return original_git(_repo_root, args)
 
-    monkeypatch.setattr(preflight_mod, "_git", fake_git)
+    monkeypatch.setattr(push_preflight_mod, "_git", fake_git)
 
     status = inspect_target_branch_sync(repo, "main")
 
@@ -230,6 +232,10 @@ def test_merge_preflight_fetches_before_detecting_remote_main_behind(
     synced_repo: tuple[Path, Path],
     tmp_path: Path,
 ) -> None:
+    # After WP02: "behind" is safe to push — the push-safety preflight does NOT
+    # raise for "behind" state. Only "diverged" blocks. The test verifies that
+    # the function performs a fetch (so stale "in_sync" becomes "behind") and
+    # then returns without raising.
     repo, origin = synced_repo
     updater = _configured_clone(origin, tmp_path / "updater")
     _commit(updater, "remote.txt", "remote only\n", "remote ahead")
@@ -238,15 +244,14 @@ def test_merge_preflight_fetches_before_detecting_remote_main_behind(
     stale_status = inspect_target_branch_sync(repo, "main")
     assert stale_status.state == "in_sync"
 
-    with pytest.raises(typer.Exit) as exc_info:
-        _enforce_target_branch_sync_preflight(
-            repo,
-            target_branch="main",
-            mission_slug="release-320-workflow-reliability-01KQKV85",
-            mission_branch="kitty/mission-release-320-workflow-reliability-01KQKV85",
-        )
+    # Should not raise — "behind" is safe to push (git will reject natively)
+    _enforce_target_branch_sync_preflight(
+        repo,
+        target_branch="main",
+        mission_slug="release-320-workflow-reliability-01KQKV85",
+        mission_branch="kitty/mission-release-320-workflow-reliability-01KQKV85",
+    )
 
-    assert exc_info.value.exit_code == 1
     refreshed_status = inspect_target_branch_sync(repo, "main")
     assert refreshed_status.state == "behind"
     assert refreshed_status.behind_count == 1
