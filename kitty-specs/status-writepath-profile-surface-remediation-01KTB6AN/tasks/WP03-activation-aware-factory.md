@@ -93,6 +93,7 @@ Provide a single construction seam so profile surfaces resolve through the exist
 
 - Confirm the wrapper is reused, not duplicated.
 - Confirm the factory is in `specify_cli.*` and the layer direction holds.
+- **NFR-003**: confirm `runtime/next` profile-resolution behavior is unchanged (it already uses the wrapper; the new factory must not alter it).
 
 ## Activity Log
 

@@ -120,6 +120,7 @@ Deliver the #1636 user-facing surfaces, routed through charter activation.
 
 - Confirm `list` default is byte-identical for unconfigured projects.
 - Confirm the lineage warning fires for non-activated parents and never silently hides inheritance.
+- **NFR-003**: confirm existing `runtime/next` profile-resolution tests stay green (the activation path is shared; this surface must not regress runtime behavior).
 
 ## Activity Log
 

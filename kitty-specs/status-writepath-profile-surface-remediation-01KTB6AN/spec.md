@@ -19,12 +19,12 @@ The two workstreams share no code and may land as independent lanes; they are bu
 
 | Issue | Title | Relationship |
 |-------|-------|--------------|
-| [#1667](https://github.com/Priivacy-ai/spec-kitty/issues/1667) | Introduce `MissionStatus` aggregate (Mission Management domain) | **Residual hardening** — aggregate exists; this closes the untested/unwired write path (RISK-001) |
+| [#1667](https://github.com/Priivacy-ai/spec-kitty/issues/1667) | Introduce `MissionStatus` aggregate (Mission Management domain) | **Residual hardening** — aggregate exists and is tested (coverage shipped in PR #1682); this closes the remaining **unwired** write path (RISK-001) by routing the live surface through it |
 | [#1636](https://github.com/Priivacy-ai/spec-kitty/issues/1636) | Missing `agent profile show <id>` CLI command — documented by skill, never implemented | **Primary** — implement + activation-aware listing/show; reconcile skill drift |
 | [#1672](https://github.com/Priivacy-ai/spec-kitty/issues/1672) | Strangler step 1: e2e parity ratchet (CWD-invariance gate) | **Consumed gate, narrow slice only** — the ratchet exists but covers only the `status` read; this mission extends it over the status **write** path it touches. Full #1672 stays owned by its assignee |
 | [#1619](https://github.com/Priivacy-ai/spec-kitty/issues/1619) | Execution-state CWD-derivation root cause (Strangler Fig) | Parent of #1667; out of scope here except as the governing domain model |
 
-Governing ADRs (already on `main`): `architecture/3.x/adr/2026-06-03-1-execution-state-domain-model.md` (Status owned by Mission Management), `…-2-executioncontext-owner-and-committarget.md`. No new ADR is required for either workstream (the domain model is already ratified); one **design note** records the profile-activation gating decision (see Contracts §B).
+Governing ADRs (already on `main`): `architecture/3.x/adr/2026-06-03-1-execution-state-domain-model.md` (Status owned by Mission Management), `…-2-executioncontext-owner-and-committarget.md`. No new ADR is required for either workstream (the domain model is already ratified); the profile-activation gating decision (lineage Option A) is recorded in [data-model.md](./data-model.md) and [plan.md](./plan.md) (D-2).
 
 ## User Scenarios & Testing
 
