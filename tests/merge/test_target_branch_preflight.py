@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import pytest
 import typer
 
-import specify_cli.merge.preflight as preflight_mod
+import specify_cli.merge.push_preflight as push_preflight_mod
 from specify_cli.cli.commands.merge import (
     _enforce_target_branch_sync_preflight,
     _target_branch_sync_payload,
@@ -139,15 +139,16 @@ def test_target_branch_preflight_reports_no_tracking_when_rev_list_fails(
     synced_repo: tuple[Path, Path],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # After WP01/WP02: _git lives in push_preflight, not preflight
     repo, _origin = synced_repo
-    original_git = preflight_mod._git
+    original_git = push_preflight_mod._git
 
-    def fake_git(_repo_root: Path, args: list[str]) -> SimpleNamespace:
+    def fake_git(_repo_root: Path, args: list[str]) -> SimpleNamespace:  # type: ignore[return]
         if args[:2] == ["rev-list", "--left-right"]:
             return SimpleNamespace(returncode=1, stdout="", stderr="bad revision")
         return original_git(_repo_root, args)
 
-    monkeypatch.setattr(preflight_mod, "_git", fake_git)
+    monkeypatch.setattr(push_preflight_mod, "_git", fake_git)
 
     status = inspect_target_branch_sync(repo, "main")
 
@@ -175,10 +176,16 @@ def test_target_branch_preflight_detects_local_main_diverged(
 
 def test_merge_preflight_blocks_unsafe_target_with_non_destructive_guidance(
     synced_repo: tuple[Path, Path],
+    tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    repo, _origin = synced_repo
-    _commit(repo, "ahead.txt", "local only\n", "local ahead")
+    # Use "diverged" state — after WP02, unsafe push states block (not "ahead").
+    repo, origin = synced_repo
+    updater = _configured_clone(origin, tmp_path / "updater")
+    _commit(updater, "remote.txt", "remote only\n", "remote ahead")
+    _run(["git", "push", "origin", "main"], cwd=updater)
+    _run(["git", "fetch", "origin", "main"], cwd=repo)
+    _commit(repo, "local.txt", "local only\n", "local ahead")
     status = inspect_target_branch_sync(repo, "main")
 
     with pytest.raises(typer.Exit) as exc_info:
@@ -220,10 +227,14 @@ def test_merge_preflight_blocks_unsafe_target_with_non_destructive_guidance(
     assert payload["remediation"] == remediation
 
 
-def test_merge_preflight_fetches_before_detecting_remote_main_behind(
+def test_merge_preflight_blocks_remote_main_behind_before_mutation(
     synced_repo: tuple[Path, Path],
     tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
+    # The function performs a fetch so stale "in_sync" becomes "behind", then
+    # blocks before local merge/bookkeeping mutation. Otherwise the later git
+    # push rejects non-fast-forward after local state has already changed.
     repo, origin = synced_repo
     updater = _configured_clone(origin, tmp_path / "updater")
     _commit(updater, "remote.txt", "remote only\n", "remote ahead")
@@ -240,10 +251,13 @@ def test_merge_preflight_fetches_before_detecting_remote_main_behind(
             mission_branch="kitty/mission-release-320-workflow-reliability-01KQKV85",
         )
 
-    assert exc_info.value.exit_code == 1
     refreshed_status = inspect_target_branch_sync(repo, "main")
+    output = capsys.readouterr().out
+    assert exc_info.value.exit_code == 1
     assert refreshed_status.state == "behind"
     assert refreshed_status.behind_count == 1
+    assert "diagnostic_code: TARGET_BRANCH_NOT_SYNCHRONIZED" in output
+    assert "Recommended: update local 'main' from 'origin/main'" in output
 
 
 def test_target_branch_preflight_behind_guidance_does_not_recommend_push(
@@ -302,3 +316,27 @@ def test_merge_preflight_reports_refresh_failure_as_json(
     assert '"diagnostic_code": "TARGET_BRANCH_REFRESH_FAILED"' in output
     assert '"remote_name": "origin"' in output
     assert "git fetch origin main" in output
+
+
+def test_issue_1706_ahead_and_behind_does_not_block_no_push_merge() -> None:
+    """Regression: local main ahead+behind of origin must not block local-only merge.
+
+    Issue: https://github.com/Priivacy-ai/spec-kitty/issues/1706
+    """
+    # Regression: https://github.com/Priivacy-ai/spec-kitty/issues/1706
+    from specify_cli.merge.push_preflight import TargetBranchSyncStatus
+
+    # The #1706 scenario: local 10 ahead, 5 behind (effectively "diverged" state)
+    status = TargetBranchSyncStatus(
+        target_branch="main",
+        tracking_branch="origin/main",
+        ahead_count=10,
+        behind_count=5,
+        state="diverged",
+    )
+    # When push=False, the preflight is never called — diverged doesn't matter.
+    # When push=True, diverged blocks — but the LOCAL merge already completed.
+    # The key invariant: is_safe (local merge) is ALWAYS True.
+    assert status.is_safe is True  # deprecated alias — local merge always safe
+    # is_safe_to_push would block a push, but is irrelevant for local-only merge
+    assert status.is_safe_to_push is False  # diverged

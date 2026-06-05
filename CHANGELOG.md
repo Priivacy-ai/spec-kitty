@@ -23,6 +23,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   commit messages, and `spec-kitty doctor ops` reports started-only orphan
   records.
 
+- `spec-kitty merge` (without `--push`) no longer checks or requires origin
+  sync before performing local lane integration. A local target branch that
+  is ahead of, behind, or diverged from its remote tracking branch does not
+  block a local-only merge. This resolves issue #1706 where users with
+  accumulated orchestration commits on local `main` could not run
+  `spec-kitty merge` until they pushed to origin first.
+
+- Push-safety checks now fire only when `--push` is requested. The
+  `"behind"` and `"diverged"` states block before local merge mutation with
+  remediation guidance, while `"ahead"` remains push-safe.
+
+- `MergeState` now persists `push_requested` for correct resume semantics:
+  a resumed merge respects the original invocation's push intent without
+  requiring re-specification of `--push`.
+
 ## [3.2.0rc37] - 2026-06-04
 
 ### Added

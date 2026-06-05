@@ -25,6 +25,7 @@ import re
 import sys
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 from rich.console import Console
@@ -45,9 +46,6 @@ from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, 
 from specify_cli.merge.config import MergeStrategy, load_merge_config
 from specify_cli.merge.ordering import assign_next_mission_number
 from specify_cli.merge.preflight import (
-    TargetBranchSyncStatus,
-    inspect_target_branch_sync,
-    refresh_target_branch_tracking_ref,
     target_branch_sync_remediation,
 )
 from specify_cli.merge.state import (
@@ -76,6 +74,9 @@ from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_en
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from specify_cli.status.lifecycle_events import REVIEWER_SELF_APPROVAL
+
+if TYPE_CHECKING:
+    from specify_cli.merge.push_preflight import TargetBranchSyncStatus
 
 logger = logging.getLogger(__name__)
 
@@ -1229,10 +1230,14 @@ def _enforce_target_branch_sync_preflight(
     mission_slug: str | None,
     mission_branch: str | None = None,
     json_output: bool = False,
+    remote_name: str = "origin",
 ) -> None:
-    """Stop merge before mutation when the target branch is not synced."""
-    refresh = refresh_target_branch_tracking_ref(repo_root, target_branch)
-    if not refresh.success:
+    """Stop push before mutation when the target branch is not synced with remote."""
+    from specify_cli.merge.push_preflight import check_push_safety
+
+    result = check_push_safety(repo_root, target_branch, remote_name=remote_name)
+    if result.fetch_failed:
+        refresh = result.refresh_status
         payload = _target_branch_refresh_failed_payload(
             target_branch=target_branch,
             remote_name=refresh.remote_name,
@@ -1252,9 +1257,11 @@ def _enforce_target_branch_sync_preflight(
                 console.print(f"  - {line}")
         raise typer.Exit(1)
 
-    status = inspect_target_branch_sync(repo_root, target_branch)
-    if status.is_safe:
+    if result.is_safe_to_push:
         return
+
+    status = result.sync_status
+    assert status is not None  # is_safe_to_push is False only when sync_status is set
 
     payload = _target_branch_sync_payload(
         status,
@@ -1272,6 +1279,18 @@ def _enforce_target_branch_sync_preflight(
         for line in payload["remediation"]:
             console.print(f"  - {line}")
     raise typer.Exit(1)
+
+
+def _effective_push_requested(
+    repo_root: Path,
+    mission_id: str,
+    requested_push: bool,
+) -> bool:
+    """Return persisted push intent for resumptions, otherwise current CLI intent."""
+    state = load_state(repo_root, mission_id)
+    if state is not None:
+        return state.push_requested
+    return requested_push
 
 
 def _enforce_canonical_status_history(
@@ -1505,12 +1524,18 @@ def _run_lane_based_merge(
     if target_override:
         lanes_manifest.target_branch = target_override
 
-    _enforce_target_branch_sync_preflight(
-        main_repo,
-        target_branch=lanes_manifest.target_branch,
-        mission_slug=mission_slug,
-        mission_branch=lanes_manifest.mission_branch,
-    )
+    # -- Resolve canonical mission_id from meta.json (P2 fix: use ULID, not slug) --
+    identity = resolve_mission_identity(feature_dir)
+    canonical_id = identity.mission_id or mission_slug  # fallback for legacy missions without ULID
+
+    effective_push = _effective_push_requested(main_repo, canonical_id, push)
+    if effective_push:
+        _enforce_target_branch_sync_preflight(
+            main_repo,
+            target_branch=lanes_manifest.target_branch,
+            mission_slug=mission_slug,
+            mission_branch=lanes_manifest.mission_branch,
+        )
 
     branch_ok, branch_blocker = _check_mission_branch(mission_slug, main_repo)
     if not branch_ok:
@@ -1521,10 +1546,6 @@ def _run_lane_based_merge(
             f"Run: {branch_blocker['remediation']}"
         )
         raise typer.Exit(1)
-
-    # -- Resolve canonical mission_id from meta.json (P2 fix: use ULID, not slug) --
-    identity = resolve_mission_identity(feature_dir)
-    canonical_id = identity.mission_id or mission_slug  # fallback for legacy missions without ULID
 
     # -- Acquire global merge lock to serialize concurrent merges --
     # The lock is keyed by a well-known sentinel so that merges of DIFFERENT
@@ -1543,7 +1564,7 @@ def _run_lane_based_merge(
             canonical_id=canonical_id,
             feature_dir=feature_dir,
             lanes_manifest=lanes_manifest,
-            push=push,
+            push=effective_push,
             delete_branch=delete_branch,
             remove_worktree=remove_worktree,
             strategy=strategy,
@@ -1586,6 +1607,7 @@ def _run_lane_based_merge_locked(
             mission_slug=mission_slug,
             target_branch=lanes_manifest.target_branch,
             wp_order=all_wp_ids,
+            push_requested=push,
         )
         save_state(state, main_repo)
 

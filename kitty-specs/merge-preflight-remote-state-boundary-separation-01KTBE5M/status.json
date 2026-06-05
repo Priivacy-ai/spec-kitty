@@ -1,0 +1,49 @@
+{
+  "event_count": 20,
+  "last_event_id": "01KTBR4N8CXYR4GHAYJPZYHDSV",
+  "materialized_at": "2026-06-05T11:19:21.612992+00:00",
+  "mission_number": "",
+  "mission_slug": "merge-preflight-remote-state-boundary-separation-01KTBE5M",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude:sonnet",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KTBR4N6TH666GPMFFQPFXH51",
+      "last_transition_at": "2026-06-05T11:19:21.562167+00:00"
+    },
+    "WP02": {
+      "actor": "claude:sonnet",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KTBR4N7CM233KG83T15RRDFE",
+      "last_transition_at": "2026-06-05T11:19:21.580620+00:00"
+    },
+    "WP03": {
+      "actor": "claude:sonnet",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KTBR4N7WYC3077HFJ6SETT47",
+      "last_transition_at": "2026-06-05T11:19:21.597027+00:00"
+    },
+    "WP04": {
+      "actor": "claude:sonnet",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KTBR4N8CXYR4GHAYJPZYHDSV",
+      "last_transition_at": "2026-06-05T11:19:21.612992+00:00"
+    }
+  }
+}

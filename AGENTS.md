@@ -409,13 +409,8 @@ edges:
 `main` has a **Protect Main Branch** CI workflow that fails on direct pushes. This is intentional policy enforcement, not a code bug.
 
 - `spec-kitty merge` may push directly to `main` by design; the "Protect Main Branch" failure is **expected and known** — do not attempt to fix it as a code-health failure.
-- If `spec-kitty merge` blocks because local `main` is ahead of/diverged from `origin/main`, inspect before acting:
-  ```bash
-  git log --oneline --left-right --cherry-pick main...origin/main
-  git diff --name-only origin/main...main
-  ```
-- If ahead commits include orchestration history, agent state, worktree bookkeeping, or unrelated missions, use the focused PR branch path from the merge preflight instead of pushing `main`.
-- Only push `main` directly after verifying every ahead commit belongs on `main` and the user explicitly wants direct-main delivery.
+- `spec-kitty merge` (without `--push`) performs a purely local operation. It does not check or require origin sync. Run it freely regardless of whether local `main` is ahead of, behind, or diverged from `origin/main`.
+- When using `spec-kitty merge --push`, if local `main` is behind or diverged from origin, the push path blocks before local merge mutation with remediation guidance. Rebase or use the focused-PR-branch escape hatch in that case.
 - The only CI result relevant to code health is **CI Quality**. Do not create extra PRs, force-push, or revert commits to address the Protect Main Branch failure.
 
 ---

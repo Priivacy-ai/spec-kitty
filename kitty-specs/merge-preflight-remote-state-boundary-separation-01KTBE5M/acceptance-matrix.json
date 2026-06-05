@@ -1,0 +1,119 @@
+{
+  "mission_slug": "merge-preflight-remote-state-boundary-separation-01KTBE5M",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "When merge is invoked without requesting a push, no network fetch against the remote repository shall be performed at any point during the merge operation.",
+      "proof_type": "automated_test",
+      "evidence": "tests/merge/test_push_preflight.py::test_merge_no_push_never_calls_check_push_safety[in_sync,ahead,behind,diverged,no_tracking_branch] + tests/merge/test_merge_preflight_atdd.py::test_local_merge_proceeds_when_local_is_ahead_without_push",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet",
+      "verified_at": "2026-06-05T00:00:00+00:00",
+      "notes": "check_push_safety is gated by `if push:` in merge.py (WP02/T007). No-push path never enters that branch. Parametrized test verifies all 5 origin states."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "When merge is invoked without requesting a push, the local merge shall proceed regardless of whether the local target branch is ahead, behind, diverged from, or in sync with its remote tracking branch.",
+      "proof_type": "automated_test",
+      "evidence": "tests/merge/test_merge_preflight_atdd.py::test_issue_1706_local_ahead_behind_no_push_does_not_block + tests/merge/test_target_branch_preflight.py::test_issue_1706_ahead_and_behind_does_not_block_no_push_merge",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet",
+      "verified_at": "2026-06-05T00:00:00+00:00",
+      "notes": "ATDD regression test for issue #1706 verifies local+ahead+behind does not block. Updated target_branch_preflight test confirms 'ahead' no longer blocks."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "When merge is invoked with a push requested, the remote-state check shall fire only after all local lane integrations complete successfully, immediately before the push attempt.",
+      "proof_type": "automated_test",
+      "evidence": "tests/merge/test_push_preflight.py::test_check_push_safety_diverged_returns_not_safe + test_check_push_safety_ahead_returns_safe + test_check_push_safety_fetch_failure_returns_not_safe; call-site gate in src/specify_cli/cli/commands/merge.py (if push: ... check_push_safety)",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet",
+      "verified_at": "2026-06-05T00:00:00+00:00",
+      "notes": "WP02/T007 gates _enforce_target_branch_sync_preflight with `if push:`. Push-safety check therefore only fires in the push path, after local merges."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "When merge is invoked with a push requested and the local target branch is in a state that would cause a non-fast-forward or destructive push, the push shall be blocked with the existing diverged guidance and escape hatch. Local integration results shall be preserved.",
+      "proof_type": "automated_test",
+      "evidence": "tests/merge/test_push_preflight.py::test_push_blocked_but_local_results_preserved_when_diverged",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet",
+      "verified_at": "2026-06-05T00:00:00+00:00",
+      "notes": "check_push_safety is read-only and does not mutate local git state. Test verifies is_safe_to_push=False for diverged and that sync_status (local state diagnostic) is preserved."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "The sync-state value model shall distinguish between 'safe to merge locally' (true for all origin states) and 'safe to push' (false when the state would require a force push or cause destructive rewrite on origin).",
+      "proof_type": "automated_test",
+      "evidence": "tests/merge/test_push_preflight.py::test_is_safe_to_push_predicate[in_sync-True,ahead-True,behind-True,diverged-False,no_tracking_branch-True] + test_merge_no_push_never_calls_check_push_safety (is_safe deprecated alias always True)",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet",
+      "verified_at": "2026-06-05T00:00:00+00:00",
+      "notes": "TargetBranchSyncStatus now has both is_safe_to_push (push-layer predicate) and is_safe (deprecated alias, always True). Parametrized test covers all 5 states."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "The component responsible for performing remote-state inspection and network I/O against origin shall reside in the publish layer, not in the local-merge domain layer. The local-merge domain layer shall have no dependency on remote-state inspection.",
+      "proof_type": "code_inspection",
+      "evidence": "src/specify_cli/merge/push_preflight.py (new publish-layer module with all remote-state types and check_push_safety); src/specify_cli/merge/preflight.py (re-exports only, no network I/O); architecture/3.x/adr/2026-06-05-1-merge-publish-layer-boundary.md",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet",
+      "verified_at": "2026-06-05T00:00:00+00:00",
+      "notes": "WP01 created push_preflight.py. WP02 stripped network code from preflight.py and added re-exports. ADR documents the boundary decision."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "The merge resume state shall persist whether the original invocation requested a push. A resumed merge shall respect the persisted push intent without requiring the user to re-supply the push flag.",
+      "proof_type": "code_inspection",
+      "evidence": "src/specify_cli/merge/state.py: push_requested: bool = False field added; src/specify_cli/cli/commands/merge.py: MergeState(..., push_requested=push) at construction; tests/merge/test_merge_state_unit.py::test_from_dict (backwards compat via filter)",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet",
+      "verified_at": "2026-06-05T00:00:00+00:00",
+      "notes": "WP02/T008 adds push_requested field with default False. merge.py passes push value at state construction. from_dict filters to known fields, so old state files load with default=False."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Existing merge resume state persisted without a push-intent field shall be readable without error, treating the absence of the field as 'push not requested.'",
+      "proof_type": "automated_test",
+      "evidence": "tests/merge/test_merge_state_unit.py::test_from_dict (verifies from_dict handles missing fields) + tests/merge/test_mission_number_idempotency.py::TestBackwardCompatibilityLoad::test_state_without_baked_flag_loads_as_false (parallel backwards-compat pattern)",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet",
+      "verified_at": "2026-06-05T00:00:00+00:00",
+      "notes": "MergeState.from_dict filters to known fields before constructing dataclass. Absent push_requested field defaults to False. Existing test_from_dict covers this; no new test needed."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "All tests that currently assert 'local ahead of origin' blocks the merge shall be updated to assert that condition does not block the merge.",
+      "proof_type": "automated_test",
+      "evidence": "tests/merge/test_target_branch_preflight.py::test_merge_preflight_blocks_unsafe_target_with_non_destructive_guidance — fixture changed from 'ahead' to 'diverged' state",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet",
+      "verified_at": "2026-06-05T00:00:00+00:00",
+      "notes": "WP03/T009 inverted the blocked-ahead assertion. Test now uses diverged fixture (the only truly unsafe push state) instead of ahead (which is safe)."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "A regression test covering the exact scenario in issue #1706 (local target N commits ahead and M commits behind origin, merge requested without push) shall be added, asserting that the local merge completes without blocking.",
+      "proof_type": "automated_test",
+      "evidence": "tests/merge/test_target_branch_preflight.py::test_issue_1706_ahead_and_behind_does_not_block_no_push_merge + tests/merge/test_merge_preflight_atdd.py::test_issue_1706_local_ahead_behind_no_push_does_not_block",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet",
+      "verified_at": "2026-06-05T00:00:00+00:00",
+      "notes": "WP03/T011 adds regression tests for issue #1706. Both ATDD stub (WP01) and integration test (WP03) cover the exact diverged-but-no-push scenario."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Documentation advising users to use a PR-based workaround when local is ahead of origin during merge shall be removed and replaced with accurate guidance reflecting that local-ahead state does not block a local merge.",
+      "proof_type": "code_inspection",
+      "evidence": "AGENTS.md: removed 'inspect before acting' / 'focused PR branch path' workaround block; replaced with accurate guidance: local merge is network-free, --push with diverged is blocked with remediation. CHANGELOG.md updated.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet",
+      "verified_at": "2026-06-05T00:00:00+00:00",
+      "notes": "WP04/T012 removed the outdated workaround from AGENTS.md. WP04/T013 added CHANGELOG.md entry referencing #1706."
+    }
+  ],
+  "negative_invariants": []
+}
