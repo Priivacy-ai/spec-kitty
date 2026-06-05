@@ -27,6 +27,7 @@ from specify_cli.cli.commands.charter._app import charter_app, console
 from specify_cli.cli.commands.charter._synthesis import (
     _has_generated_artifacts,
     _materialize_fresh_doctrine,
+    _planned_fresh_doctrine_deletes,
     _planned_fresh_doctrine_paths,
 )
 
@@ -186,6 +187,7 @@ def charter_synthesize(  # noqa: C901
 
             if dry_run:
                 planned = _planned_fresh_doctrine_paths(repo_root)
+                planned_deletes = _planned_fresh_doctrine_deletes(repo_root)
                 fresh_written_artifacts: list[dict[str, Any]] = [
                     {
                         "path": p,
@@ -206,6 +208,7 @@ def charter_synthesize(  # noqa: C901
                         "success": True,
                         "mode": "fresh_project_seed_dry_run",
                         "files_planned": planned,
+                        "planned_deletes": planned_deletes,
                         "note": (
                             "Fresh project + --dry-run: would materialize "
                             "minimal .kittify/doctrine/ (no files written). "
@@ -220,6 +223,8 @@ def charter_synthesize(  # noqa: C901
                 )
                 for f in planned:
                     console.print(f"  • {f}")
+                for f in planned_deletes:
+                    console.print(f"  delete {f}")
                 return
 
             written = _materialize_fresh_doctrine(repo_root)

@@ -14,9 +14,9 @@ Key constraints
 ---------------
 * ``BookkeepingTransaction`` internals are NOT changed (C-004). ``MissionStatus``
   wraps it, does not replace it.
-* When coord-topology is detected but the coord worktree is unavailable,
-  ``CoordAuthorityUnavailable`` is raised — there is NO silent fallback to
-  the legacy path.  Fail closed.
+* When the coord worktree has been materialized but lacks the mission dir,
+  ``CoordAuthorityUnavailable`` is raised. Before materialization, the primary
+  checkout remains authoritative for the create→first-write window.
 * All status reads go through the ``status/`` façade (never direct submodule
   imports from callers).
 """
@@ -44,6 +44,22 @@ _logger = logging.getLogger(__name__)
 # already explicit, so the flag is belt-and-suspenders alongside the
 # ``.isascii()`` guard.
 _MISSION_SLUG_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$", re.ASCII)
+
+
+def _enrich_transition_request(
+    request: TransitionRequest,  # noqa: F821
+    *,
+    read_dir: Path,
+    mission_slug: str,
+) -> TransitionRequest:  # noqa: F821
+    """Inject aggregate-owned path/slug into a transition request."""
+    import dataclasses
+
+    return dataclasses.replace(
+        request,
+        feature_dir=read_dir,
+        mission_slug=mission_slug,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -174,8 +190,8 @@ class MissionStatus:
         ----------------
         1. Read ``meta.json`` to learn ``mission_id`` (and derive ``mid8``).
         2. Check whether a coordination worktree exists on disk.
-        3. If ``meta.json`` declares ``coordination_branch`` but no coord
-           worktree is present, raise ``CoordAuthorityUnavailable`` (fail closed).
+        3. If a coord worktree root exists but lacks the mission dir, raise
+           ``CoordAuthorityUnavailable`` (fail closed).
         4. Otherwise return the aggregate with the appropriate ``read_dir``.
 
         Args:
@@ -187,8 +203,8 @@ class MissionStatus:
             Populated :class:`MissionStatus` aggregate.
 
         Raises:
-            CoordAuthorityUnavailable: When coord topology is declared but
-                the coord worktree is missing.
+            CoordAuthorityUnavailable: When the coord worktree exists but
+                lacks the mission directory.
             MissionMetadataUnavailable: When ``meta.json`` exists but cannot
                 be parsed as a trusted object.
             InvalidMissionSlug: When ``mission_slug`` is empty, non-ASCII, or
@@ -199,21 +215,21 @@ class MissionStatus:
         cls._validate_mission_slug(mission_slug)
 
         # 1. Load meta.json (best-effort; legacy missions may not have one)
-        mission_id, coordination_branch = cls._read_meta(repo_root, mission_slug)
+        mission_id, coordination_branch, primary_candidate = cls._read_meta(repo_root, mission_slug)
         declares_coord_branch = coordination_branch is not None
         mid8 = mission_id[:8] if mission_id else ""
 
         # 2. Build candidate paths using the same helper as _read_path_resolver.
         coord_candidate: Path | None = None
+        coord_worktree_materialized = False
         if mid8:
             from specify_cli.coordination.workspace import CoordinationWorkspace
             from specify_cli.missions._read_path_resolver import _compose_mission_dir
 
             mission_dir_name = _compose_mission_dir(mission_slug, mid8)
             coord_root = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
+            coord_worktree_materialized = coord_root.exists()
             coord_candidate = coord_root / KITTY_SPECS_DIR / mission_dir_name
-
-        primary_candidate = repo_root / KITTY_SPECS_DIR / mission_slug
 
         # 3. Resolve topology & read_dir.
         if coord_candidate is not None and coord_candidate.exists():
@@ -227,8 +243,15 @@ class MissionStatus:
                 coordination_branch=coordination_branch,
             )
 
-        # Coord topology declared but worktree is missing → fail closed.
-        if declares_coord_branch and coord_candidate is not None:
+        # Coord topology declared but the worktree root is already materialized
+        # without the mission dir → fail closed. If the coord worktree has not
+        # been created yet, the primary checkout is still authoritative for the
+        # create→first-write window.
+        if (
+            declares_coord_branch
+            and coord_candidate is not None
+            and coord_worktree_materialized
+        ):
             raise CoordAuthorityUnavailable(
                 mission_slug=mission_slug,
                 coord_candidate=coord_candidate,
@@ -264,16 +287,16 @@ class MissionStatus:
     @staticmethod
     def _read_meta(
         repo_root: Path, mission_slug: str
-    ) -> tuple[str | None, str | None]:
+    ) -> tuple[str | None, str | None, Path]:
         """Read ``meta.json`` and extract identity fields.
 
         Returns:
-            ``(mission_id, coordination_branch)`` — either may be ``None`` for
-            legacy missions.
+            ``(mission_id, coordination_branch, primary_dir)`` — identity
+            values may be ``None`` for legacy missions.
         """
-        meta_path = repo_root / KITTY_SPECS_DIR / mission_slug / "meta.json"
+        meta_path, primary_dir = MissionStatus._find_meta_path(repo_root, mission_slug)
         if not meta_path.exists():
-            return None, None
+            return None, None, primary_dir
         try:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
@@ -286,7 +309,7 @@ class MissionStatus:
             raise MissionMetadataUnavailable(
                 mission_slug=mission_slug,
                 meta_path=meta_path,
-                primary_candidate=repo_root / KITTY_SPECS_DIR / mission_slug,
+                primary_candidate=primary_dir,
                 reason=str(exc),
             ) from exc
         if not isinstance(meta, dict):
@@ -298,7 +321,7 @@ class MissionStatus:
             raise MissionMetadataUnavailable(
                 mission_slug=mission_slug,
                 meta_path=meta_path,
-                primary_candidate=repo_root / KITTY_SPECS_DIR / mission_slug,
+                primary_candidate=primary_dir,
                 reason=f"expected object, got {type(meta).__name__}",
             )
 
@@ -307,7 +330,7 @@ class MissionStatus:
             raise MissionMetadataUnavailable(
                 mission_slug=mission_slug,
                 meta_path=meta_path,
-                primary_candidate=repo_root / KITTY_SPECS_DIR / mission_slug,
+                primary_candidate=primary_dir,
                 reason=f"mission_id must be string or null, got {type(mission_id_value).__name__}",
             )
 
@@ -320,12 +343,33 @@ class MissionStatus:
             raise MissionMetadataUnavailable(
                 mission_slug=mission_slug,
                 meta_path=meta_path,
-                primary_candidate=repo_root / KITTY_SPECS_DIR / mission_slug,
+                primary_candidate=primary_dir,
                 reason=f"coordination_branch must be string or null, got {type(coord_branch).__name__}",
             )
         coordination_branch = coord_branch.strip() if isinstance(coord_branch, str) and coord_branch.strip() else None
 
-        return mission_id, coordination_branch
+        return mission_id, coordination_branch, primary_dir
+
+    @staticmethod
+    def _find_meta_path(repo_root: Path, mission_slug: str) -> tuple[Path, Path]:
+        """Return ``(meta_path, primary_dir)`` for raw or composed mission dirs."""
+        primary_dir = repo_root / KITTY_SPECS_DIR / mission_slug
+        raw_meta = primary_dir / "meta.json"
+        if raw_meta.exists():
+            return raw_meta, primary_dir
+
+        from specify_cli.lanes.branch_naming import mid8_from_slug
+
+        if mid8_from_slug(mission_slug):
+            return raw_meta, primary_dir
+
+        specs_dir = repo_root / KITTY_SPECS_DIR
+        if specs_dir.exists():
+            for candidate in sorted(specs_dir.glob(f"{mission_slug}-*/meta.json")):
+                if mid8_from_slug(candidate.parent.name):
+                    return candidate, candidate.parent
+
+        return raw_meta, primary_dir
 
     # ------------------------------------------------------------------
     # Domain operations
@@ -373,58 +417,85 @@ class MissionStatus:
         from specify_cli.status.models import GuardContext, Lane
         from specify_cli.coordination.status_transition import (
             emit_status_transition_transactional,
+            read_current_wp_state_transactional,
         )
+        from specify_cli.status import emit as status_emit
 
-        # Build a GuardContext from the request fields for validation.
-        ctx = GuardContext(
-            actor=request.actor,
-            workspace_context=request.workspace_context,
-            subtasks_complete=request.subtasks_complete,
-            implementation_evidence_present=request.implementation_evidence_present,
-            reason=request.reason,
-            review_ref=request.review_ref,
-            evidence=request.evidence,
-            force=request.force,
-            review_result=request.review_result,
+        # Derive from_lane from the same target the transactional writer will
+        # use. For declared coordination branches without a materialized
+        # worktree, this reads the branch ref rather than stale primary files.
+        from_lane_enum, current_actor = read_current_wp_state_transactional(
+            feature_dir=self.read_dir,
+            mission_slug=self.mission_slug,
+            wp_id=request.wp_id or "",
+            repo_root=self.repo_root,
         )
-
-        # Derive from_lane from the event log so validation is accurate.
-        # Mirror the transactional path's tolerance: a mission without an event
-        # log yet (e.g. the very first transition of a freshly bootstrapped WP)
-        # has no canonical lane, which is the implicit ``planned`` origin — not
-        # an error. ``get_wp_lane`` raises ``CanonicalStatusNotFoundError`` in
-        # that case, so we treat it as ``planned`` to stay behavior-preserving
-        # with ``emit_status_transition_transactional`` (FR-004).
-        from specify_cli.status import get_wp_lane
-        from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
-        from specify_cli.status.wp_state import InvalidTransitionError
-
-        try:
-            from_lane_enum: Lane | str = get_wp_lane(self.read_dir, request.wp_id or "")
-        except CanonicalStatusNotFoundError:
+        if str(from_lane_enum) == "uninitialized":
             from_lane_enum = Lane.PLANNED
         to_lane_str = request.to_lane or ""
-        ok, error = validate_transition(str(from_lane_enum), to_lane_str, ctx)
+        from_lane_str = str(from_lane_enum)
+
+        from specify_cli.status.transitions import resolve_lane_alias
+
+        resolved_to_lane = resolve_lane_alias(to_lane_str)
+        workspace_context = request.workspace_context
+        if workspace_context is None:
+            context_root = request.repo_root if request.repo_root is not None else self.read_dir
+            workspace_context = f"{request.execution_mode}:{context_root}"
+
+        subtasks_complete = request.subtasks_complete
+        implementation_evidence_present = request.implementation_evidence_present
+        if subtasks_complete is None and from_lane_str == Lane.IN_PROGRESS and resolved_to_lane == Lane.FOR_REVIEW:
+            subtasks_complete = status_emit._infer_subtasks_complete(self.read_dir, request.wp_id or "")
+        if (
+            implementation_evidence_present is None
+            and from_lane_str == Lane.IN_PROGRESS
+            and resolved_to_lane == Lane.FOR_REVIEW
+        ):
+            implementation_evidence_present = status_emit._infer_implementation_evidence(
+                self.read_dir, request.wp_id or ""
+            )
+
+        if status_emit._legacy_alias_collapses_to_current_lane(
+            to_lane_str,
+            resolved_to_lane,
+            from_lane_str,
+        ):
+            enriched = _enrich_transition_request(
+                request,
+                read_dir=self.read_dir,
+                mission_slug=self.mission_slug,
+            )
+            return emit_status_transition_transactional(enriched)
+
+        evidence = request.evidence
+        if evidence is not None:
+            evidence = status_emit._build_done_evidence(evidence)
+
+        # Build a GuardContext from behavior-preserving inferred request fields.
+        ctx = GuardContext(
+            actor=request.actor,
+            workspace_context=workspace_context,
+            subtasks_complete=subtasks_complete,
+            implementation_evidence_present=implementation_evidence_present,
+            reason=request.reason,
+            review_ref=request.review_ref,
+            evidence=evidence,
+            force=request.force,
+            review_result=request.review_result,
+            current_actor=current_actor,
+        )
+        ok, error = validate_transition(from_lane_str, resolved_to_lane, ctx)
         if not ok:
-            # Coerce to Lane enums for InvalidTransitionError constructor
-            try:
-                from_lane_for_error = Lane(str(from_lane_enum))
-            except ValueError:
-                from_lane_for_error = Lane.PLANNED
-            try:
-                from specify_cli.status.transitions import resolve_lane_alias
-                to_lane_for_error = Lane(resolve_lane_alias(to_lane_str))
-            except ValueError:
-                to_lane_for_error = Lane.PLANNED
-            raise InvalidTransitionError(from_lane_for_error, to_lane_for_error)
+            from specify_cli.status.emit import TransitionError
+
+            raise TransitionError(error or f"Illegal transition: {from_lane_str} -> {resolved_to_lane}")
 
         # Inject the resolved read_dir so the transactional path uses the
         # correct (possibly coord-worktree) directory.
-        import dataclasses
-
-        enriched = dataclasses.replace(
+        enriched = _enrich_transition_request(
             request,
-            feature_dir=self.read_dir,
+            read_dir=self.read_dir,
             mission_slug=self.mission_slug,
         )
         return emit_status_transition_transactional(enriched)

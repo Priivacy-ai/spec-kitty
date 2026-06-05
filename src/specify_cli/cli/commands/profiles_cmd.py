@@ -28,13 +28,16 @@ def _activated_agent_profiles(repo_root: Path) -> frozenset[str] | None:
     backward-compat). ``frozenset()`` → explicit empty (nothing activated).
     Non-empty frozenset → explicit set of activated IDs.
     """
+    if not (repo_root / ".kittify" / "config.yaml").exists():
+        return None
+
     from charter.pack_context import PackContext
 
     activated: frozenset[str] | None = PackContext.from_config(repo_root).activated_agent_profiles
     return activated
 
 
-def _build_descriptor(p: AgentProfile) -> dict[str, Any]:
+def _build_descriptor(p: AgentProfile, *, source_layer: str | None = None) -> dict[str, Any]:
     """Build the legacy descriptor row for a profile (schema preserved — NFR-001)."""
     from doctrine.agent_profiles.capabilities import DEFAULT_ROLE_CAPABILITIES
     from doctrine.agent_profiles.profile import Role
@@ -47,7 +50,13 @@ def _build_descriptor(p: AgentProfile) -> dict[str, Any]:
     # collaboration.canonical_verbs also carries per-profile verbs
     collab = getattr(p, "collaboration", None)
     collab_verbs = list(collab.canonical_verbs) if collab and collab.canonical_verbs else []
-    source = "project_local" if getattr(p, "_source", None) == "project" else "built-in"
+    provenance = source_layer or getattr(p, "_source", None)
+    if provenance == "project":
+        source = "project_local"
+    elif provenance == "org":
+        source = "org"
+    else:
+        source = "built-in"
     return {
         "profile_id": p.profile_id,
         "identifier": p.profile_id,
@@ -56,6 +65,61 @@ def _build_descriptor(p: AgentProfile) -> dict[str, Any]:
         "action_domains": sorted({*canonical_verbs, *collab_verbs, *domain_kws}),
         "source": source,
     }
+
+
+def _profile_catalog(
+    repo_root: Path,
+) -> tuple[list[AgentProfile], dict[str, str | None], dict[str, AgentProfileRepository]]:
+    """Return merged doctrine + legacy invocation profiles.
+
+    ``.kittify/profiles`` remains the live invocation registry for ask/router
+    flows, while ``.kittify/doctrine/agent_profiles`` is the charter doctrine
+    surface. The profile CLI must not hide either source.
+    """
+    from charter.profiles import AgentProfileRepository
+
+    legacy_dir = repo_root / ".kittify" / "profiles"
+    legacy_repo = AgentProfileRepository(
+        project_dir=legacy_dir if legacy_dir.exists() else None
+    )
+
+    by_id: dict[str, AgentProfile] = {}
+    provenance: dict[str, str | None] = {}
+    owner: dict[str, AgentProfileRepository] = {}
+
+    for profile in ProfileRegistry(repo_root).list_all():
+        layer = legacy_repo.get_provenance(profile.profile_id)
+        by_id[profile.profile_id] = profile
+        provenance[profile.profile_id] = layer
+        owner[profile.profile_id] = legacy_repo
+
+    # Overlay charter doctrine project/org profiles that the legacy invocation
+    # registry cannot see. Built-ins stay controlled by ProfileRegistry so
+    # existing tests/monkeypatches keep their pre-activation behavior.
+    project_doctrine_profiles = repo_root / ".kittify" / "doctrine" / "agent_profiles"
+    from doctrine.drg.org_pack_config import resolve_org_roots
+
+    org_roots = [root for root in resolve_org_roots(repo_root) if root.exists()]
+    if project_doctrine_profiles.exists() or org_roots:
+        from specify_cli.doctrine_service_factory import (
+            build_activation_aware_doctrine_service,
+        )
+
+        svc = build_activation_aware_doctrine_service(repo_root)
+        inner = object.__getattribute__(svc, "_inner")
+        doctrine_repo: AgentProfileRepository = inner.agent_profiles
+        for profile in doctrine_repo.list_all():
+            layer = doctrine_repo.get_provenance(profile.profile_id)
+            if layer in {"project", "org"}:
+                by_id[profile.profile_id] = profile
+                provenance[profile.profile_id] = layer
+                owner[profile.profile_id] = doctrine_repo
+
+    return (
+        sorted(by_id.values(), key=lambda p: p.profile_id),
+        provenance,
+        owner,
+    )
 
 
 @app.command("list")
@@ -84,8 +148,7 @@ def list_profiles(
     # consistency (QUERY mode disallows Tier 2 evidence promotion per FR-009).
     # TODO(future): wire derive_mode("profiles.list") when InvocationRecord is opened here.
     repo_root = find_repo_root()
-    registry = ProfileRegistry(repo_root)
-    profiles = registry.list_all()
+    profiles, provenance, _owner = _profile_catalog(repo_root)
 
     if not profiles:
         if json_output:
@@ -109,14 +172,17 @@ def list_profiles(
     if not show_available:
         if activated is not None:
             profiles = [p for p in profiles if p.profile_id in activated]
-        descriptors = [_build_descriptor(p) for p in profiles]
+        descriptors = [
+            _build_descriptor(p, source_layer=provenance.get(p.profile_id))
+            for p in profiles
+        ]
         _render_list(descriptors, json_output=json_output)
         return
 
     # FR-012: --all / --show-available — annotate every row by source + state.
     descriptors = []
     for p in profiles:
-        d = _build_descriptor(p)
+        d = _build_descriptor(p, source_layer=provenance.get(p.profile_id))
         is_activated = activated is None or p.profile_id in activated
         d["state"] = "activated" if is_activated else "available"
         descriptors.append(d)
@@ -130,7 +196,7 @@ def _render_list(descriptors: list[dict[str, Any]], *, json_output: bool) -> Non
         typer.echo(json.dumps(descriptors, indent=2))
         return
     table = Table(title="Agent Profiles")
-    table.add_column("Profile ID")
+    table.add_column("Profile ID", no_wrap=True, overflow="fold")
     table.add_column("Friendly Name")
     table.add_column("Role")
     table.add_column("Source")
@@ -145,7 +211,7 @@ def _render_list_annotated(descriptors: list[dict[str, Any]], *, json_output: bo
         typer.echo(json.dumps(descriptors, indent=2))
         return
     table = Table(title="Agent Profiles")
-    table.add_column("Profile ID")
+    table.add_column("Profile ID", no_wrap=True, overflow="fold")
     table.add_column("Friendly Name")
     table.add_column("Role")
     table.add_column("Source")
@@ -254,13 +320,13 @@ def show_profile(
     ),
 ) -> None:
     """Show the full resolved definition of an agent profile (FR-013/014/015)."""
-    from specify_cli.doctrine_service_factory import (
-        build_activation_aware_doctrine_service,
-    )
-
     repo_root = find_repo_root()
-    svc = build_activation_aware_doctrine_service(repo_root)
-    activated_profiles: dict[str, AgentProfile] = svc.agent_profiles
+    profiles, provenance, owner = _profile_catalog(repo_root)
+    by_id = {p.profile_id: p for p in profiles}
+    activated = _activated_agent_profiles(repo_root)
+    activated_profiles = (
+        by_id if activated is None else {k: v for k, v in by_id.items() if k in activated}
+    )
 
     # FR-014: activation gate on the leaf id. --all bypasses for inspection.
     if profile_id not in activated_profiles and not show_all:
@@ -268,22 +334,16 @@ def show_profile(
         _emit_not_activated(profile_id, candidates, json_output=json_output)
         raise typer.Exit(1)
 
-    # Reach the inner repository for lineage composition (Option A may traverse
-    # non-activated abstract base profiles). ``_inner`` is the raw
-    # doctrine.service.DoctrineService; its ``agent_profiles`` is the repository.
-    inner = object.__getattribute__(svc, "_inner")
-    repo: AgentProfileRepository = inner.agent_profiles
-
-    if repo.get(profile_id) is None:
+    repo = owner.get(profile_id)
+    if repo is None or repo.get(profile_id) is None:
         # Not loaded at all (even built-in) — surface as not-activated with the
         # activated candidate set (FR-014 schema).
         candidates = sorted(activated_profiles.keys())
         _emit_not_activated(profile_id, candidates, json_output=json_output)
         raise typer.Exit(1)
 
-    activated = _activated_agent_profiles(repo_root)
     resolved, warnings = _resolve_with_lineage(repo, profile_id, activated)
-    source_layer = repo.get_provenance(profile_id)
+    source_layer = provenance.get(profile_id)
 
     payload = _profile_payload(resolved, source_layer=source_layer, warnings=warnings)
 

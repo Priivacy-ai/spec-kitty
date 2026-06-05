@@ -18,7 +18,9 @@ from rich.console import Console
 from rich.table import Table
 
 from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
+from specify_cli.lanes.branch_naming import mid8_from_slug
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.status.store import EVENTS_FILENAME, EventPersistenceError, StoreError
 
@@ -32,6 +34,25 @@ app = typer.Typer(
 
 console = Console()
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
+
+
+def _resolve_bare_modern_mission_slug(repo_root: Path, raw_handle: str) -> str | None:
+    """Resolve ``human-slug`` to ``human-slug-<mid8>`` when exactly one dir exists."""
+    if mid8_from_slug(raw_handle):
+        return None
+
+    specs_dir = repo_root / KITTY_SPECS_DIR
+    if not specs_dir.is_dir():
+        return None
+
+    matches = [
+        meta_path.parent.name
+        for meta_path in sorted(specs_dir.glob(f"{raw_handle}-*/meta.json"))
+        if mid8_from_slug(meta_path.parent.name)
+    ]
+    if len(matches) != 1:
+        return None
+    return matches[0]
 
 
 def _find_mission_slug(
@@ -80,6 +101,8 @@ def _find_mission_slug(
         legacy_dir = candidate_feature_dir_for_mission(get_main_repo_root(repo_root), raw_handle)
         if legacy_dir.exists():
             return raw_handle
+        if resolved_bare := _resolve_bare_modern_mission_slug(get_main_repo_root(repo_root), raw_handle):
+            return resolved_bare
         try:
             resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
             return resolved.mission_slug
@@ -315,6 +338,23 @@ def emit(
             repo_root=main_repo_root,
         ))
 
+        # ``transition()`` can materialize the coordination worktree and write
+        # there even when the initial aggregate read from primary during the
+        # create→first-write window. Reload so machine output points at the
+        # event log affected by this command.
+        output_feature_dir = feature_dir
+        try:
+            output_feature_dir = type(ms).load(
+                repo_root=main_repo_root,
+                mission_slug=mission_slug,
+            ).read_dir
+        except Exception as reload_exc:  # noqa: BLE001
+            logger.debug(
+                "Could not reload mission status after transition for %s: %s",
+                mission_slug,
+                reload_exc,
+            )
+
         # Build result
         result = {
             "event_id": event.event_id,
@@ -322,7 +362,7 @@ def emit(
             "work_package_id": event.wp_id,
             "from_lane": str(event.from_lane),
             "to_lane": str(event.to_lane),
-            "status_events_path": str(feature_dir / EVENTS_FILENAME),
+            "status_events_path": str(output_feature_dir / EVENTS_FILENAME),
             "actor": event.actor,
         }
 

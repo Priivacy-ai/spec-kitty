@@ -33,6 +33,8 @@ runner = CliRunner()
 # implementer lineage, so it is a safe "activated candidate" anchor.
 _ACTIVATED_ID = "reviewer-renata"
 _OTHER_ID = "implementer-ivan"
+_PROJECT_ID = "local-lena"
+_ORG_ID = "org-olivia"
 
 
 def _extract_json(output: str) -> object:
@@ -61,6 +63,30 @@ def _write_config(repo_root: Path, data: dict[str, object]) -> None:
     yaml = YAML()
     with (kittify / "config.yaml").open("w", encoding="utf-8") as fh:
         yaml.dump(data, fh)
+
+
+def _write_project_doctrine_profile(repo_root: Path, profile_id: str = _PROJECT_ID) -> None:
+    """Write a project-doctrine profile under the charter synthesis path."""
+    profiles_dir = repo_root / ".kittify" / "doctrine" / "agent_profiles"
+    profiles_dir.mkdir(parents=True, exist_ok=True)
+    source = Path("src/doctrine/agent_profiles/built-in/reviewer-renata.agent.yaml")
+    text = source.read_text(encoding="utf-8")
+    text = text.replace("profile-id: reviewer-renata", f"profile-id: {profile_id}")
+    text = text.replace("name: Reviewer Renata", "name: Local Lena")
+    (profiles_dir / f"{profile_id}.agent.yaml").write_text(text, encoding="utf-8")
+
+
+def _write_org_doctrine_profile(repo_root: Path, profile_id: str = _ORG_ID) -> Path:
+    """Write an org-pack profile and return the org doctrine root."""
+    org_root = repo_root / "org-pack"
+    profiles_dir = org_root / "agent_profiles"
+    profiles_dir.mkdir(parents=True, exist_ok=True)
+    source = Path("src/doctrine/agent_profiles/built-in/reviewer-renata.agent.yaml")
+    text = source.read_text(encoding="utf-8")
+    text = text.replace("profile-id: reviewer-renata", f"profile-id: {profile_id}")
+    text = text.replace("name: Reviewer Renata", "name: Org Olivia")
+    (profiles_dir / f"{profile_id}.agent.yaml").write_text(text, encoding="utf-8")
+    return org_root
 
 
 def _invoke(project: Path, args: list[str]):
@@ -125,6 +151,58 @@ class TestListActivationFilter:
         assert result.exit_code == 0, result.output
         data = _extract_json(result.output)
         assert data == []
+
+    def test_project_doctrine_profile_can_be_listed_when_activated(
+        self, tmp_path: Path
+    ) -> None:
+        """``list`` and ``show`` share the project-doctrine profile surface."""
+        _write_project_doctrine_profile(tmp_path)
+        _write_config(tmp_path, {"activated_agent_profiles": [_PROJECT_ID]})
+
+        result = _invoke(tmp_path, ["profiles", "list", "--json"])
+        assert result.exit_code == 0, result.output
+        data = _extract_json(result.output)
+
+        assert [row["profile_id"] for row in data] == [_PROJECT_ID]
+        assert data[0]["source"] == "project_local"
+
+        shown = _invoke(tmp_path, ["profiles", "show", _PROJECT_ID, "--json"])
+        assert shown.exit_code == 0, shown.output
+        payload = _extract_json(shown.output)
+        assert payload["profile_id"] == _PROJECT_ID
+        assert payload["source_layer"] == "project"
+
+    def test_org_doctrine_profile_can_be_listed_when_activated(
+        self, tmp_path: Path
+    ) -> None:
+        """Configured org-pack profiles are part of list/show activation surface."""
+        org_root = _write_org_doctrine_profile(tmp_path)
+        _write_config(
+            tmp_path,
+            {
+                "doctrine": {
+                    "org": {
+                        "packs": [
+                            {"name": "acme", "local_path": str(org_root)},
+                        ]
+                    }
+                },
+                "activated_agent_profiles": [_ORG_ID],
+            },
+        )
+
+        result = _invoke(tmp_path, ["profiles", "list", "--json"])
+        assert result.exit_code == 0, result.output
+        data = _extract_json(result.output)
+
+        assert [row["profile_id"] for row in data] == [_ORG_ID]
+        assert data[0]["source"] == "org"
+
+        shown = _invoke(tmp_path, ["profiles", "show", _ORG_ID, "--json"])
+        assert shown.exit_code == 0, shown.output
+        payload = _extract_json(shown.output)
+        assert payload["profile_id"] == _ORG_ID
+        assert payload["source_layer"] == "org"
 
 
 # ---------------------------------------------------------------------------

@@ -9,6 +9,8 @@ Covers:
 
 from __future__ import annotations
 
+import ast
+import importlib.util
 from pathlib import Path
 
 import pytest
@@ -37,6 +39,67 @@ def _builtin_profile_ids() -> set[str]:
         built_in_dir=resolve_doctrine_root() / "agent_profiles" / "built-in",
     )
     return {p.profile_id for p in repo.list_all()}
+
+
+def _module_source(mod_name: str) -> Path | None:
+    try:
+        spec = importlib.util.find_spec(mod_name)
+    except (ImportError, ValueError, AttributeError, ModuleNotFoundError):
+        return None
+    if spec is None or not spec.origin or spec.origin == "built-in":
+        return None
+    path = Path(spec.origin)
+    return path if path.suffix == ".py" else None
+
+
+def _first_party_imports(source_path: Path) -> set[str]:
+    try:
+        tree = ast.parse(source_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, SyntaxError):
+        return set()
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            names.add(node.module)
+    return {n for n in names if n.split(".")[0] in {"specify_cli", "charter", "doctrine"}}
+
+
+def _imports_specify_cli(source_path: Path) -> bool:
+    """Return True iff the module *actually* imports ``specify_cli``."""
+    try:
+        tree = ast.parse(source_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, SyntaxError):
+        return False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            if any(alias.name.split(".")[0] == "specify_cli" for alias in node.names):
+                return True
+        elif isinstance(node, ast.ImportFrom):
+            root = (node.module or "").split(".")[0]
+            if root == "specify_cli":
+                return True
+    return False
+
+
+def _factory_charter_doctrine_import_closure() -> set[str]:
+    """Return charter/doctrine modules in the factory's static import closure."""
+    seen: set[str] = set()
+    queue: list[str] = ["specify_cli.doctrine_service_factory"]
+    charter_doctrine_closure: set[str] = set()
+    while queue:
+        mod = queue.pop()
+        if mod in seen:
+            continue
+        seen.add(mod)
+        source = _module_source(mod)
+        if source is None:
+            continue
+        if mod.split(".")[0] in {"charter", "doctrine"}:
+            charter_doctrine_closure.add(mod)
+        queue.extend(imp for imp in _first_party_imports(source) if imp not in seen)
+    return charter_doctrine_closure
 
 
 @pytest.fixture()
@@ -96,76 +159,15 @@ def test_layer_safety_charter_and_doctrine_do_not_import_specify_cli() -> None:
     from the ``charter`` and ``doctrine`` layers must never import back into
     ``specify_cli`` — that would invert the dependency direction (C-005).
     """
-    import ast
-    import importlib.util
-
-    def _module_source(mod_name: str) -> Path | None:
-        try:
-            spec = importlib.util.find_spec(mod_name)
-        except (ImportError, ValueError, AttributeError, ModuleNotFoundError):
-            return None
-        if spec is None or not spec.origin or spec.origin == "built-in":
-            return None
-        path = Path(spec.origin)
-        return path if path.suffix == ".py" else None
-
-    def _first_party_imports(source_path: Path) -> set[str]:
-        try:
-            tree = ast.parse(source_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, SyntaxError):
-            return set()
-        names: set[str] = set()
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                names.update(alias.name for alias in node.names)
-            elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
-                names.add(node.module)
-        return {n for n in names if n.split(".")[0] in {"specify_cli", "charter", "doctrine"}}
-
-    def _imports_specify_cli(source_path: Path) -> bool:
-        """Return True iff the module *actually* imports ``specify_cli`` (AST, not text).
-
-        A docstring or comment that merely mentions the string ``specify_cli``
-        must not count; only real ``import``/``from`` statements do.
-        """
-        try:
-            tree = ast.parse(source_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, SyntaxError):
-            return False
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                if any(alias.name.split(".")[0] == "specify_cli" for alias in node.names):
-                    return True
-            elif isinstance(node, ast.ImportFrom):
-                root = (node.module or "").split(".")[0]
-                if root == "specify_cli":
-                    return True
-        return False
-
     # Deterministically walk the factory's *own* transitive first-party import
     # closure (static AST BFS) instead of policing every charter/doctrine module
     # other tests happen to have loaded into sys.modules. Pre-existing crossings
     # outside the factory's dependency graph (e.g.
     # charter.synthesizer.synthesize_pipeline) are not this factory's concern and
     # would make this test order-dependent.
-    seen: set[str] = set()
-    queue: list[str] = ["specify_cli.doctrine_service_factory"]
-    charter_doctrine_closure: set[str] = set()
-    while queue:
-        mod = queue.pop()
-        if mod in seen:
-            continue
-        seen.add(mod)
-        source = _module_source(mod)
-        if source is None:
-            continue
-        if mod.split(".")[0] in {"charter", "doctrine"}:
-            charter_doctrine_closure.add(mod)
-        queue.extend(imp for imp in _first_party_imports(source) if imp not in seen)
-
     offenders = sorted(
         mod
-        for mod in charter_doctrine_closure
+        for mod in _factory_charter_doctrine_import_closure()
         if (src := _module_source(mod)) is not None and _imports_specify_cli(src)
     )
     assert not offenders, (

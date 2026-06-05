@@ -128,7 +128,7 @@ def _planned_fresh_doctrine_paths(repo_root: Path) -> list[str]:
     """Return the repo-relative paths a fresh-project synthesize would write.
 
     Used by ``--dry-run`` on a fresh project (#839 follow-up): callers preview
-    the materialization without touching the filesystem. Must mirror the
+    the materialization without touching the filesystem. Must mirror the write
     output of :func:`_materialize_fresh_doctrine` exactly.
     """
     doctrine_dir = repo_root / ".kittify" / "doctrine"
@@ -137,3 +137,11 @@ def _planned_fresh_doctrine_paths(repo_root: Path) -> list[str]:
         str((doctrine_dir / "PROVENANCE.md").relative_to(repo_root)),
         str((charter_dir / "synthesis-manifest.yaml").relative_to(repo_root)),
     ]
+
+
+def _planned_fresh_doctrine_deletes(repo_root: Path) -> list[str]:
+    """Return repo-relative paths fresh-project synthesize would delete."""
+    graph_path = repo_root / ".kittify" / "doctrine" / "graph.yaml"
+    if not graph_path.exists():
+        return []
+    return [str(graph_path.relative_to(repo_root))]
