@@ -104,6 +104,81 @@ def breadcrumb_items(page: Page, base_url: str) -> list[dict[str, object]]:
     return crumbs
 
 
+def kitty_specs_json_ld(page: Page, base_url: str) -> list[dict[str, object]]:
+    rel = page.relative_path.replace("\\", "/")
+    if not rel.startswith("kitty-specs/"):
+        return []
+
+    docs_url = normalize_base_url(base_url)
+    if rel == "kitty-specs/index.html":
+        return [
+            {
+                "@context": "https://schema.org",
+                "@type": "CollectionPage",
+                "name": "Spec Kitty Mission Runs",
+                "description": page.description,
+                "url": page.url,
+                "isPartOf": {"@type": "WebSite", "name": "Spec Kitty Documentation", "url": docs_url},
+                "about": [
+                    "Spec Kitty mission runs",
+                    "spec-driven development",
+                    "AI coding agents",
+                    "work packages",
+                ],
+            },
+            {
+                "@context": "https://schema.org",
+                "@type": "ItemList",
+                "name": "Spec Kitty mission run index",
+                "url": page.url,
+                "itemListOrder": "https://schema.org/ItemListOrderDescending",
+            },
+        ]
+
+    parts = rel.split("/")
+    mission_slug = parts[1] if len(parts) > 1 else ""
+    artifact = parts[-1].removesuffix(".html")
+    if artifact == "index":
+        artifact = "overview"
+    artifact_name = artifact.replace("-", " ").title()
+    return [
+        {
+            "@context": "https://schema.org",
+            "@type": "TechArticle",
+            "headline": page.title,
+            "description": page.description,
+            "url": page.url,
+            "inLanguage": "en",
+            "isPartOf": {"@type": "WebSite", "name": "Spec Kitty Documentation", "url": docs_url},
+            "about": [
+                "Spec Kitty mission run",
+                mission_slug,
+                artifact_name,
+                "spec-driven development",
+                "AI coding agents",
+            ],
+            "mainEntity": {
+                "@type": "CreativeWork",
+                "name": page.title,
+                "description": page.description,
+                "identifier": mission_slug,
+                "url": page.url,
+                "genre": "Software specification artifact",
+                "isPartOf": {
+                    "@type": "CreativeWorkSeries",
+                    "name": "Spec Kitty mission run artifacts",
+                    "url": canonical_url(base_url, f"kitty-specs/{mission_slug}/index.html"),
+                },
+            },
+            "publisher": {
+                "@type": "Organization",
+                "name": "Spec Kitty",
+                "url": "https://github.com/Priivacy-ai/spec-kitty",
+            },
+        }
+    ]
+
+
 def seo_block(page: Page, base_url: str, image_path: str) -> str:
     image_url = normalize_base_url(base_url) + quote(image_path.lstrip("/"), safe="/.-_~")
     json_ld = [
@@ -132,6 +207,7 @@ def seo_block(page: Page, base_url: str, image_path: str) -> str:
             "itemListElement": breadcrumb_items(page, base_url),
         },
     ]
+    json_ld.extend(kitty_specs_json_ld(page, base_url))
     escaped_title = html.escape(page.title, quote=True)
     escaped_desc = html.escape(page.description, quote=True)
     escaped_url = html.escape(page.url, quote=True)

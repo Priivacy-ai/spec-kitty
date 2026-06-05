@@ -14,6 +14,8 @@
       href: 3x/
 - name: Migration to 3.2
   href: migration/
+- name: Mission Runs
+  href: kitty-specs/index.html
 - name: Historical Archive
   items:
     - name: Archive Overview
