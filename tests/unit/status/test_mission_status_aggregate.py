@@ -535,3 +535,83 @@ class TestSaveReturnType:
         ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
         with pytest.raises(MissionMetadataUnavailable, match="mission_id is required"):
             ms.save(operation="test-save")
+
+
+# ---------------------------------------------------------------------------
+# FR-007 / DIRECTIVE_010 — mission_slug ASCII allowlist guard at load()
+# ---------------------------------------------------------------------------
+
+
+class TestMissionSlugAllowlistGuard:
+    """``MissionStatus.load()`` rejects slugs outside ``^[A-Za-z0-9_-]+$``."""
+
+    @pytest.mark.parametrize(
+        "slug",
+        [
+            "034-feature-name",
+            "test-feature",
+            "save-legacy-01ABCDEF",
+            "WP_underscored",
+            "ABC123",
+        ],
+    )
+    def test_normal_ascii_slug_passes(self, tmp_path: Path, slug: str) -> None:
+        """Identifier-safe ASCII slugs load without raising."""
+        _make_mission_dir(tmp_path, slug)
+
+        from specify_cli.status.aggregate import MissionStatus
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+        assert ms.mission_slug == slug
+        # The validated identifier must be pure ASCII (FR-007).
+        assert ms.mission_slug.isascii()
+
+    def test_accented_latin_slug_is_rejected(self, tmp_path: Path) -> None:
+        """An accented-Latin slug (non-ASCII) is rejected at load()."""
+        slug = "café-mission"
+        # Defensive: the offending slug must not be ASCII, otherwise the test
+        # would not exercise the .isascii() branch of the guard.
+        assert not slug.isascii()
+
+        from specify_cli.status.aggregate import InvalidMissionSlug, MissionStatus
+
+        with pytest.raises(InvalidMissionSlug) as exc_info:
+            MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+        assert exc_info.value.mission_slug == slug
+        assert slug in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        "slug",
+        [
+            "feature/with-slash",
+            "feature with space",
+            "feature.with.dot",
+            "feature$injection",
+            "..",
+            "",
+            "naïve",  # accented variant of a common ASCII word
+            "münchen-mission",
+        ],
+    )
+    def test_disallowed_slugs_are_rejected(self, tmp_path: Path, slug: str) -> None:
+        """Path-injection and non-ASCII slugs all raise InvalidMissionSlug."""
+        from specify_cli.status.aggregate import InvalidMissionSlug, MissionStatus
+
+        with pytest.raises(InvalidMissionSlug):
+            MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+
+    def test_invalid_mission_slug_is_value_error_subclass(self) -> None:
+        """InvalidMissionSlug is a ValueError so existing handlers can catch it."""
+        from specify_cli.status.aggregate import InvalidMissionSlug
+
+        assert issubclass(InvalidMissionSlug, ValueError)
+
+    def test_invalid_mission_slug_importable_from_status_aggregate(self) -> None:
+        from specify_cli.status.aggregate import InvalidMissionSlug  # noqa: F401
+
+    def test_invalid_mission_slug_in_aggregate_dunder_all(self) -> None:
+        import specify_cli.status.aggregate as aggregate_mod
+
+        assert "InvalidMissionSlug" in aggregate_mod.__all__

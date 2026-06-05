@@ -152,6 +152,35 @@ def _resolve_feature_dir(
     return feature_dir, mission_slug, main_repo_root
 
 
+def _resolve_mission_status_for_repo(
+    main_repo_root: Path,
+    mission_slug: str,
+    json_output: bool = False,
+) -> Any:
+    """Resolve the coord-aware ``MissionStatus`` aggregate for a mission.
+
+    Centralises ``MissionStatus.load`` + fail-closed error handling so callers
+    that need the aggregate itself (not just its ``read_dir``) do not have to
+    ``load()`` twice. FR-004 routes status writes through the returned
+    aggregate's ``transition()`` method.
+
+    Returns:
+        The resolved :class:`~specify_cli.status.MissionStatus` aggregate.
+
+    Raises:
+        typer.Exit: If the slug is invalid or the coord authority is
+            unavailable / metadata cannot be trusted (fail closed).
+    """
+    from specify_cli.status import CoordAuthorityUnavailable, MissionMetadataUnavailable, MissionStatus
+    from specify_cli.status.aggregate import InvalidMissionSlug
+
+    try:
+        return MissionStatus.load(repo_root=main_repo_root, mission_slug=mission_slug)
+    except (CoordAuthorityUnavailable, MissionMetadataUnavailable, InvalidMissionSlug) as exc:
+        _output_error(json_output, str(exc))
+        raise typer.Exit(1)
+
+
 def _resolve_feature_dir_for_repo(
     main_repo_root: Path,
     mission_slug: str,
@@ -168,14 +197,8 @@ def _resolve_feature_dir_for_repo(
     Raises:
         typer.Exit: If CoordAuthorityUnavailable is raised.
     """
-    from specify_cli.status import CoordAuthorityUnavailable, MissionMetadataUnavailable, MissionStatus
-
-    try:
-        ms = MissionStatus.load(repo_root=main_repo_root, mission_slug=mission_slug)
-        return ms.read_dir, mission_slug, main_repo_root
-    except (CoordAuthorityUnavailable, MissionMetadataUnavailable) as exc:
-        _output_error(json_output, str(exc))
-        raise typer.Exit(1)
+    ms = _resolve_mission_status_for_repo(main_repo_root, mission_slug, json_output)
+    return ms.read_dir, mission_slug, main_repo_root
 
 
 @app.command()
@@ -246,8 +269,11 @@ def emit(
         # Resolve feature slug
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
-        # Resolve coord-aware mission directory via MissionStatus aggregate
-        feature_dir, _, _ = _resolve_feature_dir_for_repo(main_repo_root, mission_slug, json_output)
+        # Resolve coord-aware mission aggregate via MissionStatus.load(). The
+        # aggregate is retained (not just its read_dir) so the write below can
+        # route through it without loading twice (FR-004).
+        ms = _resolve_mission_status_for_repo(main_repo_root, mission_slug, json_output)
+        feature_dir = ms.read_dir
 
         # Parse evidence JSON if provided
         evidence = None
@@ -264,15 +290,15 @@ def emit(
                 raise typer.Exit(1)
 
         # Lazy import to avoid circular imports
-        from specify_cli.coordination.status_transition import (
-            emit_status_transition_transactional,
-        )
         from specify_cli.status.emit import (
             TransitionError,
         )
         from specify_cli.status.models import TransitionRequest
 
-        event = emit_status_transition_transactional(TransitionRequest(
+        # FR-004: the MissionStatus aggregate is the sole write entry point.
+        # ms.transition() validates and delegates to the transactional path,
+        # so this is behavior-preserving relative to the prior direct call.
+        event = ms.transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             wp_id=wp_id,

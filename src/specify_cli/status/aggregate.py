@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -35,6 +36,14 @@ if TYPE_CHECKING:
     pass
 
 _logger = logging.getLogger(__name__)
+
+# FR-007 / DIRECTIVE_010: mission slugs are ASCII identifier-safe handles used to
+# compose filesystem paths, git refs, and worktree names. Anything outside this
+# allowlist is rejected at the aggregate boundary before it can reach those
+# surfaces. ``re.ASCII`` keeps ``\w`` semantics ASCII-only, but the pattern is
+# already explicit, so the flag is belt-and-suspenders alongside the
+# ``.isascii()`` guard.
+_MISSION_SLUG_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$", re.ASCII)
 
 
 # ---------------------------------------------------------------------------
@@ -86,6 +95,22 @@ class MissionMetadataUnavailable(RuntimeError):
             f"Primary checkout (not used): {primary_candidate}. "
             f"Reason: {reason}. "
             "Fix meta.json before reading mission status."
+        )
+
+
+class InvalidMissionSlug(ValueError):
+    """Raised when a ``mission_slug`` violates the ASCII identifier allowlist.
+
+    Mission slugs feed filesystem paths, git refs, and worktree names, so they
+    must match ``^[A-Za-z0-9_-]+$`` and be pure ASCII (FR-007, DIRECTIVE_010).
+    The offending slug is carried so callers can surface a precise diagnostic.
+    """
+
+    def __init__(self, mission_slug: str) -> None:
+        self.mission_slug = mission_slug
+        super().__init__(
+            f"Invalid mission slug {mission_slug!r}: mission slugs must match "
+            r"'^[A-Za-z0-9_-]+$' and contain ASCII characters only."
         )
 
 
@@ -166,7 +191,13 @@ class MissionStatus:
                 the coord worktree is missing.
             MissionMetadataUnavailable: When ``meta.json`` exists but cannot
                 be parsed as a trusted object.
+            InvalidMissionSlug: When ``mission_slug`` is empty, non-ASCII, or
+                contains characters outside ``^[A-Za-z0-9_-]+$`` (FR-007).
         """
+        # 0. Guard the slug at the boundary (FR-007 / DIRECTIVE_010) before it
+        #    is used to compose paths, git refs, or worktree names.
+        cls._validate_mission_slug(mission_slug)
+
         # 1. Load meta.json (best-effort; legacy missions may not have one)
         mission_id, coordination_branch = cls._read_meta(repo_root, mission_slug)
         declares_coord_branch = coordination_branch is not None
@@ -218,6 +249,17 @@ class MissionStatus:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _validate_mission_slug(mission_slug: str) -> None:
+        """Reject mission slugs outside the ASCII identifier allowlist (FR-007).
+
+        Raises:
+            InvalidMissionSlug: When the slug is non-ASCII or does not match
+                ``^[A-Za-z0-9_-]+$``.
+        """
+        if not mission_slug.isascii() or _MISSION_SLUG_PATTERN.match(mission_slug) is None:
+            raise InvalidMissionSlug(mission_slug)
 
     @staticmethod
     def _read_meta(
@@ -347,10 +389,20 @@ class MissionStatus:
         )
 
         # Derive from_lane from the event log so validation is accurate.
+        # Mirror the transactional path's tolerance: a mission without an event
+        # log yet (e.g. the very first transition of a freshly bootstrapped WP)
+        # has no canonical lane, which is the implicit ``planned`` origin — not
+        # an error. ``get_wp_lane`` raises ``CanonicalStatusNotFoundError`` in
+        # that case, so we treat it as ``planned`` to stay behavior-preserving
+        # with ``emit_status_transition_transactional`` (FR-004).
         from specify_cli.status import get_wp_lane
+        from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
         from specify_cli.status.wp_state import InvalidTransitionError
 
-        from_lane_enum = get_wp_lane(self.read_dir, request.wp_id or "")
+        try:
+            from_lane_enum: Lane | str = get_wp_lane(self.read_dir, request.wp_id or "")
+        except CanonicalStatusNotFoundError:
+            from_lane_enum = Lane.PLANNED
         to_lane_str = request.to_lane or ""
         ok, error = validate_transition(str(from_lane_enum), to_lane_str, ctx)
         if not ok:
@@ -358,12 +410,12 @@ class MissionStatus:
             try:
                 from_lane_for_error = Lane(str(from_lane_enum))
             except ValueError:
-                from_lane_for_error = Lane.planned
+                from_lane_for_error = Lane.PLANNED
             try:
                 from specify_cli.status.transitions import resolve_lane_alias
                 to_lane_for_error = Lane(resolve_lane_alias(to_lane_str))
             except ValueError:
-                to_lane_for_error = Lane.planned
+                to_lane_for_error = Lane.PLANNED
             raise InvalidTransitionError(from_lane_for_error, to_lane_for_error)
 
         # Inject the resolved read_dir so the transactional path uses the
@@ -420,6 +472,7 @@ class MissionStatus:
 __all__ = [
     "ActiveWPStatus",
     "CoordAuthorityUnavailable",
+    "InvalidMissionSlug",
     "MissionMetadataUnavailable",
     "MissionStatus",
 ]
