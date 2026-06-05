@@ -222,7 +222,11 @@ def _init_git_repo(path: Path) -> None:
 class TestAutoCommitOnCompleteInvocation:
     """T-003: commit appears in git log after complete_invocation()."""
 
-    def test_commit_appears_after_complete_invocation(self, tmp_path: Path) -> None:
+    def test_commit_appears_after_complete_invocation(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+        monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
         _init_git_repo(tmp_path)
         _setup_fixture_profiles(tmp_path)
 
@@ -244,8 +248,12 @@ class TestAutoCommitOnCompleteInvocation:
         # Most recent commit should mention the op
         assert "op(" in log_lines[0]
 
-    def test_op_file_restorable_after_git_clean(self, tmp_path: Path) -> None:
+    def test_op_file_restorable_after_git_clean(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """T-004: op file is in git and can be restored after deletion."""
+        monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+        monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
         _init_git_repo(tmp_path)
         _setup_fixture_profiles(tmp_path)
 
@@ -270,6 +278,100 @@ class TestAutoCommitOnCompleteInvocation:
             check=True, capture_output=True,
         )
         assert op_file.exists()
+
+    def test_complete_invocation_commits_with_safe_commit(self, tmp_path: Path) -> None:
+        _init_git_repo(tmp_path)
+        _setup_fixture_profiles(tmp_path)
+
+        with patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=_COMPACT_CTX,
+        ):
+            executor = ProfileInvocationExecutor(tmp_path)
+            payload = executor.invoke("implement mission", profile_hint="implementer-fixture")
+
+        with patch("specify_cli.invocation.executor.safe_commit") as mock_safe_commit:
+            executor.complete_invocation(payload.invocation_id, outcome="done")
+
+        call_kwargs = mock_safe_commit.call_args.kwargs
+        assert call_kwargs["repo_root"] == tmp_path
+        assert call_kwargs["worktree_root"] == tmp_path
+        assert call_kwargs["destination_ref"] in {"main", "master"}
+        assert call_kwargs["message"].startswith("op(implementer-fixture):")
+        assert call_kwargs["paths"] == (Path(f"{EVENTS_DIR}/{payload.invocation_id}.jsonl"),)
+        assert call_kwargs["allow_completed_op_on_protected_branch"] is True
+
+    def test_complete_invocation_on_protected_branch_preserves_unrelated_staging(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+        monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
+        _init_git_repo(tmp_path)
+        _setup_fixture_profiles(tmp_path)
+
+        unrelated = tmp_path / "unrelated.txt"
+        unrelated.write_text("keep me staged\n", encoding="utf-8")
+        subprocess.run(
+            ["git", "-C", str(tmp_path), "add", "unrelated.txt"],
+            check=True,
+            capture_output=True,
+        )
+
+        with patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=_COMPACT_CTX,
+        ):
+            executor = ProfileInvocationExecutor(tmp_path)
+            payload = executor.invoke("implement mission", profile_hint="implementer-fixture")
+            executor.complete_invocation(payload.invocation_id, outcome="done")
+
+        committed_files = subprocess.run(
+            ["git", "-C", str(tmp_path), "show", "--name-only", "--format=", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+        assert f"{EVENTS_DIR}/{payload.invocation_id}.jsonl" in committed_files
+        assert "unrelated.txt" not in committed_files
+
+        staged_files = subprocess.run(
+            ["git", "-C", str(tmp_path), "diff", "--cached", "--name-only"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+        assert "unrelated.txt" in staged_files
+
+    def test_completed_commit_excludes_ops_index_and_orphan_metadata(
+        self, tmp_path: Path
+    ) -> None:
+        _init_git_repo(tmp_path)
+        subprocess.run(
+            ["git", "-C", str(tmp_path), "checkout", "-b", "ops-work"],
+            check=True,
+            capture_output=True,
+        )
+        _setup_fixture_profiles(tmp_path)
+
+        with patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=_COMPACT_CTX,
+        ):
+            executor = ProfileInvocationExecutor(tmp_path)
+            orphan = executor.invoke("orphan op", profile_hint="implementer-fixture")
+            completed = executor.invoke("completed op", profile_hint="implementer-fixture")
+            executor.complete_invocation(completed.invocation_id, outcome="done")
+
+        tracked_files = subprocess.run(
+            ["git", "-C", str(tmp_path), "ls-tree", "-r", "--name-only", "HEAD", EVENTS_DIR],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+        assert f"{EVENTS_DIR}/{completed.invocation_id}.jsonl" in tracked_files
+        assert f"{EVENTS_DIR}/{orphan.invocation_id}.jsonl" not in tracked_files
+        assert f"{EVENTS_DIR}/ops-index.jsonl" not in tracked_files
+        assert (tmp_path / EVENTS_DIR / "ops-index.jsonl").exists()
 
     def test_orphan_op_not_committed(self, tmp_path: Path) -> None:
         """T-005: a started-only (orphan) op is NOT in git log."""
@@ -332,10 +434,11 @@ class TestAutoCommitOnCompleteInvocation:
         assert data["mission_id"] == "01KTB49KJKRJ71YR8KERVDMHHA"
         assert data["wp_id"] == "WP01"
 
-    def test_commit_failure_does_not_raise(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_commit_failure_does_not_raise(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Best-effort: git failure must not block the invocation response."""
         import logging
-        import unittest.mock as mock
 
         _init_git_repo(tmp_path)
         _setup_fixture_profiles(tmp_path)
@@ -347,7 +450,7 @@ class TestAutoCommitOnCompleteInvocation:
             executor = ProfileInvocationExecutor(tmp_path)
             payload = executor.invoke("test request", profile_hint="implementer-fixture")
 
-        with mock.patch("specify_cli.invocation.executor._subprocess.run", side_effect=OSError("git not found")):
+        with patch("specify_cli.invocation.executor.safe_commit", side_effect=RuntimeError("git not found")):
             with caplog.at_level(logging.WARNING):
                 result = executor.complete_invocation(payload.invocation_id, outcome="done")
 

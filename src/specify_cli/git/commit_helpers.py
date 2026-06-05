@@ -49,6 +49,14 @@ that legitimately mutate the protected branch:
 - ``"release: "`` — alternate release tagging style used by some downstream
   configurations.
 
+Completed Op records may also land on protected branches, but only when an
+internal caller explicitly passes ``allow_completed_op_on_protected_branch=True``
+and the changeset contains exactly one ``kitty-ops/<op-id>.jsonl`` file whose
+JSONL content includes a completed event for that same Op id. This is not a
+commit-message prefix exception and is not exposed through the public
+``safe-commit`` command. The path still flows through the staging preservation
+and backstop checks below.
+
 Spec-kitty-internal exceptions (planning-artifact prefixes such as
 ``"chore: planning artifacts for "``) were **removed** as part of #1348 (FR-013):
 they constituted a silent bypass that allowed the runtime to land arbitrary
@@ -60,6 +68,7 @@ from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 import contextlib
+import json
 import logging
 import os
 import subprocess
@@ -475,6 +484,52 @@ def _test_mode_allows_protected_branch() -> bool:
     )
 
 
+def _is_completed_op_record_exception(
+    worktree_root: Path,
+    normalized_files: Sequence[str],
+) -> bool:
+    if len(normalized_files) != 1:
+        return False
+
+    op_path = Path(normalized_files[0])
+    if op_path.is_absolute() or len(op_path.parts) != 2:
+        return False
+    if op_path.parts[0] != "kitty-ops":
+        return False
+
+    filename = op_path.parts[1]
+    if not filename.endswith(".jsonl"):
+        return False
+    op_id = filename.removesuffix(".jsonl")
+    if op_id in {"ops-index", "lifecycle", "propagation-errors"}:
+        return False
+
+    ulid_alphabet = set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
+    if len(op_id) != 26 or not all(char in ulid_alphabet for char in op_id):
+        return False
+
+    record_path = worktree_root / op_path
+    try:
+        lines = record_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return False
+
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            return False
+        if (
+            isinstance(event, dict)
+            and event.get("event") == "completed"
+            and event.get("invocation_id") == op_id
+        ):
+            return True
+    return False
+
+
 def assert_staging_area_matches_expected(
     repo_path: Path,
     expected_paths: Sequence[str],
@@ -793,6 +848,7 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
     message: str,
     paths: tuple[Path, ...],
     allow_protected_branch_in_test_mode: bool = False,
+    allow_completed_op_on_protected_branch: bool = False,
 ) -> CommitResult:
     """Commit ``paths`` to ``destination_ref`` inside ``worktree_root``.
 
@@ -834,6 +890,10 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
         allow_protected_branch_in_test_mode: Explicit test-only escape hatch
             for internal callers that intentionally exercise protected-branch
             writes. Defaults to ``False`` so direct helper use fails closed.
+        allow_completed_op_on_protected_branch: Explicit internal policy path
+            for completed Op records. Only permits one
+            ``kitty-ops/<op-id>.jsonl`` path, and the commit still passes
+            through staging preservation and the backstop.
 
     Returns:
         :class:`CommitResult` carrying the new commit SHA, the declared
@@ -884,26 +944,6 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
             worktree_root=worktree_root,
         )
 
-    # 6. Protected-branch check.
-    is_protected = (
-        destination_ref in protected_branches(repo_root)
-        or destination_ref in protected_branches(worktree_root)
-    )
-    if (
-        is_protected
-        and not _is_protected_branch_exception(message)
-        and not (
-            allow_protected_branch_in_test_mode
-            and _test_mode_allows_protected_branch()
-        )
-    ):
-        raise ProtectedBranchRefused(
-            destination_ref=destination_ref,
-            worktree_root=worktree_root,
-            commit_message=message,
-        )
-
-    # 7-9. Stage + backstop + commit, with prior-staging preservation.
     resolved_worktree_root = worktree_root.resolve()
     normalized_files: list[str] = []
     for path in paths:
@@ -914,6 +954,32 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
                 candidate = candidate.resolve().relative_to(resolved_worktree_root)
         normalized_files.append(str(candidate))
 
+    # 6. Protected-branch check.
+    is_protected = (
+        destination_ref in protected_branches(repo_root)
+        or destination_ref in protected_branches(worktree_root)
+    )
+    completed_op_exception = (
+        allow_completed_op_on_protected_branch
+        and message.startswith("op(")
+        and _is_completed_op_record_exception(worktree_root, normalized_files)
+    )
+    if (
+        is_protected
+        and not _is_protected_branch_exception(message)
+        and not (
+            allow_protected_branch_in_test_mode
+            and _test_mode_allows_protected_branch()
+        )
+        and not completed_op_exception
+    ):
+        raise ProtectedBranchRefused(
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+            commit_message=message,
+        )
+
+    # 7-9. Stage + backstop + commit, with prior-staging preservation.
     stash_message = f"spec-kitty-safe-commit:{uuid.uuid4()}"
     requested_staged_patch = _staged_patch_for_paths(worktree_root, normalized_files)
     if requested_staged_patch is None:

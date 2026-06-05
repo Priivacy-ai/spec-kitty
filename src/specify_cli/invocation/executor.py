@@ -26,13 +26,14 @@ if TYPE_CHECKING:
 import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/mission_creation.py
 
 from charter.context import build_charter_context
+from specify_cli.git import safe_commit
 from specify_cli.invocation.errors import InvalidModeForEvidenceError, InvocationError
 from specify_cli.invocation.modes import ModeOfWork
 from specify_cli.invocation.propagator import InvocationSaaSPropagator
 from specify_cli.invocation.record import InvocationRecord, promote_to_evidence
 from specify_cli.invocation.registry import ProfileRegistry
 from specify_cli.invocation.router import ActionRouter, RouterDecision  # WP02: router implemented
-from specify_cli.invocation.writer import INDEX_PATH, InvocationWriter, normalise_ref
+from specify_cli.invocation.writer import InvocationWriter, normalise_ref
 
 logger = logging.getLogger(__name__)
 
@@ -391,6 +392,39 @@ class ProfileInvocationExecutor:
             raise InvocationError(f"Invalid invocation record: {invocation_id}")
         return data
 
+    def _current_branch(self) -> str | None:
+        inside = _subprocess.run(
+            ["git", "-C", str(self._repo_root), "rev-parse", "--is-inside-work-tree"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if inside.returncode != 0 or inside.stdout.strip() != "true":
+            return None
+
+        symbolic = _subprocess.run(
+            ["git", "-C", str(self._repo_root), "symbolic-ref", "--quiet", "--short", "HEAD"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if symbolic.returncode == 0:
+            branch = symbolic.stdout.strip()
+            if branch:
+                return branch
+
+        abbrev = _subprocess.run(
+            ["git", "-C", str(self._repo_root), "rev-parse", "--abbrev-ref", "HEAD"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if abbrev.returncode == 0:
+            branch = abbrev.stdout.strip()
+            if branch and branch != "HEAD":
+                return branch
+        return None
+
     def _commit_op_record(self, invocation_id: str) -> None:
         """Best-effort git commit for one completed Op record."""
         try:
@@ -399,42 +433,19 @@ class ProfileInvocationExecutor:
             profile_id = str(started.get("profile_id") or "unknown")
             action = str(started.get("action") or "unknown")
             message = f"op({profile_id}): {action} [{invocation_id[:8]}]"
-            paths = [op_path.relative_to(self._repo_root)]
-            index_path = self._repo_root / INDEX_PATH
-            if index_path.exists():
-                paths.append(index_path.relative_to(self._repo_root))
+            op_relative_path = op_path.relative_to(self._repo_root)
 
-            path_args = [str(path) for path in paths]
-            _subprocess.run(
-                ["git", "-C", str(self._repo_root), "add", "--", *path_args],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            diff = _subprocess.run(
-                ["git", "-C", str(self._repo_root), "diff", "--cached", "--quiet", "--", *path_args],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            if diff.returncode == 0:
+            current_branch = self._current_branch()
+            if current_branch is None:
                 return
-            _subprocess.run(
-                [
-                    "git",
-                    "-C",
-                    str(self._repo_root),
-                    "commit",
-                    "--no-verify",
-                    "--only",
-                    "-m",
-                    message,
-                    "--",
-                    *path_args,
-                ],
-                check=True,
-                capture_output=True,
-                text=True,
+
+            safe_commit(
+                repo_root=self._repo_root,
+                worktree_root=self._repo_root,
+                destination_ref=current_branch,
+                message=message,
+                paths=(op_relative_path,),
+                allow_completed_op_on_protected_branch=True,
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("Op record auto-commit failed for %s: %r", invocation_id, exc)
