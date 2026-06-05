@@ -231,6 +231,38 @@ def test_safe_commit_rejects_op_record_on_protected_branch_without_policy(
 
 
 @pytest.mark.parametrize(
+    "content",
+    [
+        '{"event":"started","invocation_id":"01KTBTTSWK43WGCPYKBMRCCY8T"}\n',
+        '{"event":"completed","invocation_id":"01KTBTTSWK43WGCPYKBMRCCY8U"}\n',
+        "not json\n",
+    ],
+)
+def test_safe_commit_op_policy_requires_completed_event_for_matching_op_id(
+    tmp_path: Path,
+    content: str,
+) -> None:
+    """Protected-branch Op exception is content-aware, not path-only."""
+    repo = tmp_path / "repo"
+    _init_repo(repo, initial_branch="main")
+
+    op_id = "01KTBTTSWK43WGCPYKBMRCCY8T"
+    op_path = repo / "kitty-ops" / f"{op_id}.jsonl"
+    op_path.parent.mkdir()
+    op_path.write_text(content, encoding="utf-8")
+
+    with pytest.raises(ProtectedBranchRefused):
+        safe_commit(
+            repo_root=repo,
+            worktree_root=repo,
+            destination_ref="main",
+            message=f"op(implementer-fixture): implement [{op_id[:8]}]",
+            paths=(op_path,),
+            allow_completed_op_on_protected_branch=True,
+        )
+
+
+@pytest.mark.parametrize(
     "relative_path",
     [
         Path("kitty-ops/ops-index.jsonl"),

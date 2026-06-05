@@ -51,8 +51,9 @@ that legitimately mutate the protected branch:
 
 Completed Op records may also land on protected branches, but only when an
 internal caller explicitly passes ``allow_completed_op_on_protected_branch=True``
-and the changeset contains exactly one ``kitty-ops/<op-id>.jsonl`` file. This
-is not a commit-message prefix exception and is not exposed through the public
+and the changeset contains exactly one ``kitty-ops/<op-id>.jsonl`` file whose
+JSONL content includes a completed event for that same Op id. This is not a
+commit-message prefix exception and is not exposed through the public
 ``safe-commit`` command. The path still flows through the staging preservation
 and backstop checks below.
 
@@ -67,6 +68,7 @@ from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 import contextlib
+import json
 import logging
 import os
 import subprocess
@@ -482,7 +484,10 @@ def _test_mode_allows_protected_branch() -> bool:
     )
 
 
-def _is_completed_op_record_exception(normalized_files: Sequence[str]) -> bool:
+def _is_completed_op_record_exception(
+    worktree_root: Path,
+    normalized_files: Sequence[str],
+) -> bool:
     if len(normalized_files) != 1:
         return False
 
@@ -500,7 +505,29 @@ def _is_completed_op_record_exception(normalized_files: Sequence[str]) -> bool:
         return False
 
     ulid_alphabet = set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
-    return len(op_id) == 26 and all(char in ulid_alphabet for char in op_id)
+    if len(op_id) != 26 or not all(char in ulid_alphabet for char in op_id):
+        return False
+
+    record_path = worktree_root / op_path
+    try:
+        lines = record_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return False
+
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            return False
+        if (
+            isinstance(event, dict)
+            and event.get("event") == "completed"
+            and event.get("invocation_id") == op_id
+        ):
+            return True
+    return False
 
 
 def assert_staging_area_matches_expected(
@@ -935,7 +962,7 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
     completed_op_exception = (
         allow_completed_op_on_protected_branch
         and message.startswith("op(")
-        and _is_completed_op_record_exception(normalized_files)
+        and _is_completed_op_record_exception(worktree_root, normalized_files)
     )
     if (
         is_protected
