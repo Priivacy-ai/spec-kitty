@@ -48,13 +48,13 @@ Move Op record storage from `.kittify/events/profile-invocations/` (gitignored) 
 
 **Included subtasks:**
 
-- [ ] T001 Change `EVENTS_DIR` to `"kitty-ops"` in `invocation/writer.py` (WP01)
-- [ ] T002 Change `INDEX_PATH` and fix `_append_to_index` path in `writer.py` (WP01)
-- [ ] T003 Change `LIFECYCLE_LOG_RELATIVE_PATH` in `invocation/lifecycle.py` (WP01)
-- [ ] T004 Change `PROPAGATION_ERRORS_PATH` in `invocation/propagator.py` (WP01)
-- [ ] T005 Add `mission_id`/`wp_id` fields to `InvocationRecord`; update MVTP constant (WP01)
-- [ ] T006 Add `test_writer.py` path tests (WP01)
-- [ ] T007 Add `test_record.py` field tests (WP01)
+- [x] T001 Change `EVENTS_DIR` to `"kitty-ops"` in `invocation/writer.py` (WP01)
+- [x] T002 Change `INDEX_PATH` and fix `_append_to_index` path in `writer.py` (WP01)
+- [x] T003 Change `LIFECYCLE_LOG_RELATIVE_PATH` in `invocation/lifecycle.py` (WP01)
+- [x] T004 Change `PROPAGATION_ERRORS_PATH` in `invocation/propagator.py` (WP01)
+- [x] T005 Add `mission_id`/`wp_id` fields to `InvocationRecord`; update MVTP constant (WP01)
+- [x] T006 Add `test_writer.py` path tests (WP01)
+- [x] T007 Add `test_record.py` field tests (WP01)
 
 **Implementation sketch**:
 1. Edit `writer.py`: change 2 constants, fix `_append_to_index` (3 line edits)
