@@ -1,10 +1,10 @@
 # Mission Review — merge-preflight-remote-state-boundary-separation-01KTBE5M
 
-**Date**: 2026-06-05  
-**Reviewer**: claude:sonnet  
-**Mission ID**: 01KTBE5MPD24VTVFHXKCF8MGHN  
-**PR**: https://github.com/Priivacy-ai/spec-kitty/pull/1719  
-**Commits reviewed**: `c4191bd30`…`86bbcbb9c` + two post-merge fixes  
+**Date**: 2026-06-05
+**Reviewer**: claude:sonnet
+**Mission ID**: 01KTBE5MPD24VTVFHXKCF8MGHN
+**PR**: https://github.com/Priivacy-ai/spec-kitty/pull/1719
+**Commits reviewed**: `c4191bd30`…`86bbcbb9c` + two post-merge fixes
 
 ---
 
@@ -26,9 +26,9 @@
 |----|-------------|---------|----------|
 | FR-001 | No network fetch in no-push merge | PASS | `if push:` gate in `merge.py:1514`; `test_merge_no_push_never_calls_check_push_safety[*]` (5 parametrized) |
 | FR-002 | Local merge proceeds regardless of origin state | PASS | `test_issue_1706_local_ahead_behind_no_push_does_not_block`; `test_issue_1706_ahead_and_behind_does_not_block_no_push_merge` |
-| FR-003 | Push-safety fires only after local integrations, only with `--push` | PASS | `_enforce_target_branch_sync_preflight` gated by `if push:` at call site; `test_check_push_safety_diverged_returns_not_safe` |
-| FR-004 | Diverged push blocked; local results preserved | PASS | `test_push_blocked_but_local_results_preserved_when_diverged`; `check_push_safety` is read-only |
-| FR-005 | Dual predicate: `is_safe` (always True) vs `is_safe_to_push` (False only for diverged) | PASS | `test_is_safe_to_push_predicate[*]` (5 parametrized); `TargetBranchSyncStatus.is_safe` deprecated stub |
+| FR-003 | Push-safety fires before local mutation, only with `--push` | PASS | `_enforce_target_branch_sync_preflight` gated by effective push intent; `test_merge_preflight_blocks_remote_main_behind_before_mutation` |
+| FR-004 | Unsafe push blocked; local results preserved | PASS | `test_push_blocked_but_local_results_preserved_when_diverged`; `check_push_safety` is read-only |
+| FR-005 | Dual predicate: `is_safe` (always True) vs `is_safe_to_push` (False for behind/diverged) | PASS | `test_is_safe_to_push_predicate[*]` (5 parametrized); `TargetBranchSyncStatus.is_safe` deprecated stub |
 | FR-006 | Remote-state I/O in publish layer only | PASS | `push_preflight.py` owns all `subprocess` calls; `preflight.py` is I/O-free; ADR `2026-06-05-1` |
 | FR-007 | `push_requested` persisted in `MergeState` | PASS | `state.py:83`; `merge.py:1596` passes `push_requested=push` |
 | FR-008 | Legacy state (no field) loads with `push_requested=False` | PASS | `MergeState.from_dict` filters to known fields; absent key defaults to `False` |

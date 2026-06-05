@@ -179,7 +179,7 @@ def test_merge_preflight_blocks_unsafe_target_with_non_destructive_guidance(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # Use "diverged" state — after WP02, only diverged blocks merge (not "ahead").
+    # Use "diverged" state — after WP02, unsafe push states block (not "ahead").
     repo, origin = synced_repo
     updater = _configured_clone(origin, tmp_path / "updater")
     _commit(updater, "remote.txt", "remote only\n", "remote ahead")
@@ -227,14 +227,14 @@ def test_merge_preflight_blocks_unsafe_target_with_non_destructive_guidance(
     assert payload["remediation"] == remediation
 
 
-def test_merge_preflight_fetches_before_detecting_remote_main_behind(
+def test_merge_preflight_blocks_remote_main_behind_before_mutation(
     synced_repo: tuple[Path, Path],
     tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # After WP02: "behind" is safe to push — the push-safety preflight does NOT
-    # raise for "behind" state. Only "diverged" blocks. The test verifies that
-    # the function performs a fetch (so stale "in_sync" becomes "behind") and
-    # then returns without raising.
+    # The function performs a fetch so stale "in_sync" becomes "behind", then
+    # blocks before local merge/bookkeeping mutation. Otherwise the later git
+    # push rejects non-fast-forward after local state has already changed.
     repo, origin = synced_repo
     updater = _configured_clone(origin, tmp_path / "updater")
     _commit(updater, "remote.txt", "remote only\n", "remote ahead")
@@ -243,17 +243,21 @@ def test_merge_preflight_fetches_before_detecting_remote_main_behind(
     stale_status = inspect_target_branch_sync(repo, "main")
     assert stale_status.state == "in_sync"
 
-    # Should not raise — "behind" is safe to push (git will reject natively)
-    _enforce_target_branch_sync_preflight(
-        repo,
-        target_branch="main",
-        mission_slug="release-320-workflow-reliability-01KQKV85",
-        mission_branch="kitty/mission-release-320-workflow-reliability-01KQKV85",
-    )
+    with pytest.raises(typer.Exit) as exc_info:
+        _enforce_target_branch_sync_preflight(
+            repo,
+            target_branch="main",
+            mission_slug="release-320-workflow-reliability-01KQKV85",
+            mission_branch="kitty/mission-release-320-workflow-reliability-01KQKV85",
+        )
 
     refreshed_status = inspect_target_branch_sync(repo, "main")
+    output = capsys.readouterr().out
+    assert exc_info.value.exit_code == 1
     assert refreshed_status.state == "behind"
     assert refreshed_status.behind_count == 1
+    assert "diagnostic_code: TARGET_BRANCH_NOT_SYNCHRONIZED" in output
+    assert "Recommended: update local 'main' from 'origin/main'" in output
 
 
 def test_target_branch_preflight_behind_guidance_does_not_recommend_push(

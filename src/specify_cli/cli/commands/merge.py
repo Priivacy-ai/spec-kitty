@@ -25,6 +25,7 @@ import re
 import sys
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 from rich.console import Console
@@ -46,9 +47,6 @@ from specify_cli.merge.config import MergeStrategy, load_merge_config
 from specify_cli.merge.ordering import assign_next_mission_number
 from specify_cli.merge.preflight import (
     target_branch_sync_remediation,
-)
-from specify_cli.merge.push_preflight import (
-    TargetBranchSyncStatus,
 )
 from specify_cli.merge.state import (
     MergeLockError,
@@ -76,6 +74,9 @@ from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_en
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from specify_cli.status.lifecycle_events import REVIEWER_SELF_APPROVAL
+
+if TYPE_CHECKING:
+    from specify_cli.merge.push_preflight import TargetBranchSyncStatus
 
 logger = logging.getLogger(__name__)
 

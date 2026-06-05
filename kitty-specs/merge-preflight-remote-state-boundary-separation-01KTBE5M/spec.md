@@ -33,13 +33,17 @@ A developer's local `main` has accumulated 10 orchestration and planning commits
 
 A developer runs `/spec-kitty.merge --push`. Their local `main` has diverged from origin (local has commits origin lacks and origin has commits local lacks). Because a push was explicitly requested, the push-safety check fires. The developer sees the same diverged guidance as today: rebase, or use the focused-PR-branch escape hatch. No regression from current push-requested behavior.
 
+### Secondary — Push-requested merge with behind state
+
+A developer runs `/spec-kitty.merge --push`. Their local `main` is behind origin (origin has commits local lacks). Because a push was explicitly requested, the push-safety check fires and blocks before local lane integration, target merge, or bookkeeping. This prevents a known non-fast-forward push rejection after local mutation.
+
 ### Tertiary — Resumed merge preserves push intent
 
 A merge is interrupted mid-run (network failure, process kill). On resume, the system reads the persisted `push_requested` state and automatically includes or excludes the push step — no need for the user to re-supply `--push` to the resume invocation.
 
 ### Exception — Network unavailable during push-requested merge
 
-A developer is offline and runs `/spec-kitty.merge --push`. The remote-state fetch fails. The system reports the fetch failure and blocks the push step only — the local merge has already completed and the result is preserved. The developer can push manually when back online.
+A developer is offline and runs `/spec-kitty.merge --push`. The remote-state fetch fails. The system reports the fetch failure and blocks before local lane integration, target merge, or bookkeeping. The developer can retry without `--push` for a local-only merge or retry with `--push` when online.
 
 ---
 
@@ -49,8 +53,8 @@ A developer is offline and runs `/spec-kitty.merge --push`. The remote-state fet
 |----|-------------|--------|
 | FR-001 | When merge is invoked without requesting a push, no network fetch against the remote repository shall be performed at any point during the merge operation. | Accepted |
 | FR-002 | When merge is invoked without requesting a push, the local merge shall proceed regardless of whether the local target branch is ahead, behind, diverged from, or in sync with its remote tracking branch. | Accepted |
-| FR-003 | When merge is invoked with a push requested, the remote-state check shall fire only after all local lane integrations complete successfully, immediately before the push attempt. | Accepted |
-| FR-004 | When merge is invoked with a push requested and the local target branch is in a state that would cause a non-fast-forward or destructive push, the push shall be blocked with the existing diverged guidance and escape hatch. Local integration results shall be preserved. | Accepted |
+| FR-003 | When merge is invoked with a push requested, the remote-state check shall fire before local lane integration, target merge, or bookkeeping mutation. | Accepted |
+| FR-004 | When merge is invoked with a push requested and the local target branch is in a state that would cause a non-fast-forward or destructive push, the push path shall be blocked with remediation guidance before local mutation. | Accepted |
 | FR-005 | The sync-state value model shall distinguish between "safe to merge locally" (true for all origin states — the local git graph is the only authority) and "safe to push" (false when the state would require a force push or cause destructive rewrite on origin). | Accepted |
 | FR-006 | The component responsible for performing remote-state inspection and network I/O against origin shall reside in the publish layer, not in the local-merge domain layer. The local-merge domain layer shall have no dependency on remote-state inspection. | Accepted |
 | FR-007 | The merge resume state shall persist whether the original invocation requested a push. A resumed merge shall respect the persisted push intent without requiring the user to re-supply the push flag. | Accepted |
@@ -88,7 +92,7 @@ A developer is offline and runs `/spec-kitty.merge --push`. The remote-state fet
 ## Success Criteria
 
 1. A user whose local target branch is ahead of, behind, or diverged from origin can complete a local merge with no error messages related to origin sync state.
-2. A user who requests a push as part of merge receives the same blocking behavior as today when the push would be destructive — and no blocking behavior when the push would succeed cleanly.
+2. A user who requests a push as part of merge is blocked before local mutation when the push would fail or be destructive — and sees no blocking behavior when the push would succeed cleanly.
 3. A merge resumed after an interruption automatically includes or excludes the push step with 100% fidelity to the original invocation, without user re-intervention.
 4. No network I/O occurs during merge invocations that did not request a push, verifiable by monitoring network traffic or by running the merge command in an offline environment.
 5. All automated tests pass after the change, including the new #1706 regression test and the updated "ahead-is-not-blocked" assertions.
@@ -109,7 +113,7 @@ A developer is offline and runs `/spec-kitty.merge --push`. The remote-state fet
 ## Assumptions
 
 1. The "focused-PR-branch escape hatch" in the diverged guidance remains useful for operators who need to handle complex push situations; removing it is out of scope.
-2. "Behind" state (origin has commits local lacks) is safe for local merge. For push, git's own rejection mechanism handles this case; a preflight warning (non-blocking) is acceptable but not required in this mission.
+2. "Behind" state (origin has commits local lacks) is safe for local merge. For push, it is blocked before mutation because git would reject the final push as non-fast-forward.
 3. The project test suite has sufficient integration fixtures to support a realistic #1706 scenario test (local-ahead + local-behind git state) without requiring a live remote.
 
 ---
@@ -131,5 +135,5 @@ A developer is offline and runs `/spec-kitty.merge --push`. The remote-state fet
 | Publish / push step | The operation of pushing the integrated local target branch to the remote repository. Follows local merge. | "origin sync", "remote merge" |
 | Push-safety check | The remote-state inspection that determines whether a push would succeed non-destructively. Belongs in the publish layer. | "preflight", "sync preflight" (when used ambiguously to mean this check) |
 | Local-merge safety | Whether the local git graph supports the integration. Determined entirely by local branch state; origin state is irrelevant. | (no existing term — this mission introduces the distinction) |
-| Diverged | Local and remote have both accumulated commits the other lacks. The only origin state that is unsafe for a non-destructive push. | "out of sync", "conflicting" |
+| Diverged | Local and remote have both accumulated commits the other lacks. An origin state that is unsafe for a non-destructive push. | "out of sync", "conflicting" |
 | Push-preflight module | The Python module (`push_preflight.py`) that implements push-safety checks. Belongs in the publish layer. The domain layer (`preflight.py`) must not import from it. | "push safety module", "push check module" |

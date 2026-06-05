@@ -59,20 +59,20 @@ class TargetBranchSyncStatus:
 
     @property
     def is_safe_to_push(self) -> bool:
-        """Return True unless local and remote graphs have diverged.
-
-        Diverged (both sides have commits the other lacks) means a push would
-        overwrite remote-only commits without a merge or rebase first.
+        """Return True only when merge --push can publish without remote catch-up.
 
         The following states are safe to push:
         - ``"ahead"``: local has new commits; push advances the remote normally.
-        - ``"behind"``: remote is ahead; a fast-forward push is safe (though
-          the caller should ``git pull`` first to avoid losing remote work).
         - ``"in_sync"``: identical tip; a no-op push.
         - ``"no_tracking_branch"``: no remote ref configured; push creates it.
         - ``"missing_local_branch"``: local branch does not exist; nothing to push.
+
+        ``"behind"`` is not safe for Spec Kitty's merge --push flow: after the
+        local merge creates new target commits from a stale base, git will reject
+        the push as non-fast-forward, leaving local merge/bookkeeping mutations.
+        It must be blocked before mutation, like ``"diverged"``.
         """
-        return self.state not in {"diverged"}
+        return self.state not in {"behind", "diverged"}
 
     @property
     def is_safe(self) -> bool:
@@ -278,8 +278,8 @@ def check_push_safety(
 
     Performs a ``git fetch`` to refresh the tracking ref, then compares the
     local and remote commit graphs.  Returns a result whose ``is_safe_to_push``
-    field is ``False`` only when the branches have diverged (both have commits
-    the other lacks).
+    field is ``False`` when the local target cannot be pushed without first
+    integrating remote commits.
 
     This function must only be called when ``--push`` is requested.  Never call
     it from the domain merge layer.

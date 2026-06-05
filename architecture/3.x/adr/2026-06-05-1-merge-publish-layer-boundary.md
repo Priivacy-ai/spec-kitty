@@ -31,20 +31,20 @@ should operate on the local git graph and remain entirely network-free.
 
 2. **`preflight.py` is domain-only** — local git graph checks (worktree
    cleanliness, branch existence, conflict detection) with no network I/O.
-   The remote-state types and functions in `preflight.py` are deprecated and
-   will be removed in WP02 once `merge.py` is updated to import from
-   `push_preflight` instead.
+   Legacy remote-state re-export names are exposed lazily for transition
+   compatibility; importing `preflight.py` must not import `push_preflight.py`
+   at runtime.
 
 3. **`merge.py` imports `push_preflight` conditionally**, only inside
    `if push:` branches. The local merge path never touches `push_preflight`.
 
 4. **`is_safe_to_push`** is the correct predicate for push-safety decisions.
-   It returns `False` only for `"diverged"` state (local and remote have
-   diverged commit graphs — a push would overwrite remote commits). The
-   states `"ahead"`, `"behind"`, `"in_sync"`, and `"no_tracking_branch"` are
-   all safe-to-push: ahead means the push will advance the remote normally;
-   behind means a fast-forward push is safe; no tracking branch means there
-   is no remote to conflict with.
+   It returns `False` for `"behind"` and `"diverged"` states. Both indicate
+   that remote commits are missing locally, so `merge --push` would perform
+   local merge/bookkeeping mutations before a known non-fast-forward push
+   rejection. The states `"ahead"`, `"in_sync"`, and `"no_tracking_branch"`
+   are safe-to-push: ahead means the push will advance the remote normally;
+   no tracking branch means there is no remote to conflict with.
 
 5. **`is_safe`** is a deprecated alias on `TargetBranchSyncStatus` that
    always returns `True`. It existed to gate local merge operations on remote

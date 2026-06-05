@@ -23,15 +23,15 @@ TargetBranchSyncStatus
   behind_count: int           # Commits origin has that local lacks
   state: TargetBranchSyncState  # "in_sync" | "ahead" | "behind" | "diverged" | "no_tracking_branch" | "missing_local_branch"
 
-  is_safe_to_push: bool       # NEW: True for in_sync, ahead, behind, no_tracking_branch; False for diverged only
+  is_safe_to_push: bool       # NEW: True for in_sync, ahead, no_tracking_branch; False for behind/diverged
   is_safe: bool               # DEPRECATED ALIAS: was "safe for local merge" (a misnomer) — now always True; kept for any callers that may exist outside this WP's scope
 ```
 
 **Push-safety invariant**:
 - `"in_sync"` → safe to push (no-op or fast-forward)
 - `"ahead"` → safe to push (fast-forward)
-- `"behind"` → push will be rejected by git; preflight does NOT block and does NOT warn (git's own rejection message is sufficient feedback; a warning is out of scope per spec Assumption 2)
-- `"diverged"` → push requires force; preflight blocks
+- `"behind"` → push will be rejected by git after local mutation; preflight blocks before mutation
+- `"diverged"` → push requires remote integration or force; preflight blocks
 - `"no_tracking_branch"` → no remote to push to; no-op safe
 
 **Transition from `is_safe` to `is_safe_to_push`**: The call in `merge.py` switches to `is_safe_to_push`. `is_safe` is deprecated but retained to avoid breaking any external callers (returns `True` always).
@@ -55,7 +55,7 @@ TargetBranchPushSafetyResult
 
 **Invariants**:
 - `fetch_failed=True` → `sync_status=None` and `is_safe_to_push=False`
-- `fetch_failed=False` and `sync_status.state == "diverged"` → `is_safe_to_push=False`
+- `fetch_failed=False` and `sync_status.state in {"behind", "diverged"}` → `is_safe_to_push=False`
 - All other non-fetch-failed states → `is_safe_to_push=True`
 
 ---

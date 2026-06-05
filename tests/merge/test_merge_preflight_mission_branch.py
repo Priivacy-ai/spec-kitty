@@ -197,6 +197,89 @@ class TestMergeDryRunMissingBranch:
         assert f"Missing mission branch: kitty/mission-{MISSION_SLUG}" in output
         assert f"git branch kitty/mission-{MISSION_SLUG} abc1234def56" in output
 
+    def test_resume_preserves_original_push_request_for_preflight(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Retrying an interrupted --push merge must still run push preflight."""
+        state = SimpleNamespace(push_requested=True)
+        preflight_calls: list[dict[str, object]] = []
+
+        monkeypatch.setattr(merge_mod, "get_main_repo_root", lambda repo_root: repo_root)
+        monkeypatch.setattr(merge_mod, "_resolve_merge_actor", lambda _repo_root: "tester")
+        monkeypatch.setattr(merge_mod, "require_no_sparse_checkout", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr(merge_mod, "require_lanes_json", lambda _feature_dir: _manifest())
+        monkeypatch.setattr(
+            merge_mod,
+            "resolve_mission_identity",
+            lambda _feature_dir: SimpleNamespace(mission_id="01TESTPUSHREQUESTED"),
+        )
+        monkeypatch.setattr(merge_mod, "load_state", lambda _repo_root, _mission_id=None: state)
+
+        def fail_preflight(*_args: object, **kwargs: object) -> None:
+            preflight_calls.append(kwargs)
+            raise typer.Exit(1)
+
+        monkeypatch.setattr(merge_mod, "_enforce_target_branch_sync_preflight", fail_preflight)
+        acquire_lock = Mock(return_value=True)
+        monkeypatch.setattr(merge_mod, "acquire_merge_lock", acquire_lock)
+
+        with pytest.raises(typer.Exit):
+            merge_mod._run_lane_based_merge(
+                repo_root=tmp_path,
+                mission_slug=MISSION_SLUG,
+                push=False,
+                delete_branch=True,
+                remove_worktree=True,
+            )
+
+        assert preflight_calls == [
+            {
+                "target_branch": "main",
+                "mission_slug": MISSION_SLUG,
+                "mission_branch": f"kitty/mission-{MISSION_SLUG}",
+            }
+        ]
+        acquire_lock.assert_not_called()
+
+    def test_resume_preserves_original_no_push_request(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Retrying an interrupted local-only merge must not add --push."""
+        state = SimpleNamespace(push_requested=False)
+        preflight = Mock()
+
+        monkeypatch.setattr(merge_mod, "get_main_repo_root", lambda repo_root: repo_root)
+        monkeypatch.setattr(merge_mod, "_resolve_merge_actor", lambda _repo_root: "tester")
+        monkeypatch.setattr(merge_mod, "require_no_sparse_checkout", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr(merge_mod, "require_lanes_json", lambda _feature_dir: _manifest())
+        monkeypatch.setattr(
+            merge_mod,
+            "resolve_mission_identity",
+            lambda _feature_dir: SimpleNamespace(mission_id="01TESTNOPUSHREQUEST"),
+        )
+        monkeypatch.setattr(merge_mod, "load_state", lambda _repo_root, _mission_id=None: state)
+        monkeypatch.setattr(merge_mod, "_enforce_target_branch_sync_preflight", preflight)
+        monkeypatch.setattr(
+            merge_mod,
+            "_check_mission_branch",
+            lambda _mission_slug, _repo_root: (False, _blocker()),
+        )
+
+        with pytest.raises(typer.Exit):
+            merge_mod._run_lane_based_merge(
+                repo_root=tmp_path,
+                mission_slug=MISSION_SLUG,
+                push=True,
+                delete_branch=True,
+                remove_worktree=True,
+            )
+
+        preflight.assert_not_called()
+
 
 class TestMergeDryRunHappyPath:
     def test_dry_run_ready_with_branch_present(

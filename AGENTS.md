@@ -410,7 +410,7 @@ edges:
 
 - `spec-kitty merge` may push directly to `main` by design; the "Protect Main Branch" failure is **expected and known** — do not attempt to fix it as a code-health failure.
 - `spec-kitty merge` (without `--push`) performs a purely local operation. It does not check or require origin sync. Run it freely regardless of whether local `main` is ahead of, behind, or diverged from `origin/main`.
-- When using `spec-kitty merge --push`, if local `main` is diverged from origin, the push step will be blocked with remediation guidance. Rebase or use the focused-PR-branch escape hatch in that case.
+- When using `spec-kitty merge --push`, if local `main` is behind or diverged from origin, the push path blocks before local merge mutation with remediation guidance. Rebase or use the focused-PR-branch escape hatch in that case.
 - The only CI result relevant to code health is **CI Quality**. Do not create extra PRs, force-push, or revert commits to address the Protect Main Branch failure.
 
 ---

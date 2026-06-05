@@ -260,5 +260,5 @@ To start: `spec-kitty agent action implement WP02 --agent claude`
 ## Activity Log
 
 - 2026-06-05T10:22:27Z – claude:sonnet:implementer-ivan:implementer – shell_pid=53725 – Assigned agent via action command
-- 2026-06-05T10:30:23Z – claude:sonnet:implementer-ivan:implementer – shell_pid=53725 – Gated push-safety call behind if push:, cleaned preflight.py domain layer (re-exports push_preflight symbols for backward compat), added MergeState.push_requested, updated test semantics from ahead/behind-blocks to diverged-only-blocks per ADR 2026-06-05-1. mypy/ruff clean, 227 merge tests pass.
+- 2026-06-05T10:30:23Z – claude:sonnet:implementer-ivan:implementer – shell_pid=53725 – Gated push-safety call behind if push:, cleaned preflight.py domain layer (re-exports push_preflight symbols for backward compat), added MergeState.push_requested, updated test semantics so no-push never blocks on remote state and push blocks remote-missing states before mutation. mypy/ruff clean, 227 merge tests pass.
 - 2026-06-05T10:30:52Z – claude:sonnet:reviewer:reviewer – shell_pid=57432 – Started review via action command

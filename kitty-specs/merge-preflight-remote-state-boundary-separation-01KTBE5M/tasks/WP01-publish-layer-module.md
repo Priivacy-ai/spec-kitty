@@ -120,9 +120,8 @@ class TargetBranchSyncStatus:
 
     @property
     def is_safe_to_push(self) -> bool:
-        # "diverged" requires force push — block. All other states are safe or
-        # handled by git's own push rejection.
-        return self.state not in {"diverged"}
+        # "behind" and "diverged" would mutate locally before known push failure.
+        return self.state not in {"behind", "diverged"}
 
     @property
     def is_safe(self) -> bool:
@@ -193,8 +192,8 @@ def check_push_safety(
 
     Performs a git fetch to refresh the tracking ref, then inspects the
     divergence between local and remote. Returns a result object with
-    is_safe_to_push=False only when the state is "diverged" (force push
-    would be required).
+    is_safe_to_push=False when the state is "behind" or "diverged" (remote
+    commits are missing locally) or fetch failed.
 
     Args:
         repo_root: Repository root path.

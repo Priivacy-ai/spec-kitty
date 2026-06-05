@@ -2,13 +2,27 @@
 
 from __future__ import annotations
 
-from specify_cli.merge.push_preflight import (
-    TargetBranchRefreshStatus as TargetBranchRefreshStatus,
-    TargetBranchSyncState as TargetBranchSyncState,
-    TargetBranchSyncStatus as TargetBranchSyncStatus,
-    inspect_target_branch_sync as inspect_target_branch_sync,
-    refresh_target_branch_tracking_ref as refresh_target_branch_tracking_ref,
-)
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from specify_cli.merge.push_preflight import TargetBranchSyncStatus
+
+_PUSH_PREFLIGHT_EXPORTS = {
+    "TargetBranchRefreshStatus",
+    "TargetBranchSyncState",
+    "TargetBranchSyncStatus",
+    "inspect_target_branch_sync",
+    "refresh_target_branch_tracking_ref",
+}
+
+
+def __getattr__(name: str) -> Any:
+    """Lazily expose moved publish-layer symbols for transition compatibility."""
+    if name in _PUSH_PREFLIGHT_EXPORTS:
+        from specify_cli.merge import push_preflight
+
+        return getattr(push_preflight, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def focused_pr_branch_name(mission_slug: str, target_branch: str) -> str:

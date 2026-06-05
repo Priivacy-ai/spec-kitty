@@ -113,7 +113,7 @@ Read this file completely before making any changes. Understand what each test c
 |---|---|---|
 | `in_sync` | ✅ proceeds | ✅ proceeds |
 | `ahead` | ✅ proceeds (was blocked — key regression) | ✅ proceeds |
-| `behind` | ✅ proceeds | ⚠️ proceeds (git handles rejection) |
+| `behind` | ✅ proceeds | ❌ blocked before mutation |
 | `diverged` | ✅ proceeds | ❌ blocked |
 | `no_tracking_branch` | ✅ proceeds | ✅ proceeds |
 
@@ -133,12 +133,12 @@ def test_merge_no_push_never_calls_push_preflight(state, mocker):
 @pytest.mark.parametrize("state,expected_blocked", [
     ("in_sync", False),
     ("ahead", False),
-    ("behind", False),
+    ("behind", True),
     ("diverged", True),
     ("no_tracking_branch", False),
 ])
 def test_push_safety_decision(state, expected_blocked, mocker):
-    """check_push_safety returns is_safe_to_push=True for all non-diverged states."""
+    """check_push_safety blocks states that would fail after local mutation."""
     # Mock git fetch to succeed
     # Mock rev-list to return appropriate ahead/behind counts for 'state'
     result = check_push_safety(repo_root=Path("/fake"), target_branch="main")

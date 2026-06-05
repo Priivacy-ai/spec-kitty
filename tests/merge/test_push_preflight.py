@@ -8,12 +8,45 @@ NFR-001: fetch latency validated manually/observationally — not in automated s
 
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 pytestmark = [pytest.mark.unit]
+
+
+def test_domain_preflight_does_not_import_push_preflight_at_module_load() -> None:
+    """Local-merge domain module must not load publish-layer code at import time."""
+    source = Path("src/specify_cli/merge/preflight.py").read_text()
+    tree = ast.parse(source)
+    parents = {
+        child: node
+        for node in ast.walk(tree)
+        for child in ast.iter_child_nodes(node)
+    }
+
+    def is_under_type_checking(node: ast.AST) -> bool:
+        while node in parents:
+            parent = parents[node]
+            if (
+                isinstance(parent, ast.If)
+                and isinstance(parent.test, ast.Name)
+                and parent.test.id == "TYPE_CHECKING"
+            ):
+                return True
+            node = parent
+        return False
+
+    runtime_imports = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+        and node.module == "specify_cli.merge.push_preflight"
+        and not is_under_type_checking(node)
+    ]
+    assert runtime_imports == []
 
 
 # ---------------------------------------------------------------------------
@@ -38,12 +71,12 @@ def test_merge_no_push_never_calls_check_push_safety(state: str) -> None:
         state=state,  # type: ignore[arg-type]
     )
 
-    # For no-push path: check_push_safety is never called, so we verify
-    # that the is_safe_to_push predicate would not block except for diverged.
-    if state == "diverged":
-        assert not status.is_safe_to_push  # diverged would block IF push was True
+    # For no-push path: check_push_safety is never called. The push predicate
+    # may still be false for states that would fail after local mutation.
+    if state in {"behind", "diverged"}:
+        assert not status.is_safe_to_push
     else:
-        assert status.is_safe_to_push  # all others are safe to push
+        assert status.is_safe_to_push
 
     # Local merge is always safe regardless of origin state (is_safe deprecated alias).
     assert status.is_safe is True
@@ -63,13 +96,13 @@ def test_merge_no_push_never_calls_check_push_safety(state: str) -> None:
     [
         ("in_sync", True),
         ("ahead", True),
-        ("behind", True),
+        ("behind", False),
         ("diverged", False),
         ("no_tracking_branch", True),
     ],
 )
 def test_is_safe_to_push_predicate(state: str, expected_safe: bool) -> None:
-    """is_safe_to_push returns True for all states except diverged."""
+    """is_safe_to_push returns False when push would fail after local mutation."""
     from specify_cli.merge.push_preflight import TargetBranchSyncStatus
 
     status = TargetBranchSyncStatus(

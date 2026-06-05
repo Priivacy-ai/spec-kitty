@@ -30,10 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   accumulated orchestration commits on local `main` could not run
   `spec-kitty merge` until they pushed to origin first.
 
-- Push-safety checks now fire only when `--push` is requested, and only
-  immediately before the push step. The `"diverged"` state continues to
-  block a push with remediation guidance. `"ahead"` and `"behind"` states
-  do not block a push (git handles those cases directly).
+- Push-safety checks now fire only when `--push` is requested. The
+  `"behind"` and `"diverged"` states block before local merge mutation with
+  remediation guidance, while `"ahead"` remains push-safe.
 
 - `MergeState` now persists `push_requested` for correct resume semantics:
   a resumed merge respects the original invocation's push intent without

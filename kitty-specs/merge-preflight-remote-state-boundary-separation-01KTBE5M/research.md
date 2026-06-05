@@ -50,18 +50,18 @@ The existing `TargetBranchSyncStatus`, `TargetBranchRefreshStatus`, and their he
 
 **Finding**: `is_safe` is called in one place — `_enforce_target_branch_sync_preflight` at `merge.py:1256`. The entire predicate will be replaced by the push-safety check in `push_preflight.py`.
 
-**Rationale**: After the refactor, `TargetBranchSyncStatus` moves to `push_preflight.py`. `is_safe_to_push` returns `False` only for `"diverged"` (a non-fast-forward push would be needed). `"behind"` and `"ahead"` are handled by git's own push rejection. `"in_sync"` and `"no_tracking_branch"` are safe to push.
+**Rationale**: After the refactor, `TargetBranchSyncStatus` moves to `push_preflight.py`. `is_safe_to_push` returns `False` for `"behind"` and `"diverged"` because remote commits are missing locally. Letting those states through would mutate local merge/bookkeeping state before a known non-fast-forward push rejection. `"ahead"`, `"in_sync"`, and `"no_tracking_branch"` are safe to push.
 
 **Push-safety decision matrix**:
 | State | Local has | Origin has | Push result | Push-safe? |
 |---|---|---|---|---|
 | `in_sync` | — | — | Fast-forward (no-op) | ✅ |
 | `ahead` | commits + | — | Fast-forward | ✅ |
-| `behind` | — | commits + | Rejected by git (non-FF) | ⚠️ warn, not block |
+| `behind` | — | commits + | Rejected by git (non-FF) after local mutation | ❌ block |
 | `diverged` | commits + | commits + | Force push required | ❌ block |
 | `no_tracking_branch` | — | no remote | No push possible | ✅ (N/A) |
 
-**Rationale for `"behind"` as warn-not-block**: If local is behind origin, the push will be rejected by git anyway. No preflight block is needed — the user gets clear git feedback. Adding a pre-block here would be over-eager.
+**Rationale for `"behind"` as block**: If local is behind origin, the final push will be rejected by git anyway. Blocking before lane/target merge and bookkeeping avoids leaving local mutation behind a guaranteed publish failure.
 
 ---
 
@@ -114,7 +114,7 @@ Adding a new field with a default value (`= False`) is automatically backwards-c
 ### Test surface (test_target_branch_preflight.py)
 
 - `test_merge_preflight_blocks_unsafe_target_with_non_destructive_guidance` — currently uses `"ahead"` as the blocked-state fixture → must be inverted or replaced with `"diverged"` fixture
-- `test_merge_preflight_fetches_before_detecting_remote_main_behind` — tests `"behind"` is blocked → correct behavior preserved for push-requested path
+- `test_merge_preflight_blocks_remote_main_behind_before_mutation` — tests `"behind"` is blocked before merge/bookkeeping mutation
 - New tests needed: `push=False + ahead`, `push=False + behind`, `push=False + diverged` (all pass), `push=True + diverged` (blocked), `push=True + ahead` (passes), `#1706 regression` (local-ahead + behind, merge completes)
 
 ---
