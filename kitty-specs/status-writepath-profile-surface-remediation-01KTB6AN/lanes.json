@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "mission_slug": "status-writepath-profile-surface-remediation-01KTB6AN",
+  "mission_id": "01KTB6AN8XJWN4ZVMHK4YBAYBY",
+  "mission_branch": "kitty/mission-status-writepath-profile-surface-remediation-01KTB6AN",
+  "target_branch": "feature/status-writepath-profile-surface-remediation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/status.py",
+        "src/specify_cli/status/aggregate.py",
+        "tests/status/test_agent_status_emit_aggregate_wiring.py",
+        "tests/unit/status/test_mission_status_aggregate.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/doctrine_service_factory.py",
+        "tests/specify_cli/test_doctrine_service_factory.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/charter/context.py",
+        "tests/charter/test_context_include_activation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/architectural/test_execution_context_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/profiles_cmd.py",
+        "tests/specify_cli/invocation/cli/test_profiles_activation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "glossary/contexts/governance.md",
+        "src/doctrine/skills/ad-hoc-profile-load/SKILL.md",
+        "tests/architectural/test_docs_cli_reference_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-06-05T08:43:05.634146+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
