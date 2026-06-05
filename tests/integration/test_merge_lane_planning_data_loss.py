@@ -312,6 +312,12 @@ def _file_on_branch(repo: Path, branch: str, relpath: str) -> bool:
     return result.returncode == 0 and relpath in result.stdout.splitlines()
 
 
+def _rel_paths(paths: object, repo: Path) -> set[str]:
+    if paths is None:
+        return set()
+    return {str(Path(path).relative_to(repo)) for path in paths}  # type: ignore[arg-type]
+
+
 @contextlib.contextmanager
 def _real_merge_external_mocks(repo_root: Path):
     """Mock only the side effects that touch state OUTSIDE git.
@@ -358,7 +364,11 @@ def _real_merge_external_mocks(repo_root: Path):
         stale_report.findings = []
         ms[6].return_value = stale_report
         ms[7].return_value = stale_report
-        yield
+        yield {
+            "mark_done": ms[0],
+            "assert_done": ms[1],
+            "safe_commit": ms[2],
+        }
 
 
 class TestPlanningArtifactReachesTarget:
@@ -502,7 +512,7 @@ class TestPlanningArtifactReachesTarget:
         )
         assert missing_branch.returncode != 0
 
-        with _real_merge_external_mocks(tmp_path):
+        with _real_merge_external_mocks(tmp_path) as mocks:
             _run_lane_based_merge(
                 repo_root=tmp_path,
                 mission_slug=slug,
@@ -514,6 +524,21 @@ class TestPlanningArtifactReachesTarget:
             )
 
         assert _file_on_branch(tmp_path, "main", planning_relpath)
+        marked_wps = [call.args[2] for call in mocks["mark_done"].call_args_list]
+        assert marked_wps == ["WP01", "WP02"]
+        mocks["assert_done"].assert_called_once()
+        assert set(mocks["assert_done"].call_args.args[2]) == {"WP01", "WP02"}
+
+        meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+        assert isinstance(meta.get("mission_number"), int)
+        assert meta.get("baseline_merge_commit")
+
+        committed_paths: set[str] = set()
+        for call in mocks["safe_commit"].call_args_list:
+            committed_paths.update(_rel_paths(call.kwargs.get("paths"), tmp_path))
+        assert f"kitty-specs/{slug}/meta.json" in committed_paths
+        assert f"kitty-specs/{slug}/status.events.jsonl" in committed_paths
+        assert f"kitty-specs/{slug}/status.json" in committed_paths
 
     def test_planning_artifact_on_phantom_lane_branch_is_NOT_reached(
         self, tmp_path: Path

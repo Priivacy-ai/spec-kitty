@@ -1777,10 +1777,6 @@ def _run_lane_based_merge_locked(
     mission_number_meta_path: Path | None = None
     mission_already_applied = False
     if planning_artifact_only:
-        mission_number_meta_path = _assign_planning_only_mission_number_if_needed(
-            main_repo,
-            feature_dir,
-        )
         console.print(
             f"  [dim]Skipping mission branch merge; {lanes_manifest.target_branch} "
             "is the planning artifact branch.[/dim]"
@@ -1833,6 +1829,12 @@ def _run_lane_based_merge_locked(
     # A path checkout does not remove stale rename sources in sparse-checkout
     # repos; the helper uses a tracked-file hard refresh instead.
     _refresh_primary_checkout_after_merge(main_repo)
+
+    if planning_artifact_only:
+        mission_number_meta_path = _assign_planning_only_mission_number_if_needed(
+            main_repo,
+            feature_dir,
+        )
 
     try:
         baseline_meta_path = _record_baseline_merge_commit(

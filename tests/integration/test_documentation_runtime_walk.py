@@ -28,6 +28,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.invocation.writer import EVENTS_DIR
 from specify_cli.next._internal_runtime.engine import _read_snapshot
 from specify_cli.next.runtime_bridge import (
     _check_composed_action_guard,
@@ -43,6 +44,23 @@ from specify_cli.next.runtime_bridge import (
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+
+_NON_INVOCATION_OP_FILES = {
+    "lifecycle.jsonl",
+    "ops-index.jsonl",
+    "propagation-errors.jsonl",
+}
+
+
+def _invocation_trail_files(repo_root: Path) -> list[Path]:
+    invocations_dir = repo_root / EVENTS_DIR
+    return sorted(
+        path
+        for path in invocations_dir.glob("*.jsonl")
+        if path.name not in _NON_INVOCATION_OP_FILES
+    )
+
 
 def _init_min_repo(repo_root: Path) -> None:
     """Initialize a minimal git repo as the test mission's project root."""
@@ -298,8 +316,7 @@ def test_paired_invocation_lifecycle_is_recorded(isolated_repo: Path) -> None:
     """FR-011 + FR-012 + NFR-006: invocation trail records paired started/done.
 
     The composition dispatch routes through ``ProfileInvocationExecutor``
-    which writes JSONL records under
-    ``<repo>/.kittify/events/profile-invocations/<invocation_id>.jsonl``.
+    which writes JSONL records under the canonical Op storage directory.
     Each invocation must have a ``started`` line paired with a
     ``completed`` line whose outcome is ``done`` or ``failed``. The
     recorded ``action`` MUST stay within the documentation-native step
@@ -326,12 +343,12 @@ def test_paired_invocation_lifecycle_is_recorded(isolated_repo: Path) -> None:
         isolated_repo,
     )
 
-    invocations_dir = isolated_repo / ".kittify" / "events" / "profile-invocations"
+    invocations_dir = isolated_repo / EVENTS_DIR
     assert invocations_dir.is_dir(), (
         f"Invocations dir missing: {invocations_dir}. Composition dispatch "
         "did not produce a paired invocation trail."
     )
-    trail_files = sorted(invocations_dir.glob("*.jsonl"))
+    trail_files = _invocation_trail_files(isolated_repo)
     assert trail_files, (
         f"No invocation trail files written under {invocations_dir}. "
         "ProfileInvocationExecutor.invoke was not called from the composed "
@@ -578,7 +595,7 @@ def test_full_advancement_through_six_actions(isolated_repo: Path) -> None:
 
     After the loop finishes the test cross-checks the per-action paired
     invocation trail under
-    ``<repo>/.kittify/events/profile-invocations/`` (T10): every advancing
+    the canonical Op storage directory (T10): every advancing
     action MUST have at least one trail file containing a paired
     ``started`` + ``completed`` record whose ``action`` is the
     documentation-native verb. This is a stricter assertion than the
@@ -656,11 +673,9 @@ def test_full_advancement_through_six_actions(isolated_repo: Path) -> None:
     )
 
     # T10: every advancing action MUST have a paired started/completed
-    # trail record under .kittify/events/profile-invocations/ with the
+    # trail record under the canonical Op storage directory with the
     # documentation-native action name on the started event.
-    invocations_dir = (
-        isolated_repo / ".kittify" / "events" / "profile-invocations"
-    )
+    invocations_dir = isolated_repo / EVENTS_DIR
     assert invocations_dir.is_dir(), (
         f"Invocations dir missing: {invocations_dir}. Composition dispatch "
         "did not produce any paired invocation trails."
@@ -668,7 +683,7 @@ def test_full_advancement_through_six_actions(isolated_repo: Path) -> None:
 
     valid_outcomes = {"done", "failed"}
     paired_actions: set[str] = set()
-    for trail in sorted(invocations_dir.glob("*.jsonl")):
+    for trail in _invocation_trail_files(isolated_repo):
         events: list[dict[str, object]] = []
         for raw in trail.read_text(encoding="utf-8").splitlines():
             line = raw.strip()
