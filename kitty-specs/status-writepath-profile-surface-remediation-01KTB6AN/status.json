@@ -1,7 +1,7 @@
 {
-  "event_count": 26,
-  "last_event_id": "01KTBXTMJMQZMJ8SMGPB93QWPD",
-  "materialized_at": "2026-06-05T12:58:44.692191+00:00",
+  "event_count": 27,
+  "last_event_id": "01KTBXTPQFWBZX8ZZXDDVVN6Y1",
+  "materialized_at": "2026-06-05T12:58:46.895904+00:00",
   "mission_number": "",
   "mission_slug": "status-writepath-profile-surface-remediation-01KTB6AN",
   "mission_type": "software-dev",
@@ -9,12 +9,12 @@
     "approved": 4,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 0,
+    "claimed": 1,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -39,11 +39,11 @@
       "last_transition_at": "2026-06-05T12:58:32.044650+00:00"
     },
     "WP04": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KTBN4G0J9ADGW4CRJD8TQNGM",
-      "last_transition_at": "2026-06-05T10:26:50.514016+00:00"
+      "lane": "claimed",
+      "last_event_id": "01KTBXTPQFWBZX8ZZXDDVVN6Y1",
+      "last_transition_at": "2026-06-05T12:58:46.895904+00:00"
     },
     "WP05": {
       "actor": "claude",
