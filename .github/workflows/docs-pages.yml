@@ -5,6 +5,9 @@ on:
     branches: [ main, 2.x ]
     paths:
       - 'docs/**'
+      - 'kitty-specs/**'
+      - 'scripts/docs/generate_kitty_specs_docs.py'
+      - 'scripts/docs/seo_postprocess.py'
       - 'architecture/**'
       - '.github/workflows/docs-pages.yml'
   workflow_dispatch:
