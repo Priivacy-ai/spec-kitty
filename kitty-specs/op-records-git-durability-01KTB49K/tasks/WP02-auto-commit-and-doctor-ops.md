@@ -22,13 +22,14 @@ subtasks:
 - T011
 - T012
 - T013
+- T014
 agent: claude
 history:
 - date: '2026-06-05'
   event: created
   actor: claude
 agent_profile: python-pedro
-authoritative_surface: src/specify_cli/invocation/
+authoritative_surface: src/specify_cli/
 execution_mode: code_change
 owned_files:
 - src/specify_cli/invocation/executor.py
@@ -437,6 +438,7 @@ import json
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
 from specify_cli.doctor.ops import list_orphan_ops
 
@@ -487,7 +489,70 @@ class TestListOrphanOps:
         assert len(orphans) == 2
         # Should be sorted (list_orphan_ops uses sorted())
         assert orphans[0].name < orphans[1].name
+
+
+class TestDoctorOpsCLI:
+    """Integration tests: exercise `spec-kitty doctor ops` via the typer CLI surface (FR-005, charter)."""
+
+    def _get_app(self):
+        from specify_cli.cli.commands.doctor import app
+        return app
+
+    def test_no_orphans_exits_zero_with_message(self, tmp_path: Path, monkeypatch) -> None:
+        """CLI reports clean when kitty-ops/ has no orphans."""
+        (tmp_path / "kitty-ops").mkdir()
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(self._get_app(), ["ops"])
+        assert result.exit_code == 0
+        assert "No orphan" in result.output
+
+    def test_orphan_listed_in_cli_output(self, tmp_path: Path, monkeypatch) -> None:
+        """CLI lists orphan file path when one exists."""
+        kitty_ops = tmp_path / "kitty-ops"
+        kitty_ops.mkdir()
+        (kitty_ops / "01ABCDEF12345678901234.jsonl").write_text(
+            json.dumps({"event": "started", "invocation_id": "01ABCDEF12345678901234"}) + "\n"
+        )
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(self._get_app(), ["ops"])
+        assert result.exit_code == 0
+        assert "01ABCDEF12345678901234.jsonl" in result.output
+
+    def test_json_output_flag(self, tmp_path: Path, monkeypatch) -> None:
+        """--json flag produces parseable JSON with orphan_count and orphans keys."""
+        (tmp_path / "kitty-ops").mkdir()
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(self._get_app(), ["ops", "--json"])
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert "orphan_count" in data
+        assert "orphans" in data
+        assert data["orphan_count"] == 0
 ```
+
+**Note on `monkeypatch.chdir`**: The `doctor ops` command calls `locate_project_root()` which walks up from CWD. Using `monkeypatch.chdir(tmp_path)` plus an empty `.kittify/` sentinel (if required by `locate_project_root`) may be needed. Check `locate_project_root`'s behavior for the `tmp_path` fixture — if it requires a `.kittify/` dir or `.git/`, create one in the fixture.
+
+---
+
+## Subtask T014: Add CHANGELOG entry for `.kittify/events/` abandonment
+
+**File**: `CHANGELOG.md` (repository root)
+
+Per spec.md C-002 and Assumptions: add a CHANGELOG entry documenting the accepted data loss.
+
+Find the `[Unreleased]` section (or the current version section) and add:
+
+```markdown
+### Changed
+
+- Op records now stored in `kitty-ops/` (git-tracked) instead of `.kittify/events/profile-invocations/` (gitignored).
+  **Note**: Pre-existing records in `.kittify/events/profile-invocations/` are abandoned and not migrated. This is accepted data loss — those records were ephemeral by design prior to this change.
+```
+
+**Validation**: `grep -n "kitty-ops" CHANGELOG.md` must return at least one line after this change.
 
 ---
 
@@ -499,8 +564,9 @@ class TestListOrphanOps:
 - [ ] `src/specify_cli/doctor/ops.py` exists with `list_orphan_ops()` and `_has_completed_event()`
 - [ ] `spec-kitty doctor ops` subcommand is registered in `doctor.py`
 - [ ] `pytest tests/specify_cli/invocation/test_executor.py` passes (including T-003, T-004, T-005, T-006, T-007)
-- [ ] `pytest tests/specify_cli/invocation/test_doctor_ops.py` passes (all 6 test cases)
+- [ ] `pytest tests/specify_cli/invocation/test_doctor_ops.py` passes (6 unit tests + 3 CLI integration tests)
 - [ ] `mypy --strict src/specify_cli/invocation/executor.py src/specify_cli/doctor/ops.py` passes
+- [ ] `CHANGELOG.md` updated with `.kittify/events/` abandonment note
 - [ ] `InvocationSaaSPropagator` is unchanged (scope boundary)
 - [ ] No `.gitignore` changes made
 

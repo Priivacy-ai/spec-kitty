@@ -235,6 +235,25 @@ def test_events_dir_is_kitty_ops() -> None:
     assert EVENTS_DIR == "kitty-ops"
 ```
 
+### Test: LIFECYCLE_LOG_RELATIVE_PATH resolves to `kitty-ops/lifecycle.jsonl`
+
+```python
+def test_lifecycle_log_relative_path_is_kitty_ops() -> None:
+    from specify_cli.invocation.lifecycle import LIFECYCLE_LOG_RELATIVE_PATH
+    from pathlib import Path
+    assert LIFECYCLE_LOG_RELATIVE_PATH == Path("kitty-ops") / "lifecycle.jsonl"
+```
+
+### Test: PROPAGATION_ERRORS_PATH resolves to `kitty-ops/propagation-errors.jsonl`
+
+```python
+def test_propagation_errors_path_is_kitty_ops() -> None:
+    from specify_cli.invocation.propagator import PROPAGATION_ERRORS_PATH
+    assert PROPAGATION_ERRORS_PATH == "kitty-ops/propagation-errors.jsonl"
+```
+
+These two tests may live in `test_writer.py` or in their respective existing test files (`test_lifecycle_pairing.py`, any propagator test file). Place them wherever the existing constant-import pattern already exists.
+
 ### Test T-002: Index written at `kitty-ops/ops-index.jsonl`
 
 Use `tmp_path` fixture. Create an `InvocationWriter`, call `write_started()` with a minimal `InvocationRecord`, then assert:
@@ -335,6 +354,8 @@ def test_mission_id_wp_id_included_when_set() -> None:
 - [ ] `MINIMAL_VIABLE_TRAIL_POLICY.tier_1.storage_path == "kitty-ops/{invocation_id}.jsonl"`
 - [ ] `pytest tests/specify_cli/invocation/test_writer.py` passes (including T-001, T-002)
 - [ ] `pytest tests/specify_cli/invocation/test_record.py` passes (including new field tests)
+- [ ] `LIFECYCLE_LOG_RELATIVE_PATH == Path("kitty-ops") / "lifecycle.jsonl"` asserted in a test
+- [ ] `PROPAGATION_ERRORS_PATH == "kitty-ops/propagation-errors.jsonl"` asserted in a test
 - [ ] `mypy --strict src/specify_cli/invocation/` passes
 - [ ] No `.gitignore` changes made
 

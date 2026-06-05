@@ -31,7 +31,8 @@ Move Op record storage from `.kittify/events/profile-invocations/` (gitignored) 
 | T010 | Wire `spec-kitty doctor ops` CLI subcommand in `doctor.py` | WP02 | [P] with T009 |
 | T011 | Add `test_executor.py` commit tests: T-003 (commit after complete), T-004 (restore after clean), T-005 (orphan guard) | WP02 | — |
 | T012 | Add `test_executor.py` do-regression test (T-006) and mission_id/wp_id wiring test (T-007) | WP02 | [P] with T011 |
-| T013 | Create `test_doctor_ops.py`: orphan detection tests | WP02 | — |
+| T013 | Create `test_doctor_ops.py`: orphan detection + CLI integration tests | WP02 | — |
+| T014 | Add CHANGELOG entry for `.kittify/events/` abandonment (C-002) | WP02 | [P] with T013 |
 
 ---
 
@@ -88,7 +89,8 @@ Move Op record storage from `.kittify/events/profile-invocations/` (gitignored) 
 - [ ] T010 Wire `spec-kitty doctor ops` CLI subcommand in `doctor.py` (WP02)
 - [ ] T011 Add executor commit tests: T-003, T-004 (restore after clean), T-005 (orphan guard) (WP02)
 - [ ] T012 Add do-regression test (T-006) and mission_id/wp_id wiring test (T-007) (WP02)
-- [ ] T013 Create `test_doctor_ops.py` orphan detection tests (WP02)
+- [ ] T013 Create `test_doctor_ops.py` orphan detection + CLI integration tests (WP02)
+- [ ] T014 Add CHANGELOG entry for `.kittify/events/` abandonment (WP02)
 
 **Implementation sketch**:
 1. Edit `executor.py`: add auto-commit after `write_completed()` in `complete_invocation()` — use subprocess git, catch errors, log at WARNING

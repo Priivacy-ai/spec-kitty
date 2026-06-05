@@ -1,0 +1,15 @@
+{
+  "coordination_branch": "kitty/mission-op-records-git-durability-01KTB49K",
+  "created_at": "2026-06-05T05:32:32.212045+00:00",
+  "friendly_name": "Op Record Git Durability",
+  "mission_id": "01KTB49KJKRJ71YR8KERVDMHHA",
+  "mission_number": null,
+  "mission_slug": "op-records-git-durability-01KTB49K",
+  "mission_type": "software-dev",
+  "purpose_context": "Currently, invocation records for ask/advise/do commands are stored in a gitignored local directory, making them ephemeral and lost on git clean or re-clone. This mission moves Op storage to kitty-ops/ (a git-tracked peer of kitty-specs/), wires safe_commit auto-commit on Op completion, and adds optional mission_id/wp_id timeline-correlation fields. SaaS propagator replacement (Step 2) and module rename (Step 3) are explicitly out of scope.",
+  "purpose_tldr": "Make Op records from ask/advise/do commands durable by writing them to a git-tracked kitty-ops/ directory with auto-commit on completion.",
+  "slug": "op-records-git-durability-01KTB49K",
+  "source_description": "GitHub issue #1688 — Step 1 (git durability) of the Op artifact architectural proposal",
+  "target_branch": "main",
+  "vcs": "git"
+}
