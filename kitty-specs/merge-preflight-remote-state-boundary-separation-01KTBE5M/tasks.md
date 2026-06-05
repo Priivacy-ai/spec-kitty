@@ -11,7 +11,6 @@
 
 | ID   | Description                                                             | WP   | Parallel |
 |------|-------------------------------------------------------------------------|------|----------|
-| T000 | ATDD stubs: commit 2 failing tests before implementation (charter C-011)| WP01 |          |
 | T001 | Author ADR for merge-publish layer boundary                             | WP01 |          |
 | T002 | Create `push_preflight.py` skeleton with types and `TargetBranchPushSafetyResult` | WP01 |          |
 | T003 | Move fetch/inspect functions from `preflight.py` to `push_preflight.py` | WP01 |          |
@@ -39,12 +38,11 @@
 **Estimated prompt size**: ~380 lines
 
 **Subtasks**:
-- [ ] T000 ATDD stubs: commit 2 failing tests before implementation (WP01) ← first commit on lane
-- [ ] T001 Author ADR for merge-publish layer boundary (WP01)
-- [ ] T002 Create `push_preflight.py` skeleton with types and `TargetBranchPushSafetyResult` (WP01)
-- [ ] T003 Move fetch/inspect functions from `preflight.py` to `push_preflight.py` (WP01) — adds to new module only; WP02 strips from source
-- [ ] T004 Implement `check_push_safety()` in `push_preflight.py` (WP01)
-- [ ] T005 Deprecate `is_safe`; add `is_safe_to_push` to `TargetBranchSyncStatus` (WP01)
+- [x] T001 Author ADR for merge-publish layer boundary (WP01)
+- [x] T002 Create `push_preflight.py` skeleton with types and `TargetBranchPushSafetyResult` (WP01)
+- [x] T003 Move fetch/inspect functions from `preflight.py` to `push_preflight.py` (WP01)
+- [x] T004 Implement `check_push_safety()` in `push_preflight.py` (WP01)
+- [x] T005 Deprecate `is_safe`; add `is_safe_to_push` to `TargetBranchSyncStatus` (WP01)
 
 **Success criteria**:
 - `push_preflight.py` exports `check_push_safety`, `TargetBranchPushSafetyResult`, `TargetBranchSyncStatus`, `TargetBranchRefreshStatus`
@@ -98,9 +96,8 @@
 
 **Success criteria**:
 - All existing merge preflight tests pass with updated assertions
-- New parametrized tests cover all **five** origin states × push/no-push combinations (`missing_local_branch` is a degenerate internal state, not tested)
-- FR-004 assertion present: local results preserved when push is blocked for diverged state
-- `pytest tests/merge/ -v` exits 0 (both updated and new test files)
+- New parametrized tests cover all six origin states × push/no-push combinations
+- `pytest tests/merge/test_target_branch_preflight.py -v` exits 0
 - Coverage for `push_preflight.py` ≥90%
 
 **Prompt**: [tasks/WP03-test-coverage.md](tasks/WP03-test-coverage.md)
