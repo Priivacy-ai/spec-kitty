@@ -135,3 +135,4 @@ Realize #1667's single-domain status-write ownership (FR-004) and add an identif
 - 2026-06-05T08:32:05Z – system – Prompt created.
 - 2026-06-05T12:53:54Z – claude – Moved to in_progress
 - 2026-06-05T12:54:28Z – claude – Implemented via bypass; tests green
+- 2026-06-05T12:57:57Z – claude – FR-004/007 done+tested

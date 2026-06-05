@@ -86,11 +86,11 @@ Two file-disjoint workstreams → three execution lanes:
 
 **Independent test**: factory returns a service whose `.agent_profiles` honors the three-state `activated_agent_profiles` contract; the three glossary terms are defined.
 
-- [ ] T011 Implement `build_activation_aware_doctrine_service(repo_root)` factory (WP03)
-- [ ] T012 Construct inner `DoctrineService` + wrap with `PackContext.from_config` (WP03)
-- [ ] T013 Unit test: three-state activation filtering via factory (WP03)
-- [ ] T014 Layer-safety test: factory import does not break `doctrine ← charter` (WP03)
-- [ ] T029 Add glossary terms: *abstract base profile*, *activation chokepoint*, *activated vs available profile* (FR-019) (WP03)
+- [x] T011 Implement `build_activation_aware_doctrine_service(repo_root)` factory (WP03)
+- [x] T012 Construct inner `DoctrineService` + wrap with `PackContext.from_config` (WP03)
+- [x] T013 Unit test: three-state activation filtering via factory (WP03)
+- [x] T014 Layer-safety test: factory import does not break `doctrine ← charter` (WP03)
+- [x] T029 Add glossary terms: *abstract base profile*, *activation chokepoint*, *activated vs available profile* (FR-019) (WP03)
 
 ### WP04 — `profile list` (activation-aware) + `profile show` (#1636 / FR-011…015)
 **Priority**: P1 · **Lane B-core** · **Depends on**: WP03 · **Est.**: ~480 lines
