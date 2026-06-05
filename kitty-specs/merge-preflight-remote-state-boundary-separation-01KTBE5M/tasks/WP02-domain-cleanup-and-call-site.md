@@ -15,7 +15,7 @@ requirement_refs:
 tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Execution worktree allocated by finalize-tasks lanes.json. Merges after WP01 lane is merged.
+branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T006
 - T007
@@ -43,6 +43,18 @@ Before reading anything else, load your assigned profile:
 ```
 /ad-hoc-profile-load implementer-ivan
 ```
+
+---
+
+## ⚠️ ATDD-First Verification (Charter C-011 — binding)
+
+Before writing any implementation code in this WP, confirm that the ATDD failing tests from WP01 T000 exist on your lane branch (or on `planning_base_branch` after WP01 merges). Run:
+
+```bash
+pytest tests/merge/test_merge_preflight_atdd.py -v
+```
+
+The tests should be **RED** before your implementation and **GREEN** after T007 is complete. If the test file does not exist, stop and escalate — WP01 must be re-run with T000 first.
 
 ---
 
@@ -234,7 +246,7 @@ assert s.push_requested == False
 **Merge target**: `main`
 **Execution**: Worktree allocated by `finalize-tasks`. Depends on WP01 lane being merged first.
 
-To start: `spec-kitty agent action implement WP02 --agent claude`
+To start: `spec-kitty agent action implement WP02 --agent claude --mission merge-preflight-remote-state-boundary-separation-01KTBE5M`
 
 ---
 

@@ -10,7 +10,7 @@ requirement_refs:
 tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Execution worktree allocated by finalize-tasks lanes.json. Merges after WP02 lane.
+branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T009
 - T010
@@ -103,15 +103,29 @@ Read this file completely before making any changes. Understand what each test c
 
 **File**: `tests/merge/test_push_preflight.py` (new file, or add to existing file — choose the more natural location)
 
-**Test matrix to cover**:
+**Test matrix to cover** (five origin states):
 
 | Origin state | push=False | push=True |
 |---|---|---|
 | `in_sync` | ✅ proceeds | ✅ proceeds |
 | `ahead` | ✅ proceeds (was blocked — key regression) | ✅ proceeds |
-| `behind` | ✅ proceeds | ⚠️ proceeds (git handles rejection) |
-| `diverged` | ✅ proceeds | ❌ blocked |
+| `behind` | ✅ proceeds | ✅ proceeds (git rejection is sufficient; no preflight block) |
+| `diverged` | ✅ proceeds | ❌ blocked + local results preserved (FR-004) |
 | `no_tracking_branch` | ✅ proceeds | ✅ proceeds |
+
+> Note: `missing_local_branch` is a degenerate internal state not reachable via normal merge flow. It is not tested in this matrix. Five states total.
+
+**FR-004 assertion for `diverged` + `push=True` (required)**: When push is blocked by diverged state, assert that local lane merges already completed before the block fires. Add:
+```python
+def test_push_blocked_but_local_results_preserved_when_diverged():
+    """FR-004: When push is blocked for diverged state, local merge results must be preserved."""
+    # Set up: simulate local merge completing (branch has expected commits)
+    # Simulate push-safety check returning is_safe_to_push=False (diverged)
+    # Assert: local branch contains the merged WP commits
+    # Assert: typer.Exit(1) is raised (push blocked)
+    # The combination proves local results were NOT discarded when push was blocked.
+    ...
+```
 
 **For `push=False` tests** (testing the call-site gate):
 ```python
@@ -194,7 +208,7 @@ Add a `# Regression: https://github.com/Priivacy-ai/spec-kitty/issues/1706` comm
 **Planning base branch**: `main`
 **Merge target**: `main`
 
-To start: `spec-kitty agent action implement WP03 --agent claude`
+To start: `spec-kitty agent action implement WP03 --agent claude --mission merge-preflight-remote-state-boundary-separation-01KTBE5M`
 
 ---
 
@@ -202,11 +216,15 @@ To start: `spec-kitty agent action implement WP03 --agent claude`
 
 - [ ] Existing tests that asserted `"ahead"` blocks merge are updated — they now use `"diverged"` or are inverted
 - [ ] No test imports `TargetBranchSyncStatus` from `specify_cli.merge.preflight` (import must come from `push_preflight`)
-- [ ] New tests cover all five origin states for `push=False` (none blocked)
-- [ ] New tests cover `push=True` × `diverged` (blocked) and `push=True` × `ahead`/`in_sync` (not blocked)
+- [ ] New tests cover all **five** origin states for `push=False` (none blocked)
+- [ ] New tests cover `push=True` × `diverged` (blocked) **and** include FR-004 assertion: local results preserved when push is blocked
+- [ ] New tests cover `push=True` × `ahead`/`in_sync`/`behind`/`no_tracking_branch` (not blocked)
 - [ ] `test_issue_1706_ahead_and_behind_does_not_block_no_push_merge` exists and passes
-- [ ] `pytest tests/merge/ -v` exits 0
-- [ ] Coverage for `push_preflight.py` ≥90%
+- [ ] `tests/merge/test_merge_preflight_atdd.py` tests (from WP01 T000) are GREEN on this WP's final commit
+- [ ] `pytest tests/merge/ -v` exits 0 (covers both updated and new test files)
+- [ ] Coverage for `push_preflight.py` ≥90% (`pytest tests/merge/ --cov=specify_cli.merge.push_preflight`)
+- [ ] NFR-001 (≤3s fetch latency) is out of automated test scope for this mission; add a comment in `test_push_preflight.py`: `# NFR-001: fetch latency validated manually/observationally — not in automated suite`
+- [ ] If no git-worktree-based fixture for #1706 scenario exists, document the mock-boundary choice with a comment and open a follow-up issue for fixture creation
 
 ## Risks
 

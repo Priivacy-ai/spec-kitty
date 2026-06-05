@@ -8,7 +8,7 @@ requirement_refs:
 tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Execution worktree allocated by finalize-tasks lanes.json. Can run in parallel with WP03 after WP02 merges.
+branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T012
 - T013
@@ -130,7 +130,7 @@ Remove the `AGENTS.md` guidance that advised users to use a PR-based workaround 
 **Planning base branch**: `main`
 **Merge target**: `main`
 
-To start: `spec-kitty agent action implement WP04 --agent claude`
+To start: `spec-kitty agent action implement WP04 --agent claude --mission merge-preflight-remote-state-boundary-separation-01KTBE5M`
 
 ---
 

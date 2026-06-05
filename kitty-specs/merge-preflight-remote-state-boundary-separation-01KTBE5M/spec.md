@@ -65,7 +65,7 @@ A developer is offline and runs `/spec-kitty.merge --push`. The remote-state fet
 
 | ID | Requirement | Threshold | Status |
 |----|-------------|-----------|--------|
-| NFR-001 | When a push is requested and the remote-state fetch succeeds immediately, the total additional latency introduced by the relocated push-preflight check (compared to a local-merge-only run) shall not exceed 3 seconds on a standard network connection. | ≤ 3 seconds | Accepted |
+| NFR-001 | When a push is requested and the remote-state fetch succeeds immediately, the total additional latency introduced by the relocated push-preflight check (compared to a local-merge-only run) shall not exceed 3 seconds. "Standard network connection" means LAN or broadband with round-trip latency ≤ 100ms to the Git remote. Validated observationally; not covered by automated test suite in this mission. | ≤ 3 seconds | Accepted |
 | NFR-002 | Strict type checking must pass with zero new type errors after all changes. | 0 new type errors | Accepted |
 | NFR-003 | Test coverage for the modified merge preflight and push-preflight modules must meet or exceed the project baseline of 90%. | ≥ 90% coverage | Accepted |
 | NFR-004 | A resumed merge invocation must correctly apply or skip the push step based on the persisted push-intent field, with no loss of intent. | 100% fidelity on resume | Accepted |
@@ -132,3 +132,4 @@ A developer is offline and runs `/spec-kitty.merge --push`. The remote-state fet
 | Push-safety check | The remote-state inspection that determines whether a push would succeed non-destructively. Belongs in the publish layer. | "preflight", "sync preflight" (when used ambiguously to mean this check) |
 | Local-merge safety | Whether the local git graph supports the integration. Determined entirely by local branch state; origin state is irrelevant. | (no existing term — this mission introduces the distinction) |
 | Diverged | Local and remote have both accumulated commits the other lacks. The only origin state that is unsafe for a non-destructive push. | "out of sync", "conflicting" |
+| Push-preflight module | The Python module (`push_preflight.py`) that implements push-safety checks. Belongs in the publish layer. The domain layer (`preflight.py`) must not import from it. | "push safety module", "push check module" |
