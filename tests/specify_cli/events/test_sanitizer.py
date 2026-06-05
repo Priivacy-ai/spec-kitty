@@ -64,11 +64,11 @@ def test_all_pii_fields_stripped_together() -> None:
     """All five PII fields are removed when present simultaneously."""
     envelope = {
         "event_type": "TestEvent",
-        "machine_name": "roberts-mbp",
-        "hostname": "roberts-mbp.local",
-        "workspace_path": "/Users/robert/project",
-        "developer_name": "Robert",
-        "developer_email": "robert@example.com",
+        "machine_name": "dev-mbp",
+        "hostname": "dev-mbp.local",
+        "workspace_path": "/Users/tester/project",
+        "developer_name": "Test User",
+        "developer_email": "tester@example.com",
         "node_id": "keep-this",
     }
     result = sanitize_event_for_log(envelope)
@@ -281,11 +281,11 @@ def test_pii_and_timestamps_stripped_together() -> None:
     # canonical-producer-exempt: #1198 -- sanitizer unit test must exercise raw envelope input.
     envelope = {
         "event_type": "DecisionInputRequested",
-        "machine_name": "roberts-mbp",
+        "machine_name": "dev-mbp",
         "session_started_at": "2026-06-01T07:00:00Z",
         "session_ended_at": "2026-06-01T07:01:00Z",
         "payload": {
-            "workspace_path": "/Users/robert/project",
+            "workspace_path": "/Users/tester/project",
             "question": "Which strategy?",
         },
     }

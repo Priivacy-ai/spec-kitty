@@ -50,7 +50,7 @@ from specify_cli.sync.routing import resolve_checkout_sync_routing
 
 logger = logging.getLogger(__name__)
 
-PROPAGATION_ERRORS_PATH = ".kittify/events/propagation-errors.jsonl"
+PROPAGATION_ERRORS_PATH = "kitty-ops/propagation-errors.jsonl"
 _ATEXIT_TIMEOUT_SECONDS = 5.0
 _PENDING_SEND_TASKS: set[asyncio.Task[Any]] = set()
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -73,9 +74,13 @@ class TestInvokeWithProfileHint:
             payload = executor.invoke("implement feature", profile_hint="implementer-fixture")
 
         events_dir = tmp_path / EVENTS_DIR
-        jsonl_files = list(events_dir.glob("*.jsonl"))
-        assert len(jsonl_files) == 1
-        assert jsonl_files[0].name == f"{payload.invocation_id}.jsonl"
+        # Filter out ops-index.jsonl — it is the O(n) index aide, not an invocation file.
+        invocation_files = [
+            f for f in events_dir.glob("*.jsonl")
+            if f.name != "ops-index.jsonl"
+        ]
+        assert len(invocation_files) == 1
+        assert invocation_files[0].name == f"{payload.invocation_id}.jsonl"
 
     def test_invoke_writes_started_event_to_jsonl(self, tmp_path: Path) -> None:
         _setup_fixture_profiles(tmp_path)
@@ -130,8 +135,12 @@ class TestInvokeDegradedCharter:
         assert payload.governance_context_available is False
         # JSONL must still be written even when charter is missing
         events_dir = tmp_path / EVENTS_DIR
-        jsonl_files = list(events_dir.glob("*.jsonl"))
-        assert len(jsonl_files) == 1
+        # Filter out ops-index.jsonl — it is the O(n) index aide, not an invocation file.
+        invocation_files = [
+            f for f in events_dir.glob("*.jsonl")
+            if f.name != "ops-index.jsonl"
+        ]
+        assert len(invocation_files) == 1
 
 
 class TestInvokeMarkLoadedFalse:
@@ -174,3 +183,174 @@ class TestInvokeWriteFailureRaises:
             executor = ProfileInvocationExecutor(tmp_path)
             with pytest.raises(InvocationWriteError):
                 executor.invoke("test", profile_hint="implementer-fixture")
+
+
+# ---------------------------------------------------------------------------
+# Git fixture helper
+# ---------------------------------------------------------------------------
+
+
+def _init_git_repo(path: Path) -> None:
+    """Initialise a minimal git repo at ``path`` with an initial commit."""
+    subprocess.run(["git", "init", str(path)], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(path), "config", "user.email", "test@example.com"],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(path), "config", "user.name", "Test"],
+        check=True, capture_output=True,
+    )
+    # Create an initial commit so HEAD exists (required for git add + commit).
+    readme = path / "README.md"
+    readme.write_text("test repo\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "-C", str(path), "add", "README.md"],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(path), "commit", "--no-verify", "-m", "init"],
+        check=True, capture_output=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# T-003 – T-007: Auto-commit tests
+# ---------------------------------------------------------------------------
+
+
+class TestAutoCommitOnCompleteInvocation:
+    """T-003: commit appears in git log after complete_invocation()."""
+
+    def test_commit_appears_after_complete_invocation(self, tmp_path: Path) -> None:
+        _init_git_repo(tmp_path)
+        _setup_fixture_profiles(tmp_path)
+
+        with patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=_COMPACT_CTX,
+        ):
+            executor = ProfileInvocationExecutor(tmp_path)
+            payload = executor.invoke("implement feature", profile_hint="implementer-fixture")
+            executor.complete_invocation(payload.invocation_id, outcome="done")
+
+        result = subprocess.run(
+            ["git", "-C", str(tmp_path), "log", "--oneline"],
+            capture_output=True, text=True, check=True,
+        )
+        log_lines = result.stdout.strip().splitlines()
+        # At least 2 commits: init + op commit
+        assert len(log_lines) >= 2
+        # Most recent commit should mention the op
+        assert "op(" in log_lines[0]
+
+    def test_op_file_restorable_after_git_clean(self, tmp_path: Path) -> None:
+        """T-004: op file is in git and can be restored after deletion."""
+        _init_git_repo(tmp_path)
+        _setup_fixture_profiles(tmp_path)
+
+        with patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=_COMPACT_CTX,
+        ):
+            executor = ProfileInvocationExecutor(tmp_path)
+            payload = executor.invoke("test", profile_hint="implementer-fixture")
+            executor.complete_invocation(payload.invocation_id, outcome="done")
+
+        op_file = tmp_path / EVENTS_DIR / f"{payload.invocation_id}.jsonl"
+        assert op_file.exists()
+
+        # Delete the file and restore from git
+        op_file.unlink()
+        assert not op_file.exists()
+
+        subprocess.run(
+            ["git", "-C", str(tmp_path), "checkout", "HEAD", "--",
+             f"{EVENTS_DIR}/{payload.invocation_id}.jsonl"],
+            check=True, capture_output=True,
+        )
+        assert op_file.exists()
+
+    def test_orphan_op_not_committed(self, tmp_path: Path) -> None:
+        """T-005: a started-only (orphan) op is NOT in git log."""
+        _init_git_repo(tmp_path)
+        _setup_fixture_profiles(tmp_path)
+
+        with patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=_COMPACT_CTX,
+        ):
+            executor = ProfileInvocationExecutor(tmp_path)
+            executor.invoke("test", profile_hint="implementer-fixture")
+            # Do NOT call complete_invocation — leave it as an orphan.
+
+        result = subprocess.run(
+            ["git", "-C", str(tmp_path), "log", "--oneline"],
+            capture_output=True, text=True, check=True,
+        )
+        log_lines = result.stdout.strip().splitlines()
+        # Only the init commit should be present
+        assert len(log_lines) == 1
+        assert "init" in log_lines[0]
+
+    def test_mission_id_and_wp_id_preserved(self, tmp_path: Path) -> None:
+        """T-007a: mission_id/wp_id are absent from the started record for standalone invocations."""
+        _setup_fixture_profiles(tmp_path)
+
+        with patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=_COMPACT_CTX,
+        ):
+            executor = ProfileInvocationExecutor(tmp_path)
+            payload = executor.invoke("test", profile_hint="implementer-fixture")
+
+        events_dir = tmp_path / EVENTS_DIR
+        jsonl_file = events_dir / f"{payload.invocation_id}.jsonl"
+        data = json.loads(jsonl_file.read_text().splitlines()[0])
+        assert data.get("mission_id") is None
+        assert data.get("wp_id") is None
+
+    def test_mission_id_and_wp_id_written_when_supplied(self, tmp_path: Path) -> None:
+        """T-007b: mission_id/wp_id appear in the started record when supplied by caller."""
+        _setup_fixture_profiles(tmp_path)
+
+        with patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=_COMPACT_CTX,
+        ):
+            executor = ProfileInvocationExecutor(tmp_path)
+            payload = executor.invoke(
+                "test",
+                profile_hint="implementer-fixture",
+                mission_id="01KTB49KJKRJ71YR8KERVDMHHA",
+                wp_id="WP01",
+            )
+
+        events_dir = tmp_path / EVENTS_DIR
+        jsonl_file = events_dir / f"{payload.invocation_id}.jsonl"
+        data = json.loads(jsonl_file.read_text().splitlines()[0])
+        assert data["mission_id"] == "01KTB49KJKRJ71YR8KERVDMHHA"
+        assert data["wp_id"] == "WP01"
+
+    def test_commit_failure_does_not_raise(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """Best-effort: git failure must not block the invocation response."""
+        import logging
+        import unittest.mock as mock
+
+        _init_git_repo(tmp_path)
+        _setup_fixture_profiles(tmp_path)
+
+        with patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=_COMPACT_CTX,
+        ):
+            executor = ProfileInvocationExecutor(tmp_path)
+            payload = executor.invoke("test request", profile_hint="implementer-fixture")
+
+        with mock.patch("specify_cli.invocation.executor._subprocess.run", side_effect=OSError("git not found")):
+            with caplog.at_level(logging.WARNING):
+                result = executor.complete_invocation(payload.invocation_id, outcome="done")
+
+        assert result is not None
+        warning_messages = [r.message for r in caplog.records if r.levelno >= logging.WARNING]
+        assert any("commit" in m.lower() or "auto" in m.lower() for m in warning_messages)

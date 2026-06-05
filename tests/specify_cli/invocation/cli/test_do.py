@@ -223,8 +223,16 @@ class TestDoSuccessfulRouting:
             )
         assert result.exit_code == 0, result.output
         events_dir = project / EVENTS_DIR
-        jsonl_files = list(events_dir.glob("*.jsonl")) if events_dir.exists() else []
-        assert len(jsonl_files) == 1
+        # Filter out ops-index.jsonl — it is the O(n) index aide, not an invocation file.
+        invocation_files = [
+            f for f in (events_dir.glob("*.jsonl") if events_dir.exists() else [])
+            if f.name != "ops-index.jsonl"
+        ]
+        assert len(invocation_files) == 1
+        # FR-008: the record must be completed (do is a single-shot command).
+        events = [json.loads(line) for line in invocation_files[0].read_text().splitlines() if line.strip()]
+        event_types = [e.get("event") for e in events]
+        assert "completed" in event_types, "do command must complete the invocation record"
 
     def test_rich_output_exits_zero(self, tmp_path: Path) -> None:
         """Without --json, rich output is produced with exit 0."""
@@ -243,6 +251,7 @@ class TestDoSuccessfulRouting:
                 ["do", "implement the feature"],
             )
         assert result.exit_code == 0, result.output
+        assert "Close this record" not in result.output
 
     def test_rich_output_surfaces_high_severity_glossary_warning(self, tmp_path: Path) -> None:
         """High-severity glossary conflicts should be shown inline before governance context."""

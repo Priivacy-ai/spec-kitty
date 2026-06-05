@@ -39,6 +39,8 @@ class InvocationRecord(BaseModel):
     # None for pre-mission records (legacy invocations that predate WP06).
     # Serialised as the enum value string (e.g. "advisory"); excluded when None.
     mode_of_work: str | None = None
+    mission_id: str | None = None
+    wp_id: str | None = None
 
     model_config = {"frozen": True}
 
@@ -83,7 +85,7 @@ MINIMAL_VIABLE_TRAIL_POLICY = MinimalViableTrailPolicy(
             "One InvocationRecord written locally before executor returns. "
             "Applies to all advise / ask / do invocations."
         ),
-        storage_path=".kittify/events/profile-invocations/{invocation_id}.jsonl",
+        storage_path="kitty-ops/{invocation_id}.jsonl",
     ),
     tier_2=TierPolicy(
         name="evidence_artifact",

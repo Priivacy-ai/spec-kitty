@@ -5,7 +5,7 @@ This module manages the local append-only store for paired
 
 Storage layout
 --------------
-- One JSONL file at ``.kittify/events/profile-invocation-lifecycle.jsonl``.
+- One JSONL file at ``kitty-ops/lifecycle.jsonl``.
 - Each line is a single ``ProfileInvocationRecord`` (sorted-key JSON, see
   ``record.ProfileInvocationRecord.to_json_line``).
 - Append-only — a second ``started`` record for the same
@@ -41,7 +41,7 @@ from specify_cli.invocation.record import (
     ProfileInvocationRecord,
 )
 
-LIFECYCLE_LOG_RELATIVE_PATH = Path(".kittify") / "events" / "profile-invocation-lifecycle.jsonl"
+LIFECYCLE_LOG_RELATIVE_PATH = Path("kitty-ops") / "lifecycle.jsonl"
 
 
 def lifecycle_log_path(repo_root: Path) -> Path:

@@ -984,6 +984,26 @@ def _auto_claim_failure_message(preview: object | None) -> str:
     return "No planned work packages found. Specify a WP ID explicitly."
 
 
+def _require_current_analysis_report(feature_dir: Path, repo_root: Path, mission_slug: str) -> None:
+    """Block implementation until `/spec-kitty.analyze` is persisted and fresh."""
+    from specify_cli.analysis_report import check_analysis_report_current
+
+    analysis_freshness = check_analysis_report_current(feature_dir, repo_root)
+    if analysis_freshness.ok:
+        return
+    print("Error: analysis_report_required: /spec-kitty.analyze must be run before implementation.")
+    if analysis_freshness.missing:
+        print(f"  Missing: {analysis_freshness.path}")
+    elif analysis_freshness.reason:
+        print(f"  Reason: {analysis_freshness.reason}")
+    if analysis_freshness.mismatches:
+        print("  Stale inputs:")
+        for artifact_name in sorted(analysis_freshness.mismatches):
+            print(f"    - {artifact_name}")
+    print(f"  Run: /spec-kitty.analyze --mission {mission_slug}")
+    raise typer.Exit(1)
+
+
 @app.command(name="implement")
 def implement(
     wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
@@ -1123,6 +1143,60 @@ def implement(
                     f"resolution={_resolution_cmd!r}"
                 )
 
+        wp_meta, _ = read_wp_frontmatter(wp.path)
+
+        from specify_cli.status.reducer import reduce as _dep_reduce_events
+        from specify_cli.status.store import read_events as _dep_read_events
+        from specify_cli.status.transitions import resolve_lane_alias as _dep_resolve_alias
+
+        _dependency_feature_dir = _canonical_status_feature_dir(main_repo_root, mission_slug)
+        _dependency_snapshot = _dep_reduce_events(_dep_read_events(_dependency_feature_dir))
+        _dependency_lanes = {
+            _wp_id: _state.get("lane", Lane.PLANNED)
+            for _wp_id, _state in _dependency_snapshot.work_packages.items()
+        }
+        if normalized_wp_id not in _dependency_snapshot.work_packages:
+            print(f"Error: {_missing_canonical_status_message(normalized_wp_id, mission_slug)}")
+            raise typer.Exit(1)
+
+        # Only gate the not-yet-started claim transition. Re-invoking implement on
+        # a WP that is already in_progress/for_review/.../approved (resume, prompt
+        # redisplay, fix-cycle) must not be rejected just because a dependency
+        # later regressed out of approved/done — the lifecycle treats those
+        # re-invocations as no-op resumes, not new claims.
+        try:
+            _self_lane = Lane(_dep_resolve_alias(str(_dependency_lanes.get(normalized_wp_id, Lane.PLANNED))))
+        except ValueError:
+            _self_lane = Lane.PLANNED
+        if _self_lane in (Lane.PLANNED, Lane.CLAIMED):
+            _dependency_readiness = dependency_readiness_for_wp(
+                normalized_wp_id,
+                wp_meta.dependencies,
+                _dependency_lanes,
+            )
+            if not _dependency_readiness.satisfied:
+                blocked = ", ".join(_dependency_readiness.unsatisfied)
+                print(
+                    f"Error: dependencies_not_satisfied: {normalized_wp_id} depends on {blocked}; "
+                    "all dependencies must be approved or done before implementation can start"
+                )
+                raise typer.Exit(1)
+
+        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        has_feedback, review_feedback_ref, review_feedback_file, review_feedback_source = _resolve_review_feedback_context(
+            feature_dir=feature_dir,
+            repo_root=main_repo_root,
+            wp_id=normalized_wp_id,
+            wp_frontmatter=getattr(wp, "frontmatter", "") or "",
+        )
+
+        if review_feedback_source == "canonical" and review_feedback_file is None:
+            print(f"Error: {normalized_wp_id} review feedback artifact is missing or unreadable: {review_feedback_ref}")
+            print("Re-run move-task with --review-feedback-file so the fix cycle can attach the canonical review artifact.")
+            raise typer.Exit(1)
+
+        _require_current_analysis_report(feature_dir, main_repo_root, mission_slug)
+
         workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
         workspace_path = workspace.worktree_path
         status_execution_mode = "direct_repo" if workspace.resolution_kind == "repo_root" else "worktree"
@@ -1159,48 +1233,6 @@ def implement(
                 print(f"Error: implement completed but no workspace could be resolved for {normalized_wp_id}.")
                 raise typer.Exit(1)
 
-        # Load work package
-        try:
-            wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
-            wp_meta, _ = read_wp_frontmatter(wp.path)
-        except RuntimeError as e:
-            if _is_missing_canonical_status_error(e):
-                raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug)) from e
-            raise
-
-        from specify_cli.status.reducer import reduce as _dep_reduce_events
-        from specify_cli.status.store import read_events as _dep_read_events
-        from specify_cli.status.transitions import resolve_lane_alias as _dep_resolve_alias
-
-        _dependency_feature_dir = _canonical_status_feature_dir(main_repo_root, mission_slug)
-        _dependency_snapshot = _dep_reduce_events(_dep_read_events(_dependency_feature_dir))
-        _dependency_lanes = {
-            _wp_id: _state.get("lane", Lane.PLANNED)
-            for _wp_id, _state in _dependency_snapshot.work_packages.items()
-        }
-        # Only gate the not-yet-started claim transition. Re-invoking implement on
-        # a WP that is already in_progress/for_review/.../approved (resume, prompt
-        # redisplay, fix-cycle) must not be rejected just because a dependency
-        # later regressed out of approved/done — the lifecycle treats those
-        # re-invocations as no-op resumes, not new claims.
-        try:
-            _self_lane = Lane(_dep_resolve_alias(str(_dependency_lanes.get(normalized_wp_id, Lane.PLANNED))))
-        except ValueError:
-            _self_lane = Lane.PLANNED
-        if _self_lane in (Lane.PLANNED, Lane.CLAIMED):
-            _dependency_readiness = dependency_readiness_for_wp(
-                normalized_wp_id,
-                wp_meta.dependencies,
-                _dependency_lanes,
-            )
-            if not _dependency_readiness.satisfied:
-                blocked = ", ".join(_dependency_readiness.unsatisfied)
-                print(
-                    f"Error: dependencies_not_satisfied: {normalized_wp_id} depends on {blocked}; "
-                    "all dependencies must be approved or done before implementation can start"
-                )
-                raise typer.Exit(1)
-
         subtask_ids = [str(item) for item in wp_meta.subtasks if isinstance(item, str)]
         subtask_cmd = " ".join(subtask_ids) if subtask_ids else "<subtask-ids>"
 
@@ -1222,20 +1254,8 @@ def implement(
             raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug, _wf_feature_dir))
         current_lane = _wf_get_wp_lane(_wf_feature_dir, normalized_wp_id)
         needs_agent_assignment = _wp_agent_assignment.tool == "unknown"
-        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
         wp_slug = wp.path.stem
-        has_feedback, review_feedback_ref, review_feedback_file, review_feedback_source = _resolve_review_feedback_context(
-            feature_dir=feature_dir,
-            repo_root=main_repo_root,
-            wp_id=normalized_wp_id,
-            wp_frontmatter=wp.frontmatter,
-        )
         fix_mode_active = _has_prior_rejection(feature_dir, wp_slug, normalized_wp_id)
-
-        if review_feedback_source == "canonical" and review_feedback_file is None:
-            print(f"Error: {normalized_wp_id} review feedback artifact is missing or unreadable: {review_feedback_ref}")
-            print("Re-run move-task with --review-feedback-file so the fix cycle can attach the canonical review artifact.")
-            raise typer.Exit(1)
 
         if current_lane != Lane.IN_PROGRESS or needs_agent_assignment or agent:
             # Require --agent parameter to track who is working

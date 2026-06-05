@@ -27,21 +27,12 @@ import pytest
 # Template discovery
 # ---------------------------------------------------------------------------
 
-# All 9 prompt-driven command templates
-
 pytestmark = [pytest.mark.unit]
 
-PROMPT_DRIVEN: list[str] = [
-    "specify",
-    "plan",
-    "tasks",
-    "tasks-outline",
-    "tasks-packages",
-    "checklist",
-    "analyze",
-    "research",
-    "charter",
-]
+from specify_cli.shims.registry import PROMPT_DRIVEN_COMMANDS
+
+# All full prompt-driven command templates.
+PROMPT_DRIVEN: list[str] = sorted(PROMPT_DRIVEN_COMMANDS)
 
 # Planning-workflow templates that MUST use "repository root checkout" terminology.
 # These are commands that explicitly direct agents on where to perform work.
@@ -56,14 +47,13 @@ PLANNING_WORKFLOW_TEMPLATES: list[str] = [
     "research",
 ]
 
-# Resolve the templates directory relative to the installed package source
-_TEMPLATES_DIR = (
+_PROMPT_STEPS_DIR = (
     Path(__file__).parent.parent.parent
     / "src"
-    / "specify_cli"
+    / "doctrine"
     / "missions"
+    / "mission-steps"
     / "software-dev"
-    / "command-templates"
 )
 
 _REPO_ROOT = Path(__file__).parent.parent.parent
@@ -82,7 +72,7 @@ _FORBIDDEN_HOME_LITERAL = "/Users/" + "robe" + "rt/"
 
 def _template_content(command: str) -> str:
     """Read and return the content of a command template file."""
-    return (_TEMPLATES_DIR / f"{command}.md").read_text(encoding="utf-8")
+    return (_PROMPT_STEPS_DIR / command / "prompt.md").read_text(encoding="utf-8")
 
 
 def _active_codebase_files() -> list[Path]:
@@ -112,8 +102,8 @@ def _active_codebase_files() -> list[Path]:
 @pytest.mark.parametrize("command", PROMPT_DRIVEN)
 def test_template_exists(command: str) -> None:
     """Every prompt-driven command must have a template file."""
-    f = _TEMPLATES_DIR / f"{command}.md"
-    assert f.exists(), f"{command}.md not found in command-templates dir: {_TEMPLATES_DIR}"
+    f = _PROMPT_STEPS_DIR / command / "prompt.md"
+    assert f.exists(), f"{command}/prompt.md not found in mission steps dir: {_PROMPT_STEPS_DIR}"
 
 
 @pytest.mark.parametrize("command", PROMPT_DRIVEN)
@@ -385,6 +375,31 @@ def test_tasks_template_map_requirements_has_mission() -> None:
         assert "--mission" in line, (
             f"tasks.md map-requirements --batch line missing '--mission': {line.strip()!r}"
         )
+
+
+def test_analyze_template_persists_analysis_report() -> None:
+    """analyze.md must persist durable proof before implementation."""
+    content = (
+        _REPO_ROOT
+        / "src"
+        / "doctrine"
+        / "missions"
+        / "mission-steps"
+        / "software-dev"
+        / "analyze"
+        / "prompt.md"
+    ).read_text(encoding="utf-8")
+    assert "analysis-report.md" in content
+    assert "spec-kitty agent mission record-analysis --mission" in content
+    assert "Should all of these findings be addressed before moving on to implementation?" in content
+
+
+def test_tasks_template_offers_optional_analyze_quality_gate() -> None:
+    """tasks.md must offer analyze as optional QC before implement-review."""
+    content = _template_content("tasks")
+    assert "/spec-kitty-implement-review" in content
+    assert "Optional quality control gate before implementation" in content
+    assert "/spec-kitty.analyze" in content
 
 
 def test_tasks_template_has_ownership_guidance() -> None:

@@ -99,8 +99,8 @@ def create_fixture_invocations(
     invocation index so the benchmark tests the fast index-based path.
     """
     events_dir.mkdir(parents=True, exist_ok=True)
-    # Derive repo_root from events_dir: events_dir = <root>/.kittify/events/profile-invocations
-    repo_root = events_dir.parent.parent.parent
+    # Derive repo_root from events_dir: events_dir = <root>/kitty-ops
+    repo_root = events_dir.parent
     for _ in range(count):
         inv_id = _new_ulid()
         started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -314,7 +314,7 @@ class TestInvocationsListJSON:
         assert record["outcome"] == "done"
 
     def test_no_events_dir_returns_empty(self, tmp_path: Path) -> None:
-        """When .kittify/events/profile-invocations does not exist, return []."""
+        """When kitty-ops does not exist, return []."""
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(
                 "specify_cli.cli.commands.invocations_cmd.find_repo_root",

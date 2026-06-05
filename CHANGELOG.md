@@ -9,7 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Moved Op record storage from gitignored
+  `.kittify/events/profile-invocations/` to git-tracked `kitty-ops/`,
+  including `ops-index.jsonl`, `lifecycle.jsonl`, and propagation errors.
+  Pre-existing records under `.kittify/events/profile-invocations/` are
+  abandoned and not migrated.
+
 ### Fixed
+
+- Completed Op records are now best-effort auto-committed with `op(...)`
+  commit messages, and `spec-kitty doctor ops` reports started-only orphan
+  records.
 
 - `spec-kitty merge` (without `--push`) no longer checks or requires origin
   sync before performing local lane integration. A local target branch that
