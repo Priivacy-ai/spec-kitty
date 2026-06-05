@@ -117,10 +117,10 @@ Two file-disjoint workstreams → three execution lanes:
 
 **Independent test**: `--include agent-profile:<non-activated>` is gated; other include kinds unaffected.
 
-- [ ] T023 Add scoped `_build_activation_aware_doctrine_service` in `charter/context.py` (WP05)
-- [ ] T024 Route only the `agent-profile:<id>` include branch through the wrapped service (WP05)
-- [ ] T025 Unit test: `--include agent-profile` inherits the activation gate (WP05)
-- [ ] T026 Verify the other 5 `_build_doctrine_service` call sites are unchanged (WP05)
+- [x] T023 Add scoped `_build_activation_aware_doctrine_service` in `charter/context.py` (WP05)
+- [x] T024 Route only the `agent-profile:<id>` include branch through the wrapped service (WP05)
+- [x] T025 Unit test: `--include agent-profile` inherits the activation gate (WP05)
+- [x] T026 Verify the other 5 `_build_doctrine_service` call sites are unchanged (WP05)
 
 ### WP06 — Skill reconciliation + parity guard (#1636 / FR-017, FR-018)
 **Priority**: P2 · **Lane B-core** · **Depends on**: WP04 · **Est.**: ~250 lines

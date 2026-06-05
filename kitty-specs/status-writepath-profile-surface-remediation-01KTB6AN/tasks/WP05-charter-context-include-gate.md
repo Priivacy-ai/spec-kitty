@@ -15,7 +15,8 @@ subtasks:
 - T025
 - T026
 phase: 'Lane B-charter — #1636'
-agent: claude
+agent: "claude"
+assignee: "claude"
 history:
 - at: '2026-06-05T08:32:05Z'
   actor: system
@@ -91,3 +92,5 @@ Use the `/ad-hoc-profile-load` skill to load `python-pedro` (role `implementer`)
 ## Activity Log
 
 - 2026-06-05T08:32:05Z – system – Prompt created.
+- 2026-06-05T12:58:35Z – claude – Moved to in_progress
+- 2026-06-05T12:58:36Z – claude – Implemented via bypass; tests green

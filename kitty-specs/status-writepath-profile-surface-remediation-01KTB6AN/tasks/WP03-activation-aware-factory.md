@@ -110,3 +110,4 @@ Provide a single construction seam so profile surfaces resolve through the exist
 
 - 2026-06-05T08:32:05Z – system – Prompt created.
 - 2026-06-05T12:58:30Z – claude – Implemented via bypass; tests green
+- 2026-06-05T12:58:32Z – claude – WP03 done+tested
