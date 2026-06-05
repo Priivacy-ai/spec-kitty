@@ -13,6 +13,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+pytestmark = [pytest.mark.unit]
+
 
 # ---------------------------------------------------------------------------
 # T010 Test 1: no-push path never calls check_push_safety

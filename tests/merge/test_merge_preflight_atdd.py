@@ -5,6 +5,8 @@ Issue: https://github.com/Priivacy-ai/spec-kitty/issues/1706
 import pytest
 from unittest.mock import patch
 
+pytestmark = [pytest.mark.unit]
+
 
 def test_local_merge_proceeds_when_local_is_ahead_without_push():
     """ATDD: FR-002 — local merge ignores origin state when push not requested."""

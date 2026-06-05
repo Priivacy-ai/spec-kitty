@@ -1232,7 +1232,7 @@ def _enforce_target_branch_sync_preflight(
     remote_name: str = "origin",
 ) -> None:
     """Stop push before mutation when the target branch is not synced with remote."""
-    from specify_cli.merge.push_preflight import check_push_safety
+    from specify_cli.merge.push_preflight import TargetBranchPushSafetyResult, check_push_safety
 
     result = check_push_safety(repo_root, target_branch, remote_name=remote_name)
     if result.fetch_failed:

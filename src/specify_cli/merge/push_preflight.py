@@ -111,9 +111,7 @@ class TargetBranchPushSafetyResult:
 
 
 # ---------------------------------------------------------------------------
-# Internal git helpers (copied from preflight.py — source of truth is here
-# for the publish layer; preflight.py retains its own copies until WP02 removes
-# the remote-state surface from that module)
+# Internal git helpers
 # ---------------------------------------------------------------------------
 
 

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from specify_cli.merge.push_preflight import (
+    TargetBranchRefreshStatus as TargetBranchRefreshStatus,
+    TargetBranchSyncState as TargetBranchSyncState,
     TargetBranchSyncStatus as TargetBranchSyncStatus,
     inspect_target_branch_sync as inspect_target_branch_sync,
     refresh_target_branch_tracking_ref as refresh_target_branch_tracking_ref,
