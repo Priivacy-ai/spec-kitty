@@ -136,7 +136,7 @@ class CascadeScope:
     kinds: frozenset[ArtifactKind] = field(default_factory=frozenset)
 
     #: The literal CLI token for the all-kind shorthand.
-    ALL_TOKEN: ClassVar[str] = "all"  # noqa: S105 - CLI scope token, not a secret
+    ALL_TOKEN: ClassVar[str] = "all"  # noqa: S105
 
     def __post_init__(self) -> None:
         if self.is_all and self.kinds:
