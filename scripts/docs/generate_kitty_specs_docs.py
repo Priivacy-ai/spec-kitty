@@ -719,7 +719,7 @@ def html_document(title: str, description: str, body: str) -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{esc(title)} | Spec Kitty Documentation</title>
   <meta name="description" content="{esc(description)}">
-  <link rel="icon" href="/assets/images/logo_small.webp">
+  <link rel="icon" href="/assets/images/favicon.png">
   <link rel="stylesheet" href="/assets/css/custom.css">
 </head>
 <body class="tex2jax_ignore">

@@ -99,7 +99,7 @@
         "branch": "main"
       },
       "_appLogoPath": "assets/images/logo_small.webp",
-      "_appFaviconPath": "assets/images/logo_small.webp"
+      "_appFaviconPath": "assets/images/favicon.png"
     }
   }
 }
