@@ -140,21 +140,33 @@ def resolve_mission_read_path(
     # Candidate 1: coordination worktree (new topology).  We only build
     # the path when mid8 is present — coord worktree naming requires it.
     coord_candidate: Path | None = None
+    coord_worktree_materialized = False
     if mid8:
         coord_root = CoordinationWorkspace.worktree_path(
             repo_root, mission_slug, mid8,
         )
+        # #1718 Fix C: distinguish "coord worktree materialized" from "coord
+        # branch merely declared". The scaffold writes coordination_branch into
+        # meta.json at mission-create time but defers worktree materialization
+        # to the first coord write, so there is a legitimate window where the
+        # worktree does not exist yet.
+        coord_worktree_materialized = coord_root.exists()
         coord_candidate = coord_root / KITTY_SPECS_DIR / mission_dir_name
         if coord_candidate.exists():
             return coord_candidate
 
-    # Candidate 2: primary checkout (legacy + early lifecycle).  When the
-    # primary meta already declares coord-branch topology, falling back to this
-    # path would expose stale/empty status files.  Fail closed instead; callers
-    # that need branch-ref reads must use the explicit status read contract.
+    # Candidate 2: primary checkout (legacy + early lifecycle).  Fail closed
+    # only when the coord worktree is *materialized* (so falling back to the
+    # primary would expose stale/empty status files). When the coord branch is
+    # declared but the worktree has not been created yet, the primary checkout
+    # is the only place the bootstrap status events live — read it (#1718).
     primary_candidate = repo_root / KITTY_SPECS_DIR / mission_dir_name
     if primary_candidate.exists():
-        if coord_candidate is not None and _declares_coordination_branch(primary_candidate):
+        if (
+            coord_candidate is not None
+            and coord_worktree_materialized
+            and _declares_coordination_branch(primary_candidate)
+        ):
             raise StatusReadPathNotFound(
                 repo_root=repo_root,
                 mission_slug=mission_slug,
