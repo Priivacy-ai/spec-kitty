@@ -119,8 +119,8 @@ _Mission action commands that display prompts and instructions for agents_
  This command outputs the full work package prompt (including any review
  feedback from previous reviews) so agents can review the implementation.
 
- Automatically moves WP from for_review to in_progress (requires --agent to
- track who is reviewing).
+ Automatically moves WP from for_review to in_review (requires --agent to track
+ who is reviewing).
 
  Examples:
      spec-kitty agent action review WP01 --agent claude
@@ -416,14 +416,6 @@ _Decision Moment ledger for interview questions._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-Success stdout is exactly one JSON object. For `open`, the object includes
-`decision_id`, `contract: "decision_open_v2"`, and `recovery.idempotency_key`;
-rerunning the same logical open while the decision is still open returns the same
-`decision_id` with `idempotent: true`. The recovery key includes the CLI mission
-slug plus the logical decision tuple (`origin_flow`, `step_id`/`slot_key`,
-`input_key`) needed to rerun. Dry-run output keeps the same JSON shape but sets
-`recovery.rerun_safe: false` because no decision is persisted.
-
 ## spec-kitty agent decision resolve
 
 ```
@@ -532,6 +524,7 @@ _Mission lifecycle commands for AI agents_
 │ --json                   Output results as JSON for agent parsing            │
 │ --lenient                Skip strict metadata validation                     │
 │ --no-commit              Skip auto-commit (report only)                      │
+│ --diagnose               Diagnose acceptance blockers without mutation       │
 │ --help                   Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -591,23 +584,35 @@ _Mission lifecycle commands for AI agents_
 │ *    mission_slug      TEXT  Mission slug (e.g., 'user-auth') [required]     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission-type                        TEXT  Mission type (e.g.,              │
-│                                             'documentation', 'software-dev') │
-│ --json                                      Output JSON format               │
-│ --target-branch                       TEXT  Target branch (defaults to       │
-│                                             current branch)                  │
-│ --friendly-name                       TEXT  Human-friendly mission title     │
-│ --purpose-tldr                        TEXT  One-line stakeholder TLDR for    │
-│                                             the mission                      │
-│ --purpose-context                     TEXT  Short stakeholder-facing         │
-│                                             paragraph for the mission        │
-│ --pr-bound           --no-pr-bound          Mark mission as PR-bound (gate   │
-│                                             fires on merge_target_branch)    │
-│                                             [default: no-pr-bound]           │
-│ --branch-strategy                     TEXT  Branch-strategy gate control     │
-│                                             (e.g., 'already-confirmed' to    │
-│                                             bypass the prompt)               │
-│ --help                                      Show this message and exit.      │
+│ --mission-type                               TEXT  Mission type (e.g.,       │
+│                                                    'documentation',          │
+│                                                    'software-dev')           │
+│ --json                                             Output JSON format        │
+│ --target-branch                              TEXT  Target branch (defaults   │
+│                                                    to current branch)        │
+│ --friendly-name                              TEXT  Human-friendly mission    │
+│                                                    title                     │
+│ --purpose-tldr                               TEXT  One-line stakeholder TLDR │
+│                                                    for the mission           │
+│ --purpose-context                            TEXT  Short stakeholder-facing  │
+│                                                    paragraph for the mission │
+│ --pr-bound                  --no-pr-bound          Mark mission as PR-bound  │
+│                                                    (gate fires on            │
+│                                                    merge_target_branch)      │
+│                                                    [default: no-pr-bound]    │
+│ --branch-strategy                            TEXT  Branch-strategy gate      │
+│                                                    control (e.g.,            │
+│                                                    'already-confirmed' to    │
+│                                                    bypass the prompt)        │
+│ --force-recreate-coordi…                           Delete and recreate the   │
+│                                                    per-mission coordination  │
+│                                                    branch if it already      │
+│                                                    exists and has diverged   │
+│                                                    from the target. Operator │
+│                                                    escape hatch; never used  │
+│                                                    by automation.            │
+│ --help                                             Show this message and     │
+│                                                    exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -697,6 +702,10 @@ _Mission lifecycle commands for AI agents_
 │ --json                       Output JSON format                              │
 │ --validate-only              Run all validations without committing. Reports │
 │                              issues that would block finalization.           │
+│ --target-branch        TEXT  Override the canonical merge target branch read │
+│                              from meta.json. Use this for legacy missions    │
+│                              created before WP07 persisted target_branch in  │
+│                              meta.json (FR-012 escape hatch).                │
 │ --help                       Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -841,10 +850,34 @@ _Mission lifecycle commands for AI agents_
 ```
  Usage: spec-kitty agent profile list [OPTIONS]
 
- List all available agent profiles.
+ List agent profiles (activated-only by default; --all for the full catalog).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json          Output JSON array.                                           │
+│ --json                    Output JSON array.                                 │
+│ --all                     Show every profile across all source layers        │
+│                           (annotated by source layer and activated|available │
+│                           state). Supersedes the activated-only default and  │
+│                           --show-available.                                  │
+│ --show-available          Also show available-but-not-activated profiles     │
+│                           (annotated by state).                              │
+│ --help                    Show this message and exit.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent profile show
+
+```
+ Usage: spec-kitty agent profile show [OPTIONS] PROFILE_ID
+
+ Show the full resolved definition of an agent profile (FR-013/014/015).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    profile_id      TEXT  Profile ID to show. [required]                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Output JSON object.                                          │
+│ --all           Bypass the activation gate for inspection (show              │
+│                 non-activated profiles).                                     │
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -1343,6 +1376,11 @@ _Task workflow commands for AI agents_
 │                                            '{"WP01":["FR-001"],"WP02":["FR-… │
 │ --replace                                  Replace existing refs instead of  │
 │                                            merging (default: merge/union)    │
+│ --tracker-ref                        TEXT  External tracker reference (e.g., │
+│                                            '#1298' or 'JIRA-123').           │
+│                                            Repeatable; requires --wp.        │
+│                                            Persists to the WP frontmatter as │
+│                                            tracker_refs.                     │
 │ --mission                            TEXT  Mission slug                      │
 │ --json                                     Output JSON format                │
 │ --auto-commit    --no-auto-commit          Automatically commit WP file      │
@@ -1436,6 +1474,16 @@ _Task workflow commands for AI agents_
 │    --reviewer                                   TEXT  Reviewer name          │
 │                                                       (auto-detected from    │
 │                                                       git if omitted)        │
+│    --self-review-fallba…                              Record that approval   │
+│                                                       is a self-review       │
+│                                                       fallback after the     │
+│                                                       intended reviewer      │
+│                                                       failed.                │
+│    --intended-reviewer                          TEXT  Reviewer that should   │
+│                                                       have reviewed this WP  │
+│                                                       before fallback.       │
+│    --reviewer-failure-r…                        TEXT  Reason the intended    │
+│                                                       reviewer failed.       │
 │    --done-override-reas…                        TEXT  Required when --to     │
 │                                                       done and merge         │
 │                                                       ancestry cannot be     │
@@ -1446,6 +1494,13 @@ _Task workflow commands for AI agents_
 │                                                       (does not bypass       │
 │                                                       planned rollback       │
 │                                                       feedback requirement)  │
+│    --tracker-ref                                TEXT  External tracker       │
+│                                                       reference (e.g.,       │
+│                                                       '#1298' or             │
+│                                                       'JIRA-123').           │
+│                                                       Repeatable; appended   │
+│                                                       to the WP frontmatter  │
+│                                                       tracker_refs.          │
 │    --skip-review-artifa…                              Override a rejected    │
 │                                                       latest review artifact │
 │                                                       when                   │

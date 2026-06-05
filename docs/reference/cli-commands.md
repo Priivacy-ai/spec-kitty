@@ -53,7 +53,10 @@ For non-obvious runtime behaviour an operator may encounter:
 │ --test              TEXT  Validation command executed (repeatable)           │
 │ --json                    Emit JSON instead of formatted text                │
 │ --lenient                 Skip strict metadata validation                    │
-│ --no-commit               Skip auto-commit; report only                      │
+│ --no-commit               Report acceptance readiness without writing        │
+│                           metadata or status changes                         │
+│ --diagnose                Diagnose acceptance blockers without writing       │
+│                           metadata or matrix artifacts                       │
 │ --allow-fail              Return checklist even when issues remain           │
 │ --help                    Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -207,6 +210,10 @@ _Charter management commands_
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ activate      Activate a doctrine artifact by kind and ID (FR-004), with     │
+│               optional cascade.                                              │
+│ deactivate    Deactivate a doctrine artifact by kind and ID (FR-005), with   │
+│               optional cascade.                                              │
 │ interview     Capture charter interview answers for later generation.        │
 │ generate      Generate charter bundle from interview answers + doctrine      │
 │               references.                                                    │
@@ -221,19 +228,17 @@ _Charter management commands_
 │ preflight     Verify charter-derived state before a governed session begins. │
 │ bundle        Charter bundle validation commands.                            │
 │ mission-type  Mission type commands (activated types only).                  │
-│ activate      Activate a mission-type override for this project (FR-008).    │
+│ list          List activated doctrine artifacts by kind.                     │
+│ pack          Charter pack management commands.                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty charter activate
 
-_Activate a doctrine artifact for this project._
-
 ```
- Usage: spec-kitty charter activate [OPTIONS] [KIND] [ARTIFACT_ID] COMMAND
-                                    [ARGS]...
+ Usage: spec-kitty charter activate [OPTIONS] [KIND] [ARTIFACT_ID]
 
- Activate a doctrine artifact for this project.
+ Activate a doctrine artifact by kind and ID (FR-004), with optional cascade.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │   kind             [KIND]         Activation kind (e.g. directive,           │
@@ -241,7 +246,10 @@ _Activate a doctrine artifact for this project._
 │   artifact_id      [ARTIFACT_ID]  Artifact ID to activate.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --cascade        TEXT  Enable cascade activation of referenced artifacts.    │
+│ --cascade        TEXT  Cascade activation scope: 'all' for every referenced  │
+│                        kind, or a comma-separated kind list (e.g.            │
+│                        'agent-profile,tactic'). Omit to skip cascade         │
+│                        (referenced artifacts are reported as a warning).     │
 │ --help                 Show this message and exit.                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -277,74 +285,6 @@ _Charter bundle validation commands._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty charter deactivate
-
-_Deactivate a doctrine artifact from this project._
-
-```
- Usage: spec-kitty charter deactivate [OPTIONS] [KIND] [ARTIFACT_ID] COMMAND
-                                      [ARGS]...
-
- Deactivate a doctrine artifact from this project.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│   kind             [KIND]         Activation kind (e.g. directive,           │
-│                                   agent-profile).                            │
-│   artifact_id      [ARTIFACT_ID]  Artifact ID to deactivate.                 │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --cascade        TEXT  Enable cascade deactivation of exclusively-referenced │
-│                        artifacts.                                            │
-│ --help                 Show this message and exit.                           │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter list
-
-_List activated doctrine artifacts by kind._
-
-```
- Usage: spec-kitty charter list [OPTIONS] COMMAND [ARGS]...
-
- List activated doctrine artifacts by kind.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --show-available          Also show available-but-not-activated artifacts.   │
-│ --help                    Show this message and exit.                        │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter pack
-
-_Charter pack management commands._
-
-```
- Usage: spec-kitty charter pack [OPTIONS] COMMAND [ARGS]...
-
- Charter pack management commands.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ consistency-check  Run consistency check against activated doctrine          │
-│                    artifacts (FR-011).                                       │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter pack consistency-check
-
-```
- Usage: spec-kitty charter pack consistency-check [OPTIONS]
-
- Run consistency check against activated doctrine artifacts (FR-011).
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json          Output as JSON.                                              │
-│ --help          Show this message and exit.                                  │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
 ## spec-kitty charter context
 
 ```
@@ -353,19 +293,42 @@ _Charter pack management commands._
  Render charter context for a specific workflow action.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --action                             TEXT  Workflow action                │
-│                                               (specify|plan|implement|revie… │
-│                                               [required]                     │
-│    --mark-loaded    --no-mark-loaded          Persist first-load state       │
-│                                               [default: mark-loaded]         │
-│    --json                                     Output JSON. `directives` is   │
-│                                               action-scoped;                 │
-│                                               `all_directives` and           │
-│                                               `project_charter` describe the │
-│                                               project-local charter, while   │
-│                                               `org_charter` describes        │
-│                                               imported org packs.            │
-│    --help                                     Show this message and exit.    │
+│ --action                             TEXT  Workflow action                   │
+│                                            (specify|plan|implement|review)   │
+│ --include                            TEXT  Fetch selector, e.g.              │
+│                                            agent-profile:<id>,               │
+│                                            template:<mission>/<name>,        │
+│                                            directive:<id>, section:<slug>.   │
+│ --mark-loaded    --no-mark-loaded          Persist first-load state          │
+│                                            [default: mark-loaded]            │
+│ --json                                     Output JSON. `directives` is      │
+│                                            action-scoped; `all_directives`   │
+│                                            and `project_charter` describe    │
+│                                            the project-local charter, while  │
+│                                            `org_charter` describes imported  │
+│                                            org packs.                        │
+│ --help                                     Show this message and exit.       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter deactivate
+
+```
+ Usage: spec-kitty charter deactivate [OPTIONS] [KIND] [ARTIFACT_ID]
+
+ Deactivate a doctrine artifact by kind and ID (FR-005), with optional cascade.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│   kind             [KIND]         Activation kind (e.g. directive,           │
+│                                   agent-profile).                            │
+│   artifact_id      [ARTIFACT_ID]  Artifact ID to deactivate.                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --cascade        TEXT  Cascade deactivation scope: 'all' for every           │
+│                        exclusively-referenced kind, or a comma-separated     │
+│                        kind list. Shared artifacts are never removed. Omit   │
+│                        to deactivate only the named artifact.                │
+│ --help                 Show this message and exit.                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -457,6 +420,25 @@ _Charter pack management commands._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty charter list
+
+_List activated doctrine artifacts by kind._
+
+```
+ Usage: spec-kitty charter list [OPTIONS] COMMAND [ARGS]...
+
+ List activated doctrine artifacts by kind.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --show-available          Also show available-but-not-activated artifacts.   │
+│ --all                     Show every available artifact per kind across the  │
+│                           built-in, org, and project layers (annotated by    │
+│                           source layer), including the template kind.        │
+│                           Supersedes --show-available.                       │
+│ --help                    Show this message and exit.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty charter mission-type
 
 _Mission type commands (activated types only)._
@@ -493,6 +475,37 @@ _Mission type commands (activated types only)._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty charter pack
+
+_Charter pack management commands._
+
+```
+ Usage: spec-kitty charter pack [OPTIONS] COMMAND [ARGS]...
+
+ Charter pack management commands.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ consistency-check  Run consistency check against activated doctrine          │
+│                    artifacts (FR-011).                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter pack consistency-check
+
+```
+ Usage: spec-kitty charter pack consistency-check [OPTIONS]
+
+ Run consistency check against activated doctrine artifacts (FR-011).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Output as JSON.                                              │
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty charter preflight
 
 ```
@@ -504,19 +517,18 @@ _Mission type commands (activated types only)._
 
  1. Resolve the repo root (same logic as the rest of the ``charter``
     subcommand group).
- 2. Invoke ``run_charter_preflight``.
+ 2. Invoke :func:`run_charter_preflight`.
  3. Render JSON or a Rich summary, then exit per the contract.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json                        Emit the result as JSON (binding shape, see    │
-│                               contracts/charter-preflight-json.md).          │
-│ --auto-refresh                When checks fail and the worktree has no       │
-│                               uncommitted generated artifacts, run the safe  │
-│                               refresh sequence (charter sync -> synthesize   │
-│                               -> bundle validate).                           │
-│ --strict                      Exit non-zero on any non-fresh state (default: │
-│                               exit zero unless a hard error occurs).         │
-│ --help                        Show this message and exit.                    │
+│ --json                  Emit the result as JSON (binding shape, see          │
+│                         contracts/charter-preflight-json.md).                │
+│ --auto-refresh          When checks fail and the worktree has no uncommitted │
+│                         generated artifacts, run the safe refresh sequence   │
+│                         (charter sync -> synthesize -> bundle validate).     │
+│ --strict                Exit non-zero on any non-fresh state (default: exit  │
+│                         zero unless a hard error occurs).                    │
+│ --help                  Show this message and exit.                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -894,6 +906,8 @@ _Project health diagnostics_
 │                     shapes.                                                  │
 │ doctrine            Check org doctrine snapshot status and list installed    │
 │                     pack artifacts.                                          │
+│ coordination        Run the WP04 #1348 coordination + sparse-checkout health │
+│                     checks.                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -919,20 +933,6 @@ _Project health diagnostics_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty doctor skills
-
-```
- Usage: spec-kitty doctor skills [OPTIONS]
-
- Check command-skill manifest drift for Codex, Vibe, Pi, and Letta.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --fix           Repair missing command-skill files                           │
-│ --json          Machine-readable JSON output                                 │
-│ --help          Show this message and exit.                                  │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
 ## spec-kitty doctor coordination
 
 ```
@@ -949,10 +949,6 @@ _Project health diagnostics_
  Exits with code 1 if any ``error`` finding is emitted; ``warning``
  findings exit 0 but are still printed.
 
- Examples:
-     spec-kitty doctor coordination
-     spec-kitty doctor coordination --json
-
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json          Machine-readable JSON output                                 │
 │ --help          Show this message and exit.                                  │
@@ -966,7 +962,10 @@ _Project health diagnostics_
 
  Check org doctrine snapshot status and list installed pack artifacts.
 
- Exit code is always 0 — this surface is a diagnostic, not a gate.  It
+ Exit code reflects health (WP01, operator directive: loud over hidden): the
+ command exits **1 when the report is unhealthy** and 0 only when healthy
+ (``report.healthy`` drives the code on every output path). A clear RC=1 with
+ a surfaced error is preferred over an RC=0 that hides a defect.  It
  enumerates each configured org pack (from ``.kittify/config.yaml``), prints
  its on-disk version (``git describe`` for git-managed packs, otherwise the
  ``pack-manifest.yaml`` ``pack_version``), per-artifact YAML counts, and
@@ -1166,6 +1165,20 @@ _Project health diagnostics_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty doctor skills
+
+```
+ Usage: spec-kitty doctor skills [OPTIONS]
+
+ Check command-skill manifest drift for Codex, Vibe, Pi, and Letta.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --fix           Repair missing command-skill files                           │
+│ --json          Machine-readable JSON output                                 │
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty doctor sparse-checkout
 
 ```
@@ -1251,6 +1264,44 @@ _Manage org-layer doctrine packs_
 │ --dry-run              Show what would be fetched without contacting any     │
 │                        remote.                                               │
 │ --help                 Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine mission-type
+
+_Mission type commands._
+
+```
+ Usage: spec-kitty doctrine mission-type [OPTIONS] COMMAND [ARGS]...
+
+ Mission type commands.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ list  List all mission types in the doctrine layer (FR-013).                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine mission-type list
+
+```
+ Usage: spec-kitty doctrine mission-type list [OPTIONS]
+
+ List all mission types in the doctrine layer (FR-013).
+
+ Enumerates built-in, org, and project mission types regardless of
+ activation state.  The DRG resolution chain applies: built-in →
+ org → project.  An org type with the same id shadows the built-in
+ type; a project type shadows the org type.
+
+ Use ``spec-kitty charter mission-type list`` to see only types that
+ are currently activated for this project.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Output as JSON.                                              │
+│ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1414,44 +1465,6 @@ _Validate or assemble doctrine packs._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty doctrine mission-type
-
-_Mission type commands._
-
-```
- Usage: spec-kitty doctrine mission-type [OPTIONS] COMMAND [ARGS]...
-
- Mission type commands.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ list  List all mission types in the doctrine layer (FR-013).                 │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine mission-type list
-
-```
- Usage: spec-kitty doctrine mission-type list [OPTIONS]
-
- List all mission types in the doctrine layer (FR-013).
-
- Enumerates built-in, org, and project mission types regardless of
- activation state.  The DRG resolution chain applies: built-in →
- org → project.  An org type with the same id shadows the built-in
- type; a project type shadows the org type.
-
- Use ``spec-kitty charter mission-type list`` to see only types that
- are currently activated for this project.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json          Output as JSON.                                              │
-│ --help          Show this message and exit.                                  │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
 ## spec-kitty doctrine validate
 
 ```
@@ -1572,12 +1585,13 @@ _Glossary management commands_
  Validate glossary seed file(s) against the schema.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    path      PATH  Path to a glossary seed file (.yaml) or directory of   │
-│                      seed files [required]                                  │
+│ *    path      PATH  Path to a glossary seed file (.yaml) or directory of    │
+│                      seed files                                              │
+│                      [required]                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Output validation results as JSON                         │
-│ --help            Show this message and exit.                               │
+│ --json          Output validation results as JSON                            │
+│ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1829,25 +1843,25 @@ _Search tracker issues via the hosted read path_
  Merge a lane-based feature into its target branch.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --strategy                              [merge|squash|reb  Merge strategy    │
-│                                         ase]               for               │
+│ --strategy                                [merge|squash|r  Merge strategy    │
+│                                           ebase]           for               │
 │                                                            mission→target    │
 │                                                            step: merge |     │
 │                                                            squash | rebase.  │
 │                                                            Default: squash.  │
-│ --delete-branch      --keep-branch                         Delete lane       │
+│ --delete-branch        --keep-branch                       Delete lane       │
 │                                                            branches after    │
 │                                                            merge             │
 │                                                            [default:         │
 │                                                            delete-branch]    │
-│ --remove-worktree    --keep-worktree                       Remove lane       │
+│ --remove-worktree      --keep-worktree                     Remove lane       │
 │                                                            worktrees after   │
 │                                                            merge             │
 │                                                            [default:         │
 │                                                            remove-worktree]  │
 │ --push                                                     Push to origin    │
 │                                                            after merge       │
-│ --target                                TEXT               Target branch to  │
+│ --target                                  TEXT             Target branch to  │
 │                                                            merge into        │
 │                                                            (auto-detected)   │
 │ --dry-run                                                  Show what would   │
@@ -1857,7 +1871,7 @@ _Search tracker issues via the hosted read path_
 │                                                            deterministic     │
 │                                                            JSON (dry-run     │
 │                                                            mode)             │
-│ --mission                               TEXT               Mission slug when │
+│ --mission                                 TEXT             Mission slug when │
 │                                                            merging from main │
 │                                                            branch            │
 │ --resume                                                   Resume an         │
@@ -1869,7 +1883,7 @@ _Search tracker issues via the hosted read path_
 │                                                            merge, cleaning   │
 │                                                            up state and      │
 │                                                            worktrees         │
-│ --context                               TEXT               Unused            │
+│ --context                                 TEXT             Unused            │
 │                                                            compatibility     │
 │                                                            flag              │
 │ --keep-workspace                                           Unused            │
@@ -1886,6 +1900,9 @@ _Search tracker issues via the hosted read path_
 │                                                            commit-time       │
 │                                                            data-loss         │
 │                                                            backstop.         │
+│ --yes              -y                                      Proceed after     │
+│                                                            merge warnings    │
+│                                                            without prompts   │
 │ --help                                                     Show this message │
 │                                                            and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -2044,20 +2061,24 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 
 ## spec-kitty mission
 
-_View available Spec Kitty mission types. Mission types are selected per mission run during /spec-kitty.specify._
+_Inspect mission types for this project._
 
 ```
  Usage: spec-kitty mission [OPTIONS] COMMAND [ARGS]...
 
- View available Spec Kitty mission types. Mission types are selected per
- mission run during /spec-kitty.specify.
+ Inspect mission types for this project.
+
+ Use 'list' to see activated types (charter-filtered) and 'show <id>' for a
+ full resolved definition.
+
+ Mission types are selected per mission run during /spec-kitty.specify.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ list     List all available missions with their source                       │
-│          (project/built-in).                                                 │
+│ list     List activated mission types for the current project                │
+│          (FR-016).                                                           │
 │ current  Show currently active mission for a mission                         │
 │          (auto-detects mission from cwd).                                    │
 │ info     Show details for a specific mission without                         │
@@ -2066,8 +2087,11 @@ _View available Spec Kitty mission types. Mission types are selected per mission
 │          brief.                                                              │
 │ run      Start (or attach to) a runtime for a                                │
 │          project-authored custom mission definition.                         │
+│ close    Close a mission. Wraps FR-016 lifecycle teardown.                   │
 │ switch   [REMOVED] Switch active mission - this command was    (deprecated)  │
 │          removed in v0.8.0.                                                  │
+│ show     Show the fully resolved MissionType definition for                  │
+│          this project (FR-017).                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2087,15 +2111,20 @@ _View available Spec Kitty mission types. Mission types are selected per mission
  coordination branch and every lane branch named in
  ``lanes.json``, then tears down the coordination worktree and the
  operator-visible lane worktrees. Requires confirmation unless
- ``--force`` is also passed.
+ ``--force`` is also passed. The coordination + lane branches are
+ deleted with ``git branch -D`` (force-delete) because mid-flight
+ abandonment by definition leaves uncommitted or unmerged work.
 
- Implements FR-016 from mission-coordination-branch-atomic-event-log-01KSPTVW.
+ Implements FR-016 from
+ ``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission  -f      TEXT  Mission slug (auto-detected from cwd if omitted)    │
 │ --discard                Discard the mission mid-flight: delete the          │
 │                          coordination branch + all lane branches and tear    │
-│                          down all worktrees.                                 │
+│                          down all worktrees. Without --discard, requires     │
+│                          that the mission has already been merged (no-op     │
+│                          cleanup otherwise).                                 │
 │ --force                  Skip the confirmation prompt when --discard is set. │
 │ --help                   Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -2156,10 +2185,37 @@ _View available Spec Kitty mission types. Mission types are selected per mission
 ```
  Usage: spec-kitty mission list [OPTIONS]
 
- List all available missions with their source (project/built-in).
+ List activated mission types for the current project (FR-016).
+
+ Alias for ``spec-kitty charter mission-type list``.
+
+ Returns only mission types that are explicitly activated in this
+ project's charter (activation-filtered).  For all doctrine-layer
+ types regardless of activation, use ``spec-kitty doctrine mission-type list``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Output as JSON.                                              │
 │ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty mission run
+
+```
+ Usage: spec-kitty mission run [OPTIONS] MISSION_KEY
+
+ Start (or attach to) a runtime for a project-authored custom mission
+ definition.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    mission_key      TEXT  The reusable custom mission key. [required]      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission                 TEXT  Tracked mission slug. [required]          │
+│    --json       --no-json          Emit JSON envelope to stdout instead of a │
+│                                    rich panel.                               │
+│                                    [default: no-json]                        │
+│    --help                          Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2184,26 +2240,6 @@ _View available Spec Kitty mission types. Mission types are selected per mission
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json          Output as JSON.                                              │
 │ --help          Show this message and exit.                                  │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty mission run
-
-```
- Usage: spec-kitty mission run [OPTIONS] MISSION_KEY
-
- Start (or attach to) a runtime for a project-authored custom mission
- definition.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    mission_key      TEXT  The reusable custom mission key. [required]      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                 TEXT  Tracked mission slug. [required]          │
-│    --json       --no-json          Emit JSON envelope to stdout instead of a │
-│                                    rich panel.                               │
-│                                    [default: no-json]                        │
-│    --help                          Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2270,17 +2306,29 @@ _Inspect mission types for this project._
  Close a mission. Wraps FR-016 lifecycle teardown.
 
  Without ``--discard``: tear down the coordination worktree only.
- With ``--discard``: abandon the mission mid-flight; delete the coordination
- branch + every lane branch and tear down the lane worktrees. Requires
- confirmation unless ``--force`` is also passed.
+ This is a safe no-op after a successful ``spec-kitty merge`` (the
+ merge command already runs the same teardown); useful when the
+ teardown was skipped (e.g. legacy merge path) or interrupted.
 
- Alias of ``spec-kitty mission close``; both names are accepted because the
- ``mission`` typer app is shared with ``mission-type``.
+ With ``--discard``: abandon the mission mid-flight. Deletes the
+ coordination branch and every lane branch named in
+ ``lanes.json``, then tears down the coordination worktree and the
+ operator-visible lane worktrees. Requires confirmation unless
+ ``--force`` is also passed. The coordination + lane branches are
+ deleted with ``git branch -D`` (force-delete) because mid-flight
+ abandonment by definition leaves uncommitted or unmerged work.
+
+ Implements FR-016 from
+ ``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission  -f      TEXT  Mission slug (auto-detected from cwd if omitted)    │
-│ --discard                Discard the mission mid-flight.                     │
-│ --force                  Skip confirmation prompt when --discard is set.     │
+│ --discard                Discard the mission mid-flight: delete the          │
+│                          coordination branch + all lane branches and tear    │
+│                          down all worktrees. Without --discard, requires     │
+│                          that the mission has already been merged (no-op     │
+│                          cleanup otherwise).                                 │
+│ --force                  Skip the confirmation prompt when --discard is set. │
 │ --help                   Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -2340,10 +2388,37 @@ _Inspect mission types for this project._
 ```
  Usage: spec-kitty mission-type list [OPTIONS]
 
- List all available missions with their source (project/built-in).
+ List activated mission types for the current project (FR-016).
+
+ Alias for ``spec-kitty charter mission-type list``.
+
+ Returns only mission types that are explicitly activated in this
+ project's charter (activation-filtered).  For all doctrine-layer
+ types regardless of activation, use ``spec-kitty doctrine mission-type list``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Output as JSON.                                              │
 │ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty mission-type run
+
+```
+ Usage: spec-kitty mission-type run [OPTIONS] MISSION_KEY
+
+ Start (or attach to) a runtime for a project-authored custom mission
+ definition.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    mission_key      TEXT  The reusable custom mission key. [required]      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission                 TEXT  Tracked mission slug. [required]          │
+│    --json       --no-json          Emit JSON envelope to stdout instead of a │
+│                                    rich panel.                               │
+│                                    [default: no-json]                        │
+│    --help                          Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2368,26 +2443,6 @@ _Inspect mission types for this project._
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json          Output as JSON.                                              │
 │ --help          Show this message and exit.                                  │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty mission-type run
-
-```
- Usage: spec-kitty mission-type run [OPTIONS] MISSION_KEY
-
- Start (or attach to) a runtime for a project-authored custom mission
- definition.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    mission_key      TEXT  The reusable custom mission key. [required]      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                 TEXT  Tracked mission slug. [required]          │
-│    --json       --no-json          Emit JSON envelope to stdout instead of a │
-│                                    rich panel.                               │
-│                                    [default: no-json]                        │
-│    --help                          Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2527,7 +2582,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 │ mission-state         Return the full state of a mission (all WPs, lanes,    │
 │                       dependencies).                                         │
 │ list-ready            List WPs that are ready to start (planned and all deps │
-│                       done).                                                 │
+│                       approved or done).                                     │
 │ start-implementation  Composite transition: planned->claimed->in_progress    │
 │                       (idempotent).                                          │
 │ start-review          Transition a WP from for_review to in_review (reviewer │
@@ -2591,7 +2646,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 ```
  Usage: spec-kitty orchestrator-api list-ready [OPTIONS]
 
- List WPs that are ready to start (planned and all deps done).
+ List WPs that are ready to start (planned and all deps approved or done).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission        TEXT  Mission slug [required]                            │
@@ -2762,7 +2817,10 @@ _Manage and list agent profiles._
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ list  List all available agent profiles.                                     │
+│ list  List agent profiles (activated-only by default; --all for the full     │
+│       catalog).                                                              │
+│ show  Show the full resolved definition of an agent profile                  │
+│       (FR-013/014/015).                                                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2771,10 +2829,34 @@ _Manage and list agent profiles._
 ```
  Usage: spec-kitty profiles list [OPTIONS]
 
- List all available agent profiles.
+ List agent profiles (activated-only by default; --all for the full catalog).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json          Output JSON array.                                           │
+│ --json                    Output JSON array.                                 │
+│ --all                     Show every profile across all source layers        │
+│                           (annotated by source layer and activated|available │
+│                           state). Supersedes the activated-only default and  │
+│                           --show-available.                                  │
+│ --show-available          Also show available-but-not-activated profiles     │
+│                           (annotated by state).                              │
+│ --help                    Show this message and exit.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty profiles show
+
+```
+ Usage: spec-kitty profiles show [OPTIONS] PROFILE_ID
+
+ Show the full resolved definition of an agent profile (FR-013/014/015).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    profile_id      TEXT  Profile ID to show. [required]                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Output JSON object.                                          │
+│ --all           Bypass the activation gate for inspection (show              │
+│                 non-activated profiles).                                     │
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -2944,9 +3026,16 @@ _Cross-mission retrospective summary._
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --message  -m      TEXT  Commit message. [required]                       │
-│    --json                   Output JSON                                      │
-│    --help                   Show this message and exit.                      │
+│ *  --message    -m      TEXT  Commit message. [required]                     │
+│    --to-branch          TEXT  Short branch name the commit must land on      │
+│                               (required). The helper asserts HEAD matches    │
+│                               this branch before staging. For legacy         │
+│                               scripts, set                                   │
+│                               SPEC_KITTY_INFER_DESTINATION_REF=1 to fall     │
+│                               back to current-HEAD inference (deprecated;    │
+│                               removed in v3.3).                              │
+│    --json                     Output JSON                                    │
+│    --help                     Show this message and exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3237,8 +3326,9 @@ _Synchronization commands_
  Finalize tasks metadata after task generation.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json          Emit JSON result                                             │
-│ --help          Show this message and exit.                                  │
+│ --mission        TEXT  Mission slug (e.g., 001-user-authentication)          │
+│ --json                 Emit JSON result                                      │
+│ --help                 Show this message and exit.                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3714,7 +3804,7 @@ _Manage mission workflow definitions_
 │ --project-root        PATH  Project root used for .kittify workflow          │
 │                             discovery.                                       │
 │                             [default: .]                                     │
-│ --force                     Overwrite an existing destination file.           │
+│ --force                     Overwrite an existing destination file.          │
 │ --help                      Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -3733,7 +3823,7 @@ _Manage mission workflow definitions_
 │ --project-root        PATH  Project root that receives the workflow          │
 │                             override.                                        │
 │                             [default: .]                                     │
-│ --force                     Overwrite an existing workflow file.              │
+│ --force                     Overwrite an existing workflow file.             │
 │ --help                      Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
