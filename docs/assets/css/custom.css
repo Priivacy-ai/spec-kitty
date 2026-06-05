@@ -288,6 +288,7 @@ body.tex2jax_ignore > .sk-dashboard {
 .sk-dashboard .status-card.review { border-left-color: var(--lavender); }
 .sk-dashboard .status-card.approved { border-left-color: var(--soft-peach); }
 .sk-dashboard .status-card.completed { border-left-color: var(--grassy-green); }
+.sk-dashboard .status-card.agents { border-left-color: var(--soft-peach); }
 
 .sk-dashboard .status-label {
   font-size: 0.85rem;
@@ -398,6 +399,13 @@ body.tex2jax_ignore > .sk-dashboard {
   margin-bottom: 12px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
   border-left: 4px solid;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.sk-dashboard .card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  background: var(--creamy-white);
 }
 
 .sk-dashboard .lane.planned .card { border-left-color: var(--baby-blue); }
@@ -405,6 +413,11 @@ body.tex2jax_ignore > .sk-dashboard {
 .sk-dashboard .lane.for_review .card { border-left-color: var(--lavender); }
 .sk-dashboard .lane.approved .card { border-left-color: var(--soft-peach); }
 .sk-dashboard .lane.done .card { border-left-color: var(--grassy-green); }
+
+.sk-dashboard .card.in-review {
+  border: 2px solid #9b6bb0;
+  border-left-width: 4px;
+}
 
 .sk-dashboard .card-id {
   font-weight: 600;
@@ -421,14 +434,47 @@ body.tex2jax_ignore > .sk-dashboard {
   line-height: 1.4;
 }
 
+.sk-dashboard .card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
 .sk-dashboard .badge {
   display: inline-block;
   padding: 3px 8px;
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: 500;
+}
+
+.sk-dashboard .badge.agent {
   background: var(--soft-peach);
   color: #8b5a00;
+}
+
+.sk-dashboard .badge.subtasks {
+  background: var(--lavender);
+  color: #5a3a6e;
+}
+
+.sk-dashboard .badge.model {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.sk-dashboard .agent-identity-section {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.sk-dashboard .agent-identity-label {
+  font-weight: 600;
+  font-size: 0.8em;
+  color: #6b7280;
 }
 
 .sk-dashboard .empty-state {
@@ -436,6 +482,112 @@ body.tex2jax_ignore > .sk-dashboard {
   color: #9ca3af;
   padding: 40px 20px;
   font-style: italic;
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
+.sk-dashboard .modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.sk-dashboard .modal.show {
+  display: flex;
+}
+
+.sk-dashboard .modal.hidden {
+  display: none;
+}
+
+.sk-dashboard .modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.65);
+  backdrop-filter: blur(2px);
+}
+
+.sk-dashboard .modal-content {
+  position: relative;
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 900px;
+  width: min(90%, 900px);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.35);
+  overflow: hidden;
+}
+
+.sk-dashboard .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.sk-dashboard .modal-title {
+  font-size: 1.35em;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.sk-dashboard .modal-subtitle {
+  font-size: 0.9em;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.sk-dashboard .modal-close {
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 1.2em;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.sk-dashboard .modal-close:hover,
+.sk-dashboard .modal-close:focus {
+  color: #1f2937;
+}
+
+.sk-dashboard .modal-body {
+  position: relative;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.sk-dashboard .modal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.sk-dashboard .modal-meta span {
+  background: #f3f4f6;
+  border-radius: 12px;
+  padding: 4px 12px;
+  font-size: 0.85em;
+  color: #4b5563;
+}
+
+.sk-dashboard .modal-content .markdown-content {
+  padding: 0;
+}
+
+.sk-dashboard .modal-content .markdown-content pre {
+  background: #ffffff;
+  color: #111827;
 }
 
 .sk-dashboard .mission-grid {

@@ -91,6 +91,66 @@ def parse_task_titles(tasks_md: str) -> dict[str, str]:
     return titles
 
 
+def parse_frontmatter(markdown: str) -> tuple[dict[str, Any], str]:
+    lines = markdown.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return {}, markdown
+    end_index = next((index for index, line in enumerate(lines[1:], start=1) if line.strip() == "---"), None)
+    if end_index is None:
+        return {}, markdown
+
+    frontmatter: dict[str, Any] = {}
+    current_key = ""
+    for raw in lines[1:end_index]:
+        if raw.startswith("- ") and current_key:
+            value = raw[2:].strip()
+            frontmatter.setdefault(current_key, []).append(unquote_yaml_scalar(value))
+            continue
+        if ":" not in raw or raw.startswith((" ", "\t")):
+            continue
+        key, value = raw.split(":", 1)
+        current_key = key.strip()
+        value = value.strip()
+        if value == "":
+            frontmatter[current_key] = []
+        elif value == "[]":
+            frontmatter[current_key] = []
+            current_key = ""
+        else:
+            frontmatter[current_key] = unquote_yaml_scalar(value)
+            current_key = ""
+
+    body = "\n".join(lines[end_index + 1 :]).lstrip()
+    return frontmatter, body
+
+
+def unquote_yaml_scalar(value: str) -> str:
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        return value[1:-1]
+    return value
+
+
+def prompt_file_for_wp(mission: Mission, wp_id: str) -> Path | None:
+    tasks_dir = mission.path / "tasks"
+    if not tasks_dir.exists():
+        return None
+    matches = sorted(tasks_dir.glob(f"{wp_id}*.md"))
+    return matches[0] if matches else None
+
+
+def prompt_title(prompt_file: Path | None, markdown: str, wp_id: str, mission: Mission) -> str:
+    match = re.search(r"^#\s+Work Package Prompt:\s+(.+?)\s*$", markdown, flags=re.MULTILINE)
+    if match:
+        return re.sub(r"\s+", " ", match.group(1)).strip()
+    if prompt_file is not None:
+        return prompt_file.stem
+    return mission.task_titles.get(wp_id, "Work package")
+
+
+def json_script(value: object) -> str:
+    return json.dumps(value, ensure_ascii=False).replace("</", "<\\/")
+
+
 def missions() -> list[Mission]:
     result: list[Mission] = []
     for path in SOURCE.iterdir():
@@ -340,9 +400,31 @@ def stats(mission: Mission) -> dict[str, int | float]:
     return {"total": total, **lane_counts, "weighted_percentage": pct}
 
 
+def active_agents(mission: Mission) -> list[str]:
+    agents: set[str] = set()
+    for wp_id in (mission.status.get("work_packages") or {}):
+        prompt_file = prompt_file_for_wp(mission, wp_id)
+        if prompt_file is None:
+            continue
+        frontmatter, _ = parse_frontmatter(read_text(prompt_file))
+        agent = str(frontmatter.get("agent") or "")
+        if agent:
+            agents.add(agent)
+    return sorted(agents)
+
+
 def status_cards(mission: Mission, compact: bool = False) -> str:
     s = stats(mission)
     label = "Total Work Packages" if compact else "Total Tasks"
+    agents = active_agents(mission) if compact else []
+    agents_card = (
+        f"""  <div class="status-card agents"><div class="status-label">Active Agents</div>
+    <div class="status-value">{len(agents)}</div>
+    <div class="status-detail">{esc(", ".join(agents) if agents else "none")}</div></div>
+"""
+        if compact
+        else ""
+    )
     return f"""
 <div class="status-summary">
   <div class="status-card total"><div class="status-label">{label}</div><div class="status-value">{s['total']}</div>
@@ -354,6 +436,7 @@ def status_cards(mission: Mission, compact: bool = False) -> str:
     <div class="status-detail">{s['weighted_percentage']}% done</div><div class="progress-bar">
       <div class="progress-fill" style="width: {s['weighted_percentage']}%"></div>
     </div></div>
+{agents_card}
 </div>
 """
 
@@ -386,19 +469,34 @@ def overview(mission: Mission) -> str:
 """
 
 
-def lanes(mission: Mission) -> dict[str, list[dict[str, str]]]:
-    result: dict[str, list[dict[str, str]]] = {lane: [] for lane in LANES}
+def lanes(mission: Mission) -> dict[str, list[dict[str, Any]]]:
+    result: dict[str, list[dict[str, Any]]] = {lane: [] for lane in LANES}
     for wp_id, state in sorted((mission.status.get("work_packages") or {}).items()):
-        lane = str(state.get("lane") or "planned")
-        if lane == "in_review":
-            lane = "for_review"
-        if lane not in result:
-            lane = "planned"
-        result[lane].append(
+        raw_lane = str(state.get("lane") or "planned")
+        column_lane = "for_review" if raw_lane == "in_review" else raw_lane
+        if column_lane not in result:
+            column_lane = "planned"
+        prompt_file = prompt_file_for_wp(mission, wp_id)
+        prompt_markdown = read_text(prompt_file) if prompt_file else ""
+        frontmatter, prompt_body = parse_frontmatter(prompt_markdown)
+        subtasks = frontmatter.get("subtasks")
+        if not isinstance(subtasks, list):
+            subtasks = []
+        result[column_lane].append(
             {
                 "id": wp_id,
-                "title": mission.task_titles.get(wp_id, "Work package"),
-                "actor": str(state.get("actor") or ""),
+                "title": prompt_title(prompt_file, prompt_markdown, wp_id, mission),
+                "lane": raw_lane,
+                "subtasks": subtasks,
+                "agent": str(frontmatter.get("agent") or ""),
+                "model": str(frontmatter.get("model") or ""),
+                "agent_profile": str(frontmatter.get("agent_profile") or ""),
+                "role": str(frontmatter.get("role") or ""),
+                "assignee": str(frontmatter.get("assignee") or ""),
+                "phase": str(frontmatter.get("phase") or ""),
+                "prompt_markdown": prompt_body,
+                "prompt_html": markdown_to_html(prompt_body),
+                "prompt_path": prompt_file.relative_to(ROOT).as_posix() if prompt_file else "",
             }
         )
     return result
@@ -406,13 +504,27 @@ def lanes(mission: Mission) -> dict[str, list[dict[str, str]]]:
 
 def kanban(mission: Mission) -> str:
     columns = []
-    for lane, tasks in lanes(mission).items():
+    all_lanes = lanes(mission)
+    tasks_by_id = {task["id"]: task for tasks in all_lanes.values() for task in tasks}
+    for lane, tasks in all_lanes.items():
         cards = []
         for task in tasks:
-            actor = f'<span class="badge agent">{esc(task["actor"])}</span>' if task["actor"] else ""
+            badges = []
+            if task["agent"]:
+                badges.append(f'<span class="badge agent">{esc(task["agent"])}</span>')
+            if task["agent_profile"]:
+                badges.append(f'<span class="badge profile">{esc(task["agent_profile"])}</span>')
+            if task["role"]:
+                badges.append(f'<span class="badge role">{esc(task["role"])}</span>')
+            if task["subtasks"]:
+                count = len(task["subtasks"])
+                badges.append(f'<span class="badge subtasks">{count} subtask{"s" if count != 1 else ""}</span>')
+            card_class = "card in-review" if task["lane"] == "in_review" else "card"
             cards.append(
-                f'<div class="card"><div class="card-id">{esc(task["id"])}</div>'
-                f'<div class="card-title">{esc(task["title"])}</div><div class="card-meta">{actor}</div></div>'
+                f'<div class="{card_class}" role="button" tabindex="0" data-task-id="{esc(task["id"])}">'
+                f'<div class="card-id">{esc(task["id"])}</div>'
+                f'<div class="card-title">{esc(task["title"])}</div>'
+                f'<div class="card-meta">{"".join(badges)}</div></div>'
             )
         body = "".join(cards) if cards else '<div class="empty-state">No tasks</div>'
         columns.append(
@@ -423,6 +535,152 @@ def kanban(mission: Mission) -> str:
 <h2>Kanban Board</h2>
 <div id="kanban-status">{status_cards(mission, compact=True)}</div>
 <div class="kanban-board">{''.join(columns)}</div>
+<div id="prompt-modal" class="modal hidden" aria-hidden="true">
+  <div class="modal-overlay"></div>
+  <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-title">Work Package Prompt</div>
+        <div class="modal-subtitle" id="modal-subtitle"></div>
+      </div>
+      <button type="button" class="modal-close" id="modal-close-btn" aria-label="Close prompt viewer">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body">
+      <div class="modal-meta" id="modal-prompt-meta"></div>
+      <div id="modal-prompt-content" class="markdown-content"></div>
+    </div>
+  </div>
+</div>
+<script
+  src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"
+  integrity="sha384-zbcZAIxlvJtNE3Dp5nxLXdXtXyxwOdnILY1TDPVmKFhl4r4nSUG1r8bcFXGVa4Te"
+  crossorigin="anonymous"
+></script>
+<script>
+const KANBAN_TASKS = {json_script(tasks_by_id)};
+
+function escapeHtml(value) {{
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}}
+
+function formatLaneName(lane) {{
+    if (!lane) return '';
+    return lane.split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+}}
+
+function showPromptModal(task) {{
+    const modal = document.getElementById('prompt-modal');
+    if (!modal) return;
+
+    const titleEl = document.getElementById('modal-title');
+    const subtitleEl = document.getElementById('modal-subtitle');
+    const metaEl = document.getElementById('modal-prompt-meta');
+    const contentEl = document.getElementById('modal-prompt-content');
+    const modalBody = document.getElementById('modal-body');
+
+    if (titleEl) {{
+        titleEl.textContent = task.title || 'Work Package Prompt';
+    }}
+    if (subtitleEl) {{
+        if (task.id) {{
+            subtitleEl.textContent = task.id;
+            subtitleEl.style.display = 'block';
+        }} else {{
+            subtitleEl.textContent = '';
+            subtitleEl.style.display = 'none';
+        }}
+    }}
+
+    if (metaEl) {{
+        const metaItems = [];
+        if (task.lane) metaItems.push(`<span>Lane: ${{escapeHtml(formatLaneName(task.lane))}}</span>`);
+        if (task.subtasks?.length) {{
+            metaItems.push(`<span>${{task.subtasks.length}} subtask${{task.subtasks.length !== 1 ? 's' : ''}}</span>`);
+        }}
+        if (task.phase) metaItems.push(`<span>Phase: ${{escapeHtml(task.phase)}}</span>`);
+        if (task.prompt_path) metaItems.push(`<span>Source: ${{escapeHtml(task.prompt_path)}}</span>`);
+
+        const identityBadges = [];
+        if (task.agent) identityBadges.push(`<span class="badge agent">${{escapeHtml(task.agent)}}</span>`);
+        if (task.agent_profile) identityBadges.push(`<span class="badge profile">${{escapeHtml(task.agent_profile)}}</span>`);
+        if (task.role) identityBadges.push(`<span class="badge role">${{escapeHtml(task.role)}}</span>`);
+        if (task.model) identityBadges.push(`<span class="badge model">${{escapeHtml(task.model)}}</span>`);
+
+        if (identityBadges.length > 0) {{
+            metaItems.push(`<span class="agent-identity-section"><span class="agent-identity-label">Agent:</span> ${{identityBadges.join(' ')}}</span>`);
+        }}
+
+        if (metaItems.length > 0) {{
+            metaEl.innerHTML = metaItems.join('');
+            metaEl.style.display = 'flex';
+        }} else {{
+            metaEl.innerHTML = '';
+            metaEl.style.display = 'none';
+        }}
+    }}
+
+    if (contentEl) {{
+        if (task.prompt_markdown && window.marked) {{
+            contentEl.innerHTML = marked.parse(task.prompt_markdown);
+        }} else {{
+            contentEl.innerHTML = task.prompt_html || '<div class="empty-state">Prompt content unavailable.</div>';
+        }}
+    }}
+
+    if (modalBody) {{
+        modalBody.scrollTop = 0;
+    }}
+
+    modal.classList.remove('hidden');
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+}}
+
+function hidePromptModal() {{
+    const modal = document.getElementById('prompt-modal');
+    if (!modal) return;
+
+    modal.classList.remove('show');
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+}}
+
+document.querySelectorAll('[data-task-id]').forEach((card) => {{
+    const task = KANBAN_TASKS[card.dataset.taskId];
+    if (!task) return;
+    card.addEventListener('click', () => showPromptModal(task));
+    card.addEventListener('keydown', (event) => {{
+        if (event.key === 'Enter' || event.key === ' ') {{
+            event.preventDefault();
+            showPromptModal(task);
+        }}
+    }});
+}});
+
+const modalOverlay = document.querySelector('#prompt-modal .modal-overlay');
+if (modalOverlay) {{
+    modalOverlay.addEventListener('click', hidePromptModal);
+}}
+const modalCloseButton = document.getElementById('modal-close-btn');
+if (modalCloseButton) {{
+    modalCloseButton.addEventListener('click', hidePromptModal);
+}}
+document.addEventListener('keydown', (event) => {{
+    if (event.key === 'Escape') {{
+        const modal = document.getElementById('prompt-modal');
+        if (modal?.classList.contains('show')) {{
+            hidePromptModal();
+        }}
+    }}
+}});
+</script>
 """
 
 
