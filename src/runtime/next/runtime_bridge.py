@@ -282,17 +282,14 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[
     for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items():
         refs: list[str] = []
         for line in section_content.splitlines():
-            if "Requirement" not in line and "requirement" not in line:
+            lower_line = line.lower()
+            if "requirement" not in lower_line:
                 continue
-            ref_line_match = re.search(
-                r"\*?\*?Requirements?\s*(?:Refs)?\*?\*?\s*:\s*(.+)",
-                line,
-                re.IGNORECASE,
-            )
-            if ref_line_match:
+            prefix, separator, suffix = line.partition(":")
+            if separator and "requirement" in prefix.lower():
                 refs.extend(
                     ref_id.upper()
-                    for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", ref_line_match.group(1), re.IGNORECASE)
+                    for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", suffix, re.IGNORECASE)
                 )
         requirement_refs[wp_id] = list(dict.fromkeys(refs))
 
