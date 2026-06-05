@@ -1,24 +1,39 @@
 ---
-work_package_id: "WP02"
-title: "Domain Cleanup, Call-Site Gate, and MergeState Field"
-dependencies: ["WP01"]
-subtasks: ["T006", "T007", "T008"]
-planning_base_branch: "main"
-merge_target_branch: "main"
-branch_strategy: "Execution worktree allocated by finalize-tasks lanes.json. Merges after WP01 lane is merged."
-owned_files:
-  - "src/specify_cli/merge/preflight.py"
-  - "src/specify_cli/cli/commands/merge.py"
-  - "src/specify_cli/merge/state.py"
-authoritative_surface: "src/specify_cli/merge/"
-execution_mode: "code_change"
-agent_profile: "implementer-ivan"
-role: "implementer"
-agent: "claude"
+work_package_id: WP02
+title: Domain Cleanup, Call-Site Gate, and MergeState Field
+dependencies:
+- WP01
+requirement_refs:
+- FR-001
+- FR-002
+- FR-003
+- FR-007
+- FR-008
+- NFR-002
+- NFR-004
+- NFR-005
+tracker_refs: []
+planning_base_branch: main
+merge_target_branch: main
+branch_strategy: Execution worktree allocated by finalize-tasks lanes.json. Merges after WP01 lane is merged.
+subtasks:
+- T006
+- T007
+- T008
+agent: claude
 history:
-  - date: "2026-06-05"
-    author: "spec-kitty.tasks"
-    note: "Initial WP generation"
+- date: '2026-06-05'
+  author: spec-kitty.tasks
+  note: Initial WP generation
+agent_profile: implementer-ivan
+authoritative_surface: src/specify_cli/merge/
+execution_mode: code_change
+owned_files:
+- src/specify_cli/merge/preflight.py
+- src/specify_cli/cli/commands/merge.py
+- src/specify_cli/merge/state.py
+role: implementer
+tags: []
 ---
 
 ## ⚡ Do This First: Load Agent Profile

@@ -1,24 +1,38 @@
 ---
-work_package_id: "WP01"
-title: "Publish-Layer Module and Boundary Types"
+work_package_id: WP01
+title: Publish-Layer Module and Boundary Types
 dependencies: []
-subtasks: ["T001", "T002", "T003", "T004", "T005"]
-planning_base_branch: "main"
-merge_target_branch: "main"
-branch_strategy: "Execution worktree allocated by finalize-tasks lanes.json. Branch: kitty/mission-merge-preflight-remote-state-boundary-separation-01KTBE5M-lane-a (or computed equivalent)."
-owned_files:
-  - "src/specify_cli/merge/push_preflight.py"
-  - "src/specify_cli/merge/preflight.py"
-  - "architecture/3.x/adr/2026-06-05-1-merge-publish-layer-boundary.md"
-authoritative_surface: "src/specify_cli/merge/"
-execution_mode: "code_change"
-agent_profile: "architect-alphonso"
-role: "architect"
-agent: "claude"
+requirement_refs:
+- FR-001
+- FR-002
+- FR-003
+- FR-004
+- FR-005
+- FR-006
+tracker_refs: []
+planning_base_branch: main
+merge_target_branch: main
+branch_strategy: 'Execution worktree allocated by finalize-tasks lanes.json. Branch: kitty/mission-merge-preflight-remote-state-boundary-separation-01KTBE5M-lane-a (or computed equivalent).'
+subtasks:
+- T001
+- T002
+- T003
+- T004
+- T005
+agent: claude
 history:
-  - date: "2026-06-05"
-    author: "spec-kitty.tasks"
-    note: "Initial WP generation"
+- date: '2026-06-05'
+  author: spec-kitty.tasks
+  note: Initial WP generation
+agent_profile: architect-alphonso
+authoritative_surface: src/specify_cli/merge/
+execution_mode: code_change
+owned_files:
+- src/specify_cli/merge/push_preflight.py
+- src/specify_cli/merge/preflight.py
+- architecture/3.x/adr/2026-06-05-1-merge-publish-layer-boundary.md
+role: architect
+tags: []
 ---
 
 ## ⚡ Do This First: Load Agent Profile

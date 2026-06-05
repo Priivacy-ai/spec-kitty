@@ -1,23 +1,33 @@
 ---
-work_package_id: "WP03"
-title: "Test Coverage"
-dependencies: ["WP02"]
-subtasks: ["T009", "T010", "T011"]
-planning_base_branch: "main"
-merge_target_branch: "main"
-branch_strategy: "Execution worktree allocated by finalize-tasks lanes.json. Merges after WP02 lane."
-owned_files:
-  - "tests/merge/test_target_branch_preflight.py"
-  - "tests/merge/test_push_preflight.py"
-authoritative_surface: "tests/merge/"
-execution_mode: "code_change"
-agent_profile: "implementer-ivan"
-role: "implementer"
-agent: "claude"
+work_package_id: WP03
+title: Test Coverage
+dependencies:
+- WP02
+requirement_refs:
+- FR-009
+- FR-010
+- NFR-003
+tracker_refs: []
+planning_base_branch: main
+merge_target_branch: main
+branch_strategy: Execution worktree allocated by finalize-tasks lanes.json. Merges after WP02 lane.
+subtasks:
+- T009
+- T010
+- T011
+agent: claude
 history:
-  - date: "2026-06-05"
-    author: "spec-kitty.tasks"
-    note: "Initial WP generation"
+- date: '2026-06-05'
+  author: spec-kitty.tasks
+  note: Initial WP generation
+agent_profile: implementer-ivan
+authoritative_surface: tests/merge/
+execution_mode: code_change
+owned_files:
+- tests/merge/test_target_branch_preflight.py
+- tests/merge/test_push_preflight.py
+role: implementer
+tags: []
 ---
 
 ## ⚡ Do This First: Load Agent Profile
