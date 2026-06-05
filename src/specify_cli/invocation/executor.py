@@ -136,6 +136,8 @@ class ProfileInvocationExecutor:
         mode_of_work: ModeOfWork | None = None,
         *,
         action_hint: str | None = None,
+        mission_id: str | None = None,
+        wp_id: str | None = None,
     ) -> InvocationPayload:
         """Route the request, load governance context, write started record, return payload.
 
@@ -221,6 +223,8 @@ class ProfileInvocationExecutor:
             router_confidence=router_confidence,
             started_at=started_at,
             mode_of_work=mode_of_work.value if mode_of_work else None,
+            mission_id=mission_id,
+            wp_id=wp_id,
         )
         self._writer.write_started(record)  # raises InvocationWriteError → non-zero exit
 

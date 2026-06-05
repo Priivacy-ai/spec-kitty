@@ -9,6 +9,7 @@ Registration: do is a plain function registered via @app.command() in __init__.p
 
 from __future__ import annotations
 
+import contextlib
 import json
 from pathlib import Path
 
@@ -146,3 +147,9 @@ def do(
     _surface = ObservationSurface()
     _notices = _surface.collect_notices(repo_root, invocation_id=payload.invocation_id)
     _surface.render_notices(_notices, console)
+
+    # Close the invocation record so the auto-commit fires (FR-008).
+    # do is a single-shot routing command — complete immediately after rendering.
+    # Best-effort: errors are logged inside complete_invocation/_commit_op_record.
+    with contextlib.suppress(Exception):
+        executor.complete_invocation(payload.invocation_id, outcome="done")
