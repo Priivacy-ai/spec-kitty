@@ -67,6 +67,7 @@ NO_POLICY_SUMMARY_MESSAGE = "  - No explicit policy summary section found in cha
 REFERENCE_DOCS_HEADER = "Reference Docs:"
 NONE_LABEL = "(none)"
 KITTIFY_DIRNAME = ".kittify"
+CHARTER_FILENAME = "charter.md"
 MISSING_REFERENCES_MESSAGE = "  - No references manifest found."
 
 _MIN_EFFECTIVE_DEPTH = 2   # minimum depth for bootstrap context (full summary + references)
@@ -174,7 +175,7 @@ def build_charter_context(
     canonical_root = sync_result.canonical_root if sync_result and sync_result.canonical_root else repo_root
 
     normalized = action.strip().lower()
-    charter_path = canonical_root / KITTIFY_DIRNAME / "charter" / "charter.md"
+    charter_path = canonical_root / KITTIFY_DIRNAME / "charter" / CHARTER_FILENAME
     references_path = canonical_root / KITTIFY_DIRNAME / "charter" / "references.yaml"
 
     def _augment(text: str) -> str:
@@ -314,7 +315,7 @@ def build_charter_context_include(
 
     if kind == "section":
         canonical_root = _bundle_root_for_json(repo_root)
-        charter_path = canonical_root / KITTIFY_DIRNAME / "charter" / "charter.md"
+        charter_path = canonical_root / KITTIFY_DIRNAME / "charter" / CHARTER_FILENAME
         if not charter_path.exists():
             raise ValueError("No charter.md found for section selector.")
         charter_content = charter_path.read_text(encoding="utf-8")
@@ -2601,7 +2602,7 @@ def _render_compact_governance(
         augmented_blocks.append(reference_block)
 
     if action:
-        charter_path = repo_root / KITTIFY_DIRNAME / "charter" / "charter.md"
+        charter_path = repo_root / KITTIFY_DIRNAME / "charter" / CHARTER_FILENAME
         if charter_path.exists():
             try:
                 charter_content = charter_path.read_text(encoding="utf-8")
@@ -2631,7 +2632,7 @@ def _render_compact_governance(
     # via the WP06 wiring) honour the same NFR-001 contract.
     section_block_str = ""
     if action:
-        charter_path = repo_root / KITTIFY_DIRNAME / "charter" / "charter.md"
+        charter_path = repo_root / KITTIFY_DIRNAME / "charter" / CHARTER_FILENAME
         if charter_path.exists():
             try:
                 charter_content = charter_path.read_text(encoding="utf-8")
@@ -2805,7 +2806,7 @@ def _project_charter_json_block(repo_root: Path) -> dict[str, object]:
     """Describe the project-local charter loaded by the context renderer."""
     bundle_root = _bundle_root_for_json(repo_root)
     charter_dir = bundle_root / KITTIFY_DIRNAME / "charter"
-    charter_path = charter_dir / "charter.md"
+    charter_path = charter_dir / CHARTER_FILENAME
     metadata_path = charter_dir / "metadata.yaml"
 
     block: dict[str, object] = {

@@ -192,7 +192,7 @@ def plan_activation(
     available_ids: Iterable[str],
     config_data: Mapping[str, Any],
     default_ids: Iterable[str] = (),
-    cascade_scope: Any = None,  # noqa: ANN401, ARG001 - WP11 CascadeScope; threaded, not consumed here
+    cascade_scope: Any = None,  # noqa: ANN401
 ) -> ActivationPlan:
     """Compute the post-state for activating *artifact_id* — purely (FR-011/012).
 
@@ -238,6 +238,9 @@ def plan_activation(
         If ``config_data[yaml_key]`` is present but not a list (malformed
         config, fail-closed).
     """
+    # Preserve the typed cascade contract at this seam even though this pure
+    # planner does not branch on it yet.
+    _ = cascade_scope
     # FR-011/012/NFR-003: validate BEFORE computing any post-state.
     if artifact_id not in set(available_ids):
         raise UnknownActivationIdError(kind, artifact_id)
@@ -278,7 +281,7 @@ def plan_deactivation(
     *,
     yaml_key: str,
     config_data: Mapping[str, Any],
-    cascade_scope: Any = None,  # noqa: ANN401, ARG001 - WP11 CascadeScope; threaded, not consumed here
+    cascade_scope: Any = None,  # noqa: ANN401
 ) -> ActivationPlan:
     """Compute the post-state for deactivating *artifact_id* — purely.
 
@@ -313,6 +316,9 @@ def plan_deactivation(
     ValueError
         If ``config_data[yaml_key]`` is present but not a list.
     """
+    # Preserve the typed cascade contract at this seam even though this pure
+    # planner does not branch on it yet.
+    _ = cascade_scope
     current = _current_list(config_data, yaml_key)
     if current is None:
         raise NoActivationRestrictionsError(kind)
