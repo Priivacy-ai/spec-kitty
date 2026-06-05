@@ -225,7 +225,8 @@ class TestAutoCommitOnCompleteInvocation:
     def test_commit_appears_after_complete_invocation(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
+        monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+        monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
         _init_git_repo(tmp_path)
         _setup_fixture_profiles(tmp_path)
 
@@ -251,7 +252,8 @@ class TestAutoCommitOnCompleteInvocation:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """T-004: op file is in git and can be restored after deletion."""
-        monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
+        monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+        monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
         _init_git_repo(tmp_path)
         _setup_fixture_profiles(tmp_path)
 
@@ -296,9 +298,80 @@ class TestAutoCommitOnCompleteInvocation:
         assert call_kwargs["worktree_root"] == tmp_path
         assert call_kwargs["destination_ref"] in {"main", "master"}
         assert call_kwargs["message"].startswith("op(implementer-fixture):")
-        assert Path(f"{EVENTS_DIR}/{payload.invocation_id}.jsonl") in call_kwargs["paths"]
-        assert Path(f"{EVENTS_DIR}/ops-index.jsonl") in call_kwargs["paths"]
+        assert call_kwargs["paths"] == (Path(f"{EVENTS_DIR}/{payload.invocation_id}.jsonl"),)
         assert call_kwargs["allow_protected_branch_in_test_mode"] is True
+
+    def test_complete_invocation_on_protected_branch_preserves_unrelated_staging(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+        monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
+        _init_git_repo(tmp_path)
+        _setup_fixture_profiles(tmp_path)
+
+        unrelated = tmp_path / "unrelated.txt"
+        unrelated.write_text("keep me staged\n", encoding="utf-8")
+        subprocess.run(
+            ["git", "-C", str(tmp_path), "add", "unrelated.txt"],
+            check=True,
+            capture_output=True,
+        )
+
+        with patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=_COMPACT_CTX,
+        ):
+            executor = ProfileInvocationExecutor(tmp_path)
+            payload = executor.invoke("implement mission", profile_hint="implementer-fixture")
+            executor.complete_invocation(payload.invocation_id, outcome="done")
+
+        committed_files = subprocess.run(
+            ["git", "-C", str(tmp_path), "show", "--name-only", "--format=", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+        assert f"{EVENTS_DIR}/{payload.invocation_id}.jsonl" in committed_files
+        assert "unrelated.txt" not in committed_files
+
+        staged_files = subprocess.run(
+            ["git", "-C", str(tmp_path), "diff", "--cached", "--name-only"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+        assert "unrelated.txt" in staged_files
+
+    def test_completed_commit_excludes_ops_index_and_orphan_metadata(
+        self, tmp_path: Path
+    ) -> None:
+        _init_git_repo(tmp_path)
+        subprocess.run(
+            ["git", "-C", str(tmp_path), "checkout", "-b", "ops-work"],
+            check=True,
+            capture_output=True,
+        )
+        _setup_fixture_profiles(tmp_path)
+
+        with patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=_COMPACT_CTX,
+        ):
+            executor = ProfileInvocationExecutor(tmp_path)
+            orphan = executor.invoke("orphan op", profile_hint="implementer-fixture")
+            completed = executor.invoke("completed op", profile_hint="implementer-fixture")
+            executor.complete_invocation(completed.invocation_id, outcome="done")
+
+        tracked_files = subprocess.run(
+            ["git", "-C", str(tmp_path), "ls-tree", "-r", "--name-only", "HEAD", EVENTS_DIR],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+        assert f"{EVENTS_DIR}/{completed.invocation_id}.jsonl" in tracked_files
+        assert f"{EVENTS_DIR}/{orphan.invocation_id}.jsonl" not in tracked_files
+        assert f"{EVENTS_DIR}/ops-index.jsonl" not in tracked_files
+        assert (tmp_path / EVENTS_DIR / "ops-index.jsonl").exists()
 
     def test_orphan_op_not_committed(self, tmp_path: Path) -> None:
         """T-005: a started-only (orphan) op is NOT in git log."""
