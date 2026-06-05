@@ -13,8 +13,8 @@ from specify_cli.invocation.record import InvocationRecord
 if TYPE_CHECKING:
     from glossary.chokepoint import GlossaryObservationBundle
 
-EVENTS_DIR = ".kittify/events/profile-invocations"
-INDEX_PATH = ".kittify/events/invocation-index.jsonl"
+EVENTS_DIR = "kitty-ops"
+INDEX_PATH = "kitty-ops/ops-index.jsonl"
 
 
 def normalise_ref(ref: str, repo_root: Path) -> str:
@@ -69,7 +69,7 @@ class InvocationWriter:
     def _append_to_index(self, record: InvocationRecord) -> None:
         """Append a lightweight entry to the invocation index.
 
-        The index at ``.kittify/events/invocation-index.jsonl`` stores
+        The index at ``kitty-ops/ops-index.jsonl`` stores
         ``{invocation_id, profile_id, started_at}`` per line, newest last.
         It powers the O(limit) reverse-scan in ``invocations list`` so that
         command meets NFR-008 (< 200 ms at 10 K files).
@@ -78,7 +78,7 @@ class InvocationWriter:
         truncated index causes ``invocations list`` to fall back to directory
         scanning, which is correct but slower.
         """
-        index_path = self._dir.parent / "invocation-index.jsonl"
+        index_path = self._dir / "ops-index.jsonl"
         try:
             index_path.parent.mkdir(parents=True, exist_ok=True)
             entry = json.dumps(
@@ -100,7 +100,7 @@ class InvocationWriter:
         (extremely rare but deterministically safe).
 
         Also appends a lightweight entry to the invocation index at
-        ``.kittify/events/invocation-index.jsonl`` for fast reverse-scanning
+        ``kitty-ops/ops-index.jsonl`` for fast reverse-scanning
         by ``spec-kitty invocations list``.
         """
         self._ensure_dir()

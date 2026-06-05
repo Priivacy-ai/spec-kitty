@@ -10,7 +10,7 @@ log directory contains 10 000 JSONL files.
 
 Directory-scanning (one ``readline()`` per file) does not meet the threshold
 on a cold filesystem cache with 10 K files.  Instead we maintain a lightweight
-append-only index at ``.kittify/events/invocation-index.jsonl``:
+append-only index at ``kitty-ops/ops-index.jsonl``:
 
 - Each line: ``{invocation_id, profile_id, started_at}``
 - Written by ``InvocationWriter.write_started()`` immediately after the
@@ -36,13 +36,11 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from specify_cli.invocation.writer import EVENTS_DIR, INDEX_PATH
 from specify_cli.task_utils import find_repo_root
 
 app = typer.Typer(name="invocations", help="Query local invocation records.")
 console = Console()
-
-EVENTS_DIR = ".kittify/events/profile-invocations"
-INDEX_PATH = ".kittify/events/invocation-index.jsonl"
 
 # Read this many bytes at a time from the end of the index when scanning in
 # reverse.  4 KiB covers ~30-60 typical index lines per read, keeping I/O
@@ -205,8 +203,8 @@ def _iter_records_from_index(
     file to determine ``open`` / ``closed`` status.
 
     Args:
-        events_dir: ``.kittify/events/profile-invocations/``
-        index_path: ``.kittify/events/invocation-index.jsonl``
+        events_dir: ``kitty-ops/``
+        index_path: ``kitty-ops/ops-index.jsonl``
         profile_filter: If set, only yield records whose ``profile_id`` matches.
         limit: Maximum number of records to yield.
     """
@@ -254,7 +252,7 @@ def _iter_records_from_dir(
     Sort is by ``started_at`` from content (not mtime).
 
     Args:
-        events_dir: ``.kittify/events/profile-invocations/``
+        events_dir: ``kitty-ops/``
         profile_filter: If set, only yield records whose ``profile_id`` matches.
         limit: Maximum number of records to yield.
     """
@@ -303,7 +301,7 @@ def _iter_records(
     Falls back to directory scanning when the index is absent.
 
     Args:
-        events_dir: Path to ``.kittify/events/profile-invocations/``.
+        events_dir: Path to ``kitty-ops/``.
         profile_filter: If set, only yield records whose ``profile_id`` matches.
         limit: Maximum number of records to yield.
         repo_root: Optional repo root for index path resolution.  When
@@ -312,8 +310,7 @@ def _iter_records(
     if repo_root is not None:
         index_path = repo_root / INDEX_PATH
     else:
-        # Derive from events_dir: .kittify/events/profile-invocations → .kittify/events
-        index_path = events_dir.parent / "invocation-index.jsonl"
+        index_path = events_dir / "ops-index.jsonl"
 
     if index_path.exists():
         yield from _iter_records_from_index(events_dir, index_path, profile_filter, limit)

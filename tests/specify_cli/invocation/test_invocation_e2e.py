@@ -881,7 +881,9 @@ def test_sync_disabled_no_propagation_errors(tmp_path: Path) -> None:
     assert events == ["started", "completed", "artifact_link", "commit_link"]
 
     # No propagation-errors file created
-    prop_errors = project / ".kittify" / "events" / "propagation-errors.jsonl"
+    from specify_cli.invocation.propagator import PROPAGATION_ERRORS_PATH
+
+    prop_errors = project / PROPAGATION_ERRORS_PATH
     if prop_errors.exists():
         content = prop_errors.read_text()
         assert not content.strip(), f"Expected empty propagation-errors but got: {content}"

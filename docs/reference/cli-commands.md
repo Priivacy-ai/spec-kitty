@@ -885,6 +885,7 @@ _Project health diagnostics_
 │ shim-registry       Check for overdue compatibility shims in the shim        │
 │                     registry.                                                │
 │ invocation-pairing  List orphan profile-invocation lifecycle records.        │
+│ ops                 List orphan Op records.                                  │
 │ orphan-daemons      List orphan daemon owner records and emit retirement     │
 │                     hints.                                                   │
 │ restart-daemon      Stop the registered sync daemon and respawn it at the    │
@@ -1034,6 +1035,19 @@ _Project health diagnostics_
  Examples:
      spec-kitty doctor invocation-pairing
      spec-kitty doctor invocation-pairing --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Machine-readable JSON output                                 │
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor ops
+
+```
+ Usage: spec-kitty doctor ops [OPTIONS]
+
+ List orphan Op records.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json          Machine-readable JSON output                                 │

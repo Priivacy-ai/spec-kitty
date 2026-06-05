@@ -1,0 +1,28 @@
+{
+  "event_count": 5,
+  "last_event_id": "01KTB7YF56FS5FG3SZ0SKPMSFH",
+  "materialized_at": "2026-06-05T06:36:21.542943+00:00",
+  "mission_number": "",
+  "mission_slug": "op-records-git-durability-01KTB49K",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 1,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KTB7YF56FS5FG3SZ0SKPMSFH",
+      "last_transition_at": "2026-06-05T06:36:21.542943+00:00"
+    }
+  }
+}

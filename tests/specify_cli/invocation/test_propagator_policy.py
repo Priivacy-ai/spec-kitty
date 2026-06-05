@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from specify_cli.invocation.propagator import _propagate_one
+from specify_cli.invocation.propagator import PROPAGATION_ERRORS_PATH, _propagate_one
 from specify_cli.invocation.record import InvocationRecord
 from specify_cli.sync.routing import CheckoutSyncRouting
 
@@ -298,7 +298,7 @@ def test_no_propagation_errors_under_sync_disabled(tmp_path: Path, mode: str) ->
             _propagate_one(started, tmp_path)
             _propagate_one(completed, tmp_path)
 
-    prop_errors_path = tmp_path / ".kittify" / "events" / "propagation-errors.jsonl"
+    prop_errors_path = tmp_path / PROPAGATION_ERRORS_PATH
     if prop_errors_path.exists():
         content = prop_errors_path.read_text(encoding="utf-8").strip()
         assert not content, (

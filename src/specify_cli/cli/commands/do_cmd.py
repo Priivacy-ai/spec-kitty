@@ -16,7 +16,7 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 
-from specify_cli.invocation.errors import InvocationWriteError, RouterAmbiguityError
+from specify_cli.invocation.errors import InvocationError, InvocationWriteError, RouterAmbiguityError
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
 from specify_cli.invocation.modes import derive_mode
 from specify_cli.invocation.registry import ProfileRegistry
@@ -90,10 +90,6 @@ def _render_rich_payload(payload: InvocationPayload) -> None:
             "[yellow]Governance context unavailable.[/yellow] "
             "Run 'spec-kitty charter synthesize'."
         )
-    console.print(
-        f"\n[dim]Close this record:[/dim] "
-        f"spec-kitty profile-invocation complete --invocation-id {payload.invocation_id}"
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -129,6 +125,16 @@ def do(
         typer.echo(json.dumps(error_obj), err=True)
         raise typer.Exit(1) from e
     except InvocationWriteError as e:
+        typer.echo(
+            json.dumps({"error": "write_failed", "message": str(e)}), err=True
+        )
+        raise typer.Exit(1) from e
+
+    # do is a single-shot routing command: close before emitting success output
+    # so completion write failures cannot masquerade as successful JSON.
+    try:
+        executor.complete_invocation(payload.invocation_id, outcome="done")
+    except (InvocationError, InvocationWriteError) as e:
         typer.echo(
             json.dumps({"error": "write_failed", "message": str(e)}), err=True
         )
