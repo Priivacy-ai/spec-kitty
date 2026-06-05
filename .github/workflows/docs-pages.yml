@@ -6,8 +6,10 @@ on:
     paths:
       - 'docs/**'
       - 'kitty-specs/**'
+      - '.kittify/glossaries/**'
       - 'scripts/docs/generate_kitty_specs_docs.py'
       - 'scripts/docs/seo_postprocess.py'
+      - 'src/specify_cli/dashboard/templates/glossary.html'
       - 'architecture/**'
       - '.github/workflows/docs-pages.yml'
   workflow_dispatch:
