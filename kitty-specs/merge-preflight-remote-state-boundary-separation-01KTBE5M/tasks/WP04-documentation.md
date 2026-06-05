@@ -1,23 +1,30 @@
 ---
-work_package_id: "WP04"
-title: "Documentation"
-dependencies: ["WP02"]
-subtasks: ["T012", "T013"]
-planning_base_branch: "main"
-merge_target_branch: "main"
-branch_strategy: "Execution worktree allocated by finalize-tasks lanes.json. Can run in parallel with WP03 after WP02 merges."
-owned_files:
-  - "AGENTS.md"
-  - "CHANGELOG.md"
-authoritative_surface: "AGENTS.md"
-execution_mode: "code_change"
-agent_profile: "curator-carla"
-role: "curator"
-agent: "claude"
+work_package_id: WP04
+title: Documentation
+dependencies:
+- WP02
+requirement_refs:
+- FR-011
+tracker_refs: []
+planning_base_branch: main
+merge_target_branch: main
+branch_strategy: Execution worktree allocated by finalize-tasks lanes.json. Can run in parallel with WP03 after WP02 merges.
+subtasks:
+- T012
+- T013
+agent: claude
 history:
-  - date: "2026-06-05"
-    author: "spec-kitty.tasks"
-    note: "Initial WP generation"
+- date: '2026-06-05'
+  author: spec-kitty.tasks
+  note: Initial WP generation
+agent_profile: curator-carla
+authoritative_surface: AGENTS.md
+execution_mode: code_change
+owned_files:
+- AGENTS.md
+- CHANGELOG.md
+role: curator
+tags: []
 ---
 
 ## ⚡ Do This First: Load Agent Profile
