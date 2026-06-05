@@ -12,6 +12,8 @@ from __future__ import annotations
 import datetime
 import hashlib
 import json as _json_mod
+import logging
+import subprocess as _subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
@@ -30,7 +32,9 @@ from specify_cli.invocation.propagator import InvocationSaaSPropagator
 from specify_cli.invocation.record import InvocationRecord, promote_to_evidence
 from specify_cli.invocation.registry import ProfileRegistry
 from specify_cli.invocation.router import ActionRouter, RouterDecision  # WP02: router implemented
-from specify_cli.invocation.writer import InvocationWriter, normalise_ref
+from specify_cli.invocation.writer import INDEX_PATH, InvocationWriter, normalise_ref
+
+logger = logging.getLogger(__name__)
 
 
 def _new_ulid() -> str:
@@ -306,6 +310,7 @@ class ProfileInvocationExecutor:
         if self._propagator is not None:
             self._propagator.submit(completed)
 
+        self._commit_op_record(invocation_id)
         return completed
 
     def _promote_evidence_if_requested(
@@ -374,6 +379,65 @@ class ProfileInvocationExecutor:
             return ModeOfWork(raw)
         except ValueError:
             return None  # unknown/invalid mode_of_work → treat as legacy, skip enforcement
+
+    def _read_started_event(self, invocation_id: str) -> dict[str, object]:
+        path = self._writer.invocation_path(invocation_id)
+        try:
+            first_line = path.read_text(encoding="utf-8").splitlines()[0]
+            data = _json_mod.loads(first_line)
+        except (IndexError, OSError, _json_mod.JSONDecodeError) as exc:
+            raise InvocationError(f"Invalid invocation record: {invocation_id}") from exc
+        if not isinstance(data, dict):
+            raise InvocationError(f"Invalid invocation record: {invocation_id}")
+        return data
+
+    def _commit_op_record(self, invocation_id: str) -> None:
+        """Best-effort git commit for one completed Op record."""
+        try:
+            op_path = self._writer.invocation_path(invocation_id)
+            started = self._read_started_event(invocation_id)
+            profile_id = str(started.get("profile_id") or "unknown")
+            action = str(started.get("action") or "unknown")
+            message = f"op({profile_id}): {action} [{invocation_id[:8]}]"
+            paths = [op_path.relative_to(self._repo_root)]
+            index_path = self._repo_root / INDEX_PATH
+            if index_path.exists():
+                paths.append(index_path.relative_to(self._repo_root))
+
+            path_args = [str(path) for path in paths]
+            _subprocess.run(
+                ["git", "-C", str(self._repo_root), "add", "--", *path_args],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            diff = _subprocess.run(
+                ["git", "-C", str(self._repo_root), "diff", "--cached", "--quiet", "--", *path_args],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if diff.returncode == 0:
+                return
+            _subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(self._repo_root),
+                    "commit",
+                    "--no-verify",
+                    "--only",
+                    "-m",
+                    message,
+                    "--",
+                    *path_args,
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Op record auto-commit failed for %s: %r", invocation_id, exc)
 
     def _derive_action_from_request(self, request_text: str, role: object) -> str:  # noqa: ARG002
         """Derive canonical action token from role when profile_hint is explicit."""

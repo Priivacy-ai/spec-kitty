@@ -9,7 +9,9 @@ import pytest
 
 from specify_cli.invocation.errors import AlreadyClosedError, InvocationError, InvocationWriteError
 from specify_cli.invocation.record import InvocationRecord
-from specify_cli.invocation.writer import EVENTS_DIR, InvocationWriter
+from specify_cli.invocation.lifecycle import LIFECYCLE_LOG_RELATIVE_PATH
+from specify_cli.invocation.propagator import PROPAGATION_ERRORS_PATH
+from specify_cli.invocation.writer import EVENTS_DIR, INDEX_PATH, InvocationWriter
 
 
 # ---------------------------------------------------------------------------
@@ -67,6 +69,25 @@ class TestWriteStartedCreatesFile:
         assert not events_dir.exists()
         writer.write_started(_make_record())
         assert events_dir.exists()
+
+
+class TestKittyOpsStorage:
+    def test_events_dir_is_kitty_ops(self) -> None:
+        assert EVENTS_DIR == "kitty-ops"
+        assert INDEX_PATH == "kitty-ops/ops-index.jsonl"
+        assert PROPAGATION_ERRORS_PATH == "kitty-ops/propagation-errors.jsonl"
+
+    def test_index_written_at_kitty_ops_ops_index(self, tmp_path: Path) -> None:
+        writer = InvocationWriter(tmp_path)
+        writer.write_started(_make_record())
+
+        assert (tmp_path / "kitty-ops" / "ops-index.jsonl").exists()
+        assert not (tmp_path / "invocation-index.jsonl").exists()
+        assert not (tmp_path / ".kittify" / "events" / "invocation-index.jsonl").exists()
+
+
+def test_lifecycle_log_relative_path_is_kitty_ops() -> None:
+    assert Path("kitty-ops") / "lifecycle.jsonl" == LIFECYCLE_LOG_RELATIVE_PATH
 
 
 class TestWriteCompletedAppendsLine:

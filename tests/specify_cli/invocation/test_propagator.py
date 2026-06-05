@@ -19,6 +19,7 @@ import pytest
 
 from specify_cli.invocation.propagator import (
     InvocationSaaSPropagator,
+    PROPAGATION_ERRORS_PATH,
     _PENDING_SEND_TASKS,
     _log_propagation_error,
     _propagate_one,
@@ -79,7 +80,7 @@ def test_propagator_no_op_when_no_token(tmp_path: pytest.TempPathFactory) -> Non
     with patch("specify_cli.invocation.propagator._get_saas_client", return_value=None):
         _propagate_one(record, tmp_path)
 
-    error_log = tmp_path / ".kittify" / "events" / "propagation-errors.jsonl"
+    error_log = tmp_path / PROPAGATION_ERRORS_PATH
     assert not error_log.exists(), "Error log should not exist when client is None"
 
 
@@ -95,7 +96,7 @@ def test_propagator_logs_error_on_saas_failure(tmp_path: pytest.TempPathFactory)
         # Must not raise
         _propagate_one(record, tmp_path)
 
-    error_log = tmp_path / ".kittify" / "events" / "propagation-errors.jsonl"
+    error_log = tmp_path / PROPAGATION_ERRORS_PATH
     assert error_log.exists(), "propagation-errors.jsonl should be created on SaaS failure"
 
     entries = [json.loads(line) for line in error_log.read_text().splitlines() if line.strip()]
@@ -122,7 +123,7 @@ def test_propagator_sends_invocation_id_in_event_dict(tmp_path: pytest.TempPathF
         _propagate_one(record, tmp_path)
 
     # Verify no error was logged (success path)
-    error_log = tmp_path / ".kittify" / "events" / "propagation-errors.jsonl"
+    error_log = tmp_path / PROPAGATION_ERRORS_PATH
     assert not error_log.exists(), "No error log should be written on success"
 
     # The invocation_id must appear in the captured event dict

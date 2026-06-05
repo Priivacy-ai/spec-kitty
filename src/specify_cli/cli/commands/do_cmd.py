@@ -9,7 +9,6 @@ Registration: do is a plain function registered via @app.command() in __init__.p
 
 from __future__ import annotations
 
-import contextlib
 import json
 from pathlib import Path
 
@@ -17,7 +16,7 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 
-from specify_cli.invocation.errors import InvocationWriteError, RouterAmbiguityError
+from specify_cli.invocation.errors import InvocationError, InvocationWriteError, RouterAmbiguityError
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
 from specify_cli.invocation.modes import derive_mode
 from specify_cli.invocation.registry import ProfileRegistry
@@ -135,6 +134,16 @@ def do(
         )
         raise typer.Exit(1) from e
 
+    # do is a single-shot routing command: close before emitting success output
+    # so completion write failures cannot masquerade as successful JSON.
+    try:
+        executor.complete_invocation(payload.invocation_id, outcome="done")
+    except (InvocationError, InvocationWriteError) as e:
+        typer.echo(
+            json.dumps({"error": "write_failed", "message": str(e)}), err=True
+        )
+        raise typer.Exit(1) from e
+
     if json_output:
         typer.echo(json.dumps(payload.to_dict(), indent=2))
     else:
@@ -147,9 +156,3 @@ def do(
     _surface = ObservationSurface()
     _notices = _surface.collect_notices(repo_root, invocation_id=payload.invocation_id)
     _surface.render_notices(_notices, console)
-
-    # Close the invocation record so the auto-commit fires (FR-008).
-    # do is a single-shot routing command — complete immediately after rendering.
-    # Best-effort: errors are logged inside complete_invocation/_commit_op_record.
-    with contextlib.suppress(Exception):
-        executor.complete_invocation(payload.invocation_id, outcome="done")

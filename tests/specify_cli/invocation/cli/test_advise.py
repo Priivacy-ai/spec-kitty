@@ -125,7 +125,10 @@ class TestAdviseWithExplicitProfile:
                 ["advise", "implement the feature", "--profile", "implementer-fixture", "--json"],
             )
         assert result.exit_code == 0, result.output
-        jsonl_files = list((project / EVENTS_DIR).glob("*.jsonl"))
+        jsonl_files = [
+            path for path in (project / EVENTS_DIR).glob("*.jsonl")
+            if path.name != "ops-index.jsonl"
+        ]
         assert len(jsonl_files) == 1
 
     def test_rich_output_exits_zero(self, tmp_path: Path) -> None:
@@ -226,7 +229,10 @@ class TestAdviseNoCharter:
                 ["advise", "implement the feature", "--profile", "implementer-fixture", "--json"],
             )
         assert result.exit_code == 0
-        jsonl_files = list((project / EVENTS_DIR).glob("*.jsonl"))
+        jsonl_files = [
+            path for path in (project / EVENTS_DIR).glob("*.jsonl")
+            if path.name != "ops-index.jsonl"
+        ]
         assert len(jsonl_files) == 1
 
 

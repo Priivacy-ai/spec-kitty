@@ -1428,6 +1428,45 @@ def invocation_pairing(
     raise typer.Exit(1)
 
 
+@app.command(name="ops")
+def ops(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Machine-readable JSON output"),
+    ] = False,
+) -> None:
+    """List orphan Op records."""
+    from specify_cli.doctor.ops import list_orphan_ops
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1)
+
+    orphans = list_orphan_ops(repo_root)
+    if json_output:
+        payload = [{"path": str(path.relative_to(repo_root))} for path in orphans]
+        console.print_json(json.dumps(payload, indent=2))
+        raise typer.Exit(1 if orphans else 0)
+
+    if not orphans:
+        console.print("[green]Ops[/green]: no orphan op records found.")
+        raise typer.Exit(0)
+
+    console.print(f"\n[bold]Ops[/bold] — {len(orphans)} orphan op record(s)\n")
+    table = Table(box=None, padding=(0, 2), show_edge=False)
+    table.add_column("Path", style="cyan")
+    for path in orphans:
+        table.add_row(str(path.relative_to(repo_root)))
+    console.print(table)
+    console.print(
+        "\nThese op records were started but never completed. "
+        "Run spec-kitty doctor ops --json for machine-readable output."
+    )
+    console.print()
+    raise typer.Exit(1)
+
+
 def _print_rich_audit_report(report: object) -> None:
     """Print a Rich table summarising audit findings per mission."""
     from specify_cli.audit import RepoAuditReport
