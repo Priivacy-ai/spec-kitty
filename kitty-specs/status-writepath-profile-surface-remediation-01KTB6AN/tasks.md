@@ -56,12 +56,12 @@ Two file-disjoint workstreams → three execution lanes:
 
 **Independent test**: `agent status emit` produces an identical event + output to the prior direct path; malformed slug is rejected with a typed error.
 
-- [ ] T001 Retain `MissionStatus` instance in `agent status emit` and route through `ms.transition()` (WP01)
-- [ ] T002 Preserve commit semantics via `ms.save()` / aggregate transactional path (WP01)
-- [ ] T003 Add `mission_slug` allowlist guard at `MissionStatus.load()` (WP01)
-- [ ] T004 Unit test: slug guard (accented-Latin + `.isascii()`) (WP01)
-- [ ] T005 Integration test: `agent status emit` routes through aggregate, behavior-preserving (WP01)
-- [ ] T006 Verify emitted event + CLI output identical to prior direct path (WP01)
+- [x] T001 Retain `MissionStatus` instance in `agent status emit` and route through `ms.transition()` (WP01)
+- [x] T002 Preserve commit semantics via `ms.save()` / aggregate transactional path (WP01)
+- [x] T003 Add `mission_slug` allowlist guard at `MissionStatus.load()` (WP01)
+- [x] T004 Unit test: slug guard (accented-Latin + `.isascii()`) (WP01)
+- [x] T005 Integration test: `agent status emit` routes through aggregate, behavior-preserving (WP01)
+- [x] T006 Verify emitted event + CLI output identical to prior direct path (WP01)
 
 **Risks**: touching the live write path — keep strictly behavior-preserving; `transition()` already delegates to the same transactional emitter. No change to `coordination/transaction.py`.
 

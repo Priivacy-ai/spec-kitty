@@ -18,7 +18,8 @@ subtasks:
 - T005
 - T006
 phase: 'Lane A — #1667 ownership'
-agent: claude
+agent: "claude"
+assignee: "claude"
 history:
 - at: '2026-06-05T08:32:05Z'
   actor: system
@@ -132,3 +133,5 @@ Realize #1667's single-domain status-write ownership (FR-004) and add an identif
 ## Activity Log
 
 - 2026-06-05T08:32:05Z – system – Prompt created.
+- 2026-06-05T12:53:54Z – claude – Moved to in_progress
+- 2026-06-05T12:54:28Z – claude – Implemented via bypass; tests green
