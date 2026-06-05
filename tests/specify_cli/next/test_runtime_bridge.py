@@ -256,19 +256,20 @@ Requirement Refs: C-003, FR-004
     }
 
 
-def test_parse_requirement_refs_ignores_non_reference_lines() -> None:
-    """Only colon-delimited requirement labels should contribute refs."""
+def test_parse_requirement_refs_supports_heading_and_bullet_list_format() -> None:
+    """Requirement refs parser accepts the documented heading + bullet form."""
     from specify_cli.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
 
     tasks_md = """
 ## Work Package WP01
-Requirement notes only
-- requirement refs live elsewhere
 ### Requirement Refs
 - FR-999
+- nfr-001
 """.strip()
 
-    assert _parse_requirement_refs_from_tasks_md(tasks_md) == {"WP01": []}
+    assert _parse_requirement_refs_from_tasks_md(tasks_md) == {
+        "WP01": ["FR-999", "NFR-001"],
+    }
 
 
 def test_should_advance_review_all_approved(feature_dir: Path) -> None:
