@@ -8,7 +8,7 @@
 
 Two independent, contained remediations delivered as parallel lanes:
 
-- **Workstream A (#1667 residual):** the `MissionStatus` aggregate read path is shipped and tested; its write methods (`transition()`, `save()`) are implemented but **untested and unwired** (RISK-001). Add unit coverage (happy + rejection + receipt), resolve the write-path wiring question (D-1), add fail-closed guards (`_read_meta`, slug allowlist), and extend the #1672 CWD-parity ratchet over the status write surface. **No new abstractions; no change to `BookkeepingTransaction`.**
+- **Workstream A (#1667 residual) — SCOPE REDUCED after dialectic review.** The aggregate read+write methods are shipped **and tested** (write-method tests + `_read_meta` fail-closed both landed in PR #1682). The only genuine residual is **FR-007** (a `mission_slug` allowlist guard at `load()`) plus the **open D-1 fork**: the live write surface (`agent status emit`) still bypasses the aggregate, so #1667's single-owner intent is unmet — wire it (fork Y, overlaps #1673) or close #1667 as delivered (fork X, recommended). **No change to `BookkeepingTransaction`.**
 - **Workstream B (#1636):** make `profile list` activation-aware and add an activation-gated `profile show`, both routed through the existing charter activation chokepoint (`charter.resolver.DoctrineService`) via one shared factory; route `charter context --include agent-profile:<id>` through the same seam; reconcile the `ad-hoc-profile-load` skill's four phantom commands; add a doc/CLI parity guard. Lineage gate = **Option A** (abstract base profiles allowed, with a warning).
 
 Technical approach is **wire-through-existing-seams**, not greenfield. Both the status aggregate and the activation wrapper already exist; the work is test coverage, one factory, CLI surface, and doc reconciliation.
@@ -36,17 +36,20 @@ Technical approach is **wire-through-existing-seams**, not greenfield. Both the 
 | DIR-007 Docstrings for public APIs | ✅ new factory + command + aggregate write methods get docstrings |
 | DIR-010/011 Identifier safety (ASCII allowlist) | ✅ FR-007 slug allowlist `[A-Za-z0-9_-]` with regression coverage |
 | DIR-031 Bounded-context boundary | ✅ wrapper stays in `charter.*`; CLI in `specify_cli.*` (C-005) |
-| DIR-032 Conceptual alignment / vocabulary | ⚠️ route new terms to glossary (abstract base profile, activation chokepoint) before/within plan; no code-before-vocab violation since no new domain model |
+| DIR-032 Conceptual alignment / vocabulary | ✅ **now a hard FR (FR-019), not advisory** — "abstract base profile" / "activation chokepoint" / "activated vs available" enter the glossary before the `profile show` warning string ships (dialectic review corrected the earlier hand-wave) |
 | DIR-003 Decision documentation | ✅ D-2 (lineage) recorded; D-1 resolved here in plan; short design note for activation gating |
 
 **Verdict:** PASS. No charter violation requires Complexity Tracking. One advisory: confirm glossary terms during implementation (non-blocking).
 
 ## Resolved Decisions (from spec Open/Unresolved)
 
-- **D-1 (write-path wiring) — RESOLVED → 1b (façade-over-existing).** The aggregate's `transition()` already delegates to `coordination/status_transition.emit_status_transition_transactional` (the live transactional caller). We will **not** invent a new production call site in this mission. Instead: (a) add the missing unit coverage proving the delegation works; (b) add one **integration test** that drives a real lane transition through `MissionStatus.transition()`+`.save()` end-to-end so the methods have a genuine exercised caller (the test is the live caller, plus the parity ratchet extension exercises the same path); (c) document `MissionStatus.{transition,save}` in the module as the sanctioned aggregate API over the transactional plumbing. This closes RISK-001's "no live caller / no coverage" without premature re-wiring of `agent/status.py` (which is a read surface). Re-wiring write callers belongs to #1673 residue routing, kept out of scope (C-007).
-- **D-2 (lineage gate) — Option A + warning** (operator decision; abstract base profiles).
-- **D-3 (#1672 scope) — narrow slice** (FR-008).
-- **D-4 (`profile_not_activated` schema)** — finalized in contracts below.
+> ⚠️ **D-1 was OVERTURNED by the dialectic review.** The original "1b: façade-over-existing, tests-as-caller" resolution is invalid because (a) the unit tests already exist on `main` (#1682) so there is nothing to add, and (b) a test calling the method does **not** make the aggregate a "live caller" — the real write surface (`agent status emit`, `status.py:275`) still bypasses it. D-1 is **re-opened** as a genuine scope fork; see below.
+
+- **D-1 (#1667 disposition) — RE-OPENED, user's call.** **(X)** declare #1667 substantively delivered (aggregate built, tested via #1682, fail-closed) and **close it**; route the live-surface wiring to #1673 residue routing; Workstream A shrinks to **FR-007 only**. **(Y)** wire `agent status emit` through `MissionStatus.transition()/.save()` for true FR-019/020 single-domain-ownership, accepting overlap with #1673 and the risk of touching the live write path. **Plan recommendation: (X).**
+- **D-2 (lineage gate) — Option A + warning** (operator decision; abstract base profiles). Stands.
+- **D-3 (#1672 scope) — narrow slice (FR-008) is conditional on fork Y.** Under fork X, FR-008 is dropped (the ratchet already covers the read; no new aggregate write surface to ratchet).
+- **D-4 (`profile_not_activated` schema)** — finalized in data-model.md.
+- **D-5 (new) — DIR-032 glossary (FR-019):** "abstract base profile" etc. enter the glossary before the warning string ships; not deferred as advisory.
 
 ## Project Structure
 
@@ -147,11 +150,10 @@ build_activation_aware_doctrine_service(repo_root)   ← NEW single factory (FR-
 
 | FR | Test | Type |
 |----|------|------|
-| FR-001/002 | `transition()` happy + illegal-pair rejection | unit |
-| FR-003 | `save()` returns `CommitReceipt` w/ event_ids | unit/integration |
-| FR-004 | integration: real lane transition through aggregate write API | integration |
-| FR-006/007 | `_read_meta` typed error; slug allowlist (incl. accented + `.isascii()` per DIR-011) | unit |
-| FR-008 | parity ratchet extended over write transition, both CWDs | architectural |
+| ~~FR-001/002/003/006~~ | already covered by #1682 (`tests/unit/status/test_mission_status_aggregate.py:410-537`) — no new test |
+| FR-007 | slug allowlist guard (incl. accented + `.isascii()` per DIR-011) | unit |
+| FR-004 | *(fork Y only)* integration: real lane transition through aggregate write API + wire `agent status emit` | integration |
+| FR-008 | *(fork Y only)* parity ratchet extended over write transition, both CWDs | architectural |
 | FR-011/012 | `list` activation filtering (3-state) + `--all`/`--show-available` annotation | unit |
 | FR-013/014 | `show` full def + activation gate + structured not-found | unit |
 | FR-015 | lineage Option A: abstract-parent resolves + warning; `show <parent>` gated | unit |
