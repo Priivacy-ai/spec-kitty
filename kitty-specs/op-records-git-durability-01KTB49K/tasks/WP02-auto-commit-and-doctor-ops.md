@@ -15,6 +15,9 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-op-records-git-durability-01KTB49K
+base_commit: 9299d39ae00f559517100704d98a1a5fa60171f2
+created_at: '2026-06-05T06:36:57.778493+00:00'
 subtasks:
 - T008
 - T009
@@ -23,7 +26,8 @@ subtasks:
 - T012
 - T013
 - T014
-agent: claude
+agent: "claude:sonnet:python-pedro:implementer"
+shell_pid: "55376"
 history:
 - date: '2026-06-05'
   event: created
@@ -590,3 +594,7 @@ Find the `[Unreleased]` section (or the current version section) and add:
 - Confirm `ops` command appears in `doctor.py` via `spec-kitty doctor --help` output
 - Check `test_doctor_ops.py` covers the `_NON_OP_FILENAMES` exclusion set
 - Confirm `test_executor.py` T-005 asserts the file EXISTS as untracked (not deleted)
+
+## Activity Log
+
+- 2026-06-05T06:37:01Z – claude:sonnet:python-pedro:implementer – shell_pid=55376 – Assigned agent via action command
