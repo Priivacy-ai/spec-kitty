@@ -94,3 +94,4 @@ Use the `/ad-hoc-profile-load` skill to load `python-pedro` (role `implementer`)
 - 2026-06-05T08:32:05Z – system – Prompt created.
 - 2026-06-05T12:58:35Z – claude – Moved to in_progress
 - 2026-06-05T12:58:36Z – claude – Implemented via bypass; tests green
+- 2026-06-05T12:58:38Z – claude – WP05 done+tested

@@ -16,7 +16,8 @@ subtasks:
 - T009
 - T010
 phase: 'Lane A — #1667 ownership'
-agent: claude
+agent: "claude"
+assignee: "claude"
 history:
 - at: '2026-06-05T08:32:05Z'
   actor: system
@@ -96,3 +97,5 @@ Extend the existing CWD-invariance ratchet (#1672) to cover the status **write**
 ## Activity Log
 
 - 2026-06-05T08:32:05Z – system – Prompt created.
+- 2026-06-05T12:58:41Z – claude – Moved to in_progress
+- 2026-06-05T12:58:42Z – claude – Implemented via bypass; tests green

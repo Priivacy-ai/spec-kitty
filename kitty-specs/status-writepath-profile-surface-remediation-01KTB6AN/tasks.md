@@ -72,10 +72,10 @@ Two file-disjoint workstreams → three execution lanes:
 
 **Independent test**: ratchet asserts identical write outcome from main-checkout and lane-worktree CWDs, and fails if the surface re-derives context.
 
-- [ ] T007 Extend parity ratchet fixture with a status **write** transition step (WP02)
-- [ ] T008 Assert CWD-parity of the write across main-checkout and lane-worktree (WP02)
-- [ ] T009 Anti-vacuity: corrupt write path → ratchet catches divergence (WP02)
-- [ ] T010 Confirm CI registration covers the extended ratchet (WP02)
+- [x] T007 Extend parity ratchet fixture with a status **write** transition step (WP02)
+- [x] T008 Assert CWD-parity of the write across main-checkout and lane-worktree (WP02)
+- [x] T009 Anti-vacuity: corrupt write path → ratchet catches divergence (WP02)
+- [x] T010 Confirm CI registration covers the extended ratchet (WP02)
 
 **Risks**: shared P0 file owned by another contributor (C-008) — extend only, never weaken existing assertions.
 
