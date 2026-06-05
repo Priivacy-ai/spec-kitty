@@ -97,14 +97,30 @@ def test_layer_safety_charter_and_doctrine_do_not_import_specify_cli() -> None:
     ``specify_cli`` — that would invert the dependency direction (C-005).
     """
     import ast
-    import importlib
-    import sys
+    import importlib.util
 
-    # Ensure the factory and its transitive charter/doctrine deps are loaded.
-    importlib.import_module("specify_cli.doctrine_service_factory")
-    importlib.import_module("charter.resolver")
-    importlib.import_module("charter.pack_context")
-    importlib.import_module("doctrine.service")
+    def _module_source(mod_name: str) -> Path | None:
+        try:
+            spec = importlib.util.find_spec(mod_name)
+        except (ImportError, ValueError, AttributeError, ModuleNotFoundError):
+            return None
+        if spec is None or not spec.origin or spec.origin == "built-in":
+            return None
+        path = Path(spec.origin)
+        return path if path.suffix == ".py" else None
+
+    def _first_party_imports(source_path: Path) -> set[str]:
+        try:
+            tree = ast.parse(source_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, SyntaxError):
+            return set()
+        names: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names.update(alias.name for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+                names.add(node.module)
+        return {n for n in names if n.split(".")[0] in {"specify_cli", "charter", "doctrine"}}
 
     def _imports_specify_cli(source_path: Path) -> bool:
         """Return True iff the module *actually* imports ``specify_cli`` (AST, not text).
@@ -126,19 +142,33 @@ def test_layer_safety_charter_and_doctrine_do_not_import_specify_cli() -> None:
                     return True
         return False
 
-    offenders: list[str] = []
-    for name, module in list(sys.modules.items()):
-        if module is None:
+    # Deterministically walk the factory's *own* transitive first-party import
+    # closure (static AST BFS) instead of policing every charter/doctrine module
+    # other tests happen to have loaded into sys.modules. Pre-existing crossings
+    # outside the factory's dependency graph (e.g.
+    # charter.synthesizer.synthesize_pipeline) are not this factory's concern and
+    # would make this test order-dependent.
+    seen: set[str] = set()
+    queue: list[str] = ["specify_cli.doctrine_service_factory"]
+    charter_doctrine_closure: set[str] = set()
+    while queue:
+        mod = queue.pop()
+        if mod in seen:
             continue
-        if not (name == "charter" or name == "doctrine" or name.startswith(("charter.", "doctrine."))):
+        seen.add(mod)
+        source = _module_source(mod)
+        if source is None:
             continue
-        source = getattr(module, "__file__", None)
-        if not source:
-            continue
-        if _imports_specify_cli(Path(source)):
-            offenders.append(name)
+        if mod.split(".")[0] in {"charter", "doctrine"}:
+            charter_doctrine_closure.add(mod)
+        queue.extend(imp for imp in _first_party_imports(source) if imp not in seen)
 
+    offenders = sorted(
+        mod
+        for mod in charter_doctrine_closure
+        if (src := _module_source(mod)) is not None and _imports_specify_cli(src)
+    )
     assert not offenders, (
-        "charter/doctrine layer modules must not import specify_cli "
-        f"(found: {sorted(offenders)})"
+        "charter/doctrine modules in the factory's import closure must not "
+        f"import specify_cli (found: {offenders})"
     )
