@@ -172,6 +172,141 @@ def test_safe_commit_protected_branch(tmp_path: Path) -> None:
     assert err.commit_message == "WP01: add alpha"
 
 
+def test_safe_commit_allows_completed_op_record_on_protected_branch(tmp_path: Path) -> None:
+    """The explicit Op policy can commit one completed Op file on protected branches."""
+    repo = tmp_path / "repo"
+    _init_repo(repo, initial_branch="main")
+
+    op_id = "01KTBTTSWK43WGCPYKBMRCCY8T"
+    op_path = repo / "kitty-ops" / f"{op_id}.jsonl"
+    op_path.parent.mkdir()
+    op_path.write_text(
+        '{"event":"started","invocation_id":"01KTBTTSWK43WGCPYKBMRCCY8T"}\n'
+        '{"event":"completed","invocation_id":"01KTBTTSWK43WGCPYKBMRCCY8T"}\n',
+        encoding="utf-8",
+    )
+
+    (repo / "seed.txt").write_text("seed staged outside Op commit\n", encoding="utf-8")
+    _git(repo, "add", "seed.txt")
+
+    result = safe_commit(
+        repo_root=repo,
+        worktree_root=repo,
+        destination_ref="main",
+        message=f"op(implementer-fixture): implement [{op_id[:8]}]",
+        paths=(op_path,),
+        allow_completed_op_on_protected_branch=True,
+    )
+
+    assert isinstance(result, CommitResult)
+    assert result.destination_ref == "main"
+
+    committed_files = _git(repo, "show", "--name-only", "--format=", "HEAD").stdout.splitlines()
+    assert committed_files == [f"kitty-ops/{op_id}.jsonl"]
+
+    staged_files = _git(repo, "diff", "--cached", "--name-only").stdout.splitlines()
+    assert staged_files == ["seed.txt"]
+
+
+def test_safe_commit_rejects_op_record_on_protected_branch_without_policy(
+    tmp_path: Path,
+) -> None:
+    """A valid Op path still refuses on main unless the Op policy is explicit."""
+    repo = tmp_path / "repo"
+    _init_repo(repo, initial_branch="main")
+
+    op_id = "01KTBTTSWK43WGCPYKBMRCCY8T"
+    op_path = repo / "kitty-ops" / f"{op_id}.jsonl"
+    op_path.parent.mkdir()
+    op_path.write_text('{"event":"completed"}\n', encoding="utf-8")
+
+    with pytest.raises(ProtectedBranchRefused):
+        safe_commit(
+            repo_root=repo,
+            worktree_root=repo,
+            destination_ref="main",
+            message=f"op(implementer-fixture): implement [{op_id[:8]}]",
+            paths=(op_path,),
+        )
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        Path("kitty-ops/ops-index.jsonl"),
+        Path("kitty-ops/lifecycle.jsonl"),
+        Path("kitty-ops/01KTBTTSWK43WGCPYKBMRCCY8T.txt"),
+        Path("kitty-ops/not-a-ulid.jsonl"),
+        Path("other/01KTBTTSWK43WGCPYKBMRCCY8T.jsonl"),
+    ],
+)
+def test_safe_commit_op_policy_rejects_non_op_paths_on_protected_branch(
+    tmp_path: Path,
+    relative_path: Path,
+) -> None:
+    """The Op protected-branch policy is limited to one kitty-ops/<op-id>.jsonl."""
+    repo = tmp_path / "repo"
+    _init_repo(repo, initial_branch="main")
+
+    target = repo / relative_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("not a completed Op record\n", encoding="utf-8")
+
+    with pytest.raises(ProtectedBranchRefused):
+        safe_commit(
+            repo_root=repo,
+            worktree_root=repo,
+            destination_ref="main",
+            message="op(implementer-fixture): implement [01KTBTTS]",
+            paths=(target,),
+            allow_completed_op_on_protected_branch=True,
+        )
+
+
+def test_safe_commit_op_policy_rejects_extra_paths_on_protected_branch(tmp_path: Path) -> None:
+    """The Op protected-branch policy never widens to multi-path commits."""
+    repo = tmp_path / "repo"
+    _init_repo(repo, initial_branch="main")
+
+    op_id = "01KTBTTSWK43WGCPYKBMRCCY8T"
+    op_path = repo / "kitty-ops" / f"{op_id}.jsonl"
+    op_path.parent.mkdir()
+    op_path.write_text('{"event":"completed"}\n', encoding="utf-8")
+    extra_path = repo / "extra.txt"
+    extra_path.write_text("extra\n", encoding="utf-8")
+
+    with pytest.raises(ProtectedBranchRefused):
+        safe_commit(
+            repo_root=repo,
+            worktree_root=repo,
+            destination_ref="main",
+            message=f"op(implementer-fixture): implement [{op_id[:8]}]",
+            paths=(op_path, extra_path),
+            allow_completed_op_on_protected_branch=True,
+        )
+
+
+def test_safe_commit_op_policy_requires_op_commit_message(tmp_path: Path) -> None:
+    """The protected-branch Op policy also requires the op(...) convention."""
+    repo = tmp_path / "repo"
+    _init_repo(repo, initial_branch="main")
+
+    op_id = "01KTBTTSWK43WGCPYKBMRCCY8T"
+    op_path = repo / "kitty-ops" / f"{op_id}.jsonl"
+    op_path.parent.mkdir()
+    op_path.write_text('{"event":"completed"}\n', encoding="utf-8")
+
+    with pytest.raises(ProtectedBranchRefused):
+        safe_commit(
+            repo_root=repo,
+            worktree_root=repo,
+            destination_ref="main",
+            message="chore: arbitrary protected branch commit",
+            paths=(op_path,),
+            allow_completed_op_on_protected_branch=True,
+        )
+
+
 def test_safe_commit_protected_branch_allows_documented_exception(tmp_path: Path) -> None:
     """Documented exception messages may land on a protected branch."""
     repo = tmp_path / "repo"

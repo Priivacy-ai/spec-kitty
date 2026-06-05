@@ -299,7 +299,7 @@ class TestAutoCommitOnCompleteInvocation:
         assert call_kwargs["destination_ref"] in {"main", "master"}
         assert call_kwargs["message"].startswith("op(implementer-fixture):")
         assert call_kwargs["paths"] == (Path(f"{EVENTS_DIR}/{payload.invocation_id}.jsonl"),)
-        assert call_kwargs["allow_protected_branch_in_test_mode"] is True
+        assert call_kwargs["allow_completed_op_on_protected_branch"] is True
 
     def test_complete_invocation_on_protected_branch_preserves_unrelated_staging(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
