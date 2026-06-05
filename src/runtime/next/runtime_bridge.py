@@ -278,22 +278,39 @@ def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
 def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[str]]:
     """Parse requirement references per WP from tasks.md content."""
     requirement_refs: dict[str, list[str]] = {}
+    requirement_heading_pattern = re.compile(
+        r"^#{1,4}\s*\*?\*?Requirements?\s*(?:Refs)?\*?\*?\s*$",
+        re.IGNORECASE,
+    )
 
     for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items():
         refs: list[str] = []
+        in_requirement_ref_list = False
         for line in section_content.splitlines():
-            if "Requirement" not in line and "requirement" not in line:
+            stripped_line = line.strip()
+            if in_requirement_ref_list:
+                if not stripped_line:
+                    continue
+                if stripped_line.startswith(("-", "*")):
+                    refs.extend(
+                        ref_id.upper()
+                        for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", stripped_line, re.IGNORECASE)
+                    )
+                    continue
+                in_requirement_ref_list = False
+
+            lower_line = line.lower()
+            if "requirement" not in lower_line:
                 continue
-            ref_line_match = re.search(
-                r"\*?\*?Requirements?\s*(?:Refs)?\*?\*?\s*:\s*(.+)",
-                line,
-                re.IGNORECASE,
-            )
-            if ref_line_match:
+            prefix, separator, suffix = line.partition(":")
+            if separator and "requirement" in prefix.lower():
                 refs.extend(
                     ref_id.upper()
-                    for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", ref_line_match.group(1), re.IGNORECASE)
+                    for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", suffix, re.IGNORECASE)
                 )
+                continue
+            if requirement_heading_pattern.match(stripped_line):
+                in_requirement_ref_list = True
         requirement_refs[wp_id] = list(dict.fromkeys(refs))
 
     return requirement_refs

@@ -669,6 +669,8 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
     ) -> BookkeepingTransaction:
         safe_mission_slug = _validate_safe_segment("mission_slug", mission_slug)
         safe_mid8 = _validate_safe_segment("mid8", mid8)
+        effective_destination_ref = destination_ref
+        effective_normalized_ref = normalised_ref
 
         # Resolve the worktree.  Two paths exist (WP08 T035–T036, SC-11):
         #
@@ -704,13 +706,13 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 raise
             # Override caller-supplied destination_ref with the actual
             # lane branch so policy + HEAD assertion both see truth.
-            normalised_ref = _normalize_ref(lane_branch)
-            destination_ref = normalised_ref
+            effective_normalized_ref = _normalize_ref(lane_branch)
+            effective_destination_ref = effective_normalized_ref
             _emit_legacy_warning_once(repo_root, mission_id, safe_mission_slug)
         else:
             coord_branch = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
             caller_change_set = GitChangeSet(
-                destination_ref=destination_ref,
+                destination_ref=effective_destination_ref,
                 repo_root=repo_root,
                 worktree_root=repo_root,
                 paths=(),
@@ -729,7 +731,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 )
                 allow_coord_resolution_to_report_missing_branch = (
                     caller_verdict.error_code == "DESTINATION_REF_NOT_FOUND"
-                    and destination_ref == coord_branch
+                    and effective_destination_ref == coord_branch
                 )
                 if not (
                     can_recover_to_coord_branch
@@ -749,8 +751,8 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             # Status events must be committed to the coordination branch,
             # not the caller-supplied destination (which may be "main").
             # Mirror the legacy path's destination_ref override (lines above).
-            normalised_ref = _normalize_ref(coord_branch)
-            destination_ref = normalised_ref
+            effective_normalized_ref = _normalize_ref(coord_branch)
+            effective_destination_ref = effective_normalized_ref
 
         # 3. Compute the feature_dir + status files INSIDE the resolved
         # worktree.  Both paths (coord and legacy lane) host the
@@ -768,7 +770,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # This still happens before any bookkeeping write; the lock is
         # already held only to serialize first-time coord worktree setup.
         change_set = GitChangeSet(
-            destination_ref=destination_ref,
+            destination_ref=effective_destination_ref,
             repo_root=repo_root,
             worktree_root=worktree_root,
             paths=(events_path, snapshot_path),
@@ -796,7 +798,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             mission_id=mission_id,
             mission_slug=mission_slug,
             mid8=mid8,
-            destination_ref=normalised_ref,
+            destination_ref=effective_normalized_ref,
             operation=operation,
             worktree_root=worktree_root,
             feature_dir=feature_dir,

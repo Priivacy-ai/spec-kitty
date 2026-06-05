@@ -721,6 +721,19 @@ class TestTasksMarkdownParsing:
             "WP01": ["FR-001", "NFR-002"]
         }
 
+    def test_parse_requirement_refs_supports_heading_bullet_format(self) -> None:
+        from specify_cli.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
+
+        tasks_md = (
+            "## Work Package WP01: Build parser\n"
+            "### Requirement Refs\n"
+            "- FR-001, nfr-002\n"
+        )
+
+        assert _parse_requirement_refs_from_tasks_md(tasks_md) == {
+            "WP01": ["FR-001", "NFR-002"]
+        }
+
     def test_parse_requirement_refs_completes_under_budget_on_adversarial_input(self) -> None:
         from specify_cli.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
 

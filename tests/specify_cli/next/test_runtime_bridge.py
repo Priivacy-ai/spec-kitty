@@ -237,6 +237,41 @@ def test_should_advance_implement_one_canceled(feature_dir: Path) -> None:
     assert _should_advance_wp_step("implement", feature_dir) is True
 
 
+def test_parse_requirement_refs_handles_markdown_label_without_regex_backtracking() -> None:
+    """Requirement refs parser accepts bold markdown labels and dedupes refs."""
+    from specify_cli.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
+
+    tasks_md = """
+## Work Package WP01
+**Requirement Refs**: FR-001, nfr-002, FR-001
+Ignored line
+
+## Work Package WP02
+Requirement Refs: C-003, FR-004
+""".strip()
+
+    assert _parse_requirement_refs_from_tasks_md(tasks_md) == {
+        "WP01": ["FR-001", "NFR-002"],
+        "WP02": ["C-003", "FR-004"],
+    }
+
+
+def test_parse_requirement_refs_supports_heading_and_bullet_list_format() -> None:
+    """Requirement refs parser accepts the documented heading + bullet form."""
+    from specify_cli.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
+
+    tasks_md = """
+## Work Package WP01
+### Requirement Refs
+- FR-999
+- nfr-001
+""".strip()
+
+    assert _parse_requirement_refs_from_tasks_md(tasks_md) == {
+        "WP01": ["FR-999", "NFR-001"],
+    }
+
+
 def test_should_advance_review_all_approved(feature_dir: Path) -> None:
     """review step advances when all WPs are approved."""
     tasks = feature_dir / "tasks"
