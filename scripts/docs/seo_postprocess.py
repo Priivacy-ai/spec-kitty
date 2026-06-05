@@ -60,9 +60,7 @@ def should_index(relative_path: str, markup: str) -> bool:
     if 'http-equiv="refresh"' in markup.lower():
         return False
     robots = ROBOTS_RE.search(markup)
-    if robots and "noindex" in robots.group(1).lower():
-        return False
-    return True
+    return not (robots and "noindex" in robots.group(1).lower())
 
 
 def extract_title(markup: str) -> str:
@@ -133,6 +131,25 @@ def kitty_specs_json_ld(page: Page, base_url: str) -> list[dict[str, object]]:
                 "url": page.url,
                 "itemListOrder": "https://schema.org/ItemListOrderDescending",
             },
+        ]
+    if rel == "kitty-specs/glossary.html":
+        return [
+            {
+                "@context": "https://schema.org",
+                "@type": "DefinedTermSet",
+                "name": "Spec Kitty Glossary",
+                "description": page.description,
+                "url": page.url,
+                "inLanguage": "en",
+                "isPartOf": {"@type": "WebSite", "name": "Spec Kitty Documentation", "url": docs_url},
+                "about": [
+                    "Spec Kitty terminology",
+                    "spec-driven development",
+                    "AI coding agents",
+                    "mission governance",
+                    "work packages",
+                ],
+            }
         ]
 
     parts = rel.split("/")
