@@ -458,6 +458,37 @@ class TestTransitionHappyPath:
         with pytest.raises(InvalidTransitionError):
             ms.transition(bad_request)
 
+    def test_transition_coerces_unparseable_lanes_in_error_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """transition() still raises InvalidTransitionError (not a crash) when the
+        lane strings are not parseable ``Lane`` values — the WP01/FR-004 error
+        coercion falls back to ``Lane.PLANNED`` for both from- and to-lane."""
+        slug = "034-coerce-bogus-lanes"
+        mission_dir = _make_mission_dir(tmp_path, slug)
+        _write_events_file(mission_dir, [
+            _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH21"),
+        ])
+
+        import specify_cli.status as status_pkg
+        from specify_cli.status import InvalidTransitionError, TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+        # Force the resolved from-lane to a non-Lane string so the from-lane
+        # coercion hits the ValueError -> Lane.PLANNED fallback.
+        monkeypatch.setattr(status_pkg, "get_wp_lane", lambda *a, **k: "uninitialized")
+
+        bad_request = TransitionRequest(
+            wp_id="WP01",
+            to_lane="not-a-real-lane",  # unparseable to-lane -> ValueError fallback too
+            actor="claude",
+            feature_dir=ms.read_dir,
+            mission_slug=slug,
+        )
+        with pytest.raises(InvalidTransitionError):
+            ms.transition(bad_request)
+
 
 class TestSaveReturnType:
     def test_save_uses_real_bookkeeping_transaction_and_returns_commit_receipt(

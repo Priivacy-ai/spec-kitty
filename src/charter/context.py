@@ -358,12 +358,14 @@ def build_charter_context_include(
         gated_service = _build_activation_aware_doctrine_service(
             repo_root, org_roots=org_roots
         )
-        artifact = _render_doctrine_artifact_include(
+        # For a kind with a registered renderer (agent_profile has one),
+        # _render_doctrine_artifact_include renders the activated profile or
+        # raises ("No agent_profile found ...") for a gated/missing one — it
+        # never returns None here, so a direct return is sufficient (no dead
+        # fall-through branch to guard).
+        return _render_doctrine_artifact_include(
             gated_service, canonical_kind, identifier
         )
-        if artifact is not None:
-            return artifact
-        raise ValueError(f"Unsupported --include selector kind '{kind}'.")
 
     service = _build_doctrine_service(repo_root, org_roots=org_roots)
     if canonical_kind == ArtifactKind.DIRECTIVE.value:
