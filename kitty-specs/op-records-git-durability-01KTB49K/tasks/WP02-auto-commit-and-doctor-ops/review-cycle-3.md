@@ -1,7 +1,7 @@
 ---
 affected_files:
-- src/specify_cli/cli/commands/doctor.py
-- tests/specify_cli/invocation/test_executor.py
+- path: src/specify_cli/cli/commands/doctor.py
+- path: tests/specify_cli/invocation/test_executor.py
 cycle_number: 3
 mission_slug: op-records-git-durability-01KTB49K
 reproduction_command: uv run pytest tests/specify_cli/invocation/test_executor.py tests/specify_cli/invocation/test_doctor_ops.py -v
