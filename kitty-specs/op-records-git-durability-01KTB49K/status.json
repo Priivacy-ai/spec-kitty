@@ -1,9 +1,9 @@
 {
-  "event_count": 2,
-  "last_event_id": "01KTB5KZP4CDZVR3QMJWD5FF6X",
-  "materialized_at": "2026-06-05T05:55:40.868604+00:00",
+  "event_count": 0,
+  "last_event_id": null,
+  "materialized_at": "",
   "mission_number": "",
-  "mission_slug": "op-records-git-durability-01KTB49K",
+  "mission_slug": "",
   "mission_type": "software-dev",
   "summary": {
     "approved": 0,
@@ -14,22 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 2
+    "planned": 0
   },
-  "work_packages": {
-    "WP01": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KTB5KYP1F4MP4V4EFBWK1NZ8",
-      "last_transition_at": "2026-06-05T05:55:39.841489+00:00"
-    },
-    "WP02": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KTB5KZP4CDZVR3QMJWD5FF6X",
-      "last_transition_at": "2026-06-05T05:55:40.868604+00:00"
-    }
-  }
+  "work_packages": {}
 }
