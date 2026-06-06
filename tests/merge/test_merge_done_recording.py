@@ -173,6 +173,56 @@ def test_mark_wp_merged_done_recovers_reviewed_wps_from_pre_review_lanes(
     assert emit_mock.call_args_list[1].args[0].to_lane == "done"
 
 
+def test_mark_wp_merged_done_replays_approved_before_done_for_primary_fallback(
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> None:
+    """Primary fallback must replay conforming approved history before done."""
+    from specify_cli.status.models import Lane
+
+    repo_root = tmp_path
+    mission_slug = "021-test"
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": "01TEST00000000000000000000",
+                "mid8": "01TEST00",
+                "mission_slug": mission_slug,
+                "coordination_branch": "kitty/mission-021-test-01TEST00",
+            }
+        ),
+        encoding="utf-8",
+    )
+    _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
+
+    emit_mock = Mock()
+    monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
+    monkeypatch.setattr(
+        "specify_cli.coordination.status_transition.read_current_wp_state_transactional",
+        lambda **_kw: (Lane.PLANNED, None),
+    )
+    monkeypatch.setattr(
+        "specify_cli.coordination.status_transition.has_transition_to_transactional",
+        lambda **_kw: False,
+    )
+    monkeypatch.setattr(
+        "specify_cli.status.lane_reader.get_wp_lane",
+        lambda *_a, **_kw: "approved",
+    )
+
+    _mark_wp_merged_done(repo_root, mission_slug, "WP01", "main")
+
+    assert emit_mock.call_count == 2
+    approved_request = emit_mock.call_args_list[0].args[0]
+    done_request = emit_mock.call_args_list[1].args[0]
+    assert approved_request.to_lane == "approved"
+    assert done_request.to_lane == "done"
+    assert done_request.force is False
+
+
 def test_mark_wp_merged_done_synthesized_evidence_uses_typed_agent(
     tmp_path: Path,
     monkeypatch: Any,

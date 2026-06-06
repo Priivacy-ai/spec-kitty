@@ -133,6 +133,18 @@ def _baseline_run_command_side_effect(feature_dir: Path, baseline_sha: str):
             and str(cmd[2]).endswith("meta.json")
         ):
             return (0, committed_meta_json, "")
+        if (
+            isinstance(cmd, (list, tuple))
+            and len(cmd) >= 3
+            and cmd[0] == "git"
+            and cmd[1] == "show"
+            and str(cmd[2]).endswith("status.events.jsonl")
+        ):
+            committed_events = "\n".join(
+                json.dumps({"wp_id": wp_id, "to_lane": "done"})
+                for wp_id in ("WP01", "WP02")
+            )
+            return (0, committed_events + "\n", "")
         return (0, baseline_sha, "")
 
     return _side_effect
@@ -256,6 +268,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
         mission_slug = "068-test-dossier"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
+        _write_meta(feature_dir, mission_slug, mission_id=None)
         _seed_mission_branch(tmp_path, mission_slug)
 
         manifest = MagicMock()
@@ -633,6 +646,123 @@ class TestDoneEventsCommittedToGit:
         )
         # Explicitly: do NOT use git reset --hard HEAD here — that would be a no-op
         # (the file is already at HEAD) and proves nothing about the commit having occurred.
+
+    def test_modern_coord_done_events_land_on_target_history(self, tmp_path: Path) -> None:
+        """Modern coord topology: target branch must contain done after merge."""
+        mid8 = "01KMODER"
+        mission_slug = f"068-modern-done-events-{mid8}"
+        mission_id = f"{mid8}NSTATUSSURFACE0000000"
+        wps = ["WP01", "WP02"]
+
+        _init_git_repo(tmp_path)
+
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        feature_dir.mkdir(parents=True)
+        coord_branch = f"kitty/mission-{mission_slug}"
+        _write_meta(
+            feature_dir,
+            mission_slug,
+            mission_id=mission_id,
+            mid8=mid8,
+            coordination_branch=coord_branch,
+        )
+        tasks_dir = feature_dir / "tasks"
+        for wp_id in wps:
+            _write_wp_file(tasks_dir, wp_id)
+            _seed_status_event(feature_dir, mission_slug, wp_id, "approved")
+
+        from specify_cli.status.reducer import materialize
+
+        materialize(feature_dir)
+        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "-c", "commit.gpgsign=false", "commit", "-m", "initial modern feature"],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(["git", "branch", coord_branch], cwd=tmp_path, check=True, capture_output=True)
+
+        manifest = MagicMock()
+        manifest.target_branch = "main"
+        manifest.mission_branch = coord_branch
+        lane_a = MagicMock()
+        lane_a.lane_id = "lane-a"
+        lane_a.wp_ids = ["WP01"]
+        lane_b = MagicMock()
+        lane_b.lane_id = "lane-b"
+        lane_b.wp_ids = ["WP02"]
+        manifest.lanes = [lane_a, lane_b]
+
+        lane_result = MagicMock()
+        lane_result.success = True
+        lane_result.errors = []
+
+        def _merge_mission_to_target(*_args, **_kwargs):  # noqa: ANN002, ANN003
+            subprocess.run(["git", "checkout", "main"], cwd=tmp_path, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "-c", "commit.gpgsign=false", "merge", "--no-ff", coord_branch, "-m", "merge mission"],
+                cwd=tmp_path,
+                check=True,
+                capture_output=True,
+            )
+            commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=tmp_path, text=True).strip()
+            result = MagicMock()
+            result.success = True
+            result.errors = []
+            result.commit = commit
+            return result
+
+        with (
+            patch("specify_cli.cli.commands.merge.require_lanes_json", return_value=manifest),
+            patch("specify_cli.cli.commands.merge.load_state", return_value=None),
+            patch("specify_cli.cli.commands.merge.save_state"),
+            patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.merge._bake_mission_number_into_mission_branch"),
+            patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
+            patch("specify_cli.lanes.merge.merge_mission_to_target", side_effect=_merge_mission_to_target),
+            patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
+            patch("specify_cli.policy.merge_gates.evaluate_merge_gates") as mock_gates,
+            patch("specify_cli.policy.config.load_policy_config") as mock_policy,
+            patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
+            patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
+            patch("specify_cli.cli.commands.merge.clear_state"),
+            patch("specify_cli.cli.commands.merge.emit_mission_closed"),
+            patch("specify_cli.status.emit._saas_fan_out"),
+            patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"),
+        ):
+            stale_report = MagicMock()
+            stale_report.findings = []
+            mock_run_check.return_value = stale_report
+
+            gate_eval = MagicMock()
+            gate_eval.overall_pass = True
+            gate_eval.gates = []
+            mock_gates.return_value = gate_eval
+
+            policy = MagicMock()
+            policy.merge_gates = []
+            mock_policy.return_value = policy
+
+            _run_lane_based_merge(
+                repo_root=tmp_path,
+                mission_slug=mission_slug,
+                push=False,
+                delete_branch=False,
+                remove_worktree=False,
+                strategy=MergeStrategy.SQUASH,
+            )
+
+        result = subprocess.run(
+            ["git", "show", f"main:kitty-specs/{mission_slug}/status.events.jsonl"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        events = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
+        done_wps = {event["wp_id"] for event in events if event.get("to_lane") == "done"}
+        assert done_wps == set(wps)
 
     def test_merge_emits_mission_closed_with_canonical_id(self, tmp_path: Path) -> None:
         mission_slug = "068-mission-closed-test"

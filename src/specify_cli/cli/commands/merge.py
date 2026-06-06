@@ -233,7 +233,12 @@ def _mark_wp_merged_done(
     the emission is skipped so that retries are idempotent.
     """
     # Primary checkout path — used only for WP file lookup (tasks/*.md live here).
-    primary_feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+    # Do not use the read-path resolver: after the first coord status commit it
+    # can route to the coordination worktree, whose sparse/materialized surface
+    # may carry status files but not task markdown.
+    primary_feature_dir = repo_root / KITTY_SPECS_DIR / mission_slug
+    if not primary_feature_dir.exists():
+        primary_feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
     wp_path = None
     for candidate in sorted((primary_feature_dir / "tasks").glob(f"{wp_id}*.md")):
         wp_path = candidate
@@ -243,10 +248,13 @@ def _mark_wp_merged_done(
         return
 
     metadata, _body = read_wp_frontmatter(wp_path)
-    # Resolve the authoritative status surface once (FR-002 / NFR-003: sole mechanism).
-    # All status reads and writes below use this feature_dir so write and read sides
-    # are always on the same surface.
-    feature_dir = resolve_status_surface(repo_root, mission_slug).parent
+    # Validate the authoritative status surface once (FR-002 / NFR-003).
+    # Transactional status helpers must receive the primary meta-bearing feature
+    # dir so they can resolve/commit to the coordination branch. Passing the
+    # coord worktree dir loses meta in status-only coord worktrees and degrades
+    # writes into local, non-durable file edits.
+    resolve_status_surface(repo_root, mission_slug)
+    feature_dir = primary_feature_dir
     from specify_cli.status.models import DoneEvidence, ReviewApproval
     from specify_cli.coordination.status_transition import (
         emit_status_transition_transactional,
@@ -264,6 +272,7 @@ def _mark_wp_merged_done(
         wp_id=wp_id,
         repo_root=repo_root,
     )
+    coord_lane = lane
     if lane == _Lane.DONE:
         return
 
@@ -307,7 +316,12 @@ def _mark_wp_merged_done(
             return
 
     _pre_approved_lanes = frozenset({_Lane.PLANNED, _Lane.CLAIMED, _Lane.IN_PROGRESS, _Lane.FOR_REVIEW})
-    if lane in _pre_approved_lanes and evidence is not None:
+    needs_approved_replay = (
+        coord_lane == _Lane.PLANNED
+        and lane == _Lane.APPROVED
+        and _force_done
+    )
+    if (lane in _pre_approved_lanes or needs_approved_replay) and evidence is not None:
         # Dedup guard for the intermediate approved transition
         if _has_transition_to(feature_dir, mission_slug, wp_id, "approved", repo_root):
             logger.debug("Dedup: %s already has 'approved' transition, skipping emit", wp_id)
@@ -336,6 +350,7 @@ def _mark_wp_merged_done(
                 console.print(f"[yellow]Warning:[/yellow] Failed to mark {wp_id} approved before done: {exc}")
                 return
         lane = _Lane.APPROVED
+        _force_done = False
 
     if lane != _Lane.APPROVED:
         console.print(f"[yellow]Warning:[/yellow] {wp_id} is in lane '{lane.value}', not approved; skipping automatic move to done after merge.")
@@ -416,6 +431,65 @@ def _assert_merged_wps_reached_done(
         raise typer.Exit(1)
 
 
+def _assert_merged_wps_done_on_target(
+    repo_root: Path,
+    mission_slug: str,
+    target_branch: str,
+    wp_ids: list[str],
+    *,
+    feature_dir: Path,
+    mission_id: str | None,
+) -> None:
+    """Fail when modern merged WP done events are absent from target history."""
+    if mission_id is None:
+        return
+
+    try:
+        rel_events_path = feature_dir.relative_to(repo_root) / _STATUS_EVENTS_FILENAME
+    except ValueError:
+        rel_events_path = Path(KITTY_SPECS_DIR) / mission_slug / _STATUS_EVENTS_FILENAME
+
+    ret_show, out_show, err_show = run_command(
+        ["git", "show", f"{target_branch}:{rel_events_path.as_posix()}"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret_show != 0:
+        console.print(
+            "[red]Error:[/red] Post-merge target validation failed: "
+            f"could not read {target_branch}:{rel_events_path.as_posix()} "
+            f"({(err_show or out_show or '').strip()})"
+        )
+        raise typer.Exit(1)
+
+    lanes_by_wp: dict[str, str] = {}
+    for line in (out_show or "").splitlines():
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        wp_id = event.get("wp_id")
+        to_lane = event.get("to_lane")
+        if isinstance(wp_id, str) and isinstance(to_lane, str):
+            lanes_by_wp[wp_id] = to_lane
+
+    incomplete = [
+        f"{wp_id}={lanes_by_wp.get(wp_id, 'missing')}"
+        for wp_id in wp_ids
+        if lanes_by_wp.get(wp_id) != "done"
+    ]
+    if incomplete:
+        console.print(
+            "[red]Error:[/red] Post-merge target validation failed: "
+            "merged WPs did not reach done in target branch history."
+        )
+        console.print(f"  Offending WPs: {', '.join(incomplete)}")
+        raise typer.Exit(1)
+
+
 def _reconcile_completed_wps_for_resume(
     *,
     feature_dir: Path,
@@ -448,6 +522,42 @@ def _reconcile_completed_wps_for_resume(
         merge_state.completed_wps = confirmed
         save_state(merge_state, repo_root)
     return set(confirmed)
+
+
+def _record_merged_wps_done_for_merge(
+    *,
+    main_repo: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    lanes_manifest: object,
+    target_branch: str,
+    merge_state: MergeState,
+    all_wp_ids: list[str],
+) -> None:
+    """Record done transitions for merged WPs and validate the canonical surface."""
+    console.print("  [dim]Recording merged work packages as done...[/dim]")
+    completed_set = _reconcile_completed_wps_for_resume(
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        merge_state=merge_state,
+        repo_root=main_repo,
+    )
+    for lane in lanes_manifest.lanes:
+        for wp_id in lane.wp_ids:
+            if wp_id in completed_set:
+                console.print(f"  [dim]Skipping {wp_id} (already recorded as done)[/dim]")
+                continue
+
+            merge_state.set_current_wp(wp_id)
+            save_state(merge_state, main_repo)
+
+            _mark_wp_merged_done(main_repo, mission_slug, wp_id, target_branch)
+
+            merge_state.mark_wp_complete(wp_id)
+            save_state(merge_state, main_repo)
+            completed_set.add(wp_id)
+
+    _assert_merged_wps_reached_done(main_repo, mission_slug, all_wp_ids)
 
 
 def _refresh_primary_checkout_after_merge(repo_root: Path) -> None:
@@ -1750,6 +1860,23 @@ def _run_lane_based_merge_locked(
         merge_state=state,
     )
 
+    status_surface_path = resolve_status_surface(main_repo, mission_slug)
+    done_marked_before_target = ".worktrees" in status_surface_path.parts
+    if done_marked_before_target:
+        # Modern coordination-backed missions must carry done events in the
+        # mission branch before it is merged to target. Recording after the
+        # target merge writes to a disposable coord/mission branch and can pass
+        # surface-local validation while target history never receives done.
+        _record_merged_wps_done_for_merge(
+            main_repo=main_repo,
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            lanes_manifest=lanes_manifest,
+            target_branch=lanes_manifest.target_branch,
+            merge_state=state,
+            all_wp_ids=all_wp_ids,
+        )
+
     # -- Mission-to-target merge (T010: honor strategy for this step only) --
     console.print(f"  [dim]Merging mission branch into {lanes_manifest.target_branch}...[/dim]")
     mission_result = merge_mission_to_target(
@@ -1819,29 +1946,16 @@ def _run_lane_based_merge_locked(
     # Audit date: 2026-06-06
 
     # -- T001: Mark WPs done with per-WP state tracking --
-    console.print("  [dim]Recording merged work packages as done...[/dim]")
-    completed_set = _reconcile_completed_wps_for_resume(
-        feature_dir=feature_dir,
-        mission_slug=mission_slug,
-        merge_state=state,
-        repo_root=main_repo,
-    )
-    for lane in lanes_manifest.lanes:
-        for wp_id in lane.wp_ids:
-            if wp_id in completed_set:
-                console.print(f"  [dim]Skipping {wp_id} (already recorded as done)[/dim]")
-                continue
-
-            state.set_current_wp(wp_id)
-            save_state(state, main_repo)
-
-            _mark_wp_merged_done(main_repo, mission_slug, wp_id, lanes_manifest.target_branch)
-
-            state.mark_wp_complete(wp_id)
-            save_state(state, main_repo)
-            completed_set.add(wp_id)
-
-    _assert_merged_wps_reached_done(main_repo, mission_slug, all_wp_ids)
+    if not done_marked_before_target:
+        _record_merged_wps_done_for_merge(
+            main_repo=main_repo,
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            lanes_manifest=lanes_manifest,
+            target_branch=lanes_manifest.target_branch,
+            merge_state=state,
+            all_wp_ids=all_wp_ids,
+        )
 
     # -- WP05/T007 FR-014: Post-merge working-tree invariant --
     # After the refresh, `git status --porcelain` MUST report at most the two
@@ -1929,6 +2043,15 @@ def _run_lane_based_merge_locked(
             raise
     else:
         console.print("  [dim]No post-merge bookkeeping changes to commit; continuing cleanup.[/dim]")
+
+    _assert_merged_wps_done_on_target(
+        main_repo,
+        mission_slug,
+        lanes_manifest.target_branch,
+        all_wp_ids,
+        feature_dir=feature_dir,
+        mission_id=_baseline_mission_id,
+    )
 
     # -- Post-merge baseline invariant (mirrors _assert_merged_wps_reached_done) --
     # Now that the bookkeeping commit (which carries meta.json's
