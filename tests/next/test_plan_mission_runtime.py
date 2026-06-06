@@ -281,9 +281,9 @@ class TestPlanMissionRegressions:
         assert "tasks_packages" not in step_ids, "legacy tasks_packages must stay internal to composition"
         assert "tasks_finalize" not in step_ids, "legacy tasks_finalize must stay internal to composition"
 
-        # Verify templates directory exists for software-dev
-        templates_dir = Path("src/specify_cli/missions/software-dev/templates")
-        assert templates_dir.exists(), "software-dev templates directory must exist"
+        # Software-dev content templates are canonical in doctrine.
+        templates_dir = Path("src/doctrine/missions/software-dev/templates")
+        assert templates_dir.exists(), "software-dev doctrine templates directory must exist"
         assert len(list(templates_dir.glob("*.md"))) > 0, "software-dev must have at least one template"
 
     def test_plan_mission_isolated_from_research(self):

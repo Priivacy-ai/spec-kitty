@@ -58,14 +58,14 @@ def _resolve_env_package_asset_root(root: Path) -> Path:
     """Normalize ``SPEC_KITTY_TEMPLATE_ROOT`` to the bundled missions directory.
 
     Development docs and tests point ``SPEC_KITTY_TEMPLATE_ROOT`` at the
-    checkout root. Runtime asset resolution needs the missions directory under
-    that checkout, not the checkout root itself.
+    checkout root. Runtime asset resolution needs the canonical doctrine
+    missions directory under that checkout, not the checkout root itself.
     """
     candidates = (
         root,
         root / "missions",
-        root / "src" / "specify_cli" / "missions",
         root / "src" / "doctrine" / "missions",
+        root / "src" / "specify_cli" / "missions",
     )
     for candidate in candidates:
         if candidate.is_dir() and _looks_like_missions_root(candidate):
@@ -77,24 +77,34 @@ def _resolve_env_package_asset_root(root: Path) -> Path:
 
 
 def get_package_asset_root() -> Path:
-    """Return the path to the package's bundled mission assets."""
+    """Return the path to the package's bundled mission assets.
+
+    The canonical package asset root is ``doctrine/missions``. The
+    ``specify_cli/missions`` fallback remains only for older editable layouts
+    and tests that intentionally provide a legacy asset root.
+    """
     if env_root := os.environ.get("SPEC_KITTY_TEMPLATE_ROOT"):
         root = Path(env_root)
         if root.is_dir():
             return _resolve_env_package_asset_root(root)
         raise FileNotFoundError(f"SPEC_KITTY_TEMPLATE_ROOT path does not exist: {env_root}")
 
-    try:
-        pkg_root = importlib.resources.files("specify_cli")
-        missions_dir = Path(str(pkg_root)) / "missions"
-        if missions_dir.is_dir():
-            return missions_dir
-    except (TypeError, ModuleNotFoundError):
-        pass
+    for package in ("doctrine", "specify_cli"):
+        try:
+            pkg_root = importlib.resources.files(package)
+            missions_dir = Path(str(pkg_root)) / "missions"
+            if missions_dir.is_dir():
+                return missions_dir
+        except (TypeError, ModuleNotFoundError):
+            pass
 
-    dev_root = Path(__file__).parent.parent / "missions"
-    if dev_root.is_dir():
-        return dev_root
+    dev_roots = (
+        Path(__file__).parents[2] / "doctrine" / "missions",
+        Path(__file__).parent.parent / "missions",
+    )
+    for dev_root in dev_roots:
+        if dev_root.is_dir():
+            return dev_root
 
     raise FileNotFoundError(
         "Cannot locate package mission assets. Set SPEC_KITTY_TEMPLATE_ROOT or reinstall spec-kitty-cli."

@@ -90,5 +90,5 @@ def test_rewrite_paths_accepts_custom_patterns() -> None:
 
 
 def test_rewrite_paths_keeps_source_template_paths() -> None:
-    source_path = "src/specify_cli/missions/software-dev/templates/spec-template.md"
+    source_path = "src/doctrine/missions/software-dev/templates/spec-template.md"
     assert rewrite_paths(source_path) == source_path
