@@ -607,13 +607,6 @@ def _append_skipped_lane_checks(
         )
 
 
-def _is_planning_artifact_only_manifest(lanes_manifest: Any) -> bool:
-    lanes = list(getattr(lanes_manifest, "lanes", []) or [])
-    return bool(lanes) and all(
-        getattr(lane, "lane_id", None) == "lane-planning" for lane in lanes
-    )
-
-
 def _path_prefix_for_mission(mission: Any, feature_dir: Path) -> str | None:
     if getattr(mission, "domain", None) != "research":
         return None
@@ -631,6 +624,7 @@ def _check_lane_gates(
     mutate_matrix: bool = True,
 ) -> None:
     """Enforce lane-based acceptance gates and acceptance matrix."""
+    from specify_cli.lanes.compute import is_planning_artifact_only
     from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
 
     try:
@@ -664,7 +658,7 @@ def _check_lane_gates(
         )
         return
 
-    planning_artifact_only = _is_planning_artifact_only_manifest(lanes_manifest)
+    planning_artifact_only = is_planning_artifact_only(lanes_manifest)
     allowed_branches = {lanes_manifest.target_branch}
     if not planning_artifact_only:
         allowed_branches.add(lanes_manifest.mission_branch)

@@ -829,17 +829,6 @@ def _check_mission_branch(
     return False, blocker_payload
 
 
-def _is_planning_artifact_only_manifest(lanes_manifest: object) -> bool:
-    """Return True when every WP is in the canonical planning-artifact lane."""
-
-    from specify_cli.lanes.compute import PLANNING_LANE_ID
-
-    lanes = list(getattr(lanes_manifest, "lanes", []) or [])
-    return bool(lanes) and all(
-        getattr(lane, "lane_id", None) == PLANNING_LANE_ID for lane in lanes
-    )
-
-
 def _enforce_planning_artifact_target_branch(repo_root: Path, target_branch: str) -> None:
     """Planning-only closeout writes directly to the target branch."""
 
@@ -1580,10 +1569,12 @@ def _run_lane_based_merge(
         mission_id=_preflight_mission_id or mission_slug,
     )
 
+    from specify_cli.lanes.compute import is_planning_artifact_only
+
     lanes_manifest = require_lanes_json(feature_dir)
     if target_override:
         lanes_manifest.target_branch = target_override
-    planning_artifact_only = _is_planning_artifact_only_manifest(lanes_manifest)
+    planning_artifact_only = is_planning_artifact_only(lanes_manifest)
 
     # -- Resolve canonical mission_id from meta.json (P2 fix: use ULID, not slug) --
     identity = resolve_mission_identity(feature_dir)
@@ -1656,7 +1647,7 @@ def _run_lane_based_merge_locked(
 ) -> None:
     """Inner merge flow, called with the global merge lock held."""
     from specify_cli.lanes.branch_naming import lane_branch_name
-    from specify_cli.lanes.compute import PLANNING_LANE_ID
+    from specify_cli.lanes.compute import is_planning_artifact_only, is_planning_lane
     from specify_cli.lanes.merge import merge_lane_to_mission, merge_mission_to_target
     from specify_cli.policy.config import load_policy_config
     from specify_cli.policy.merge_gates import evaluate_merge_gates
@@ -1670,7 +1661,7 @@ def _run_lane_based_merge_locked(
         wp_ids=all_wp_ids,
     )
 
-    planning_artifact_only = _is_planning_artifact_only_manifest(lanes_manifest)
+    planning_artifact_only = is_planning_artifact_only(lanes_manifest)
     state = load_state(main_repo, canonical_id)
     is_resume = False
     if state is not None:
@@ -1737,7 +1728,7 @@ def _run_lane_based_merge_locked(
             console.print(f"  [dim]Skipping {lane.lane_id} (all WPs already done)[/dim]")
             continue
 
-        if planning_artifact_only and lane.lane_id == PLANNING_LANE_ID:
+        if planning_artifact_only and is_planning_lane(lane):
             console.print(
                 f"  [green]✓[/green] {lane.lane_id} already on {lanes_manifest.target_branch}"
             )
@@ -2060,7 +2051,7 @@ def _run_lane_based_merge_locked(
             # deleting it would attempt `git branch -D main` — destroying the
             # persistent target branch.  Planning lanes never have a dedicated
             # lane branch to clean up.
-            if lane.lane_id == PLANNING_LANE_ID:
+            if is_planning_lane(lane):
                 continue
             branch_name = lane_branch_name(mission_slug, lane.lane_id)
             # T005: check if branch exists before attempting deletion
