@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "mission_slug": "plan-concern-vocabulary-and-wp-traceability-01KTE2S9",
+  "mission_id": "01KTE2S951SWFSP0NTQ2NKNQFZ",
+  "mission_branch": "kitty/mission-plan-concern-vocabulary-and-wp-traceability-01KTE2S9",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/built_in_step_contracts/tasks.step-contract.yaml",
+        "src/doctrine/missions/mission-steps/software-dev/plan/prompt.md",
+        "src/doctrine/missions/mission-steps/software-dev/tasks/prompt.md",
+        "src/doctrine/missions/software-dev/templates/plan-template.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/mission-steps/software-dev/tasks-outline/prompt.md",
+        "src/doctrine/missions/mission-steps/software-dev/tasks-packages/prompt.md",
+        "src/specify_cli/core/wps_manifest.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/how-to/create-plan.md",
+        "docs/how-to/generate-tasks.md",
+        "docs/reference/file-structure.md",
+        "docs/reference/missions.md",
+        "tests/specify_cli/core/test_wps_manifest.py",
+        "tests/specify_cli/regression/_twelve_agent_baseline/**",
+        "tests/specify_cli/skills/__snapshots__/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-06-06T10:04:11.138613+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

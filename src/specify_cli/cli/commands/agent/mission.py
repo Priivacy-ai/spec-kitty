@@ -49,6 +49,7 @@ from specify_cli.ownership.audit_targets import validate_audit_coverage
 from specify_cli.ownership.validation import validate_glob_matches
 from specify_cli.core.wps_manifest import (
     load_wps_manifest,
+    check_concern_refs_coverage,
     dependencies_are_explicit,
     generate_tasks_md_from_manifest,
 )
@@ -349,8 +350,25 @@ def _enforce_analysis_report_write_preflight(repo_root: Path, *, json_output: bo
     if not is_git_repo(repo_root):
         return
 
+    # Use the CWD git toplevel (the actual worktree) for the branch check so
+    # that running from a coord/lane worktree on a mission branch is allowed.
+    # repo_root is always the main repo root (locate_project_root() follows
+    # worktree pointers back to main), so checking it would always block.
+    import subprocess
+
     try:
-        assert_not_protected_branch(repo_root, operation="record analysis report")
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        cwd_toplevel = Path(result.stdout.strip()) if result.returncode == 0 else repo_root
+    except Exception:
+        cwd_toplevel = repo_root
+
+    try:
+        assert_not_protected_branch(cwd_toplevel, operation="record analysis report")
     except ProtectedBranchCommitError as exc:
         payload = {
             "success": False,
@@ -454,7 +472,7 @@ def _resolve_planning_branch(
     del repo_root  # No longer used; kept in signature for API stability.
     if target_branch_override is not None and target_branch_override.strip():
         return target_branch_override.strip()
-    return load_mission_target_branch(feature_dir)
+    return cast(str, load_mission_target_branch(feature_dir))
 
 
 def _ensure_branch_checked_out(
@@ -610,11 +628,11 @@ def _find_feature_directory(
         raise ValueError("--mission <slug> is required")
     try:
         resolved = resolve_mission_handle(explicit_feature, repo_root)
-        return resolved.feature_dir
+        return cast(Path, resolved.feature_dir)
     except (SystemExit, typer.Exit):
         candidate = candidate_feature_dir_for_mission(repo_root, explicit_feature)
         if candidate.exists():
-            return candidate
+            return cast(Path, candidate)
         raise ValueError(f"Mission directory not found: {explicit_feature}") from None
 
 
@@ -1166,8 +1184,9 @@ def record_analysis(
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
+        cwd_repo_root = repo_root  # preserve CWD root for branch-protection check
         repo_root = get_main_repo_root(repo_root)
-        _enforce_analysis_report_write_preflight(repo_root, json_output=json_output)
+        _enforce_analysis_report_write_preflight(cwd_repo_root, json_output=json_output)
 
         try:
             feature_dir = _find_feature_directory(
@@ -1711,7 +1730,7 @@ def _find_latest_feature_worktree(repo_root: Path) -> Path | None:
 
 def _find_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:
     """Find a deterministic worktree for a feature slug."""
-    return resolve_feature_worktree(repo_root, mission_slug)
+    return cast(Path | None, resolve_feature_worktree(repo_root, mission_slug))
 
 
 def _get_current_branch(repo_root: Path) -> str:
@@ -2147,6 +2166,15 @@ def finalize_tasks(
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
+
+        # ─── FR-013: concern-refs coverage warnings ───────────────────────────
+        if wps_manifest is not None:
+            coverage_warnings = check_concern_refs_coverage(wps_manifest)
+            for warning in coverage_warnings:
+                if json_output:
+                    _emit_json({"warning": warning})
+                else:
+                    console.print(f"[yellow]Warning:[/yellow] {warning}")
 
         # ─── TIER 1+: existing dependency resolution ──────────────────────────
         # Parse dependencies and requirement refs using 3-tier priority:
@@ -3132,4 +3160,4 @@ def _parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str
     """Parse requirement IDs from spec.md content."""
     from specify_cli.requirement_mapping import parse_requirement_ids_from_spec_md
 
-    return parse_requirement_ids_from_spec_md(spec_content)
+    return cast(dict[str, list[str]], parse_requirement_ids_from_spec_md(spec_content))
