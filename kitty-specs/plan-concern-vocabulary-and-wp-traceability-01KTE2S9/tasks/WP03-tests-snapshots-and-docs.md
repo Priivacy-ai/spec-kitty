@@ -25,8 +25,8 @@ subtasks:
 - T012
 - T013
 - T014
-agent: "claude:sonnet-4-6:implementer:implementer"
-shell_pid: "96942"
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "98012"
 history:
 - date: '2026-06-06'
   event: created
@@ -335,3 +335,5 @@ Implement using: `spec-kitty agent action implement WP03 --agent claude`
 - 2026-06-06T12:26:56Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=91867 – Started review via action command
 - 2026-06-06T12:36:07Z – user – shell_pid=91867 – Moved to planned
 - 2026-06-06T12:38:13Z – claude:sonnet-4-6:implementer:implementer – shell_pid=96942 – Started implementation via action command
+- 2026-06-06T12:39:50Z – claude:sonnet-4-6:implementer:implementer – shell_pid=96942 – Cycle 2: wired check_concern_refs_coverage into finalize-tasks; verified non-zero callers
+- 2026-06-06T12:40:15Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=98012 – Started review via action command
