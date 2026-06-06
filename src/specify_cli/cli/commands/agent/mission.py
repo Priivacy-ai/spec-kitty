@@ -350,8 +350,25 @@ def _enforce_analysis_report_write_preflight(repo_root: Path, *, json_output: bo
     if not is_git_repo(repo_root):
         return
 
+    # Use the CWD git toplevel (the actual worktree) for the branch check so
+    # that running from a coord/lane worktree on a mission branch is allowed.
+    # repo_root is always the main repo root (locate_project_root() follows
+    # worktree pointers back to main), so checking it would always block.
+    import subprocess
+
     try:
-        assert_not_protected_branch(repo_root, operation="record analysis report")
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        cwd_toplevel = Path(result.stdout.strip()) if result.returncode == 0 else repo_root
+    except Exception:
+        cwd_toplevel = repo_root
+
+    try:
+        assert_not_protected_branch(cwd_toplevel, operation="record analysis report")
     except ProtectedBranchCommitError as exc:
         payload = {
             "success": False,
@@ -1167,8 +1184,9 @@ def record_analysis(
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
+        cwd_repo_root = repo_root  # preserve CWD root for branch-protection check
         repo_root = get_main_repo_root(repo_root)
-        _enforce_analysis_report_write_preflight(repo_root, json_output=json_output)
+        _enforce_analysis_report_write_preflight(cwd_repo_root, json_output=json_output)
 
         try:
             feature_dir = _find_feature_directory(
