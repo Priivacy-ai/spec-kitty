@@ -107,7 +107,6 @@ work_package_id: "{wp_id}"
 title: "{title}"
 dependencies: {dependencies}
 requirement_refs: {requirement_refs}
-plan_concern_refs: [IC-01]  # from wps.yaml — carry verbatim from the manifest entry
 subtasks: {subtasks}
 owned_files: {owned_files}
 authoritative_surface: "{longest common path prefix of owned_files}"
@@ -119,7 +118,7 @@ model: ""          # filled in Step 4a — model identifier (e.g., claude-sonnet
 ---
 ```
 
-Copy `plan_concern_refs` from the `wps.yaml` entry verbatim into the WP prompt frontmatter. Do not invent or modify refs.
+**IMPORTANT — `plan_concern_refs` lives in `wps.yaml` only.** Do NOT copy `plan_concern_refs` into WP prompt frontmatter. `WPMetadata` uses `extra="forbid"`, so any WP prompt file with `plan_concern_refs` in its frontmatter will cause `finalize-tasks --validate-only` to raise a `ValidationError`.
 
 Body sections (in order):
 0. `## ⚡ Do This First: Load Agent Profile` — **REQUIRED. Must be the first section after the H1 title, before Objective.** Instructs the implementing agent to load the assigned profile via `/ad-hoc-profile-load` before reading anything else. Use this exact structure, substituting frontmatter values:
@@ -202,13 +201,14 @@ work_package_id: "WP02"
 title: "Build API"
 dependencies: ["WP01"]  # From wps.yaml
 requirement_refs: ["FR-001", "NFR-001"]  # From wps.yaml requirement_refs
-plan_concern_refs: ["IC-02"]  # From wps.yaml — carry verbatim from the manifest entry
 subtasks: ["T001", "T002"]
 owned_files: ["src/api/**"]
 authoritative_surface: "src/api/"
 execution_mode: "code_change"
 ---
 ```
+
+**Note**: `plan_concern_refs` is a `wps.yaml`-only field. It must NOT appear in WP prompt frontmatter — `WPMetadata` (`extra="forbid"`) will reject any WP file that includes it.
 
 Include the correct implementation command:
 - `spec-kitty agent action implement WP01 --agent <name>`
