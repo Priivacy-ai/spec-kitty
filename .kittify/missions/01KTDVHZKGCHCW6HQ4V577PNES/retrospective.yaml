@@ -1,0 +1,163 @@
+schema_version: 1
+mission_id: 01KTDVHZKGCHCW6HQ4V577PNES
+mission_slug: merge-done-surface-resolver-01KTDVHZ
+mission_number:
+friendly_name: Merge Done-Marking Surface Resolver
+mission_type: software-dev
+target_branch: main
+created_at: '2026-06-06T12:03:46.133841+00:00'
+created_by:
+  kind: human
+  id: cli
+  display: spec-kitty retrospect
+provenance:
+  kind: explicit_create
+  invoked_at: '2026-06-06T12:03:46.133841+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+  command: spec-kitty retrospect create
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped: []
+not_helpful:
+- id: n-001
+  category: process
+  summary: 'WP02, WP03, WP04: in_review→approved guard requires ReviewResult struct not
+    available via standard agent review path — all three WPs hit this'
+  evidence_refs:
+  - e-010
+  - e-011
+  - e-012
+  details: >
+    The in_review→approved transition guard requires a ReviewResult struct that the
+    standard agent review command does not provide. Every agent-reviewed WP required
+    --force to complete the transition. This is a framework usability gap, not operator
+    error. Three of four WPs had zero independent reviewer coverage as a result.
+    Underlying guard should either accept evidence produced by the normal review path
+    or expose a first-class approval surface that does not require --force.
+- id: n-002
+  category: product
+  summary: 'Three bugs discovered during merge itself: PATH resolution, mixed JSONL event
+    types, StrEnum isinstance sentinel'
+  evidence_refs: []
+  details: >
+    The merge process exposed three bugs in the framework that were not in the original
+    spec scope and required post-merge fix commits: (1) spec-kitty merge-driver-event-log
+    subprocess inherited the calling shell PATH, resolving to a stale global binary (rc10)
+    instead of the venv binary (rc37) — fixed by prepending sys.executable parent to PATH
+    in all subprocess calls in lanes/merge.py; (2) tracker events in status.events.jsonl
+    have no 'at' or 'timestamp' field, causing the merge driver to reject them — fixed by
+    removing mandatory timestamp validation; (3) get_wp_lane returns the plain string
+    "uninitialized" when no events exist, but Lane is a StrEnum so isinstance(raw, str)
+    cannot distinguish it from a valid Lane member — fixed with try/except ValueError.
+- id: n-003
+  category: process
+  summary: 'Post-merge review (NFR-003 gap): _mark_wp_merged_done used a parallel coord-routing
+    mechanism instead of resolve_status_surface — caught by mission review, not per-WP review'
+  evidence_refs:
+  - e-002
+  details: >
+    Per-WP review approved the implementation but missed that _mark_wp_merged_done derived
+    feature_dir via resolve_feature_dir_for_mission (primary checkout) while using
+    emit_status_transition_transactional's own internal coord routing for writes. This left
+    two independent path-derivation mechanisms — exactly what NFR-003 prohibits. The gap
+    was only caught during post-merge mission review. Mission review is load-bearing for
+    cross-WP integration gaps that per-WP review cannot see.
+- id: n-004
+  category: process
+  summary: 'PR description omitted Closes #1726 on first pass — issue grepped from spec
+    artifacts only after user prompted'
+  evidence_refs:
+  - e-002
+  details: >
+    The originating issue (#1726) was referenced throughout spec.md, tasks.md WP03, and
+    WP04, but the first PR description only listed the issue matrix entries (#1589, #1672).
+    The fix: grep all mission artifacts for issue references before writing the PR body,
+    not just the issue-matrix.md file. Command: grep -r "#[0-9]\+" kitty-specs/<slug>/
+- id: n-005
+  category: product
+  summary: 'retrospect create failed because coord done-events not synced to primary checkout
+    — same surface-class bug as the mission itself, on the retrospective path'
+  evidence_refs:
+  - e-009
+  details: >
+    After merge, _mark_wp_merged_done wrote done events to the coord worktree surface.
+    The primary checkout's status.events.jsonl only reached approved. spec-kitty retrospect
+    create reads the primary checkout and rejected the mission as incomplete. Required
+    manual merge-driver-event-log invocation to union coord events into primary before
+    retrospect create could proceed. The retrospective tooling should use resolve_status_surface
+    (or an equivalent coord-aware read path) to determine mission completion state, matching
+    the same fix applied to the merge closeout path by this mission.
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/merge-done-surface-resolver-01KTDVHZ/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/merge-done-surface-resolver-01KTDVHZ/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/merge-done-surface-resolver-01KTDVHZ/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/merge-done-surface-resolver-01KTDVHZ/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/merge-done-surface-resolver-01KTDVHZ/tasks/WP01-surface-resolver.md
+- id: e-006
+  kind: file
+  path: kitty-specs/merge-done-surface-resolver-01KTDVHZ/tasks/WP02-wire-resolver.md
+- id: e-007
+  kind: file
+  path: kitty-specs/merge-done-surface-resolver-01KTDVHZ/tasks/WP03-regression-tests.md
+- id: e-008
+  kind: file
+  path: kitty-specs/merge-done-surface-resolver-01KTDVHZ/tasks/WP04-changelog-final-gate.md
+- id: e-009
+  kind: file
+  path: kitty-specs/merge-done-surface-resolver-01KTDVHZ/status.events.jsonl
+- id: e-010
+  kind: event_range
+  path: kitty-specs/merge-done-surface-resolver-01KTDVHZ/status.events.jsonl
+  range: 01KTE0C19KGP6BSH6A39KXDC7V
+- id: e-011
+  kind: event_range
+  path: kitty-specs/merge-done-surface-resolver-01KTDVHZ/status.events.jsonl
+  range: 01KTE1066ASE8DX5HWYFHEN08R
+- id: e-012
+  kind: event_range
+  path: kitty-specs/merge-done-surface-resolver-01KTDVHZ/status.events.jsonl
+  range: 01KTE4NVVPNQN9NH89XN41R48W..01KTE6JBC9GMSPNPSDGKE3TK2Y
+generator_version: '1.0'
+provenance_history: []
