@@ -279,12 +279,18 @@ def _mark_wp_merged_done(
     _force_done = False
     if lane == _Lane.PLANNED:
         from specify_cli.status.lane_reader import get_wp_lane as _get_wp_lane  # noqa: PLC0415
+        from specify_cli.status.transitions import resolve_lane_alias as _resolve_lane_alias  # noqa: PLC0415
+
         primary_raw = _get_wp_lane(primary_feature_dir, wp_id)  # primary checkout, not coord surface
-        if isinstance(primary_raw, _Lane):
-            lane = primary_raw
+        try:
+            lane = _Lane(_resolve_lane_alias(str(primary_raw)))
             # The coord has no events for this WP; force the done transition so
             # the state machine doesn't reject it as an invalid jump from PLANNED.
             _force_done = True
+        except ValueError:
+            # Unknown sentinels such as "uninitialized" mean the primary surface
+            # has no usable lifecycle state for this WP either.
+            pass
 
     evidence = extract_done_evidence(metadata, wp_id)
     if evidence is None:

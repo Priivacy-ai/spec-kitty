@@ -65,6 +65,14 @@ def _write_wp(
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def _write_minimal_meta(feature_dir: Path, mission_slug: str) -> None:
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_id": "01TEST00000000000000000000", "mission_slug": mission_slug}),
+        encoding="utf-8",
+    )
+
+
 def _append_done_event(feature_dir: Path, wp_id: str) -> None:
     """Seed the event log with a done transition for *wp_id*."""
     event = StatusEvent(
@@ -231,6 +239,7 @@ def test_mark_wp_merged_done_emits_done_when_lane_is_approved(
     feature_dir = tmp_path / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    _write_minimal_meta(feature_dir, mission_slug)
     _write_wp(tasks_dir / "WP01-test.md", reviewed_by="reviewer-1")
 
     emit_calls: list[Any] = []
@@ -259,6 +268,7 @@ def test_mark_wp_merged_done_skips_when_already_done(
     feature_dir = tmp_path / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    _write_minimal_meta(feature_dir, mission_slug)
     _write_wp(tasks_dir / "WP01-test.md")
 
     emit_mock = Mock()
@@ -281,6 +291,7 @@ def test_mark_wp_merged_done_skips_when_no_approval_metadata_for_non_approved(
     feature_dir = tmp_path / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    _write_minimal_meta(feature_dir, mission_slug)
     # WP with no review metadata
     _write_wp(tasks_dir / "WP01-test.md", review_status="", reviewed_by="")
 
