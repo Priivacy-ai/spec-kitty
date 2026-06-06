@@ -361,12 +361,46 @@ def _build_merge_preflight(
     return _MergePreflightResult(target_branch=resolved_target, errors=errors)
 
 
+def _execute_planning_only_merge(
+    main_repo_root: Path,
+    mission_slug: str,
+    target_branch: str,
+    *,
+    strategy: object,
+    push: bool,
+    delete_branch: bool,
+    remove_worktree: bool,
+) -> None:
+    """Run the hardened CLI closeout path while preserving JSON-only stdout."""
+    import typer
+
+    from specify_cli.cli.commands import merge as merge_command
+
+    try:
+        with merge_command.console.capture():
+            merge_command._run_lane_based_merge(
+                repo_root=main_repo_root,
+                mission_slug=mission_slug,
+                push=push,
+                delete_branch=delete_branch,
+                remove_worktree=remove_worktree,
+                target_override=target_branch,
+                strategy=strategy,
+                assume_yes=True,
+            )
+    except typer.Exit as exc:
+        raise RuntimeError(
+            f"Planning-artifact closeout failed with exit code {exc.exit_code}"
+        ) from exc
+
+
 def _execute_lane_merge(
     main_repo_root: Path,
     mission_dir: Path,
     mission_slug: str,
     target_branch: str,
     *,
+    strategy: str,
     push: bool,
     delete_branch: bool,
     remove_worktree: bool,
@@ -375,14 +409,28 @@ def _execute_lane_merge(
     from specify_cli.cli.commands.merge import _mark_wp_merged_done
     from specify_cli.core.git_ops import has_remote, run_command
     from specify_cli.lanes.branch_naming import lane_branch_name
-    from specify_cli.lanes.compute import is_planning_lane
+    from specify_cli.lanes.compute import is_planning_artifact_only, is_planning_lane
     from specify_cli.lanes.merge import merge_lane_to_mission, merge_mission_to_target
     from specify_cli.lanes.persistence import require_lanes_json
+    from specify_cli.merge.config import MergeStrategy
     from specify_cli.policy.config import load_policy_config
     from specify_cli.policy.merge_gates import evaluate_merge_gates
 
     lanes_manifest = require_lanes_json(mission_dir)
     lanes_manifest.target_branch = target_branch
+    merge_strategy = MergeStrategy(strategy)
+
+    if is_planning_artifact_only(lanes_manifest):
+        _execute_planning_only_merge(
+            main_repo_root,
+            mission_slug,
+            target_branch,
+            strategy=merge_strategy,
+            push=push,
+            delete_branch=delete_branch,
+            remove_worktree=remove_worktree,
+        )
+        return
 
     policy = load_policy_config(main_repo_root)
     all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
@@ -402,7 +450,12 @@ def _execute_lane_merge(
         if not lane_result.success:
             raise RuntimeError("; ".join(lane_result.errors) or f"Lane {lane.lane_id} merge failed.")
 
-    mission_result = merge_mission_to_target(main_repo_root, mission_slug, lanes_manifest)
+    mission_result = merge_mission_to_target(
+        main_repo_root,
+        mission_slug,
+        lanes_manifest,
+        strategy=merge_strategy,
+    )
     if not mission_result.success:
         raise RuntimeError("; ".join(mission_result.errors) or "Mission merge failed.")
 
@@ -1212,6 +1265,7 @@ def merge_mission(
             mission_dir,
             mission,
             preflight.target_branch,
+            strategy=strategy,
             push=push,
             delete_branch=True,
             remove_worktree=True,
