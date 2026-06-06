@@ -60,11 +60,11 @@
 **Subtask count**: 5 | **Estimated prompt size**: ~310 lines
 
 **Included subtasks**:
-- [ ] T005 Add plan_concern_refs field to WorkPackageEntry with IC-## validator (WP02)
-- [ ] T006 Add cross_cutting bool field to WorkPackageEntry (WP02)
-- [ ] T007 Extend generate_tasks_md_from_manifest() to render concern refs (WP02)
-- [ ] T008 Update tasks-outline/prompt.md to require IC citation (WP02)
-- [ ] T009 Update tasks-packages/prompt.md to carry plan_concern_refs (WP02)
+- [x] T005 Add plan_concern_refs field to WorkPackageEntry with IC-## validator (WP02)
+- [x] T006 Add cross_cutting bool field to WorkPackageEntry (WP02)
+- [x] T007 Extend generate_tasks_md_from_manifest() to render concern refs (WP02)
+- [x] T008 Update tasks-outline/prompt.md to require IC citation (WP02)
+- [x] T009 Update tasks-packages/prompt.md to carry plan_concern_refs (WP02)
 
 **Parallelization**: T005 and T006 can be added to the model simultaneously. T008 and T009 are independent prompt files. T007 depends on T005.
 
