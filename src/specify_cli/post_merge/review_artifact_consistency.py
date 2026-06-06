@@ -84,6 +84,24 @@ def _latest_review_artifact_path(artifact_dir: Path) -> Path | None:
     return candidates[-1]
 
 
+def _schema_error_message(exc: ValueError, artifact_path: Path) -> str:
+    """Strip machine-local paths from parser errors; path is reported separately."""
+    message = str(exc)
+    prefixes = (
+        f"Missing or invalid field in review artifact {artifact_path}: ",
+        f"Failed to parse YAML frontmatter in {artifact_path}: ",
+        f"Cannot read review artifact file {artifact_path}: ",
+        f"Review artifact file has no YAML frontmatter: {artifact_path}",
+        f"Review artifact file has no closing '---' delimiter: {artifact_path}",
+        f"YAML frontmatter in {artifact_path} is not a mapping",
+    )
+    for prefix in prefixes:
+        if message.startswith(prefix):
+            stripped = message[len(prefix) :].strip()
+            return stripped or message.replace(str(artifact_path), "").strip(": ")
+    return message.replace(str(artifact_path), "<review artifact>")
+
+
 def find_rejected_review_artifact_conflicts(
     feature_dir: Path,
     wp_ids: list[str] | None = None,
@@ -110,7 +128,7 @@ def find_rejected_review_artifact_conflicts(
                         wp_id=wp_id,
                         lane=lane,
                         artifact_path=latest_path,
-                        schema_error=str(exc),
+                        schema_error=_schema_error_message(exc, latest_path),
                     )
                 )
                 break

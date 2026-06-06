@@ -1598,6 +1598,13 @@ def _run_lane_based_merge_locked(
 
     # -- T001: MergeState lifecycle: load or create --
     all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
+    _enforce_review_artifact_consistency(
+        repo_root=main_repo,
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        wp_ids=all_wp_ids,
+    )
+
     state = load_state(main_repo, canonical_id)
     is_resume = False
     if state is not None:
@@ -1633,13 +1640,6 @@ def _run_lane_based_merge_locked(
     if not gate_eval.overall_pass:
         console.print("\n[red]Error:[/red] Merge gates failed.")
         raise typer.Exit(1)
-
-    _enforce_review_artifact_consistency(
-        repo_root=main_repo,
-        feature_dir=feature_dir,
-        mission_slug=mission_slug,
-        wp_ids=all_wp_ids,
-    )
 
     # -- Bootstrap-only canonical history guard (issue #1069) --
     # Refuse to merge missions whose status.events.jsonl contains

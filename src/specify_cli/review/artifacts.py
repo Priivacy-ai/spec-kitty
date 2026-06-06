@@ -21,6 +21,7 @@ from typing import Any
 from ruamel.yaml import YAML
 
 TERMINAL_REVIEW_LANES = frozenset({"approved", "done"})
+REVIEW_ARTIFACT_VERDICTS = frozenset({"approved", "rejected"})
 
 
 def _make_yaml() -> YAML:
@@ -113,19 +114,51 @@ class ReviewCycleArtifact:
     @classmethod
     def from_dict(cls, data: dict[str, Any], body: str = "") -> ReviewCycleArtifact:
         """Deserialize from frontmatter dict and optional body string."""
+        cycle_number = data.get("cycle_number")
+        if isinstance(cycle_number, bool):
+            raise ValueError("cycle_number must be a positive integer")
+        try:
+            parsed_cycle_number = int(cycle_number)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("cycle_number must be a positive integer") from exc
+        if parsed_cycle_number < 1:
+            raise ValueError("cycle_number must be a positive integer")
+
+        wp_id = data.get("wp_id")
+        if not isinstance(wp_id, str) or not wp_id:
+            raise ValueError("wp_id must be a non-empty string")
+        mission_slug = data.get("mission_slug")
+        if not isinstance(mission_slug, str) or not mission_slug:
+            raise ValueError("mission_slug must be a non-empty string")
+        reviewer_agent = data.get("reviewer_agent")
+        if not isinstance(reviewer_agent, str) or not reviewer_agent:
+            raise ValueError("reviewer_agent must be a non-empty string")
+        verdict = data.get("verdict")
+        if not isinstance(verdict, str) or verdict not in REVIEW_ARTIFACT_VERDICTS:
+            raise ValueError("verdict must be one of: approved, rejected")
+        reviewed_at = data.get("reviewed_at")
+        if not isinstance(reviewed_at, str) or not reviewed_at:
+            raise ValueError("reviewed_at must be a non-empty string")
+        affected_files_data = data.get("affected_files", [])
+        if not isinstance(affected_files_data, list):
+            raise ValueError("affected_files must be a list")
+        reproduction_command = data.get("reproduction_command")
+        if reproduction_command is not None and not isinstance(reproduction_command, str):
+            raise ValueError("reproduction_command must be a string when present")
+
         affected_files = [
             AffectedFile.from_dict(af)
-            for af in data.get("affected_files", [])
+            for af in affected_files_data
         ]
         return cls(
-            cycle_number=int(data["cycle_number"]),
-            wp_id=data["wp_id"],
-            mission_slug=data["mission_slug"],
-            reviewer_agent=data["reviewer_agent"],
-            verdict=data["verdict"],
-            reviewed_at=data["reviewed_at"],
+            cycle_number=parsed_cycle_number,
+            wp_id=wp_id,
+            mission_slug=mission_slug,
+            reviewer_agent=reviewer_agent,
+            verdict=verdict,
+            reviewed_at=reviewed_at,
             affected_files=affected_files,
-            reproduction_command=data.get("reproduction_command"),
+            reproduction_command=reproduction_command,
             body=body,
         )
 

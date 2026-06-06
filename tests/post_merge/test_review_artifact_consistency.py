@@ -73,6 +73,26 @@ def _write_malformed_review_artifact(
     return path
 
 
+def _write_review_artifact_with_invalid_verdict(artifact_dir: Path) -> Path:
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    path = artifact_dir / "review-cycle-1.md"
+    path.write_text(
+        "---\n"
+        "affected_files: []\n"
+        "cycle_number: 1\n"
+        "mission_slug: release-320-workflow-reliability-01KQKV85\n"
+        "reviewed_at: '2026-05-03T12:00:00+00:00'\n"
+        "reviewer_agent: reviewer-renata\n"
+        "verdict: changes_requested\n"
+        "wp_id: WP01\n"
+        "---\n"
+        "\n"
+        "# Review\n",
+        encoding="utf-8",
+    )
+    return path
+
+
 def test_latest_rejected_review_artifact_conflicts_with_approved_wp(
     tmp_path: Path,
 ) -> None:
@@ -227,6 +247,37 @@ def test_malformed_review_artifact_frontmatter_becomes_schema_diagnostic(
         findings[0],
         repo_root=mission.repo_root,
     )
+
+
+def test_invalid_top_level_review_artifact_field_becomes_schema_diagnostic(
+    tmp_path: Path,
+) -> None:
+    mission = create_mission_fixture(tmp_path)
+    write_work_package(mission, WorkPackageSpec(lane="approved"))
+    append_status_event(
+        mission,
+        from_lane=Lane.FOR_REVIEW,
+        to_lane=Lane.APPROVED,
+        event_id="01KQKV85APPROVED000000003",
+    )
+    artifact_dir = mission.tasks_dir / "WP01-regression-harness"
+    malformed = _write_review_artifact_with_invalid_verdict(artifact_dir)
+
+    findings = find_rejected_review_artifact_conflicts(
+        mission.mission_dir,
+        wp_ids=["WP01"],
+    )
+
+    assert len(findings) == 1
+    diagnostic = review_artifact_finding_diagnostic(
+        findings[0],
+        repo_root=mission.repo_root,
+    )
+    assert diagnostic["diagnostic_code"] == REVIEW_ARTIFACT_SCHEMA_INVALID
+    assert diagnostic["latest_review_cycle_path"] == str(
+        malformed.relative_to(mission.repo_root)
+    )
+    assert diagnostic["schema_error"] == "verdict must be one of: approved, rejected"
 
 
 def test_merge_review_artifact_consistency_gate_blocks_malformed_artifact(

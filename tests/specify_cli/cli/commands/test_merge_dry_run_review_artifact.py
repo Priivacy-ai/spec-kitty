@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -382,6 +383,47 @@ def test_dry_run_human_emits_review_artifact_schema_invalid(
         "violated_invariant: review_cycle_frontmatter_must_match_schema" in output
     )
     assert f"latest_review_cycle_path: {review_path_text}" in unwrapped_output
-    assert "schema_error: Missing or invalid field in review artifact" in output
+    assert "schema_error: affected_files entries must be mappings" in output
     assert "affected_files entries must be mappings" in unwrapped_output
     assert "Traceback" not in output
+
+
+def test_real_merge_schema_preflight_does_not_write_merge_state(
+    tmp_path: Path,
+) -> None:
+    """Schema-invalid review artifacts must fail before merge-state mutation."""
+    import typer
+
+    from specify_cli.cli.commands.merge import _run_lane_based_merge_locked
+    from specify_cli.merge.state import get_state_path
+
+    mission = create_mission_fixture(tmp_path)
+    write_work_package(mission, WorkPackageSpec(lane="approved"))
+    append_status_event(
+        mission,
+        from_lane=Lane.FOR_REVIEW,
+        to_lane=Lane.APPROVED,
+        event_id="01KRKTT5APPROVED00000008",
+    )
+    artifact_dir = mission.tasks_dir / "WP01-regression-harness"
+    _write_malformed_review_artifact(artifact_dir)
+    lanes_manifest = SimpleNamespace(
+        lanes=[SimpleNamespace(lane_id="lane-a", wp_ids=["WP01"])],
+        mission_branch=f"kitty/mission-{mission.mission_slug}",
+        target_branch="main",
+    )
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _run_lane_based_merge_locked(
+            mission.repo_root,
+            mission.mission_slug,
+            mission.mission_id,
+            mission.mission_dir,
+            lanes_manifest,
+            push=False,
+            delete_branch=False,
+            remove_worktree=False,
+        )
+
+    assert exc_info.value.exit_code == 1
+    assert not get_state_path(mission.repo_root, mission.mission_id).exists()
