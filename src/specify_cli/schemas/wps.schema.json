@@ -54,6 +54,17 @@
             "type": ["string", "null"],
             "default": null,
             "description": "Relative path to the WP prompt file (e.g. tasks/WP01-title.md)."
+          },
+          "plan_concern_refs": {
+            "type": "array",
+            "items": {"type": "string", "pattern": "^IC-\\d{2}$"},
+            "default": [],
+            "description": "Implementation concern IDs (IC-##) from plan.md addressed by this WP. This field belongs only in wps.yaml, not WP prompt frontmatter."
+          },
+          "cross_cutting": {
+            "type": "boolean",
+            "default": false,
+            "description": "Set true when the WP is shared infrastructure or otherwise not attributable to specific IC-## concerns."
           }
         }
       }

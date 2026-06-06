@@ -1,0 +1,139 @@
+{
+  "mission_slug": "plan-concern-vocabulary-and-wp-traceability-01KTE2S9",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "plan-template.md replaces '## Parallel Work Analysis' with '## Implementation Concern Map' containing IC-## stubs with required fields",
+      "proof_type": "code_review",
+      "evidence": "WP01 approved: src/doctrine/missions/software-dev/templates/plan-template.md updated; ripple check 0 hits for 'Parallel Work Analysis' in src/",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-4-6:reviewer:reviewer",
+      "verified_at": "2026-06-06T10:30:00Z",
+      "notes": "Verified in WP01 review cycle 1 (approved)"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Plan template includes explicit note that implementation concerns are NOT WPs and NOT executable units",
+      "proof_type": "code_review",
+      "evidence": "WP01 approved: plan-template.md includes note 'Implementation concerns are NOT work packages and are NOT executable units'",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-4-6:reviewer:reviewer",
+      "verified_at": "2026-06-06T10:30:00Z",
+      "notes": "Verified in WP01 review cycle 1 (approved)"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "/spec-kitty.plan prompt stop-point language references 'implementation concerns' and states /spec-kitty.tasks translates concerns into WPs",
+      "proof_type": "code_review",
+      "evidence": "WP01 approved: src/doctrine/missions/mission-steps/software-dev/plan/prompt.md updated with implementation-concerns stop-point language",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-4-6:reviewer:reviewer",
+      "verified_at": "2026-06-06T10:30:00Z",
+      "notes": "Verified in WP01 review cycle 1 (approved)"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Built-in tasks step-contract 'outline' description references concern translation, not direct-from-plan-slices derivation",
+      "proof_type": "code_review",
+      "evidence": "WP01 approved: src/doctrine/missions/built_in_step_contracts/tasks.step-contract.yaml outline description updated",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-4-6:reviewer:reviewer",
+      "verified_at": "2026-06-06T10:30:00Z",
+      "notes": "Verified in WP01 review cycle 1 (approved)"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Legacy tasks prompt description header changed from 'Break a plan into work packages' to 'Translate implementation concerns into work packages'",
+      "proof_type": "code_review",
+      "evidence": "WP01 approved: src/doctrine/missions/mission-steps/software-dev/tasks/prompt.md header updated",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-4-6:reviewer:reviewer",
+      "verified_at": "2026-06-06T10:30:00Z",
+      "notes": "Verified in WP01 review cycle 1 (approved)"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "WorkPackageEntry gains plan_concern_refs: list[str] with IC-\\d{2} validator (re.ASCII) and cross_cutting: bool = False",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved (cycle 2): src/specify_cli/core/wps_manifest.py; 34 unit tests pass including Unicode-digit rejection (re.ASCII), backward-compat, validator edge cases",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-4-6:reviewer:reviewer",
+      "verified_at": "2026-06-06T12:00:00Z",
+      "notes": "Verified in WP02 review cycle 2 (approved); cycle 1 rejected for FR-009 violation which was fixed"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "generate_tasks_md_from_manifest() renders '**Plan Concerns**: IC-01, IC-03' per WP when plan_concern_refs non-empty; renders nothing when empty",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved: wps_manifest.py generate_tasks_md_from_manifest() updated; TestGenerateTasksMdPlanConcernRefs test class covers rendering order and empty-list case",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-4-6:reviewer:reviewer",
+      "verified_at": "2026-06-06T12:00:00Z",
+      "notes": "Verified in WP02 review cycle 2 (approved)"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "tasks-outline prompt includes step requiring IC-## citation in plan_concern_refs or explicit cross_cutting: true declaration",
+      "proof_type": "code_review",
+      "evidence": "WP02 approved: src/doctrine/missions/mission-steps/software-dev/tasks-outline/prompt.md section 4a added requiring IC citation before wps.yaml schema",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-4-6:reviewer:reviewer",
+      "verified_at": "2026-06-06T12:00:00Z",
+      "notes": "Verified in WP02 review cycle 2 (approved)"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "tasks-packages prompt instructs populating plan_concern_refs in wps.yaml; explicitly warns NOT to add to WP prompt frontmatter (WPMetadata extra='forbid')",
+      "proof_type": "code_review",
+      "evidence": "WP02 approved (cycle 2): tasks-packages/prompt.md removes frontmatter template for plan_concern_refs, adds explicit warning 'plan_concern_refs lives in wps.yaml only'",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-4-6:reviewer:reviewer",
+      "verified_at": "2026-06-06T12:00:00Z",
+      "notes": "Cycle 1 rejection was specifically this FR violation; cycle 2 fix confirmed valid"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Existing missions with no plan_concern_refs in wps.yaml parse, render, and finalize without error or warning",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved: backward-compat tests in test_wps_manifest.py; 304 core tests pass with zero regressions; finalize-tasks warning is non-fatal",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-4-6:reviewer:reviewer",
+      "verified_at": "2026-06-06T13:00:00Z",
+      "notes": "Verified in WP03 review cycle 2 (approved)"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Many-to-many concern-to-WP mapping: one IC-## may appear in multiple WPs; one WP may list multiple IC-## refs",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved: test_wps_manifest.py covers multiple plan_concern_refs per WP and same IC-## in multiple WPs; no uniqueness constraint in field definition",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-4-6:reviewer:reviewer",
+      "verified_at": "2026-06-06T13:00:00Z",
+      "notes": "Verified in WP03 review cycle 2 (approved)"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Command-renderer snapshot tests pass; snapshots regenerated after template changes",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved: 8 skill snapshots regenerated in tests/specify_cli/skills/__snapshots__/; 65 twelve-agent baseline files regenerated; 102 snapshot tests pass",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-4-6:reviewer:reviewer",
+      "verified_at": "2026-06-06T13:00:00Z",
+      "notes": "Verified in WP03 review cycle 2 (approved)"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "finalize-tasks emits non-fatal warning per WP missing both plan_concern_refs and cross_cutting: true; implemented via check_concern_refs_coverage() called from finalize_tasks command",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved (cycle 2): check_concern_refs_coverage() defined in wps_manifest.py, imported and called at mission.py:2172 inside finalize_tasks handler; warnings printed as yellow console messages; 28 unit tests pass",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-4-6:reviewer:reviewer",
+      "verified_at": "2026-06-06T13:00:00Z",
+      "notes": "Cycle 1 rejected for dead code (no callers); cycle 2 fix wired call into finalize-tasks"
+    }
+  ],
+  "negative_invariants": []
+}

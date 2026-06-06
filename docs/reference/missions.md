@@ -44,11 +44,12 @@ Software development: building new features, APIs, user interfaces, and system c
 | Artifact | Created By | Purpose |
 |----------|------------|---------|
 | `spec.md` | `/spec-kitty.specify` | User stories, requirements, acceptance criteria |
-| `plan.md` | `/spec-kitty.plan` | Architecture, design decisions, file changes |
-| `tasks.md` | `/spec-kitty.tasks` | Work package breakdown |
+| `plan.md` | `/spec-kitty.plan` | Architecture, design decisions, Implementation Concern Map (IC-## entries) |
+| `tasks.md` | `/spec-kitty.tasks` | Work package breakdown translated from IC-## concerns |
 | `data-model.md` | `/spec-kitty.plan` | Database schema, entity relationships |
 | `contracts/` | `/spec-kitty.plan` | API specifications (optional) |
 | `tasks/*.md` | `/spec-kitty.tasks` | Individual WP prompt files |
+| `wps.yaml` | `/spec-kitty.tasks` | Machine-readable WP manifest with `plan_concern_refs` traceability |
 
 ### When to Use
 - Adding a new software mission to an application

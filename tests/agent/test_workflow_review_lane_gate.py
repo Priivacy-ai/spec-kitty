@@ -73,22 +73,18 @@ def _write_wp_file(path: Path, wp_id: str, lane: str) -> None:
 
 
 def _write_current_analysis_report(feature_dir: Path, repo_root: Path) -> None:
-    """Create the freshness-gated analysis artifact required before implement."""
-    feature_dir.mkdir(parents=True, exist_ok=True)
-    required_artifacts = {
-        "spec.md": "# Spec\n\n## Functional Requirements\n\n| ID | Requirement |\n| --- | --- |\n| FR-001 | Test workflow fixture. |\n",
-        "plan.md": "# Plan\n\n## Technical Context\n\nTest fixture.\n",
-        "tasks.md": "# Tasks\n\n## WP01 Test\n\n- [x] T001 Placeholder task\n",
-    }
-    for name, content in required_artifacts.items():
-        path = feature_dir / name
-        if not path.exists():
-            path.write_text(content, encoding="utf-8")
+    """Seed the analyze precondition required before implement."""
+    (feature_dir / "spec.md").write_text("# Spec\n\nFR-001.\n", encoding="utf-8")
+    (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+    (feature_dir / "tasks.md").write_text(
+        "## WP01 Test\n\n- [x] T001 Placeholder task\n",
+        encoding="utf-8",
+    )
     write_analysis_report(
         feature_dir=feature_dir,
         repo_root=repo_root,
-        body="# Specification Analysis Report\n\nCritical Issues Count: 0\nHigh Issues Count: 0\nPASS\n",
-        analyzer_agent="test-agent",
+        body="# Analysis\n\nCritical Issues Count: 0\nHigh Issues Count: 0\nPASS\n",
+        analyzer_agent="test",
     )
 
 
@@ -197,7 +193,6 @@ def test_workflow_implement_moves_planned_to_doing(workflow_repo: Path) -> None:
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
-    (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
     _write_current_analysis_report(feature_dir, workflow_repo)
     wp_path = tasks_dir / "WP01-test.md"
     _write_wp_file(wp_path, "WP01", lane="planned")
@@ -237,7 +232,6 @@ def test_workflow_implement_reads_canonical_status_from_main_when_run_in_sparse_
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
-    (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
     _write_current_analysis_report(feature_dir, workflow_repo)
     main_wp_path = tasks_dir / "WP01-test.md"
     _write_wp_file(main_wp_path, "WP01", lane="planned")
@@ -279,7 +273,6 @@ def test_workflow_implement_uses_main_current_lane_for_rework_from_sparse_lane(
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
-    (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
     _write_current_analysis_report(feature_dir, workflow_repo)
     main_wp_path = tasks_dir / "WP01-test.md"
     _write_wp_file(main_wp_path, "WP01", lane="for_review")
@@ -332,7 +325,6 @@ def test_workflow_implement_emits_rework_to_coord_status_path(
     for mission_dir in (feature_dir, coord_feature_dir):
         tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        (mission_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
         (mission_dir / "meta.json").write_text(
             json.dumps(
                 {
@@ -536,7 +528,7 @@ def test_workflow_review_tracks_reviewer_agent_name(workflow_repo: Path) -> None
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
-    (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
+    _write_current_analysis_report(feature_dir, workflow_repo)
     wp_path = tasks_dir / "WP01-test.md"
     _write_wp_file(wp_path, "WP01", lane="for_review")
     # Seed event log with for_review lane so review command finds canonical state
@@ -565,7 +557,7 @@ def test_workflow_review_uses_existing_canonical_event_lane(workflow_repo: Path)
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
-    (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
+    _write_current_analysis_report(feature_dir, workflow_repo)
     wp_path = tasks_dir / "WP01-test.md"
     _write_wp_file(wp_path, "WP01", lane="for_review")
 
@@ -605,7 +597,6 @@ def _setup_implement_fixture(workflow_repo: Path, *, lane: str = "planned") -> t
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
-    (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
     _write_current_analysis_report(feature_dir, workflow_repo)
     wp_path = tasks_dir / "WP01-test.md"
     _write_wp_file(wp_path, "WP01", lane=lane)

@@ -181,6 +181,11 @@ terms:
     confidence: 0.9
     status: active
 
+  - surface: implementation concern
+    definition: Plan-level architectural unit of intent identified as IC-## in plan.md. An implementation concern captures purpose, requirements, affected surfaces, sequencing, and risks. It is not executable and is translated into one or more work packages by the tasks workflow.
+    confidence: 1.0
+    status: active
+
   - surface: lane
     definition: Work package lifecycle state. Canonical lanes are planned, claimed, in_progress, for_review, in_review, approved, done, blocked, and canceled. The alias doing means in_progress. approved means review passed and merge pending; done means merged/integrated.
     confidence: 1.0
@@ -330,6 +335,11 @@ terms:
   - surface: occurrence map
     definition: A mission-level artifact (occurrence_map.yaml) that classifies every occurrence of a changing identifier by semantic context. Required before any bulk-edit work package may proceed.
     confidence: 0.95
+    status: active
+
+  - surface: plan_concern_refs
+    definition: Field in wps.yaml work package entries listing the IC-## implementation concerns from plan.md that the work package addresses. The field is wps.yaml-only and must not be copied into WP prompt frontmatter.
+    confidence: 1.0
     status: active
 
   - surface: phase
