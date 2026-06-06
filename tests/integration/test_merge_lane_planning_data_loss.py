@@ -371,6 +371,357 @@ def _real_merge_external_mocks(repo_root: Path):
         }
 
 
+@contextlib.contextmanager
+def _real_invariant_external_mocks(repo_root: Path):
+    """Like :func:`_real_merge_external_mocks` but runs the REAL post-merge
+    working-tree invariant (``_classify_porcelain_lines`` is NOT mocked).
+
+    This is the F2 regression surface: it proves the post-merge working-tree
+    invariant tolerates the ``meta.json`` dirtied by planning-only
+    mission_number assignment.  ``safe_commit`` stays mocked so we can inspect
+    the committed path set without driving a real commit onto the (protected)
+    target branch.
+
+    ``_refresh_primary_checkout_after_merge`` is mocked to a no-op so a
+    deliberately-dirtied tracked sentinel file survives to the invariant.  This
+    matters because :func:`specify_cli.core.git_ops.run_command` strips the
+    ``git status --porcelain`` output, which removes the leading status
+    column of the *first* porcelain line only.  ``meta.json`` sorts first inside
+    ``kitty-specs/<slug>/``, so without an earlier-sorting dirty entry its
+    ``" M ..."`` line would be stripped to ``"M ..."`` and skipped as malformed
+    by ``_classify_porcelain_lines`` -- masking the very defect under test.  A
+    sentinel that sorts before ``meta.json`` keeps ``meta.json``'s line
+    well-formed so the invariant genuinely classifies it.
+    """
+    patches = [
+        patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),
+        patch("specify_cli.cli.commands.merge._assert_merged_wps_reached_done"),
+        patch("specify_cli.cli.commands.merge.safe_commit"),
+        patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"),
+        patch("specify_cli.cli.commands.merge.emit_mission_closed"),
+        patch("specify_cli.cli.commands.merge._emit_merge_diff_summary"),
+        patch("specify_cli.post_merge.stale_assertions.run_check"),
+        patch("specify_cli.cli.commands.merge.run_check"),
+        patch("specify_cli.cli.commands.merge.require_no_sparse_checkout"),
+        patch("specify_cli.cli.commands.merge._enforce_git_preflight"),
+        patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
+        patch("specify_cli.policy.config.load_policy_config"),
+        patch("specify_cli.cli.commands.merge._bake_mission_number_into_mission_branch", return_value=None),
+        patch("specify_cli.cli.commands.merge._refresh_primary_checkout_after_merge"),
+        # NOTE: _classify_porcelain_lines is intentionally NOT mocked here —
+        # the real post-merge working-tree invariant must run so the F2 fix
+        # (meta.json in expected_paths) is exercised.
+    ]
+    with contextlib.ExitStack() as stack:
+        ms = [stack.enter_context(p) for p in patches]
+        gate_eval = MagicMock()
+        gate_eval.overall_pass = True
+        gate_eval.gates = []
+        ms[10].return_value = gate_eval
+        policy = MagicMock()
+        policy.merge_gates = []
+        ms[11].return_value = policy
+        stale_report = MagicMock()
+        stale_report.findings = []
+        ms[6].return_value = stale_report
+        ms[7].return_value = stale_report
+        yield {
+            "mark_done": ms[0],
+            "assert_done": ms[1],
+            "safe_commit": ms[2],
+        }
+
+
+class TestLegacyPlanningOnlyMetaInvariant:
+    """F2: a LEGACY planning-only mission (meta.json WITHOUT mission_id) that
+    needs a mission_number assigned must NOT trip the real post-merge
+    working-tree invariant.
+
+    Defect: ``_assign_planning_only_mission_number_if_needed`` dirties
+    ``meta.json`` and returns its path into ``mission_number_meta_path``, which
+    is appended to ``files_to_commit`` but was NEVER added to ``expected_paths``.
+    When ``_record_baseline_merge_commit`` returns ``None`` (legacy mission with
+    a pre-existing baseline), and ``meta.json`` is classified by the real
+    post-merge invariant, the dirtied ``meta.json`` becomes an offending line →
+    ``typer.Exit(1)``, failing the merge.
+    """
+
+    def test_legacy_planning_only_meta_json_does_not_trip_invariant(
+        self, tmp_path: Path
+    ) -> None:
+        slug = "legacy-planning-only-meta-invariant"
+        _init_git_repo(tmp_path)
+
+        feature_dir = tmp_path / "kitty-specs" / slug
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "tasks").mkdir(parents=True)
+
+        # LEGACY mission: meta.json WITHOUT mission_id, mission_number null
+        # (needs assignment), and a baseline_merge_commit already present so
+        # _record_baseline_merge_commit returns None — the exact trigger for
+        # the F2 defect.
+        meta = {
+            "mission_slug": slug,
+            "mission_number": None,
+            "mission_type": "software-dev",
+            "target_branch": "main",
+            "baseline_merge_commit": "0" * 40,
+            "purpose_tldr": "F2 legacy planning-only meta invariant pin",
+            "purpose_context": "post-merge invariant must tolerate dirtied meta.json",
+        }
+        (feature_dir / "meta.json").write_text(
+            json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+
+        # Sentinel tracked file that sorts BEFORE meta.json inside the mission
+        # dir ("a" < "m"). Dirtied at fixture time and kept dirty because the
+        # primary-checkout refresh is mocked to a no-op for this test — this
+        # ensures meta.json is NOT the first porcelain line (so run_command's
+        # .strip() does not mask meta.json's status column). See the context
+        # manager docstring for the full rationale.
+        sentinel_rel = f"kitty-specs/{slug}/aaa-sentinel.md"
+        (feature_dir / "aaa-sentinel.md").write_text("sentinel v1\n", encoding="utf-8")
+
+        _write_lanes_manifest(
+            feature_dir,
+            slug,
+            code_wp_ids=[],
+            planning_wp_ids=["WP01"],
+        )
+        _git(tmp_path, "add", ".")
+        _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap legacy planning mission")
+
+        planning_relpath = f"kitty-specs/{slug}/research/decision-A.md"
+        _commit_file(
+            tmp_path,
+            branch="main",
+            relpath=planning_relpath,
+            content="# Decision A\n\nPlanning artifact body.\n",
+            message=f"plan({slug}): commit planning artifact on target",
+        )
+
+        # Dirty the sentinel (tracked modification) so it precedes meta.json
+        # in `git status --porcelain` output.
+        (feature_dir / "aaa-sentinel.md").write_text("sentinel v2\n", encoding="utf-8")
+
+        with _real_invariant_external_mocks(tmp_path) as mocks:
+            # Must NOT raise typer.Exit — the real post-merge invariant runs and
+            # must tolerate the dirtied meta.json (the F2 fix).
+            _run_lane_based_merge(
+                repo_root=tmp_path,
+                mission_slug=slug,
+                push=False,
+                delete_branch=False,
+                remove_worktree=False,
+                strategy=MergeStrategy.SQUASH,
+                allow_sparse_checkout=True,
+            )
+
+        # mission_number was assigned (dirtying meta.json), confirming the
+        # invariant ran against a genuinely-dirty meta.json.
+        post_meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+        assert isinstance(post_meta.get("mission_number"), int), (
+            "fixture precondition: mission_number must have been assigned so "
+            "meta.json is dirty when the invariant runs"
+        )
+
+        # The dirtied meta.json must be in the committed path set (F2 fix:
+        # it is added to both files_to_commit AND expected_paths).
+        committed_paths: set[str] = set()
+        for call in mocks["safe_commit"].call_args_list:
+            committed_paths.update(_rel_paths(call.kwargs.get("paths"), tmp_path))
+        assert f"kitty-specs/{slug}/meta.json" in committed_paths, (
+            "F2 regression: planning-only mission_number meta.json was not "
+            "committed after merge."
+        )
+        # Sanity: the sentinel was the vehicle for a well-formed meta.json
+        # porcelain line; it is not part of the committed bookkeeping set.
+        assert sentinel_rel not in committed_paths
+
+
+def _write_wp_file(feature_dir: Path, wp_id: str, *, agent: str = "researcher-ryan") -> None:
+    """Write a minimal WP prompt file with an ``agent`` so _mark_wp_merged_done
+    can synthesize done evidence from an approved lane state."""
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+    (tasks_dir / f"{wp_id}.md").write_text(
+        f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} planning\n"
+        f"agent: {agent}\ndependencies: []\n---\n\nBody.\n",
+        encoding="utf-8",
+    )
+
+
+def _seed_wp_approved(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
+    """Drive a WP to ``approved`` via the real status-emit pipeline."""
+    from specify_cli.status.emit import emit_status_transition
+    from specify_cli.status.models import ReviewResult, TransitionRequest
+
+    for to_lane in ("claimed", "in_progress", "for_review", "in_review"):
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                to_lane=to_lane,
+                actor="seed",
+            )
+        )
+    emit_status_transition(
+        TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            to_lane="approved",
+            actor="seed",
+            evidence={
+                "review": {
+                    "reviewer": "reviewer-renata",
+                    "verdict": "approved",
+                    "reference": f"review-{wp_id}",
+                }
+            },
+            review_result=ReviewResult(
+                reviewer="reviewer-renata",
+                verdict="approved",
+                reference=f"review-{wp_id}",
+            ),
+        )
+    )
+
+
+@contextlib.contextmanager
+def _real_persistence_external_mocks(repo_root: Path):
+    """Mock only genuinely external side-effects (dossier sync, SaaS/mission-
+    closed emit, diff summary, stale-assertion network check) while running the
+    REAL ``_mark_wp_merged_done`` and ``_assert_merged_wps_reached_done`` so the
+    done-marking persistence is actually exercised.
+
+    ``safe_commit`` and the post-merge invariant (``_classify_porcelain_lines``)
+    are mocked: the done events are persisted to ``feature_dir/status.events.jsonl``
+    by the real status-emit pipeline *before* any commit, so persistence is
+    provable without driving a commit onto the protected target branch. The
+    real-invariant path is covered separately by
+    ``TestLegacyPlanningOnlyMetaInvariant`` (F2).
+    """
+    patches = [
+        patch("specify_cli.cli.commands.merge.safe_commit"),
+        patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"),
+        patch("specify_cli.cli.commands.merge.emit_mission_closed"),
+        patch("specify_cli.cli.commands.merge._emit_merge_diff_summary"),
+        patch("specify_cli.post_merge.stale_assertions.run_check"),
+        patch("specify_cli.cli.commands.merge.run_check"),
+        patch("specify_cli.cli.commands.merge.require_no_sparse_checkout"),
+        patch("specify_cli.cli.commands.merge._enforce_git_preflight"),
+        patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
+        patch("specify_cli.policy.config.load_policy_config"),
+        patch("specify_cli.cli.commands.merge._bake_mission_number_into_mission_branch", return_value=None),
+        patch("specify_cli.cli.commands.merge._classify_porcelain_lines", return_value=([], 0)),
+        # NOTE: _mark_wp_merged_done and _assert_merged_wps_reached_done are
+        # intentionally NOT mocked — the real done-marking persistence runs.
+    ]
+    with contextlib.ExitStack() as stack:
+        ms = [stack.enter_context(p) for p in patches]
+        gate_eval = MagicMock()
+        gate_eval.overall_pass = True
+        gate_eval.gates = []
+        ms[8].return_value = gate_eval
+        policy = MagicMock()
+        policy.merge_gates = []
+        ms[9].return_value = policy
+        stale_report = MagicMock()
+        stale_report.findings = []
+        ms[4].return_value = stale_report
+        ms[5].return_value = stale_report
+        yield {"safe_commit": ms[0]}
+
+
+class TestPlanningOnlyDoneMarkingPersists:
+    """F1: planning-only closeout must REALLY mark each WP done and persist the
+    transition, not just call mocked side-effects.
+
+    The previous planning-only merge test mocked ``_mark_wp_merged_done`` /
+    ``_assert_merged_wps_reached_done`` and only asserted they were called — the
+    "WP reaches done and persists" guarantee was unproven. This test runs the
+    real done-marking pipeline and reads the persisted events back.
+
+    NOTE: the fixture leaves ``coordination_branch`` ABSENT (the primary-checkout
+    surface). The ``coordination_branch``-set variant is deliberately deferred to
+    https://github.com/Priivacy-ai/spec-kitty/issues/1726.
+    """
+
+    def test_planning_only_done_events_are_persisted_and_readable(
+        self, tmp_path: Path
+    ) -> None:
+        from specify_cli.status.models import Lane
+        from specify_cli.status.reducer import reduce
+        from specify_cli.status.store import read_events
+
+        slug = "real-merge-planning-only-done-persist"
+        _init_git_repo(tmp_path)
+
+        feature_dir = tmp_path / "kitty-specs" / slug
+        feature_dir.mkdir(parents=True)
+        _write_meta(feature_dir, slug)
+        _write_lanes_manifest(
+            feature_dir,
+            slug,
+            code_wp_ids=[],
+            planning_wp_ids=["WP01", "WP02"],
+        )
+        for wp_id in ("WP01", "WP02"):
+            _write_wp_file(feature_dir, wp_id)
+            _seed_wp_approved(feature_dir, slug, wp_id)
+
+        # Pre-condition: WPs are approved (not yet done) in the persisted log.
+        pre = reduce(read_events(feature_dir))
+        assert pre.work_packages["WP01"]["lane"] == Lane.APPROVED.value
+        assert pre.work_packages["WP02"]["lane"] == Lane.APPROVED.value
+        # coordination_branch must be absent for this primary-checkout case.
+        assert "coordination_branch" not in json.loads(
+            (feature_dir / "meta.json").read_text(encoding="utf-8")
+        )
+
+        _git(tmp_path, "add", ".")
+        _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap approved planning mission")
+
+        planning_relpath = f"kitty-specs/{slug}/research/decision-A.md"
+        _commit_file(
+            tmp_path,
+            branch="main",
+            relpath=planning_relpath,
+            content="# Decision A\n\nPlanning artifact body.\n",
+            message=f"plan({slug}): commit planning artifact on target",
+        )
+
+        with _real_persistence_external_mocks(tmp_path):
+            _run_lane_based_merge(
+                repo_root=tmp_path,
+                mission_slug=slug,
+                push=False,
+                delete_branch=False,
+                remove_worktree=False,
+                strategy=MergeStrategy.SQUASH,
+                allow_sparse_checkout=True,
+            )
+
+        # The real done-marking pipeline must have persisted a done transition
+        # for every WP, readable back from the canonical event log.
+        post = reduce(read_events(feature_dir))
+        assert post.work_packages["WP01"]["lane"] == Lane.DONE.value, (
+            "F1 regression: WP01 did not reach done in the persisted event log."
+        )
+        assert post.work_packages["WP02"]["lane"] == Lane.DONE.value, (
+            "F1 regression: WP02 did not reach done in the persisted event log."
+        )
+        # And the done transitions are concretely present in the JSONL log.
+        done_events = [e for e in read_events(feature_dir) if e.to_lane == Lane.DONE]
+        done_wps = {e.wp_id for e in done_events}
+        assert done_wps == {"WP01", "WP02"}, (
+            f"F1 regression: expected persisted done transitions for WP01/WP02, "
+            f"got {done_wps!r}."
+        )
+
+
 class TestPlanningArtifactReachesTarget:
     """FR-001 load-bearing: planning-artifact files MUST end up on the target
     branch after ``_run_lane_based_merge`` runs against real git.
@@ -477,7 +828,18 @@ class TestPlanningArtifactReachesTarget:
     def test_planning_artifact_only_merge_does_not_require_mission_branch(
         self, tmp_path: Path
     ) -> None:
-        """All-planning research missions close from the target branch without a mission branch."""
+        """All-planning research missions close from the target branch without a mission branch.
+
+        This test pins the call-contract (mark-done invoked per WP, assert-done
+        invoked once) by mocking the persistence helpers. The *persistence*
+        guarantee — that the done transition is actually written and readable
+        back — is proven separately by
+        ``TestPlanningOnlyDoneMarkingPersists`` (F1), which runs the real
+        ``_mark_wp_merged_done`` / ``_assert_merged_wps_reached_done`` for the
+        primary-checkout (``coordination_branch``-absent) surface. The
+        ``coordination_branch``-set variant is deferred to
+        https://github.com/Priivacy-ai/spec-kitty/issues/1726.
+        """
         slug = "real-merge-planning-only-research"
         _init_git_repo(tmp_path)
 

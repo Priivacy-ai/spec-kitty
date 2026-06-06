@@ -1899,6 +1899,14 @@ def _run_lane_based_merge_locked(
         }
         if baseline_meta_path is not None:
             expected_paths.add(str(baseline_meta_path.relative_to(main_repo)))
+        # Planning-only closeout dirties meta.json to bake in mission_number.
+        # That path is committed by the immediately-following safe_commit, so it
+        # is an expected divergence here. Without this, a legacy planning-only
+        # mission (no mission_id → _record_baseline_merge_commit returns None,
+        # leaving baseline_meta_path None) trips the invariant and fails the
+        # merge. Mirrors the baseline_meta_path branch above.
+        if mission_number_meta_path is not None:
+            expected_paths.add(str(mission_number_meta_path.relative_to(main_repo)))
         offending_lines, _skipped_untracked = _classify_porcelain_lines(
             (_out_status or "").splitlines(),
             expected_paths,
