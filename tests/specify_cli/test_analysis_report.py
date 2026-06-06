@@ -185,6 +185,10 @@ def test_record_analysis_refuses_protected_branch_before_write(tmp_path, monkeyp
     input_file = tmp_path.parent / f"{tmp_path.name}-analysis.md"
     input_file.write_text("# Analysis\n\nPASS\n", encoding="utf-8")
 
+    # _enforce_analysis_report_write_preflight uses subprocess git rev-parse --show-toplevel
+    # to get the CWD git root for the branch check. chdir into tmp_path so the subprocess
+    # sees the tmp repo (branch "main", protected) rather than the CI runner's checkout.
+    monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
     monkeypatch.setattr("specify_cli.cli.commands.agent.mission.locate_project_root", lambda: repo_root)
     monkeypatch.setattr("specify_cli.cli.commands.agent.mission.get_main_repo_root", lambda path: path)
