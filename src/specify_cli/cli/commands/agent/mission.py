@@ -473,7 +473,7 @@ def _resolve_planning_branch(
     del repo_root  # No longer used; kept in signature for API stability.
     if target_branch_override is not None and target_branch_override.strip():
         return target_branch_override.strip()
-    return load_mission_target_branch(feature_dir)
+    return cast(str, load_mission_target_branch(feature_dir))
 
 
 def _ensure_branch_checked_out(
@@ -629,11 +629,11 @@ def _find_feature_directory(
         raise ValueError("--mission <slug> is required")
     try:
         resolved = resolve_mission_handle(explicit_feature, repo_root)
-        return resolved.feature_dir
+        return cast(Path, resolved.feature_dir)
     except (SystemExit, typer.Exit):
         candidate = candidate_feature_dir_for_mission(repo_root, explicit_feature)
         if candidate.exists():
-            return candidate
+            return cast(Path, candidate)
         raise ValueError(f"Mission directory not found: {explicit_feature}") from None
 
 
@@ -1748,7 +1748,7 @@ def _find_latest_feature_worktree(repo_root: Path) -> Path | None:
 
 def _find_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:
     """Find a deterministic worktree for a feature slug."""
-    return resolve_feature_worktree(repo_root, mission_slug)
+    return cast(Path | None, resolve_feature_worktree(repo_root, mission_slug))
 
 
 def _get_current_branch(repo_root: Path) -> str:
@@ -3178,4 +3178,4 @@ def _parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str
     """Parse requirement IDs from spec.md content."""
     from specify_cli.requirement_mapping import parse_requirement_ids_from_spec_md
 
-    return parse_requirement_ids_from_spec_md(spec_content)
+    return cast(dict[str, list[str]], parse_requirement_ids_from_spec_md(spec_content))
