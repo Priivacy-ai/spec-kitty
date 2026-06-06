@@ -7,9 +7,6 @@ on:
     paths:
       - '.all-contributorsrc'
       - 'CONTRIBUTORS.md'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'scripts/sync_all_contributors.py'
       - '.github/workflows/all-contributors-normalize.yml'
 
 permissions:
