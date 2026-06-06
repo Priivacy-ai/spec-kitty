@@ -63,6 +63,7 @@ class WpsManifest(BaseModel):
 
     work_packages: list[WorkPackageEntry]
     _concern_tracking_fields_seen: bool | None = PrivateAttr(default=None)
+    _concern_tracking_required: bool | None = PrivateAttr(default=None)
 
 
 def load_wps_manifest(feature_dir: Path) -> WpsManifest | None:
@@ -106,6 +107,11 @@ def load_wps_manifest(feature_dir: Path) -> WpsManifest | None:
         "_concern_tracking_fields_seen",
         concern_tracking_fields_seen,
     )
+    object.__setattr__(
+        manifest,
+        "_concern_tracking_required",
+        concern_tracking_fields_seen or _plan_contains_implementation_concerns(feature_dir),
+    )
 
     return manifest
 
@@ -117,6 +123,18 @@ def dependencies_are_explicit(entry: WorkPackageEntry) -> bool:
     When False, the field was absent from YAML and may be populated by tasks-packages.
     """
     return getattr(entry, "_dependencies_explicit", False)
+
+
+def _plan_contains_implementation_concerns(feature_dir: Path) -> bool:
+    """Return True when plan.md contains IC-## concern headings."""
+    plan_path = feature_dir / "plan.md"
+    if not plan_path.exists():
+        return False
+    try:
+        plan_text = plan_path.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return bool(re.search(r"(?m)^#{2,4}\s+IC-\d{2}\b", plan_text, re.ASCII))
 
 
 def check_concern_refs_coverage(manifest: WpsManifest) -> list[str]:
@@ -136,7 +154,7 @@ def check_concern_refs_coverage(manifest: WpsManifest) -> list[str]:
     """
     # Legacy manifests predate concern traceability. FR-010/NFR-001 require those
     # files to finalize without new warning noise when no new fields are present.
-    if getattr(manifest, "_concern_tracking_fields_seen", None) is False:
+    if getattr(manifest, "_concern_tracking_required", None) is False:
         return []
 
     warnings: list[str] = []

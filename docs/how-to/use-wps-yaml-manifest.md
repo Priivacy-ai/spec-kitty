@@ -123,7 +123,7 @@ python -m jsonschema --instance kitty-specs/042-auth-system/wps.yaml \
 
 Missions without a `wps.yaml` continue to work. `finalize-tasks` falls back to the prose parser for those missions. New missions created with spec-kitty 3.1.0+ will always produce a `wps.yaml`.
 
-Existing `wps.yaml` files without `plan_concern_refs` continue to parse and finalize without concern-traceability warnings. Once a manifest opts in by adding `plan_concern_refs` or `cross_cutting`, `finalize-tasks` warns for any WP missing both.
+Existing `wps.yaml` files without `plan_concern_refs` continue to parse and finalize without concern-traceability warnings when their `plan.md` has no `IC-##` concern headings. Once a manifest opts in by adding `plan_concern_refs` or `cross_cutting`, or the mission plan contains an Implementation Concern Map with `IC-##` headings, `finalize-tasks` warns for any WP missing both.
 
 ## See Also
 

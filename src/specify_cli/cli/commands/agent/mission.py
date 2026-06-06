@@ -63,6 +63,7 @@ from specify_cli.missions._resolve_planning_branch import (
     PlanningBranchResolutionFailed,
     load_mission_target_branch,
 )
+from specify_cli.runtime.resolver import resolve_template
 
 logger = logging.getLogger(__name__)
 
@@ -1491,13 +1492,18 @@ def setup_plan(
                 console.print(f"[yellow]Blocked:[/yellow] {blocked_reason}")
             return
 
-        from specify_cli.runtime.resolver import resolve_template
-
         # C-007: never overwrite an existing plan.md. The agent may have
         # populated it between setup-plan invocations and we must not silently
         # delete or rewrite their content.
         if not plan_file.exists():
-            plan_template = resolve_template("plan-template.md", repo_root, mission="software-dev")
+            try:
+                plan_template = resolve_template(
+                    "plan-template.md",
+                    repo_root,
+                    mission="software-dev",
+                )
+            except FileNotFoundError as exc:
+                raise FileNotFoundError("Plan template not found in repository or package") from exc
             shutil.copy2(plan_template.path, plan_file)
 
         # Local canonical lifecycle: once setup-plan accepts spec.md as

@@ -1023,6 +1023,34 @@ class TestSetupPlanCommand:
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main"))
     @patch("specify_cli.cli.commands.agent.mission._commit_to_branch")
+    def test_scaffolds_default_mission_plan_template_with_ic_map(
+        self,
+        mock_commit: Mock,
+        mock_show_branch: Mock,
+        mock_find: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
+    ):
+        """Default setup-plan template comes from the mission-specific resolver."""
+        mock_locate.return_value = tmp_path
+        mock_show_branch.return_value = (tmp_path, "main")
+        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        feature_dir.mkdir(parents=True)
+        _write_committed_substantive_spec(tmp_path, feature_dir)
+        mock_find.return_value = feature_dir
+
+        result = runner.invoke(app, ["setup-plan", "--json"])
+
+        assert result.exit_code == 0
+        plan_text = (feature_dir / "plan.md").read_text(encoding="utf-8")
+        assert "## Implementation Concern Map" in plan_text
+        assert "### IC-01" in plan_text
+        mock_commit.assert_not_called()
+
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main"))
+    @patch("specify_cli.cli.commands.agent.mission._commit_to_branch")
     def test_scaffolds_plan_template_human(
         self,
         mock_commit: Mock,
@@ -1056,7 +1084,7 @@ class TestSetupPlanCommand:
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main"))
-    @patch("specify_cli.runtime.resolver.resolve_template")
+    @patch("specify_cli.cli.commands.agent.mission.resolve_template")
     def test_errors_when_template_not_found(
         self,
         mock_resolve_template: Mock,
@@ -1074,8 +1102,7 @@ class TestSetupPlanCommand:
         _write_committed_substantive_spec(tmp_path, feature_dir)
         mock_find.return_value = feature_dir
 
-        # No project override exists and the package default is unavailable.
-        mock_resolve_template.side_effect = FileNotFoundError("Plan template not found")
+        mock_resolve_template.side_effect = FileNotFoundError("missing")
 
         # Execute
         result = runner.invoke(app, ["setup-plan", "--json"])

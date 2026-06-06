@@ -11,6 +11,9 @@ T016 — check_concern_refs_coverage() warning logic (TestCheckConcernRefsCovera
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -340,6 +343,31 @@ class TestCheckConcernRefsCoverage:
         assert manifest is not None
         assert check_concern_refs_coverage(manifest) == []
 
+    def test_loaded_manifest_without_new_fields_warns_when_plan_has_ics(
+        self, tmp_path: Path
+    ) -> None:
+        """New IC-bearing plans require wps.yaml concern coverage."""
+        (tmp_path / "plan.md").write_text(
+            "# Implementation Plan\n\n"
+            "## Implementation Concern Map\n\n"
+            "### IC-01 - Runtime boundary\n\n"
+            "- **Purpose**: Keep runtime and CLI behavior aligned.\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "wps.yaml").write_text(
+            "work_packages:\n"
+            "  - id: WP01\n"
+            "    title: New WP missing concern refs\n",
+            encoding="utf-8",
+        )
+
+        manifest = load_wps_manifest(tmp_path)
+
+        assert manifest is not None
+        warnings = check_concern_refs_coverage(manifest)
+        assert len(warnings) == 1
+        assert "WP01" in warnings[0]
+
     def test_loaded_manifest_with_explicit_empty_refs_warns(
         self, tmp_path: object
     ) -> None:
@@ -359,3 +387,28 @@ class TestCheckConcernRefsCoverage:
         warnings = check_concern_refs_coverage(manifest)
         assert len(warnings) == 1
         assert "WP01" in warnings[0]
+
+    def test_wps_schema_accepts_plan_concern_fields(self) -> None:
+        """The documented JSON schema accepts the Pydantic manifest fields."""
+        jsonschema = pytest.importorskip("jsonschema")
+        schema = json.loads(
+            Path("src/specify_cli/schemas/wps.schema.json").read_text(encoding="utf-8")
+        )
+        instance = {
+            "work_packages": [
+                {
+                    "id": "WP01",
+                    "title": "Concern-aware WP",
+                    "plan_concern_refs": ["IC-01"],
+                    "cross_cutting": False,
+                },
+                {
+                    "id": "WP02",
+                    "title": "Shared harness",
+                    "plan_concern_refs": [],
+                    "cross_cutting": True,
+                },
+            ]
+        }
+
+        jsonschema.Draft202012Validator(schema).validate(instance)
