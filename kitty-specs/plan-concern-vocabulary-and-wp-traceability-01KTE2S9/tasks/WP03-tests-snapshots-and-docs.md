@@ -25,8 +25,8 @@ subtasks:
 - T012
 - T013
 - T014
-agent: "claude:sonnet-4-6:implementer:implementer"
-shell_pid: "21949"
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "91867"
 history:
 - date: '2026-06-06'
   event: created
@@ -331,3 +331,5 @@ Implement using: `spec-kitty agent action implement WP03 --agent claude`
 ## Activity Log
 
 - 2026-06-06T11:57:39Z – claude:sonnet-4-6:implementer:implementer – shell_pid=21949 – Assigned agent via action command
+- 2026-06-06T12:26:25Z – claude:sonnet-4-6:implementer:implementer – shell_pid=21949 – Ready for review: 28 tests for plan_concern_refs/cross_cutting/check_concern_refs_coverage; stale-phrase fix in plan-template.md; codex/vibe snapshots + twelve-agent baselines regenerated; docs updated with IC-## vocabulary
+- 2026-06-06T12:26:56Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=91867 – Started review via action command
