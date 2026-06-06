@@ -267,6 +267,20 @@ def _mark_wp_merged_done(
         logger.debug("Dedup: %s already has 'done' transition, skipping", wp_id)
         return
 
+    # If the coordination branch has no events for this WP (returns PLANNED), fall
+    # back to the primary checkout's event log. This covers the case where WP
+    # lifecycle events were written to the lane worktree and later squash-merged
+    # into main without passing through the coordination branch.
+    _force_done = False
+    if lane == _Lane.PLANNED:
+        from specify_cli.status.lane_reader import get_wp_lane as _get_wp_lane  # noqa: PLC0415
+        primary_raw = _get_wp_lane(feature_dir, wp_id)
+        if isinstance(primary_raw, _Lane):
+            lane = primary_raw
+            # The coord has no events for this WP; force the done transition so
+            # the state machine doesn't reject it as an invalid jump from PLANNED.
+            _force_done = True
+
     evidence = extract_done_evidence(metadata, wp_id)
     if evidence is None:
         if lane == _Lane.APPROVED:
@@ -334,6 +348,7 @@ def _mark_wp_merged_done(
                 evidence=evidence.to_dict(),
                 workspace_context=f"merge:{repo_root}",
                 repo_root=repo_root,
+                force=_force_done,
                 policy_metadata={
                     "merge_phase": "lane_integrated",
                     "target_branch": target_branch,
@@ -365,7 +380,13 @@ def _assert_merged_wps_reached_done(
     try:
         incomplete: list[str] = []
         for wp_id in wp_ids:
-            lane = Lane(resolve_lane_alias(get_wp_lane(feature_dir, wp_id)))
+            raw = get_wp_lane(feature_dir, wp_id)
+            try:
+                lane = Lane(resolve_lane_alias(raw))
+            except ValueError:
+                # Unrecognized sentinel (e.g. "uninitialized") — treat as not done
+                incomplete.append(f"{wp_id}={raw}")
+                continue
             if lane != Lane.DONE:
                 incomplete.append(f"{wp_id}={lane.value}")
     except StoreError as exc:

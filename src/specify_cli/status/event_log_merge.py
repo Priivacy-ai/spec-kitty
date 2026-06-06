@@ -33,15 +33,12 @@ def _read_event_file(path: Path) -> list[dict[str, Any]]:
                     f"{path}: line {line_number} is not a JSON object"
                 )
             event_id = payload.get("event_id")
-            at = payload.get("at")
             if not isinstance(event_id, str) or not event_id.strip():
                 raise EventLogMergeError(
                     f"{path}: line {line_number} is missing a valid event_id"
                 )
-            if not isinstance(at, str) or not at.strip():
-                raise EventLogMergeError(
-                    f"{path}: line {line_number} is missing a valid at timestamp"
-                )
+            # Non-status event types (e.g. tracker events) may lack 'at' or
+            # 'timestamp'; accept them and sort them first via empty-string key.
             events.append(payload)
     return events
 
@@ -61,7 +58,10 @@ def merge_event_payloads(*event_groups: list[dict[str, Any]]) -> list[dict[str, 
 
     return sorted(
         merged.values(),
-        key=lambda payload: (str(payload["at"]), str(payload["event_id"])),
+        key=lambda payload: (
+            str(payload.get("at") or payload.get("timestamp", "")),
+            str(payload["event_id"]),
+        ),
     )
 
 
