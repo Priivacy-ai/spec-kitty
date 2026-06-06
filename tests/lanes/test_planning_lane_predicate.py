@@ -10,11 +10,15 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from specify_cli.lanes.compute import (
     PLANNING_LANE_ID,
     is_planning_artifact_only,
     is_planning_lane,
 )
+
+pytestmark = pytest.mark.fast
 
 
 def _lane(lane_id: str | None) -> SimpleNamespace:
