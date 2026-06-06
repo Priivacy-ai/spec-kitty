@@ -24,8 +24,8 @@ subtasks:
 - T007
 - T008
 - T009
-agent: "claude:sonnet-4-6:implementer:implementer"
-shell_pid: "14727"
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "16229"
 history:
 - date: '2026-06-06'
   event: created
@@ -243,3 +243,5 @@ Implement using: `spec-kitty agent action implement WP02 --agent claude`
 - 2026-06-06T11:31:30Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=96903 – Started review via action command
 - 2026-06-06T11:34:32Z – user – shell_pid=96903 – Moved to planned
 - 2026-06-06T11:48:42Z – claude:sonnet-4-6:implementer:implementer – shell_pid=14727 – Started implementation via action command
+- 2026-06-06T11:51:21Z – claude:sonnet-4-6:implementer:implementer – shell_pid=14727 – FR-009 violation fixed: removed plan_concern_refs from WP prompt frontmatter template
+- 2026-06-06T11:51:37Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=16229 – Started review via action command
