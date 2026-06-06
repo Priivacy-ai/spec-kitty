@@ -15,13 +15,17 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-plan-concern-vocabulary-and-wp-traceability-01KTE2S9
+base_commit: 8c5dfc67d60bd1b2311e5b1f7e6b662dd80b634e
+created_at: '2026-06-06T11:24:42.804611+00:00'
 subtasks:
 - T005
 - T006
 - T007
 - T008
 - T009
-agent: claude
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "92163"
 history:
 - date: '2026-06-06'
   event: created
@@ -231,3 +235,7 @@ Implement using: `spec-kitty agent action implement WP02 --agent claude`
 2. **Validator**: Confirm `re.ASCII` flag is used. Unicode `\d` matches Arabic-Indic digits — that would pass `IC-١٢` which is invalid.
 3. **Rendering**: Confirm the rendered line appears in the right position in `tasks.md` output (after `requirement_refs`, before the next WP or end of file).
 4. **Prompts**: Verify the `tasks-outline` schema example is updated to include `plan_concern_refs` — if the example `wps.yaml` doesn't show the field, agents will not know to emit it.
+
+## Activity Log
+
+- 2026-06-06T11:24:44Z – claude:sonnet-4-6:implementer:implementer – shell_pid=92163 – Assigned agent via action command
