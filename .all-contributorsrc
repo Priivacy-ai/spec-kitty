@@ -527,7 +527,9 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/131792457?v=4",
       "profile": "https://lynncole.art/",
       "contributions": [
-        "bug"
+        "bug",
+        "code",
+        "test"
       ]
     },
     {
@@ -539,5 +541,6 @@
         "code"
       ]
     }
-  ]
+  ],
+  "commitType": "docs"
 }
