@@ -20,8 +20,8 @@ subtasks:
 - T002
 - T003
 - T004
-agent: "claude:sonnet-4-6:implementer:implementer"
-shell_pid: "78252"
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "83221"
 history:
 - date: '2026-06-06'
   event: created
@@ -222,3 +222,5 @@ This WP is text-only. Review for:
 ## Activity Log
 
 - 2026-06-06T11:17:13Z – claude:sonnet-4-6:implementer:implementer – shell_pid=78252 – Assigned agent via action command
+- 2026-06-06T11:20:17Z – claude:sonnet-4-6:implementer:implementer – shell_pid=78252 – Ready for review: replaced Parallel Work Analysis with Implementation Concern Map IC-## stubs, updated stop-point and tasks prompt vocabulary
+- 2026-06-06T11:20:37Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=83221 – Started review via action command
