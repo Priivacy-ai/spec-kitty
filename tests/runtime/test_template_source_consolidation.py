@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.runtime.resolver import ResolutionTier, resolve_template
+from specify_cli.runtime.resolver import ResolutionTier, resolve_command, resolve_template
 
 pytestmark = [pytest.mark.fast]
 
@@ -69,4 +69,41 @@ def test_runtime_package_default_resolves_doctrine_template(
         / "software-dev"
         / "templates"
         / "plan-template.md"
+    )
+
+
+def test_stale_specify_cli_missions_env_root_resolves_doctrine_assets(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A deleted legacy template tree must not mask doctrine package defaults."""
+    monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(REPO_ROOT / "src" / "specify_cli" / "missions"))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "empty-global-home"))
+
+    project = tmp_path / "project"
+    (project / ".kittify").mkdir(parents=True)
+
+    content = resolve_template("plan-template.md", project, mission="software-dev")
+    command = resolve_command("implement.md", project, mission="software-dev")
+
+    assert content.tier == ResolutionTier.PACKAGE_DEFAULT
+    assert content.path == (
+        REPO_ROOT
+        / "src"
+        / "doctrine"
+        / "missions"
+        / "software-dev"
+        / "templates"
+        / "plan-template.md"
+    )
+    assert command.tier == ResolutionTier.PACKAGE_DEFAULT
+    assert command.path == (
+        REPO_ROOT
+        / "src"
+        / "doctrine"
+        / "missions"
+        / "mission-steps"
+        / "software-dev"
+        / "implement"
+        / "prompt.md"
     )

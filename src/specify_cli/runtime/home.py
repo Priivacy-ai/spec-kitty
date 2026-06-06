@@ -43,13 +43,12 @@ def get_kittify_home() -> Path:
 
 def _looks_like_missions_root(path: Path) -> bool:
     """Return True when ``path`` can serve as a mission asset root."""
-    if path.name == "missions":
-        return True
     for mission_name in ("software-dev", "documentation", "research", "plan"):
         mission_dir = path / mission_name
-        if (mission_dir / "mission.yaml").is_file() or (mission_dir / "mission-runtime.yaml").is_file():
-            return True
-        if (mission_dir / "command-templates").is_dir():
+        has_content_templates = any((mission_dir / "templates").glob("*.md"))
+        has_legacy_commands = any((mission_dir / "command-templates").glob("*.md"))
+        has_step_prompts = any((path / "mission-steps" / mission_name).glob("*/prompt.md"))
+        if has_content_templates or has_legacy_commands or has_step_prompts:
             return True
     return False
 
@@ -62,9 +61,10 @@ def _resolve_env_package_asset_root(root: Path) -> Path:
     missions directory under that checkout, not the checkout root itself.
     """
     candidates = (
-        root,
         root / "missions",
         root / "src" / "doctrine" / "missions",
+        root.parent.parent / "doctrine" / "missions",
+        root,
         root / "src" / "specify_cli" / "missions",
     )
     for candidate in candidates:

@@ -131,7 +131,9 @@ class TestGetPackageAssetRoot:
     ) -> None:
         """SPEC_KITTY_TEMPLATE_ROOT overrides package discovery."""
         missions = tmp_path / "missions"
-        missions.mkdir()
+        templates = missions / "software-dev" / "templates"
+        templates.mkdir(parents=True)
+        (templates / "plan-template.md").write_text("# Plan\n", encoding="utf-8")
         monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(missions))
         result = get_package_asset_root()
         assert result == missions
@@ -142,13 +144,32 @@ class TestGetPackageAssetRoot:
         """A checkout root env var resolves to src/doctrine/missions."""
         checkout = tmp_path / "spec-kitty"
         missions = checkout / "src" / "doctrine" / "missions"
-        software_dev = missions / "software-dev"
-        software_dev.mkdir(parents=True)
-        (software_dev / "mission.yaml").write_text("name: software-dev\n", encoding="utf-8")
+        templates = missions / "software-dev" / "templates"
+        templates.mkdir(parents=True)
+        (templates / "plan-template.md").write_text("# Plan\n", encoding="utf-8")
 
         monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(checkout))
 
         assert get_package_asset_root() == missions
+
+    def test_template_root_direct_legacy_missions_remaps_to_sibling_doctrine(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A direct stale specify_cli missions root resolves to doctrine assets."""
+        checkout = tmp_path / "spec-kitty"
+        stale_missions = checkout / "src" / "specify_cli" / "missions"
+        stale_software_dev = stale_missions / "software-dev"
+        stale_software_dev.mkdir(parents=True)
+        (stale_software_dev / "mission.yaml").write_text("name: software-dev\n", encoding="utf-8")
+
+        doctrine_missions = checkout / "src" / "doctrine" / "missions"
+        templates = doctrine_missions / "software-dev" / "templates"
+        templates.mkdir(parents=True)
+        (templates / "plan-template.md").write_text("# Plan\n", encoding="utf-8")
+
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(stale_missions))
+
+        assert get_package_asset_root() == doctrine_missions
 
     def test_template_root_checkout_root_falls_back_to_legacy_specify_cli_missions(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -156,9 +177,9 @@ class TestGetPackageAssetRoot:
         """A legacy checkout without doctrine assets still resolves."""
         checkout = tmp_path / "spec-kitty"
         missions = checkout / "src" / "specify_cli" / "missions"
-        software_dev = missions / "software-dev"
-        software_dev.mkdir(parents=True)
-        (software_dev / "mission.yaml").write_text("name: software-dev\n", encoding="utf-8")
+        templates = missions / "software-dev" / "templates"
+        templates.mkdir(parents=True)
+        (templates / "plan-template.md").write_text("# Plan\n", encoding="utf-8")
 
         monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(checkout))
 
@@ -171,6 +192,7 @@ class TestGetPackageAssetRoot:
         package_assets = tmp_path / "pkg"
         command_templates = package_assets / "software-dev" / "command-templates"
         command_templates.mkdir(parents=True)
+        (command_templates / "implement.md").write_text("# Implement\n", encoding="utf-8")
 
         monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(package_assets))
 
@@ -179,7 +201,7 @@ class TestGetPackageAssetRoot:
     def test_template_root_legacy_package_asset_root_with_mission_yaml(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """A direct package asset root with mission YAML remains valid."""
+        """A direct package asset root with only mission YAML is incomplete."""
         package_assets = tmp_path / "pkg"
         mission = package_assets / "software-dev"
         mission.mkdir(parents=True)
@@ -187,7 +209,8 @@ class TestGetPackageAssetRoot:
 
         monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(package_assets))
 
-        assert get_package_asset_root() == package_assets
+        with pytest.raises(FileNotFoundError, match="does not contain mission assets"):
+            get_package_asset_root()
 
     def test_template_root_env_nonexistent_raises(
         self, monkeypatch: pytest.MonkeyPatch
