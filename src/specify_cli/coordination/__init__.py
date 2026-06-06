@@ -41,6 +41,7 @@ from specify_cli.coordination.types import (
     PolicyVerdict,
     Refused,
 )
+from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.coordination.workspace import (
     CoordinationWorkspace,
     CoordinationWorkspaceBranchMismatch,
@@ -49,6 +50,8 @@ from specify_cli.coordination.workspace import (
 )
 
 __all__ = [
+    # Surface resolver (WP01 — merge-done-surface-resolver)
+    "resolve_status_surface",
     # Workspace (WP04)
     "CoordinationWorkspace",
     "CoordinationWorkspaceBranchMismatch",

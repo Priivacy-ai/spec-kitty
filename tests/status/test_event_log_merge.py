@@ -143,20 +143,21 @@ def test_read_event_file_rejects_non_object_json(tmp_path: Path) -> None:
         _read_event_file(path)
 
 
-@pytest.mark.parametrize(
-    ("payload", "expected_message"),
-    [
-        ({"at": "2026-04-09T06:00:00Z"}, "missing a valid event_id"),
-        ({"event_id": "01AAA000000000000000000001"}, "missing a valid at timestamp"),
-    ],
-)
-def test_read_event_file_requires_event_id_and_at(
-    tmp_path: Path,
-    payload: dict[str, str],
-    expected_message: str,
-) -> None:
+def test_read_event_file_requires_event_id(tmp_path: Path) -> None:
+    path = tmp_path / "events.jsonl"
+    path.write_text(json.dumps({"at": "2026-04-09T06:00:00Z"}, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(EventLogMergeError, match="missing a valid event_id"):
+        _read_event_file(path)
+
+
+def test_read_event_file_accepts_event_without_timestamp(tmp_path: Path) -> None:
+    # Non-status event types (e.g. tracker events) may lack 'at'/'timestamp';
+    # they must be accepted so the merge driver handles mixed event logs.
+    payload = {"event_id": "01AAA000000000000000000001"}
     path = tmp_path / "events.jsonl"
     path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
 
-    with pytest.raises(EventLogMergeError, match=expected_message):
-        _read_event_file(path)
+    events = _read_event_file(path)
+    assert len(events) == 1
+    assert events[0]["event_id"] == "01AAA000000000000000000001"

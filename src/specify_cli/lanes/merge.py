@@ -15,7 +15,9 @@ Strategy note (FR-006, FR-007):
 from __future__ import annotations
 
 from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
+import os
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -327,13 +329,20 @@ def _merge_branch_into(
     tmp_dir = tempfile.mkdtemp(prefix="kitty-merge-")
     tmp_path = Path(tmp_dir)
 
+    # Prepend the current venv's bin directory to PATH so that git's merge
+    # driver invocation of `spec-kitty merge-driver-event-log` resolves to the
+    # same spec-kitty binary that is currently running, not a stale global one.
+    _venv_bin = str(Path(sys.executable).parent)
+    _env = os.environ.copy()
+    _env["PATH"] = _venv_bin + os.pathsep + _env.get("PATH", "")
+
     try:
         _ensure_event_log_merge_driver_config(repo_root)
 
         # Create detached worktree at target branch tip.
         result = subprocess.run(
             ["git", "worktree", "add", "--detach", str(tmp_path), target_branch],
-            cwd=str(repo_root), capture_output=True, text=True,
+            cwd=str(repo_root), capture_output=True, text=True, env=_env,
         )
         if result.returncode != 0:
             raise RuntimeError(
@@ -342,14 +351,17 @@ def _merge_branch_into(
 
         if strategy == MergeStrategy.SQUASH:
             # Squash all commits from source into a single new commit.
+            # -X theirs: when the mission branch (source) conflicts with the
+            # target on kitty-specs/ planning artifacts, the mission branch
+            # version is authoritative (it carries the reviewed, finalized state).
             result = subprocess.run(
-                ["git", "merge", "--squash", source_branch],
-                cwd=str(tmp_path), capture_output=True, text=True,
+                ["git", "merge", "--squash", "-X", "theirs", source_branch],
+                cwd=str(tmp_path), capture_output=True, text=True, env=_env,
             )
             if result.returncode != 0:
                 subprocess.run(
                     ["git", "merge", "--abort"],
-                    cwd=str(tmp_path), capture_output=True,
+                    cwd=str(tmp_path), capture_output=True, env=_env,
                 )
                 raise RuntimeError(
                     f"Squash merge of {source_branch} into {target_branch} failed: "
@@ -362,7 +374,7 @@ def _merge_branch_into(
             # idempotent success; ordinary callers need a real merge result.
             staged = subprocess.run(
                 ["git", "diff", "--cached", "--quiet"],
-                cwd=str(tmp_path), capture_output=True, text=True,
+                cwd=str(tmp_path), capture_output=True, text=True, env=_env,
             )
             if staged.returncode == 0:
                 if allow_noop_squash:
@@ -384,7 +396,7 @@ def _merge_branch_into(
                     "commit", "-m",
                     f"feat({source_branch}): squash merge of mission",
                 ],
-                cwd=str(tmp_path), capture_output=True, text=True,
+                cwd=str(tmp_path), capture_output=True, text=True, env=_env,
             )
             if result.returncode != 0:
                 raise RuntimeError(
@@ -397,7 +409,7 @@ def _merge_branch_into(
             # out or rewrite source_branch in the user's main checkout.
             result = subprocess.run(
                 ["git", "checkout", "--detach", source_branch],
-                cwd=str(tmp_path), capture_output=True, text=True,
+                cwd=str(tmp_path), capture_output=True, text=True, env=_env,
             )
             if result.returncode != 0:
                 raise RuntimeError(
@@ -407,12 +419,12 @@ def _merge_branch_into(
             # Rebase source on top of target.
             result = subprocess.run(
                 ["git", "rebase", target_branch],
-                cwd=str(tmp_path), capture_output=True, text=True,
+                cwd=str(tmp_path), capture_output=True, text=True, env=_env,
             )
             if result.returncode != 0:
                 subprocess.run(
                     ["git", "rebase", "--abort"],
-                    cwd=str(tmp_path), capture_output=True,
+                    cwd=str(tmp_path), capture_output=True, env=_env,
                 )
                 raise RuntimeError(
                     f"Rebase of {source_branch} onto {target_branch} failed: "
@@ -421,12 +433,12 @@ def _merge_branch_into(
             # Get the rebased HEAD SHA.
             rebased_sha = subprocess.run(
                 ["git", "rev-parse", "HEAD"],
-                cwd=str(tmp_path), capture_output=True, text=True, check=True,
+                cwd=str(tmp_path), capture_output=True, text=True, check=True, env=_env,
             ).stdout.strip()
             # Fast-forward the target branch to the rebased tip.
             result = subprocess.run(
                 ["git", "update-ref", f"refs/heads/{target_branch}", rebased_sha],
-                cwd=str(repo_root), capture_output=True, text=True,
+                cwd=str(repo_root), capture_output=True, text=True, env=_env,
             )
             if result.returncode != 0:
                 raise RuntimeError(
@@ -439,12 +451,12 @@ def _merge_branch_into(
             result = subprocess.run(
                 ["git", "merge", source_branch, "--no-edit",
                  "-m", f"Merge {source_branch} into {target_branch}"],
-                cwd=str(tmp_path), capture_output=True, text=True,
+                cwd=str(tmp_path), capture_output=True, text=True, env=_env,
             )
             if result.returncode != 0:
                 subprocess.run(
                     ["git", "merge", "--abort"],
-                    cwd=str(tmp_path), capture_output=True,
+                    cwd=str(tmp_path), capture_output=True, env=_env,
                 )
                 raise RuntimeError(
                     f"Merge of {source_branch} into {target_branch} failed: "
@@ -454,13 +466,13 @@ def _merge_branch_into(
         # Get the resulting commit SHA.
         merge_commit = subprocess.run(
             ["git", "rev-parse", "HEAD"],
-            cwd=str(tmp_path), capture_output=True, text=True, check=True,
+            cwd=str(tmp_path), capture_output=True, text=True, check=True, env=_env,
         ).stdout.strip()
 
         # Update the target branch ref to point to the merge commit.
         result = subprocess.run(
             ["git", "update-ref", f"refs/heads/{target_branch}", merge_commit],
-            cwd=str(repo_root), capture_output=True, text=True,
+            cwd=str(repo_root), capture_output=True, text=True, env=_env,
         )
         if result.returncode != 0:
             raise RuntimeError(
@@ -470,5 +482,5 @@ def _merge_branch_into(
     finally:
         subprocess.run(
             ["git", "worktree", "remove", str(tmp_path), "--force"],
-            cwd=str(repo_root), capture_output=True,
+            cwd=str(repo_root), capture_output=True, env=_env,
         )

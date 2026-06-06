@@ -21,6 +21,14 @@ from specify_cli.cli.commands.merge import (
 pytestmark = pytest.mark.fast
 
 
+def _write_minimal_meta(feature_dir: Path) -> None:
+    """Write a minimal meta.json (no coord branch) so resolve_status_surface can read it."""
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_id": "01TEST00000000000000000000", "mission_slug": "021-test"}),
+        encoding="utf-8",
+    )
+
+
 def _write_wp(path: Path, *, review_status: str = "", reviewed_by: str = "", agent: str = "") -> None:
     """Write a minimal WP file. Lane is tracked via event log, not frontmatter."""
     lines = [
@@ -43,6 +51,7 @@ def test_mark_wp_merged_done_emits_done_transition(tmp_path: Path, monkeypatch) 
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    _write_minimal_meta(feature_dir)
     _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
 
     emit_mock = Mock()
@@ -69,6 +78,7 @@ def test_mark_wp_merged_done_approved_without_review_metadata_synthesizes_eviden
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    _write_minimal_meta(feature_dir)
     _write_wp(tasks_dir / "WP01-test.md")
 
     emit_mock = Mock()
@@ -94,6 +104,7 @@ def test_mark_wp_merged_done_for_review_without_metadata_skips(tmp_path: Path, m
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    _write_minimal_meta(feature_dir)
     _write_wp(tasks_dir / "WP01-test.md")
 
     emit_mock = Mock()
@@ -116,6 +127,7 @@ def test_mark_wp_merged_done_records_approved_before_done_for_legacy_for_review(
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    _write_minimal_meta(feature_dir)
     _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
 
     emit_mock = Mock()
@@ -144,6 +156,7 @@ def test_mark_wp_merged_done_recovers_reviewed_wps_from_pre_review_lanes(
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    _write_minimal_meta(feature_dir)
     _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
 
     emit_mock = Mock()
@@ -160,6 +173,56 @@ def test_mark_wp_merged_done_recovers_reviewed_wps_from_pre_review_lanes(
     assert emit_mock.call_args_list[1].args[0].to_lane == "done"
 
 
+def test_mark_wp_merged_done_replays_approved_before_done_for_primary_fallback(
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> None:
+    """Primary fallback must replay conforming approved history before done."""
+    from specify_cli.status.models import Lane
+
+    repo_root = tmp_path
+    mission_slug = "021-test"
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": "01TEST00000000000000000000",
+                "mid8": "01TEST00",
+                "mission_slug": mission_slug,
+                "coordination_branch": "kitty/mission-021-test-01TEST00",
+            }
+        ),
+        encoding="utf-8",
+    )
+    _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
+
+    emit_mock = Mock()
+    monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
+    monkeypatch.setattr(
+        "specify_cli.coordination.status_transition.read_current_wp_state_transactional",
+        lambda **_kw: (Lane.PLANNED, None),
+    )
+    monkeypatch.setattr(
+        "specify_cli.coordination.status_transition.has_transition_to_transactional",
+        lambda **_kw: False,
+    )
+    monkeypatch.setattr(
+        "specify_cli.status.lane_reader.get_wp_lane",
+        lambda *_a, **_kw: "approved",
+    )
+
+    _mark_wp_merged_done(repo_root, mission_slug, "WP01", "main")
+
+    assert emit_mock.call_count == 2
+    approved_request = emit_mock.call_args_list[0].args[0]
+    done_request = emit_mock.call_args_list[1].args[0]
+    assert approved_request.to_lane == "approved"
+    assert done_request.to_lane == "done"
+    assert done_request.force is False
+
+
 def test_mark_wp_merged_done_synthesized_evidence_uses_typed_agent(
     tmp_path: Path,
     monkeypatch: Any,
@@ -169,6 +232,7 @@ def test_mark_wp_merged_done_synthesized_evidence_uses_typed_agent(
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    _write_minimal_meta(feature_dir)
     _write_wp(tasks_dir / "WP01-test.md", agent="gemini-cli")
 
     emit_mock = Mock()
@@ -204,6 +268,10 @@ def test_assert_merged_wps_reached_done_allows_done_snapshot(
 ) -> None:
     feature_dir = tmp_path / "kitty-specs" / "021-test"
     feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_id": "01TEST00000000000000000000", "mission_slug": "021-test"}),
+        encoding="utf-8",
+    )
 
     monkeypatch.setattr(
         "specify_cli.status.lane_reader.get_wp_lane",
@@ -219,6 +287,10 @@ def test_assert_merged_wps_reached_done_fails_when_wp_not_done(
 ) -> None:
     feature_dir = tmp_path / "kitty-specs" / "021-test"
     feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_id": "01TEST00000000000000000000", "mission_slug": "021-test"}),
+        encoding="utf-8",
+    )
 
     lanes = {"WP01": "done", "WP02": "planned"}
     monkeypatch.setattr(
@@ -479,3 +551,207 @@ def test_assert_baseline_on_target_raises_when_committed_differs_from_recorded(
             feature_dir=feature_dir,
             mission_id=_MODERN_MISSION_ID,
         )
+
+
+# ---------------------------------------------------------------------------
+# ATDD anchor (T000) — RED until WP02 wires resolve_status_surface
+# ---------------------------------------------------------------------------
+
+
+def test_assert_merged_wps_reads_coord_surface_when_coord_branch_set(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ATDD anchor [RED]: _assert_merged_wps_reached_done must read from the
+    coordination worktree when coordination_branch is set in meta.json.
+
+    Current code reads from the primary checkout (no events there) and raises
+    CanonicalStatusNotFoundError. After WP02 wires resolve_status_surface this
+    test becomes GREEN.
+
+    Relates-to: #1726
+    """
+    mission_slug = "my-mission"
+    mission_id = "01KTDVHZKGCHCW6HQ4V577PNES"
+    mid8 = mission_id[:8]
+
+    # Primary checkout: meta.json present, NO status.events.jsonl
+    primary_dir = tmp_path / "kitty-specs" / mission_slug
+    primary_dir.mkdir(parents=True)
+    (primary_dir / "meta.json").write_text(
+        json.dumps({
+            "mission_id": mission_id,
+            "mission_slug": mission_slug,
+            "coordination_branch": f"kitty/mission-{mission_slug}-{mid8}",
+        }),
+        encoding="utf-8",
+    )
+
+    # Coordination worktree: status.events.jsonl with a done event for WP01
+    coord_dir = (
+        tmp_path / ".worktrees"
+        / f"{mission_slug}-{mid8}-coord"
+        / "kitty-specs"
+        / f"{mission_slug}-{mid8}"
+    )
+    coord_dir.mkdir(parents=True)
+    done_event = {
+        "event_id": "01KTDVHZ000000000000000001",
+        "mission_slug": mission_slug,
+        "wp_id": "WP01",
+        "from_lane": "approved",
+        "to_lane": "done",
+        "at": "2026-06-06T00:00:00+00:00",
+        "actor": "merge",
+        "force": False,
+        "execution_mode": "worktree",
+        "reason": "Merged WP01 into main",
+        "review_ref": None,
+        "evidence": None,
+        "policy_metadata": None,
+    }
+    (coord_dir / "status.events.jsonl").write_text(
+        json.dumps(done_event) + "\n", encoding="utf-8"
+    )
+
+    # Stub resolve_feature_dir_for_mission → primary checkout (no events).
+    # On unfixed code this causes get_wp_lane to raise CanonicalStatusNotFoundError.
+    # On fixed code _assert_merged_wps_reached_done calls resolve_status_surface
+    # instead, bypassing this stub entirely.
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.merge.resolve_feature_dir_for_mission",
+        lambda *_a, **_kw: primary_dir,
+    )
+
+    # Must NOT raise. Will fail (CanonicalStatusNotFoundError) until WP02 fix.
+    _assert_merged_wps_reached_done(tmp_path, mission_slug, ["WP01"])
+
+
+# ---------------------------------------------------------------------------
+# WP03: Coordination branch surface regression tests (parity ratchet — #1726)
+# ---------------------------------------------------------------------------
+
+_COORD_SLUG = "test-coord-mission"
+_COORD_MISSION_ID = "01KTDVHZKGCHCW6HQ4V577PNES"
+
+
+@pytest.fixture
+def coord_branch_mission(tmp_path: Path) -> dict:
+    """Minimal coord-branch fixture: meta.json + coord worktree stub on disk.
+
+    The slug does NOT end in mid8, so surface_resolver adds the suffix:
+      worktree: .worktrees/test-coord-mission-01KTDVHZ-coord/
+      events:   kitty-specs/test-coord-mission-01KTDVHZ/status.events.jsonl
+    """
+    mid8 = _COORD_MISSION_ID[:8]  # "01KTDVHZ"
+    coord_branch = f"kitty/mission-{_COORD_SLUG}-{mid8}"
+
+    primary_dir = tmp_path / "kitty-specs" / _COORD_SLUG
+    primary_dir.mkdir(parents=True)
+    (primary_dir / "meta.json").write_text(
+        json.dumps({
+            "mission_id": _COORD_MISSION_ID,
+            "mission_slug": _COORD_SLUG,
+            "slug": _COORD_SLUG,
+            "coordination_branch": coord_branch,
+            "target_branch": "main",
+        }),
+        encoding="utf-8",
+    )
+
+    # Coord worktree path matches what surface_resolver.py derives:
+    #   .worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>-<mid8>/
+    coord_dir_name = f"{_COORD_SLUG}-{mid8}"
+    coord_specs = (
+        tmp_path / ".worktrees" / f"{coord_dir_name}-coord"
+        / "kitty-specs" / coord_dir_name
+    )
+    coord_specs.mkdir(parents=True)
+    coord_events = coord_specs / "status.events.jsonl"
+    coord_events.write_text("", encoding="utf-8")
+
+    return {
+        "repo_root": tmp_path,
+        "mission_slug": _COORD_SLUG,
+        "mid8": mid8,
+        "primary_dir": primary_dir,
+        "coord_specs": coord_specs,
+        "coord_events": coord_events,
+    }
+
+
+def _seed_done_event(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
+    from specify_cli.status.models import Lane, StatusEvent
+    from specify_cli.status.store import append_event
+
+    event = StatusEvent(
+        event_id=f"01TESTREGRWP{wp_id[-2:]}DONE0000000"[:26],
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        from_lane=Lane.APPROVED,
+        to_lane=Lane.DONE,
+        at="2026-06-06T12:00:00+00:00",
+        actor="merge",
+        force=False,
+        execution_mode="worktree",
+    )
+    append_event(feature_dir, event)
+
+
+def test_coord_branch_assert_reads_from_coord_surface(
+    coord_branch_mission: dict,
+) -> None:
+    """With coord branch set, _assert_merged_wps_reached_done reads coord surface.
+
+    Parity ratchet: done event on coord surface → assertion passes.
+    Proves the read path uses resolve_status_surface (not primary checkout).
+
+    Relates-to: #1726
+    """
+    repo_root = coord_branch_mission["repo_root"]
+    coord_specs = coord_branch_mission["coord_specs"]
+
+    # Write done event to coord surface only (not primary checkout)
+    _seed_done_event(coord_specs, _COORD_SLUG, "WP01")
+
+    # Must NOT raise — reads from coord surface
+    _assert_merged_wps_reached_done(repo_root, _COORD_SLUG, ["WP01"])
+
+
+def test_coord_branch_assert_ignores_primary_checkout(
+    coord_branch_mission: dict,
+) -> None:
+    """With coord branch set, done event on primary checkout does not satisfy assertion.
+
+    Parity ratchet (inverse): done on primary + approved on coord → assertion fails.
+    Proves the coord surface and primary checkout are isolated: the reader must
+    not fall back to primary when coordination_branch is set.
+
+    Relates-to: #1726
+    """
+    from specify_cli.status.models import Lane, StatusEvent
+    from specify_cli.status.store import append_event
+
+    repo_root = coord_branch_mission["repo_root"]
+    primary_dir = coord_branch_mission["primary_dir"]
+    coord_specs = coord_branch_mission["coord_specs"]
+
+    # Write done event to PRIMARY ONLY
+    _seed_done_event(primary_dir, _COORD_SLUG, "WP01")
+
+    # Write only an approved event to coord surface (not done)
+    approved_event = StatusEvent(
+        event_id="01TESTCOORDSURFAPPRV00000000"[:26],
+        mission_slug=_COORD_SLUG,
+        wp_id="WP01",
+        from_lane=Lane.IN_PROGRESS,
+        to_lane=Lane.APPROVED,
+        at="2026-06-06T12:00:00+00:00",
+        actor="claude",
+        force=False,
+        execution_mode="worktree",
+    )
+    append_event(coord_specs, approved_event)
+
+    # Must RAISE — coord surface only has approved, not done
+    with pytest.raises(typer.Exit):
+        _assert_merged_wps_reached_done(repo_root, _COORD_SLUG, ["WP01"])
