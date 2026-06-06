@@ -69,8 +69,12 @@ def _populate_package_templates(pkg_root: Path) -> None:
     missions = pkg_root / "missions"
     missions.mkdir(parents=True, exist_ok=True)
     # WP10: mission directories have no command-templates/ subdirectory
-    (missions / "software-dev").mkdir(parents=True, exist_ok=True)
-    (missions / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
+    software_dev = missions / "software-dev"
+    software_dev.mkdir(parents=True, exist_ok=True)
+    (software_dev / "mission.yaml").write_text("name: software-dev\n")
+    templates = software_dev / "templates"
+    templates.mkdir()
+    (templates / "spec-template.md").write_text("# Package spec template\n")
 
 # ---------------------------------------------------------------------------
 # T038: Init creates only project-specific files when global runtime exists

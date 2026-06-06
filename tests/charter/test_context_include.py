@@ -208,7 +208,14 @@ class TestSiblingHyphenKinds:
 
 
 class TestTemplateInclude:
-    def test_template_include_renders_content(self, tmp_path: Path) -> None:
+    def test_template_include_renders_content(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "empty-global-home"))
+
         text = build_charter_context_include(
             tmp_path, "template:software-dev/spec-template.md"
         )
@@ -222,7 +229,7 @@ class TestTemplateInclude:
         )
         # The resolved template body is appended after the header line.
         assert len(text.splitlines()) > 1
-        assert "Feature Specification" in text
+        assert "Mission Specification" in text
 
     def test_missing_template_fails_closed(self, tmp_path: Path) -> None:
         with pytest.raises(ValueError, match="No template found"):

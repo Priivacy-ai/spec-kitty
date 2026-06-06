@@ -1056,10 +1056,10 @@ class TestSetupPlanCommand:
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main"))
-    @patch("specify_cli.cli.commands.agent.mission.files")
+    @patch("specify_cli.runtime.resolver.resolve_template")
     def test_errors_when_template_not_found(
         self,
-        mock_files: Mock,
+        mock_resolve_template: Mock,
         mock_show_branch: Mock,
         mock_find: Mock,
         mock_locate: Mock,
@@ -1074,12 +1074,8 @@ class TestSetupPlanCommand:
         _write_committed_substantive_spec(tmp_path, feature_dir)
         mock_find.return_value = feature_dir
 
-        # No template created and package template unavailable
-        package_templates = Mock()
-        package_template = Mock()
-        package_template.is_file.return_value = False
-        package_templates.joinpath.return_value = package_template
-        mock_files.return_value = package_templates
+        # No project override exists and the package default is unavailable.
+        mock_resolve_template.side_effect = FileNotFoundError("Plan template not found")
 
         # Execute
         result = runner.invoke(app, ["setup-plan", "--json"])

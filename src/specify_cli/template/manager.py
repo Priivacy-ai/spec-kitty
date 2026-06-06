@@ -59,14 +59,6 @@ def copy_charter_templates(project_path: Path, repo_root: Path | None = None) ->
     except ModuleNotFoundError:
         pass
 
-    # Legacy fallback while older packages still ship this under templates/
-    try:
-        specify_root = files("specify_cli")
-        legacy_toolguide = specify_root.joinpath("templates", "POWERSHELL_SYNTAX.md")
-        _copy_charter_toolguide_from_resource(legacy_toolguide, project_path)
-    except ModuleNotFoundError:
-        pass
-
 
 def copy_specify_base_from_local(repo_root: Path, project_path: Path) -> Path:
     """Copy the embedded .kittify assets from a local repository checkout."""
@@ -81,11 +73,8 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path) -> Path:
             shutil.rmtree(memory_dest)
         shutil.copytree(memory_src, memory_dest)
 
-    # Copy from src/doctrine/templates/ (doctrine artifacts)
-    # The src/doctrine/templates/ directory contains:
-    # - command-templates/ (agent command templates)
-    # - claudeignore-template
-    # - AGENTS.md
+    # Copy from src/doctrine/templates/ (doctrine artifacts).
+    # Mission content templates live under src/doctrine/missions/<mission>/templates.
     templates_src = repo_root / "src" / "doctrine" / "templates"
     if templates_src.exists():
         templates_dest = specify_root / "templates"
@@ -126,27 +115,38 @@ def copy_package_tree(resource: Traversable, dest: Path) -> None:
 
 def copy_specify_base_from_package(project_path: Path) -> Path:
     """Copy the packaged .kittify assets that ship with the CLI."""
-    data_root = files("specify_cli")
+    specify_data_root = files("specify_cli")
     specify_root = project_path / ".kittify"
     specify_root.mkdir(parents=True, exist_ok=True)
 
-    memory_resource = data_root.joinpath("memory")
+    memory_resource = specify_data_root.joinpath("memory")
     if _resource_exists(memory_resource):
         copy_package_tree(memory_resource, specify_root / "memory")
 
-    templates_resource = data_root.joinpath("templates")
-    if _resource_exists(templates_resource):
-        templates_dest = specify_root / "templates"
-        copy_package_tree(templates_resource, templates_dest)
-        agents_template = templates_resource.joinpath("AGENTS.md")
-        if _resource_exists(agents_template):
-            with agents_template.open("rb") as src, open(specify_root / "AGENTS.md", "wb") as dst:
-                shutil.copyfileobj(src, dst)
+    try:
+        doctrine_data_root = files("doctrine")
+    except (ModuleNotFoundError, TypeError):
+        doctrine_data_root = specify_data_root
+
+    templates_resource_candidates = [
+        doctrine_data_root.joinpath("templates"),
+        specify_data_root.joinpath("templates"),  # Legacy fallback
+    ]
+    for templates_resource in templates_resource_candidates:
+        if _resource_exists(templates_resource):
+            templates_dest = specify_root / "templates"
+            copy_package_tree(templates_resource, templates_dest)
+            agents_template = templates_resource.joinpath("AGENTS.md")
+            if _resource_exists(agents_template):
+                with agents_template.open("rb") as src, open(specify_root / "AGENTS.md", "wb") as dst:
+                    shutil.copyfileobj(src, dst)
+            break
 
     missions_resource_candidates = [
-        data_root.joinpath("missions"),  # Primary location per pyproject.toml
-        data_root.joinpath(".kittify", "missions"),  # Legacy fallback
-        data_root.joinpath("template_data", "missions"),  # Legacy fallback
+        doctrine_data_root.joinpath("missions"),
+        specify_data_root.joinpath("missions"),  # Legacy fallback
+        specify_data_root.joinpath(".kittify", "missions"),  # Legacy fallback
+        specify_data_root.joinpath("template_data", "missions"),  # Legacy fallback
     ]
     for missions_resource in missions_resource_candidates:
         if _resource_exists(missions_resource):
@@ -165,12 +165,18 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
         override_path: Optional override path (e.g., from --template-root flag)
 
     Returns:
-        Path to repository root containing src/doctrine/templates/command-templates, or None
+        Path to repository root containing doctrine templates and missions, or None
     """
+    def _is_template_root(path: Path) -> bool:
+        return (
+            (path / "src" / "doctrine" / "templates" / "AGENTS.md").is_file()
+            and (path / "src" / "doctrine" / "missions").is_dir()
+        )
+
     # Check override path first (from --template-root flag)
     if override_path:
         override = Path(override_path).expanduser().resolve()
-        if (override / "src" / "doctrine" / "templates" / "command-templates").exists():
+        if _is_template_root(override):
             return override
         # Legacy fallback for old template structure
         if (override / ".kittify" / "templates" / "command-templates").exists():
@@ -183,7 +189,7 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
     env_root = os.environ.get("SPEC_KITTY_TEMPLATE_ROOT")
     if env_root:
         root_path = Path(env_root).expanduser().resolve()
-        if (root_path / "src" / "doctrine" / "templates" / "command-templates").exists():
+        if _is_template_root(root_path):
             return root_path
         # Legacy fallback for old template structure
         if (root_path / ".kittify" / "templates" / "command-templates").exists():
@@ -193,8 +199,8 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
         )
 
     # Check package location
-    candidate = Path(__file__).resolve().parents[2]
-    if (candidate / "src" / "doctrine" / "templates" / "command-templates").exists():
+    candidate = Path(__file__).resolve().parents[3]
+    if _is_template_root(candidate):
         return candidate
     # Legacy fallback for old template structure
     if (candidate / ".kittify" / "templates" / "command-templates").exists():

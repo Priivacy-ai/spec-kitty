@@ -30,7 +30,6 @@ GENERIC_SURFACES = (
     Path("src/doctrine/tactics/built-in"),
     Path("src/doctrine/templates"),
     Path("src/doctrine/missions/software-dev/templates"),
-    Path("src/specify_cli/missions/software-dev/templates"),
     Path("src/specify_cli/templates"),
     Path("src/charter/defaults.yaml"),
 )

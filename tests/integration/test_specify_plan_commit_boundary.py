@@ -392,6 +392,39 @@ def test_setup_plan_commits_substantive_plan(tmp_path: Path) -> None:
     assert _file_in_head(tmp_path, plan_rel) is True
 
 
+def test_setup_plan_scaffolds_from_doctrine_package_default(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _init_git_repo(tmp_path)
+    feature_dir = _create_mission(tmp_path, "mission-package-default")
+    handle = feature_dir.name
+
+    monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "empty-global-home"))
+
+    (feature_dir / "spec.md").write_text(_SUBSTANTIVE_SPEC, encoding="utf-8")
+    spec_rel = str((feature_dir / "spec.md").relative_to(tmp_path))
+    _commit_file(tmp_path, spec_rel, "add substantive spec")
+
+    payload = _run_setup_plan(tmp_path, handle)
+
+    doctrine_plan = (
+        Path(__file__).resolve().parents[2]
+        / "src"
+        / "doctrine"
+        / "missions"
+        / "software-dev"
+        / "templates"
+        / "plan-template.md"
+    )
+    plan_file = feature_dir / "plan.md"
+
+    assert payload.get("result") == "blocked"
+    assert plan_file.read_text(encoding="utf-8") == doctrine_plan.read_text(encoding="utf-8")
+    assert _file_in_head(tmp_path, str(plan_file.relative_to(tmp_path))) is False
+
+
 # ---------------------------------------------------------------------------
 # Scenario (e) — committed spec + scaffold plan -> phase_complete=False
 # ---------------------------------------------------------------------------

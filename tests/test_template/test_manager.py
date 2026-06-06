@@ -13,11 +13,10 @@ from specify_cli.template.manager import copy_specify_base_from_local
 pytestmark = [pytest.mark.unit]
 
 def test_get_local_repo_root_prefers_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    # Manager expects src/doctrine/templates/command-templates for repo root detection
-    templates_dir = tmp_path / "src" / "doctrine" / "templates" / "command-templates"
+    templates_dir = tmp_path / "src" / "doctrine" / "templates"
     templates_dir.mkdir(parents=True)
-    marker = templates_dir / "demo.md"
-    marker.write_text("# demo", encoding="utf-8")
+    (templates_dir / "AGENTS.md").write_text("# agents", encoding="utf-8")
+    (tmp_path / "src" / "doctrine" / "missions").mkdir(parents=True)
 
     monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(tmp_path))
     try:

@@ -88,6 +88,24 @@ def test_resolve_templates_raise_when_doctrine_repo_has_no_match() -> None:
         resolver.resolve_content_template("software-dev", "spec-template.md")
 
 
+def test_from_missions_root_resolves_package_default_paths(tmp_path: Path) -> None:
+    missions_root = tmp_path / "missions"
+    command = missions_root / "mission-steps" / "software-dev" / "plan" / "prompt.md"
+    command.parent.mkdir(parents=True)
+    command.write_text("plan prompt", encoding="utf-8")
+    content = missions_root / "software-dev" / "templates" / "spec-template.md"
+    content.parent.mkdir(parents=True)
+    content.write_text("spec template", encoding="utf-8")
+    mission_config = missions_root / "software-dev" / "mission.yaml"
+    mission_config.write_text("name: software-dev\n", encoding="utf-8")
+
+    resolver = CharterTemplateResolver.from_missions_root(missions_root)
+
+    assert resolver.resolve_command_template_path("software-dev", "plan") == command
+    assert resolver.resolve_content_template_path("software-dev", "spec-template.md") == content
+    assert resolver.resolve_mission_config_path("software-dev") == mission_config
+
+
 def test_tier_to_origin_falls_back_to_unknown_prefix() -> None:
     origin = CharterTemplateResolver._tier_to_origin(object(), "software-dev", "templates", "spec-template.md")
     assert origin == "unknown/software-dev/templates/spec-template.md"

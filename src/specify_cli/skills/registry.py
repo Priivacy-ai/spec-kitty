@@ -47,10 +47,9 @@ class SkillRegistry:
     def from_package(cls) -> SkillRegistry:
         """Create registry from installed package.
 
-        ``get_package_asset_root()`` resolves to ``<pkg>/missions`` which is
-        inside ``specify_cli/``.  The doctrine tree is a sibling top-level
-        package (``site-packages/doctrine/skills``), so we resolve it via
-        ``importlib.resources`` directly.  A development-mode fallback walks
+        The doctrine tree is a sibling top-level package
+        (``site-packages/doctrine/skills``), so we resolve it via
+        ``importlib.resources`` directly. A development-mode fallback walks
         up from ``specify_cli`` to ``src/doctrine/skills``.
         """
         import importlib.resources

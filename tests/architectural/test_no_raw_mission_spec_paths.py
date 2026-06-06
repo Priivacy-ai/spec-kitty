@@ -34,6 +34,7 @@ _SEMANTIC_CONSTRUCTOR_FILES = {
     Path("src/specify_cli/core/project_resolver.py"),
     Path("src/specify_cli/core/worktree.py"),
     Path("src/specify_cli/core/worktree_topology.py"),
+    Path("src/specify_cli/coordination/surface_resolver.py"),
     Path("src/specify_cli/coordination/status_transition.py"),
     Path("src/specify_cli/coordination/transaction.py"),
     Path("src/specify_cli/events/decision_log.py"),

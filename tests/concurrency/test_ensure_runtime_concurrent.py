@@ -18,12 +18,13 @@ pytestmark = [pytest.mark.integration]
 def _setup_fake_assets(asset_dir: str) -> None:
     """Create a minimal package asset tree for testing."""
     missions = Path(asset_dir) / "missions"
-    (missions / "software-dev").mkdir(parents=True, exist_ok=True)
-    (missions / "software-dev" / "mission.yaml").write_text("test-mission-sw")
-    (missions / "research").mkdir(parents=True, exist_ok=True)
-    (missions / "research" / "mission.yaml").write_text("test-mission-res")
-    (missions / "documentation").mkdir(parents=True, exist_ok=True)
-    (missions / "documentation" / "mission.yaml").write_text("test-mission-doc")
+    for mission in ("software-dev", "research", "documentation"):
+        mission_dir = missions / mission
+        mission_dir.mkdir(parents=True, exist_ok=True)
+        (mission_dir / "mission.yaml").write_text(f"test-mission-{mission}")
+        templates = mission_dir / "templates"
+        templates.mkdir()
+        (templates / "spec-template.md").write_text(f"# {mission} spec template\n")
 
     scripts = Path(asset_dir) / "scripts"
     scripts.mkdir(parents=True, exist_ok=True)

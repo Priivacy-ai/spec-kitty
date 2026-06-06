@@ -5,7 +5,7 @@ Resolution tiers (checked in order):
 2. LEGACY          -- .kittify/{templates,command-templates}/ (deprecated; emits warning)
 3. GLOBAL_MISSION  -- ~/.kittify/missions/{mission}/{templates,command-templates}/
 4. GLOBAL          -- ~/.kittify/{templates,command-templates}/
-5. PACKAGE         -- specify_cli/missions/{mission}/{templates,command-templates}/
+5. PACKAGE         -- charter-resolved doctrine/missions/{mission}/{templates,command-templates}/
 
 After ``spec-kitty migrate`` has been run (i.e. ``~/.kittify/`` is
 populated), legacy-tier warnings are suppressed.  Pre-migration projects
@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import sys
 import warnings
+from functools import lru_cache
 from pathlib import Path
 
 # Single source of truth for the resolution enum / result dataclass.
@@ -32,7 +33,13 @@ from pathlib import Path
 # (WP07) to enforce the runtime → charter → doctrine boundary.
 from charter.resolution import ResolutionResult, ResolutionTier
 
-__all__ = ["ResolutionResult", "ResolutionTier"]
+__all__ = [
+    "ResolutionResult",
+    "ResolutionTier",
+    "resolve_command",
+    "resolve_mission",
+    "resolve_template",
+]
 
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 
@@ -117,6 +124,36 @@ def _reset_migrate_nudge() -> None:
     _migrate_nudge_shown = False
 
 
+@lru_cache(maxsize=8)
+def _charter_template_resolver_for(missions_root: str):
+    """Return a charter template resolver for ``missions_root``.
+
+    Kept at the Tier-5 boundary so package-default filesystem access remains
+    routed through charter and repeated lookups reuse the same repository.
+    """
+    from charter.template_resolver import CharterTemplateResolver  # noqa: PLC0415
+
+    return CharterTemplateResolver.from_missions_root(Path(missions_root))
+
+
+def _package_default_path(
+    *,
+    pkg_missions: Path,
+    mission: str,
+    subdir: str,
+    name: str,
+) -> Path | None:
+    """Resolve package defaults through charter's doctrine facade."""
+    charter_resolver = _charter_template_resolver_for(str(pkg_missions))
+    if subdir == "command-templates":
+        return charter_resolver.resolve_command_template_path(mission, Path(name).stem)
+    if subdir == "templates":
+        return charter_resolver.resolve_content_template_path(mission, name)
+
+    pkg_path = pkg_missions / mission / subdir / name
+    return pkg_path if pkg_path.is_file() else None
+
+
 def _resolve_asset(
     name: str,
     subdir: str,
@@ -171,13 +208,17 @@ def _resolve_asset(
         # Cannot determine home directory -- skip tiers 3 and 4
         pass
 
-    # Tier 5 -- package default
+    # Tier 5 -- package default via charter. Keep this call routed through
+    # charter so runtime never binds directly to doctrine's repository shape.
     try:
         pkg_missions = get_package_asset_root()
-        pkg_path = pkg_missions / mission / subdir / name
-        if subdir == "command-templates" and not pkg_path.is_file():
-            pkg_path = pkg_missions / "mission-steps" / mission / Path(name).stem / "prompt.md"
-        if pkg_path.is_file():
+        pkg_path = _package_default_path(
+            pkg_missions=pkg_missions,
+            mission=mission,
+            subdir=subdir,
+            name=name,
+        )
+        if pkg_path is not None and pkg_path.is_file():
             return ResolutionResult(
                 path=pkg_path,
                 tier=ResolutionTier.PACKAGE_DEFAULT,
@@ -185,27 +226,6 @@ def _resolve_asset(
             )
     except FileNotFoundError:
         pass
-
-    if subdir == "command-templates":
-        try:
-            import doctrine  # noqa: PLC0415
-
-            doctrine_path = (
-                Path(doctrine.__file__).parent
-                / "missions"
-                / "mission-steps"
-                / mission
-                / Path(name).stem
-                / "prompt.md"
-            )
-            if doctrine_path.is_file():
-                return ResolutionResult(
-                    path=doctrine_path,
-                    tier=ResolutionTier.PACKAGE_DEFAULT,
-                    mission=mission,
-                )
-        except ImportError:
-            pass
 
     raise FileNotFoundError(
         f"Asset '{name}' not found in any resolution tier "
@@ -322,11 +342,13 @@ def resolve_mission(
     except RuntimeError:
         pass
 
-    # Tier 4 -- package default
+    # Tier 4 -- package default via charter.
     try:
         pkg_missions = get_package_asset_root()
-        pkg_path = pkg_missions / name / filename
-        if pkg_path.is_file():
+        pkg_path = _charter_template_resolver_for(str(pkg_missions)).resolve_mission_config_path(
+            name
+        )
+        if pkg_path is not None and pkg_path.is_file():
             return ResolutionResult(path=pkg_path, tier=ResolutionTier.PACKAGE_DEFAULT, mission=name)
     except FileNotFoundError:
         pass

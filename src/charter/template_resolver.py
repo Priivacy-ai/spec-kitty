@@ -32,6 +32,23 @@ class CharterTemplateResolver:
     def __init__(self, repo: MissionTemplateRepository | None = None) -> None:
         self._repo = repo or MissionTemplateRepository.default()
 
+    @classmethod
+    def from_missions_root(cls, missions_root: Path) -> CharterTemplateResolver:
+        """Create a resolver backed by a specific missions root."""
+        return cls(MissionTemplateRepository(missions_root))
+
+    def resolve_command_template_path(self, mission: str, name: str) -> Path | None:
+        """Resolve a package-default command template path through charter."""
+        return self._repo._command_template_path(mission, name)
+
+    def resolve_content_template_path(self, mission: str, name: str) -> Path | None:
+        """Resolve a package-default content template path through charter."""
+        return self._repo._content_template_path(mission, name)
+
+    def resolve_mission_config_path(self, mission: str) -> Path | None:
+        """Resolve a package-default mission config path through charter."""
+        return self._repo._mission_config_path(mission)
+
     def resolve_command_template(
         self,
         mission: str,

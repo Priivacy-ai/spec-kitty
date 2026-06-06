@@ -11,7 +11,6 @@ import os
 from kernel._safe_re import re
 import shutil
 from datetime import datetime, UTC
-from importlib.resources import files
 import subprocess
 import sys
 from pathlib import Path
@@ -1473,31 +1472,14 @@ def setup_plan(
                 console.print(f"[yellow]Blocked:[/yellow] {blocked_reason}")
             return
 
-        # Find plan template
-        plan_template_candidates = [
-            repo_root / ".kittify" / "templates" / "plan-template.md",
-            repo_root / "src" / "specify_cli" / "templates" / "plan-template.md",
-            repo_root / "templates" / "plan-template.md",
-        ]
-
-        plan_template = None
-        for candidate in plan_template_candidates:
-            if candidate.exists():
-                plan_template = candidate
-                break
+        from specify_cli.runtime.resolver import resolve_template
 
         # C-007: never overwrite an existing plan.md. The agent may have
         # populated it between setup-plan invocations and we must not silently
         # delete or rewrite their content.
         if not plan_file.exists():
-            if plan_template is not None:
-                shutil.copy2(plan_template, plan_file)
-            else:
-                package_template = files("specify_cli").joinpath("templates", "plan-template.md")
-                if not package_template.is_file():
-                    raise FileNotFoundError("Plan template not found in repository or package")
-                with package_template.open("rb") as src, open(plan_file, "wb") as dst:
-                    shutil.copyfileobj(src, dst)
+            plan_template = resolve_template("plan-template.md", repo_root, mission="software-dev")
+            shutil.copy2(plan_template.path, plan_file)
 
         # Local canonical lifecycle: once setup-plan accepts spec.md as
         # committed + substantive, record SpecifyCompleted and PlanStarted
