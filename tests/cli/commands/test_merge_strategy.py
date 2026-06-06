@@ -19,6 +19,7 @@ Similarly, evaluate_merge_gates and load_policy_config are patched at their sour
 from __future__ import annotations
 
 from contextlib import ExitStack, contextmanager
+import json
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -165,6 +166,14 @@ def _make_mock_lanes_manifest(mission_slug: str) -> MagicMock:
     return manifest
 
 
+def _write_meta(feature_dir: Path, mission_slug: str) -> None:
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_slug": mission_slug}),
+        encoding="utf-8",
+    )
+
+
 @contextmanager
 def _patched_lane_based_merge_dependencies(
     tmp_path: Path,
@@ -224,6 +233,7 @@ class TestStrategyFlagFlowsThrough:
         mission_slug = "068-test"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
+        _write_meta(feature_dir, mission_slug)
 
         manifest = _make_mock_lanes_manifest(mission_slug)
 
@@ -258,6 +268,7 @@ class TestStrategyFlagFlowsThrough:
         mission_slug = "068-test2"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
+        _write_meta(feature_dir, mission_slug)
 
         manifest = _make_mock_lanes_manifest(mission_slug)
 
@@ -300,6 +311,7 @@ class TestLaneToMissionUsesMergeCommit:
         mission_slug = "068-test3"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
+        _write_meta(feature_dir, mission_slug)
 
         manifest = _make_mock_lanes_manifest(mission_slug)
 

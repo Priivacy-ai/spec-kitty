@@ -174,6 +174,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
         mission_slug = "068-test-sc"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
+        _write_meta(feature_dir, mission_slug, mission_id=None)
         _seed_mission_branch(tmp_path, mission_slug)
 
         manifest = MagicMock()
@@ -392,6 +393,7 @@ class TestMergeDoneTransitions:
         mission_slug = "068-test-lightweight"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         tasks_dir = feature_dir / "tasks"
+        _write_meta(feature_dir, mission_slug, mission_id=None)
         _write_wp_file(tasks_dir, "WP01")
 
         with (
@@ -412,6 +414,7 @@ class TestMergeDoneTransitions:
         mission_slug = "068-test-order"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
+        _write_meta(feature_dir, mission_slug, mission_id=None)
         _seed_mission_branch(tmp_path, mission_slug)
 
         call_order: list[str] = []
@@ -521,6 +524,7 @@ class TestDoneEventsCommittedToGit:
 
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
+        _write_meta(feature_dir, mission_slug, mission_id=None)
         tasks_dir = feature_dir / "tasks"
 
         for wp_id in wps:
