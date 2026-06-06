@@ -77,6 +77,10 @@ SECTION_MAPPING: dict[str, tuple[str, str]] = {
 #     (e.g. ``pre-commit-hooks`` is not a tactic; ``language-driven-design`` is).
 _DIRECTIVE_CITATION_RE = re.compile(r"\bDIRECTIVE_(\d{3})\b")
 _TACTIC_SLUG_RE = re.compile(r"\b([a-z][a-z0-9]*(?:-[a-z0-9]+){1,4})\b")
+_GENERATED_DIRECTIVE_PLACEHOLDER_RE = re.compile(
+    r"^Apply doctrine directive `(?P<directive_id>[A-Z][A-Z0-9_/-]*)` "
+    r"to planning and implementation decisions\.?$"
+)
 
 
 # WP02: bullet-list pattern used as a fallback inside directive sections that
@@ -154,6 +158,7 @@ class ExtractionResult:
     governance: GovernanceConfig
     directives: DirectivesConfig
     metadata: ExtractionMetadata
+    warnings: list[str]
 
 
 class Extractor:
@@ -193,14 +198,16 @@ class Extractor:
         if not isinstance(content, str):
             raise TypeError(f"content must be str, got {type(content).__name__}")
         sections = self.parser.parse(content)
+        warnings: list[str] = []
         governance = self._extract_governance(sections)
-        directives = self._extract_directives(sections)
+        directives = self._extract_directives(sections, warnings=warnings)
         metadata = self._build_metadata(content, sections)
 
         return ExtractionResult(
             governance=governance,
             directives=directives,
             metadata=metadata,
+            warnings=warnings,
         )
 
     def _extract_governance(self, sections: list[CharterSection]) -> GovernanceConfig:
@@ -624,7 +631,12 @@ class Extractor:
                     return value
         return None
 
-    def _extract_directives(self, sections: list[CharterSection]) -> DirectivesConfig:
+    def _extract_directives(
+        self,
+        sections: list[CharterSection],
+        *,
+        warnings: list[str],
+    ) -> DirectivesConfig:
         """Extract directives from classified sections.
 
         Args:
@@ -665,6 +677,12 @@ class Extractor:
                 items = self._extract_bullet_items(section.content)
 
             for item_text in items:
+                placeholder_directive_id = _generated_directive_placeholder_id(item_text)
+                if placeholder_directive_id:
+                    warnings.append(_generated_directive_placeholder_warning(placeholder_directive_id))
+                    logger.warning(warnings[-1])
+                    continue
+
                 # Detect cross-link catalog citations inside the body so the
                 # downstream resolver can surface the catalog body on demand
                 # (FR-006). The registry callable is injected at __init__
@@ -767,6 +785,22 @@ class Extractor:
                 best_length = len(keyword)
 
         return best_match
+
+
+def _generated_directive_placeholder_id(item_text: str) -> str | None:
+    """Return the catalog directive ID when *item_text* is generated placeholder prose."""
+    match = _GENERATED_DIRECTIVE_PLACEHOLDER_RE.match(item_text.strip())
+    if not match:
+        return None
+    return match.group("directive_id")
+
+
+def _generated_directive_placeholder_warning(directive_id: str) -> str:
+    return (
+        f"Skipped generated placeholder for {directive_id}; "
+        "run `spec-kitty charter generate --force` with current templates so "
+        "directives.yaml does not mint hollow local DIR-NNN policy."
+    )
 
 
 def extract_with_ai(

@@ -10,7 +10,7 @@ Provides the main sync() function that orchestrates:
 
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from ruamel.yaml import YAML
@@ -73,6 +73,7 @@ class SyncResult:
     extraction_mode: str  # "deterministic" | "hybrid"
     error: str | None = None  # Error message if sync failed
     canonical_root: Path | None = None  # NEW (WP02): main-checkout root
+    warnings: list[str] = field(default_factory=list)
 
 
 def ensure_charter_bundle_fresh(repo_root: Path) -> SyncResult | None:
@@ -206,6 +207,7 @@ def sync(
             stale_before=stale,
             files_written=files_written,
             extraction_mode=result.metadata.extraction_mode,
+            warnings=list(result.warnings),
         )
 
     except Exception as e:

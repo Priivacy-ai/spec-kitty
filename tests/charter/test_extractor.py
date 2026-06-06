@@ -136,6 +136,24 @@ class TestDirectivesExtraction:
         assert result.directives.directives[1].id == "DIR-002"
         assert result.directives.directives[2].id == "DIR-003"
 
+    def test_skips_generated_directive_placeholder_with_warning(self, extractor: Extractor) -> None:
+        content = """## Project Directives
+
+1. Apply doctrine directive `DIRECTIVE_003` to planning and implementation decisions.
+2. Hand-authored project rule still syncs normally.
+"""
+        result = extractor.extract(content)
+
+        assert len(result.directives.directives) == 1
+        directive = result.directives.directives[0]
+        assert directive.id == "DIR-001"
+        assert directive.description == "Hand-authored project rule still syncs normally."
+        assert result.warnings == [
+            "Skipped generated placeholder for DIRECTIVE_003; "
+            "run `spec-kitty charter generate --force` with current templates so "
+            "directives.yaml does not mint hollow local DIR-NNN policy."
+        ]
+
 
 class TestMetadataGeneration:
     @pytest.fixture

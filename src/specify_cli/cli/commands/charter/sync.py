@@ -42,6 +42,7 @@ def sync(
                 "files_written": result.files_written,
                 "extraction_mode": result.extraction_mode,
                 "error": result.error,
+                "warnings": result.warnings,
             }
             print(json.dumps(data, indent=2))
             return
@@ -53,6 +54,10 @@ def sync(
         if result.synced:
             console.print("[green]Charter synced successfully[/green]")
             console.print(f"Mode: {result.extraction_mode}")
+            if result.warnings:
+                console.print("\nWarnings:")
+                for warning in result.warnings:
+                    console.print(f"  ! {warning}")
             console.print("\nFiles written:")
             for filename in result.files_written:
                 console.print(f"  ✓ {filename}")

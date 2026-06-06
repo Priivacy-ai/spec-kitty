@@ -918,14 +918,20 @@ def _render_directives(
 
     for directive_id in selected_directives:
         directive = doctrine_service.directives.get(directive_id)
-        if directive is None or directive.id != "DIRECTIVE_039":
+        if directive is None:
             lines.append(f"{index}. Apply doctrine directive `{directive_id}` to planning and implementation decisions.")
             index += 1
             continue
 
         lines.append(f"{index}. {directive.title} (`{directive.id}`): {directive.intent.strip()}")
+        if directive.scope:
+            lines.append(f"   - Scope: {directive.scope.strip()}")
+        for procedure in directive.procedures:
+            lines.append(f"   - Procedure: {procedure}")
         for rule in directive.integrity_rules:
-            lines.append(f"   - {rule}")
+            lines.append(f"   - Integrity rule: {rule}")
+        for criterion in directive.validation_criteria:
+            lines.append(f"   - Validation criterion: {criterion}")
         index += 1
 
     risk = interview.answers.get("risk_boundaries")
