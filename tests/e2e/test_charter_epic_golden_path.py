@@ -50,6 +50,7 @@ from typing import Any
 
 import pytest
 
+from specify_cli.invocation.lifecycle import lifecycle_log_path
 from tests.e2e.conftest import (
     REPO_ROOT,
     SourcePollutionBaseline,
@@ -89,9 +90,9 @@ RunCli = Callable[..., subprocess.CompletedProcess[str]]
 #   - "success": bool (often duplicated alongside "result")
 #   - "errors": list  (empty list means success in lint output)
 #
-# `.kittify/events/profile-invocations/*.jsonl` records carry top-level
-# "phase" with values "started"/"completed", plus a "canonical_action_id"
-# that pairs each started record with its completion.
+# `kitty-ops/lifecycle.jsonl` records carry top-level "phase" with values
+# "started"/"completed", plus a "canonical_action_id" that pairs each started
+# record with its completion.
 
 
 # Set WP02_DEBUG_ENVELOPES=1 during local development to dump the
@@ -749,19 +750,16 @@ def _run_next_and_assert_lifecycle(
         payload, test_project_root=project, fr_id="FR-006/FR-007 (next advance)"
     )
 
-    # FR-011/FR-012 / #843: lifecycle records at
-    # `.kittify/events/profile-invocation-lifecycle.jsonl` (single
-    # JSONL file per WP05 contract — see
+    # FR-011/FR-012 / #843: lifecycle records at the canonical Op lifecycle
+    # JSONL file (see
     # `specify_cli.invocation.lifecycle.LIFECYCLE_LOG_RELATIVE_PATH`).
     # WP05 makes a `started` record a HARD requirement for any issued
     # public action.
-    lifecycle_path = (
-        project / ".kittify" / "events" / "profile-invocation-lifecycle.jsonl"
-    )
+    lifecycle_path = lifecycle_log_path(project)
     if not lifecycle_path.is_file():
         raise AssertionError(
             "WP05 / #843 / FR-011: "
-            "`.kittify/events/profile-invocation-lifecycle.jsonl` does not "
+            f"`{lifecycle_path.relative_to(project)}` does not "
             "exist after `next` issued an action. WP05 must write a "
             "`started` lifecycle record at issuance time. If this fires, "
             "the WP05 invocation lifecycle fix has regressed."

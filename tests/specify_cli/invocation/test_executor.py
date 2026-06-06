@@ -19,7 +19,7 @@ from specify_cli.invocation.writer import EVENTS_DIR
 # Fixtures
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "profiles"
 

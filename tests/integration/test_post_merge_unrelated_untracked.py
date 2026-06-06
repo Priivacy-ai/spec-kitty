@@ -145,6 +145,12 @@ class TestMergeToleratesUntrackedFiles:
                 return (0, "?? .worktrees/scratch/\n?? tmp.txt\n", "")
             return (0, "", "")
 
+        # The post-merge invariant reads porcelain RAW (not via run_command,
+        # whose whole-output .strip() would corrupt the first line). Inject the
+        # raw stdout the invariant classifies via _raw_porcelain_status.
+        def fake_raw_porcelain(repo_root):  # noqa: ANN001
+            return (0, "?? .worktrees/scratch/\n?? tmp.txt\n")
+
         patches = [
             patch("specify_cli.cli.commands.merge.require_lanes_json", return_value=manifest),
             patch("specify_cli.cli.commands.merge.load_state", return_value=None),
@@ -160,6 +166,7 @@ class TestMergeToleratesUntrackedFiles:
             patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
             patch("specify_cli.policy.config.load_policy_config"),
             patch("specify_cli.cli.commands.merge.run_command", side_effect=fake_run_command),
+            patch("specify_cli.cli.commands.merge._raw_porcelain_status", side_effect=fake_raw_porcelain),
             patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
             patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
             patch("specify_cli.cli.commands.merge.clear_state"),
@@ -220,6 +227,12 @@ class TestMergeToleratesUntrackedFiles:
                 return (0, "?? .worktrees/\n M src/operator_change.py\n", "")
             return (0, "", "")
 
+        # The post-merge invariant reads porcelain RAW (not via run_command).
+        # Inject the same mixed status via _raw_porcelain_status so the tracked
+        # modification reaches classification and trips the invariant.
+        def fake_raw_porcelain(repo_root):  # noqa: ANN001
+            return (0, "?? .worktrees/\n M src/operator_change.py\n")
+
         patches = [
             patch("specify_cli.cli.commands.merge.require_lanes_json", return_value=manifest),
             patch("specify_cli.cli.commands.merge.load_state", return_value=None),
@@ -235,6 +248,7 @@ class TestMergeToleratesUntrackedFiles:
             patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
             patch("specify_cli.policy.config.load_policy_config"),
             patch("specify_cli.cli.commands.merge.run_command", side_effect=fake_run_command),
+            patch("specify_cli.cli.commands.merge._raw_porcelain_status", side_effect=fake_raw_porcelain),
             patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
             patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
             patch("specify_cli.cli.commands.merge.clear_state"),

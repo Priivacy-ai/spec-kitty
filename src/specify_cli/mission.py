@@ -618,7 +618,7 @@ def get_deliverables_path(feature_dir: Path, mission_slug: str | None = None) ->
                 return deliverables_path
 
             # Check if this is a research mission - provide default if so
-            mission = meta.get("mission", "software-dev")
+            mission = meta.get("mission_type") or meta.get("mission", "software-dev")
             if mission == "research":
                 # Generate default path using slug from meta or directory name
                 slug = meta.get("slug") or mission_slug or feature_dir.name

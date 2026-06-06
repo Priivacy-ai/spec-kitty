@@ -9,6 +9,7 @@ from typing import ClassVar
 
 from specify_cli.lanes.auto_rebase import AutoRebaseReport, attempt_auto_rebase
 from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.lanes.compute import is_planning_lane
 from specify_cli.lanes.models import ExecutionLane
 from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
 
@@ -141,7 +142,7 @@ def sync_lane_after_coordination_commit(
         return None
 
     lane = lanes_manifest.lane_for_wp(wp_id)
-    if lane is None or lane.lane_id == "lane-planning":
+    if lane is None or is_planning_lane(lane):
         return None
 
     lane_branch = _resolve_lane_branch(

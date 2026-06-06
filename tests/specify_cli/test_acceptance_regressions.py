@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Tuple
 
 import pytest
+import typer
+from typer.testing import CliRunner
 
 from specify_cli.acceptance import (
     AcceptanceError,
@@ -32,6 +34,7 @@ from specify_cli.acceptance import (
 from specify_cli.task_utils import LANES
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import StoreError, append_event
+from specify_cli.cli.commands import accept as accept_module
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: subprocess CLI invocation
@@ -479,6 +482,124 @@ def test_collect_feature_summary_allows_main_branch_for_lane_acceptance(tmp_path
     assert "acceptance_matrix_verdict" in skipped
     assert not any("Switch to the mission branch" in item for item in summary.recommended_fix_order)
     assert any("acceptance-matrix.json" in item for item in summary.recommended_fix_order)
+
+
+def test_collect_feature_summary_allows_planning_artifact_research_without_matrix(
+    tmp_path: Path,
+) -> None:
+    repo_root, feature_dir = _create_test_feature(tmp_path, "research-planning-only")
+    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
+    (repo_root / ".kittify").mkdir(exist_ok=True)
+
+    from tests.lane_test_utils import write_single_lane_manifest
+
+    deliverables_path = "docs/research/research-planning-only/"
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["mission_id"] = "01K00000000000000000000000"
+    meta["mission_type"] = "research"
+    meta["mission"] = "research"
+    meta["deliverables_path"] = deliverables_path
+    meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+
+    for path_name in ("research", "data", "findings", "reports"):
+        directory = repo_root / deliverables_path / path_name
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / ".gitkeep").write_text("", encoding="utf-8")
+
+    write_single_lane_manifest(
+        feature_dir,
+        wp_ids=("WP01",),
+        lane_id="lane-planning",
+        write_scope=(f"{deliverables_path}**",),
+        predicted_surfaces=("planning",),
+    )
+    subprocess.run(["git", "-C", str(repo_root), "add", "-A"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "commit", "-m", "Add planning research artifacts"],
+        check=True,
+        capture_output=True,
+    )
+
+    summary = collect_feature_summary(repo_root, "research-planning-only", mutate_matrix=False)
+
+    assert summary.ok is True
+    assert not any("Acceptance matrix" in issue for issue in summary.activity_issues)
+    assert not any(item.check == "acceptance_matrix" for item in summary.blocked_checks)
+    assert not summary.path_violations
+    assert any(
+        item.check == "acceptance_matrix_presence"
+        and "planning_artifact-only" in item.detail
+        for item in summary.skipped_checks
+    )
+
+
+def test_accept_cli_no_commit_json_allows_planning_artifact_research_without_matrix(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root, feature_dir = _create_test_feature(tmp_path, "research-planning-only")
+    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
+    (repo_root / ".kittify").mkdir(exist_ok=True)
+
+    from tests.lane_test_utils import write_single_lane_manifest
+
+    deliverables_path = "docs/research/research-planning-only/"
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["mission_id"] = "01K00000000000000000000000"
+    meta["mission_type"] = "research"
+    meta["mission"] = "research"
+    meta["deliverables_path"] = deliverables_path
+    meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+
+    for path_name in ("research", "data", "findings", "reports"):
+        directory = repo_root / deliverables_path / path_name
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / ".gitkeep").write_text("", encoding="utf-8")
+
+    write_single_lane_manifest(
+        feature_dir,
+        wp_ids=("WP01",),
+        lane_id="lane-planning",
+        write_scope=(f"{deliverables_path}**",),
+        predicted_surfaces=("planning",),
+    )
+    subprocess.run(["git", "-C", str(repo_root), "add", "-A"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "commit", "-m", "Add planning research artifacts"],
+        check=True,
+        capture_output=True,
+    )
+
+    cli = typer.Typer()
+    cli.command(name="accept")(accept_module.accept)
+    monkeypatch.setattr(accept_module, "find_repo_root", lambda: repo_root)
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "--mission",
+            "research-planning-only",
+            "--no-commit",
+            "--json",
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["summary"]["ok"] is True
+    assert not any(
+        item.get("check") == "acceptance_matrix"
+        for item in payload["summary"]["blocked_checks"]
+    )
+    assert any(
+        item.get("check") == "acceptance_matrix_presence"
+        and "planning_artifact-only" in item.get("detail", "")
+        for item in payload["summary"]["skipped_checks"]
+    )
+    assert not payload["summary"]["path_violations"]
 
 
 def test_collect_feature_summary_blocks_unrelated_branch_for_lane_acceptance(tmp_path: Path) -> None:
