@@ -1,8 +1,5 @@
 ---
-affected_files:
-  - src/specify_cli/core/wps_manifest.py
-  - src/doctrine/missions/mission-steps/software-dev/tasks-outline/prompt.md
-  - src/doctrine/missions/mission-steps/software-dev/tasks-packages/prompt.md
+affected_files: []
 cycle_number: 3
 mission_slug: plan-concern-vocabulary-and-wp-traceability-01KTE2S9
 reproduction_command: .venv/bin/pytest tests/specify_cli/core/test_wps_manifest.py -v

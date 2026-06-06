@@ -1,14 +1,5 @@
 ---
-affected_files:
-  - src/specify_cli/core/wps_manifest.py
-  - src/specify_cli/cli/commands/agent/mission.py
-  - tests/specify_cli/core/test_wps_manifest.py
-  - tests/specify_cli/skills/__snapshots__/
-  - tests/specify_cli/regression/_twelve_agent_baseline/
-  - docs/how-to/create-plan.md
-  - docs/how-to/generate-tasks.md
-  - docs/reference/missions.md
-  - docs/reference/file-structure.md
+affected_files: []
 cycle_number: 3
 mission_slug: plan-concern-vocabulary-and-wp-traceability-01KTE2S9
 reproduction_command: .venv/bin/pytest tests/specify_cli/core/test_wps_manifest.py -v

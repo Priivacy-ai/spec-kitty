@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-06T12:44:28.530204+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "cf2517637aa12b970fc95de586e9f68740b5c184"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-06T12:44:28.530204+00:00",
+  "accepted_by": "robert",
+  "accepted_from_commit": "cf2517637aa12b970fc95de586e9f68740b5c184",
   "coordination_branch": "kitty/mission-plan-concern-vocabulary-and-wp-traceability-01KTE2S9",
   "created_at": "2026-06-06T09:03:51.970124+00:00",
   "friendly_name": "Plan Concern Vocabulary and WP Traceability",
