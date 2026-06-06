@@ -85,11 +85,11 @@
 **Subtask count**: 5 | **Estimated prompt size**: ~290 lines
 
 **Included subtasks**:
-- [ ] T010 Write unit tests for plan_concern_refs field (WP03)
-- [ ] T011 Write unit tests for cross_cutting field and rendering (WP03)
-- [ ] T012 Run stale-phrase ripple check and fix remaining hits (WP03)
-- [ ] T013 Regenerate command-renderer snapshots (WP03)
-- [ ] T014 Update user docs (WP03)
+- [x] T010 Write unit tests for plan_concern_refs field (WP03)
+- [x] T011 Write unit tests for cross_cutting field and rendering (WP03)
+- [x] T012 Run stale-phrase ripple check and fix remaining hits (WP03)
+- [x] T013 Regenerate command-renderer snapshots (WP03)
+- [x] T014 Update user docs (WP03)
 
 **Parallelization**: T010 and T011 are independent test cases. T012, T013, T014 are independent after WP01+WP02 land.
 
