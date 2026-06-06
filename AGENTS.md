@@ -22,6 +22,21 @@ src/doctrine/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURCE)
 
 ---
 
+## ⚠️ CRITICAL: Git Workflow — No Direct Pushes to origin/main
+
+**All changes to origin/main MUST go through pull requests. Direct pushes are prohibited.**
+
+- `spec-kitty merge` merges to **local main** only. It does NOT push to origin/main.
+- After `spec-kitty merge`, create a PR branch and open a pull request.
+- Never run `git push origin main` or equivalent. Use a PR branch and `gh pr create`.
+- Always distinguish: **local main** (your checkout) vs **origin/main** (the remote). Never say just "main" — always qualify.
+
+**Why:** The workflow is predicated on pull requests for review, CI gating, and audit trail. Direct pushes to origin/main bypass all of these.
+
+**Recovery:** If you accidentally push to origin/main, do NOT force-push (branch protection blocks it). Instead: create a `revert/<slug>` branch from origin/main, commit a revert, open a PR to merge it, then open the real mission PR.
+
+---
+
 ## Terminology Canon
 
 - Canonical product term is **Mission** (plural: **Missions**).
@@ -406,12 +421,13 @@ edges:
 
 ## Branch Protection and CI
 
-`main` has a **Protect Main Branch** CI workflow that fails on direct pushes. This is intentional policy enforcement, not a code bug.
+`main` has a **Protect Main Branch** CI workflow that enforces the no-direct-push policy. A "Protect Main Branch" failure on CI means code bypassed the PR workflow and must be addressed by revert + re-submit.
 
-- `spec-kitty merge` may push directly to `main` by design; the "Protect Main Branch" failure is **expected and known** — do not attempt to fix it as a code-health failure.
-- `spec-kitty merge` (without `--push`) performs a purely local operation. It does not check or require origin sync. Run it freely regardless of whether local `main` is ahead of, behind, or diverged from `origin/main`.
-- When using `spec-kitty merge --push`, if local `main` is behind or diverged from origin, the push path blocks before local merge mutation with remediation guidance. Rebase or use the focused-PR-branch escape hatch in that case.
-- The only CI result relevant to code health is **CI Quality**. Do not create extra PRs, force-push, or revert commits to address the Protect Main Branch failure.
+- `spec-kitty merge` merges lane branches into **local main** only — do NOT use `spec-kitty merge --push` or `git push origin main`.
+- After `spec-kitty merge` completes locally, create a PR branch: `git checkout -b pr/<slug> && git push origin pr/<slug>` and open a PR with `gh pr create`.
+- The only CI result relevant to code health is **CI Quality**. The protect-main failure indicates a workflow violation.
+
+**Recovery if origin/main is accidentally pushed:** Do NOT force-push (branch protection blocks it). Create a `revert/<slug>` branch from origin/main, commit a single revert, open a PR to merge it, then open the real PR from the mission branch.
 
 ---
 
