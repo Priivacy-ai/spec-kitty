@@ -36,6 +36,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import typer
 
 from specify_cli.cli.commands.merge import _run_lane_based_merge
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -374,24 +375,28 @@ def _real_merge_external_mocks(repo_root: Path):
 @contextlib.contextmanager
 def _real_invariant_external_mocks(repo_root: Path):
     """Like :func:`_real_merge_external_mocks` but runs the REAL post-merge
-    working-tree invariant (``_classify_porcelain_lines`` is NOT mocked).
+    working-tree invariant (``_classify_porcelain_lines`` is NOT mocked) AND
+    the REAL raw porcelain read.
 
-    This is the F2 regression surface: it proves the post-merge working-tree
-    invariant tolerates the ``meta.json`` dirtied by planning-only
-    mission_number assignment.  ``safe_commit`` stays mocked so we can inspect
-    the committed path set without driving a real commit onto the (protected)
-    target branch.
+    This is the F2 / porcelain-hole regression surface. It proves two things:
+
+    1. The post-merge working-tree invariant tolerates the ``meta.json`` dirtied
+       by planning-only mission_number assignment when it is in ``expected_paths``
+       (F2) — and that this tolerance is genuinely load-bearing now that the
+       invariant reads RAW porcelain (``meta.json`` sorts first inside
+       ``kitty-specs/<slug>/`` and its intact ``" M ..."`` line is classifiable).
+    2. An UNEXPECTED divergent tracked file that sorts FIRST is caught — the
+       raw-porcelain read no longer silently drops the first line.
+
+    ``safe_commit`` stays mocked so we can inspect the committed path set without
+    driving a real commit onto the (protected) target branch.
 
     ``_refresh_primary_checkout_after_merge`` is mocked to a no-op so a
-    deliberately-dirtied tracked sentinel file survives to the invariant.  This
-    matters because :func:`specify_cli.core.git_ops.run_command` strips the
-    ``git status --porcelain`` output, which removes the leading status
-    column of the *first* porcelain line only.  ``meta.json`` sorts first inside
-    ``kitty-specs/<slug>/``, so without an earlier-sorting dirty entry its
-    ``" M ..."`` line would be stripped to ``"M ..."`` and skipped as malformed
-    by ``_classify_porcelain_lines`` -- masking the very defect under test.  A
-    sentinel that sorts before ``meta.json`` keeps ``meta.json``'s line
-    well-formed so the invariant genuinely classifies it.
+    deliberately-dirtied tracked file survives to the invariant.  The invariant
+    now reads ``git status --porcelain`` via a RAW capture (not via
+    :func:`specify_cli.core.git_ops.run_command`, whose whole-output ``.strip()``
+    would remove the leading status column of the *first* porcelain line only),
+    so the first dirty line — whatever sorts first — is classified correctly.
     """
     patches = [
         patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),
@@ -432,6 +437,55 @@ def _real_invariant_external_mocks(repo_root: Path):
         }
 
 
+def _bootstrap_legacy_planning_only_mission(
+    repo: Path, slug: str, *, baseline_merge_commit: str | None = "0" * 40
+) -> Path:
+    """Bootstrap a LEGACY planning-only mission (meta.json WITHOUT mission_id).
+
+    ``mission_number`` is null (needs assignment) and, by default, a
+    ``baseline_merge_commit`` is already present so ``_record_baseline_merge_commit``
+    returns ``None`` (legacy mission) — the exact pre-conditions under which
+    ``meta.json`` is dirtied by ``_assign_planning_only_mission_number_if_needed``
+    and reaches the post-merge invariant. Returns the feature_dir.
+    """
+    feature_dir = repo / "kitty-specs" / slug
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "tasks").mkdir(parents=True)
+
+    meta: dict[str, object] = {
+        "mission_slug": slug,
+        "mission_number": None,
+        "mission_type": "software-dev",
+        "target_branch": "main",
+        "purpose_tldr": "legacy planning-only invariant pin",
+        "purpose_context": "post-merge invariant must classify the dirtied meta.json",
+    }
+    if baseline_merge_commit is not None:
+        meta["baseline_merge_commit"] = baseline_merge_commit
+    (feature_dir / "meta.json").write_text(
+        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+    _write_lanes_manifest(
+        feature_dir,
+        slug,
+        code_wp_ids=[],
+        planning_wp_ids=["WP01"],
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", f"chore({slug}): bootstrap legacy planning mission")
+
+    planning_relpath = f"kitty-specs/{slug}/research/decision-A.md"
+    _commit_file(
+        repo,
+        branch="main",
+        relpath=planning_relpath,
+        content="# Decision A\n\nPlanning artifact body.\n",
+        message=f"plan({slug}): commit planning artifact on target",
+    )
+    return feature_dir
+
+
 class TestLegacyPlanningOnlyMetaInvariant:
     """F2: a LEGACY planning-only mission (meta.json WITHOUT mission_id) that
     needs a mission_number assigned must NOT trip the real post-merge
@@ -444,6 +498,13 @@ class TestLegacyPlanningOnlyMetaInvariant:
     a pre-existing baseline), and ``meta.json`` is classified by the real
     post-merge invariant, the dirtied ``meta.json`` becomes an offending line →
     ``typer.Exit(1)``, failing the merge.
+
+    This is the REAL scenario: ``meta.json`` sorts FIRST in the dirty set inside
+    ``kitty-specs/<slug>/`` and — because the invariant now reads RAW porcelain —
+    its intact ``" M ..."`` line is genuinely classifiable. The F2 fix
+    (``meta.json`` ∈ ``expected_paths``) is therefore load-bearing rather than
+    synthetic: the load-bearing variant below proves that without that
+    membership the invariant flags ``meta.json`` and fails the merge.
     """
 
     def test_legacy_planning_only_meta_json_does_not_trip_invariant(
@@ -451,62 +512,12 @@ class TestLegacyPlanningOnlyMetaInvariant:
     ) -> None:
         slug = "legacy-planning-only-meta-invariant"
         _init_git_repo(tmp_path)
-
-        feature_dir = tmp_path / "kitty-specs" / slug
-        feature_dir.mkdir(parents=True)
-        (feature_dir / "tasks").mkdir(parents=True)
-
-        # LEGACY mission: meta.json WITHOUT mission_id, mission_number null
-        # (needs assignment), and a baseline_merge_commit already present so
-        # _record_baseline_merge_commit returns None — the exact trigger for
-        # the F2 defect.
-        meta = {
-            "mission_slug": slug,
-            "mission_number": None,
-            "mission_type": "software-dev",
-            "target_branch": "main",
-            "baseline_merge_commit": "0" * 40,
-            "purpose_tldr": "F2 legacy planning-only meta invariant pin",
-            "purpose_context": "post-merge invariant must tolerate dirtied meta.json",
-        }
-        (feature_dir / "meta.json").write_text(
-            json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-        )
-
-        # Sentinel tracked file that sorts BEFORE meta.json inside the mission
-        # dir ("a" < "m"). Dirtied at fixture time and kept dirty because the
-        # primary-checkout refresh is mocked to a no-op for this test — this
-        # ensures meta.json is NOT the first porcelain line (so run_command's
-        # .strip() does not mask meta.json's status column). See the context
-        # manager docstring for the full rationale.
-        sentinel_rel = f"kitty-specs/{slug}/aaa-sentinel.md"
-        (feature_dir / "aaa-sentinel.md").write_text("sentinel v1\n", encoding="utf-8")
-
-        _write_lanes_manifest(
-            feature_dir,
-            slug,
-            code_wp_ids=[],
-            planning_wp_ids=["WP01"],
-        )
-        _git(tmp_path, "add", ".")
-        _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap legacy planning mission")
-
-        planning_relpath = f"kitty-specs/{slug}/research/decision-A.md"
-        _commit_file(
-            tmp_path,
-            branch="main",
-            relpath=planning_relpath,
-            content="# Decision A\n\nPlanning artifact body.\n",
-            message=f"plan({slug}): commit planning artifact on target",
-        )
-
-        # Dirty the sentinel (tracked modification) so it precedes meta.json
-        # in `git status --porcelain` output.
-        (feature_dir / "aaa-sentinel.md").write_text("sentinel v2\n", encoding="utf-8")
+        feature_dir = _bootstrap_legacy_planning_only_mission(tmp_path, slug)
 
         with _real_invariant_external_mocks(tmp_path) as mocks:
-            # Must NOT raise typer.Exit — the real post-merge invariant runs and
-            # must tolerate the dirtied meta.json (the F2 fix).
+            # Must NOT raise typer.Exit — the real post-merge invariant runs
+            # against RAW porcelain and must tolerate the dirtied meta.json
+            # (the F2 fix: meta.json ∈ expected_paths).
             _run_lane_based_merge(
                 repo_root=tmp_path,
                 mission_slug=slug,
@@ -518,7 +529,7 @@ class TestLegacyPlanningOnlyMetaInvariant:
             )
 
         # mission_number was assigned (dirtying meta.json), confirming the
-        # invariant ran against a genuinely-dirty meta.json.
+        # invariant ran against a genuinely-dirty meta.json that sorts first.
         post_meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
         assert isinstance(post_meta.get("mission_number"), int), (
             "fixture precondition: mission_number must have been assigned so "
@@ -534,9 +545,114 @@ class TestLegacyPlanningOnlyMetaInvariant:
             "F2 regression: planning-only mission_number meta.json was not "
             "committed after merge."
         )
-        # Sanity: the sentinel was the vehicle for a well-formed meta.json
-        # porcelain line; it is not part of the committed bookkeeping set.
-        assert sentinel_rel not in committed_paths
+
+    def test_meta_json_membership_is_load_bearing(self, tmp_path: Path) -> None:
+        """Prove the F2 fix is load-bearing: if ``meta.json`` were NOT in
+        ``expected_paths``, the real invariant (reading RAW porcelain) flags the
+        dirtied ``meta.json`` first line and fails the merge with ``typer.Exit``.
+
+        We simulate the pre-fix state by patching ``_classify_porcelain_lines``
+        to receive an ``expected_paths`` set with the mission_number meta.json
+        path stripped out — i.e. exactly the membership the F2 fix adds. The
+        real raw-porcelain read still runs, so this proves that meta.json's
+        intact ``" M ..."`` line genuinely reaches classification.
+        """
+        import specify_cli.cli.commands.merge as merge_mod
+
+        slug = "legacy-planning-only-meta-loadbearing"
+        _init_git_repo(tmp_path)
+        feature_dir = _bootstrap_legacy_planning_only_mission(tmp_path, slug)
+        meta_rel = f"kitty-specs/{slug}/meta.json"
+
+        real_classify = merge_mod._classify_porcelain_lines
+
+        def classify_without_meta_membership(
+            lines: list[str], expected_paths: set[str]
+        ) -> tuple[list[str], int]:
+            # Drop the F2 membership to recreate the pre-fix expected_paths.
+            return real_classify(lines, expected_paths - {meta_rel})
+
+        with (
+            _real_invariant_external_mocks(tmp_path),
+            patch.object(
+                merge_mod,
+                "_classify_porcelain_lines",
+                side_effect=classify_without_meta_membership,
+            ),
+            pytest.raises(typer.Exit),
+        ):
+            _run_lane_based_merge(
+                repo_root=tmp_path,
+                mission_slug=slug,
+                push=False,
+                delete_branch=False,
+                remove_worktree=False,
+                strategy=MergeStrategy.SQUASH,
+                allow_sparse_checkout=True,
+            )
+
+        # The dirtied meta.json was genuinely the file that tripped the
+        # invariant (its intact " M " line reached classification).
+        post_meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+        assert isinstance(post_meta.get("mission_number"), int)
+
+
+class TestPostMergePorcelainHole:
+    """Porcelain-hole regression: an UNEXPECTED divergent tracked file that
+    sorts FIRST must be CAUGHT by the post-merge working-tree invariant.
+
+    Pre-fix the invariant read porcelain via ``run_command`` whose whole-output
+    ``.strip()`` removed the leading status column of the FIRST line, so the
+    first divergent path was silently dropped by ``_classify_porcelain_lines``
+    (``len(line) < 4 or line[2] != " "``) and the invariant did NOT raise.
+
+    This test drives the REAL invariant with REAL porcelain — neither the
+    porcelain read nor ``_classify_porcelain_lines`` is mocked. After the
+    raw-read fix the first line survives intact and the invariant raises
+    ``typer.Exit``.
+    """
+
+    def test_unexpected_first_sorting_tracked_file_is_caught(
+        self, tmp_path: Path
+    ) -> None:
+        slug = "post-merge-porcelain-hole"
+        _init_git_repo(tmp_path)
+        _bootstrap_legacy_planning_only_mission(tmp_path, slug)
+
+        # An UNEXPECTED tracked file that sorts FIRST inside kitty-specs/<slug>/
+        # ("aaa-..." < "meta.json"). It is committed (tracked) and then dirtied
+        # so it diverges from HEAD. It is NOT in expected_paths, so the invariant
+        # MUST flag it — but ONLY if its first porcelain line is read intact.
+        unexpected_rel = f"kitty-specs/{slug}/aaa-unexpected.md"
+        _commit_file(
+            tmp_path,
+            branch="main",
+            relpath=unexpected_rel,
+            content="unexpected v1\n",
+            message=f"chore({slug}): add unexpected tracked file",
+        )
+        (tmp_path / unexpected_rel).write_text("unexpected v2\n", encoding="utf-8")
+
+        with _real_invariant_external_mocks(tmp_path), pytest.raises(typer.Exit):
+            _run_lane_based_merge(
+                repo_root=tmp_path,
+                mission_slug=slug,
+                push=False,
+                delete_branch=False,
+                remove_worktree=False,
+                strategy=MergeStrategy.SQUASH,
+                allow_sparse_checkout=True,
+            )
+
+        # Sanity: the unexpected file is genuinely dirty (it diverges from HEAD),
+        # proving the invariant raised because it classified this first line.
+        status = subprocess.run(
+            ["git", "-C", str(tmp_path), "status", "--porcelain", "--", unexpected_rel],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert unexpected_rel in status.stdout
 
 
 def _write_wp_file(feature_dir: Path, wp_id: str, *, agent: str = "researcher-ryan") -> None:

@@ -18,6 +18,7 @@ verify the two git subprocess calls (``git reset --hard HEAD`` and
 
 from __future__ import annotations
 
+import contextlib
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -90,13 +91,15 @@ class TestPostMergeRefreshAndInvariant:
             if "reset" in cmd and "--hard" in cmd and "HEAD" in cmd:
                 call_log.append("hard_refresh")
                 return (0, "", "")
-            if "status" in cmd and "--porcelain" in cmd:
-                call_log.append("status_check")
-                # Clean working tree — no offending lines.
-                return (0, "", "")
             if "merge-base" in cmd:
                 return (0, "abc123\n", "")
             return (0, "", "")
+
+        def fake_raw_porcelain(repo_root):  # noqa: ANN001
+            call_log.append("status_check")
+            # Clean working tree — no offending lines. The post-merge invariant
+            # reads porcelain RAW via _raw_porcelain_status.
+            return (0, "")
 
         def fake_safe_commit(**kwargs):  # noqa: ANN001
             call_log.append("safe_commit")
@@ -105,7 +108,15 @@ class TestPostMergeRefreshAndInvariant:
         def fake_mark_wp_merged_done(*args, **kwargs):  # noqa: ANN001
             call_log.append("mark_done")
 
-        with (
+        stale_report = MagicMock()
+        stale_report.findings = []
+        gate_eval = MagicMock()
+        gate_eval.overall_pass = True
+        gate_eval.gates = []
+        policy = MagicMock()
+        policy.merge_gates = []
+
+        patches = [
             patch("specify_cli.cli.commands.merge.require_lanes_json", return_value=manifest),
             patch("specify_cli.cli.commands.merge.load_state", return_value=None),
             patch("specify_cli.cli.commands.merge.save_state"),
@@ -116,29 +127,20 @@ class TestPostMergeRefreshAndInvariant:
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
             patch("specify_cli.cli.commands.merge._mark_wp_merged_done", side_effect=fake_mark_wp_merged_done),
             patch("specify_cli.cli.commands.merge.safe_commit", side_effect=fake_safe_commit),
-            patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
-            patch("specify_cli.policy.merge_gates.evaluate_merge_gates") as mock_gates,
-            patch("specify_cli.policy.config.load_policy_config") as mock_policy,
+            patch("specify_cli.post_merge.stale_assertions.run_check", return_value=stale_report),
+            patch("specify_cli.policy.merge_gates.evaluate_merge_gates", return_value=gate_eval),
+            patch("specify_cli.policy.config.load_policy_config", return_value=policy),
             patch("specify_cli.cli.commands.merge.run_command", side_effect=fake_run_command),
+            patch("specify_cli.cli.commands.merge._raw_porcelain_status", side_effect=fake_raw_porcelain),
             patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
             patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
             patch("specify_cli.cli.commands.merge.clear_state"),
             patch("specify_cli.merge.state.MergeState"),
             patch("specify_cli.cli.commands.merge._bake_mission_number_into_mission_branch"),
-        ):
-            stale_report = MagicMock()
-            stale_report.findings = []
-            mock_run_check.return_value = stale_report
-
-            gate_eval = MagicMock()
-            gate_eval.overall_pass = True
-            gate_eval.gates = []
-            mock_gates.return_value = gate_eval
-
-            policy = MagicMock()
-            policy.merge_gates = []
-            mock_policy.return_value = policy
-
+        ]
+        with contextlib.ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
             _run_lane_based_merge(
                 repo_root=tmp_path,
                 mission_slug=slug,
@@ -191,20 +193,31 @@ class TestPostMergeRefreshAndInvariant:
             if "reset" in cmd and "--hard" in cmd and "HEAD" in cmd:
                 call_log.append("hard_refresh")
                 return (0, "", "")
-            if "status" in cmd and "--porcelain" in cmd:
-                call_log.append("status_check")
-                # Simulate an offending diverging path that is NOT one of the
-                # two expected status files. This must trigger the invariant.
-                return (0, " M src/unexpected_file.py\n", "")
             if "merge-base" in cmd:
                 return (0, "abc123\n", "")
             return (0, "", "")
+
+        def fake_raw_porcelain(repo_root):  # noqa: ANN001
+            call_log.append("status_check")
+            # Simulate an offending diverging path that is NOT one of the two
+            # expected status files. This must trigger the invariant. The
+            # post-merge invariant reads porcelain RAW via _raw_porcelain_status
+            # so the leading status column is preserved.
+            return (0, " M src/unexpected_file.py\n")
 
         def fake_safe_commit(**kwargs):  # noqa: ANN001
             call_log.append("safe_commit")
             return True
 
-        with (
+        stale_report = MagicMock()
+        stale_report.findings = []
+        gate_eval = MagicMock()
+        gate_eval.overall_pass = True
+        gate_eval.gates = []
+        policy = MagicMock()
+        policy.merge_gates = []
+
+        patches = [
             patch("specify_cli.cli.commands.merge.require_lanes_json", return_value=manifest),
             patch("specify_cli.cli.commands.merge.load_state", return_value=None),
             patch("specify_cli.cli.commands.merge.save_state"),
@@ -215,29 +228,20 @@ class TestPostMergeRefreshAndInvariant:
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
             patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),
             patch("specify_cli.cli.commands.merge.safe_commit", side_effect=fake_safe_commit),
-            patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
-            patch("specify_cli.policy.merge_gates.evaluate_merge_gates") as mock_gates,
-            patch("specify_cli.policy.config.load_policy_config") as mock_policy,
+            patch("specify_cli.post_merge.stale_assertions.run_check", return_value=stale_report),
+            patch("specify_cli.policy.merge_gates.evaluate_merge_gates", return_value=gate_eval),
+            patch("specify_cli.policy.config.load_policy_config", return_value=policy),
             patch("specify_cli.cli.commands.merge.run_command", side_effect=fake_run_command),
+            patch("specify_cli.cli.commands.merge._raw_porcelain_status", side_effect=fake_raw_porcelain),
             patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
             patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
             patch("specify_cli.cli.commands.merge.clear_state"),
             patch("specify_cli.merge.state.MergeState"),
             patch("specify_cli.cli.commands.merge._bake_mission_number_into_mission_branch"),
-        ):
-            stale_report = MagicMock()
-            stale_report.findings = []
-            mock_run_check.return_value = stale_report
-
-            gate_eval = MagicMock()
-            gate_eval.overall_pass = True
-            gate_eval.gates = []
-            mock_gates.return_value = gate_eval
-
-            policy = MagicMock()
-            policy.merge_gates = []
-            mock_policy.return_value = policy
-
+        ]
+        with contextlib.ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
             with pytest.raises(typer.Exit):
                 _run_lane_based_merge(
                     repo_root=tmp_path,
