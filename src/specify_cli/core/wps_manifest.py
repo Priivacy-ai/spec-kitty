@@ -28,6 +28,8 @@ class WorkPackageEntry(BaseModel):
     # Internal: True when 'dependencies' key was present in the source YAML.
     # Set by load_wps_manifest(); NOT part of the serialized schema.
     _dependencies_explicit: bool = PrivateAttr(default=False)
+    _plan_concern_refs_explicit: bool = PrivateAttr(default=False)
+    _cross_cutting_explicit: bool = PrivateAttr(default=False)
 
     @field_validator("id")
     @classmethod
@@ -60,6 +62,7 @@ class WpsManifest(BaseModel):
     """Top-level wps.yaml manifest."""
 
     work_packages: list[WorkPackageEntry]
+    _concern_tracking_fields_seen: bool | None = PrivateAttr(default=None)
 
 
 def load_wps_manifest(feature_dir: Path) -> WpsManifest | None:
@@ -85,9 +88,24 @@ def load_wps_manifest(feature_dir: Path) -> WpsManifest | None:
     wps_raw: list[dict[str, Any]] = raw.get("work_packages", [])
     manifest = WpsManifest.model_validate(raw)
 
-    # Back-fill _dependencies_explicit on each entry using PrivateAttr mechanism
+    concern_tracking_fields_seen = False
+
+    # Back-fill source-key presence on each entry using PrivateAttr mechanism.
     for entry, raw_wp in zip(manifest.work_packages, wps_raw):
         object.__setattr__(entry, "_dependencies_explicit", "dependencies" in raw_wp)
+        plan_refs_explicit = "plan_concern_refs" in raw_wp
+        cross_cutting_explicit = "cross_cutting" in raw_wp
+        object.__setattr__(entry, "_plan_concern_refs_explicit", plan_refs_explicit)
+        object.__setattr__(entry, "_cross_cutting_explicit", cross_cutting_explicit)
+        concern_tracking_fields_seen = (
+            concern_tracking_fields_seen or plan_refs_explicit or cross_cutting_explicit
+        )
+
+    object.__setattr__(
+        manifest,
+        "_concern_tracking_fields_seen",
+        concern_tracking_fields_seen,
+    )
 
     return manifest
 
@@ -116,6 +134,11 @@ def check_concern_refs_coverage(manifest: WpsManifest) -> list[str]:
         A (possibly empty) list of human-readable warning strings, one per
         uncovered WP.  An empty list means all WPs have adequate coverage.
     """
+    # Legacy manifests predate concern traceability. FR-010/NFR-001 require those
+    # files to finalize without new warning noise when no new fields are present.
+    if getattr(manifest, "_concern_tracking_fields_seen", None) is False:
+        return []
+
     warnings: list[str] = []
     for wp in manifest.work_packages:
         if not wp.plan_concern_refs and not wp.cross_cutting:
@@ -159,7 +182,7 @@ def generate_tasks_md_from_manifest(manifest: WpsManifest, feature_name: str) ->
             lines.append(f"**Requirement Refs**: {', '.join(wp.requirement_refs)}")
 
         if wp.plan_concern_refs:
-            lines.append(f"**Plan concerns**: {', '.join(wp.plan_concern_refs)}")
+            lines.append(f"**Plan Concerns**: {', '.join(wp.plan_concern_refs)}")
 
         if wp.owned_files:
             lines.append(f"**Owned Files**: {', '.join(wp.owned_files)}")

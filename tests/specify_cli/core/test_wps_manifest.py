@@ -175,7 +175,7 @@ class TestGenerateTasksMdConcernRefs:
         output = generate_tasks_md_from_manifest(manifest, "test-mission")
         assert "IC-01" in output
         assert "IC-03" in output
-        assert "Plan concerns" in output
+        assert "Plan Concerns" in output
 
     def test_does_not_render_when_empty(self) -> None:
         manifest = WpsManifest(
@@ -184,7 +184,7 @@ class TestGenerateTasksMdConcernRefs:
             ]
         )
         output = generate_tasks_md_from_manifest(manifest, "test-mission")
-        assert "Plan concerns" not in output
+        assert "Plan Concerns" not in output
         assert "IC-" not in output
 
     def test_renders_for_some_not_all_wps(self) -> None:
@@ -203,7 +203,7 @@ class TestGenerateTasksMdConcernRefs:
         assert output.count("IC-01") == 1
 
     def test_renders_concern_refs_label_format(self) -> None:
-        """The rendered line should start with **Plan concerns**."""
+        """The rendered line should start with **Plan Concerns**."""
         manifest = WpsManifest(
             work_packages=[
                 WorkPackageEntry(
@@ -214,7 +214,7 @@ class TestGenerateTasksMdConcernRefs:
             ]
         )
         output = generate_tasks_md_from_manifest(manifest, "my-mission")
-        assert "**Plan concerns**: IC-02" in output
+        assert "**Plan Concerns**: IC-02" in output
 
     def test_many_to_many_edge_case(self) -> None:
         """Multiple WPs may share the same IC-## ref — each renders independently."""
@@ -322,3 +322,40 @@ class TestCheckConcernRefsCoverage:
         """An empty WP list returns no warnings (not an error)."""
         manifest = WpsManifest(work_packages=[])
         assert check_concern_refs_coverage(manifest) == []
+
+    def test_legacy_loaded_manifest_without_new_fields_has_no_warnings(
+        self, tmp_path: object
+    ) -> None:
+        """FR-010: older wps.yaml files without concern keys stay quiet."""
+        from pathlib import Path
+
+        feature_dir = Path(str(tmp_path))
+        (feature_dir / "wps.yaml").write_text(
+            "work_packages:\n"
+            "  - id: WP01\n"
+            "    title: Legacy WP\n",
+            encoding="utf-8",
+        )
+        manifest = load_wps_manifest(feature_dir)
+        assert manifest is not None
+        assert check_concern_refs_coverage(manifest) == []
+
+    def test_loaded_manifest_with_explicit_empty_refs_warns(
+        self, tmp_path: object
+    ) -> None:
+        """An opted-in manifest with empty refs and no cross_cutting still warns."""
+        from pathlib import Path
+
+        feature_dir = Path(str(tmp_path))
+        (feature_dir / "wps.yaml").write_text(
+            "work_packages:\n"
+            "  - id: WP01\n"
+            "    title: New WP\n"
+            "    plan_concern_refs: []\n",
+            encoding="utf-8",
+        )
+        manifest = load_wps_manifest(feature_dir)
+        assert manifest is not None
+        warnings = check_concern_refs_coverage(manifest)
+        assert len(warnings) == 1
+        assert "WP01" in warnings[0]

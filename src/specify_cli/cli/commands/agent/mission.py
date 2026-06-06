@@ -2168,13 +2168,11 @@ def finalize_tasks(
             raise typer.Exit(1)
 
         # ─── FR-013: concern-refs coverage warnings ───────────────────────────
-        if wps_manifest is not None:
-            coverage_warnings = check_concern_refs_coverage(wps_manifest)
-            for warning in coverage_warnings:
-                if json_output:
-                    _emit_json({"warning": warning})
-                else:
-                    console.print(f"[yellow]Warning:[/yellow] {warning}")
+        concern_coverage_warnings = (
+            check_concern_refs_coverage(wps_manifest)
+            if wps_manifest is not None
+            else []
+        )
 
         # ─── TIER 1+: existing dependency resolution ──────────────────────────
         # Parse dependencies and requirement refs using 3-tier priority:
@@ -2373,7 +2371,10 @@ def finalize_tasks(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        all_ownership_warnings: list[str] = []
+        all_ownership_warnings: list[str] = list(concern_coverage_warnings)
+        if concern_coverage_warnings and not json_output:
+            for warning in concern_coverage_warnings:
+                console.print(f"[yellow]Warning:[/yellow] {warning}")
 
         # Accumulate in-memory post-bootstrap frontmatter for each WP.
         # In validate-only mode the disk is not written, so downstream

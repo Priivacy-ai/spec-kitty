@@ -304,7 +304,7 @@ class TestGenerateTasksMdPlanConcernRefs:
             ]
         )
         md = generate_tasks_md_from_manifest(manifest, "Feature")
-        assert "**Plan concerns**: IC-01, IC-03" in md
+        assert "**Plan Concerns**: IC-01, IC-03" in md
 
     def test_plan_concerns_not_rendered_when_empty(self) -> None:
         manifest = WpsManifest(
@@ -316,7 +316,7 @@ class TestGenerateTasksMdPlanConcernRefs:
             ]
         )
         md = generate_tasks_md_from_manifest(manifest, "Feature")
-        assert "Plan concerns" not in md
+        assert "Plan Concerns" not in md
 
     def test_plan_concerns_appear_after_requirement_refs(self) -> None:
         manifest = WpsManifest(
@@ -331,7 +331,7 @@ class TestGenerateTasksMdPlanConcernRefs:
         )
         md = generate_tasks_md_from_manifest(manifest, "Feature")
         req_pos = md.index("Requirement Refs")
-        concern_pos = md.index("Plan concerns")
+        concern_pos = md.index("Plan Concerns")
         assert req_pos < concern_pos
 
     def test_multiple_wps_independent_concern_rendering(self) -> None:
@@ -350,6 +350,6 @@ class TestGenerateTasksMdPlanConcernRefs:
             ]
         )
         md = generate_tasks_md_from_manifest(manifest, "Feature")
-        assert "**Plan concerns**: IC-01" in md
+        assert "**Plan Concerns**: IC-01" in md
         # Exactly one occurrence — not duplicated for WP02
-        assert md.count("Plan concerns") == 1
+        assert md.count("Plan Concerns") == 1
