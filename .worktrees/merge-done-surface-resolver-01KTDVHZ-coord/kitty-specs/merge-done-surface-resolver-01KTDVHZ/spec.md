@@ -3,7 +3,7 @@
 **Mission ID:** 01KTDVHZKGCHCW6HQ4V577PNES
 **Mission Slug:** merge-done-surface-resolver-01KTDVHZ
 **Mission Type:** software-dev
-**Status:** Implemented
+**Status:** Draft
 **Source:** https://github.com/Priivacy-ai/spec-kitty/issues/1726
 
 ---
@@ -50,16 +50,16 @@ A developer runs `spec-kitty merge` on a mission with no `coordination_branch` i
 
 | ID | Requirement | Status |
 |----|-------------|--------|
-| FR-001 | A single canonical surface resolver function accepts `(repo_root, mission_slug)` and returns the authoritative status event log path for that mission, correctly accounting for whether `coordination_branch` is set in the mission's metadata. | Accepted |
-| FR-002 | `_mark_wp_merged_done` consumes the surface resolver for all status surface lookups, replacing any inline path derivation. | Accepted |
-| FR-003 | `_assert_merged_wps_reached_done` consumes the same surface resolver, guaranteeing it reads from the same location written to by `_mark_wp_merged_done`. | Accepted |
-| FR-004 | After the fix, the merge done loop no longer depends on worktree-teardown ordering for the read-back assertion to succeed. The assertion and the write resolve to the same surface regardless of when worktrees are torn down. | Accepted |
-| FR-005 | A documented audit of the merge path identifies every site where status events are written or read (beyond the done-marking loop), checking each for the same locate-vs-observe divergence class. | Accepted |
-| FR-006 | Any additional divergence sites discovered in the audit are closed using the surface resolver, or explicitly documented as out-of-scope with rationale if they require a separate mission. | Accepted |
-| FR-007 | Regression tests cover a planning-only merge with `coordination_branch` set in the mission's metadata, exercising `_mark_wp_merged_done` and `_assert_merged_wps_reached_done` without mocking either function, and asserting that done events persist and read back on the same surface. | Accepted |
-| FR-008 | Regression tests cover a code-change merge with `coordination_branch` set, under the same constraints as FR-007. | Accepted |
-| FR-009 | All existing merge tests that do not set `coordination_branch` continue to pass without modification. | Accepted |
-| FR-010 | The merge command exits zero and the dashboard shows `Completed: 1 (100%)` after a successful merge on a mission with `coordination_branch` set and all WPs previously in `approved`. | Accepted |
+| FR-001 | A single canonical surface resolver function accepts `(repo_root, mission_slug)` and returns the authoritative status event log path for that mission, correctly accounting for whether `coordination_branch` is set in the mission's metadata. | Proposed |
+| FR-002 | `_mark_wp_merged_done` consumes the surface resolver for all status surface lookups, replacing any inline path derivation. | Proposed |
+| FR-003 | `_assert_merged_wps_reached_done` consumes the same surface resolver, guaranteeing it reads from the same location written to by `_mark_wp_merged_done`. | Proposed |
+| FR-004 | After the fix, the merge done loop no longer depends on worktree-teardown ordering for the read-back assertion to succeed. The assertion and the write resolve to the same surface regardless of when worktrees are torn down. | Proposed |
+| FR-005 | A documented audit of the merge path identifies every site where status events are written or read (beyond the done-marking loop), checking each for the same locate-vs-observe divergence class. | Proposed |
+| FR-006 | Any additional divergence sites discovered in the audit are closed using the surface resolver, or explicitly documented as out-of-scope with rationale if they require a separate mission. | Proposed |
+| FR-007 | Regression tests cover a planning-only merge with `coordination_branch` set in the mission's metadata, exercising `_mark_wp_merged_done` and `_assert_merged_wps_reached_done` without mocking either function, and asserting that done events persist and read back on the same surface. | Proposed |
+| FR-008 | Regression tests cover a code-change merge with `coordination_branch` set, under the same constraints as FR-007. | Proposed |
+| FR-009 | All existing merge tests that do not set `coordination_branch` continue to pass without modification. | Proposed |
+| FR-010 | The merge command exits zero and the dashboard shows `Completed: 1 (100%)` after a successful merge on a mission with `coordination_branch` set and all WPs previously in `approved`. | Proposed |
 
 ---
 
@@ -67,9 +67,9 @@ A developer runs `spec-kitty merge` on a mission with no `coordination_branch` i
 
 | ID | Requirement | Threshold | Status |
 |----|-------------|-----------|--------|
-| NFR-001 | The surface resolver adds no perceptible latency to the merge done-marking loop. Path resolution is a metadata read (no network, no git I/O beyond the existing `meta.json` read). | Sub-millisecond per WP | Accepted |
-| NFR-002 | New code added by this mission meets the project's test coverage threshold. | 90%+ coverage on new code paths | Accepted |
-| NFR-003 | The surface resolver is the sole mechanism by which both write and read determine the events file location. No secondary fallback or parallel path is introduced. | Zero additional surface-resolution paths | Accepted |
+| NFR-001 | The surface resolver adds no perceptible latency to the merge done-marking loop. Path resolution is a metadata read (no network, no git I/O beyond the existing `meta.json` read). | Sub-millisecond per WP | Proposed |
+| NFR-002 | New code added by this mission meets the project's test coverage threshold. | 90%+ coverage on new code paths | Proposed |
+| NFR-003 | The surface resolver is the sole mechanism by which both write and read determine the events file location. No secondary fallback or parallel path is introduced. | Zero additional surface-resolution paths | Proposed |
 
 ---
 

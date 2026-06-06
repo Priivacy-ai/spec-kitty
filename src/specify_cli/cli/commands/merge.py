@@ -16,6 +16,7 @@ Recovery semantics (WP01 / 067):
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
 import contextlib
 import json
@@ -356,7 +357,10 @@ def _assert_merged_wps_reached_done(
     from specify_cli.status.store import StoreError
     from specify_cli.status.transitions import resolve_lane_alias
 
-    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+    # Resolve the canonical status surface so reads are on the same side as
+    # the writes in _mark_wp_merged_done (fixes coordination-branch divergence).
+    surface_path = resolve_status_surface(repo_root, mission_slug)
+    feature_dir = surface_path.parent
 
     try:
         incomplete: list[str] = []
@@ -367,7 +371,7 @@ def _assert_merged_wps_reached_done(
     except StoreError as exc:
         console.print(
             "[red]Error:[/red] Post-merge status validation failed: "
-            f"could not read {feature_dir / 'status.events.jsonl'} ({exc})"
+            f"could not read {surface_path} ({exc})"
         )
         raise typer.Exit(1) from exc
 
@@ -1770,6 +1774,14 @@ def _run_lane_based_merge_locked(
     _pre_done_status_bytes = (
         _merge_status_path.read_bytes() if _merge_status_path.exists() else None
     )
+
+    # Merge-path status surface audit (mission merge-done-surface-resolver-01KTDVHZ):
+    # Write sites: _mark_wp_merged_done (coord-branch-aware via emit_status_transition_transactional)
+    # Read sites:  _assert_merged_wps_reached_done (fixed: now uses resolve_status_surface)
+    #              _reconcile_completed_wps_for_resume (safe: uses has_transition_to_transactional)
+    # DIVERGENT:   _assert_merged_wps_reached_done read vs _mark_wp_merged_done write — FIXED above
+    # Additional DIVERGENT sites: none found
+    # Audit date: 2026-06-06
 
     # -- T001: Mark WPs done with per-WP state tracking --
     console.print("  [dim]Recording merged work packages as done...[/dim]")

@@ -19,6 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Merge done-marking surface divergence** (`merge.py`, `coordination/surface_resolver.py`):
+  After `spec-kitty merge`, WPs that were `approved` would show as `Completed: 0 (80.0%)`
+  instead of `Completed: 1 (100%)` when the mission carried a `coordination_branch` in
+  `meta.json`. Root cause: `_mark_wp_merged_done` wrote done events to the coordination
+  branch surface via `BookkeepingTransaction` (coord-branch-aware), while
+  `_assert_merged_wps_reached_done` read back from the primary checkout via
+  `resolve_feature_dir_for_mission` (topology-unaware). The two functions resolved to
+  different filesytem paths — write never landed where read looked. Fix: introduced
+  `coordination.surface_resolver.resolve_status_surface(repo_root, mission_slug)` as the
+  single canonical surface resolver; `_assert_merged_wps_reached_done` now calls it instead
+  of the topology-unaware resolver, eliminating the divergence. A full merge-path audit
+  (inline comment in `merge.py`) confirms no other DIVERGENT sites. Parity ratchet added
+  (four regression tests). Class recurrence of issue
+  [#1589](https://github.com/Priivacy-ai/spec-kitty/issues/1589) facet 3.
+  Closes [#1726](https://github.com/Priivacy-ai/spec-kitty/issues/1726).
+  ([#1672](https://github.com/Priivacy-ai/spec-kitty/issues/1672) parity ratchet)
+
 - Completed Op records are now best-effort auto-committed with `op(...)`
   commit messages, and `spec-kitty doctor ops` reports started-only orphan
   records.

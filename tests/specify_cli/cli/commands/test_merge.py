@@ -19,6 +19,7 @@ Verifies that:
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock, patch
@@ -143,6 +144,10 @@ def test_assert_merged_wps_reached_done_passes_when_all_done(tmp_path: Path) -> 
     mission_slug = "080-test-feature"
     feature_dir = tmp_path / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_id": "01TEST00000000000000000000", "mission_slug": mission_slug}),
+        encoding="utf-8",
+    )
 
     _append_done_event(feature_dir, "WP01")
     _append_done_event(feature_dir, "WP02")
@@ -158,6 +163,10 @@ def test_assert_merged_wps_reached_done_raises_when_wp_not_done(
     mission_slug = "080-test-feature"
     feature_dir = tmp_path / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_id": "01TEST00000000000000000000", "mission_slug": mission_slug}),
+        encoding="utf-8",
+    )
 
     # WP01 done, WP02 only approved
     _append_done_event(feature_dir, "WP01")
@@ -186,6 +195,10 @@ def test_assert_merged_wps_reached_done_includes_lane_value_in_error(
     mission_slug = "080-test-feature"
     feature_dir = tmp_path / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_id": "01TEST00000000000000000000", "mission_slug": mission_slug}),
+        encoding="utf-8",
+    )
 
     # WP01 is in in_progress (not done)
     event = StatusEvent(
@@ -332,3 +345,116 @@ def test_abort_idempotent(tmp_path: Path) -> None:
     assert result.exit_code == 0, (
         f"Expected exit 0 on idempotent abort, got {result.exit_code}\nOutput: {result.output}"
     )
+
+
+# ---------------------------------------------------------------------------
+# WP03: Coordination branch surface regression tests (T015/T016 — #1726)
+# ---------------------------------------------------------------------------
+
+_COORD_SLUG_M = "coord-test-mission"
+_COORD_MISSION_ID_M = "01KTDVHZKGCHCW6HQ4V577PNES"
+
+
+@pytest.fixture
+def coord_branch_mission(tmp_path: Path) -> dict:
+    """Minimal coord-branch fixture for test_merge.py.
+
+    slug does NOT end in mid8, so resolver adds suffix:
+      .worktrees/coord-test-mission-01KTDVHZ-coord/kitty-specs/coord-test-mission-01KTDVHZ/
+    """
+    mid8 = _COORD_MISSION_ID_M[:8]  # "01KTDVHZ"
+    coord_branch = f"kitty/mission-{_COORD_SLUG_M}-{mid8}"
+
+    primary_dir = tmp_path / "kitty-specs" / _COORD_SLUG_M
+    primary_dir.mkdir(parents=True)
+    (primary_dir / "meta.json").write_text(
+        json.dumps({
+            "mission_id": _COORD_MISSION_ID_M,
+            "mission_slug": _COORD_SLUG_M,
+            "slug": _COORD_SLUG_M,
+            "coordination_branch": coord_branch,
+            "target_branch": "main",
+        }),
+        encoding="utf-8",
+    )
+
+    coord_dir_name = f"{_COORD_SLUG_M}-{mid8}"
+    coord_specs = (
+        tmp_path / ".worktrees" / f"{coord_dir_name}-coord"
+        / "kitty-specs" / coord_dir_name
+    )
+    coord_specs.mkdir(parents=True)
+    coord_events = coord_specs / "status.events.jsonl"
+    coord_events.write_text("", encoding="utf-8")
+
+    return {
+        "repo_root": tmp_path,
+        "primary_dir": primary_dir,
+        "coord_specs": coord_specs,
+        "coord_events": coord_events,
+    }
+
+
+def _seed_done_event_m(feature_dir: Path, wp_id: str) -> None:
+    event = StatusEvent(
+        event_id=f"01TESTM{wp_id[-2:]}DONE000000000000"[:26],
+        mission_slug=_COORD_SLUG_M,
+        wp_id=wp_id,
+        from_lane=Lane.APPROVED,
+        to_lane=Lane.DONE,
+        at="2026-06-06T12:00:00+00:00",
+        actor="merge",
+        force=False,
+        execution_mode="worktree",
+    )
+    append_event(feature_dir, event)
+
+
+def test_planning_only_merge_with_coord_branch_reaches_done(
+    coord_branch_mission: dict,
+) -> None:
+    """Planning-only WP: done event on coord surface → assertion passes.
+
+    Parity ratchet T015: proves _assert_merged_wps_reached_done reads the
+    coordination surface when coordination_branch is set.
+
+    Relates-to: #1726
+    """
+    from specify_cli.coordination.surface_resolver import resolve_status_surface
+
+    repo_root = coord_branch_mission["repo_root"]
+    coord_specs = coord_branch_mission["coord_specs"]
+
+    # Seed coord surface (simulates what _mark_wp_merged_done writes)
+    _seed_done_event_m(coord_specs, "WP01")
+
+    # Real _assert_merged_wps_reached_done — must not raise
+    _assert_merged_wps_reached_done(repo_root, _COORD_SLUG_M, ["WP01"])
+
+    # The done event is on the coordination surface
+    surface = resolve_status_surface(repo_root, _COORD_SLUG_M)
+    assert surface.exists()
+    assert '"done"' in surface.read_text(encoding="utf-8")
+
+    # Primary checkout does NOT have the done event
+    primary_events = coord_branch_mission["primary_dir"] / "status.events.jsonl"
+    assert not primary_events.exists() or '"done"' not in primary_events.read_text(encoding="utf-8")
+
+
+def test_code_change_merge_with_coord_branch_reaches_done(
+    coord_branch_mission: dict,
+) -> None:
+    """Code-change WP variant: multi-WP done events on coord surface.
+
+    Parity ratchet T016: surface alignment is independent of WP execution mode.
+
+    Relates-to: #1726
+    """
+    repo_root = coord_branch_mission["repo_root"]
+    coord_specs = coord_branch_mission["coord_specs"]
+
+    _seed_done_event_m(coord_specs, "WP01")
+    _seed_done_event_m(coord_specs, "WP02")
+
+    # Both WPs must pass — coord surface has their done events
+    _assert_merged_wps_reached_done(repo_root, _COORD_SLUG_M, ["WP01", "WP02"])

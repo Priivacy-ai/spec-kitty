@@ -1,12 +1,12 @@
 {
-  "event_count": 20,
-  "last_event_id": "01KTE4NVVPNQN9NH89XN41R48W",
-  "materialized_at": "2026-06-06T09:36:57.206600+00:00",
+  "event_count": 15,
+  "last_event_id": "01KTE1066ASE8DX5HWYFHEN08R",
+  "materialized_at": "2026-06-06T08:32:41.162143+00:00",
   "mission_number": "",
   "mission_slug": "merge-done-surface-resolver-01KTDVHZ",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 4,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
@@ -37,13 +37,6 @@
       "lane": "approved",
       "last_event_id": "01KTE1066ASE8DX5HWYFHEN08R",
       "last_transition_at": "2026-06-06T08:32:41.162143+00:00"
-    },
-    "WP04": {
-      "actor": "claude",
-      "force_count": 1,
-      "lane": "approved",
-      "last_event_id": "01KTE4NVVPNQN9NH89XN41R48W",
-      "last_transition_at": "2026-06-06T09:36:57.206600+00:00"
     }
   }
 }
