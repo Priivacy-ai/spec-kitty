@@ -49,6 +49,7 @@ the same `profile-id`; project profiles have final precedence.
 | `paula-patterns` | Paula Patterns | architecture-scout |
 | `planner-priti` | Planner Priti | planner |
 | `python-pedro` | Python Pedro | implementer |
+| `randy-reducer` | Randy Reducer | implementer |
 | `researcher-robbie` | Researcher Robbie | researcher |
 | `retrospective-facilitator` | Retrospective Facilitator | facilitator |
 | `reviewer-renata` | Reviewer Renata | reviewer |

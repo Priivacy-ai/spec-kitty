@@ -101,6 +101,9 @@ nodes:
 - urn: agent_profile:python-pedro
   kind: agent_profile
   label: Python Pedro
+- urn: agent_profile:randy-reducer
+  kind: agent_profile
+  label: Randy Reducer
 - urn: agent_profile:researcher-robbie
   kind: agent_profile
   label: Researcher Robbie
@@ -199,6 +202,9 @@ nodes:
 - urn: paradigm:git-flow
   kind: paradigm
   label: Git Flow
+- urn: paradigm:semantic-compression
+  kind: paradigm
+  label: Semantic Compression
 - urn: paradigm:shared-branch-ci
   kind: paradigm
   label: Shared-Branch CI
@@ -530,6 +536,24 @@ nodes:
 - urn: tactic:secure-regex-catastrophic-backtracking
   kind: tactic
   label: Secure Regex — Avoid Catastrophic Backtracking
+- urn: tactic:semantic-compression-abstraction-extraction
+  kind: tactic
+  label: Semantic Compression Abstraction Extraction
+- urn: tactic:semantic-compression-behavioral-boundary-mapping
+  kind: tactic
+  label: Semantic Compression Behavioral Boundary Mapping
+- urn: tactic:semantic-compression-dead-weight-elimination
+  kind: tactic
+  label: Semantic Compression Dead Weight Elimination
+- urn: tactic:semantic-compression-equivalence-verification
+  kind: tactic
+  label: Semantic Compression Equivalence Verification
+- urn: tactic:semantic-compression-redundancy-discovery
+  kind: tactic
+  label: Semantic Compression Redundancy Discovery
+- urn: tactic:semantic-compression-semantic-consolidation
+  kind: tactic
+  label: Semantic Compression Semantic Consolidation
 - urn: tactic:single-diagram-architecture
   kind: tactic
 - urn: tactic:split-brain-authority-detection
@@ -1274,6 +1298,42 @@ edges:
 - source: agent_profile:python-pedro
   target: directive:DIRECTIVE_030
   relation: requires
+- source: agent_profile:randy-reducer
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: agent_profile:randy-reducer
+  target: directive:DIRECTIVE_024
+  relation: requires
+- source: agent_profile:randy-reducer
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: agent_profile:randy-reducer
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: agent_profile:randy-reducer
+  target: tactic:semantic-compression-abstraction-extraction
+  relation: requires
+  reason: Replace repeated concept implementations with one named abstraction
+- source: agent_profile:randy-reducer
+  target: tactic:semantic-compression-behavioral-boundary-mapping
+  relation: requires
+  reason: Establish the behavioral envelope before deleting or extracting code
+- source: agent_profile:randy-reducer
+  target: tactic:semantic-compression-dead-weight-elimination
+  relation: requires
+  reason: Remove code that has no protected observable effect
+- source: agent_profile:randy-reducer
+  target: tactic:semantic-compression-equivalence-verification
+  relation: requires
+  reason: Prove the smaller implementation still preserves the behavioral envelope
+- source: agent_profile:randy-reducer
+  target: tactic:semantic-compression-redundancy-discovery
+  relation: requires
+  reason: Find behavioral duplication across exact, parameterized, structural, and semantic levels
+- source: agent_profile:randy-reducer
+  target: tactic:semantic-compression-semantic-consolidation
+  relation: requires
+  reason: Collapse split business-rule paths into one canonical owner
 - source: agent_profile:researcher-robbie
   target: directive:DIRECTIVE_003
   relation: requires
@@ -1483,6 +1543,18 @@ edges:
   relation: requires
 - source: paradigm:git-flow
   target: directive:DIRECTIVE_033
+  relation: requires
+- source: paradigm:semantic-compression
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: paradigm:semantic-compression
+  target: directive:DIRECTIVE_024
+  relation: requires
+- source: paradigm:semantic-compression
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: paradigm:semantic-compression
+  target: directive:DIRECTIVE_034
   relation: requires
 - source: paradigm:shared-branch-ci
   target: directive:DIRECTIVE_029
@@ -2262,6 +2334,78 @@ edges:
   target: tactic:secure-design-checklist
   relation: suggests
   when: Treat regex hardening as a design-phase property of any component that parses untrusted input, not as a post-hoc fix
+- source: tactic:semantic-compression-abstraction-extraction
+  target: directive:DIRECTIVE_001
+  relation: suggests
+  when: The abstraction changes component boundaries
+- source: tactic:semantic-compression-abstraction-extraction
+  target: paradigm:semantic-compression
+  relation: suggests
+  when: Use when duplication can be reduced by one named owner per concept
+- source: tactic:semantic-compression-abstraction-extraction
+  target: tactic:refactoring-extract-first-order-concept
+  relation: suggests
+  when: The duplicated behavior reveals a missing domain or implementation concept
+- source: tactic:semantic-compression-behavioral-boundary-mapping
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: The behavioral envelope must be enforced by automated checks
+- source: tactic:semantic-compression-behavioral-boundary-mapping
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: Boundary evidence is weak or missing
+- source: tactic:semantic-compression-behavioral-boundary-mapping
+  target: paradigm:semantic-compression
+  relation: suggests
+  when: Use as the first compression step before any behavior-preserving reduction
+- source: tactic:semantic-compression-dead-weight-elimination
+  target: directive:DIRECTIVE_024
+  relation: suggests
+  when: Removal must stay tied to proven dead weight
+- source: tactic:semantic-compression-dead-weight-elimination
+  target: paradigm:semantic-compression
+  relation: suggests
+  when: Use when code can be deleted without changing protected behavior
+- source: tactic:semantic-compression-dead-weight-elimination
+  target: tactic:quality-gate-verification
+  relation: suggests
+  when: The deletion changes executable or public behavior surfaces
+- source: tactic:semantic-compression-equivalence-verification
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: Every compression change needs relevant automated verification
+- source: tactic:semantic-compression-equivalence-verification
+  target: directive:DIRECTIVE_036
+  relation: suggests
+  when: Equivalence must be proven at external boundaries
+- source: tactic:semantic-compression-equivalence-verification
+  target: paradigm:semantic-compression
+  relation: suggests
+  when: Use as the final compression gate before handoff
+- source: tactic:semantic-compression-redundancy-discovery
+  target: directive:DIRECTIVE_024
+  relation: suggests
+  when: Duplication removal should stay scoped to the mapped behavior
+- source: tactic:semantic-compression-redundancy-discovery
+  target: paradigm:semantic-compression
+  relation: suggests
+  when: Use after boundary mapping to locate removable behavioral redundancy
+- source: tactic:semantic-compression-redundancy-discovery
+  target: tactic:semantic-compression-behavioral-boundary-mapping
+  relation: suggests
+  when: Use first when the protected behavior is unclear
+- source: tactic:semantic-compression-semantic-consolidation
+  target: directive:DIRECTIVE_032
+  relation: suggests
+  when: Competing paths use different names for the same concept
+- source: tactic:semantic-compression-semantic-consolidation
+  target: paradigm:semantic-compression
+  relation: suggests
+  when: Use when multiple active paths express one protected behavior
+- source: tactic:semantic-compression-semantic-consolidation
+  target: tactic:split-brain-authority-detection
+  relation: suggests
+  when: Multiple writers or authorities disagree about the same state or rule
 - source: tactic:split-brain-authority-detection
   target: tactic:forensic-repository-audit
   relation: suggests

@@ -20,6 +20,7 @@ SPK_SKILLS = {
     "spk-doctrine-charter",
     "spk-doctrine-glossary",
     "spk-doctrine-profile-load",
+    "spk-doctrine-semantic-compression",
     "spk-doctrine-spdd-reasons",
     "spk-gate-accept",
     "spk-gate-merge",
