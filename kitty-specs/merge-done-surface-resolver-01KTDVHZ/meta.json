@@ -1,0 +1,13 @@
+{
+  "coordination_branch": "kitty/mission-merge-done-surface-resolver-01KTDVHZ",
+  "created_at": "2026-06-06T06:57:32.787639+00:00",
+  "friendly_name": "Merge Done-Marking Surface Resolver",
+  "mission_id": "01KTDVHZKGCHCW6HQ4V577PNES",
+  "mission_number": null,
+  "mission_slug": "merge-done-surface-resolver-01KTDVHZ",
+  "mission_type": "software-dev",
+  "purpose_context": "After spec-kitty merge, WPs that were approved show as Completed: 0 (80.0%) because done events are written to the coordination branch surface but the post-merge assertion reads from the primary checkout. This mission introduces a canonical surface resolver to fix the immediate divergence and audits the full merge path for any other sites with the same locate-vs-observe failure class, closing the recurrence loop opened by issue #1589.",
+  "purpose_tldr": "Eliminate the status write/read surface divergence in the merge done-marking loop and audit all merge-path sites for the same class of bug.",
+  "slug": "merge-done-surface-resolver-01KTDVHZ",
+  "target_branch": "main"
+}
