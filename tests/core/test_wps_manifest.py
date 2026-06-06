@@ -99,6 +99,8 @@ class TestLoadWpsManifest:
         assert entry.requirement_refs == []
         assert entry.subtasks == []
         assert entry.prompt_file is None
+        assert entry.plan_concern_refs == []
+        assert entry.cross_cutting is False
 
 
 class TestDependenciesAreExplicit:
@@ -217,3 +219,137 @@ class TestGenerateTasksMd:
         )
         md = generate_tasks_md_from_manifest(manifest, "Feature")
         assert "tasks/WP01-with-prompt.md" in md
+
+
+class TestPlanConcernRefs:
+    """Tests for plan_concern_refs field (T005) and cross_cutting field (T006)."""
+
+    def test_backwards_compat_no_fields(self) -> None:
+        """Existing wps.yaml without new fields parses without error."""
+        entry = WorkPackageEntry(id="WP01", title="test")
+        assert entry.plan_concern_refs == []
+        assert entry.cross_cutting is False
+
+    def test_valid_plan_concern_refs(self) -> None:
+        entry = WorkPackageEntry(id="WP01", title="test", plan_concern_refs=["IC-01", "IC-23"])
+        assert entry.plan_concern_refs == ["IC-01", "IC-23"]
+
+    def test_invalid_concern_ref_single_digit(self) -> None:
+        """IC-1 is invalid — must be exactly two digits."""
+        with pytest.raises(ValidationError):
+            WorkPackageEntry(id="WP01", title="test", plan_concern_refs=["IC-1"])
+
+    def test_invalid_concern_ref_wrong_prefix(self) -> None:
+        """WP01 is not a valid IC-## ref."""
+        with pytest.raises(ValidationError):
+            WorkPackageEntry(id="WP01", title="test", plan_concern_refs=["WP01"])
+
+    def test_invalid_concern_ref_three_digits(self) -> None:
+        """IC-123 is invalid — must be exactly two digits."""
+        with pytest.raises(ValidationError):
+            WorkPackageEntry(id="WP01", title="test", plan_concern_refs=["IC-123"])
+
+    def test_invalid_concern_ref_unicode_digits(self) -> None:
+        """Arabic-Indic digits must not match — re.ASCII flag is required."""
+        # "١٢" are Arabic-Indic '١٢' — must NOT pass the validator
+        with pytest.raises(ValidationError):
+            WorkPackageEntry(id="WP01", title="test", plan_concern_refs=["IC-١٢"])
+
+    def test_cross_cutting_true(self) -> None:
+        entry = WorkPackageEntry(id="WP01", title="test", cross_cutting=True)
+        assert entry.cross_cutting is True
+
+    def test_cross_cutting_default_false(self) -> None:
+        entry = WorkPackageEntry(id="WP01", title="test")
+        assert entry.cross_cutting is False
+
+    def test_load_manifest_with_plan_concern_refs(self, tmp_path: Path) -> None:
+        wps = tmp_path / "wps.yaml"
+        wps.write_text(
+            "work_packages:\n"
+            "  - id: WP01\n"
+            "    title: 'With concern refs'\n"
+            "    plan_concern_refs: [IC-01, IC-03]\n",
+            encoding="utf-8",
+        )
+        manifest = load_wps_manifest(tmp_path)
+        assert manifest is not None
+        assert manifest.work_packages[0].plan_concern_refs == ["IC-01", "IC-03"]
+
+    def test_load_manifest_with_cross_cutting(self, tmp_path: Path) -> None:
+        wps = tmp_path / "wps.yaml"
+        wps.write_text(
+            "work_packages:\n"
+            "  - id: WP01\n"
+            "    title: 'Cross-cutting'\n"
+            "    cross_cutting: true\n",
+            encoding="utf-8",
+        )
+        manifest = load_wps_manifest(tmp_path)
+        assert manifest is not None
+        assert manifest.work_packages[0].cross_cutting is True
+
+
+class TestGenerateTasksMdPlanConcernRefs:
+    """Tests for generate_tasks_md_from_manifest() rendering of plan_concern_refs (T007)."""
+
+    def test_plan_concerns_rendered_when_non_empty(self) -> None:
+        manifest = WpsManifest(
+            work_packages=[
+                WorkPackageEntry(
+                    id="WP01",
+                    title="With concerns",
+                    plan_concern_refs=["IC-01", "IC-03"],
+                )
+            ]
+        )
+        md = generate_tasks_md_from_manifest(manifest, "Feature")
+        assert "**Plan concerns**: IC-01, IC-03" in md
+
+    def test_plan_concerns_not_rendered_when_empty(self) -> None:
+        manifest = WpsManifest(
+            work_packages=[
+                WorkPackageEntry(
+                    id="WP01",
+                    title="No concerns",
+                )
+            ]
+        )
+        md = generate_tasks_md_from_manifest(manifest, "Feature")
+        assert "Plan concerns" not in md
+
+    def test_plan_concerns_appear_after_requirement_refs(self) -> None:
+        manifest = WpsManifest(
+            work_packages=[
+                WorkPackageEntry(
+                    id="WP01",
+                    title="Ordered fields",
+                    requirement_refs=["FR-001"],
+                    plan_concern_refs=["IC-02"],
+                )
+            ]
+        )
+        md = generate_tasks_md_from_manifest(manifest, "Feature")
+        req_pos = md.index("Requirement Refs")
+        concern_pos = md.index("Plan concerns")
+        assert req_pos < concern_pos
+
+    def test_multiple_wps_independent_concern_rendering(self) -> None:
+        """WP01 has concerns; WP02 does not — both render correctly."""
+        manifest = WpsManifest(
+            work_packages=[
+                WorkPackageEntry(
+                    id="WP01",
+                    title="Has concerns",
+                    plan_concern_refs=["IC-01"],
+                ),
+                WorkPackageEntry(
+                    id="WP02",
+                    title="No concerns",
+                ),
+            ]
+        )
+        md = generate_tasks_md_from_manifest(manifest, "Feature")
+        assert "**Plan concerns**: IC-01" in md
+        # Exactly one occurrence — not duplicated for WP02
+        assert md.count("Plan concerns") == 1
