@@ -200,6 +200,8 @@ class QueryModeValidationError(ValueError):
 # ---------------------------------------------------------------------------
 
 _FEATURE_RUNS_FILE = "feature-runs.json"
+TASKS_GLOB = "WP*.md"
+_REQUIREMENT_REF_PATTERN = re.compile(r"\b(?:FR|NFR|C)-\d+\b", re.IGNORECASE)
 
 
 def _extract_wp_heading(line: str) -> tuple[str, int] | None:
@@ -275,19 +277,6 @@ def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
     return sections
 
 
-def _is_requirement_heading_line(stripped_line: str) -> bool:
-    """Return True when a heading line denotes requirement refs."""
-    if not stripped_line.startswith("#"):
-        return False
-    heading = stripped_line.lstrip("#").strip().strip("*").strip().lower()
-    return heading in {"requirement", "requirements", "requirement ref", "requirement refs"}
-
-
-def _extract_requirement_refs(line: str) -> list[str]:
-    """Extract normalized requirement reference IDs from a line."""
-    return [ref_id.upper() for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", line, re.IGNORECASE)]
-
-
 def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[str]]:
     """Parse requirement references per WP from tasks.md content."""
     requirement_refs: dict[str, list[str]] = {}
@@ -301,22 +290,48 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[
                 if not stripped_line:
                     continue
                 if stripped_line.startswith(("-", "*")):
-                    refs.extend(_extract_requirement_refs(stripped_line))
+                    refs.extend(_iter_requirement_refs(stripped_line))
                     continue
                 in_requirement_ref_list = False
 
-            lower_line = line.lower()
-            if "requirement" not in lower_line:
+            suffix = _requirement_inline_refs_suffix(line)
+            if suffix is not None:
+                refs.extend(_iter_requirement_refs(suffix))
                 continue
-            prefix, separator, suffix = line.partition(":")
-            if separator and "requirement" in prefix.lower():
-                refs.extend(_extract_requirement_refs(suffix))
-                continue
-            if _is_requirement_heading_line(stripped_line):
+            if _is_requirement_heading(stripped_line):
                 in_requirement_ref_list = True
         requirement_refs[wp_id] = list(dict.fromkeys(refs))
 
     return requirement_refs
+
+
+def _iter_requirement_refs(text: str) -> list[str]:
+    """Return normalized requirement refs found in ``text``."""
+    return [ref_id.upper() for ref_id in _REQUIREMENT_REF_PATTERN.findall(text)]
+
+
+def _requirement_inline_refs_suffix(line: str) -> str | None:
+    """Return inline requirement-ref suffix when ``line`` is a label/value row."""
+    lower_line = line.lower()
+    if "requirement" not in lower_line:
+        return None
+    prefix, separator, suffix = line.partition(":")
+    if separator and "requirement" in prefix.lower():
+        return suffix
+    return None
+
+
+def _is_requirement_heading(stripped_line: str) -> bool:
+    """Return whether a markdown heading denotes a requirement refs section."""
+    if not stripped_line.startswith("#"):
+        return False
+
+    body = stripped_line.lstrip("#").strip()
+    if not body:
+        return False
+
+    normalized_body = body.replace("*", "").strip().lower()
+    return normalized_body in {"requirement", "requirements", "requirement refs", "requirements refs"}
 
 
 class _BufferingRuntimeEmitter:
@@ -837,20 +852,6 @@ def _finalized_task_board_override_step(
     return "blocked:no_actionable_wp"
 
 
-def _wp_id_from_task_file(wp_file: Path) -> str:
-    wp_match = re.match(r"(WP\d+)", wp_file.stem)
-    return wp_match.group(1) if wp_match else wp_file.stem
-
-
-def _implement_step_can_advance(state: Any) -> bool:
-    lane = state.lane
-    return (not state.is_blocked) and (not state.is_run_affecting or lane in (Lane.FOR_REVIEW, Lane.APPROVED))
-
-
-def _review_step_can_advance(state: Any) -> bool:
-    return state.lane in (Lane.DONE, Lane.APPROVED)
-
-
 def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
     """Check if all WPs are done for this phase, meaning we should advance.
 
@@ -862,15 +863,17 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
     if not tasks_dir.is_dir():
         return True  # no WPs to iterate over
 
-    wp_files = sorted(tasks_dir.glob("WP*.md"))
+    wp_files = sorted(tasks_dir.glob(TASKS_GLOB))
     if not wp_files:
         return True
 
     # Get canonical lane state from event log (hard-fail if absent)
+    import re as _re
     from specify_cli.status.lane_reader import get_wp_lane
 
     for wp_file in wp_files:
-        wp_id = _wp_id_from_task_file(wp_file)
+        wp_match = _re.match(r"(WP\d+)", wp_file.stem)
+        wp_id = wp_match.group(1) if wp_match else wp_file.stem
         raw_lane = get_wp_lane(feature_dir, wp_id)
         try:
             state = wp_state_for(raw_lane)
@@ -878,12 +881,27 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
             # Unknown lane (e.g. "uninitialized" before status bootstrap) — treat as
             # not-yet-handed-off, so this WP blocks advancement.
             return False
-        if step_id == "implement" and not _implement_step_can_advance(state):
-            return False
-        if step_id == "review" and not _review_step_can_advance(state):
+        if _wp_blocks_step(step_id, state):
             return False
 
     return True
+
+
+def _wp_blocks_step(step_id: str, state: Any) -> bool:
+    """Return whether a WP state blocks advancement for ``step_id``."""
+    lane = state.lane
+    if step_id == "implement":
+        # Advance past implement only when the WP has been handed off
+        # (for_review or approved) or completed (done/canceled).
+        # is_run_affecting is True for all active lanes; we further restrict
+        # to only allow advancement for the "handed off" active lanes.
+        return (
+            state.is_blocked
+            or (state.is_run_affecting and lane not in (Lane.FOR_REVIEW, Lane.APPROVED))
+        )
+    if step_id == "review":
+        return lane not in (Lane.DONE, Lane.APPROVED)
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -895,7 +913,6 @@ SPEC_ARTIFACT = "spec.md"
 PLAN_ARTIFACT = "plan.md"
 TASKS_ARTIFACT = "tasks.md"
 STATE_FILE = "state.json"
-TASKS_GLOB = "WP*.md"
 MISSING_ARTIFACT_MESSAGE = "Required artifact missing: {name}"
 MISSING_TASK_FILES_MESSAGE = f"Required: at least one tasks/{TASKS_GLOB} file"
 
