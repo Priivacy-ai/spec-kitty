@@ -22,6 +22,8 @@ class WorkPackageEntry(BaseModel):
     requirement_refs: list[str] = Field(default_factory=list)
     subtasks: list[str] = Field(default_factory=list)
     prompt_file: str | None = None
+    plan_concern_refs: list[str] = Field(default_factory=list)
+    cross_cutting: bool = False
 
     # Internal: True when 'dependencies' key was present in the source YAML.
     # Set by load_wps_manifest(); NOT part of the serialized schema.
@@ -40,6 +42,17 @@ class WorkPackageEntry(BaseModel):
         for dep in v:
             if not re.match(r"^WP\d{2}$", dep):
                 raise ValueError(f"Dependency must be WPnn (e.g. WP01), got: {dep!r}")
+        return v
+
+    @field_validator("plan_concern_refs")
+    @classmethod
+    def validate_plan_concern_refs(cls, v: list[str]) -> list[str]:
+        """Validate that each ref matches the IC-## pattern (ASCII digits only)."""
+        for ref in v:
+            if not re.match(r"^IC-\d{2}$", ref, re.ASCII):
+                raise ValueError(
+                    f"plan_concern_ref must match IC-## (e.g. IC-01), got: {ref!r}"
+                )
         return v
 
 
@@ -119,6 +132,9 @@ def generate_tasks_md_from_manifest(manifest: WpsManifest, feature_name: str) ->
 
         if wp.requirement_refs:
             lines.append(f"**Requirement Refs**: {', '.join(wp.requirement_refs)}")
+
+        if wp.plan_concern_refs:
+            lines.append(f"**Plan concerns**: {', '.join(wp.plan_concern_refs)}")
 
         if wp.owned_files:
             lines.append(f"**Owned Files**: {', '.join(wp.owned_files)}")
