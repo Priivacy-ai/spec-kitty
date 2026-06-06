@@ -10,7 +10,7 @@ corpus_snapshot_id: (none)
 evidence_bundle_hash:
 generated_at: '2026-01-01T00:53:08.328585+00:00'
 inputs_hash: be0a0889f04fd05aeab2856bd8518fb22f0c52c85e5016bd753454e3c48cc4a3
-produced_at: '2026-06-06T12:12:56.703478+00:00'
+produced_at: '2026-06-03T13:17:28.875138+00:00'
 schema_version: '2'
 source_input_ids:
 - directive:DIRECTIVE_003
@@ -18,4 +18,4 @@ source_section: selected_directives
 source_urns:
 - directive:DIRECTIVE_003
 synthesis_run_id: 01KPE222CD1MMCYEGB3ZCY51VR
-synthesizer_version: 3.2.0rc37
+synthesizer_version: 3.2.0rc35

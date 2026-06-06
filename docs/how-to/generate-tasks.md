@@ -7,11 +7,6 @@ description: "How to generate work packages with Spec Kitty 3.2: Use this guide 
 
 Use this guide to turn a plan into work packages with `/spec-kitty.tasks`.
 
-`/spec-kitty.tasks` translates implementation concerns (IC-## entries) from `plan.md`
-into executable work packages. One concern may become multiple WPs; multiple small
-concerns may merge into a single WP. Each generated WP should cite the implementation
-concern(s) it addresses via `plan_concern_refs` in `wps.yaml`.
-
 ## Prerequisites
 
 - `kitty-specs/<feature>/plan.md` exists

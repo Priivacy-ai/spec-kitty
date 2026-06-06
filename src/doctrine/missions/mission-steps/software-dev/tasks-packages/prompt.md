@@ -118,8 +118,6 @@ model: ""          # filled in Step 4a — model identifier (e.g., claude-sonnet
 ---
 ```
 
-**IMPORTANT — `plan_concern_refs` lives in `wps.yaml` only.** Do NOT copy `plan_concern_refs` into WP prompt frontmatter. `WPMetadata` uses `extra="forbid"`, so any WP prompt file with `plan_concern_refs` in its frontmatter will cause `finalize-tasks --validate-only` to raise a `ValidationError`.
-
 Body sections (in order):
 0. `## ⚡ Do This First: Load Agent Profile` — **REQUIRED. Must be the first section after the H1 title, before Objective.** Instructs the implementing agent to load the assigned profile via `/ad-hoc-profile-load` before reading anything else. Use this exact structure, substituting frontmatter values:
    ```markdown
@@ -185,8 +183,6 @@ Example of a fully-populated entry after this step:
   requirement_refs:
     - FR-001
     - NFR-001
-  plan_concern_refs:
-    - IC-02
   subtasks:
     - T001
     - T002
@@ -207,8 +203,6 @@ authoritative_surface: "src/api/"
 execution_mode: "code_change"
 ---
 ```
-
-**Note**: `plan_concern_refs` is a `wps.yaml`-only field. It must NOT appear in WP prompt frontmatter — `WPMetadata` (`extra="forbid"`) will reject any WP file that includes it.
 
 Include the correct implementation command:
 - `spec-kitty agent action implement WP01 --agent <name>`

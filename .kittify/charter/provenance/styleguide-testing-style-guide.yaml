@@ -10,10 +10,10 @@ corpus_snapshot_id: (none)
 evidence_bundle_hash:
 generated_at: '2026-01-01T00:42:40.616287+00:00'
 inputs_hash: 989fe75fe842df4f6ad0fec3691799d49d7090fd3c10423ad61ea387ef0c7c70
-produced_at: '2026-06-06T12:12:56.708260+00:00'
+produced_at: '2026-06-03T13:17:28.880324+00:00'
 schema_version: '2'
 source_input_ids: []
 source_section: testing_philosophy
 source_urns: []
 synthesis_run_id: 01KPE222CD1MMCYEGB3ZCY51VR
-synthesizer_version: 3.2.0rc37
+synthesizer_version: 3.2.0rc35

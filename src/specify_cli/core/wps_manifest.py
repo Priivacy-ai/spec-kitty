@@ -22,8 +22,6 @@ class WorkPackageEntry(BaseModel):
     requirement_refs: list[str] = Field(default_factory=list)
     subtasks: list[str] = Field(default_factory=list)
     prompt_file: str | None = None
-    plan_concern_refs: list[str] = Field(default_factory=list)
-    cross_cutting: bool = False
 
     # Internal: True when 'dependencies' key was present in the source YAML.
     # Set by load_wps_manifest(); NOT part of the serialized schema.
@@ -42,17 +40,6 @@ class WorkPackageEntry(BaseModel):
         for dep in v:
             if not re.match(r"^WP\d{2}$", dep):
                 raise ValueError(f"Dependency must be WPnn (e.g. WP01), got: {dep!r}")
-        return v
-
-    @field_validator("plan_concern_refs")
-    @classmethod
-    def validate_plan_concern_refs(cls, v: list[str]) -> list[str]:
-        """Validate that each ref matches the IC-## pattern (ASCII digits only)."""
-        for ref in v:
-            if not re.match(r"^IC-\d{2}$", ref, re.ASCII):
-                raise ValueError(
-                    f"plan_concern_ref must match IC-## (e.g. IC-01), got: {ref!r}"
-                )
         return v
 
 
@@ -101,31 +88,6 @@ def dependencies_are_explicit(entry: WorkPackageEntry) -> bool:
     return getattr(entry, "_dependencies_explicit", False)
 
 
-def check_concern_refs_coverage(manifest: WpsManifest) -> list[str]:
-    """Return a list of warning messages for WPs missing concern coverage.
-
-    A WP is considered adequately covered if it has at least one entry in
-    ``plan_concern_refs`` OR has ``cross_cutting`` set to ``True``.  WPs that
-    have neither trigger a warning so the author can either cite an IC-## ref
-    or explicitly mark the WP as cross-cutting infrastructure.
-
-    Args:
-        manifest: Loaded WpsManifest to inspect.
-
-    Returns:
-        A (possibly empty) list of human-readable warning strings, one per
-        uncovered WP.  An empty list means all WPs have adequate coverage.
-    """
-    warnings: list[str] = []
-    for wp in manifest.work_packages:
-        if not wp.plan_concern_refs and not wp.cross_cutting:
-            warnings.append(
-                f"{wp.id} ({wp.title!r}): missing plan_concern_refs and "
-                "cross_cutting is not set — add IC-## refs or set cross_cutting: true"
-            )
-    return warnings
-
-
 def generate_tasks_md_from_manifest(manifest: WpsManifest, feature_name: str) -> str:
     """Generate tasks.md content from a WpsManifest.
 
@@ -157,9 +119,6 @@ def generate_tasks_md_from_manifest(manifest: WpsManifest, feature_name: str) ->
 
         if wp.requirement_refs:
             lines.append(f"**Requirement Refs**: {', '.join(wp.requirement_refs)}")
-
-        if wp.plan_concern_refs:
-            lines.append(f"**Plan concerns**: {', '.join(wp.plan_concern_refs)}")
 
         if wp.owned_files:
             lines.append(f"**Owned Files**: {', '.join(wp.owned_files)}")
