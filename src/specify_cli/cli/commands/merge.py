@@ -232,9 +232,10 @@ def _mark_wp_merged_done(
     Includes event-log dedup: if the target transition already exists in the log
     the emission is skipped so that retries are idempotent.
     """
-    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+    # Primary checkout path — used only for WP file lookup (tasks/*.md live here).
+    primary_feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
     wp_path = None
-    for candidate in sorted((feature_dir / "tasks").glob(f"{wp_id}*.md")):
+    for candidate in sorted((primary_feature_dir / "tasks").glob(f"{wp_id}*.md")):
         wp_path = candidate
         break
     if wp_path is None or not wp_path.exists():
@@ -242,6 +243,10 @@ def _mark_wp_merged_done(
         return
 
     metadata, _body = read_wp_frontmatter(wp_path)
+    # Resolve the authoritative status surface once (FR-002 / NFR-003: sole mechanism).
+    # All status reads and writes below use this feature_dir so write and read sides
+    # are always on the same surface.
+    feature_dir = resolve_status_surface(repo_root, mission_slug).parent
     from specify_cli.status.models import DoneEvidence, ReviewApproval
     from specify_cli.coordination.status_transition import (
         emit_status_transition_transactional,
@@ -274,7 +279,7 @@ def _mark_wp_merged_done(
     _force_done = False
     if lane == _Lane.PLANNED:
         from specify_cli.status.lane_reader import get_wp_lane as _get_wp_lane  # noqa: PLC0415
-        primary_raw = _get_wp_lane(feature_dir, wp_id)
+        primary_raw = _get_wp_lane(primary_feature_dir, wp_id)  # primary checkout, not coord surface
         if isinstance(primary_raw, _Lane):
             lane = primary_raw
             # The coord has no events for this WP; force the done transition so
@@ -1797,8 +1802,11 @@ def _run_lane_based_merge_locked(
     )
 
     # Merge-path status surface audit (mission merge-done-surface-resolver-01KTDVHZ):
-    # Write sites: _mark_wp_merged_done (coord-branch-aware via emit_status_transition_transactional)
-    # Read sites:  _assert_merged_wps_reached_done (fixed: now uses resolve_status_surface)
+    # Write sites: _mark_wp_merged_done — resolve_status_surface determines feature_dir;
+    #              emit_status_transition_transactional writes to that surface.
+    # Read sites:  _assert_merged_wps_reached_done — resolve_status_surface determines feature_dir.
+    # Fallback:    _mark_wp_merged_done PLANNED-guard reads primary_feature_dir (primary checkout)
+    #              when the coord surface has no events for the WP (force=True covers the jump).
     #              _reconcile_completed_wps_for_resume (safe: uses has_transition_to_transactional)
     # DIVERGENT:   _assert_merged_wps_reached_done read vs _mark_wp_merged_done write — FIXED above
     # Additional DIVERGENT sites: none found

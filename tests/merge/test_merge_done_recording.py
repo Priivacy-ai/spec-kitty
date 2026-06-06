@@ -21,6 +21,14 @@ from specify_cli.cli.commands.merge import (
 pytestmark = pytest.mark.fast
 
 
+def _write_minimal_meta(feature_dir: Path) -> None:
+    """Write a minimal meta.json (no coord branch) so resolve_status_surface can read it."""
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_id": "01TEST00000000000000000000", "mission_slug": "021-test"}),
+        encoding="utf-8",
+    )
+
+
 def _write_wp(path: Path, *, review_status: str = "", reviewed_by: str = "", agent: str = "") -> None:
     """Write a minimal WP file. Lane is tracked via event log, not frontmatter."""
     lines = [
@@ -43,6 +51,7 @@ def test_mark_wp_merged_done_emits_done_transition(tmp_path: Path, monkeypatch) 
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    _write_minimal_meta(feature_dir)
     _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
 
     emit_mock = Mock()
@@ -69,6 +78,7 @@ def test_mark_wp_merged_done_approved_without_review_metadata_synthesizes_eviden
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    _write_minimal_meta(feature_dir)
     _write_wp(tasks_dir / "WP01-test.md")
 
     emit_mock = Mock()
@@ -94,6 +104,7 @@ def test_mark_wp_merged_done_for_review_without_metadata_skips(tmp_path: Path, m
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    _write_minimal_meta(feature_dir)
     _write_wp(tasks_dir / "WP01-test.md")
 
     emit_mock = Mock()
@@ -116,6 +127,7 @@ def test_mark_wp_merged_done_records_approved_before_done_for_legacy_for_review(
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    _write_minimal_meta(feature_dir)
     _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
 
     emit_mock = Mock()
@@ -144,6 +156,7 @@ def test_mark_wp_merged_done_recovers_reviewed_wps_from_pre_review_lanes(
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    _write_minimal_meta(feature_dir)
     _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
 
     emit_mock = Mock()
@@ -169,6 +182,7 @@ def test_mark_wp_merged_done_synthesized_evidence_uses_typed_agent(
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    _write_minimal_meta(feature_dir)
     _write_wp(tasks_dir / "WP01-test.md", agent="gemini-cli")
 
     emit_mock = Mock()

@@ -8,6 +8,8 @@ import pytest
 
 from specify_cli.coordination.surface_resolver import resolve_status_surface
 
+pytestmark = pytest.mark.fast
+
 
 def _write_meta(feature_dir: Path, **fields: object) -> None:
     feature_dir.mkdir(parents=True, exist_ok=True)
