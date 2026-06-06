@@ -52,6 +52,7 @@
 - `spk-doctrine-glossary`: terminology.
 - `spk-doctrine-spdd-reasons`: REASONS Canvas.
 - `spk-doctrine-profile-load`: agent profiles.
+- `spk-doctrine-semantic-compression`: behavior-preserving code reduction.
 - `spk-doctrine-bulk-edit`: bulk edit classification.
 
 ## Integration

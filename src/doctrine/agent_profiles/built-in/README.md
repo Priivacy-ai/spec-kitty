@@ -20,6 +20,7 @@ with the language name) extend the base `implementer-ivan` role for polyglot pro
 | `paula-patterns.agent.yaml` | `paula-patterns` | architecture-scout |
 | `planner-priti.agent.yaml` | `planner-priti` | planner |
 | `python-pedro.agent.yaml` | `python-pedro` | implementer (Python specialist) |
+| `randy-reducer.agent.yaml` | `randy-reducer` | implementer (semantic compression specialist) |
 | `researcher-robbie.agent.yaml` | `researcher-robbie` | researcher |
 | `retrospective-facilitator.agent.yaml` | `retrospective-facilitator` | facilitator |
 | `reviewer-renata.agent.yaml` | `reviewer-renata` | reviewer |

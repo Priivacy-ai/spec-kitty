@@ -53,6 +53,7 @@ Families:
 - `spk-admin-*`: setup, agent config, upgrade, dashboard/status.
 - `spk-team-*`: auth, sync, tracker, connectors.
 - `spk-doctrine-*`: charter, glossary, SPDD, profile load, bulk-edit policy.
+- `spk-doctrine-semantic-compression`: behavior-preserving code reduction.
 - `spk-integrate-*`: orchestrator API, CI, external automation.
 - `spk-meta-*`: skill discovery and future skill authoring.
 
@@ -97,6 +98,7 @@ the public user-facing hierarchy moves to `spk-*`.
 | `spk-doctrine-glossary` | Terminology |
 | `spk-doctrine-spdd-reasons` | REASONS Canvas |
 | `spk-doctrine-profile-load` | Agent profiles |
+| `spk-doctrine-semantic-compression` | Semantic compression |
 | `spk-doctrine-bulk-edit` | Bulk-edit classification |
 | `spk-integrate-orchestrator-api` | External orchestrator API |
 | `spk-meta-skill-map` | Discovery and naming convention |
