@@ -10,10 +10,10 @@ corpus_snapshot_id: (none)
 evidence_bundle_hash:
 generated_at: '2026-01-01T00:17:51.052252+00:00'
 inputs_hash: 3fd6f5dc2fcf92f99e2e478d90ea69399f5f8ba9b20e7ad5edc2f4ce6fd7fe48
-produced_at: '2026-06-03T13:17:28.873628+00:00'
+produced_at: '2026-06-06T12:12:56.701953+00:00'
 schema_version: '2'
 source_input_ids: []
 source_section: risk_appetite
 source_urns: []
 synthesis_run_id: 01KPE222CD1MMCYEGB3ZCY51VR
-synthesizer_version: 3.2.0rc35
+synthesizer_version: 3.2.0rc37

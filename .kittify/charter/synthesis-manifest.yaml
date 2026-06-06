@@ -1,10 +1,54 @@
-adapter_id: fresh-seed
-adapter_version: 3.2.0rc37
-artifacts: []
-built_in_only: true
-created_at: '1970-01-01T00:00:00+00:00'
-manifest_hash: 1edfd5f51b91f05674c9de125ce3d4b1e1a1192f8e505d7b128de79229e191b8
+adapter_id: fixture
+adapter_version: 1.0.0
+artifacts:
+- content_hash: 8fe2111d7c9b9b145c9912050d552e016841af0fb22a5bf02929bc09c1ecb4c0
+  kind: directive
+  path: 
+    .kittify/doctrine/directives/001-mission-type-scope-directive.directive.yaml
+  provenance_path: 
+    .kittify/charter/provenance/directive-mission-type-scope-directive.yaml
+  slug: mission-type-scope-directive
+- content_hash: 0b6762e6a6fca528617ce40d620b8356d1d30214c2e006316181ddc56a06a284
+  kind: directive
+  path: 
+    .kittify/doctrine/directives/002-neutrality-posture-directive.directive.yaml
+  provenance_path: 
+    .kittify/charter/provenance/directive-neutrality-posture-directive.yaml
+  slug: neutrality-posture-directive
+- content_hash: 19c8d150e4f42839c707c1008fd8976b49ab97053d1a1dfe1a65753e79bba688
+  kind: directive
+  path: .kittify/doctrine/directives/003-risk-appetite-directive.directive.yaml
+  provenance_path: 
+    .kittify/charter/provenance/directive-risk-appetite-directive.yaml
+  slug: risk-appetite-directive
+- content_hash: 58323a02431168a9dafb807b055bee09ca48b5807d6c68c79aa94d592b63feb0
+  kind: styleguide
+  path: .kittify/doctrine/styleguides/python-style-guide.styleguide.yaml
+  provenance_path: 
+    .kittify/charter/provenance/styleguide-python-style-guide.yaml
+  slug: python-style-guide
+- content_hash: 73ca8d93abef73369c07dd239b7787336541890699f82e4313ff7f3a158822fe
+  kind: styleguide
+  path: .kittify/doctrine/styleguides/testing-style-guide.styleguide.yaml
+  provenance_path: 
+    .kittify/charter/provenance/styleguide-testing-style-guide.yaml
+  slug: testing-style-guide
+- content_hash: 061a83d356e452f100de05d15d10983365a163d12ddde649af9acf2ce539f08c
+  kind: tactic
+  path: .kittify/doctrine/tactics/how-we-apply-directive-003.tactic.yaml
+  provenance_path: 
+    .kittify/charter/provenance/tactic-how-we-apply-directive-003.yaml
+  slug: how-we-apply-directive-003
+- content_hash: 55f5227d9336fcc7623be29551705dea289d4fd52366e479355bb68c578b8a0f
+  kind: tactic
+  path: .kittify/doctrine/tactics/testing-philosophy-tactic.tactic.yaml
+  provenance_path: 
+    .kittify/charter/provenance/tactic-testing-philosophy-tactic.yaml
+  slug: testing-philosophy-tactic
+built_in_only: false
+created_at: '2026-06-06T12:12:56.780368+00:00'
+manifest_hash: 7bff07129a778c7fe61663c2f42f9de7eadbace62a3e616b39b0e8e5ecfad790
 mission_id:
-run_id: fresh-project-seed
+run_id: 01KPE222CD1MMCYEGB3ZCY51VR
 schema_version: '2'
 synthesizer_version: 3.2.0rc37

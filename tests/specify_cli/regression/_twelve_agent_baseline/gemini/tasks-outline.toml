@@ -128,6 +128,20 @@ Group subtasks into work packages (IDs `WP01`, `WP02`, ...):
 - Record metadata: priority, success criteria, risks, dependencies, included subtasks, and requirement references
 - Every WP must include a `requirement_refs` list referencing IDs from `spec.md` (FR/NFR/C)
 
+### 4a. Cite plan concern refs for each WP
+
+For each work package, record which implementation concern(s) from `plan.md` it
+addresses by populating `plan_concern_refs` in `wps.yaml`.
+
+- If the WP covers exactly one concern: `plan_concern_refs: [IC-01]`
+- If the WP spans multiple concerns: `plan_concern_refs: [IC-01, IC-03]`
+- If the WP is cross-cutting infrastructure with no specific concern (e.g. a test
+  harness<!-- glossary:glossary:harness --> setup WP), set `cross_cutting: true` and leave `plan_concern_refs` empty.
+
+A WP missing both `plan_concern_refs` and `cross_cutting: true` will trigger a
+warning from `finalize-tasks`. Every WP should cite at least one IC-## ref or
+declare itself cross-cutting.
+
 ### 5. Write `wps.yaml`
 
 Write to `feature_dir/wps.yaml` following the schema below. This is the **single
@@ -147,6 +161,8 @@ work_packages:
     requirement_refs:
       - FR-001
       - FR-002
+    plan_concern_refs:
+      - IC-01
     subtasks:
       - T001
       - T002
@@ -161,6 +177,9 @@ work_packages:
       - "src/myapp/api/**"
     requirement_refs:
       - FR-003
+    plan_concern_refs:
+      - IC-02
+      - IC-03
     subtasks:
       - T004
       - T005
@@ -175,6 +194,8 @@ work_packages:
     requirement_refs:
       - FR-004
       - NFR-001
+    plan_concern_refs:
+      - IC-04
     subtasks:
       - T006
       - T007
@@ -188,6 +209,8 @@ work_packages:
 - `dependencies`: List of WP IDs this WP depends on. `[]` = explicitly no deps (authoritative); if the key is **absent**, `tasks-packages` may fill it based on analysis.
 - `owned_files`: Glob patterns for files this WP touches — no two WPs may overlap.
 - `requirement_refs`: Requirement IDs from `spec.md` (FR/NFR/C) addressed by this WP.
+- `plan_concern_refs`: Implementation concern IDs from `plan.md` (IC-##) addressed by this WP. Use `cross_cutting: true` instead if the WP is shared infrastructure with no specific concern.
+- `cross_cutting`: Set to `true` for infrastructure WPs that span all concerns and have no specific IC-## ref.
 - `subtasks`: Ordered list of subtask IDs included in this WP.
 - `prompt_file`: Relative path (from `feature_dir`) to the WP prompt file — set by `tasks-packages` in the next step.
 
