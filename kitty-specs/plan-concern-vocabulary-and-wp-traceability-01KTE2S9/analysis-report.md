@@ -4,18 +4,18 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: plan-concern-vocabulary-and-wp-traceability-01KTE2S9
 mission_id: 01KTE2S951SWFSP0NTQ2NKNQFZ
-generated_at: '2026-06-06T11:46:59.883641+00:00'
+generated_at: '2026-06-06T12:37:57.890987+00:00'
 analyzer_agent: claude:sonnet-4-6
 input_artifacts:
   spec.md:
-    path: /Users/robert/spec-kitty-dev/spec-kitty-20260606-102751-P4vJoh/spec-kitty/kitty-specs/plan-concern-vocabulary-and-wp-traceability-01KTE2S9/spec.md
-    sha256: f1c9c32c50d3b034480900d4d66319ff38ab41189640b77f9cd90dfb37247551
+    path: /Users/robert/spec-kitty-dev/spec-kitty-20260606-102751-P4vJoh/spec-kitty/.worktrees/plan-concern-vocabulary-and-wp-traceability-01KTE2S9-coord/kitty-specs/plan-concern-vocabulary-and-wp-traceability-01KTE2S9/spec.md
+    sha256: b4ef66f47eb47a3af586a5c39033e725944a2ec409436cd924ba590257bb5bb2
   plan.md:
-    path: /Users/robert/spec-kitty-dev/spec-kitty-20260606-102751-P4vJoh/spec-kitty/kitty-specs/plan-concern-vocabulary-and-wp-traceability-01KTE2S9/plan.md
+    path: /Users/robert/spec-kitty-dev/spec-kitty-20260606-102751-P4vJoh/spec-kitty/.worktrees/plan-concern-vocabulary-and-wp-traceability-01KTE2S9-coord/kitty-specs/plan-concern-vocabulary-and-wp-traceability-01KTE2S9/plan.md
     sha256: 8205c61b501f0f596fbae0a666ce745fed34b2615520b8ad6e839b0dd6db2317
   tasks.md:
-    path: /Users/robert/spec-kitty-dev/spec-kitty-20260606-102751-P4vJoh/spec-kitty/kitty-specs/plan-concern-vocabulary-and-wp-traceability-01KTE2S9/tasks.md
-    sha256: 9a1523b772e5dbb1f01745eb47c69c111856caf865a4a56d13fca3509c37b274
+    path: /Users/robert/spec-kitty-dev/spec-kitty-20260606-102751-P4vJoh/spec-kitty/.worktrees/plan-concern-vocabulary-and-wp-traceability-01KTE2S9-coord/kitty-specs/plan-concern-vocabulary-and-wp-traceability-01KTE2S9/tasks.md
+    sha256: 3692dafdd4fe033bd071d54ed933189272652275e582b56f1ff76ae6704a8e4a
   charter:
     path: /Users/robert/spec-kitty-dev/spec-kitty-20260606-102751-P4vJoh/spec-kitty/.kittify/charter/charter.md
     sha256: a59cddc8725b34acacd83b9bec24e97b1ae68aa80716b7335c425c6106c18791
@@ -26,6 +26,7 @@ issue_counts:
   medium:
   low:
 ---
+
 
 ## Specification Analysis Report
 **Mission**: plan-concern-vocabulary-and-wp-traceability-01KTE2S9

@@ -50,6 +50,7 @@ from specify_cli.ownership.audit_targets import validate_audit_coverage
 from specify_cli.ownership.validation import validate_glob_matches
 from specify_cli.core.wps_manifest import (
     load_wps_manifest,
+    check_concern_refs_coverage,
     dependencies_are_explicit,
     generate_tasks_md_from_manifest,
 )
@@ -2183,6 +2184,15 @@ def finalize_tasks(
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
+
+        # ─── FR-013: concern-refs coverage warnings ───────────────────────────
+        if wps_manifest is not None:
+            coverage_warnings = check_concern_refs_coverage(wps_manifest)
+            for warning in coverage_warnings:
+                if json_output:
+                    _emit_json({"warning": warning})
+                else:
+                    console.print(f"[yellow]Warning:[/yellow] {warning}")
 
         # ─── TIER 1+: existing dependency resolution ──────────────────────────
         # Parse dependencies and requirement refs using 3-tier priority:

@@ -18,8 +18,9 @@ The planner will not begin until all planning questions have been answered—cap
   for the project. The structure here is presented in advisory capacity to guide
   the iteration process.
 
-  If multiple developers/agents will work on this feature, add a "Parallel Work
-  Organization" section below showing the dependency graph and agent assignments.
+  If multiple developers/agents will work on this mission, add an "Implementation
+  Concern Map" section below to decompose architectural intent into IC-## concerns
+  before generating tasks.
 -->
 
 **Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
@@ -108,25 +109,27 @@ directories captured above]
 | [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
 | [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
 
-## Parallel Work Analysis
+## Implementation Concern Map
 
-*Include this section if multiple developers/agents will implement this feature*
+*Include this section when the mission has multiple distinct architectural areas that inform how tasks are decomposed.*
 
-### Dependency Graph
+> **Note**: Implementation concerns are NOT work packages and are NOT executable units.
+> `/spec-kitty.tasks` translates these into executable WPs — one concern may become
+> multiple WPs; multiple small concerns may merge into one WP. Do not label concerns
+> with WP-style IDs or sequencing language.
 
-```
-[Identify what must be built sequentially vs what can be done in parallel]
-Example:
-Foundation (Day 1) → Wave 1 (Days 2-3, parallel) → Wave 2 (Days 4-5, parallel) → Integration (Day 6)
-```
+### IC-01 — [Name]
 
-### Work Distribution
+- **Purpose**: [One sentence: what this concern addresses and why it matters]
+- **Relevant requirements**: [FR-### refs from spec.md]
+- **Affected surfaces**: [File paths or module names this concern touches]
+- **Sequencing/depends-on**: [IC-## IDs this concern must follow, or "none"]
+- **Risks**: [Key coordination notes or implementation risks]
 
-- **Sequential work**: [What must be done first before parallel work can begin]
-- **Parallel streams**: [Independent work that can be done simultaneously]
-- **Agent assignments**: [Who owns which files/modules to avoid conflicts]
+### IC-02 — [Name]
 
-### Coordination Points
-
-- **Sync schedule**: [When parallel workers merge their changes]
-- **Integration tests**: [How to verify parallel work integrates correctly]
+- **Purpose**: [One sentence]
+- **Relevant requirements**: [FR-### refs]
+- **Affected surfaces**: [Paths/modules]
+- **Sequencing/depends-on**: [IC-## or "none"]
+- **Risks**: [Notes]

@@ -15,14 +15,17 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-plan-concern-vocabulary-and-wp-traceability-01KTE2S9
+base_commit: 8c5dfc67d60bd1b2311e5b1f7e6b662dd80b634e
+created_at: '2026-06-06T11:24:42.804611+00:00'
 subtasks:
 - T005
 - T006
 - T007
 - T008
 - T009
-- T015
-agent: claude
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "16229"
 history:
 - date: '2026-06-06'
   event: created
@@ -31,12 +34,10 @@ authoritative_surface: src/specify_cli/core/
 execution_mode: code_change
 owned_files:
 - src/specify_cli/core/wps_manifest.py
-- src/specify_cli/cli/commands/agent/mission.py
 - src/doctrine/missions/mission-steps/software-dev/tasks-outline/prompt.md
 - src/doctrine/missions/mission-steps/software-dev/tasks-packages/prompt.md
 role: implementer
 tags: []
-review_status: acknowledged
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -53,7 +54,7 @@ This configures your working style, doctrine references, and capability constrai
 
 ## Objective
 
-Add `plan_concern_refs` and `cross_cutting` fields to `WorkPackageEntry` in `wps_manifest.py`. Extend `generate_tasks_md_from_manifest()` to render concern refs. Add `check_concern_refs_coverage()` helper and wire its output into the `finalize-tasks` non-fatal warning. Update the `tasks-outline` and `tasks-packages` prompts to require IC-## citation (in `wps.yaml` only — not in WP prompt frontmatter).
+Add `plan_concern_refs` and `cross_cutting` fields to `WorkPackageEntry` in `wps_manifest.py`. Extend `generate_tasks_md_from_manifest()` to render concern refs. Update the `tasks-outline` and `tasks-packages` prompts to require IC-## citation.
 
 ---
 
@@ -131,26 +132,22 @@ This field signals that a WP intentionally has no concern refs because it is inf
 
 **File**: `src/specify_cli/core/wps_manifest.py`
 
-**Purpose**: When a WP's `plan_concern_refs` is non-empty, render a `**Plan Concerns**: IC-01, IC-03` line in the generated `tasks.md`. When empty, render nothing (no label, no blank line).
+**Purpose**: When a WP's `plan_concern_refs` is non-empty, render a "Plan concerns: IC-01, IC-03" line in the generated `tasks.md`. When empty, render nothing (no label, no blank line).
 
-**Read the existing `generate_tasks_md_from_manifest()` function** to understand the current rendering pattern. The function currently renders:
-```python
-if wp.requirement_refs:
-    lines.append(f"**Requirement Refs**: {', '.join(wp.requirement_refs)}")
-if wp.owned_files:
-    lines.append(f"**Owned Files**: {', '.join(wp.owned_files)}")
-```
+**Read the existing `generate_tasks_md_from_manifest()` function** to understand the current rendering pattern. It renders `owned_files` and `requirement_refs` conditionally — follow the same "only render when non-empty" pattern.
 
-**Follow the exact same pattern** — the label format is title-case bold (`**Plan Concerns**:`), not sentence case. Insert after the `requirement_refs` block:
+**Insert** after the existing `requirement_refs` rendering block, something like:
 
 ```python
 if entry.plan_concern_refs:
-    lines.append(f"**Plan Concerns**: {', '.join(entry.plan_concern_refs)}")
+    lines.append(f"**Plan concerns**: {', '.join(entry.plan_concern_refs)}")
 ```
 
+(Adapt to the exact rendering style used by the existing function — if it uses a different list separator or heading style, match it.)
+
 **Validation**:
-- [ ] Generate tasks.md from a manifest where WP01 has `plan_concern_refs: [IC-01, IC-03]` → output contains `**Plan Concerns**: IC-01, IC-03` (exact string)
-- [ ] Generate tasks.md from a manifest where WP02 has `plan_concern_refs: []` → output does NOT contain "Plan Concerns"
+- [ ] Generate tasks.md from a manifest where WP01 has `plan_concern_refs: [IC-01, IC-03]` → output contains "Plan concerns: IC-01, IC-03"
+- [ ] Generate tasks.md from a manifest where WP02 has `plan_concern_refs: []` → output does NOT contain "Plan concerns"
 - [ ] Existing golden-file tests (if any) still pass
 
 ---
@@ -191,74 +188,21 @@ declare itself cross-cutting.
 
 **File**: `src/doctrine/missions/mission-steps/software-dev/tasks-packages/prompt.md`
 
-**Purpose**: The tasks-packages prompt generates individual `tasks/WP##.md` files from `wps.yaml`. It must NOT write `plan_concern_refs` into WP prompt frontmatter — `WPMetadata` (which parses WP prompt frontmatter) is configured `extra="forbid"` and will raise `ValidationError` on `finalize-tasks --validate-only`. Instead, the prompt should reinforce that `plan_concern_refs` lives in `wps.yaml` only and explain the finalize-tasks warning.
+**Purpose**: The tasks-packages prompt generates individual `tasks/WP##.md` files from `wps.yaml`. It should carry `plan_concern_refs` from the manifest into each WP's frontmatter.
 
 **Read the file first** to understand the frontmatter generation section.
 
-**Find** the section that describes what fields to include in generated WP frontmatter, and **add a note**:
+**Find** the section where frontmatter fields are listed or generated for WP prompt files, and **add**:
 
-```markdown
-> **Note**: Do NOT include `plan_concern_refs` in the WP prompt file frontmatter.
-> `WPMetadata` (which validates WP frontmatter during `finalize-tasks`) does not
-> accept this field — including it causes ValidationError. `plan_concern_refs`
-> lives in `wps.yaml` entries only. `finalize-tasks` will emit a non-fatal warning
-> for any WP whose `wps.yaml` entry has empty `plan_concern_refs` and
-> `cross_cutting: false`.
+```yaml
+plan_concern_refs: [IC-01]  # from wps.yaml — carry verbatim from the manifest entry
 ```
+
+**Also add** a brief instruction: "Copy `plan_concern_refs` from the `wps.yaml` entry verbatim into the WP prompt frontmatter. Do not invent or modify refs."
 
 **Validation**:
-- [ ] The prompt explicitly says `plan_concern_refs` must NOT appear in WP prompt frontmatter
-- [ ] The prompt explains where the field lives (`wps.yaml`) and what happens without it (warning from finalize-tasks)
-- [ ] No frontmatter template or example in the prompt includes `plan_concern_refs`
-
----
-
-## Subtask T015 — Add check_concern_refs_coverage() and wire into finalize-tasks
-
-**Files**: `src/specify_cli/core/wps_manifest.py`, `src/specify_cli/cli/commands/agent/mission.py`
-
-**Purpose**: Implement the FR-013 non-fatal warning for WPs missing both `plan_concern_refs` and `cross_cutting`. Extract the logic into a testable helper function in `wps_manifest.py`, then call it from `finalize_tasks` in `mission.py`.
-
-**Step 1 — Add helper to wps_manifest.py**:
-
-After the `generate_tasks_md_from_manifest()` function, add:
-
-```python
-def check_concern_refs_coverage(manifest: "WpsManifest") -> list[str]:
-    """Return warning strings for WPs with no concern traceability."""
-    warnings = []
-    for entry in manifest.work_packages:
-        if not entry.plan_concern_refs and not entry.cross_cutting:
-            warnings.append(
-                f"{entry.id}: no plan_concern_refs and cross_cutting is False — "
-                f"add IC-## refs to wps.yaml or set cross_cutting: true"
-            )
-    return warnings
-```
-
-Follow existing module conventions — use `"WpsManifest"` as a forward reference if needed to avoid circular issues (check whether `WpsManifest` is defined before or after this function and adjust accordingly).
-
-**Step 2 — Wire into finalize_tasks in mission.py**:
-
-**Read the file first**. Find the `all_ownership_warnings` list (around lines 2366–2611 in `mission.py`) and locate where other soft-check warnings are appended. Add after the existing glob/audit warning blocks:
-
-```python
-# Soft check: warn when WPs have no plan concern traceability (FR-013)
-from specify_cli.core.wps_manifest import check_concern_refs_coverage
-concern_warnings = check_concern_refs_coverage(parsed_manifest)
-all_ownership_warnings.extend(concern_warnings)
-```
-
-Adjust the import to match the project's import style (top-of-function vs module-level). Do not move the import if the codebase uses top-level imports only. Follow existing patterns exactly.
-
-**Important**: The warning must not raise an exception; `finalize-tasks` must still exit 0 and commit when only warnings are present.
-
-**Validation**:
-- [ ] `check_concern_refs_coverage(manifest)` returns a list with one entry per non-compliant WP
-- [ ] `check_concern_refs_coverage(manifest)` returns `[]` when all WPs have refs or are cross_cutting
-- [ ] `finalize-tasks` emits the warning text to the console but exits 0
-- [ ] `finalize-tasks` on an existing mission (no new fields in wps.yaml) produces warnings for each WP but does not fail
-- [ ] `mypy --strict src/specify_cli/core/wps_manifest.py` passes
+- [ ] The frontmatter template/example in the prompt includes `plan_concern_refs`
+- [ ] A note instructs agents to copy refs verbatim from `wps.yaml`
 
 ---
 
@@ -277,11 +221,9 @@ Implement using: `spec-kitty agent action implement WP02 --agent claude`
 
 - [ ] `WorkPackageEntry` has `plan_concern_refs` and `cross_cutting` fields with correct defaults
 - [ ] `validate_plan_concern_refs` rejects non-IC-## values using `re.ASCII`
-- [ ] `generate_tasks_md_from_manifest()` renders `**Plan Concerns**: IC-01, IC-03` when non-empty, nothing when empty
-- [ ] `check_concern_refs_coverage()` returns warning strings for WPs missing concern traceability
-- [ ] `finalize-tasks` appends `check_concern_refs_coverage()` results to `all_ownership_warnings` (non-fatal)
+- [ ] `generate_tasks_md_from_manifest()` renders concern refs when non-empty, nothing when empty
 - [ ] `tasks-outline/prompt.md` includes IC citation requirement before `wps.yaml` schema
-- [ ] `tasks-packages/prompt.md` explicitly states `plan_concern_refs` must NOT appear in WP frontmatter
+- [ ] `tasks-packages/prompt.md` frontmatter template includes `plan_concern_refs`
 - [ ] `mypy --strict src/specify_cli/core/wps_manifest.py` passes
 - [ ] Existing `wps.yaml` without new fields parses without error (backwards compat)
 
@@ -291,6 +233,16 @@ Implement using: `spec-kitty agent action implement WP02 --agent claude`
 
 1. **Schema change**: Verify both new fields have empty-list / False defaults, not `None`. `None` defaults would break the conditional rendering check.
 2. **Validator**: Confirm `re.ASCII` flag is used. Unicode `\d` matches Arabic-Indic digits — that would pass `IC-١٢` which is invalid.
-3. **Rendering**: Confirm the rendered label is `**Plan Concerns**:` (title case, bold) — not `**Plan concerns**:` (sentence case). Must match the `**Requirement Refs**:` pattern.
-4. **Prompts**: Verify the `tasks-outline` schema example includes `plan_concern_refs` as a `wps.yaml` field. Verify `tasks-packages` prompt has a clear note that this field must NOT be written to WP prompt frontmatter.
-5. **Warning wiring**: Confirm the warning is appended to `all_ownership_warnings` (not printed directly) so it follows the same display path as ownership warnings and doesn't bypass JSON output mode.
+3. **Rendering**: Confirm the rendered line appears in the right position in `tasks.md` output (after `requirement_refs`, before the next WP or end of file).
+4. **Prompts**: Verify the `tasks-outline` schema example is updated to include `plan_concern_refs` — if the example `wps.yaml` doesn't show the field, agents will not know to emit it.
+
+## Activity Log
+
+- 2026-06-06T11:24:44Z – claude:sonnet-4-6:implementer:implementer – shell_pid=92163 – Assigned agent via action command
+- 2026-06-06T11:30:53Z – claude:sonnet-4-6:implementer:implementer – shell_pid=92163 – Ready for review: plan_concern_refs and cross_cutting fields added to WorkPackageEntry with IC-## validation, generate_tasks_md_from_manifest renders concern refs, tasks-outline and tasks-packages prompts updated with IC citation instructions
+- 2026-06-06T11:31:30Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=96903 – Started review via action command
+- 2026-06-06T11:34:32Z – user – shell_pid=96903 – Moved to planned
+- 2026-06-06T11:48:42Z – claude:sonnet-4-6:implementer:implementer – shell_pid=14727 – Started implementation via action command
+- 2026-06-06T11:51:21Z – claude:sonnet-4-6:implementer:implementer – shell_pid=14727 – FR-009 violation fixed: removed plan_concern_refs from WP prompt frontmatter template
+- 2026-06-06T11:51:37Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=16229 – Started review via action command
+- 2026-06-06T11:55:37Z – user – shell_pid=16229 – Review cycle 3 passed: plan_concern_refs correctly excluded from WP prompt frontmatter (cycle-2 fix confirmed valid), wps_manifest.py fields/validator/renderer correct with re.ASCII flag, all 34 unit tests pass, mypy --strict clean, 304 core tests pass with no regressions

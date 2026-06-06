@@ -12,12 +12,16 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-plan-concern-vocabulary-and-wp-traceability-01KTE2S9
+base_commit: 36504454c9a0fb0686346265cf8dfa1d764ea53a
+created_at: '2026-06-06T11:17:11.983763+00:00'
 subtasks:
 - T001
 - T002
 - T003
 - T004
-agent: claude
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "83221"
 history:
 - date: '2026-06-06'
   event: created
@@ -214,3 +218,10 @@ This WP is text-only. Review for:
 2. The "Note" block clearly states concerns are not WPs and not executable
 3. No residual "Parallel Work Analysis" or "Work Distribution" language remains
 4. The stop-point language in plan/prompt.md is updated but the stop-point itself is preserved
+
+## Activity Log
+
+- 2026-06-06T11:17:13Z – claude:sonnet-4-6:implementer:implementer – shell_pid=78252 – Assigned agent via action command
+- 2026-06-06T11:20:17Z – claude:sonnet-4-6:implementer:implementer – shell_pid=78252 – Ready for review: replaced Parallel Work Analysis with Implementation Concern Map IC-## stubs, updated stop-point and tasks prompt vocabulary
+- 2026-06-06T11:20:37Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=83221 – Started review via action command
+- 2026-06-06T11:24:18Z – user – shell_pid=83221 – Review passed: all 4 files updated correctly — Parallel Work Analysis removed, Implementation Concern Map with IC-01/IC-02 stubs added, Note block confirms concerns are not WPs, plan/prompt.md stop-point language updated, tasks/prompt.md frontmatter updated, tasks.step-contract.yaml outline description updated; stale-phrase check passes; no Python files modified; only 4 expected doctrine files changed
