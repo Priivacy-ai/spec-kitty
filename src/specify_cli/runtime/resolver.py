@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import sys
 import warnings
+from functools import lru_cache
 from pathlib import Path
 
 # Single source of truth for the resolution enum / result dataclass.
@@ -31,7 +32,6 @@ from pathlib import Path
 # route was adopted in mission charter-mediated-doctrine-selection-01KRTZCA
 # (WP07) to enforce the runtime → charter → doctrine boundary.
 from charter.resolution import ResolutionResult, ResolutionTier
-from charter.template_resolver import CharterTemplateResolver
 
 __all__ = [
     "ResolutionResult",
@@ -124,6 +124,36 @@ def _reset_migrate_nudge() -> None:
     _migrate_nudge_shown = False
 
 
+@lru_cache(maxsize=8)
+def _charter_template_resolver_for(missions_root: str):
+    """Return a charter template resolver for ``missions_root``.
+
+    Kept at the Tier-5 boundary so package-default filesystem access remains
+    routed through charter and repeated lookups reuse the same repository.
+    """
+    from charter.template_resolver import CharterTemplateResolver  # noqa: PLC0415
+
+    return CharterTemplateResolver.from_missions_root(Path(missions_root))
+
+
+def _package_default_path(
+    *,
+    pkg_missions: Path,
+    mission: str,
+    subdir: str,
+    name: str,
+) -> Path | None:
+    """Resolve package defaults through charter's doctrine facade."""
+    charter_resolver = _charter_template_resolver_for(str(pkg_missions))
+    if subdir == "command-templates":
+        return charter_resolver.resolve_command_template_path(mission, Path(name).stem)
+    if subdir == "templates":
+        return charter_resolver.resolve_content_template_path(mission, name)
+
+    pkg_path = pkg_missions / mission / subdir / name
+    return pkg_path if pkg_path.is_file() else None
+
+
 def _resolve_asset(
     name: str,
     subdir: str,
@@ -182,15 +212,12 @@ def _resolve_asset(
     # charter so runtime never binds directly to doctrine's repository shape.
     try:
         pkg_missions = get_package_asset_root()
-        charter_resolver = CharterTemplateResolver.from_missions_root(pkg_missions)
-        if subdir == "command-templates":
-            pkg_path = charter_resolver.resolve_command_template_path(mission, Path(name).stem)
-        elif subdir == "templates":
-            pkg_path = charter_resolver.resolve_content_template_path(mission, name)
-        else:
-            pkg_path = pkg_missions / mission / subdir / name
-            if not pkg_path.is_file():
-                pkg_path = None
+        pkg_path = _package_default_path(
+            pkg_missions=pkg_missions,
+            mission=mission,
+            subdir=subdir,
+            name=name,
+        )
         if pkg_path is not None and pkg_path.is_file():
             return ResolutionResult(
                 path=pkg_path,
@@ -318,9 +345,9 @@ def resolve_mission(
     # Tier 4 -- package default via charter.
     try:
         pkg_missions = get_package_asset_root()
-        pkg_path = CharterTemplateResolver.from_missions_root(
-            pkg_missions
-        ).resolve_mission_config_path(name)
+        pkg_path = _charter_template_resolver_for(str(pkg_missions)).resolve_mission_config_path(
+            name
+        )
         if pkg_path is not None and pkg_path.is_file():
             return ResolutionResult(path=pkg_path, tier=ResolutionTier.PACKAGE_DEFAULT, mission=name)
     except FileNotFoundError:
