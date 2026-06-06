@@ -90,12 +90,18 @@ kitty-specs/
 |----------------|------------|---------|
 | `meta.json` | `/spec-kitty.specify` | Feature metadata and mission |
 | `spec.md` | `/spec-kitty.specify` | User stories, requirements, acceptance criteria |
-| `plan.md` | `/spec-kitty.plan` | Architecture, design decisions, implementation approach |
+| `plan.md` | `/spec-kitty.plan` | Architecture, design decisions, Implementation Concern Map (IC-## entries) |
 | `research.md` | `/spec-kitty.research` | Research findings and evidence (optional) |
-| `tasks.md` | `/spec-kitty.tasks` | Task breakdown with WP groupings |
+| `tasks.md` | `/spec-kitty.tasks` | Task breakdown translated from IC-## implementation concerns |
+| `wps.yaml` | `/spec-kitty.tasks` | Machine-readable WP manifest with `plan_concern_refs` traceability to IC-## entries |
 | `data-model.md` | `/spec-kitty.plan` | Database schema (software-dev mission) |
 | `checklists/` | `/spec-kitty.specify` | Validation checklists (canonical `requirements.md` plus optional domain checklists) |
 | `tasks/` | `/spec-kitty.tasks` | Individual WP prompt files |
+
+> **Implementation concerns** (IC-01, IC-02, …) are plan-level architectural units that
+> appear in `plan.md`. They are not work packages — `/spec-kitty.tasks` translates them
+> into executable WPs. Each WP in `wps.yaml` cites which IC-## entries it addresses via
+> `plan_concern_refs`, maintaining full plan-to-task traceability.
 
 ---
 

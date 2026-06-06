@@ -101,6 +101,31 @@ def dependencies_are_explicit(entry: WorkPackageEntry) -> bool:
     return getattr(entry, "_dependencies_explicit", False)
 
 
+def check_concern_refs_coverage(manifest: WpsManifest) -> list[str]:
+    """Return a list of warning messages for WPs missing concern coverage.
+
+    A WP is considered adequately covered if it has at least one entry in
+    ``plan_concern_refs`` OR has ``cross_cutting`` set to ``True``.  WPs that
+    have neither trigger a warning so the author can either cite an IC-## ref
+    or explicitly mark the WP as cross-cutting infrastructure.
+
+    Args:
+        manifest: Loaded WpsManifest to inspect.
+
+    Returns:
+        A (possibly empty) list of human-readable warning strings, one per
+        uncovered WP.  An empty list means all WPs have adequate coverage.
+    """
+    warnings: list[str] = []
+    for wp in manifest.work_packages:
+        if not wp.plan_concern_refs and not wp.cross_cutting:
+            warnings.append(
+                f"{wp.id} ({wp.title!r}): missing plan_concern_refs and "
+                "cross_cutting is not set — add IC-## refs or set cross_cutting: true"
+            )
+    return warnings
+
+
 def generate_tasks_md_from_manifest(manifest: WpsManifest, feature_name: str) -> str:
     """Generate tasks.md content from a WpsManifest.
 
