@@ -1,12 +1,12 @@
 {
-  "event_count": 5,
-  "last_event_id": "01KTEATCTDK0NJST63E0ZZEKFE",
-  "materialized_at": "2026-06-06T11:24:17.101670+00:00",
+  "event_count": 15,
+  "last_event_id": "01KTECKRJQHXB8SVWD84KTQ3SP",
+  "materialized_at": "2026-06-06T11:55:36.919455+00:00",
   "mission_number": "",
   "mission_slug": "plan-concern-vocabulary-and-wp-traceability-01KTE2S9",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
@@ -23,6 +23,13 @@
       "lane": "approved",
       "last_event_id": "01KTEATCTDK0NJST63E0ZZEKFE",
       "last_transition_at": "2026-06-06T11:24:17.101670+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KTECKRJQHXB8SVWD84KTQ3SP",
+      "last_transition_at": "2026-06-06T11:55:36.919455+00:00"
     }
   }
 }

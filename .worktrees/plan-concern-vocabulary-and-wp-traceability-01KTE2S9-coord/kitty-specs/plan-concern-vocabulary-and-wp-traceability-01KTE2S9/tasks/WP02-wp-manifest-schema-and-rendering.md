@@ -15,13 +15,17 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-plan-concern-vocabulary-and-wp-traceability-01KTE2S9
+base_commit: 8c5dfc67d60bd1b2311e5b1f7e6b662dd80b634e
+created_at: '2026-06-06T11:24:42.804611+00:00'
 subtasks:
 - T005
 - T006
 - T007
 - T008
 - T009
-agent: claude
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "16229"
 history:
 - date: '2026-06-06'
   event: created
@@ -231,3 +235,14 @@ Implement using: `spec-kitty agent action implement WP02 --agent claude`
 2. **Validator**: Confirm `re.ASCII` flag is used. Unicode `\d` matches Arabic-Indic digits — that would pass `IC-١٢` which is invalid.
 3. **Rendering**: Confirm the rendered line appears in the right position in `tasks.md` output (after `requirement_refs`, before the next WP or end of file).
 4. **Prompts**: Verify the `tasks-outline` schema example is updated to include `plan_concern_refs` — if the example `wps.yaml` doesn't show the field, agents will not know to emit it.
+
+## Activity Log
+
+- 2026-06-06T11:24:44Z – claude:sonnet-4-6:implementer:implementer – shell_pid=92163 – Assigned agent via action command
+- 2026-06-06T11:30:53Z – claude:sonnet-4-6:implementer:implementer – shell_pid=92163 – Ready for review: plan_concern_refs and cross_cutting fields added to WorkPackageEntry with IC-## validation, generate_tasks_md_from_manifest renders concern refs, tasks-outline and tasks-packages prompts updated with IC citation instructions
+- 2026-06-06T11:31:30Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=96903 – Started review via action command
+- 2026-06-06T11:34:32Z – user – shell_pid=96903 – Moved to planned
+- 2026-06-06T11:48:42Z – claude:sonnet-4-6:implementer:implementer – shell_pid=14727 – Started implementation via action command
+- 2026-06-06T11:51:21Z – claude:sonnet-4-6:implementer:implementer – shell_pid=14727 – FR-009 violation fixed: removed plan_concern_refs from WP prompt frontmatter template
+- 2026-06-06T11:51:37Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=16229 – Started review via action command
+- 2026-06-06T11:55:37Z – user – shell_pid=16229 – Review cycle 3 passed: plan_concern_refs correctly excluded from WP prompt frontmatter (cycle-2 fix confirmed valid), wps_manifest.py fields/validator/renderer correct with re.ASCII flag, all 34 unit tests pass, mypy --strict clean, 304 core tests pass with no regressions
