@@ -1,3 +1,8 @@
+---
+title: "Use Spec Kitty in Google Antigravity"
+description: "Configure the Google Antigravity harness for Spec Kitty 3.2 workflows, partial-tier verification, and generated workflow files."
+---
+
 # Use Spec Kitty in Google Antigravity
 
 > **Tier:** **partial** — workflow surface exists in Spec Kitty, but current

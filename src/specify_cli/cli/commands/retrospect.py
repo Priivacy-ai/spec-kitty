@@ -12,7 +12,10 @@ Source-of-truth contract:
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
+from specify_cli.missions.feature_dir_resolver import (
+    candidate_feature_dir_for_mission,
+    resolve_feature_dir_for_mission,
+)
 import contextlib
 import json
 import subprocess
@@ -785,7 +788,7 @@ def backfill_cmd(  # noqa: C901
     # Auto-commit created records
     if created_paths and not dry_run:
         event_paths = [
-            resolve_feature_dir_for_mission(repo_root, str(c.get("mission_slug", ""))) / "status.events.jsonl"
+            candidate_feature_dir_for_mission(repo_root, str(c.get("mission_slug", ""))) / "status.events.jsonl"
             for c in created
             if not c.get("dry_run")
         ]
@@ -974,7 +977,7 @@ def summary_cmd(  # noqa: C901
             # Classify against mission dir AND kitty-specs dir (for event log)
             feature_dir_for_classify: Path | None = None
             if mission_slug:
-                kitty_dir = resolve_feature_dir_for_mission(resolved_project, mission_slug)
+                kitty_dir = candidate_feature_dir_for_mission(resolved_project, mission_slug)
                 if kitty_dir.is_dir():
                     feature_dir_for_classify = kitty_dir
             if feature_dir_for_classify is None:

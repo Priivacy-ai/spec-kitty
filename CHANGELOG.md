@@ -9,15 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+## [3.2.0rc38] - 2026-06-06
+
+### ✨ Added
+
+- Added Implementation Concern Map terminology and work-package traceability
+  across planning artifacts, generated task prompts, validation checks, docs,
+  ADRs, glossary context, and agent snapshots.
+- Added tracked Op record storage under `kitty-ops/`, including
+  `ops-index.jsonl`, `lifecycle.jsonl`, propagation-error records, best-effort
+  `op(...)` auto-commit support, and `spec-kitty doctor ops` orphan reporting.
+- Added DocFX publishing polish, all-contributors normalization, and updated
+  CLI/reference documentation for the 3.2 release candidate line.
+
+### 🔧 Improved
 
 - Moved Op record storage from gitignored
   `.kittify/events/profile-invocations/` to git-tracked `kitty-ops/`,
   including `ops-index.jsonl`, `lifecycle.jsonl`, and propagation errors.
   Pre-existing records under `.kittify/events/profile-invocations/` are
   abandoned and not migrated.
+- Consolidated software-dev template source resolution and rejected stale
+  template-root environment overrides so runtime fixtures and package defaults
+  cannot silently diverge.
+- Tightened release workflow ownership around downstream consumer validation,
+  release metadata, path filters, and GitHub Pages publishing support.
 
-### Fixed
+### 🐛 Fixed
 
 - **Merge done-marking surface divergence** (`merge.py`, `coordination/surface_resolver.py`):
   After `spec-kitty merge`, WPs that were `approved` would show as `Completed: 0 (80.0%)`
@@ -54,6 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MergeState` now persists `push_requested` for correct resume semantics:
   a resumed merge respects the original invocation's push intent without
   requiring re-specification of `--push`.
+- `spec-kitty next` now preserves query startup latency behavior while runtime
+  template-source cleanup is in effect.
 
 ## [3.2.0rc37] - 2026-06-04
 

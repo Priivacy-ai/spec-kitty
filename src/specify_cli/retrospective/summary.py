@@ -16,7 +16,7 @@ WP03 addition (T017):
 
 from __future__ import annotations
 
-from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
+from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
 import json
 import logging
 from collections import defaultdict
@@ -224,7 +224,7 @@ def _read_proposal_events(
     if not mission_slug:
         return 0, 0, 0
 
-    events_path = resolve_feature_dir_for_mission(project_path, mission_slug) / "status.events.jsonl"
+    events_path = candidate_feature_dir_for_mission(project_path, mission_slug) / "status.events.jsonl"
     if not events_path.exists():
         return 0, 0, 0
 
