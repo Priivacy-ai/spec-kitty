@@ -9,9 +9,12 @@ import typer
 
 from specify_cli.cli.commands.merge import _enforce_review_artifact_consistency
 from specify_cli.post_merge.review_artifact_consistency import (
+    REVIEW_ARTIFACT_SCHEMA_INVALID,
     find_rejected_review_artifact_conflicts,
     format_review_artifact_conflict,
+    format_review_artifact_finding,
     review_artifact_conflict_diagnostic,
+    review_artifact_finding_diagnostic,
 )
 from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.status.models import Lane
@@ -42,6 +45,51 @@ def _write_review_artifact(
     )
     path = artifact_dir / f"review-cycle-{cycle_number}.md"
     artifact.write(path)
+    return path
+
+
+def _write_malformed_review_artifact(
+    artifact_dir: Path,
+    *,
+    cycle_number: int = 1,
+) -> Path:
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    path = artifact_dir / f"review-cycle-{cycle_number}.md"
+    path.write_text(
+        "---\n"
+        "affected_files:\n"
+        "  - src/foo.py\n"
+        "cycle_number: 1\n"
+        "mission_slug: release-320-workflow-reliability-01KQKV85\n"
+        "reviewed_at: '2026-05-03T12:00:00+00:00'\n"
+        "reviewer_agent: reviewer-renata\n"
+        "verdict: approved\n"
+        "wp_id: WP01\n"
+        "---\n"
+        "\n"
+        "# Review\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def _write_review_artifact_with_invalid_verdict(artifact_dir: Path) -> Path:
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    path = artifact_dir / "review-cycle-1.md"
+    path.write_text(
+        "---\n"
+        "affected_files: []\n"
+        "cycle_number: 1\n"
+        "mission_slug: release-320-workflow-reliability-01KQKV85\n"
+        "reviewed_at: '2026-05-03T12:00:00+00:00'\n"
+        "reviewer_agent: reviewer-renata\n"
+        "verdict: changes_requested\n"
+        "wp_id: WP01\n"
+        "---\n"
+        "\n"
+        "# Review\n",
+        encoding="utf-8",
+    )
     return path
 
 
@@ -159,3 +207,106 @@ def test_merge_review_artifact_consistency_gate_blocks_done_signoff(
     ) in output
     assert "latest_review_cycle_verdict: rejected" in output
     assert "remediation:" in output
+
+
+def test_malformed_review_artifact_frontmatter_becomes_schema_diagnostic(
+    tmp_path: Path,
+) -> None:
+    mission = create_mission_fixture(tmp_path)
+    write_work_package(mission, WorkPackageSpec(lane="approved"))
+    append_status_event(
+        mission,
+        from_lane=Lane.FOR_REVIEW,
+        to_lane=Lane.APPROVED,
+        event_id="01KQKV85APPROVED000000002",
+    )
+    artifact_dir = mission.tasks_dir / "WP01-regression-harness"
+    malformed = _write_malformed_review_artifact(artifact_dir)
+
+    findings = find_rejected_review_artifact_conflicts(
+        mission.mission_dir,
+        wp_ids=["WP01"],
+    )
+
+    assert len(findings) == 1
+    diagnostic = review_artifact_finding_diagnostic(
+        findings[0],
+        repo_root=mission.repo_root,
+    )
+    assert diagnostic["diagnostic_code"] == REVIEW_ARTIFACT_SCHEMA_INVALID
+    assert diagnostic["branch_or_work_package"] == "WP01"
+    assert (
+        diagnostic["violated_invariant"]
+        == "review_cycle_frontmatter_must_match_schema"
+    )
+    assert diagnostic["latest_review_cycle_path"] == str(
+        malformed.relative_to(mission.repo_root)
+    )
+    assert "affected_files entries must be mappings" in diagnostic["schema_error"]
+    assert "affected_files entries must be mappings" in format_review_artifact_finding(
+        findings[0],
+        repo_root=mission.repo_root,
+    )
+
+
+def test_invalid_top_level_review_artifact_field_becomes_schema_diagnostic(
+    tmp_path: Path,
+) -> None:
+    mission = create_mission_fixture(tmp_path)
+    write_work_package(mission, WorkPackageSpec(lane="approved"))
+    append_status_event(
+        mission,
+        from_lane=Lane.FOR_REVIEW,
+        to_lane=Lane.APPROVED,
+        event_id="01KQKV85APPROVED000000003",
+    )
+    artifact_dir = mission.tasks_dir / "WP01-regression-harness"
+    malformed = _write_review_artifact_with_invalid_verdict(artifact_dir)
+
+    findings = find_rejected_review_artifact_conflicts(
+        mission.mission_dir,
+        wp_ids=["WP01"],
+    )
+
+    assert len(findings) == 1
+    diagnostic = review_artifact_finding_diagnostic(
+        findings[0],
+        repo_root=mission.repo_root,
+    )
+    assert diagnostic["diagnostic_code"] == REVIEW_ARTIFACT_SCHEMA_INVALID
+    assert diagnostic["latest_review_cycle_path"] == str(
+        malformed.relative_to(mission.repo_root)
+    )
+    assert diagnostic["schema_error"] == "verdict must be one of: approved, rejected"
+
+
+def test_merge_review_artifact_consistency_gate_blocks_malformed_artifact(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    mission = create_mission_fixture(tmp_path)
+    write_work_package(mission, WorkPackageSpec(lane="done"))
+    append_status_event(
+        mission,
+        from_lane=Lane.APPROVED,
+        to_lane=Lane.DONE,
+        event_id="01KQKV85DONE00000000002",
+    )
+    artifact_dir = mission.tasks_dir / "WP01-regression-harness"
+    _write_malformed_review_artifact(artifact_dir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _enforce_review_artifact_consistency(
+            repo_root=mission.repo_root,
+            feature_dir=mission.mission_dir,
+            mission_slug=mission.mission_slug,
+            wp_ids=["WP01"],
+        )
+
+    assert exc_info.value.exit_code == 1
+    output = capsys.readouterr().out
+    assert "diagnostic_code: REVIEW_ARTIFACT_SCHEMA_INVALID" in output
+    assert "branch_or_work_package: WP01" in output
+    assert "violated_invariant: review_cycle_frontmatter_must_match_schema" in output
+    assert "schema_error:" in output
+    assert "Traceback" not in output

@@ -63,9 +63,8 @@ from specify_cli.mission_metadata import load_meta, resolve_mission_identity, wr
 from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_workspace, get_merge_runtime_dir
 from specify_cli.post_merge.review_artifact_consistency import (
     REJECTED_REVIEW_ARTIFACT_CONFLICT,
-    REJECTED_REVIEW_ARTIFACT_REMEDIATION,
-    format_review_artifact_conflict,
-    review_artifact_conflict_diagnostic,
+    format_review_artifact_finding,
+    review_artifact_finding_diagnostic,
     run_review_artifact_consistency_preflight,
 )
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
@@ -1352,17 +1351,14 @@ def _enforce_review_artifact_consistency(
         return
     findings = list(preflight.findings)
 
-    console.print(
-        "[red]Error:[/red] Review artifact consistency gate failed. "
-        "Approved/done work packages cannot have a latest rejected review artifact."
-    )
+    console.print("[red]Error:[/red] Review artifact consistency gate failed.")
     for finding in findings:
-        diagnostic = review_artifact_conflict_diagnostic(
+        diagnostic = review_artifact_finding_diagnostic(
             finding,
             repo_root=repo_root,
         )
         console.print(
-            f"  - {format_review_artifact_conflict(finding, repo_root=repo_root)}"
+            f"  - {format_review_artifact_finding(finding, repo_root=repo_root)}"
         )
         console.print(f"    diagnostic_code: {diagnostic['diagnostic_code']}")
         console.print(
@@ -1374,10 +1370,16 @@ def _enforce_review_artifact_consistency(
         console.print(
             f"    latest_review_cycle_path: {diagnostic['latest_review_cycle_path']}"
         )
-        console.print(
-            f"    latest_review_cycle_verdict: {diagnostic['latest_review_cycle_verdict']}"
-        )
-        for line in REJECTED_REVIEW_ARTIFACT_REMEDIATION:
+        if "latest_review_cycle_verdict" in diagnostic:
+            console.print(
+                f"    latest_review_cycle_verdict: {diagnostic['latest_review_cycle_verdict']}"
+            )
+        if "schema_error" in diagnostic:
+            console.print(f"    schema_error: {diagnostic['schema_error']}")
+        remediation = diagnostic.get("remediation", [])
+        if not isinstance(remediation, list):
+            remediation = [str(remediation)]
+        for line in remediation:
             console.print(f"    remediation: {line}")
     console.print(
         f"  Mission: {mission_slug}"
@@ -1596,6 +1598,13 @@ def _run_lane_based_merge_locked(
 
     # -- T001: MergeState lifecycle: load or create --
     all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
+    _enforce_review_artifact_consistency(
+        repo_root=main_repo,
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        wp_ids=all_wp_ids,
+    )
+
     state = load_state(main_repo, canonical_id)
     is_resume = False
     if state is not None:
@@ -1631,13 +1640,6 @@ def _run_lane_based_merge_locked(
     if not gate_eval.overall_pass:
         console.print("\n[red]Error:[/red] Merge gates failed.")
         raise typer.Exit(1)
-
-    _enforce_review_artifact_consistency(
-        repo_root=main_repo,
-        feature_dir=feature_dir,
-        mission_slug=mission_slug,
-        wp_ids=all_wp_ids,
-    )
 
     # -- Bootstrap-only canonical history guard (issue #1069) --
     # Refuse to merge missions whose status.events.jsonl contains
@@ -2275,6 +2277,11 @@ def merge(
                 repo_root=main_repo_for_diag,
             )
             if json_output:
+                diagnostic_code = (
+                    diagnostics[0]["diagnostic_code"]
+                    if diagnostics
+                    else REJECTED_REVIEW_ARTIFACT_CONFLICT
+                )
                 print(
                     json.dumps(
                         {
@@ -2283,26 +2290,42 @@ def merge(
                             "target_branch": resolved_target_branch,
                             "blocked": True,
                             "blockers": diagnostics,
-                            "diagnostic_code": REJECTED_REVIEW_ARTIFACT_CONFLICT,
+                            "diagnostic_code": diagnostic_code,
                         }
                     )
                 )
             else:
-                console.print(
-                    "[red]Error:[/red] Review artifact consistency gate failed. "
-                    "Approved/done work packages cannot have a latest rejected review artifact."
-                )
+                console.print("[red]Error:[/red] Review artifact consistency gate failed.")
                 for finding in review_artifact_preflight.findings:
-                    console.print(
-                        f"  - {format_review_artifact_conflict(finding, repo_root=main_repo_for_diag)}"
+                    diagnostic = review_artifact_finding_diagnostic(
+                        finding,
+                        repo_root=main_repo_for_diag,
                     )
                     console.print(
-                        f"    diagnostic_code: {REJECTED_REVIEW_ARTIFACT_CONFLICT}"
+                        f"  - {format_review_artifact_finding(finding, repo_root=main_repo_for_diag)}"
                     )
                     console.print(
-                        f"    branch_or_work_package: {finding.wp_id}"
+                        f"    diagnostic_code: {diagnostic['diagnostic_code']}"
                     )
-                    for line in REJECTED_REVIEW_ARTIFACT_REMEDIATION:
+                    console.print(
+                        f"    branch_or_work_package: {diagnostic['branch_or_work_package']}"
+                    )
+                    console.print(
+                        f"    violated_invariant: {diagnostic['violated_invariant']}"
+                    )
+                    console.print(
+                        f"    latest_review_cycle_path: {diagnostic['latest_review_cycle_path']}"
+                    )
+                    if "latest_review_cycle_verdict" in diagnostic:
+                        console.print(
+                            f"    latest_review_cycle_verdict: {diagnostic['latest_review_cycle_verdict']}"
+                        )
+                    if "schema_error" in diagnostic:
+                        console.print(f"    schema_error: {diagnostic['schema_error']}")
+                    remediation = diagnostic.get("remediation", [])
+                    if not isinstance(remediation, list):
+                        remediation = [str(remediation)]
+                    for line in remediation:
                         console.print(f"    remediation: {line}")
                 console.print(f"  Mission: {resolved_feature}")
             raise typer.Exit(1)

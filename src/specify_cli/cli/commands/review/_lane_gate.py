@@ -12,9 +12,10 @@ from typing import cast
 from rich.console import Console
 
 from specify_cli.post_merge.review_artifact_consistency import (
+    REVIEW_ARTIFACT_SCHEMA_INVALID,
     find_rejected_review_artifact_conflicts,
-    format_review_artifact_conflict,
-    review_artifact_conflict_diagnostic,
+    format_review_artifact_finding,
+    review_artifact_finding_diagnostic,
 )
 from specify_cli.status.reducer import materialize
 
@@ -53,16 +54,16 @@ def check_wp_lanes(
     review_artifact_conflicts = find_rejected_review_artifact_conflicts(feature_dir)
     if review_artifact_conflicts:
         console.print(
-            "  [red]✗[/red]  Review artifact consistency: latest rejected artifact "
-            "exists for terminal WP(s)"
+            "  [red]✗[/red]  Review artifact consistency: blocking latest review "
+            "artifact exists for terminal WP(s)"
         )
         for conflict in review_artifact_conflicts:
-            diagnostic = review_artifact_conflict_diagnostic(
+            diagnostic = review_artifact_finding_diagnostic(
                 conflict,
                 repo_root=repo_root,
             )
             console.print(
-                f"       {format_review_artifact_conflict(conflict, repo_root=repo_root)}"
+                f"       {format_review_artifact_finding(conflict, repo_root=repo_root)}"
             )
             console.print(f"       diagnostic_code: {diagnostic['diagnostic_code']}")
             console.print(
@@ -71,28 +72,39 @@ def check_wp_lanes(
             console.print(
                 f"       violated_invariant: {diagnostic['violated_invariant']}"
             )
+            if "schema_error" in diagnostic:
+                console.print(f"       schema_error: {diagnostic['schema_error']}")
             for line in cast(list[str], diagnostic["remediation"]):
                 console.print(f"       remediation: {line}")
+            finding_type = (
+                "review_artifact_schema_invalid"
+                if diagnostic["diagnostic_code"] == REVIEW_ARTIFACT_SCHEMA_INVALID
+                else "rejected_review_artifact"
+            )
+            finding: dict[str, str] = {
+                "type": finding_type,
+                "wp_id": conflict.wp_id,
+                "lane": conflict.lane,
+                "artifact_path": str(conflict.artifact_path),
+                "diagnostic_code": str(diagnostic["diagnostic_code"]),
+                "branch_or_work_package": str(
+                    diagnostic["branch_or_work_package"]
+                ),
+                "violated_invariant": str(diagnostic["violated_invariant"]),
+                "remediation": "; ".join(
+                    str(line) for line in cast(list[str], diagnostic["remediation"])
+                ),
+            }
+            if "latest_review_cycle_verdict" in diagnostic:
+                finding["latest_review_cycle_verdict"] = str(
+                    diagnostic["latest_review_cycle_verdict"]
+                )
+            if "schema_error" in diagnostic:
+                finding["schema_error"] = str(diagnostic["schema_error"])
             findings.append(
-                {
-                    "type": "rejected_review_artifact",
-                    "wp_id": conflict.wp_id,
-                    "lane": conflict.lane,
-                    "artifact_path": str(conflict.artifact_path),
-                    "diagnostic_code": str(diagnostic["diagnostic_code"]),
-                    "branch_or_work_package": str(
-                        diagnostic["branch_or_work_package"]
-                    ),
-                    "violated_invariant": str(diagnostic["violated_invariant"]),
-                    "remediation": "; ".join(
-                        str(line) for line in cast(list[str], diagnostic["remediation"])
-                    ),
-                    "latest_review_cycle_verdict": str(
-                        diagnostic["latest_review_cycle_verdict"]
-                    ),
-                }
+                finding
             )
     else:
         console.print(
-            "  [green]✓[/green]  Review artifact consistency: no terminal WP has a latest rejected artifact"
+            "  [green]✓[/green]  Review artifact consistency: no terminal WP has a blocking latest review artifact"
         )

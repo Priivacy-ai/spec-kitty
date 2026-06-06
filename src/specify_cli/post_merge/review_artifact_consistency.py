@@ -5,6 +5,7 @@ from __future__ import annotations
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
+import re
 
 from specify_cli.review.artifacts import rejected_review_artifact_for_terminal_lane
 from specify_cli.status import materialize
@@ -17,6 +18,13 @@ REJECTED_REVIEW_ARTIFACT_REMEDIATION = [
     "Run another review cycle that writes an approved review-cycle artifact.",
     "Or move the WP out of approved/done before merge.",
 ]
+REVIEW_ARTIFACT_SCHEMA_INVALID = "REVIEW_ARTIFACT_SCHEMA_INVALID"
+REVIEW_ARTIFACT_SCHEMA_INVARIANT = "review_cycle_frontmatter_must_match_schema"
+REVIEW_ARTIFACT_SCHEMA_REMEDIATION = [
+    "Repair or regenerate the review-cycle artifact frontmatter.",
+    "Ensure affected_files is a list of mappings with path keys.",
+    "Retry merge after the artifact parses cleanly.",
+]
 
 
 @dataclass(frozen=True)
@@ -28,6 +36,19 @@ class RejectedReviewArtifactFinding:
     artifact_path: Path
     cycle_number: int
     verdict: str
+
+
+@dataclass(frozen=True)
+class ReviewArtifactSchemaFinding:
+    """A WP whose latest review artifact cannot be parsed as schema-valid frontmatter."""
+
+    wp_id: str
+    lane: str
+    artifact_path: Path
+    schema_error: str
+
+
+ReviewArtifactFinding = RejectedReviewArtifactFinding | ReviewArtifactSchemaFinding
 
 
 def _artifact_dirs_for_wp(feature_dir: Path, wp_id: str) -> list[Path]:
@@ -50,14 +71,45 @@ def _artifact_dirs_for_wp(feature_dir: Path, wp_id: str) -> list[Path]:
     return candidates
 
 
+def _review_cycle_number(path: Path) -> int:
+    match = re.search(r"review-cycle-(\d+)\.md$", path.name)
+    return int(match.group(1)) if match else 0
+
+
+def _latest_review_artifact_path(artifact_dir: Path) -> Path | None:
+    candidates = list(artifact_dir.glob("review-cycle-*.md"))
+    if not candidates:
+        return None
+    candidates.sort(key=_review_cycle_number)
+    return candidates[-1]
+
+
+def _schema_error_message(exc: ValueError, artifact_path: Path) -> str:
+    """Strip machine-local paths from parser errors; path is reported separately."""
+    message = str(exc)
+    prefixes = (
+        f"Missing or invalid field in review artifact {artifact_path}: ",
+        f"Failed to parse YAML frontmatter in {artifact_path}: ",
+        f"Cannot read review artifact file {artifact_path}: ",
+        f"Review artifact file has no YAML frontmatter: {artifact_path}",
+        f"Review artifact file has no closing '---' delimiter: {artifact_path}",
+        f"YAML frontmatter in {artifact_path} is not a mapping",
+    )
+    for prefix in prefixes:
+        if message.startswith(prefix):
+            stripped = message[len(prefix) :].strip()
+            return stripped or message.replace(str(artifact_path), "").strip(": ")
+    return message.replace(str(artifact_path), "<review artifact>")
+
+
 def find_rejected_review_artifact_conflicts(
     feature_dir: Path,
     wp_ids: list[str] | None = None,
-) -> list[RejectedReviewArtifactFinding]:
-    """Return approved/done WPs whose latest review artifact is rejected."""
+) -> list[ReviewArtifactFinding]:
+    """Return review artifact findings that block merge readiness."""
     snapshot = materialize(feature_dir)
     selected_wp_ids = wp_ids or sorted(snapshot.work_packages)
-    findings: list[RejectedReviewArtifactFinding] = []
+    findings: list[ReviewArtifactFinding] = []
 
     for wp_id in selected_wp_ids:
         state = snapshot.work_packages.get(wp_id)
@@ -65,7 +117,21 @@ def find_rejected_review_artifact_conflicts(
             continue
         lane = str(state.get("lane", ""))
         for artifact_dir in _artifact_dirs_for_wp(feature_dir, wp_id):
-            rejected = rejected_review_artifact_for_terminal_lane(artifact_dir, lane)
+            latest_path = _latest_review_artifact_path(artifact_dir)
+            if latest_path is None:
+                continue
+            try:
+                rejected = rejected_review_artifact_for_terminal_lane(artifact_dir, lane)
+            except ValueError as exc:
+                findings.append(
+                    ReviewArtifactSchemaFinding(
+                        wp_id=wp_id,
+                        lane=lane,
+                        artifact_path=latest_path,
+                        schema_error=_schema_error_message(exc, latest_path),
+                    )
+                )
+                break
             if rejected is None:
                 continue
             findings.append(
@@ -98,6 +164,25 @@ def format_review_artifact_conflict(
     )
 
 
+def format_review_artifact_finding(
+    finding: ReviewArtifactFinding,
+    *,
+    repo_root: Path | None = None,
+) -> str:
+    """Render one review artifact finding with stable path context."""
+    if isinstance(finding, RejectedReviewArtifactFinding):
+        return format_review_artifact_conflict(finding, repo_root=repo_root)
+
+    path = finding.artifact_path
+    if repo_root is not None:
+        with suppress(ValueError):
+            path = path.relative_to(repo_root)
+    return (
+        f"{finding.wp_id} has malformed latest review artifact {path}: "
+        f"{finding.schema_error}"
+    )
+
+
 def review_artifact_conflict_diagnostic(
     finding: RejectedReviewArtifactFinding,
     *,
@@ -120,6 +205,38 @@ def review_artifact_conflict_diagnostic(
     }
 
 
+def review_artifact_schema_diagnostic(
+    finding: ReviewArtifactSchemaFinding,
+    *,
+    repo_root: Path | None = None,
+) -> dict[str, object]:
+    """Return the stable diagnostic payload for a malformed review artifact."""
+    path = finding.artifact_path
+    if repo_root is not None:
+        with suppress(ValueError):
+            path = path.relative_to(repo_root)
+    return {
+        "diagnostic_code": REVIEW_ARTIFACT_SCHEMA_INVALID,
+        "branch_or_work_package": finding.wp_id,
+        "violated_invariant": REVIEW_ARTIFACT_SCHEMA_INVARIANT,
+        "remediation": REVIEW_ARTIFACT_SCHEMA_REMEDIATION,
+        "lane": finding.lane,
+        "latest_review_cycle_path": str(path),
+        "schema_error": finding.schema_error,
+    }
+
+
+def review_artifact_finding_diagnostic(
+    finding: ReviewArtifactFinding,
+    *,
+    repo_root: Path | None = None,
+) -> dict[str, object]:
+    """Return the stable diagnostic payload for any review artifact finding."""
+    if isinstance(finding, RejectedReviewArtifactFinding):
+        return review_artifact_conflict_diagnostic(finding, repo_root=repo_root)
+    return review_artifact_schema_diagnostic(finding, repo_root=repo_root)
+
+
 @dataclass(frozen=True)
 class ReviewArtifactPreflightResult:
     """Structured result of the review-artifact consistency preflight.
@@ -128,7 +245,7 @@ class ReviewArtifactPreflightResult:
     ``merge --dry-run`` preview surface (renders diagnostics and exits non-zero).
     """
 
-    findings: tuple[RejectedReviewArtifactFinding, ...]
+    findings: tuple[ReviewArtifactFinding, ...]
 
     @property
     def passed(self) -> bool:
@@ -141,7 +258,7 @@ class ReviewArtifactPreflightResult:
     ) -> list[dict[str, object]]:
         """Return the stable diagnostic payloads, one per finding."""
         return [
-            review_artifact_conflict_diagnostic(finding, repo_root=repo_root)
+            review_artifact_finding_diagnostic(finding, repo_root=repo_root)
             for finding in self.findings
         ]
 

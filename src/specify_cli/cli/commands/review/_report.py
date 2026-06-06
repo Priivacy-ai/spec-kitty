@@ -20,6 +20,7 @@ _HARD_FAILURE_FINDING_TYPES = frozenset(
     {
         "wp_not_done",
         "rejected_review_artifact",
+        "review_artifact_schema_invalid",
         "ble001_suppression",
         "issue_matrix_violation",
         "dead_code_baseline_missing",
@@ -71,6 +72,18 @@ def _format_finding_line(finding: dict[str, str]) -> str | None:
             "branch_or_work_package="
             f"`{finding.get('branch_or_work_package', 'unknown')}`, "
             f"violated_invariant=`{finding.get('violated_invariant', 'unknown')}`, "
+            f"remediation=`{finding.get('remediation', 'unknown')}`"
+        )
+    if finding_type == "review_artifact_schema_invalid":
+        return (
+            f"- **review_artifact_schema_invalid** `{finding['wp_id']}`: lane is "
+            f"`{finding.get('lane', 'unknown')}`, latest artifact is "
+            f"`{finding.get('artifact_path', 'unknown')}`; "
+            f"diagnostic_code=`{finding.get('diagnostic_code', 'unknown')}`, "
+            "branch_or_work_package="
+            f"`{finding.get('branch_or_work_package', 'unknown')}`, "
+            f"violated_invariant=`{finding.get('violated_invariant', 'unknown')}`, "
+            f"schema_error=`{finding.get('schema_error', 'unknown')}`, "
             f"remediation=`{finding.get('remediation', 'unknown')}`"
         )
     if finding_type == "issue_matrix_violation":
