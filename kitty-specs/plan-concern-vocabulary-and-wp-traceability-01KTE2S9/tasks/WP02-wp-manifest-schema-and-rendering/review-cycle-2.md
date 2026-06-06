@@ -7,6 +7,10 @@ reviewed_at: '2026-06-06T11:34:30Z'
 reviewer_agent: unknown
 verdict: rejected
 wp_id: WP02
+review_artifact_override_at: "2026-06-06T11:55:36Z"
+review_artifact_override_actor: "operator"
+review_artifact_override_wp_id: "WP02"
+review_artifact_override_reason: "Review cycle 3 passed: plan_concern_refs correctly excluded from WP prompt frontmatter (cycle-2 fix confirmed valid), wps_manifest.py fields/validator/renderer correct with re.ASCII flag, all 34 unit tests pass, mypy --strict clean, 304 core tests pass with no regressions"
 ---
 
 # WP02 Review Cycle 1 — Changes Requested
