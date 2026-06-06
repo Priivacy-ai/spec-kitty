@@ -107,6 +107,7 @@ work_package_id: "{wp_id}"
 title: "{title}"
 dependencies: {dependencies}
 requirement_refs: {requirement_refs}
+plan_concern_refs: [IC-01]  # from wps.yaml — carry verbatim from the manifest entry
 subtasks: {subtasks}
 owned_files: {owned_files}
 authoritative_surface: "{longest common path prefix of owned_files}"
@@ -117,6 +118,8 @@ agent: ""          # filled in Step 4a — CLI agent identifier (claude, codex, 
 model: ""          # filled in Step 4a — model identifier (e.g., claude-sonnet-4-6), optional
 ---
 ```
+
+Copy `plan_concern_refs` from the `wps.yaml` entry verbatim into the WP prompt frontmatter. Do not invent or modify refs.
 
 Body sections (in order):
 0. `## ⚡ Do This First: Load Agent Profile` — **REQUIRED. Must be the first section after the H1 title, before Objective.** Instructs the implementing agent to load the assigned profile via `/ad-hoc-profile-load` before reading anything else. Use this exact structure, substituting frontmatter values:
@@ -183,6 +186,8 @@ Example of a fully-populated entry after this step:
   requirement_refs:
     - FR-001
     - NFR-001
+  plan_concern_refs:
+    - IC-02
   subtasks:
     - T001
     - T002
@@ -197,6 +202,7 @@ work_package_id: "WP02"
 title: "Build API"
 dependencies: ["WP01"]  # From wps.yaml
 requirement_refs: ["FR-001", "NFR-001"]  # From wps.yaml requirement_refs
+plan_concern_refs: ["IC-02"]  # From wps.yaml — carry verbatim from the manifest entry
 subtasks: ["T001", "T002"]
 owned_files: ["src/api/**"]
 authoritative_surface: "src/api/"
