@@ -10,9 +10,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.mission_metadata import load_meta
 
-_KITTY_SPECS_DIR = "kitty-specs"
 _WORKTREES_DIR = ".worktrees"
 _STATUS_EVENTS_FILENAME = "status.events.jsonl"
 
@@ -32,16 +32,18 @@ def resolve_status_surface(repo_root: Path, mission_slug: str) -> Path:
     Raises FileNotFoundError when meta.json is absent.
     Raises ValueError when meta.json is malformed.
     """
-    feature_dir = repo_root / _KITTY_SPECS_DIR / mission_slug
+    feature_dir = repo_root / KITTY_SPECS_DIR / mission_slug
     meta = load_meta(feature_dir)
     if meta is None:
+        if feature_dir.exists():
+            return feature_dir / _STATUS_EVENTS_FILENAME
         raise FileNotFoundError(
             f"meta.json not found for mission {mission_slug!r} at {feature_dir}"
         )
     raw_coord = meta.get("coordination_branch")
     coord_branch: str | None = str(raw_coord) if raw_coord else None
     if coord_branch is None:
-        return repo_root / _KITTY_SPECS_DIR / mission_slug / _STATUS_EVENTS_FILENAME
+        return repo_root / KITTY_SPECS_DIR / mission_slug / _STATUS_EVENTS_FILENAME
     raw_mid8 = meta.get("mid8")
     raw_mission_id = meta.get("mission_id")
     mid8: str
@@ -53,4 +55,4 @@ def resolve_status_surface(repo_root: Path, mission_slug: str) -> Path:
         mid8 = (mission_slug.replace("-", "") + "00000000")[:8]
     dir_name = _mission_dir_name(mission_slug, mid8)
     worktree_root = repo_root / _WORKTREES_DIR / f"{dir_name}-coord"
-    return worktree_root / _KITTY_SPECS_DIR / dir_name / _STATUS_EVENTS_FILENAME
+    return worktree_root / KITTY_SPECS_DIR / dir_name / _STATUS_EVENTS_FILENAME

@@ -269,9 +269,7 @@ def _mark_wp_merged_done(
     # Do not use the read-path resolver: after the first coord status commit it
     # can route to the coordination worktree, whose sparse/materialized surface
     # may carry status files but not task markdown.
-    primary_feature_dir = repo_root / KITTY_SPECS_DIR / mission_slug
-    if not primary_feature_dir.exists():
-        primary_feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    primary_feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
     wp_path = None
     for candidate in sorted((primary_feature_dir / "tasks").glob(f"{wp_id}*.md")):
         wp_path = candidate
