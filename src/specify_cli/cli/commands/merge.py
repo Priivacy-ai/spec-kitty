@@ -114,6 +114,35 @@ class BaselineMergeCommitError(RuntimeError):
     """
 
 
+def _raw_porcelain_status(repo_root: Path) -> tuple[int, str]:
+    """Return ``(returncode, raw_stdout)`` for ``git status --porcelain``.
+
+    Reads stdout RAW (not via ``run_command``) so the leading status column of
+    each porcelain line is preserved. Porcelain v1 emits ``XY<space>PATH`` (a
+    fixed 3-char prefix); for a tracked file that is modified-but-not-staged X
+    is a space (``" M path"``). ``run_command``'s whole-output ``.strip()`` would
+    remove the leading space of the *first* line only, shifting its columns so
+    ``_classify_porcelain_lines`` rejects it (``line[2] != " "``) and silently
+    drops the first divergent path. The post-merge working-tree invariant MUST
+    see every divergent line, so it reads porcelain via this helper instead.
+
+    Mirrors the raw-read pattern documented in
+    :func:`specify_cli.cli.commands.implement._feature_dir_status_entries`.
+    """
+    import subprocess as _subprocess
+
+    result = _subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    return result.returncode, result.stdout
+
+
 def _classify_porcelain_lines(
     lines: list[str],
     expected_paths: set[str],
@@ -1886,12 +1915,13 @@ def _run_lane_based_merge_locked(
     # (sparse-checkout, a stale lock, a filter driver) silently dropped paths
     # during the merge and must stop the flow before the housekeeping commit
     # papers over it.
-    _ret_status, _out_status, _err_status = run_command(
-        ["git", "status", "--porcelain"],
-        capture=True,
-        check_return=False,
-        cwd=main_repo,
-    )
+    #
+    # Read porcelain RAW (not via run_command): run_command strips the whole
+    # output, which removes the leading status column of the FIRST porcelain
+    # line, so _classify_porcelain_lines would silently skip the first divergent
+    # path (e.g. meta.json, which sorts first inside kitty-specs/<slug>/). The
+    # invariant must be blind to nothing, so we splitlines() the raw stdout.
+    _ret_status, _out_status = _raw_porcelain_status(main_repo)
     if _ret_status == 0:
         expected_paths = {
             f"kitty-specs/{mission_slug}/{_STATUS_EVENTS_FILENAME}",
@@ -1936,8 +1966,8 @@ def _run_lane_based_merge_locked(
             raise typer.Exit(1)
     else:
         console.print(
-            f"[yellow]Warning:[/yellow] post-merge invariant check skipped: "
-            f"git status failed ({(_err_status or '').strip()})"
+            "[yellow]Warning:[/yellow] post-merge invariant check skipped: "
+            f"git status --porcelain returned {_ret_status}"
         )
 
     # -- T012: FR-019 — Persist done events to git BEFORE any worktree removal --
