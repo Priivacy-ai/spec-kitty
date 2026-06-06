@@ -375,7 +375,7 @@ def _execute_lane_merge(
     from specify_cli.cli.commands.merge import _mark_wp_merged_done
     from specify_cli.core.git_ops import has_remote, run_command
     from specify_cli.lanes.branch_naming import lane_branch_name
-    from specify_cli.lanes.compute import PLANNING_LANE_ID
+    from specify_cli.lanes.compute import is_planning_lane
     from specify_cli.lanes.merge import merge_lane_to_mission, merge_mission_to_target
     from specify_cli.lanes.persistence import require_lanes_json
     from specify_cli.policy.config import load_policy_config
@@ -425,7 +425,7 @@ def _execute_lane_merge(
 
     if delete_branch:
         for lane in lanes_manifest.lanes:
-            if lane.lane_id == PLANNING_LANE_ID:
+            if is_planning_lane(lane):
                 continue
             run_command(
                 [

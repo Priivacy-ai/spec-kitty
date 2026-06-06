@@ -642,14 +642,10 @@ def _load_lanes_manifest(feature_dir: Path) -> Any | None:
 
 def _delete_lane_branches(repo_root: Path, mission_slug: str, lanes_manifest: Any) -> None:
     from specify_cli.lanes.branch_naming import lane_branch_name
-
-    try:
-        from specify_cli.lanes.merge import PLANNING_LANE_ID
-    except ImportError:
-        PLANNING_LANE_ID = "lane-planning"  # historical fallback
+    from specify_cli.lanes.compute import is_planning_lane
 
     for lane in lanes_manifest.lanes:
-        if lane.lane_id == PLANNING_LANE_ID:
+        if is_planning_lane(lane):
             continue
         branch_name = lane_branch_name(mission_slug, lane.lane_id)
         _force_delete_branch_if_exists(repo_root, branch_name)

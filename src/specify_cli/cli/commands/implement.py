@@ -860,8 +860,8 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
 
         lanes_manifest = None
         lane = None
-        from specify_cli.lanes.compute import PLANNING_LANE_ID
-        if resolved_workspace.lane_id != PLANNING_LANE_ID:
+        from specify_cli.lanes.compute import is_planning_lane
+        if not is_planning_lane(resolved_workspace):
             lanes_manifest = require_lanes_json(feature_dir)
             lane = lanes_manifest.lane_for_wp(wp_id)
             if lane is None:
@@ -892,7 +892,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         # LanesManifest that uses it as the mission_branch so the worktree
         # allocator branches from the explicit base instead of auto-detecting.
         active_lanes_manifest = lanes_manifest
-        if base is not None and resolved_workspace.lane_id != PLANNING_LANE_ID:
+        if base is not None and not is_planning_lane(resolved_workspace):
             _validate_base_ref(repo_root, base)
             # Shallow-patch the manifest's mission_branch so
             # allocate_lane_worktree branches from the explicit ref.

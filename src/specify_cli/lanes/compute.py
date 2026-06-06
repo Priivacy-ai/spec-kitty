@@ -39,6 +39,10 @@ def is_planning_lane(lane: object) -> bool:
     only the body of this predicate (and :func:`is_planning_artifact_only`) needs
     to change — call sites must keep asking the lane/manifest semantic question
     rather than comparing against the constant or a string literal directly.
+
+    # TODO(#1666): when planning-ness becomes charter/mission-type-derived, this
+    # predicate's BACKING (and possibly its signature → context-aware) changes
+    # here; callers must keep asking the semantic question via this seam.
     """
     return getattr(lane, "lane_id", None) == PLANNING_LANE_ID
 
