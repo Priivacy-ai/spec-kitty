@@ -56,3 +56,4 @@ Use the shared template at [`../../adr-template.md`](../../adr-template.md).
 | 2026-06-03 | [Execution-state domain model](2026-06-03-1-execution-state-domain-model.md) |
 | 2026-06-03 | [ExecutionContext owner and CommitTarget atomicity](2026-06-03-2-executioncontext-owner-and-committarget.md) |
 | 2026-06-03 | [Effector/Actor model](2026-06-03-3-effector-actor-model.md) |
+| 2026-06-06 | [Plan concerns to work package traceability](2026-06-06-1-plan-concerns-to-work-package-traceability.md) |
