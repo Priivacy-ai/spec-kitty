@@ -28,6 +28,37 @@ from specify_cli.ownership.validation import _globs_overlap
 PLANNING_LANE_ID = "lane-planning"
 
 
+def is_planning_lane(lane: object) -> bool:
+    """Return True when *lane* is the canonical planning-artifact lane.
+
+    This is the single seam where "what counts as a planning lane" is decided.
+    Today the backing is the static ``PLANNING_LANE_ID`` constant; that constant
+    is intentionally an internal implementation detail of this predicate. The
+    classification is expected to become charter / mission-type-derived and
+    surfaced via the shared context objects (domain epic #1666); when that lands
+    only the body of this predicate (and :func:`is_planning_artifact_only`) needs
+    to change — call sites must keep asking the lane/manifest semantic question
+    rather than comparing against the constant or a string literal directly.
+
+    # TODO(#1666): when planning-ness becomes charter/mission-type-derived, this
+    # predicate's BACKING (and possibly its signature → context-aware) changes
+    # here; callers must keep asking the semantic question via this seam.
+    """
+    return getattr(lane, "lane_id", None) == PLANNING_LANE_ID
+
+
+def is_planning_artifact_only(lanes_manifest: object) -> bool:
+    """Return True when every lane in *lanes_manifest* is a planning lane.
+
+    A planning-artifact-only mission has no code lanes; its closeout writes
+    directly to the target branch without a mission branch. See
+    :func:`is_planning_lane` for the forward-compatibility note on the backing
+    of this classification (#1666).
+    """
+    lanes = list(getattr(lanes_manifest, "lanes", None) or [])
+    return bool(lanes) and all(is_planning_lane(lane) for lane in lanes)
+
+
 class LaneComputationError(Exception):
     """Raised when lane computation cannot produce a valid lane assignment.
 

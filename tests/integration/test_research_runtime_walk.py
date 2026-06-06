@@ -28,6 +28,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.invocation.writer import EVENTS_DIR
 from specify_cli.next._internal_runtime.engine import _read_snapshot
 from specify_cli.next.runtime_bridge import (
     _check_composed_action_guard,
@@ -42,6 +43,23 @@ from specify_cli.next.runtime_bridge import (
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+
+_NON_INVOCATION_OP_FILES = {
+    "lifecycle.jsonl",
+    "ops-index.jsonl",
+    "propagation-errors.jsonl",
+}
+
+
+def _invocation_trail_files(repo_root: Path) -> list[Path]:
+    invocations_dir = repo_root / EVENTS_DIR
+    return sorted(
+        path
+        for path in invocations_dir.glob("*.jsonl")
+        if path.name not in _NON_INVOCATION_OP_FILES
+    )
+
 
 def _init_min_repo(repo_root: Path) -> None:
     """Initialize a minimal git repo as the test mission's project root."""
@@ -157,8 +175,8 @@ def test_research_advances_one_composed_step(isolated_repo: Path) -> None:
       ``"plan"``. This proves the composed dispatch fired for the
       research mission and the planner moved through the research DAG.
     * (c) The invocation trail under
-      ``.kittify/events/profile-invocations/`` contains paired started +
-      completed lifecycle records (asserted in
+      the canonical Op storage directory contains paired started + completed
+      lifecycle records (asserted in
       :func:`test_paired_invocation_lifecycle_recorded`).
     * (d) No legacy ``runtime_next_step`` was re-entered for the
       composed scoping action — implicitly proven because the snapshot
@@ -228,8 +246,7 @@ def test_paired_invocation_lifecycle_recorded(isolated_repo: Path) -> None:
     """Each composed invocation writes paired started + completed records.
 
     The composition dispatch routes through ``ProfileInvocationExecutor``
-    which writes JSONL records under
-    ``<repo>/.kittify/events/profile-invocations/<invocation_id>.jsonl``.
+    which writes JSONL records under the canonical Op storage directory.
     Each invocation must have at least one ``started`` line; the test also
     confirms recorded ``action`` values stay within the research-native
     step IDs (no software-dev verbs leaking through).
@@ -254,12 +271,12 @@ def test_paired_invocation_lifecycle_recorded(isolated_repo: Path) -> None:
         isolated_repo,
     )
 
-    invocations_dir = isolated_repo / ".kittify" / "events" / "profile-invocations"
+    invocations_dir = isolated_repo / EVENTS_DIR
     assert invocations_dir.is_dir(), (
         f"Invocations dir missing: {invocations_dir}. Composition dispatch "
         "did not produce a paired invocation trail."
     )
-    trail_files = sorted(invocations_dir.glob("*.jsonl"))
+    trail_files = _invocation_trail_files(isolated_repo)
     assert trail_files, (
         f"No invocation trail files written under {invocations_dir}. "
         "ProfileInvocationExecutor.invoke was not called from the composed "

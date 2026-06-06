@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from collections.abc import Iterable
 
 from specify_cli.mission import Mission
@@ -105,11 +105,32 @@ def suggest_directory_creation(missing_paths: Iterable[str]) -> list[str]:
     return suggestions
 
 
+def _prefix_required_path(path_prefix: str | Path | None, relative_path: str) -> str:
+    """Return ``relative_path`` under ``path_prefix`` while preserving dir hints."""
+
+    if not path_prefix:
+        return relative_path
+    candidate = Path(relative_path)
+    if candidate.is_absolute():
+        return relative_path
+
+    prefix = str(path_prefix).strip().strip("/")
+    if not prefix:
+        return relative_path
+
+    relative = relative_path.strip("/")
+    joined = PurePosixPath(prefix) / relative
+    if relative_path.endswith("/"):
+        return joined.as_posix() + "/"
+    return joined.as_posix()
+
+
 def validate_mission_paths(
     mission: Mission,
     project_root: Path,
     *,
     strict: bool = False,
+    path_prefix: str | Path | None = None,
 ) -> PathValidationResult:
     """Validate that project directories follow mission-defined conventions.
 
@@ -117,12 +138,19 @@ def validate_mission_paths(
         mission: Mission containing declared path conventions.
         project_root: Root of the active workspace/worktree.
         strict: When True, raise PathValidationError if paths are missing.
+        path_prefix: Optional project-relative prefix to apply before checking
+            mission-declared paths. Research missions use this to validate
+            configured deliverable directories instead of fixed repository-root
+            directories.
 
     Returns:
         PathValidationResult summarising the state of each required path.
     """
 
-    required_paths = dict(mission.config.paths or {})
+    required_paths = {
+        key: _prefix_required_path(path_prefix, relative_path)
+        for key, relative_path in dict(mission.config.paths or {}).items()
+    }
     result = PathValidationResult(
         mission_name=mission.name,
         required_paths=required_paths,

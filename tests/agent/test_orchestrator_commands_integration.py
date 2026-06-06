@@ -1298,7 +1298,7 @@ class TestMergeMission:
             ),
             patch(
                 "specify_cli.orchestrator_api.commands._execute_lane_merge",
-            ),
+            ) as execute_merge,
         ):
             result = runner.invoke(
                 app,
@@ -1320,6 +1320,8 @@ class TestMergeMission:
         assert data["data"]["merged"] is True
         assert data["data"]["target_branch"] == "main"
         assert data["data"]["strategy"] == "merge"
+        execute_merge.assert_called_once()
+        assert execute_merge.call_args.kwargs["strategy"] == "merge"
 
     def test_rebase_strategy_success(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
@@ -1340,7 +1342,7 @@ class TestMergeMission:
             ),
             patch(
                 "specify_cli.orchestrator_api.commands._execute_lane_merge",
-            ),
+            ) as execute_merge,
         ):
             result = runner.invoke(
                 app,
@@ -1359,6 +1361,79 @@ class TestMergeMission:
         data = json.loads(result.output)
         assert data["success"] is True
         assert data["data"]["strategy"] == "rebase"
+        execute_merge.assert_called_once()
+        assert execute_merge.call_args.kwargs["strategy"] == "rebase"
+
+    def test_planning_only_merge_uses_hardened_closeout_without_stdout_noise(
+        self,
+        tmp_path,
+    ):
+        repo_root, mission_dir = _make_mission(tmp_path, "research-planning-only")
+        mission_slug = "research-planning-only"
+        meta_path = mission_dir / "meta.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        meta["mission_number"] = 99
+        meta["mission_type"] = "research"
+        meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        lane = MagicMock()
+        lane.lane_id = "lane-planning"
+        lane.wp_ids = ["WP01", "WP02"]
+        manifest = MagicMock()
+        manifest.target_branch = "main"
+        manifest.mission_branch = f"kitty/mission-{mission_slug}"
+        manifest.lanes = [lane]
+
+        mock_preflight = MagicMock()
+        mock_preflight.target_branch = "main"
+        mock_preflight.errors = []
+
+        def noisy_hardened_merge(**_kwargs):
+            from specify_cli.cli.commands import merge as merge_command
+
+            merge_command.console.print("this must not reach orchestrator stdout")
+
+        with (
+            patch(
+                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                return_value=repo_root,
+            ),
+            patch(
+                "specify_cli.orchestrator_api.commands._build_merge_preflight",
+                return_value=mock_preflight,
+            ),
+            patch(
+                "specify_cli.lanes.persistence.require_lanes_json",
+                return_value=manifest,
+            ),
+            patch(
+                "specify_cli.cli.commands.merge._run_lane_based_merge",
+                side_effect=noisy_hardened_merge,
+            ) as hardened_merge,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "merge-mission",
+                    "--mission",
+                    mission_slug,
+                    "--target",
+                    "main",
+                    "--strategy",
+                    "squash",
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        assert "this must not reach" not in result.output
+        data = json.loads(result.output)
+        assert data["success"] is True
+        assert data["data"]["merged"] is True
+        assert data["data"]["strategy"] == "squash"
+        hardened_merge.assert_called_once()
+        assert hardened_merge.call_args.kwargs["target_override"] == "main"
+        assert hardened_merge.call_args.kwargs["strategy"].value == "squash"
+        assert hardened_merge.call_args.kwargs["assume_yes"] is True
 
     def test_unsupported_strategy_rejected(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")

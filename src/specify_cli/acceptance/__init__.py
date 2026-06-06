@@ -18,7 +18,7 @@ from specify_cli.core.paths import require_explicit_feature as _require_explicit
 from specify_cli.decisions.models import DecisionStatus
 from specify_cli.decisions.store import load_index
 from specify_cli.git.commit_helpers import assert_not_protected_branch
-from specify_cli.mission import MissionError, get_mission_for_feature
+from specify_cli.mission import MissionError, get_deliverables_path, get_mission_for_feature
 from specify_cli.mission_metadata import load_meta, record_acceptance, resolve_mission_identity, write_meta
 from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
 from specify_cli.status.models import Lane
@@ -607,6 +607,12 @@ def _append_skipped_lane_checks(
         )
 
 
+def _path_prefix_for_mission(mission: Any, feature_dir: Path) -> str | None:
+    if getattr(mission, "domain", None) != "research":
+        return None
+    return get_deliverables_path(feature_dir, mission_slug=feature_dir.name)
+
+
 def _check_lane_gates(
     repo_root: Path,
     feature_dir: Path,
@@ -618,6 +624,7 @@ def _check_lane_gates(
     mutate_matrix: bool = True,
 ) -> None:
     """Enforce lane-based acceptance gates and acceptance matrix."""
+    from specify_cli.lanes.compute import is_planning_artifact_only
     from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
 
     try:
@@ -651,7 +658,10 @@ def _check_lane_gates(
         )
         return
 
-    allowed_branches = {lanes_manifest.mission_branch, lanes_manifest.target_branch}
+    planning_artifact_only = is_planning_artifact_only(lanes_manifest)
+    allowed_branches = {lanes_manifest.target_branch}
+    if not planning_artifact_only:
+        allowed_branches.add(lanes_manifest.mission_branch)
 
     if branch is None or branch not in allowed_branches:
         allowed_label = ", ".join(sorted(branch_name for branch_name in allowed_branches if branch_name))
@@ -662,6 +672,14 @@ def _check_lane_gates(
         _append_skipped_lane_checks(
             skipped_checks,
             reason="current branch is neither mission branch nor target branch",
+            include_matrix_presence=True,
+        )
+        return
+
+    if planning_artifact_only:
+        _append_skipped_lane_checks(
+            skipped_checks,
+            reason="planning_artifact-only missions do not produce acceptance-matrix.json",
             include_matrix_presence=True,
         )
         return
@@ -941,7 +959,12 @@ def collect_feature_summary(
 
     if mission and mission.config.paths:
         try:
-            validate_mission_paths(mission, repo_root, strict=True)
+            validate_mission_paths(
+                mission,
+                repo_root,
+                strict=True,
+                path_prefix=_path_prefix_for_mission(mission, feature_dir),
+            )
         except PathValidationError as exc:
             path_violations.append(exc.result.format_errors() or str(exc))
 

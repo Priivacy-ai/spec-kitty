@@ -74,6 +74,7 @@ TASKS_MD_FILENAME = "tasks.md"
 SETUP_PLAN_COMMAND_NAME = "spec-kitty agent mission setup-plan"
 FINALIZE_TASKS_COMMAND_NAME = "spec-kitty agent mission finalize-tasks"
 INVALID_WP_OWNED_FILES_KITTY_SPECS = "INVALID_WP_OWNED_FILES_KITTY_SPECS"
+PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
 
 
 def _extract_wp_ids_from_task_files(wp_files: list[Path]) -> list[str]:
@@ -1160,7 +1161,7 @@ def record_analysis(
     try:
         repo_root = locate_project_root()
         if repo_root is None:
-            error_msg = "Could not locate project root"
+            error_msg = PROJECT_ROOT_NOT_FOUND
             if json_output:
                 _emit_json({"error": error_msg, "success": False})
             else:
@@ -1846,7 +1847,7 @@ def merge_feature(
     try:
         repo_root = locate_project_root()
         if repo_root is None:
-            error = "Could not locate project root"
+            error = PROJECT_ROOT_NOT_FOUND
             print(json.dumps({"error": error, "success": False}))
             sys.exit(1)
 
@@ -2010,7 +2011,7 @@ def finalize_tasks(
     try:
         repo_root = locate_project_root()
         if repo_root is None:
-            error_msg = "Could not locate project root"
+            error_msg = PROJECT_ROOT_NOT_FOUND
             if json_output:
                 _emit_json({"error": error_msg})
             else:
