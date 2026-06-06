@@ -96,6 +96,21 @@ def test_compile_charter_renders_lynn_cole_rules_verbatim() -> None:
     assert "Your code will be reviewed by the meanest, most inconsiderate QA agent" in compiled.markdown
 
 
+def test_compile_charter_renders_selected_directive_content() -> None:
+    interview = default_interview(mission="software-dev", profile="minimal")
+    interview = apply_answer_overrides(
+        interview,
+        selected_directives=["DIRECTIVE_003"],
+    )
+
+    compiled = compile_charter(mission="software-dev", interview=interview)
+
+    assert "Apply doctrine directive `DIRECTIVE_003`" not in compiled.markdown
+    assert "Decision Documentation Requirement (`DIRECTIVE_003`)" in compiled.markdown
+    assert "Material technical and governance decisions must be captured" in compiled.markdown
+    assert "Integrity rule: High-impact decisions cannot remain tribal knowledge." in compiled.markdown
+
+
 def test_compile_charter_renders_agent_profile_metadata_when_present() -> None:
     interview = default_interview(mission="software-dev", profile="minimal")
     interview = apply_answer_overrides(interview, agent_profile="reviewer", agent_role="reviewer")

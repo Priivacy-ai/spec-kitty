@@ -316,6 +316,8 @@ def generate(
         if sync_result.error:
             raise RuntimeError(sync_result.error)
 
+        diagnostics = [*compiled.diagnostics, *sync_result.warnings]
+
         files_written = list(bundle_result.files_written)
         for file_name in sync_result.files_written:
             if file_name not in files_written:
@@ -359,7 +361,7 @@ def generate(
                         "references_count": len(compiled.references),
                         "library_files": local_support_files,
                         "files_written": files_written,
-                        "diagnostics": compiled.diagnostics,
+                        "diagnostics": diagnostics,
                     },
                     indent=2,
                 )
@@ -370,9 +372,9 @@ def generate(
         console.print(f"Charter: {charter_path.relative_to(repo_root)}")
         console.print(f"Mission: {compiled.mission}")
         console.print(f"Template set: {compiled.template_set}")
-        if compiled.diagnostics:
+        if diagnostics:
             console.print("Diagnostics:")
-            for line in compiled.diagnostics:
+            for line in diagnostics:
                 console.print(f"  - {line}")
         console.print("Files written:")
         for filename in files_written:

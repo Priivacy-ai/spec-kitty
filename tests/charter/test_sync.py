@@ -63,6 +63,39 @@ def test_sync_fresh_charter(tmp_path: Path):
         assert (tmp_path / filename).exists()
 
 
+def test_sync_skips_generated_directive_placeholder_with_warning(tmp_path: Path):
+    """Legacy generated placeholders must not become hollow local policy."""
+    charter_file = tmp_path / "charter.md"
+    charter_file.write_text(
+        """# Project Charter
+
+## Governance Activation
+
+```yaml
+selected_directives: [DIRECTIVE_003]
+```
+
+## Project Directives
+
+1. Apply doctrine directive `DIRECTIVE_003` to planning and implementation decisions.
+""",
+        encoding="utf-8",
+    )
+
+    result = sync(charter_file, tmp_path, force=True)
+
+    assert result.synced is True
+    assert result.error is None
+    assert result.warnings == [
+        "Skipped generated placeholder for DIRECTIVE_003; "
+        "run `spec-kitty charter generate --force` with current templates so "
+        "directives.yaml does not mint hollow local DIR-NNN policy."
+    ]
+    data = YAML().load((tmp_path / "directives.yaml").read_text(encoding="utf-8"))
+    assert data == {"directives": []}
+    assert "DIRECTIVE_003" in (tmp_path / "governance.yaml").read_text(encoding="utf-8")
+
+
 def test_sync_unchanged_charter(tmp_path: Path):
     """Sync with unchanged charter should skip extraction."""
     charter_file = tmp_path / "charter.md"
