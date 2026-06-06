@@ -36,10 +36,10 @@
 **Subtask count**: 4 | **Estimated prompt size**: ~240 lines
 
 **Included subtasks**:
-- [ ] T001 Replace Parallel Work Analysis section in plan-template.md with Implementation Concern Map + IC-## stubs (WP01)
-- [ ] T002 Update plan/prompt.md stop-point language for concern vocabulary (WP01)
-- [ ] T003 Update tasks/prompt.md description header (WP01)
-- [ ] T004 Update tasks.step-contract.yaml outline step description (WP01)
+- [x] T001 Replace Parallel Work Analysis section in plan-template.md with Implementation Concern Map + IC-## stubs (WP01)
+- [x] T002 Update plan/prompt.md stop-point language for concern vocabulary (WP01)
+- [x] T003 Update tasks/prompt.md description header (WP01)
+- [x] T004 Update tasks.step-contract.yaml outline step description (WP01)
 
 **Parallelization**: T002, T003, T004 are independent files and can be edited in parallel after T001 establishes the IC-## vocabulary in the template.
 
