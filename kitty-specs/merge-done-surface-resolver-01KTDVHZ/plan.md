@@ -49,9 +49,9 @@ kitty-specs/merge-done-surface-resolver-01KTDVHZ/
 ├── data-model.md        # Phase 1 output (surface resolver interface)
 ├── contracts/
 │   └── surface-resolver.md   # Function interface contract
-├── audit/
-│   └── merge-path-status-sites.md   # FR-005 audit artifact (created during implementation)
 └── tasks.md             # Phase 2 output (/spec-kitty.tasks)
+
+Note: The FR-005 audit artifact is committed as an inline code comment in `src/specify_cli/cli/commands/merge.py` adjacent to the done-marking loop, not as a standalone file.
 ```
 
 ### Source Code (affected paths)
@@ -119,10 +119,9 @@ The fix does NOT reorder `safe_commit` relative to the assertion. Instead, the a
 
 | WP | Title | Scope | Dependencies |
 |----|-------|-------|--------------|
-| WP01 | Merge-Path Status Sites Audit | Scan `merge.py` + all called modules that touch `status.events.jsonl`; document every site; identify any divergence sites beyond the done-marking loop | None |
-| WP02 | Surface Resolver Implementation | New `src/specify_cli/coordination/surface_resolver.py` with `resolve_status_surface()`; unit tests; mypy clean | None |
-| WP03 | Wire Resolver into Done-Marking Loop | Update `_mark_wp_merged_done` and `_assert_merged_wps_reached_done` to consume the resolver; update any additional sites found in WP01 | WP01, WP02 |
-| WP04 | Regression Tests | Add coord-branch fixtures to T015 and `test_merge_done_recording.py`; no mocking of the two functions; assert done events persist and read back; cover planning-only + code-change paths | WP03 |
-| WP05 | CHANGELOG and Audit Artifact | Write `CHANGELOG.md` entry; commit `audit/merge-path-status-sites.md` with WP01 findings | WP01, WP04 |
+| WP01 | Surface Resolver Implementation | New `src/specify_cli/coordination/surface_resolver.py` with `resolve_status_surface()`; unit tests; mypy clean | None |
+| WP02 | Merge-Path Audit and Wire Resolver | ATDD failing test (T000); full merge-path audit (code comment in `merge.py`); wire resolver into `_mark_wp_merged_done` and `_assert_merged_wps_reached_done`; fix any additional sites found | WP01 |
+| WP03 | Regression Tests | Add coord-branch fixtures to T015 and `test_merge_done_recording.py`; no mocking of the two functions; planning-only + code-change paths; ordering-independence test; 90%+ coverage | WP02 |
+| WP04 | CHANGELOG and Final Gate | Write `CHANGELOG.md` entry; verify audit comment in `merge.py`; full suite gate; update spec.md FR statuses | WP03 |
 
-WP01 and WP02 can run in parallel. WP03 depends on both. WP04 depends on WP03. WP05 depends on WP01 and WP04.
+Sequential pipeline: WP01 → WP02 → WP03 → WP04. No parallelism in this mission.

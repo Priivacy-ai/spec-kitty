@@ -82,7 +82,7 @@ A developer runs `spec-kitty merge` on a mission with no `coordination_branch` i
 | C-003 | The surface resolver must not introduce circular imports into the module graph. | Binding |
 | C-004 | Regression tests (FR-007, FR-008) must not mock `_mark_wp_merged_done` or `_assert_merged_wps_reached_done`. | Binding |
 | C-005 | This mission's scope is bounded to the merge path. Runtime read sites already fixed by issue #1589 (`move-task`, `next`, `lane_reader`) are not revisited unless the audit (FR-005) finds that a merge-path site delegates to them incorrectly. | Binding |
-| C-006 | The audit findings (FR-005) must be committed as a discoverable artifact before the mission is closed, so the class cannot be re-opened without evidence. | Binding |
+| C-006 | The audit findings (FR-005) must be committed before the mission is closed as an inline code comment in `src/specify_cli/cli/commands/merge.py` adjacent to the done-marking loop, so the class cannot be re-opened without evidence. | Binding |
 
 ---
 
