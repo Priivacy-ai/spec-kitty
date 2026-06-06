@@ -1,6 +1,6 @@
 ---
 name: spec-kitty.tasks
-description: Translate implementation concerns into work packages
+description: Break a plan into work packages
 user-invocable: true
 ---
 ## Startup Upgrade Check

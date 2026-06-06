@@ -15,7 +15,7 @@ steps:
         optional: true
 
   - id: outline
-    description: Produce tasks.md — work packages translated from implementation concerns in the plan
+    description: Produce tasks.md — the work-package outline derived from the plan
     delegates_to:
       kind: tactic
       candidates:

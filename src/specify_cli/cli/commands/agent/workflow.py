@@ -694,10 +694,6 @@ def _latest_review_feedback_reference(
     skipped so implement/fix handoff uses the persisted review artifact
     instead of the transient reviewer claim marker.
     """
-    # Review feedback artifacts are committed under kitty-specs/ inside
-    # whichever tree feature_dir lives in (coord worktree or main repo).
-    # feature_dir is <root>/kitty-specs/<slug>/, so parent.parent is <root>.
-    feedback_root = feature_dir.parent.parent
     wp_events = _read_wp_events(feature_dir, wp_id)
     for index in range(len(wp_events) - 1, -1, -1):
         event = wp_events[index]
@@ -706,7 +702,7 @@ def _latest_review_feedback_reference(
         review_ref = event.review_ref.strip()
         if not review_ref or review_ref in _REVIEW_FEEDBACK_SENTINELS:
             continue
-        return review_ref, _resolve_review_feedback_pointer(feedback_root, review_ref), index
+        return review_ref, _resolve_review_feedback_pointer(repo_root, review_ref), index
     return None, None, None
 
 
@@ -725,8 +721,7 @@ def _resolve_review_feedback_context(
     fm_review_feedback = extract_scalar(wp_frontmatter, "review_feedback")
     if fm_review_status and str(fm_review_status) == "has_feedback":
         ref = str(fm_review_feedback).strip() if fm_review_feedback else None
-        feedback_root = feature_dir.parent.parent
-        path = _resolve_review_feedback_pointer(feedback_root, ref) if ref else None
+        path = _resolve_review_feedback_pointer(repo_root, ref) if ref else None
         return True, ref, path, "frontmatter"
 
     return False, None, None, None
