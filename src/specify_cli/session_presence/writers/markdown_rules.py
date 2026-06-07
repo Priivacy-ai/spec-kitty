@@ -38,14 +38,23 @@ class MarkdownRulesWriter:
     append_mode:
         ``True`` when the orientation section lives within a larger file;
         ``False`` when the file IS the section.
+    check_dir:
+        Optional directory path (relative to *project_root*) to check in
+        ``can_write()`` instead of the parent of ``rules_path``.  Use this
+        for harnesses whose rules file lives in a subdirectory that may not
+        yet exist (e.g. ``.cursor/rules/spec-kitty.mdc`` → ``check_dir=".cursor"``).
+        When ``None`` (default), ``can_write()`` checks the parent of ``rules_path``.
     """
 
     harness_key: str
     rules_path: str
     append_mode: bool
+    check_dir: str | None = None
 
     def can_write(self, project_root: Path) -> bool:
-        """Return ``True`` when the target file's parent directory exists."""
+        """Return ``True`` when the harness root (or rules parent) directory exists."""
+        if self.check_dir is not None:
+            return (project_root / self.check_dir).exists()
         return (project_root / self.rules_path).parent.exists()
 
     def has_presence(self, project_root: Path) -> bool:
