@@ -143,8 +143,8 @@
 **Estimated prompt size**: ~320 lines
 **Depends on**: WP05
 
-- [ ] T028 Write Phase 2 upgrade migration (WP06)
-- [ ] T029 Write `test_m_session_presence_all_harnesses.py` (WP06)
-- [ ] T030 Integration smoke + full test run verification (WP06)
+- [x] T028 Write Phase 2 upgrade migration (WP06)
+- [x] T029 Write `test_m_session_presence_all_harnesses.py` (WP06)
+- [x] T030 Integration smoke + full test run verification (WP06)
 
 **Prompt**: [WP06-phase2-migration-and-tests.md](tasks/WP06-phase2-migration-and-tests.md)

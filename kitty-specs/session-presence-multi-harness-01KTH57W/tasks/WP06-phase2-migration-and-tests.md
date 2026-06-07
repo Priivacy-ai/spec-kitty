@@ -16,8 +16,8 @@ subtasks:
 - T028
 - T029
 - T030
-agent: "claude:sonnet:implementer:implementer"
-shell_pid: "82481"
+agent: "claude:sonnet:reviewer:reviewer"
+shell_pid: "96390"
 history:
 - date: '2026-06-07'
   status: planned
@@ -298,3 +298,5 @@ If any pre-existing tests fail that are unrelated to this WP, open a GitHub issu
 ## Activity Log
 
 - 2026-06-07T16:15:43Z – claude:sonnet:implementer:implementer – shell_pid=82481 – Assigned agent via action command
+- 2026-06-07T16:22:36Z – claude:sonnet:implementer:implementer – shell_pid=82481 – WP06 complete: Phase 2 all-harnesses migration + tests. All tests pass, ruff+mypy clean.
+- 2026-06-07T16:22:56Z – claude:sonnet:reviewer:reviewer – shell_pid=96390 – Started review via action command
