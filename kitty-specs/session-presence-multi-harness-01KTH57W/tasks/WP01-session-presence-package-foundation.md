@@ -20,8 +20,7 @@ subtasks:
 - T004
 - T005
 - T006
-agent: "claude:sonnet:reviewer:reviewer"
-shell_pid: "63378"
+agent: claude
 history:
 - date: '2026-06-07'
   status: planned
@@ -355,9 +354,3 @@ def get_writer(agent_key: str) -> "Writer":
 
 - Circular imports: `session_presence/__init__.py` imports from `manager.py` which doesn't exist yet in WP01. Keep `__init__.py` minimal — only export what this WP creates. WP03 adds `SessionPresenceManager` exports.
 - `UpgradeChecker` subprocess: on some platforms (Windows), `start_new_session=True` behaves differently. Use `creationflags=subprocess.DETACHED_PROCESS` on Windows if needed, but wrap in `try/except` regardless.
-
-## Activity Log
-
-- 2026-06-07T14:46:31Z – claude:sonnet:implementer:implementer – shell_pid=56467 – Assigned agent via action command
-- 2026-06-07T14:51:06Z – claude:sonnet:implementer:implementer – shell_pid=56467 – Ready for review: session_presence package foundation implemented. All 6 subtasks (T001-T006) complete. ruff and mypy --strict pass with zero issues. All behavior validations pass.
-- 2026-06-07T14:51:34Z – claude:sonnet:reviewer:reviewer – shell_pid=63378 – Started review via action command
