@@ -1041,19 +1041,6 @@ _Project health diagnostics_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty doctor ops
-
-```
- Usage: spec-kitty doctor ops [OPTIONS]
-
- List orphan Op records.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json          Machine-readable JSON output                                 │
-│ --help          Show this message and exit.                                  │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
 ## spec-kitty doctor mission-state
 
 ```
@@ -1079,6 +1066,19 @@ _Project health diagnostics_
 │ --allow-dirty                    Allow --fix when relevant git paths are     │
 │                                  already dirty                               │
 │ --help                           Show this message and exit.                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor ops
+
+```
+ Usage: spec-kitty doctor ops [OPTIONS]
+
+ List orphan Op records.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Machine-readable JSON output                                 │
+│ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3036,6 +3036,20 @@ _Cross-mission retrospective summary._
 │                               removed in v3.3).                              │
 │    --json                     Output JSON                                    │
 │    --help                     Show this message and exit.                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty session-start
+
+_Emit spec-kitty orientation for the Claude Code SessionStart hook._
+
+```
+ Usage: spec-kitty session-start [OPTIONS]
+
+ Emit spec-kitty orientation for the Claude Code SessionStart hook.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
