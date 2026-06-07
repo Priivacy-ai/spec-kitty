@@ -21,7 +21,8 @@ subtasks:
 - T009
 - T010
 - T011
-agent: claude
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "73526"
 history:
 - date: '2026-06-07'
   status: planned
@@ -377,3 +378,7 @@ __all__ = ["WRITER_REGISTRY", "get_writer"]
 
 - `os.replace()` on Windows may behave unexpectedly if the target is locked by another process. Wrap in try/except and document that the write may fail silently in this edge case.
 - `dataclass` inheritance: `ClaudeCodeWriter` inherits from `MarkdownRulesWriter` using `field(default=...)`. Verify that `dataclasses` handles mutable default field inheritance correctly. Use `field(default_factory=...)` if needed.
+
+## Activity Log
+
+- 2026-06-07T14:59:49Z – claude:sonnet:implementer:implementer – shell_pid=73526 – Assigned agent via action command
