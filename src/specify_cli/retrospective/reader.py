@@ -124,6 +124,26 @@ def _load_yaml_mapping(path: Path) -> dict:
     return data
 
 
+def _coerce_legacy_schema_versions(data: dict) -> dict:
+    """Accept legacy YAML scalar versions while keeping the model schema strict."""
+    normalized = dict(data)
+
+    schema_version = normalized.get("schema_version")
+    if type(schema_version) is int:
+        normalized["schema_version"] = str(schema_version)
+
+    provenance = normalized.get("provenance")
+    if isinstance(provenance, dict):
+        provenance_schema_version = provenance.get("schema_version")
+        if type(provenance_schema_version) is int:
+            normalized["provenance"] = {
+                **provenance,
+                "schema_version": str(provenance_schema_version),
+            }
+
+    return normalized
+
+
 def _validate_keys(raw: dict, allowed: frozenset[str], *, label: str) -> None:
     extra = sorted(set(raw) - allowed)
     if extra:
@@ -329,7 +349,7 @@ def read_record(path: Path, *, verify_evidence: bool = False) -> RetrospectiveRe
 
     # Schema validation via Pydantic.
     try:
-        record = RetrospectiveRecord.model_validate(data)
+        record = RetrospectiveRecord.model_validate(_coerce_legacy_schema_versions(data))
     except ValidationError as exc:
         raise SchemaError(
             f"Schema validation failed for {path}:\n{exc}"

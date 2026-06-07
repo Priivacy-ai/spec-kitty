@@ -120,6 +120,19 @@ def test_valid_yaml_reads_correctly(tmp_path: Path) -> None:
     assert record.schema_version == "1"
 
 
+def test_legacy_integer_schema_version_reads_correctly(tmp_path: Path) -> None:
+    """Older Pydantic-shape records with schema_version: 1 remain readable."""
+    legacy_yaml = VALID_YAML.replace('schema_version: "1"', "schema_version: 1")
+    good = tmp_path / "retrospective.yaml"
+    good.write_text(legacy_yaml, encoding="utf-8")
+
+    record = read_record(good)
+
+    assert record.status == "completed"
+    assert record.schema_version == "1"
+    assert record.provenance.schema_version == "1"
+
+
 def _valid_generator_yaml() -> str:
     return f"""\
 schema_version: 1
