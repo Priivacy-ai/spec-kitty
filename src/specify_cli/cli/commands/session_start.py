@@ -47,10 +47,10 @@ def session_start() -> None:
         project_root = _find_project_root()
         if project_root is None:
             return
-        from specify_cli.core.agent_config import AgentConfig
+        from specify_cli.core.agent_config import load_agent_config
         from specify_cli.session_presence.manager import SessionPresenceManager
 
-        agent_config = AgentConfig.load(project_root)
+        agent_config = load_agent_config(project_root)
         content = SessionPresenceManager(project_root, agent_config)._build_content()
         typer.echo(content.render())
     except Exception:

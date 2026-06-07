@@ -89,7 +89,7 @@ class SessionPresenceManager:
             # Best-effort health check — never block session start
             health = "upgrade-available" if avail and avail != current else "healthy"
 
-        return SessionPresenceContent(current, slug, health, avail)  # type: ignore[arg-type]
+        return SessionPresenceContent(current, slug, health, avail)
 
     def install(self) -> InstallResult:
         """Write presence for each configured agent that doesn't have it yet.

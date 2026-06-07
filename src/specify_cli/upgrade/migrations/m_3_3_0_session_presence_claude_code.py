@@ -50,11 +50,11 @@ class SessionPresenceClaudeCodeMigration(BaseMigration):
                     "Would write orientation to .claude/CLAUDE.md and register SessionStart hook"
                 ],
             )
-        from specify_cli.core.agent_config import AgentConfig
+        from specify_cli.core.agent_config import load_agent_config
         from specify_cli.session_presence.manager import SessionPresenceManager
         from specify_cli.session_presence.writers.claude_code import ClaudeCodeWriter
 
-        agent_config = AgentConfig.load(project_path)
+        agent_config = load_agent_config(project_path)
         manager = SessionPresenceManager(project_path, agent_config)
         content = manager._build_content()
         ClaudeCodeWriter().write(project_path, content)
