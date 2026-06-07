@@ -3,20 +3,21 @@
 **Mission:** Execution-State Canonical Domain Surface (#1666 Strangler Slice 2)
 **Branch:** feat/execution-state-strangler
 **Created:** 2026-06-07
-**WP column status:** _pending `/spec-kitty.tasks`_ — work-package IDs are filled in at task authoring; this matrix is the spec→issue trace and is re-checked at tasks-finalize.
+**WP column status:** filled (tasks authored 2026-06-07). 11 WPs (WP01–WP11); `finalize-tasks` blocked by tooling gap #1753 (see notes).
 
 ---
 
-## Source issue → requirement → scenario → success criterion
+## Source issue → requirement → scenario → success criterion → WP
 
-| Source issue | State | Workstream | Functional reqs | Scenario(s) | Success criteria | WP (pending tasks) |
-|--------------|-------|------------|-----------------|-------------|------------------|--------------------|
-| **#1673** ExecutionContext hardening (+ inherited #1681 residue) | OPEN | Canonical surface + path-builder strangling | FR-001 … FR-012 | C, E, F | SC-1, SC-3, SC-4, SC-7 | _pending_ |
-| **#1664** status/ public API not enforced (~225 bypasses) | OPEN | Repo-wide facade enforcement | FR-013 … FR-016 | B | SC-3 | _pending_ |
-| **#1667** MissionStatus aggregate (landed) | CLOSED | Consistent MissionStatus usage | FR-017 … FR-019 | F | SC-5 | _pending_ |
-| **#1672** e2e parity ratchet | OPEN | Full-sequence ratchet | FR-020 … FR-024 | A | SC-2 | _pending_ |
-| **#1663** MissionRun → Mission back-reference (field-drop) | OPEN | Mission-identity fold-in | FR-025 … FR-027 | D | SC-6 | _pending_ |
+| Source issue | State | Workstream | Functional reqs | Scenario(s) | Success criteria | Work package(s) |
+|--------------|-------|------------|-----------------|-------------|------------------|-----------------|
+| **#1673** ExecutionContext hardening (+ inherited #1681 residue) | OPEN | Canonical surface + path-builder strangling | FR-001 … FR-012 | C, E, F | SC-1, SC-3, SC-4, SC-7 | WP02, WP03, WP04, WP05, WP06 |
+| **#1664** status/ public API not enforced (~225 bypasses) | OPEN | Repo-wide facade enforcement | FR-013 … FR-016 | B | SC-3 | WP07, WP08, WP09 |
+| **#1667** MissionStatus aggregate (landed) | CLOSED | Consistent MissionStatus usage | FR-017 … FR-019 | F | SC-5 | WP10 |
+| **#1672** e2e parity ratchet | OPEN | Full-sequence ratchet | FR-020 … FR-024 | A | SC-2 | WP01 |
+| **#1663** MissionRun → Mission back-reference (field-drop) | OPEN | Mission-identity fold-in | FR-025 … FR-027 | D | SC-6 | WP11 |
 | **#1666** parent epic | OPEN | Umbrella / design authority | (all) | (all) | (all) | n/a (epic) |
+| **#1753** WPMetadata `scope` gap (filed this slice) | OPEN | Tooling — blocks finalize-tasks | n/a | n/a | n/a | n/a (tooling fix) |
 
 ---
 

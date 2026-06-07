@@ -155,6 +155,7 @@ A `MissionRunSnapshot` keeps its `mission_id`/`mission_slug` across all reconstr
 | NFR-004 | Backward compatibility | Legacy missions and existing on-disk `state.json` files load and operate unchanged; 100% load cleanly; legacy integration tests pass unmodified. | Compatibility | High | Open |
 | NFR-005 | Boundary-test performance | The repo-wide `status/` import scan completes in ≤15 s wall-clock on the full `src/` tree in CI. | Performance | Medium | Open |
 | NFR-006 | No plumbing churn | `coordination/transaction.py` (`BookkeepingTransaction`) internals are unchanged; zero diff to its internals. | Maintainability | Medium | Open |
+| NFR-007 | Lint & type clean | New code passes `ruff` and `mypy` with zero issues and zero warnings. Checks MUST NOT be disabled, suppressed, or relaxed (no blanket `# noqa`, `# type: ignore`, or per-file ignore additions) to achieve this — fix the code instead. | Maintainability | High | Open |
 
 ### Constraints
 
@@ -192,7 +193,7 @@ A `MissionRunSnapshot` keeps its `mission_id`/`mission_slug` across all reconstr
 - **SC-005**: `MissionStatus` is the consistent status entry point — zero direct `BookkeepingTransaction`/`emit` calls outside `status/` and documented plumbing.
 - **SC-006**: Mission identity survives reconstruction — `runtime_bridge.py:1723/:1860` carry `mission_id`/`mission_slug`; regression test green; #1663 closeable.
 - **SC-007**: Leanness holds — zero duplicated/parallel resolvers remain; Randy-Reducer + Paula-Patterns review sign-off on shaping WPs.
-- **SC-008**: No regressions — full existing integration + architectural suite passes; `ruff` + `mypy` clean on touched modules.
+- **SC-008**: No regressions — full existing integration + architectural suite passes; `ruff` + `mypy` clean (zero issues/warnings, no disabled checks — NFR-007) on touched modules.
 
 <!--
   Domain Language (terminology discipline): canonical terms — "execution-state domain
