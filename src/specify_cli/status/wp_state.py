@@ -12,13 +12,15 @@ logic lives outside these state objects, and no production code consults a
 parallel ``(from, to)`` table as a gate.
 
 See ADR: architecture/2.x/adr/2026-04-06-1-wp-state-pattern-for-lane-behavior.md
+See also: architecture/3.x/adr/2026-06-07-1-wp-lane-fsm-genesis-and-finalize-clobber.md
+(genesis lane, guard/force migration into the state objects, finalize clobber fix)
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Protocol
 
 from specify_cli.status.models import Lane
 
@@ -28,7 +30,6 @@ _FORCE_REQUIRES_ACTOR_AND_REASON = "Force transitions require actor and reason"
 _REVIEWER_APPROVAL_REQUIRED = "Transition to approved/done requires evidence (reviewer identity and approval reference)"
 
 
-@runtime_checkable
 class TransitionInputs(Protocol):
     """Structural protocol over the guard inputs a transition consults.
 
@@ -98,7 +99,7 @@ class WPState(ABC):
 
         Returns:
             True  if lane in {planned, claimed, in_progress, for_review, in_review, approved}
-            False if lane in {done, blocked, canceled}
+            False if lane in {genesis, done, blocked, canceled}
 
         Usage::
 

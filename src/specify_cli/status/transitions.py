@@ -83,7 +83,10 @@ def validate_transition(
     try:
         wp_state_for(from_lane_enum).transition_to(target_lane_enum, ctx)
     except InvalidTransitionError as exc:
-        return False, exc.reason
+        # Guarantee a non-None reason: a guard override or a reasonless
+        # InvalidTransitionError could otherwise propagate (False, None), breaking
+        # callers that expect a message (#1775 review m4).
+        return False, exc.reason or f"Illegal transition: {resolved_from} -> {resolved_to}"
     return True, None
 
 

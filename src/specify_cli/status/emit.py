@@ -77,7 +77,9 @@ try:
     _EVENTS_SUPPORTS_GENESIS: bool = "genesis" in {
         lane.value for lane in _spec_kitty_events_mod.Lane
     }
-except Exception:  # noqa: BLE001 — defensive import; absence of the package is treated as no-genesis
+except (ImportError, AttributeError):
+    # ImportError: spec_kitty_events not installed. AttributeError: installed but
+    # lacks a Lane enum. Either way, treat genesis as unsupported (review nit).
     _EVENTS_SUPPORTS_GENESIS = False
 
 
