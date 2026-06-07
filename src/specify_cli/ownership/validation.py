@@ -14,14 +14,20 @@ from __future__ import annotations
 from specify_cli.core.constants import KITTY_SPECS_DIR
 import fnmatch
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from itertools import combinations
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
 
+if TYPE_CHECKING:
+    from specify_cli.status.wp_metadata import WPMetadata
+
 __all__ = [
     "ValidationResult",
+    "build_wp_manifests",
     "validate_no_overlap",
     "validate_authoritative_surface",
     "validate_execution_mode_consistency",
@@ -226,6 +232,32 @@ def validate_all(manifests: dict[str, OwnershipManifest]) -> ValidationResult:
         result.warnings.extend(f"{wp_id}: {w}" for w in mode_warnings)
 
     return result
+
+
+def build_wp_manifests(
+    frontmatters: Mapping[str, WPMetadata],
+) -> dict[str, OwnershipManifest]:
+    """Build ownership manifests from WP frontmatter, ready for validation.
+
+    This is the pure, filesystem-free seam between WP frontmatter and ownership
+    validation. WPs that do not declare ownership (no ``execution_mode`` or empty
+    ``owned_files``) are skipped, mirroring finalize-tasks. Because
+    :meth:`OwnershipManifest.from_frontmatter` carries the ``scope`` field
+    through (including ``codebase-wide``), callers can exercise the full
+    overlap/exemption decision with plain ``WPMetadata`` stubs — no temp files,
+    no finalize-command mocking.
+
+    Args:
+        frontmatters: Mapping of WP ID to its parsed ``WPMetadata``.
+
+    Returns:
+        Mapping of WP ID to ``OwnershipManifest`` for WPs that declare ownership.
+    """
+    manifests: dict[str, OwnershipManifest] = {}
+    for wp_id, fm in frontmatters.items():
+        if fm.execution_mode and fm.owned_files:
+            manifests[wp_id] = OwnershipManifest.from_frontmatter(fm)
+    return manifests
 
 
 # Public alias used by __init__.py

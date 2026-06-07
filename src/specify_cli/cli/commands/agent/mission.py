@@ -46,7 +46,7 @@ from specify_cli.mission import get_mission_type
 from specify_cli.doc_analysis.doc_state import GeneratorConfig
 from specify_cli.ownership import infer_ownership, validate_ownership
 from specify_cli.ownership.audit_targets import validate_audit_coverage
-from specify_cli.ownership.validation import validate_glob_matches
+from specify_cli.ownership.validation import build_wp_manifests, validate_glob_matches
 from specify_cli.core.wps_manifest import (
     load_wps_manifest,
     check_concern_refs_coverage,
@@ -2581,9 +2581,7 @@ def finalize_tasks(
         # in memory but does NOT write to disk.  Re-reading from disk would miss
         # the inferred ownership fields, silently skipping ownership/lane
         # validation.  We therefore use the in-memory state when available.
-        from specify_cli.ownership.models import OwnershipManifest
-
-        wp_manifests: dict[str, OwnershipManifest] = {}
+        wp_frontmatters: dict[str, WPMetadata] = {}
         wp_bodies: dict[str, str] = {}
         for wp_file in wp_files:
             wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", wp_file.name)
@@ -2597,8 +2595,9 @@ def finalize_tasks(
                 else:
                     fm_meta, wp_body = read_wp_frontmatter(wp_file)
                 wp_bodies[wp_id] = wp_body
-                if fm_meta.execution_mode and fm_meta.owned_files:
-                    wp_manifests[wp_id] = OwnershipManifest.from_frontmatter(fm_meta)
+                wp_frontmatters[wp_id] = fm_meta
+
+        wp_manifests = build_wp_manifests(wp_frontmatters)
 
         if wp_manifests:
             ownership_result = validate_ownership(wp_manifests)
