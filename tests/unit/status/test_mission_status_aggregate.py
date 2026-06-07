@@ -432,8 +432,12 @@ class TestStatusFacadeExports:
 
 
 class TestTransitionHappyPath:
-    def test_resolve_current_lane_maps_uninitialized_to_planned(self, tmp_path: Path) -> None:
-        """Uninitialized transactional reads should validate from planned."""
+    def test_resolve_current_lane_maps_uninitialized_to_genesis(self, tmp_path: Path) -> None:
+        """Unseeded transactional reads resolve to genesis, not planned (#1775).
+
+        An unseeded WP cannot be claimed; resolving to genesis lets the FSM reject
+        genesis -> claimed instead of silently treating the WP as planned.
+        """
         from specify_cli.status import TransitionRequest
         from specify_cli.status.aggregate import MissionStatus
         from specify_cli.status.models import Lane
@@ -457,10 +461,10 @@ class TestTransitionHappyPath:
         from_lane, current_actor = ms._resolve_current_lane(
             request=request,
             read_current_wp_state_transactional=lambda **_: ("uninitialized", "claude"),
-            lane_planned=Lane.PLANNED,
+            lane_unseeded=Lane.GENESIS,
         )
 
-        assert from_lane == "planned"
+        assert from_lane == "genesis"
         assert current_actor == "claude"
 
     def test_resolve_workspace_context_prefers_request_value(self, tmp_path: Path) -> None:
