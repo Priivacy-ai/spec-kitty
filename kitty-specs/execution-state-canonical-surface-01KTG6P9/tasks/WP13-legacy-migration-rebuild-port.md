@@ -81,7 +81,8 @@ Route the two live legacy-migration callers off the deprecated `rebuild_event_lo
 ## Subtasks & Detailed Guidance
 
 ### Subtask T047 – Canonical per-mission rebuild entry
-- **Steps**: Add a per-mission event-rebuild entry on `migration/mission_state.py` returning event counts (`events_generated`/`events_corrected`/`errors`/`warnings`) — or decide+document the `repair_repo` end-to-end retirement and record the decision in the WP summary.
+- **Decision (pinned, FR-032)**: add the per-mission entry on `mission_state`. Do **not** retire onto `repair_repo` — it is repo-level and drops the per-feature event counts the runner reports. Full `repair_repo` retirement is a separate, fixture-backed change.
+- **Steps**: Add a per-mission event-rebuild entry on `migration/mission_state.py` returning event counts (`events_generated`/`events_corrected`/`errors`/`warnings`).
 - **Files**: `src/specify_cli/migration/mission_state.py`.
 
 ### Subtask T048 – Migrate runner Step 4
@@ -102,6 +103,7 @@ Route the two live legacy-migration callers off the deprecated `rebuild_event_lo
 
 ## Test Strategy
 
+- **ATDD-first (C-011, binding):** author + commit subtask **T051 RED first** (the migration fixtures + behavior-preservation assertions), before the T047–T050 implementation. Reviewer verifies red→green (RED on `planning_base_branch`, GREEN on the final commit).
 - New fixtures + tests green; existing migration tests green; legacy-mission load/migration unchanged (NFR-004); `ruff` + `mypy` clean (NFR-007). No deprecation warnings on unrelated import paths.
 
 ## Risks & Mitigations
