@@ -15,7 +15,7 @@ input_artifacts:
     sha256: 775b13e790731a1327afa59783800964dd0e4252dada49ac67b8d3133e2041ce
   tasks.md:
     path: /Users/robert/spec-kitty-dev/spec-kitty-20260607-144729-aFjAbE/spec-kitty/.worktrees/session-presence-multi-harness-01KTH57W-coord/kitty-specs/session-presence-multi-harness-01KTH57W/tasks.md
-    sha256: c341cab7e76660fc42888300ec13c6e57b01b72a5fbc0178a8ce1067379d1919
+    sha256: fcff58f38e1c0dd405bdd7d57550d04b4d30ecf9f536b1bbf3b1faa63d786654
   charter:
     path: /Users/robert/spec-kitty-dev/spec-kitty-20260607-144729-aFjAbE/spec-kitty/.kittify/charter/charter.md
     sha256: a59cddc8725b34acacd83b9bec24e97b1ae68aa80716b7335c425c6106c18791
@@ -44,7 +44,7 @@ input_artifacts:
     sha256: 775b13e790731a1327afa59783800964dd0e4252dada49ac67b8d3133e2041ce
   tasks.md:
     path: /Users/robert/spec-kitty-dev/spec-kitty-20260607-144729-aFjAbE/spec-kitty/.worktrees/session-presence-multi-harness-01KTH57W-coord/kitty-specs/session-presence-multi-harness-01KTH57W/tasks.md
-    sha256: c341cab7e76660fc42888300ec13c6e57b01b72a5fbc0178a8ce1067379d1919
+    sha256: fcff58f38e1c0dd405bdd7d57550d04b4d30ecf9f536b1bbf3b1faa63d786654
   charter:
     path: /Users/robert/spec-kitty-dev/spec-kitty-20260607-144729-aFjAbE/spec-kitty/.kittify/charter/charter.md
     sha256: a59cddc8725b34acacd83b9bec24e97b1ae68aa80716b7335c425c6106c18791
