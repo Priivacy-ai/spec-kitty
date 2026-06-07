@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from .content import SECTION_CLOSE, SECTION_OPEN, SessionPresenceContent
 from .upgrade_check import UpgradeChecker
-from .writers import NullWriter, Writer, get_writer
+from .writers import ClaudeCodeWriter, NullWriter, Writer, get_writer
 
 __all__ = [
     "SECTION_CLOSE",
@@ -27,6 +27,7 @@ __all__ = [
     "SessionPresenceContent",
     "UpgradeChecker",
     "Writer",
+    "ClaudeCodeWriter",
     "NullWriter",
     "get_writer",
 ]

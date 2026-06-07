@@ -1,19 +1,21 @@
 """Writer registry — maps harness keys to Writer instances.
 
-Phase 1 skeleton: all keys fall through to NullWriter.
-WP02 replaces the ``claude`` entry with ``ClaudeCodeWriter()``.
+Phase 1 / WP02: ``claude`` is wired to ``ClaudeCodeWriter()``.
 WP05 populates all remaining harness entries.
 """
 
 from __future__ import annotations
 
 from .base import Writer
+from .claude_code import ClaudeCodeWriter
 from .null_writer import NullWriter
 
 __all__ = ["WRITER_REGISTRY", "get_writer"]
 
-# Phase 1 skeleton — WP02 replaces the claude entry; WP05 populates the rest.
-WRITER_REGISTRY: dict[str, Writer] = {}
+WRITER_REGISTRY: dict[str, Writer] = {
+    "claude": ClaudeCodeWriter(),
+    # Phase 2 entries added by WP05
+}
 
 
 def get_writer(agent_key: str) -> Writer:

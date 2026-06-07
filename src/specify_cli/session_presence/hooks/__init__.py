@@ -1,8 +1,13 @@
 """session_presence.hooks — lifecycle hook implementations.
 
-Populated by downstream WPs (WP02 and beyond).
+Public exports:
+- ``HookRegistrar`` — protocol all hook registrars must satisfy.
+- ``ClaudeCodeHookRegistrar`` — manages ``.claude/settings.json`` hooks.
 """
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .base import HookRegistrar
+from .claude_code_hook import ClaudeCodeHookRegistrar
+
+__all__ = ["HookRegistrar", "ClaudeCodeHookRegistrar"]
