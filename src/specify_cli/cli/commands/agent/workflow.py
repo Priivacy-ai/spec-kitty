@@ -1200,7 +1200,11 @@ def implement(
             print("Re-run move-task with --review-feedback-file so the fix cycle can attach the canonical review artifact.")
             raise typer.Exit(1)
 
-        _require_current_analysis_report(feature_dir, main_repo_root, mission_slug)
+        _require_current_analysis_report(
+            candidate_feature_dir_for_mission(main_repo_root, mission_slug),
+            main_repo_root,
+            mission_slug,
+        )
 
         workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
         workspace_path = workspace.worktree_path
