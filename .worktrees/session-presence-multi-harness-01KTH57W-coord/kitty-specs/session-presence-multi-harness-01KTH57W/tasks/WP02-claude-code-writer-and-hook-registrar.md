@@ -21,7 +21,8 @@ subtasks:
 - T009
 - T010
 - T011
-agent: claude
+agent: "claude:sonnet:reviewer:reviewer"
+shell_pid: "89046"
 history:
 - date: '2026-06-07'
   status: planned
@@ -377,3 +378,10 @@ __all__ = ["WRITER_REGISTRY", "get_writer"]
 
 - `os.replace()` on Windows may behave unexpectedly if the target is locked by another process. Wrap in try/except and document that the write may fail silently in this edge case.
 - `dataclass` inheritance: `ClaudeCodeWriter` inherits from `MarkdownRulesWriter` using `field(default=...)`. Verify that `dataclasses` handles mutable default field inheritance correctly. Use `field(default_factory=...)` if needed.
+
+## Activity Log
+
+- 2026-06-07T14:59:49Z – claude:sonnet:implementer:implementer – shell_pid=73526 – Assigned agent via action command
+- 2026-06-07T15:05:42Z – claude:sonnet:implementer:implementer – shell_pid=73526 – Ready for review
+- 2026-06-07T15:06:04Z – claude:sonnet:reviewer:reviewer – shell_pid=89046 – Started review via action command
+- 2026-06-07T15:07:51Z – user – shell_pid=89046 – Review passed: All 11 criteria met. MarkdownRulesWriter uses SECTION_OPEN/CLOSE markers with idempotent replace-on-second-call; ClaudeCodeWriter delegates to MarkdownRulesWriter+ClaudeCodeHookRegistrar with atomic writes (os.replace sibling tmp); unregister preserves other SessionStart entries and empty list; HookRegistrar protocol defined in hooks/base.py; claude→ClaudeCodeWriter wired in registry; zero ruff/mypy --strict issues; no specify_cli.next imports.
