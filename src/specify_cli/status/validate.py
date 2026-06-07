@@ -29,22 +29,19 @@ STATUS_BLOCK_END = "<!-- status-model:end -->"
 # current lane, so it is intentionally excluded from ``CANONICAL_LANES``.
 GENESIS_LANE = Lane.GENESIS.value
 
-# Genesis seeds canonically advance to ``planned`` (finalize) or ``canceled``.
-_GENESIS_OUTBOUND: frozenset[str] = frozenset({Lane.PLANNED.value, Lane.CANCELED.value})
-
 
 def _edge_is_legal(from_lane: str, to_lane: str) -> bool:
     """Decide edge legality via the FSM — the sole edge authority (I1).
 
-    ``genesis`` is accepted as a ``from_lane`` seed source (FR-015); for the
-    nine canonical lanes the decision routes through
-    ``wp_state_for(from).may_transition_to(to)``. No ``(from, to)`` table or
-    derived edge set is consulted as a gate.
+    ``genesis`` (the created-but-unseeded seed source) is a full state in the
+    FSM, so it routes through ``wp_state_for(from).may_transition_to(to)`` like
+    every other lane. No ``(from, to)`` table or derived edge set is consulted
+    as a gate — including for genesis (#1775 review M1: the previous
+    ``_GENESIS_OUTBOUND`` literal was a parallel authority that could drift from
+    ``GenesisState.allowed_targets()``).
     """
     resolved_from = resolve_lane_alias(from_lane)
     resolved_to = resolve_lane_alias(to_lane)
-    if resolved_from == GENESIS_LANE:
-        return resolved_to in _GENESIS_OUTBOUND
     try:
         source = wp_state_for(Lane(resolved_from))
         target = Lane(resolved_to)
