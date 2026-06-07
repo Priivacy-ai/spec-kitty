@@ -20,7 +20,8 @@ subtasks:
 - T004
 - T005
 - T006
-agent: claude
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "56467"
 history:
 - date: '2026-06-07'
   status: planned
@@ -354,3 +355,7 @@ def get_writer(agent_key: str) -> "Writer":
 
 - Circular imports: `session_presence/__init__.py` imports from `manager.py` which doesn't exist yet in WP01. Keep `__init__.py` minimal — only export what this WP creates. WP03 adds `SessionPresenceManager` exports.
 - `UpgradeChecker` subprocess: on some platforms (Windows), `start_new_session=True` behaves differently. Use `creationflags=subprocess.DETACHED_PROCESS` on Windows if needed, but wrap in `try/except` regardless.
+
+## Activity Log
+
+- 2026-06-07T14:46:31Z – claude:sonnet:implementer:implementer – shell_pid=56467 – Assigned agent via action command
