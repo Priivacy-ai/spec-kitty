@@ -5,7 +5,10 @@ from __future__ import annotations
 
 AGENT_UPGRADE_CHECK_BLOCK = """## Startup Upgrade Check
 
-Before continuing, run:
+Run this at most once per active agent session before the first Spec Kitty command workflow.
+If you already ran `spec-kitty upgrade --agent-check --json` in this session, reuse that result and skip this block.
+Do not run or announce an upgrade check again for later Spec Kitty commands in the same session.
+Otherwise, before continuing, run:
 
 ```bash
 spec-kitty upgrade --agent-check --json
