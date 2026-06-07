@@ -16,6 +16,40 @@ import specify_cli.cli.commands.charter as _charter_pkg
 __all__ = ["sync"]
 
 
+def _sync_json_payload(result: object) -> dict[str, object]:
+    """Return stable JSON output for ``charter sync``."""
+    return {
+        "result": "success" if result.synced else "noop",
+        "success": result.synced,
+        "stale_before": result.stale_before,
+        "files_written": result.files_written,
+        "extraction_mode": result.extraction_mode,
+        "error": result.error,
+        "warnings": result.warnings,
+    }
+
+
+def _emit_sync_human_result(result: object) -> None:
+    """Render the non-JSON ``charter sync`` result."""
+    if result.error:
+        console.print(f"[red]Error:[/red] {result.error}")
+        raise typer.Exit(code=1)
+
+    if not result.synced:
+        console.print("[blue]Charter already in sync[/blue] (use --force to re-extract)")
+        return
+
+    console.print("[green]Charter synced successfully[/green]")
+    console.print(f"Mode: {result.extraction_mode}")
+    if result.warnings:
+        console.print("\nWarnings:")
+        for warning in result.warnings:
+            console.print(f"  ! {warning}")
+    console.print("\nFiles written:")
+    for filename in result.files_written:
+        console.print(f"  ✓ {filename}")
+
+
 @charter_app.command()
 def sync(
     force: bool = typer.Option(False, "--force", "-f", help="Force sync even if not stale"),
@@ -35,34 +69,10 @@ def sync(
             if result.error:
                 _emit_error(console, json_output=True, message=str(result.error))
                 raise typer.Exit(code=1)
-            data = {
-                "result": "success" if result.synced else "noop",
-                "success": result.synced,
-                "stale_before": result.stale_before,
-                "files_written": result.files_written,
-                "extraction_mode": result.extraction_mode,
-                "error": result.error,
-                "warnings": result.warnings,
-            }
-            print(json.dumps(data, indent=2))
+            print(json.dumps(_sync_json_payload(result), indent=2))
             return
 
-        if result.error:
-            console.print(f"[red]Error:[/red] {result.error}")
-            raise typer.Exit(code=1)
-
-        if result.synced:
-            console.print("[green]Charter synced successfully[/green]")
-            console.print(f"Mode: {result.extraction_mode}")
-            if result.warnings:
-                console.print("\nWarnings:")
-                for warning in result.warnings:
-                    console.print(f"  ! {warning}")
-            console.print("\nFiles written:")
-            for filename in result.files_written:
-                console.print(f"  ✓ {filename}")
-        else:
-            console.print("[blue]Charter already in sync[/blue] (use --force to re-extract)")
+        _emit_sync_human_result(result)
 
     except typer.Exit:
         raise

@@ -134,7 +134,7 @@ def do(
     # so completion write failures cannot masquerade as successful JSON.
     try:
         executor.complete_invocation(payload.invocation_id, outcome="done")
-    except (InvocationError, InvocationWriteError) as e:
+    except InvocationError as e:
         typer.echo(
             json.dumps({"error": "write_failed", "message": str(e)}), err=True
         )
