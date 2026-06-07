@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: wp-lane-state-machine-fsm-01KTGZAZ
 mission_id: 01KTGZAZ4RG6N669Z62JK5SWMB
-generated_at: '2026-06-07T12:44:26.962516+00:00'
+generated_at: '2026-06-07T14:58:19.383351+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -15,7 +15,7 @@ input_artifacts:
     sha256: 8beab73c6511308a11ae42850cb0ead9d8f8f347f3026183d48cfaa59cdfce25
   tasks.md:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/kitty-specs/wp-lane-state-machine-fsm-01KTGZAZ/tasks.md
-    sha256: 02a300d43fa9a075dcbe09c616d3e12fa63d9d877cf53ce65f7d4f25dbcda33f
+    sha256: 9e1a51c622ce47e2db1bce6191bc71c692bc86ae48ef679e6bd1721d38691d97
   charter:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/.kittify/charter/charter.md
     sha256: a59cddc8725b34acacd83b9bec24e97b1ae68aa80716b7335c425c6106c18791
