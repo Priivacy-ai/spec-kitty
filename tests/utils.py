@@ -72,7 +72,9 @@ def _seed_canonical_wp_state(
         event_id=f"TEST{wp_id}{len(existing_events) + 1:020d}",
         mission_slug=feature,
         wp_id=wp_id,
-        from_lane=Lane(current_lane or "planned"),
+        # T028: use "genesis" as the default (not "planned") so an unseeded WP
+        # gets a legal genesis->target event instead of an illegal planned->planned.
+        from_lane=Lane(current_lane or "genesis"),
         to_lane=Lane(canonical_target),
         at=_event_timestamp(timestamp),
         actor=actor,

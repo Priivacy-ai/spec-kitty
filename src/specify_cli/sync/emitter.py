@@ -39,6 +39,7 @@ from rich.console import Console
 
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.mission_metadata import mission_number_from_slug
+from specify_cli.status.models import get_all_lane_values
 from spec_kitty_events import normalize_event_id as _normalize_event_id
 
 from .clock import LamportClock
@@ -48,6 +49,11 @@ from .queue import OfflineQueue
 from .routing import is_sync_enabled_for_checkout
 
 logger = logging.getLogger(__name__)
+
+# Single-source of truth for all canonical lane values (incl. genesis).
+# Derived from specify_cli.status.models.Lane so no parallel hardcoded list
+# is needed here (T021, WP04).
+_CANONICAL_LANE_VALUES: frozenset[str] = get_all_lane_values()
 
 if TYPE_CHECKING:
     from .client import WebSocketClient
@@ -267,8 +273,9 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         "required": {"mission_slug", "wp_id", "from_lane", "to_lane", "actor", "execution_mode"},
         "validators": {
             "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
-            "from_lane": lambda v: v in {"planned", "claimed", "in_progress", "in_review", "for_review", "approved", "done", "blocked", "canceled"},
-            "to_lane": lambda v: v in {"planned", "claimed", "in_progress", "in_review", "for_review", "approved", "done", "blocked", "canceled"},
+            # Single-sourced from _CANONICAL_LANE_VALUES (incl. genesis) — T021, WP04
+            "from_lane": lambda v: v in _CANONICAL_LANE_VALUES,
+            "to_lane": lambda v: v in _CANONICAL_LANE_VALUES,
             "actor": lambda v: isinstance(v, str) and len(v) >= 1,
             "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "force": lambda v: isinstance(v, bool),

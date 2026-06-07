@@ -20,7 +20,8 @@ subtasks:
 - T013
 phase: Phase 2 - Parity
 assignee: ''
-agent: claude
+agent: "claude"
+shell_pid: "1703533"
 history:
 - at: '2026-06-07T13:30:00Z'
   actor: system
@@ -100,3 +101,7 @@ Every lane reader reports an unseeded WP as `GENESIS` (matching the writer
 
 ## Activity Log
 - 2026-06-07 — system — Prompt created.
+- 2026-06-07T15:19:34Z – claude – shell_pid=1703533 – Assigned agent via action command
+- 2026-06-07T15:26:20Z – claude – shell_pid=1703533 – Read/write genesis parity + actionable unseeded rejection; tests green, ruff clean, mypy net-zero
+- 2026-06-07T15:30:05Z – user – shell_pid=1703533 – reviewer-renata reviewing
+- 2026-06-07T15:30:25Z – user – shell_pid=1703533 – APPROVE (reviewer-renata): FR-008 parity complete, FR-009 fail-fast verified, tests non-vacuous, gates net-zero

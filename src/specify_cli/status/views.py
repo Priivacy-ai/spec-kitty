@@ -98,7 +98,7 @@ def _build_board_summary(snapshot: Any) -> dict[str, Any]:
     Returns a dict with:
     - ``mission_slug``: feature identifier
     - ``total_wps``: total number of work packages
-    - ``summary``: lane -> count mapping (all 7 lanes)
+    - ``summary``: lane -> count mapping (9 active/display lanes; genesis excluded)
     - ``lanes``: lane -> list of wp_ids mapping
     - ``materialized_at``: ISO timestamp of snapshot
 

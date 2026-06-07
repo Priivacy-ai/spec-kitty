@@ -8,6 +8,7 @@ alias resolution, and pipeline ordering guarantees.
 from __future__ import annotations
 
 import json
+import logging
 from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -39,6 +40,8 @@ from specify_cli.status.models import (
 )
 from specify_cli.status.store import EVENTS_FILENAME, append_event, read_events
 
+from tests.status.conftest import seed_wp_to_planned as _seed_planned
+
 pytestmark = pytest.mark.fast
 # ── Fixtures ──────────────────────────────────────────────────
 
@@ -51,24 +54,6 @@ def feature_dir(tmp_path: Path) -> Path:
     return fd
 
 
-def _seed_planned(feature_dir: Path, wp_id: str, mission_slug: str = "034-test-feature") -> None:
-    """Seed a WP out of the 'genesis' pre-finalize state into 'planned'.
-
-    A fresh WP with no lane-state events derives from_lane 'genesis' (see
-    _derive_from_lane), so the only legal first transition is genesis -> planned
-    (or genesis -> canceled). This mirrors what finalize-tasks does before the
-    lane lifecycle begins. Tests that exercise downstream transitions must seed
-    first.
-    """
-    emit_status_transition(TransitionRequest(
-        feature_dir=feature_dir,
-        mission_slug=mission_slug,
-        wp_id=wp_id,
-        to_lane="planned",
-        actor="seed",
-        force=True,
-        reason="seed",
-    ))
 
 
 @pytest.fixture
@@ -335,7 +320,7 @@ class TestEmitStatusTransition:
 
     def test_happy_path_planned_to_claimed(self, feature_dir: Path):
         """Basic transition from planned to claimed persists and returns event."""
-        _seed_planned(feature_dir, "WP01")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         event = emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -361,7 +346,7 @@ class TestEmitStatusTransition:
 
     def test_snapshot_materialized(self, feature_dir: Path):
         """Snapshot file is written after successful emit."""
-        _seed_planned(feature_dir, "WP01")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -383,7 +368,7 @@ class TestEmitStatusTransition:
         """Derive, append, and materialize must share the feature status lock."""
         # Seed out of genesis before installing the tracking spies so the
         # observed sequence reflects only the claimed transition under test.
-        _seed_planned(feature_dir, "WP01")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         lock_root = feature_dir.parent.parent
         lock_state = {"held": False}
         observed: list[str] = []
@@ -440,7 +425,7 @@ class TestEmitStatusTransition:
 
     def test_chained_transitions(self, feature_dir: Path):
         """Multiple transitions chain correctly, deriving from_lane."""
-        _seed_planned(feature_dir, "WP01")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         e1 = emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -477,7 +462,7 @@ class TestEmitStatusTransition:
 
     def test_alias_resolution_doing(self, feature_dir: Path):
         """'doing' alias resolves to 'in_progress'."""
-        _seed_planned(feature_dir, "WP01")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         # First move to claimed
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
@@ -498,7 +483,7 @@ class TestEmitStatusTransition:
 
     def test_alias_collapse_noop_returns_without_new_event(self, feature_dir: Path, caplog: pytest.LogCaptureFixture) -> None:
         """Legacy alias to the current lane is a locked no-op, not a duplicate event."""
-        _seed_planned(feature_dir, "WP01")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -558,7 +543,7 @@ class TestEmitStatusTransition:
 
     def test_execution_mode_direct_repo(self, feature_dir: Path):
         """Non-default execution_mode is recorded in event."""
-        _seed_planned(feature_dir, "WP01")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         event = emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -571,8 +556,8 @@ class TestEmitStatusTransition:
 
     def test_multiple_wps_independent(self, feature_dir: Path):
         """Events for different WPs are independent."""
-        _seed_planned(feature_dir, "WP01")
-        _seed_planned(feature_dir, "WP02")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        _seed_planned(feature_dir, "WP02", slug="034-test-feature")
         e1 = emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -729,7 +714,7 @@ class TestDoneEvidence:
     def test_done_without_evidence_rejected(self, feature_dir: Path):
         """Transition to done without evidence is rejected."""
 
-        _seed_planned(feature_dir, "WP01", mission_slug="034-test")
+        _seed_planned(feature_dir, "WP01", slug="034-test")
         # Move through the pipeline: planned → claimed → in_progress → for_review → in_review
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
@@ -774,7 +759,7 @@ class TestDoneEvidence:
         """Transition to done with valid evidence via in_review succeeds."""
         from specify_cli.status.models import ReviewResult
 
-        _seed_planned(feature_dir, "WP01", mission_slug="034-test")
+        _seed_planned(feature_dir, "WP01", slug="034-test")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -823,7 +808,7 @@ class TestDoneEvidence:
         """Transition to done with malformed evidence is rejected."""
         from specify_cli.status.models import ReviewResult
 
-        _seed_planned(feature_dir, "WP01", mission_slug="034-test")
+        _seed_planned(feature_dir, "WP01", slug="034-test")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -985,7 +970,7 @@ class TestPhase1CompatibilityBridge:
         feature_dir: Path,
     ) -> None:
         """in_review is now a first-class lane; transition for_review -> in_review works."""
-        _seed_planned(feature_dir, "WP01")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -1135,7 +1120,7 @@ class TestSaasFanOut:
 
     def test_saas_failure_does_not_block_emit(self, feature_dir: Path):
         """Full emit succeeds even when SaaS fan-out fails."""
-        _seed_planned(feature_dir, "WP01")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         with patch(
             "specify_cli.sync.events.emit_wp_status_changed",
             side_effect=RuntimeError("network down"),
@@ -1177,7 +1162,7 @@ class TestPipelineOrder:
 
     def test_event_persisted_even_if_materialize_fails(self, feature_dir: Path):
         """If materialize fails, the event is still in the JSONL log."""
-        _seed_planned(feature_dir, "WP01")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         with patch(
             "specify_cli.status.emit._reducer.materialize",
             side_effect=OSError("disk error during materialize"),
@@ -1223,7 +1208,7 @@ class TestReviewRefGuard:
 
     def test_in_review_to_in_progress_requires_review_result(self, feature_dir: Path):
         """in_review -> in_progress without review_result is rejected."""
-        _seed_planned(feature_dir, "WP01", mission_slug="034-test")
+        _seed_planned(feature_dir, "WP01", slug="034-test")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -1266,7 +1251,7 @@ class TestReviewRefGuard:
         """in_review -> in_progress with review_result succeeds."""
         from specify_cli.status.models import ReviewResult
 
-        _seed_planned(feature_dir, "WP01", mission_slug="034-test")
+        _seed_planned(feature_dir, "WP01", slug="034-test")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -1317,7 +1302,7 @@ class TestReasonGuard:
 
     def test_in_progress_to_planned_requires_reason(self, feature_dir: Path):
         """in_progress -> planned without reason is rejected."""
-        _seed_planned(feature_dir, "WP01", mission_slug="034-test")
+        _seed_planned(feature_dir, "WP01", slug="034-test")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -1344,7 +1329,7 @@ class TestReasonGuard:
 
     def test_in_progress_to_planned_with_reason(self, feature_dir: Path):
         """in_progress -> planned with reason succeeds."""
-        _seed_planned(feature_dir, "WP01", mission_slug="034-test")
+        _seed_planned(feature_dir, "WP01", slug="034-test")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -1377,7 +1362,7 @@ class TestMergeLightweightEmit:
         self,
         feature_dir: Path,
     ) -> None:
-        _seed_planned(feature_dir, "WP01")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         with (
             patch.object(emit_module, "_saas_fan_out") as mock_fanout,
             patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled") as mock_dossier,
@@ -1410,7 +1395,7 @@ class TestBatchEmit:
     def test_batch_requires_each_request_identity(self, feature_dir: Path) -> None:
         # Seed so the first (valid) request's transition succeeds and the loop
         # reaches the second request's identity guard.
-        _seed_planned(feature_dir, "WP01")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         with pytest.raises(TypeError, match="Each batch transition"):
             emit_status_transition_batch(
                 [
@@ -1432,7 +1417,7 @@ class TestBatchEmit:
     def test_batch_rejects_mixed_work_packages(self, feature_dir: Path) -> None:
         # Seed so the first request's transition succeeds and the loop reaches
         # the mixed-WP guard on the second request.
-        _seed_planned(feature_dir, "WP01")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         with pytest.raises(TypeError, match="one feature/mission/wp"):
             emit_status_transition_batch(
                 [
@@ -1501,7 +1486,7 @@ class TestBatchEmit:
         assert read_events(feature_dir) == []
 
     def test_batch_infers_review_readiness_and_builds_evidence(self, feature_dir: Path, valid_evidence_dict: dict) -> None:
-        _seed_planned(feature_dir, "WP01")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         with patch.object(emit_module, "_saas_fan_out"):
             events = emit_status_transition_batch(
                 [
@@ -1535,7 +1520,7 @@ class TestBatchEmit:
 
         assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS, Lane.FOR_REVIEW]
 
-        _seed_planned(feature_dir, "WP02")
+        _seed_planned(feature_dir, "WP02", slug="034-test-feature")
         with patch.object(emit_module, "_saas_fan_out"):
             done = emit_status_transition_batch(
                 [
@@ -1599,7 +1584,7 @@ class TestBatchEmit:
         assert done[-1].to_lane == Lane.DONE
 
     def test_batch_materialize_failure_keeps_persisted_events(self, feature_dir: Path, caplog: pytest.LogCaptureFixture) -> None:
-        _seed_planned(feature_dir, "WP01")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         with (
             patch.object(emit_module, "_saas_fan_out"),
             patch.object(emit_module._reducer, "materialize", side_effect=RuntimeError("boom")),
@@ -1621,3 +1606,192 @@ class TestBatchEmit:
         # Last persisted event is the claimed transition (after the seed).
         assert read_events(feature_dir)[-1].to_lane == Lane.CLAIMED
         assert "Materialization failed after batch" in caplog.text
+
+
+# ── Genesis SaaS fan-out capability gate tests (T023, WP04) ──────────────────
+
+
+class TestGenesisSaasFanOutCompatibilityGate:
+    """Tests for the genesis compatibility gate in _saas_fan_out (T022/T023, WP04).
+
+    The gate in emit.py._saas_fan_out skips fan-out when the installed
+    spec_kitty_events lacks the genesis lane, producing an explicit INFO log
+    instead of a silently swallowed pydantic ValidationError.
+
+    The capability-present case (genesis-aware events) is exercised via
+    monkeypatching emit_module._EVENTS_SUPPORTS_GENESIS = True so the tests
+    run correctly against the installed 5.2.0 package (which has no genesis).
+    """
+
+    def test_genesis_transition_skipped_when_events_lacks_genesis(
+        self,
+        feature_dir: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """With genesis-unaware events: genesis fan-out is explicitly skipped, not crashed.
+
+        The skip is deliberate (logged INFO) and canonical local persistence
+        is completely unaffected.
+        """
+        from specify_cli.status import adapters as _adapters
+
+        _adapters.reset_handlers()
+        captured: list[dict] = []
+
+        def fake_saas(**kwargs: object) -> None:
+            captured.append(dict(kwargs))
+
+        _adapters.register_saas_fanout_handler(fake_saas)
+        try:
+            # Ensure the capability flag reports no genesis support (mirror current 5.2.0 reality)
+            with patch.object(emit_module, "_EVENTS_SUPPORTS_GENESIS", False):
+                caplog.set_level(logging.INFO, logger="specify_cli.status.emit")
+                # Build a genesis -> planned event and call _saas_fan_out directly
+                genesis_event = StatusEvent(
+                    event_id="01GENESIS00000000000000001",
+                    mission_slug="test-feature",
+                    wp_id="WP01",
+                    from_lane=Lane.GENESIS,
+                    to_lane=Lane.PLANNED,
+                    at="2026-06-07T12:00:00+00:00",
+                    actor="seed",
+                    force=True,
+                    execution_mode="worktree",
+                    reason="seed",
+                )
+                _saas_fan_out(genesis_event, "test-feature", None)
+
+            # The skip path must fire: no handler was called
+            assert len(captured) == 0, (
+                "SaaS fan-out handler must NOT be called for genesis when events lacks genesis"
+            )
+            # The explicit skip log must be present — NOT a ValidationError
+            assert "Skipping SaaS fan-out for genesis transition" in caplog.text, (
+                "Explicit skip log must be emitted when genesis fan-out is gated out"
+            )
+            assert "genesis lane (needs >=6.0.0)" in caplog.text
+            # Canonical persistence is unaffected — no StoreError, the feature dir is intact
+            assert feature_dir.exists()
+        finally:
+            _adapters.reset_handlers()
+
+    def test_genesis_transition_fans_out_when_events_supports_genesis(
+        self,
+        feature_dir: Path,
+    ) -> None:
+        """With genesis-aware events: genesis -> planned fans out as a normal payload.
+
+        Simulates spec_kitty_events 6.0.0 via monkeypatch of _EVENTS_SUPPORTS_GENESIS.
+        The fan-out handler is called exactly once; no ValidationError is raised.
+        """
+        from specify_cli.status import adapters as _adapters
+
+        _adapters.reset_handlers()
+        captured: list[dict] = []
+
+        def fake_saas(**kwargs: object) -> None:
+            captured.append(dict(kwargs))
+
+        _adapters.register_saas_fanout_handler(fake_saas)
+        try:
+            # Simulate 6.0.0+ (genesis-aware events installed)
+            with patch.object(emit_module, "_EVENTS_SUPPORTS_GENESIS", True):
+                genesis_event = StatusEvent(
+                    event_id="01GENESIS00000000000000002",
+                    mission_slug="test-feature",
+                    wp_id="WP01",
+                    from_lane=Lane.GENESIS,
+                    to_lane=Lane.PLANNED,
+                    at="2026-06-07T12:00:00+00:00",
+                    actor="seed",
+                    force=True,
+                    execution_mode="worktree",
+                    reason="seed",
+                )
+                _saas_fan_out(genesis_event, "test-feature", None)
+
+            # The handler must have been called exactly once
+            assert len(captured) == 1, (
+                "SaaS fan-out handler must be called when events supports genesis"
+            )
+            call = captured[0]
+            assert call["wp_id"] == "WP01"
+            assert call["from_lane"] == "genesis"
+            assert call["to_lane"] == "planned"
+            assert call["actor"] == "seed"
+            assert call["mission_slug"] == "test-feature"
+        finally:
+            _adapters.reset_handlers()
+
+    def test_normal_transition_fans_out_unchanged_without_genesis_support(
+        self,
+        feature_dir: Path,
+    ) -> None:
+        """With genesis-unaware events: a normal (non-genesis) transition fans out unchanged."""
+        from specify_cli.status import adapters as _adapters
+
+        _adapters.reset_handlers()
+        captured: list[dict] = []
+
+        def fake_saas(**kwargs: object) -> None:
+            captured.append(dict(kwargs))
+
+        _adapters.register_saas_fanout_handler(fake_saas)
+        try:
+            with patch.object(emit_module, "_EVENTS_SUPPORTS_GENESIS", False):
+                normal_event = StatusEvent(
+                    event_id="01NORMAL000000000000000001",
+                    mission_slug="test-feature",
+                    wp_id="WP01",
+                    from_lane=Lane.PLANNED,
+                    to_lane=Lane.CLAIMED,
+                    at="2026-06-07T12:00:00+00:00",
+                    actor="agent",
+                    force=False,
+                    execution_mode="worktree",
+                )
+                _saas_fan_out(normal_event, "test-feature", None)
+
+            assert len(captured) == 1, (
+                "Normal (non-genesis) transition must still fan out with genesis-unaware events"
+            )
+            call = captured[0]
+            assert call["from_lane"] == "planned"
+            assert call["to_lane"] == "claimed"
+        finally:
+            _adapters.reset_handlers()
+
+    def test_normal_transition_fans_out_unchanged_with_genesis_support(
+        self,
+        feature_dir: Path,
+    ) -> None:
+        """With genesis-aware events: a normal transition still fans out unchanged (no regression)."""
+        from specify_cli.status import adapters as _adapters
+
+        _adapters.reset_handlers()
+        captured: list[dict] = []
+
+        def fake_saas(**kwargs: object) -> None:
+            captured.append(dict(kwargs))
+
+        _adapters.register_saas_fanout_handler(fake_saas)
+        try:
+            with patch.object(emit_module, "_EVENTS_SUPPORTS_GENESIS", True):
+                normal_event = StatusEvent(
+                    event_id="01NORMAL000000000000000002",
+                    mission_slug="test-feature",
+                    wp_id="WP01",
+                    from_lane=Lane.PLANNED,
+                    to_lane=Lane.CLAIMED,
+                    at="2026-06-07T12:00:00+00:00",
+                    actor="agent",
+                    force=False,
+                    execution_mode="worktree",
+                )
+                _saas_fan_out(normal_event, "test-feature", None)
+
+            assert len(captured) == 1, (
+                "Normal (non-genesis) transition must still fan out with genesis-aware events"
+            )
+        finally:
+            _adapters.reset_handlers()

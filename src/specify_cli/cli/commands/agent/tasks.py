@@ -3993,8 +3993,9 @@ def status(
             return
 
         # Rich table output
-        # Group by lane
-        by_lane = {lane: [] for lane in Lane}
+        # Group by lane — exclude GENESIS (non-display lane; no WP should be in
+        # genesis at display time, but if one is it falls through to "other")
+        by_lane = {lane: [] for lane in Lane if lane is not Lane.GENESIS}
         for wp in work_packages:
             lane = wp["lane"]
             if lane in by_lane:

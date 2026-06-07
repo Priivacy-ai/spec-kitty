@@ -55,17 +55,12 @@ def _setup_feature(tmp_path: Path, mission_slug: str = "099-test") -> Path:
     return feature_dir
 
 
-def _seed_planned(feature_dir: Path, slug: str, wp_id: str, repo_root: Path) -> None:
-    """Seed a WP out of the non-display 'genesis' state into 'planned'.
+from tests.status.conftest import seed_wp_to_planned as _seed_planned_shared
 
-    A fresh WP derives from_lane 'genesis', so the first lane transition must
-    be genesis -> planned (as finalize-tasks does) before claimed/etc.
-    """
-    emit_status_transition(TransitionRequest(
-        feature_dir=feature_dir, mission_slug=slug,
-        wp_id=wp_id, to_lane="planned", actor="seed",
-        force=True, reason="seed", repo_root=repo_root,
-    ))
+
+def _seed_planned(feature_dir: Path, slug: str, wp_id: str, repo_root: Path) -> None:  # noqa: ARG001 — repo_root kept for call-site compat; shared fixture writes directly
+    """Seed a WP out of the non-display 'genesis' state into 'planned'."""
+    _seed_planned_shared(feature_dir, wp_id, slug=slug)
 
 # ── Tests ────────────────────────────────────────────────────────
 

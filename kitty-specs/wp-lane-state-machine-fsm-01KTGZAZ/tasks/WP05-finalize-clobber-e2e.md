@@ -16,7 +16,8 @@ subtasks:
 - T026
 phase: Phase 2 - Regression
 assignee: ''
-agent: claude
+agent: "claude"
+shell_pid: "1728576"
 history:
 - at: '2026-06-07T13:30:00Z'
   actor: system
@@ -82,3 +83,7 @@ coordination event log.
 
 ## Activity Log
 - 2026-06-07 — system — Prompt created.
+- 2026-06-07T15:34:53Z – claude – shell_pid=1728576 – Assigned agent via action command
+- 2026-06-07T15:47:08Z – claude – shell_pid=1728576 – e2e finalize-clobber regression, non-vacuity proven; 4 tests green
+- 2026-06-07T15:53:52Z – user – shell_pid=1728576 – reviewer-renata reviewing
+- 2026-06-07T15:53:55Z – user – shell_pid=1728576 – APPROVE (reviewer-renata): non-vacuity proven (T024 fails on guard removal), realism confirmed, gates clean.

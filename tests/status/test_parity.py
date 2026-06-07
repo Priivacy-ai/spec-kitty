@@ -565,9 +565,14 @@ class TestReducerDeterminism:
         assert snap_a.work_packages == snap_b.work_packages == {}
         assert snap_a.summary == snap_b.summary
 
-        # All lane counts should be zero
+        # All active/display lane counts should be zero (genesis excluded — non-display invariant)
         for lane in Lane:
-            assert snap_a.summary[lane.value] == 0
+            if lane is Lane.GENESIS:
+                assert lane.value not in snap_a.summary, (
+                    "genesis must not appear in the summary (non-display invariant)"
+                )
+            else:
+                assert snap_a.summary[lane.value] == 0
 
     def test_force_events_tracked_in_force_count(self):
         """Force count is deterministic and accumulates correctly."""

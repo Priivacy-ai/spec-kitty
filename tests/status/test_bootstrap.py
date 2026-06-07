@@ -169,7 +169,8 @@ class TestBootstrapSeedsUninitialized:
         for event in events:
             assert str(event.to_lane) == "planned"
             assert event.actor == "finalize-tasks"
-            assert event.force is True
+            # T030: genesis->planned is a real allowed edge (no force needed)
+            assert event.force is False
 
         # Verify status.json was materialized
         status_json = feature_dir / "status.json"

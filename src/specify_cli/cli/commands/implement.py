@@ -59,7 +59,12 @@ def _status_commit_destination_branch(repo_root: Path, fallback_branch: str) -> 
 
 
 def _get_wp_lane_from_event_log(feature_dir: Path, wp_id: str) -> str:
-    """Get the canonical WP lane, defaulting to planned when unbootstrapped."""
+    """Get the canonical WP lane, defaulting to genesis for unseeded WPs.
+
+    An unseeded WP (no events, or no snapshot entry) defaults to
+    ``Lane.GENESIS`` — matching the write-side ``_derive_from_lane``
+    behaviour (Contract 3, FR-008).
+    """
     try:
         from specify_cli.status.reducer import reduce
         from specify_cli.status.store import read_events
@@ -69,10 +74,10 @@ def _get_wp_lane_from_event_log(feature_dir: Path, wp_id: str) -> str:
             snapshot = reduce(events)
             state = snapshot.work_packages.get(wp_id)
             if state:
-                return Lane(state.get("lane", Lane.PLANNED))
+                return Lane(state.get("lane", Lane.GENESIS))
     except Exception:  # noqa: S110 — best-effort lane lookup, fallback is safe
         pass
-    return Lane.PLANNED
+    return Lane.GENESIS
 
 
 def _json_safe_output(func):
@@ -785,9 +790,17 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         _status_feature_dir = _resolve_read_path(repo_root, mission_slug, _mid8)
 
         _wp_lanes = {
-            _wp_id: _state.get("lane", Lane.PLANNED)
+            _wp_id: _state.get("lane", Lane.GENESIS)
             for _wp_id, _state in _reduce_events(_read_events(_status_feature_dir)).work_packages.items()
         }
+        # T012 / Contract 3: reject unseeded WPs BEFORE any workspace
+        # allocation.  A genesis WP has not been through finalize-tasks; the
+        # user must run it first to seed the genesis→planned bootstrap event.
+        _current_wp_lane = _wp_lanes.get(wp_id, Lane.GENESIS)
+        if _current_wp_lane == Lane.GENESIS:
+            raise ValueError(
+                f"WP {wp_id} is not finalized; run `spec-kitty agent mission finalize-tasks`"
+            )
         _dependency_readiness = dependency_readiness_for_wp(wp_id, declared_deps, _wp_lanes)
         if not _dependency_readiness.satisfied:
             blocked = ", ".join(_dependency_readiness.unsatisfied)

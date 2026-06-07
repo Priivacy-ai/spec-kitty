@@ -27,7 +27,8 @@ subtasks:
 - T007
 phase: Phase 1 - Foundation
 assignee: ''
-agent: claude
+agent: "renata"
+shell_pid: "1695717"
 history:
 - at: '2026-06-07T13:30:00Z'
   actor: system
@@ -129,3 +130,7 @@ as a gate.** Behavior is preserved for the nine pre-existing lanes.
 
 ## Activity Log
 - 2026-06-07 — system — Prompt created.
+- 2026-06-07T14:58:23Z – claude – shell_pid=1680853 – Assigned agent via action command
+- 2026-06-07T15:11:00Z – claude – shell_pid=1680853 – Ready for review: full FSM ownership (edges+guards+force in WPState); validate_transition thin delegator; validate.py edge legality via FSM; genesis from_lane-only; no production ALLOWED_TRANSITIONS gate; nine-lane parity envelope green & non-vacuous; ruff+mypy clean on touched files.
+- 2026-06-07T15:11:57Z – renata – shell_pid=1695717 – Started review via action command
+- 2026-06-07T15:16:33Z – user – shell_pid=1695717 – FSM single-ownership verified: guards+force migrated into WPState (parity vs data-model.md), validate_transition thin delegator, validate.py edge-legality via FSM, ALLOWED_TRANSITIONS gate eliminated (non-authoritative projection only), genesis from_lane-only (T005), AST architectural test (T006). No baseline-symbol duplication; import smoke genesis/10 passes; parity non-vacuous (1699 rows, RED on broken guard); ruff+mypy clean; 2719 status tests green.

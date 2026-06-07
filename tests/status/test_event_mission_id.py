@@ -83,29 +83,7 @@ def _write_events(events_path: Path, events: list[dict[str, Any]]) -> None:
             fh.write(json.dumps(event, sort_keys=True) + "\n")
 
 
-def _seed_planned(feature_dir: Path, wp_id: str = "WP01", slug: str = _MISSION_SLUG) -> None:
-    """Seed a WP out of the non-display 'genesis' state into 'planned'.
-
-    Written directly to the event log (no emit), mirroring finalize-tasks. A
-    fresh WP derives from_lane 'genesis', so the first lane transition must be
-    genesis -> planned before the lifecycle begins.
-    """
-    seed_event = {
-        "actor": "seed",
-        "at": "2026-01-01T00:00:00+00:00",
-        "event_id": "01HXYZ0123456789ABCDEFGS01",
-        "evidence": None,
-        "execution_mode": "worktree",
-        "force": True,
-        "from_lane": "genesis",
-        "mission_slug": slug,
-        "reason": "seed",
-        "review_ref": None,
-        "to_lane": "planned",
-        "wp_id": wp_id,
-    }
-    with (feature_dir / EVENTS_FILENAME).open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(seed_event, sort_keys=True) + "\n")
+from tests.status.conftest import seed_wp_to_planned as _seed_planned
 
 
 def _make_feature_dir(tmp_path: Path, slug: str = _MISSION_SLUG, with_meta: bool = True) -> Path:
@@ -387,7 +365,7 @@ class TestRoundTripMissionId:
     def feature_dir_with_meta(self, tmp_path: Path) -> Path:
         """Feature directory with meta.json containing mission_id, WP01 seeded to planned."""
         feature_dir = _make_feature_dir(tmp_path)
-        _seed_planned(feature_dir)
+        _seed_planned(feature_dir, "WP01", slug=_MISSION_SLUG)
         return feature_dir
 
     def test_emitted_event_carries_mission_id_from_meta(
@@ -511,7 +489,7 @@ class TestRoundTripMissionId:
             "mission_type": "software-dev",
         }
         (feature_dir / "meta.json").write_text(json.dumps(meta_without_id), encoding="utf-8")
-        _seed_planned(feature_dir)
+        _seed_planned(feature_dir, "WP01", slug=_MISSION_SLUG)
 
         with patch("specify_cli.status.emit._saas_fan_out"):
             emit_status_transition(TransitionRequest(

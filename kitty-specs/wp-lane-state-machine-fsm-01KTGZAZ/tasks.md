@@ -57,12 +57,12 @@ description: "Work package task list — WP Lane State Machine Canonicalization"
 
 ### Included Subtasks
 
-- [ ] T008 `coordination/status_service.py::wp_lane_actor_from_events` → default unseeded WP to `Lane.GENESIS` (WP02)
-- [ ] T009 `coordination/status_transition.py::read_current_wp_state_transactional` fallback → `Lane.GENESIS` (WP02)
-- [ ] T010 [P] Runtime discovery defaults → `Lane.GENESIS`: `runtime/next/discovery.py`, `runtime/next/decision.py`, `agent_utils/status.py` (so unseeded WPs are filtered from claimable lists) (WP02)
-- [ ] T011 `status/work_package_lifecycle.py::start_implementation_status` → explicit `genesis` branch raising `WorkPackageStartRejected("WP … not finalized; run finalize-tasks")` (WP02)
-- [ ] T012 `cli/commands/agent/implement.py` → perform the genesis rejection BEFORE workspace/worktree allocation (no dangling worktree) (WP02)
-- [ ] T013 Tests: reader parity for unseeded WPs; unseeded-implement actionable error + no leftover worktree (WP02)
+- [x] T008 `coordination/status_service.py::wp_lane_actor_from_events` → default unseeded WP to `Lane.GENESIS` (WP02)
+- [x] T009 `coordination/status_transition.py::read_current_wp_state_transactional` fallback → `Lane.GENESIS` (WP02)
+- [x] T010 [P] Runtime discovery defaults → `Lane.GENESIS`: `runtime/next/discovery.py`, `runtime/next/decision.py`, `agent_utils/status.py` (so unseeded WPs are filtered from claimable lists) (WP02)
+- [x] T011 `status/work_package_lifecycle.py::start_implementation_status` → explicit `genesis` branch raising `WorkPackageStartRejected("WP … not finalized; run finalize-tasks")` (WP02)
+- [x] T012 `cli/commands/agent/implement.py` → perform the genesis rejection BEFORE workspace/worktree allocation (no dangling worktree) (WP02)
+- [x] T013 Tests: reader parity for unseeded WPs; unseeded-implement actionable error + no leftover worktree (WP02)
 
 ### Dependencies
 - Depends on WP01 (genesis as a first-class FSM state).
@@ -81,11 +81,11 @@ description: "Work package task list — WP Lane State Machine Canonicalization"
 
 ### Included Subtasks
 
-- [ ] T014 `status/reducer.py` summary → exclude `genesis` (`{l.value: 0 for l in Lane if l is not Lane.GENESIS}`); update `views.py` (WP03)
-- [ ] T015 `cli/commands/agent/tasks.py` `by_lane` → exclude the genesis bucket; never drop a genesis WP from the table (WP03)
-- [ ] T016 `task_metadata_validation.py` → do not offer `genesis` as an authorable frontmatter lane (WP03)
-- [ ] T017 [P] Fix the stale "7 lanes"/"9-lane" comments in `reducer.py`/`views.py`/`progress.py` (WP03)
-- [ ] T018 Tests: assert the reducer's REAL summary output excludes genesis; assert no genesis WP is dropped from the board table (WP03)
+- [x] T014 `status/reducer.py` summary → exclude `genesis` (`{l.value: 0 for l in Lane if l is not Lane.GENESIS}`); update `views.py` (WP03)
+- [x] T015 `cli/commands/agent/tasks.py` `by_lane` → exclude the genesis bucket; never drop a genesis WP from the table (WP03)
+- [x] T016 `task_metadata_validation.py` → do not offer `genesis` as an authorable frontmatter lane (WP03)
+- [x] T017 [P] Fix the stale "7 lanes"/"9-lane" comments in `reducer.py`/`views.py`/`progress.py` (WP03)
+- [x] T018 Tests: assert the reducer's REAL summary output excludes genesis; assert no genesis WP is dropped from the board table (WP03)
 
 ### Dependencies
 - Depends on WP01.
@@ -104,11 +104,11 @@ description: "Work package task list — WP Lane State Machine Canonicalization"
 
 ### Included Subtasks
 
-- [ ] T019 (External) Add `genesis` to `spec_kitty_events.Lane` via the owning-package workflow (change package repo → publish versioned artifact → compatibility notes) (WP04)
-- [ ] T020 Update CLI dependency constraints/lockfile to the genesis-aware `spec_kitty_events`; no committed path/editable overrides (WP04)
-- [ ] T021 `sync/emitter.py` `_PAYLOAD_RULES["WPStatusChanged"]` lane set → derive from the canonical source (incl. genesis), not a hardcoded 9-lane list (WP04)
-- [ ] T022 `status/emit.py::_saas_fan_out` → emit the genesis seed faithfully (no swallowed `ValidationError`); add a compatibility gate for the pre-release window; fix the emit pipeline "(or 'planned')" docstring (WP04)
-- [ ] T023 Tests: genesis seed → contract-valid SaaS payload; consumer/compatibility fixture for old vs new `spec_kitty_events` (WP04)
+- [x] T019 (External) Add `genesis` to `spec_kitty_events.Lane` via the owning-package workflow (change package repo → publish versioned artifact → compatibility notes) (WP04)
+- [x] T020 Update CLI dependency constraints/lockfile to the genesis-aware `spec_kitty_events`; no committed path/editable overrides (WP04)
+- [x] T021 `sync/emitter.py` `_PAYLOAD_RULES["WPStatusChanged"]` lane set → derive from the canonical source (incl. genesis), not a hardcoded 9-lane list (WP04)
+- [x] T022 `status/emit.py::_saas_fan_out` → emit the genesis seed faithfully (no swallowed `ValidationError`); add a compatibility gate for the pre-release window; fix the emit pipeline "(or 'planned')" docstring (WP04)
+- [x] T023 Tests: genesis seed → contract-valid SaaS payload; consumer/compatibility fixture for old vs new `spec_kitty_events` (WP04)
 
 ### Dependencies
 - Depends on WP01.
@@ -127,9 +127,9 @@ description: "Work package task list — WP Lane State Machine Canonicalization"
 
 ### Included Subtasks
 
-- [ ] T024 End-to-end test: real coord-topology `finalize-tasks` retains the bootstrap lane events on the coordination branch (WP05)
-- [ ] T025 [P] Negative test: non-coordination mission still commits its primary-checkout `status.events.jsonl`/`status.json` (no regression) (WP05)
-- [ ] T026 Edge test: coord re-finalize where only status files changed does not error with an empty-changeset commit (WP05)
+- [x] T024 End-to-end test: real coord-topology `finalize-tasks` retains the bootstrap lane events on the coordination branch (WP05)
+- [x] T025 [P] Negative test: non-coordination mission still commits its primary-checkout `status.events.jsonl`/`status.json` (no regression) (WP05)
+- [x] T026 Edge test: coord re-finalize where only status files changed does not error with an empty-changeset commit (WP05)
 
 ### Dependencies
 - None (baseline clobber fix already merged; this is the regression net).

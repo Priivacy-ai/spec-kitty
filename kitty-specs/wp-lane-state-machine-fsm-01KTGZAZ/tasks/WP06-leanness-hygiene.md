@@ -24,8 +24,9 @@ subtasks:
 - T031
 phase: Phase 3 - Leanness
 assignee: ''
-agent: claude
+agent: "claude"
 scope: codebase-wide
+shell_pid: "1796311"
 history:
 - at: '2026-06-07T13:30:00Z'
   actor: system
@@ -102,3 +103,4 @@ annotated.
 
 ## Activity Log
 - 2026-06-07 — system — Prompt created.
+- 2026-06-07T16:33:34Z – claude – shell_pid=1796311 – Assigned agent via action command

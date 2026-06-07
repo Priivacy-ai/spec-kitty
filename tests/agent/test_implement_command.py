@@ -104,30 +104,12 @@ def _append_lane_event(feature_dir: Path, wp_id: str, lane: str) -> None:
     )
 
 
+from tests.status.conftest import seed_wp_to_planned as _seed_planned_shared
+
+
 def _seed_planned(feature_dir: Path, wp_id: str) -> None:
-    """Seed a WP out of the non-display 'genesis' state into 'planned'.
-
-    A fresh WP derives from_lane 'genesis', so start_implementation_status's
-    planned -> claimed -> in_progress batch would otherwise fail with an
-    illegal genesis -> claimed. finalize-tasks performs this seed in production.
-    """
-    from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
-
-    append_event(
-        feature_dir,
-        StatusEvent(
-            event_id=f"seed-{wp_id}-genesis",
-            mission_slug=feature_dir.name,
-            wp_id=wp_id,
-            from_lane=Lane.GENESIS,
-            to_lane=Lane.PLANNED,
-            at="2026-05-29T08:30:00+00:00",
-            actor="fixture",
-            force=False,
-            execution_mode="worktree",
-        ),
-    )
+    """Seed a WP out of the non-display 'genesis' state into 'planned'."""
+    _seed_planned_shared(feature_dir, wp_id, slug=feature_dir.name)
 
 
 class TestDetectFeatureContext:

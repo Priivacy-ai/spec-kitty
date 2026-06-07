@@ -7,6 +7,7 @@ event log. Views are never authoritative (event log is sole authority).
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -22,30 +23,15 @@ from specify_cli.status.views import (
 
 pytestmark = pytest.mark.fast
 
+_SLUG = "034-test-feature"
+
 
 @pytest.fixture
 def feature_dir(tmp_path: Path) -> Path:
     """Create a minimal feature directory with tasks/."""
-    fd = tmp_path / "kitty-specs" / "034-test-feature"
+    fd = tmp_path / "kitty-specs" / _SLUG
     (fd / "tasks").mkdir(parents=True)
     return fd
-
-
-def _seed_planned(feature_dir: Path, wp_id: str) -> None:
-    """Seed a WP out of the non-display 'genesis' state into 'planned'.
-
-    A fresh WP derives from_lane 'genesis', so the first lane transition must
-    be genesis -> planned (as finalize-tasks does) before claimed/etc.
-    """
-    emit_status_transition(TransitionRequest(
-        feature_dir=feature_dir,
-        mission_slug="034-test-feature",
-        wp_id=wp_id,
-        to_lane="planned",
-        actor="seed",
-        force=True,
-        reason="seed",
-    ))
 
 
 class TestGenerateStatusView:
@@ -55,12 +41,14 @@ class TestGenerateStatusView:
         assert isinstance(result, dict)
         assert result.get("work_packages", {}) == {}
 
-    def test_returns_snapshot_after_events(self, feature_dir: Path) -> None:
+    def test_returns_snapshot_after_events(
+        self, feature_dir: Path, seed_to_planned: Callable
+    ) -> None:
         """generate_status_view reflects emitted transitions."""
-        _seed_planned(feature_dir, "WP01")
+        seed_to_planned(feature_dir, "WP01", slug=_SLUG)
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test-feature",
+            mission_slug=_SLUG,
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",
@@ -70,12 +58,14 @@ class TestGenerateStatusView:
         assert "WP01" in wps
         assert wps["WP01"]["lane"] == "claimed"
 
-    def test_snapshot_matches_materialize(self, feature_dir: Path) -> None:
+    def test_snapshot_matches_materialize(
+        self, feature_dir: Path, seed_to_planned: Callable
+    ) -> None:
         """generate_status_view result matches materialize().to_dict()."""
-        _seed_planned(feature_dir, "WP02")
+        seed_to_planned(feature_dir, "WP02", slug=_SLUG)
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test-feature",
+            mission_slug=_SLUG,
             wp_id="WP02",
             to_lane="claimed",
             actor="agent-2",
@@ -86,62 +76,68 @@ class TestGenerateStatusView:
 
 
 class TestWriteDerivedViews:
-    def test_writes_status_json(self, feature_dir: Path, tmp_path: Path) -> None:
+    def test_writes_status_json(
+        self, feature_dir: Path, tmp_path: Path, seed_to_planned: Callable
+    ) -> None:
         """write_derived_views produces status.json."""
         derived_dir = tmp_path / "derived"
-        _seed_planned(feature_dir, "WP01")
+        seed_to_planned(feature_dir, "WP01", slug=_SLUG)
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test-feature",
+            mission_slug=_SLUG,
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",
         ))
         write_derived_views(feature_dir, derived_dir)
-        status_file = derived_dir / "034-test-feature" / "status.json"
+        status_file = derived_dir / _SLUG / "status.json"
         assert status_file.exists()
         data = json.loads(status_file.read_text())
         assert "work_packages" in data
 
-    def test_writes_board_summary_json(self, feature_dir: Path, tmp_path: Path) -> None:
+    def test_writes_board_summary_json(
+        self, feature_dir: Path, tmp_path: Path, seed_to_planned: Callable
+    ) -> None:
         """write_derived_views produces board-summary.json."""
         derived_dir = tmp_path / "derived"
-        _seed_planned(feature_dir, "WP01")
+        seed_to_planned(feature_dir, "WP01", slug=_SLUG)
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test-feature",
+            mission_slug=_SLUG,
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",
         ))
         write_derived_views(feature_dir, derived_dir)
-        board_file = derived_dir / "034-test-feature" / BOARD_SUMMARY_FILENAME
+        board_file = derived_dir / _SLUG / BOARD_SUMMARY_FILENAME
         assert board_file.exists()
         data = json.loads(board_file.read_text())
         assert "lanes" in data
         assert "summary" in data
 
-    def test_board_summary_lanes_match_snapshot(self, feature_dir: Path, tmp_path: Path) -> None:
+    def test_board_summary_lanes_match_snapshot(
+        self, feature_dir: Path, tmp_path: Path, seed_to_planned: Callable
+    ) -> None:
         """Board summary lanes match the event log snapshot."""
         derived_dir = tmp_path / "derived"
-        _seed_planned(feature_dir, "WP01")
-        _seed_planned(feature_dir, "WP02")
+        seed_to_planned(feature_dir, "WP01", slug=_SLUG)
+        seed_to_planned(feature_dir, "WP02", slug=_SLUG)
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test-feature",
+            mission_slug=_SLUG,
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",
         ))
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test-feature",
+            mission_slug=_SLUG,
             wp_id="WP02",
             to_lane="claimed",
             actor="agent-1",
         ))
         write_derived_views(feature_dir, derived_dir)
-        board_file = derived_dir / "034-test-feature" / BOARD_SUMMARY_FILENAME
+        board_file = derived_dir / _SLUG / BOARD_SUMMARY_FILENAME
         data = json.loads(board_file.read_text())
         claimed_wps = data["lanes"].get("claimed", [])
         assert "WP01" in claimed_wps
@@ -151,7 +147,7 @@ class TestWriteDerivedViews:
         """write_derived_views creates the output directory if missing."""
         derived_dir = tmp_path / "does_not_exist" / "derived"
         write_derived_views(feature_dir, derived_dir)
-        assert (derived_dir / "034-test-feature").exists()
+        assert (derived_dir / _SLUG).exists()
 
     def test_atomic_write_no_partial_files_on_success(
         self, feature_dir: Path, tmp_path: Path
@@ -159,7 +155,7 @@ class TestWriteDerivedViews:
         """No .tmp files remain after successful write."""
         derived_dir = tmp_path / "derived"
         write_derived_views(feature_dir, derived_dir)
-        feature_out = derived_dir / "034-test-feature"
+        feature_out = derived_dir / _SLUG
         tmp_files = list(feature_out.glob("*.tmp"))
         assert tmp_files == [], f"Unexpected .tmp files: {tmp_files}"
 
@@ -168,7 +164,7 @@ class TestEmitHasNoLegacyBridge:
     """Verify emit.py pipeline has no dual-write after WP05."""
 
     def test_emit_does_not_write_frontmatter(
-        self, feature_dir: Path, tmp_path: Path
+        self, feature_dir: Path, tmp_path: Path, seed_to_planned: Callable
     ) -> None:
         """emit_status_transition must not write lane to WP frontmatter.
 
@@ -182,10 +178,10 @@ class TestEmitHasNoLegacyBridge:
             encoding="utf-8",
         )
 
-        _seed_planned(feature_dir, "WP01")
+        seed_to_planned(feature_dir, "WP01", slug=_SLUG)
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test-feature",
+            mission_slug=_SLUG,
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",

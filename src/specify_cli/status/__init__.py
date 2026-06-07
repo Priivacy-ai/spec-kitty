@@ -42,6 +42,9 @@ from .store import (
     read_events_raw,
 )
 from .transitions import (
+    # Non-authoritative derived projection (NFR-002, I1): re-exported for tests
+    # and graph tooling only. Never consult it as an edge/transition gate; route
+    # edge questions through wp_state_for(from).may_transition_to(to).
     ALLOWED_TRANSITIONS,
     CANONICAL_LANES,
     LANE_ALIASES,

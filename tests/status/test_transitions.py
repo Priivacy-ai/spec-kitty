@@ -7,6 +7,9 @@ provided by the property tests in tests/specify_cli/status/test_wp_state.py.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from specify_cli.status.models import DoneEvidence, GuardContext, ReviewApproval, ReviewResult
@@ -414,3 +417,148 @@ class TestUnknownLanes:
         ok, error = validate_transition("planned", "nonexistent", GuardContext())
         assert ok is False
         assert "Unknown lane" in error
+
+
+# ---------------------------------------------------------------------------
+# T007 — Behavior-preservation parity suite (the FSM ownership envelope)
+# ---------------------------------------------------------------------------
+#
+# This suite is the behaviour-preservation contract for WP01 (NFR-001, I4, I5).
+# It asserts that ``validate_transition`` — after the FSM-ownership refactor
+# (guards + force moved into the WPState objects, ``validate_transition`` reduced
+# to a thin delegator) — returns the IDENTICAL ``(ok, error_message)`` decision
+# as the historical implementation, for the FULL historical ``(from, to, ctx)``
+# matrix over the NINE canonical lanes (plus the ``doing`` alias): every guarded
+# transition, every force case (including terminal force-exit
+# ``done``/``canceled`` -> any lane), and every illegal pair.
+#
+# The expected truth table lives in the committed golden fixture
+# ``fsm_parity_baseline.jsonl`` (captured from baseline behaviour, NOT derived
+# from the code under test) so the suite is non-vacuous: deliberately breaking a
+# guard in the production FSM turns rows RED.
+#
+# Scope note — genesis rows are EXCLUDED from this parity envelope. The golden
+# fixture was captured on the pre-genesis baseline, where ``genesis`` was not a
+# ``Lane`` member and every genesis edge therefore yielded
+# ``"Unknown lane: genesis"``. On this base ``Lane.GENESIS`` is intentionally a
+# first-class lane (``GenesisState`` seeds ``genesis -> planned``/``canceled``),
+# so genesis behaviour is *intentionally different* and is governed by its own
+# contracts (Contract 2 — genesis non-display invariant — and WP01 T005 —
+# ``genesis`` valid as a ``from_lane`` only). WP01's behaviour-preservation
+# obligation is explicitly "the nine pre-existing lanes" (NFR-001), so the parity
+# envelope is the nine-lane subset; genesis edges are asserted separately.
+
+
+_PARITY_BASELINE_PATH = Path(__file__).with_name("fsm_parity_baseline.jsonl")
+
+
+def _parity_context_library() -> dict[str, GuardContext]:
+    """Named GuardContext variants. Names MUST match the golden fixture keys."""
+    return {
+        "empty": GuardContext(),
+        "actor": GuardContext(actor="agent-1"),
+        "actor_empty": GuardContext(actor=""),
+        "ws": GuardContext(actor="a", workspace_context="worktree:/tmp"),
+        "subtasks_evidence": GuardContext(actor="a", subtasks_complete=True, implementation_evidence_present=True),
+        "subtasks_only": GuardContext(actor="a", subtasks_complete=True),
+        "evidence_only": GuardContext(actor="a", implementation_evidence_present=True),
+        "reason": GuardContext(actor="a", reason="r"),
+        "review_ref": GuardContext(actor="a", review_ref="ref"),
+        "done_evidence": GuardContext(
+            actor="a",
+            evidence=DoneEvidence(review=ReviewApproval(reviewer="r", verdict="approved", reference="ref")),
+        ),
+        "review_result": GuardContext(actor="a", review_result=ReviewResult(reviewer="r", verdict="approved", reference="ref")),
+        "rr_empty_reviewer": GuardContext(actor="a", review_result=ReviewResult(reviewer="", verdict="approved", reference="ref")),
+        "conflict": GuardContext(actor="rev-B", current_actor="rev-A"),
+        "same_actor": GuardContext(actor="rev-A", current_actor="rev-A"),
+        "force_full": GuardContext(force=True, actor="admin", reason="reopen"),
+        "force_no_actor": GuardContext(force=True, reason="reopen"),
+        "force_no_reason": GuardContext(force=True, actor="admin"),
+    }
+
+
+def _load_parity_baseline() -> list[tuple[str, str, str, bool, str | None]]:
+    """Load the golden truth table, scoped to the nine-lane parity envelope.
+
+    Genesis rows are filtered out (see the scope note above): the fixture
+    captures pre-genesis behaviour for those edges, which is intentionally not
+    preserved on this base.
+    """
+    rows: list[tuple[str, str, str, bool, str | None]] = []
+    text = _PARITY_BASELINE_PATH.read_text(encoding="utf-8")
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        from_lane, to_lane, ctx_name, ok, err = json.loads(line)
+        if from_lane == "genesis" or to_lane == "genesis":
+            continue
+        rows.append((from_lane, to_lane, ctx_name, ok, err))
+    return rows
+
+
+_PARITY_ROWS = _load_parity_baseline()
+
+
+class TestBehaviorPreservationParity:
+    """Full historical nine-lane (from, to, ctx) matrix parity (T007 / NFR-001 / I4)."""
+
+    def test_baseline_fixture_is_non_trivial(self) -> None:
+        """Guard against an empty/corrupt golden silently making the suite vacuous."""
+        assert len(_PARITY_ROWS) >= 1500
+        accepts = sum(1 for *_, ok, _ in _PARITY_ROWS if ok)
+        rejects = len(_PARITY_ROWS) - accepts
+        # Both branches of the (ok, error) envelope must be exercised.
+        assert accepts > 0
+        assert rejects > 0
+
+    @pytest.mark.parametrize(
+        "from_lane,to_lane,ctx_name,expected_ok,expected_err",
+        _PARITY_ROWS,
+        ids=[f"{f}->{t}[{c}]" for f, t, c, _ok, _err in _PARITY_ROWS],
+    )
+    def test_validate_transition_matches_baseline(
+        self,
+        from_lane: str,
+        to_lane: str,
+        ctx_name: str,
+        expected_ok: bool,
+        expected_err: str | None,
+    ) -> None:
+        ctx = _parity_context_library()[ctx_name]
+        ok, err = validate_transition(from_lane, to_lane, ctx)
+        assert ok is expected_ok, f"{from_lane}->{to_lane}[{ctx_name}]: expected ok={expected_ok}, got ok={ok} (err={err!r})"
+        assert err == expected_err, f"{from_lane}->{to_lane}[{ctx_name}]: expected error={expected_err!r}, got {err!r}"
+
+
+class TestTerminalForceExitParity:
+    """Dedicated terminal force-exit parity (T002): done/canceled -> any lane."""
+
+    @pytest.mark.parametrize("terminal", ["done", "canceled"])
+    @pytest.mark.parametrize(
+        "target",
+        ["planned", "claimed", "in_progress", "for_review", "in_review", "approved", "blocked"],
+    )
+    def test_force_exit_from_terminal_with_actor_and_reason(self, terminal: str, target: str) -> None:
+        ok, err = validate_transition(terminal, target, GuardContext(force=True, actor="admin", reason="reopen"))
+        assert ok is True
+        assert err is None
+
+    @pytest.mark.parametrize("terminal", ["done", "canceled"])
+    def test_force_exit_requires_actor(self, terminal: str) -> None:
+        ok, err = validate_transition(terminal, "planned", GuardContext(force=True, reason="reopen"))
+        assert ok is False
+        assert err is not None and "actor and reason" in err
+
+    @pytest.mark.parametrize("terminal", ["done", "canceled"])
+    def test_force_exit_requires_reason(self, terminal: str) -> None:
+        ok, err = validate_transition(terminal, "planned", GuardContext(force=True, actor="admin"))
+        assert ok is False
+        assert err is not None and "actor and reason" in err
+
+    @pytest.mark.parametrize("terminal", ["done", "canceled"])
+    def test_terminal_exit_without_force_is_illegal(self, terminal: str) -> None:
+        ok, err = validate_transition(terminal, "planned", GuardContext())
+        assert ok is False
+        assert err is not None and "Illegal transition" in err

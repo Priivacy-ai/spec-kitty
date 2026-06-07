@@ -22,7 +22,8 @@ from specify_cli.mission_metadata import mission_identity_fields
 from .models import Lane, StatusSnapshot
 from .reducer import materialize
 
-# Default lane weights for the 9-lane state machine.
+# Default lane weights for the 9 active/display lanes (10 enum members total;
+# genesis is excluded — it is a non-display lane and never appears in progress).
 # blocked and canceled contribute 0 — they don't represent forward progress.
 # in_review sits between for_review and approved in the review pipeline.
 DEFAULT_LANE_WEIGHTS: dict[str, float] = {

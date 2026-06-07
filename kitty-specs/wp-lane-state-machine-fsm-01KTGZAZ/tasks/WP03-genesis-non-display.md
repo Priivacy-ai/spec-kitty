@@ -21,7 +21,8 @@ subtasks:
 - T018
 phase: Phase 2 - Invariant
 assignee: ''
-agent: claude
+agent: "claude"
+shell_pid: "1728576"
 history:
 - at: '2026-06-07T13:30:00Z'
   actor: system
@@ -98,3 +99,7 @@ authorable frontmatter lane; a genesis-state WP is never silently dropped from a
 
 ## Activity Log
 - 2026-06-07 — system — Prompt created.
+- 2026-06-07T15:34:49Z – claude – shell_pid=1728576 – Assigned agent via action command
+- 2026-06-07T15:47:39Z – claude – shell_pid=1728576 – genesis non-display invariant enforced; 2400 status tests green
+- 2026-06-07T15:53:51Z – user – shell_pid=1728576 – reviewer-renata reviewing
+- 2026-06-07T15:53:53Z – user – shell_pid=1728576 – APPROVE (reviewer-renata): invariant complete across FR-007/013/014, tests non-vacuous (7 fail on revert), gates net-zero. 2 minor follow-ups noted.

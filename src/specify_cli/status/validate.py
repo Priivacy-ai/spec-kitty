@@ -18,10 +18,39 @@ from pathlib import Path
 from spec_kitty_events import normalize_event_id
 
 from .models import Lane
-from .transitions import ALLOWED_TRANSITIONS, CANONICAL_LANES
+from .transitions import CANONICAL_LANES, resolve_lane_alias
+from .wp_state import wp_state_for
 
 STATUS_BLOCK_START = "<!-- status-model:start -->"
 STATUS_BLOCK_END = "<!-- status-model:end -->"
+
+# Non-display genesis lane (FR-015): valid as an event ``from_lane`` only (the
+# created-but-unseeded seed source). It is never a ``to_lane`` and never a
+# current lane, so it is intentionally excluded from ``CANONICAL_LANES``.
+GENESIS_LANE = Lane.GENESIS.value
+
+# Genesis seeds canonically advance to ``planned`` (finalize) or ``canceled``.
+_GENESIS_OUTBOUND: frozenset[str] = frozenset({Lane.PLANNED.value, Lane.CANCELED.value})
+
+
+def _edge_is_legal(from_lane: str, to_lane: str) -> bool:
+    """Decide edge legality via the FSM — the sole edge authority (I1).
+
+    ``genesis`` is accepted as a ``from_lane`` seed source (FR-015); for the
+    nine canonical lanes the decision routes through
+    ``wp_state_for(from).may_transition_to(to)``. No ``(from, to)`` table or
+    derived edge set is consulted as a gate.
+    """
+    resolved_from = resolve_lane_alias(from_lane)
+    resolved_to = resolve_lane_alias(to_lane)
+    if resolved_from == GENESIS_LANE:
+        return resolved_to in _GENESIS_OUTBOUND
+    try:
+        source = wp_state_for(Lane(resolved_from))
+        target = Lane(resolved_to)
+    except ValueError:
+        return False
+    return source.may_transition_to(target)
 
 
 @dataclass
@@ -78,13 +107,16 @@ def validate_event_schema(event: dict) -> list[str]:
         findings.append(f"Invalid event ID format: {event_id}")
 
     # Canonical lane check (aliases like "doing" are NOT canonical).
-    # ``genesis`` is a valid non-display lane (the seed event's from_lane) even
-    # though it is not part of the active/display CANONICAL_LANES set.
-    canonical_set = set(CANONICAL_LANES) | {Lane.GENESIS.value}
-    for lane_field in ("from_lane", "to_lane"):
-        val = event.get(lane_field)
-        if val is not None and val not in canonical_set:
-            findings.append(f"{lane_field} is not canonical: {val}")
+    # FR-015: ``genesis`` is a valid ``from_lane`` (the non-display seed source)
+    # but is NEVER a valid ``to_lane`` and never a current/display lane.
+    canonical_set = set(CANONICAL_LANES)
+    from_val = event.get("from_lane")
+    if from_val is not None and from_val not in canonical_set and from_val != GENESIS_LANE:
+        findings.append(f"from_lane is not canonical: {from_val}")
+    to_val = event.get("to_lane")
+    if to_val is not None and to_val not in canonical_set:
+        # genesis is explicitly non-canonical as a to_lane (no special-casing).
+        findings.append(f"to_lane is not canonical: {to_val}")
 
     # ISO 8601 timestamp check
     at_val = event.get("at")
@@ -115,7 +147,9 @@ def validate_event_schema(event: dict) -> list[str]:
 def validate_transition_legality(events: list[dict]) -> list[str]:
     """Replay events in order and check each transition is legal.
 
-    Uses ALLOWED_TRANSITIONS from status/transitions.py.
+    Edge legality is decided by the FSM (``wp_state_for(from).may_transition_to``)
+    via :func:`_edge_is_legal` — the sole edge authority (I1). ``genesis`` is
+    accepted as a seed ``from_lane`` (FR-015).
     Force transitions are always legal (skipped).
     Events are sorted by (at, event_id) before checking.
 
@@ -140,7 +174,7 @@ def validate_transition_legality(events: list[dict]) -> list[str]:
             # Forced transitions are legal but noteworthy
             continue
 
-        if (from_lane, to_lane) not in ALLOWED_TRANSITIONS:
+        if not _edge_is_legal(str(from_lane), str(to_lane)):
             findings.append(f"Event {event_id}: illegal transition {from_lane} -> {to_lane}")
 
     return findings

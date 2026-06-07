@@ -71,35 +71,13 @@ def _make_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tup
     return repo_root, mission_dir
 
 
-def _seed_planned_events(mission_dir: Path, mission_slug: str, wp_ids: tuple[str, ...]) -> None:
-    """Seed WPs out of the non-display 'genesis' state into 'planned'.
+from tests.status.conftest import seed_wp_to_planned as _seed_wp_to_planned
 
-    Written directly to the event log (as finalize-tasks seeds), so a fresh WP
-    starts at 'planned' and the lane lifecycle (claimed/in_progress/...) is
-    legal. Without this, the first transition would be the illegal
-    genesis -> claimed.
-    """
-    lines = [
-        json.dumps(
-            {
-                "actor": "seed",
-                "at": "2026-03-17T00:00:00+00:00",
-                "event_id": f"01HXYZ0123456789ABCDEFGS{wp_id[-2:]}",
-                "evidence": None,
-                "execution_mode": "worktree",
-                "force": False,
-                "from_lane": "genesis",
-                "mission_slug": mission_slug,
-                "reason": "seed",
-                "review_ref": None,
-                "to_lane": "planned",
-                "wp_id": wp_id,
-            },
-            sort_keys=True,
-        )
-        for wp_id in wp_ids
-    ]
-    (mission_dir / "status.events.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+def _seed_planned_events(mission_dir: Path, mission_slug: str, wp_ids: tuple[str, ...]) -> None:
+    """Seed WPs out of the non-display 'genesis' state into 'planned'."""
+    for wp_id in wp_ids:
+        _seed_wp_to_planned(mission_dir, wp_id, slug=mission_slug)
 
 
 def _valid_policy_json() -> str:

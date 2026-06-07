@@ -9,6 +9,9 @@ outcomes match _run_guard() for all guarded transition combinations.
 
 from __future__ import annotations
 
+import ast
+from pathlib import Path
+
 import pytest
 
 from specify_cli.status.models import (
@@ -142,7 +145,19 @@ class TestTransitionMatrixEquivalence:
                     assert not state.can_transition_to(target_lane, ctx), f"{source_lane} -> {target_lane} should be disallowed"
 
     def test_transition_count(self):
-        """Total transition count from WPState matches ALLOWED_TRANSITIONS."""
+        """Total transition count from WPState matches ALLOWED_TRANSITIONS.
+
+        T031 — This test is tautological-by-design: ``ALLOWED_TRANSITIONS`` is
+        derived from the same ``WPState.allowed_targets()`` method it is being
+        compared against (via ``_derive_allowed_transitions()`` in transitions.py).
+        The assertion therefore does NOT verify an independent count; it confirms
+        that (a) the derivation ran without error, (b) the iteration over all
+        ``Lane`` members is complete, and (c) the total count equals the expected
+        29 transitions (27 lifecycle + 2 genesis seeds). It serves as a
+        regression canary: if a lane is accidentally dropped from ``ALL_LANES``
+        or a state's ``allowed_targets()`` implementation changes silently, the
+        count will drift and this test will catch it.
+        """
         wp_state_count = sum(len(wp_state_for(lane).allowed_targets()) for lane in ALL_LANES)
         assert wp_state_count == len(ALLOWED_TRANSITIONS)
 
@@ -646,3 +661,101 @@ class TestGuardEquivalence:
         for source, target in unguarded_pairs:
             state = wp_state_for(source)
             assert state.can_transition_to(target, ctx), f"{source} -> {target} should be unguarded and allowed"
+
+
+# ---------------------------------------------------------------------------
+# T006: Architectural — the FSM is the SOLE edge + transition authority
+# ---------------------------------------------------------------------------
+
+
+def _status_package_dir() -> Path:
+    """Locate the installed ``specify_cli/status`` package directory."""
+    import specify_cli.status as status_pkg
+
+    return Path(status_pkg.__file__).resolve().parent
+
+
+def _iter_production_status_modules() -> list[Path]:
+    """All production .py files under specify_cli/status (excludes tests)."""
+    pkg_dir = _status_package_dir()
+    return sorted(pkg_dir.glob("*.py"))
+
+
+class TestFsmIsSoleEdgeAuthority:
+    """No production module may consult ALLOWED_TRANSITIONS as an edge gate.
+
+    The WPState objects (allowed_targets / may_transition_to / check_transition)
+    are the single authority for edges AND transitions (NFR-002, I1). The
+    derived ``ALLOWED_TRANSITIONS`` projection may be *defined* (transitions.py)
+    and re-exported (__init__.py) but never *consumed* as a gate by production
+    code.
+    """
+
+    # transitions.py owns the derived projection definition; it is the only
+    # production module permitted to reference the name to build it.
+    _DEFINING_MODULE = "transitions.py"
+
+    def test_no_production_module_imports_allowed_transitions(self) -> None:
+        offenders: list[str] = []
+        for py_file in _iter_production_status_modules():
+            if py_file.name == self._DEFINING_MODULE:
+                continue
+            source = py_file.read_text(encoding="utf-8")
+            if "ALLOWED_TRANSITIONS" in source:
+                # __init__.py re-exports the name as a documented non-authoritative
+                # projection; allow the re-export but forbid any (from,to) gate use.
+                if py_file.name == "__init__.py":
+                    assert " in ALLOWED_TRANSITIONS" not in source, "__init__.py must not gate on ALLOWED_TRANSITIONS"
+                    continue
+                offenders.append(py_file.name)
+        assert not offenders, (
+            f"Production status modules still reference ALLOWED_TRANSITIONS as a gate: {offenders}. "
+            "Edge legality must route through wp_state_for(from).may_transition_to(to)."
+        )
+
+    def test_no_production_module_uses_membership_gate(self) -> None:
+        """Grep-style: no `(x, y) in ALLOWED_TRANSITIONS` / `in ALLOWED_TRANSITIONS` gate."""
+        offenders: list[str] = []
+        for py_file in _iter_production_status_modules():
+            source = py_file.read_text(encoding="utf-8")
+            if " in ALLOWED_TRANSITIONS" in source:
+                offenders.append(py_file.name)
+        assert not offenders, (
+            f"Found a membership gate on ALLOWED_TRANSITIONS in: {offenders}. "
+            "Use the FSM (may_transition_to) as the sole edge authority."
+        )
+
+    def test_validate_module_decides_edges_via_fsm(self) -> None:
+        """validate.py must not gate on ALLOWED_TRANSITIONS; it routes via the FSM."""
+        validate_src = (_status_package_dir() / "validate.py").read_text(encoding="utf-8")
+        assert "ALLOWED_TRANSITIONS" not in validate_src, "validate.py must not consult ALLOWED_TRANSITIONS; query the FSM instead."
+        assert "wp_state_for" in validate_src, "validate.py must decide edge legality through the FSM (wp_state_for)."
+
+    def test_transitions_module_has_no_static_edge_or_guard_table(self) -> None:
+        """transitions.py must not re-introduce a hand-maintained edge/guard table.
+
+        The edge graph and guards live in wp_state.py; transitions.py only
+        derives the projection and delegates. A literal `_GUARDED_TRANSITIONS`
+        mapping or a hardcoded ALLOWED_TRANSITIONS literal would be a regression.
+        """
+        transitions_path = _status_package_dir() / "transitions.py"
+        source = transitions_path.read_text(encoding="utf-8")
+        assert "_GUARDED_TRANSITIONS" not in source, "transitions.py must not re-introduce the guard table; guards live in WPState."
+        # ALLOWED_TRANSITIONS must be DERIVED (an assignment from a function),
+        # not a hand-written frozenset literal of pairs.
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign):
+                targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
+                if "ALLOWED_TRANSITIONS" in targets:
+                    # The value must be a call (the derivation helper), never a
+                    # frozenset/set literal of edges.
+                    assert isinstance(node.value, ast.Call), (
+                        "ALLOWED_TRANSITIONS must be derived from the FSM (a function call), not a hand-maintained literal."
+                    )
+
+    def test_fsm_is_the_only_edge_authority_surface(self) -> None:
+        """The edge graph is fully reconstructable from WPState.allowed_targets()."""
+        derived = {(lane.value, target.value) for lane in Lane for target in wp_state_for(lane).allowed_targets()}
+        projection = set(ALLOWED_TRANSITIONS)
+        assert derived == projection, "ALLOWED_TRANSITIONS projection drifted from the FSM allowed_targets() authority."

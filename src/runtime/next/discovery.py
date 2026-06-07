@@ -99,12 +99,19 @@ def _load_wp_lanes(feature_dir: Path) -> dict[str, Lane]:
         if not events:
             return {}
         snapshot = _reduce_events(events)
-    except Exception:  # noqa: BLE001 — discovery is best-effort; on read failure default to PLANNED
+    except Exception:  # noqa: BLE001 — discovery is best-effort; on read failure return empty
         return {}
-    return {
-        wp_id: wp_state_for(state.get("lane", Lane.PLANNED)).lane
-        for wp_id, state in snapshot.work_packages.items()
-    }
+    result: dict[str, Lane] = {}
+    for wp_id, state in snapshot.work_packages.items():
+        lane_val = state.get("lane", Lane.GENESIS)
+        lane = Lane(lane_val) if isinstance(lane_val, str) else lane_val
+        # Genesis WPs are non-display: keep them in the map with GENESIS so
+        # callers can detect and skip them (Contract 2, FR-008).
+        if lane == Lane.GENESIS:
+            result[wp_id] = Lane.GENESIS
+        else:
+            result[wp_id] = wp_state_for(lane).lane
+    return result
 
 
 def _preview_from_candidates(
@@ -115,7 +122,9 @@ def _preview_from_candidates(
     has_active_candidate = False
     has_dependency_blocked_candidate = False
     for wp_id in candidates:
-        lane = wp_lanes.get(wp_id, Lane.PLANNED)
+        # Default to GENESIS for unseeded WPs: a genesis WP is not claimable
+        # and must not be reported as planned (Contract 3, FR-008).
+        lane = wp_lanes.get(wp_id, Lane.GENESIS)
         if lane == Lane.PLANNED:
             readiness = dependency_readiness_for_wp(
                 wp_id,

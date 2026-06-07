@@ -19,7 +19,8 @@ subtasks:
 - T023
 phase: Phase 2 - SaaS
 assignee: ''
-agent: claude
+agent: "claude"
+shell_pid: "1773741"
 history:
 - at: '2026-06-07T13:30:00Z'
   actor: system
@@ -95,3 +96,7 @@ single-source the local `_PAYLOAD_RULES` lane set.
 
 ## Activity Log
 - 2026-06-07 — system — Prompt created.
+- 2026-06-07T16:09:54Z – claude – shell_pid=1773741 – Assigned agent via action command
+- 2026-06-07T16:25:57Z – claude – shell_pid=1773741 – T021 single-source lane validator + T022 capability gate + T023 tests; T020 constraint bumped to >=6.0.0; T019 events PR #40 opened
+- 2026-06-07T16:32:56Z – user – shell_pid=1773741 – reviewer-renata reviewing
+- 2026-06-07T16:32:57Z – user – shell_pid=1773741 – APPROVE (reviewer-renata): T021 single-sourced, T022 explicit gate (non-vacuous, proven by revert), T020 range constraint no override, gates net-zero. Events PR #40 + uv.lock re-lock pending publish (agreed plan).

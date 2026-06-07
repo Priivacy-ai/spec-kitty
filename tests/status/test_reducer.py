@@ -60,7 +60,8 @@ class TestReduceEmpty:
         assert snapshot.event_count == 0
         assert snapshot.last_event_id is None
         assert snapshot.work_packages == {}
-        assert snapshot.summary == {lane.value: 0 for lane in Lane}
+        # genesis is excluded from the summary (non-display invariant)
+        assert snapshot.summary == {lane.value: 0 for lane in Lane if lane is not Lane.GENESIS}
 
 
 class TestReduceSingleEvent:
@@ -364,8 +365,8 @@ class TestSummaryCounts:
         ]
         snapshot = reduce(events)
 
-        # Count lanes from WP states manually
-        lane_counts: dict[str, int] = {lane.value: 0 for lane in Lane}
+        # Count lanes from WP states manually (genesis excluded — non-display invariant)
+        lane_counts: dict[str, int] = {lane.value: 0 for lane in Lane if lane is not Lane.GENESIS}
         for wp_state in snapshot.work_packages.values():
             lane_counts[wp_state["lane"]] += 1
 

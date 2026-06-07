@@ -61,29 +61,12 @@ def feature_dir(tmp_path: Path) -> Path:
     return fd
 
 
-def _seed_planned(feature_dir: Path, wp_id: str = "WP01", slug: str = "034-test-feature") -> None:
-    """Seed a WP out of the non-display 'genesis' state into 'planned'.
+from tests.status.conftest import seed_wp_to_planned as _seed_wp_to_planned
 
-    Written directly to the event log (as finalize-tasks seeds) so a fresh WP
-    starts at 'planned' and the lane lifecycle (e.g. planned -> claimed) is
-    legal; otherwise the first transition would be the illegal genesis -> claimed.
-    """
-    seed_event = {
-        "event_id": "01HXYZ0123456789ABCDEFGS01",
-        "mission_slug": slug,
-        "wp_id": wp_id,
-        "from_lane": "genesis",
-        "to_lane": "planned",
-        "at": "2026-02-07T12:00:00+00:00",
-        "actor": "seed",
-        "force": False,
-        "execution_mode": "worktree",
-        "reason": "seed",
-        "review_ref": None,
-        "evidence": None,
-    }
-    with (feature_dir / "status.events.jsonl").open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(seed_event, sort_keys=True) + "\n")
+
+def _seed_planned(feature_dir: Path, wp_id: str = "WP01", slug: str = "034-test-feature") -> None:
+    """Seed a WP out of the non-display 'genesis' state into 'planned'."""
+    _seed_wp_to_planned(feature_dir, wp_id, slug=slug)
 
 
 @pytest.fixture
