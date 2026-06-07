@@ -61,22 +61,24 @@ missions** (cross-cutting strangler work, repo-wide migrations, boundary
 enforcement) where many work packages legitimately edit the same files. This is
 not a defect in the slicing. Handle it as follows:
 
-1. **Linearize shared surfaces.** Work packages that touch the same files MUST be
-   made dependent/linear (via `Depends on WPxx`) so they execute sequentially in
-   one lane and **share a single worktree** (or run direct-to-branch). Limited
-   parallelism is acceptable and expected for these missions — do not force
-   artificial parallelism.
-2. **Declare cross-cutting WPs codebase-wide.** A WP that is expected to overlap
-   broadly should carry `scope: codebase-wide` in its frontmatter; the ownership
-   validator exempts codebase-wide WPs from overlap and authoritative-surface
-   checks. Keep the genuinely-targeted WPs (single test file, single module)
-   narrow and mutually disjoint.
-3. **Tooling note (known gap):** the `WPMetadata` parser currently rejects the
-   `scope` frontmatter key (`extra="forbid"`), so `scope: codebase-wide` may fail
-   to finalize on affected CLI versions. When this blocks a legitimate refactor
-   mission, file/track the upstream gap and proceed direct-to-branch with the
-   shared-surface WPs linearized, rather than improvising disjoint ownership that
-   misrepresents the work.
+1. **Linearize shared surfaces (execution safety).** Work packages that touch the
+   same files MUST be made dependent/linear (via `Depends on WPxx`) so they
+   execute sequentially in one lane and **share a single worktree** (or run
+   direct-to-branch). Limited parallelism is acceptable and expected for these
+   missions — do not force artificial parallelism. Note: linearization protects
+   the *worktree* from concurrent edits; it does **not** by itself satisfy
+   ownership validation (see step 3).
+2. **Declare cross-cutting WPs codebase-wide (the exemption).** A WP that is
+   expected to overlap broadly should carry `scope: codebase-wide` in its
+   frontmatter; the ownership validator exempts codebase-wide WPs from overlap
+   and authoritative-surface checks. Keep the genuinely-targeted WPs (single test
+   file, single module) narrow and mutually disjoint.
+3. **`codebase-wide` is the ONLY exemption.** Two *narrow* WPs that claim the same
+   files **always** fail ownership validation — regardless of whether they sit in
+   different lanes or are linked in a dependency hierarchy. Dependency/lane
+   structure never bypasses the overlap check. If WPs legitimately share a
+   surface, mark the broadly-overlapping one `scope: codebase-wide`; otherwise
+   re-slice so the narrow WPs are disjoint.
 
 Do **not** fabricate disjoint `owned_files` that misrepresent which WP edits
 which files solely to pass validation — linearize and/or declare codebase-wide

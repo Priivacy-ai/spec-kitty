@@ -1130,3 +1130,153 @@ class TestTypedFrontmatterMigration:
         assert len(received_args) >= 1, "OwnershipManifest.from_frontmatter was never called"
         for arg in received_args:
             assert isinstance(arg, WPMetadata), f"Expected WPMetadata instance, got {type(arg).__name__}"
+
+
+# ---------------------------------------------------------------------------
+# Acceptance: ownership overlap fails regardless of lane / dependency hierarchy
+#
+# Invariant under test (#1753 follow-up): the ONLY way two WPs may claim the
+# same code is by declaring the broadly-overlapping one `scope: codebase-wide`.
+# Being in different lanes (independent) OR linked in a dependency hierarchy
+# (linearized into one lane) does NOT exempt narrow WPs from the overlap check.
+# ---------------------------------------------------------------------------
+
+
+def _write_overlap_feature(
+    tmp_path: Path,
+    wps: list[tuple[str, list[str], str, list[str], str | None]],
+    tasks_md: str,
+    mission_slug: str = "060-test-feature",
+) -> None:
+    """Write a feature whose WP files carry explicit (overlapping) ownership.
+
+    Each WP tuple is ``(wp_id, owned_files, authoritative_surface, deps, scope)``.
+    All ownership fields are explicit so finalize does not infer/clobber them.
+    """
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text(
+        "---\ntitle: Test Feature\n---\n\n## Requirements\n\n- FR-001: First requirement\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "tasks.md").write_text(tasks_md, encoding="utf-8")
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_slug": mission_slug}), encoding="utf-8"
+    )
+    for wp_id, owned, surface, deps, scope in wps:
+        lines = [
+            "---",
+            f'work_package_id: "{wp_id}"',
+            f'title: "Test {wp_id}"',
+            "requirement_refs:",
+            "  - FR-001",
+            "execution_mode: code_change",
+            "owned_files:",
+            *[f"  - {p}" for p in owned],
+            f'authoritative_surface: "{surface}"',
+        ]
+        if deps:
+            lines.append("dependencies:")
+            lines.extend(f"  - {d}" for d in deps)
+        else:
+            lines.append("dependencies: []")
+        if scope is not None:
+            lines.append(f'scope: "{scope}"')
+        lines.extend(["---", "", f"# {wp_id}", ""])
+        (tasks_dir / f"{wp_id}-test.md").write_text("\n".join(lines), encoding="utf-8")
+
+
+def _run_finalize_validate_only(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    mission_slug: str = "060-test-feature",
+) -> list[dict[str, object]]:
+    """Run finalize-tasks --validate-only with the REAL ownership validator."""
+    patches = _common_patches(tmp_path, mission_slug)
+    del patches[f"{MODULE}.validate_ownership"]  # exercise the real validator
+    patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
+        return_value=_make_bootstrap_result()
+    )
+    from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+    started = [patch(target, value) for target, value in patches.items()]
+    for p in started:
+        p.start()
+    try:
+        finalize_tasks(feature=mission_slug, json_output=True, validate_only=True)
+    except (typer.Exit, SystemExit):
+        pass
+    finally:
+        for p in started:
+            p.stop()
+
+    results: list[dict[str, object]] = []
+    for line in capsys.readouterr().out.strip().splitlines():
+        try:
+            results.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return results
+
+
+class TestOwnershipOverlapAcceptance:
+    """Overlap fails for narrow WPs regardless of lane/dependency structure."""
+
+    def test_independent_wps_overlap_fails(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Two independent (different-lane) narrow WPs on the same files fail."""
+        _write_overlap_feature(
+            tmp_path,
+            wps=[
+                ("WP01", ["src/foo/**"], "src/foo/", [], None),
+                ("WP02", ["src/foo/**"], "src/foo/", [], None),
+            ],
+            tasks_md="# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nNo dependencies.\n",
+        )
+        results = _run_finalize_validate_only(tmp_path, capsys)
+        failures = [r for r in results if r.get("error") == "Ownership validation failed"]
+        assert failures, f"expected ownership failure, got {results}"
+        errors = failures[0]["ownership_errors"]
+        assert isinstance(errors, list)
+        assert any("WP01" in e and "WP02" in e for e in errors)
+
+    def test_dependent_wps_overlap_still_fails(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """WP02→WP01 dependency (one lane) does NOT exempt narrow overlap."""
+        _write_overlap_feature(
+            tmp_path,
+            wps=[
+                ("WP01", ["src/foo/**"], "src/foo/", [], None),
+                ("WP02", ["src/foo/**"], "src/foo/", ["WP01"], None),
+            ],
+            tasks_md="# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nDepends on WP01.\n",
+        )
+        results = _run_finalize_validate_only(tmp_path, capsys)
+        failures = [r for r in results if r.get("error") == "Ownership validation failed"]
+        assert failures, (
+            "a dependency hierarchy must NOT exempt overlapping narrow WPs; "
+            f"got {results}"
+        )
+
+    def test_codebase_wide_is_the_only_exemption(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """A codebase-wide WP overlapping a narrow WP passes (end-to-end #1753)."""
+        _write_overlap_feature(
+            tmp_path,
+            wps=[
+                ("WP01", ["src/**"], "src/", [], "codebase-wide"),
+                ("WP02", ["src/foo/bar.py"], "src/foo/bar.py", ["WP01"], None),
+            ],
+            tasks_md="# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nDepends on WP01.\n",
+        )
+        results = _run_finalize_validate_only(tmp_path, capsys)
+        assert not [
+            r for r in results if r.get("error") == "Ownership validation failed"
+        ], f"codebase-wide WP must be exempt from overlap; got {results}"
+        assert any(
+            r.get("result") == "validation_passed" for r in results
+        ), f"expected validation_passed; got {results}"

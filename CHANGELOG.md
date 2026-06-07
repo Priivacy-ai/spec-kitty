@@ -11,11 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
-- `WPMetadata` now accepts the `scope` frontmatter key (e.g. `scope: codebase-wide`)
-  that `OwnershipManifest`/ownership validation already consume. Previously the
-  strict (`extra="forbid"`) parser rejected it, so `finalize-tasks` could not
-  declare cross-cutting/refactor work packages codebase-wide and failed ownership
-  validation on legitimately overlapping `owned_files` (#1753).
+- Work packages can now declare `scope: codebase-wide` so cross-cutting/refactor
+  WPs are exempt from `owned_files` overlap validation, end-to-end through
+  `finalize-tasks` (#1753). Two coupled defects were fixed: (1) the strict
+  (`extra="forbid"`) `WPMetadata` parser rejected the `scope` key at parse time,
+  and (2) `OwnershipManifest.from_frontmatter` hard-coded `scope = None` on its
+  `WPMetadata` branch — the exact path `finalize-tasks` uses — silently dropping
+  the exemption even when the key parsed. The adapter now propagates `scope`, and
+  acceptance tests assert that narrow WPs claiming the same files still fail
+  regardless of lane/dependency structure, while a codebase-wide WP is exempt.
+  Also removed redundant `@overload` stubs on `from_frontmatter` that tripped
+  strict mypy (`overload-cannot-match`).
 
 ### 📝 Docs
 
