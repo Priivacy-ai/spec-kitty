@@ -1131,6 +1131,17 @@ def init(  # noqa: C901
         # Don't fail init if agent config creation fails
         _console.print(f"[dim]Note: Could not save agent config: {e}[/dim]")
 
+    # Write session presence orientation for each configured agent (FR-003).
+    try:
+        from specify_cli.session_presence.manager import SessionPresenceManager
+
+        sp_result = SessionPresenceManager(project_path, agent_config).install()
+        for change in sp_result.changes:
+            _console.print(f"[dim]{change}[/dim]")
+    except Exception as e:
+        # Never fail init due to session presence errors
+        _console.print(f"[dim]Note: Could not write session presence: {e}[/dim]")
+
     # Emit the project-init lifecycle event into the durable outbox so
     # the SaaS side can materialize the project even when init runs
     # offline / unauthenticated / without a git remote (issue #1073).
