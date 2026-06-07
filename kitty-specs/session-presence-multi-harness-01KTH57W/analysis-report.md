@@ -9,7 +9,7 @@ analyzer_agent: unknown
 input_artifacts:
   spec.md:
     path: /Users/robert/spec-kitty-dev/spec-kitty-20260607-144729-aFjAbE/spec-kitty/kitty-specs/session-presence-multi-harness-01KTH57W/spec.md
-    sha256: c4684e75c0a1570148e45b136d4195eaa0604204e36385e3239bd838c58b9b57
+    sha256: c82bbef601f28243cf7dbdacdb6e5c5665595961b78741afa8edd3b9422f197d
   plan.md:
     path: /Users/robert/spec-kitty-dev/spec-kitty-20260607-144729-aFjAbE/spec-kitty/kitty-specs/session-presence-multi-harness-01KTH57W/plan.md
     sha256: 775b13e790731a1327afa59783800964dd0e4252dada49ac67b8d3133e2041ce
@@ -38,7 +38,7 @@ analyzer_agent: unknown
 input_artifacts:
   spec.md:
     path: /Users/robert/spec-kitty-dev/spec-kitty-20260607-144729-aFjAbE/spec-kitty/kitty-specs/session-presence-multi-harness-01KTH57W/spec.md
-    sha256: c4684e75c0a1570148e45b136d4195eaa0604204e36385e3239bd838c58b9b57
+    sha256: c82bbef601f28243cf7dbdacdb6e5c5665595961b78741afa8edd3b9422f197d
   plan.md:
     path: /Users/robert/spec-kitty-dev/spec-kitty-20260607-144729-aFjAbE/spec-kitty/kitty-specs/session-presence-multi-harness-01KTH57W/plan.md
     sha256: 775b13e790731a1327afa59783800964dd0e4252dada49ac67b8d3133e2041ce
