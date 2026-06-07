@@ -51,12 +51,12 @@
 **Estimated prompt size**: ~350 lines
 **Depends on**: none
 
-- [ ] T001 Create package init files with `__all__` (WP01)
-- [ ] T002 Implement `SessionPresenceContent` + `render()` (WP01)
-- [ ] T003 Implement `UpgradeChecker` (WP01)
-- [ ] T004 Define `Writer` protocol (WP01)
-- [ ] T005 Implement `NullWriter` (WP01)
-- [ ] T006 Implement skeleton registry with `get_writer()` (WP01)
+- [x] T001 Create package init files with `__all__` (WP01)
+- [x] T002 Implement `SessionPresenceContent` + `render()` (WP01)
+- [x] T003 Implement `UpgradeChecker` (WP01)
+- [x] T004 Define `Writer` protocol (WP01)
+- [x] T005 Implement `NullWriter` (WP01)
+- [x] T006 Implement skeleton registry with `get_writer()` (WP01)
 
 **Prompt**: [WP01-session-presence-package-foundation.md](tasks/WP01-session-presence-package-foundation.md)
 
