@@ -60,7 +60,9 @@ def get_wp_lane(feature_dir: Path, wp_id: str) -> Lane | str:
     wp_state = snapshot.work_packages.get(wp_id)
     if wp_state is None:
         return "uninitialized"
-    return Lane(wp_state.get("lane", Lane.PLANNED))
+    # Defensive default matches the write side (#1775 review M4 / I3 parity):
+    # an entry that somehow lacks a lane is genesis (unseeded), not planned.
+    return Lane(wp_state.get("lane", Lane.GENESIS))
 
 
 def get_all_wp_lanes(feature_dir: Path) -> dict[str, str]:
@@ -80,6 +82,7 @@ def get_all_wp_lanes(feature_dir: Path) -> dict[str, str]:
         return {}
     snapshot = reduce(events)
     return {
-        wp_id: Lane(state.get("lane", Lane.PLANNED))
+        # Defensive default matches the write side (#1775 review M4 / I3 parity).
+        wp_id: Lane(state.get("lane", Lane.GENESIS))
         for wp_id, state in snapshot.work_packages.items()
     }
