@@ -1,7 +1,7 @@
 {
-  "event_count": 33,
-  "last_event_id": "01KTHDAWTYHSRBQBKCBRCF9D7W",
-  "materialized_at": "2026-06-07T16:05:58.238927+00:00",
+  "event_count": 35,
+  "last_event_id": "01KTHDBJ072N7AYTGRAN2YNVC0",
+  "materialized_at": "2026-06-07T16:06:19.911422+00:00",
   "mission_number": "",
   "mission_slug": "session-presence-multi-harness-01KTH57W",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -46,11 +46,11 @@
       "last_transition_at": "2026-06-07T16:05:58.238927+00:00"
     },
     "WP05": {
-      "actor": "finalize-tasks",
+      "actor": "claude:sonnet:implementer:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KTH9DKAETRMYYNSVPGH2BKE3",
-      "last_transition_at": "2026-06-07T14:57:32.494250+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KTHDBJ072N7AYTGRAN2YNVC0",
+      "last_transition_at": "2026-06-07T16:06:19.911422+00:00"
     },
     "WP06": {
       "actor": "finalize-tasks",
