@@ -160,6 +160,7 @@ class TestFinalizeTasksCallsBootstrap:
             tmp_path / "kitty-specs" / mission_slug,
             mission_slug,
             dry_run=False,
+            allow_protected_branch_in_test_mode=True,
         )
 
 
@@ -768,10 +769,16 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
         feature_dir = _setup_feature(tmp_path, mission_slug)
         captured_files: list[Path] = []
 
-        def _bootstrap_side_effect(feature_path: Path, slug: str, dry_run: bool) -> BootstrapResult:
+        def _bootstrap_side_effect(
+            feature_path: Path,
+            slug: str,
+            dry_run: bool,
+            allow_protected_branch_in_test_mode: bool = False,
+        ) -> BootstrapResult:
             assert feature_path == feature_dir
             assert slug == mission_slug
             assert dry_run is False
+            assert allow_protected_branch_in_test_mode is True
             (feature_path / "status.events.jsonl").write_text('{"event":"seeded"}\n', encoding="utf-8")
             (feature_path / "status.json").write_text("{}", encoding="utf-8")
             return _make_bootstrap_result()
