@@ -8,6 +8,7 @@ import json
 import os
 import re
 import subprocess
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from io import StringIO
 from pathlib import Path
@@ -407,22 +408,28 @@ def _feature_dir_file_paths(repo_root: Path, feature_dir: Path) -> list[str]:
     return paths
 
 
+def _exclude_coord_owned(paths: Iterable[str], coord_branch_for_filter: str | None) -> list[str]:
+    """Drop the canonical status log/snapshot (``COORD_OWNED_STATUS_FILES``) from
+    *paths* on coordination-topology missions only.
+
+    On a coordination mission those files are owned by the transactional emitter on
+    the coord branch, and the primary checkout's copies are stale — committing them
+    would clobber the seeded lane state (#1589). On a non-coordination (flat/legacy)
+    mission there is no coord authority, so the primary checkout's status files ARE
+    canonical and must be committed; excluding them there silently drops a status
+    edit (review M3). Single predicate for both commit-path sources (review F-03).
+    """
+    if coord_branch_for_filter:
+        return [p for p in paths if Path(p).name not in COORD_OWNED_STATUS_FILES]
+    return list(paths)
+
+
 def _status_paths_for_commit(
     entries: list[_PorcelainEntry], coord_branch_for_filter: str | None
 ) -> list[str]:
-    """The feature-dir paths to commit from ``git status`` entries.
-
-    The canonical status log/snapshot (``COORD_OWNED_STATUS_FILES``) are excluded
-    ONLY on coordination-topology missions: there they are owned by the
-    transactional emitter on the coord branch, and the primary checkout's copies
-    are stale — committing them would clobber the seeded lane state (#1589). On a
-    non-coordination (flat/legacy) mission there is no coord authority, so the
-    primary checkout's status files ARE canonical and must be committed; excluding
-    them there silently drops a status edit (review M3).
-    """
-    if coord_branch_for_filter:
-        return [e.path for e in entries if Path(e.path).name not in COORD_OWNED_STATUS_FILES]
-    return [e.path for e in entries]
+    """The feature-dir paths to commit from ``git status`` entries — see
+    :func:`_exclude_coord_owned`."""
+    return _exclude_coord_owned((e.path for e in entries), coord_branch_for_filter)
 
 
 def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestration helper; unrelated to issue #1386
@@ -468,8 +475,9 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     files_to_commit = list(status_paths)
     if coord_branch_for_filter:
         files_to_commit.extend(
-            p for p in _feature_dir_file_paths(repo_root, feature_dir)
-            if Path(p).name not in COORD_OWNED_STATUS_FILES
+            _exclude_coord_owned(
+                _feature_dir_file_paths(repo_root, feature_dir), coord_branch_for_filter
+            )
         )
     files_to_commit = list(dict.fromkeys(files_to_commit))
     if not files_to_commit:
