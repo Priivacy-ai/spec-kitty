@@ -53,7 +53,7 @@ shifted onto it, not running beside it — is the structural fix the operator ma
 
 **Acceptance Scenarios**:
 1. **Given** the derived matrix, **When** compared to the historical 27 edges + 2 genesis edges, **Then** it is exactly equal (0 missing / 0 extra).
-2. **Given** a grep across `src/`, **When** searching for parallel transition-edge tables, lane-adjacency maps, or out-of-FSM lane-string branching, **Then** only the FSM and its derivations exist.
+2. **Given** a grep across `src/`, **When** searching for parallel transition-edge tables, lane-adjacency maps, out-of-FSM lane-string branching, or `(from,to) in ALLOWED_TRANSITIONS`-style edge gates in production code, **Then** none exist — every edge/transition question is answered by querying a `WPState` object (a retained `ALLOWED_TRANSITIONS` is a non-authoritative derived projection only).
 3. **Given** a forced terminal exit and a guarded transition, **When** routed through the FSM `transition_to`, **Then** the State object enforces the guard/force decision (no divergent authority in `validate_transition`).
 4. **Given** the lane readers and the transition emitters, **When** traced, **Then** they consume `WPState` (no direct `.value` lane-string comparisons that bypass the FSM).
 
@@ -190,9 +190,10 @@ accepts genesis as `from_lane` only, and stale docstrings/tests are corrected.
 
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
-| FR-001 | FSM is the single transition source | US1 · `ALLOWED_TRANSITIONS` is derived from `WPState.allowed_targets()`; no parallel `(from,to)` edge table exists in `src/`. | High | Done (baseline) |
-| FR-002 | FSM interface is the runtime path | US1 · `WPState` exposes `current_lane`, `may_transition_to(target)`, `transition_to(target, ctx)` AND real production/runtime callers use them (not a parallel direct-lane path). | High | Partial (interface done; wiring open) |
-| FR-002b | Full FSM wiring — shift old paths | US1 · All lane reads and transitions route through `WPState`; `validate_transition`/guards/force are owned-by or delegated-through the State objects; no direct lane-string branching, lane-adjacency map, or parallel transition logic remains outside the FSM. Every lane is a full StateObject (like `GenesisState`). | High | Open |
+| FR-001 | Edges owned by the State objects | US1 · The transition graph is owned solely by `WPState.allowed_targets()`. The State objects are the only authority for "what edges exist"; there is no hand-maintained `(from,to)` table. | High | Done (baseline) |
+| FR-001b | No derived constant as a parallel authority | US1 · `ALLOWED_TRANSITIONS` is NOT consulted by any production caller as a transition/edge gate. It is either removed, or retained ONLY as an explicitly non-authoritative derived projection (graph/test convenience) with zero `(from,to) in ALLOWED_TRANSITIONS`-style checks in production code — those route through `wp_state_for(from).may_transition_to(to)` / `transition_to`. The states are the single query path for edges; a derived set must never become a second source that can drift. | High | Open |
+| FR-002 | FSM interface is the only runtime path | US1 · `WPState` exposes `current_lane`, `may_transition_to(target)`, `transition_to(target, ctx)` AND **all** production/runtime callers query the states through them — never a direct lane-string comparison, a derived edge set, or a parallel transition check. | High | Partial (interface done; wiring open) |
+| FR-002b | Full ownership of edges AND transitions in the states | US1 · The State objects own BOTH the edge graph (`allowed_targets`) AND the act of transitioning (edge check + guards + force, via `transition_to`). All lane reads and transitions route through `WPState`; `validate_transition` is a thin delegator; no direct lane-string branching, lane-adjacency map, derived-set gate, or parallel transition logic remains outside the FSM. Every lane is a full StateObject (like `GenesisState`). The deliverable must not create a new split-brain or derived-constant tech debt. | High | Open |
 | FR-003 | Behavior preservation (9 lanes) | US1 · The derived matrix equals the historical 27 edges exactly; existing transition/guard behavior unchanged. | High | Done (baseline) |
 | FR-004 | `Lane.GENESIS` non-display lane | US2 · `genesis` exists in the enum, is excluded from `CANONICAL_LANES`/kanban/board, weight 0, valid `from_lane`. | High | Done (baseline) |
 | FR-005 | Genesis derive + explicit seed | US2 · `_derive_from_lane` returns `GENESIS` for unseeded WPs; bootstrap seeds an explicit `genesis → planned`. | High | Done (baseline) |
@@ -217,7 +218,7 @@ accepts genesis as `from_lane` only, and stale docstrings/tests are corrected.
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
 | NFR-001 | Behavior preservation | The nine pre-existing lanes' transition + guard semantics are unchanged; existing suites green. | Reliability | High | Open |
-| NFR-002 | One owner per concern (Paula IC) | Exactly one transition-edge source (the FSM); the genesis non-display invariant holds across every representation. | Maintainability | High | Open |
+| NFR-002 | One owner per concern (Paula IC) | The `WPState` objects are the SINGLE owner of both edges and transitions (edge graph + guards + force). No derived constant, cached set, or parallel path is consulted as a second authority. The genesis non-display invariant holds across every representation. The deliverable adds no split-brain and no derived-constant tech debt. | Maintainability | High | Open |
 | NFR-003 | Leanness (Randy IC) | No dead API, no duplicated seed helpers, no stale comments; the FSM API is locked in by real callers. | Maintainability | Medium | Open |
 | NFR-004 | Lint & type clean | New code passes `ruff` and `mypy` with zero new issues; no disabled checks (justified narrow suppressions only, with rationale). | Maintainability | High | Open |
 | NFR-005 | External-contract integrity | Local lane-model changes that cross the `spec_kitty_events` boundary are represented in a contract-valid way (no silent drops). | Compatibility | Medium | Open |

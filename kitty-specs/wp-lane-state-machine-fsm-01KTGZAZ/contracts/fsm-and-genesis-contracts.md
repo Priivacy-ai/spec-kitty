@@ -13,9 +13,13 @@ validate_transition(from_lane, to_lane, ctx) -> (ok: bool, error: str | None)
   existing (from,to,ctx) combinations (I4, I5) — including: actor-required, workspace_context,
   subtasks_complete_or_force, reviewer_approval, ReviewResult-required outbound from in_review,
   done-evidence, and force-override (force ⇒ requires actor + reason).
-- **Post**: no transition-edge or guard logic remains outside the State objects.
+- **Post**: no transition-edge or guard logic remains outside the State objects; no
+  production caller consults `ALLOWED_TRANSITIONS` (or any derived edge set) as a gate —
+  every edge/transition question routes through a `WPState`. `ALLOWED_TRANSITIONS` is
+  removed or relegated to a non-authoritative test/graph projection.
 - **Test**: parametrized parity over the full historical transition+guard matrix; a dedicated
-  terminal force-exit parity test (`done`/`canceled` → any lane with force+actor+reason).
+  terminal force-exit parity test (`done`/`canceled` → any lane with force+actor+reason); an
+  architectural test asserting no production module imports `ALLOWED_TRANSITIONS` for an edge gate.
 
 ## Contract 2 — Genesis non-display invariant (I2)
 

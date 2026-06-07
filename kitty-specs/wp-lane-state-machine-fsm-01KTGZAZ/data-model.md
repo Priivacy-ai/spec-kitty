@@ -51,11 +51,18 @@ becomes a thin delegator returning `(ok, error_message)` from the state.
 | BlockedState | in_progress, canceled | — | — |
 | CanceledState | ∅ | terminal | force + actor + reason → any lane |
 
-`ALLOWED_TRANSITIONS` is derived: `{(s.current_lane, t) for s in all states for t in s.allowed_targets()}` (29 edges). Force-exit of terminal states is NOT an `allowed_targets` edge — it is the force path, owned by `transition_to` (DoneState/CanceledState), reaching parity with the old `validate_transition` force branch.
+The edge graph is owned by the State objects. `ALLOWED_TRANSITIONS`, if retained at
+all, is a **non-authoritative derived projection** (`{(s.current_lane, t) for s in
+all states for t in s.allowed_targets()}`, 29 edges) for tests/graph only — **no
+production code consults it as an edge/transition gate**; production asks
+`wp_state_for(from).may_transition_to(to)` / `transition_to`. Force-exit of terminal
+states is NOT an `allowed_targets` edge — it is the force path, owned by
+`transition_to` (DoneState/CanceledState), reaching parity with the old
+`validate_transition` force branch.
 
 ## Invariants
 
-- **I1 (single source)**: the only transition-edge truth is `WPState.allowed_targets()`; `ALLOWED_TRANSITIONS` is derived; no parallel `(from,to)` table or lane-adjacency map exists in `src/`.
+- **I1 (single source — edges AND transitions)**: the only authority for edges is `WPState.allowed_targets()` and for transitions is `WPState.transition_to`/`may_transition_to`. No parallel `(from,to)` table, lane-adjacency map, or derived-set gate is consulted by production code; a retained `ALLOWED_TRANSITIONS` is a non-authoritative projection only.
 - **I2 (genesis non-display)**: `genesis ∉ CANONICAL_LANES`; absent from every materialized summary, board, kanban, discovery candidate list, and frontmatter validity message; never a `to_lane`.
 - **I3 (read/write parity)**: every lane reader returns `GENESIS` for a WP with no lane events.
 - **I4 (full ownership)**: a guarded or forced transition produces the same decision through `wp_state_for(from).transition_to(to, ctx)` as the historical `validate_transition` did.

@@ -113,13 +113,13 @@ owner, in exchange for moving the guard/force logic into the state objects.
 
 > Implementation concerns are NOT work packages. `/spec-kitty.tasks` translates these into executable WPs.
 
-### IC-01 — Full FSM wiring: guards + force into the State objects
+### IC-01 — Full FSM wiring: edges + guards + force owned by the State objects; no derived authority
 
-- **Purpose**: Make the `WPState` FSM the single authority for edges, guards, and force-override; `validate_transition` becomes a thin delegator to `wp_state_for(from).transition_to(to, ctx)`. Every lane is a full StateObject like `GenesisState`.
-- **Relevant requirements**: FR-001, FR-002, FR-002b, FR-003, FR-012; NFR-001, NFR-002.
-- **Affected surfaces**: `status/wp_state.py` (own guards+force per state), `status/transitions.py` (delegate; keep `_GUARDED_TRANSITIONS`→state moves), `status/transition_context.py`, `status/emit.py` (transition path).
+- **Purpose**: Make the `WPState` objects the **single owner of both the edge graph AND the act of transitioning** (edge check + guards + force). `validate_transition` becomes a thin delegator to `wp_state_for(from).transition_to(to, ctx)`. Critically, **eliminate `ALLOWED_TRANSITIONS` as a consumed authority**: audit every consumer (`grep -rn ALLOWED_TRANSITIONS src/` and every `(from,to) in …` / lane-adjacency / lane-string edge check) and migrate it to query the State objects (`may_transition_to`/`transition_to`). Any retained `ALLOWED_TRANSITIONS` is a clearly-labelled, non-authoritative derived projection (test/graph convenience) with no production gate consulting it — so the refactor does NOT trade one split-brain for a derived-constant one.
+- **Relevant requirements**: FR-001, FR-001b, FR-002, FR-002b, FR-003, FR-012; NFR-001, NFR-002.
+- **Affected surfaces**: `status/wp_state.py` (own edges + guards + force per state), `status/transitions.py` (`validate_transition` delegates; `_GUARDED_TRANSITIONS` guards move into states; `ALLOWED_TRANSITIONS` removed-or-relegated), `status/transition_context.py`, `status/emit.py`, plus **every** `ALLOWED_TRANSITIONS`/edge-membership consumer found by the audit (e.g. validators, doctor, tests).
 - **Sequencing/depends-on**: none (foundational).
-- **Risks**: the guard matrix (actor / subtasks-complete / review-result / done-evidence / force) is intricate; behavior MUST be preserved — the existing transition+guard suites are the envelope; migrate guard-by-guard keeping green; force-exit of terminal states must reach parity with the old `validate_transition` force path.
+- **Risks**: the guard matrix (actor / subtasks-complete / review-result / done-evidence / force) is intricate; behavior MUST be preserved — the existing transition+guard suites are the envelope; migrate guard-by-guard keeping green; force-exit of terminal states must reach parity with the old `validate_transition` force path. The consumer-audit must be exhaustive (an overlooked `(from,to) in ALLOWED_TRANSITIONS` re-introduces the split-brain).
 
 ### IC-02 — Read/write parity for genesis + actionable unseeded-implement rejection
 
