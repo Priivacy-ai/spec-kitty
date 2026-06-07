@@ -159,6 +159,8 @@ class SkillsPreambleWriter(AgentsMdWriter):
 
 **Purpose**: Add `check_dir` to `MarkdownRulesWriter` and wire all 6 Pattern B harnesses into `WRITER_REGISTRY`.
 
+**> Note on file ownership**: `markdown_rules.py` is owned by WP02, but this subtask modifies it to add the `check_dir` field. This is safe and expected — WP02 is fully merged into `pr/session-presence-multi-harness` before WP05 executes (WP05 depends on WP04 which depends on WP02). Sequential execution guarantees no conflict. Do not hesitate to make this targeted addition to the WP02-owned file.**
+
 **`markdown_rules.py` change**: Add an optional `check_dir: str | None = None` field. Update `can_write()`:
 
 ```python

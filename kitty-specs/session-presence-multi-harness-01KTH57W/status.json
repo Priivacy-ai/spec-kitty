@@ -1,9 +1,9 @@
 {
-  "event_count": 6,
-  "last_event_id": "01KTH84PG1M53QQQXTPA1T7PPK",
-  "materialized_at": "2026-06-07T14:35:12.257790+00:00",
+  "event_count": 0,
+  "last_event_id": null,
+  "materialized_at": "",
   "mission_number": "",
-  "mission_slug": "session-presence-multi-harness-01KTH57W",
+  "mission_slug": "",
   "mission_type": "software-dev",
   "summary": {
     "approved": 0,
@@ -14,50 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 6
+    "planned": 0
   },
-  "work_packages": {
-    "WP01": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KTH84KJWR2EXEJN962TGY04A",
-      "last_transition_at": "2026-06-07T14:35:09.276116+00:00"
-    },
-    "WP02": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KTH84MB1WH3QPQBVCD0AQADQ",
-      "last_transition_at": "2026-06-07T14:35:10.049228+00:00"
-    },
-    "WP03": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KTH84MVKPM9NZSEEZKZZJVD5",
-      "last_transition_at": "2026-06-07T14:35:10.579964+00:00"
-    },
-    "WP04": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KTH84NENMG2N6JPE4MQ5RYT7",
-      "last_transition_at": "2026-06-07T14:35:11.189153+00:00"
-    },
-    "WP05": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KTH84NYNZTRS147ATP0JKKVY",
-      "last_transition_at": "2026-06-07T14:35:11.701359+00:00"
-    },
-    "WP06": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KTH84PG1M53QQQXTPA1T7PPK",
-      "last_transition_at": "2026-06-07T14:35:12.257790+00:00"
-    }
-  }
+  "work_packages": {}
 }

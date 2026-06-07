@@ -244,6 +244,12 @@ Follow the existing `tracker` / `console` pattern for user-visible output. Use `
 
 **Key constraint**: The `install()` call must not raise — it already swallows exceptions internally. If for any reason it does raise, wrap in a `try/except` in `init.py`.
 
+**Version bump (CLAUDE.md project policy)**: Modifying `src/specify_cli/__init__.py` to register the new `session-start` command triggers the project's mandatory version bump rule. As part of this subtask:
+1. Bump the patch version in `pyproject.toml` (e.g., `3.2.x` → `3.3.0` or next appropriate version — check the current value first).
+2. Add a `CHANGELOG.md` entry under a new version heading, noting the addition of the `session-start` command and the `session_presence` package.
+
+Follow the existing CHANGELOG.md entry format exactly (look at adjacent entries for the pattern).
+
 ---
 
 ## Subtask T015 — Phase 1 Upgrade Migration

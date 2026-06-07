@@ -112,6 +112,21 @@ def claude_project(tmp_path):
     return tmp_path
 ```
 
+**C-004 import guard** — add to `conftest.py` (or as a standalone test in `test_content.py`):
+```python
+def test_no_next_imports():
+    """C-004: session_presence must not import from the deprecated specify_cli.next shim."""
+    import pkgutil, importlib, sys
+    # Walk the session_presence package and assert no module imports specify_cli.next
+    import specify_cli.session_presence as pkg
+    pkg_path = pkg.__path__
+    for finder, name, ispkg in pkgutil.walk_packages(pkg_path, prefix="specify_cli.session_presence."):
+        mod = importlib.import_module(name)
+        for attr in dir(mod):
+            assert "specify_cli.next" not in str(getattr(mod, "__spec__", "") or "")
+```
+Alternatively, reference `tests/architectural/test_shared_package_boundary.py` — if that suite already covers `session_presence`, add a comment here noting the coverage is delegated to that architectural test and add a `session_presence` entry there instead.
+
 **`tests/specify_cli/session_presence/test_content.py`** — required cases:
 - `render()` for `healthy`: contains version, project slug, `(healthy)`, both usage patterns, no upgrade/migration lines
 - `render()` for `upgrade-available`: contains upgrade line with `available_version`; does NOT contain migration line
@@ -213,6 +228,23 @@ Use `unittest.mock.patch` to mock `get_writer()`, `project_needs_migration()`, `
 - Exception in `AgentConfig.load()`: exit 0, no output
 - Use `typer.testing.CliRunner` for command invocation
 
+**NFR-001 timing note**: `session-start` must complete in <200ms on a warm filesystem. This is guaranteed by design (no network on the hot path — `check_in_background()` returns immediately). Add a timing assertion to verify the guarantee is not accidentally broken:
+```python
+import time
+
+def test_session_start_performance(claude_project, monkeypatch):
+    """NFR-001: session-start must complete in <200ms on a warm filesystem."""
+    monkeypatch.chdir(claude_project)
+    # Mock UpgradeChecker to avoid any I/O variability
+    with patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker:
+        mock_checker.return_value.get_available_version.return_value = None
+        start = time.monotonic()
+        result = runner.invoke(app, [])
+        elapsed_ms = (time.monotonic() - start) * 1000
+    assert elapsed_ms < 200, f"session-start took {elapsed_ms:.1f}ms — exceeds NFR-001 200ms budget"
+    assert result.exit_code == 0
+```
+
 ---
 
 ## Subtask T022 — test_m_session_presence_claude_code.py
@@ -242,6 +274,7 @@ Use `unittest.mock.patch` to mock `get_writer()`, `project_needs_migration()`, `
 - [ ] No test touches `~/.kittify/` (all cache operations use `tmp_path` monkeypatched paths)
 - [ ] Zero ruff issues, zero mypy --strict issues in test files
 - [ ] `CliRunner` used for all `session-start` tests (no subprocess invocation)
+- [ ] NFR-001 timing test passes: `session-start` completes in <200ms on a warm filesystem (T021 timing assertion green)
 
 ## Risks
 
