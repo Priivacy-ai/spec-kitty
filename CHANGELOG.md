@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-06-07
+
+### ✨ Added
+
+- Added `session_presence` package with `SessionPresenceManager`, `InstallResult`,
+  `ClaudeCodeWriter`, `MarkdownRulesWriter`, `ClaudeCodeHookRegistrar`, `UpgradeChecker`,
+  `SessionPresenceContent`, and supporting writer/hook infrastructure.
+- Added `spec-kitty session-start` CLI command (invoked by the Claude Code `SessionStart`
+  hook) that emits an orientation block to stdout when run inside a spec-kitty project.
+  The command always exits 0 and never blocks a Claude Code session start.
+- `spec-kitty init` now calls `SessionPresenceManager.install()` after saving agent
+  configuration, writing the orientation block and registering the `SessionStart` hook for
+  Claude Code projects automatically.
+- Added Phase 1 upgrade migration (`3_3_0_session_presence_claude_code`) that detects
+  existing Claude Code projects missing the orientation section or `SessionStart` hook and
+  backfills both artefacts on `spec-kitty upgrade`.
+
 ### 🐛 Fixed
 
 - Work packages can now declare `scope: codebase-wide` so cross-cutting/refactor
