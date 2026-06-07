@@ -33,7 +33,11 @@ from specify_cli.coordination.status_transition import emit_status_transition_tr
 from specify_cli.status import COORD_OWNED_STATUS_FILES
 from specify_cli.status.emit import TransitionError
 from specify_cli.status.models import Lane, TransitionRequest
-from specify_cli.status.work_package_lifecycle import WorkPackageClaimConflict, start_implementation_status
+from specify_cli.status.work_package_lifecycle import (
+    WorkPackageClaimConflict,
+    WorkPackageStartRejected,
+    start_implementation_status,
+)
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
@@ -810,7 +814,10 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         # user must run it first to seed the genesis→planned bootstrap event.
         _current_wp_lane = _wp_lanes.get(wp_id, Lane.GENESIS)
         if _current_wp_lane == Lane.GENESIS:
-            raise ValueError(
+            # FR-009: same rejection (and exception type) as the lifecycle layer,
+            # so programmatic callers catching WorkPackageStartRejected see this
+            # path too (review M5).
+            raise WorkPackageStartRejected(
                 f"WP {wp_id} is not finalized; run `spec-kitty agent mission finalize-tasks`"
             )
         _dependency_readiness = dependency_readiness_for_wp(wp_id, declared_deps, _wp_lanes)
@@ -904,7 +911,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
             tracker.complete("validate", f"Lane: {lane.lane_id}")
         else:
             tracker.complete("validate", "Execution: repository root planning workspace")
-    except (CorruptLanesError, MissingLanesError, ValueError, typer.Exit) as exc:
+    except (CorruptLanesError, MissingLanesError, WorkPackageStartRejected, ValueError, typer.Exit) as exc:
         tracker.error("validate", str(exc))
         console.print(tracker.render())
         raise typer.Exit(1) from exc

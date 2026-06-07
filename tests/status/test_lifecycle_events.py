@@ -357,6 +357,32 @@ def test_has_non_bootstrap_status_history_false_when_only_bootstrap(
     assert has_non_bootstrap_status_history(feature_dir) is False
 
 
+def test_has_non_bootstrap_status_history_false_for_genesis_seed(
+    feature_dir: Path,
+) -> None:
+    """#1775 review M6: the canonical post-FSM seed is genesis -> planned with
+    force=False. The merge guard must still recognise it as bootstrap (not real
+    history), otherwise every seeded log looks like it has advanced past planned.
+    """
+    log = mission_event_log_path(feature_dir)
+    _write_jsonl(
+        log,
+        [
+            {
+                "event_id": "01H1",
+                "wp_id": "WP01",
+                "from_lane": "genesis",
+                "to_lane": "planned",
+                "force": False,
+                "actor": "finalize-tasks",
+                "at": "2026-01-01T00:00:00Z",
+                "mission_slug": "demo-mission",
+            },
+        ],
+    )
+    assert has_non_bootstrap_status_history(feature_dir) is False
+
+
 def test_has_non_bootstrap_status_history_true_for_real_transition(
     feature_dir: Path,
 ) -> None:
