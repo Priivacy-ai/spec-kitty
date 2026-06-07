@@ -190,6 +190,8 @@ Python 3.11+. Follow standard conventions. Any changes to `__init__.py` require 
 
 **New code MUST pass `ruff` and `mypy` with zero issues and zero warnings. Do NOT disable, suppress, or relax checks (no blanket `# noqa`, `# type: ignore`, or per-file ignore additions) to achieve this — fix the code instead.** Narrowly-scoped, individually-justified suppressions are allowed only when the check is genuinely wrong about correct code, and must carry an inline rationale.
 
+**Pre-push: run the terminology guard when touching `src/doctrine/` or user-facing prose.** Some repo-wide gates run only in CI's `integration-tests-core-misc` job, NOT in the `fast-tests-*` suites — so a forbidden-term regression passes local doctrine runs and only fails at CI. Before pushing doctrine/prose changes, run `pytest tests/architectural/test_no_legacy_terminology.py` (≈0.1 s); it enforces the Terminology Canon (e.g. canonical `status commit` not `ceremony`; `Mission` not `feature`). The full `tests/architectural/` suite is the complete safety net.
+
 ## Recent Changes
 
 - **068**: `src/specify_cli/post_merge/` (AST-based stale-assertion analyzer), `agent tests` CLI subgroup, `agent/release.py prep` subcommand, FR-019 safe_commit fix in `_run_lane_based_merge`, FR-021 `scan_recovery_state` + `implement --base`
