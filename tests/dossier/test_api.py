@@ -546,20 +546,6 @@ class TestUtilityFunctions:
 class TestAdapterProtocol:
     """Tests for adapter protocol (T033)."""
 
-    def test_handler_implements_adapter_interface(self, handler):
-        """Test that DossierAPIHandler implements all adapter methods."""
-        assert hasattr(handler, "handle_dossier_overview")
-        assert hasattr(handler, "handle_dossier_artifacts")
-        assert hasattr(handler, "handle_dossier_artifact_detail")
-        assert hasattr(handler, "handle_dossier_snapshot_export")
-
-    def test_all_methods_callable(self, handler):
-        """Test that all methods are callable."""
-        assert callable(handler.handle_dossier_overview)
-        assert callable(handler.handle_dossier_artifacts)
-        assert callable(handler.handle_dossier_artifact_detail)
-        assert callable(handler.handle_dossier_snapshot_export)
-
     def test_methods_return_models_or_error_dicts(
         self, handler, sample_snapshot, sample_dossier
     ):

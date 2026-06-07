@@ -67,6 +67,8 @@ AGENT_DIRS = [
 # the retired slash command. Anything matching is skipped by the scanner.
 ALLOWLIST_PREFIXES = (
     "kitty-specs/",  # mission-level checklists/ directory is canonical
+    "docs/01KSMG8Y-closeout/",  # historical failure closeout, not live surface
+    "docs/engineering_notes/triage/",  # historical triage notes, not live surface
 )
 
 ALLOWLIST_FILENAMES = (

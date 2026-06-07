@@ -177,24 +177,6 @@ class TestRequireMainRepo:
 
         assert exc_info.value.exit_code == 1
 
-    def test_error_message_from_worktree(self, tmp_path: Path, monkeypatch, capsys):
-        """Test error message when blocked from worktree."""
-        (tmp_path / ".kittify").mkdir()
-        worktree_path = tmp_path / ".worktrees" / "010-feature-lane-b"
-        worktree_path.mkdir(parents=True)
-        monkeypatch.chdir(worktree_path)
-
-        @require_main_repo
-        def implement(wp_id: str):
-            return f"Implementing {wp_id}"
-
-        with pytest.raises(typer.Exit):
-            implement("WP03")
-
-        # Error message should mention worktree and suggest cd command
-        # (Note: rich console output may not be captured perfectly in tests)
-
-
 @pytest.mark.real_worktree_detection
 class TestRequireWorktree:
     """Tests for @require_worktree decorator."""

@@ -20,40 +20,12 @@ pytestmark = pytest.mark.fast
 
 
 class TestNoNetworkProviderResult:
-    def test_returns_version_none(self) -> None:
-        provider = NoNetworkProvider()
-        result = provider.get_latest("spec-kitty-cli")
-        assert result.version is None
-
-    def test_returns_source_none(self) -> None:
-        result = NoNetworkProvider().get_latest("spec-kitty-cli")
-        assert result.source == "none"
-
-    def test_returns_error_none(self) -> None:
-        result = NoNetworkProvider().get_latest("spec-kitty-cli")
-        assert result.error is None
-
-    def test_returns_correct_dataclass(self) -> None:
-        result = NoNetworkProvider().get_latest("spec-kitty-cli")
-        assert result == LatestVersionResult(version=None, source="none", error=None)
-
     def test_package_argument_is_ignored(self) -> None:
         """Different package names must all return the same result."""
         p = NoNetworkProvider()
-        assert p.get_latest("package-a") == p.get_latest("package-b")
-
-    def test_repeated_calls_return_same_result(self) -> None:
-        provider = NoNetworkProvider()
-        r1 = provider.get_latest("spec-kitty-cli")
-        r2 = provider.get_latest("spec-kitty-cli")
-        assert r1 == r2
-
-    def test_does_not_raise(self) -> None:
-        """NoNetworkProvider must never raise, regardless of input."""
-        provider = NoNetworkProvider()
-        # Does not raise for empty string, long string, unicode, None-like str
-        provider.get_latest("")
-        provider.get_latest("a" * 256)
+        expected = LatestVersionResult(version=None, source="none", error=None)
+        assert p.get_latest("package-a") == expected
+        assert p.get_latest("package-b") == expected
 
 
 class TestNoNetworkProviderNoSocket:

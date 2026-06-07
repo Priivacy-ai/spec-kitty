@@ -131,8 +131,8 @@ Group subtasks into work packages (IDs `WP01`, `WP02`, ...):
 
 ### 4a. Cite plan concern refs for each WP
 
-For each work package, record which implementation concern(s) from `plan.md` it
-addresses by populating `plan_concern_refs` in `wps.yaml`.
+For each work package, record which implementation concern<!-- glossary:glossary:implementation-concern -->(s) from `plan.md` it
+addresses by populating `plan_concern_refs<!-- glossary:glossary:plan_concern_refs -->` in `wps.yaml`.
 
 - If the WP covers exactly one concern: `plan_concern_refs: [IC-01]`
 - If the WP spans multiple concerns: `plan_concern_refs: [IC-01, IC-03]`

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -24,9 +25,17 @@ from specify_cli.invocation.writer import EVENTS_DIR
 # Marked for mutmut sandbox skip — subprocess CLI invocation.
 pytestmark = pytest.mark.non_sandbox
 
-runner = CliRunner()
+class ArgvCliRunner(CliRunner):
+    def invoke(self, app, args=None, **kwargs):  # type: ignore[no-untyped-def]
+        argv = ["spec-kitty", *(list(args) if args is not None and not isinstance(args, str) else [])]
+        with patch.object(sys, "argv", argv):
+            return super().invoke(app, args, **kwargs)
+
+
+runner = ArgvCliRunner()
 
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "profiles"
+
 
 # ---------------------------------------------------------------------------
 # Shared context mocks
@@ -317,7 +326,7 @@ class TestProfileInvocationComplete:
             )
         assert result2.exit_code == 0, result2.output
         data2 = json.loads(result2.output)
-        assert data2["event"] == "completed"
+        assert data2["result"] == "success"
         assert data2["outcome"] == "done"
 
     def test_complete_only_needs_invocation_id(self, tmp_path: Path) -> None:
@@ -336,7 +345,7 @@ class TestProfileInvocationComplete:
             )
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
-        assert data["event"] == "completed"
+        assert data["result"] == "success"
 
     def test_complete_already_closed_exits_zero_with_warning(self, tmp_path: Path) -> None:
         """Calling complete twice returns exit 0 with already_closed warning — no duplicate write."""

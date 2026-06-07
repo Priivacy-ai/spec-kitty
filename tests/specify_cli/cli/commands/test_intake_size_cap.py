@@ -23,13 +23,3 @@ def test_size_cap_rejects_oversized_file(tmp_path):
 
     with pytest.raises((SystemExit, typer.Exit)):
         _write_brief_from_candidate(tmp_path, oversized, "test", None, force=True)
-
-
-def test_size_cap_accepts_file_at_limit(tmp_path):
-    """Files exactly at the limit are accepted (> not >=)."""
-    exact = tmp_path / "exact.md"
-    exact.write_bytes(b"# h\n" + b"x" * (MAX_BRIEF_FILE_SIZE_BYTES - 4))
-    # Just verify the size check passes (stat.st_size == limit, not > limit)
-    assert exact.stat().st_size == MAX_BRIEF_FILE_SIZE_BYTES
-    # size check: file_size > MAX means "greater than" — at limit is ok
-    assert not (exact.stat().st_size > MAX_BRIEF_FILE_SIZE_BYTES)

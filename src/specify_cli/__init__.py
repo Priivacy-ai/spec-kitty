@@ -350,10 +350,6 @@ def main() -> None:
     _get_app()()
 
 
-if _is_doctor_restart_daemon_process_fast_path(sys.argv):
-    _run_doctor_restart_daemon_process_fast_path(sys.argv)
-
-
 __all__ = ["main", "app", "__version__"]
 
 if __name__ == "__main__":

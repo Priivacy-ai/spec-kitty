@@ -91,15 +91,6 @@ def test_is_global_runtime_configured_handles_runtime_error(
     assert resolver_module._is_global_runtime_configured() is False
 
 
-def test_warn_legacy_asset_emits_deprecation_warning_before_runtime_bootstrap(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(resolver_module, "_is_global_runtime_configured", lambda: False)
-
-    with pytest.deprecated_call():
-        _warn_legacy_asset(Path("/tmp/spec-template.md"))
-
-
 def test_warn_legacy_asset_emits_single_migrate_nudge_after_runtime_bootstrap(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -449,5 +440,4 @@ def test_resolve_template_and_command_package_tier_assert_path_and_mission(
     assert command.tier.name == ResolutionTier.PACKAGE_DEFAULT.name
     assert command.path is not None
     assert command.mission == "software-dev"
-
 

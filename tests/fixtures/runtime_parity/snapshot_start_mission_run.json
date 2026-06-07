@@ -1,5 +1,7 @@
 {
+  "mission_id": null,
   "mission_key": "ref-parity",
+  "mission_slug": null,
   "run_dir": "<RUN_DIR>",
   "run_id": "<RUN_ID>"
 }

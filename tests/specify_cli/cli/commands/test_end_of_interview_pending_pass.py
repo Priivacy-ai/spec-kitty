@@ -38,6 +38,15 @@ MISSION_SLUG = "test-widen-eoi-mission"
 MISSION_ID = "01KWIDENOITEST000000000001"
 
 
+def _make_mission_dir(repo_root: Path) -> None:
+    mission_dir = repo_root / "kitty-specs" / MISSION_SLUG
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    (mission_dir / "meta.json").write_text(
+        json.dumps({"mission_slug": MISSION_SLUG, "mission_id": MISSION_ID}),
+        encoding="utf-8",
+    )
+
+
 def _make_entry(decision_id: str = "dec-001", question: str = "What DB?") -> WidenPendingEntry:
     return WidenPendingEntry(
         decision_id=decision_id,
@@ -50,6 +59,7 @@ def _make_entry(decision_id: str = "dec-001", question: str = "What DB?") -> Wid
 
 
 def _make_store(tmp_path: Path, entries: list[WidenPendingEntry] | None = None) -> WidenPendingStore:
+    _make_mission_dir(tmp_path)
     store = WidenPendingStore(tmp_path, MISSION_SLUG)
     for entry in (entries or []):
         store.add_pending(entry)

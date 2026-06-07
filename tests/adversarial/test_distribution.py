@@ -154,32 +154,6 @@ class TestInitWithoutTemplateRoot:
         config = kittify / "config.yaml"
         assert config.exists(), "config.yaml should be created"
 
-    def test_init_templates_are_valid(self, installed_venv: Path, tmp_path: Path) -> None:
-        """Initialized templates should contain expected content."""
-        project_dir = tmp_path / "template-test"
-
-        spec_kitty = _venv_spec_kitty(installed_venv)
-
-        subprocess.run(
-            [
-                str(spec_kitty),
-                "init",
-                str(project_dir),
-                "--ai",
-                "claude",
-            ],
-            capture_output=True,
-            text=True,
-            env=_clean_env(),
-            cwd=str(tmp_path),
-            check=True,
-        )
-
-        # Check mission templates exist
-        missions_dir = project_dir / ".kittify" / "missions"
-        if missions_dir.exists():
-            assert (missions_dir / "software-dev").exists() or True  # May not exist in all versions
-
     def test_init_installs_bundled_skills(self, installed_venv: Path, tmp_path: Path) -> None:
         """Wheel-installed init should install the canonical bundled skill pack."""
         project_dir = tmp_path / "skills-project"
@@ -210,54 +184,6 @@ class TestInitWithoutTemplateRoot:
 
 # =============================================================================
 # RESEARCH FEATURE CREATION TESTS (T011)
-# =============================================================================
-
-
-class TestResearchFeatureCreation:
-    """Test research mission feature creation with packaged templates."""
-
-    def test_research_templates_bundled(self, installed_venv: Path, tmp_path: Path) -> None:
-        """Research mission templates should be available from package."""
-        project_dir = tmp_path / "research-project"
-
-        spec_kitty = _venv_spec_kitty(installed_venv)
-
-        # Initialize spec-kitty (will create directory)
-        result = subprocess.run(
-            [
-                str(spec_kitty),
-                "init",
-                str(project_dir),
-                "--ai",
-                "claude",
-            ],
-            capture_output=True,
-            text=True,
-            env=_clean_env(),
-            cwd=str(tmp_path),
-        )
-
-        assert result.returncode == 0, f"Init failed: {result.stderr}"
-
-        # Initialize git after init (required for features)
-        subprocess.run(["git", "init", "-b", "main"], cwd=project_dir, check=True, capture_output=True)
-        subprocess.run(
-            ["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True
-        )
-        subprocess.run(["git", "config", "user.name", "Test"], cwd=project_dir, check=True, capture_output=True)
-
-        # Verify research templates are available
-        # (The specific check depends on how templates are bundled)
-
-    def test_meta_json_schema(self, installed_venv: Path, tmp_path: Path) -> None:
-        """meta.json should have correct schema for research features."""
-        # This test validates the ADR 7 deliverables_path field is present
-        # when research features are created
-        pass  # Implementation depends on exact CLI commands available
-
-
-# =============================================================================
-# UPGRADE WITH ALL MISSIONS TESTS (T012)
 # =============================================================================
 
 

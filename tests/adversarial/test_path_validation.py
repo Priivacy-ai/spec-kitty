@@ -165,23 +165,6 @@ class TestSymlinkAttacks:
         if is_valid:
             pytest.xfail("validate_deliverables_path does not resolve symlinks - security gap")
 
-    @pytest.mark.requires_symlinks
-    def test_symlink_chain_resolved(self, tmp_path: Path, symlink_factory):
-        """Chain of symlinks should be fully resolved."""
-        target = tmp_path / "actual-target"
-        target.mkdir()
-
-        link1 = symlink_factory(target, "link1")
-        if link1 is None:
-            pytest.skip("Symlinks not supported")
-
-        link2 = symlink_factory(link1, "link2")
-        if link2 is None:
-            pytest.skip("Symlinks not supported")
-
-        # Symlink chains should be resolved
-        # This documents expected behavior
-
 
 class TestSpecialPaths:
     """Test special path pattern handling."""

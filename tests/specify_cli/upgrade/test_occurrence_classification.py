@@ -26,11 +26,12 @@ pytestmark = [pytest.mark.unit]
 IMPLEMENT_TEMPLATE_PATH = (
     Path(__file__).resolve().parents[3]
     / "src"
-    / "specify_cli"
+    / "doctrine"
     / "missions"
+    / "mission-steps"
     / "software-dev"
-    / "command-templates"
-    / "implement.md"
+    / "implement"
+    / "prompt.md"
 )
 
 

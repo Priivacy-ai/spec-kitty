@@ -925,8 +925,9 @@ class TestBatchSyncErrors:
         assert result.error_count == 100
         assert "HTTP 500" in result.error_messages[0]
 
+    @patch("specify_cli.sync.batch.request_with_stdlib_fallback_sync", return_value=None)
     @patch("specify_cli.sync.batch.requests.post")
-    def test_batch_sync_timeout(self, mock_post, populated_queue):
+    def test_batch_sync_timeout(self, mock_post, _mock_fallback, populated_queue):
         """Test batch sync handles request timeout"""
         import requests
 
@@ -937,8 +938,9 @@ class TestBatchSyncErrors:
         assert result.error_count == 100
         assert "Request timeout" in result.error_messages
 
+    @patch("specify_cli.sync.batch.request_with_stdlib_fallback_sync", return_value=None)
     @patch("specify_cli.sync.batch.requests.post")
-    def test_batch_sync_connection_error(self, mock_post, populated_queue):
+    def test_batch_sync_connection_error(self, mock_post, _mock_fallback, populated_queue):
         """Test batch sync handles connection error"""
         import requests
 

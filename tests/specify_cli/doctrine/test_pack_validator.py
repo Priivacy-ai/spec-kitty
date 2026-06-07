@@ -273,6 +273,28 @@ def _write_tactic(
     return path
 
 
+def _write_drg_intent(pack_dir: Path, *, artifact_id: str, relation: str) -> Path:
+    drg = pack_dir / "drg"
+    drg.mkdir(parents=True, exist_ok=True)
+    path = drg / "intent.graph.yaml"
+    path.write_text(
+        textwrap.dedent(
+            f"""\
+            schema_version: '1.0'
+            generated_at: STATIC
+            generated_by: test
+            nodes: []
+            edges:
+              - source: tactic:{artifact_id}
+                target: tactic:{artifact_id}
+                relation: {relation}
+            """
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 @pytest.mark.unit
 class TestIntentAwareCollision:
     """WP06 precedence table — `enhances` / `overrides` advisory + error logic.
@@ -299,10 +321,11 @@ class TestIntentAwareCollision:
         if not self._has_built_in_doctrine():
             pytest.skip("shipped doctrine not on disk in this environment")
 
-        _write_tactic(
+        _write_tactic(tmp_path, artifact_id=_BUILT_IN_TACTIC_ID)
+        _write_drg_intent(
             tmp_path,
             artifact_id=_BUILT_IN_TACTIC_ID,
-            enhances=_BUILT_IN_TACTIC_ID,
+            relation="enhances",
         )
 
         result = validate_pack(tmp_path)
@@ -323,10 +346,11 @@ class TestIntentAwareCollision:
         if not self._has_built_in_doctrine():
             pytest.skip("shipped doctrine not on disk in this environment")
 
-        _write_tactic(
+        _write_tactic(tmp_path, artifact_id=_BUILT_IN_TACTIC_ID)
+        _write_drg_intent(
             tmp_path,
             artifact_id=_BUILT_IN_TACTIC_ID,
-            overrides=_BUILT_IN_TACTIC_ID,
+            relation="overrides",
         )
 
         result = validate_pack(tmp_path)
