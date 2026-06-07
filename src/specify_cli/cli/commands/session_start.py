@@ -9,9 +9,10 @@ This command MUST never cause a Claude Code session to fail to start, regardless
 of any error in the spec-kitty stack.  All exceptions are swallowed.
 
 Performance (NFR-001): the command must complete in <200ms on a warm filesystem.
-The upgrade check fires a background subprocess (``check_in_background()``) that
-returns immediately; ``get_available_version()`` reads only the local cache file —
-no network calls on the hot path.
+Unless ``SPEC_KITTY_NO_UPGRADE_CHECK`` is set, the upgrade check fires a
+background subprocess (``check_in_background()``) that returns immediately;
+``get_available_version()`` reads only the local cache file — no network calls
+on the hot path.
 """
 
 from __future__ import annotations

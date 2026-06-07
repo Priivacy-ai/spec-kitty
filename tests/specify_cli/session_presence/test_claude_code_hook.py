@@ -92,6 +92,20 @@ class TestRegister:
         # File should now be valid JSON
         data = _read_settings(claude_project)
         assert "hooks" in data
+        backup = _settings_path(claude_project).with_name("settings.json.invalid")
+        assert backup.read_text(encoding="utf-8") == "NOT JSON"
+
+    def test_handles_non_object_json_without_losing_original(
+        self, claude_project: Path
+    ) -> None:
+        original = '["not", "an", "object"]'
+        _settings_path(claude_project).write_text(original, encoding="utf-8")
+        reg = ClaudeCodeHookRegistrar()
+        reg.register(claude_project, _CMD)
+        data = _read_settings(claude_project)
+        assert "hooks" in data
+        backup = _settings_path(claude_project).with_name("settings.json.invalid")
+        assert backup.read_text(encoding="utf-8") == original
 
     def test_creates_valid_structure_from_empty(self, claude_project: Path) -> None:
         reg = ClaudeCodeHookRegistrar()

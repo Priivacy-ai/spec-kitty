@@ -22,8 +22,9 @@ Target structure after ``register()``::
 
 Edge cases handled:
 - File absent → treated as ``{}`` → ``register()`` creates it.
-- File exists but contains invalid JSON → treated as ``{}`` → ``register()``
-  creates a valid structure (previous malformed content is discarded).
+- File exists but contains invalid JSON or non-object JSON → original content is
+  copied to ``settings.json.invalid*`` before ``register()`` creates a valid
+  structure.
 - File exists with other ``SessionStart`` entries → all preserved.
 - ``unregister()`` on a file where the command is not present → no-op, no
   write performed.
@@ -32,6 +33,7 @@ Edge cases handled:
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -39,6 +41,7 @@ __all__ = ["ClaudeCodeHookRegistrar"]
 
 _SETTINGS_PATH = ".claude/settings.json"
 _SESSION_START_KEY = "SessionStart"
+_logger = logging.getLogger(__name__)
 
 
 class ClaudeCodeHookRegistrar:
@@ -51,14 +54,40 @@ class ClaudeCodeHookRegistrar:
     def _settings_path(self, project_root: Path) -> Path:
         return project_root / _SETTINGS_PATH
 
-    def _load(self, path: Path) -> dict[str, object]:
-        """Load JSON from *path*, returning ``{}`` on absence or parse error."""
+    def _load(self, path: Path, *, preserve_invalid: bool = False) -> dict[str, object]:
+        """Load JSON object from *path*, returning ``{}`` on absence or invalid data.
+
+        When ``preserve_invalid`` is true, existing malformed/non-object content
+        is copied to a sibling ``.invalid`` backup before callers overwrite the
+        settings file.  Backup failures are re-raised to prevent silent data loss.
+        """
         if not path.exists():
             return {}
         try:
-            return dict(json.loads(path.read_text(encoding="utf-8")))
-        except (json.JSONDecodeError, OSError):
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
             return {}
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            if preserve_invalid:
+                self._preserve_invalid(path, text)
+            return {}
+        if not isinstance(data, dict):
+            if preserve_invalid:
+                self._preserve_invalid(path, text)
+            return {}
+        return data
+
+    def _preserve_invalid(self, path: Path, text: str) -> None:
+        """Copy invalid settings content to a sibling backup before overwrite."""
+        backup = path.with_name(f"{path.name}.invalid")
+        counter = 1
+        while backup.exists():
+            backup = path.with_name(f"{path.name}.invalid.{counter}")
+            counter += 1
+        backup.write_text(text, encoding="utf-8")
+        _logger.warning("Preserved invalid Claude settings JSON at %s", backup)
 
     def _save(self, path: Path, data: dict[str, object]) -> None:
         """Write *data* as JSON to *path* atomically."""
@@ -102,7 +131,7 @@ class ClaudeCodeHookRegistrar:
         if self.is_registered(project_root, command):
             return
         path = self._settings_path(project_root)
-        data = self._load(path)
+        data = self._load(path, preserve_invalid=True)
         # Ensure hooks → SessionStart list exists, then append.
         hooks_section = data.get("hooks")
         if not isinstance(hooks_section, dict):

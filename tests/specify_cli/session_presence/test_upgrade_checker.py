@@ -39,6 +39,15 @@ def _write_cache(path: Path, version: str, age_seconds: int = 0) -> None:
 
 
 class TestGetAvailableVersion:
+    def test_opt_out_returns_none_even_when_cache_exists(
+        self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """SPEC_KITTY_NO_UPGRADE_CHECK disables cached upgrade notices."""
+        _write_cache(patched_cache, "9.9.9", age_seconds=60)
+        monkeypatch.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
+        checker = UpgradeChecker()
+        assert checker.get_available_version() is None
+
     def test_cache_miss_no_file_returns_none(self, patched_cache: Path) -> None:
         """Cache miss (no file): get_available_version() returns None."""
         checker = UpgradeChecker()
@@ -96,6 +105,16 @@ class TestGetAvailableVersion:
 
 
 class TestCheckInBackground:
+    def test_opt_out_does_not_spawn_subprocess(
+        self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """SPEC_KITTY_NO_UPGRADE_CHECK disables background PyPI probes."""
+        monkeypatch.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
+        with patch("subprocess.Popen") as mock_popen:
+            checker = UpgradeChecker()
+            checker.check_in_background()
+        mock_popen.assert_not_called()
+
     def test_subprocess_oserror_does_not_raise(
         self, patched_cache: Path
     ) -> None:

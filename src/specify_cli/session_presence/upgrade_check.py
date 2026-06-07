@@ -9,6 +9,7 @@ TTL: 3600 seconds (1 hour)
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -21,6 +22,13 @@ __all__ = [
 
 CACHE_PATH: Path = Path.home() / ".kittify" / "last-cli-check.json"
 TTL_SECONDS: int = 3600
+OPT_OUT_ENV_VAR: str = "SPEC_KITTY_NO_UPGRADE_CHECK"
+
+
+def _is_opt_out_set() -> bool:
+    """Return True when upgrade checks are disabled by environment."""
+    raw = os.environ.get(OPT_OUT_ENV_VAR, "").strip().lower()
+    return raw in ("1", "true", "yes", "on")
 
 
 class UpgradeChecker:
@@ -41,6 +49,9 @@ class UpgradeChecker:
         5. If age >= TTL_SECONDS: return last known ``latest_version``
            (stale but better than ``None``).
         """
+        if _is_opt_out_set():
+            return None
+
         try:
             text = CACHE_PATH.read_text(encoding="utf-8")
         except OSError:
@@ -72,6 +83,9 @@ class UpgradeChecker:
         Fire-and-forget — returns immediately.  Any failure (subprocess not found,
         permission error, network timeout, …) is silently swallowed.
         """
+        if _is_opt_out_set():
+            return
+
         try:
             CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
             script = (
