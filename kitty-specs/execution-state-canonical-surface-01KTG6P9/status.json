@@ -1,7 +1,7 @@
 {
-  "event_count": 1,
-  "last_event_id": "01KTGPZGXSJZ70J230H175QPRT",
-  "materialized_at": "2026-06-07T09:35:16.921387+00:00",
+  "event_count": 2,
+  "last_event_id": "01KTGQ166QX3FD4WA07739FN16",
+  "materialized_at": "2026-06-07T09:36:11.479866+00:00",
   "mission_number": "",
   "mission_slug": "execution-state-canonical-surface-01KTG6P9",
   "mission_type": "software-dev",
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 0
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -23,6 +23,13 @@
       "lane": "claimed",
       "last_event_id": "01KTGPZGXSJZ70J230H175QPRT",
       "last_transition_at": "2026-06-07T09:35:16.921387+00:00"
+    },
+    "WP02": {
+      "actor": "diag",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KTGQ166QX3FD4WA07739FN16",
+      "last_transition_at": "2026-06-07T09:36:11.479866+00:00"
     }
   }
 }
