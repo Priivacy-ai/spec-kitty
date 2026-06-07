@@ -23,8 +23,8 @@ subtasks:
 - T020
 - T021
 - T022
-agent: "claude:sonnet:implementer:implementer"
-shell_pid: "67077"
+agent: "claude:sonnet:reviewer:reviewer"
+shell_pid: "14251"
 history:
 - date: '2026-06-07'
   status: planned
@@ -286,3 +286,5 @@ def test_session_start_performance(claude_project, monkeypatch):
 ## Activity Log
 
 - 2026-06-07T15:41:29Z – claude:sonnet:implementer:implementer – shell_pid=67077 – Assigned agent via action command
+- 2026-06-07T15:55:55Z – claude:sonnet:implementer:implementer – shell_pid=67077 – WP04 complete: Phase 1 test suite. All 95 tests pass, ruff clean. Covers T017-T022 (content, upgrade_checker, markdown_rules_writer, claude_code_writer/hook, manager, session-start CLI, migration). NFR-001 timing assertion included.
+- 2026-06-07T15:56:21Z – claude:sonnet:reviewer:reviewer – shell_pid=14251 – Started review via action command
