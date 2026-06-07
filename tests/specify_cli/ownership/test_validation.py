@@ -9,6 +9,7 @@ from pathlib import Path
 from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
 from specify_cli.ownership.validation import (
     ValidationResult,
+    build_wp_manifests,
     validate_all,
     validate_authoritative_surface,
     validate_execution_mode_consistency,
@@ -16,6 +17,7 @@ from specify_cli.ownership.validation import (
     validate_no_overlap,
     validate_ownership,
 )
+from specify_cli.status.wp_metadata import WPMetadata
 
 
 pytestmark = [pytest.mark.unit]
@@ -301,3 +303,79 @@ class TestValidateGlobMatches:
         assert len(warnings) == 2
         assert warnings[0].startswith("WP01")
         assert warnings[1].startswith("WP02")
+
+
+# ---------------------------------------------------------------------------
+# #1753 follow-up: ownership overlap decided logically from WPMetadata stubs.
+#
+# These prove the invariant WITHOUT real WP files or finalize-command ceremony:
+# build_wp_manifests + validate_ownership is the pure seam finalize-tasks uses.
+# Invariant: scope=codebase-wide is the ONLY exemption; lane/dependency
+# structure (modelled via the `dependencies` field) never exempts an overlap.
+# ---------------------------------------------------------------------------
+
+
+def _wp(
+    wp_id: str,
+    owned: tuple[str, ...],
+    surface: str,
+    *,
+    scope: str | None = None,
+    deps: tuple[str, ...] = (),
+) -> WPMetadata:
+    """Minimal WPMetadata stub with explicit ownership (no files involved)."""
+    return WPMetadata(
+        work_package_id=wp_id,
+        execution_mode="code_change",
+        owned_files=list(owned),
+        authoritative_surface=surface,
+        scope=scope,
+        dependencies=list(deps),
+    )
+
+
+class TestBuildWpManifestsOverlap:
+    """The validator is exercised logically from WPMetadata stubs."""
+
+    def test_independent_wps_overlap_fails(self) -> None:
+        """Two independent (different-lane) narrow WPs on the same files fail."""
+        result = validate_ownership(
+            build_wp_manifests(
+                {
+                    "WP01": _wp("WP01", ("src/foo/**",), "src/foo/"),
+                    "WP02": _wp("WP02", ("src/foo/**",), "src/foo/"),
+                }
+            )
+        )
+        assert not result.passed
+        assert any("WP01" in e and "WP02" in e for e in result.errors)
+
+    def test_dependency_hierarchy_does_not_exempt(self) -> None:
+        """WP02 → WP01 dependency (one lane) does NOT exempt narrow overlap."""
+        result = validate_ownership(
+            build_wp_manifests(
+                {
+                    "WP01": _wp("WP01", ("src/foo/**",), "src/foo/"),
+                    "WP02": _wp("WP02", ("src/foo/**",), "src/foo/", deps=("WP01",)),
+                }
+            )
+        )
+        assert not result.passed
+
+    def test_codebase_wide_is_the_only_exemption(self) -> None:
+        """A codebase-wide WP overlapping a narrow WP passes (scope carried)."""
+        result = validate_ownership(
+            build_wp_manifests(
+                {
+                    "WP01": _wp("WP01", ("src/**",), "src/", scope="codebase-wide"),
+                    "WP02": _wp(
+                        "WP02", ("src/foo/bar.py",), "src/foo/bar.py", deps=("WP01",)
+                    ),
+                }
+            )
+        )
+        assert result.passed
+
+    def test_wp_without_ownership_is_skipped(self) -> None:
+        """WPs without execution_mode/owned_files are not manifested."""
+        assert build_wp_manifests({"WP01": WPMetadata(work_package_id="WP01")}) == {}
