@@ -29,7 +29,7 @@ context-sources:
     - code-review-incremental
     - language-driven-design
     - reverse-speccing
-    - test-ceremony-as-design-smell
+    - test-scaffolding-as-design-smell
   additional:
     - behaviour-driven-development-paradigm
     - review-checklist
@@ -162,7 +162,7 @@ tactic-references:
     rationale: >
       Verify that every behavior covered in scope has a passing executable scenario
       before approving the WP. Scenarios not yet wired to step definitions block approval.
-  - id: test-ceremony-as-design-smell
+  - id: test-scaffolding-as-design-smell
     rationale: >
       Treat heavy test setup or many infrastructure mocks in a diff as a design
       smell to flag, not accept — request a pure boundary/seam instead of more doubles.

@@ -580,9 +580,6 @@ nodes:
 - urn: tactic:test-boundaries-by-responsibility
   kind: tactic
   label: Test Boundaries by Functional Responsibility
-- urn: tactic:test-ceremony-as-design-smell
-  kind: tactic
-  label: Test Setup Ceremony as a Design Smell
 - urn: tactic:test-minimisation
   kind: tactic
   label: Test Minimisation
@@ -592,6 +589,9 @@ nodes:
 - urn: tactic:test-readability-clarity-check
   kind: tactic
   label: Test Readability and Clarity Check
+- urn: tactic:test-scaffolding-as-design-smell
+  kind: tactic
+  label: Test Setup Scaffolding as a Design Smell
 - urn: tactic:test-to-system-reconstruction
   kind: tactic
   label: Test-to-System Reconstruction
@@ -1305,7 +1305,7 @@ edges:
   target: directive:DIRECTIVE_030
   relation: requires
 - source: agent_profile:python-pedro
-  target: tactic:test-ceremony-as-design-smell
+  target: tactic:test-scaffolding-as-design-smell
   relation: requires
   reason: Write code whose behavior is testable without infrastructure. If a unit test would need real files, git, or several mocks to run, invert the dependency and extract a pure seam before adding the test, rather than expanding the mock setup.
 - source: agent_profile:randy-reducer
@@ -1345,7 +1345,7 @@ edges:
   relation: requires
   reason: Collapse split business-rule paths into one canonical owner
 - source: agent_profile:randy-reducer
-  target: tactic:test-ceremony-as-design-smell
+  target: tactic:test-scaffolding-as-design-smell
   relation: requires
   reason: Heavy test setup signals duplicated, IO-coupled code paths and a missing seam — extract one pure boundary and collapse the variants.
 - source: agent_profile:researcher-robbie
@@ -1389,13 +1389,13 @@ edges:
   relation: requires
   reason: Validate that tests serve as executable specifications by reconstructing system understanding from test code alone
 - source: agent_profile:reviewer-renata
-  target: tactic:test-ceremony-as-design-smell
-  relation: requires
-  reason: Treat heavy test setup or many infrastructure mocks in a diff as a design smell to flag, not accept — request a pure boundary/seam instead of more doubles.
-- source: agent_profile:reviewer-renata
   target: tactic:test-readability-clarity-check
   relation: requires
   reason: 'Apply the dual-perspective reconstruction check during review: read only the test suite and attempt to reconstruct system behavior, then compare against the specification. Tests that fail reconstruction are documentation gaps.'
+- source: agent_profile:reviewer-renata
+  target: tactic:test-scaffolding-as-design-smell
+  relation: requires
+  reason: Treat heavy test setup or many infrastructure mocks in a diff as a design smell to flag, not accept — request a pure boundary/seam instead of more doubles.
 - source: directive:DIRECTIVE_001
   target: tactic:paula-patterns-architecture-scout-review
   relation: requires
@@ -2468,18 +2468,6 @@ edges:
   target: tactic:tdd-red-green-refactor
   relation: suggests
   when: Driving implementation inside the boundaries defined by this tactic
-- source: tactic:test-ceremony-as-design-smell
-  target: styleguide:test-desiderata-and-boundaries
-  relation: suggests
-  when: The styleguide this tactic operationalizes — desiderata as trade-offs and infrastructure-as-shared-state as the anti-pattern this tactic detects
-- source: tactic:test-ceremony-as-design-smell
-  target: tactic:function-over-form-testing
-  relation: suggests
-  when: Use to keep the extracted seam's tests asserting behavior, not structure, so they stay structure-insensitive
-- source: tactic:test-ceremony-as-design-smell
-  target: tactic:test-boundaries-by-responsibility
-  relation: suggests
-  when: Use to decide what belongs inside the extracted seam versus what is stubbed at the boundary
 - source: tactic:test-minimisation
   target: directive:DIRECTIVE_030
   relation: suggests
@@ -2496,6 +2484,18 @@ edges:
   target: tactic:test-boundaries-by-responsibility
   relation: suggests
   when: After identifying coverage gaps, use this tactic to determine the correct level at which to add missing tests
+- source: tactic:test-scaffolding-as-design-smell
+  target: styleguide:test-desiderata-and-boundaries
+  relation: suggests
+  when: The styleguide this tactic operationalizes — desiderata as trade-offs and infrastructure-as-shared-state as the anti-pattern this tactic detects
+- source: tactic:test-scaffolding-as-design-smell
+  target: tactic:function-over-form-testing
+  relation: suggests
+  when: Use to keep the extracted seam's tests asserting behavior, not structure, so they stay structure-insensitive
+- source: tactic:test-scaffolding-as-design-smell
+  target: tactic:test-boundaries-by-responsibility
+  relation: suggests
+  when: Use to decide what belongs inside the extracted seam versus what is stubbed at the boundary
 - source: tactic:test-to-system-reconstruction
   target: directive:DIRECTIVE_034
   relation: suggests

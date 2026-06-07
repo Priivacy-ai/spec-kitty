@@ -1,16 +1,16 @@
 schema_version: "1.0"
-id: test-ceremony-as-design-smell
-name: Test Setup Ceremony as a Design Smell
+id: test-scaffolding-as-design-smell
+name: Test Setup Scaffolding as a Design Smell
 purpose: >
   Read the cost and shape of test setup as a signal about production design.
   When a unit test needs real infrastructure (files, git, database, network,
-  clock) or many mocks/patches to run, that ceremony is evidence of a missing
+  clock) or many mocks/patches to run, that scaffolding is evidence of a missing
   boundary in the code under test — the unit reaches infrastructure directly
   instead of depending on a pure seam. The remedy is to extract the behavior
   under test as a function of domain inputs, then test it directly. The mock
-  ceremony is the symptom; the missing boundary is the disease.
+  scaffolding is the symptom; the missing boundary is the disease.
 steps:
-  - title: Notice the ceremony
+  - title: Notice the scaffolding
     description: >
       Before accepting an expensive test, quantify the setup: how many
       infrastructure functions are mocked/patched, and how much real on-disk or
@@ -47,14 +47,14 @@ steps:
   - title: Verify the desiderata recovered
     description: >
       Confirm the new tests are Fast, Isolated, Specific, and
-      Structure-insensitive, and that the heavy mock ceremony is gone. If a test
+      Structure-insensitive, and that the heavy mock scaffolding is gone. If a test
       still needs broad infrastructure, the boundary is still in the wrong place.
 failure_modes:
   - "Symptom-fighting: adding more mocks/patches to make the expensive test pass instead of extracting the missing boundary."
   - "Over-extraction: creating a seam that carries no behavior, trading a real test for an indirection."
   - "Dropping the boundary test entirely: losing predictive coverage that the real IO wiring works."
   - "Mocking collaborators inside the functional slice: testing doubles instead of the logic the test claims to cover."
-  - "Reading ceremony as inevitable for 'integration-y' code: most command logic has a pure decision core that can be lifted out."
+  - "Reading scaffolding as inevitable for 'integration-y' code: most command logic has a pure decision core that can be lifted out."
 references:
   - name: Test Boundaries by Functional Responsibility
     type: tactic
