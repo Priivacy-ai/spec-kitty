@@ -20,6 +20,10 @@ if TYPE_CHECKING:
 app = typer.Typer(name="profiles", help="Manage and list agent profiles.")
 console = Console()
 
+KITTIFY_DIRNAME = ".kittify"
+PROFILE_ID_COLUMN = "Profile ID"
+EMPTY_VALUE = "[dim]—[/dim]"
+
 
 def _activated_agent_profiles(repo_root: Path) -> frozenset[str] | None:
     """Return the three-state ``activated_agent_profiles`` set for ``repo_root``.
@@ -28,7 +32,7 @@ def _activated_agent_profiles(repo_root: Path) -> frozenset[str] | None:
     backward-compat). ``frozenset()`` → explicit empty (nothing activated).
     Non-empty frozenset → explicit set of activated IDs.
     """
-    if not (repo_root / ".kittify" / "config.yaml").exists():
+    if not (repo_root / KITTIFY_DIRNAME / "config.yaml").exists():
         return None
 
     from charter.pack_context import PackContext
@@ -78,7 +82,7 @@ def _profile_catalog(
     """
     from charter.profiles import AgentProfileRepository
 
-    legacy_dir = repo_root / ".kittify" / "profiles"
+    legacy_dir = repo_root / KITTIFY_DIRNAME / "profiles"
     legacy_repo = AgentProfileRepository(
         project_dir=legacy_dir if legacy_dir.exists() else None
     )
@@ -96,7 +100,7 @@ def _profile_catalog(
     # Overlay charter doctrine project/org profiles that the legacy invocation
     # registry cannot see. Built-ins stay controlled by ProfileRegistry so
     # existing tests/monkeypatches keep their pre-activation behavior.
-    project_doctrine_profiles = repo_root / ".kittify" / "doctrine" / "agent_profiles"
+    project_doctrine_profiles = repo_root / KITTIFY_DIRNAME / "doctrine" / "agent_profiles"
     from doctrine.drg.org_pack_config import resolve_org_roots
 
     org_roots = [root for root in resolve_org_roots(repo_root) if root.exists()]
@@ -196,7 +200,7 @@ def _render_list(descriptors: list[dict[str, Any]], *, json_output: bool) -> Non
         typer.echo(json.dumps(descriptors, indent=2))
         return
     table = Table(title="Agent Profiles")
-    table.add_column("Profile ID", no_wrap=True, overflow="fold")
+    table.add_column(PROFILE_ID_COLUMN, no_wrap=True, overflow="fold")
     table.add_column("Friendly Name")
     table.add_column("Role")
     table.add_column("Source")
@@ -211,7 +215,7 @@ def _render_list_annotated(descriptors: list[dict[str, Any]], *, json_output: bo
         typer.echo(json.dumps(descriptors, indent=2))
         return
     table = Table(title="Agent Profiles")
-    table.add_column("Profile ID", no_wrap=True, overflow="fold")
+    table.add_column(PROFILE_ID_COLUMN, no_wrap=True, overflow="fold")
     table.add_column("Friendly Name")
     table.add_column("Role")
     table.add_column("Source")
@@ -394,25 +398,25 @@ def _render_profile_human(payload: dict[str, Any]) -> None:
     table.add_row("Name", str(payload["name"]))
     table.add_row("Role", str(payload["role"]))
     table.add_row("Source layer", str(payload["source_layer"]))
-    table.add_row("Initialization", str(payload["initialization_declaration"]) or "[dim]—[/dim]")
+    table.add_row("Initialization", str(payload["initialization_declaration"]) or EMPTY_VALUE)
 
     spec = payload["specialization"]
-    table.add_row("Primary focus", spec["primary_focus"] or "[dim]—[/dim]")
-    table.add_row("Secondary awareness", spec["secondary_awareness"] or "[dim]—[/dim]")
-    table.add_row("Avoidance boundary", spec["avoidance_boundary"] or "[dim]—[/dim]")
-    table.add_row("Success definition", spec["success_definition"] or "[dim]—[/dim]")
+    table.add_row("Primary focus", spec["primary_focus"] or EMPTY_VALUE)
+    table.add_row("Secondary awareness", spec["secondary_awareness"] or EMPTY_VALUE)
+    table.add_row("Avoidance boundary", spec["avoidance_boundary"] or EMPTY_VALUE)
+    table.add_row("Success definition", spec["success_definition"] or EMPTY_VALUE)
 
     collab = payload["collaboration"]
-    table.add_row("Handoff to", ", ".join(collab["handoff_to"]) or "[dim]—[/dim]")
-    table.add_row("Handoff from", ", ".join(collab["handoff_from"]) or "[dim]—[/dim]")
-    table.add_row("Works with", ", ".join(collab["works_with"]) or "[dim]—[/dim]")
-    table.add_row("Canonical verbs", ", ".join(collab["canonical_verbs"]) or "[dim]—[/dim]")
+    table.add_row("Handoff to", ", ".join(collab["handoff_to"]) or EMPTY_VALUE)
+    table.add_row("Handoff from", ", ".join(collab["handoff_from"]) or EMPTY_VALUE)
+    table.add_row("Works with", ", ".join(collab["works_with"]) or EMPTY_VALUE)
+    table.add_row("Canonical verbs", ", ".join(collab["canonical_verbs"]) or EMPTY_VALUE)
 
     modes = ", ".join(m["mode"] for m in payload["mode_defaults"])
-    table.add_row("Mode defaults", modes or "[dim]—[/dim]")
+    table.add_row("Mode defaults", modes or EMPTY_VALUE)
     directives = ", ".join(r["code"] for r in payload["directive_references"])
-    table.add_row("Directive refs", directives or "[dim]—[/dim]")
+    table.add_row("Directive refs", directives or EMPTY_VALUE)
     tactics = ", ".join(r["id"] for r in payload["tactic_references"])
-    table.add_row("Tactic refs", tactics or "[dim]—[/dim]")
+    table.add_row("Tactic refs", tactics or EMPTY_VALUE)
 
     console.print(table)
