@@ -70,11 +70,11 @@
 **Estimated prompt size**: ~420 lines
 **Depends on**: WP01
 
-- [ ] T007 Implement `MarkdownRulesWriter` (WP02)
-- [ ] T008 Implement `ClaudeCodeWriter` (WP02)
-- [ ] T009 Define `HookRegistrar` protocol (WP02)
-- [ ] T010 Implement `ClaudeCodeHookRegistrar` (WP02)
-- [ ] T011 Wire `claude → ClaudeCodeWriter()` in registry (WP02)
+- [x] T007 Implement `MarkdownRulesWriter` (WP02)
+- [x] T008 Implement `ClaudeCodeWriter` (WP02)
+- [x] T009 Define `HookRegistrar` protocol (WP02)
+- [x] T010 Implement `ClaudeCodeHookRegistrar` (WP02)
+- [x] T011 Wire `claude → ClaudeCodeWriter()` in registry (WP02)
 
 **Prompt**: [WP02-claude-code-writer-and-hook-registrar.md](tasks/WP02-claude-code-writer-and-hook-registrar.md)
 
