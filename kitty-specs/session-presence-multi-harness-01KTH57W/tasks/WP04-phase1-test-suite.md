@@ -24,7 +24,7 @@ subtasks:
 - T021
 - T022
 agent: "claude:sonnet:reviewer:reviewer"
-shell_pid: "14251"
+shell_pid: "57253"
 history:
 - date: '2026-06-07'
   status: planned
@@ -288,3 +288,6 @@ def test_session_start_performance(claude_project, monkeypatch):
 - 2026-06-07T15:41:29Z – claude:sonnet:implementer:implementer – shell_pid=67077 – Assigned agent via action command
 - 2026-06-07T15:55:55Z – claude:sonnet:implementer:implementer – shell_pid=67077 – WP04 complete: Phase 1 test suite. All 95 tests pass, ruff clean. Covers T017-T022 (content, upgrade_checker, markdown_rules_writer, claude_code_writer/hook, manager, session-start CLI, migration). NFR-001 timing assertion included.
 - 2026-06-07T15:56:21Z – claude:sonnet:reviewer:reviewer – shell_pid=14251 – Started review via action command
+- 2026-06-07T16:00:12Z – user – shell_pid=14251 – Review REJECTED: 17 mypy errors in test files (unused type: ignore comments and no-any-return). See review-feedback-WP04.md in lane-d worktree.
+- 2026-06-07T16:04:53Z – claude:sonnet:reviewer:reviewer – shell_pid=14251 – Cycle 2: removed stale type:ignore comments, mypy clean
+- 2026-06-07T16:05:10Z – claude:sonnet:reviewer:reviewer – shell_pid=57253 – Started review via action command
