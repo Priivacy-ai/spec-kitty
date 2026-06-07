@@ -125,11 +125,11 @@
 **Estimated prompt size**: ~440 lines
 **Depends on**: WP01, WP02, WP03, WP04
 
-- [ ] T023 Implement `AgentsMdWriter` (WP05)
-- [ ] T024 Implement `SkillsPreambleWriter` (WP05)
-- [ ] T025 Add Pattern B registry entries (WP05)
-- [ ] T026 Add Pattern C + D + E registry entries (WP05)
-- [ ] T027 Write tests for new writers (WP05)
+- [x] T023 Implement `AgentsMdWriter` (WP05)
+- [x] T024 Implement `SkillsPreambleWriter` (WP05)
+- [x] T025 Add Pattern B registry entries (WP05)
+- [x] T026 Add Pattern C + D + E registry entries (WP05)
+- [x] T027 Write tests for new writers (WP05)
 
 **Prompt**: [WP05-phase2-writers-and-registry.md](tasks/WP05-phase2-writers-and-registry.md)
 

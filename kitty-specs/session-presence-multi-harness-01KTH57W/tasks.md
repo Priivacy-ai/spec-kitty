@@ -51,12 +51,12 @@
 **Estimated prompt size**: ~350 lines
 **Depends on**: none
 
-- [ ] T001 Create package init files with `__all__` (WP01)
-- [ ] T002 Implement `SessionPresenceContent` + `render()` (WP01)
-- [ ] T003 Implement `UpgradeChecker` (WP01)
-- [ ] T004 Define `Writer` protocol (WP01)
-- [ ] T005 Implement `NullWriter` (WP01)
-- [ ] T006 Implement skeleton registry with `get_writer()` (WP01)
+- [x] T001 Create package init files with `__all__` (WP01)
+- [x] T002 Implement `SessionPresenceContent` + `render()` (WP01)
+- [x] T003 Implement `UpgradeChecker` (WP01)
+- [x] T004 Define `Writer` protocol (WP01)
+- [x] T005 Implement `NullWriter` (WP01)
+- [x] T006 Implement skeleton registry with `get_writer()` (WP01)
 
 **Prompt**: [WP01-session-presence-package-foundation.md](tasks/WP01-session-presence-package-foundation.md)
 
@@ -143,8 +143,8 @@
 **Estimated prompt size**: ~320 lines
 **Depends on**: WP05
 
-- [ ] T028 Write Phase 2 upgrade migration (WP06)
-- [ ] T029 Write `test_m_session_presence_all_harnesses.py` (WP06)
-- [ ] T030 Integration smoke + full test run verification (WP06)
+- [x] T028 Write Phase 2 upgrade migration (WP06)
+- [x] T029 Write `test_m_session_presence_all_harnesses.py` (WP06)
+- [x] T030 Integration smoke + full test run verification (WP06)
 
 **Prompt**: [WP06-phase2-migration-and-tests.md](tasks/WP06-phase2-migration-and-tests.md)
