@@ -17,7 +17,6 @@ from specify_cli.migration.backfill_identity import (
     backfill_wp_ids,
     trigger_feature_dossier_sync_if_enabled,
 )
-from specify_cli.migration.rebuild_state import rebuild_event_log
 from specify_cli.status.lifecycle import derive_mission_lifecycle, generate_lifecycle_json
 from specify_cli.status.progress import generate_progress_json
 from specify_cli.status.views import write_derived_views
@@ -144,6 +143,14 @@ def _normalize_event_log(
     if dry_run:
         result.actions.append("Would rebuild status.events.jsonl from legacy mission state")
         return True
+
+    # Imported lazily: rebuild_event_log lives in the deprecated rebuild_state
+    # module (superseded by mission_state.repair_repo for new code) and emits a
+    # DeprecationWarning at import time. This legacy lifecycle-normalization path
+    # legitimately still needs the per-feature rebuild, so we defer the import to
+    # the point of use rather than firing the warning for every importer of this
+    # module (e.g. unrelated planning/test paths via compat.planner).
+    from specify_cli.migration.rebuild_state import rebuild_event_log
 
     rebuild = rebuild_event_log(feature_dir, result.slug, wp_id_map={})
     if rebuild.errors:
