@@ -34,6 +34,7 @@ agent_profile: randy-reducer
 authoritative_surface: 'src/runtime/next/runtime_bridge.py'
 execution_mode: code_change
 model: ''
+scope: codebase-wide
 owned_files:
 - src/runtime/next/runtime_bridge.py
 - src/specify_cli/cli/commands/agent/workflow.py
@@ -67,6 +68,7 @@ Route the primary residue surfaces through `mission_runtime.resolve_action_conte
 - Plan IC-04. Contract: [contracts/mission_runtime_api.md](../contracts/mission_runtime_api.md).
 - `runtime/next/runtime_bridge.py` is the residue hotspot **and** the #1663 field-drop site (WP11 follows).
 - Operator ruling: planning→coord branch; direct-to-target→declared target, no worktree; never mainline unauthorized (C-001).
+- **Ownership note (`scope: codebase-wide`)**: this WP legitimately co-edits `mission_runtime/resolution.py` with WP03 and `runtime_bridge.py` with WP11. Per the `tasks-finalize` doctrine, dependency/linearization does not bypass the ownership overlap check — only `codebase-wide` does. As the broadly-overlapping cross-cutting residue-routing WP, it carries the exemption; WP03/WP11 stay narrow. Still linearize (WP04 after WP03; WP11 after WP04) so the shared files are edited sequentially in one lane.
 
 ## Branch Strategy
 

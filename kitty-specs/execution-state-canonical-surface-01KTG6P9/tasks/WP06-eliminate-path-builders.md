@@ -31,6 +31,7 @@ agent_profile: randy-reducer
 authoritative_surface: src/specify_cli/
 execution_mode: code_change
 model: ''
+scope: codebase-wide
 owned_files:
 - src/specify_cli/**
 - src/runtime/**

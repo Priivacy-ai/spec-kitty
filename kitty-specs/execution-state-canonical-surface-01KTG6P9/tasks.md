@@ -284,11 +284,62 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ---
 
+## Work Package WP12: Ownership `scope` backfill-awareness + frontmatter-source port (#1757) (Priority: P3)
+
+**Goal**: Make `scope` flow through one canonical owner on every path (read/backfill/inference) and push the finalize ownership IO boundary through a single frontmatter-source port.
+**Independent Test**: A `scope: codebase-wide` added to an already-backfilled WP survives a `backfill_ownership` re-run; `from_frontmatter` is symmetric across input shapes; the resolve→validate path runs without stubbing `read_wp_frontmatter`.
+**Prompt**: `/tasks/WP12-ownership-scope-backfill-port.md`
+**Requirement Refs**: FR-028, FR-029, FR-030, FR-031, NFR-003
+
+### Included Subtasks
+
+- [ ] T042 Add `scope` to the `migration/backfill_ownership.py` "already present" guard and write step (persist `scope` when present) (WP12)
+- [ ] T043 Document `scope` as human-authored (no inference) in `ownership/inference.py::infer_ownership` (explicit no-op note) (WP12)
+- [ ] T044 Normalize the `from_frontmatter` raw-dict branch `authoritative_surface` with `... or ""` (provable symmetry) (WP12)
+- [ ] T045 Introduce a frontmatter-source port so the finalize resolve→validate path (`build_wp_manifests` + `read_wp_frontmatter`) is testable without stubbing the reader; route the finalize caller through it (WP12)
+- [ ] T046 Add tests: backfill re-run preserves `scope`; `from_frontmatter` symmetry; port-driven resolve→validate (WP12)
+
+### Dependencies
+
+- None (disjoint ownership surface: `ownership/**` + `migration/backfill_ownership.py` + the finalize caller; runs anytime).
+
+### Risks & Mitigations
+
+- Three `scope` representations, one owner (`from_frontmatter`) — Paula-Patterns single-ownership; do not add a parallel scope path.
+
+---
+
+## Work Package WP13: Legacy migration event-rebuild single-port (#1754) (Priority: P3)
+
+**Goal**: Route `migration/runner.py` (Step 4) and `normalize_mission_lifecycle.py` onto a canonical per-mission `mission_state` event-rebuild entry (returning event counts), retiring the deprecated `rebuild_event_log` dependency.
+**Independent Test**: Both callers use the canonical entry (not `rebuild_state.rebuild_event_log`); migration fixtures prove behavior preservation; the deprecated symbol has no live callers.
+**Prompt**: `/tasks/WP13-legacy-migration-rebuild-port.md`
+**Requirement Refs**: FR-032, FR-033, FR-034, NFR-002, NFR-004
+
+### Included Subtasks
+
+- [ ] T047 Expose a per-mission canonical event-rebuild entry on `mission_state` returning event counts (`events_generated`/`events_corrected`/`errors`/`warnings`) — or decide+document the `repair_repo` end-to-end retirement path (WP13)
+- [ ] T048 Migrate `migration/runner.py` Step 4 per-feature loop onto the canonical entry (WP13)
+- [ ] T049 Migrate `migration/normalize_mission_lifecycle.py` onto the canonical entry (WP13)
+- [ ] T050 Remove `rebuild_event_log` (or reduce to a thin shim with no live callers) and clean the `migration/__init__.__all__` lazy-symbol nuisance (#1757.4) (WP13)
+- [ ] T051 Add migration fixtures covering the per-mission rebuild path; assert behavior preservation and unchanged legacy-mission migration (WP13)
+
+### Dependencies
+
+- None (disjoint ownership surface: the migration runner/normalize/`mission_state`/`rebuild_state` files; runs anytime).
+
+### Risks & Mitigations
+
+- Behavioral change to legacy-project migration — fixture-backed (NFR-004); `repair_repo` is repo-level and not a per-feature drop-in, so the canonical entry must return per-mission event counts.
+
+---
+
 ## Dependency & Execution Summary
 
 - **Sequence**: WP01 (gate) and WP02 (umbrella) have no deps → WP03 (relocation, needs WP02) → WP04 (residue, needs WP01+WP03) & WP05 (dup collapse, needs WP03) → WP06 (path-builders, needs WP04+WP05); facade track WP07 (needs WP01) → WP08 (needs WP07) → WP09 (needs WP08) & WP10 (needs WP08); WP11 (needs WP04).
-- **Parallelization**: After WP01+WP02+WP03, the residue track (WP04/05/06) and facade track (WP07/08/09/10) run largely in parallel. WP11 follows WP04.
+- **Parallelization**: After WP01+WP02+WP03, the residue track (WP04/05/06) and facade track (WP07/08/09/10) run largely in parallel. WP11 follows WP04. WP12 (#1757) and WP13 (#1754) are dependency-free fold-ins on disjoint surfaces (`ownership/`+`backfill_ownership.py`; the migration runner/normalize files) and run in parallel with everything.
 - **MVP / gate scope**: WP01 + WP02 + WP03 establish the gate and the canonical surface; the strangling WPs deliver the remediation.
+- **Ownership / finalize-readiness**: WP04, WP05, WP06, WP08, WP10 declare `scope: codebase-wide` (cross-cutting strangler surfaces that legitimately co-edit shared files — the #1756/#1753 exemption now wired end-to-end). The narrow WPs (WP01/02/03/07/09/11/12/13) own disjoint files. This is what makes `finalize-tasks` ownership validation pass.
 
 ---
 
@@ -306,17 +357,20 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 | FR-017, FR-018, FR-019 | WP10 |
 | FR-020, FR-021, FR-022, FR-023, FR-024 | WP01 |
 | FR-025, FR-026, FR-027 | WP11 |
+| FR-028, FR-029, FR-030, FR-031 | WP12 |
+| FR-032, FR-033, FR-034 | WP13 |
 | NFR-001 | WP03, WP04 |
-| NFR-002 | WP05, WP06, WP10 |
-| NFR-003 | WP09 |
-| NFR-004 | WP03, WP10 |
+| NFR-002 | WP05, WP06, WP10, WP13 |
+| NFR-003 | WP09, WP12 |
+| NFR-004 | WP03, WP10, WP13 |
 | NFR-005 | WP09 |
 | NFR-006 | WP10 |
 | C-001, C-002 | WP04 |
 | C-004 | WP08, WP09 |
 | C-006 | WP02 |
 | C-007 | WP07, WP08 |
-| C-009 | WP03, WP04, WP05, WP06, WP07, WP08, WP09, WP10 |
+| C-009 | WP03, WP04, WP05, WP06, WP07, WP08, WP09, WP10, WP12, WP13 |
+| C-010 | WP12, WP13 |
 
 ---
 
@@ -335,3 +389,5 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 | T033–T035 | Widen status boundary test repo-wide | WP09 | P2 | No |
 | T036–T038 | MissionStatus consumption rework | WP10 | P3 | No |
 | T039–T041 | Mission-identity field-drop (#1663) | WP11 | P3 | No |
+| T042–T046 | Ownership `scope` backfill-awareness + frontmatter-source port (#1757) | WP12 | P3 | Yes |
+| T047–T051 | Legacy migration event-rebuild single-port (#1754) | WP13 | P3 | Yes |

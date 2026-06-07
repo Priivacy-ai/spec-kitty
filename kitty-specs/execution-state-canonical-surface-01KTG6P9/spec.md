@@ -104,12 +104,47 @@ A `MissionRunSnapshot` keeps its `mission_id`/`mission_slug` across all reconstr
 
 1. **Given** a snapshot with mission identity, **When** it passes through the auto-complete reconstruction, **Then** `mission_id` and `mission_slug` are preserved (not reset to `None`).
 
+---
+
+### User Story 7 - Ownership `scope` is backfill-aware and single-ported (Priority: P3)
+
+An operator who declares `scope: codebase-wide` on a work package — whether authoring it fresh or adding it to an *already-backfilled* WP — gets the overlap exemption honored, because the field flows through one canonical owner on every path (read, backfill, validation) and the finalize resolve→validate path is exercisable without stubbing the frontmatter reader.
+
+**Why this priority**: Follow-up gaps from the #1756 (#1753) adversarial review that *unblocked this mission's own finalize step*. The `scope` field now has three representations (`WPMetadata`, `OwnershipManifest`, raw dict) but the backfill/inference paths never learned about it, so an exemption can silently fail (latent). Folding it in here is the same single-owning-port theme as US4/US5 (epic #1666), but lower blast radius — hence P3.
+
+**Independent Test**: Add `scope` to the backfill "already present" guard + write step; normalize the `from_frontmatter` dict path; drive the finalize ownership resolve→validate path through a frontmatter-source port and prove it is testable without stubbing `read_wp_frontmatter`.
+
+**Acceptance Scenarios**:
+
+1. **Given** a WP already backfilled (`execution_mode`/`owned_files`/`authoritative_surface` present), **When** an operator adds `scope: codebase-wide` and re-runs `backfill_ownership`, **Then** the "already present" guard accounts for `scope` and the field is persisted (not silently dropped).
+2. **Given** `infer_ownership` runs with no human-authored `scope`, **Then** it produces a narrow manifest and the "no inference path for `scope`" contract is documented (the field is human-authored only).
+3. **Given** a raw frontmatter dict with `authoritative_surface: None`, **When** `from_frontmatter` parses it, **Then** `authoritative_surface` normalizes to `""` — provably equivalent to the `WPMetadata` input path.
+4. **Given** the finalize ownership resolve→validate path, **When** it is exercised in tests, **Then** it runs through a single frontmatter-source port (no stubbing of `read_wp_frontmatter`).
+
+---
+
+### User Story 8 - Legacy migration event-rebuild routes through one canonical `mission_state` port (Priority: P3)
+
+A maintainer migrating a legacy project gets per-mission event-log rebuild through a single canonical `mission_state` entry point — not the deprecated `rebuild_event_log` — with event counts preserved for the runner's reporting.
+
+**Why this priority**: Follow-up from #1756: `migration/runner.py` (Step 4) and `migration/normalize_mission_lifecycle.py` still depend on the deprecated `specify_cli.migration.rebuild_state.rebuild_event_log` because `repair_repo` is repo-level (not a per-feature drop-in). This is the same filesystem-as-shared-state / one-owning-port concern as the rest of this mission (epic #1666), scoped to the migration surface. It needs migration fixtures and is a behavioral change to legacy-project migration — hence P3, not a deprecation-cleanup.
+
+**Independent Test**: Expose a per-mission canonical event-rebuild entry on `mission_state` returning event counts (or retire the legacy runner flow onto `repair_repo` end-to-end), migrate the two callers, and prove behavior preservation with migration fixtures.
+
+**Acceptance Scenarios**:
+
+1. **Given** the legacy migration runner (Step 4) and `normalize_mission_lifecycle`, **When** they rebuild a mission's event log, **Then** they call a canonical `mission_state` entry (not `specify_cli.migration.rebuild_state.rebuild_event_log`).
+2. **Given** a per-mission rebuild, **When** it runs, **Then** the canonical entry returns event counts (`events_generated`/`events_corrected`/`errors`/`warnings`) sufficient for the runner's reporting.
+3. **Given** legacy missions and migration fixtures, **When** migration runs end-to-end, **Then** behavior is preserved (events generated/corrected equivalent; legacy missions migrate unchanged) and the deprecated `rebuild_event_log` is removed or reduced to a thin shim with no live callers.
+
 ### Edge Cases
 
 - What happens when a coord-topology mission's coord authority path is unavailable? → The status read fails closed (no silent stale primary-checkout fallback).
 - How does the gate handle a write that resolves to mainline (main/master) without explicit operator authorization? → It is refused.
 - What happens to legacy (pre-coord-topology) missions and existing on-disk `state.json` files after remediation? → They load and operate unchanged.
 - What happens if a reviewer spots a reintroduced parallel resolver? → It is a blocking finding under the leanness IC (NFR-002).
+- What happens when an operator adds `scope: codebase-wide` to an *already-backfilled* WP without re-finalizing? → After FR-028 a `backfill_ownership` re-run accounts for and persists `scope`; the field is no longer silently dropped (the #1757.1 latent failure).
+- What does static analysis see for the deprecated `rebuild_event_log` entry in `migration/__init__.__all__`? → After FR-033 the symbol is removed or eagerly bound, so linters that inspect `__all__` by namespace no longer flag a declared-but-undefined name (the #1757.4 nuisance).
 
 ## Requirements *(mandatory)*
 
@@ -144,6 +179,13 @@ A `MissionRunSnapshot` keeps its `mission_id`/`mission_slug` across all reconstr
 | FR-025 | Carry identity on reconstruction | US6 · `MissionRunSnapshot` reconstructions at `runtime_bridge.py:1723` and `:1860` carry `mission_id`/`mission_slug` through (currently dropped). | High | Open |
 | FR-026 | Field-drop regression test | US6 · A regression test asserts mission identity survives the auto-complete reconstruction path. | Medium | Open |
 | FR-027 | Close #1663 | US6 · #1663 is closeable: all snapshot construction and reconstruction sites preserve mission identity. | Low | Open |
+| FR-028 | Scope backfill-awareness | US7 · `migration/backfill_ownership.py`'s "already present" guard and write step account for `scope`; a backfill re-run on an already-backfilled WP persists `scope: codebase-wide` instead of dropping it. | Medium | Open |
+| FR-029 | Scope is human-authored | US7 · `ownership/inference.py::infer_ownership` documents that `scope` has no inference path (explicit no-op note); inferred manifests stay narrow by design. | Low | Open |
+| FR-030 | from_frontmatter dict-path symmetry | US7 · the raw-`dict` branch of `OwnershipManifest.from_frontmatter` normalizes `authoritative_surface` with `... or ""` so the `WPMetadata` and raw-dict inputs are provably equivalent (a present-but-`None` no longer leaks through). | Low | Open |
+| FR-031 | Frontmatter-source port for finalize ownership | US7 · the finalize ownership resolve→validate path (`build_wp_manifests` + `read_wp_frontmatter`) is driven through a single frontmatter-source port so the whole path is testable without stubbing the reader (epic #1666 one-owning-port). | Medium | Open |
+| FR-032 | Canonical per-mission event-rebuild entry | US8 · a per-mission canonical event-rebuild entry on `mission_state` returns event counts (`events_generated`/`events_corrected`/`errors`/`warnings`); or the legacy `migration/runner.py` flow is retired onto `repair_repo` end-to-end. | High | Open |
+| FR-033 | Migrate legacy rebuild callers | US8 · `migration/normalize_mission_lifecycle.py` and `migration/runner.py` (Step 4) no longer depend on the deprecated `rebuild_event_log`; the deprecated symbol is removed or kept only as a thin shim with no live callers, and `migration/__init__.__all__` no longer lists an unbound lazy symbol that static analyzers flag (#1757.4). | High | Open |
+| FR-034 | Legacy migration fixtures + behavior preservation | US8 · migration fixtures cover the per-mission rebuild path; legacy missions migrate unchanged and event counts/transformations are equivalent to the deprecated path. | Medium | Open |
 
 ### Non-Functional Requirements
 
@@ -170,6 +212,7 @@ A `MissionRunSnapshot` keeps its `mission_id`/`mission_slug` across all reconstr
 | C-007 | Bulk-edit guardrail | The #1664 import-path migration changes the same `specify_cli.status.<sub>` strings across many files; the mission runs in `change_mode: bulk_edit` and produces an `occurrence_map.yaml` (DIRECTIVE_035). | Process | High | Open |
 | C-008 | Out of scope | Actor-kind vocabulary normalization, Effector type materialization, CommitTarget atomicity (step 7), and communication-artefact consolidation (step 5) are excluded. | Technical | Medium | Open |
 | C-009 | Persona ICs mandatory | Shaping work packages carry explicit Randy-Reducer and Paula-Patterns implementation contracts governing leanness and single-ownership. | Process | High | Open |
+| C-010 | Folded-in follow-ups | US7/US8 (#1757, #1754) are follow-ups surfaced by the #1756 (#1753) review that unblocked this mission's own `finalize-tasks`; they are in scope as natural extensions of the execution-environment remediations, not separate missions. | Process | Medium | Open |
 
 ### Key Entities
 
@@ -181,6 +224,9 @@ A `MissionRunSnapshot` keeps its `mission_id`/`mission_slug` across all reconstr
 - **e2e parity ratchet**: Extended `test_execution_context_parity.py` proving CWD/mode-invariant behavior across the full command sequence.
 - **`MissionRunSnapshot`**: Run snapshot whose `mission_id`/`mission_slug` must survive all reconstruction sites.
 - **occurrence_map.yaml**: Bulk-edit classification artifact covering the status import-path + path-builder migrations.
+- **Frontmatter-source port**: The single IO boundary that supplies WP frontmatter to the finalize resolve→validate path (`build_wp_manifests`), so ownership resolution is testable without stubbing `read_wp_frontmatter`.
+- **`scope` field (`codebase-wide`)**: The ownership-overlap exemption flag; human-authored only, carried through `from_frontmatter`, `backfill_ownership`, and validation by one canonical owner.
+- **Canonical event-rebuild entry**: The per-mission `mission_state` entry point that supersedes the deprecated `rebuild_event_log` for legacy-project migration, returning event counts.
 
 ## Success Criteria *(mandatory)*
 
@@ -194,6 +240,8 @@ A `MissionRunSnapshot` keeps its `mission_id`/`mission_slug` across all reconstr
 - **SC-006**: Mission identity survives reconstruction — `runtime_bridge.py:1723/:1860` carry `mission_id`/`mission_slug`; regression test green; #1663 closeable.
 - **SC-007**: Leanness holds — zero duplicated/parallel resolvers remain; Randy-Reducer + Paula-Patterns review sign-off on shaping WPs.
 - **SC-008**: No regressions — full existing integration + architectural suite passes; `ruff` + `mypy` clean (zero issues/warnings, no disabled checks — NFR-007) on touched modules.
+- **SC-009**: Ownership `scope` is single-ported and backfill-aware — a `scope: codebase-wide` added to an already-backfilled WP survives a `backfill_ownership` re-run; `from_frontmatter` is provably symmetric across input shapes; the finalize resolve→validate path is exercised through the frontmatter-source port without stubbing the reader (#1757).
+- **SC-010**: Legacy migration rebuild is single-ported — `migration/runner.py` and `normalize_mission_lifecycle.py` rebuild via the canonical `mission_state` entry (not `rebuild_event_log`); fixtures prove behavior preservation; the deprecated symbol has no live callers (#1754).
 
 <!--
   Domain Language (terminology discipline): canonical terms — "execution-state domain

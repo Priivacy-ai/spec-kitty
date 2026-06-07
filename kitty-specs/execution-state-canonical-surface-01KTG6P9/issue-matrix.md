@@ -3,7 +3,7 @@
 **Mission:** Execution-State Canonical Domain Surface (#1666 Strangler Slice 2)
 **Branch:** feat/execution-state-strangler
 **Created:** 2026-06-07
-**WP column status:** filled (tasks authored 2026-06-07). 11 WPs (WP01–WP11); `finalize-tasks` blocked by tooling gap #1753 (see notes).
+**WP column status:** filled (tasks authored 2026-06-07; #1754/#1757 folded in 2026-06-07 after #1756 landed). 13 WPs (WP01–WP13); `finalize-tasks` tooling gap #1753 **resolved** by #1756 (merged to upstream/main 2026-06-07), so the broad strangler WPs now declare `scope: codebase-wide` and the set is finalize-ready.
 
 ---
 
@@ -17,7 +17,9 @@
 | **#1672** e2e parity ratchet | OPEN | Full-sequence ratchet | FR-020 … FR-024 | A | SC-2 | WP01 |
 | **#1663** MissionRun → Mission back-reference (field-drop) | OPEN | Mission-identity fold-in | FR-025 … FR-027 | D | SC-6 | WP11 |
 | **#1666** parent epic | OPEN | Umbrella / design authority | (all) | (all) | (all) | n/a (epic) |
-| **#1753** WPMetadata `scope` gap (filed this slice) | OPEN | Tooling — blocks finalize-tasks | n/a | n/a | n/a | n/a (tooling fix) |
+| **#1757** scope not backfill-aware + half-pure seam + dict asymmetry (#1756 review) | OPEN | Ownership single-ownership fold-in | FR-028 … FR-031 | US7 | SC-9 | WP12 |
+| **#1754** legacy migration `rebuild_event_log` vs `repair_repo` (#1756 follow-up) | OPEN | Migration single-port fold-in | FR-032 … FR-034 | US8 | SC-10 | WP13 |
+| **#1753** WPMetadata `scope` gap (filed this slice) | **CLOSED** (fixed in #1756) | Tooling — unblocked finalize-tasks | n/a | n/a | n/a | n/a (tooling fix, merged upstream/main) |
 
 ---
 
@@ -31,8 +33,10 @@
 | FR-017..FR-019 (MissionStatus consistent usage) | #1667 |
 | FR-020..FR-024 (full-sequence ratchet + de-overclaim) | #1672 |
 | FR-025..FR-027 (snapshot mission-identity carry-through) | #1663 |
+| FR-028..FR-031 (scope backfill-awareness, dict symmetry, frontmatter-source port) | #1757 + #1666 (one owning port) |
+| FR-032..FR-034 (canonical per-mission event-rebuild, migrate legacy callers, fixtures) | #1754 + #1666 (one owning port) |
 
-**No orphan FRs.** Every FR-001..FR-027 traces to a source issue. Every source issue has ≥1 FR.
+**No orphan FRs.** Every FR-001..FR-034 traces to a source issue. Every source issue has ≥1 FR.
 
 ---
 
@@ -41,5 +45,7 @@
 - **#1667 is CLOSED** — included for the consumption workstream (route bypasses onto the landed aggregate); it is not re-opened or re-claimed.
 - **#1681 is CLOSED** — it tracked the path-builder residue; that residue (~125 sites / ~160 files) is inherited by #1673's workstream here, not re-opened.
 - **#1666 is the epic** — design authority, not an implementation ticket to claim.
-- Tickets being actively claimed/assigned for this mission: **#1672, #1664, #1673, #1663** (the open implementation issues).
+- **#1753 is CLOSED** — the WPMetadata `scope` gap was fixed by #1756 (merged to upstream/main 2026-06-07); this mission was rebased onto that fix, which is what makes the `scope: codebase-wide` declarations on the broad strangler WPs (WP04/05/06/08/10) valid at finalize.
+- **#1757 and #1754 are folded in** — both surfaced from the #1756 adversarial review as natural extensions of the execution-environment / one-owning-port theme (epic #1666). They are claimed/assigned for this mission alongside the original open issues.
+- Tickets being actively claimed/assigned for this mission: **#1672, #1664, #1673, #1663, #1757, #1754** (the open implementation issues).
 - Persona ICs (Randy Reducer / Paula Patterns) attach to the shaping WPs at `/spec-kitty.tasks`; they enforce NFR-002 (leanness) and NFR-003 (single ownership), which trace to SC-7.

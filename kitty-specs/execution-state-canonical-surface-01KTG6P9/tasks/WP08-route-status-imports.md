@@ -31,6 +31,7 @@ agent_profile: python-pedro
 authoritative_surface: src/
 execution_mode: code_change
 model: ''
+scope: codebase-wide
 owned_files:
 - src/**
 role: implementer
