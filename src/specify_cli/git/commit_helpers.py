@@ -488,24 +488,8 @@ def _is_completed_op_record_exception(
     worktree_root: Path,
     normalized_files: Sequence[str],
 ) -> bool:
-    if len(normalized_files) != 1:
-        return False
-
-    op_path = Path(normalized_files[0])
-    if op_path.is_absolute() or len(op_path.parts) != 2:
-        return False
-    if op_path.parts[0] != "kitty-ops":
-        return False
-
-    filename = op_path.parts[1]
-    if not filename.endswith(".jsonl"):
-        return False
-    op_id = filename.removesuffix(".jsonl")
-    if op_id in {"ops-index", "lifecycle", "propagation-errors"}:
-        return False
-
-    ulid_alphabet = set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
-    if len(op_id) != 26 or not all(char in ulid_alphabet for char in op_id):
+    op_id, op_path = _completed_op_exception_target(normalized_files)
+    if op_id is None or op_path is None:
         return False
 
     record_path = worktree_root / op_path
@@ -528,6 +512,33 @@ def _is_completed_op_record_exception(
         ):
             return True
     return False
+
+
+def _completed_op_exception_target(
+    normalized_files: Sequence[str],
+) -> tuple[str | None, Path | None]:
+    """Return the op id/path pair when ``normalized_files`` is an op record."""
+    if len(normalized_files) != 1:
+        return None, None
+
+    op_path = Path(normalized_files[0])
+    if op_path.is_absolute() or len(op_path.parts) != 2 or op_path.parts[0] != "kitty-ops":
+        return None, None
+
+    filename = op_path.parts[1]
+    if not filename.endswith(".jsonl"):
+        return None, None
+
+    op_id = filename.removesuffix(".jsonl")
+    if op_id in {"ops-index", "lifecycle", "propagation-errors"} or not _is_ulid(op_id):
+        return None, None
+    return op_id, op_path
+
+
+def _is_ulid(value: str) -> bool:
+    """Return whether ``value`` is a canonical 26-char Crockford ULID."""
+    ulid_alphabet = set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
+    return len(value) == 26 and all(char in ulid_alphabet for char in value)
 
 
 def assert_staging_area_matches_expected(

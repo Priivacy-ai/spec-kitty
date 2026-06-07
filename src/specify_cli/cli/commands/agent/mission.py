@@ -76,6 +76,7 @@ SETUP_PLAN_COMMAND_NAME = "spec-kitty agent mission setup-plan"
 FINALIZE_TASKS_COMMAND_NAME = "spec-kitty agent mission finalize-tasks"
 INVALID_WP_OWNED_FILES_KITTY_SPECS = "INVALID_WP_OWNED_FILES_KITTY_SPECS"
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
+PROJECT_ROOT_NOT_FOUND_MESSAGE = f"{PROJECT_ROOT_NOT_FOUND}. Run from within spec-kitty repository."
 
 
 def _extract_wp_ids_from_task_files(wp_files: list[Path]) -> list[str]:
@@ -86,6 +87,108 @@ def _extract_wp_ids_from_task_files(wp_files: list[Path]) -> list[str]:
         if wp_id_match:
             wp_ids.add(wp_id_match.group(1))
     return sorted(wp_ids)
+
+
+def _emit_console_or_json_error(*, json_output: bool, message: str) -> None:
+    """Emit a command error consistently across human and JSON modes."""
+    if json_output:
+        _emit_json({"error": message})
+    else:
+        console.print(f"[red]Error:[/red] {message}")
+
+
+def _emit_check_prerequisites_detection_error(
+    *,
+    repo_root: Path,
+    detection_error: ValueError,
+    feature: str | None,
+    json_output: bool,
+    paths_only: bool,
+    include_tasks: bool,
+) -> None:
+    """Emit the existing feature-detection payload for prerequisite checks."""
+    command_args: list[str] = []
+    if json_output:
+        command_args.append("--json")
+    if paths_only:
+        command_args.append("--paths-only")
+    if include_tasks:
+        command_args.append("--include-tasks")
+
+    payload = _build_setup_plan_detection_error(
+        repo_root,
+        str(detection_error),
+        feature,
+        error_code="FEATURE_CONTEXT_UNRESOLVED",
+        command_name="check-prerequisites",
+        command_args=command_args,
+    )
+    if json_output:
+        _emit_json(payload)
+        return
+
+    console.print(f"[red]Error:[/red] {payload['error']}")
+    for slug in cast(list[str], payload.get("available_missions", []))[:10]:
+        console.print(f"  - {slug}")
+    if "example_command" in payload:
+        console.print(f"  {payload['example_command']}")
+
+
+def _paths_only_payload(validation_result: dict[str, object]) -> dict[str, object]:
+    """Build the legacy paths-only payload shape for prerequisite checks."""
+    paths_payload = dict(cast(dict[str, object], validation_result["paths"]))
+    paths_payload["artifact_files"] = validation_result.get("artifact_files", {})
+    paths_payload["artifact_dirs"] = validation_result.get("artifact_dirs", {})
+    paths_payload["available_docs"] = validation_result.get("available_docs", [])
+    paths_payload["FEATURE_DIR"] = paths_payload.get("feature_dir", "")
+    paths_payload["SPEC_FILE"] = paths_payload.get("spec_file", "")
+    paths_payload["PLAN_FILE"] = paths_payload.get("plan_file", "")
+    paths_payload["TASKS_FILE"] = paths_payload.get("tasks_file", "")
+    paths_payload["FEATURE_SPEC"] = paths_payload.get("spec_file", "")
+    paths_payload["IMPL_PLAN"] = paths_payload.get("plan_file", "")
+    paths_payload["TASKS"] = paths_payload.get("tasks_file", "")
+    feature_dir_value = str(paths_payload.get("feature_dir", ""))
+    paths_payload["SPECS_DIR"] = str(Path(feature_dir_value).parent) if feature_dir_value else ""
+    return paths_payload
+
+
+def _emit_check_prerequisites_result(
+    *,
+    validation_result: dict[str, object],
+    feature_dir: Path,
+    json_output: bool,
+    paths_only: bool,
+    target_branch: str,
+    current_branch: str,
+) -> None:
+    """Emit prerequisite-check output in JSON or human form."""
+    if json_output:
+        payload = (
+            _paths_only_payload(validation_result)
+            if paths_only
+            else dict(validation_result)
+        )
+        _emit_json(
+            _inject_branch_contract(
+                payload,
+                target_branch=target_branch,
+                current_branch=current_branch,
+            )
+        )
+        return
+
+    if validation_result["valid"]:
+        console.print("[green]✓[/green] Prerequisites check passed")
+        console.print(f"   Mission: {feature_dir.name}")
+    else:
+        console.print("[red]✗[/red] Prerequisites check failed")
+        for error in cast(list[str], validation_result["errors"]):
+            console.print(f"   • {error}")
+
+    for warning in cast(list[str], validation_result["warnings"]):
+        if warning == validation_result["warnings"][0]:
+            console.print("\n[yellow]Warnings:[/yellow]")
+        console.print(f"   • {warning}")
 
 
 def _collect_finalize_artifacts(
@@ -351,6 +454,23 @@ def _enforce_analysis_report_write_preflight(repo_root: Path, *, json_output: bo
     if not is_git_repo(repo_root):
         return
 
+    dirty_paths = _git_dirty_paths(repo_root)
+    if dirty_paths:
+        payload = {
+            "success": False,
+            "error_code": "DIRTY_WORKTREE",
+            "error": "Refusing to record analysis report with pre-existing dirty working tree.",
+            "dirty_paths": dirty_paths,
+            "remediation": ["Commit or stash existing changes, then rerun /spec-kitty.analyze."],
+        }
+        if json_output:
+            _emit_json(payload)
+        else:
+            console.print(f"[red]Error:[/red] {payload['error']}")
+            for path in dirty_paths:
+                console.print(f"  - {path}")
+        raise typer.Exit(1)
+
     # Use the CWD git toplevel (the actual worktree) for the branch check so
     # that running from a coord/lane worktree on a mission branch is allowed.
     # repo_root is always the main repo root (locate_project_root() follows
@@ -381,23 +501,6 @@ def _enforce_analysis_report_write_preflight(repo_root: Path, *, json_output: bo
         else:
             console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from None
-
-    dirty_paths = _git_dirty_paths(repo_root)
-    if dirty_paths:
-        payload = {
-            "success": False,
-            "error_code": "DIRTY_WORKTREE",
-            "error": "Refusing to record analysis report with pre-existing dirty working tree.",
-            "dirty_paths": dirty_paths,
-            "remediation": ["Commit or stash existing changes, then rerun /spec-kitty.analyze."],
-        }
-        if json_output:
-            _emit_json(payload)
-        else:
-            console.print(f"[red]Error:[/red] {payload['error']}")
-            for path in dirty_paths:
-                console.print(f"  - {path}")
-        raise typer.Exit(1)
 
 
 def _show_branch_context(
@@ -1055,11 +1158,10 @@ def check_prerequisites(
 
         repo_root = locate_project_root()
         if repo_root is None:
-            error_msg = "Could not locate project root. Run from within spec-kitty repository."
-            if json_output:
-                _emit_json({"error": error_msg})
-            else:
-                console.print(f"[red]Error:[/red] {error_msg}")
+            _emit_console_or_json_error(
+                json_output=json_output,
+                message=PROJECT_ROOT_NOT_FOUND_MESSAGE,
+            )
             raise typer.Exit(1) from None
 
         _enforce_git_preflight(
@@ -1077,80 +1179,27 @@ def check_prerequisites(
                 explicit_feature=feature,
             )
         except ValueError as detection_error:
-            command_args: list[str] = []
-            if json_output:
-                command_args.append("--json")
-            if paths_only:
-                command_args.append("--paths-only")
-            if include_tasks:
-                command_args.append("--include-tasks")
-
-            payload = _build_setup_plan_detection_error(
-                repo_root,
-                str(detection_error),
-                feature,
-                error_code="FEATURE_CONTEXT_UNRESOLVED",
-                command_name="check-prerequisites",
-                command_args=command_args,
+            _emit_check_prerequisites_detection_error(
+                repo_root=repo_root,
+                detection_error=detection_error,
+                feature=feature,
+                json_output=json_output,
+                paths_only=paths_only,
+                include_tasks=include_tasks,
             )
-            if json_output:
-                _emit_json(payload)
-            else:
-                console.print(f"[red]Error:[/red] {payload['error']}")
-                for slug in cast(list[str], payload.get("available_missions", []))[:10]:
-                    console.print(f"  - {slug}")
-                if "example_command" in payload:
-                    console.print(f"  {payload['example_command']}")
             raise typer.Exit(1) from None
 
         validation_result = validate_feature_structure(feature_dir, check_tasks=include_tasks)
         target_branch = _resolve_feature_target_branch(feature_dir, repo_root)
         current_branch = get_current_branch(repo_root) or target_branch
-
-        if json_output:
-            if paths_only:
-                paths_payload = dict(validation_result["paths"])
-                paths_payload["artifact_files"] = validation_result.get("artifact_files", {})
-                paths_payload["artifact_dirs"] = validation_result.get("artifact_dirs", {})
-                paths_payload["available_docs"] = validation_result.get("available_docs", [])
-                paths_payload["FEATURE_DIR"] = paths_payload.get("feature_dir", "")
-                paths_payload["SPEC_FILE"] = paths_payload.get("spec_file", "")
-                paths_payload["PLAN_FILE"] = paths_payload.get("plan_file", "")
-                paths_payload["TASKS_FILE"] = paths_payload.get("tasks_file", "")
-                paths_payload["FEATURE_SPEC"] = paths_payload.get("spec_file", "")
-                paths_payload["IMPL_PLAN"] = paths_payload.get("plan_file", "")
-                paths_payload["TASKS"] = paths_payload.get("tasks_file", "")
-                feature_dir_value = str(paths_payload.get("feature_dir", ""))
-                paths_payload["SPECS_DIR"] = str(Path(feature_dir_value).parent) if feature_dir_value else ""
-                _emit_json(
-                    _inject_branch_contract(
-                        paths_payload,
-                        target_branch=target_branch,
-                        current_branch=current_branch,
-                    )
-                )
-            else:
-                result_payload = dict(validation_result)
-                _emit_json(
-                    _inject_branch_contract(
-                        result_payload,
-                        target_branch=target_branch,
-                        current_branch=current_branch,
-                    )
-                )
-        else:
-            if validation_result["valid"]:
-                console.print("[green]✓[/green] Prerequisites check passed")
-                console.print(f"   Mission: {feature_dir.name}")
-            else:
-                console.print("[red]✗[/red] Prerequisites check failed")
-                for error in validation_result["errors"]:
-                    console.print(f"   • {error}")
-
-            if validation_result["warnings"]:
-                console.print("\n[yellow]Warnings:[/yellow]")
-                for warning in validation_result["warnings"]:
-                    console.print(f"   • {warning}")
+        _emit_check_prerequisites_result(
+            validation_result=validation_result,
+            feature_dir=feature_dir,
+            json_output=json_output,
+            paths_only=paths_only,
+            target_branch=target_branch,
+            current_branch=current_branch,
+        )
 
     except typer.Exit:
         raise

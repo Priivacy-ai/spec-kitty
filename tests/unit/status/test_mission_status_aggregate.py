@@ -432,6 +432,108 @@ class TestStatusFacadeExports:
 
 
 class TestTransitionHappyPath:
+    def test_resolve_current_lane_maps_uninitialized_to_planned(self, tmp_path: Path) -> None:
+        """Uninitialized transactional reads should validate from planned."""
+        from specify_cli.status import TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+        from specify_cli.status.models import Lane
+
+        ms = MissionStatus(
+            mission_slug="034-lane-fallback",
+            mission_id=None,
+            mid8="",
+            topology="legacy",
+            read_dir=tmp_path,
+            repo_root=tmp_path,
+        )
+        request = TransitionRequest(
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="claude",
+            feature_dir=tmp_path,
+            mission_slug=ms.mission_slug,
+        )
+
+        from_lane, current_actor = ms._resolve_current_lane(
+            request=request,
+            read_current_wp_state_transactional=lambda **_: ("uninitialized", "claude"),
+            lane_planned=Lane.PLANNED,
+        )
+
+        assert from_lane == "planned"
+        assert current_actor == "claude"
+
+    def test_resolve_workspace_context_prefers_request_value(self, tmp_path: Path) -> None:
+        """Explicit workspace context must bypass aggregate inference."""
+        from specify_cli.status import TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+
+        ms = MissionStatus(
+            mission_slug="034-workspace-context",
+            mission_id=None,
+            mid8="",
+            topology="legacy",
+            read_dir=tmp_path,
+            repo_root=tmp_path,
+        )
+        request = TransitionRequest(
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="claude",
+            feature_dir=tmp_path,
+            mission_slug=ms.mission_slug,
+            workspace_context="explicit-context",
+        )
+
+        assert ms._resolve_workspace_context(request) == "explicit-context"
+
+    def test_resolve_review_gate_inputs_infers_missing_review_guards(self, tmp_path: Path) -> None:
+        """Entering review infers both guard inputs when omitted."""
+        from specify_cli.status import TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+        from specify_cli.status.models import Lane
+
+        ms = MissionStatus(
+            mission_slug="034-review-gate-inputs",
+            mission_id=None,
+            mid8="",
+            topology="legacy",
+            read_dir=tmp_path,
+            repo_root=tmp_path,
+        )
+        request = TransitionRequest(
+            wp_id="WP07",
+            to_lane="for_review",
+            actor="claude",
+            feature_dir=tmp_path,
+            mission_slug=ms.mission_slug,
+        )
+
+        class _StatusEmit:
+            @staticmethod
+            def _infer_subtasks_complete(read_dir: Path, wp_id: str) -> bool:
+                assert read_dir == tmp_path
+                assert wp_id == "WP07"
+                return True
+
+            @staticmethod
+            def _infer_implementation_evidence(read_dir: Path, wp_id: str) -> bool:
+                assert read_dir == tmp_path
+                assert wp_id == "WP07"
+                return True
+
+        subtasks_complete, implementation_evidence_present = ms._resolve_review_gate_inputs(
+            request=request,
+            from_lane_str=str(Lane.IN_PROGRESS),
+            resolved_to_lane=str(Lane.FOR_REVIEW),
+            status_emit=_StatusEmit,
+            lane_in_progress=Lane.IN_PROGRESS,
+            lane_for_review=Lane.FOR_REVIEW,
+        )
+
+        assert subtasks_complete is True
+        assert implementation_evidence_present is True
+
     def test_transition_validates_then_applies(self, tmp_path: Path) -> None:
         """transition() rejects illegal transitions before calling BookkeepingTransaction."""
         slug = "034-transition-test"
