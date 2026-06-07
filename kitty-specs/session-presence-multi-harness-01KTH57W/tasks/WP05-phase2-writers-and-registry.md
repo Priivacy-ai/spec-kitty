@@ -24,8 +24,8 @@ subtasks:
 - T025
 - T026
 - T027
-agent: "claude:sonnet:implementer:implementer"
-shell_pid: "60922"
+agent: "claude:sonnet:reviewer:reviewer"
+shell_pid: "76679"
 history:
 - date: '2026-06-07'
   status: planned
@@ -324,3 +324,5 @@ Verify the key list against `AGENT_DIRS` in `src/specify_cli/upgrade/migrations/
 ## Activity Log
 
 - 2026-06-07T16:06:21Z – claude:sonnet:implementer:implementer – shell_pid=60922 – Assigned agent via action command
+- 2026-06-07T16:12:38Z – claude:sonnet:implementer:implementer – shell_pid=60922 – WP05 complete: Phase 2 writers (cursor, copilot, codex), full WRITER_REGISTRY. Ruff and mypy clean.
+- 2026-06-07T16:12:59Z – claude:sonnet:reviewer:reviewer – shell_pid=76679 – Started review via action command
