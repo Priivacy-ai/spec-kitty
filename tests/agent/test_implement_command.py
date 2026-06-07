@@ -255,6 +255,7 @@ class TestImplementCommand:
             "---\n# WP01",
             encoding="utf-8",
         )
+        _seed_planned(feature_dir, "WP01")
 
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
@@ -353,6 +354,9 @@ class TestImplementCommand:
             "---\n# WP02",
             encoding="utf-8",
         )
+        # WP02 is seeded past genesis so the dependency gate (not genesis gate) fires.
+        # WP01 is intentionally left unapproved so the dependency check rejects.
+        _seed_planned(feature_dir, "WP02")
 
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
@@ -401,6 +405,7 @@ class TestImplementCommand:
             "---\n# WP01",
             encoding="utf-8",
         )
+        _seed_planned(feature_dir, "WP01")
 
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
@@ -482,6 +487,7 @@ class TestImplementCommand:
             "---\n# WP01",
             encoding="utf-8",
         )
+        _seed_planned(feature_dir, "WP01")
 
         captured: dict[str, str] = {}
 
