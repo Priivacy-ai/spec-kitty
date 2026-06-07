@@ -23,10 +23,13 @@ class TestReviewClaimTransitionMatrix:
     def test_for_review_to_in_review_is_guarded_by_actor_required(self) -> None:
         """The guard for the review-claim transition is actor identity +
         conflict detection (no second reviewer can steal an active claim)."""
-        from specify_cli.status.transitions import _GUARDED_TRANSITIONS
+        from specify_cli.status.models import GuardContext, Lane
+        from specify_cli.status.wp_state import wp_state_for
 
-        guard_name = _GUARDED_TRANSITIONS.get(("for_review", "in_review"))
-        assert guard_name == "actor_required_conflict_detection"
+        state = wp_state_for(Lane.FOR_REVIEW)
+        assert state.can_transition_to(Lane.IN_REVIEW, GuardContext(actor=None)) is False
+        assert state.can_transition_to(Lane.IN_REVIEW, GuardContext(actor="claude")) is True
+        assert state.can_transition_to(Lane.IN_REVIEW, GuardContext(actor="codex", current_actor="claude")) is False
 
 
 class TestReviewClaimGuardBehaviour:

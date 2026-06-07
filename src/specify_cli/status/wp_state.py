@@ -7,7 +7,7 @@ guard conditions, progress bucket, and display category.
 Single-ownership (WP01, DM-01KTH03G): the WPState objects are the SOLE
 authority for BOTH the transition edge graph AND the act of transitioning
 (structural edge + guards + force-override). ``transitions.validate_transition``
-is a thin delegator over :meth:`WPState.check_transition`; no edge/guard/force
+is a thin delegator over :meth:`WPState.transition_to`; no edge/guard/force
 logic lives outside these state objects, and no production code consults a
 parallel ``(from, to)`` table as a gate.
 
@@ -186,16 +186,6 @@ class WPState(ABC):
         if not ctx.reason or not ctx.reason.strip():
             return False, _FORCE_REQUIRES_ACTOR_AND_REASON
         return True, None
-
-    def transition(self, target: Lane, ctx: TransitionInputs) -> WPState:
-        """Return the new state after a guard-validated transition (no force).
-
-        Preserved for callers that want the guard-only semantics. For the full
-        force-aware transition use :meth:`transition_to`.
-        """
-        if not self.can_transition_to(target, ctx):
-            raise InvalidTransitionError(self.lane, target)
-        return wp_state_for(target)
 
     def transition_to(self, target: Lane, ctx: TransitionInputs) -> WPState:
         """Return the new state after a full edge + guard + force transition.

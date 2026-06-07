@@ -312,29 +312,30 @@ class TestStateProperties:
             wp_state_for("nonexistent")
 
 
-class TestTransitionMethod:
-    """WPState.transition() returns new state or raises InvalidTransitionError."""
+class TestTransitionToMethod:
+    """WPState.transition_to() returns new state or raises InvalidTransitionError."""
 
     def test_valid_transition_returns_new_state(self):
         state = wp_state_for("planned")
         ctx = TransitionContext(actor="test-agent")
-        new_state = state.transition(Lane.CLAIMED, ctx)
+        new_state = state.transition_to(Lane.CLAIMED, ctx)
         assert new_state.lane == Lane.CLAIMED
 
     def test_invalid_transition_raises(self):
         state = wp_state_for("planned")
         ctx = TransitionContext(actor="test-agent")
         with pytest.raises(InvalidTransitionError) as exc_info:
-            state.transition(Lane.DONE, ctx)
+            state.transition_to(Lane.DONE, ctx)
         assert exc_info.value.source == Lane.PLANNED
         assert exc_info.value.target == Lane.DONE
+        assert exc_info.value.reason == "Illegal transition: planned -> done"
 
     def test_terminal_state_cannot_transition(self):
         state = wp_state_for("done")
         ctx = TransitionContext(actor="test-agent")
         for target in ALL_LANES:
             with pytest.raises(InvalidTransitionError):
-                state.transition(target, ctx)
+                state.transition_to(target, ctx)
 
 
 # ---------------------------------------------------------------------------
@@ -684,7 +685,7 @@ def _iter_production_status_modules() -> list[Path]:
 class TestFsmIsSoleEdgeAuthority:
     """No production module may consult ALLOWED_TRANSITIONS as an edge gate.
 
-    The WPState objects (allowed_targets / may_transition_to / check_transition)
+    The WPState objects (allowed_targets / may_transition_to / transition_to)
     are the single authority for edges AND transitions (NFR-002, I1). The
     derived ``ALLOWED_TRANSITIONS`` projection may be *defined* (transitions.py)
     and re-exported (__init__.py) but never *consumed* as a gate by production

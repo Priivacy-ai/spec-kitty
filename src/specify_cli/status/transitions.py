@@ -20,7 +20,7 @@ from specify_cli.status_lanes import CANONICAL_LANES as CANONICAL_LANES
 from specify_cli.status_lanes import LANE_ALIASES, TERMINAL_LANES
 
 from .models import GuardContext, Lane
-from .wp_state import wp_state_for
+from .wp_state import InvalidTransitionError, wp_state_for
 
 
 def _derive_allowed_transitions() -> frozenset[tuple[str, str]]:
@@ -63,9 +63,9 @@ def validate_transition(
     """Validate a lane transition. Returns ``(ok, error_message)``.
 
     Thin delegator: resolves aliases to canonical lanes, then hands the entire
-    edge + guard + force decision to the source state object
-    (``wp_state_for(resolved_from).check_transition(resolved_to, ctx)``). No
-    edge, guard, or force logic lives in this module (NFR-002, I1, I4).
+    edge + guard + force transition primitive to the source state object
+    (``wp_state_for(resolved_from).transition_to(resolved_to, ctx)``). No edge,
+    guard, or force logic lives in this module (NFR-002, I1, I4).
     """
     ctx = ctx or GuardContext()
     resolved_from = resolve_lane_alias(from_lane)
@@ -80,7 +80,11 @@ def validate_transition(
     except ValueError:
         return False, f"Unknown lane: {to_lane}"
 
-    return wp_state_for(from_lane_enum).check_transition(target_lane_enum, ctx)
+    try:
+        wp_state_for(from_lane_enum).transition_to(target_lane_enum, ctx)
+    except InvalidTransitionError as exc:
+        return False, exc.reason
+    return True, None
 
 
 def _run_guard(
