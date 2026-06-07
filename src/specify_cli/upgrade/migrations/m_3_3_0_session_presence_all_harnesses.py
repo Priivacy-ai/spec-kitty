@@ -50,7 +50,7 @@ class SessionPresenceAllHarnessesMigration(BaseMigration):
         "Write session presence orientation to each configured non-Claude harness "
         "(only agents listed in .kittify/config.yaml are processed)"
     )
-    target_version = "3.3.0"
+    target_version = "3.2.0rc39"
     runs_on_worktrees = False
 
     # ------------------------------------------------------------------

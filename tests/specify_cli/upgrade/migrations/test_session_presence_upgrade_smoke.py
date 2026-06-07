@@ -101,7 +101,7 @@ class TestUpgradeSmoke:
             ),
         ):
             mock_checker_cls.return_value.get_available_version.return_value = None
-            result = runner.upgrade("3.3.0", dry_run=False, include_worktrees=False)
+            result = runner.upgrade("3.2.0rc39", dry_run=False, include_worktrees=False)
 
         assert result.success, f"Upgrade failed with errors: {result.errors}"
         assert result.errors == []
@@ -109,7 +109,7 @@ class TestUpgradeSmoke:
     def test_upgrade_dry_run_runs_without_errors(self, full_project: Path) -> None:
         """MigrationRunner.upgrade(dry_run=True) runs without errors."""
         runner = MigrationRunner(full_project)
-        result = runner.upgrade("3.3.0", dry_run=True, include_worktrees=False)
+        result = runner.upgrade("3.2.0rc39", dry_run=True, include_worktrees=False)
         assert result.success, f"Dry-run upgrade failed: {result.errors}"
         assert result.errors == []
 
@@ -127,8 +127,8 @@ class TestUpgradeSmoke:
             ),
         ):
             mock_checker_cls.return_value.get_available_version.return_value = None
-            result1 = runner.upgrade("3.3.0", dry_run=False, include_worktrees=False)
-            result2 = runner.upgrade("3.3.0", dry_run=False, include_worktrees=False)
+            result1 = runner.upgrade("3.2.0rc39", dry_run=False, include_worktrees=False)
+            result2 = runner.upgrade("3.2.0rc39", dry_run=False, include_worktrees=False)
 
         assert result1.success, f"First upgrade failed: {result1.errors}"
         assert result2.success, f"Second upgrade failed: {result2.errors}"
@@ -157,7 +157,7 @@ class TestUpgradeSmoke:
             ),
         ):
             mock_checker_cls.return_value.get_available_version.return_value = None
-            runner.upgrade("3.3.0", dry_run=False, include_worktrees=False)
+            runner.upgrade("3.2.0rc39", dry_run=False, include_worktrees=False)
 
         claude_md = full_project / ".claude" / "CLAUDE.md"
         assert claude_md.exists(), "CLAUDE.md should have been created by Phase 1"
@@ -179,7 +179,7 @@ class TestUpgradeSmoke:
             ),
         ):
             mock_checker_cls.return_value.get_available_version.return_value = None
-            runner.upgrade("3.3.0", dry_run=False, include_worktrees=False)
+            runner.upgrade("3.2.0rc39", dry_run=False, include_worktrees=False)
 
         rules_file = full_project / ".cursor" / "rules" / "spec-kitty.mdc"
         assert rules_file.exists(), "cursor rules file should have been created"
