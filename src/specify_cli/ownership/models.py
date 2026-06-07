@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from specify_cli.status.wp_metadata import WPMetadata
@@ -54,14 +54,6 @@ class OwnershipManifest:
         """Return True if this WP has codebase-wide scope."""
         return self.scope == SCOPE_CODEBASE_WIDE
 
-    @overload
-    @classmethod
-    def from_frontmatter(cls, data: WPMetadata) -> OwnershipManifest: ...
-
-    @overload
-    @classmethod
-    def from_frontmatter(cls, data: dict[str, Any]) -> OwnershipManifest: ...
-
     @classmethod
     def from_frontmatter(cls, data: dict[str, Any] | WPMetadata) -> OwnershipManifest:
         """Construct an OwnershipManifest from parsed frontmatter data.
@@ -87,7 +79,7 @@ class OwnershipManifest:
             execution_mode = ExecutionMode(raw_mode)
             owned_files = tuple(data.owned_files) if data.owned_files else ()
             authoritative_surface = data.authoritative_surface or ""
-            scope = None  # WPMetadata doesn't carry scope field
+            scope = data.scope  # carry codebase-wide scope through the adapter
             return cls(
                 execution_mode=execution_mode,
                 owned_files=owned_files,

@@ -139,6 +139,35 @@ class TestOwnershipManifestFromWPMetadata:
         assert m.owned_files == ("src/foo/**",)
         assert m.authoritative_surface == "src/foo/"
 
+    def test_carries_scope_from_wp_metadata(self) -> None:
+        """#1753: the WPMetadata branch must propagate codebase-wide scope.
+
+        finalize-tasks builds manifests from WPMetadata instances (see
+        read_wp_frontmatter), so dropping scope here silently defeats the
+        codebase-wide overlap exemption on the exact path finalize uses.
+        """
+        meta = WPMetadata(
+            work_package_id="WP04",
+            title="T",
+            execution_mode="code_change",
+            owned_files=["src/**"],
+            authoritative_surface="src/",
+            scope="codebase-wide",
+        )
+        m = OwnershipManifest.from_frontmatter(meta)
+        assert m.scope == "codebase-wide"
+        assert m.is_codebase_wide is True
+
+    def test_narrow_wp_metadata_scope_is_none(self) -> None:
+        meta = WPMetadata(
+            work_package_id="WP01",
+            title="T",
+            execution_mode="code_change",
+            owned_files=["src/foo/**"],
+            authoritative_surface="src/foo/",
+        )
+        assert OwnershipManifest.from_frontmatter(meta).scope is None
+
     def test_wp_metadata_missing_owned_files_defaults_empty(self) -> None:
         meta = WPMetadata(
             work_package_id="WP01",
