@@ -192,6 +192,24 @@ Required test cases:
 - `apply()` is idempotent — calling twice leaves files in same state as calling once
 - `apply()` does NOT process agents absent from `.kittify/config.yaml`
 
+**Forward-compatibility test** (FR-017):
+- Monkey-patch `WRITER_REGISTRY["qwen"]` with a real `MarkdownRulesWriter` instance (simulating Pattern E promotion in a future release). Verify that `detect()` returns `True` for a qwen-configured project missing presence — **without** requiring a new migration. This validates that dynamic `get_writer(key)` in `detect()` picks up promoted writers automatically:
+```python
+def test_detect_picks_up_promoted_pattern_e_writer(tmp_path, monkeypatch):
+    """FR-017: promoted Pattern E writer is found by detect() without a new migration."""
+    make_project(tmp_path, agents=["qwen"])
+    (tmp_path / ".qwen").mkdir()  # harness root exists → can_write returns True
+    real_writer = MarkdownRulesWriter(
+        harness_key="qwen",
+        rules_path=".qwen/spec-kitty.md",
+        append_mode=False,
+        check_dir=".qwen",
+    )
+    monkeypatch.setitem(WRITER_REGISTRY, "qwen", real_writer)
+    migration = SessionPresenceAllHarnessesMigration()
+    assert migration.detect(tmp_path) is True
+```
+
 **Property tests**:
 - `runs_on_worktrees == False`
 - Migration is registered in `MigrationRegistry` (test via registry lookup by migration_id)
