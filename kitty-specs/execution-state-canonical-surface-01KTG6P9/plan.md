@@ -5,7 +5,7 @@
 
 ## Summary
 
-Stand up a net-new `mission_runtime/` umbrella package (Screaming Architecture + Strangler Fig, decided in `docs/engineering_notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md` §4) that owns execution-state resolution behind a lean public API over the context objects. Realize the **Stage C** ExecutionContext shape from doc 06 §5 — a stable `resolve_action_context` façade relocated into the umbrella that delegates to today's resolver — explicitly deferring the **Stage B** commit-owning operation service (it belongs to the out-of-scope CommitTarget step 7). Then strangle the residue into it: route the ~40 bypass surfaces and ~125 path-builders, collapse the 8 duplicate feature-dir resolvers, enforce the `status/` facade repo-wide (~225 imports → facade/`MissionStatus`), and fold in the #1663 field-drop. The full `next→implement→move-task→review→status` parity ratchet across all three execution modes is built first as the regression gate.
+Stand up a net-new `mission_runtime/` umbrella package (Screaming Architecture + Strangler Fig, decided in `docs/engineering_notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md` §4) that owns execution-state resolution behind a lean public API over the context objects. Realize the **Stage C** ExecutionContext shape from doc 06 §5 — a stable `resolve_action_context` façade relocated into the umbrella that delegates to today's resolver — explicitly deferring the **Stage B** commit-owning operation service (it belongs to the out-of-scope CommitTarget step 7). Then strangle the residue into it: route the ~40 residue command surfaces and ~125 path-builders, collapse the 8 duplicate feature-dir resolvers, enforce the `status/` facade repo-wide (~225 deep `status.*` imports → facade/`MissionStatus`), and fold in the #1663 field-drop. The full `next→implement→move-task→review→status` parity ratchet across all three execution modes is built first as the regression gate. Two #1756-review follow-ups (IC-08 #1757, IC-09 #1754) extend the same one-owning-port discipline to the ownership-`scope`/finalize and legacy-migration-rebuild surfaces.
 
 ## Technical Context
 
@@ -17,7 +17,7 @@ Stand up a net-new `mission_runtime/` umbrella package (Screaming Architecture +
 **Project Type**: single (Python CLI library under `src/`)
 **Performance Goals**: No runtime perf regression; repo-wide `status/` import scan ≤15 s wall-clock in CI (NFR-005)
 **Constraints**: Behavior-preserving across all execution modes (NFR-001); layer meta-guard must stay green; never write mainline without explicit operator authorization (C-001); `coordination/transaction.py` internals unchanged (NFR-006)
-**Scale/Scope**: ~225 deep `status.*` bypass imports; ~125 path-builder occurrences across ~160 files; 8 duplicate feature-dir resolvers; ~40 residue command surfaces
+**Scale/Scope**: ~225 deep `status.*` bypass imports; ~125 path-builder occurrences across ~160 files; 8 duplicate feature-dir resolvers; ~40 residue command surfaces. Folded-in surfaces (IC-08/IC-09): `ownership/` (scope/backfill/port) + `migration/backfill_ownership.py`; the migration runner/normalize/`mission_state`/`rebuild_state` rebuild path.
 
 ## Charter Check
 
@@ -25,7 +25,7 @@ Stand up a net-new `mission_runtime/` umbrella package (Screaming Architecture +
 
 - **Architecture: Shared Package Boundaries / layer rules** — A net-new top-level `mission_runtime/` must be registered in `_DEFINED_LAYERS` (both `tests/architectural/conftest.py` and `test_layer_rules.py`) or `test_no_unregistered_src_packages` fails. Placement respects the spine (`kernel ← doctrine ← charter ← specify_cli`; `runtime`/`glossary` siblings at charter level). **PASS (planned)** via FR-002.
 - **`__all__` Declaration Convention (binding, C-007 charter)** — the new umbrella's public API and any promoted `status/` symbols declare `__all__`. **PASS (planned)** via FR-001/FR-013.
-- **ATDD-First Discipline (binding, C-011 charter)** — the parity ratchet and boundary tests are authored as the acceptance gate before the strangling changes. **PASS (planned)** via IC-03 sequenced first.
+- **ATDD-First Discipline (binding, C-011 charter)** — the parity ratchet and boundary tests are authored as the acceptance gate before the strangling changes. Each WP (incl. the IC-08/IC-09 fold-ins) authors its failing-first ATDD test as the first subtask and first (red) commit. **PASS (planned)** via IC-03 sequenced first.
 - **Test and Typecheck Quality Gate (DIR)** — `ruff` + `mypy --strict` clean on touched modules (SC-008). **PASS (planned)**.
 - **Burn-down Policy (binding, C-004 charter)** — no net new untested debt; deletions are real (no dead code left). **PASS (planned)** via FR-011/NFR-002.
 - **Terminology Canon (Mission vs Feature)** — new code uses Mission vocabulary; no `feature*` aliases for the domain object. **PASS (planned)**.
@@ -60,6 +60,8 @@ src/
 ├── specify_cli/
 │   ├── core/execution_context.py    # → thin shim re-exporting from mission_runtime, or removed if unreferenced
 │   ├── status/                      # facade hardened (promotions/demotions); MissionStatus is the entry point
+│   ├── ownership/                   # IC-08: scope single-ported; new frontmatter_source.py port
+│   ├── migration/                   # IC-09: mission_state canonical rebuild entry; rebuild_state retired
 │   ├── runtime/next/runtime_bridge.py  # residue routed; #1663 field-drop fixed
 │   └── cli/commands/agent/workflow.py  # fix-mode routed through canonical surface
 └── runtime/next/                    # consumes mission_runtime API; no independent path derivation
@@ -146,6 +148,24 @@ tests/
 - **Sequencing/depends-on**: IC-04 (same hotspot — edit once)
 - **Persona IC**: **Randy Reducer** — minimal carry-through, no new branch.
 - **Risks**: None significant; ensure all six `engine.py` sites remain correct.
+
+### IC-08 — Ownership `scope` backfill-awareness + frontmatter-source port (#1757)
+
+- **Purpose**: Make the ownership `scope` flag flow through one canonical owner on every path (read / backfill / inference) and push the finalize ownership IO boundary through a single frontmatter-source port — the same one-owning-port theme as IC-05/IC-06, applied to the ownership surface. Folded in from the #1756 (#1753) review that unblocked this mission's own `finalize-tasks`.
+- **Relevant requirements**: FR-028, FR-029, FR-030, FR-031
+- **Affected surfaces**: `src/specify_cli/ownership/models.py` (`from_frontmatter` dict-path symmetry), `ownership/inference.py` (no-inference contract), `ownership/validation.py` (`build_wp_manifests`), `ownership/frontmatter_source.py` (new port), `migration/backfill_ownership.py` (scope-aware guard+write), `cli/commands/agent/mission.py` (finalize caller routed through the port), `tests/specify_cli/ownership/`
+- **Sequencing/depends-on**: none (disjoint surface; runs in parallel with the strangler/facade tracks)
+- **Persona IC**: **Paula Patterns** — `from_frontmatter` is the sole owner; no parallel `scope` path; the port removes the reader-stub from the resolve→validate test.
+- **Risks**: behavior-preserving port (prove with existing finalize tests); three `scope` representations must not fork.
+
+### IC-09 — Legacy migration event-rebuild single-port (#1754)
+
+- **Purpose**: Route the two live legacy-migration callers (`runner.py` Step 4, `normalize_mission_lifecycle.py`) onto a single canonical per-mission `mission_state` event-rebuild entry that returns event counts, retiring the deprecated `rebuild_event_log` (`repair_repo` is repo-level, not a per-feature drop-in). Same one-owning-port theme on the migration surface.
+- **Relevant requirements**: FR-032, FR-033, FR-034
+- **Affected surfaces**: `src/specify_cli/migration/mission_state.py` (canonical entry), `migration/runner.py`, `migration/normalize_mission_lifecycle.py`, `migration/rebuild_state.py` (retire/shim), `migration/__init__.py` (`__all__` cleanup), `tests/specify_cli/migration/`
+- **Sequencing/depends-on**: none (disjoint surface)
+- **Persona IC**: **Randy Reducer** — exactly one rebuild path; deprecated symbol removed or thin-shimmed with no live callers.
+- **Risks**: behavioral change to legacy-project migration — fixture-backed (NFR-004); the canonical entry must preserve the per-feature event-count reporting contract `repair_repo` lacks.
 
 ## Phases
 

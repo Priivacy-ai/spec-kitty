@@ -8,7 +8,7 @@ Extends `tests/architectural/test_execution_context_parity.py` from the status r
 
 ## Modes (fixtures)
 
-1. **main-checkout CWD** — sequence driven from the repository root.
+1. **repository-root-checkout CWD** — sequence driven from the repository root.
 2. **lane-worktree CWD** — sequence driven from `.worktrees/<mission>-<mid8>-lane-a/`.
 3. **direct-to-target** — mission run with no worktree, target branch used directly.
 

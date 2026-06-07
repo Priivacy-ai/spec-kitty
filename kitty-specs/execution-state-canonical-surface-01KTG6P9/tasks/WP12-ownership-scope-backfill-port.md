@@ -103,6 +103,7 @@ Make the ownership `scope` field flow through one canonical owner on every path 
 
 ## Test Strategy
 
+- **ATDD-first (C-011, binding):** author + commit subtask **T046 RED first** (the backfill-re-run / symmetry / port tests), before the T042–T045 implementation. Reviewer verifies the tests were RED on `planning_base_branch` and GREEN on the final commit.
 - New tests green; existing ownership + finalize tests green; `ruff` + `mypy` clean on touched modules (NFR-007).
 
 ## Risks & Mitigations

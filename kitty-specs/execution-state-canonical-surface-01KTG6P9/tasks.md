@@ -33,7 +33,7 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 ### Included Subtasks
 
 - [ ] T001 Author lane-worktree and direct-to-target fixtures in `tests/architectural/test_execution_context_parity.py` (WP01)
-- [ ] T002 Drive the full `next→implement→move-task→review→status` sequence from main-checkout CWD (WP01)
+- [ ] T002 Drive the full `next→implement→move-task→review→status` sequence from the repository-root-checkout CWD (WP01)
 - [ ] T003 Drive the same sequence from lane-worktree CWD and assert parity of WP identity, lane transitions, status output (WP01)
 - [ ] T004 Drive direct-to-target mode; assert mode-correct branch and refusal of unauthorized mainline writes (WP01)
 - [ ] T005 Add non-vacuous negative control (inject re-derivation → ratchet fails) (WP01)
@@ -293,6 +293,8 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
+> **ATDD-first (C-011):** author + commit the failing test subtask **T046 RED first**, before the T042–T045 implementation subtasks. Reviewer verifies red→green.
+
 - [ ] T042 Add `scope` to the `migration/backfill_ownership.py` "already present" guard and write step (persist `scope` when present) (WP12)
 - [ ] T043 Document `scope` as human-authored (no inference) in `ownership/inference.py::infer_ownership` (explicit no-op note) (WP12)
 - [ ] T044 Normalize the `from_frontmatter` raw-dict branch `authoritative_surface` with `... or ""` (provable symmetry) (WP12)
@@ -318,7 +320,9 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T047 Expose a per-mission canonical event-rebuild entry on `mission_state` returning event counts (`events_generated`/`events_corrected`/`errors`/`warnings`) — or decide+document the `repair_repo` end-to-end retirement path (WP13)
+> **ATDD-first (C-011):** author + commit the failing test/fixture subtask **T051 RED first**, before the T047–T050 implementation subtasks. Reviewer verifies red→green.
+
+- [ ] T047 Expose a per-mission canonical event-rebuild entry on `mission_state` returning event counts (`events_generated`/`events_corrected`/`errors`/`warnings`) — **decision pinned (FR-032): add the per-mission entry; do NOT retire onto `repair_repo`** (it drops per-feature counts; full retirement is a separate fixture-backed change) (WP13)
 - [ ] T048 Migrate `migration/runner.py` Step 4 per-feature loop onto the canonical entry (WP13)
 - [ ] T049 Migrate `migration/normalize_mission_lifecycle.py` onto the canonical entry (WP13)
 - [ ] T050 Remove `rebuild_event_log` (or reduce to a thin shim with no live callers) and clean the `migration/__init__.__all__` lazy-symbol nuisance (#1757.4) (WP13)
@@ -365,6 +369,7 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 | NFR-004 | WP03, WP10, WP13 |
 | NFR-005 | WP09 |
 | NFR-006 | WP10 |
+| NFR-007 | All code_change WPs (global gate; ruff + mypy clean, no disabled checks — SC-008) |
 | C-001, C-002 | WP04 |
 | C-004 | WP08, WP09 |
 | C-006 | WP02 |

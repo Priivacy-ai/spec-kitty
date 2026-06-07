@@ -19,7 +19,7 @@
 
 ### User Story 1 - Canonical execution-state domain surface (Priority: P1)
 
-A developer or agent resolving mission execution context (feature dir, workspace, branch) goes through a single owned domain module with a clean API over the context objects, instead of one of many ad-hoc resolvers.
+A developer or agent resolving mission execution context (mission directory, workspace, branch) goes through a single owned domain module with a clean API over the context objects, instead of one of many ad-hoc resolvers.
 
 **Why this priority**: Every subsequent strangling step needs a single destination to route into. Without the canonical surface, "fixing" a bypass just moves the duplication. This is the Screaming-Architecture home the redesign (doc 06 §4) mandates.
 
@@ -28,13 +28,13 @@ A developer or agent resolving mission execution context (feature dir, workspace
 **Acceptance Scenarios**:
 
 1. **Given** the new canonical module exists and is layer-registered, **When** `test_no_unregistered_src_packages` and the new architectural tests run, **Then** they pass and confirm the module is the sole sanctioned execution-context resolver.
-2. **Given** a residue surface needs a feature dir, **When** it calls the canonical API, **Then** it receives a resolved context object (not raw path fragments).
+2. **Given** a residue surface needs a mission directory, **When** it calls the canonical API, **Then** it receives a resolved context object (not raw path fragments).
 
 ---
 
 ### User Story 2 - Full-sequence parity ratchet across execution modes (Priority: P1)
 
-An agent runs the full `next → implement → move-task → review → status` sequence from the main checkout, from a lane worktree, and as a direct-to-target run, and gets identical results.
+An agent runs the full `next → implement → move-task → review → status` sequence from the repository root checkout, from a lane worktree, and as a direct-to-target run, and gets identical results.
 
 **Why this priority**: The ratchet is the regression gate for the entire slice. Per #1672 it must exist and be green before any strangling change can be trusted. It is the only automated proof that a surface was unified rather than re-masked.
 
@@ -42,7 +42,7 @@ An agent runs the full `next → implement → move-task → review → status` 
 
 **Acceptance Scenarios**:
 
-1. **Given** a mission with ≥2 work packages, **When** the full sequence runs from main-checkout CWD and from the lane-worktree CWD, **Then** resolved WP identity, lane transitions, and status output are identical.
+1. **Given** a mission with ≥2 work packages, **When** the full sequence runs from the repository-root-checkout CWD and from the lane-worktree CWD, **Then** resolved WP identity, lane transitions, and status output are identical.
 2. **Given** a direct-to-target mission run with no worktree, **When** the sequence runs, **Then** results match the other modes and the mode-correct target branch is used.
 3. **Given** a surface is deliberately reverted to re-derive context independently, **When** the ratchet runs, **Then** it fails (non-vacuous).
 
@@ -172,7 +172,7 @@ A maintainer migrating a legacy project gets per-mission event-log rebuild throu
 | FR-018 | MissionStatus write consolidation | US5 · Status write/transition paths calling `emit`/`BookkeepingTransaction` directly (outside plumbing) are reworked onto `MissionStatus.transition()`. | Medium | Open |
 | FR-019 | No direct BookkeepingTransaction | US5 · No consumer outside `status/` and documented coordination plumbing calls `BookkeepingTransaction` directly. | Medium | Open |
 | FR-020 | Full-sequence ratchet | US2 · `test_execution_context_parity.py` exercises the full `next → implement → move-task → review → status` sequence (not only status read+write). | High | Open |
-| FR-021 | All three execution modes | US2 · The ratchet exercises main-checkout CWD, lane-worktree CWD, and direct-to-target (no worktree). | High | Open |
+| FR-021 | All three execution modes | US2 · The ratchet exercises repository-root-checkout CWD, lane-worktree CWD, and direct-to-target (no worktree). | High | Open |
 | FR-022 | Parity assertions + negative control | US2 · The ratchet asserts identical WP identity, lane transitions, and status output across modes, and includes a non-vacuous negative control. | High | Open |
 | FR-023 | De-overclaim docstring | US2 · The ratchet docstring is corrected to state its real coverage; it no longer implies coverage it lacks. | Medium | Open |
 | FR-024 | CI gate registration | US2 · The ratchet is a required gate for PRs touching the canonical module, `status/`, `runtime/next/`, or `cli/commands/agent/`. | Medium | Open |
@@ -183,7 +183,7 @@ A maintainer migrating a legacy project gets per-mission event-log rebuild throu
 | FR-029 | Scope is human-authored | US7 · `ownership/inference.py::infer_ownership` documents that `scope` has no inference path (explicit no-op note); inferred manifests stay narrow by design. | Low | Open |
 | FR-030 | from_frontmatter dict-path symmetry | US7 · the raw-`dict` branch of `OwnershipManifest.from_frontmatter` normalizes `authoritative_surface` with `... or ""` so the `WPMetadata` and raw-dict inputs are provably equivalent (a present-but-`None` no longer leaks through). | Low | Open |
 | FR-031 | Frontmatter-source port for finalize ownership | US7 · the finalize ownership resolve→validate path (`build_wp_manifests` + `read_wp_frontmatter`) is driven through a single frontmatter-source port so the whole path is testable without stubbing the reader (epic #1666 one-owning-port). | Medium | Open |
-| FR-032 | Canonical per-mission event-rebuild entry | US8 · a per-mission canonical event-rebuild entry on `mission_state` returns event counts (`events_generated`/`events_corrected`/`errors`/`warnings`); or the legacy `migration/runner.py` flow is retired onto `repair_repo` end-to-end. | High | Open |
+| FR-032 | Canonical per-mission event-rebuild entry | US8 · a per-mission canonical event-rebuild entry on `mission_state` returns event counts (`events_generated`/`events_corrected`/`errors`/`warnings`). **Decision (2026-06-07):** add the per-mission entry rather than retiring the runner onto `repair_repo` — `repair_repo` is repo-level and drops the per-feature event-count reporting the runner needs; full retirement is deferred to a separate fixture-backed change. | High | Open |
 | FR-033 | Migrate legacy rebuild callers | US8 · `migration/normalize_mission_lifecycle.py` and `migration/runner.py` (Step 4) no longer depend on the deprecated `rebuild_event_log`; the deprecated symbol is removed or kept only as a thin shim with no live callers, and `migration/__init__.__all__` no longer lists an unbound lazy symbol that static analyzers flag (#1757.4). | High | Open |
 | FR-034 | Legacy migration fixtures + behavior preservation | US8 · migration fixtures cover the per-mission rebuild path; legacy missions migrate unchanged and event counts/transformations are equivalent to the deprecated path. | Medium | Open |
 
