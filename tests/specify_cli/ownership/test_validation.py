@@ -308,7 +308,7 @@ class TestValidateGlobMatches:
 # ---------------------------------------------------------------------------
 # #1753 follow-up: ownership overlap decided logically from WPMetadata stubs.
 #
-# These prove the invariant WITHOUT real WP files or finalize-command ceremony:
+# These prove the invariant WITHOUT real WP files or finalize-command scaffolding:
 # build_wp_manifests + validate_ownership is the pure seam finalize-tasks uses.
 # Invariant: scope=codebase-wide is the ONLY exemption; lane/dependency
 # structure (modelled via the `dependencies` field) never exempts an overlap.

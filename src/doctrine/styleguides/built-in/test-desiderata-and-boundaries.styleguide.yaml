@@ -34,7 +34,7 @@ principles:
   - "Boundary by responsibility, not by layer: include exactly the components responsible for the behavior under test; everything else is outside the boundary."
   - "Stub infrastructure at the boundary: external services, data access, and IO (filesystem, database, clock, network, randomness, git) live OUTSIDE the boundary and are replaced by test doubles or pure inputs."
   - "Assert observable outcomes, not mechanisms: test the behavior crossing the boundary, not internal call counts or field values, to stay structure-insensitive."
-  - "If a unit test needs heavy infrastructure ceremony to run, the boundary is wrong: extract a pure seam that takes domain inputs so the behavior is testable without IO."
+  - "If a unit test needs heavy infrastructure scaffolding to run, the boundary is wrong: extract a pure seam that takes domain inputs so the behavior is testable without IO."
 
 patterns:
   - name: Draw the boundary by functional responsibility
@@ -51,7 +51,7 @@ patterns:
           _write_mission_dir(tmp_path)                  # real files
           with patch("...locate_project_root"), \
                patch("...safe_commit"), patch("...run_command"), \
-               patch("...bootstrap_canonical_state"):    # infra ceremony
+               patch("...bootstrap_canonical_state"):    # infra scaffolding
               finalize_tasks(feature="m", validate_only=True)
           # assertion buried behind subprocess/JSON parsing
     good_example: |
@@ -84,7 +84,7 @@ anti_patterns:
       state. Two consequences follow: (1) surfaces can disagree about the same
       on-disk state (read/write forks, staleness); (2) tests cannot exercise the
       logic without standing up the infrastructure or mocking many seams. The
-      mock/stub ceremony in tests is a symptom, not the disease — the cure is an
+      mock/stub scaffolding in tests is a symptom, not the disease — the cure is an
       owning boundary (a port / aggregate / pure resolver) the logic routes
       through, which the test then drives with simple inputs.
     bad_example: |

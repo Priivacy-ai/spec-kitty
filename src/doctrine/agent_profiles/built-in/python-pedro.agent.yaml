@@ -28,7 +28,7 @@ context-sources:
     - "025"
     - "030"
   tactics:
-    - test-ceremony-as-design-smell
+    - test-scaffolding-as-design-smell
   additional:
     - coding-standards
     - test-strategy
@@ -169,7 +169,7 @@ directive-references:
     rationale: Tests define the contract before production code — TDD red-green-refactor is the default implementation rhythm
 
 tactic-references:
-  - id: test-ceremony-as-design-smell
+  - id: test-scaffolding-as-design-smell
     rationale: >
       Write code whose behavior is testable without infrastructure. If a unit test
       would need real files, git, or several mocks to run, invert the dependency and
