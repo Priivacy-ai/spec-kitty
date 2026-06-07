@@ -304,6 +304,111 @@ def test_emit_json_output_contract_is_preserved(tmp_path: Path) -> None:
     )
 
 
+def test_transition_helper_maps_uninitialized_lane_to_planned(tmp_path: Path) -> None:
+    """Aggregate helper normalizes transactional bootstrap reads to planned."""
+    from specify_cli.status import TransitionRequest
+    from specify_cli.status.aggregate import MissionStatus
+    from specify_cli.status.models import Lane
+
+    ms = MissionStatus(
+        mission_slug="017-helper-lane",
+        mission_id=None,
+        mid8="",
+        topology="legacy",
+        read_dir=tmp_path,
+        repo_root=tmp_path,
+    )
+    request = TransitionRequest(
+        wp_id="WP01",
+        to_lane="claimed",
+        actor="codex",
+        feature_dir=tmp_path,
+        mission_slug=ms.mission_slug,
+    )
+
+    from_lane, current_actor = ms._resolve_current_lane(
+        request=request,
+        read_current_wp_state_transactional=lambda **_: ("uninitialized", "codex"),
+        lane_planned=Lane.PLANNED,
+    )
+
+    assert from_lane == "planned"
+    assert current_actor == "codex"
+
+
+def test_transition_helper_prefers_explicit_workspace_context(tmp_path: Path) -> None:
+    """Aggregate helper must not overwrite caller-provided workspace context."""
+    from specify_cli.status import TransitionRequest
+    from specify_cli.status.aggregate import MissionStatus
+
+    ms = MissionStatus(
+        mission_slug="017-helper-workspace-context",
+        mission_id=None,
+        mid8="",
+        topology="legacy",
+        read_dir=tmp_path,
+        repo_root=tmp_path,
+    )
+    request = TransitionRequest(
+        wp_id="WP01",
+        to_lane="claimed",
+        actor="codex",
+        feature_dir=tmp_path,
+        mission_slug=ms.mission_slug,
+        workspace_context="explicit-context",
+    )
+
+    assert ms._resolve_workspace_context(request) == "explicit-context"
+
+
+def test_transition_helper_infers_missing_review_gate_inputs(tmp_path: Path) -> None:
+    """Aggregate helper infers both review-gate booleans on enter-review."""
+    from specify_cli.status import TransitionRequest
+    from specify_cli.status.aggregate import MissionStatus
+    from specify_cli.status.models import Lane
+
+    ms = MissionStatus(
+        mission_slug="017-helper-review-gates",
+        mission_id=None,
+        mid8="",
+        topology="legacy",
+        read_dir=tmp_path,
+        repo_root=tmp_path,
+    )
+    request = TransitionRequest(
+        wp_id="WP07",
+        to_lane="for_review",
+        actor="codex",
+        feature_dir=tmp_path,
+        mission_slug=ms.mission_slug,
+    )
+
+    class _StatusEmit:
+        @staticmethod
+        def _infer_subtasks_complete(read_dir: Path, wp_id: str) -> bool:
+            assert read_dir == tmp_path
+            assert wp_id == "WP07"
+            return True
+
+        @staticmethod
+        def _infer_implementation_evidence(read_dir: Path, wp_id: str) -> bool:
+            assert read_dir == tmp_path
+            assert wp_id == "WP07"
+            return True
+
+    subtasks_complete, implementation_evidence_present = ms._resolve_review_gate_inputs(
+        request=request,
+        from_lane_str=str(Lane.IN_PROGRESS),
+        resolved_to_lane=str(Lane.FOR_REVIEW),
+        status_emit=_StatusEmit,
+        lane_in_progress=Lane.IN_PROGRESS,
+        lane_for_review=Lane.FOR_REVIEW,
+    )
+
+    assert subtasks_complete is True
+    assert implementation_evidence_present is True
+
+
 @patch("specify_cli.cli.commands.agent.status.locate_project_root")
 @patch("specify_cli.cli.commands.agent.status._find_mission_slug")
 def test_emit_reaches_transition_when_coord_declared_before_worktree_materialized(
