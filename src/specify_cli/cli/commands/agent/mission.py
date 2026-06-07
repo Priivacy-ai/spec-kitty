@@ -41,6 +41,7 @@ from specify_cli.core.worktree import (
     validate_feature_structure,
 )
 from specify_cli.frontmatter import write_frontmatter
+from specify_cli.status import COORD_OWNED_STATUS_FILES
 from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
 from specify_cli.mission import get_mission_type
 from specify_cli.doc_analysis.doc_state import GeneratorConfig
@@ -89,12 +90,6 @@ def _extract_wp_ids_from_task_files(wp_files: list[Path]) -> list[str]:
     return sorted(wp_ids)
 
 
-# Canonical status event log + snapshot. On coordination-topology missions these
-# are owned by the transactional status emitter on the coordination branch and must
-# NOT be overwritten by the primary checkout's stale copies during finalize (#1589).
-_COORD_OWNED_STATUS_FILES = frozenset({"status.events.jsonl", "status.json"})
-
-
 def _stage_finalize_artifacts_in_coord_worktree(
     files_to_commit: list[Path],
     coord_worktree: Path,
@@ -103,7 +98,7 @@ def _stage_finalize_artifacts_in_coord_worktree(
     """Copy finalize artifacts from the primary checkout into the coordination
     worktree for staging, returning the coord-worktree paths to commit.
 
-    The canonical status event log + snapshot (``_COORD_OWNED_STATUS_FILES``)
+    The canonical status event log + snapshot (``COORD_OWNED_STATUS_FILES``)
     are deliberately skipped: on coordination-topology missions they are owned
     by the transactional status emitter, which already committed the bootstrap's
     lane-state events into the coord worktree. Copying the primary checkout's
@@ -111,7 +106,7 @@ def _stage_finalize_artifacts_in_coord_worktree(
     """
     coord_files: list[Path] = []
     for src in files_to_commit:
-        if src.name in _COORD_OWNED_STATUS_FILES:
+        if src.name in COORD_OWNED_STATUS_FILES:
             continue
         dst = coord_worktree / src.relative_to(repo_root)
         if src.exists():

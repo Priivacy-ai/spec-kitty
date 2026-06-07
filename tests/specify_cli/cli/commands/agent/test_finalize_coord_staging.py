@@ -14,9 +14,9 @@ from pathlib import Path
 import pytest
 
 from specify_cli.cli.commands.agent.mission import (
-    _COORD_OWNED_STATUS_FILES,
     _stage_finalize_artifacts_in_coord_worktree,
 )
+from specify_cli.status import COORD_OWNED_STATUS_FILES
 
 pytestmark = pytest.mark.integration
 
@@ -48,7 +48,7 @@ def test_canonical_status_files_excluded_from_coord_staging(tmp_path: Path) -> N
 
     staged_names = {p.name for p in staged}
     # The canonical status log + snapshot are NOT staged from the primary copy.
-    assert _COORD_OWNED_STATUS_FILES == {"status.events.jsonl", "status.json"}
+    assert {"status.events.jsonl", "status.json"} == COORD_OWNED_STATUS_FILES
     assert staged_names == {"tasks.md", "lanes.json"}
     # Planning artifacts are copied into the coord worktree for the commit.
     assert (coord_feature / "tasks.md").read_text(encoding="utf-8") == "# tasks\n"

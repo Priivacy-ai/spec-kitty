@@ -30,6 +30,7 @@ from specify_cli.git.commit_helpers import protected_branches
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
 from specify_cli.coordination.status_transition import emit_status_transition_transactional
+from specify_cli.status import COORD_OWNED_STATUS_FILES
 from specify_cli.status.emit import TransitionError
 from specify_cli.status.models import Lane, TransitionRequest
 from specify_cli.status.work_package_lifecycle import WorkPackageClaimConflict, start_implementation_status
@@ -402,6 +403,24 @@ def _feature_dir_file_paths(repo_root: Path, feature_dir: Path) -> list[str]:
     return paths
 
 
+def _status_paths_for_commit(
+    entries: list[_PorcelainEntry], coord_branch_for_filter: str | None
+) -> list[str]:
+    """The feature-dir paths to commit from ``git status`` entries.
+
+    The canonical status log/snapshot (``COORD_OWNED_STATUS_FILES``) are excluded
+    ONLY on coordination-topology missions: there they are owned by the
+    transactional emitter on the coord branch, and the primary checkout's copies
+    are stale — committing them would clobber the seeded lane state (#1589). On a
+    non-coordination (flat/legacy) mission there is no coord authority, so the
+    primary checkout's status files ARE canonical and must be committed; excluding
+    them there silently drops a status edit (review M3).
+    """
+    if coord_branch_for_filter:
+        return [e.path for e in entries if Path(e.path).name not in COORD_OWNED_STATUS_FILES]
+    return [e.path for e in entries]
+
+
 def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestration helper; unrelated to issue #1386
     repo_root: Path,
     feature_dir: Path,
@@ -441,19 +460,12 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
         feature_dir, mission_slug
     )[0]
 
-    # #1589: the canonical status event log + snapshot on the coordination
-    # branch are owned by the transactional status emitter, which holds the
-    # bootstrap's seeded lane-state events. The primary checkout's copies are
-    # stale (lifecycle events only, no lane state); committing them to the
-    # coordination branch here CLOBBERS the seed (the same defect the
-    # finalize-tasks staging fix addresses). Exclude them from this commit.
-    _coord_owned_status = {"status.events.jsonl", "status.json"}
-    status_paths = [e.path for e in entries if Path(e.path).name not in _coord_owned_status]
+    status_paths = _status_paths_for_commit(entries, coord_branch_for_filter)
     files_to_commit = list(status_paths)
     if coord_branch_for_filter:
         files_to_commit.extend(
             p for p in _feature_dir_file_paths(repo_root, feature_dir)
-            if Path(p).name not in _coord_owned_status
+            if Path(p).name not in COORD_OWNED_STATUS_FILES
         )
     files_to_commit = list(dict.fromkeys(files_to_commit))
     if not files_to_commit:
