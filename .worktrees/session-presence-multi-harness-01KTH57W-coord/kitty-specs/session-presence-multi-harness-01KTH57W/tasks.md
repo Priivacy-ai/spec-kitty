@@ -88,11 +88,11 @@
 **Estimated prompt size**: ~450 lines
 **Depends on**: WP01, WP02
 
-- [ ] T012 Implement `SessionPresenceManager` (WP03)
-- [ ] T013 Implement `session-start` command (WP03)
-- [ ] T014 Register command + wire `install()` in `init.py` (WP03)
-- [ ] T015 Write Phase 1 upgrade migration (WP03)
-- [ ] T016 Pre-implementation test suite check (DIR-013) (WP03)
+- [x] T012 Implement `SessionPresenceManager` (WP03)
+- [x] T013 Implement `session-start` command (WP03)
+- [x] T014 Register command + wire `install()` in `init.py` (WP03)
+- [x] T015 Write Phase 1 upgrade migration (WP03)
+- [x] T016 Pre-implementation test suite check (DIR-013) (WP03)
 
 **Prompt**: [WP03-manager-cli-command-init-integration.md](tasks/WP03-manager-cli-command-init-integration.md)
 
