@@ -32,13 +32,13 @@ description: "Work package task list — WP Lane State Machine Canonicalization"
 
 > **ATDD (C-011):** author/extend the behavior-preservation parity suite (T007) **RED-first** against the pre-refactor behavior, then migrate keeping it green.
 
-- [ ] T001 Move each lane's guard conditions into its `WPState.can_transition_to` (actor, workspace_context, subtasks_complete_or_force, reviewer_approval, ReviewResult-required, done-evidence) (WP01)
-- [ ] T002 Move force-override into `WPState.transition_to` — terminal `done`/`canceled` force-exit reaches parity with the old `validate_transition` force branch (WP01)
-- [ ] T003 Rewrite `validate_transition(from,to,ctx)` as a thin delegator returning `(ok, error_message)` from the State object (WP01)
-- [ ] T004 Eliminate `ALLOWED_TRANSITIONS` as an authority: migrate `validate.py::validate_canonical_event` (`(from,to) in ALLOWED_TRANSITIONS`) to query the FSM; remove or relegate the constant + `__init__` export to a non-authoritative derived projection (WP01)
-- [ ] T005 `validate.py`: accept `genesis` as a `from_lane` only — flag `to_lane=genesis` as non-canonical (FR-015) (WP01)
-- [ ] T006 Architectural test: no production module consults `ALLOWED_TRANSITIONS`/a derived edge set as a gate; the FSM is the sole edge+transition authority (WP01)
-- [ ] T007 Behavior-preservation parity suite over the full historical transition+guard+force matrix; refresh `wp_state.py`/`transitions.py` docstrings (WP01)
+- [x] T001 Move each lane's guard conditions into its `WPState.can_transition_to` (actor, workspace_context, subtasks_complete_or_force, reviewer_approval, ReviewResult-required, done-evidence) (WP01)
+- [x] T002 Move force-override into `WPState.transition_to` — terminal `done`/`canceled` force-exit reaches parity with the old `validate_transition` force branch (WP01)
+- [x] T003 Rewrite `validate_transition(from,to,ctx)` as a thin delegator returning `(ok, error_message)` from the State object (WP01)
+- [x] T004 Eliminate `ALLOWED_TRANSITIONS` as an authority: migrate `validate.py::validate_canonical_event` (`(from,to) in ALLOWED_TRANSITIONS`) to query the FSM; remove or relegate the constant + `__init__` export to a non-authoritative derived projection (WP01)
+- [x] T005 `validate.py`: accept `genesis` as a `from_lane` only — flag `to_lane=genesis` as non-canonical (FR-015) (WP01)
+- [x] T006 Architectural test: no production module consults `ALLOWED_TRANSITIONS`/a derived edge set as a gate; the FSM is the sole edge+transition authority (WP01)
+- [x] T007 Behavior-preservation parity suite over the full historical transition+guard+force matrix; refresh `wp_state.py`/`transitions.py` docstrings (WP01)
 
 ### Dependencies
 - None (foundational — gates WP02, WP03, WP04, WP06).
