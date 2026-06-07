@@ -194,11 +194,14 @@ def derive_mission_lifecycle(
     terminal_wp_count = 0
 
     for wp_state in snapshot.work_packages.values():
-        lane_value = wp_state.get("lane", Lane.PLANNED)
+        # Defensive defaults match the write side (#1775 review M4): an unseeded
+        # or corrupt-lane WP is genesis (non-active), not planned — so it does not
+        # inflate active_wp_count below.
+        lane_value = wp_state.get("lane", Lane.GENESIS)
         try:
             lane = Lane(str(lane_value))
         except ValueError:
-            lane = Lane.PLANNED
+            lane = Lane.GENESIS
         wp_lifecycle_state = wp_state_for(lane)
         if lane in _ACTIVE_LANES:
             active_wp_count += 1

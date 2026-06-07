@@ -106,7 +106,9 @@ def _build_board_summary(snapshot: Any) -> dict[str, Any]:
     """
     lanes: dict[str, list[str]] = {}
     for wp_id, wp_state in sorted(snapshot.work_packages.items()):
-        lane = wp_state.get("lane", Lane.PLANNED)
+        # Defensive default matches the write side (#1775 review M4); reduce()
+        # always sets "lane", so this default is effectively unreachable.
+        lane = wp_state.get("lane", Lane.GENESIS)
         if lane not in lanes:
             lanes[lane] = []
         lanes[lane].append(wp_id)

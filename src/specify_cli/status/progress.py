@@ -162,7 +162,9 @@ def compute_weighted_progress(
     done_count = 0
 
     for wp_id, wp_state in sorted(work_packages.items()):
-        lane = wp_state.get("lane", Lane.PLANNED)
+        # Defensive default matches the write side (#1775 review M4 / I3 parity);
+        # reduce() always sets "lane", so this default is effectively unreachable.
+        lane = wp_state.get("lane", Lane.GENESIS)
         wp_weight = (wp_weights or {}).get(wp_id, 1.0)
         lw = resolved_lane_weights.get(lane, 0.0)
         fractional = wp_weight * lw

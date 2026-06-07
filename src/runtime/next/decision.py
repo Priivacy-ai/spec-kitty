@@ -272,17 +272,19 @@ def _describe_guard(guard_callable: Any, *, negate: bool = False) -> str:
 def _get_wp_lanes(feature_dir: Path) -> dict[str, str]:
     """Return a mapping of wp_id -> canonical lane from the event log.
 
-    Falls back to "planned" for WPs not yet in the event log.
+    Best-effort: routes through the canonical reader and returns ``{}`` when no
+    canonical event log exists yet (#1775 Randy-Reducer F5 — this was a verbatim
+    duplicate of ``get_all_wp_lanes`` minus the fail-loud guard).
     """
-    from specify_cli.status.store import read_events
-    from specify_cli.status.reducer import reduce
+    from specify_cli.status.lane_reader import (
+        CanonicalStatusNotFoundError,
+        get_all_wp_lanes,
+    )
 
-    events = read_events(feature_dir)
-    if not events:
+    try:
+        return get_all_wp_lanes(feature_dir)
+    except CanonicalStatusNotFoundError:
         return {}
-
-    snapshot = reduce(events)
-    return {wp_id: Lane(state.get("lane", Lane.GENESIS)) for wp_id, state in snapshot.work_packages.items()}
 
 
 def _compute_wp_progress(feature_dir: Path) -> dict[str, int | float] | None:
