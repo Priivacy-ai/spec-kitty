@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Literal, NamedTuple
 
 from .content import SessionPresenceContent
 from .upgrade_check import UpgradeChecker
@@ -55,12 +55,13 @@ class SessionPresenceManager:
         from importlib.metadata import version
 
         checker = UpgradeChecker()
-        checker.check_in_background()
         avail = checker.get_available_version()
+        if avail is None:
+            checker.check_in_background()
         current = version("spec-kitty-cli")
         slug = getattr(self.agent_config, "project_slug", None) or "unknown"
 
-        health: str
+        health: Literal["healthy", "upgrade-available", "migration-required"]
         try:
             from specify_cli.compat import Decision, Invocation, plan as compat_plan
 

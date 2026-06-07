@@ -139,7 +139,9 @@ def _replace_section(text: str, replacement: str) -> str:
     end = text.find(SECTION_CLOSE, start)
     if start == -1 or end == -1:
         return text + "\n\n" + replacement
-    end += len(SECTION_CLOSE) + 1  # include the trailing newline
+    end += len(SECTION_CLOSE)
+    if text[end:end + 1] == "\n":
+        end += 1
     return text[:start] + replacement + text[end:]
 
 
@@ -152,7 +154,9 @@ def _remove_section(text: str) -> str:
     end = text.find(SECTION_CLOSE, start)
     if start == -1 or end == -1:
         return text
-    end += len(SECTION_CLOSE) + 1
+    end += len(SECTION_CLOSE)
+    if text[end:end + 1] == "\n":
+        end += 1
     # Remove preceding blank line if present, keeping the rest clean.
     prefix = text[:start].rstrip("\n")
     suffix = text[end:]

@@ -88,21 +88,30 @@ class TestDetect:
         migration = SessionPresenceAllHarnessesMigration()
         assert migration.detect(tmp_path) is False
 
-    def test_false_when_no_harness_dir_based_writer_can_write(
+    def test_true_for_always_writable_harnesses_without_harness_dir(
         self, tmp_path: Path
     ) -> None:
-        """detect() is True even without harness dirs for always-writable harnesses.
+        """detect() is True for always-writable harnesses even when no harness dirs exist.
 
         AgentsMdWriter (codex, opencode, antigravity) and SkillsPreambleWriter
-        (pi, vibe, letta) always return ``can_write=True``, so detect() will be
-        True for any initialised project.  This test confirms detect() respects
-        ``has_presence`` correctly by writing presence for all always-writable
-        harnesses first, then checking that detect() returns False.
-        """
-        project = _make_project(tmp_path)
-        migration = SessionPresenceAllHarnessesMigration()
+        (pi, vibe, letta) always return ``can_write=True``.  This test confirms
+        detect() is True when these agents are configured but not yet written,
+        and False once presence has been written for all of them.
 
-        # Before writing: detect() is True (always-writable harnesses are pending)
+        C-005: only agents listed in config.yaml are processed; the empty-config
+        case (no agents configured) must return False from detect().
+        """
+        # Empty config — no agents configured → detect() must return False
+        empty_dir = tmp_path / "empty"
+        empty_dir.mkdir()
+        empty_project = _make_project(empty_dir)
+        migration = SessionPresenceAllHarnessesMigration()
+        assert migration.detect(empty_project) is False
+
+        # With always-writable agents configured → detect() must return True
+        agents_dir = tmp_path / "with_agents"
+        agents_dir.mkdir()
+        project = _make_project(agents_dir, agents=["codex", "opencode"])
         assert migration.detect(project) is True
 
         # Write all pending harnesses
