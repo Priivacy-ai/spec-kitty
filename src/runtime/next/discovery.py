@@ -121,10 +121,14 @@ def _preview_from_candidates(
 ) -> ClaimablePreview:
     has_active_candidate = False
     has_dependency_blocked_candidate = False
+    has_genesis_candidate = False
     for wp_id in candidates:
         # Default to GENESIS for unseeded WPs: a genesis WP is not claimable
         # and must not be reported as planned (Contract 3, FR-008).
         lane = wp_lanes.get(wp_id, Lane.GENESIS)
+        if lane == Lane.GENESIS:
+            has_genesis_candidate = True
+            continue
         if lane == Lane.PLANNED:
             readiness = dependency_readiness_for_wp(
                 wp_id,
@@ -146,6 +150,7 @@ def _preview_from_candidates(
         selection_reason=_claimable_selection_reason(
             has_dependency_blocked_candidate,
             has_active_candidate,
+            has_genesis_candidate,
         ),
         candidates=tuple(candidates),
     )
@@ -154,11 +159,17 @@ def _preview_from_candidates(
 def _claimable_selection_reason(
     has_dependency_blocked_candidate: bool,
     has_active_candidate: bool,
+    has_genesis_candidate: bool,
 ) -> str:
     if has_dependency_blocked_candidate:
         return "dependencies_not_satisfied"
     if has_active_candidate:
         return "all_wps_in_progress"
+    # Genesis WPs are not finalized: the actionable next step is finalize-tasks,
+    # not "no planned WPs" (which implies WPs exist but have all advanced). Only
+    # report not_finalized when nothing else is actionable (review m3).
+    if has_genesis_candidate:
+        return "not_finalized"
     return "no_planned_wps"
 
 

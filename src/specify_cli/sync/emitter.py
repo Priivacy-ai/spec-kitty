@@ -39,7 +39,7 @@ from rich.console import Console
 
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.mission_metadata import mission_number_from_slug
-from specify_cli.status.models import get_all_lane_values
+from specify_cli.status.models import Lane, get_all_lane_values
 from spec_kitty_events import normalize_event_id as _normalize_event_id
 
 from .clock import LamportClock
@@ -54,6 +54,13 @@ logger = logging.getLogger(__name__)
 # Derived from specify_cli.status.models.Lane so no parallel hardcoded list
 # is needed here (T021, WP04).
 _CANONICAL_LANE_VALUES: frozenset[str] = get_all_lane_values()
+
+# Display lanes (genesis excluded): genesis is a valid event ``from_lane`` (the
+# seed source) but never a ``to_lane`` — a ``to_lane=genesis`` payload is
+# non-canonical and must be rejected by the SaaS validator too (review m2).
+_DISPLAY_LANE_VALUES: frozenset[str] = frozenset(
+    v for v in _CANONICAL_LANE_VALUES if v != Lane.GENESIS.value
+)
 
 if TYPE_CHECKING:
     from .client import WebSocketClient
@@ -273,9 +280,10 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         "required": {"mission_slug", "wp_id", "from_lane", "to_lane", "actor", "execution_mode"},
         "validators": {
             "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
-            # Single-sourced from _CANONICAL_LANE_VALUES (incl. genesis) — T021, WP04
+            # genesis is valid as a from_lane (seed source) but never a to_lane
+            # (review m2). Both single-sourced from Lane — no hardcoded list.
             "from_lane": lambda v: v in _CANONICAL_LANE_VALUES,
-            "to_lane": lambda v: v in _CANONICAL_LANE_VALUES,
+            "to_lane": lambda v: v in _DISPLAY_LANE_VALUES,
             "actor": lambda v: isinstance(v, str) and len(v) >= 1,
             "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "force": lambda v: isinstance(v, bool),

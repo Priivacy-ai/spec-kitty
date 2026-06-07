@@ -220,7 +220,10 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
         # Calculate metrics using progress_bucket() — no raw lane-string comparisons.
         # Genesis WPs are excluded from all metric buckets (non-display; Contract 2).
         _display_wps = [wp for wp in work_packages if wp["lane"] != Lane.GENESIS]
-        total = len(work_packages)
+        # Count only display WPs so the total matches the summed lane buckets;
+        # genesis WPs are non-display and would otherwise inflate the total while
+        # appearing in no column (review m1).
+        total = len(_display_wps)
         done_count = sum(
             1 for wp in _display_wps
             if wp_state_for(wp["lane"]).progress_bucket() == "terminal"
