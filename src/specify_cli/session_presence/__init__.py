@@ -18,6 +18,7 @@ WP02 adds ``ClaudeCodeWriter``; WP03 adds ``SessionPresenceManager`` /
 from __future__ import annotations
 
 from .content import SECTION_CLOSE, SECTION_OPEN, SessionPresenceContent
+from .manager import InstallResult, SessionPresenceManager
 from .upgrade_check import UpgradeChecker
 from .writers import ClaudeCodeWriter, NullWriter, Writer, get_writer
 
@@ -25,6 +26,8 @@ __all__ = [
     "SECTION_CLOSE",
     "SECTION_OPEN",
     "SessionPresenceContent",
+    "InstallResult",
+    "SessionPresenceManager",
     "UpgradeChecker",
     "Writer",
     "ClaudeCodeWriter",
