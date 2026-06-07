@@ -114,8 +114,13 @@ only the other planning artifacts (`tasks.md`, `lanes.json`,
 - **Trade-off accepted (operator):** slightly more model surface in exchange for
   conceptual clarity, testability, and the elimination of the whack-a-class
   failure mode.
-- **Non-goals:** guard unification (the rich `validate_transition` guard matrix
-  stays where it is); display/kanban changes (genesis is non-display by design).
+- **Non-goals:** display/kanban changes (genesis is non-display by design).
+
+  > **Revision (DM-01KTH03G, post-initial-draft):** guard unification was
+  > originally listed as a non-goal, but the accepted decision moved guards and
+  > force handling **into** the `WPState` objects (`guard_for` / `check_transition`);
+  > `validate_transition` is now a thin delegator and `_GUARDED_TRANSITIONS` is gone.
+  > See `src/specify_cli/status/wp_state.py`.
 
 ## Verification
 

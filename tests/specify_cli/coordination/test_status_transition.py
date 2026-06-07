@@ -116,7 +116,7 @@ def _seed_planned_on_coord(repo: Path) -> StatusEvent:
         to_lane=Lane.PLANNED,
         at="2026-05-31T00:00:00+00:00",
         actor="seed",
-        force=True,
+        force=False,
         reason="seed",
         execution_mode="worktree",
     )

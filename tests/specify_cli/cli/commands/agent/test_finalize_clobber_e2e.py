@@ -138,7 +138,7 @@ def _build_coord_topology(
     # <human-slug>-<mid8>
     mission_slug = "099-clobber-test"
     mid8 = "01CLOBBR"
-    mission_id = "01CLOBBR0000000000000000"
+    mission_id = "01CLOBBR000000000000000000"  # 26-char ULID (mid8 + 18 zeros)
     mission_dirname = f"{mission_slug}-{mid8}"
     coord_branch = f"kitty/mission-{mission_dirname}"
 
