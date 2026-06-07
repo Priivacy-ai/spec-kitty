@@ -16,7 +16,8 @@ subtasks:
 - T028
 - T029
 - T030
-agent: claude
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "82481"
 history:
 - date: '2026-06-07'
   status: planned
@@ -293,3 +294,7 @@ If any pre-existing tests fail that are unrelated to this WP, open a GitHub issu
 - **`get_agent_dirs_for_project()` import path**: It lives in `m_0_9_1_complete_lane_migration.py` as an exported function. Verify it is importable from tests without side effects (the migration module may register things on import).
 - **AGENTS.md single-section invariant**: Multiple Pattern C/D writers will all call `write(root, content)` for the same `AGENTS.md`. The second call finds `SECTION_OPEN` already present and invokes `_replace_section()`. This is correct but relies on `_replace_section()` being deterministic. Add the AGENTS.md deduplication test explicitly (T030 integration smoke covers this).
 - **Migration `target_version`**: Use the same version as the Phase 1 migration (`"3.3.0"` placeholder). Update at PR time once the release version is confirmed.
+
+## Activity Log
+
+- 2026-06-07T16:15:43Z – claude:sonnet:implementer:implementer – shell_pid=82481 – Assigned agent via action command
