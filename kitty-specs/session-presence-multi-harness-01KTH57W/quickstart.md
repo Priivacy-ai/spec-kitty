@@ -93,6 +93,23 @@ echo "Exit code: $?"  # must be 0
 
 ---
 
+## Known Issues During Implementation
+
+### #1767 — `spec-kitty agent action implement` fails with `stale_analysis_report` on coordination-worktree missions
+
+**Symptom**: `spec-kitty agent action implement WP##` exits 1 with `stale_analysis_report` even when `analysis-report.md` hashes match the current artifacts.
+
+**Root cause**: `_require_current_analysis_report` in `workflow.py` receives the coordination worktree path from `resolve_feature_dir_for_mission()`. `spec.md`/`plan.md` don't exist in the coordination worktree, so their `current_sha256` is `None` and the comparison always fails.
+
+**Fix applied**: `workflow.py:1203` now uses `candidate_feature_dir_for_mission()` (main checkout path) for the staleness check. Fix is live in local source; tracked upstream as [#1767](https://github.com/Priivacy-ai/spec-kitty/issues/1767).
+
+**Workaround** (until fix ships in a release):
+```bash
+.venv/bin/spec-kitty agent action implement WP## --mission <slug> --agent ...
+```
+
+---
+
 ## Running the Test Suite
 
 ```bash
