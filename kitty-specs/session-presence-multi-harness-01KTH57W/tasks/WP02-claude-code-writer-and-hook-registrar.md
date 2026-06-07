@@ -384,3 +384,4 @@ __all__ = ["WRITER_REGISTRY", "get_writer"]
 - 2026-06-07T14:59:49Z – claude:sonnet:implementer:implementer – shell_pid=73526 – Assigned agent via action command
 - 2026-06-07T15:05:42Z – claude:sonnet:implementer:implementer – shell_pid=73526 – Ready for review
 - 2026-06-07T15:06:04Z – claude:sonnet:reviewer:reviewer – shell_pid=89046 – Started review via action command
+- 2026-06-07T15:07:51Z – user – shell_pid=89046 – Review passed: All 11 criteria met. MarkdownRulesWriter uses SECTION_OPEN/CLOSE markers with idempotent replace-on-second-call; ClaudeCodeWriter delegates to MarkdownRulesWriter+ClaudeCodeHookRegistrar with atomic writes (os.replace sibling tmp); unregister preserves other SessionStart entries and empty list; HookRegistrar protocol defined in hooks/base.py; claude→ClaudeCodeWriter wired in registry; zero ruff/mypy --strict issues; no specify_cli.next imports.

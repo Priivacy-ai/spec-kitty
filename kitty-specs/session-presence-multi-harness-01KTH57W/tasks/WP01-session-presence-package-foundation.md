@@ -37,6 +37,7 @@ owned_files:
 - src/specify_cli/session_presence/writers/null_writer.py
 - src/specify_cli/session_presence/hooks/__init__.py
 role: implementer
+shell_pid: "0"
 tags: []
 ---
 

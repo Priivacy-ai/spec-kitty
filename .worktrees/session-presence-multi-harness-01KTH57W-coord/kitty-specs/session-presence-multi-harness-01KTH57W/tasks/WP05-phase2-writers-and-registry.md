@@ -24,7 +24,8 @@ subtasks:
 - T025
 - T026
 - T027
-agent: claude
+agent: "claude:sonnet:reviewer:reviewer"
+shell_pid: "76679"
 history:
 - date: '2026-06-07'
   status: planned
@@ -319,3 +320,10 @@ Verify the key list against `AGENT_DIRS` in `src/specify_cli/upgrade/migrations/
 - **`check_dir` None comparison in `can_write()`**: `Path(self.rules_path).parent` returns `Path(".")` for top-level paths like `"GEMINI.md"`. `(project_root / ".").exists()` is True. Test this edge case explicitly.
 - **Conflicting AGENTS.md writes**: Pattern C and D harnesses all write to the same `AGENTS.md`. If a project has both `codex` and `pi` configured, `SessionPresenceManager.install()` will call both writers. The second call will find `SECTION_OPEN` already present (from the first write) and call `_replace_section()` — not append a duplicate. This is correct behavior, but verify with a test covering two Pattern C/D harnesses on the same project.
 - **Key count discrepancy**: The agent key list may differ between `AI_CHOICES` in `__init__.py` and `AGENT_DIRS` in the migration. Grep both before finalizing the registry to ensure no key is missing.
+
+## Activity Log
+
+- 2026-06-07T16:06:21Z – claude:sonnet:implementer:implementer – shell_pid=60922 – Assigned agent via action command
+- 2026-06-07T16:12:38Z – claude:sonnet:implementer:implementer – shell_pid=60922 – WP05 complete: Phase 2 writers (cursor, copilot, codex), full WRITER_REGISTRY. Ruff and mypy clean.
+- 2026-06-07T16:12:59Z – claude:sonnet:reviewer:reviewer – shell_pid=76679 – Started review via action command
+- 2026-06-07T16:15:18Z – user – shell_pid=76679 – Review passed: 120/120 tests pass, zero ruff issues, zero mypy --strict issues. All DoD items verified. Registry correctly covers all 17 spec-table harnesses (spec prose says 19 but table lists 17; registry matches table). AgentsMdWriter._project_root underscore param is mypy-accepted protocol override. Anti-pattern checklist: all 8 items PASS.
