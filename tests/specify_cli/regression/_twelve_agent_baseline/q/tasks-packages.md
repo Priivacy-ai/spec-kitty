@@ -5,7 +5,10 @@ description: Materialize work package files
 
 ## Startup Upgrade Check
 
-Before continuing, run:
+Run this at most once per active agent session before the first Spec Kitty command workflow.
+If you already ran `spec-kitty upgrade --agent-check --json` in this session, reuse that result and skip this block.
+Do not run or announce an upgrade check again for later Spec Kitty commands in the same session.
+Otherwise, before continuing, run:
 
 ```bash
 spec-kitty upgrade --agent-check --json
@@ -152,7 +155,7 @@ model: ""          # filled in Step 4a — model identifier (e.g., claude-sonnet
 ---
 ```
 
-**IMPORTANT — `plan_concern_refs` lives in `wps.yaml` only.** Do NOT copy `plan_concern_refs` into WP prompt frontmatter. `WPMetadata` uses `extra="forbid"`, so any WP prompt file with `plan_concern_refs` in its frontmatter will cause `finalize-tasks --validate-only` to raise a `ValidationError`.
+**IMPORTANT — `plan_concern_refs<!-- glossary:glossary:plan_concern_refs -->` lives in `wps.yaml` only.** Do NOT copy `plan_concern_refs` into WP prompt frontmatter. `WPMetadata` uses `extra="forbid"`, so any WP prompt file with `plan_concern_refs` in its frontmatter will cause `finalize-tasks --validate-only` to raise a `ValidationError`.
 
 Body sections (in order):
 0. `## ⚡ Do This First: Load Agent Profile` — **REQUIRED. Must be the first section after the H1 title, before Objective.** Instructs the implementing agent to load the assigned profile via `/ad-hoc-profile-load` before reading anything else. Use this exact structure, substituting frontmatter values:
