@@ -177,6 +177,7 @@ def register_commands(app: typer.Typer) -> None:
     from . import research as research_module
     from . import review as review_module
     from . import safe_commit_cmd as safe_commit_module
+    from . import session_start as session_start_module
     from . import sync as sync_module
     from . import upgrade as upgrade_module
     from . import validate_encoding as validate_encoding_module
@@ -218,6 +219,7 @@ def register_commands(app: typer.Typer) -> None:
     app.command()(research_module.research)
     app.command(name="review")(review_module.review_mission)
     app.command(name="safe-commit")(safe_commit_module.safe_commit_command)
+    app.command(name="session-start", help="Emit spec-kitty orientation for the Claude Code SessionStart hook.")(session_start_module.session_start)
     app.add_typer(sync_module.app, name="sync", help="Synchronization commands")
     if tracker_module is not None:
         app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
