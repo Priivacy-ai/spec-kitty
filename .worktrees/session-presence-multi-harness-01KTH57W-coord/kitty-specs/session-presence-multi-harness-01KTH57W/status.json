@@ -1,12 +1,12 @@
 {
-  "event_count": 25,
-  "last_event_id": "01KTHBV5SMWC0YFTR734PAWRBR",
-  "materialized_at": "2026-06-07T15:39:54.548705+00:00",
+  "event_count": 33,
+  "last_event_id": "01KTHDAWTYHSRBQBKCBRCF9D7W",
+  "materialized_at": "2026-06-07T16:05:58.238927+00:00",
   "mission_number": "",
   "mission_slug": "session-presence-multi-harness-01KTH57W",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 3,
+    "approved": 4,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 3
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -39,11 +39,11 @@
       "last_transition_at": "2026-06-07T15:39:54.548705+00:00"
     },
     "WP04": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KTH9DJFJ7E3G2E5EHX6RMSS7",
-      "last_transition_at": "2026-06-07T14:57:31.634306+00:00"
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KTHDAWTYHSRBQBKCBRCF9D7W",
+      "last_transition_at": "2026-06-07T16:05:58.238927+00:00"
     },
     "WP05": {
       "actor": "finalize-tasks",
