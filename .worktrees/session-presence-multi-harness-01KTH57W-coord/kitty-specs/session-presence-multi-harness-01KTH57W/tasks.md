@@ -88,11 +88,11 @@
 **Estimated prompt size**: ~450 lines
 **Depends on**: WP01, WP02
 
-- [ ] T012 Implement `SessionPresenceManager` (WP03)
-- [ ] T013 Implement `session-start` command (WP03)
-- [ ] T014 Register command + wire `install()` in `init.py` (WP03)
-- [ ] T015 Write Phase 1 upgrade migration (WP03)
-- [ ] T016 Pre-implementation test suite check (DIR-013) (WP03)
+- [x] T012 Implement `SessionPresenceManager` (WP03)
+- [x] T013 Implement `session-start` command (WP03)
+- [x] T014 Register command + wire `install()` in `init.py` (WP03)
+- [x] T015 Write Phase 1 upgrade migration (WP03)
+- [x] T016 Pre-implementation test suite check (DIR-013) (WP03)
 
 **Prompt**: [WP03-manager-cli-command-init-integration.md](tasks/WP03-manager-cli-command-init-integration.md)
 
@@ -106,12 +106,12 @@
 **Estimated prompt size**: ~480 lines
 **Depends on**: WP01, WP02, WP03
 
-- [ ] T017 Write `conftest.py` + `test_content.py` (WP04)
-- [ ] T018 Write `test_upgrade_checker.py` (WP04)
-- [ ] T019 Write `test_markdown_rules_writer.py` (WP04)
-- [ ] T020 Write `test_claude_code_writer.py` + `test_claude_code_hook.py` (WP04)
-- [ ] T021 Write `test_manager.py` + `test_session_start.py` (WP04)
-- [ ] T022 Write `test_m_session_presence_claude_code.py` (WP04)
+- [x] T017 Write `conftest.py` + `test_content.py` (WP04)
+- [x] T018 Write `test_upgrade_checker.py` (WP04)
+- [x] T019 Write `test_markdown_rules_writer.py` (WP04)
+- [x] T020 Write `test_claude_code_writer.py` + `test_claude_code_hook.py` (WP04)
+- [x] T021 Write `test_manager.py` + `test_session_start.py` (WP04)
+- [x] T022 Write `test_m_session_presence_claude_code.py` (WP04)
 
 **Prompt**: [WP04-phase1-test-suite.md](tasks/WP04-phase1-test-suite.md)
 
@@ -125,11 +125,11 @@
 **Estimated prompt size**: ~440 lines
 **Depends on**: WP01, WP02, WP03, WP04
 
-- [ ] T023 Implement `AgentsMdWriter` (WP05)
-- [ ] T024 Implement `SkillsPreambleWriter` (WP05)
-- [ ] T025 Add Pattern B registry entries (WP05)
-- [ ] T026 Add Pattern C + D + E registry entries (WP05)
-- [ ] T027 Write tests for new writers (WP05)
+- [x] T023 Implement `AgentsMdWriter` (WP05)
+- [x] T024 Implement `SkillsPreambleWriter` (WP05)
+- [x] T025 Add Pattern B registry entries (WP05)
+- [x] T026 Add Pattern C + D + E registry entries (WP05)
+- [x] T027 Write tests for new writers (WP05)
 
 **Prompt**: [WP05-phase2-writers-and-registry.md](tasks/WP05-phase2-writers-and-registry.md)
 
