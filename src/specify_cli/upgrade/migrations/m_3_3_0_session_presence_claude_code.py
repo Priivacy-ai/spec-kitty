@@ -19,7 +19,7 @@ class SessionPresenceClaudeCodeMigration(BaseMigration):
 
     migration_id = "3_3_0_session_presence_claude_code"
     description = "Write session presence orientation to .claude/CLAUDE.md and register SessionStart hook for existing Claude Code projects"
-    target_version = "3.3.0"
+    target_version = "3.3.0rc1"
     runs_on_worktrees = False
 
     def detect(self, project_path: Path) -> bool:
