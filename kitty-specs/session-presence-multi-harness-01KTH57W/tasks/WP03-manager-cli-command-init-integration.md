@@ -21,7 +21,8 @@ subtasks:
 - T014
 - T015
 - T016
-agent: claude
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "9699"
 history:
 - date: '2026-06-07'
   status: planned
@@ -352,3 +353,7 @@ If all tests pass: proceed normally. Document in your WP review that DIR-013 che
 - `import specify_cli.migration.gate.project_needs_migration` — verify exact import path before using. Check `src/specify_cli/migration/` for the correct module.
 - `AgentConfig.load()` vs `load_agent_config()` — the codebase uses both patterns in different contexts. Prefer `AgentConfig.load(project_root)` in `manager.py` for consistency with migration code.
 - `target_version` in migration: if the release version for this PR hasn't been decided, use `"3.3.0"` as a placeholder and update at PR time.
+
+## Activity Log
+
+- 2026-06-07T15:16:05Z – claude:sonnet:implementer:implementer – shell_pid=9699 – Assigned agent via action command
