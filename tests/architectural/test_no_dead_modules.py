@@ -207,6 +207,16 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # 3.2.0rc35 skill-pack migration: auto-discovered via
         # pkgutil.iter_modules; never statically imported by design.
         "specify_cli.upgrade.migrations.m_3_2_0rc35_spk_skill_pack",
+        # 3.3.0 session-presence migrations: auto-discovered via
+        # pkgutil.iter_modules in migrations/__init__.py; never statically
+        # imported by runtime code — the @MigrationRegistry.register
+        # decorator fires at import time.  These two modules landed on
+        # upstream/main (#1756) before this mission; the core-misc path
+        # filter was not triggered there, so the allowlist gap went
+        # undetected until this mission's status/ changes triggered the
+        # core-misc suite. Pre-existing upstream debt, not a mission regression.
+        "specify_cli.upgrade.migrations.m_3_3_0_session_presence_all_harnesses",
+        "specify_cli.upgrade.migrations.m_3_3_0_session_presence_claude_code",
     }
 )
 

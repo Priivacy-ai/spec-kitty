@@ -29,6 +29,8 @@ from specify_cli.upgrade.migrations.m_3_3_0_session_presence_all_harnesses impor
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.session_presence.content import SECTION_OPEN
 
+pytestmark = [pytest.mark.unit]
+
 
 # ---------------------------------------------------------------------------
 # Project factory helpers

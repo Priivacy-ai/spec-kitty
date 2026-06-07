@@ -8,7 +8,11 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from specify_cli.session_presence.manager import InstallResult, SessionPresenceManager
+
+pytestmark = [pytest.mark.unit]
 
 
 def _make_agent_config(available: list[str] | None = None) -> MagicMock:

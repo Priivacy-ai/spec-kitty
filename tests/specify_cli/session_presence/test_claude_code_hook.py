@@ -15,6 +15,8 @@ import pytest
 
 from specify_cli.session_presence.hooks.claude_code_hook import ClaudeCodeHookRegistrar
 
+pytestmark = [pytest.mark.unit]
+
 _CMD = "spec-kitty session-start"
 _SETTINGS_REL = ".claude/settings.json"
 

@@ -589,6 +589,27 @@ _CATEGORY_C_UPSTREAM_STATUS_SERVICE: frozenset[str] = frozenset(
 )
 
 
+# ---------- C. Upstream session-presence public surface (pre-existing on main) ----------
+# Three public symbols in ``specify_cli.session_presence`` modules that were
+# added to ``upstream/main`` (#1756) ahead of callers that will land in a
+# follow-on mission.  They surfaced in this gate run only because the
+# mission's ``src/specify_cli/status/`` changes triggered the ``core_misc``
+# path filter (the filter was not triggered on the upstream commits themselves).
+# These are NOT this mission's code.  Allowlisted-with-tracker so the gate is
+# GREEN.  Follow-up: wire or prune when the session-presence callers land.
+_CATEGORY_C_UPSTREAM_SESSION_PRESENCE: frozenset[str] = frozenset(
+    {
+        # CACHE_PATH / TTL_SECONDS are module-level constants used internally
+        # by UpgradeChecker but have no import-site callers in src/ yet.
+        "specify_cli.session_presence.upgrade_check::CACHE_PATH",
+        "specify_cli.session_presence.upgrade_check::TTL_SECONDS",
+        # SESSION_START_CMD is a config-string constant referenced only within
+        # ClaudeCodeWriter; no other src/ module imports it directly.
+        "specify_cli.session_presence.writers.claude_code::SESSION_START_CMD",
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``).
@@ -603,6 +624,7 @@ _SYMBOL_ALLOWLIST: frozenset[str] = (
     | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION
     | _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT
     | _CATEGORY_C_UPSTREAM_STATUS_SERVICE
+    | _CATEGORY_C_UPSTREAM_SESSION_PRESENCE
 )
 
 

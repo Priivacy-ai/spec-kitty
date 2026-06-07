@@ -16,6 +16,8 @@ import pytest
 import specify_cli.session_presence.upgrade_check as upgrade_check_module
 from specify_cli.session_presence.upgrade_check import TTL_SECONDS, UpgradeChecker
 
+pytestmark = [pytest.mark.unit]
+
 
 @pytest.fixture
 def patched_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:

@@ -29,6 +29,8 @@ from specify_cli.upgrade.migrations.m_3_3_0_session_presence_claude_code import 
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.session_presence.content import SECTION_OPEN
 
+pytestmark = [pytest.mark.unit]
+
 
 def _make_project(tmp_path: Path, with_claude: bool = True) -> Path:
     """Create a minimal spec-kitty project directory."""

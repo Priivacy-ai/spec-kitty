@@ -9,11 +9,15 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from specify_cli.session_presence.content import SessionPresenceContent
 from specify_cli.session_presence.writers.claude_code import (
     SESSION_START_CMD,
     ClaudeCodeWriter,
 )
+
+pytestmark = [pytest.mark.unit]
 
 
 def _content() -> SessionPresenceContent:
