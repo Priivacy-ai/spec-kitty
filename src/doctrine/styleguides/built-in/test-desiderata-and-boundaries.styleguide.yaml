@@ -1,0 +1,134 @@
+schema_version: "1.0"
+id: test-desiderata-and-boundaries
+title: Test Desiderata and Clear Test Boundaries
+scope: testing
+applies_to_languages: []
+
+# Sources (traceable adoption):
+#   - Kent Beck, "Test Desiderata" — https://testdesiderata.com/
+#   - Stijn Dejongh, "Define Test Boundaries" —
+#     https://patterns.sddevelopment.be/practices/define_test_boundaries/
+# Complements the broader `testing-principles` styleguide; this artifact focuses
+# on (a) the desiderata as properties to trade off deliberately and (b) drawing
+# the test boundary by functional responsibility so infrastructure is stubbed at
+# a real seam rather than mocked ad hoc.
+
+principles:
+  # — Kent Beck's twelve test desiderata: properties to OPTIMIZE via deliberate
+  #   trade-offs, not to maximize all at once. Conflicts are often a design smell
+  #   resolvable by better boundaries/composability, not an inherent limit.
+  - "Desiderata are trade-offs: choose which properties a given test optimizes; do not pretend one test maximizes all twelve at once."
+  - "Isolated: a test returns the same result regardless of the order tests run in — no shared mutable state, no order dependence."
+  - "Composable: dimensions of variability can be tested separately and combined, so coverage grows without combinatorial test counts."
+  - "Deterministic: if nothing changes, the result does not change — no reliance on clocks, randomness, network, or ambient filesystem state."
+  - "Fast: a test runs quickly enough to run after every small change without friction."
+  - "Writable: a test is cheap to write relative to the code it covers; expensive setup is a signal the boundary is wrong."
+  - "Readable: a test communicates the motivation and scenario to a future reader without spelunking the production code."
+  - "Behavioral: a test is sensitive to changes in the behavior of the code under test."
+  - "Structure-insensitive: a test does not change its result when internal structure is refactored without behavior change."
+  - "Automated: a test runs without human intervention."
+  - "Specific: when a test fails, the cause is obvious from the failure alone."
+  - "Predictive: when all tests pass, the code is fit for production."
+  - "Inspiring: passing the suite inspires confidence to ship."
+  # — Clear Test Boundaries (Define Test Boundaries):
+  - "Boundary by responsibility, not by layer: include exactly the components responsible for the behavior under test; everything else is outside the boundary."
+  - "Stub infrastructure at the boundary: external services, data access, and IO (filesystem, database, clock, network, randomness, git) live OUTSIDE the boundary and are replaced by test doubles or pure inputs."
+  - "Assert observable outcomes, not mechanisms: test the behavior crossing the boundary, not internal call counts or field values, to stay structure-insensitive."
+  - "If a unit test needs heavy infrastructure ceremony to run, the boundary is wrong: extract a pure seam that takes domain inputs so the behavior is testable without IO."
+
+patterns:
+  - name: Draw the boundary by functional responsibility
+    description: >
+      Pick the behavior to validate, identify the components responsible for it,
+      and place the test boundary around exactly those. Replace infrastructure
+      (IO, data access, external services) with simple inputs or doubles at the
+      boundary. This keeps tests Fast, Isolated, Writable, and
+      Structure-insensitive (Define Test Boundaries; Beck's desiderata).
+    bad_example: |
+      # The unit reaches the filesystem + git directly, so the "unit" test must
+      # build a real mission on disk and mock every infrastructure seam.
+      def test_overlap_rejected(tmp_path):
+          _write_mission_dir(tmp_path)                  # real files
+          with patch("...locate_project_root"), \
+               patch("...safe_commit"), patch("...run_command"), \
+               patch("...bootstrap_canonical_state"):    # infra ceremony
+              finalize_tasks(feature="m", validate_only=True)
+          # assertion buried behind subprocess/JSON parsing
+    good_example: |
+      # A pure seam takes domain inputs; the behavior is validated with plain
+      # stubs — no files, no git, no command mocking. The IO stays outside.
+      def test_overlap_rejected():
+          manifests = build_wp_manifests({
+              "WP01": wp(owned=["src/foo/**"]),
+              "WP02": wp(owned=["src/foo/**"]),   # overlapping, narrow
+          })
+          assert not validate_ownership(manifests).passed
+
+  - name: Resolve desiderata tension by design, not by accepting brittleness
+    description: >
+      When two desiderata appear to conflict (e.g. Predictive vs Fast,
+      Behavioral vs Structure-insensitive), prefer a design change — a clearer
+      boundary, a pure function, composition — over a brittle test. A pure seam
+      at the boundary usually recovers Fast + Isolated + Specific simultaneously.
+    good_example: |
+      # Behavioral AND structure-insensitive: assert the outcome that crosses the
+      # boundary, regardless of which internal helper produced it.
+      assert resolve_action_context(repo, "m", "WP01").target_branch == expected
+
+anti_patterns:
+  - name: Infrastructure as untyped shared mutable state
+    description: >
+      When production code reads and writes infrastructure (the filesystem,
+      database, git) DIRECTLY from many surfaces instead of through an owning
+      application boundary, that infrastructure becomes un-owned shared mutable
+      state. Two consequences follow: (1) surfaces can disagree about the same
+      on-disk state (read/write forks, staleness); (2) tests cannot exercise the
+      logic without standing up the infrastructure or mocking many seams. The
+      mock/stub ceremony in tests is a symptom, not the disease — the cure is an
+      owning boundary (a port / aggregate / pure resolver) the logic routes
+      through, which the test then drives with simple inputs.
+    bad_example: |
+      # Direct, scattered filesystem access — every caller re-reads/re-writes
+      # mission state, and every test must reconstruct that state on disk.
+      feature_dir = main_repo_root / "kitty-specs" / mission_slug
+      events = (feature_dir / "status.events.jsonl").read_text()
+      ...
+      (feature_dir / "status.events.jsonl").write_text(updated)   # another surface
+    good_example: |
+      # One owning boundary mediates the state; logic and tests depend on it,
+      # not on the filesystem. The IO lives in one place behind the seam.
+      status = MissionStatus.load(repo_root, mission_slug)   # owns read+write
+      status.transition(wp_id="WP01", to_lane="in_progress")
+      # tests drive MissionStatus / build_wp_manifests with stub inputs — no files
+
+  - name: Over-mocking to compensate for a missing boundary
+    description: >
+      Patching five infrastructure functions to test one behavior means the test
+      is fighting the absence of a seam. Mock only at true system boundaries; if
+      you must mock more, extract the boundary instead. Heavy mocking also makes
+      tests pass when the real integration is broken (loss of Predictive).
+    bad_example: |
+      with patch("a.locate_project_root"), patch("a.safe_commit"), \
+           patch("a.run_command"), patch("a.bootstrap_canonical_state"), \
+           patch("a.validate_ownership"):
+          run_command_under_test()   # nothing real is exercised
+    good_example: |
+      # Extract the decision into a pure function; mock nothing.
+      result = decide(domain_inputs)
+      assert result == expected
+
+quality_test: >
+  Can the behavior under test be validated with plain in-memory inputs and at
+  most one mock at a true system boundary? If the test needs real files, a git
+  repo, or several patched infrastructure functions, the boundary is in the
+  wrong place — extract a pure seam before adding the test.
+
+references:
+  - "https://testdesiderata.com/"
+  - "https://patterns.sddevelopment.be/practices/define_test_boundaries/"
+  - "src/doctrine/styleguides/built-in/testing-principles.styleguide.yaml"
+  - "src/doctrine/styleguides/built-in/mutation-aware-test-design.styleguide.yaml"
+  - "src/doctrine/tactics/built-in/testing/test-boundaries-by-responsibility.tactic.yaml"
+  - "src/doctrine/tactics/built-in/testing/function-over-form-testing.tactic.yaml"
+  - "src/doctrine/directives/built-in/030-test-and-typecheck-quality-gate.directive.yaml"
+  - "src/doctrine/directives/built-in/034-test-first-development.directive.yaml"
