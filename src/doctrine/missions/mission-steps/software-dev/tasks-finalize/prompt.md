@@ -51,6 +51,37 @@ do **not** run finalization. Report the blocking fields
 `spec-kitty agent tasks map-requirements --mission <mission-slug> --json` or by
 updating WP `requirement_refs`.
 
+### 1b. Ownership Overlap — domain-focused / refactor missions
+
+If validate-only fails with `"error": "Ownership validation failed"` and
+`ownership_errors` listing overlapping `owned_files`:
+
+**Ownership collisions are EXPECTED for domain-focused and refactor-oriented
+missions** (cross-cutting strangler work, repo-wide migrations, boundary
+enforcement) where many work packages legitimately edit the same files. This is
+not a defect in the slicing. Handle it as follows:
+
+1. **Linearize shared surfaces.** Work packages that touch the same files MUST be
+   made dependent/linear (via `Depends on WPxx`) so they execute sequentially in
+   one lane and **share a single worktree** (or run direct-to-branch). Limited
+   parallelism is acceptable and expected for these missions — do not force
+   artificial parallelism.
+2. **Declare cross-cutting WPs codebase-wide.** A WP that is expected to overlap
+   broadly should carry `scope: codebase-wide` in its frontmatter; the ownership
+   validator exempts codebase-wide WPs from overlap and authoritative-surface
+   checks. Keep the genuinely-targeted WPs (single test file, single module)
+   narrow and mutually disjoint.
+3. **Tooling note (known gap):** the `WPMetadata` parser currently rejects the
+   `scope` frontmatter key (`extra="forbid"`), so `scope: codebase-wide` may fail
+   to finalize on affected CLI versions. When this blocks a legitimate refactor
+   mission, file/track the upstream gap and proceed direct-to-branch with the
+   shared-surface WPs linearized, rather than improvising disjoint ownership that
+   misrepresents the work.
+
+Do **not** fabricate disjoint `owned_files` that misrepresent which WP edits
+which files solely to pass validation — linearize and/or declare codebase-wide
+instead.
+
 ### 2. Run Finalization Command
 
 Only after validate-only exits successfully, run the mutating finalization

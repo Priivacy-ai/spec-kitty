@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- `WPMetadata` now accepts the `scope` frontmatter key (e.g. `scope: codebase-wide`)
+  that `OwnershipManifest`/ownership validation already consume. Previously the
+  strict (`extra="forbid"`) parser rejected it, so `finalize-tasks` could not
+  declare cross-cutting/refactor work packages codebase-wide and failed ownership
+  validation on legitimately overlapping `owned_files` (#1753).
+
+### 📝 Docs
+
+- AGENTS.md: added "Use Canonical Sources, Never Improvise" guidance and a
+  ruff/mypy-clean (no disabled checks) code-style rule.
+- `tasks-finalize` doctrine prompt: documented ownership-overlap handling for
+  domain/refactor missions (linearize shared surfaces; declare codebase-wide).
+
 ## [3.2.0rc38] - 2026-06-06
 
 ### ✨ Added

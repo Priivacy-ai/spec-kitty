@@ -21,6 +21,43 @@ pytestmark = pytest.mark.non_sandbox
 
 
 # ─────────────────────────────────────────────────────────────
+# #1753: codebase-wide scope round-trips through the strict parser
+# ─────────────────────────────────────────────────────────────
+
+
+class TestWPMetadataScope:
+    """`scope: codebase-wide` must parse (the ownership module reads it)."""
+
+    def test_scope_codebase_wide_accepted(self) -> None:
+        meta = WPMetadata(work_package_id="WP04", scope="codebase-wide")
+        assert meta.scope == "codebase-wide"
+
+    def test_scope_defaults_to_none(self) -> None:
+        assert WPMetadata(work_package_id="WP01").scope is None
+
+    def test_scope_exempts_overlap_via_ownership_manifest(self) -> None:
+        """A codebase-wide WP is exempt from owned_files overlap (#1753)."""
+        from specify_cli.ownership.models import OwnershipManifest
+        from specify_cli.ownership.validation import validate_no_overlap
+
+        wide = OwnershipManifest.from_frontmatter(
+            {
+                "execution_mode": "code_change",
+                "scope": "codebase-wide",
+                "owned_files": ["src/**"],
+            }
+        )
+        narrow = OwnershipManifest.from_frontmatter(
+            {
+                "execution_mode": "code_change",
+                "owned_files": ["src/mission_runtime/context.py"],
+                "authoritative_surface": "src/mission_runtime/context.py",
+            }
+        )
+        assert validate_no_overlap({"WP04": wide, "WP03": narrow}) == []
+
+
+# ─────────────────────────────────────────────────────────────
 # T012: WPMetadata unit tests
 # ─────────────────────────────────────────────────────────────
 
