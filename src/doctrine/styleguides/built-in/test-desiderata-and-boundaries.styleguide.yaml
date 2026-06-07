@@ -130,5 +130,6 @@ references:
   - "src/doctrine/styleguides/built-in/mutation-aware-test-design.styleguide.yaml"
   - "src/doctrine/tactics/built-in/testing/test-boundaries-by-responsibility.tactic.yaml"
   - "src/doctrine/tactics/built-in/testing/function-over-form-testing.tactic.yaml"
+  - "src/doctrine/tactics/built-in/testing/test-ceremony-as-design-smell.tactic.yaml"
   - "src/doctrine/directives/built-in/030-test-and-typecheck-quality-gate.directive.yaml"
   - "src/doctrine/directives/built-in/034-test-first-development.directive.yaml"
