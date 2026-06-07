@@ -22,6 +22,18 @@ src/doctrine/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURCE)
 
 ---
 
+## ⚠️ CRITICAL: Use Canonical Sources, Never Improvise
+
+**Always use the canonical templates, skills, commands, and code surfaces rather than improvising or using older artefacts as examples.**
+
+- Spec/plan/tasks templates come from `src/doctrine/missions/<type>/templates/` (resolved through the charter/doctrine chain) — never copy structure from an older mission in `kitty-specs/`.
+- Workflows run through the documented `spec-kitty` CLI commands and the published skills — do not hand-roll equivalents or reconstruct paths the resolver should provide.
+- When a canonical command, template, or code surface appears missing or broken, **trace the source and file an upstream gap** — do not silently work around it with an improvised substitute.
+
+**Why:** older missions and ad-hoc artefacts drift from the canonical structure; copying them propagates the drift. The doctrine templates are the single source of truth.
+
+---
+
 ## ⚠️ CRITICAL: Git Workflow — No Direct Pushes to origin/main
 
 **All changes to origin/main MUST go through pull requests. Direct pushes are prohibited.**
@@ -175,6 +187,8 @@ PWHEADLESS=1 pytest tests/   # headless (prevents browser windows)
 ## Code Style
 
 Python 3.11+. Follow standard conventions. Any changes to `__init__.py` require a version bump in `pyproject.toml` and a `CHANGELOG.md` entry.
+
+**New code MUST pass `ruff` and `mypy` with zero issues and zero warnings. Do NOT disable, suppress, or relax checks (no blanket `# noqa`, `# type: ignore`, or per-file ignore additions) to achieve this — fix the code instead.** Narrowly-scoped, individually-justified suppressions are allowed only when the check is genuinely wrong about correct code, and must carry an inline rationale.
 
 ## Recent Changes
 
