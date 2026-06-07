@@ -237,14 +237,6 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
             1 for wp in _display_wps
             if wp_state_for(wp["lane"]).progress_bucket() == "not_started"
         )
-        sum(
-            1 for wp in _display_wps
-            if wp_state_for(wp["lane"]).is_blocked
-        )
-        sum(
-            1 for wp in _display_wps
-            if wp_state_for(wp["lane"]).is_terminal and wp["lane"] == Lane.CANCELED
-        )
         progress_result = compute_weighted_progress(snapshot)
         progress_pct = round(progress_result.percentage, 1)
         done_pct = round(compute_done_percentage(done_count, total), 1)

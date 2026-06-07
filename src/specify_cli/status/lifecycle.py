@@ -36,7 +36,6 @@ _ACTIVE_LANES = frozenset(
         Lane.BLOCKED,
     }
 )
-_TERMINAL_LANES = frozenset({Lane.DONE, Lane.CANCELED})
 
 
 @dataclass(frozen=True)

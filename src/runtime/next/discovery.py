@@ -34,7 +34,6 @@ from specify_cli.core.dependency_graph import build_dependency_graph, dependency
 from specify_cli.status.models import Lane
 from specify_cli.status.reducer import reduce as _reduce_events
 from specify_cli.status.store import read_events as _read_events
-from specify_cli.status.wp_state import wp_state_for
 from specify_cli.task_utils.support import extract_scalar, split_frontmatter
 
 __all__ = ["ClaimablePreview", "preview_claimable_wp"]
@@ -101,17 +100,14 @@ def _load_wp_lanes(feature_dir: Path) -> dict[str, Lane]:
         snapshot = _reduce_events(events)
     except Exception:  # noqa: BLE001 — discovery is best-effort; on read failure return empty
         return {}
-    result: dict[str, Lane] = {}
-    for wp_id, state in snapshot.work_packages.items():
-        lane_val = state.get("lane", Lane.GENESIS)
-        lane = Lane(lane_val) if isinstance(lane_val, str) else lane_val
-        # Genesis WPs are non-display: keep them in the map with GENESIS so
-        # callers can detect and skip them (Contract 2, FR-008).
-        if lane == Lane.GENESIS:
-            result[wp_id] = Lane.GENESIS
-        else:
-            result[wp_id] = wp_state_for(lane).lane
-    return result
+    # Genesis WPs are non-display but kept in the map (as GENESIS) so callers can
+    # detect and skip them (Contract 2, FR-008). reduce() always writes a string
+    # "lane"; the GENESIS default covers a (never-observed) missing key. Lane(...)
+    # coerces both a lane string and the GENESIS enum default (#1775 Randy-Reducer).
+    return {
+        wp_id: Lane(state.get("lane", Lane.GENESIS))
+        for wp_id, state in snapshot.work_packages.items()
+    }
 
 
 def _preview_from_candidates(

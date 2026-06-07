@@ -35,6 +35,7 @@ from specify_cli.status.preflight import is_dossier_snapshot as _is_dossier_snap
 from specify_cli.status.progress import PROGRESS_SEMANTICS, compute_done_percentage, compute_weighted_progress
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.status.store import EventPersistenceError, EVENTS_FILENAME
+from specify_cli.status.reducer import SNAPSHOT_FILENAME
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.lanes.persistence import MissingLanesError
@@ -484,8 +485,8 @@ def _collect_status_artifacts(feature_dir: Path) -> list[Path]:
         List of existing artifact paths (may be empty).
     """
     candidates = [
-        feature_dir / "status.events.jsonl",
-        feature_dir / "status.json",
+        feature_dir / EVENTS_FILENAME,
+        feature_dir / SNAPSHOT_FILENAME,
         feature_dir / TASKS_MD_FILENAME,
     ]
     return [p for p in candidates if p.exists()]

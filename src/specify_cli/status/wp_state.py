@@ -564,23 +564,6 @@ def _check_review_result(ctx: TransitionInputs) -> tuple[bool, str | None]:
 
 
 # ---------------------------------------------------------------------------
-# Backwards-compatible boolean helpers (consumed by existing tests).
-# ---------------------------------------------------------------------------
-
-
-def _has_reviewer_approval(ctx: TransitionInputs) -> bool:
-    return _check_reviewer_approval(ctx)[0]
-
-
-def _no_review_conflict(ctx: TransitionInputs) -> bool:
-    return _check_no_review_conflict(ctx)[0]
-
-
-def _has_review_result(ctx: TransitionInputs) -> bool:
-    return _check_review_result(ctx)[0]
-
-
-# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 

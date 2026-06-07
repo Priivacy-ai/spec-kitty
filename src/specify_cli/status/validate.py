@@ -21,13 +21,6 @@ from .models import Lane
 from .transitions import CANONICAL_LANES, resolve_lane_alias
 from .wp_state import wp_state_for
 
-STATUS_BLOCK_START = "<!-- status-model:start -->"
-STATUS_BLOCK_END = "<!-- status-model:end -->"
-
-# Non-display genesis lane (FR-015): valid as an event ``from_lane`` only (the
-# created-but-unseeded seed source). It is never a ``to_lane`` and never a
-# current lane, so it is intentionally excluded from ``CANONICAL_LANES``.
-GENESIS_LANE = Lane.GENESIS.value
 
 
 def _edge_is_legal(from_lane: str, to_lane: str) -> bool:
@@ -108,7 +101,7 @@ def validate_event_schema(event: dict) -> list[str]:
     # but is NEVER a valid ``to_lane`` and never a current/display lane.
     canonical_set = set(CANONICAL_LANES)
     from_val = event.get("from_lane")
-    if from_val is not None and from_val not in canonical_set and from_val != GENESIS_LANE:
+    if from_val is not None and from_val not in canonical_set and from_val != Lane.GENESIS.value:
         findings.append(f"from_lane is not canonical: {from_val}")
     to_val = event.get("to_lane")
     if to_val is not None and to_val not in canonical_set:
@@ -312,24 +305,6 @@ def validate_derived_views(
         Always returns an empty list (no drift findings possible).
     """
     return []
-
-
-def _extract_tasks_status_lines(content: str) -> list[str] | None:
-    """Extract generated status lines from tasks.md status block markers."""
-    start_idx = content.find(STATUS_BLOCK_START)
-    if start_idx == -1:
-        return None
-    end_idx = content.find(STATUS_BLOCK_END, start_idx)
-    if end_idx == -1:
-        return None
-    block = content[start_idx + len(STATUS_BLOCK_START) : end_idx]
-    lines = [line.strip() for line in block.strip().splitlines() if line.strip()]
-    if not lines:
-        return []
-    # Strip optional heading line.
-    if lines[0].startswith("## "):
-        return lines[1:]
-    return lines
 
 
 def _is_valid_event_id(value: str) -> bool:
