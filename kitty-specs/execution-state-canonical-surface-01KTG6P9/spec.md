@@ -1,210 +1,210 @@
-# Execution-State Canonical Domain Surface — #1666 Strangler Slice 2
+# Mission Specification: Execution-State Canonical Domain Surface
 
-**Mission ID:** 01KTG6P99C3ZGDT2Z97S7ZN5VE
-**Mission Slug:** execution-state-canonical-surface-01KTG6P9
-**Mission Type:** software-dev
-**Target Branch:** feat/execution-state-strangler
-**Status:** Draft
+**Mission Branch**: `feat/execution-state-strangler`
+**Created**: 2026-06-07
+**Status**: Draft
+**Input**: User description: "Execution-state domain unification — Strangler slice 2: stand up a canonical execution-state domain umbrella with a lean API over the context objects, then strangle the status-facade bypasses, duplicated path-builders, and residue command surfaces into it; extend the parity ratchet to the full command sequence across all execution modes; fold in the mission-identity field-drop fix. Next implementation slice of epic #1666 (blocks #1619)."
 
----
+<!--
+  Purpose (stakeholder TL;DR): Mission commands today re-derive execution context,
+  paths, and work-package status independently, so the same command behaves
+  differently depending on the working directory it runs from. This mission stands
+  up one owned execution-state domain module with a clean public API, then
+  incrementally routes the scattered call sites and status-facade bypasses through
+  it while deleting the duplicated code paths — unblocking reliable,
+  location-independent mission execution. Issue traceability lives in issue-matrix.md.
+-->
 
-## Purpose
+## User Scenarios & Testing *(mandatory)*
 
-**TL;DR:** Stand up one canonical, lean execution-state domain module with a clean public API over the context objects, then strangle the ~225 status-facade bypasses, ~125 duplicated path-builders, and the residue command surfaces into it — deleting the parallel code paths rather than re-masking them.
+### User Story 1 - Canonical execution-state domain surface (Priority: P1)
 
-The execution-state redesign (#1666, blocks #1619) established that mission commands today re-derive execution context, paths, and work-package status independently, so the same command behaves differently depending on the working directory it is invoked from. The predecessor mission (`execution-state-domain-remediation-01KT6HVH`) landed the foundations — the `MissionStatus` aggregate (#1667), the `resolve_action_context` resolver (#1673), a status-read/write parity ratchet (#1672, narrowed), and a WP03-scoped status boundary test (#1664, narrowed). It explicitly deferred the bulk of the remediation: the full command-sequence ratchet, the repo-wide facade enforcement, and the ~225 path-builder residue (tracked in the now-closed #1681).
+A developer or agent resolving mission execution context (feature dir, workspace, branch) goes through a single owned domain module with a clean API over the context objects, instead of one of many ad-hoc resolvers.
 
-This mission is the next slice. It applies the **Strangler Fig** method properly: build a stable, well-abstracted canonical execution-state domain surface (per doc 06 §4 / doc 17 — Screaming Architecture), register it in the layer meta-guard with architectural tests, then incrementally route the scattered call sites and status-facade bypasses through the canonical surface and the `MissionStatus` aggregate while deleting the duplicated path-builders. Leanness is a first-class acceptance dimension, enforced via explicit Randy-Reducer and Paula-Patterns implementation contracts on the shaping work packages.
+**Why this priority**: Every subsequent strangling step needs a single destination to route into. Without the canonical surface, "fixing" a bypass just moves the duplication. This is the Screaming-Architecture home the redesign (doc 06 §4) mandates.
 
----
+**Independent Test**: Stand up the new module, register it in the layer meta-guard, relocate `resolve_action_context` into it, and prove via architectural tests that it is the only sanctioned execution-context resolver — without yet migrating all consumers.
 
-## Source Issues
+**Acceptance Scenarios**:
 
-| Issue | Title | Role in this slice |
-|-------|-------|--------------------|
-| #1666 | Execution-state & context domain-boundary redesign (parent epic) | Design authority; this slice is its next implementation front |
-| #1672 | e2e parity ratchet | Extend from status-only slice to the full `next→implement→move-task→review→status` sequence across all execution modes |
-| #1673 | Harden ExecutionContext — route residue surfaces | Stand up canonical surface; route residue; delete duplicated path-builders |
-| #1664 | `status/` public API not enforced (~225 bypass imports) | Promote/demote facade symbols; fix all bypasses repo-wide; widen boundary test to all of `src/specify_cli` |
-| #1667 | `MissionStatus` aggregate (landed) | Make it the consistent read+write entry point; rework bypasses onto it |
-| #1663 | `MissionRun → Mission` back-reference (field-drop) | Carry `mission_id`/`mission_slug` through `runtime_bridge.py` reconstructions; close it |
-| #1681 | Closed continuation tracker for the path-builder residue | Historical context; residue is inherited here |
-
----
-
-## Domain Language
-
-| Canonical term | Meaning in this mission | Synonyms to avoid |
-|----------------|-------------------------|-------------------|
-| Execution-state domain surface | The single canonical module (expected `mission_runtime/`, final name ratified in the design ADR) owning execution-context, path, and workspace resolution behind a published API | "core helpers", "path utils", ad-hoc resolvers |
-| Canonical entry point | `resolve_action_context` (relocated/wrapped into the canonical surface) as the only sanctioned way to resolve mission execution context | "the resolver function", per-surface re-derivation |
-| Status facade | The `specify_cli.status` public package API (`__init__.__all__`) | deep `status.*` submodule imports |
-| `MissionStatus` aggregate | The authoritative status read+write owner consumers must use | direct `emit`/`lane_reader`/`store` calls |
-| Execution mode | One of: planning (coordination branch), direct-to-target (target branch, no worktree), worktree (lane worktree) | "worktree vs main" binary |
-| Mode-correct target branch | The authorized write branch for the active execution mode | "main", "the default branch" |
+1. **Given** the new canonical module exists and is layer-registered, **When** `test_no_unregistered_src_packages` and the new architectural tests run, **Then** they pass and confirm the module is the sole sanctioned execution-context resolver.
+2. **Given** a residue surface needs a feature dir, **When** it calls the canonical API, **Then** it receives a resolved context object (not raw path fragments).
 
 ---
 
-## User Scenarios & Testing
+### User Story 2 - Full-sequence parity ratchet across execution modes (Priority: P1)
 
-### Scenario A — CWD-invariant full command sequence
-**Actor:** spec-kitty agent or developer
-**Trigger:** Runs the full `next → implement → move-task → review → status` sequence from (1) the main-checkout root, (2) the lane worktree, and (3) a direct-to-target mission run with no worktree.
-**Expected outcome:** Resolved WP identity, lane transitions, and status output are identical across all three modes.
-**Exception path:** If any surface re-derives context independently, the extended ratchet fails CI.
+An agent runs the full `next → implement → move-task → review → status` sequence from the main checkout, from a lane worktree, and as a direct-to-target run, and gets identical results.
 
-### Scenario B — Status submodule import rejected anywhere in the tree
-**Actor:** Developer adds `from specify_cli.status.emit import build_status_event` in `cli/commands/`.
-**Trigger:** CI runs the repo-wide status boundary test.
-**Expected outcome:** Test fails identifying the violation and instructing use of the facade or `MissionStatus`. (Previously this was only enforced for 6 WP03 packages.)
+**Why this priority**: The ratchet is the regression gate for the entire slice. Per #1672 it must exist and be green before any strangling change can be trusted. It is the only automated proof that a surface was unified rather than re-masked.
 
-### Scenario C — Path resolution routes through the canonical surface
-**Actor:** A residue command surface (e.g. `runtime_bridge.py` query-mode, `workflow.py` fix-mode).
-**Trigger:** Needs the mission feature dir / workspace / branch.
-**Expected outcome:** It obtains them from the canonical surface; no `main_repo_root / "kitty-specs" / mission_slug` construction exists outside the canonical module and `status/`.
+**Independent Test**: Extend `test_execution_context_parity.py` to drive the full sequence across all three modes and assert parity, with a negative control that fails when re-derivation is injected.
 
-### Scenario D — Mission identity survives snapshot reconstruction
-**Actor:** Runtime reconstructs a `MissionRunSnapshot` on the auto-complete path.
-**Trigger:** Passes through `runtime_bridge.py:1723` / `:1860`.
-**Expected outcome:** `mission_id` and `mission_slug` are carried through, not reset to `None`. Regression test proves it.
+**Acceptance Scenarios**:
 
-### Scenario E — Direct-to-target mode never touches mainline unauthorized
-**Actor:** A direct-to-target mission run.
-**Trigger:** Resolves its write branch via the canonical surface.
-**Expected outcome:** It uses the declared target branch directly with no worktree; a write resolving to mainline (main/master) without explicit operator authorization is refused.
-
-### Scenario F — Leanness: no parallel code path reintroduced
-**Actor:** Reviewer (Paula Patterns / Randy Reducer lens).
-**Trigger:** Reviews the canonical surface and the strangled call sites.
-**Expected outcome:** Each resolution concern has exactly one implementation; deleted path-builders are gone (not dead code); no duplicated/parallel resolver remains.
+1. **Given** a mission with ≥2 work packages, **When** the full sequence runs from main-checkout CWD and from the lane-worktree CWD, **Then** resolved WP identity, lane transitions, and status output are identical.
+2. **Given** a direct-to-target mission run with no worktree, **When** the sequence runs, **Then** results match the other modes and the mode-correct target branch is used.
+3. **Given** a surface is deliberately reverted to re-derive context independently, **When** the ratchet runs, **Then** it fails (non-vacuous).
 
 ---
 
-## Functional Requirements
+### User Story 3 - Strangle the path-builder residue (Priority: P2)
 
-### Canonical execution-state domain surface (#1666 doc 06 §4 / #1673)
+The residue command surfaces and duplicated path-builders are routed through the canonical surface and deleted, so no surface re-derives feature-dir paths independently.
 
-| ID | Requirement | Status |
-|----|-------------|--------|
-| FR-001 | A new canonical execution-state domain module (expected `src/mission_runtime/`; final name ratified in the design ADR) exists with an `__init__.py` exposing a curated public API (`__all__`) over execution-context resolution | Proposed |
-| FR-002 | The new module is registered in the layer meta-guard: added to `_DEFINED_LAYERS` in `tests/architectural/test_layer_rules.py` and to the landscape fixture in `tests/architectural/conftest.py`, with `test_no_unregistered_src_packages` passing | Proposed |
-| FR-003 | `resolve_action_context` and the `ExecutionContext`/`ActionContext` type are relocated into (or re-exported as the canonical entry point of) the new module; `core/execution_context.py` retains at most a thin deprecation shim or is removed if no longer referenced | Proposed |
-| FR-004 | The canonical API is expressed in terms of the per-domain context objects at the correct abstraction level (callers receive a resolved context object, not raw path fragments) | Proposed |
-| FR-005 | Architectural tests assert the canonical surface is the only sanctioned execution-context resolver: no `import`-level access to relocated internals from outside the module | Proposed |
-| FR-006 | A design/decision record under `architecture/3.x/adr/` records the canonical module name, its public API shape, the context-object abstraction, and the Strangler migration order | Proposed |
+**Why this priority**: This is the bulk behavioral remediation that removes the divergence class. It depends on US1 (a destination) and US2 (a gate), so it is P2.
 
-### Strangle the path-builder residue (#1673 / inherited #1681)
+**Independent Test**: Route `runtime_bridge.py` query-mode and `workflow.py` fix-mode through the canonical surface, collapse the 8 duplicate feature-dir resolvers to one, delete the dead path-builders, and confirm the ratchet stays green.
 
-| ID | Requirement | Status |
-|----|-------------|--------|
-| FR-007 | `runtime_bridge.py` query-mode derives `feature_dir`/workspace/branch through the canonical surface rather than constructing them from the mission slug | Proposed |
-| FR-008 | `cli/commands/agent/workflow.py` fix-mode routes its `repo_root`/`target_branch` resolution through the canonical surface | Proposed |
-| FR-009 | No surface outside the canonical module and `src/specify_cli/status/` constructs `main_repo_root / "kitty-specs" / mission_slug` (or equivalent feature-dir path) directly; the ~125 current occurrences across ~160 files are routed or deleted | Proposed |
-| FR-010 | The 8 duplicated `_resolve_feature_dir`/feature-dir resolver implementations are collapsed to a single canonical resolver; the redundant copies are deleted (not left as dead code) | Proposed |
-| FR-011 | Duplicated path-builder functions made unreachable by this work are deleted from the codebase | Proposed |
-| FR-012 | The execution-context gate observes the mode-correct authorized target branch (coordination branch for planning, declared target for direct-to-target, lane branch for worktree mode) — not a fixed always-main or always-worktree surface | Proposed |
+**Acceptance Scenarios**:
 
-### Repo-wide status facade enforcement (#1664)
-
-| ID | Requirement | Status |
-|----|-------------|--------|
-| FR-013 | Symbols with genuine external consumers are promoted to the `status/__init__.py` public API; symbols with no external consumers are renamed private with a `_` prefix | Proposed |
-| FR-014 | All ~225 deep `status.*` submodule imports from outside `status/` are fixed to use the public facade or the `MissionStatus` aggregate | Proposed |
-| FR-015 | The status boundary test (`tests/architectural/test_status_module_boundary.py`) is widened from the 6 WP03 packages to enforce all of `src/specify_cli`, with the documented internal-plumbing exemptions (`coordination/status_transition.py`, `coordination/transaction.py`) preserved | Proposed |
-| FR-016 | No new direct submodule imports of `status.*` are introduced outside `status/` after this mission lands | Proposed |
-
-### `MissionStatus` consistent usage (#1667 consumption)
-
-| ID | Requirement | Status |
-|----|-------------|--------|
-| FR-017 | Status read paths that currently call `lane_reader`/`store`/`reducer` directly are reworked to go through `MissionStatus.load()` / `.claim()` where they represent mission-level status access | Proposed |
-| FR-018 | Status write/transition paths that currently call `emit`/`BookkeepingTransaction` directly (outside the internal plumbing exemption) are reworked to go through `MissionStatus.transition()` | Proposed |
-| FR-019 | No consumer outside `status/` and the documented coordination plumbing calls `BookkeepingTransaction` directly | Proposed |
-
-### Full e2e parity ratchet (#1672)
-
-| ID | Requirement | Status |
-|----|-------------|--------|
-| FR-020 | `tests/architectural/test_execution_context_parity.py` is extended to exercise the full `next → implement → move-task → review → status` command sequence (not only `agent tasks status` + `agent status emit`) | Proposed |
-| FR-021 | The ratchet exercises all three execution modes: main-checkout CWD, lane-worktree CWD, and direct-to-target (no worktree) | Proposed |
-| FR-022 | The ratchet asserts identical resolved WP identity, lane transitions, and status output across modes, and includes a negative control proving it catches independent re-derivation (non-vacuous) | Proposed |
-| FR-023 | The ratchet test docstring is corrected to state its real coverage (de-overclaim); it no longer implies coverage it does not have | Proposed |
-| FR-024 | The ratchet is registered as a required gate for PRs touching the canonical module, `status/`, `runtime/next/`, or `cli/commands/agent/` | Proposed |
-
-### Mission-identity field-drop fold-in (#1663)
-
-| ID | Requirement | Status |
-|----|-------------|--------|
-| FR-025 | `MissionRunSnapshot` reconstructions at `runtime/next/runtime_bridge.py:1723` and `:1860` carry `mission_id` and `mission_slug` through (currently dropped to `None`) | Proposed |
-| FR-026 | A regression test asserts that a snapshot's mission identity survives the auto-complete reconstruction path | Proposed |
-| FR-027 | #1663 is closeable on the strength of FR-025/FR-026 (all snapshot construction and reconstruction sites preserve mission identity) | Proposed |
+1. **Given** the residue surfaces are routed, **When** grep scans `src/` outside the canonical module and `status/`, **Then** zero `main_repo_root / "kitty-specs" / mission_slug`-class constructions remain.
+2. **Given** a direct-to-target run, **When** the gate resolves the write branch, **Then** it observes the declared target branch and refuses an unauthorized mainline write.
 
 ---
 
-## Non-Functional Requirements
+### User Story 4 - Repo-wide status facade enforcement (Priority: P2)
 
-| ID | Requirement | Threshold | Status |
-|----|-------------|-----------|--------|
-| NFR-001 | Behavior preservation: the strangling is behavior-preserving for all execution modes | Zero behavioral regressions on the existing integration + architectural suites | Proposed |
-| NFR-002 | Leanness (Randy Reducer IC): each execution-context/path resolution concern has exactly one implementation path | Zero duplicated/parallel resolver functions remain; verified by review + grep | Proposed |
-| NFR-003 | Single ownership (Paula Patterns IC): the canonical surface and status facade are the sole owners of their concerns | Zero boundary-leak bypasses outside documented exemptions; architectural tests bite | Proposed |
-| NFR-004 | Backward-compatibility: legacy (pre-coord-topology) missions and existing on-disk `state.json` files load and operate unchanged | 100% of existing files load; legacy integration tests pass unmodified | Proposed |
-| NFR-005 | Boundary-test performance: the repo-wide `status/` import scan completes quickly in CI | ≤15 s wall-clock on the full `src/` tree | Proposed |
-| NFR-006 | No internals churn: `coordination/transaction.py` (`BookkeepingTransaction`) internals are unchanged | Zero diff to `coordination/transaction.py` internals | Proposed |
+No code outside `status/` reaches into status submodules; consumers use the published facade or the `MissionStatus` aggregate, and the boundary is enforced across all of `src/specify_cli`.
 
----
+**Why this priority**: Makes `status/` an actually-bounded Mission-Management module. High value but mechanically large; depends on the facade promotions being designed, so P2.
 
-## Constraints
+**Independent Test**: Promote/demote symbols, fix the ~225 bypass imports, widen the boundary test to all of `src/specify_cli`, and confirm it bites on an injected violation.
 
-| ID | Constraint | Status |
-|----|-----------|--------|
-| C-001 | Mainline (main/master) is never bypassed or committed to without explicit operator authorization; user/charter guidance to create a branch before mission work always applies (operator ruling 2026-06-07) | Accepted |
-| C-002 | Planning happens on the coordination branch; a direct-to-target mission run may use the target branch directly with no worktree (worktree is unneeded overhead for that mode) | Accepted |
-| C-003 | The full e2e parity ratchet (FR-020..FR-024) must be green before any FR-007..FR-019 strangling change is considered complete; the ratchet is the regression gate | Accepted |
-| C-004 | `coordination/status_transition.py` and `coordination/transaction.py` are internal domain plumbing; they remain exempt from the status boundary test (not fixed) | Accepted |
-| C-005 | `mission_number` must never be used as a selector or identity in new or modified code; lookup is by `mission_id` (ULID) or `mission_slug` only | Accepted |
-| C-006 | The new module name and public API shape must be ratified in a design ADR (FR-006) before the bulk of the strangling lands (DIRECTIVE_032 — vocabulary/contract before mass code) | Accepted |
-| C-007 | Bulk-edit guardrail: the #1664 status import-path migration changes the same `specify_cli.status.<sub>` strings across many files; the mission runs in `change_mode: bulk_edit` and produces an `occurrence_map.yaml` (DIRECTIVE_035) covering the import-path and path-builder migrations | Accepted |
-| C-008 | Out of scope: actor-kind vocabulary normalization, Effector type materialization, CommitTarget atomicity (step 7), and communication-artefact consolidation (step 5) | Accepted |
-| C-009 | Shaping work packages MUST carry explicit Randy-Reducer and Paula-Patterns implementation contracts (persona ICs) governing leanness and single-ownership | Accepted |
+**Acceptance Scenarios**:
+
+1. **Given** the boundary test is widened, **When** a developer adds `from specify_cli.status.emit import build_status_event` in `cli/commands/`, **Then** CI fails identifying the violation and pointing to the facade.
+2. **Given** all bypasses are fixed, **When** grep scans `src/` outside `status/` (excluding documented plumbing), **Then** zero deep `status.*` imports remain.
 
 ---
 
-## Key Entities
+### User Story 5 - Consistent MissionStatus usage (Priority: P3)
 
-| Entity | Description |
-|--------|-------------|
-| Canonical execution-state module | New domain umbrella (expected `mission_runtime/`) owning execution-context/path/workspace resolution behind a published API; registered in the layer meta-guard |
-| `resolve_action_context` | The canonical entry point, relocated/wrapped into the new module; the only sanctioned execution-context resolver |
-| `ExecutionContext` / `ActionContext` | The resolved per-domain context object callers receive |
-| Status facade | `specify_cli.status` public package API; the only sanctioned way to reach status behavior from outside `status/` |
-| `MissionStatus` | Authoritative status read+write aggregate (#1667); consumers route mission-level status access through it |
-| e2e parity ratchet | Extended `test_execution_context_parity.py` proving CWD/mode-invariant behavior across the full command sequence |
-| `MissionRunSnapshot` | Run snapshot whose `mission_id`/`mission_slug` must survive all reconstruction sites |
-| occurrence_map.yaml | Bulk-edit classification artifact covering the status import-path + path-builder migrations |
+Mission-level status read and write access goes through the `MissionStatus` aggregate, not through direct `emit`/`lane_reader`/`BookkeepingTransaction` calls.
 
----
+**Why this priority**: Consolidates the status entry point onto the already-landed aggregate. Important for ownership but lower blast radius than US3/US4, so P3.
 
-## Success Criteria
+**Independent Test**: Rework the direct status callers onto `MissionStatus.load()/.claim()/.transition()` and confirm no consumer outside the plumbing exemption calls `BookkeepingTransaction` directly.
 
-| # | Criterion | Measurable threshold |
-|---|-----------|----------------------|
-| 1 | A single canonical execution-state module exists and is layer-registered | New module present; `test_no_unregistered_src_packages` + new architectural tests green |
-| 2 | The full-sequence ratchet passes across all three execution modes | `next→implement→move-task→review→status` parity green for main, lane, and direct-to-target; negative control fails when re-derivation is injected |
-| 3 | Repo-wide `status/` boundary is enforced with zero violations | `grep -rn "from specify_cli\.status\." src/ --include="*.py"` outside `status/` (excluding exemptions) returns zero; boundary test green over all of `src/specify_cli` |
-| 4 | Path-builder residue is eliminated | Zero `main_repo_root / "kitty-specs" / mission_slug`-class constructions outside the canonical module and `status/`; the 8 duplicate feature-dir resolvers collapsed to one |
-| 5 | `MissionStatus` is the consistent status entry point | Zero direct `BookkeepingTransaction`/`emit` calls outside `status/` and documented plumbing |
-| 6 | Mission identity survives reconstruction | `runtime_bridge.py:1723/:1860` carry `mission_id`/`mission_slug`; regression test green; #1663 closeable |
-| 7 | Leanness holds | Zero duplicated/parallel resolvers remain; Randy-Reducer + Paula-Patterns review sign-off on shaping WPs |
-| 8 | No regressions | Full existing integration + architectural suite passes; `ruff` + `mypy` clean on touched modules |
+**Acceptance Scenarios**:
+
+1. **Given** the consumption rework lands, **When** grep scans for `BookkeepingTransaction(` outside `status/` and documented plumbing, **Then** zero hits remain.
 
 ---
 
-## Assumptions
+### User Story 6 - Mission identity survives snapshot reconstruction (Priority: P3)
 
-- The execution-state domain model in #1666 (docs 01–17, esp. doc 06 §4 and doc 17) is the authoritative design basis; this spec does not reproduce that analysis.
-- The predecessor mission `01KT6HVH` landed `MissionStatus` (#1667), `resolve_action_context` (#1673 entry point), the narrowed status ratchet, and the WP03-scoped boundary test; this mission continues from that state.
-- The current counts (225 status bypass imports; ~125 path-builders across ~160 files) were measured 2026-06-07 and must be re-verified at implementation time; they will drift as work lands.
-- The canonical module name `mission_runtime/` from doc 06 §4 is the expected name; the design ADR (FR-006) may ratify a different name, and the spec requirements are written to that ADR's outcome rather than hardcoding the name.
-- `runtime/next/runtime_bridge.py` is both the primary #1673 residue surface and the #1663 field-drop site, so the two are remediated together over the same hotspot.
-- Run-through time and token cost are explicitly secondary to thorough remediation (operator direction).
+A `MissionRunSnapshot` keeps its `mission_id`/`mission_slug` across all reconstruction paths, so a run can always name its mission.
+
+**Why this priority**: A real but narrow field-drop bug (#1663) at the runtime_bridge hotspot we are already editing for US3. Folding it in is efficient; standalone value is modest, so P3.
+
+**Independent Test**: Carry the fields through `runtime_bridge.py:1723/:1860` and add a regression test on the auto-complete reconstruction path.
+
+**Acceptance Scenarios**:
+
+1. **Given** a snapshot with mission identity, **When** it passes through the auto-complete reconstruction, **Then** `mission_id` and `mission_slug` are preserved (not reset to `None`).
+
+### Edge Cases
+
+- What happens when a coord-topology mission's coord authority path is unavailable? → The status read fails closed (no silent stale primary-checkout fallback).
+- How does the gate handle a write that resolves to mainline (main/master) without explicit operator authorization? → It is refused.
+- What happens to legacy (pre-coord-topology) missions and existing on-disk `state.json` files after remediation? → They load and operate unchanged.
+- What happens if a reviewer spots a reintroduced parallel resolver? → It is a blocking finding under the leanness IC (NFR-002).
+
+## Requirements *(mandatory)*
+
+### Functional Requirements
+
+| ID | Title | User Story | Priority | Status |
+|----|-------|------------|----------|--------|
+| FR-001 | Canonical module exists | US1 · A new canonical execution-state module (expected `src/mission_runtime/`; final name per the design ADR) exposes a curated public API (`__all__`) over execution-context resolution. | High | Open |
+| FR-002 | Layer-guard registration | US1 · The module is registered in `_DEFINED_LAYERS` (`tests/architectural/test_layer_rules.py`) and the `conftest.py` landscape fixture, with `test_no_unregistered_src_packages` passing. | High | Open |
+| FR-003 | Relocate canonical entry point | US1 · `resolve_action_context` and the `ExecutionContext`/`ActionContext` type are relocated into (or re-exported as) the module's single entry point; `core/execution_context.py` retains at most a thin shim or is removed. | High | Open |
+| FR-004 | Context-object abstraction | US1 · The API is expressed in terms of the per-domain context objects; callers receive a resolved context object, not raw path fragments. | High | Open |
+| FR-005 | Sole-resolver architectural test | US1 · Architectural tests assert no import-level access to relocated internals from outside the module. | High | Open |
+| FR-006 | Design ADR | US1 · An ADR under `architecture/3.x/adr/` records the module name, public API shape, context-object abstraction, and Strangler migration order. | High | Open |
+| FR-007 | Route runtime_bridge query-mode | US3 · `runtime_bridge.py` query-mode derives feature dir/workspace/branch through the canonical surface, not from the mission slug. | High | Open |
+| FR-008 | Route workflow fix-mode | US3 · `cli/commands/agent/workflow.py` fix-mode routes its `repo_root`/`target_branch` resolution through the canonical surface. | High | Open |
+| FR-009 | Eliminate path-builder residue | US3 · No surface outside the canonical module and `status/` constructs `main_repo_root / "kitty-specs" / mission_slug` (or equivalent) directly; the ~125 current occurrences across ~160 files are routed or deleted. | High | Open |
+| FR-010 | Collapse duplicate resolvers | US3 · The 8 duplicated feature-dir resolver implementations are collapsed to one canonical resolver; redundant copies are deleted. | High | Open |
+| FR-011 | Delete dead path-builders | US3 · Path-builder functions made unreachable by this work are deleted (not left as dead code). | Medium | Open |
+| FR-012 | Mode-correct branch gate | US3 · The execution-context gate observes the mode-correct authorized target branch (coordination/planning, declared target/direct-to-target, lane/worktree), not a fixed always-main or always-worktree surface. | High | Open |
+| FR-013 | Facade promotion/demotion | US4 · Symbols with genuine external consumers are promoted to `status/__init__.py`; symbols with no external consumers are renamed private with a `_` prefix. | High | Open |
+| FR-014 | Fix all status bypass imports | US4 · All ~225 deep `status.*` submodule imports from outside `status/` are fixed to use the facade or the `MissionStatus` aggregate. | High | Open |
+| FR-015 | Widen boundary test repo-wide | US4 · `test_status_module_boundary.py` is widened from the 6 WP03 packages to all of `src/specify_cli`, preserving the documented plumbing exemptions. | High | Open |
+| FR-016 | Prevent new bypasses | US4 · No new direct `status.*` submodule imports outside `status/` are introduced after this mission lands. | Medium | Open |
+| FR-017 | MissionStatus read consolidation | US5 · Status read paths calling `lane_reader`/`store`/`reducer` directly for mission-level access are reworked onto `MissionStatus.load()`/`.claim()`. | Medium | Open |
+| FR-018 | MissionStatus write consolidation | US5 · Status write/transition paths calling `emit`/`BookkeepingTransaction` directly (outside plumbing) are reworked onto `MissionStatus.transition()`. | Medium | Open |
+| FR-019 | No direct BookkeepingTransaction | US5 · No consumer outside `status/` and documented coordination plumbing calls `BookkeepingTransaction` directly. | Medium | Open |
+| FR-020 | Full-sequence ratchet | US2 · `test_execution_context_parity.py` exercises the full `next → implement → move-task → review → status` sequence (not only status read+write). | High | Open |
+| FR-021 | All three execution modes | US2 · The ratchet exercises main-checkout CWD, lane-worktree CWD, and direct-to-target (no worktree). | High | Open |
+| FR-022 | Parity assertions + negative control | US2 · The ratchet asserts identical WP identity, lane transitions, and status output across modes, and includes a non-vacuous negative control. | High | Open |
+| FR-023 | De-overclaim docstring | US2 · The ratchet docstring is corrected to state its real coverage; it no longer implies coverage it lacks. | Medium | Open |
+| FR-024 | CI gate registration | US2 · The ratchet is a required gate for PRs touching the canonical module, `status/`, `runtime/next/`, or `cli/commands/agent/`. | Medium | Open |
+| FR-025 | Carry identity on reconstruction | US6 · `MissionRunSnapshot` reconstructions at `runtime_bridge.py:1723` and `:1860` carry `mission_id`/`mission_slug` through (currently dropped). | High | Open |
+| FR-026 | Field-drop regression test | US6 · A regression test asserts mission identity survives the auto-complete reconstruction path. | Medium | Open |
+| FR-027 | Close #1663 | US6 · #1663 is closeable: all snapshot construction and reconstruction sites preserve mission identity. | Low | Open |
+
+### Non-Functional Requirements
+
+| ID | Title | Requirement | Category | Priority | Status |
+|----|-------|-------------|----------|----------|--------|
+| NFR-001 | Behavior preservation | Strangling is behavior-preserving across all execution modes; zero behavioral regressions on the existing integration + architectural suites. | Reliability | High | Open |
+| NFR-002 | Leanness (Randy Reducer IC) | Each execution-context/path resolution concern has exactly one implementation path; zero duplicated/parallel resolvers remain (verified by review + grep). | Maintainability | High | Open |
+| NFR-003 | Single ownership (Paula Patterns IC) | The canonical surface and status facade are the sole owners of their concerns; zero boundary-leak bypasses outside documented exemptions; architectural tests bite. | Maintainability | High | Open |
+| NFR-004 | Backward compatibility | Legacy missions and existing on-disk `state.json` files load and operate unchanged; 100% load cleanly; legacy integration tests pass unmodified. | Compatibility | High | Open |
+| NFR-005 | Boundary-test performance | The repo-wide `status/` import scan completes in ≤15 s wall-clock on the full `src/` tree in CI. | Performance | Medium | Open |
+| NFR-006 | No plumbing churn | `coordination/transaction.py` (`BookkeepingTransaction`) internals are unchanged; zero diff to its internals. | Maintainability | Medium | Open |
+
+### Constraints
+
+| ID | Title | Constraint | Category | Priority | Status |
+|----|-------|------------|----------|----------|--------|
+| C-001 | Never mainline unauthorized | Mainline (main/master) is never bypassed or committed to without explicit operator authorization; create-a-branch guidance always applies (operator ruling 2026-06-07). | Governance | High | Open |
+| C-002 | Execution-mode policy | Planning happens on the coordination branch; a direct-to-target run may use the target branch directly with no worktree. | Process | High | Open |
+| C-003 | Ratchet-gated strangling | The full e2e ratchet (FR-020..FR-024) must be green before any FR-007..FR-019 strangling change is considered complete. | Process | High | Open |
+| C-004 | Plumbing exemption | `coordination/status_transition.py` and `coordination/transaction.py` remain exempt from the status boundary test (internal plumbing, not fixed). | Technical | High | Open |
+| C-005 | No mission_number selector | `mission_number` is never used as a selector or identity in new/modified code; lookup is by `mission_id` or `mission_slug` only. | Technical | High | Open |
+| C-006 | ADR before mass code | The new module name and API shape are ratified in a design ADR before the bulk of strangling lands (DIRECTIVE_032). | Governance | High | Open |
+| C-007 | Bulk-edit guardrail | The #1664 import-path migration changes the same `specify_cli.status.<sub>` strings across many files; the mission runs in `change_mode: bulk_edit` and produces an `occurrence_map.yaml` (DIRECTIVE_035). | Process | High | Open |
+| C-008 | Out of scope | Actor-kind vocabulary normalization, Effector type materialization, CommitTarget atomicity (step 7), and communication-artefact consolidation (step 5) are excluded. | Technical | Medium | Open |
+| C-009 | Persona ICs mandatory | Shaping work packages carry explicit Randy-Reducer and Paula-Patterns implementation contracts governing leanness and single-ownership. | Process | High | Open |
+
+### Key Entities
+
+- **Canonical execution-state module**: New domain umbrella (expected `mission_runtime/`) owning execution-context/path/workspace resolution behind a published API; layer-registered.
+- **`resolve_action_context`**: The canonical entry point relocated into the module; the only sanctioned execution-context resolver.
+- **`ExecutionContext` / `ActionContext`**: The resolved per-domain context object callers receive.
+- **Status facade**: `specify_cli.status` public API; the only sanctioned way to reach status behavior from outside `status/`.
+- **`MissionStatus`**: Authoritative status read+write aggregate (#1667); consumers route mission-level status access through it.
+- **e2e parity ratchet**: Extended `test_execution_context_parity.py` proving CWD/mode-invariant behavior across the full command sequence.
+- **`MissionRunSnapshot`**: Run snapshot whose `mission_id`/`mission_slug` must survive all reconstruction sites.
+- **occurrence_map.yaml**: Bulk-edit classification artifact covering the status import-path + path-builder migrations.
+
+## Success Criteria *(mandatory)*
+
+### Measurable Outcomes
+
+- **SC-001**: A single canonical execution-state module exists and is layer-registered — new module present; `test_no_unregistered_src_packages` and new architectural tests green.
+- **SC-002**: The full-sequence ratchet passes across all three execution modes; the negative control fails when re-derivation is injected.
+- **SC-003**: Repo-wide `status/` boundary enforced with zero violations — `grep -rn "from specify_cli\.status\." src/` outside `status/` (excluding exemptions) returns zero; boundary test green over all of `src/specify_cli`.
+- **SC-004**: Path-builder residue eliminated — zero `main_repo_root / "kitty-specs" / mission_slug`-class constructions outside the canonical module and `status/`; the 8 duplicate feature-dir resolvers collapsed to one.
+- **SC-005**: `MissionStatus` is the consistent status entry point — zero direct `BookkeepingTransaction`/`emit` calls outside `status/` and documented plumbing.
+- **SC-006**: Mission identity survives reconstruction — `runtime_bridge.py:1723/:1860` carry `mission_id`/`mission_slug`; regression test green; #1663 closeable.
+- **SC-007**: Leanness holds — zero duplicated/parallel resolvers remain; Randy-Reducer + Paula-Patterns review sign-off on shaping WPs.
+- **SC-008**: No regressions — full existing integration + architectural suite passes; `ruff` + `mypy` clean on touched modules.
+
+<!--
+  Domain Language (terminology discipline): canonical terms — "execution-state domain
+  surface", "canonical entry point" (resolve_action_context), "status facade",
+  "MissionStatus aggregate", "execution mode" {planning | direct-to-target | worktree},
+  "mode-correct target branch". Avoid: "core helpers", "path utils", "worktree-vs-main"
+  binary, deep status.* imports.
+
+  Assumptions: design basis is #1666 docs 01–17 (esp. doc 06 §4, doc 17); predecessor
+  mission 01KT6HVH landed MissionStatus (#1667), resolve_action_context (#1673 entry),
+  the narrowed ratchet, and the WP03-scoped boundary test; counts (225 bypass imports;
+  ~125 path-builders/~160 files) measured 2026-06-07 and re-verified at implementation;
+  runtime_bridge.py is both the #1673 residue hotspot and the #1663 field-drop site;
+  run-through time/token cost are secondary to thorough remediation (operator direction).
+-->
