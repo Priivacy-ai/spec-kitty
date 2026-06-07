@@ -257,7 +257,7 @@ Include the correct implementation command:
 - `owned_files`: List of glob patterns for files this WP touches — no two WPs may overlap.
 - `authoritative_surface`: Path prefix that must be a prefix of at least one `owned_files` entry.
 - `execution_mode`: `"code_change"` for source code changes, `"planning_artifact"` for kitty-specs docs.
-- Agents working on a WP must not modify files outside their `owned_files` list.
+- Agents working on a WP should prefer to stay within their `owned_files` list; a small, well-justified out-of-map edit is acceptable when recorded with a one-line rationale (the no-overlap rule above is the real guard against parallel-WP collisions).
 
 ### 4a. Assign Agent Profiles
 

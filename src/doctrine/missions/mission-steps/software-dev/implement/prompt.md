@@ -39,8 +39,13 @@ guardrails for bulk operations.
 ## Working Directory
 
 **IMPORTANT**: This step works inside the execution workspace (worktree)
-allocated by `spec-kitty agent action implement WPxx --agent <name>`. Do NOT modify files outside
-your `owned_files` boundaries.
+allocated by `spec-kitty agent action implement WPxx --agent <name>`. Prefer to stay within
+your `owned_files` boundaries. If a small, well-justified change to a file outside the map is
+genuinely needed to deliver the WP (e.g. a one-line prerequisite or a stale assertion that
+pins a now-deleted internal), make it and record a one-line rationale in the commit message —
+that is better than a convoluted in-bounds workaround or a duplicated local re-implementation.
+The finalize ownership-overlap gate remains the guard against *parallel* WPs colliding on the
+same file.
 
 **In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
@@ -123,7 +128,7 @@ guaranteed to carry.
 
 Read the WP prompt file from `feature_dir/tasks/WPxx-slug.md`.
 Parse frontmatter for:
-- `owned_files` -- only modify files matching these globs
+- `owned_files` -- prefer to modify files matching these globs; out-of-map edits are allowed when small and well-justified (record a one-line rationale)
 - `authoritative_surface` -- primary directory for this WP
 - `execution_mode` -- `code_change` or `planning_artifact`
 - `subtasks` -- ordered list of subtask IDs
@@ -157,7 +162,7 @@ Work through each subtask in order:
 
 After all subtasks are complete:
 - All tests pass
-- No files outside `owned_files` were modified
+- Any files modified outside `owned_files` are small, justified, and have a one-line rationale in the commit message
 - Code follows project conventions (run linter if configured)
 - **Diff-scoped ruff sweep (MANDATORY before moving to `for_review`)** —
   catches lint regressions before they reach the cycle-1 reviewer. The WP06
