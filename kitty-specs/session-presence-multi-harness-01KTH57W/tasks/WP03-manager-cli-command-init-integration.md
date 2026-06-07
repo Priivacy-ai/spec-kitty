@@ -21,8 +21,8 @@ subtasks:
 - T014
 - T015
 - T016
-agent: "claude:sonnet:implementer:implementer"
-shell_pid: "49576"
+agent: "claude:sonnet:reviewer:reviewer"
+shell_pid: "56507"
 history:
 - date: '2026-06-07'
   status: planned
@@ -361,3 +361,5 @@ If all tests pass: proceed normally. Document in your WP review that DIR-013 che
 - 2026-06-07T15:26:02Z – claude:sonnet:reviewer:reviewer – shell_pid=37939 – Started review via action command
 - 2026-06-07T15:33:00Z – user – shell_pid=37939 – Moved to planned
 - 2026-06-07T15:33:55Z – claude:sonnet:implementer:implementer – shell_pid=49576 – Started implementation via action command
+- 2026-06-07T15:36:03Z – claude:sonnet:implementer:implementer – shell_pid=49576 – Cycle 2: fixed AgentConfig.load→load_agent_config, removed unused type-ignore. Ruff and mypy clean.
+- 2026-06-07T15:36:36Z – claude:sonnet:reviewer:reviewer – shell_pid=56507 – Started review via action command
