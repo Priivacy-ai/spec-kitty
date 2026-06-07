@@ -15,6 +15,7 @@ Cases covered:
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 
@@ -25,6 +26,32 @@ from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 
 pytestmark = pytest.mark.fast
+
+
+def _seed_planned(feature_dir: Path, wp_id: str = "WP01", slug: str = "test-feature") -> None:
+    """Seed a WP out of the non-display 'genesis' state into 'planned'.
+
+    Written directly to the event log (no emit) so it does not trigger a
+    fan-out handler — the fan-out counts under test reflect only the
+    transitions emitted by the test body.
+    """
+    seed_event = {
+        "event_id": "01HXYZ0123456789ABCDEFGS01",
+        "mission_slug": slug,
+        "wp_id": wp_id,
+        "from_lane": "genesis",
+        "to_lane": "planned",
+        "at": "2026-06-01T12:00:00+00:00",
+        "actor": "seed",
+        "force": True,
+        "execution_mode": "worktree",
+        "evidence": None,
+        "reason": "seed",
+        "review_ref": None,
+        "feature_slug": slug,
+    }
+    with (feature_dir / "status.events.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(seed_event) + "\n")
 
 
 @pytest.fixture
@@ -48,6 +75,7 @@ class TestFanOutPreservation:
         adapters.register_saas_fanout_handler(fake_saas)
 
         try:
+            _seed_planned(feature_dir)
             event = emit_status_transition(
                 TransitionRequest(
                     feature_dir=feature_dir,
@@ -81,6 +109,7 @@ class TestFanOutPreservation:
         adapters.register_dossier_sync_handler(fake_dossier)
 
         try:
+            _seed_planned(feature_dir)
             emit_status_transition(
                 TransitionRequest(
                     feature_dir=feature_dir,
@@ -105,6 +134,7 @@ class TestFanOutPreservation:
         adapters.reset_handlers()
 
         try:
+            _seed_planned(feature_dir)
             caplog.set_level(logging.INFO, logger="specify_cli.status.adapters")
             event = emit_status_transition(
                 TransitionRequest(
@@ -135,6 +165,7 @@ class TestFanOutPreservation:
         adapters.register_saas_fanout_handler(boom)
 
         try:
+            _seed_planned(feature_dir)
             event = emit_status_transition(
                 TransitionRequest(
                     feature_dir=feature_dir,

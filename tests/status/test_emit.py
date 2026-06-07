@@ -51,6 +51,26 @@ def feature_dir(tmp_path: Path) -> Path:
     return fd
 
 
+def _seed_planned(feature_dir: Path, wp_id: str, mission_slug: str = "034-test-feature") -> None:
+    """Seed a WP out of the 'genesis' pre-finalize state into 'planned'.
+
+    A fresh WP with no lane-state events derives from_lane 'genesis' (see
+    _derive_from_lane), so the only legal first transition is genesis -> planned
+    (or genesis -> canceled). This mirrors what finalize-tasks does before the
+    lane lifecycle begins. Tests that exercise downstream transitions must seed
+    first.
+    """
+    emit_status_transition(TransitionRequest(
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        to_lane="planned",
+        actor="seed",
+        force=True,
+        reason="seed",
+    ))
+
+
 @pytest.fixture
 def valid_evidence_dict() -> dict:
     """A valid evidence dict for done transitions."""
@@ -83,10 +103,10 @@ def valid_evidence_dict() -> dict:
 class TestDeriveFromLane:
     """Tests for _derive_from_lane helper."""
 
-    def test_no_events_returns_planned(self, feature_dir: Path):
-        """First WP with no events defaults to 'planned'."""
+    def test_no_events_returns_genesis(self, feature_dir: Path):
+        """First WP with no lane-state events derives 'genesis' (pre-finalize)."""
         result = _derive_from_lane(feature_dir, "WP01")
-        assert result == "planned"
+        assert result == "genesis"
 
     def test_returns_last_to_lane_for_wp(self, feature_dir: Path):
         """Derives from_lane from the last event's to_lane for the WP."""
@@ -140,8 +160,8 @@ class TestDeriveFromLane:
         result = _derive_from_lane(feature_dir, "WP01")
         assert result == "claimed"
 
-    def test_unknown_wp_returns_planned(self, feature_dir: Path):
-        """WP with no events in existing log returns 'planned'."""
+    def test_unknown_wp_returns_genesis(self, feature_dir: Path):
+        """WP with no events in existing log derives 'genesis' (pre-finalize)."""
         from specify_cli.status.store import append_event
 
         event = StatusEvent(
@@ -158,7 +178,7 @@ class TestDeriveFromLane:
         append_event(feature_dir, event)
 
         result = _derive_from_lane(feature_dir, "WP99")
-        assert result == "planned"
+        assert result == "genesis"
 
     def test_uses_reduced_state_not_append_order(self, feature_dir: Path):
         """Derivation uses canonical reducer order when log lines are out of order."""
@@ -315,6 +335,7 @@ class TestEmitStatusTransition:
 
     def test_happy_path_planned_to_claimed(self, feature_dir: Path):
         """Basic transition from planned to claimed persists and returns event."""
+        _seed_planned(feature_dir, "WP01")
         event = emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -333,13 +354,14 @@ class TestEmitStatusTransition:
         assert event.execution_mode == "worktree"
         assert len(event.event_id) == 26  # ULID length
 
-        # Verify event is persisted
+        # Verify event is persisted (genesis->planned seed + planned->claimed)
         events = read_events(feature_dir)
-        assert len(events) == 1
-        assert events[0].event_id == event.event_id
+        assert len(events) == 2
+        assert events[-1].event_id == event.event_id
 
     def test_snapshot_materialized(self, feature_dir: Path):
         """Snapshot file is written after successful emit."""
+        _seed_planned(feature_dir, "WP01")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -359,6 +381,9 @@ class TestEmitStatusTransition:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Derive, append, and materialize must share the feature status lock."""
+        # Seed out of genesis before installing the tracking spies so the
+        # observed sequence reflects only the claimed transition under test.
+        _seed_planned(feature_dir, "WP01")
         lock_root = feature_dir.parent.parent
         lock_state = {"held": False}
         observed: list[str] = []
@@ -415,6 +440,7 @@ class TestEmitStatusTransition:
 
     def test_chained_transitions(self, feature_dir: Path):
         """Multiple transitions chain correctly, deriving from_lane."""
+        _seed_planned(feature_dir, "WP01")
         e1 = emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -445,12 +471,13 @@ class TestEmitStatusTransition:
         assert e3.from_lane == Lane.IN_PROGRESS
         assert e3.to_lane == Lane.FOR_REVIEW
 
-        # Verify 3 events in JSONL
+        # Verify 3 lifecycle events in JSONL (plus the genesis->planned seed)
         events = read_events(feature_dir)
-        assert len(events) == 3
+        assert len(events) == 4
 
     def test_alias_resolution_doing(self, feature_dir: Path):
         """'doing' alias resolves to 'in_progress'."""
+        _seed_planned(feature_dir, "WP01")
         # First move to claimed
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
@@ -471,6 +498,7 @@ class TestEmitStatusTransition:
 
     def test_alias_collapse_noop_returns_without_new_event(self, feature_dir: Path, caplog: pytest.LogCaptureFixture) -> None:
         """Legacy alias to the current lane is a locked no-op, not a duplicate event."""
+        _seed_planned(feature_dir, "WP01")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -497,7 +525,9 @@ class TestEmitStatusTransition:
 
         assert event.from_lane == Lane.IN_PROGRESS
         assert event.to_lane == Lane.IN_PROGRESS
-        assert len(read_events(feature_dir)) == 2
+        # genesis->planned seed + planned->claimed + claimed->in_progress; the
+        # final doing alias collapses to a no-op (no new event).
+        assert len(read_events(feature_dir)) == 3
         assert "Collapsing legacy alias doing to existing lane in_progress" in caplog.text
 
     def test_invalid_transition_rejected_no_persistence(self, feature_dir: Path):
@@ -528,6 +558,7 @@ class TestEmitStatusTransition:
 
     def test_execution_mode_direct_repo(self, feature_dir: Path):
         """Non-default execution_mode is recorded in event."""
+        _seed_planned(feature_dir, "WP01")
         event = emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -540,6 +571,8 @@ class TestEmitStatusTransition:
 
     def test_multiple_wps_independent(self, feature_dir: Path):
         """Events for different WPs are independent."""
+        _seed_planned(feature_dir, "WP01")
+        _seed_planned(feature_dir, "WP02")
         e1 = emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -696,6 +729,7 @@ class TestDoneEvidence:
     def test_done_without_evidence_rejected(self, feature_dir: Path):
         """Transition to done without evidence is rejected."""
 
+        _seed_planned(feature_dir, "WP01", mission_slug="034-test")
         # Move through the pipeline: planned → claimed → in_progress → for_review → in_review
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
@@ -740,6 +774,7 @@ class TestDoneEvidence:
         """Transition to done with valid evidence via in_review succeeds."""
         from specify_cli.status.models import ReviewResult
 
+        _seed_planned(feature_dir, "WP01", mission_slug="034-test")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -788,6 +823,7 @@ class TestDoneEvidence:
         """Transition to done with malformed evidence is rejected."""
         from specify_cli.status.models import ReviewResult
 
+        _seed_planned(feature_dir, "WP01", mission_slug="034-test")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -829,9 +865,9 @@ class TestDoneEvidence:
                 review_result=review_result,
             ))
 
-        # Verify no done event was persisted (only 4 prior events)
+        # Verify no done event was persisted (genesis->planned seed + 4 prior events)
         events = read_events(feature_dir)
-        assert len(events) == 4
+        assert len(events) == 5
 
 
 class TestPhase1CompatibilityBridge:
@@ -949,6 +985,7 @@ class TestPhase1CompatibilityBridge:
         feature_dir: Path,
     ) -> None:
         """in_review is now a first-class lane; transition for_review -> in_review works."""
+        _seed_planned(feature_dir, "WP01")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -1098,6 +1135,7 @@ class TestSaasFanOut:
 
     def test_saas_failure_does_not_block_emit(self, feature_dir: Path):
         """Full emit succeeds even when SaaS fan-out fails."""
+        _seed_planned(feature_dir, "WP01")
         with patch(
             "specify_cli.sync.events.emit_wp_status_changed",
             side_effect=RuntimeError("network down"),
@@ -1110,9 +1148,9 @@ class TestSaasFanOut:
                 actor="agent-1",
             ))
             assert event.to_lane == Lane.CLAIMED
-            # Event was still persisted
+            # Event was still persisted (genesis->planned seed + planned->claimed)
             events = read_events(feature_dir)
-            assert len(events) == 1
+            assert len(events) == 2
 
 
 # ── Pipeline Order Tests ─────────────────────────────────────
@@ -1139,6 +1177,7 @@ class TestPipelineOrder:
 
     def test_event_persisted_even_if_materialize_fails(self, feature_dir: Path):
         """If materialize fails, the event is still in the JSONL log."""
+        _seed_planned(feature_dir, "WP01")
         with patch(
             "specify_cli.status.emit._reducer.materialize",
             side_effect=OSError("disk error during materialize"),
@@ -1151,10 +1190,10 @@ class TestPipelineOrder:
                 actor="agent-1",
             ))
 
-        # Event was persisted even though materialize failed
+        # Event was persisted even though materialize failed (seed + claimed)
         events = read_events(feature_dir)
-        assert len(events) == 1
-        assert events[0].event_id == event.event_id
+        assert len(events) == 2
+        assert events[-1].event_id == event.event_id
 
     def test_no_legacy_bridge_in_emit(self):
         """Verify emit.py does not import legacy_bridge (it was deleted in WP05)."""
@@ -1184,6 +1223,7 @@ class TestReviewRefGuard:
 
     def test_in_review_to_in_progress_requires_review_result(self, feature_dir: Path):
         """in_review -> in_progress without review_result is rejected."""
+        _seed_planned(feature_dir, "WP01", mission_slug="034-test")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -1226,6 +1266,7 @@ class TestReviewRefGuard:
         """in_review -> in_progress with review_result succeeds."""
         from specify_cli.status.models import ReviewResult
 
+        _seed_planned(feature_dir, "WP01", mission_slug="034-test")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -1276,6 +1317,7 @@ class TestReasonGuard:
 
     def test_in_progress_to_planned_requires_reason(self, feature_dir: Path):
         """in_progress -> planned without reason is rejected."""
+        _seed_planned(feature_dir, "WP01", mission_slug="034-test")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -1302,6 +1344,7 @@ class TestReasonGuard:
 
     def test_in_progress_to_planned_with_reason(self, feature_dir: Path):
         """in_progress -> planned with reason succeeds."""
+        _seed_planned(feature_dir, "WP01", mission_slug="034-test")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -1334,6 +1377,7 @@ class TestMergeLightweightEmit:
         self,
         feature_dir: Path,
     ) -> None:
+        _seed_planned(feature_dir, "WP01")
         with (
             patch.object(emit_module, "_saas_fan_out") as mock_fanout,
             patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled") as mock_dossier,
@@ -1364,6 +1408,9 @@ class TestBatchEmit:
             emit_status_transition_batch([TransitionRequest()])
 
     def test_batch_requires_each_request_identity(self, feature_dir: Path) -> None:
+        # Seed so the first (valid) request's transition succeeds and the loop
+        # reaches the second request's identity guard.
+        _seed_planned(feature_dir, "WP01")
         with pytest.raises(TypeError, match="Each batch transition"):
             emit_status_transition_batch(
                 [
@@ -1383,6 +1430,9 @@ class TestBatchEmit:
             )
 
     def test_batch_rejects_mixed_work_packages(self, feature_dir: Path) -> None:
+        # Seed so the first request's transition succeeds and the loop reaches
+        # the mixed-WP guard on the second request.
+        _seed_planned(feature_dir, "WP01")
         with pytest.raises(TypeError, match="one feature/mission/wp"):
             emit_status_transition_batch(
                 [
@@ -1451,6 +1501,7 @@ class TestBatchEmit:
         assert read_events(feature_dir) == []
 
     def test_batch_infers_review_readiness_and_builds_evidence(self, feature_dir: Path, valid_evidence_dict: dict) -> None:
+        _seed_planned(feature_dir, "WP01")
         with patch.object(emit_module, "_saas_fan_out"):
             events = emit_status_transition_batch(
                 [
@@ -1484,6 +1535,7 @@ class TestBatchEmit:
 
         assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS, Lane.FOR_REVIEW]
 
+        _seed_planned(feature_dir, "WP02")
         with patch.object(emit_module, "_saas_fan_out"):
             done = emit_status_transition_batch(
                 [
@@ -1547,6 +1599,7 @@ class TestBatchEmit:
         assert done[-1].to_lane == Lane.DONE
 
     def test_batch_materialize_failure_keeps_persisted_events(self, feature_dir: Path, caplog: pytest.LogCaptureFixture) -> None:
+        _seed_planned(feature_dir, "WP01")
         with (
             patch.object(emit_module, "_saas_fan_out"),
             patch.object(emit_module._reducer, "materialize", side_effect=RuntimeError("boom")),
@@ -1565,5 +1618,6 @@ class TestBatchEmit:
             )
 
         assert len(events) == 1
-        assert read_events(feature_dir)[0].to_lane == Lane.CLAIMED
+        # Last persisted event is the claimed transition (after the seed).
+        assert read_events(feature_dir)[-1].to_lane == Lane.CLAIMED
         assert "Materialization failed after batch" in caplog.text

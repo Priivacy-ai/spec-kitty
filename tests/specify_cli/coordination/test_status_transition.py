@@ -99,10 +99,45 @@ def _status_event(event_id: str, *, to_lane: str = "claimed") -> StatusEvent:
     )
 
 
+def _seed_planned_on_coord(repo: Path) -> StatusEvent:
+    """Seed WP01 out of the non-display 'genesis' state into 'planned'.
+
+    A fresh WP derives from_lane 'genesis', so the first lane transition must
+    be genesis -> planned (as finalize-tasks does). The seed is written and
+    committed directly on the coordination branch via a throwaway worktree, so
+    it does not fan out — only the transition under test does.
+    """
+    seed_event = StatusEvent(
+        event_id="01SEEDGENESIS0000000000001",
+        mission_slug=MISSION_SLUG,
+        mission_id=MISSION_ID,
+        wp_id="WP01",
+        from_lane=Lane.GENESIS,
+        to_lane=Lane.PLANNED,
+        at="2026-05-31T00:00:00+00:00",
+        actor="seed",
+        force=True,
+        reason="seed",
+        execution_mode="worktree",
+    )
+    worktree = repo / ".worktrees" / "seed-genesis"
+    _git(repo, "worktree", "add", "-q", str(worktree), COORD_BRANCH)
+    coord_feature_dir = worktree / "kitty-specs" / MISSION_DIRNAME
+    append_event_log(
+        EventLogWriteContract.coordination_transaction_append(coord_feature_dir),
+        seed_event,
+    )
+    _git(worktree, "add", "kitty-specs")
+    _git(worktree, "commit", "-q", "-m", "seed genesis->planned")
+    _git(repo, "worktree", "remove", "-f", str(worktree))
+    return seed_event
+
+
 def test_transactional_emit_fans_out_only_after_commit(
     repo: Path,
     mock_saas_sink: Any,
 ) -> None:
+    _seed_planned_on_coord(repo)
     event = emit_status_transition_transactional(_request(repo), sync_dossier=False)
 
     assert mock_saas_sink.call_count == 1
@@ -113,6 +148,7 @@ def test_transactional_emit_fans_out_only_after_commit(
 
 
 def test_transactional_read_targets_coordination_branch(repo: Path) -> None:
+    seed = _seed_planned_on_coord(repo)
     event = emit_status_transition_transactional(_request(repo), sync_dossier=False)
 
     events = read_events_transactional(
@@ -121,7 +157,9 @@ def test_transactional_read_targets_coordination_branch(repo: Path) -> None:
         repo_root=repo,
     )
 
-    assert [e.event_id for e in events] == [event.event_id]
+    # The coordination branch carries the genesis->planned seed plus the
+    # planned->claimed transition under test.
+    assert [e.event_id for e in events] == [seed.event_id, event.event_id]
     assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
 
 
@@ -232,6 +270,10 @@ def test_transactional_emit_skips_fanout_when_commit_rolls_back(
     repo: Path,
     mock_saas_sink: Any,
 ) -> None:
+    # Seed planned before installing the rejecting hook so the transition
+    # under test is genesis-free (claimed is reachable from planned).
+    _seed_planned_on_coord(repo)
+
     hooks_dir = repo / ".git" / "hooks-reject"
     hooks_dir.mkdir()
     hook = hooks_dir / "pre-commit"
@@ -243,13 +285,17 @@ def test_transactional_emit_skips_fanout_when_commit_rolls_back(
         emit_status_transition_transactional(_request(repo), sync_dossier=False)
 
     assert mock_saas_sink.call_count == 0
-    missing = _git(
+    # The coord branch still carries only the seed (genesis->planned); the
+    # rolled-back claimed transition must NOT have been committed.
+    committed = _git(
         repo,
         "show",
         f"{COORD_BRANCH}:kitty-specs/{MISSION_DIRNAME}/status.events.jsonl",
         check=False,
     )
-    assert missing.returncode != 0
+    assert committed.returncode == 0
+    assert '"to_lane": "planned"' in committed.stdout
+    assert '"to_lane": "claimed"' not in committed.stdout
 
 
 def test_transactional_emit_fails_closed_when_coordination_branch_missing(

@@ -21,8 +21,23 @@ from specify_cli.retrospective.schema import Mode
 
 
 class Lane(StrEnum):
-    """9-lane canonical work package lifecycle states."""
+    """Canonical work package lifecycle states.
 
+    ``GENESIS`` is the pre-finalize state of a work package that has been
+    created (``WPCreated``) but not yet seeded into the lane lifecycle. It is
+    distinct from ``PLANNED`` so that ``finalize-tasks`` seeds a real
+    ``genesis -> planned`` transition instead of a no-op ``planned -> planned``
+    self-transition, and so the lane-state readers never silently default an
+    unfinalized WP to ``planned``.
+
+    ``GENESIS`` is a *non-display* lane: it is never the current lane of a
+    materialized WP (an unseeded WP has no lane events and so is absent from the
+    snapshot; once seeded it is ``planned``). It therefore does not appear on
+    the kanban board or in the board summary. The nine post-genesis states
+    (``PLANNED``..``CANCELED``) are the active, displayed lifecycle lanes.
+    """
+
+    GENESIS = "genesis"
     PLANNED = "planned"
     CLAIMED = "claimed"
     IN_PROGRESS = "in_progress"

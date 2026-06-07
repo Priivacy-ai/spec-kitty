@@ -77,8 +77,10 @@ def validate_event_schema(event: dict) -> list[str]:
     if event_id and not _is_valid_event_id(str(event_id)):
         findings.append(f"Invalid event ID format: {event_id}")
 
-    # Canonical lane check (aliases like "doing" are NOT canonical)
-    canonical_set = set(CANONICAL_LANES)
+    # Canonical lane check (aliases like "doing" are NOT canonical).
+    # ``genesis`` is a valid non-display lane (the seed event's from_lane) even
+    # though it is not part of the active/display CANONICAL_LANES set.
+    canonical_set = set(CANONICAL_LANES) | {Lane.GENESIS.value}
     for lane_field in ("from_lane", "to_lane"):
         val = event.get(lane_field)
         if val is not None and val not in canonical_set:

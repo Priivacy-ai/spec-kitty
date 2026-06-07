@@ -193,20 +193,25 @@ def _derive_from_lane(feature_dir: Path, wp_id: str) -> str:
     The event log may not be append-ordered by logical transition time,
     so we must reduce the full log to determine the current lane
     deterministically.
+
+    A WP with no lane-state events yet (created but not seeded) is reported as
+    ``GENESIS`` — distinct from ``PLANNED`` — so the bootstrap seed is an
+    explicit ``genesis -> planned`` transition rather than a dropped
+    ``planned -> planned`` self-transition.
     """
     events = _store.read_events(feature_dir)
     if not events:
-        return Lane.PLANNED
+        return Lane.GENESIS
 
     snapshot = _reducer.reduce(events)
     wp_state = snapshot.work_packages.get(wp_id)
     if wp_state is None:
-        return Lane.PLANNED
+        return Lane.GENESIS
 
     lane = wp_state.get("lane")
     if lane is not None:
         return Lane(lane)
-    return Lane.PLANNED
+    return Lane.GENESIS
 
 
 def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:

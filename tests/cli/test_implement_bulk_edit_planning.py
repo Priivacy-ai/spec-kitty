@@ -100,6 +100,26 @@ def _build_feature(tmp_path: Path, *, owned_file: str) -> Path:
         "# WP01\n",
         encoding="utf-8",
     )
+    # Seed WP01 out of the non-display 'genesis' state into 'planned' (as
+    # finalize-tasks does) so implement's start-implementation composite
+    # (planned -> claimed -> in_progress) is legal.
+    seed_event = {
+        "actor": "seed",
+        "at": "2026-05-31T00:00:00+00:00",
+        "event_id": "01HXYZ0123456789ABCDEFGS01",
+        "evidence": None,
+        "execution_mode": "worktree",
+        "force": False,
+        "from_lane": "genesis",
+        "mission_slug": mission_slug,
+        "reason": "seed",
+        "review_ref": None,
+        "to_lane": "planned",
+        "wp_id": "WP01",
+    }
+    (feature_dir / "status.events.jsonl").write_text(
+        json.dumps(seed_event, sort_keys=True) + "\n", encoding="utf-8"
+    )
     return feature_dir
 
 

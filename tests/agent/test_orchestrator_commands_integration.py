@@ -67,7 +67,39 @@ def _make_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tup
         "status_phase": 1,
     }
     (mission_dir / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _seed_planned_events(mission_dir, mission_slug, ("WP01", "WP02"))
     return repo_root, mission_dir
+
+
+def _seed_planned_events(mission_dir: Path, mission_slug: str, wp_ids: tuple[str, ...]) -> None:
+    """Seed WPs out of the non-display 'genesis' state into 'planned'.
+
+    Written directly to the event log (as finalize-tasks seeds), so a fresh WP
+    starts at 'planned' and the lane lifecycle (claimed/in_progress/...) is
+    legal. Without this, the first transition would be the illegal
+    genesis -> claimed.
+    """
+    lines = [
+        json.dumps(
+            {
+                "actor": "seed",
+                "at": "2026-03-17T00:00:00+00:00",
+                "event_id": f"01HXYZ0123456789ABCDEFGS{wp_id[-2:]}",
+                "evidence": None,
+                "execution_mode": "worktree",
+                "force": False,
+                "from_lane": "genesis",
+                "mission_slug": mission_slug,
+                "reason": "seed",
+                "review_ref": None,
+                "to_lane": "planned",
+                "wp_id": wp_id,
+            },
+            sort_keys=True,
+        )
+        for wp_id in wp_ids
+    ]
+    (mission_dir / "status.events.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _valid_policy_json() -> str:
@@ -85,7 +117,12 @@ def _valid_policy_json() -> str:
 
 
 def _emit_event(mission_dir: Path, wp_id: str, from_lane: str, to_lane: str, actor: str = "test") -> None:
-    """Helper to emit a status event directly."""
+    """Helper to emit a status event directly.
+
+    WPs are seeded to 'planned' by the mission factories (_make_mission /
+    _make_mission_with_suffixed_wps), so transitions starting at 'planned' are
+    legal without an additional genesis -> planned seed here.
+    """
     from specify_cli.status.emit import emit_status_transition
 
     slug = mission_dir.parent.parent.name + "-" + mission_dir.name
@@ -427,7 +464,14 @@ class TestStartImplementation:
         from specify_cli.status.store import read_events
 
         events = read_events(mission_dir)
-        assert [(event.from_lane, event.to_lane) for event in events] == [
+        # Exclude the genesis->planned seeds; assert only the composite
+        # start-implementation transitions for WP01.
+        wp01_transitions = [
+            (event.from_lane, event.to_lane)
+            for event in events
+            if event.wp_id == "WP01" and str(event.from_lane) != "genesis"
+        ]
+        assert wp01_transitions == [
             ("planned", "claimed"),
             ("claimed", "in_progress"),
         ]
@@ -1633,6 +1677,7 @@ def _make_mission_with_suffixed_wps(tmp_path: Path, mission_slug: str = "040-tes
     (tasks_dir / "README.md").write_text("# Tasks\n", encoding="utf-8")
 
     (mission_dir / "meta.json").write_text(json.dumps({"status_phase": 1}), encoding="utf-8")
+    _seed_planned_events(mission_dir, mission_slug, ("WP01", "WP07"))
     return repo_root, mission_dir
 
 

@@ -37,11 +37,25 @@ def _disable_emit_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
 
 
+def _seed_planned(feature_dir: Path, slug: str, wp_id: str = "WP01") -> None:
+    """Seed a WP out of the non-display 'genesis' state into 'planned'.
+
+    A fresh WP with no lane-state events derives from_lane 'genesis', so the
+    only legal first transition is genesis -> planned. This mirrors what
+    finalize-tasks does before the lane lifecycle begins.
+    """
+    _write_events(
+        feature_dir,
+        [_status_event(slug, wp_id, "genesis", "planned", "01HXYZ0123456789ABCDEFGS01")],
+    )
+
+
 def _make_repo_with_mission(root: Path, slug: str) -> Path:
     repo = root / "repo"
     feature_dir = repo / "kitty-specs" / slug
     feature_dir.mkdir(parents=True)
     (repo / ".kittify").mkdir()
+    _seed_planned(feature_dir, slug)
     return repo
 
 

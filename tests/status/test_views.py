@@ -31,6 +31,23 @@ def feature_dir(tmp_path: Path) -> Path:
     return fd
 
 
+def _seed_planned(feature_dir: Path, wp_id: str) -> None:
+    """Seed a WP out of the non-display 'genesis' state into 'planned'.
+
+    A fresh WP derives from_lane 'genesis', so the first lane transition must
+    be genesis -> planned (as finalize-tasks does) before claimed/etc.
+    """
+    emit_status_transition(TransitionRequest(
+        feature_dir=feature_dir,
+        mission_slug="034-test-feature",
+        wp_id=wp_id,
+        to_lane="planned",
+        actor="seed",
+        force=True,
+        reason="seed",
+    ))
+
+
 class TestGenerateStatusView:
     def test_empty_event_log_returns_empty_snapshot(self, feature_dir: Path) -> None:
         """generate_status_view on empty feature returns empty snapshot dict."""
@@ -40,6 +57,7 @@ class TestGenerateStatusView:
 
     def test_returns_snapshot_after_events(self, feature_dir: Path) -> None:
         """generate_status_view reflects emitted transitions."""
+        _seed_planned(feature_dir, "WP01")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -54,6 +72,7 @@ class TestGenerateStatusView:
 
     def test_snapshot_matches_materialize(self, feature_dir: Path) -> None:
         """generate_status_view result matches materialize().to_dict()."""
+        _seed_planned(feature_dir, "WP02")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -70,6 +89,7 @@ class TestWriteDerivedViews:
     def test_writes_status_json(self, feature_dir: Path, tmp_path: Path) -> None:
         """write_derived_views produces status.json."""
         derived_dir = tmp_path / "derived"
+        _seed_planned(feature_dir, "WP01")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -86,6 +106,7 @@ class TestWriteDerivedViews:
     def test_writes_board_summary_json(self, feature_dir: Path, tmp_path: Path) -> None:
         """write_derived_views produces board-summary.json."""
         derived_dir = tmp_path / "derived"
+        _seed_planned(feature_dir, "WP01")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -103,6 +124,8 @@ class TestWriteDerivedViews:
     def test_board_summary_lanes_match_snapshot(self, feature_dir: Path, tmp_path: Path) -> None:
         """Board summary lanes match the event log snapshot."""
         derived_dir = tmp_path / "derived"
+        _seed_planned(feature_dir, "WP01")
+        _seed_planned(feature_dir, "WP02")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -159,6 +182,7 @@ class TestEmitHasNoLegacyBridge:
             encoding="utf-8",
         )
 
+        _seed_planned(feature_dir, "WP01")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",

@@ -82,6 +82,65 @@ def _disable_saas_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *args, **kwargs: None)
 
 
+class TestBootstrapCoordinationBranchPersistence:
+    """Regression (#1589): bootstrap on a coordination-branch mission must
+    persist real lane-state seed events that the lane-state readers can see,
+    not silently report success while persisting nothing."""
+
+    def test_coordination_branch_persists_seed_events(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _git(repo, "init", "-q", "-b", "main")
+        _git(repo, "config", "user.email", "t@example.invalid")
+        _git(repo, "config", "user.name", "Test")
+
+        mission_slug = "060-test"
+        mid8 = "01COORD0"
+        mission_dirname = f"{mission_slug}-{mid8}"
+        coord_branch = f"kitty/mission-{mission_dirname}"
+        feature_dir = repo / "kitty-specs" / mission_dirname
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text(
+            json.dumps(
+                {
+                    "mission_slug": mission_slug,
+                    "mission_id": "01COORD000000000000000000",
+                    "mid8": mid8,
+                    "coordination_branch": coord_branch,
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        _write_wp_file(tasks_dir, "WP01")
+        _write_wp_file(tasks_dir, "WP02")
+        _git(repo, "add", "kitty-specs")
+        _git(repo, "commit", "-q", "-m", "seed mission")
+        _git(repo, "branch", coord_branch)
+
+        result = bootstrap_canonical_state(feature_dir, mission_slug)
+
+        assert result.newly_seeded == 2
+
+        # The seeded events MUST be readable via the same transactional target
+        # the writer used. Before the fix these silently vanished (0 events).
+        from specify_cli.coordination.status_transition import (
+            read_events_transactional,
+        )
+
+        events = read_events_transactional(
+            feature_dir=feature_dir, mission_slug=mission_slug
+        )
+        seeded = {e.wp_id: str(e.to_lane) for e in events if e.wp_id}
+        assert seeded == {"WP01": "planned", "WP02": "planned"}, (
+            f"bootstrap reported {result.newly_seeded} seeded but the "
+            f"transactional read target shows {seeded}"
+        )
+
+
 class TestBootstrapSeedsUninitialized:
     """T002-a: Seeds planned events for uninitialized WPs."""
 

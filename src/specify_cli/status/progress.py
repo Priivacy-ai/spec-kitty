@@ -26,6 +26,7 @@ from .reducer import materialize
 # blocked and canceled contribute 0 — they don't represent forward progress.
 # in_review sits between for_review and approved in the review pipeline.
 DEFAULT_LANE_WEIGHTS: dict[str, float] = {
+    "genesis": 0.0,
     "planned": 0.0,
     "claimed": 0.05,
     "in_progress": 0.3,

@@ -17,44 +17,31 @@ from .models import GuardContext, Lane
 _FORCE_REQUIRES_ACTOR_AND_REASON = "Force transitions require actor and reason"
 _REVIEWER_APPROVAL_REQUIRED = "Transition to approved/done requires evidence (reviewer identity and approval reference)"
 
-ALLOWED_TRANSITIONS: frozenset[tuple[str, str]] = frozenset(
-    {
-        # Implementation progression
-        ("planned", "claimed"),
-        ("claimed", "in_progress"),
-        ("in_progress", "for_review"),
-        # Review progression: for_review is a queue state, in_review is active review
-        ("for_review", "in_review"),
-        # in_review outbound (all require ReviewResult in context)
-        ("in_review", "approved"),
-        ("in_review", "done"),
-        ("in_review", "in_progress"),
-        ("in_review", "planned"),
-        # Direct approval paths (legacy, kept for backward compat)
-        ("in_progress", "approved"),
-        ("approved", "done"),
-        ("approved", "in_progress"),
-        ("approved", "planned"),
-        # Regression / de-escalation
-        ("in_progress", "planned"),
-        # Blocking
-        ("planned", "blocked"),
-        ("claimed", "blocked"),
-        ("in_progress", "blocked"),
-        ("for_review", "blocked"),
-        ("in_review", "blocked"),
-        ("approved", "blocked"),
-        ("blocked", "in_progress"),
-        # Cancellation
-        ("planned", "canceled"),
-        ("claimed", "canceled"),
-        ("in_progress", "canceled"),
-        ("for_review", "canceled"),
-        ("in_review", "canceled"),
-        ("approved", "canceled"),
-        ("blocked", "canceled"),
-    }
-)
+def _derive_allowed_transitions() -> frozenset[tuple[str, str]]:
+    """Project the structural transition matrix from the State-pattern FSM.
+
+    The concrete ``WPState`` classes (``status.wp_state``) each own their
+    outbound edges via ``allowed_targets()``; this matrix is derived from them
+    so the FSM is the single source of truth — there is no parallel,
+    hand-maintained transition list to drift out of sync. Genesis seeds
+    (``genesis -> planned`` / ``genesis -> canceled``) and every other edge
+    are contributed by the corresponding state object.
+
+    Guard conditions (actor, subtasks-complete, review result, done evidence,
+    force) are a separate concern layered on top by :func:`validate_transition`
+    via ``_GUARDED_TRANSITIONS``; this projection captures only edge existence.
+    """
+    from specify_cli.status.wp_state import wp_state_for  # noqa: PLC0415 -- avoid import cycle at module top
+
+    return frozenset(
+        (lane.value, target.value)
+        for lane in Lane
+        for target in wp_state_for(lane).allowed_targets()
+    )
+
+
+# Single source of truth: derived from the WPState FSM, not hand-maintained.
+ALLOWED_TRANSITIONS: frozenset[tuple[str, str]] = _derive_allowed_transitions()
 
 # Map of (from_lane, to_lane) -> guard function name
 _GUARDED_TRANSITIONS: dict[tuple[str, str], str] = {

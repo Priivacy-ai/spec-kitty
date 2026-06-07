@@ -54,6 +54,19 @@ def _setup_feature(tmp_path: Path, mission_slug: str = "099-test") -> Path:
 
     return feature_dir
 
+
+def _seed_planned(feature_dir: Path, slug: str, wp_id: str, repo_root: Path) -> None:
+    """Seed a WP out of the non-display 'genesis' state into 'planned'.
+
+    A fresh WP derives from_lane 'genesis', so the first lane transition must
+    be genesis -> planned (as finalize-tasks does) before claimed/etc.
+    """
+    emit_status_transition(TransitionRequest(
+        feature_dir=feature_dir, mission_slug=slug,
+        wp_id=wp_id, to_lane="planned", actor="seed",
+        force=True, reason="seed", repo_root=repo_root,
+    ))
+
 # ── Tests ────────────────────────────────────────────────────────
 
 class TestE2EFullPipeline:
@@ -64,6 +77,10 @@ class TestE2EFullPipeline:
         feature_dir = _setup_feature(tmp_path)
         slug = "099-test"
         repo_root = feature_dir.parent.parent
+
+        # Seed both WPs out of genesis into planned.
+        _seed_planned(feature_dir, slug, "WP01", repo_root)
+        _seed_planned(feature_dir, slug, "WP02", repo_root)
 
         # Emit transitions for WP01 through the lifecycle
         emit_status_transition(TransitionRequest(
@@ -89,15 +106,15 @@ class TestE2EFullPipeline:
             repo_root=repo_root,
         ))
 
-        # Verify event count
+        # Verify event count (2 genesis->planned seeds + 4 lifecycle events)
         events = read_events(feature_dir)
-        assert len(events) == 4
+        assert len(events) == 6
 
         # Materialize (already done by emit, but do it explicitly too)
         snapshot = materialize(feature_dir)
         assert snapshot.work_packages["WP01"]["lane"] == "for_review"
         assert snapshot.work_packages["WP02"]["lane"] == "claimed"
-        assert snapshot.event_count == 4
+        assert snapshot.event_count == 6
 
         # Validate: no materialization drift
         findings = validate_materialization_drift(feature_dir)
@@ -147,7 +164,8 @@ class TestE2EEmitInvalidTransition:
         slug = "099-test"
         repo_root = feature_dir.parent.parent
 
-        # Valid transition
+        # Seed out of genesis, then the valid transition
+        _seed_planned(feature_dir, slug, "WP01", repo_root)
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
@@ -162,10 +180,10 @@ class TestE2EEmitInvalidTransition:
                 repo_root=repo_root,
             ))
 
-        # Only the valid event should exist
+        # Only the seed + the valid claimed event should exist
         events = read_events(feature_dir)
-        assert len(events) == 1
-        assert events[0].to_lane == Lane.CLAIMED
+        assert len(events) == 2
+        assert events[-1].to_lane == Lane.CLAIMED
 
 class TestE2EEmitForceTransition:
     """T077: Force transitions bypass guards."""
@@ -219,6 +237,7 @@ class TestE2EJsonOutputFormat:
         slug = "099-test"
         repo_root = feature_dir.parent.parent
 
+        _seed_planned(feature_dir, slug, "WP01", repo_root)
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
@@ -262,6 +281,8 @@ class TestE2EMaterializeIdempotent:
         slug = "099-test"
         repo_root = feature_dir.parent.parent
 
+        _seed_planned(feature_dir, slug, "WP01", repo_root)
+        _seed_planned(feature_dir, slug, "WP02", repo_root)
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",

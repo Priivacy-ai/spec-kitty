@@ -93,6 +93,26 @@ def test_emit_from_worktree_writes_to_canonical_repo(tmp_path: Path) -> None:
     repo = _bootstrap_repo(tmp_path / "main")
     canonical_feature_dir = _bootstrap_mission(repo, slug)
 
+    # Seed WP01 out of the non-display 'genesis' state into 'planned' (as
+    # finalize-tasks does) so the claimed transition is legal.
+    seed_event = {
+        "actor": "seed",
+        "at": "2026-05-31T00:00:00+00:00",
+        "event_id": "01HXYZ0123456789ABCDEFGS01",
+        "evidence": None,
+        "execution_mode": "worktree",
+        "force": False,
+        "from_lane": "genesis",
+        "mission_slug": slug,
+        "reason": "seed",
+        "review_ref": None,
+        "to_lane": "planned",
+        "wp_id": "WP01",
+    }
+    (canonical_feature_dir / "status.events.jsonl").write_text(
+        json.dumps(seed_event, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
     worktree = tmp_path / "wt-feature"
     _git(repo, "worktree", "add", "-b", "feature", str(worktree))
 
@@ -120,8 +140,9 @@ def test_emit_from_worktree_writes_to_canonical_repo(tmp_path: Path) -> None:
     canonical_lines = [
         line for line in canonical_log.read_text(encoding="utf-8").splitlines() if line
     ]
-    assert len(canonical_lines) == 1
-    payload = json.loads(canonical_lines[0])
+    # genesis->planned seed + the planned->claimed transition under test.
+    assert len(canonical_lines) == 2
+    payload = json.loads(canonical_lines[-1])
     assert payload["wp_id"] == "WP01"
     assert payload["to_lane"] == "claimed"
 

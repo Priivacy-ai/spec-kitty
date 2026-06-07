@@ -89,6 +89,38 @@ def _extract_wp_ids_from_task_files(wp_files: list[Path]) -> list[str]:
     return sorted(wp_ids)
 
 
+# Canonical status event log + snapshot. On coordination-topology missions these
+# are owned by the transactional status emitter on the coordination branch and must
+# NOT be overwritten by the primary checkout's stale copies during finalize (#1589).
+_COORD_OWNED_STATUS_FILES = frozenset({"status.events.jsonl", "status.json"})
+
+
+def _stage_finalize_artifacts_in_coord_worktree(
+    files_to_commit: list[Path],
+    coord_worktree: Path,
+    repo_root: Path,
+) -> list[Path]:
+    """Copy finalize artifacts from the primary checkout into the coordination
+    worktree for staging, returning the coord-worktree paths to commit.
+
+    The canonical status event log + snapshot (``_COORD_OWNED_STATUS_FILES``)
+    are deliberately skipped: on coordination-topology missions they are owned
+    by the transactional status emitter, which already committed the bootstrap's
+    lane-state events into the coord worktree. Copying the primary checkout's
+    stale copies over them would clobber the seeded lane state (#1589).
+    """
+    coord_files: list[Path] = []
+    for src in files_to_commit:
+        if src.name in _COORD_OWNED_STATUS_FILES:
+            continue
+        dst = coord_worktree / src.relative_to(repo_root)
+        if src.exists():
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+        coord_files.append(dst)
+    return coord_files
+
+
 def _emit_console_or_json_error(*, json_output: bool, message: str) -> None:
     """Emit a command error consistently across human and JSON modes."""
     if json_output:
@@ -3013,20 +3045,16 @@ def finalize_tasks(
                     _mid8 = _raw_mid[:8] if isinstance(_raw_mid, str) and len(_raw_mid) >= 8 else None
                     if _mid8:
                         from specify_cli.coordination.workspace import CoordinationWorkspace as _CW
-                        import shutil as _shutil
                         _coord_wt = _CW.worktree_path(repo_root, mission_slug, _mid8)
                         if _coord_wt.exists():
                             _commit_worktree_root = _coord_wt
                             # Files were written to the main checkout; copy to the
                             # coord worktree before staging so safe_commit can find them.
-                            _coord_files = []
-                            for _src in files_to_commit:
-                                _dst = _coord_wt / _src.relative_to(repo_root)
-                                if _src.exists():
-                                    _dst.parent.mkdir(parents=True, exist_ok=True)
-                                    _shutil.copy2(_src, _dst)
-                                _coord_files.append(_dst)
-                            _commit_files = _coord_files
+                            # The canonical status log/snapshot are skipped to preserve
+                            # the bootstrap's seeded lane state (#1589) — see the helper.
+                            _commit_files = _stage_finalize_artifacts_in_coord_worktree(
+                                files_to_commit, _coord_wt, repo_root
+                            )
                 commit_msg = f"Add tasks for feature {mission_slug}"
                 commit_success = safe_commit(
                     repo_root=repo_root,

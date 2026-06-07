@@ -28,7 +28,10 @@ class TestConstants:
         assert len(CANONICAL_LANES) == 9
 
     def test_allowed_transitions_count(self) -> None:
-        assert len(ALLOWED_TRANSITIONS) == 27
+        # 27 base transitions + 2 genesis seeds: (genesis,planned) and
+        # (genesis,canceled). 'genesis' is the pre-finalize state a WP is
+        # seeded out of via finalize-tasks.
+        assert len(ALLOWED_TRANSITIONS) == 29
 
     def test_terminal_lanes(self) -> None:
         assert frozenset({"done", "canceled"}) == TERMINAL_LANES

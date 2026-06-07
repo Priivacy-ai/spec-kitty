@@ -58,8 +58,22 @@ def _event(
     )
 
 
+def _seed_planned(feature_dir: Path, wp_id: str = "WP01") -> None:
+    """Seed a WP out of the non-display 'genesis' state into 'planned'.
+
+    A fresh WP derives from_lane 'genesis', so it must be seeded to 'planned'
+    (as finalize-tasks does) before start_implementation_status can batch the
+    planned -> claimed -> in_progress lifecycle.
+    """
+    append_event(
+        feature_dir,
+        _event("01SEED00000000000000000001", from_lane=Lane.GENESIS, to_lane=Lane.PLANNED, wp_id=wp_id),
+    )
+
+
 def test_start_implementation_batches_planned_to_in_progress(tmp_path: Path) -> None:
     feature_dir = _feature_dir(tmp_path)
+    _seed_planned(feature_dir)
 
     result = start_implementation_status(
         feature_dir=feature_dir,
@@ -76,7 +90,9 @@ def test_start_implementation_batches_planned_to_in_progress(tmp_path: Path) -> 
     assert result.no_op is False
 
     events = read_events(feature_dir)
+    # genesis->planned seed, then the planned->claimed->in_progress batch.
     assert [(event.from_lane, event.to_lane) for event in events] == [
+        (Lane.GENESIS, Lane.PLANNED),
         (Lane.PLANNED, Lane.CLAIMED),
         (Lane.CLAIMED, Lane.IN_PROGRESS),
     ]
@@ -87,6 +103,7 @@ def test_start_implementation_batches_planned_to_in_progress(tmp_path: Path) -> 
 def test_backgrounded_implementation_start_does_not_strand_claimed(tmp_path: Path) -> None:
     """A normal start writes claim and progress evidence as one durable batch."""
     feature_dir = _feature_dir(tmp_path)
+    _seed_planned(feature_dir)
 
     result = start_implementation_status(
         feature_dir=feature_dir,
@@ -100,7 +117,8 @@ def test_backgrounded_implementation_start_does_not_strand_claimed(tmp_path: Pat
 
     assert result.to_lane == Lane.IN_PROGRESS
     events = read_events(feature_dir)
-    assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS]
+    # genesis->planned seed, then the claimed + in_progress batch.
+    assert [event.to_lane for event in events] == [Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS]
     assert reduce(events).work_packages["WP01"]["lane"] == Lane.IN_PROGRESS
 
 

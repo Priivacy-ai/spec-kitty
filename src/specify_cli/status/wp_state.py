@@ -85,6 +85,34 @@ class WPState(ABC):
     @abstractmethod
     def can_transition_to(self, target: Lane, ctx: TransitionContext) -> bool: ...
 
+    @property
+    def current_lane(self) -> Lane:
+        """The lane this state represents (State-pattern FSM accessor).
+
+        Alias of :attr:`lane` using the canonical FSM vocabulary.
+        """
+        return self.lane
+
+    def may_transition_to(self, target: Lane) -> bool:
+        """Return True if an edge exists from this state to ``target``.
+
+        This is the guard-free structural FSM check (does the transition
+        exist at all?). Guard conditions — actor presence, subtasks-complete,
+        review result, done evidence, force override — are evaluated
+        separately by :meth:`can_transition_to` and, at the mission level, by
+        :func:`specify_cli.status.transitions.validate_transition`.
+        """
+        return target in self.allowed_targets()
+
+    def transition_to(self, target: Lane, ctx: TransitionContext) -> WPState:
+        """Return the successor state after a guarded transition.
+
+        Canonical FSM name for :meth:`transition`. Raises
+        :class:`InvalidTransitionError` if the edge does not exist or its
+        guard conditions reject the move.
+        """
+        return self.transition(target, ctx)
+
     def transition(self, target: Lane, ctx: TransitionContext) -> WPState:
         """Return the new state after a validated transition."""
         if not self.can_transition_to(target, ctx):
@@ -114,6 +142,35 @@ def _has_actor(ctx: TransitionContext) -> bool:
 # ---------------------------------------------------------------------------
 # Concrete state classes
 # ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class GenesisState(WPState):
+    """Work package created but not yet seeded into the lane lifecycle.
+
+    Pre-finalize, non-display state. ``finalize-tasks`` performs the explicit
+    ``genesis -> planned`` seed. A genesis WP has no lane events and so never
+    materializes into a snapshot or onto the board; this state exists to make
+    the seed transition explicit rather than an implied ``planned -> planned``.
+    """
+
+    @property
+    def lane(self) -> Lane:
+        return Lane.GENESIS
+
+    def allowed_targets(self) -> frozenset[Lane]:
+        return frozenset({Lane.PLANNED, Lane.CANCELED})
+
+    def can_transition_to(self, target: Lane, ctx: TransitionContext) -> bool:  # noqa: ARG002 -- ctx is interface-required; genesis seed has no guard
+        return target in self.allowed_targets()
+
+    def progress_bucket(self) -> str:
+        return "not_started"
+
+    def display_category(self) -> str:
+        # Non-display lane: group under Planned so no separate board column is
+        # ever introduced for the transient genesis state.
+        return "Planned"
 
 
 @dataclass(frozen=True)
@@ -422,6 +479,7 @@ def _has_review_result(ctx: TransitionContext) -> bool:
 # ---------------------------------------------------------------------------
 
 _STATE_MAP: dict[str, type[WPState]] = {
+    "genesis": GenesisState,
     "planned": PlannedState,
     "claimed": ClaimedState,
     "in_progress": InProgressState,

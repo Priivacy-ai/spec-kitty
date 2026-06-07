@@ -61,6 +61,31 @@ def feature_dir(tmp_path: Path) -> Path:
     return fd
 
 
+def _seed_planned(feature_dir: Path, wp_id: str = "WP01", slug: str = "034-test-feature") -> None:
+    """Seed a WP out of the non-display 'genesis' state into 'planned'.
+
+    Written directly to the event log (as finalize-tasks seeds) so a fresh WP
+    starts at 'planned' and the lane lifecycle (e.g. planned -> claimed) is
+    legal; otherwise the first transition would be the illegal genesis -> claimed.
+    """
+    seed_event = {
+        "event_id": "01HXYZ0123456789ABCDEFGS01",
+        "mission_slug": slug,
+        "wp_id": wp_id,
+        "from_lane": "genesis",
+        "to_lane": "planned",
+        "at": "2026-02-07T12:00:00+00:00",
+        "actor": "seed",
+        "force": False,
+        "execution_mode": "worktree",
+        "reason": "seed",
+        "review_ref": None,
+        "evidence": None,
+    }
+    with (feature_dir / "status.events.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(seed_event, sort_keys=True) + "\n")
+
+
 @pytest.fixture
 def feature_dir_with_events(feature_dir: Path) -> Path:
     """Feature directory pre-populated with a valid events file."""
@@ -118,6 +143,7 @@ class TestEmitCommand:
 
     def test_emit_valid_transition(self, tmp_path: Path, feature_dir: Path):
         """A valid planned -> claimed transition should succeed."""
+        _seed_planned(feature_dir)
         patches = _patch_detection(tmp_path)
         with (
             patches["locate_project_root"],
@@ -176,6 +202,7 @@ class TestEmitCommand:
 
     def test_emit_json_output(self, tmp_path: Path, feature_dir: Path):
         """--json flag should produce valid parseable JSON."""
+        _seed_planned(feature_dir)
         patches = _patch_detection(tmp_path)
         with (
             patches["locate_project_root"],
@@ -207,6 +234,7 @@ class TestEmitCommand:
 
     def test_emit_evidence_json_parsing(self, tmp_path: Path, feature_dir: Path):
         """Valid --evidence-json should be parsed and passed through."""
+        _seed_planned(feature_dir)
         patches = _patch_detection(tmp_path)
 
         # Build up state: planned -> claimed -> in_progress -> for_review -> in_review
@@ -579,6 +607,7 @@ class TestEmitThenMaterialize:
 
     def test_emit_then_materialize(self, tmp_path: Path, feature_dir: Path):
         """Emit a transition, then materialize and verify the snapshot."""
+        _seed_planned(feature_dir)
         patches = _patch_detection(tmp_path)
 
         # Emit
