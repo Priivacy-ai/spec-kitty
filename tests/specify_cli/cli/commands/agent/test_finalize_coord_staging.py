@@ -11,10 +11,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from specify_cli.cli.commands.agent.mission import (
     _COORD_OWNED_STATUS_FILES,
     _stage_finalize_artifacts_in_coord_worktree,
 )
+
+pytestmark = pytest.mark.integration
 
 
 def _write(path: Path, text: str) -> Path:
