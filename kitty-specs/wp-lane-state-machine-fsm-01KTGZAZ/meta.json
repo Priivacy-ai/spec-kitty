@@ -1,0 +1,13 @@
+{
+  "coordination_branch": "kitty/mission-wp-lane-state-machine-fsm-01KTGZAZ",
+  "created_at": "2026-06-07T12:01:20.536708+00:00",
+  "friendly_name": "WP Lane State Machine canonicalization",
+  "mission_id": "01KTGZAZ4RG6N669Z62JK5SWMB",
+  "mission_number": null,
+  "mission_slug": "wp-lane-state-machine-fsm-01KTGZAZ",
+  "mission_type": "software-dev",
+  "purpose_context": "The execution-state mission surfaced #1589: a status split-brain where finalize clobbered the coordination event log and an unseeded WP defaulted to planned, so the bootstrap seed was a no-op. An initial fix (branch fix/status-genesis-lane-bootstrap) introduced Lane.GENESIS and made wp_state.py the single source of transition truth. A five-lens adversarial review confirmed the core but found follow-ups (SaaS genesis-seed drop, read/write-layer disagreement, force-in-FSM, genesis summary leak, leanness). This mission formalizes the FSM design and folds in all review findings.",
+  "purpose_tldr": "Canonicalize WP lane state as an encapsulated State-pattern FSM (single source of transition truth) with an explicit non-display genesis lane, closing the #1589 split-brain class and folding in adversarial-review follow-ups.",
+  "slug": "wp-lane-state-machine-fsm-01KTGZAZ",
+  "target_branch": "mission/wp-lane-state-machine-fsm"
+}
