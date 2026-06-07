@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
@@ -22,11 +23,11 @@ def _settings_path(project_root: Path) -> Path:
     return project_root / _SETTINGS_REL
 
 
-def _read_settings(project_root: Path) -> dict:  # type: ignore[type-arg]
-    return json.loads(_settings_path(project_root).read_text(encoding="utf-8"))
+def _read_settings(project_root: Path) -> dict[str, Any]:
+    return cast(dict[str, Any], json.loads(_settings_path(project_root).read_text(encoding="utf-8")))
 
 
-def _write_settings(project_root: Path, data: dict) -> None:  # type: ignore[type-arg]
+def _write_settings(project_root: Path, data: dict[str, Any]) -> None:
     _settings_path(project_root).parent.mkdir(parents=True, exist_ok=True)
     _settings_path(project_root).write_text(json.dumps(data), encoding="utf-8")
 

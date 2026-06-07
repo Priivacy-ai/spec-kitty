@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.session_presence.content import SECTION_CLOSE, SECTION_OPEN
+from specify_cli.session_presence.content import SECTION_CLOSE, SECTION_OPEN, SessionPresenceContent
 from specify_cli.session_presence.writers.markdown_rules import MarkdownRulesWriter
 
 
@@ -20,10 +20,8 @@ def _make_content(
     slug: str = "test-project",
     health: str = "healthy",
     available: str | None = None,
-) -> object:
-    from specify_cli.session_presence.content import SessionPresenceContent
-
-    return SessionPresenceContent(version, slug, health, available)  # type: ignore[arg-type]
+) -> SessionPresenceContent:
+    return SessionPresenceContent(version, slug, health, available)
 
 
 class TestAppendModeTrue:
@@ -36,7 +34,7 @@ class TestAppendModeTrue:
 
     def test_first_write_creates_file(self, tmp_path: Path) -> None:
         writer = self._writer()
-        writer.write(tmp_path, _make_content())  # type: ignore[arg-type]
+        writer.write(tmp_path, _make_content())
         target = tmp_path / "CLAUDE.md"
         assert target.exists()
         assert SECTION_OPEN in target.read_text(encoding="utf-8")
@@ -45,7 +43,7 @@ class TestAppendModeTrue:
         target = tmp_path / "CLAUDE.md"
         target.write_text("# Existing content\n", encoding="utf-8")
         writer = self._writer()
-        writer.write(tmp_path, _make_content())  # type: ignore[arg-type]
+        writer.write(tmp_path, _make_content())
         text = target.read_text(encoding="utf-8")
         assert "# Existing content" in text
         assert SECTION_OPEN in text
@@ -53,8 +51,8 @@ class TestAppendModeTrue:
     def test_rewrite_replaces_section_no_duplicates(self, tmp_path: Path) -> None:
         writer = self._writer()
         content = _make_content()
-        writer.write(tmp_path, content)  # type: ignore[arg-type]
-        writer.write(tmp_path, content)  # type: ignore[arg-type]
+        writer.write(tmp_path, content)
+        writer.write(tmp_path, content)
         text = (tmp_path / "CLAUDE.md").read_text(encoding="utf-8")
         assert text.count(SECTION_OPEN) == 1
 
@@ -62,8 +60,8 @@ class TestAppendModeTrue:
         target = tmp_path / "CLAUDE.md"
         target.write_text("# Header\n\n# Footer\n", encoding="utf-8")
         writer = self._writer()
-        writer.write(tmp_path, _make_content())  # type: ignore[arg-type]
-        writer.write(tmp_path, _make_content())  # type: ignore[arg-type]
+        writer.write(tmp_path, _make_content())
+        writer.write(tmp_path, _make_content())
         text = target.read_text(encoding="utf-8")
         assert "# Header" in text
 
@@ -71,7 +69,7 @@ class TestAppendModeTrue:
         target = tmp_path / "CLAUDE.md"
         target.write_text("# Before\n\n# After\n", encoding="utf-8")
         writer = self._writer()
-        writer.write(tmp_path, _make_content())  # type: ignore[arg-type]
+        writer.write(tmp_path, _make_content())
         writer.remove(tmp_path)
         text = target.read_text(encoding="utf-8")
         assert SECTION_OPEN not in text
@@ -91,7 +89,7 @@ class TestAppendModeTrue:
 
     def test_has_presence_true_when_section_present(self, tmp_path: Path) -> None:
         writer = self._writer()
-        writer.write(tmp_path, _make_content())  # type: ignore[arg-type]
+        writer.write(tmp_path, _make_content())
         assert writer.has_presence(tmp_path) is True
 
     def test_has_presence_false_when_section_absent(self, tmp_path: Path) -> None:
@@ -119,7 +117,7 @@ class TestAppendModeFalse:
         rules_dir = tmp_path / ".cursor" / "rules"
         rules_dir.mkdir(parents=True)
         writer = self._writer()
-        writer.write(tmp_path, _make_content())  # type: ignore[arg-type]
+        writer.write(tmp_path, _make_content())
         target = tmp_path / ".cursor" / "rules" / "spec-kitty.mdc"
         assert target.exists()
         text = target.read_text(encoding="utf-8")
@@ -130,8 +128,8 @@ class TestAppendModeFalse:
         rules_dir = tmp_path / ".cursor" / "rules"
         rules_dir.mkdir(parents=True)
         writer = self._writer()
-        writer.write(tmp_path, _make_content())  # type: ignore[arg-type]
-        writer.write(tmp_path, _make_content(version="3.3.0"))  # type: ignore[arg-type]
+        writer.write(tmp_path, _make_content())
+        writer.write(tmp_path, _make_content(version="3.3.0"))
         target = tmp_path / ".cursor" / "rules" / "spec-kitty.mdc"
         text = target.read_text(encoding="utf-8")
         assert text.count(SECTION_OPEN) == 1
@@ -141,7 +139,7 @@ class TestAppendModeFalse:
         rules_dir = tmp_path / ".cursor" / "rules"
         rules_dir.mkdir(parents=True)
         writer = self._writer()
-        writer.write(tmp_path, _make_content())  # type: ignore[arg-type]
+        writer.write(tmp_path, _make_content())
         writer.remove(tmp_path)
         target = tmp_path / ".cursor" / "rules" / "spec-kitty.mdc"
         assert not target.exists()
@@ -172,7 +170,7 @@ class TestAtomicity:
         )
 
         with patch("os.replace", side_effect=OSError("disk full")), pytest.raises(OSError):
-            writer.write(tmp_path, _make_content())  # type: ignore[arg-type]
+            writer.write(tmp_path, _make_content())
 
         # Original file should be unchanged
         assert target.read_text(encoding="utf-8") == original_content

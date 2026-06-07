@@ -87,11 +87,11 @@ class TestFrozenInstance:
     def test_frozen_version_attribute(self, healthy_content: SessionPresenceContent) -> None:
         """C-004: SessionPresenceContent must be frozen (immutable value object)."""
         with pytest.raises(FrozenInstanceError):
-            healthy_content.version = "x"  # type: ignore[misc]
+            healthy_content.version = "x"
 
     def test_frozen_health_attribute(self, healthy_content: SessionPresenceContent) -> None:
         with pytest.raises(FrozenInstanceError):
-            healthy_content.health = "upgrade-available"  # type: ignore[misc]
+            healthy_content.health = "upgrade-available"
 
 
 class TestNoNextImports:
