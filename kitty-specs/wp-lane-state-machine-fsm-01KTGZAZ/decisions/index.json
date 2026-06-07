@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-06-07T12:14:44.850542Z",
+      "decision_id": "01KTH03GKJ2PEWCRGGECXVZ2CM",
+      "final_answer": "Full ownership: guards + force-override move into the WPState objects; validate_transition becomes a thin delegator to the FSM. Behavior preserved, pinned by tests.",
+      "input_key": "guard_force_ownership",
+      "mission_id": "01KTGZAZ4RG6N669Z62JK5SWMB",
+      "mission_slug": "wp-lane-state-machine-fsm-01KTGZAZ",
+      "opened_by": "cli",
+      "options": [
+        "Full ownership: guards+force move into the State objects; validate_transition becomes a thin delegator",
+        "FSM owns edges+force; rich guards stay in validate_transition as a composed layer",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How fully should the WPState objects own transition guards and force-override (the 'full wiring' boundary)?",
+      "rationale": null,
+      "resolved_at": "2026-06-07T12:16:31.356611Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.guard-force-ownership",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-06-07T12:14:45.493606Z",
+      "decision_id": "01KTH03H7NPWV6W0Y2YKRSPD2K",
+      "final_answer": "Bump spec_kitty_events to add a genesis lane (external coordinated release via the owning-package workflow), so the genesis->planned seed fans out as a real transition rather than from_lane=None.",
+      "input_key": "saas_genesis_representation",
+      "mission_id": "01KTGZAZ4RG6N669Z62JK5SWMB",
+      "mission_slug": "wp-lane-state-machine-fsm-01KTGZAZ",
+      "opened_by": "cli",
+      "options": [
+        "Map to from_lane=None (existing bootstrap-planned contract, in-repo)",
+        "Bump spec_kitty_events to add a genesis lane (external coordinated release)",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How should the genesis->planned seed be represented at the spec_kitty_events/SaaS boundary?",
+      "rationale": null,
+      "resolved_at": "2026-06-07T12:16:32.005681Z",
+      "resolved_by": null,
+      "slot_key": "plan.boundary.saas-genesis-representation",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KTGZAZ4RG6N669Z62JK5SWMB",
+  "version": 1
+}
