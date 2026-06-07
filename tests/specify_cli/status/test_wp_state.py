@@ -448,12 +448,22 @@ class TestGuardEquivalence:
         )
         assert state.can_transition_to(Lane.FOR_REVIEW, ctx_no_ev) is False
 
-        # Force bypasses
+        # can_transition_to must NOT consult force (#1775 review M2): with the
+        # guard unmet, it returns False even when force=True. Force is only honoured
+        # by the full check_transition / transition_to decision.
         ctx_force = TransitionContext(
             actor="test",
+            reason="forced for audit",
             force=True,
         )
-        assert state.can_transition_to(Lane.FOR_REVIEW, ctx_force) is True
+        assert state.can_transition_to(Lane.FOR_REVIEW, ctx_force) is False
+        # ...but the force path (with actor + reason) succeeds via check_transition.
+        ok, err = state.check_transition(Lane.FOR_REVIEW, ctx_force)
+        assert ok is True and err is None
+        # ...and force without a reason is still rejected (audit requirement).
+        ctx_force_no_reason = TransitionContext(actor="test", force=True)
+        ok_nr, _ = state.check_transition(Lane.FOR_REVIEW, ctx_force_no_reason)
+        assert ok_nr is False
 
     def test_in_progress_to_approved_reviewer_approval(self):
         """in_progress -> approved requires reviewer approval evidence."""

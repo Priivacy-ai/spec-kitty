@@ -317,9 +317,13 @@ class InProgressState(WPState):
         )
 
     def guard_for(self, target: Lane, ctx: TransitionInputs) -> tuple[bool, str | None]:
+        # NB: guards must NOT consult ``ctx.force`` — force is handled once, at the
+        # caller (``check_transition._check_force``), which bypasses the guard
+        # entirely. A force branch here is dead on the canonical path and breaks
+        # the ``can_transition_to`` contract ("Force is NOT consulted here"), making
+        # ``can_transition_to(FOR_REVIEW, force=True)`` disagree with
+        # ``check_transition`` (#1775 review M2).
         if target == Lane.FOR_REVIEW:
-            if ctx.force:
-                return True, None
             if ctx.subtasks_complete is not True:
                 return (
                     False,
