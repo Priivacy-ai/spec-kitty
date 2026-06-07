@@ -106,12 +106,12 @@
 **Estimated prompt size**: ~480 lines
 **Depends on**: WP01, WP02, WP03
 
-- [ ] T017 Write `conftest.py` + `test_content.py` (WP04)
-- [ ] T018 Write `test_upgrade_checker.py` (WP04)
-- [ ] T019 Write `test_markdown_rules_writer.py` (WP04)
-- [ ] T020 Write `test_claude_code_writer.py` + `test_claude_code_hook.py` (WP04)
-- [ ] T021 Write `test_manager.py` + `test_session_start.py` (WP04)
-- [ ] T022 Write `test_m_session_presence_claude_code.py` (WP04)
+- [x] T017 Write `conftest.py` + `test_content.py` (WP04)
+- [x] T018 Write `test_upgrade_checker.py` (WP04)
+- [x] T019 Write `test_markdown_rules_writer.py` (WP04)
+- [x] T020 Write `test_claude_code_writer.py` + `test_claude_code_hook.py` (WP04)
+- [x] T021 Write `test_manager.py` + `test_session_start.py` (WP04)
+- [x] T022 Write `test_m_session_presence_claude_code.py` (WP04)
 
 **Prompt**: [WP04-phase1-test-suite.md](tasks/WP04-phase1-test-suite.md)
 
