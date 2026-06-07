@@ -436,10 +436,20 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
         feature_dir, mission_slug
     )[0]
 
-    status_paths = [e.path for e in entries]
+    # #1589: the canonical status event log + snapshot on the coordination
+    # branch are owned by the transactional status emitter, which holds the
+    # bootstrap's seeded lane-state events. The primary checkout's copies are
+    # stale (lifecycle events only, no lane state); committing them to the
+    # coordination branch here CLOBBERS the seed (the same defect the
+    # finalize-tasks staging fix addresses). Exclude them from this commit.
+    _coord_owned_status = {"status.events.jsonl", "status.json"}
+    status_paths = [e.path for e in entries if Path(e.path).name not in _coord_owned_status]
     files_to_commit = list(status_paths)
     if coord_branch_for_filter:
-        files_to_commit.extend(_feature_dir_file_paths(repo_root, feature_dir))
+        files_to_commit.extend(
+            p for p in _feature_dir_file_paths(repo_root, feature_dir)
+            if Path(p).name not in _coord_owned_status
+        )
     files_to_commit = list(dict.fromkeys(files_to_commit))
     if not files_to_commit:
         return
