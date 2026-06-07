@@ -23,7 +23,8 @@ subtasks:
 - T020
 - T021
 - T022
-agent: claude
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "67077"
 history:
 - date: '2026-06-07'
   status: planned
@@ -281,3 +282,7 @@ def test_session_start_performance(claude_project, monkeypatch):
 - `typer.testing.CliRunner` may capture stdout differently than production. Verify that `typer.echo()` output appears in `result.output`.
 - `FrozenInstanceError` test: this is `dataclasses.FrozenInstanceError` in Python 3.11+. Import from `dataclasses`.
 - Mocking `importlib.metadata.version`: use `unittest.mock.patch("specify_cli.session_presence.manager.version", return_value="3.2.0")` or equivalent.
+
+## Activity Log
+
+- 2026-06-07T15:41:29Z – claude:sonnet:implementer:implementer – shell_pid=67077 – Assigned agent via action command
