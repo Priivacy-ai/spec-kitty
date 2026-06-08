@@ -370,6 +370,9 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle::MIGRATION_ID",
         "specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle::TARGET_VERSION",
         "specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle::UnifiedBundleMigration",
+        # 3.2.0rc39 orientation-block refresh migration: auto-discovered; no
+        # static importer. Class is exercised via the MigrationRegistry.
+        "specify_cli.upgrade.migrations.m_3_2_0rc39_refresh_orientation_block::RefreshOrientationBlockMigration",
         "specify_cli.upgrade.migrations::MigrationDiscoveryError",
         "specify_cli.validators.csv_schema::CSVSchemaValidation",
         "specify_cli.validators.paths::PathValidationResult",
