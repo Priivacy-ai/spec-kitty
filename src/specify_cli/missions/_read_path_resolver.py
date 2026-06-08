@@ -209,7 +209,6 @@ def resolve_mission_read_path(
 
 
 __all__ = [
-    "STATUS_READ_PATH_NOT_FOUND_CODE",
     "StatusReadPathNotFound",
     "resolve_mission_read_path",
 ]

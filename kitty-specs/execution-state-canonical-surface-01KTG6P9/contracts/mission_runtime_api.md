@@ -13,10 +13,13 @@ __all__ = ["ExecutionContext", "ExecutionMode", "resolve_action_context", "Actio
 ```
 resolve_action_context(
     repo_root: Path,
-    mission: str,                 # mission_id | mid8 | mission_slug (never mission_number)
-    wp_id: str | None = None,
     *,
-    mode: ExecutionMode | None = None,   # inferred when None
+    action: ActionName,
+    feature: str | None = None,          # mission_id | mid8 | mission_slug (never mission_number)
+    wp_id: str | None = None,
+    agent: str | None = None,
+    cwd: Path | None = None,
+    env: Mapping[str, str] | None = None,
 ) -> ExecutionContext
 ```
 

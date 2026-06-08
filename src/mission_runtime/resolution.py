@@ -22,14 +22,6 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Literal, cast, get_args
 
-from specify_cli.core.dependency_graph import parse_wp_dependencies
-from specify_cli.core.paths import get_feature_target_branch, require_explicit_feature
-from specify_cli.lanes.branch_naming import mid8_from_slug
-from specify_cli.status import Lane
-from specify_cli.status import resolve_lane_alias
-from specify_cli.task_utils import locate_work_package
-from specify_cli.workspace.context import resolve_workspace_for_wp
-
 from mission_runtime.context import ExecutionContext
 
 
@@ -75,6 +67,8 @@ def _resolve_mission_slug(
     Raises ActionContextError if feature is not provided or the mission
     directory cannot be located in either view.
     """
+    from specify_cli.core.paths import require_explicit_feature
+
     try:
         slug = require_explicit_feature(feature, command_hint="--mission <slug>")
     except ValueError as exc:
@@ -100,6 +94,8 @@ def _resolve_mission_slug(
 
 
 def _read_side_mid8_from_slug(slug: str) -> str:
+    from specify_cli.lanes.branch_naming import mid8_from_slug
+
     parsed = mid8_from_slug(slug)
     if parsed:
         return str(parsed)
@@ -120,7 +116,9 @@ def _find_first_wp(feature_dir: Path, lane: str) -> str | None:
     """Find the first WP with the given lane from the canonical event log."""
     import re as _re
     from specify_cli.status import CanonicalStatusNotFoundError
+    from specify_cli.status import Lane
     from specify_cli.status import get_wp_lane
+    from specify_cli.status import resolve_lane_alias
 
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
@@ -152,6 +150,7 @@ def _find_first_wp(feature_dir: Path, lane: str) -> str | None:
 def _resolve_review_wp_id(feature_dir: Path) -> str | None:
     """Find the WP to review: first ``for_review``, else a review-claimed WP."""
     from specify_cli.status import CanonicalStatusNotFoundError
+    from specify_cli.status import Lane
     from specify_cli.status import get_wp_lane
     from specify_cli.status import read_events
     from specify_cli.task_utils import extract_scalar, split_frontmatter
@@ -207,6 +206,8 @@ def _resolve_wp_id(
     feature_dir: Path,
     explicit_wp_id: str | None,
 ) -> str | None:
+    from specify_cli.status import Lane
+
     if explicit_wp_id:
         return explicit_wp_id.upper().split("-", 1)[0]
 
@@ -243,6 +244,13 @@ def resolve_action_context(
             "INVALID_ACTION",
             f"Invalid action '{action}'. Expected one of: {', '.join(ACTION_NAMES)}.",
         )
+
+    from specify_cli.core.dependency_graph import parse_wp_dependencies
+    from specify_cli.core.paths import get_feature_target_branch
+    from specify_cli.status import Lane
+    from specify_cli.status import resolve_lane_alias
+    from specify_cli.task_utils import locate_work_package
+    from specify_cli.workspace.context import resolve_workspace_for_wp
 
     mission_slug, feature_dir = _resolve_mission_slug(repo_root, feature=feature, cwd=cwd, env=env)
     target_branch = get_feature_target_branch(repo_root, mission_slug)

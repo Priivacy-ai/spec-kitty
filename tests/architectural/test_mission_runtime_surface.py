@@ -26,6 +26,8 @@ from __future__ import annotations
 import ast
 import contextlib
 import pathlib
+import subprocess
+import sys
 import textwrap
 from pathlib import Path
 
@@ -38,6 +40,12 @@ pytestmark = pytest.mark.architectural
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC = _REPO_ROOT / "src"
 _PACKAGE_DIR = _SRC / "mission_runtime"
+_PUBLIC_SURFACE = [
+    "ExecutionContext",
+    "ExecutionMode",
+    "resolve_action_context",
+    "ActionContextError",
+]
 
 
 # ---------------------------------------------------------------------------
@@ -47,6 +55,23 @@ _PACKAGE_DIR = _SRC / "mission_runtime"
 
 class TestMissionRuntimeSurface:
     """MR-1: external modules must not import mission_runtime.* submodules."""
+
+    def test_package_root_cold_imports(self) -> None:
+        """Package-root import must not require prior status/core initialization."""
+        result = subprocess.run(
+            [sys.executable, "-c", "import mission_runtime; print(mission_runtime.__all__)"],
+            cwd=_REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+
+    def test_public_surface_matches_contract(self) -> None:
+        """The public API stays lean; compatibility attrs are not in __all__."""
+        import mission_runtime
+
+        assert mission_runtime.__all__ == _PUBLIC_SURFACE
 
     def test_no_external_submodule_imports(self, evaluable) -> None:
         """pytestarch rule: nothing imports mission_runtime internals directly.

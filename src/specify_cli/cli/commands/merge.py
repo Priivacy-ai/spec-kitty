@@ -127,6 +127,23 @@ def _lane_already_integrated(
     return out.strip() == "0"
 
 
+def _branch_trees_equal(repo_root: Path, source_branch: str, target_branch: str) -> bool:
+    """Return True when two refs currently expose identical trees.
+
+    Squash merges do not preserve ancestry, so reachability is the wrong
+    idempotency predicate for "the squash payload already landed". For that
+    recovery path we need the content-level question: would merging source into
+    target produce any tree changes?
+    """
+    ret, _out, _err = run_command(
+        ["git", "diff", "--quiet", source_branch, target_branch],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    return ret == 0
+
+
 def path_is_under_worktrees(path: Path) -> bool:
     """Return True when ``path`` lies under the ``.worktrees/`` directory.
 
@@ -2107,11 +2124,10 @@ def _run_lane_based_merge_locked(
 
         # -- Mission-to-target merge (T010: honor strategy for this step only) --
         # FR-037 (#1772 Bug 3): a no-op squash is only legitimate when the
-        # mission branch is GENUINELY already integrated into the target (its
-        # tip carries no commits absent from target). Gating ``allow_already_
-        # applied`` on ``is_resume`` alone let a retry-after-abort silently
-        # squash zero diffs and report success. Gate on the real tree state.
-        _mission_integrated_into_target = _lane_already_integrated(
+        # mission branch content is already integrated into the target. Squash
+        # merges do not preserve commit ancestry, so gate this recovery path on
+        # tree equivalence, not ``rev-list`` reachability.
+        _mission_integrated_into_target = _branch_trees_equal(
             main_repo,
             lanes_manifest.mission_branch,
             lanes_manifest.target_branch,
@@ -2865,6 +2881,7 @@ __all__ = [
     "_run_lane_based_merge",
     "_is_linear_history_rejection",
     "_emit_remediation_hint",
+    "_branch_trees_equal",
     "_check_mission_branch",
     "_has_branch_ref",
     "_enforce_target_branch_sync_preflight",

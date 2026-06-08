@@ -112,7 +112,16 @@ def _stage_finalize_artifacts_in_coord_worktree(
     for src in files_to_commit:
         if src.name in COORD_OWNED_STATUS_FILES:
             continue
-        dst = coord_worktree / src.relative_to(repo_root)
+        rel = src.relative_to(repo_root)
+        # FR-035: finalize must never copy/stage paths that are already under
+        # the repository's .worktrees/ tree. Otherwise a coord-resolved source
+        # path maps to coord_wt/.worktrees/<mission>-coord/... and re-pollutes
+        # the branch with nested worktree content.
+        from specify_cli.cli.commands.merge import path_is_under_worktrees
+
+        if path_is_under_worktrees(rel):
+            continue
+        dst = coord_worktree / rel
         if src.exists():
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)

@@ -346,6 +346,29 @@ def test_fresh_merge_integrates_lane_code(tmp_path: Path) -> None:
     )
 
 
+def test_squash_applied_branch_is_integrated_by_tree_not_ancestry(tmp_path: Path) -> None:
+    """FR-037: squash-resume idempotency must use content, not ancestry."""
+    from specify_cli.cli.commands.merge import (
+        _branch_trees_equal,
+        _lane_already_integrated,
+    )
+
+    _init_git_repo(tmp_path)
+    _git(tmp_path, "checkout", "-b", "mission")
+    code_path = tmp_path / "src" / "feature_code.py"
+    code_path.parent.mkdir(parents=True, exist_ok=True)
+    code_path.write_text("def feature() -> int:\n    return 1772\n", encoding="utf-8")
+    _git(tmp_path, "add", "src/feature_code.py")
+    _git(tmp_path, "commit", "-m", "feat: mission code")
+
+    _git(tmp_path, "checkout", "main")
+    _git(tmp_path, "merge", "--squash", "mission")
+    _git(tmp_path, "commit", "-m", "squash mission")
+
+    assert not _lane_already_integrated(tmp_path, "mission", "main")
+    assert _branch_trees_equal(tmp_path, "mission", "main")
+
+
 # ---------------------------------------------------------------------------
 # T057 — FR-035: doctor flags tracked .worktrees/ content
 # ---------------------------------------------------------------------------
