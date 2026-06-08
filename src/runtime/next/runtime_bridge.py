@@ -1746,6 +1746,8 @@ def _advance_run_state_after_composition(
             decisions=snapshot.decisions,
             pending_decisions=snapshot.pending_decisions,
             blocked_reason=snapshot.blocked_reason,
+            mission_id=snapshot.mission_id,
+            mission_slug=snapshot.mission_slug,
         )
         ac_actor = RuntimeActorIdentity(actor_id=agent, actor_type="llm")
         ac_payload = NextStepAutoCompletedPayload(
@@ -1883,6 +1885,8 @@ def _advance_run_state_after_composition(
         decisions=snapshot.decisions,
         pending_decisions=pending_decisions,
         blocked_reason=snapshot.blocked_reason,
+        mission_id=snapshot.mission_id,
+        mission_slug=snapshot.mission_slug,
     )
     _write_snapshot(run_dir, snapshot)
 
