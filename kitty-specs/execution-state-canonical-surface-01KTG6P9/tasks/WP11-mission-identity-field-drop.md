@@ -10,10 +10,10 @@ requirement_refs:
 tracker_refs: []
 planning_base_branch: feat/execution-state-strangler
 merge_target_branch: feat/execution-state-strangler
-branch_strategy: Planning artifacts for this mission were generated on 
-  feat/execution-state-strangler. During /spec-kitty.implement this WP may 
-  branch from a dependency-specific base, but completed changes must merge back 
-  into feat/execution-state-strangler unless the human explicitly redirects the 
+branch_strategy: Planning artifacts for this mission were generated on
+  feat/execution-state-strangler. During /spec-kitty.implement this WP may
+  branch from a dependency-specific base, but completed changes must merge back
+  into feat/execution-state-strangler unless the human explicitly redirects the
   landing branch.
 subtasks:
 - T039
