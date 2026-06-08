@@ -297,7 +297,7 @@ def test_doctor_doctrine_human_renders_degraded_pack_and_invalid_profiles(
 
     buf = StringIO()
     original = doctor_mod.console
-    doctor_mod.console = Console(file=buf, highlight=False, markup=True)
+    doctor_mod.console = Console(file=buf, highlight=False, markup=True, width=200)
     try:
         doctor_mod._render_doctrine_pack(entry, 0)
     finally:

@@ -5,13 +5,8 @@
 spec_kitty:
   version: 3.2.0rc40
   initialized_at: '2026-04-07T09:10:40.826207'
-  last_upgraded_at: '2026-05-19T12:44:58.404394+00:00'
+  last_upgraded_at: '2026-06-08T10:03:59.356798'
   schema_version: 3
-  schema_capabilities:
-  - canonical_context
-  - event_log_authority
-  - ownership_manifest
-  - thin_shims
 environment:
   python_version: 3.14.0
   platform: darwin
@@ -289,3 +284,12 @@ migrations:
       (no global equivalent at ~/.codex/prompts/spec-kitty.tasks-finalize.md); Removed:
       .codex/prompts/spec-kitty.tasks.md; Removed: .codex/prompts/spec-kitty.tasks_outline.md;
       Removed: .codex/prompts/spec-kitty.tasks_packages.md'
+  - id: 3_3_0_session_presence_all_harnesses
+    applied_at: '2026-06-08T10:03:59.310195'
+    result: success
+    notes: 'Wrote session presence orientation for harness: codex'
+  - id: 3_3_0_session_presence_claude_code
+    applied_at: '2026-06-08T10:03:59.344917'
+    result: success
+    notes: Wrote spec-kitty orientation to .claude/CLAUDE.md; Registered spec-kitty
+      session-start SessionStart hook

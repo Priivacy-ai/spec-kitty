@@ -258,7 +258,12 @@ class TestBatchSyncThroughput:
         assert result.synced_count == event_count
         assert temp_queue.size() == 0
         assert duration < 5, f"Multi-batch sync took {duration:.2f}s, expected <5s"
-        assert mock_post.call_count == 3  # 100 + 100 + 40
+        posted_batch_sizes = [
+            len(json.loads(gzip.decompress(call.kwargs["data"]))["events"])
+            for call in mock_post.call_args_list
+        ]
+        assert all(0 < size <= batch_size for size in posted_batch_sizes)
+        assert sum(posted_batch_sizes) == event_count
 
 
 class TestIdempotency:

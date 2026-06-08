@@ -38,12 +38,15 @@ def test_mission_slug_with_underscores_rejected():
     assert "kebab-case" in result.stdout.lower()
 
 
-def test_mission_slug_starting_with_number_accepted():
+def test_mission_slug_starting_with_number_accepted(tmp_path, monkeypatch):
     """Feature slugs may start with a digit (e.g. '068-feature-name' convention)."""
     # Arrange — digit-prefix slugs are now valid per FR-017
     slug = "123-test-feature"
     # Assumption check
     assert slug[0].isdigit()
+    # Run outside the repository so this acceptance check cannot create and commit
+    # a real test mission in the shared checkout.
+    monkeypatch.chdir(tmp_path)
     # The slug itself is valid; the CLI may reject for other reasons (not in a git repo,
     # worktree context, etc.) but NOT for the slug format.
     result = runner.invoke(app, ["create", slug, "--json"])

@@ -133,12 +133,14 @@ class TestGetMissionId:
 
 class TestIsAlreadyWidened:
     def test_returns_false_for_empty_store(self, tmp_path: Path) -> None:
+        _setup_repo(tmp_path)
         store = WidenPendingStore(tmp_path, MISSION_SLUG)
         assert _is_already_widened(store, "some-decision-id") is False
 
     def test_returns_true_when_decision_pending(self, tmp_path: Path) -> None:
         from datetime import UTC, datetime
 
+        _setup_repo(tmp_path)
         store = WidenPendingStore(tmp_path, MISSION_SLUG)
         entry = WidenPendingEntry(
             decision_id="dec-001",
@@ -326,6 +328,7 @@ class TestWidenContinuePath:
         prereq_ok = PrereqState(teamspace_ok=True, slack_ok=True, saas_reachable=True)
 
         # Use a real WidenPendingStore so we can assert the file was written
+        _setup_repo(tmp_path)
         real_store = WidenPendingStore(tmp_path, MISSION_SLUG)
 
         # Q1: "w" → CONTINUE → question is skipped (widen pending)

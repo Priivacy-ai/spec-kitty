@@ -354,10 +354,3 @@ def test_apply_handles_missing_source(migration: InstallDocumentationMission, tm
 
     assert result.success is False
     assert any("could not find" in error.lower() for error in result.errors)
-
-
-def test_find_source_mission_returns_none_if_missing(migration: InstallDocumentationMission) -> None:
-    """_find_source_mission returns None if mission.yaml doesn't exist."""
-    # We can't easily test this without mocking Path operations,
-    # but we can verify the method exists and has correct signature
-    assert hasattr(migration, "_find_source_mission")

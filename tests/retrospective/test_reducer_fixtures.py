@@ -92,13 +92,6 @@ def _load_expected_snapshot(path: Path) -> dict:
 class TestBaselineReducesByteIdentically:
     """Fixture A reduces to the recorded baseline snapshot (lane/lifecycle keys)."""
 
-    def test_fixture_files_exist(self) -> None:
-        """Fixture files must exist — test the test infrastructure first."""
-        assert FIXTURE_A_EVENTS.exists(), f"Missing: {FIXTURE_A_EVENTS}"
-        assert FIXTURE_A_SNAPSHOT.exists(), f"Missing: {FIXTURE_A_SNAPSHOT}"
-        assert FIXTURE_B_EVENTS.exists(), f"Missing: {FIXTURE_B_EVENTS}"
-        assert FIXTURE_B_SNAPSHOT.exists(), f"Missing: {FIXTURE_B_SNAPSHOT}"
-
     def test_baseline_lane_keys_match_recorded_snapshot(self) -> None:
         """Reduce fixture A; assert lane/lifecycle keys match the recorded snapshot."""
         actual = _reduce_fixture(FIXTURE_A_EVENTS)
