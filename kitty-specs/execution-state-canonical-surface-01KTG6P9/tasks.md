@@ -351,10 +351,10 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 > **ATDD-first (C-011):** author + commit the failing coord-topology merge regression fixture **T057 RED first**, before the T054–T056 fixes. Reviewer verifies red→green.
 
-- [ ] T054 Guard finalize/recovery staging to never `git add` a path under `.worktrees/`; add a `spec-kitty doctor` check that flags pre-existing tracked `.worktrees/` content (FR-035, #1772 Bug 0) (WP14)
-- [ ] T055 Gate merge lane integration on the actual lane tree-diff (not the per-WP `done` event); fail loudly on a would-be zero-diff squash; do not reset lane HEADs on a no-op merge (FR-037, #1772 Bug 3 — data integrity) (WP14)
-- [ ] T056 Resolve the **in-branch** status path in post-merge validation (`_assert_merged_wps_reached_done`-adjacent), not a `.worktrees/` worktree path (FR-038, #1772 Bug 4) (WP14)
-- [ ] T057 Add a coord-topology merge regression fixture (tracked `.worktrees/` junk + pre-recorded `done` events) + tests proving FR-035/FR-037/FR-038 (WP14)
+- [x] T054 Guard finalize/recovery staging to never `git add` a path under `.worktrees/`; add a `spec-kitty doctor` check that flags pre-existing tracked `.worktrees/` content (FR-035, #1772 Bug 0) (WP14)
+- [x] T055 Gate merge lane integration on the actual lane tree-diff (not the per-WP `done` event); fail loudly on a would-be zero-diff squash; do not reset lane HEADs on a no-op merge (FR-037, #1772 Bug 3 — data integrity) (WP14)
+- [x] T056 Resolve the **in-branch** status path in post-merge validation (`_assert_merged_wps_reached_done`-adjacent), not a `.worktrees/` worktree path (FR-038, #1772 Bug 4) (WP14)
+- [x] T057 Add a coord-topology merge regression fixture (tracked `.worktrees/` junk + pre-recorded `done` events) + tests proving FR-035/FR-037/FR-038 (WP14)
 
 ### Dependencies
 
