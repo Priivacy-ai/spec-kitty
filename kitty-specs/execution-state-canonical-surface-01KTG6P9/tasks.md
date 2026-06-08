@@ -324,11 +324,11 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 > **ATDD-first (C-011):** author + commit the failing test/fixture subtask **T051 RED first**, before the T047–T050 implementation subtasks. Reviewer verifies red→green.
 
-- [ ] T047 Expose a per-mission canonical event-rebuild entry on `mission_state` returning event counts (`events_generated`/`events_corrected`/`errors`/`warnings`) — **decision pinned (FR-032): add the per-mission entry; do NOT retire onto `repair_repo`** (it drops per-feature counts; full retirement is a separate fixture-backed change) (WP13)
-- [ ] T048 Migrate `migration/runner.py` Step 4 per-feature loop onto the canonical entry (WP13)
-- [ ] T049 Migrate `migration/normalize_mission_lifecycle.py` onto the canonical entry (WP13)
-- [ ] T050 Remove `rebuild_event_log` (or reduce to a thin shim with no live callers) and clean the `migration/__init__.__all__` lazy-symbol nuisance (#1757.4) (WP13)
-- [ ] T051 Add migration fixtures covering the per-mission rebuild path; assert behavior preservation and unchanged legacy-mission migration (WP13)
+- [x] T047 Expose a per-mission canonical event-rebuild entry on `mission_state` returning event counts (`events_generated`/`events_corrected`/`errors`/`warnings`) — **decision pinned (FR-032): add the per-mission entry; do NOT retire onto `repair_repo`** (it drops per-feature counts; full retirement is a separate fixture-backed change) (WP13)
+- [x] T048 Migrate `migration/runner.py` Step 4 per-feature loop onto the canonical entry (WP13)
+- [x] T049 Migrate `migration/normalize_mission_lifecycle.py` onto the canonical entry (WP13)
+- [x] T050 Remove `rebuild_event_log` (or reduce to a thin shim with no live callers) and clean the `migration/__init__.__all__` lazy-symbol nuisance (#1757.4) (WP13)
+- [x] T051 Add migration fixtures covering the per-mission rebuild path; assert behavior preservation and unchanged legacy-mission migration (WP13)
 
 ### Dependencies
 
