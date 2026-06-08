@@ -3,7 +3,7 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 3.2.0rc40
+  version: 3.2.0rc41
   initialized_at: '2026-04-07T09:10:40.826207'
   last_upgraded_at: '2026-06-08T10:03:59.356798'
   schema_version: 3
