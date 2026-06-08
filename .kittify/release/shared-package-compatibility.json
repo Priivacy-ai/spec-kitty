@@ -5,8 +5,8 @@
     {
       "package": "spec-kitty-events",
       "source_repo": "Priivacy-ai/spec-kitty-events",
-      "cli_range": ">=5.2.0,<6.0.0",
-      "locked_version": "5.2.0",
+      "cli_range": ">=6.0.0,<7.0.0",
+      "locked_version": "6.0.0",
       "contract_surface": "event envelope and conformance fixtures"
     },
     {
