@@ -278,6 +278,11 @@ class AgentProfile(BaseModel):
     # Optional fields
     specialization_context: SpecializationContext | None = Field(default=None, alias="specialization-context")
     applies_to_languages: list[str] = Field(default_factory=list)
+    # Tools this profile is equipped to use. When non-empty, the router uses this list
+    # to gate tool-aware routing: the profile is only selected when its declared tools
+    # cover all tools required by the request. Profiles that omit this field are
+    # excluded from tool-gated routing (conservative opt-in).
+    available_tools: list[str] = Field(default_factory=list, alias="available-tools")
     directive_references: list[DirectiveRef] = Field(default_factory=list, alias="directive-references")
     tactic_references: list[ArtifactRef] = Field(default_factory=list, alias="tactic-references")
     toolguide_references: list[ArtifactRef] = Field(default_factory=list, alias="toolguide-references")

@@ -27,12 +27,12 @@ import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/missi
 
 from charter.context import build_charter_context
 from specify_cli.git import safe_commit
-from specify_cli.invocation.errors import InvalidModeForEvidenceError, InvocationError
+from specify_cli.invocation.errors import InvalidModeForEvidenceError, InvocationError, RouterAmbiguityError
 from specify_cli.invocation.modes import ModeOfWork
 from specify_cli.invocation.propagator import InvocationSaaSPropagator
 from specify_cli.invocation.record import InvocationRecord, promote_to_evidence
 from specify_cli.invocation.registry import ProfileRegistry
-from specify_cli.invocation.router import ActionRouter, RouterDecision  # WP02: router implemented
+from specify_cli.invocation.router import TOOL_KEYWORD_MAP, ActionRouter, RouterDecision  # WP02: router implemented
 from specify_cli.invocation.writer import InvocationWriter, normalise_ref
 
 logger = logging.getLogger(__name__)
@@ -170,8 +170,26 @@ class ProfileInvocationExecutor:
             )
             router_confidence = None  # caller supplied explicit hint
         elif self._router is not None:
+            # Derive tool requirements from request text and pass to router.
+            # If no profile covers the required tools, route() returns profile_id=None.
+            tokens = set(request_text.lower().split())
+            required_tools: frozenset[str] = frozenset(
+                tool for token, tool in TOOL_KEYWORD_MAP.items() if token in tokens
+            )
             # route() returns RouterDecision or raises RouterAmbiguityError (never returns error)
-            result: RouterDecision = self._router.route(request_text)
+            result: RouterDecision = self._router.route(request_text, required_tools=required_tools)
+            if result.profile_id is None:
+                # No profile covers the required tools — fall through to ungoverned execution.
+                raise RouterAmbiguityError(
+                    request_text,
+                    "ROUTER_NO_TOOL_MATCH",
+                    [],
+                    (
+                        f"No profile declared tools covering {sorted(required_tools)}. "
+                        "Proceeding without a profile gives you access to all tools. "
+                        "Use 'spec-kitty do --profile <id> <request>' to force a specific profile."
+                    ),
+                )
             profile = self._registry.resolve(result.profile_id)
             action = result.action
             router_confidence = result.confidence

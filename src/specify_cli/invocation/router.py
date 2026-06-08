@@ -114,10 +114,30 @@ CANONICAL_VERB_MAP: dict[str, tuple[str, Role]] = {
 class RouterDecision:
     """Resolved routing result — immutable, serializable."""
 
-    profile_id: str
+    profile_id: str | None
     action: str
-    confidence: Literal["exact", "canonical_verb", "domain_keyword"]
+    confidence: Literal["exact", "canonical_verb", "domain_keyword", "no_tool_match"]
     match_reason: str
+
+
+# ---------------------------------------------------------------------------
+# TOOL_KEYWORD_MAP: request token → canonical tool name
+# Used to derive required_tools from request text for tool-gated routing.
+# ---------------------------------------------------------------------------
+
+TOOL_KEYWORD_MAP: dict[str, str] = {
+    "github": "gh",
+    "gh": "gh",
+    "docker": "docker",
+    "terraform": "terraform",
+    "aws": "aws",
+    "gcloud": "gcloud",
+    "kubectl": "kubectl",
+    "npm": "npm",
+    "yarn": "yarn",
+    "cargo": "cargo",
+    "brew": "brew",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -172,18 +192,26 @@ class ActionRouter:
         self,
         request_text: str,
         profile_hint: str | None = None,
+        required_tools: frozenset[str] | None = None,
     ) -> RouterDecision:
         """Route *request_text* to a (profile_id, action) pair.
 
         Args:
             request_text: Natural-language request from the caller.
             profile_hint: Optional profile identifier to bypass routing.
+            required_tools: Tools the request needs. When non-empty, only
+                profiles whose ``available_tools`` covers all required tools
+                are eligible. If no profile qualifies, returns a
+                RouterDecision with profile_id=None and
+                confidence="no_tool_match" instead of raising.
 
         Returns:
             RouterDecision with profile_id, action, confidence, match_reason.
+            profile_id may be None when required_tools cannot be satisfied.
 
         Raises:
-            RouterAmbiguityError: On no-match or ambiguous match.
+            RouterAmbiguityError: On no-match or ambiguous match (excluding
+                tool-gated fallback, which returns rather than raises).
         """
         profiles = self._registry.list_all()
         if not profiles:
@@ -280,6 +308,29 @@ class ActionRouter:
                     "_confidence": "domain_keyword",
                 })
                 existing_ids.add(profile_id)
+
+        # ------------------------------------------------------------------
+        # Tool-gating: filter candidates to those covering required_tools.
+        # Profiles without available_tools declared are excluded (opt-in).
+        # If no candidate survives, return no_tool_match instead of raising.
+        # ------------------------------------------------------------------
+        if required_tools:
+            tool_gated: list[dict[str, str]] = []
+            for c in candidates:
+                p = self._registry.get(c["profile_id"])
+                declared: list[str] = list(getattr(p, "available_tools", None) or [])
+                if declared and required_tools.issubset(set(declared)):
+                    tool_gated.append(c)
+            if not tool_gated:
+                return RouterDecision(
+                    profile_id=None,
+                    action="",
+                    confidence="no_tool_match",
+                    match_reason=(
+                        f"no profile declared tools covering {sorted(required_tools)}"
+                    ),
+                )
+            candidates = tool_gated
 
         if not candidates:
             raise RouterAmbiguityError(
