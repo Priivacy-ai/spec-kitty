@@ -22,7 +22,8 @@ subtasks:
 - T032
 phase: Phase 4 - Facade
 assignee: ''
-agent: ''
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "2867679"
 history:
 - at: '2026-06-07T05:16:24Z'
   actor: system
@@ -94,3 +95,4 @@ Rewrite the ~225 deep `status.*` submodule imports outside `status/` to the faca
 ## Activity Log
 
 - 2026-06-07T05:16:24Z – system – Prompt created.
+- 2026-06-08T09:22:55Z – claude:opus:python-pedro:implementer – shell_pid=2867679 – Started implementation via action command
