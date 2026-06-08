@@ -519,3 +519,15 @@ When user's request matches a skill, invoke via Skill tool. When in doubt, invok
 - Visual polish → `/design-review`
 - Ship/deploy/PR → `/ship` or `/land-and-deploy`
 - Save/resume context → `/context-save` / `/context-restore`
+
+<!-- spec-kitty:orientation -->
+**Spec Kitty v3.2.0rc39** — project: unknown (healthy)
+
+Two usage patterns:
+- **Full mission** (spec → plan → tasks → implement → review → merge):
+  trigger: "spec out", "create a mission", "write a spec", "plan this"
+  → run `/spec-kitty.specify`
+- **Lightweight dispatch** (ad-hoc fix, question, or advice — no mission created):
+  trigger: "hey spec kitty", "use spec kitty to", "spec kitty, fix/do/ask/advise"
+  → run `spec-kitty do "<request verbatim>"`
+<!-- /spec-kitty:orientation -->

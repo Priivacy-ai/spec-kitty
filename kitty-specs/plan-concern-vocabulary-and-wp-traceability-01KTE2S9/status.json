@@ -1,16 +1,16 @@
 {
-  "event_count": 25,
-  "last_event_id": "01KTEF7P95Q5XN65X23T3C9JB7",
-  "materialized_at": "2026-06-06T12:41:27.077116+00:00",
-  "mission_number": "",
+  "event_count": 28,
+  "last_event_id": "01KTEGQHZB6Z53WVKEVEEGTT4G",
+  "materialized_at": "2026-06-06T13:07:35.531210+00:00",
+  "mission_number": "129",
   "mission_slug": "plan-concern-vocabulary-and-wp-traceability-01KTE2S9",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 3,
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 3,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -18,25 +18,25 @@
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
-      "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01KTEATCTDK0NJST63E0ZZEKFE",
-      "last_transition_at": "2026-06-06T11:24:17.101670+00:00"
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KTEGQHYQ3RMRVX50H8EJNHS5",
+      "last_transition_at": "2026-06-06T13:07:35.511191+00:00"
     },
     "WP02": {
-      "actor": "user",
-      "force_count": 1,
-      "lane": "approved",
-      "last_event_id": "01KTECKRJQHXB8SVWD84KTQ3SP",
-      "last_transition_at": "2026-06-06T11:55:36.919455+00:00"
+      "actor": "claude",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KTEGQHZB6Z53WVKEVEEGTT4G",
+      "last_transition_at": "2026-06-06T13:07:35.531210+00:00"
     },
     "WP03": {
-      "actor": "user",
-      "force_count": 1,
-      "lane": "approved",
-      "last_event_id": "01KTEF7P95Q5XN65X23T3C9JB7",
-      "last_transition_at": "2026-06-06T12:41:27.077116+00:00"
+      "actor": "claude",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KTEGKE3G4KC573XWY7MN1GZA",
+      "last_transition_at": "2026-06-06T13:05:20.496475+00:00"
     }
   }
 }
