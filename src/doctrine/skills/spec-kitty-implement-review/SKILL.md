@@ -432,9 +432,14 @@ cat /tmp/review-result-WP##.md
 ```
 
 Before final approval, if `spec.md` references GitHub issues, ensure
-`issue-matrix.md` exists and every referenced issue has a final verdict:
-`fixed`, `verified-already-fixed`, or a documented follow-up. `unknown` verdicts
-block approval. The CLI enforces this guard on `move-task --to approved/done`.
+`issue-matrix.md` exists and every referenced issue has a verdict:
+`fixed`, `verified-already-fixed`, a documented follow-up
+(`deferred-with-followup`), or `in-mission` (being closed by a later WP in this
+same mission). `unknown`/empty verdicts block approval. The CLI enforces this
+guard on `move-task --to approved/done`. An `in-mission` verdict passes per-WP
+`approved` (so a dependency chain is not blocked on its own downstream WPs) but
+is **rejected on `done`** — resolve every `in-mission` row to a terminal verdict
+before the mission merges.
 
 ---
 

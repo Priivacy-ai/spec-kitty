@@ -74,3 +74,29 @@ Even the correct 10-file lane diff includes the mission's own auto-committed art
 2. **The path heuristic misses `.jsonl`** (`diff_check.py` `serialized_keys` matches `\.json$` only). `status.events.jsonl` — the canonical status log — is classified *unclassified* and would block any WP that touches it without an exception. Either add `\.jsonl$` to `serialized_keys` or have the diff check ignore the mission's own `kitty-specs/<m>/` status artifacts by construction.
 
 **Commits:** see `feat/execution-state-strangler` — workflow.py head-ref fix + occurrence_map `kitty-specs/**` exception (+ coord mirror).
+
+---
+
+## F-03 — issue-matrix accept gate fires per-WP; added `in-mission` verdict (operator decision)
+
+**Severity:** Medium (workflow gate too strict for multi-WP missions). **Phase:** WP02 approval. **Status:** Resolved (product vocabulary extended). **Operator decision:** 2026-06-08.
+
+### Symptom
+`move-task WP02 --to approved` was blocked: `issue-matrix.md` is checked on **every** per-WP `approved`/`done` transition (`_issue_matrix_approval_blocker`, no `--force` bypass), requiring a terminal verdict for every `#NNNN` referenced in `spec.md`. But 7 of the 12 referenced issues are fixed by **later WPs in this same mission** that hadn't run yet — and the allowed verdicts (`fixed` / `verified-already-fixed` / `deferred-with-followup`) had no honest value for "being fixed by this mission, not done yet". Marking them `fixed` would be false; `deferred-with-followup` reads as punted-out-of-mission. Since WP03+ depend on WP02 being `approved`, the whole lane chain was wedged behind the first approval.
+
+### Resolution — new `in-mission` verdict (operator-chosen, highest-signal)
+Extended the closed-set verdict vocabulary with `in-mission`: the issue is being closed by a later WP in *this* mission. Semantics:
+- **Accepted at per-WP `approved`** — a dependency chain is not blocked on issues its own downstream WPs will close.
+- **Rejected on the `done` transition** (mission merge/acceptance) — every issue must reach a terminal verdict (`fixed` / `verified-already-fixed` / `deferred-with-followup`) before the mission lands. The approval blocker is now `target_lane`-aware.
+
+Touched (all `ruff`+`mypy` clean, tests added + green, terminology guard green):
+- `cli/commands/review/_issue_matrix.py` — `IssueMatrixVerdict.IN_MISSION`.
+- `cli/commands/agent/tasks.py` — `_issue_matrix_approval_blocker(target_lane=…)` rejects `in-mission` only at `done`; call site passes `target_lane`.
+- `tasks/issue_matrix.py` scaffold doc, `cli/commands/review/ERROR_CODES.md`, `status/doctor.py` recommendation, and doctrine `spec-kitty-mission-review` / `spec-kitty-implement-review` SKILL.md.
+- Tests: `test_issue_matrix_validator.py` (in-mission valid + no handle needed), `test_tasks_helpers.py` (passes at approved, blocks at done, clears when terminal).
+
+### Mission matrix rebuilt
+`issue-matrix.md` collapsed to a single table (was 2 — schema violation) with: `#1667/#1756/#1753` → `verified-already-fixed`; `#1666/#1619` (epics) → `deferred-with-followup`; `#1673/#1664/#1672/#1663/#1757/#1754/#1772` → `in-mission` (owning WP recorded). **Each `in-mission` row must be flipped to `fixed` as its WP lands** — and all must be terminal before merge (the `done` gate enforces this).
+
+### Upstream gap worth filing
+The per-WP `approved` issue-matrix gate is arguably mis-scoped for multi-WP missions even with `in-mission` — consider gating only at mission accept/`done` by default. The `in-mission` verdict is the pragmatic fix; the deeper scoping question remains.

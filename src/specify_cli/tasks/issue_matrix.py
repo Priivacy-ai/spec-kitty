@@ -117,7 +117,8 @@ def scaffold_issue_matrix(
     lines.append("")
     lines.append(
         "Valid `Verdict` values: `fixed`, `verified-already-fixed`, "
-        "`deferred-with-followup`."
+        "`deferred-with-followup`, `in-mission` (being fixed by a later WP in "
+        "this mission; must reach a terminal verdict before mission `done`)."
     )
     lines.append("")
     out_path.write_text("\n".join(lines), encoding="utf-8")

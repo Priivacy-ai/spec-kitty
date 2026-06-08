@@ -231,6 +231,32 @@ class TestVerdictUnknown:
         assert str(MissionReviewDiagnostic.ISSUE_MATRIX_VERDICT_UNKNOWN) in codes
 
 
+class TestInMissionVerdict:
+    def test_in_mission_is_valid_verdict(self, tmp_path: Path) -> None:
+        # `in-mission` is a recognized (non-terminal) verdict: it must parse
+        # cleanly and not raise ISSUE_MATRIX_VERDICT_UNKNOWN.
+        content = (
+            f"# Matrix\n\n{_VALID_HEADER}\n"
+            "| #7 | in-mission | WP14 (this mission) |\n"
+        )
+        p = _write_matrix(tmp_path, content)
+        result = validate_issue_matrix(p)
+        assert result.passed
+        assert result.rows[0].verdict is IssueMatrixVerdict.IN_MISSION
+
+    def test_in_mission_needs_no_followup_handle(self, tmp_path: Path) -> None:
+        # Unlike deferred-with-followup, in-mission requires no #NNN handle —
+        # only a non-empty evidence_ref (the owning WP).
+        content = (
+            f"# Matrix\n\n{_VALID_HEADER}\n"
+            "| #7 | in-mission | WP14 |\n"
+        )
+        result = validate_issue_matrix(_write_matrix(tmp_path, content))
+        assert result.passed
+        codes = [d["diagnostic_code"] for d in result.diagnostics]
+        assert str(MissionReviewDiagnostic.ISSUE_MATRIX_DEFERRED_WITHOUT_HANDLE) not in codes
+
+
 # ---------------------------------------------------------------------------
 # Evidence ref empty
 # ---------------------------------------------------------------------------

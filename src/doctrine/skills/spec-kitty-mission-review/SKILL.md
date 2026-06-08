@@ -586,9 +586,13 @@ For every row in the matrix table, assert that the `verdict` cell is one of:
 - `fixed`
 - `verified-already-fixed`
 - `deferred-with-followup`
+- `in-mission` — the issue is being closed by a later WP in *this* mission.
+  Accepted at per-WP `approved`; **rejected on the `done` transition** (mission
+  merge), so it must reach a terminal verdict before the mission lands.
 
 Any empty `verdict`, any literal value `unknown`, or any verdict outside
-that allow-list ⇒ **HARD FAIL** with the failing row(s) listed.
+that allow-list ⇒ **HARD FAIL** with the failing row(s) listed. An `in-mission`
+row that survives to mission `done` is likewise a hard fail.
 
 For every `deferred-with-followup` row, assert that the `evidence_ref`
 cell names a follow-up issue or a precise narrower follow-up issue
