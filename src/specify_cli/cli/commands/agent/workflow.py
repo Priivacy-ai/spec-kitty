@@ -685,7 +685,6 @@ def _read_wp_events(feature_dir: Path, wp_id: str):
 
 def _latest_review_feedback_reference(
     feature_dir: Path,
-    repo_root: Path,
     wp_id: str,
 ) -> tuple[str | None, Path | None, int | None]:
     """Return the newest canonical review feedback reference for *wp_id*.
@@ -712,12 +711,11 @@ def _latest_review_feedback_reference(
 
 def _resolve_review_feedback_context(
     feature_dir: Path,
-    repo_root: Path,
     wp_id: str,
     wp_frontmatter: str,
 ) -> tuple[bool, str | None, Path | None, str | None]:
     """Resolve review-feedback presence and the canonical readable artifact."""
-    review_feedback_ref, review_feedback_file, _ = _latest_review_feedback_reference(feature_dir, repo_root, wp_id)
+    review_feedback_ref, review_feedback_file, _ = _latest_review_feedback_reference(feature_dir, wp_id)
     if review_feedback_ref is not None:
         return True, review_feedback_ref, review_feedback_file, "canonical"
 
@@ -824,10 +822,8 @@ def _has_prior_rejection(
     if not wp_events:
         return False
 
-    repo_root = feature_dir.parent.parent
     review_feedback_ref, review_feedback_file, review_feedback_index = _latest_review_feedback_reference(
         feature_dir,
-        repo_root,
         normalized_wp_id,
     )
     if review_feedback_ref is None or review_feedback_file is None or review_feedback_index is None:
@@ -1190,7 +1186,6 @@ def implement(
         feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
         has_feedback, review_feedback_ref, review_feedback_file, review_feedback_source = _resolve_review_feedback_context(
             feature_dir=feature_dir,
-            repo_root=main_repo_root,
             wp_id=normalized_wp_id,
             wp_frontmatter=getattr(wp, "frontmatter", "") or "",
         )

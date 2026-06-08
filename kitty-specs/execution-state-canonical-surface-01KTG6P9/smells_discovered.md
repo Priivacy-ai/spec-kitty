@@ -8,15 +8,29 @@ small dedicated cleanup WP/PR).
 
 Format per entry: location · tool/rule · description · why deferred · rough effort.
 
+## Closeout boy-scout pass status (2026-06-08)
+
+| Smell | Status | Note |
+|-------|--------|------|
+| S-01 unused `repo_root` param | ✅ RESOLVED | dropped param + shallow cascade + 3 test sites; ruff+mypy clean |
+| S-02 CI path filter (FR-024) | ✅ RESOLVED | drop deleted path, add `mission_runtime/**` |
+| S-03 mission_runtime docstrings | ✅ RESOLVED | fixed in `4b52a86d7` (during mission) |
+| S-04 bootstrap env failures | ✅ RESOLVED | editable-install artifact (`pip install -e .`); not a code defect |
+| S-05 non-hermetic walk-up test | ✅ RESOLVED | sentinel-marker monkeypatch; hermetic vs live `/tmp/.kittify` |
+| S-06 stale review-cycle verdict | ⏭️ DEFERRED | behavioral review-flow change, not a tidy → file upstream |
+| S-07 SR-1 docstring + rot guard | ✅ RESOLVED | docstrings corrected; rot guard strengthened (now has teeth) |
+| S-08 dead `history_parser` | ✅ RESOLVED | module + tests deleted |
+
+**Also evaluated, intentionally NOT touched:** 5 advisory ruff errors (1×C901, 3×ARG002, 1×SIM103) in three `m_3_2_0rc35_*` charter-pack/skill migration files. They are **pre-existing on `upstream/main`**, in files this mission never touched, from unrelated missions; the `ARG002` flags are on interface-mandated `can_apply`/`apply` override params (ruff is wrong about correct code). CI ruff is advisory (`continue-on-error`). Folding unrelated migration edits into this 155-file strangler PR would muddy the diff and risk migration behavior — they belong in a focused migration-cleanup PR.
+
 ---
 
-## S-01 — Unused `repo_root` parameter in `_latest_review_feedback_reference`
+## S-01 — Unused `repo_root` parameter in `_latest_review_feedback_reference` — **RESOLVED (boy-scout)**
 
 - **Location:** `src/specify_cli/cli/commands/agent/workflow.py:688` (function `_latest_review_feedback_reference`, param `repo_root: Path`).
 - **Tool/rule:** `ruff` — `ARG001` Unused function argument: `repo_root`.
 - **Description:** The function accepts `repo_root: Path` but never uses it; the body resolves everything from `feature_dir` + `wp_id`.
-- **Why deferred:** Noticed while fixing the F-02 review base-ref bug in the same file (see [findings.md](findings.md) F-02). It is pre-existing and unrelated to the coordination fix. Removing the param changes the signature and every call site, so it is real scope creep on a function this mission didn't otherwise touch.
-- **Rough effort:** Low. Either drop the param and update call sites, or (if a uniform helper signature is intentional) rename to `_repo_root` / add a one-line justified `# noqa: ARG001`. Prefer dropping it unless a sibling helper shares the signature for dispatch uniformity.
+- **Status:** **RESOLVED at closeout boy-scout pass (2026-06-08).** Dropped the unused param. The cascade was shallow and clean: `_resolve_review_feedback_context` only forwarded `repo_root` (its own `feedback_root` derives from `feature_dir.parent.parent`), so its param was dropped too; the second call site's local `repo_root = feature_dir.parent.parent` was removed (used only for the forward); the `repo_root=main_repo_root` kwarg at the `_resolve_review_feedback_context` call site was dropped. Updated 3 test call sites (`test_workflow_review_cycle_pointer.py` ×2, `test_implement_review_retrospect_smoke.py` ×1). `workflow.py` ruff + mypy clean; affected tests green (4 passed).
 
 ---
 
@@ -56,8 +70,8 @@ Format per entry: location · tool/rule · description · why deferred · rough 
 - **Tool/rule:** pytest (test hermeticity).
 - **Description:** The test creates a markerless temp dir under `/tmp` and asserts `locate_project_root()` returns `None`, but the walk-up finds `/tmp/.kittify` and returns `/tmp`. Surfaced + proven by the WP06 reviewer (moving the stray dir makes it pass); `locate_project_root` was unchanged by any WP here.
 - **Why deferred:** environmental + a pre-existing test-isolation weakness, unrelated to this mission's surface.
-- **Status (2026-06-08 closeout):** Confirmed environmental, **NOT a merge blocker**. `/tmp/.kittify` is a live operator scratch dir created today (a `spec-kitty do` lightweight-dispatch artifact: `mission-brief.md`, `brief-source.yaml`, `charter/interview/`). The test only fails on this dev box; CI has no such stray dir. `locate_project_root` is untouched by this mission. **Not deleting** the operator's in-use scratch dir; the durable fix (make the test hermetic by capping the walk-up ceiling) belongs to a focused runtime-test cleanup, not this mission's relocation surface.
-- **Rough effort:** Low. Either make the test hermetic (build the temp tree outside any `/tmp/.kittify` ancestor, e.g. monkeypatch the walk-up ceiling) or remove the stray `/tmp/.kittify` from the dev box.
+- **Status:** **RESOLVED at closeout boy-scout pass (2026-06-08).** Made the test hermetic without mutating the operator's live `/tmp/.kittify` scratch dir and without a production signature change: the test now monkeypatches `specify_cli.core.paths.KITTIFY_DIR` to a guaranteed-absent sentinel, so the "no marker found anywhere up the tree → None" path is exercised deterministically regardless of any real `.kittify` above `tmp_path`. Test passes despite the live `/tmp/.kittify` (root cause of the original flake). `locate_project_root` itself unchanged.
+- **Rough effort:** Done.
 
 ---
 
@@ -67,17 +81,18 @@ Format per entry: location · tool/rule · description · why deferred · rough 
 - **Tool/rule:** review workflow (cross-cycle artifact naming/verdict).
 - **Description:** On WP07's cycle-2 re-review (after a cycle-1 rejection + fix), the approval was blocked because a `review-cycle-2.md` artifact carried `verdict: rejected` — the cycle-1 rejection content had been written under the cycle-2 filename. The reviewer had to pass `--skip-review-artifact-check` with a rationale to approve a genuinely-resolved finding. The cycle index / artifact verdict didn't advance cleanly with the re-review.
 - **Why deferred:** workflow tooling friction, not mission code; the reviewer handled it correctly (documented skip, not an arbiter override).
+- **Status (2026-06-08 closeout boy-scout pass):** **DEFERRED — file upstream (not a boy-scout cleanup).** Unlike S-01/S-05/S-07, this is a *behavioral change* to the review move-task flow (cross-cycle artifact verdict tracking + superseding stale rejection artifacts on re-claim), not a docstring/dead-param/test-hermeticity tidy. It needs its own design (cycle-index advancement, artifact supersession semantics) and touches the sensitive review/approval gate — out of scope for a closeout boy-scout. Recommend filing alongside the codependent-lanes epic (see findings.md SYNTHESIS).
 - **Rough effort:** Medium (tooling). The review-artifact check should key off the CURRENT cycle's verdict, and re-claiming review for a fixed WP should supersede/clear the prior cycle's rejection artifact rather than leaving a stale `rejected` that blocks the next approval. Worth filing upstream alongside the codependent-lanes epic.
 
 ---
 
-## S-07 — status-boundary test: misleading SR-1 docstring + file-existence-only allow-list rot guard
+## S-07 — status-boundary test: misleading SR-1 docstring + file-existence-only allow-list rot guard — **RESOLVED (boy-scout)**
 
 - **Location:** `tests/architectural/test_status_module_boundary.py` (added by WP09).
 - **Tool/rule:** doc accuracy + test-completeness (surfaced by the WP09 review, non-blocking).
 - **Description:** Two minor issues: (a) the `SR-1` section header + class docstring say the rule was "widened to ALL of `src/specify_cli`", but SR-1's pytestarch rule still asserts only against the 6 WP03-fixed packages — the repo-wide gate is exclusively SR-2 (architecturally fine, but the doc misleads). (b) `test_ast_scan_allow_list_covers_known_residuals` only checks that allow-listed files EXIST on disk — it will NOT catch a stale `_WP10_DEFERRED_FILES` entry once WP10 migrates a file's imports but forgets to remove it from the allow-list.
-- **Why deferred:** non-blocking doc/robustness polish; WP09 met its spec.
-- **Rough effort:** Low. (a) Correct the SR-1 header/docstring to say SR-1 = regression-lock on the 6 clean packages, SR-2 = repo-wide gate. (b) Strengthen the rot guard to assert each allow-listed file STILL contains a deep status import (so a migrated-but-not-delisted file fails the guard) — ideally land this WITH WP10 so the shrinking ledger self-polices. **Action for WP10:** as it routes each ROUTE-deferred symbol, remove that file from `_WP10_DEFERRED_FILES`; the WP10 reviewer must confirm the allow-list shrank to only the permanent cycle-breaker + C-004 exemptions.
+- **Status:** **RESOLVED at closeout boy-scout pass (2026-06-08).** (a) Rewrote the module docstring, SR-1 section header, and `TestStatusModuleBoundary` class/method docstrings to state plainly: **SR-1 = regression-lock on the 6 WP03 clean packages; SR-2 = the repo-wide gate**. (b) Strengthened `test_ast_scan_allow_list_covers_known_residuals` — in addition to the file-exists check, it now re-scans each `_WP10_DEFERRED_FILES` entry with `scan_for_bypass_imports([p])` (no exemptions) and fails if any entry produces **zero** bypass violations (i.e. was migrated onto the facade but left in the allow-list). The shrinking ledger now self-polices. Guard confirmed to have teeth (passes only because the sole remaining entry, `workspace/context.py`, still carries its cycle-breaker deep import). 5 boundary tests green.
+- **Rough effort:** Done.
 
 ---
 

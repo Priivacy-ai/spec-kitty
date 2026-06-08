@@ -5,17 +5,23 @@ any ``specify_cli.status.*`` submodule directly.  External consumers must go
 through the curated public API surface defined by ``specify_cli.status.__all__``.
 
 Rules enforced:
-* **SR-1** (pytestarch): No module outside ``specify_cli.status`` in
-  ``src/specify_cli`` imports any ``specify_cli.status.*`` submodule, except
-  the explicitly exempted coordination plumbing files.
-* **SR-2** (AST scan): Same rule for lazy / function-scoped imports that
-  pytestarch's import-graph analysis may miss, covering all of ``src/specify_cli``
-  and ``src/runtime``.
+* **SR-1** (pytestarch): regression-lock on the 6 WP03-owned packages
+  (agent_utils, lanes, post_merge, missions, merge, next). These are fully
+  clean; SR-1 asserts they never reintroduce a static ``specify_cli.status.*``
+  submodule import. It is intentionally *scoped to those packages*, not the
+  whole tree — the repo-wide gate is SR-2.
+* **SR-2** (AST scan): the **repo-wide** gate. No module across all of
+  ``src/specify_cli`` and ``src/runtime`` may import any ``specify_cli.status.*``
+  submodule (module-level *or* lazy/function-scoped, which pytestarch's
+  import-graph analysis may miss), except the explicitly exempted plumbing /
+  cycle-breaker files in ``_ALL_EXEMPT_FILES``.
 * **SR-3** (injection proof): The AST scanner is not a no-op — it actively
   catches violations.
 
-WP09 widens the scope from the 6 WP03-owned directories to ALL of
-``src/specify_cli`` and ``src/runtime``, locking in the WP08 migration.
+WP09 widened the enforced scope from WP03's 6-directory regression-lock to ALL
+of ``src/specify_cli`` and ``src/runtime`` — but that repo-wide enforcement
+lives in **SR-2**, not SR-1. SR-1 remains the focused regression-lock on the 6
+already-clean packages.
 
 Exemptions (C-004 plumbing — permanent):
   - ``coordination/status_transition.py``: internal Mission Management plumbing;
@@ -110,31 +116,32 @@ _ALL_EXEMPT_FILES: frozenset[Path] = _EXEMPT_FILES | _WP10_DEFERRED_FILES
 
 
 # ---------------------------------------------------------------------------
-# SR-1 -- pytestarch rule (widened to all of src/specify_cli, WP09)
+# SR-1 -- pytestarch rule (regression-lock on the 6 WP03 clean packages)
 # ---------------------------------------------------------------------------
 
 
 class TestStatusModuleBoundary:
-    """SR-1: All modules in src/specify_cli must not import status.* submodules directly.
+    """SR-1: regression-lock on the 6 WP03-owned packages.
 
-    The exemptions for ``specify_cli.coordination.status_transition`` and
-    ``specify_cli.coordination.transaction`` are explicit C-004 plumbing
-    exemptions — see module-level docstring.
+    SR-1 asserts the six already-clean WP03 packages (agent_utils, lanes,
+    post_merge, missions, merge, next) never reintroduce a static
+    ``specify_cli.status.*`` submodule import. It is **deliberately scoped to
+    those packages** — the repo-wide enforcement (every module in
+    ``src/specify_cli`` + ``src/runtime``) is **SR-2** (the AST scan), which also
+    catches lazy/function-scoped imports that pytestarch's import-graph analysis
+    misses.
 
-    WP09 widens coverage from WP03's 6-directory scope to ALL of
-    ``src/specify_cli``.  The pytestarch rule covers module-level (static)
-    imports; the AST scan (SR-2) covers lazy/function-scoped imports as well.
-
-    The WP03 packages (agent_utils, lanes, post_merge, missions, merge, next)
-    are fully fixed and NOT in the allow-list; their absence from the
-    allow-list is what makes the rule bite for those packages.
+    The WP03 packages are fully fixed and NOT in the allow-list; their absence
+    from the allow-list is what makes this rule bite for those packages.
     """
 
     def test_no_direct_status_submodule_imports(self, evaluable: EvaluableArchitecture) -> None:
-        """pytestarch rule: all specify_cli modules must not bypass the status facade.
+        """pytestarch rule: the 6 WP03 packages must not bypass the status facade.
 
-        Covers the full specify_cli package. Exempted: coordination.status_transition
-        and coordination.transaction (C-004 plumbing).
+        Scoped to the WP03-owned packages (the regression-lock). Repo-wide
+        coverage is SR-2's job. C-004 plumbing (coordination.status_transition,
+        coordination.transaction) is not in these packages, so no exemption is
+        needed here.
 
         pytestarch raises ``ImpossibleMatch`` when the constrained module is not
         present in the evaluable graph at all; that is the rule passing (vacuously,
@@ -383,12 +390,18 @@ def test_ast_scan_ignores_type_checking_imports(tmp_path: pathlib.Path) -> None:
 
 
 def test_ast_scan_allow_list_covers_known_residuals() -> None:
-    """Verify that every file in _WP10_DEFERRED_FILES actually exists on disk.
+    """Guard against allow-list rot in ``_WP10_DEFERRED_FILES``.
 
-    Guards against allow-list rot: if WP10 removes a violation and forgets to
-    remove it from the allow-list, this test will fail (the file still exists
-    but no longer has a deep import — the file-exists check alone is not
-    sufficient, but it catches deleted files being left in the allow-list).
+    Two ways an entry goes stale, both caught here:
+
+    1. **Deleted file** still listed — the path no longer exists on disk.
+    2. **Migrated file** still listed — the file exists but no longer contains
+       any deep ``specify_cli.status.*`` import (someone routed it onto the
+       facade but forgot to remove it from the allow-list). A file-exists check
+       alone misses this; we re-scan each allow-listed file *without* exemptions
+       and require it to still produce ≥1 bypass violation, so a migrated-but-
+       not-delisted file fails the guard and the ledger self-polices as it
+       shrinks.
     """
     missing = [p for p in _WP10_DEFERRED_FILES if not p.exists()]
     assert not missing, (
@@ -396,4 +409,17 @@ def test_ast_scan_allow_list_covers_known_residuals() -> None:
         f"({len(missing)} entries):\n"
         + "\n".join(f"  {p}" for p in sorted(missing))
         + "\n\nRemove stale entries from _WP10_DEFERRED_FILES."
+    )
+
+    existing = [p for p in _WP10_DEFERRED_FILES if p.exists()]
+    # Scan WITHOUT exemptions: a still-justified entry must itself produce ≥1
+    # bypass violation. Zero violations ⇒ the file was migrated onto the facade
+    # and the allow-list entry is now dead weight.
+    no_longer_violating = [p for p in existing if not scan_for_bypass_imports([p])]
+    assert not no_longer_violating, (
+        f"Files in _WP10_DEFERRED_FILES no longer contain a deep "
+        f"``specify_cli.status.*`` import ({len(no_longer_violating)} entries):\n"
+        + "\n".join(f"  {p}" for p in sorted(no_longer_violating))
+        + "\n\nThese were migrated onto the status facade but left in the "
+        "allow-list. Remove them from _WP10_DEFERRED_FILES."
     )

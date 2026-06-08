@@ -108,7 +108,6 @@ def test_reject_fix_next_retrospect_smoke(tmp_path: Path) -> None:
     assert resolved.path == cycle.artifact_path.resolve()
     has_feedback, ref, path, source = workflow._resolve_review_feedback_context(
         feature_dir,
-        repo,
         "WP01",
         "",
     )
