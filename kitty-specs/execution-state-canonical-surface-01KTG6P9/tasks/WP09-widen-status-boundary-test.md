@@ -22,7 +22,8 @@ subtasks:
 - T035
 phase: Phase 4 - Facade
 assignee: ''
-agent: ''
+agent: "claude:sonnet:python-pedro:implementer"
+shell_pid: "2889521"
 history:
 - at: '2026-06-07T05:16:24Z'
   actor: system
@@ -91,3 +92,4 @@ Widen `tests/architectural/test_status_module_boundary.py` from the 6 WP03 packa
 ## Activity Log
 
 - 2026-06-07T05:16:24Z – system – Prompt created.
+- 2026-06-08T09:42:44Z – claude:sonnet:python-pedro:implementer – shell_pid=2889521 – Assigned agent via action command
