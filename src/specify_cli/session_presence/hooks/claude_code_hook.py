@@ -40,6 +40,7 @@ from pathlib import Path
 __all__ = ["ClaudeCodeHookRegistrar"]
 
 _SETTINGS_PATH = ".claude/settings.json"
+_SETTINGS_PATH_PARTS = (".claude", "settings.json")
 _SESSION_START_KEY = "SessionStart"
 _logger = logging.getLogger(__name__)
 
@@ -52,7 +53,45 @@ class ClaudeCodeHookRegistrar:
     """
 
     def _settings_path(self, project_root: Path) -> Path:
-        return project_root / _SETTINGS_PATH
+        root = project_root.expanduser().resolve()
+        path = root.joinpath(*_SETTINGS_PATH_PARTS)
+        path.relative_to(root)
+        return path
+
+    def _sibling_path(self, path: Path, suffix: str) -> Path:
+        candidate = path.parent / f"{path.name}{suffix}"
+        candidate.relative_to(path.parent)
+        return candidate
+
+    def _invalid_backup_path(self, path: Path) -> Path:
+        backup = self._sibling_path(path, ".invalid")
+        counter = 1
+        while backup.exists():
+            backup = self._sibling_path(path, f".invalid.{counter}")
+            counter += 1
+        return backup
+
+    def _session_start_entries(self, data: dict[str, object]) -> list[object] | None:
+        hooks_section = data.get("hooks")
+        if not isinstance(hooks_section, dict):
+            return None
+        session_start = hooks_section.get(_SESSION_START_KEY)
+        if not isinstance(session_start, list):
+            return None
+        return session_start
+
+    def _iter_command_hooks(self, session_start: list[object]) -> list[dict[str, object]]:
+        command_hooks: list[dict[str, object]] = []
+        for entry in session_start:
+            if not isinstance(entry, dict):
+                continue
+            entry_hooks = entry.get("hooks")
+            if not isinstance(entry_hooks, list):
+                continue
+            command_hooks.extend(
+                hook for hook in entry_hooks if isinstance(hook, dict)
+            )
+        return command_hooks
 
     def _load(self, path: Path, *, preserve_invalid: bool = False) -> dict[str, object]:
         """Load JSON object from *path*, returning ``{}`` on absence or invalid data.
@@ -81,18 +120,14 @@ class ClaudeCodeHookRegistrar:
 
     def _preserve_invalid(self, path: Path, text: str) -> None:
         """Copy invalid settings content to a sibling backup before overwrite."""
-        backup = path.with_name(f"{path.name}.invalid")
-        counter = 1
-        while backup.exists():
-            backup = path.with_name(f"{path.name}.invalid.{counter}")
-            counter += 1
+        backup = self._invalid_backup_path(path)
         backup.write_text(text, encoding="utf-8")
         _logger.warning("Preserved invalid Claude settings JSON at %s", backup)
 
     def _save(self, path: Path, data: dict[str, object]) -> None:
         """Write *data* as JSON to *path* atomically."""
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(".tmp")
+        tmp = self._sibling_path(path, ".tmp")
         try:
             tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
             os.replace(tmp, path)
@@ -103,24 +138,13 @@ class ClaudeCodeHookRegistrar:
     def is_registered(self, project_root: Path, command: str) -> bool:
         """Return ``True`` when *command* is present in any SessionStart entry."""
         data = self._load(self._settings_path(project_root))
-        hooks_section = data.get("hooks")
-        if not isinstance(hooks_section, dict):
+        session_start = self._session_start_entries(data)
+        if session_start is None:
             return False
-        session_start = hooks_section.get(_SESSION_START_KEY)
-        if not isinstance(session_start, list):
-            return False
-        for entry in session_start:
-            if not isinstance(entry, dict):
-                continue
-            entry_hooks = entry.get("hooks")
-            if not isinstance(entry_hooks, list):
-                continue
-            for hook in entry_hooks:
-                if not isinstance(hook, dict):
-                    continue
-                if hook.get("type") == "command" and hook.get("command") == command:
-                    return True
-        return False
+        return any(
+            hook.get("type") == "command" and hook.get("command") == command
+            for hook in self._iter_command_hooks(session_start)
+        )
 
     def register(self, project_root: Path, command: str) -> None:
         """Add *command* as a SessionStart hook entry (idempotent).
@@ -155,11 +179,8 @@ class ClaudeCodeHookRegistrar:
         """
         path = self._settings_path(project_root)
         data = self._load(path)
-        hooks_section = data.get("hooks")
-        if not isinstance(hooks_section, dict):
-            return
-        session_start = hooks_section.get(_SESSION_START_KEY)
-        if not isinstance(session_start, list):
+        session_start = self._session_start_entries(data)
+        if session_start is None:
             return
 
         new_entries: list[object] = []
@@ -191,5 +212,9 @@ class ClaudeCodeHookRegistrar:
             # Command was not present — no-op, do not write.
             return
 
+        hooks_section = data.get("hooks")
+        if not isinstance(hooks_section, dict):
+            msg = "Expected hooks section to be a dict"
+            raise TypeError(msg)
         hooks_section[_SESSION_START_KEY] = new_entries
         self._save(path, data)
