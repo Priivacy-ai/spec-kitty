@@ -1,7 +1,8 @@
 # Implementation Plan: Execution-State Canonical Domain Surface
 
-**Branch**: `feat/execution-state-strangler` | **Date**: 2026-06-07 | **Spec**: [spec.md](./spec.md)
+**Branch**: `feat/execution-state-strangler` | **Date**: 2026-06-07 (revised 2026-06-08, post-FSM rebase) | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/kitty-specs/execution-state-canonical-surface-01KTG6P9/spec.md`
+**Base**: rebased onto the WP-lane FSM branch `mission/wp-lane-state-machine-fsm` (`c03972531`). The FSM/status canonicalization and its Randy-Reducer reduction pass are now this mission's baseline — see [Post-FSM-Rebase Reconciliation](#post-fsm-rebase-reconciliation-2026-06-08).
 
 ## Summary
 
@@ -17,7 +18,7 @@ Stand up a net-new `mission_runtime/` umbrella package (Screaming Architecture +
 **Project Type**: single (Python CLI library under `src/`)
 **Performance Goals**: No runtime perf regression; repo-wide `status/` import scan ≤15 s wall-clock in CI (NFR-005)
 **Constraints**: Behavior-preserving across all execution modes (NFR-001); layer meta-guard must stay green; never write mainline without explicit operator authorization (C-001); `coordination/transaction.py` internals unchanged (NFR-006)
-**Scale/Scope**: ~225 deep `status.*` bypass imports; ~125 path-builder occurrences across ~160 files; 8 duplicate feature-dir resolvers; ~40 residue command surfaces. Folded-in surfaces (IC-08/IC-09): `ownership/` (scope/backfill/port) + `migration/backfill_ownership.py`; the migration runner/normalize/`mission_state`/`rebuild_state` rebuild path.
+**Scale/Scope** (re-measured 2026-06-08 on the post-FSM-rebase tree): **234** deep `status.*` submodule bypass imports vs **28** facade (`from specify_cli.status import …`) imports; ~125 path-builder occurrences across ~160 files; 8 duplicate feature-dir resolvers; ~40 residue command surfaces. The status-import count is unchanged in magnitude by the FSM pass — that pass consolidated *specific* consumers and removed status dead code (see reconciliation), it did not migrate the bulk. Folded-in surfaces (IC-08/IC-09): `ownership/` (scope/backfill/port) + `migration/backfill_ownership.py`; the migration runner/normalize/`mission_state`/`rebuild_state` rebuild path.
 
 ## Charter Check
 
@@ -82,6 +83,18 @@ tests/
 
 *No Charter Check violations.* The new top-level package is an explicitly ratified architecture decision (doc 06 §4), not a complexity exception — it is registered in the layer meta-guard rather than justified as a deviation.
 
+## Post-FSM-Rebase Reconciliation (2026-06-08)
+
+This mission was rebased onto `mission/wp-lane-state-machine-fsm` (`c03972531`), so the WP-lane FSM canonicalization and its Randy-Reducer reduction pass are now the baseline. That pass already touched several surfaces this strangler targets. `/spec-kitty.tasks` must re-derive the WPs from the IC map below; the deltas here keep the new WPs from redoing — or fighting — work already landed. **Reference symbols by name, not line number** (e.g. `runtime_bridge.py` grew to 3623 lines; the plan's old `:1723/:1860` citations are stale).
+
+- **IC-04 (path-builder residue / dead-code):** the FSM reduction already deleted *status-side* dead code (`discovery._load_wp_lanes` no-op branches, `validate` `STATUS_BLOCK_*`/`_extract_tasks_status_lines`, the `doctor` no-op call-site, `lifecycle._TERMINAL_LANES`, `wp_state` shim wrappers, `agent_utils` dead `sum()`), and consolidated `_exclude_coord_owned`. **The path-builder/feature-dir-resolver scope is intact** (those weren't touched). WPs must not re-flag the already-removed status dead code as residue.
+- **IC-05 (status facade enforcement):** the facade gained a new public symbol, **`COORD_OWNED_STATUS_FILES`** (in `status/__init__.py` `__all__`, derived from `EVENTS_FILENAME`/`SNAPSHOT_FILENAME`) — already a *promotion* this IC would have made; include it in the inventory as **done**, don't re-promote. Current counts: **234** deep submodule imports vs **28** facade imports remain to migrate.
+- **IC-06 (`MissionStatus`/canonical-reader consumption):** the canonical-reader routing **pattern is now established and demonstrated** — `runtime/next/decision.py::_get_wp_lanes` was collapsed onto `lane_reader.get_all_wp_lanes` (with `CanonicalStatusNotFoundError` fallback). Treat that as the reference exemplar; this consumer is **already ported** (drop it from the to-do set). The genesis read/write-parity defaults in `lane_reader`/`views`/`progress`/`lifecycle`/`aggregate` are also canonicalized — consumers should read through those, not re-add local lane defaults.
+- **IC-07 (#1663 field-drop):** confirmed still live — the rebased parity snapshot shows `mission_id: null` / `mission_slug: null` (the exact drop). The reconstruction sites moved (now ~`runtime_bridge.py:1834/1854`); cite them by the `OperationalContext(...)` call, not the stale line numbers.
+- **IC-03 (parity ratchet):** `tests/architectural/test_execution_context_parity.py` exists with 4 tests; on this branch some fail locally due to subprocess `PYTHONPATH` env (not behavior) and the `test_internal_runtime_parity` snapshot carries the IC-07 drift. IC-03's full-sequence × 3-mode extension and de-overclaim still stand; fold the IC-07 fields into the snapshot when fixed.
+- **FSM-7 note:** `orchestrator_api/commands.py::_is_run_affecting` was renamed to **`_transition_requires_policy`** (distinct from `WPState.is_run_affecting`). IC-06 touches orchestrator-api status consumers — use the new name and do not conflate the two.
+- **IC-08 / IC-09:** disjoint ownership/migration surfaces — unaffected by the FSM pass; scope unchanged.
+
 ## Implementation Concern Map
 
 > Implementation concerns are NOT work packages. `/spec-kitty.tasks` translates these into executable WPs.
@@ -130,6 +143,7 @@ tests/
 - **Sequencing/depends-on**: IC-03 (gate)
 - **Persona IC**: **Paula Patterns** — the facade is the sole owner; exemptions limited to documented plumbing (C-004).
 - **Risks**: Bulk-edit guardrail (C-007); avoid promoting internals that should stay private.
+- **Post-FSM delta**: `COORD_OWNED_STATUS_FILES` is **already promoted** into the facade `__all__` (FSM pass) — record as done, do not re-promote. Re-measured: 234 deep imports vs 28 facade imports to migrate.
 
 ### IC-06 — Consistent `MissionStatus` usage
 
@@ -139,6 +153,7 @@ tests/
 - **Sequencing/depends-on**: IC-05 (facade promotions in place)
 - **Persona IC**: **Randy Reducer** — one status entry point; no parallel write surface.
 - **Risks**: Distinguish mission-level access (route to aggregate) from internal plumbing (exempt).
+- **Post-FSM delta**: the canonical-reader routing pattern is **already demonstrated** — `runtime/next/decision.py::_get_wp_lanes` now delegates to `lane_reader.get_all_wp_lanes` (use as the reference exemplar; this consumer is **done**). Genesis read/write-parity defaults are canonicalized in `lane_reader`/`views`/`progress`/`lifecycle`/`aggregate` — consume them, don't re-add local lane defaults. Note FSM-7: `orchestrator_api/commands.py::_is_run_affecting` → `_transition_requires_policy`.
 
 ### IC-07 — Mission-identity field-drop fold-in (#1663)
 
@@ -171,4 +186,4 @@ tests/
 
 - **Phase 0 — Research** (`research.md`): resolve the carried-forward decisions (module name, ExecutionContext shape, migration order, import-classification strategy, shim approach). All resolved from doc 06/17 — see research.md.
 - **Phase 1 — Design** (`data-model.md`, `contracts/`, `quickstart.md`, `occurrence_map.yaml`): the umbrella's public API surface, the context objects, the boundary + ratchet contracts, and the bulk-edit occurrence map.
-- **Phase 2 — Tasks** (`/spec-kitty.tasks`): translate IC-01..IC-07 into work packages with persona ICs. **Not produced by this command.**
+- **Phase 2 — Tasks** (`/spec-kitty.tasks`): translate IC-01..IC-09 into work packages with persona ICs, applying the [Post-FSM-Rebase Reconciliation](#post-fsm-rebase-reconciliation-2026-06-08) deltas (drop already-done items, fix renamed/moved references). **Not produced by this command.**
