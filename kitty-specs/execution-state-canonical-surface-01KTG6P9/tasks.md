@@ -58,10 +58,10 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T007 Write the design ADR in `architecture/3.x/adr/` (module name, public API shape, context-object abstraction, Strangler migration order) (WP02)
-- [ ] T008 Create `src/mission_runtime/` package with `__init__.py` exposing the curated `__all__` (WP02)
-- [ ] T009 Register `mission_runtime` in `_DEFINED_LAYERS` (`tests/architectural/test_layer_rules.py`) and the `conftest.py` landscape fixture (WP02)
-- [ ] T010 Add `tests/architectural/test_mission_runtime_surface.py` (sole-resolver / no-internal-import enforcement) (WP02)
+- [x] T007 Write the design ADR in `architecture/3.x/adr/` (module name, public API shape, context-object abstraction, Strangler migration order) (WP02)
+- [x] T008 Create `src/mission_runtime/` package with `__init__.py` exposing the curated `__all__` (WP02)
+- [x] T009 Register `mission_runtime` in `_DEFINED_LAYERS` (`tests/architectural/test_layer_rules.py`) and the `conftest.py` landscape fixture (WP02)
+- [x] T010 Add `tests/architectural/test_mission_runtime_surface.py` (sole-resolver / no-internal-import enforcement) (WP02)
 
 ### Dependencies
 
