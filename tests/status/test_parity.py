@@ -267,6 +267,17 @@ class TestSaasFanOutNoOp:
         sys.modules["specify_cli.sync.events"] = None  # type: ignore[assignment]
 
         try:
+            # Seed the WP out of genesis into planned (as finalize-tasks does)
+            # before exercising the lane lifecycle.
+            emit_status_transition(TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-parity-test",
+                wp_id="WP01",
+                to_lane="planned",
+                actor="parity-agent",
+                force=True,
+                reason="seed",
+            ))
             event = emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug="034-parity-test",
@@ -554,9 +565,14 @@ class TestReducerDeterminism:
         assert snap_a.work_packages == snap_b.work_packages == {}
         assert snap_a.summary == snap_b.summary
 
-        # All lane counts should be zero
+        # All active/display lane counts should be zero (genesis excluded — non-display invariant)
         for lane in Lane:
-            assert snap_a.summary[lane.value] == 0
+            if lane is Lane.GENESIS:
+                assert lane.value not in snap_a.summary, (
+                    "genesis must not appear in the summary (non-display invariant)"
+                )
+            else:
+                assert snap_a.summary[lane.value] == 0
 
     def test_force_events_tracked_in_force_count(self):
         """Force count is deterministic and accumulates correctly."""
@@ -793,15 +809,27 @@ class TestTransitionMatrixParity:
             assert Lane(lane_str), f"{lane_str} not in Lane enum"
 
     def test_all_enum_values_in_canonical_lanes(self):
-        """All Lane enum values are in CANONICAL_LANES."""
+        """All Lane enum values are in CANONICAL_LANES, except 'genesis'.
+
+        'genesis' is a non-display lane modelling the pre-finalize state of a
+        WP. By design it is excluded from CANONICAL_LANES (board/display set)
+        while still being a valid enum member and from_lane.
+        """
         for lane in Lane:
+            if lane is Lane.GENESIS:
+                assert lane.value not in CANONICAL_LANES, "genesis must stay out of CANONICAL_LANES (non-display lane)"
+                continue
             assert lane.value in CANONICAL_LANES, f"{lane.value} in Lane enum but not in CANONICAL_LANES"
 
     def test_transition_pairs_use_canonical_lanes(self):
-        """All transition pairs use canonical lane names only."""
+        """All transition pairs use canonical lane names, plus the genesis seeds.
+
+        The only non-canonical lane permitted in a transition pair is 'genesis'
+        as a from_lane (genesis -> planned / genesis -> canceled seeds).
+        """
         canonical_set = set(CANONICAL_LANES)
         for from_lane, to_lane in ALLOWED_TRANSITIONS:
-            assert from_lane in canonical_set, f"Transition has non-canonical from_lane: {from_lane}"
+            assert from_lane in canonical_set or from_lane == Lane.GENESIS.value, f"Transition has non-canonical from_lane: {from_lane}"
             assert to_lane in canonical_set, f"Transition has non-canonical to_lane: {to_lane}"
 
     def test_no_self_transitions_in_matrix(self):

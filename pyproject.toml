@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "3.2.0rc39"
+version = "3.2.0rc40"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -72,8 +72,12 @@ dependencies = [
     # src/runtime/next/ (see WP01 of mission
     # shared-package-boundary-cutover-01KQ22DS), and absence is enforced by
     # tests/architectural/test_pyproject_shape.py.
-    # TeamSpace dry-run and legacy-envelope normalization require the 5.2.0 event contract.
-    "spec-kitty-events>=5.2.0,<6.0.0",
+    # spec-kitty-events 6.0.0 adds the canonical `genesis` lane (major bump per
+    # the events lane-vocabulary contract). The CLI emits `from_lane="genesis"`
+    # seeds, so it requires the genesis-aware contract. The capability gate in
+    # src/specify_cli/status/emit.py (_EVENTS_SUPPORTS_GENESIS) still degrades
+    # gracefully if an older events package is somehow present at runtime.
+    "spec-kitty-events>=6.0.0,<7.0.0",
     "spec-kitty-tracker>=0.4,<0.5",
     "websockets>=12.0",  # WebSocket client for sync protocol
     "toml>=0.10.2",  # Config file parsing

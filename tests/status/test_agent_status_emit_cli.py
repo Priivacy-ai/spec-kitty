@@ -25,12 +25,21 @@ def _disable_emit_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
 
 
+from tests.status.conftest import seed_wp_to_planned as _seed_wp
+
+
+def _seed_planned_event(feature_dir: Path, slug: str, wp_id: str = "WP01") -> None:
+    """Seed a WP out of the non-display 'genesis' state into 'planned'."""
+    _seed_wp(feature_dir, wp_id, slug=slug)
+
+
 @pytest.fixture
 def repo_with_mission(tmp_path: Path) -> Path:
     repo = tmp_path / "repo"
     feature_dir = repo / "kitty-specs" / "017-test-feature"
     feature_dir.mkdir(parents=True)
     (repo / ".kittify").mkdir()
+    _seed_planned_event(feature_dir, "017-test-feature")
     return repo
 
 

@@ -42,6 +42,9 @@ from .store import (
     read_events_raw,
 )
 from .transitions import (
+    # Non-authoritative derived projection (NFR-002, I1): re-exported for tests
+    # and graph tooling only. Never consult it as an edge/transition gate; route
+    # edge questions through wp_state_for(from).may_transition_to(to).
     ALLOWED_TRANSITIONS,
     CANONICAL_LANES,
     LANE_ALIASES,
@@ -113,10 +116,18 @@ from .aggregate import (
     MissionStatus,
 )
 
+# The canonical status artifacts (event log + snapshot). On coordination-topology
+# missions these are owned by the transactional status emitter on the coordination
+# branch; the primary checkout's copies are stale and must not clobber the seed
+# during finalize/implement (#1589). Single source for both commit paths
+# (finalize in agent/mission.py and implement.py) — review M7.
+COORD_OWNED_STATUS_FILES = frozenset({EVENTS_FILENAME, SNAPSHOT_FILENAME})
+
 __all__ = [
     "ActiveWPStatus",
     "AgentAssignment",
     "ALLOWED_TRANSITIONS",
+    "COORD_OWNED_STATUS_FILES",
     "CoordAuthorityUnavailable",
     "GuardContext",
     "MissionMetadataUnavailable",

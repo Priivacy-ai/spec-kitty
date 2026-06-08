@@ -369,6 +369,23 @@ def test_orchestrator_query_payloads_emit_canonical_mission_fields(tmp_path: Pat
 
 def test_orchestrator_transition_payloads_emit_canonical_mission_fields(tmp_path: Path) -> None:
     repo_root, mission_dir = _make_mission(tmp_path)
+    # Seed WP01 out of the non-display 'genesis' state into 'planned' (as
+    # finalize-tasks does) so start-implementation's composite transition is
+    # legal (planned -> claimed -> in_progress).
+    append_event(
+        mission_dir,
+        StatusEvent(
+            event_id="01TESTSEED0000000000000001",
+            mission_slug=mission_dir.name,
+            wp_id="WP01",
+            from_lane=Lane.GENESIS,
+            to_lane=Lane.PLANNED,
+            at="2026-04-07T00:00:00+00:00",
+            actor="seed",
+            force=False,
+            execution_mode="worktree",
+        ),
+    )
 
     envelope = _invoke_orchestrator(
         [

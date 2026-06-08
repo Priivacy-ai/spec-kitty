@@ -271,10 +271,7 @@ def check_drift(feature_dir: Path) -> list[Finding]:
     """
     findings: list[Finding] = []
     try:
-        from specify_cli.status.validate import (
-            validate_derived_views,
-            validate_materialization_drift,
-        )
+        from specify_cli.status.validate import validate_materialization_drift
     except ImportError:
         # Validation engine not available yet (WP11 not merged)
         return findings
@@ -294,30 +291,11 @@ def check_drift(feature_dir: Path) -> list[Finding]:
             )
         )
 
-    # Derived-view drift: event log is sole authority, always treat as phase 2 (error)
-    try:
-        status_path = feature_dir / SNAPSHOT_FILENAME
-        if status_path.exists():
-            snapshot = json.loads(status_path.read_text(encoding="utf-8"))
-            view_findings = validate_derived_views(
-                feature_dir,
-                snapshot.get("work_packages", {}),
-                2,  # event log is sole authority — drift is always an error
-            )
-            for msg in view_findings:
-                findings.append(
-                    Finding(
-                        severity=Severity.WARNING,
-                        category=Category.DERIVED_VIEW_DRIFT,
-                        wp_id=None,
-                        message=msg,
-                        recommended_action=(
-                            "Run 'spec-kitty agent status materialize' to regenerate derived views from status.json."
-                        ),
-                    )
-                )
-    except Exception:
-        logger.debug("Could not check derived-view drift", exc_info=True)
+    # NB: derived-view drift is no longer checked here. The event log is the sole
+    # authority and validate_derived_views is a permanent no-op (frontmatter lane
+    # drift was retired), so the former call-site only did discarded setup work
+    # (#1775 Randy-Reducer FSM-3). validate_derived_views remains as a public
+    # tombstone for any external caller.
 
     return findings
 

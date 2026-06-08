@@ -249,7 +249,8 @@ class TestValidateTransitionLegality:
     def test_all_legal_transitions(self):
         """Legal transitions should produce zero findings.
 
-        Uses the complete 27-pair 9-lane model from ALLOWED_TRANSITIONS.
+        Uses the complete derived transition matrix from ALLOWED_TRANSITIONS
+        (27 canonical-lane pairs + 2 genesis seed edges).
         """
         from specify_cli.status.transitions import ALLOWED_TRANSITIONS
 

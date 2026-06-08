@@ -199,13 +199,20 @@ class TestWPMetadataValidators:
         meta = WPMetadata(work_package_id="WP01", title="T", lane=None)
         assert meta.lane is None
 
-    def test_all_nine_lanes_accepted(self) -> None:
-        """Every canonical Lane value is accepted."""
+    def test_all_display_lanes_accepted(self) -> None:
+        """Every display Lane value is accepted."""
         from specify_cli.status.models import Lane
 
         for lane in Lane:
+            if lane is Lane.GENESIS:
+                continue
             meta = WPMetadata(work_package_id="WP01", title="T", lane=lane.value)
             assert meta.lane is lane
+
+    def test_genesis_lane_rejected(self) -> None:
+        """Genesis is an event-log seed source, not an authorable WP lane."""
+        with pytest.raises(ValidationError, match="Invalid lane value"):
+            WPMetadata(work_package_id="WP01", title="T", lane="genesis")
 
 
 class TestWPMetadataShellPid:

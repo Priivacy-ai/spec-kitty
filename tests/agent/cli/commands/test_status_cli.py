@@ -61,6 +61,14 @@ def feature_dir(tmp_path: Path) -> Path:
     return fd
 
 
+from tests.status.conftest import seed_wp_to_planned as _seed_wp_to_planned
+
+
+def _seed_planned(feature_dir: Path, wp_id: str = "WP01", slug: str = "034-test-feature") -> None:
+    """Seed a WP out of the non-display 'genesis' state into 'planned'."""
+    _seed_wp_to_planned(feature_dir, wp_id, slug=slug)
+
+
 @pytest.fixture
 def feature_dir_with_events(feature_dir: Path) -> Path:
     """Feature directory pre-populated with a valid events file."""
@@ -118,6 +126,7 @@ class TestEmitCommand:
 
     def test_emit_valid_transition(self, tmp_path: Path, feature_dir: Path):
         """A valid planned -> claimed transition should succeed."""
+        _seed_planned(feature_dir)
         patches = _patch_detection(tmp_path)
         with (
             patches["locate_project_root"],
@@ -176,6 +185,7 @@ class TestEmitCommand:
 
     def test_emit_json_output(self, tmp_path: Path, feature_dir: Path):
         """--json flag should produce valid parseable JSON."""
+        _seed_planned(feature_dir)
         patches = _patch_detection(tmp_path)
         with (
             patches["locate_project_root"],
@@ -207,6 +217,7 @@ class TestEmitCommand:
 
     def test_emit_evidence_json_parsing(self, tmp_path: Path, feature_dir: Path):
         """Valid --evidence-json should be parsed and passed through."""
+        _seed_planned(feature_dir)
         patches = _patch_detection(tmp_path)
 
         # Build up state: planned -> claimed -> in_progress -> for_review -> in_review
@@ -579,6 +590,7 @@ class TestEmitThenMaterialize:
 
     def test_emit_then_materialize(self, tmp_path: Path, feature_dir: Path):
         """Emit a transition, then materialize and verify the snapshot."""
+        _seed_planned(feature_dir)
         patches = _patch_detection(tmp_path)
 
         # Emit

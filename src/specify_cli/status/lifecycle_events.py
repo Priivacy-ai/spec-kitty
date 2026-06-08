@@ -703,8 +703,21 @@ def _iter_status_event_objects(text: str) -> Iterable[dict[str, Any]]:
 
 
 def _is_bootstrap_status_event(obj: Mapping[str, Any]) -> bool:
-    """Return True when the reducer event is the forced bootstrap planned event."""
-    return bool(obj.get("force")) and obj.get("to_lane") == "planned" and obj.get("from_lane") in (None, "planned")
+    """Return True when the reducer event is a canonical bootstrap seed.
+
+    Post-FSM (#1775 review M6) the canonical seed is ``genesis -> planned`` with
+    ``force=False`` (``genesis -> planned`` is a real allowed edge, so finalize no
+    longer forces it). The legacy forced ``planned -> planned`` seed is still
+    recognised so historical event logs keep classifying correctly.
+    """
+    to_lane = obj.get("to_lane")
+    if to_lane != "planned":
+        return False
+    from_lane = obj.get("from_lane")
+    if from_lane == "genesis":
+        return True
+    # Legacy forced bootstrap seed (pre-FSM): planned -> planned with force=True.
+    return bool(obj.get("force")) and from_lane in (None, "planned")
 
 
 def has_non_bootstrap_status_history(feature_dir: Path) -> bool:

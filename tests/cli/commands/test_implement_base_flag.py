@@ -70,7 +70,13 @@ def _make_git_repo(path: Path) -> None:
 
 
 def _setup_feature(repo: Path, mission_slug: str = "068-test") -> Path:
-    """Set up a minimal feature with one WP."""
+    """Set up a minimal feature with one WP.
+
+    Seeds a ``genesis -> planned`` bootstrap event for WP06 so that the
+    implement command's genesis gate (T012, Contract 3) treats the WP as
+    having been through ``finalize-tasks``.  Without this seed the gate
+    raises before ``create_lane_workspace`` is reached.
+    """
     feature_dir = repo / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True, exist_ok=True)
 
@@ -107,6 +113,31 @@ def _setup_feature(repo: Path, mission_slug: str = "068-test") -> Path:
     tasks_dir.mkdir(exist_ok=True)
     (tasks_dir / "WP06-task.md").write_text(
         "---\nwork_package_id: WP06\ndependencies: []\n---\n# WP06\n"
+    )
+
+    # Seed the bootstrap event that finalize-tasks would write.
+    # The implement genesis gate (T012) reads the event log directly and
+    # rejects WPs with no lane-state events (genesis state).  A single
+    # genesis -> planned event is the minimal required seed.
+    seed_event = {
+        "actor": "finalize-tasks",
+        "at": "2026-04-07T10:00:00.000000+00:00",
+        "event_id": "01JT00000000000000000WP06",
+        "evidence": None,
+        "execution_mode": "worktree",
+        "force": False,
+        "from_lane": "genesis",
+        "mission_id": mission_slug,
+        "mission_slug": mission_slug,
+        "policy_metadata": None,
+        "reason": "canonical bootstrap",
+        "review_ref": None,
+        "to_lane": "planned",
+        "wp_id": "WP06",
+    }
+    (feature_dir / "status.events.jsonl").write_text(
+        json.dumps(seed_event, sort_keys=True) + "\n",
+        encoding="utf-8",
     )
 
     (repo / ".kittify" / "workspaces").mkdir(parents=True, exist_ok=True)

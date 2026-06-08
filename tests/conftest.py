@@ -950,3 +950,29 @@ def dual_branch_repo(tmp_path: Path) -> Path:
             yaml.dump(metadata, f, default_flow_style=False, sort_keys=False)
 
     return repo
+
+
+# ---------------------------------------------------------------------------
+# T027 — shared seed fixture (for tests outside tests/status/)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def seed_to_planned() -> Callable[[Path, str, str], None]:
+    """Return the shared WP seed callable for tests outside tests/status/.
+
+    Usage::
+
+        def test_something(tmp_path, seed_to_planned):
+            feature_dir = tmp_path / "kitty-specs" / "099-mission"
+            feature_dir.mkdir(parents=True)
+            seed_to_planned(feature_dir, "WP01")
+            seed_to_planned(feature_dir, "WP02", slug="099-mission")
+
+    Delegates to ``tests.status.conftest.seed_wp_to_planned``. Writes directly
+    to the event log (no emit pipeline) so no fan-out or git transaction is
+    triggered.
+    """
+    from tests.status.conftest import seed_wp_to_planned
+
+    return seed_wp_to_planned

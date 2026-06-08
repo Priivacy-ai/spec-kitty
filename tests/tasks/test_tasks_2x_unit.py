@@ -98,7 +98,8 @@ class TestStatusInProgressLane:
             '---\nwork_package_id: "WP02"\ntitle: "Beta"\nlane: "doing"\n---\nContent\n'
         )
         _seed_wp_lane(feature_dir, "WP02", "doing")
-        # WP already planned (no event seeding needed)
+        # WP exists but has no canonical seed yet: it must be reported as genesis,
+        # not silently treated as planned.
         (tasks_dir / "WP03-gamma.md").write_text(
             '---\nwork_package_id: "WP03"\ntitle: "Gamma"\nlane: "planned"\n---\nContent\n'
         )
@@ -121,12 +122,14 @@ class TestStatusInProgressLane:
         assert output["by_lane"].get("in_progress", 0) == 2, (
             f"Expected 2 in_progress WPs, got by_lane: {output['by_lane']}"
         )
-        assert output["by_lane"].get("planned", 0) == 1
+        assert output["by_lane"].get("planned", 0) == 0
+        assert output["by_lane"].get("genesis", 0) == 1
 
         # Verify individual WP lane values are canonicalized
         wp_lanes = {wp["id"]: wp["lane"] for wp in output["work_packages"]}
         assert wp_lanes["WP01"] == "in_progress"
         assert wp_lanes["WP02"] == "in_progress"  # 'doing' resolved to 'in_progress'
+        assert wp_lanes["WP03"] == "genesis"
 
     @patch("specify_cli.cli.commands.agent.tasks.get_status_read_root")
     @patch("specify_cli.core.stale_detection.check_doing_wps_for_staleness", return_value={})

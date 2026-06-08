@@ -188,19 +188,24 @@ def wp_lane_actor_from_events(
     events: list[StatusEvent],
     wp_id: str,
 ) -> tuple[Lane, str | None]:
-    """Reduce already-read events into a WP lane/actor snapshot."""
+    """Reduce already-read events into a WP lane/actor snapshot.
+
+    An *unseeded* WP (no events at all, or no snapshot entry for wp_id)
+    defaults to ``Lane.GENESIS`` — matching the write-side
+    ``_derive_from_lane`` behaviour (Contract 3, FR-008).
+    """
     from specify_cli.status import Lane, reduce  # noqa: PLC0415
 
     if not events:
-        return Lane.PLANNED, None
+        return Lane.GENESIS, None
     snapshot = reduce(events)
     state = snapshot.work_packages.get(wp_id)
     if not state:
-        return Lane.PLANNED, None
+        return Lane.GENESIS, None
     try:
-        lane = Lane(str(state.get("lane", Lane.PLANNED)))
+        lane = Lane(str(state.get("lane", Lane.GENESIS)))
     except ValueError:
-        lane = Lane.PLANNED
+        lane = Lane.GENESIS
     actor = state.get("actor")
     actor_key = str(actor).strip() if actor is not None else ""
     return lane, actor_key or None

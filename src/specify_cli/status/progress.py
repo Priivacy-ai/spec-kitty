@@ -22,10 +22,12 @@ from specify_cli.mission_metadata import mission_identity_fields
 from .models import Lane, StatusSnapshot
 from .reducer import materialize
 
-# Default lane weights for the 9-lane state machine.
+# Default lane weights for the 9 active/display lanes (10 enum members total;
+# genesis is excluded — it is a non-display lane and never appears in progress).
 # blocked and canceled contribute 0 — they don't represent forward progress.
 # in_review sits between for_review and approved in the review pipeline.
 DEFAULT_LANE_WEIGHTS: dict[str, float] = {
+    "genesis": 0.0,
     "planned": 0.0,
     "claimed": 0.05,
     "in_progress": 0.3,
@@ -160,7 +162,9 @@ def compute_weighted_progress(
     done_count = 0
 
     for wp_id, wp_state in sorted(work_packages.items()):
-        lane = wp_state.get("lane", Lane.PLANNED)
+        # Defensive default matches the write side (#1775 review M4 / I3 parity);
+        # reduce() always sets "lane", so this default is effectively unreachable.
+        lane = wp_state.get("lane", Lane.GENESIS)
         wp_weight = (wp_weights or {}).get(wp_id, 1.0)
         lw = resolved_lane_weights.get(lane, 0.0)
         fractional = wp_weight * lw

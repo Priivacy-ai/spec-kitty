@@ -15,6 +15,8 @@ from specify_cli.session_presence.content import (
     SessionPresenceContent,
 )
 
+pytestmark = [pytest.mark.unit]
+
 
 class TestRenderHealthy:
     def test_contains_version(self, healthy_content: SessionPresenceContent) -> None:

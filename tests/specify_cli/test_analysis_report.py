@@ -78,6 +78,38 @@ def test_analysis_report_freshness_detects_stale_inputs(tmp_path):
     assert "tasks.md" in freshness.mismatches
 
 
+def test_analysis_report_survives_subtask_checkbox_churn(tmp_path):
+    """#1764: ``mark-status``/``move-task`` flipping subtask checkboxes in tasks.md
+    must NOT invalidate a recorded analysis (only substantive changes should)."""
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "sample-01KS"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("# Spec\n\nFR-001.\n", encoding="utf-8")
+    (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n- [ ] T001 Do the thing (WP01)\n- [ ] T002 Do the other thing (WP01)\n",
+        encoding="utf-8",
+    )
+    write_analysis_report(feature_dir=feature_dir, repo_root=repo_root, body="# Report\n\nPASS\n")
+    assert check_analysis_report_current(feature_dir, repo_root).ok is True
+
+    # Status churn: a subtask is marked done (mark-status flips [ ] -> [x]).
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n- [x] T001 Do the thing (WP01)\n- [ ] T002 Do the other thing (WP01)\n",
+        encoding="utf-8",
+    )
+    assert check_analysis_report_current(feature_dir, repo_root).ok is True
+
+    # Substantive change to a task definition: still goes stale.
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n- [x] T001 Do a DIFFERENT thing (WP01)\n- [ ] T002 Do the other thing (WP01)\n",
+        encoding="utf-8",
+    )
+    freshness = check_analysis_report_current(feature_dir, repo_root)
+    assert freshness.ok is False
+    assert "tasks.md" in freshness.mismatches
+
+
 def test_implement_gate_blocks_missing_analysis_report(tmp_path, capsys):
     repo_root = tmp_path
     feature_dir = repo_root / "kitty-specs" / "sample-01KS"

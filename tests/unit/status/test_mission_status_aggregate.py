@@ -432,8 +432,12 @@ class TestStatusFacadeExports:
 
 
 class TestTransitionHappyPath:
-    def test_resolve_current_lane_maps_uninitialized_to_planned(self, tmp_path: Path) -> None:
-        """Uninitialized transactional reads should validate from planned."""
+    def test_resolve_current_lane_maps_uninitialized_to_genesis(self, tmp_path: Path) -> None:
+        """Unseeded transactional reads resolve to genesis, not planned (#1775).
+
+        An unseeded WP cannot be claimed; resolving to genesis lets the FSM reject
+        genesis -> claimed instead of silently treating the WP as planned.
+        """
         from specify_cli.status import TransitionRequest
         from specify_cli.status.aggregate import MissionStatus
         from specify_cli.status.models import Lane
@@ -457,10 +461,10 @@ class TestTransitionHappyPath:
         from_lane, current_actor = ms._resolve_current_lane(
             request=request,
             read_current_wp_state_transactional=lambda **_: ("uninitialized", "claude"),
-            lane_planned=Lane.PLANNED,
+            lane_unseeded=Lane.GENESIS,
         )
 
-        assert from_lane == "planned"
+        assert from_lane == "genesis"
         assert current_actor == "claude"
 
     def test_resolve_workspace_context_prefers_request_value(self, tmp_path: Path) -> None:
@@ -730,24 +734,21 @@ class TestTransitionHappyPath:
 
         assert result is marker
 
-    def test_transition_treats_empty_event_log_as_planned(
+    def test_transition_rejects_empty_event_log_as_genesis(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Empty canonical log matches legacy writer: first transition starts planned."""
+        """Empty canonical log is unseeded; claim must not bypass genesis."""
         slug = "034-empty-log-transition"
         mission_dir = _make_mission_dir(tmp_path, slug)
         _write_events_file(mission_dir, [])
 
         from specify_cli.status import TransitionRequest
+        from specify_cli.status.emit import TransitionError
         from specify_cli.status.aggregate import MissionStatus
         import specify_cli.coordination.status_transition as status_transition
 
-        marker = object()
-
         def _fake_transactional(request, **kwargs):  # noqa: ANN001, ANN003
-            assert request.wp_id == "WP01"
-            assert request.to_lane == "claimed"
-            return marker
+            raise AssertionError("unseeded transition must fail before transactional emit")
 
         monkeypatch.setattr(
             status_transition,
@@ -756,22 +757,21 @@ class TestTransitionHappyPath:
         )
 
         ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
-        result = ms.transition(
-            TransitionRequest(
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="claude",
-                feature_dir=ms.read_dir,
-                mission_slug=slug,
+        with pytest.raises(TransitionError, match="Illegal transition: genesis -> claimed"):
+            ms.transition(
+                TransitionRequest(
+                    wp_id="WP01",
+                    to_lane="claimed",
+                    actor="claude",
+                    feature_dir=ms.read_dir,
+                    mission_slug=slug,
+                )
             )
-        )
 
-        assert result is marker
-
-    def test_transition_treats_unknown_wp_in_nonempty_log_as_planned(
+    def test_transition_rejects_unknown_wp_in_nonempty_log_as_genesis(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Unknown WP rows match legacy writer: no WP state means planned."""
+        """Unknown WP rows are unseeded; claim must not bypass genesis."""
         slug = "034-unknown-wp-transition"
         mission_dir = _make_mission_dir(tmp_path, slug)
         _write_events_file(mission_dir, [
@@ -779,15 +779,12 @@ class TestTransitionHappyPath:
         ])
 
         from specify_cli.status import TransitionRequest
+        from specify_cli.status.emit import TransitionError
         from specify_cli.status.aggregate import MissionStatus
         import specify_cli.coordination.status_transition as status_transition
 
-        marker = object()
-
         def _fake_transactional(request, **kwargs):  # noqa: ANN001, ANN003
-            assert request.wp_id == "WP99"
-            assert request.to_lane == "claimed"
-            return marker
+            raise AssertionError("unknown WP transition must fail before transactional emit")
 
         monkeypatch.setattr(
             status_transition,
@@ -796,17 +793,16 @@ class TestTransitionHappyPath:
         )
 
         ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
-        result = ms.transition(
-            TransitionRequest(
-                wp_id="WP99",
-                to_lane="claimed",
-                actor="claude",
-                feature_dir=ms.read_dir,
-                mission_slug=slug,
+        with pytest.raises(TransitionError, match="Illegal transition: genesis -> claimed"):
+            ms.transition(
+                TransitionRequest(
+                    wp_id="WP99",
+                    to_lane="claimed",
+                    actor="claude",
+                    feature_dir=ms.read_dir,
+                    mission_slug=slug,
+                )
             )
-        )
-
-        assert result is marker
 
     def test_transition_infers_workspace_context_for_claimed_to_in_progress(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

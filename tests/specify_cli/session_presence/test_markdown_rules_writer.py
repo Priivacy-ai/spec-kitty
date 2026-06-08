@@ -14,6 +14,8 @@ import pytest
 from specify_cli.session_presence.content import SECTION_CLOSE, SECTION_OPEN, SessionPresenceContent
 from specify_cli.session_presence.writers.markdown_rules import MarkdownRulesWriter
 
+pytestmark = [pytest.mark.unit]
+
 
 def _make_content(
     version: str = "3.2.0",

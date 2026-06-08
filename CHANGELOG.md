@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc40] - 2026-06-07
+
+### ✨ Added
+
+- Introduced `Lane.GENESIS` pseudo-state and a canonical `WPState` State-pattern FSM in
+  `specify_cli.status.wp_state`, making the FSM the single source of truth for WP lanes,
+  edges, and transitions (mission `wp-lane-state-machine-fsm-01KTGZAZ`).
+- Added ADR `2026-06-07-1-wp-lane-fsm-genesis-and-finalize-clobber.md` documenting the
+  genesis-lane bootstrap and the finalize event-log clobber fix.
+
+### 🔧 Changed
+
+- Routed all WP lane validation and mutation through the single FSM transition primitive;
+  callers no longer reconstruct transition authority from derived constants (#1666).
+
+### 🐛 Fixed
+
+- `implement` and `finalize` no longer overwrite the coordination branch's canonical
+  status event log (`status.events.jsonl`/`status.json`) with the primary checkout's
+  stale copies, preserving seeded lane state on coordination-topology missions (#1589).
+- Reconciled the genesis gate and `spec_kitty_events` 6.0.0 expectations for CI.
+
 ## [3.2.0rc39] - 2026-06-07
 
 ### ✨ Added

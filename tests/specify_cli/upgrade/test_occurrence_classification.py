@@ -23,6 +23,10 @@ from specify_cli.upgrade.skill_update import (
 
 pytestmark = [pytest.mark.unit]
 
+# The software-dev command templates were migrated from
+# ``src/specify_cli/missions/<type>/command-templates/`` to the canonical doctrine
+# mission-steps structure. The implement step's bulk-edit safety / occurrence
+# classification content now lives in the doctrine prompt.
 IMPLEMENT_TEMPLATE_PATH = (
     Path(__file__).resolve().parents[3]
     / "src"

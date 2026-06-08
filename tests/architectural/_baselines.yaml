@@ -27,9 +27,11 @@ test_no_dead_modules:
   # m_3_2_0rc35_charter_manifest_defaults_repair (upstream #1480). +1 (76->77,
   # org-doctrine-profile-integrity-closeout WP04): the upstream rebase added
   # m_3_2_0rc35_sync_state_gitignore, allowlisted in _CATEGORY_1 here. +1 for
-  # m_3_2_0rc35_spk_skill_pack, another auto-discovered migration. Growth here
-  # is expected/routine.
-  category_1_auto_discovered_migrations: 79  # justification: auto-discovered migration m_3_2_0rc35_spk_skill_pack is loaded dynamically by the migration runner, not statically imported.
+  # m_3_2_0rc35_spk_skill_pack, another auto-discovered migration. +2 (79->81,
+  # wp-lane-state-machine-fsm): upstream #1756 added m_3_3_0_session_presence_all_harnesses
+  # and m_3_3_0_session_presence_claude_code; both auto-discovered via
+  # pkgutil.iter_modules, never statically imported. Growth here is expected/routine.
+  category_1_auto_discovered_migrations: 81  # justification: two 3.3.0 session-presence migrations (auto-discovered, not statically imported) added to upstream/main via #1756; surfaced by this mission's core-misc path trigger.
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live

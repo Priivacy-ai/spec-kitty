@@ -23,6 +23,7 @@ import pytest
 from specify_cli.status import adapters
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
+from tests.status.conftest import seed_wp_to_planned as _seed_planned
 
 pytestmark = pytest.mark.fast
 
@@ -48,6 +49,7 @@ class TestFanOutPreservation:
         adapters.register_saas_fanout_handler(fake_saas)
 
         try:
+            _seed_planned(feature_dir, "WP01")
             event = emit_status_transition(
                 TransitionRequest(
                     feature_dir=feature_dir,
@@ -81,6 +83,7 @@ class TestFanOutPreservation:
         adapters.register_dossier_sync_handler(fake_dossier)
 
         try:
+            _seed_planned(feature_dir, "WP01")
             emit_status_transition(
                 TransitionRequest(
                     feature_dir=feature_dir,
@@ -105,6 +108,7 @@ class TestFanOutPreservation:
         adapters.reset_handlers()
 
         try:
+            _seed_planned(feature_dir, "WP01")
             caplog.set_level(logging.INFO, logger="specify_cli.status.adapters")
             event = emit_status_transition(
                 TransitionRequest(
@@ -135,6 +139,7 @@ class TestFanOutPreservation:
         adapters.register_saas_fanout_handler(boom)
 
         try:
+            _seed_planned(feature_dir, "WP01")
             event = emit_status_transition(
                 TransitionRequest(
                     feature_dir=feature_dir,

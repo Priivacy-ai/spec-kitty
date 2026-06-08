@@ -29,6 +29,8 @@ from specify_cli.cli.commands.session_start import (  # noqa: E402
     session_start,
 )
 
+pytestmark = [pytest.mark.unit]
+
 # Build a minimal typer app for testing the session_start command
 _app = typer.Typer()
 _app.command()(session_start)

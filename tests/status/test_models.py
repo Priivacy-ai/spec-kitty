@@ -20,11 +20,18 @@ pytestmark = pytest.mark.fast
 
 class TestLaneEnum:
     def test_lane_enum_has_nine_values(self) -> None:
-        """9-lane model: planned, claimed, in_progress, for_review, in_review, approved, done, blocked, canceled."""
-        assert len(Lane) == 9
+        """10-lane model: the 9 display lanes plus the non-display 'genesis' lane.
+
+        'genesis' models the pre-finalize state of a WP (created but not yet
+        seeded into the lane lifecycle). It is excluded from CANONICAL_LANES and
+        never the current lane of a materialized WP, but it is a valid enum
+        member and from_lane.
+        """
+        assert len(Lane) == 10
 
     def test_lane_enum_string_values(self) -> None:
         expected = {
+            "genesis",
             "planned",
             "claimed",
             "in_progress",
@@ -250,7 +257,9 @@ class TestStatusSnapshot:
         assert restored.summary == sample_status_snapshot.summary
 
     def test_summary_has_all_lane_keys(self, sample_status_snapshot: StatusSnapshot) -> None:
-        expected_keys = {str(lane) for lane in Lane}
+        # 'genesis' is a non-display lane: it never appears as the current lane
+        # of a materialized WP and is excluded from board/summary surfaces.
+        expected_keys = {str(lane) for lane in Lane if lane is not Lane.GENESIS}
         assert set(sample_status_snapshot.summary.keys()) == expected_keys
 
     def test_summary_counts_match_work_packages(self, sample_status_snapshot: StatusSnapshot) -> None:

@@ -86,9 +86,36 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _sha256_text(text: str) -> str:
+    digest = hashlib.sha256()  # noqa: TID251 - file-integrity hash for artifact freshness
+    digest.update(text.encode("utf-8"))
+    return digest.hexdigest()
+
+
+# Subtask checkbox marker, e.g. ``- [x] T001 ...`` / ``- [ ] T001 ...``. The
+# ``mark-status``/``move-task`` commands legitimately flip these on every WP
+# transition, which must NOT invalidate a recorded analysis (#1764). The
+# substantive WP/subtask definitions and requirement refs still gate freshness.
+_TASKS_ARTIFACT = "tasks.md"
+_CHECKBOX_RE = re.compile(r"(?m)^(\s*[-*]\s*)\[[ xX]\]")
+
+
+def _normalize_tasks_md(text: str) -> str:
+    """Strip status churn (subtask checkbox state) from ``tasks.md`` so the
+    freshness hash reflects only substantive content. ``mark-status``/``move-task``
+    toggle ``- [ ]``↔``- [x]`` on every transition; canonicalising the marker means
+    a recorded analysis stays current across status churn but still goes stale on a
+    real spec/plan/task-definition change (#1764)."""
+
+    return _CHECKBOX_RE.sub(r"\1[ ]", text)
+
+
 def _artifact_hash_entry(path: Path) -> dict[str, str | None]:
     if not path.exists():
         return {"path": str(path), "sha256": None}
+    if path.name == _TASKS_ARTIFACT:
+        normalized = _normalize_tasks_md(path.read_text(encoding="utf-8"))
+        return {"path": str(path), "sha256": _sha256_text(normalized)}
     return {"path": str(path), "sha256": _sha256_file(path)}
 
 

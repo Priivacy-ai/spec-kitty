@@ -193,9 +193,10 @@ def _add_wp_files(feature_dir: Path, wps: dict[str, str]) -> None:
             f"Do something in src/{wp_id.lower()}/module.py.\n",
             encoding="utf-8",
         )
-        # Seed event log for non-planned lanes
-        if lane != "planned":
-            _seed_wp_lane(feature_dir, wp_id, lane)
+        # Seed the canonical event log for EVERY WP, planned included: an unseeded
+        # WP is genesis (not claimable) under the FSM, so a planned WP must be
+        # explicitly seeded or it would be invisible to claim selection (#1775).
+        _seed_wp_lane(feature_dir, wp_id, lane)
     write_single_lane_manifest(feature_dir, wp_ids=tuple(wps.keys()))
 
 

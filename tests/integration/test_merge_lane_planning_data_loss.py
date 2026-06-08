@@ -672,6 +672,19 @@ def _seed_wp_approved(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
     from specify_cli.status.emit import emit_status_transition
     from specify_cli.status.models import ReviewResult, TransitionRequest
 
+    # Seed out of the non-display 'genesis' state into 'planned' (as
+    # finalize-tasks does) before walking the lane lifecycle.
+    emit_status_transition(
+        TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            to_lane="planned",
+            actor="seed",
+            force=True,
+            reason="seed",
+        )
+    )
     for to_lane in ("claimed", "in_progress", "for_review", "in_review"):
         emit_status_transition(
             TransitionRequest(

@@ -426,7 +426,7 @@ class MissionStatus:
         from_lane_str, current_actor = self._resolve_current_lane(
             request=request,
             read_current_wp_state_transactional=read_current_wp_state_transactional,
-            lane_planned=Lane.PLANNED,
+            lane_unseeded=Lane.GENESIS,
         )
         to_lane_str = request.to_lane or ""
         resolved_to_lane = resolve_lane_alias(to_lane_str)
@@ -489,9 +489,16 @@ class MissionStatus:
         *,
         request: TransitionRequest,
         read_current_wp_state_transactional: Any,
-        lane_planned: Any,
+        lane_unseeded: Any,
     ) -> tuple[str, str | None]:
-        """Resolve the lane/current actor from the transactional authority."""
+        """Resolve the lane/current actor from the transactional authority.
+
+        An unseeded WP resolves to ``genesis`` (``lane_unseeded``), NOT ``planned``:
+        a created-but-unfinalized WP cannot be claimed, and the FSM correctly
+        rejects ``genesis -> claimed``. The transactional reader already returns
+        ``Lane.GENESIS`` for unseeded WPs; the ``"uninitialized"`` string sentinel
+        is handled here for any reader that still emits it (#1775 review M4/Tier 3).
+        """
         from_lane_enum, current_actor = read_current_wp_state_transactional(
             feature_dir=self.read_dir,
             mission_slug=self.mission_slug,
@@ -499,7 +506,7 @@ class MissionStatus:
             repo_root=self.repo_root,
         )
         if str(from_lane_enum) == "uninitialized":
-            from_lane_enum = lane_planned
+            from_lane_enum = lane_unseeded
         return str(from_lane_enum), current_actor
 
     def _resolve_workspace_context(self, request: TransitionRequest) -> str:

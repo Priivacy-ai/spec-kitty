@@ -11,11 +11,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from specify_cli.session_presence.content import SECTION_CLOSE, SECTION_OPEN, SessionPresenceContent
 from specify_cli.session_presence.writers.agents_md import AgentsMdWriter
 from specify_cli.session_presence.writers.markdown_rules import MarkdownRulesWriter
 from specify_cli.session_presence.writers.registry import get_writer
 from specify_cli.session_presence.writers.skills_preamble import SkillsPreambleWriter
+
+pytestmark = [pytest.mark.unit]
 
 
 # ---------------------------------------------------------------------------

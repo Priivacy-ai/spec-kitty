@@ -231,6 +231,26 @@ def test_build_event_log_kanban_stats_tolerates_weighted_progress_failure(tmp_pa
     assert "weighted_percentage" not in stats
 
 
+def test_build_event_log_kanban_stats_excludes_unseeded_wps(tmp_path):
+    feature_dir = tmp_path / "kitty-specs" / "001-unseeded"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-demo.md").write_text(
+        """---
+work_package_id: WP01
+---
+# Work Package Prompt: Demo
+""",
+        encoding="utf-8",
+    )
+    (feature_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+
+    stats = scanner._build_event_log_kanban_stats(feature_dir, tasks_dir)
+
+    assert stats["total"] == 0
+    assert stats["planned"] == 0
+
+
 def test_build_kanban_stats_handles_absent_and_legacy_paths(tmp_path, monkeypatch):
     feature_dir = tmp_path / "kitty-specs" / "001-legacy"
     tasks_dir = feature_dir / "tasks"
@@ -418,10 +438,20 @@ def test_display_category_matches_kanban_columns():
 
 @pytest.mark.fast
 def test_kanban_column_map_covers_all_lanes():
-    """_KANBAN_COLUMN_FOR_LANE covers every Lane enum member (NFR-006)."""
+    """_KANBAN_COLUMN_FOR_LANE covers every display Lane enum member (NFR-006).
+
+    'genesis' is a non-display lane (pre-finalize state); it is never the
+    current lane of a materialized WP and has no kanban column by design, so
+    it is excluded from the column map.
+    """
     from specify_cli.dashboard.scanner import _KANBAN_COLUMN_FOR_LANE
 
     for member in Lane:
+        if member is Lane.GENESIS:
+            assert member not in _KANBAN_COLUMN_FOR_LANE, (
+                "genesis is non-display and must not have a kanban column"
+            )
+            continue
         assert member in _KANBAN_COLUMN_FOR_LANE, (
             f"Lane.{member.name} missing from _KANBAN_COLUMN_FOR_LANE"
         )

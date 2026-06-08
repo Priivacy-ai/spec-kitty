@@ -122,7 +122,9 @@ def reduce(events: list[StatusEvent]) -> StatusSnapshot:
     2. Sort by (at, event_id) ascending
     3. Iterate and track current lane per WP
     4. Apply rollback-aware precedence for concurrent events
-    5. Build summary counts for all 7 lanes
+    5. Build summary counts for the 9 active/display lanes
+       (Lane.GENESIS is excluded — it is a non-display lane and never
+       appears as the current lane of a materialised WP)
 
     Empty events returns a snapshot with mission_slug="", all zero
     counts, and no work packages.
@@ -134,7 +136,7 @@ def reduce(events: list[StatusEvent]) -> StatusSnapshot:
             event_count=0,
             last_event_id=None,
             work_packages={},
-            summary={lane.value: 0 for lane in Lane},
+            summary={lane.value: 0 for lane in Lane if lane is not Lane.GENESIS},
         )
 
     # Step 1: Deduplicate by event_id (keep first occurrence)
@@ -157,8 +159,10 @@ def reduce(events: list[StatusEvent]) -> StatusSnapshot:
         if _should_apply_event(current, event, sorted_events):
             wp_states[event.wp_id] = _wp_state_from_event(event, current)
 
-    # Step 5: Build summary counts
-    summary: dict[str, int] = {lane.value: 0 for lane in Lane}
+    # Step 5: Build summary counts for the 9 active/display lanes.
+    # Lane.GENESIS is excluded — it is a non-display lane and is never
+    # the current lane of a materialised WP (post-finalize there are none).
+    summary: dict[str, int] = {lane.value: 0 for lane in Lane if lane is not Lane.GENESIS}
     for wp_state in wp_states.values():
         lane_val = wp_state["lane"]
         if lane_val in summary:

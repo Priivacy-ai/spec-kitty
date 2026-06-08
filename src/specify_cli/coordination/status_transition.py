@@ -302,7 +302,9 @@ def read_current_wp_state_transactional(
         try:
             return Lane(resolve_lane_alias(get_wp_lane(identity.feature_dir, wp_id))), None
         except Exception:  # noqa: BLE001 -- non-git test fixtures may lack WP files
-            return Lane.PLANNED, None
+            # No events and no WP file resolved → unseeded WP; report GENESIS
+            # (matching _derive_from_lane on the write side — Contract 3, FR-009).
+            return Lane.GENESIS, None
     return wp_lane_actor_from_events(events, wp_id)
 
 

@@ -146,6 +146,9 @@ def bootstrap_canonical_state(
 
     # Emit planned events for uninitialized WPs
     for wp_id in wps_to_seed:
+        # T030: genesis -> planned is a real allowed edge post-WP01 FSM refactor,
+        # so force=True is no longer needed and the event no longer records "force": true
+        # on every canonical bootstrap seed.
         emit_status_transition_transactional(
             TransitionRequest(
                 feature_dir=feature_dir,
@@ -153,7 +156,6 @@ def bootstrap_canonical_state(
                 wp_id=wp_id,
                 to_lane="planned",
                 actor="finalize-tasks",
-                force=True,
                 reason="canonical bootstrap",
             ),
             allow_protected_branch_in_test_mode=allow_protected_branch_in_test_mode,

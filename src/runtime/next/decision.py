@@ -272,17 +272,19 @@ def _describe_guard(guard_callable: Any, *, negate: bool = False) -> str:
 def _get_wp_lanes(feature_dir: Path) -> dict[str, str]:
     """Return a mapping of wp_id -> canonical lane from the event log.
 
-    Falls back to "planned" for WPs not yet in the event log.
+    Best-effort: routes through the canonical reader and returns ``{}`` when no
+    canonical event log exists yet (#1775 Randy-Reducer F5 — this was a verbatim
+    duplicate of ``get_all_wp_lanes`` minus the fail-loud guard).
     """
-    from specify_cli.status.store import read_events
-    from specify_cli.status.reducer import reduce
+    from specify_cli.status.lane_reader import (
+        CanonicalStatusNotFoundError,
+        get_all_wp_lanes,
+    )
 
-    events = read_events(feature_dir)
-    if not events:
+    try:
+        return get_all_wp_lanes(feature_dir)
+    except CanonicalStatusNotFoundError:
         return {}
-
-    snapshot = reduce(events)
-    return {wp_id: Lane(state.get("lane", Lane.PLANNED)) for wp_id, state in snapshot.work_packages.items()}
 
 
 def _compute_wp_progress(feature_dir: Path) -> dict[str, int | float] | None:
@@ -310,7 +312,12 @@ def _compute_wp_progress(feature_dir: Path) -> dict[str, int | float] | None:
         counts["total_wps"] += 1
         wp_match = re.match(r"(WP\d+)", wp_file.stem)
         wp_id = wp_match.group(1) if wp_match else wp_file.stem
-        lane = wp_lanes.get(wp_id, Lane.PLANNED)
+        # Default to GENESIS for unseeded WPs: they are not displayed in any
+        # progress bucket until finalize-tasks seeds them (Contract 3, FR-008).
+        lane = wp_lanes.get(wp_id, Lane.GENESIS)
+        # Genesis WPs are non-display; they belong in no progress bucket.
+        if lane == Lane.GENESIS:
+            continue
         state = wp_state_for(lane)
         if state.lane == Lane.DONE:
             counts["done_wps"] += 1
@@ -357,7 +364,12 @@ def _find_first_wp_by_lane(feature_dir: Path, lane: str) -> str | None:
         if wp_match is None:
             continue
         wp_id = wp_match.group(1)
-        wp_lane = wp_lanes.get(wp_id, Lane.PLANNED)
+        # Default to GENESIS for unseeded WPs: they are not claimable/findable
+        # by any lane query until finalize-tasks seeds them (Contract 3, FR-008).
+        wp_lane = wp_lanes.get(wp_id, Lane.GENESIS)
+        # Genesis WPs cannot be found by lane query — skip them.
+        if wp_lane == Lane.GENESIS:
+            continue
         if wp_state_for(wp_lane).lane == target_lane:
             return wp_id
     return None

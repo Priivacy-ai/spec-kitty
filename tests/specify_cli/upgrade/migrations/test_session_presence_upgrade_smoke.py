@@ -30,6 +30,8 @@ import specify_cli.upgrade.migrations.m_3_3_0_session_presence_all_harnesses  # 
 
 from specify_cli.upgrade import MigrationRunner
 
+pytestmark = [pytest.mark.unit]
+
 
 # ---------------------------------------------------------------------------
 # Harnesses whose config directories to create for the smoke project.

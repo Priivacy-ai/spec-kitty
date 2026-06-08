@@ -37,11 +37,20 @@ def _disable_emit_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
 
 
+from tests.status.conftest import seed_wp_to_planned as _seed_planned_shared
+
+
+def _seed_planned(feature_dir: Path, slug: str, wp_id: str = "WP01") -> None:
+    """Seed a WP out of the non-display 'genesis' state into 'planned'."""
+    _seed_planned_shared(feature_dir, wp_id, slug=slug)
+
+
 def _make_repo_with_mission(root: Path, slug: str) -> Path:
     repo = root / "repo"
     feature_dir = repo / "kitty-specs" / slug
     feature_dir.mkdir(parents=True)
     (repo / ".kittify").mkdir()
+    _seed_planned(feature_dir, slug)
     return repo
 
 
@@ -304,8 +313,12 @@ def test_emit_json_output_contract_is_preserved(tmp_path: Path) -> None:
     )
 
 
-def test_transition_helper_maps_uninitialized_lane_to_planned(tmp_path: Path) -> None:
-    """Aggregate helper normalizes transactional bootstrap reads to planned."""
+def test_transition_helper_maps_uninitialized_lane_to_genesis(tmp_path: Path) -> None:
+    """Aggregate helper resolves an unseeded transactional read to genesis (#1775).
+
+    An unseeded WP is not claimable; resolving to genesis lets the FSM reject the
+    claim rather than silently treating the WP as planned.
+    """
     from specify_cli.status import TransitionRequest
     from specify_cli.status.aggregate import MissionStatus
     from specify_cli.status.models import Lane
@@ -329,10 +342,10 @@ def test_transition_helper_maps_uninitialized_lane_to_planned(tmp_path: Path) ->
     from_lane, current_actor = ms._resolve_current_lane(
         request=request,
         read_current_wp_state_transactional=lambda **_: ("uninitialized", "codex"),
-        lane_planned=Lane.PLANNED,
+        lane_unseeded=Lane.GENESIS,
     )
 
-    assert from_lane == "planned"
+    assert from_lane == "genesis"
     assert current_actor == "codex"
 
 

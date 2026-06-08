@@ -12,7 +12,7 @@ authoritative.
 
 Pipeline order (critical -- do not reorder):
     1. resolve_lane_alias(to_lane)
-    2. Derive from_lane from last event for this WP (or "planned")
+    2. Derive from_lane from last event for this WP (or "genesis" for unseeded WPs)
     3. validate_transition(from_lane, resolved_lane, ...)
     4. Create StatusEvent with ULID event_id
     5. store.append_event(feature_dir, event)
@@ -57,6 +57,30 @@ from .locking import feature_status_lock
 logger = logging.getLogger(__name__)
 
 _LEGACY_LANE_FIELD = "lane"
+
+# ---------------------------------------------------------------------------
+# SaaS package capability gate (T022, WP04)
+# ---------------------------------------------------------------------------
+# Detect at import time whether the installed spec_kitty_events supports the
+# genesis lane. spec_kitty_events 5.2.0 has no genesis member; 6.0.0+ will add
+# it. When genesis is absent from the installed package, fan-out for genesis
+# transitions is deliberately skipped rather than silently swallowed by pydantic
+# ValidationError in _build_payload_via_model. Canonical local persistence is
+# completely unaffected — fan-out is best-effort.
+#
+# NOTE: once spec-kitty-events 6.0.0 (genesis lane) ships and the pyproject.toml
+# constraint is bumped to >=6.0.0,<7.0.0, this gate resolves to True on all
+# installs and may eventually be removed.
+try:
+    import spec_kitty_events as _spec_kitty_events_mod
+
+    _EVENTS_SUPPORTS_GENESIS: bool = "genesis" in {
+        lane.value for lane in _spec_kitty_events_mod.Lane
+    }
+except (ImportError, AttributeError):
+    # ImportError: spec_kitty_events not installed. AttributeError: installed but
+    # lacks a Lane enum. Either way, treat genesis as unsupported (review nit).
+    _EVENTS_SUPPORTS_GENESIS = False
 
 
 def _load_mission_id(feature_dir: Path) -> str | None:
@@ -193,20 +217,25 @@ def _derive_from_lane(feature_dir: Path, wp_id: str) -> str:
     The event log may not be append-ordered by logical transition time,
     so we must reduce the full log to determine the current lane
     deterministically.
+
+    A WP with no lane-state events yet (created but not seeded) is reported as
+    ``GENESIS`` — distinct from ``PLANNED`` — so the bootstrap seed is an
+    explicit ``genesis -> planned`` transition rather than a dropped
+    ``planned -> planned`` self-transition.
     """
     events = _store.read_events(feature_dir)
     if not events:
-        return Lane.PLANNED
+        return Lane.GENESIS
 
     snapshot = _reducer.reduce(events)
     wp_state = snapshot.work_packages.get(wp_id)
     if wp_state is None:
-        return Lane.PLANNED
+        return Lane.GENESIS
 
     lane = wp_state.get("lane")
     if lane is not None:
         return Lane(lane)
-    return Lane.PLANNED
+    return Lane.GENESIS
 
 
 def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
@@ -747,7 +776,27 @@ def _saas_fan_out(
     is non-raising and a no-op when no sync handler has been registered
     (e.g., 0.1x branch or test environments without sync imported).
     Canonical status persistence is never affected by handler failures.
+
+    Genesis compatibility gate (T022, WP04):
+    When the installed spec_kitty_events does not support the genesis lane
+    (i.e., spec_kitty_events < 6.0.0), fan-out for genesis transitions is
+    deliberately skipped. This is a logged, intentional skip — NOT a silent
+    swallowed ValidationError. Once spec_kitty_events 6.0.0 (genesis lane) is
+    installed, this gate resolves True and genesis seeds fan out normally.
     """
+    from_lane_str = str(event.from_lane)
+    to_lane_str = str(event.to_lane)
+    if (from_lane_str == "genesis" or to_lane_str == "genesis") and not _EVENTS_SUPPORTS_GENESIS:
+        logger.info(
+            "Skipping SaaS fan-out for genesis transition (wp_id=%s from=%s to=%s); "
+            "installed spec_kitty_events lacks the genesis lane (needs >=6.0.0). "
+            "Canonical local state is unaffected.",
+            event.wp_id,
+            from_lane_str,
+            to_lane_str,
+        )
+        return
+
     fire_saas_fanout(
         wp_id=event.wp_id,
         from_lane=str(event.from_lane),

@@ -39,6 +39,27 @@ def _setup_mission_dir(tmp_path: Path, mission_slug: str = "099-test") -> Path:
     meta = {"status_phase": 1}
     (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
+    # Seed WP01 out of the non-display 'genesis' state into 'planned' (as
+    # finalize-tasks does), written directly to the event log so the lane
+    # lifecycle can begin with planned -> claimed.
+    seed_event = {
+        "actor": "seed",
+        "at": "2026-05-31T00:00:00+00:00",
+        "event_id": "01HXYZ0123456789ABCDEFGS01",
+        "evidence": None,
+        "execution_mode": "worktree",
+        "force": False,
+        "from_lane": "genesis",
+        "mission_slug": mission_slug,
+        "reason": "seed",
+        "review_ref": None,
+        "to_lane": "planned",
+        "wp_id": "WP01",
+    }
+    (mission_dir / "status.events.jsonl").write_text(
+        json.dumps(seed_event, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
     return mission_dir
 
 
@@ -82,17 +103,17 @@ class TestDualWriteEventAndFrontmatterConsistent:
             repo_root=mission_dir.parent.parent,
         )
 
-        # 1. Verify event in JSONL
+        # 1. Verify event in JSONL (genesis->planned seed + planned->claimed)
         events = read_events(mission_dir)
-        assert len(events) == 1
-        assert events[0].event_id == event.event_id
-        assert events[0].from_lane == Lane.PLANNED
-        assert events[0].to_lane == Lane.CLAIMED
+        assert len(events) == 2
+        assert events[-1].event_id == event.event_id
+        assert events[-1].from_lane == Lane.PLANNED
+        assert events[-1].to_lane == Lane.CLAIMED
 
         # 2. Verify status.json
         snapshot = _read_snapshot(mission_dir)
         assert snapshot["work_packages"]["WP01"]["lane"] == "claimed"
-        assert snapshot["event_count"] == 1
+        assert snapshot["event_count"] == 2
 
         # 3. Verify frontmatter updated
         fm_lane = _read_wp_frontmatter_lane(mission_dir, "WP01")
@@ -139,14 +160,14 @@ class TestDualWriteMultipleTransitions:
             repo_root=repo_root,
         )
 
-        # Verify 3 events in JSONL
+        # Verify 3 lifecycle events in JSONL (plus the genesis->planned seed)
         events = read_events(mission_dir)
-        assert len(events) == 3
+        assert len(events) == 4
 
         # Verify final state in status.json
         snapshot = _read_snapshot(mission_dir)
         assert snapshot["work_packages"]["WP01"]["lane"] == "for_review"
-        assert snapshot["event_count"] == 3
+        assert snapshot["event_count"] == 4
 
         # Verify frontmatter
         fm_lane = _read_wp_frontmatter_lane(mission_dir, "WP01")

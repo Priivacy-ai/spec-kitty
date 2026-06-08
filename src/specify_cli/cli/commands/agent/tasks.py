@@ -35,6 +35,7 @@ from specify_cli.status.preflight import is_dossier_snapshot as _is_dossier_snap
 from specify_cli.status.progress import PROGRESS_SEMANTICS, compute_done_percentage, compute_weighted_progress
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.status.store import EventPersistenceError, EVENTS_FILENAME
+from specify_cli.status.reducer import SNAPSHOT_FILENAME
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.lanes.persistence import MissingLanesError
@@ -281,14 +282,14 @@ def _lane_targets_for_emit(current_lane: str, requested_lane: str) -> list[str]:
 def _wp_lane_from_status_events(events: list[StatusEvent], wp_id: str) -> Lane:
     """Return a WP's current lane from canonical status events."""
     if not events:
-        return Lane.PLANNED
+        return Lane.GENESIS
     from specify_cli.status.reducer import reduce as _reduce_status_events
 
     snapshot = _reduce_status_events(events)
     state = snapshot.work_packages.get(wp_id)
     if not state:
-        return Lane.PLANNED
-    return Lane(state.get("lane", Lane.PLANNED))
+        return Lane.GENESIS
+    return Lane(state.get("lane", Lane.GENESIS))
 
 
 def _read_transactional_wp_lane(
@@ -484,8 +485,8 @@ def _collect_status_artifacts(feature_dir: Path) -> list[Path]:
         List of existing artifact paths (may be empty).
     """
     candidates = [
-        feature_dir / "status.events.jsonl",
-        feature_dir / "status.json",
+        feature_dir / EVENTS_FILENAME,
+        feature_dir / SNAPSHOT_FILENAME,
         feature_dir / TASKS_MD_FILENAME,
     ]
     return [p for p in candidates if p.exists()]
@@ -3879,7 +3880,7 @@ def status(
             _st_snapshot = _st_reduce(_st_events) if _st_events else None
             if _st_snapshot:
                 for _st_wp_id, _st_state in _st_snapshot.work_packages.items():
-                    _st_lanes[_st_wp_id] = Lane(_st_state.get("lane", Lane.PLANNED))
+                    _st_lanes[_st_wp_id] = Lane(_st_state.get("lane", Lane.GENESIS))
         except Exception:
             _st_events = []
             _st_lanes = {}
@@ -3891,7 +3892,7 @@ def status(
 
             wp_id = extract_scalar(front, "work_package_id")
             title = extract_scalar(front, "title")
-            lane = resolve_lane_alias(_st_lanes.get(wp_id or wp_file.stem, Lane.PLANNED))
+            lane = resolve_lane_alias(_st_lanes.get(wp_id or wp_file.stem, Lane.GENESIS))
             phase = extract_scalar(front, "phase") or "Unknown Phase"
             agent = extract_scalar(front, "agent") or ""
             agent_profile = extract_scalar(front, "agent_profile") or ""
@@ -3993,8 +3994,9 @@ def status(
             return
 
         # Rich table output
-        # Group by lane
-        by_lane = {lane: [] for lane in Lane}
+        # Group by lane — exclude GENESIS (non-display lane; no WP should be in
+        # genesis at display time, but if one is it falls through to "other")
+        by_lane = {lane: [] for lane in Lane if lane is not Lane.GENESIS}
         for wp in work_packages:
             lane = wp["lane"]
             if lane in by_lane:

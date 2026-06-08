@@ -109,6 +109,11 @@ def start_implementation_status(
             repo_root=repo_root,
         )
 
+        if current_lane == Lane.GENESIS:
+            raise WorkPackageStartRejected(
+                f"WP {wp_id} is not finalized; run `spec-kitty agent mission finalize-tasks`"
+            )
+
         if current_lane == Lane.PLANNED:
             events = emit_status_transition_batch_transactional(
                 [

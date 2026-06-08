@@ -62,6 +62,38 @@ def _write_valid_meta(feature_dir: Path, slug: str, target_branch: str) -> None:
     )
 
 
+def _seed_status_event_log(feature_dir: Path, slug: str, wp_id: str) -> None:
+    """Seed status.events.jsonl with a genesis->planned bootstrap event.
+
+    The FSM genesis gate (added by the WP-lane-state-machine mission) rejects
+    ``implement`` for any WP whose event log has no entry.  Test fixtures that
+    predate the gate must seed at least one ``genesis -> planned`` event so the
+    gate sees the WP as finalized.  This mirrors what ``finalize-tasks`` writes
+    in production.
+    """
+    mission_id = "01" + hashlib.sha1(slug.encode("utf-8")).hexdigest().upper()[:24]
+    seed_event = {
+        "actor": "finalize-tasks",
+        "at": "2026-04-07T10:00:00.000000+00:00",
+        "event_id": "01JT00000000000000000" + wp_id.replace("WP", "WP0"),
+        "evidence": None,
+        "execution_mode": "worktree",
+        "force": False,
+        "from_lane": "genesis",
+        "mission_id": mission_id,
+        "mission_slug": slug,
+        "policy_metadata": None,
+        "reason": "canonical bootstrap",
+        "review_ref": None,
+        "to_lane": "planned",
+        "wp_id": wp_id,
+    }
+    (feature_dir / "status.events.jsonl").write_text(
+        json.dumps(seed_event, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
 def _run_checkout_cli(project_dir: Path, *args: str) -> subprocess.CompletedProcess[str]:
     env = _subprocess_env()
     return subprocess.run(
@@ -150,6 +182,11 @@ dependencies: []
 
 # Test work package
 """)
+
+    # Seed the status event log so the FSM genesis gate sees WP01 as finalized.
+    # The gate (added by the WP-lane-state-machine mission) rejects implement
+    # for WPs with no events; seeding genesis->planned mirrors finalize-tasks.
+    _seed_status_event_log(feature_dir, "001-test-feature", "WP01")
 
     # Create initial .gitignore if it exists
     gitignore_path = tmp_path / ".gitignore"
@@ -267,6 +304,11 @@ dependencies: []
 
 # Test work package
 """)
+
+    # Seed the status event log so the FSM genesis gate sees WP01 as finalized.
+    # The gate (added by the WP-lane-state-machine mission) rejects implement
+    # for WPs with no events; seeding genesis->planned mirrors finalize-tasks.
+    _seed_status_event_log(feature_dir, "001-test-feature", "WP01")
 
     # Create initial .gitignore
     gitignore_path = tmp_path / ".gitignore"
@@ -399,6 +441,11 @@ dependencies: []
 
 # Test work package
 """)
+
+    # Seed the status event log so the FSM genesis gate sees WP01 as finalized.
+    # The gate (added by the WP-lane-state-machine mission) rejects implement
+    # for WPs with no events; seeding genesis->planned mirrors finalize-tasks.
+    _seed_status_event_log(feature_dir, "001-test-feature", "WP01")
 
     # Commit initial state
     subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)

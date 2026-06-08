@@ -152,7 +152,7 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
         snapshot = reduce(events)
         # snapshot.work_packages: {wp_id: {"lane": ..., ...}}
         event_log_lanes: dict[str, Lane] = {
-            wp_id: Lane(state.get("lane", Lane.PLANNED))
+            wp_id: Lane(state.get("lane", Lane.GENESIS))
             for wp_id, state in snapshot.work_packages.items()
         }
 
@@ -166,8 +166,10 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
             title = extract_scalar(front, "title")
             phase = extract_scalar(front, "phase") or "Unknown Phase"
 
-            # Lane comes from event log; default to Lane.PLANNED for WPs not yet in the log
-            lane: Lane = event_log_lanes.get(wp_id or "", Lane.PLANNED)
+            # Lane comes from event log; default to Lane.GENESIS for unseeded WPs
+            # (WPs not yet in the log have not been through finalize-tasks).
+            # Contract 3 (FR-008): read side must agree with write side.
+            lane: Lane = event_log_lanes.get(wp_id or "", Lane.GENESIS)
 
             # Parse dependencies
             dependencies = []
@@ -198,7 +200,12 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
         }
         for wp in work_packages:
             lane = wp["lane"]
-            if lane in by_lane:
+            if lane == Lane.GENESIS:
+                # Genesis WPs are non-display (not finalized); silently skip them
+                # from all kanban columns — they will appear once finalize-tasks
+                # seeds them to planned (Contract 2, FR-008).
+                pass
+            elif lane in by_lane:
                 by_lane[lane].append(wp)
             else:
                 # Fallback: use progress_bucket to classify unknown lanes
@@ -210,28 +217,25 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
                 else:
                     by_lane[Lane.PLANNED].append(wp)
 
-        # Calculate metrics using progress_bucket() — no raw lane-string comparisons
-        total = len(work_packages)
+        # Calculate metrics using progress_bucket() — no raw lane-string comparisons.
+        # Genesis WPs are excluded from all metric buckets (non-display; Contract 2).
+        _display_wps = [wp for wp in work_packages if wp["lane"] != Lane.GENESIS]
+        # Count only display WPs so the total matches the summed lane buckets;
+        # genesis WPs are non-display and would otherwise inflate the total while
+        # appearing in no column (review m1).
+        total = len(_display_wps)
         done_count = sum(
-            1 for wp in work_packages
+            1 for wp in _display_wps
             if wp_state_for(wp["lane"]).progress_bucket() == "terminal"
             and wp["lane"] == Lane.DONE
         )
         in_progress = sum(
-            1 for wp in work_packages
+            1 for wp in _display_wps
             if wp_state_for(wp["lane"]).progress_bucket() in ("in_flight", "review")
         )
         planned_count = sum(
-            1 for wp in work_packages
+            1 for wp in _display_wps
             if wp_state_for(wp["lane"]).progress_bucket() == "not_started"
-        )
-        sum(
-            1 for wp in work_packages
-            if wp_state_for(wp["lane"]).is_blocked
-        )
-        sum(
-            1 for wp in work_packages
-            if wp_state_for(wp["lane"]).is_terminal and wp["lane"] == Lane.CANCELED
         )
         progress_result = compute_weighted_progress(snapshot)
         progress_pct = round(progress_result.percentage, 1)
@@ -317,9 +321,12 @@ def _analyze_parallelization(work_packages: list, done_wp_ids: set) -> dict:
         dict with 'ready' (WPs that can start now) and 'parallel_groups' (groups that can run together)
     """
     # Find WPs that are ready (all dependencies satisfied)
-    # Skip WPs that are already active or terminal — use progress_bucket() for semantic check
+    # Skip WPs that are already active or terminal — use progress_bucket() for semantic check.
+    # Genesis WPs are also skipped: they are not yet finalized and cannot be started.
     ready_wps = []
     for wp in work_packages:
+        if wp["lane"] == Lane.GENESIS:
+            continue
         state = wp_state_for(wp["lane"])
         # Skip if already in-flight, under review, or terminal
         if state.progress_bucket() in ("in_flight", "review", "terminal"):
