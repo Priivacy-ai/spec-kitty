@@ -249,9 +249,9 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T036 Rework direct `emit`/`lane_reader`/`store` mission-level calls to `MissionStatus.load()/.claim()/.transition()` (WP10)
-- [ ] T037 Ensure no direct `BookkeepingTransaction` calls remain outside `status/` and documented plumbing (WP10)
-- [ ] T038 Confirm SC-005 grep returns zero (WP10)
+- [x] T036 Rework direct `emit`/`lane_reader`/`store` mission-level calls to `MissionStatus.load()/.claim()/.transition()` (WP10)
+- [x] T037 Ensure no direct `BookkeepingTransaction` calls remain outside `status/` and documented plumbing (WP10)
+- [x] T038 Confirm SC-005 grep returns zero (WP10)
 
 ### Dependencies
 
