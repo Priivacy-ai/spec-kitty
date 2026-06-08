@@ -1,7 +1,7 @@
 {
-  "event_count": 49,
-  "last_event_id": "01KTK8BX7JGMP107H6X3CSV5G6",
-  "materialized_at": "2026-06-08T09:17:37.394597+00:00",
+  "event_count": 51,
+  "last_event_id": "01KTK8DCWEXGFSV7N8MN4CMD50",
+  "materialized_at": "2026-06-08T09:18:26.190437+00:00",
   "mission_number": "",
   "mission_slug": "execution-state-canonical-surface-01KTG6P9",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 8
+    "planned": 7
   },
   "work_packages": {
     "WP01": {
@@ -60,11 +60,11 @@
       "last_transition_at": "2026-06-08T09:04:49.678725+00:00"
     },
     "WP07": {
-      "actor": "user",
+      "actor": "claude:sonnet:python-pedro:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KTK8BX7JGMP107H6X3CSV5G6",
-      "last_transition_at": "2026-06-08T09:17:37.394597+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KTK8DCWEXGFSV7N8MN4CMD50",
+      "last_transition_at": "2026-06-08T09:18:26.190437+00:00"
     },
     "WP08": {
       "actor": "finalize-tasks",
