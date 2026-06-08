@@ -529,5 +529,7 @@ Two usage patterns:
   → run `/spec-kitty.specify`
 - **Lightweight dispatch** (ad-hoc fix, question, or advice — no mission created):
   trigger: "hey spec kitty", "use spec kitty to", "spec kitty, fix/do/ask/advise"
-  → run `spec-kitty do "<request verbatim>"`
+  → **ALWAYS run `spec-kitty do "<request verbatim>"` — do NOT answer directly.**
+  Reason: `spec-kitty do` loads governance context, routes to the correct agent
+  profile, and records the Op. Skipping it produces ungoverned, untracked responses.
 <!-- /spec-kitty:orientation -->
