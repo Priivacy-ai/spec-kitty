@@ -1,26 +1,50 @@
 # DIRECTIVE_035 occurrence map — execution-state-canonical-surface-01KTG6P9
 # Required because meta.json::change_mode == "bulk_edit".
+#
 # Primary bulk change: migrate ~225 deep `specify_cli.status.<sub>` imports (outside status/)
-# to the public facade (`from specify_cli.status import ...`) or the MissionStatus aggregate (FR-013..FR-016).
-# Implementing agents MUST consult this before touching any matching import.
-# NOTE: classified by distinct submodule string (25 submodules), NOT per-file — a 225-row
-# per-file list is stale on first commit. The widened boundary test (FR-015) is the completeness gate.
+# to the public facade (`from specify_cli.status import ...`) or the MissionStatus aggregate
+# (FR-013..FR-016). Implementing agents MUST consult this before touching any matching import.
+#
+# Schema: src/doctrine/schemas/occurrence-map.schema.yaml
+#   - target.operation ∈ {rename, remove, deprecate}
+#   - category action  ∈ {rename, manual_review, do_not_change, rename_if_user_visible}
+#   - all 8 standard categories must be present (FR-004)
+#
+# This mission is a *structural* refactor (import routing + resolver consolidation),
+# not a mechanical term-rename. The path-heuristic review gate (FR-007/008) classifies
+# each changed file to ONE category by path; for this mission code, CLI-command modules,
+# tests, and configs are all legitimately touched, so those matched categories are
+# `manual_review` (reviewer-renata adjudicates per WP) rather than `do_not_change`.
+# The real, fine-grained governance lives in `categories.import_paths.occurrences`
+# (per-submodule PROMOTE/ROUTE/REVIEW/PRIVATE) below.
 
 target:
   term: "from specify_cli.status.<submodule> import …  /  import specify_cli.status.<submodule>"
-  operation: rewrite_import
   replacement: "from specify_cli.status import …  (facade)  OR  MissionStatus.<method>(…)"
+  operation: rename
 
 categories:
 
+  # --- Categories the path heuristic can actually emit -----------------------
+
+  code_symbols:
+    action: manual_review
+    notes: |
+      `src/**/*.py` (non-CLI, non-test). Import rewrites + canonical-reader routing
+      need case-by-case judgment (PROMOTE vs ROUTE vs PRIVATE per the occurrences
+      table). Promoted symbols are added to status/__init__.py __all__ (C-007).
+
   import_paths:
-    action: rewrite
+    action: manual_review
     notes: |
       Per-submodule disposition. PROMOTE = add symbol(s) to status/__init__.py __all__
       and rewrite importers to the facade. ROUTE = replace with MissionStatus read/write
       calls (mission-level access). PRIVATE = no external consumer; `_`-prefix and remove
       external sites. Decisions are PRELIMINARY — confirmed during IC-05 by inspecting each
       symbol's real consumers; the boundary test enforces zero non-exempt residue.
+      NOTE: the path heuristic never emits `import_paths` (a `.py` file maps to
+      code_symbols/cli_commands/tests_fixtures); this block is the governance record,
+      not a review-gate trigger.
     occurrences:
       - submodule: status.models
         count: 38
@@ -123,23 +147,53 @@ categories:
         decision: REVIEW
         reason: "doctor tooling — confirm."
 
-  code_symbols:
+  cli_commands:
     action: manual_review
     notes: |
-      Promoted symbols are added to status/__init__.py __all__ (C-007 charter convention).
-      Demoted symbols get a `_` prefix. Track the final __all__ delta in the IC-05 WP.
+      `src/specify_cli/cli/commands/*.py`. CLI modules are major status consumers and
+      are legitimately edited (WP14 owns merge.py + doctor.py; WP08/WP10 route callers).
+      No CLI *command name or flag* is renamed — only import/routing internals.
+
+  tests_fixtures:
+    action: manual_review
+    notes: |
+      Test imports of deep status paths are updated alongside the rewrite; new RED-first
+      regression tests (e.g. WP14 T057) are added. Reviewer confirms tags + non-vacuity.
+
+  user_facing_strings:
+    action: manual_review
+    notes: |
+      Docs / CHANGELOG / README touched only when a moved symbol or facade rule is
+      documented. No user-visible term rename intended.
+
+  serialized_keys:
+    action: manual_review
+    notes: |
+      YAML/JSON/TOML. This map governs imports, NOT serialized keys — no status JSON/YAML
+      key is renamed. Set to manual_review (not do_not_change) only because path-heuristic
+      classification would otherwise block legitimately-touched config/fixture files;
+      reviewer confirms no key was actually renamed.
+
+  # --- Categories the path heuristic never emits (admissibility-only) --------
 
   filesystem_paths:
     action: manual_review
     notes: |
-      Secondary (refactor, not term-replace): ~125 raw `main_repo_root / "kitty-specs" / mission_slug`
-      path-builder occurrences across ~160 files, and 8 duplicate _resolve_feature_dir implementations,
-      are routed through mission_runtime.resolve_action_context / collapsed to one resolver and deleted
-      (FR-009/FR-010/FR-011). Enumerated and routed during IC-04; the parity ratchet + a grep success
-      criterion (SC-004) gate completeness. Not a string-replacement, so listed here as manual_review.
+      Secondary (refactor, not term-replace): ~125 raw `main_repo_root / "kitty-specs" /
+      mission_slug` path-builder occurrences and 8 duplicate _resolve_feature_dir
+      implementations are routed through the umbrella single resolver / collapsed
+      (FR-009/010/011). Enumerated and routed during IC-04; the parity ratchet + grep
+      success criterion (SC-004) gate completeness.
 
-exemptions:
+  logs_telemetry:
+    action: do_not_change
+    notes: |
+      No metric/log key or analytics event is renamed by this mission.
+
+exceptions:
   - path: src/specify_cli/coordination/status_transition.py
-    reason: Internal Mission-Management plumbing (BookkeepingTransaction caller) — exempt (C-004, doc 06 §4).
+    action: do_not_change
+    reason: "Internal Mission-Management plumbing (BookkeepingTransaction caller) — exempt (C-004, doc 06 §4)."
   - path: src/specify_cli/coordination/transaction.py
-    reason: BookkeepingTransaction infrastructure — exempt; internals unchanged (NFR-006).
+    action: do_not_change
+    reason: "BookkeepingTransaction infrastructure — exempt; internals unchanged (NFR-006)."
