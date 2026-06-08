@@ -102,7 +102,7 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 **Goal**: Route the primary residue surfaces through the canonical façade and make the gate observe the mode-correct target branch.
 **Independent Test**: `runtime_bridge` query-mode and `workflow.py` fix-mode resolve via the façade; ratchet green incl. direct-to-target.
 **Prompt**: `/tasks/WP04-residue-routing.md`
-**Requirement Refs**: FR-007, FR-008, FR-012, C-001, C-002
+**Requirement Refs**: FR-007, FR-008, FR-012, FR-036, C-001, C-002
 
 ### Included Subtasks
 
@@ -110,6 +110,8 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 - [ ] T016 Route `cli/commands/agent/workflow.py` fix-mode `repo_root`/`target_branch` through `resolve_action_context` (WP04)
 - [ ] T017 Implement mode-correct target-branch resolution (planning/direct-to-target/worktree) and refuse unauthorized mainline writes (WP04)
 - [ ] T018 Verify the parity ratchet stays green across all modes (WP04)
+- [ ] T052 Relocate the `runtime_bridge.py` operational-context builders (`build_operational_context_for_claim`, `_build_operational_context_for_decision`, `_resolve_tech_stack_for_profile`) into the umbrella; `runtime_bridge` consumes the umbrella API (bounded runtime_bridge exec-state extraction, operator decision 2026-06-08; realizes IC-02 for the runtime_bridge surface, kept in WP04 since it owns `runtime_bridge.py`) (WP04)
+- [ ] T053 Collapse the `runtime_bridge.py` path/feature-dir/coord-branch/ULID resolvers (`_primary_runtime_feature_dir`, `_resolve_runtime_feature_dir`, `_resolve_run_dir_for_mission`, `_resolve_coordination_branch`, `_resolve_mission_ulid`) into the umbrella's single resolver; fix `candidate_feature_dir_for_mission` / `coordination/surface_resolver.py::resolve_status_surface` to resolve the coord feature-dir/status path **exactly once** (no nested `.worktrees/<m>-coord/.worktrees/…` double-resolution; ignore nested `.worktrees/`) — FR-036, #1772 Bugs 1/2 (WP04)
 
 ### Dependencies
 
@@ -338,6 +340,32 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ---
 
+## Work Package WP14: Coordination-topology merge & path/status hardening (#1772) (Priority: P2) 🛡️ DATA-INTEGRITY
+
+**Goal**: Harden `spec-kitty merge` on coordination-topology missions so it never silently drops lane code, and stop `.worktrees/` content from being staged. The resolver-correctness half of #1772 (FR-036 — single coord-aware feature-dir/status resolution, no nested `.worktrees/` double-resolution) is delivered by **WP04** as part of the canonical resolver collapse; WP14 owns the merge-flow + hygiene bugs.
+**Independent Test**: On a coord-topology fixture with tracked `.worktrees/` junk + per-WP `done` events pre-recorded from an aborted merge, `spec-kitty merge` integrates the real lane diffs (or fails loudly — never a zero-code squash reported as success); post-merge validation reads the in-branch status path; finalize/recovery never `git add` a `.worktrees/` path and `doctor` flags pre-existing tracked `.worktrees/` content.
+**Prompt**: `/tasks/WP14-merge-coord-topology-hardening.md`
+**Requirement Refs**: FR-035, FR-037, FR-038, NFR-001, NFR-006
+
+### Included Subtasks
+
+> **ATDD-first (C-011):** author + commit the failing coord-topology merge regression fixture **T057 RED first**, before the T054–T056 fixes. Reviewer verifies red→green.
+
+- [ ] T054 Guard finalize/recovery staging to never `git add` a path under `.worktrees/`; add a `spec-kitty doctor` check that flags pre-existing tracked `.worktrees/` content (FR-035, #1772 Bug 0) (WP14)
+- [ ] T055 Gate merge lane integration on the actual lane tree-diff (not the per-WP `done` event); fail loudly on a would-be zero-diff squash; do not reset lane HEADs on a no-op merge (FR-037, #1772 Bug 3 — data integrity) (WP14)
+- [ ] T056 Resolve the **in-branch** status path in post-merge validation (`_assert_merged_wps_reached_done`-adjacent), not a `.worktrees/` worktree path (FR-038, #1772 Bug 4) (WP14)
+- [ ] T057 Add a coord-topology merge regression fixture (tracked `.worktrees/` junk + pre-recorded `done` events) + tests proving FR-035/FR-037/FR-038 (WP14)
+
+### Dependencies
+
+- WP04 (the canonical coord-aware resolver delivering FR-036 — Bugs 1/2 — that WP14's merge flow relies on). Otherwise disjoint (merge/doctor surfaces).
+
+### Risks & Mitigations
+
+- FR-037 touches `merge/executor.py` — broader than the strangler core, but #1772's silent code loss is the operator's stated priority; behavior-preserving for the healthy-merge path. NFR-006 holds: `coordination/transaction.py` internals unchanged. The regression fixture (T057) is the safety net.
+
+---
+
 ## Dependency & Execution Summary
 
 - **Sequence**: WP01 (gate) and WP02 (umbrella) have no deps → WP03 (relocation, needs WP02) → WP04 (residue, needs WP01+WP03) & WP05 (dup collapse, needs WP03) → WP06 (path-builders, needs WP04+WP05); facade track WP07 (needs WP01) → WP08 (needs WP07) → WP09 (needs WP08) & WP10 (needs WP08); WP11 (needs WP04).
@@ -353,7 +381,7 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 |----------------|----------------------------|
 | FR-001, FR-002, FR-005, FR-006 | WP02 |
 | FR-003, FR-004 | WP03 |
-| FR-007, FR-008, FR-012 | WP04 |
+| FR-007, FR-008, FR-012, FR-036 | WP04 |
 | FR-009, FR-010, FR-011 | WP05, WP06 |
 | FR-013 | WP07 |
 | FR-014, FR-016 | WP08, WP09 |
@@ -363,7 +391,9 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 | FR-025, FR-026, FR-027 | WP11 |
 | FR-028, FR-029, FR-030, FR-031 | WP12 |
 | FR-032, FR-033, FR-034 | WP13 |
-| NFR-001 | WP03, WP04 |
+| FR-035, FR-037, FR-038 | WP14 |
+| FR-036 | WP04 (coord-aware resolver; WP14 merge flow consumes it) |
+| NFR-001 | WP03, WP04, WP14 |
 | NFR-002 | WP05, WP06, WP10, WP13 |
 | NFR-003 | WP09, WP12 |
 | NFR-004 | WP03, WP10, WP13 |
@@ -386,7 +416,7 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 | T001–T006 | Full-sequence parity ratchet across 3 modes + negative control | WP01 | P1 | No |
 | T007–T010 | mission_runtime umbrella + layer reg + ADR + sole-resolver test | WP02 | P1 | Partial |
 | T011–T014 | ExecutionContext relocation façade + shim | WP03 | P1 | No |
-| T015–T018 | runtime_bridge + workflow routing + mode branch | WP04 | P2 | No |
+| T015–T018, T052, T053 | runtime_bridge + workflow routing + mode branch; + relocate operational-context builders → umbrella; collapse runtime_bridge resolvers & single coord-aware resolution (FR-036) | WP04 | P2 | No |
 | T019–T021 | Collapse 8 dup feature-dir resolvers | WP05 | P2 | Yes |
 | T022–T025 | Eliminate remaining path-builders | WP06 | P2 | Partial |
 | T026–T028 | Status facade promote/demote + __all__ | WP07 | P2 | No |
@@ -396,3 +426,4 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 | T039–T041 | Mission-identity field-drop (#1663) | WP11 | P3 | No |
 | T042–T046 | Ownership `scope` backfill-awareness + frontmatter-source port (#1757) | WP12 | P3 | Yes |
 | T047–T051 | Legacy migration event-rebuild single-port (#1754) | WP13 | P3 | Yes |
+| T054–T057 | Coord-topology merge & path/status hardening (#1772) | WP14 | P2 | Partial |

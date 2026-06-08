@@ -343,6 +343,46 @@
       "verified_by": null,
       "verified_at": null,
       "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-035",
+      "description": "Verify FR-035 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-036",
+      "description": "Verify FR-036 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-037",
+      "description": "Verify FR-037 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-038",
+      "description": "Verify FR-038 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
   "negative_invariants": []
