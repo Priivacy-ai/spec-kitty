@@ -22,8 +22,8 @@ subtasks:
 - T025
 phase: Phase 3 - Strangle
 assignee: ''
-agent: "claude:opus:randy-reducer:implementer"
-shell_pid: "2777783"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "2831026"
 history:
 - at: '2026-06-07T05:16:24Z'
   actor: system
@@ -101,3 +101,5 @@ Route or delete the remaining ~125 raw `main_repo_root / "kitty-specs" / mission
 
 - 2026-06-07T05:16:24Z – system – Prompt created.
 - 2026-06-08T08:35:50Z – claude:opus:randy-reducer:implementer – shell_pid=2777783 – Started implementation via action command
+- 2026-06-08T08:57:11Z – claude:opus:randy-reducer:implementer – shell_pid=2777783 – Ready for review: routed/eliminated raw feature-dir path-builders to canonical resolver. Real inline builders outside canonical+status: 5 routed (paths.py, git_ops.py, worktree_topology.py via candidate_feature_dir_for_mission; research/validate_tasks/validate_encoding via resolve_feature_dir_for_slug; materialize via resolve_feature_dir_for_slug) + 1 dead resolver deleted (resolve_worktree_aware_feature_dir). #1681 SC-004 architectural ratchet now fully GREEN (was red on base). 1 justified-exempt: events/decision_log.py:88 (sanctioned constructor file per #1681 allowlist, caller-resolved worktree_root). WP01 ratchet + FR-036 surface green; ruff/mypy clean on changed files.
+- 2026-06-08T08:57:58Z – claude:opus:reviewer-renata:reviewer – shell_pid=2831026 – Started review via action command
