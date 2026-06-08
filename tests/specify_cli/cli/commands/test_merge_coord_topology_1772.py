@@ -1,0 +1,429 @@
+"""Scope: #1772 coord-topology merge & path/status hardening (WP14).
+
+ATDD-first (C-011) regression pin for #1772. These tests reproduce the three
+ways ``spec-kitty merge`` failed on a healthy, fully-approved
+coordination-topology mission and, on retry, silently produced a zero-code
+squash-merge while reporting success:
+
+- Bug 3 (FR-037): the retry gated lane integration on the per-WP ``done``
+  status (already recorded before the abort, so ``MergeState.completed_wps``
+  listed every WP), skipped all lanes, and squashed ZERO code while reporting
+  success. The fix gates integration on the actual lane tree-diff vs. the
+  mission branch and fails loudly when a squash would integrate zero diffs.
+- Bug 0 (FR-035): finalize/recovery + merge staging passed tracked
+  ``.worktrees/`` content to ``git add``. ``spec-kitty doctor coordination``
+  must flag pre-existing tracked ``.worktrees/`` content.
+- Bug 4 (FR-038): post-merge validation read a ``.worktrees/`` worktree path
+  that is never tracked in a branch tree. Validation must resolve the
+  in-branch status path.
+
+These tests drive the REAL lane-skip + ``merge_lane_to_mission`` /
+``merge_mission_to_target`` / ``_merge_branch_into`` functions against a real
+on-disk git repository. They mock ONLY the side effects that touch state
+outside git (status emit, dossier sync, SaaS emit, stale-assertion check,
+sparse-checkout preflight, merge gates, mission_number bake, post-merge
+working-tree invariant, in-branch validation).
+"""
+
+from __future__ import annotations
+
+import contextlib
+import json
+import subprocess
+from datetime import UTC, datetime
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+import typer
+
+# Import the status package before any coordination submodule. The production
+# CLI entrypoint (``specify_cli/__init__``) imports ``status`` before ``merge``;
+# importing ``merge`` first (as a test module does) would otherwise reach
+# ``coordination/__init__`` -> ``transaction`` -> ``status`` mid-initialization
+# and trip a known import-order cycle. Mirroring the production order here keeps
+# this regression test importable under ``PYTHONPATH=src``.
+import specify_cli.status  # noqa: F401  # import-order guard (see comment above)
+
+from specify_cli.cli.commands.merge import _run_lane_based_merge
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.persistence import write_lanes_json
+from specify_cli.merge.config import MergeStrategy
+from specify_cli.merge.state import MergeState, save_state
+
+pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
+
+
+# ---------------------------------------------------------------------------
+# Git helpers
+# ---------------------------------------------------------------------------
+
+
+def _run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        cmd,
+        cwd=str(cwd) if cwd else None,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return _run(["git", "-C", str(repo), *args])
+
+
+def _init_git_repo(repo: Path) -> None:
+    repo.mkdir(parents=True, exist_ok=True)
+    _run(["git", "init", "-qb", "main", str(repo)])
+    _git(repo, "config", "user.email", "test@test.com")
+    _git(repo, "config", "user.name", "Test")
+    _git(repo, "config", "commit.gpgsign", "false")
+    (repo / "README.md").write_text("init\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "init")
+
+
+def _file_on_branch(repo: Path, branch: str, relpath: str) -> bool:
+    """Return True iff *relpath* exists on *branch* (via ``git ls-tree``)."""
+    result = subprocess.run(
+        ["git", "-C", str(repo), "ls-tree", "--name-only", "-r", branch, "--", relpath],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0 and relpath in result.stdout.splitlines()
+
+
+# ---------------------------------------------------------------------------
+# Coord-topology fixture
+# ---------------------------------------------------------------------------
+
+MISSION_SLUG = "coord-topology-1772"
+MISSION_ID = "01CRDTOPO000000000000001772"
+COORD_BRANCH = f"kitty/mission-{MISSION_SLUG}"
+
+
+def _write_meta(feature_dir: Path) -> None:
+    """meta.json declaring a coordination_branch (coord-topology mission)."""
+    meta = {
+        "mission_slug": MISSION_SLUG,
+        "mission_id": MISSION_ID,
+        "mid8": MISSION_ID[:8],
+        "mission_number": None,
+        "mission_type": "software-dev",
+        "target_branch": "main",
+        "coordination_branch": COORD_BRANCH,
+        "purpose_tldr": "coord-topology merge regression (#1772)",
+        "purpose_context": "merge must integrate lane diffs or fail loudly",
+    }
+    (feature_dir / "meta.json").write_text(
+        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+
+def _write_manifest(feature_dir: Path) -> LanesManifest:
+    """A single code lane (legacy branch naming via mission_id == slug)."""
+    manifest = LanesManifest(
+        version=1,
+        mission_slug=MISSION_SLUG,
+        # mission_id == slug => legacy lane_branch_name form
+        # ``kitty/mission-<slug>-lane-a`` which merge_lane_to_mission constructs.
+        mission_id=MISSION_SLUG,
+        mission_branch=COORD_BRANCH,
+        target_branch="main",
+        lanes=[
+            ExecutionLane(
+                lane_id="lane-a",
+                wp_ids=("WP01",),
+                write_scope=("src/feature_code.py",),
+                predicted_surfaces=("code",),
+                depends_on_lanes=(),
+                parallel_group=0,
+            )
+        ],
+        computed_at=datetime.now(UTC).isoformat(),
+        computed_from="test-fixture",
+    )
+    write_lanes_json(feature_dir, manifest)
+    return manifest
+
+
+def _bootstrap_coord_mission(
+    repo: Path,
+    *,
+    with_tracked_worktrees_junk: bool = False,
+    lane_code_relpath: str = "src/feature_code.py",
+) -> Path:
+    """Bootstrap a coord-topology mission with a code lane carrying a real diff.
+
+    Returns the feature_dir.
+    """
+    feature_dir = repo / "kitty-specs" / MISSION_SLUG
+    (feature_dir / "tasks").mkdir(parents=True)
+    _write_meta(feature_dir)
+    _write_manifest(feature_dir)
+
+    # status.events.jsonl in-branch (tracked). Pre-record per-WP done events so
+    # the in-branch status path resolves and post-merge validation can read it.
+    done_event = {
+        "actor": "merge",
+        "at": datetime.now(UTC).isoformat(),
+        "event_id": "01HXYZDONE0000000000000001",
+        "execution_mode": "worktree",
+        "feature_slug": MISSION_SLUG,
+        "from_lane": "approved",
+        "to_lane": "done",
+        "wp_id": "WP01",
+    }
+    (feature_dir / "status.events.jsonl").write_text(
+        json.dumps(done_event) + "\n", encoding="utf-8"
+    )
+
+    if with_tracked_worktrees_junk:
+        # Tracked ``.worktrees/<m>-coord/…`` junk (the F-07 pollution).
+        junk = repo / ".worktrees" / f"{MISSION_SLUG}-coord" / "kitty-specs" / MISSION_SLUG
+        junk.mkdir(parents=True)
+        (junk / "meta.json").write_text("{}\n", encoding="utf-8")
+
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", f"chore({MISSION_SLUG}): bootstrap coord mission")
+
+    # Create the coordination/mission branch at the current tip.
+    _git(repo, "branch", COORD_BRANCH)
+
+    # Create the lane branch with a REAL code diff that is NOT on the mission
+    # branch nor on main.
+    lane_branch = f"kitty/mission-{MISSION_SLUG}-lane-a"
+    _git(repo, "branch", lane_branch, COORD_BRANCH)
+    _git(repo, "checkout", lane_branch)
+    code_path = repo / lane_code_relpath
+    code_path.parent.mkdir(parents=True, exist_ok=True)
+    code_path.write_text("def feature() -> int:\n    return 1772\n", encoding="utf-8")
+    _git(repo, "add", lane_code_relpath)
+    _git(repo, "commit", "-m", f"feat({MISSION_SLUG}): lane code for WP01")
+    _git(repo, "checkout", "main")
+
+    return feature_dir
+
+
+@contextlib.contextmanager
+def _real_merge_external_mocks():
+    """Mock only the side effects that touch state OUTSIDE git.
+
+    The real ``merge_lane_to_mission``, ``merge_mission_to_target``,
+    ``_merge_branch_into`` and the real lane-skip decision are NOT mocked —
+    they execute real ``git merge`` so the #1772 zero-diff squash bug
+    reproduces (or is fixed).
+    """
+    patches = [
+        patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),
+        patch("specify_cli.cli.commands.merge._record_merged_wps_done_for_merge"),
+        patch("specify_cli.cli.commands.merge._assert_merged_wps_reached_done"),
+        patch("specify_cli.cli.commands.merge._assert_merged_wps_done_on_target"),
+        patch("specify_cli.cli.commands.merge._record_baseline_merge_commit", return_value=None),
+        patch("specify_cli.cli.commands.merge._assert_baseline_merge_commit_on_target"),
+        patch("specify_cli.cli.commands.merge.safe_commit"),
+        patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"),
+        patch("specify_cli.cli.commands.merge.emit_mission_closed"),
+        patch("specify_cli.cli.commands.merge._emit_merge_diff_summary"),
+        patch("specify_cli.cli.commands.merge.run_check"),
+        patch("specify_cli.cli.commands.merge.require_no_sparse_checkout"),
+        patch("specify_cli.cli.commands.merge._enforce_git_preflight"),
+        patch("specify_cli.cli.commands.merge._enforce_review_artifact_consistency"),
+        patch("specify_cli.cli.commands.merge._enforce_canonical_status_history"),
+        patch("specify_cli.cli.commands.merge._warn_or_confirm_hollow_reviews"),
+        patch("specify_cli.cli.commands.merge._bake_mission_number_into_mission_branch", return_value=None),
+        patch("specify_cli.cli.commands.merge._refresh_primary_checkout_after_merge"),
+        # Post-merge working-tree invariant fires on test-only files; the merge
+        # has already run through real git by the time this would raise.
+        patch("specify_cli.cli.commands.merge._classify_porcelain_lines", return_value=([], 0)),
+        patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
+        patch("specify_cli.policy.config.load_policy_config"),
+        patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
+    ]
+    with contextlib.ExitStack() as stack:
+        ms = [stack.enter_context(p) for p in patches]
+        gate_eval = MagicMock()
+        gate_eval.overall_pass = True
+        gate_eval.gates = []
+        ms[19].return_value = gate_eval
+        policy = MagicMock()
+        policy.merge_gates = []
+        ms[20].return_value = policy
+        stale_report = MagicMock()
+        stale_report.findings = []
+        ms[10].return_value = stale_report
+        yield ms
+
+
+# ---------------------------------------------------------------------------
+# T057 — FR-037: zero-diff squash on retry-after-abort must integrate or fail
+# ---------------------------------------------------------------------------
+
+
+def test_retry_after_abort_integrates_lane_code_or_fails_loudly(tmp_path: Path) -> None:
+    """#1772 Bug 3 / FR-037: a retry whose MergeState marks every WP ``done``
+    (an aborted-merge state) must NOT skip the lane and squash zero code while
+    reporting success. It must integrate the real lane diff OR fail loudly.
+
+    On current (pre-fix) code the lane-skip gates on ``completed_wps`` (a
+    done-status proxy), skips the only lane, then ``merge_mission_to_target``
+    with ``allow_noop_squash=True`` returns ``already_applied=True`` — a silent
+    zero-code success. The lane code never reaches ``main``.
+    """
+    _init_git_repo(tmp_path)
+    _bootstrap_coord_mission(tmp_path)
+    lane_code = "src/feature_code.py"
+
+    # Pre-existing aborted-merge state: every WP already marked completed.
+    state = MergeState(
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        target_branch="main",
+        wp_order=["WP01"],
+        completed_wps=["WP01"],
+        strategy="squash",
+    )
+    save_state(state, tmp_path)
+
+    assert not _file_on_branch(tmp_path, "main", lane_code), (
+        "fixture precondition: lane code must NOT be on main before merge"
+    )
+
+    integrated = False
+    failed_loudly = False
+    with _real_merge_external_mocks():
+        try:
+            _run_lane_based_merge(
+                repo_root=tmp_path,
+                mission_slug=MISSION_SLUG,
+                push=False,
+                delete_branch=False,
+                remove_worktree=False,
+                strategy=MergeStrategy.SQUASH,
+                allow_sparse_checkout=True,
+            )
+        except typer.Exit as exc:
+            # A loud structured failure (non-zero exit) is an acceptable outcome.
+            failed_loudly = exc.exit_code != 0
+
+    integrated = _file_on_branch(tmp_path, "main", lane_code)
+
+    assert integrated or failed_loudly, (
+        "#1772 FR-037 regression: merge reported success but integrated ZERO "
+        "lane diffs — the lane code never reached the target branch and the "
+        "merge did not fail loudly (silent zero-code squash)."
+    )
+
+
+# ---------------------------------------------------------------------------
+# T057 — FR-037: a genuinely-clean retry must still integrate the lane code
+# ---------------------------------------------------------------------------
+
+
+def test_fresh_merge_integrates_lane_code(tmp_path: Path) -> None:
+    """Healthy-merge path (NFR-001): with no aborted MergeState, a fresh merge
+    integrates the lane code onto the target branch."""
+    _init_git_repo(tmp_path)
+    _bootstrap_coord_mission(tmp_path)
+    lane_code = "src/feature_code.py"
+
+    with _real_merge_external_mocks():
+        _run_lane_based_merge(
+            repo_root=tmp_path,
+            mission_slug=MISSION_SLUG,
+            push=False,
+            delete_branch=False,
+            remove_worktree=False,
+            strategy=MergeStrategy.SQUASH,
+            allow_sparse_checkout=True,
+        )
+
+    assert _file_on_branch(tmp_path, "main", lane_code), (
+        "healthy-merge regression: fresh merge did not integrate the lane code "
+        "onto the target branch."
+    )
+
+
+# ---------------------------------------------------------------------------
+# T057 — FR-035: doctor flags tracked .worktrees/ content
+# ---------------------------------------------------------------------------
+
+
+def test_doctor_flags_tracked_worktrees_content(tmp_path: Path) -> None:
+    """#1772 Bug 0 / FR-035: ``spec-kitty doctor coordination`` must flag
+    pre-existing tracked ``.worktrees/`` content with a remediation hint."""
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.doctor import app as doctor_app
+
+    _init_git_repo(tmp_path)
+    _bootstrap_coord_mission(tmp_path, with_tracked_worktrees_junk=True)
+
+    runner = CliRunner()
+    with patch("specify_cli.cli.commands.doctor.locate_project_root", return_value=tmp_path):
+        result = runner.invoke(doctor_app, ["coordination", "--json"])
+
+    assert result.exit_code == 1, (
+        "doctor must exit 1 when tracked .worktrees/ content is present"
+    )
+    payload = json.loads(result.stdout)
+    worktree_findings = [
+        f
+        for f in payload
+        if f.get("error_code") == "TRACKED_WORKTREES_CONTENT"
+    ]
+    assert worktree_findings, (
+        "#1772 FR-035 regression: doctor did not flag tracked .worktrees/ "
+        f"content. Findings: {payload!r}"
+    )
+    assert worktree_findings[0]["severity"] == "error"
+    assert worktree_findings[0]["next_step"], "must carry a remediation hint"
+
+
+# ---------------------------------------------------------------------------
+# T057 — FR-038: post-merge validation resolves the in-branch status path
+# ---------------------------------------------------------------------------
+
+
+def test_post_merge_validation_reads_in_branch_status_path(tmp_path: Path) -> None:
+    """#1772 Bug 4 / FR-038: post-merge target validation must resolve the
+    in-branch tracked ``kitty-specs/<m>/status.events.jsonl`` path, never a
+    ``.worktrees/`` worktree path (``git show <branch>:.worktrees/…``)."""
+    from specify_cli.cli.commands.merge import _assert_merged_wps_done_on_target
+
+    _init_git_repo(tmp_path)
+    feature_dir = _bootstrap_coord_mission(tmp_path)
+
+    captured_refs: list[str] = []
+
+    import specify_cli.cli.commands.merge as merge_mod
+
+    real_run_command = merge_mod.run_command
+
+    def spy_run_command(cmd, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+        if len(cmd) >= 3 and cmd[0] == "git" and cmd[1] == "show":
+            captured_refs.append(cmd[2])
+        return real_run_command(cmd, *args, **kwargs)
+
+    # The done event is already committed in-branch on main via bootstrap.
+    with patch.object(merge_mod, "run_command", side_effect=spy_run_command):
+        _assert_merged_wps_done_on_target(
+            tmp_path,
+            MISSION_SLUG,
+            "main",
+            ["WP01"],
+            feature_dir=feature_dir,
+            mission_id=MISSION_ID,
+        )
+
+    assert captured_refs, "expected a git show invocation for in-branch validation"
+    for ref in captured_refs:
+        assert ".worktrees" not in ref, (
+            "#1772 FR-038 regression: post-merge validation read a .worktrees/ "
+            f"path that is never tracked in a branch tree: {ref!r}"
+        )
+        assert "kitty-specs/" in ref, (
+            f"post-merge validation must read the in-branch kitty-specs path: {ref!r}"
+        )

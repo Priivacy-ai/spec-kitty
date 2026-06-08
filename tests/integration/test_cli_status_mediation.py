@@ -274,7 +274,7 @@ def test_status_from_lane_worktree_matches_primary(
     ``agent context resolve``; verifying its mission-dir resolution
     proves the CLI mediation surface independent of any spawn cost.
     """
-    from specify_cli.core.execution_context import _resolve_mission_slug
+    from mission_runtime import _resolve_mission_slug
 
     # Lane CWD
     monkeypatch.chdir(coord_mission["lane_worktree"])
@@ -303,7 +303,7 @@ def test_legacy_mission_read_falls_back_to_primary(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Legacy mission read goes to the primary checkout via the resolver."""
-    from specify_cli.core.execution_context import _resolve_mission_slug
+    from mission_runtime import _resolve_mission_slug
 
     monkeypatch.chdir(repo_root)
     _, resolved_dir = _resolve_mission_slug(

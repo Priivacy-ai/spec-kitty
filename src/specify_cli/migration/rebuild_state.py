@@ -1,10 +1,11 @@
 """Rebuild canonical event log from legacy artifacts.
 
-.. deprecated::
-    This module is the legacy WP13 state-rebuild path. New code should call
-    :func:`specify_cli.migration.mission_state.repair_repo`, which is the
-    canonical, deterministic mission-state repair entry point. A
-    ``DeprecationWarning`` is emitted at import time.
+This module holds the per-mission event-rebuild *implementation*. It is an
+internal detail of the migration package: the single public seam is
+:func:`specify_cli.migration.mission_state.rebuild_mission_event_log`
+(#1754), which adapts this module's :class:`RebuildResult` down to a stable
+count-shaped contract. New code must call the ``mission_state`` entry rather
+than importing :func:`rebuild_event_log` directly.
 
 Cross-validates ALL available sources (existing status.events.jsonl,
 status.json snapshot, frontmatter ``lane`` fields) and produces a
@@ -50,18 +51,6 @@ from specify_cli.migration.canonicalization import (
 )
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Deprecation notice — see Mission 8 (Priivacy-ai/spec-kitty#926, #930)
-# ---------------------------------------------------------------------------
-
-warnings.warn(
-    "specify_cli.migration.rebuild_state is deprecated; "
-    "use specify_cli.migration.mission_state.repair_repo for canonical, "
-    "deterministic mission-state repair.",
-    DeprecationWarning,
-    stacklevel=2,
-)
 
 
 # ---------------------------------------------------------------------------

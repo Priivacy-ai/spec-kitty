@@ -20,9 +20,9 @@ from specify_cli.decisions.store import load_index
 from specify_cli.git.commit_helpers import assert_not_protected_branch
 from specify_cli.mission import MissionError, get_deliverables_path, get_mission_for_feature
 from specify_cli.mission_metadata import load_meta, record_acceptance, resolve_mission_identity, write_meta
-from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
-from specify_cli.status.models import Lane
-from specify_cli.status.store import EVENTS_FILENAME, StoreError
+from specify_cli.status import CanonicalStatusNotFoundError
+from specify_cli.status import Lane
+from specify_cli.status import EVENTS_FILENAME, StoreError
 from specify_cli.validators.paths import PathValidationError, validate_mission_paths
 
 from specify_cli.task_utils import (
@@ -538,8 +538,8 @@ def _collect_snapshot_wps(feature: str, feature_dir: Path, activity_issues: list
         activity_issues.append(_missing_msg)
         return {}
     try:
-        from specify_cli.status.reducer import reduce
-        from specify_cli.status.store import read_events
+        from specify_cli.status import reduce
+        from specify_cli.status import read_events
 
         snapshot = reduce(read_events(feature_dir))
     except StoreError as exc:

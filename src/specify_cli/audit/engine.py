@@ -30,12 +30,7 @@ from specify_cli.context.mission_resolver import (
     MissionNotFoundError,  # noqa: F401
     resolve_mission,
 )
-from specify_cli.status.identity_audit import (
-    IdentityState,
-    audit_repo,
-    find_ambiguous_selectors,
-    find_duplicate_prefixes,
-)
+from specify_cli.status import IdentityState, audit_repo, find_ambiguous_selectors, find_duplicate_prefixes
 
 from .classifiers.decisions_events import classify_decisions_events_jsonl
 from .classifiers.handoff_events import classify_handoff_events_jsonl

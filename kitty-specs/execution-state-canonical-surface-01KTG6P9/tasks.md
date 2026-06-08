@@ -32,12 +32,12 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T001 Author lane-worktree and direct-to-target fixtures in `tests/architectural/test_execution_context_parity.py` (WP01)
-- [ ] T002 Drive the full `next→implement→move-task→review→status` sequence from the repository-root-checkout CWD (WP01)
-- [ ] T003 Drive the same sequence from lane-worktree CWD and assert parity of WP identity, lane transitions, status output (WP01)
-- [ ] T004 Drive direct-to-target mode; assert mode-correct branch and refusal of unauthorized mainline writes (WP01)
-- [ ] T005 Add non-vacuous negative control (inject re-derivation → ratchet fails) (WP01)
-- [ ] T006 De-overclaim the docstring; register the ratchet as a CI gate for the targeted paths (WP01)
+- [x] T001 Author lane-worktree and direct-to-target fixtures in `tests/architectural/test_execution_context_parity.py` (WP01)
+- [x] T002 Drive the full `next→implement→move-task→review→status` sequence from the repository-root-checkout CWD (WP01)
+- [x] T003 Drive the same sequence from lane-worktree CWD and assert parity of WP identity, lane transitions, status output (WP01)
+- [x] T004 Drive direct-to-target mode; assert mode-correct branch and refusal of unauthorized mainline writes (WP01)
+- [x] T005 Add non-vacuous negative control (inject re-derivation → ratchet fails) (WP01)
+- [x] T006 De-overclaim the docstring; register the ratchet as a CI gate for the targeted paths (WP01)
 
 ### Dependencies
 
@@ -58,10 +58,10 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T007 Write the design ADR in `architecture/3.x/adr/` (module name, public API shape, context-object abstraction, Strangler migration order) (WP02)
-- [ ] T008 Create `src/mission_runtime/` package with `__init__.py` exposing the curated `__all__` (WP02)
-- [ ] T009 Register `mission_runtime` in `_DEFINED_LAYERS` (`tests/architectural/test_layer_rules.py`) and the `conftest.py` landscape fixture (WP02)
-- [ ] T010 Add `tests/architectural/test_mission_runtime_surface.py` (sole-resolver / no-internal-import enforcement) (WP02)
+- [x] T007 Write the design ADR in `architecture/3.x/adr/` (module name, public API shape, context-object abstraction, Strangler migration order) (WP02)
+- [x] T008 Create `src/mission_runtime/` package with `__init__.py` exposing the curated `__all__` (WP02)
+- [x] T009 Register `mission_runtime` in `_DEFINED_LAYERS` (`tests/architectural/test_layer_rules.py`) and the `conftest.py` landscape fixture (WP02)
+- [x] T010 Add `tests/architectural/test_mission_runtime_surface.py` (sole-resolver / no-internal-import enforcement) (WP02)
 
 ### Dependencies
 
@@ -82,10 +82,10 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T011 Move `ExecutionContext`/`ActionContext` value object into `src/mission_runtime/context.py` (WP03)
-- [ ] T012 Relocate `resolve_action_context` into `src/mission_runtime/resolution.py` as a Stage-C façade delegating to the existing resolver (WP03)
-- [ ] T013 Add a thin re-export shim at `src/specify_cli/core/execution_context.py` (WP03)
-- [ ] T014 Update internal references; keep the parity ratchet green (WP03)
+- [x] T011 Move `ExecutionContext`/`ActionContext` value object into `src/mission_runtime/context.py` (WP03)
+- [x] T012 Relocate `resolve_action_context` into `src/mission_runtime/resolution.py` as a Stage-C façade delegating to the existing resolver (WP03)
+- [x] T013 Add a thin re-export shim at `src/specify_cli/core/execution_context.py` (WP03)
+- [x] T014 Update internal references; keep the parity ratchet green (WP03)
 
 ### Dependencies
 
@@ -106,12 +106,12 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T015 Route `runtime/next/runtime_bridge.py` query-mode through `resolve_action_context` (WP04)
-- [ ] T016 Route `cli/commands/agent/workflow.py` fix-mode `repo_root`/`target_branch` through `resolve_action_context` (WP04)
-- [ ] T017 Implement mode-correct target-branch resolution (planning/direct-to-target/worktree) and refuse unauthorized mainline writes (WP04)
-- [ ] T018 Verify the parity ratchet stays green across all modes (WP04)
-- [ ] T052 Relocate the `runtime_bridge.py` operational-context builders (`build_operational_context_for_claim`, `_build_operational_context_for_decision`, `_resolve_tech_stack_for_profile`) into the umbrella; `runtime_bridge` consumes the umbrella API (bounded runtime_bridge exec-state extraction, operator decision 2026-06-08; realizes IC-02 for the runtime_bridge surface, kept in WP04 since it owns `runtime_bridge.py`) (WP04)
-- [ ] T053 Collapse the `runtime_bridge.py` path/feature-dir/coord-branch/ULID resolvers (`_primary_runtime_feature_dir`, `_resolve_runtime_feature_dir`, `_resolve_run_dir_for_mission`, `_resolve_coordination_branch`, `_resolve_mission_ulid`) into the umbrella's single resolver; fix `candidate_feature_dir_for_mission` / `coordination/surface_resolver.py::resolve_status_surface` to resolve the coord feature-dir/status path **exactly once** (no nested `.worktrees/<m>-coord/.worktrees/…` double-resolution; ignore nested `.worktrees/`) — FR-036, #1772 Bugs 1/2 (WP04)
+- [x] T015 Route `runtime/next/runtime_bridge.py` query-mode through `resolve_action_context` (WP04)
+- [x] T016 Route `cli/commands/agent/workflow.py` fix-mode `repo_root`/`target_branch` through `resolve_action_context` (WP04)
+- [x] T017 Implement mode-correct target-branch resolution (planning/direct-to-target/worktree) and refuse unauthorized mainline writes (WP04)
+- [x] T018 Verify the parity ratchet stays green across all modes (WP04)
+- [x] T052 Relocate the `runtime_bridge.py` operational-context builders (`build_operational_context_for_claim`, `_build_operational_context_for_decision`, `_resolve_tech_stack_for_profile`) into the umbrella; `runtime_bridge` consumes the umbrella API (bounded runtime_bridge exec-state extraction, operator decision 2026-06-08; realizes IC-02 for the runtime_bridge surface, kept in WP04 since it owns `runtime_bridge.py`) (WP04)
+- [x] T053 Collapse the `runtime_bridge.py` path/feature-dir/coord-branch/ULID resolvers (`_primary_runtime_feature_dir`, `_resolve_runtime_feature_dir`, `_resolve_run_dir_for_mission`, `_resolve_coordination_branch`, `_resolve_mission_ulid`) into the umbrella's single resolver; fix `candidate_feature_dir_for_mission` / `coordination/surface_resolver.py::resolve_status_surface` to resolve the coord feature-dir/status path **exactly once** (no nested `.worktrees/<m>-coord/.worktrees/…` double-resolution; ignore nested `.worktrees/`) — FR-036, #1772 Bugs 1/2 (WP04)
 
 ### Dependencies
 
@@ -132,9 +132,9 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T019 Inventory the 8 `_resolve_feature_dir`/feature-dir resolver implementations; select the canonical one (WP05)
-- [ ] T020 Repoint the 7 redundant call sites to the canonical resolver (WP05)
-- [ ] T021 Delete the redundant implementations (no dead code) (WP05)
+- [x] T019 Inventory the 8 `_resolve_feature_dir`/feature-dir resolver implementations; select the canonical one (WP05)
+- [x] T020 Repoint the 7 redundant call sites to the canonical resolver (WP05)
+- [x] T021 Delete the redundant implementations (no dead code) (WP05)
 
 ### Dependencies
 
@@ -155,10 +155,10 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T022 Enumerate the remaining raw `main_repo_root / "kitty-specs" / mission_slug`-class constructions (WP06)
-- [ ] T023 Route each through the `mission_runtime` canonical surface (WP06)
-- [ ] T024 Delete now-unreachable path-builder functions (WP06)
-- [ ] T025 Confirm the SC-004 grep returns zero (WP06)
+- [x] T022 Enumerate the remaining raw `main_repo_root / "kitty-specs" / mission_slug`-class constructions (WP06)
+- [x] T023 Route each through the `mission_runtime` canonical surface (WP06)
+- [x] T024 Delete now-unreachable path-builder functions (WP06)
+- [x] T025 Confirm the SC-004 grep returns zero (WP06)
 
 ### Dependencies
 
@@ -179,9 +179,9 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T026 Finalize promote/demote/route decisions per submodule using `occurrence_map.yaml` (resolve all REVIEW entries) (WP07)
-- [ ] T027 Add promoted symbols to `status/__init__.py` `__all__`; `_`-prefix demoted symbols (WP07)
-- [ ] T028 Update `status/` internal references for any renames (WP07)
+- [x] T026 Finalize promote/demote/route decisions per submodule using `occurrence_map.yaml` (resolve all REVIEW entries) (WP07)
+- [x] T027 Add promoted symbols to `status/__init__.py` `__all__`; `_`-prefix demoted symbols (WP07)
+- [x] T028 Update `status/` internal references for any renames (WP07)
 
 ### Dependencies
 
@@ -202,10 +202,10 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T029 Consult `occurrence_map.yaml`; rewrite PROMOTE imports to the facade (WP08)
-- [ ] T030 Rewrite ROUTE imports to `MissionStatus` calls (WP08)
-- [ ] T031 Handle REVIEW/PRIVATE submodules per the WP07 decision (WP08)
-- [ ] T032 Preserve the `coordination/` plumbing exemptions (WP08)
+- [x] T029 Consult `occurrence_map.yaml`; rewrite PROMOTE imports to the facade (WP08)
+- [x] T030 Rewrite ROUTE imports to `MissionStatus` calls (WP08)
+- [x] T031 Handle REVIEW/PRIVATE submodules per the WP07 decision (WP08)
+- [x] T032 Preserve the `coordination/` plumbing exemptions (WP08)
 
 ### Dependencies
 
@@ -226,9 +226,9 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T033 Widen the pytestarch rule + AST scan scope to all of `src/specify_cli` (WP09)
-- [ ] T034 Preserve documented exemptions; keep/extend the injection proof (WP09)
-- [ ] T035 Confirm zero non-exempt violations and ≤15 s scan time (WP09)
+- [x] T033 Widen the pytestarch rule + AST scan scope to all of `src/specify_cli` (WP09)
+- [x] T034 Preserve documented exemptions; keep/extend the injection proof (WP09)
+- [x] T035 Confirm zero non-exempt violations and ≤15 s scan time (WP09)
 
 ### Dependencies
 
@@ -249,9 +249,9 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T036 Rework direct `emit`/`lane_reader`/`store` mission-level calls to `MissionStatus.load()/.claim()/.transition()` (WP10)
-- [ ] T037 Ensure no direct `BookkeepingTransaction` calls remain outside `status/` and documented plumbing (WP10)
-- [ ] T038 Confirm SC-005 grep returns zero (WP10)
+- [x] T036 Rework direct `emit`/`lane_reader`/`store` mission-level calls to `MissionStatus.load()/.claim()/.transition()` (WP10)
+- [x] T037 Ensure no direct `BookkeepingTransaction` calls remain outside `status/` and documented plumbing (WP10)
+- [x] T038 Confirm SC-005 grep returns zero (WP10)
 
 ### Dependencies
 
@@ -272,9 +272,9 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T039 Carry `mission_id`/`mission_slug` through `runtime/next/runtime_bridge.py:1723` and `:1860` reconstructions (WP11)
-- [ ] T040 Add a regression test on the auto-complete reconstruction path (WP11)
-- [ ] T041 Confirm #1663 is closeable (all snapshot sites preserve identity) (WP11)
+- [x] T039 Carry `mission_id`/`mission_slug` through `runtime/next/runtime_bridge.py:1723` and `:1860` reconstructions (WP11)
+- [x] T040 Add a regression test on the auto-complete reconstruction path (WP11)
+- [x] T041 Confirm #1663 is closeable (all snapshot sites preserve identity) (WP11)
 
 ### Dependencies
 
@@ -297,11 +297,11 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 > **ATDD-first (C-011):** author + commit the failing test subtask **T046 RED first**, before the T042–T045 implementation subtasks. Reviewer verifies red→green.
 
-- [ ] T042 Add `scope` to the `migration/backfill_ownership.py` "already present" guard and write step (persist `scope` when present) (WP12)
-- [ ] T043 Document `scope` as human-authored (no inference) in `ownership/inference.py::infer_ownership` (explicit no-op note) (WP12)
-- [ ] T044 Normalize the `from_frontmatter` raw-dict branch `authoritative_surface` with `... or ""` (provable symmetry) (WP12)
-- [ ] T045 Introduce a frontmatter-source port so the finalize resolve→validate path (`build_wp_manifests` + `read_wp_frontmatter`) is testable without stubbing the reader; route the finalize caller through it (WP12)
-- [ ] T046 Add tests: backfill re-run preserves `scope`; `from_frontmatter` symmetry; port-driven resolve→validate (WP12)
+- [x] T042 Add `scope` to the `migration/backfill_ownership.py` "already present" guard and write step (persist `scope` when present) (WP12)
+- [x] T043 Document `scope` as human-authored (no inference) in `ownership/inference.py::infer_ownership` (explicit no-op note) (WP12)
+- [x] T044 Normalize the `from_frontmatter` raw-dict branch `authoritative_surface` with `... or ""` (provable symmetry) (WP12)
+- [x] T045 Introduce a frontmatter-source port so the finalize resolve→validate path (`build_wp_manifests` + `read_wp_frontmatter`) is testable without stubbing the reader; route the finalize caller through it (WP12)
+- [x] T046 Add tests: backfill re-run preserves `scope`; `from_frontmatter` symmetry; port-driven resolve→validate (WP12)
 
 ### Dependencies
 
@@ -324,11 +324,11 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 > **ATDD-first (C-011):** author + commit the failing test/fixture subtask **T051 RED first**, before the T047–T050 implementation subtasks. Reviewer verifies red→green.
 
-- [ ] T047 Expose a per-mission canonical event-rebuild entry on `mission_state` returning event counts (`events_generated`/`events_corrected`/`errors`/`warnings`) — **decision pinned (FR-032): add the per-mission entry; do NOT retire onto `repair_repo`** (it drops per-feature counts; full retirement is a separate fixture-backed change) (WP13)
-- [ ] T048 Migrate `migration/runner.py` Step 4 per-feature loop onto the canonical entry (WP13)
-- [ ] T049 Migrate `migration/normalize_mission_lifecycle.py` onto the canonical entry (WP13)
-- [ ] T050 Remove `rebuild_event_log` (or reduce to a thin shim with no live callers) and clean the `migration/__init__.__all__` lazy-symbol nuisance (#1757.4) (WP13)
-- [ ] T051 Add migration fixtures covering the per-mission rebuild path; assert behavior preservation and unchanged legacy-mission migration (WP13)
+- [x] T047 Expose a per-mission canonical event-rebuild entry on `mission_state` returning event counts (`events_generated`/`events_corrected`/`errors`/`warnings`) — **decision pinned (FR-032): add the per-mission entry; do NOT retire onto `repair_repo`** (it drops per-feature counts; full retirement is a separate fixture-backed change) (WP13)
+- [x] T048 Migrate `migration/runner.py` Step 4 per-feature loop onto the canonical entry (WP13)
+- [x] T049 Migrate `migration/normalize_mission_lifecycle.py` onto the canonical entry (WP13)
+- [x] T050 Remove `rebuild_event_log` (or reduce to a thin shim with no live callers) and clean the `migration/__init__.__all__` lazy-symbol nuisance (#1757.4) (WP13)
+- [x] T051 Add migration fixtures covering the per-mission rebuild path; assert behavior preservation and unchanged legacy-mission migration (WP13)
 
 ### Dependencies
 
@@ -351,10 +351,10 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 > **ATDD-first (C-011):** author + commit the failing coord-topology merge regression fixture **T057 RED first**, before the T054–T056 fixes. Reviewer verifies red→green.
 
-- [ ] T054 Guard finalize/recovery staging to never `git add` a path under `.worktrees/`; add a `spec-kitty doctor` check that flags pre-existing tracked `.worktrees/` content (FR-035, #1772 Bug 0) (WP14)
-- [ ] T055 Gate merge lane integration on the actual lane tree-diff (not the per-WP `done` event); fail loudly on a would-be zero-diff squash; do not reset lane HEADs on a no-op merge (FR-037, #1772 Bug 3 — data integrity) (WP14)
-- [ ] T056 Resolve the **in-branch** status path in post-merge validation (`_assert_merged_wps_reached_done`-adjacent), not a `.worktrees/` worktree path (FR-038, #1772 Bug 4) (WP14)
-- [ ] T057 Add a coord-topology merge regression fixture (tracked `.worktrees/` junk + pre-recorded `done` events) + tests proving FR-035/FR-037/FR-038 (WP14)
+- [x] T054 Guard finalize/recovery staging to never `git add` a path under `.worktrees/`; add a `spec-kitty doctor` check that flags pre-existing tracked `.worktrees/` content (FR-035, #1772 Bug 0) (WP14)
+- [x] T055 Gate merge lane integration on the actual lane tree-diff (not the per-WP `done` event); fail loudly on a would-be zero-diff squash; do not reset lane HEADs on a no-op merge (FR-037, #1772 Bug 3 — data integrity) (WP14)
+- [x] T056 Resolve the **in-branch** status path in post-merge validation (`_assert_merged_wps_reached_done`-adjacent), not a `.worktrees/` worktree path (FR-038, #1772 Bug 4) (WP14)
+- [x] T057 Add a coord-topology merge regression fixture (tracked `.worktrees/` junk + pre-recorded `done` events) + tests proving FR-035/FR-037/FR-038 (WP14)
 
 ### Dependencies
 

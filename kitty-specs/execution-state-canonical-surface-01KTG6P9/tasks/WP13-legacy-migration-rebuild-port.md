@@ -23,7 +23,8 @@ subtasks:
 - T051
 phase: Phase 6 - Fold-in follow-ups
 assignee: ''
-agent: ''
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "2994157"
 history:
 - at: '2026-06-07T09:30:00Z'
   actor: system
@@ -118,3 +119,6 @@ Route the two live legacy-migration callers off the deprecated `rebuild_event_lo
 ## Activity Log
 
 - 2026-06-07T09:30:00Z – system – Prompt created as #1754 fold-in.
+- 2026-06-08T11:00:50Z – claude:opus:python-pedro:implementer – shell_pid=2981093 – Started implementation via action command
+- 2026-06-08T11:12:30Z – claude:opus:python-pedro:implementer – shell_pid=2981093 – Ready for review: #1754 single-port rebuild + fixtures + ATDD T051
+- 2026-06-08T11:13:11Z – claude:opus:reviewer-renata:reviewer – shell_pid=2994157 – Started review via action command

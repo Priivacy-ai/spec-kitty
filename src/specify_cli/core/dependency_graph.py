@@ -11,9 +11,9 @@ from dataclasses import dataclass
 import re
 from pathlib import Path
 
-from specify_cli.status.models import Lane
-from specify_cli.status.transitions import resolve_lane_alias
-from specify_cli.status.wp_metadata import read_wp_frontmatter
+from specify_cli.status import Lane
+from specify_cli.status import resolve_lane_alias
+from specify_cli.status import read_wp_frontmatter
 
 
 # A dependency satisfies the readiness gate once its work is reviewed and

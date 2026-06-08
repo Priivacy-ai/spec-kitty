@@ -17,7 +17,7 @@ from specify_cli.post_merge.review_artifact_consistency import (
     format_review_artifact_finding,
     review_artifact_finding_diagnostic,
 )
-from specify_cli.status.reducer import materialize
+from specify_cli.status import materialize
 
 
 def check_wp_lanes(

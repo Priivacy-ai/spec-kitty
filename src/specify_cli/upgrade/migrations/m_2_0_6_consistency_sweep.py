@@ -20,12 +20,10 @@ from typing import Any
 from specify_cli.agent_utils.directories import AGENT_DIRS
 from specify_cli.frontmatter import FrontmatterError, FrontmatterManager
 from specify_cli.runtime.doctor import check_stale_legacy_assets
-from specify_cli.status.reducer import SNAPSHOT_FILENAME, materialize
-from specify_cli.status.store import EVENTS_FILENAME, StoreError, read_events
-from specify_cli.status.transitions import CANONICAL_LANES, resolve_lane_alias
-from specify_cli.status.validate import (
-    validate_materialization_drift,
-)
+from specify_cli.status import SNAPSHOT_FILENAME, materialize
+from specify_cli.status import EVENTS_FILENAME, StoreError, read_events
+from specify_cli.status import CANONICAL_LANES, resolve_lane_alias
+from specify_cli.status import validate_materialization_drift
 from specify_cli.upgrade.feature_meta import (
     build_baseline_feature_meta,
     load_feature_meta,

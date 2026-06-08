@@ -209,6 +209,17 @@ def infer_ownership(
         A 2-tuple of ``(manifest, warnings)`` where *manifest* is a
         best-effort OwnershipManifest and *warnings* is a list of
         human-readable warning strings (may be empty).
+
+    Note on ``scope`` (FR-029, stated contract — not a gap):
+        ``scope`` has **no inference path** and is intentionally omitted from
+        the returned manifest. ``scope: "codebase-wide"`` is a deliberate,
+        human-authored exemption that relaxes ownership overlap and
+        authoritative-surface checks (see
+        :mod:`specify_cli.ownership.validation`). Inferring it would silently
+        widen a WP's blast radius, so inferred manifests always remain narrow
+        (``scope=None``). The only way ``scope`` enters the system is via
+        :meth:`OwnershipManifest.from_frontmatter` reading a human-authored
+        frontmatter value — the single canonical owner of the field.
     """
     from specify_cli.ownership.models import OwnershipManifest  # local import avoids circularity
 
@@ -217,6 +228,7 @@ def infer_ownership(
     owned_files, warnings = infer_owned_files(wp_content, mission_slug)
     authoritative_surface = infer_authoritative_surface(owned_files)
 
+    # ``scope`` is left at its default (None): human-authored only, never inferred.
     manifest = OwnershipManifest(
         execution_mode=execution_mode,
         owned_files=tuple(owned_files),

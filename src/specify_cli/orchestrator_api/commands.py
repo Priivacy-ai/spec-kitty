@@ -42,7 +42,7 @@ from specify_cli.git.commit_helpers import (
 )
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import wp_state_for
-from specify_cli.status.models import Lane
+from specify_cli.status import Lane
 
 from .envelope import (
     CONTRACT_VERSION,
@@ -272,7 +272,7 @@ def _mission_identity_payload(mission_dir: Path) -> dict[str, str]:
 
 def _get_last_actor(mission_dir: Path, wp_id: str) -> str | None:
     """Get the actor of the most recent event for this WP."""
-    from specify_cli.status.store import read_events
+    from specify_cli.status import read_events
 
     events = read_events(mission_dir)
     for event in reversed(events):
@@ -579,8 +579,8 @@ def mission_state(
         )
         return
 
-    from specify_cli.status.reducer import reduce
-    from specify_cli.status.store import read_events
+    from specify_cli.status import reduce
+    from specify_cli.status import read_events
     from specify_cli.core.dependency_graph import build_dependency_graph
 
     # Query endpoint: reduce from event log without rewriting status.json.
@@ -644,8 +644,8 @@ def list_ready(
         )
         return
 
-    from specify_cli.status.reducer import reduce
-    from specify_cli.status.store import read_events
+    from specify_cli.status import reduce
+    from specify_cli.status import read_events
     from specify_cli.core.dependency_graph import build_dependency_graph, dependency_readiness_for_wp
 
     # Query endpoint: reduce from event log without rewriting status.json.
@@ -729,8 +729,8 @@ def start_implementation(
         return
 
     from specify_cli.core.dependency_graph import dependency_readiness_for_wp, parse_wp_dependencies
-    from specify_cli.status.reducer import reduce
-    from specify_cli.status.store import read_events
+    from specify_cli.status import reduce
+    from specify_cli.status import read_events
 
     wp_lanes = {
         wp_id: state.get("lane", Lane.PLANNED)
@@ -764,8 +764,8 @@ def start_implementation(
             )
             return
 
-    from specify_cli.status.emit import TransitionError
-    from specify_cli.status.work_package_lifecycle import WorkPackageClaimConflict, start_implementation_status
+    from specify_cli.status import TransitionError
+    from specify_cli.status import WorkPackageClaimConflict, start_implementation_status
 
     workspace_path = str(main_repo_root / ".worktrees" / f"{mission}-{wp}")
     prompt_path = str(wp_path)
@@ -855,8 +855,8 @@ def start_review(
         _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
         return
 
-    from specify_cli.status.emit import TransitionError
-    from specify_cli.status.work_package_lifecycle import WorkPackageClaimConflict, start_review_status
+    from specify_cli.status import TransitionError
+    from specify_cli.status import WorkPackageClaimConflict, start_review_status
 
     prompt_path = str(wp_path)
 
@@ -930,7 +930,7 @@ def transition(
     """Emit a single lane transition for a WP."""
     cmd = "transition"
 
-    from specify_cli.status.transitions import resolve_lane_alias
+    from specify_cli.status import resolve_lane_alias
 
     to_lane = resolve_lane_alias(to)
 
@@ -983,8 +983,8 @@ def transition(
         return
 
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
-    from specify_cli.status.emit import TransitionError
-    from specify_cli.status.models import TransitionRequest
+    from specify_cli.status import TransitionError
+    from specify_cli.status import TransitionRequest
 
     try:
         event = emit_status_transition_transactional(
@@ -1144,7 +1144,7 @@ def accept_mission(
         _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission}' not found in kitty-specs/")
         return
 
-    from specify_cli.status.reducer import materialize
+    from specify_cli.status import materialize
     from specify_cli.core.dependency_graph import build_dependency_graph
 
     snapshot = materialize(mission_dir)

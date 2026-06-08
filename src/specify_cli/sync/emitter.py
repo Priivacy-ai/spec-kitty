@@ -39,7 +39,7 @@ from rich.console import Console
 
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.mission_metadata import mission_number_from_slug
-from specify_cli.status.models import get_all_lane_values
+from specify_cli.status import get_all_lane_values
 from specify_cli.status_lanes import CANONICAL_LANES
 from spec_kitty_events import normalize_event_id as _normalize_event_id
 

@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from specify_cli.frontmatter import FrontmatterError, FrontmatterManager
-from specify_cli.status.lane_reader import CanonicalStatusNotFoundError, get_wp_lane, has_event_log
-from specify_cli.status.store import StoreError
+from specify_cli.status import CanonicalStatusNotFoundError, get_wp_lane, has_event_log
+from specify_cli.status import StoreError
 
 from ..detectors import detect_legacy_keys
 from ..models import MissionFinding, Severity

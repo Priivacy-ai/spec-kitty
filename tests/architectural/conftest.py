@@ -31,7 +31,7 @@ def evaluable():
 
 @pytest.fixture(scope="session")
 def landscape():
-    """2.x C4 landscape: kernel <- doctrine <- charter <- glossary/runtime <- specify_cli.
+    """2.x C4 landscape: kernel <- doctrine <- charter <- glossary/runtime/mission_runtime <- specify_cli.
 
     Each layer includes both the ``src.``-prefixed module path (local source)
     and the bare module name (as seen when the package is installed), so that
@@ -49,6 +49,8 @@ def landscape():
         .containing_modules(["src.glossary", "glossary"])
         .layer("runtime")
         .containing_modules(["src.runtime", "runtime"])
+        .layer("mission_runtime")
+        .containing_modules(["src.mission_runtime", "mission_runtime"])
         .layer("specify_cli")
         .containing_modules(["src.specify_cli", "specify_cli"])
     )

@@ -72,15 +72,15 @@ from specify_cli.review.prompt_metadata import (
 )
 from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
 from specify_cli.review.cycle import REVIEW_FEEDBACK_SENTINELS, resolve_review_cycle_pointer
-from specify_cli.status.locking import feature_status_lock
-from specify_cli.status.models import AgentAssignment, Lane
-from specify_cli.status.work_package_lifecycle import (
+from specify_cli.status import feature_status_lock
+from specify_cli.status import AgentAssignment, Lane
+from specify_cli.status import (
     WorkPackageClaimConflict,
     WorkPackageStartRejected,
+    read_wp_frontmatter,
     start_implementation_status,
     start_review_status,
 )
-from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.task_utils import (
     append_activity_log,
     build_document,
@@ -676,7 +676,7 @@ def _resolve_review_feedback_pointer(repo_root: Path, pointer: str) -> Path | No
 def _read_wp_events(feature_dir: Path, wp_id: str):
     """Return canonical status events for a single work package."""
     try:
-        from specify_cli.status.store import read_events as _read_status_events
+        from specify_cli.status import read_events as _read_status_events
 
         return [event for event in _read_status_events(feature_dir) if event.wp_id == wp_id]
     except Exception:
@@ -787,7 +787,7 @@ def _missing_canonical_status_message(
     loops while the cycle keeps aborting finalize.
     """
     if feature_dir is not None:
-        from specify_cli.status.uninitialized_hint import uninitialized_status_error
+        from specify_cli.status import uninitialized_status_error
 
         return uninitialized_status_error(mission_slug, wp_id, feature_dir)
     return f"WP {wp_id} has no canonical status. Run `spec-kitty agent mission finalize-tasks --mission {mission_slug}` to initialize."
@@ -851,7 +851,7 @@ def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tup
     OHS entry point; ``target_branch`` is read from its returned ActionContext
     rather than derived independently.
     """
-    from specify_cli.core.execution_context import ActionContextError, resolve_action_context
+    from mission_runtime import ActionContextError, resolve_action_context
     from specify_cli.core.git_ops import get_current_branch
 
     main_repo_root = get_main_repo_root(repo_root)
@@ -1150,9 +1150,9 @@ def implement(
 
         wp_meta, _ = read_wp_frontmatter(wp.path)
 
-        from specify_cli.status.reducer import reduce as _dep_reduce_events
-        from specify_cli.status.store import read_events as _dep_read_events
-        from specify_cli.status.transitions import resolve_lane_alias as _dep_resolve_alias
+        from specify_cli.status import reduce as _dep_reduce_events
+        from specify_cli.status import read_events as _dep_read_events
+        from specify_cli.status import resolve_lane_alias as _dep_resolve_alias
 
         _dependency_feature_dir = _canonical_status_feature_dir(main_repo_root, mission_slug)
         _dependency_snapshot = _dep_reduce_events(_dep_read_events(_dependency_feature_dir))
@@ -1252,9 +1252,9 @@ def implement(
         # Move to in_progress lane if not already there, and ensure agent is recorded
         # Lane is event-log-only; read from canonical event log (no frontmatter fallback)
         _wf_feature_dir = _canonical_status_feature_dir(main_repo_root, mission_slug)
-        from specify_cli.status.lane_reader import get_wp_lane as _wf_get_wp_lane
-        from specify_cli.status.store import read_events as _wf_read_events
-        from specify_cli.status.reducer import reduce as _wf_reduce
+        from specify_cli.status import get_wp_lane as _wf_get_wp_lane
+        from specify_cli.status import read_events as _wf_read_events
+        from specify_cli.status import reduce as _wf_reduce
 
         _wf_events = _wf_read_events(_wf_feature_dir)
         _wf_snapshot = _wf_reduce(_wf_events) if _wf_events else None
@@ -1928,8 +1928,8 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> str | None:
     feature_dir = tasks_dir.parent
     _fr_events = []
     try:
-        from specify_cli.status.store import read_events as _fr_read_events
-        from specify_cli.status.reducer import reduce as _fr_reduce
+        from specify_cli.status import read_events as _fr_read_events
+        from specify_cli.status import reduce as _fr_reduce
 
         _fr_events = _fr_read_events(feature_dir)
         _fr_snapshot = _fr_reduce(_fr_events) if _fr_events else None
@@ -2025,9 +2025,9 @@ def review(
         # Explicit WP review requests must target for_review (or already review-claimed in_progress).
         # Lane is event-log-only; read from canonical event log (no frontmatter fallback)
         feature_dir = _canonical_status_feature_dir(main_repo_root, mission_slug)
-        from specify_cli.status.lane_reader import get_wp_lane as _rv_get_wp_lane
-        from specify_cli.status.store import read_events as _rv_read_events
-        from specify_cli.status.reducer import reduce as _rv_reduce
+        from specify_cli.status import get_wp_lane as _rv_get_wp_lane
+        from specify_cli.status import read_events as _rv_read_events
+        from specify_cli.status import reduce as _rv_reduce
 
         _rv_events = _rv_read_events(feature_dir)
         _rv_snapshot = _rv_reduce(_rv_events) if _rv_events else None
@@ -2269,8 +2269,8 @@ def review(
         if dependents:
             # Load lanes from event log (lane is event-log-only)
             try:
-                from specify_cli.status.store import read_events as _rw_read_events
-                from specify_cli.status.reducer import reduce as _rw_reduce
+                from specify_cli.status import read_events as _rw_read_events
+                from specify_cli.status import reduce as _rw_reduce
 
                 _rw_events = _rw_read_events(feature_dir)
                 _rw_snapshot = _rw_reduce(_rw_events) if _rw_events else None

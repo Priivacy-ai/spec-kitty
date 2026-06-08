@@ -22,7 +22,8 @@ subtasks:
 - T038
 phase: Phase 5 - Consumption
 assignee: ''
-agent: ''
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "2932149"
 history:
 - at: '2026-06-07T05:16:24Z'
   actor: system
@@ -98,3 +99,6 @@ Route mission-level status read/write consumers onto the `MissionStatus` aggrega
 ## Activity Log
 
 - 2026-06-07T05:16:24Z – system – Prompt created.
+- 2026-06-08T09:58:21Z – claude:opus:randy-reducer:implementer – shell_pid=2903235 – Started implementation via action command
+- 2026-06-08T10:21:42Z – claude:opus:randy-reducer:implementer – shell_pid=2903235 – Ready for review: 14 ROUTE-deferred files routed (lifecycle_events x11, work_package_lifecycle x4, materialize_snapshot x2, run_doctor x1, InvalidMissionSlug x1 promoted to facade; sync handler onto 2 new facade helpers) + SC-005=0 + allow-list shrunk to 1 (cycle-breaker only)
+- 2026-06-08T10:23:14Z – claude:opus:reviewer-renata:reviewer – shell_pid=2932149 – Started review via action command

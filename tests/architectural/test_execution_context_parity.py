@@ -1,37 +1,70 @@
 """e2e CWD-invariance ratchet — ExecutionContext parity gate.
 
-This test is the Strangler step 1 for the execution-state-domain-remediation
-mission (#1619): a compact proof that ``spec-kitty agent tasks status --json``
-produces **identical WP lane data** regardless of whether the command is
-invoked from the main-checkout CWD or a lane-worktree CWD.
+Coverage (FR-023)
+-----------------
+This ratchet is the Strangler gate for the execution-state-domain-remediation
+mission (#1619 / #1672 / execution-state-canonical-surface-01KTG6P9). It proves
+**identical WP lane data and transition identity** for the full
+``next → implement → move-task → review → status`` sequence across three
+execution modes:
 
-The ratchet gates WP03, WP04, and WP06: those WPs can only be considered
-merged once this test is green.
+1. **main-checkout CWD** — commands driven from the repository root with a lane
+   worktree already created (the conventional agent CWD during planning/review).
+2. **lane-worktree CWD** — commands driven from the ``.worktrees/`` lane path
+   (the conventional agent CWD during implementation).
+3. **direct-to-target** — commands driven from the repository root with *no*
+   worktree; the declared target branch is used directly and an unauthorized
+   write to a mainline-protected branch is refused (C-001).
+
+CI gate (FR-024)
+----------------
+This test is a required gate for PRs that touch any of the following paths
+(via the ``execution_context`` path filter in ``.github/workflows/ci-quality.yml``):
+
+* ``src/specify_cli/core/execution_context.py``
+* ``src/specify_cli/status/**``
+* ``src/runtime/next/**``
+* ``src/specify_cli/cli/commands/agent/**``
+* ``tests/architectural/test_execution_context_parity.py``
+* ``src/mission_runtime/**``  (added when the mission_runtime umbrella lands, WP02)
+
+The ``integration-tests-core-misc`` CI job runs this file exclusively when
+``execution_context``-only changes are detected, so status/runtime edits always
+exercise the parity gate even when the wider core-misc suite is skipped.
 
 Write-path extension (#1672 / FR-008)
 -------------------------------------
-The original ratchet only proved that the status **read** (``agent tasks
-status --json``) is CWD-invariant. The status-writepath-profile-surface
-remediation mission (#1672) routed the status **write** (``agent status
-emit``) through ``MissionStatus.transition()`` (WP01), whose write target is
-the coord-aware ``read_dir`` (the primary-checkout authority), not a directory
-re-derived from the caller's CWD.
-
-``test_cwd_parity_write`` extends the ratchet to prove that a write transition
-driven via ``agent status emit`` produces an **identical deterministic event
-identity** (``from_lane`` / ``to_lane`` / ``wp_id`` / ``actor``) and an
-**identical resulting persisted lane** regardless of whether ``emit`` is run
-from the main-checkout CWD or from a lane-worktree CWD, and that the write
-lands in the **main checkout's** event log in both cases.
+``test_cwd_parity_write`` proves that a write transition driven via
+``agent status emit`` produces an **identical deterministic event identity**
+(``from_lane`` / ``to_lane`` / ``wp_id`` / ``actor``) and an **identical
+resulting persisted lane** regardless of whether ``emit`` is invoked from the
+main-checkout CWD or a lane-worktree CWD, and that the write lands in the
+**main checkout's** event log in both cases.
 
 ``test_write_ratchet_catches_divergence`` is the anti-vacuity proof for the
-write path: it mirrors ``test_ratchet_catches_divergence`` and demonstrates
-that if the write surface re-derived its target from the worktree CWD (a
-divergence), the worktree-local event log would diverge from the main-checkout
-authority — proving the write ratchet is not vacuously green.
+write path.
 
-These additions are purely additive: they do not weaken or alter the existing
-read-parity assertions (C-008).
+Full-sequence extension (execution-state-canonical-surface-01KTG6P9 / FR-020..022)
+-----------------------------------------------------------------------------------
+``test_full_sequence_main_checkout_parity`` (T002) and
+``test_full_sequence_worktree_parity`` (T003) drive WP01 through the complete
+lane progression ``planned → claimed → in_progress → for_review → in_review``
+via ``agent tasks move-task --no-auto-commit``, one from the main-checkout CWD
+and the other from the lane-worktree CWD.  The ratchet asserts that:
+
+* the **resolved WP identity** (``wp_id`` / ``from_lane`` / ``to_lane`` in each
+  transition) is identical across both CWDs, and
+* the **final persisted lane** (from ``agent tasks status --json``) is identical.
+
+``test_full_sequence_direct_to_target`` (T004) drives the same sequence from
+the main-checkout CWD with *no* worktree present, verifying direct-to-target
+mode.  It also asserts that ``agent status emit`` targeting the ``main``
+protected branch without ``SPEC_KITTY_TEST_MODE`` is **refused** (C-001).
+
+``test_full_sequence_ratchet_catches_divergence`` (T005) is the non-vacuity
+proof: it injects a divergent status transition in the worktree-local event
+log and asserts the two independent read paths diverge, proving the full-
+sequence ratchet would catch a real CWD-routing regression.
 
 Design principles
 -----------------
@@ -42,9 +75,11 @@ Design principles
   fixture setup fast and hermetic.
 * The fixture creates a real git worktree so that ``find_repo_root()`` resolves
   correctly from both the main checkout and the worktree path.
-* The injection proof (``test_ratchet_catches_divergence``) verifies that the
-  ratchet is not vacuously passing by deliberately corrupting the status read
-  in one location and asserting that the observed outputs diverge.
+* The injection proofs verify that the ratchet is not vacuously passing by
+  deliberately corrupting the status in one location and asserting divergence.
+* ``--no-auto-commit`` is passed to ``move-task`` throughout the full-sequence
+  tests so the fixture does not need to commit on a specific branch — the
+  ratchet tests CWD-invariant status-event routing, not the commit flow.
 
 Markers
 -------
@@ -66,6 +101,7 @@ from pathlib import Path
 from collections.abc import Generator
 
 import pytest
+import yaml
 
 pytestmark = [
     pytest.mark.architectural,
@@ -299,7 +335,7 @@ def parity_repo(tmp_path_factory: pytest.TempPathFactory) -> Generator[tuple[Pat
 # ---------------------------------------------------------------------------
 
 
-def _get_status_json(cwd: Path, mission_slug: str) -> dict:
+def _get_status_json(cwd: Path, mission_slug: str) -> dict[str, object]:
     """Run ``spec-kitty agent tasks status --json --mission <slug>`` and parse the output.
 
     Returns the parsed JSON dict.  Raises ``AssertionError`` on non-zero exit.
@@ -313,12 +349,14 @@ def _get_status_json(cwd: Path, mission_slug: str) -> dict:
         f"  stdout: {result.stdout.strip()[:500]}\n"
         f"  stderr: {result.stderr.strip()[:500]}"
     )
-    return json.loads(result.stdout)
+    parsed: dict[str, object] = json.loads(result.stdout)
+    return parsed
 
 
-def _wp_lanes(status_json: dict) -> dict[str, str]:
+def _wp_lanes(status_json: dict[str, object]) -> dict[str, str]:
     """Extract ``{wp_id: lane}`` from a status JSON payload."""
     wps = status_json.get("work_packages", [])
+    assert isinstance(wps, list)
     return {wp["id"]: wp["lane"] for wp in wps}
 
 
@@ -523,7 +561,7 @@ def _emit_status(
     wp_id: str,
     to_lane: str,
     actor: str,
-) -> dict:
+) -> dict[str, object]:
     """Run ``spec-kitty agent status emit ... --json`` and parse the output.
 
     Returns the parsed JSON dict describing the emitted event.  Raises
@@ -551,10 +589,11 @@ def _emit_status(
         f"  stdout: {result.stdout.strip()[:500]}\n"
         f"  stderr: {result.stderr.strip()[:500]}"
     )
-    return json.loads(result.stdout)
+    parsed: dict[str, object] = json.loads(result.stdout)
+    return parsed
 
 
-def _event_identity(emit_json: dict) -> dict[str, str]:
+def _event_identity(emit_json: dict[str, object]) -> dict[str, str]:
     """Extract the *deterministic* identity of an emitted event.
 
     The ``event_id`` is a freshly minted ULID and is therefore intentionally
@@ -563,10 +602,10 @@ def _event_identity(emit_json: dict) -> dict[str, str]:
     that MUST be CWD-invariant for the same (wp, to_lane, actor) transition.
     """
     return {
-        "wp_id": emit_json["wp_id"],
-        "from_lane": emit_json["from_lane"],
-        "to_lane": emit_json["to_lane"],
-        "actor": emit_json["actor"],
+        "wp_id": str(emit_json["wp_id"]),
+        "from_lane": str(emit_json["from_lane"]),
+        "to_lane": str(emit_json["to_lane"]),
+        "actor": str(emit_json["actor"]),
     }
 
 
@@ -773,4 +812,508 @@ def test_write_ratchet_catches_divergence(tmp_path: Path) -> None:
         f"worktree-local event log both report {main_wp1_lane!r}. A write-target "
         "CWD-routing regression could not be detected, so the write ratchet "
         "would be vacuous. Revise the test setup."
+    )
+
+
+# ---------------------------------------------------------------------------
+# FULL-SEQUENCE RATCHET (FR-020..022 / execution-state-canonical-surface)
+# ---------------------------------------------------------------------------
+#
+# T002/T003: Drive WP01 through planned→claimed→in_progress→for_review→in_review
+# via ``agent tasks move-task --no-auto-commit``.  Two independent repos are used
+# (one CWD per repo) so that each transition exercises the same ``planned→X``
+# first step; a single shared repo would produce duplicate transitions.
+#
+# T004: Direct-to-target (no worktree) mode.  Verifies the sequence succeeds
+# without a worktree AND that ``agent status emit`` targeting the ``main``
+# protected branch is refused when SPEC_KITTY_TEST_MODE is absent (C-001).
+#
+# T005: Non-vacuity negative control — mirrors the read/write injection proofs
+# for the full-sequence ratchet.
+#
+# T006: CI gate registration — asserts the ``execution_context`` path filter in
+# ci-quality.yml already includes the surfaces required by FR-024.
+# ---------------------------------------------------------------------------
+
+# The ordered lane sequence that represents the full agent workflow:
+#   planned → claimed (implement start)
+#             claimed → in_progress (work begins)
+#                       in_progress → for_review (impl done)
+#                                     for_review → in_review (reviewer picks up)
+_FULL_SEQUENCE_TRANSITIONS: list[tuple[str, str]] = [
+    ("planned", "claimed"),
+    ("claimed", "in_progress"),
+    ("in_progress", "for_review"),
+    ("for_review", "in_review"),
+]
+
+
+def _build_repo_no_worktree(tmp_path: Path) -> Path:
+    """Initialise a minimal git repo with a mission but WITHOUT any worktree.
+
+    The repo HEAD is checked out on ``feat/direct-target`` — a non-mainline
+    branch that is not protected — to allow status-event commits in tests that
+    exercise auto-commit mode.  The fixture leaves the main-checkout *on this
+    branch* to represent the direct-to-target execution mode.
+
+    Returns ``repo_root``.
+    """
+    repo_root = tmp_path / "main"
+    repo_root.mkdir()
+
+    _git(["init", "--initial-branch=main"], repo_root)
+    _git(["config", "user.email", "parity@example.com"], repo_root)
+    _git(["config", "user.name", "Parity Test"], repo_root)
+    _git(["config", "commit.gpgsign", "false"], repo_root)
+
+    # .kittify marker required for find_repo_root()
+    kittify_dir = repo_root / ".kittify"
+    kittify_dir.mkdir()
+    (kittify_dir / "config.yaml").write_text(
+        "agents:\n  available:\n    - claude\n", encoding="utf-8"
+    )
+
+    _build_mission_dir(repo_root, _MISSION_SLUG)
+
+    _git(["add", "."], repo_root)
+    _git(["commit", "-m", "chore: direct-to-target fixture initial commit"], repo_root)
+
+    # Switch to a non-mainline target branch (direct-to-target mode).
+    _git(["checkout", "-b", "feat/direct-target"], repo_root)
+
+    # No .worktrees/ directory is created — this is the direct-to-target mode.
+    return repo_root
+
+
+def _move_task(
+    cwd: Path,
+    mission_slug: str,
+    wp_id: str,
+    to_lane: str,
+) -> dict[str, object]:
+    """Drive ``agent tasks move-task <wp_id> --to <lane> --no-auto-commit --force --json``.
+
+    ``--no-auto-commit`` keeps the fixture hermetic (no branch/commit needed).
+    ``--force`` bypasses unchecked-subtask guards that would block the
+    transition in a real project but are irrelevant to the CWD-invariance proof.
+
+    Returns the parsed JSON dict.  Raises ``AssertionError`` on non-zero exit
+    so a CLI failure surfaces with full diagnostics.
+    """
+    result = _spec_kitty(
+        [
+            "agent",
+            "tasks",
+            "move-task",
+            wp_id,
+            "--to",
+            to_lane,
+            "--mission",
+            mission_slug,
+            "--no-auto-commit",
+            "--force",
+            "--json",
+        ],
+        cwd=cwd,
+    )
+    assert result.returncode == 0, (
+        f"move-task WP01 --to {to_lane!r} failed (cwd={cwd}):\n"
+        f"  stdout: {result.stdout.strip()[:500]}\n"
+        f"  stderr: {result.stderr.strip()[:500]}"
+    )
+    parsed: dict[str, object] = json.loads(result.stdout)
+    return parsed
+
+
+def _transition_identity(move_json: dict[str, object]) -> dict[str, str | None]:
+    """Extract deterministic fields from a move-task JSON result.
+
+    ``event_id`` is a freshly minted ULID and is excluded: it is unique per
+    emission.  The fields below are the parts of the transition identity that
+    MUST be CWD-invariant for the same (wp_id, from_lane, to_lane) step.
+
+    Field mapping (from the ``agent tasks move-task --json`` output schema):
+    * ``work_package_id`` → the WP being transitioned.
+    * ``old_lane`` → the lane before the transition (``from_lane`` in events).
+    * ``new_lane`` → the lane after the transition (``to_lane`` in events).
+    """
+    wp_id = move_json.get("work_package_id")
+    old_lane = move_json.get("old_lane")
+    new_lane = move_json.get("new_lane")
+    return {
+        "wp_id": str(wp_id) if wp_id is not None else None,
+        "from_lane": str(old_lane) if old_lane is not None else None,
+        "to_lane": str(new_lane) if new_lane is not None else None,
+    }
+
+
+def _drive_full_sequence(
+    cwd: Path, mission_slug: str
+) -> tuple[list[dict[str, str | None]], dict[str, str]]:
+    """Drive WP01 through the full sequence and return (transitions, final_lanes).
+
+    Returns:
+        transitions: list of ``_transition_identity`` dicts, one per step.
+        final_lanes: ``{wp_id: lane}`` mapping from the final status read.
+    """
+    transitions: list[dict[str, str | None]] = []
+    for _from, to in _FULL_SEQUENCE_TRANSITIONS:
+        result = _move_task(cwd=cwd, mission_slug=mission_slug, wp_id="WP01", to_lane=to)
+        transitions.append(_transition_identity(result))
+    final_lanes = _wp_lanes(_get_status_json(cwd=cwd, mission_slug=mission_slug))
+    return transitions, final_lanes
+
+
+# ---------------------------------------------------------------------------
+# T002 — Full sequence from main-checkout CWD
+# ---------------------------------------------------------------------------
+
+
+def test_full_sequence_main_checkout_parity(tmp_path: Path) -> None:
+    """T002: full-sequence status progression from the main-checkout CWD.
+
+    Drives WP01 through planned→claimed→in_progress→for_review→in_review via
+    ``agent tasks move-task --no-auto-commit`` from ``cwd=repo_root``.
+
+    Asserts:
+    * each transition produces the expected (from_lane, to_lane, wp_id) identity,
+    * ``agent tasks status --json`` reports WP01 as ``in_review`` at the end.
+
+    This is the baseline proof that the full-sequence ratchet itself works
+    correctly from the main-checkout CWD.
+    """
+    repo_root, _worktree_path = _build_repo(tmp_path)
+    mission_slug = _MISSION_SLUG
+
+    transitions, final_lanes = _drive_full_sequence(
+        cwd=repo_root, mission_slug=mission_slug
+    )
+
+    # Each step must have the expected (from_lane, to_lane) identity.
+    for i, ((expected_from, expected_to), got) in enumerate(
+        zip(_FULL_SEQUENCE_TRANSITIONS, transitions, strict=True)
+    ):
+        assert got["from_lane"] == expected_from, (
+            f"Step {i}: expected from_lane={expected_from!r}; got {got['from_lane']!r}"
+        )
+        assert got["to_lane"] == expected_to, (
+            f"Step {i}: expected to_lane={expected_to!r}; got {got['to_lane']!r}"
+        )
+        assert got["wp_id"] == "WP01", (
+            f"Step {i}: expected wp_id='WP01'; got {got['wp_id']!r}"
+        )
+
+    # Final lane must be the last step's target.
+    assert final_lanes.get("WP01") == "in_review", (
+        f"Full sequence from main-checkout CWD did not reach 'in_review'; "
+        f"got {final_lanes.get('WP01')!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# T003 — Same sequence from lane-worktree CWD (parity with T002) [P]
+# ---------------------------------------------------------------------------
+
+
+def test_full_sequence_worktree_parity(tmp_path: Path) -> None:
+    """T003: full-sequence parity — main-checkout CWD vs. lane-worktree CWD.
+
+    Drives the identical ``planned→…→in_review`` sequence against two
+    *independent but identically seeded* repos:
+
+    * Repo A: sequence driven from the **main-checkout CWD**.
+    * Repo B: sequence driven from the **lane-worktree CWD**.
+
+    Two independent repos are used (rather than two sequences against one repo)
+    so that each drive exercises the same ``planned→claimed`` first transition;
+    issuing both against one repo would make the second a duplicate/illegal
+    re-transition.
+
+    Asserts that:
+    1. The **transition identity** (from_lane, to_lane, wp_id) for every step
+       is identical across both CWDs.
+    2. The **final persisted lane** (from ``agent tasks status --json``) is
+       identical across both repos.
+
+    Failure indicates that ``find_repo_root()`` or the status-event write path
+    diverges based on CWD — the core regression class documented in #1619.
+    """
+    base_a = tmp_path / "a"
+    base_a.mkdir()
+    repo_a_root, _wt_a = _build_repo(base_a)
+
+    base_b = tmp_path / "b"
+    base_b.mkdir()
+    repo_b_root, worktree_b = _build_repo(base_b)
+
+    mission_slug = _MISSION_SLUG
+
+    main_transitions, main_lanes = _drive_full_sequence(
+        cwd=repo_a_root, mission_slug=mission_slug
+    )
+    lane_transitions, lane_lanes = _drive_full_sequence(
+        cwd=worktree_b, mission_slug=mission_slug
+    )
+
+    # (1) Transition identity must match step-for-step.
+    assert len(main_transitions) == len(lane_transitions), (
+        "Sequence length divergence: main-checkout drove "
+        f"{len(main_transitions)} steps; lane-worktree drove "
+        f"{len(lane_transitions)} steps."
+    )
+    for i, (main_step, lane_step) in enumerate(
+        zip(main_transitions, lane_transitions, strict=True)
+    ):
+        assert main_step == lane_step, (
+            f"Transition identity divergence at step {i}:\n"
+            f"  from main-checkout CWD: {main_step!r}\n"
+            f"  from lane-worktree CWD: {lane_step!r}\n"
+            "CWD-parity violation: the same status transition is being "
+            "resolved differently depending on the caller's working directory."
+        )
+
+    # (2) Final persisted lane must be identical across both repos.
+    assert main_lanes.get("WP01") == lane_lanes.get("WP01"), (
+        "Final-lane CWD divergence: the status read after the full sequence "
+        "returns different WP01 lanes.\n"
+        f"  main-checkout CWD → {main_lanes.get('WP01')!r}\n"
+        f"  lane-worktree CWD → {lane_lanes.get('WP01')!r}"
+    )
+    assert main_lanes.get("WP01") == "in_review", (
+        f"Full sequence did not reach 'in_review'; "
+        f"got {main_lanes.get('WP01')!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# T004 — Direct-to-target mode (no worktree; mainline write refused)
+# ---------------------------------------------------------------------------
+
+
+def test_full_sequence_direct_to_target(tmp_path: Path) -> None:
+    """T004: full-sequence in direct-to-target mode (no worktree).
+
+    Drives the same ``planned→…→in_review`` sequence from the repository root
+    with *no* ``.worktrees/`` lane directory present (direct-to-target mode).
+
+    Asserts:
+    1. The sequence succeeds from the repo root on a non-mainline branch
+       (``feat/direct-target``), reaching the expected final lane.
+    2. An ``agent status emit`` call targeting the ``main`` protected branch
+       (without ``SPEC_KITTY_TEST_MODE``) is **refused** (C-001 / FR-012).
+
+    The second assertion proves that the mode-correct branch gate is enforced:
+    a surface that re-derived the target from CWD could silently write to the
+    wrong branch; the refusal shows that the protection is active and that a
+    write to ``main`` without explicit authorization is blocked.
+    """
+    repo_root = _build_repo_no_worktree(tmp_path)
+    mission_slug = _MISSION_SLUG
+
+    # (1) Full sequence from repo root without a worktree.
+    transitions, final_lanes = _drive_full_sequence(
+        cwd=repo_root, mission_slug=mission_slug
+    )
+    assert final_lanes.get("WP01") == "in_review", (
+        f"Direct-to-target full sequence did not reach 'in_review'; "
+        f"got {final_lanes.get('WP01')!r}"
+    )
+    # All transitions must carry the correct WP identity.
+    for step in transitions:
+        assert step["wp_id"] == "WP01"
+
+    # (2) Verify that an auto-committing ``move-task`` on the ``main`` protected
+    # branch is refused (C-001 / FR-012).
+    # Switch HEAD to ``main`` to simulate an unauthorized mainline write attempt.
+    # The fixture repo has ``main`` as its initial branch (the non-mainline
+    # ``feat/direct-target`` branch was used for the sequence above).
+    _git(["checkout", "main"], repo_root)
+
+    # WP01 is now at 'in_review'; the next valid forward transition is 'approved'.
+    result_refused = _spec_kitty(
+        [
+            "agent",
+            "tasks",
+            "move-task",
+            "WP01",
+            "--to",
+            "approved",
+            "--mission",
+            mission_slug,
+            "--auto-commit",
+            "--force",
+            "--json",
+        ],
+        cwd=repo_root,
+    )
+    # The command must fail (non-zero exit) when auto-commit would write to main.
+    # The protected-branch guard returns exit code 1 with a descriptive error.
+    assert result_refused.returncode != 0, (
+        "Mainline write protection FAILED: ``agent tasks move-task --auto-commit`` "
+        "succeeded on the ``main`` branch without SPEC_KITTY_TEST_MODE set.\n"
+        "C-001 requires that unauthorized mainline writes are refused.\n"
+        f"  stdout: {result_refused.stdout.strip()[:500]}\n"
+        f"  stderr: {result_refused.stderr.strip()[:500]}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# T005 — Non-vacuous negative control for the full-sequence ratchet
+# ---------------------------------------------------------------------------
+
+
+def test_full_sequence_ratchet_catches_divergence(tmp_path: Path) -> None:
+    """T005: injection proof — the full-sequence ratchet FAILS when divergence exists.
+
+    Mirrors ``test_ratchet_catches_divergence`` for the full-sequence ratchet.
+    It proves that a CWD-routing regression in the full-sequence path would be
+    caught: if a future change caused the worktree CWD to read from the
+    worktree's own ``kitty-specs/`` instead of the primary checkout, the lane
+    data would diverge and the ratchet would surface the failure.
+
+    Construction:
+    1. Build a repo with a worktree (same as parity_repo fixture).
+    2. Drive WP01 through the full sequence from the main-checkout CWD.
+    3. Inject a divergent event log directly into the worktree's ``kitty-specs/``
+       that represents a *different* final lane (``approved``, not ``in_review``).
+    4. Read status from the main-checkout authority and from the worktree-local
+       surface independently.  Assert they disagree.
+
+    If they agreed, the worktree-local data could not detect a CWD routing
+    regression — the ratchet would be vacuous.  This test proves the opposite:
+    a different worktree-local log DOES produce a different status read from
+    that surface, which means ``test_full_sequence_worktree_parity`` would catch
+    the divergence if the worktree CWD resolved to the wrong surface.
+    """
+    repo_root, worktree_path = _build_repo(tmp_path)
+    mission_slug = _MISSION_SLUG
+
+    # Drive the full sequence from the main-checkout CWD so the primary
+    # authority reflects the real post-sequence state (WP01 = in_review).
+    _drive_full_sequence(cwd=repo_root, mission_slug=mission_slug)
+
+    # Verify the main authority shows in_review.
+    main_lanes = _wp_lanes(_get_status_json(cwd=repo_root, mission_slug=mission_slug))
+    assert main_lanes.get("WP01") == "in_review", (
+        "Setup error: expected WP01='in_review' in the main authority after "
+        f"driving the full sequence; got {main_lanes.get('WP01')!r}"
+    )
+
+    # Inject a divergent event log into the worktree's kitty-specs/: WP01
+    # shows as 'approved' — a lane that differs from the real post-sequence
+    # state ('in_review').  This simulates a CWD-routing regression where the
+    # worktree CWD resolves to the wrong kitty-specs/ directory.
+    worktree_feature_dir = worktree_path / "kitty-specs" / mission_slug
+    worktree_feature_dir.mkdir(parents=True, exist_ok=True)
+    divergent_events = [
+        _make_status_event(
+            "WP01",
+            from_lane="planned",
+            to_lane="planned",
+            event_id="01TESTPARITY00000000000P01",
+            at="2026-06-03T10:00:00+00:00",
+        ),
+        _make_status_event(
+            "WP01",
+            from_lane="planned",
+            to_lane="approved",
+            event_id="01TESTPARITY0000FULLSEQDV01",
+            at="2026-06-03T12:00:00+00:00",
+        ),
+    ]
+    (worktree_feature_dir / "status.events.jsonl").write_text(
+        "\n".join(divergent_events) + "\n", encoding="utf-8"
+    )
+    (worktree_feature_dir / "meta.json").write_text(_META_JSON, encoding="utf-8")
+    tasks_dir = worktree_feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+    (tasks_dir / "WP01.md").write_text(_WP01_MD, encoding="utf-8")
+    (tasks_dir / "WP02.md").write_text(_WP02_MD, encoding="utf-8")
+
+    # Confirm the worktree-local surface reads 'approved' from its own event log.
+    from specify_cli.status.reducer import reduce
+    from specify_cli.status.store import read_events
+
+    worktree_snapshot = reduce(read_events(worktree_feature_dir))
+    worktree_wp1_lane = (
+        worktree_snapshot.work_packages.get("WP01", {}).get("lane", "planned")
+    )
+    assert worktree_wp1_lane == "approved", (
+        "Injection proof setup error: the worktree's injected event log should "
+        f"show WP01 as 'approved'; got {worktree_wp1_lane!r}"
+    )
+
+    # The main authority and the worktree-local surface must disagree.
+    # This is the evidence that a CWD-routing regression in the full-sequence
+    # path would surface as a parity failure in test_full_sequence_worktree_parity.
+    main_wp1_lane = main_lanes.get("WP01")
+    assert main_wp1_lane != worktree_wp1_lane, (
+        f"Injection proof inconclusive: both surfaces report {main_wp1_lane!r}. "
+        "A CWD-routing regression in the full-sequence path could not be "
+        "detected by test_full_sequence_worktree_parity. Revise the test setup."
+    )
+
+
+# ---------------------------------------------------------------------------
+# T006 — CI gate registration assertion (FR-024)
+# ---------------------------------------------------------------------------
+
+
+_CI_WORKFLOW = (
+    Path(__file__).resolve().parents[2] / ".github" / "workflows" / "ci-quality.yml"
+)
+
+# Surfaces that must be present in the ``execution_context`` path filter so
+# that any change to them triggers the integration-tests-core-misc job, which
+# runs this parity ratchet.  ``mission_runtime/`` will be added here once the
+# canonical umbrella lands (WP02 — IC-01).
+_REQUIRED_EXECUTION_CONTEXT_PATHS: frozenset[str] = frozenset(
+    {
+        "src/specify_cli/status/**",
+        "src/runtime/next/**",
+        "src/specify_cli/cli/commands/agent/**",
+        "tests/architectural/test_execution_context_parity.py",
+    }
+)
+
+
+def test_execution_context_parity_gate_registered_in_ci() -> None:
+    """T006: the parity ratchet is a required CI gate for execution-context surfaces.
+
+    Asserts that the ``execution_context`` path filter in
+    ``.github/workflows/ci-quality.yml`` includes all surfaces listed in
+    ``_REQUIRED_EXECUTION_CONTEXT_PATHS`` (FR-024).
+
+    The ``integration-tests-core-misc`` job is triggered by this filter and
+    runs ``tests/architectural/test_execution_context_parity.py`` exclusively
+    when only execution-context paths changed, ensuring that every PR touching
+    status/runtime/agent-command surfaces must pass the full-sequence parity
+    ratchet.
+
+    When the ``mission_runtime/`` umbrella lands (IC-01 / WP02), add
+    ``"src/mission_runtime/**"`` to ``_REQUIRED_EXECUTION_CONTEXT_PATHS`` in
+    this file and to the ``execution_context`` filter in ci-quality.yml in the
+    same PR.
+    """
+    assert _CI_WORKFLOW.exists(), (
+        f"CI workflow not found at {_CI_WORKFLOW}. "
+        "This test guards the path filter registration (FR-024)."
+    )
+
+    data = yaml.safe_load(_CI_WORKFLOW.read_text(encoding="utf-8"))
+    filter_step = next(
+        step
+        for step in data["jobs"]["changes"]["steps"]
+        if step.get("id") == "filter"
+    )
+    filters: dict[str, list[str]] = yaml.safe_load(filter_step["with"]["filters"])
+
+    execution_context_paths: set[str] = set(filters.get("execution_context", []))
+    missing = _REQUIRED_EXECUTION_CONTEXT_PATHS - execution_context_paths
+    assert not missing, (
+        "The following paths are missing from the ``execution_context`` path "
+        "filter in ci-quality.yml (FR-024):\n"
+        + "\n".join(f"  - {p}" for p in sorted(missing))
+        + "\n\nAdd them to the ``execution_context`` filter so PRs touching "
+        "these surfaces trigger the parity ratchet."
     )

@@ -21,18 +21,12 @@ from specify_cli.task_utils import TaskCliError, find_repo_root
 from specify_cli.verify_enhanced import run_enhanced_verify
 
 
-def _resolve_feature_dir(
-    project_root: Path,
-    feature: str | None = None,
-) -> Path | None:
-    """Return feature directory from an explicit slug, or None if not provided.
+def _existing_feature_dir(project_root: Path, feature: str | None) -> Path | None:
+    """Return the on-disk feature directory for ``feature``, else ``None``.
 
-    Args:
-        project_root: Repository root.
-        feature: Explicit mission slug from --mission flag, or None.
-
-    Returns:
-        Path to the ``kitty-specs/<slug>`` directory, or ``None`` if not given.
+    Thin existence-gated presentation adapter over the canonical
+    :func:`candidate_feature_dir_for_mission` resolver — verify treats an
+    absent slug or a not-yet-materialized directory as "no feature context".
     """
     if not feature:
         return None
@@ -127,7 +121,7 @@ def verify_setup(
     cwd = Path.cwd()
 
     # Detect feature directory from --mission flag or current context
-    feature_dir = _resolve_feature_dir(project_root, mission_slug)
+    feature_dir = _existing_feature_dir(project_root, mission_slug)
 
     result = run_enhanced_verify(
         repo_root=repo_root,
@@ -157,7 +151,7 @@ def _run_diagnostics_mode(json_output: bool, check_tools: bool, *, feature: str 
         # Resolve the MAIN repo root, not CWD. Main branch is authoritative
         # for kitty-specs/ (planning artifacts), so feature detection uses it.
         project_path = locate_project_root() or Path.cwd()
-        feature_dir = _resolve_feature_dir(project_path, feature)
+        feature_dir = _existing_feature_dir(project_path, feature)
         diag = run_diagnostics(project_path, feature_dir=feature_dir)
 
         # Add tool checking if requested

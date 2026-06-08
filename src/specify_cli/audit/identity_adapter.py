@@ -31,7 +31,7 @@ from collections import defaultdict
 from pathlib import Path
 
 # Internal import — IdentityState is NOT re-exported from this module.
-from specify_cli.status.identity_audit import IdentityState
+from specify_cli.status import IdentityState
 
 from .models import MissionFinding, Severity
 

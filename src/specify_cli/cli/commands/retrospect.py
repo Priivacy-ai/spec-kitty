@@ -49,8 +49,8 @@ from specify_cli.retrospective import (
 )
 from specify_cli.retrospective.schema import GenActor, GenProvenance
 from specify_cli.retrospective.summary import classify_mission_record
-from specify_cli.status.store import read_events
-from specify_cli.status.transitions import TERMINAL_LANES
+from specify_cli.status import read_events
+from specify_cli.status import TERMINAL_LANES
 
 app = typer.Typer(
     name="retrospect",
@@ -152,7 +152,7 @@ def _check_mission_completed(
         return []
 
     # Build per-WP lane snapshot from events
-    from specify_cli.status.reducer import reduce as reduce_events
+    from specify_cli.status import reduce as reduce_events
     snapshot = reduce_events(events)
 
     open_wps: list[dict[str, str]] = []

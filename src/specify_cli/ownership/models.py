@@ -11,7 +11,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from specify_cli.status.wp_metadata import WPMetadata
+    from specify_cli.status import WPMetadata
 
 
 # Sentinel for the codebase-wide scope value used in WP frontmatter.
@@ -70,7 +70,7 @@ class OwnershipManifest:
             KeyError: If a required key is missing.
             ValueError: If ``execution_mode`` is not a valid ExecutionMode value.
         """
-        from specify_cli.status.wp_metadata import WPMetadata
+        from specify_cli.status import WPMetadata
 
         if isinstance(data, WPMetadata):
             # Normalize to a dict and fall through to the single extraction path.
@@ -98,7 +98,9 @@ class OwnershipManifest:
             raw_files = [raw_files]
         owned_files = tuple(raw_files)
 
-        authoritative_surface = data.get("authoritative_surface", "")
+        # ``or ""`` (not ``dict.get(k, "")``) so a present-but-None value coerces
+        # to "" identically to the WPMetadata branch above (FR-030 symmetry).
+        authoritative_surface = data.get("authoritative_surface") or ""
         scope = data.get("scope") or None
 
         return cls(

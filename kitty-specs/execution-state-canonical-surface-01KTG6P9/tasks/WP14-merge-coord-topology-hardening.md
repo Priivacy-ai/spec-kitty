@@ -25,7 +25,8 @@ subtasks:
 - T057
 phase: Phase 3 - Strangle
 assignee: ''
-agent: ''
+agent: "claude:sonnet:reviewer-renata:reviewer"
+shell_pid: "3065407"
 history:
 - at: '2026-06-08T03:40:46Z'
   actor: system
@@ -129,3 +130,13 @@ Planning/base branch: `feat/execution-state-strangler`. Final merge target: `fea
 - Confirm FR-037 truly gates on tree-diff — try the "all WPs already done, zero diff" path and confirm it fails loudly rather than emitting a success squash.
 - Confirm no `.worktrees/` path can reach `git add` and the `doctor` check fires on tracked `.worktrees/`.
 - Confirm FR-036 is consumed from WP04's resolver, not re-implemented here.
+
+## Activity Log
+
+- 2026-06-08T11:21:33Z – claude:opus:paula-patterns:implementer – shell_pid=3002487 – Started implementation via action command
+- 2026-06-08T11:42:16Z – claude:opus:paula-patterns:implementer – shell_pid=3002487 – Ready for review: FR-035/037/038 + ATDD T057 (RED->green, non-vacuous), healthy-merge preserved (NFR-001), transaction.py untouched (NFR-006), FR-036 consumed from WP04
+- 2026-06-08T11:43:14Z – claude:opus:reviewer-renata:reviewer – shell_pid=3026288 – Started review via action command
+- 2026-06-08T11:55:35Z – user – shell_pid=3026288 – Moved to planned
+- 2026-06-08T11:56:21Z – claude:sonnet:paula-patterns:implementer – shell_pid=3055487 – Started implementation via action command
+- 2026-06-08T12:01:54Z – claude:sonnet:paula-patterns:implementer – shell_pid=3055487 – Cycle 2: reconciled test_merge_resume idempotence fakes to FR-037 tree-state gate; coord-topology + merge suites green
+- 2026-06-08T12:02:38Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=3065407 – Started review via action command

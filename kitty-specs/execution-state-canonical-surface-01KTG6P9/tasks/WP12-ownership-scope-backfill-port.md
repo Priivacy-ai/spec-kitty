@@ -24,7 +24,8 @@ subtasks:
 - T046
 phase: Phase 6 - Fold-in follow-ups
 assignee: ''
-agent: ''
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "2973013"
 history:
 - at: '2026-06-07T09:30:00Z'
   actor: system
@@ -118,3 +119,6 @@ Make the ownership `scope` field flow through one canonical owner on every path 
 ## Activity Log
 
 - 2026-06-07T09:30:00Z – system – Prompt created as #1757 fold-in.
+- 2026-06-08T10:43:22Z – claude:opus:python-pedro:implementer – shell_pid=2961111 – Started implementation via action command
+- 2026-06-08T10:53:46Z – claude:opus:python-pedro:implementer – shell_pid=2961111 – Ready for review: FR-028/029/030/031 + ATDD T046 (red->green)
+- 2026-06-08T10:54:29Z – claude:opus:reviewer-renata:reviewer – shell_pid=2973013 – Started review via action command

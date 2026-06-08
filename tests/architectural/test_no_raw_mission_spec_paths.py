@@ -16,7 +16,9 @@ _SEMANTIC_PATTERN = re.compile(r"KITTY_SPECS_DIR\s*/\s*\w")
 
 _RAW_EXEMPT_PARTS = (
     "status/",
-    "core/execution_context.py",
+    # core/execution_context.py removed in WP03 (relocated to mission_runtime,
+    # then deleted once unreferenced — FR-003). mission_runtime does not
+    # construct raw mission-spec paths, so it needs no exemption.
     "upgrade/migrations/",
     "core/constants.py",
     "core/paths.py",

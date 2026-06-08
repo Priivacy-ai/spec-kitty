@@ -28,8 +28,6 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 from pathlib import Path
 
-from specify_cli.coordination.workspace import CoordinationWorkspace
-
 
 STATUS_READ_PATH_NOT_FOUND_CODE = "STATUS_READ_PATH_NOT_FOUND"
 
@@ -142,6 +140,12 @@ def resolve_mission_read_path(
     coord_candidate: Path | None = None
     coord_worktree_materialized = False
     if mid8:
+        # Lazy import breaks the import cycle: ``coordination.__init__`` eagerly
+        # imports ``surface_resolver``, which imports ``_compose_mission_dir``
+        # from this module. A module-level import here would deadlock whenever
+        # this resolver is the first entry point into the coordination package.
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+
         coord_root = CoordinationWorkspace.worktree_path(
             repo_root, mission_slug, mid8,
         )
