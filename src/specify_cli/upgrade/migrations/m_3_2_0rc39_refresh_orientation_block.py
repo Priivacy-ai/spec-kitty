@@ -27,8 +27,6 @@ from .base import BaseMigration, MigrationResult
 if TYPE_CHECKING:
     from specify_cli.session_presence.content import SessionPresenceContent
 
-__all__ = ["RefreshOrientationBlockMigration"]
-
 
 # ---------------------------------------------------------------------------
 # Module-level helpers (pure functions; no registry or config I/O)

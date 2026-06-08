@@ -207,6 +207,12 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # 3.2.0rc35 skill-pack migration: auto-discovered via
         # pkgutil.iter_modules; never statically imported by design.
         "specify_cli.upgrade.migrations.m_3_2_0rc35_spk_skill_pack",
+        # 3.2.0rc39 session-presence orientation refresh migration:
+        # auto-discovered via pkgutil.iter_modules; never statically
+        # imported by runtime code. The migration is wanted: it refreshes
+        # already-installed stale orientation blocks after wording changes,
+        # while deliberately not installing absent blocks.
+        "specify_cli.upgrade.migrations.m_3_2_0rc39_refresh_orientation_block",
         # 3.3.0 session-presence migrations: auto-discovered via
         # pkgutil.iter_modules in migrations/__init__.py; never statically
         # imported by runtime code — the @MigrationRegistry.register
