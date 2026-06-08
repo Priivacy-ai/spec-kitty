@@ -125,3 +125,24 @@ At each join point, with the dependent lane's worktree idle: `git -C <dependent-
 
 ### Upstream gap worth filing
 The claim flow should integrate approved cross-lane dependency code automatically: after the dependency-readiness gate, merge each dependency's resolved lane branch into the dependent's lane branch (not only the mission branch). Needs a regression test: a 2-lane fixture where lane-B WP depends on a lane-A WP and must see lane-A's code at claim. Without it, "approved unblocks dependents immediately" silently gives dependents a stale base.
+
+---
+
+## F-05 — coordination branch (and ALL lanes) forked from a STALE feat snapshot
+
+**Severity:** High (every WP is implemented against an out-of-date target base). **Phase:** discovered during lane-base verification. **Status:** OPEN — remediation pending operator decision. **Domain:** coordination-branch / rebase.
+
+### What
+The coordination/mission branch `kitty/mission-…-01KTG6P9` (the base all lane branches fork from) is **240 commits behind `feat/execution-state-strangler`** (the mission's declared `planning_base_branch` == `merge_target_branch`). Real `src/` divergence: **77 files, ~2,886 insertions / 769 deletions** — including the very files this mission strangles:
+- `status/transitions.py` (−342: the FSM Randy-Reducer reduction), `status/wp_state.py` (313-line diff), `aggregate.py`, `emit.py`, `validate.py`, `models.py` (genesis lane), `__init__.py`.
+- An **entire other mission** merged into feat after the fork: `session_presence/` + `m_3_3_0_session_presence_*` migrations.
+- The `spec-kitty-events` major bump **5.2.0 → 6.0.0** (genesis lane) — hence the lane `test_uv_lock_pin_drift` failure.
+
+### Why it happened
+The coordination branch was created at first finalize from feat *before* feat received: the late FSM-PR-#1775 review reductions, the events-6.0.0 bump, the session-presence merge, and this session's tooling commits. The 2026-06-08 feat rebase-onto-FSM rewrote feat history (merge-base is now the old `3.2.0rc38` release), so the coordination branch shares only that ancient base.
+
+### Impact
+WP01/02/03 are approved **but built on the stale base**. WP02's `mission_runtime/` is net-new (low conflict), but WP03 deleted `core/execution_context.py` and migrated callers against the *old* caller set — feat may have new callers of that module that WP03 didn't migrate (→ dangling imports after a rebase), and feat's reduced `transitions.py`/`wp_state.py` will conflict with later WPs (WP07/WP08) coded against the un-reduced versions. Deferring to the final `spec-kitty merge` would produce a large, error-prone conflict across core status files, with WPs having been coded against stale APIs.
+
+### Remediation (operator decision pending)
+Fix the base now while only 3 WPs are done (cheap) rather than at final merge (expensive). Options: (A) rebase the lane branches onto current feat + re-validate WP01/02/03; (B) re-finalize from feat tip (recreate coordination + lanes) and re-apply the 3 WPs; (C) continue and reconcile at merge (NOT recommended). Re-validation must re-check WP03's single-resolver + no-dangling-import invariants against feat's newer caller set.
