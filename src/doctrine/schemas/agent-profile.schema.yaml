@@ -316,6 +316,11 @@ properties:
     type: array
     items:
       type: string
+  available-tools:
+    type: array
+    items:
+      type: string
+    description: Tools this profile is equipped to use; used by tool-gated routing.
   context-sources:
     $ref: '#/definitions/agent_context_sources'
   specialization:

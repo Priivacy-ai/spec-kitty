@@ -32,7 +32,7 @@ from specify_cli.invocation.modes import ModeOfWork
 from specify_cli.invocation.propagator import InvocationSaaSPropagator
 from specify_cli.invocation.record import InvocationRecord, promote_to_evidence
 from specify_cli.invocation.registry import ProfileRegistry
-from specify_cli.invocation.router import TOOL_KEYWORD_MAP, ActionRouter, RouterDecision  # WP02: router implemented
+from specify_cli.invocation.router import TOOL_KEYWORD_MAP, ActionRouter, RouterDecision, _normalize_tokens  # WP02: router implemented
 from specify_cli.invocation.writer import InvocationWriter, normalise_ref
 
 logger = logging.getLogger(__name__)
@@ -172,7 +172,7 @@ class ProfileInvocationExecutor:
         elif self._router is not None:
             # Derive tool requirements from request text and pass to router.
             # If no profile covers the required tools, route() returns profile_id=None.
-            tokens = set(request_text.lower().split())
+            tokens = set(_normalize_tokens(request_text))
             required_tools: frozenset[str] = frozenset(
                 tool for token, tool in TOOL_KEYWORD_MAP.items() if token in tokens
             )

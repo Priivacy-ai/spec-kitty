@@ -99,6 +99,18 @@ class TestValidateAgentProfileYaml:
         errors = validate_agent_profile_yaml(data)
         assert len(errors) > 0
 
+    def test_available_tools_array_is_accepted(self):
+        data = self._minimal_valid()
+        data["available-tools"] = ["gh", "git", "docker"]
+        errors = validate_agent_profile_yaml(data)
+        assert errors == []
+
+    def test_available_tools_empty_array_is_accepted(self):
+        data = self._minimal_valid()
+        data["available-tools"] = []
+        errors = validate_agent_profile_yaml(data)
+        assert errors == []
+
 
 # ── get_capabilities ───────────────────────────────────────────────────────
 

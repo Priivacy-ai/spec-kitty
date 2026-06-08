@@ -509,3 +509,21 @@ class TestToolGatedRouting:
         decision = router.route("implement something", required_tools=frozenset(["gh", "docker"]))
         assert "docker" in decision.match_reason
         assert "gh" in decision.match_reason
+
+
+class TestNormalizeTokensPunctuationStripping:
+    """_normalize_tokens strips punctuation so 'GitHub?' == 'github' == 'GitHub,'."""
+
+    @pytest.mark.parametrize("text", [
+        "fetch github? issues",
+        "fetch github, issues",
+        "fetch github. issues",
+        "fetch GitHub! issues",
+    ])
+    def test_punctuated_github_normalises_to_github_token(self, text: str) -> None:
+        tokens = _normalize_tokens(text)
+        assert "github" in tokens
+
+    def test_plain_github_normalises_to_github_token(self) -> None:
+        tokens = _normalize_tokens("fetch github issues")
+        assert "github" in tokens

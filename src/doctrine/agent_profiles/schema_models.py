@@ -222,6 +222,7 @@ class AgentProfileSchema(BaseModel):
     routing_priority: int | None = Field(default=None, alias="routing-priority", ge=0, le=100)
     max_concurrent_tasks: int | None = Field(default=None, alias="max-concurrent-tasks", ge=1)
     applies_to_languages: list[str] = Field(default_factory=list)
+    available_tools: list[str] = Field(default_factory=list, alias="available-tools")
 
     # Section 1: Context sources
     context_sources: AgentContextSources | None = Field(default=None, alias="context-sources")
