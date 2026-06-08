@@ -20,8 +20,8 @@ subtasks:
 - T028
 phase: Phase 4 - Facade
 assignee: ''
-agent: "claude:opus:reviewer-renata:reviewer"
-shell_pid: "2854112"
+agent: "claude:sonnet:python-pedro:implementer"
+shell_pid: "2861361"
 history:
 - at: '2026-06-07T05:16:24Z'
   actor: system
@@ -96,3 +96,5 @@ Finalize per-submodule promote/demote/route decisions and update `status/__init_
 - 2026-06-08T09:05:50Z – claude:opus:python-pedro:implementer – shell_pid=2844466 – Started implementation via action command
 - 2026-06-08T09:10:28Z – claude:opus:python-pedro:implementer – shell_pid=2844466 – Ready for review: finalized 11 REVIEW submodule decisions (8 PROMOTE, 2 ROUTE, 1 PRIVATE-no-rename); added 17 symbols to status/__init__.py __all__ (now 95). Facade import OK, ruff+mypy clean, 2739 status tests green.
 - 2026-06-08T09:13:19Z – claude:opus:reviewer-renata:reviewer – shell_pid=2854112 – Started review via action command
+- 2026-06-08T09:17:37Z – user – shell_pid=2854112 – Moved to planned
+- 2026-06-08T09:18:26Z – claude:sonnet:python-pedro:implementer – shell_pid=2861361 – Started implementation via action command
