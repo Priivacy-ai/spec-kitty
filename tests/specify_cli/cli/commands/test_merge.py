@@ -301,10 +301,6 @@ def test_mark_wp_merged_done_skips_when_no_approval_metadata_for_non_approved(
         "specify_cli.status.lane_reader.get_wp_lane",
         lambda *_a, **_kw: "in_progress",
     )
-    monkeypatch.setattr(
-        "specify_cli.status.history_parser.extract_done_evidence",
-        lambda *_a, **_kw: None,
-    )
 
     _mark_wp_merged_done(tmp_path, mission_slug, "WP01", "main")
 

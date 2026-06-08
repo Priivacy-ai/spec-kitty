@@ -32,8 +32,6 @@ if TYPE_CHECKING:
     from specify_cli.status import WPMetadata
 
 __all__ = [
-    "FrontmatterSource",
-    "InMemoryFrontmatterSource",
     "FinalizeFrontmatterSource",
     "resolve_wp_manifests",
 ]

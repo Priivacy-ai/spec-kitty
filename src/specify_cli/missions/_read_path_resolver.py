@@ -90,6 +90,18 @@ def _compose_mission_dir(mission_slug: str, mid8: str) -> str:
     return mission_slug
 
 
+def compose_meta_json_path(base: Path, mission_slug: str) -> Path:
+    """Return ``base / KITTY_SPECS_DIR / <slug-mid8-dir> / meta.json``.
+
+    Centralises mission ``meta.json`` path construction so callers outside
+    semantic-constructor files do not need to build the path inline.
+    """
+    from specify_cli.lanes.branch_naming import mid8_from_slug
+
+    dir_name = _compose_mission_dir(mission_slug, mid8_from_slug(mission_slug))
+    return base / KITTY_SPECS_DIR / dir_name / "meta.json"
+
+
 def resolve_mission_read_path(
     repo_root: Path,
     mission_slug: str,

@@ -412,7 +412,6 @@ class TestMergeDoneTransitions:
         with (
             patch("specify_cli.status.lane_reader.get_wp_lane", return_value="approved"),
             patch("specify_cli.cli.commands.merge._has_transition_to", return_value=False),
-            patch("specify_cli.status.history_parser.extract_done_evidence", return_value=None),
             patch("specify_cli.coordination.status_transition.emit_status_transition_transactional") as mock_emit,
         ):
             _mark_wp_merged_done(tmp_path, mission_slug, "WP01", "main")

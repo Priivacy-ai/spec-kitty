@@ -870,11 +870,9 @@ def _write_mission_number_to_branch(
         # ``git add`` then re-pollutes the tree. The mission-branch tree always
         # carries the canonical mission dir directly under ``kitty-specs/``, so
         # compose that path by hand and never resolve into ``.worktrees/``.
-        from specify_cli.lanes.branch_naming import mid8_from_slug as _mid8_from_slug
-        from specify_cli.missions._read_path_resolver import _compose_mission_dir as _compose_dir
+        from specify_cli.missions._read_path_resolver import compose_meta_json_path as _compose_meta
 
-        _mission_dir_name = _compose_dir(mission_slug, _mid8_from_slug(mission_slug))
-        meta_path = mission_tmp_path / KITTY_SPECS_DIR / _mission_dir_name / "meta.json"
+        meta_path = _compose_meta(mission_tmp_path, mission_slug)
         if path_is_under_worktrees(meta_path):
             logger.warning(
                 "Refusing to bake mission_number for %s: resolved meta path is under "
