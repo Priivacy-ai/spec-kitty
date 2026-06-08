@@ -1587,7 +1587,7 @@ def setup_plan(
         # before performing any further work. This is the canonical handoff
         # marker for the spec→plan transition (issue #1067).
         try:
-            from specify_cli.status.lifecycle_events import (
+            from specify_cli.status import (
                 emit_artifact_phase,
                 SPECIFY_COMPLETED,
                 PLAN_STARTED,
@@ -1618,7 +1618,7 @@ def setup_plan(
         if plan_is_substantive:
             _commit_to_branch(plan_file, mission_slug, "plan", repo_root, target_branch, json_output)
             try:
-                from specify_cli.status.lifecycle_events import (
+                from specify_cli.status import (
                     emit_artifact_phase,
                     PLAN_COMPLETED,
                 )
@@ -2722,7 +2722,7 @@ def finalize_tasks(
         # set; the matching TasksCompleted is emitted after commit.
         if not validate_only:
             try:
-                from specify_cli.status.lifecycle_events import (
+                from specify_cli.status import (
                     emit_artifact_phase,
                     TASKS_STARTED,
                 )
@@ -2819,7 +2819,7 @@ def finalize_tasks(
         # bootstrap_canonical_state so replay consumers see WPCreated before
         # the first WPStatusChanged event for each WP.
         try:
-            from specify_cli.status.lifecycle_events import (
+            from specify_cli.status import (
                 emit_artifact_phase,
                 emit_wp_created_local,
                 TASKS_COMPLETED,

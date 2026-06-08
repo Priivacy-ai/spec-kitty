@@ -34,7 +34,7 @@ from specify_cli.coordination.status_transition import emit_status_transition_tr
 from specify_cli.status import COORD_OWNED_STATUS_FILES
 from specify_cli.status import TransitionError
 from specify_cli.status import Lane, TransitionRequest
-from specify_cli.status.work_package_lifecycle import (
+from specify_cli.status import (
     WorkPackageClaimConflict,
     WorkPackageStartRejected,
     start_implementation_status,

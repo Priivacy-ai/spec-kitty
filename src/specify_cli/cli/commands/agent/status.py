@@ -197,8 +197,12 @@ def _resolve_mission_status_for_repo(
         typer.Exit: If the slug is invalid or the coord authority is
             unavailable / metadata cannot be trusted (fail closed).
     """
-    from specify_cli.status import CoordAuthorityUnavailable, MissionMetadataUnavailable, MissionStatus
-    from specify_cli.status.aggregate import InvalidMissionSlug
+    from specify_cli.status import (
+        CoordAuthorityUnavailable,
+        InvalidMissionSlug,
+        MissionMetadataUnavailable,
+        MissionStatus,
+    )
 
     try:
         return MissionStatus.load(repo_root=main_repo_root, mission_slug=mission_slug)
@@ -517,7 +521,7 @@ def doctor(
         spec-kitty agent status doctor --stale-claimed-days 3 --json
     """
     from specify_cli.runtime.doctor import run_global_checks
-    from specify_cli.status.doctor import run_doctor
+    from specify_cli.status import run_doctor
 
     feature_dir, mission_slug, repo_root = _resolve_status_surface(mission, feature, json_output=json_output)
 

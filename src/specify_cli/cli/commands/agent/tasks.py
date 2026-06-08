@@ -2194,7 +2194,7 @@ def move_task(
                 emit_review_ref = None
 
             if self_review_fallback:
-                from specify_cli.status.lifecycle_events import emit_reviewer_self_approval
+                from specify_cli.status import emit_reviewer_self_approval
 
                 emit_reviewer_self_approval(
                     feature_dir,

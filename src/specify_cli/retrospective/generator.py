@@ -35,7 +35,13 @@ from specify_cli.retrospective.schema import (
     ProvenanceKind,
     validate_record,
 )
-from specify_cli.status.lifecycle_events import REVIEWER_SELF_APPROVAL
+# NOTE: ``REVIEWER_SELF_APPROVAL`` is imported lazily inside the consuming
+# function (see below) rather than at module scope. This module is reached
+# during ``status`` package initialization (status.models →
+# retrospective.schema → retrospective.__init__ → generator), so a module-level
+# ``from specify_cli.status import ...`` would form an import cycle against the
+# partially-initialized facade. The lazy import keeps the consumer on the public
+# facade without re-introducing a deep ``status.*`` submodule import.
 
 if TYPE_CHECKING:
     from specify_cli.retrospective.policy import RetrospectivePolicy
@@ -335,6 +341,8 @@ def _event_wp_id(event: dict) -> str:
 
 
 def _is_reviewer_self_approval_event(event: dict) -> bool:
+    from specify_cli.status import REVIEWER_SELF_APPROVAL
+
     return event.get("event_type") == REVIEWER_SELF_APPROVAL
 
 

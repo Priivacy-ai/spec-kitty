@@ -39,8 +39,7 @@ from specify_cli.migration.canonicalization import (
     apply_rules,
 )
 from specify_cli.status import ULID_PATTERN, Lane, StatusEvent
-from specify_cli.status import materialize_to_json
-from specify_cli.status.reducer import materialize_snapshot
+from specify_cli.status import materialize_snapshot, materialize_to_json
 
 MIGRATION_SCHEMA_VERSION = "1.0.0"
 CANONICAL_ENVELOPE_SCHEMA_VERSION = "3.0.0"

@@ -857,7 +857,7 @@ def init(  # noqa: C901
             # see a complete project history (issue #1067).
             try:
                 from specify_cli.identity.project import ensure_identity
-                from specify_cli.status.lifecycle_events import emit_project_initialized
+                from specify_cli.status import emit_project_initialized
                 from specify_cli import __version__ as _sk_runtime_version
 
                 _identity = ensure_identity(project_path)

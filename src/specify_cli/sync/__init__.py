@@ -206,12 +206,9 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
 
     from specify_cli.core.contract_gate import validate_outbound_payload
     from specify_cli.identity.project import ensure_identity
-    from specify_cli.status.lifecycle_events import (
-        _canonical_lifecycle_payload_for_saas,
-        _generate_event_id,
-        _now_iso,
-        _repo_root_for_lifecycle_log,
-        _validate_lifecycle_payload,
+    from specify_cli.status import (
+        build_saas_lifecycle_queue_event,
+        repo_root_for_lifecycle_log,
     )
     from specify_cli.sync.clock import LamportClock
     from specify_cli.sync.feature_flags import is_saas_sync_enabled
@@ -232,16 +229,20 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
     if not isinstance(envelope, Mapping):
         return
 
+    # Cheap queueability pre-check before any clock/identity work so a
+    # non-lifecycle envelope never advances the Lamport clock (preserves the
+    # original early-return ordering).
     event_type = envelope.get("event_type")
     payload = envelope.get("payload")
-    if not isinstance(event_type, str) or not isinstance(payload, Mapping):
-        return
-
     aggregate_type = envelope.get("aggregate_type")
-    if not isinstance(aggregate_type, str):
+    if (
+        not isinstance(event_type, str)
+        or not isinstance(payload, Mapping)
+        or not isinstance(aggregate_type, str)
+    ):
         return
 
-    repo_root = _repo_root_for_lifecycle_log(log_path)
+    repo_root = repo_root_for_lifecycle_log(log_path)
     if repo_root is None:
         return
 
@@ -249,29 +250,21 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
     if not identity.project_uuid or not identity.build_id:
         return
 
-    saas_payload = _canonical_lifecycle_payload_for_saas(event_type, payload)
-    _validate_lifecycle_payload(event_type, saas_payload)
-
     clock = LamportClock.load()
-    event_id = _generate_event_id()
-    aggregate_id = envelope.get("aggregate_id") or payload.get("mission_slug") or event_id
-    # canonical-producer-exempt: #1198 -- lifecycle-to-SaaS wire envelope.
-    event = {
-        "event_id": event_id,
-        "event_type": event_type,
-        "aggregate_id": str(aggregate_id),
-        "aggregate_type": aggregate_type,
-        "schema_version": "3.0.0",
-        "build_id": identity.build_id,
-        "payload": saas_payload,
-        "node_id": identity.node_id or clock.node_id,
-        "lamport_clock": clock.tick(),
-        "causation_id": None,
-        "correlation_id": event_id,
-        "timestamp": envelope.get("timestamp") or _now_iso(),
-        "project_uuid": str(identity.project_uuid),
-        "project_slug": identity.project_slug or envelope.get("project_slug"),
-    }
+    # Lifecycle-specific shaping (canonical payload, strict validation, envelope
+    # assembly) lives behind the status facade; sync owns the identity/clock/queue
+    # orchestration only. Returns None for non-queueable envelopes.
+    event = build_saas_lifecycle_queue_event(
+        envelope,
+        build_id=identity.build_id,
+        project_uuid=str(identity.project_uuid),
+        project_slug=identity.project_slug,
+        node_id=identity.node_id or clock.node_id,
+        lamport_clock=clock.tick(),
+    )
+    if event is None:
+        return
+
     validate_outbound_payload(event, "envelope")
     EventModel(**event)
     OfflineQueue().queue_event(event)

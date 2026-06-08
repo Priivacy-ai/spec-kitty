@@ -75,9 +75,8 @@ from specify_cli.post_merge.review_artifact_consistency import (
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
 from specify_cli.sync import emit_diff_summary_recorded, emit_mission_closed
 from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
-from specify_cli.status import read_wp_frontmatter
+from specify_cli.status import REVIEWER_SELF_APPROVAL, read_wp_frontmatter
 from specify_cli.task_utils import TaskCliError, find_repo_root
-from specify_cli.status.lifecycle_events import REVIEWER_SELF_APPROVAL
 
 if TYPE_CHECKING:
     from specify_cli.merge.push_preflight import TargetBranchSyncStatus
@@ -1546,7 +1545,7 @@ def _enforce_canonical_status_history(
     fail loudly with a remediation hint rather than ship in that
     state. See https://github.com/Priivacy-ai/spec-kitty/issues/1069.
     """
-    from specify_cli.status.lifecycle_events import has_non_bootstrap_status_history
+    from specify_cli.status import has_non_bootstrap_status_history
 
     if not wp_ids:
         return

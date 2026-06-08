@@ -25,6 +25,7 @@ from .models import (
 from .reducer import (
     SNAPSHOT_FILENAME,
     materialize,
+    materialize_snapshot,
     materialize_to_json,
     reduce,
 )
@@ -141,8 +142,35 @@ from .validate import (
 from .aggregate import (
     ActiveWPStatus,
     CoordAuthorityUnavailable,
+    InvalidMissionSlug,
     MissionMetadataUnavailable,
     MissionStatus,
+)
+from .lifecycle_events import (
+    PLAN_COMPLETED,
+    PLAN_STARTED,
+    REVIEWER_SELF_APPROVAL,
+    SPECIFY_COMPLETED,
+    SPECIFY_STARTED,
+    TASKS_COMPLETED,
+    TASKS_STARTED,
+    build_saas_lifecycle_queue_event,
+    emit_artifact_phase,
+    emit_mission_created_local,
+    emit_project_initialized,
+    emit_reviewer_self_approval,
+    emit_wp_created_local,
+    has_non_bootstrap_status_history,
+    repo_root_for_lifecycle_log,
+)
+from .work_package_lifecycle import (
+    WorkPackageClaimConflict,
+    WorkPackageStartRejected,
+    start_implementation_status,
+    start_review_status,
+)
+from .doctor import (
+    run_doctor,
 )
 
 # The canonical status artifacts (event log + snapshot). On coordination-topology
@@ -163,9 +191,31 @@ __all__ = [
     "FeatureStatusLockTimeoutError",
     "GuardContext",
     "IdentityState",
+    "InvalidMissionSlug",
     "MissionMetadataUnavailable",
     "MissionStatus",
+    "PLAN_COMPLETED",
+    "PLAN_STARTED",
+    "REVIEWER_SELF_APPROVAL",
+    "SPECIFY_COMPLETED",
+    "SPECIFY_STARTED",
+    "TASKS_COMPLETED",
+    "TASKS_STARTED",
     "TransitionRequest",
+    "WorkPackageClaimConflict",
+    "WorkPackageStartRejected",
+    "build_saas_lifecycle_queue_event",
+    "emit_artifact_phase",
+    "emit_mission_created_local",
+    "emit_project_initialized",
+    "emit_reviewer_self_approval",
+    "emit_wp_created_local",
+    "has_non_bootstrap_status_history",
+    "materialize_snapshot",
+    "repo_root_for_lifecycle_log",
+    "run_doctor",
+    "start_implementation_status",
+    "start_review_status",
     "CanonicalStatusNotFoundError",
     "DEFAULT_LANE_WEIGHTS",
     "DERIVED_LIFECYCLE_FILENAME",

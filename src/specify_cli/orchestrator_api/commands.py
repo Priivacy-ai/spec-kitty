@@ -765,7 +765,7 @@ def start_implementation(
             return
 
     from specify_cli.status import TransitionError
-    from specify_cli.status.work_package_lifecycle import WorkPackageClaimConflict, start_implementation_status
+    from specify_cli.status import WorkPackageClaimConflict, start_implementation_status
 
     workspace_path = str(main_repo_root / ".worktrees" / f"{mission}-{wp}")
     prompt_path = str(wp_path)
@@ -856,7 +856,7 @@ def start_review(
         return
 
     from specify_cli.status import TransitionError
-    from specify_cli.status.work_package_lifecycle import WorkPackageClaimConflict, start_review_status
+    from specify_cli.status import WorkPackageClaimConflict, start_review_status
 
     prompt_path = str(wp_path)
 

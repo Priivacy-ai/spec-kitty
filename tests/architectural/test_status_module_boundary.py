@@ -22,28 +22,17 @@ Exemptions (C-004 plumbing — permanent):
     it IS part of the transactional commit pipeline, not an external caller.
   - ``coordination/transaction.py``: BookkeepingTransaction plumbing.
 
-Residual allow-list (ROUTE-deferred-to-WP10):
-  These modules still have deep status imports because the symbols they consume
-  are NOT yet on the facade.  WP10 will route each of them through the facade
-  and remove entries from the allow-list below.  Each entry is commented with
-  the submodule it deep-imports.
+Residual allow-list (post-WP10):
+  WP10 routed every prior ROUTE-deferred file onto the ``status`` facade by
+  promoting the relevant symbols into ``status/__init__.__all__``
+  (lifecycle_events, work_package_lifecycle, reducer.materialize_snapshot,
+  doctor.run_doctor, aggregate.InvalidMissionSlug) and refactoring the sync
+  SaaS fan-out handler onto facade helpers. The only remaining entry is the
+  permanent import-time cycle-breaker:
   - ``workspace/context.py`` — ``status.wp_metadata``
     (cycle-breaker: status/__init__ → .emit → workspace → .context; facade
     is not yet initialized when workspace.context loads at import time —
-    may be permanent)
-  - ``core/mission_creation.py`` — ``status.lifecycle_events``
-  - ``sync/__init__.py`` — ``status.lifecycle_events``
-  - ``audit/classifiers/status_json.py`` — ``status.reducer``
-  - ``retrospective/generator.py`` — ``status.lifecycle_events``
-  - ``cli/commands/init.py`` — ``status.lifecycle_events``
-  - ``cli/commands/implement.py`` — ``status.work_package_lifecycle``
-  - ``cli/commands/merge.py`` — ``status.lifecycle_events``
-  - ``cli/commands/agent/status.py`` — ``status.aggregate``, ``status.doctor``
-  - ``cli/commands/agent/workflow.py`` — ``status.work_package_lifecycle``
-  - ``cli/commands/agent/mission.py`` — ``status.lifecycle_events``
-  - ``cli/commands/agent/tasks.py`` — ``status.lifecycle_events``
-  - ``orchestrator_api/commands.py`` — ``status.work_package_lifecycle``
-  - ``migration/mission_state.py`` — ``status.reducer``
+    permanent).
 
 See also:
   - ``tests/architectural/test_shared_package_boundary.py`` — template / pattern
@@ -98,29 +87,21 @@ _EXEMPT_FILES: frozenset[Path] = frozenset(
 #
 # Format: (relative_path_under_src/specify_cli/, imported_submodule)
 # ---------------------------------------------------------------------------
+#
+# WP10 routed every prior ROUTE-deferred file: the lifecycle_events,
+# work_package_lifecycle, reducer.materialize_snapshot, doctor.run_doctor, and
+# aggregate.InvalidMissionSlug symbols were promoted onto the ``status`` facade
+# (``status/__init__.__all__``), and the sync SaaS fan-out handler now consumes
+# ``build_saas_lifecycle_queue_event`` / ``repo_root_for_lifecycle_log`` from the
+# facade instead of reaching into ``status.lifecycle_events`` internals. The only
+# remaining entry is the permanent import-time cycle-breaker.
 _WP10_DEFERRED_FILES: frozenset[Path] = frozenset(
     {
-        # cycle-breaker: status/__init__ → .emit → workspace → .context;
-        # the facade isn't initialized when workspace.context loads at import time.
-        # May be a permanent exemption after WP10 investigation.
+        # cycle-breaker (permanent): status/__init__ → .emit → workspace →
+        # .context; the facade isn't initialized when workspace.context loads at
+        # import time, so it must import status.wp_metadata directly. Cannot be
+        # routed through the facade without an import cycle.
         _SRC / "specify_cli" / "workspace" / "context.py",
-        # lifecycle_events symbols not yet on facade — WP10 to route
-        _SRC / "specify_cli" / "core" / "mission_creation.py",
-        _SRC / "specify_cli" / "sync" / "__init__.py",
-        _SRC / "specify_cli" / "retrospective" / "generator.py",
-        _SRC / "specify_cli" / "cli" / "commands" / "init.py",
-        _SRC / "specify_cli" / "cli" / "commands" / "merge.py",
-        _SRC / "specify_cli" / "cli" / "commands" / "agent" / "mission.py",
-        _SRC / "specify_cli" / "cli" / "commands" / "agent" / "tasks.py",
-        # work_package_lifecycle symbols not yet on facade — WP10 to route
-        _SRC / "specify_cli" / "cli" / "commands" / "implement.py",
-        _SRC / "specify_cli" / "cli" / "commands" / "agent" / "workflow.py",
-        _SRC / "specify_cli" / "orchestrator_api" / "commands.py",
-        # status.aggregate + status.doctor symbols not yet on facade — WP10 to route
-        _SRC / "specify_cli" / "cli" / "commands" / "agent" / "status.py",
-        # status.reducer.materialize_snapshot not yet on facade — WP10 to route
-        _SRC / "specify_cli" / "audit" / "classifiers" / "status_json.py",
-        _SRC / "specify_cli" / "migration" / "mission_state.py",
     }
 )
 

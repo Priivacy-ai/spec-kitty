@@ -74,13 +74,13 @@ from specify_cli.review.antipattern_checklist import render_wp_review_antipatter
 from specify_cli.review.cycle import REVIEW_FEEDBACK_SENTINELS, resolve_review_cycle_pointer
 from specify_cli.status import feature_status_lock
 from specify_cli.status import AgentAssignment, Lane
-from specify_cli.status.work_package_lifecycle import (
+from specify_cli.status import (
     WorkPackageClaimConflict,
     WorkPackageStartRejected,
+    read_wp_frontmatter,
     start_implementation_status,
     start_review_status,
 )
-from specify_cli.status import read_wp_frontmatter
 from specify_cli.task_utils import (
     append_activity_log,
     build_document,
