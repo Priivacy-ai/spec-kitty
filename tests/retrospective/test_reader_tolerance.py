@@ -133,6 +133,23 @@ def test_legacy_integer_schema_version_reads_correctly(tmp_path: Path) -> None:
     assert record.provenance.schema_version == "1"
 
 
+@pytest.mark.parametrize(
+    "mutated_yaml",
+    [
+        VALID_YAML.replace('schema_version: "1"', "schema_version: true", 1),
+        VALID_YAML.replace('schema_version: "1"', "schema_version: 2", 1),
+        VALID_YAML.replace('  schema_version: "1"', "  schema_version: 2"),
+    ],
+)
+def test_legacy_schema_version_coercion_stays_narrow(tmp_path: Path, mutated_yaml: str) -> None:
+    """Only legacy integer 1 scalars are tolerated."""
+    bad = tmp_path / "retrospective.yaml"
+    bad.write_text(mutated_yaml, encoding="utf-8")
+
+    with pytest.raises(SchemaError):
+        read_record(bad)
+
+
 def _valid_generator_yaml() -> str:
     return f"""\
 schema_version: 1
