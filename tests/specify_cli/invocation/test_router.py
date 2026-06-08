@@ -15,6 +15,7 @@ from specify_cli.invocation.errors import RouterAmbiguityError
 from specify_cli.invocation.router import (
     CANONICAL_VERB_MAP,
     STOP_WORDS,
+    TOOL_KEYWORD_MAP,
     ActionRouter,
     ActionRouterPlugin,
     RouterDecision,
@@ -395,3 +396,116 @@ def test_router_makes_no_external_calls() -> None:
     forbidden_imports = ["import anthropic", "from anthropic", "import openai", "from openai"]
     for fi in forbidden_imports:
         assert fi not in source, f"Found forbidden import '{fi}' in router.py"
+
+
+# ---------------------------------------------------------------------------
+# Tool-gated routing tests
+# ---------------------------------------------------------------------------
+
+
+def _make_registry_with_tools(profile_specs: list[dict]) -> MagicMock:
+    """Build a mock registry whose profiles carry available_tools."""
+    from doctrine.agent_profiles.profile import Role
+
+    mock_profiles = []
+    for spec in profile_specs:
+        p = MagicMock()
+        p.profile_id = spec["profile_id"]
+        p.role = Role(spec["role_value"])
+        p.routing_priority = spec.get("routing_priority", 50)
+        p.available_tools = spec.get("available_tools", [])
+
+        sc = MagicMock()
+        sc.domain_keywords = spec.get("domain_keywords", [])
+        p.specialization_context = sc
+
+        collab = MagicMock()
+        collab.canonical_verbs = spec.get("collab_verbs", [])
+        p.collaboration = collab
+
+        mock_profiles.append(p)
+
+    registry = MagicMock()
+    registry.list_all.return_value = mock_profiles
+
+    def _get(pid: str) -> object:
+        return next((p for p in mock_profiles if p.profile_id == pid), None)
+
+    registry.get.side_effect = _get
+    return registry
+
+
+class TestToolGatedRouting:
+    def test_no_tool_match_returns_none_profile_id(self) -> None:
+        """When required_tools cannot be satisfied, profile_id is None."""
+        registry = _make_registry_with_tools([
+            {"profile_id": "impl", "role_value": "implementer", "available_tools": ["git", "mypy"]},
+        ])
+        router = ActionRouter(registry)
+        decision = router.route(
+            "implement something",
+            required_tools=frozenset(["gh"]),
+        )
+        assert decision.profile_id is None
+        assert decision.confidence == "no_tool_match"
+
+    def test_profile_with_matching_tools_is_selected(self) -> None:
+        """Profile declaring the required tools is selected."""
+        registry = _make_registry_with_tools([
+            {"profile_id": "impl", "role_value": "implementer", "available_tools": ["git", "gh", "mypy"]},
+        ])
+        router = ActionRouter(registry)
+        decision = router.route(
+            "implement something",
+            required_tools=frozenset(["gh"]),
+        )
+        assert decision.profile_id == "impl"
+        assert decision.confidence != "no_tool_match"
+
+    def test_profile_without_available_tools_excluded_from_gated_routing(self) -> None:
+        """Profiles that omit available_tools are not eligible for tool-gated routing."""
+        registry = _make_registry_with_tools([
+            {"profile_id": "impl", "role_value": "implementer", "available_tools": []},
+        ])
+        router = ActionRouter(registry)
+        decision = router.route(
+            "implement something",
+            required_tools=frozenset(["gh"]),
+        )
+        assert decision.profile_id is None
+        assert decision.confidence == "no_tool_match"
+
+    def test_empty_required_tools_does_not_gate(self) -> None:
+        """Empty required_tools leaves routing unchanged (backwards compatible)."""
+        registry = _make_registry_with_tools([
+            {"profile_id": "impl", "role_value": "implementer", "available_tools": []},
+        ])
+        router = ActionRouter(registry)
+        decision = router.route(
+            "implement something",
+            required_tools=frozenset(),
+        )
+        assert decision.profile_id == "impl"
+
+    def test_none_required_tools_does_not_gate(self) -> None:
+        """None required_tools leaves routing unchanged (backwards compatible)."""
+        registry = _make_registry_with_tools([
+            {"profile_id": "impl", "role_value": "implementer", "available_tools": []},
+        ])
+        router = ActionRouter(registry)
+        decision = router.route("implement something", required_tools=None)
+        assert decision.profile_id == "impl"
+
+    def test_tool_keyword_map_maps_github_to_gh(self) -> None:
+        """TOOL_KEYWORD_MAP maps 'github' to 'gh'."""
+        assert TOOL_KEYWORD_MAP.get("github") == "gh"
+
+    def test_no_tool_match_reason_lists_required_tools(self) -> None:
+        """no_tool_match decision includes the required tools in match_reason."""
+        registry = _make_registry_with_tools([
+            {"profile_id": "impl", "role_value": "implementer", "available_tools": ["git"]},
+        ])
+        router = ActionRouter(registry)
+        decision = router.route("implement something", required_tools=frozenset(["gh", "docker"]))
+        assert "docker" in decision.match_reason
+        assert "gh" in decision.match_reason
