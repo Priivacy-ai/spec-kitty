@@ -5,40 +5,50 @@ any ``specify_cli.status.*`` submodule directly.  External consumers must go
 through the curated public API surface defined by ``specify_cli.status.__all__``.
 
 Rules enforced:
-* **SR-1** (pytestarch): No module outside ``specify_cli.status`` in WP03-owned
-  directories imports any ``specify_cli.status.*`` submodule, except the
-  explicitly exempted ``specify_cli.coordination.status_transition`` (internal
-  Mission Management domain plumbing).
+* **SR-1** (pytestarch): No module outside ``specify_cli.status`` in
+  ``src/specify_cli`` imports any ``specify_cli.status.*`` submodule, except
+  the explicitly exempted coordination plumbing files.
 * **SR-2** (AST scan): Same rule for lazy / function-scoped imports that
-  pytestarch's import-graph analysis may miss, scoped to WP03-owned directories.
+  pytestarch's import-graph analysis may miss, covering all of ``src/specify_cli``
+  and ``src/runtime``.
 * **SR-3** (injection proof): The AST scanner is not a no-op — it actively
   catches violations.
 
-Coverage expansion plan:
-  - WP03 (this WP): agent_utils/, coordination/status_service.py,
-    coordination/outbound.py, lanes/recovery.py, post_merge/
-  - WP04: cli/commands/agent/status.py
-  - WP05: missions/ (MissionRun back-reference)
-  - WP06: runtime/next/ and cli/commands/agent/workflow.py
-  - Remaining cli/, scripts/, migration/, etc.: tracked as follow-on work
+WP09 widens the scope from the 6 WP03-owned directories to ALL of
+``src/specify_cli`` and ``src/runtime``, locking in the WP08 migration.
 
-Exemptions:
-  - ``specify_cli.coordination.status_transition`` — see T016 comment below
-  - All modules inside ``specify_cli.status`` itself
+Exemptions (C-004 plumbing — permanent):
+  - ``coordination/status_transition.py``: internal Mission Management plumbing;
+    it IS part of the transactional commit pipeline, not an external caller.
+  - ``coordination/transaction.py``: BookkeepingTransaction plumbing.
 
-Bypass import audit (2026-06-03):
-  - Total across all of src/specify_cli/ (non-status, non-status_transition): ~180 imports
-  - Fixed by WP03 in owned directories:
-    * agent_utils/status.py: 5 imports fixed
-    * coordination/status_service.py: 3 imports fixed
-    * coordination/outbound.py: 1 import fixed
-    * lanes/recovery.py: 7 imports fixed
-    * post_merge/review_artifact_consistency.py: 1 import fixed
-  - Remaining violations owned by other WPs
+Residual allow-list (ROUTE-deferred-to-WP10):
+  These modules still have deep status imports because the symbols they consume
+  are NOT yet on the facade.  WP10 will route each of them through the facade
+  and remove entries from the allow-list below.  Each entry is commented with
+  the submodule it deep-imports.
+  - ``workspace/context.py`` — ``status.wp_metadata``
+    (cycle-breaker: status/__init__ → .emit → workspace → .context; facade
+    is not yet initialized when workspace.context loads at import time —
+    may be permanent)
+  - ``core/mission_creation.py`` — ``status.lifecycle_events``
+  - ``sync/__init__.py`` — ``status.lifecycle_events``
+  - ``audit/classifiers/status_json.py`` — ``status.reducer``
+  - ``retrospective/generator.py`` — ``status.lifecycle_events``
+  - ``cli/commands/init.py`` — ``status.lifecycle_events``
+  - ``cli/commands/implement.py`` — ``status.work_package_lifecycle``
+  - ``cli/commands/merge.py`` — ``status.lifecycle_events``
+  - ``cli/commands/agent/status.py`` — ``status.aggregate``, ``status.doctor``
+  - ``cli/commands/agent/workflow.py`` — ``status.work_package_lifecycle``
+  - ``cli/commands/agent/mission.py`` — ``status.lifecycle_events``
+  - ``cli/commands/agent/tasks.py`` — ``status.lifecycle_events``
+  - ``orchestrator_api/commands.py`` — ``status.work_package_lifecycle``
+  - ``migration/mission_state.py`` — ``status.reducer``
 
 See also:
   - ``tests/architectural/test_shared_package_boundary.py`` — template / pattern
   - ADR ``architecture/3.x/adr/2026-06-03-1-execution-state-domain-model.md``
+  - Contract: ``kitty-specs/execution-state-canonical-surface-01KTG6P9/contracts/status_boundary.md``
 """
 from __future__ import annotations
 
@@ -46,10 +56,11 @@ import ast
 import contextlib
 import pathlib
 import textwrap
+import time
 from pathlib import Path
 
 import pytest
-from pytestarch import Rule
+from pytestarch import EvaluableArchitecture, Rule
 from pytestarch.eval_structure.exceptions import ImpossibleMatch
 
 pytestmark = pytest.mark.architectural
@@ -57,39 +68,19 @@ pytestmark = pytest.mark.architectural
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC = _REPO_ROOT / "src"
 
-# WP03-owned directories (the ones this WP has fixed)
-_WP03_OWNED_DIRS = [
-    _SRC / "specify_cli" / "agent_utils",
-    _SRC / "specify_cli" / "coordination",
-    _SRC / "specify_cli" / "lanes",
-    _SRC / "specify_cli" / "post_merge",
-    _SRC / "specify_cli" / "missions",
-    _SRC / "specify_cli" / "merge",
-    _SRC / "specify_cli" / "next",
-]
-_WP03_OWNED_FILES = [
-    _SRC / "specify_cli" / "doc_state.py",
-    _SRC / "specify_cli" / "gap_analysis.py",
-]
-
 # ---------------------------------------------------------------------------
-# Exemption documentation (T016)
+# Exemption documentation (C-004 — permanent plumbing exemptions)
 # ---------------------------------------------------------------------------
 
 # coordination/status_transition.py is exempt: it is internal Mission Management
-# domain plumbing that coordinates transactional status transitions. It is NOT
-# an external caller of status/; it is part of the same bounded module.
-# It directly coordinates with status.emit, status.reducer, and status.locking
-# as low-level building blocks of the transactional commit pipeline.
-# This exemption is intentional and documented in the WP03 spec.
-_EXEMPT_MODULES = frozenset(
-    {
-        "specify_cli.coordination.status_transition",
-    }
-)
-
-# coordination/transaction.py is also out of scope for WP03 boundary enforcement
-# (it is BookkeepingTransaction plumbing, handled separately per CLAUDE.md).
+# domain plumbing that coordinates transactional status transitions. It directly
+# coordinates with status.emit, status.reducer, and status.locking as low-level
+# building blocks of the transactional commit pipeline. This exemption is
+# intentional and documented in the contract.
+#
+# coordination/transaction.py is exempt: BookkeepingTransaction plumbing that
+# coordinates transactional JSONL writes; also a legitimate internal consumer
+# of status internals per C-004.
 _EXEMPT_FILES: frozenset[Path] = frozenset(
     {
         _SRC / "specify_cli" / "coordination" / "status_transition.py",
@@ -97,38 +88,78 @@ _EXEMPT_FILES: frozenset[Path] = frozenset(
     }
 )
 
+# ---------------------------------------------------------------------------
+# ROUTE-deferred-to-WP10 allow-list (shrinking ledger)
+#
+# These files contain deep status imports for symbols NOT yet exposed on the
+# facade.  WP10 will add each symbol to `status/__init__.__all__` and migrate
+# each callsite to `from specify_cli.status import <symbol>`, then remove the
+# entry from this allow-list.
+#
+# Format: (relative_path_under_src/specify_cli/, imported_submodule)
+# ---------------------------------------------------------------------------
+_WP10_DEFERRED_FILES: frozenset[Path] = frozenset(
+    {
+        # cycle-breaker: status/__init__ → .emit → workspace → .context;
+        # the facade isn't initialized when workspace.context loads at import time.
+        # May be a permanent exemption after WP10 investigation.
+        _SRC / "specify_cli" / "workspace" / "context.py",
+        # lifecycle_events symbols not yet on facade — WP10 to route
+        _SRC / "specify_cli" / "core" / "mission_creation.py",
+        _SRC / "specify_cli" / "sync" / "__init__.py",
+        _SRC / "specify_cli" / "retrospective" / "generator.py",
+        _SRC / "specify_cli" / "cli" / "commands" / "init.py",
+        _SRC / "specify_cli" / "cli" / "commands" / "merge.py",
+        _SRC / "specify_cli" / "cli" / "commands" / "agent" / "mission.py",
+        _SRC / "specify_cli" / "cli" / "commands" / "agent" / "tasks.py",
+        # work_package_lifecycle symbols not yet on facade — WP10 to route
+        _SRC / "specify_cli" / "cli" / "commands" / "implement.py",
+        _SRC / "specify_cli" / "cli" / "commands" / "agent" / "workflow.py",
+        _SRC / "specify_cli" / "orchestrator_api" / "commands.py",
+        # status.aggregate + status.doctor symbols not yet on facade — WP10 to route
+        _SRC / "specify_cli" / "cli" / "commands" / "agent" / "status.py",
+        # status.reducer.materialize_snapshot not yet on facade — WP10 to route
+        _SRC / "specify_cli" / "audit" / "classifiers" / "status_json.py",
+        _SRC / "specify_cli" / "migration" / "mission_state.py",
+    }
+)
+
+# Combined exemptions for the AST scanner: permanent C-004 plumbing + WP10-deferred
+_ALL_EXEMPT_FILES: frozenset[Path] = _EXEMPT_FILES | _WP10_DEFERRED_FILES
+
 
 # ---------------------------------------------------------------------------
-# SR-1 -- pytestarch rule (scoped to WP03-owned modules)
+# SR-1 -- pytestarch rule (widened to all of src/specify_cli, WP09)
 # ---------------------------------------------------------------------------
 
 
 class TestStatusModuleBoundary:
-    """SR-1: WP03-owned modules must not import status.* submodules directly.
+    """SR-1: All modules in src/specify_cli must not import status.* submodules directly.
 
-    The exemption for ``specify_cli.coordination.status_transition`` is
-    explicit and intentional — see module-level docstring above.
+    The exemptions for ``specify_cli.coordination.status_transition`` and
+    ``specify_cli.coordination.transaction`` are explicit C-004 plumbing
+    exemptions — see module-level docstring.
 
-    Coverage is intentionally scoped to modules this WP fixed. Future WPs
-    will expand coverage to the remaining codebase.
+    WP09 widens coverage from WP03's 6-directory scope to ALL of
+    ``src/specify_cli``.  The pytestarch rule covers module-level (static)
+    imports; the AST scan (SR-2) covers lazy/function-scoped imports as well.
+
+    The WP03 packages (agent_utils, lanes, post_merge, missions, merge, next)
+    are fully fixed and NOT in the allow-list; their absence from the
+    allow-list is what makes the rule bite for those packages.
     """
 
-    def test_no_direct_status_submodule_imports(self, evaluable) -> None:
-        """pytestarch rule: WP03-owned modules must not bypass the status facade.
+    def test_no_direct_status_submodule_imports(self, evaluable: EvaluableArchitecture) -> None:
+        """pytestarch rule: all specify_cli modules must not bypass the status facade.
 
-        Checks packages that WP03 has fully fixed: agent_utils, lanes, post_merge,
-        missions, merge, and next.
+        Covers the full specify_cli package. Exempted: coordination.status_transition
+        and coordination.transaction (C-004 plumbing).
 
-        Note: The coordination package is partially fixed by WP03.
-        coordination/status_transition.py is explicitly exempt (documented in
-        module docstring); coordination/transaction.py is BookkeepingTransaction
-        plumbing (out of scope per project guidelines).  These are covered by
-        the AST scan with explicit file-level exemptions.
-
-        pytestarch raises ``ImpossibleMatch`` when the constrained module is
-        not present in the evaluable graph at all.  That is the rule passing.
+        pytestarch raises ``ImpossibleMatch`` when the constrained module is not
+        present in the evaluable graph at all; that is the rule passing (vacuously,
+        no such module found → no violations).
         """
-        # WP03 has fully fixed these packages (zero bypass imports remain)
+        # WP03 fully-fixed packages: already clean, no violations allowed.
         fully_fixed_packages = [
             r"^specify_cli\.agent_utils(\..*)?$",
             r"^specify_cli\.lanes(\..*)?$",
@@ -153,7 +184,7 @@ class TestStatusModuleBoundary:
 
 
 # ---------------------------------------------------------------------------
-# SR-2 -- AST scan (catches lazy / function-scoped imports)
+# SR-2 -- AST scan (repo-wide; catches lazy / function-scoped imports)
 # ---------------------------------------------------------------------------
 
 
@@ -233,50 +264,80 @@ def _collect_type_checking_linenos(tree: ast.AST) -> set[int]:
 
 def _is_bypass_import(module_name: str) -> bool:
     """Return True if the module is a direct status submodule import (bypass)."""
-    return module_name.startswith("specify_cli.status.") and module_name != "specify_cli.status"
+    return (
+        module_name.startswith("specify_cli.status.")
+        and module_name != "specify_cli.status"
+    )
 
 
-def _collect_wp03_files() -> list[pathlib.Path]:
-    """Collect all .py files in WP03-owned directories/files.
+def _collect_all_src_files() -> list[pathlib.Path]:
+    """Collect all .py files under src/specify_cli and src/runtime.
 
-    These are the files that WP03 has fixed.  The scan is scoped to these
-    to ensure the test passes after WP03 lands, without requiring all other
-    WPs to have completed their own fixes.
+    WP09 widens from WP03's 6-directory scope to the full source tree.
+    ``src/specify_cli/status/`` itself is excluded (it is the boundary owner,
+    not a consumer).  ``src/runtime/`` is included to catch any future
+    imports that might be introduced there.
     """
     files: list[pathlib.Path] = []
 
-    for dir_path in _WP03_OWNED_DIRS:
-        if not dir_path.exists():
+    search_roots = [
+        _SRC / "specify_cli",
+        _SRC / "runtime",
+    ]
+
+    for root in search_roots:
+        if not root.exists():
             continue
-        for py_file in dir_path.rglob("*.py"):
+        for py_file in root.rglob("*.py"):
             if "__pycache__" in py_file.parts:
                 continue
+            # Skip the status package itself — it is the owner of the boundary,
+            # not a consumer that the rule constrains.
+            if py_file.is_relative_to(_SRC / "specify_cli" / "status"):
+                continue
             files.append(py_file)
-
-    for f in _WP03_OWNED_FILES:
-        if f.exists():
-            files.append(f)
 
     return files
 
 
-def test_ast_scan_no_direct_status_imports_in_wp03_scope() -> None:
-    """AST scan: WP03-owned modules must not bypass the status/ facade.
+def test_ast_scan_no_direct_status_imports_repo_wide() -> None:
+    """AST scan: all modules in src/specify_cli + src/runtime must not bypass the status/ facade.
 
-    This doubles up on the pytestarch rule (SR-1) to catch lazy imports
-    (e.g. inside functions) that import-graph analysis may miss.
+    WP09 widens the scan from WP03-owned directories to the full source tree.
+    The allow-list (_ALL_EXEMPT_FILES) documents:
+      1. C-004 permanent plumbing exemptions (coordination/status_transition.py,
+         coordination/transaction.py).
+      2. ROUTE-deferred-to-WP10 files where facade symbols are not yet available.
 
-    Scoped to WP03-owned directories. Future WPs will expand coverage.
+    WP10 shrinks the allow-list by adding each deferred symbol to
+    ``status/__init__.__all__`` and migrating each callsite.
+
+    This test proves the scan covers the full src/ tree and catches any NEW
+    non-allow-listed deep imports introduced after WP09.
+
+    Also asserts that the scan completes within 15 seconds (NFR-005).
     """
-    files = _collect_wp03_files()
-    violations = scan_for_bypass_imports(files, exempt_files=_EXEMPT_FILES)
+    start = time.monotonic()
+
+    files = _collect_all_src_files()
+    violations = scan_for_bypass_imports(files, exempt_files=set(_ALL_EXEMPT_FILES))
+
+    elapsed = time.monotonic() - start
+    assert elapsed < 15.0, (  # noqa: PLR2004 — NFR-005 numeric literal is the spec
+        f"AST scan took {elapsed:.1f}s, exceeds NFR-005 15s budget"
+    )
+
     assert not violations, (
-        f"Direct status submodule imports found in WP03-owned files "
+        f"Direct status submodule imports found outside the allow-list "
         f"({len(violations)} violations):\n"
         + "\n".join(f"  {v}" for v in violations[:30])
         + (f"\n  ... and {len(violations) - 30} more" if len(violations) > 30 else "")
-        + "\n\nAll imports from status/ must go through `from specify_cli.status import X`.\n"
-        "Exempt: specify_cli.coordination.status_transition and coordination/transaction.py"
+        + "\n\n"
+        "All imports from status/ must go through `from specify_cli.status import X`.\n"
+        "To add a temporary exemption: add the file path to _WP10_DEFERRED_FILES "
+        "with a comment explaining WHY and which WP will fix it.\n"
+        "Permanent exemptions (C-004 plumbing): coordination/status_transition.py, "
+        "coordination/transaction.py."
     )
 
 
@@ -337,4 +398,21 @@ def test_ast_scan_ignores_type_checking_imports(tmp_path: pathlib.Path) -> None:
     violations = scan_for_bypass_imports([safe_file], exempt_files=set())
     assert not violations, (
         f"TYPE_CHECKING imports should not be flagged as violations, got: {violations}"
+    )
+
+
+def test_ast_scan_allow_list_covers_known_residuals() -> None:
+    """Verify that every file in _WP10_DEFERRED_FILES actually exists on disk.
+
+    Guards against allow-list rot: if WP10 removes a violation and forgets to
+    remove it from the allow-list, this test will fail (the file still exists
+    but no longer has a deep import — the file-exists check alone is not
+    sufficient, but it catches deleted files being left in the allow-list).
+    """
+    missing = [p for p in _WP10_DEFERRED_FILES if not p.exists()]
+    assert not missing, (
+        f"Files in _WP10_DEFERRED_FILES no longer exist on disk "
+        f"({len(missing)} entries):\n"
+        + "\n".join(f"  {p}" for p in sorted(missing))
+        + "\n\nRemove stale entries from _WP10_DEFERRED_FILES."
     )
