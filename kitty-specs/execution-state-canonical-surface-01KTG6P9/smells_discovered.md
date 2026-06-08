@@ -20,13 +20,13 @@ Format per entry: location · tool/rule · description · why deferred · rough 
 
 ---
 
-## S-02 — CI `execution_context` path filter goes stale once the relocation merges
+## S-02 — CI `execution_context` path filter goes stale once the relocation merges — **RESOLVED (FR-024 complete)**
 
 - **Location:** `.github/workflows/ci-quality.yml` — the `execution_context` path filter: `src/specify_cli/core/execution_context.py`, `src/specify_cli/status/**`, `src/runtime/next/**`, `src/specify_cli/cli/commands/agent/**`, `tests/architectural/test_execution_context_parity.py`.
 - **Tool/rule:** none (CI config drift; surfaced by the WP01 post-rebase re-review).
 - **Description:** The filter still watches `src/specify_cli/core/execution_context.py` (which WP03 **deletes**) and does **not** watch the new `src/mission_runtime/**` package. FR-024 intended the ratchet to gate PRs touching `mission_runtime/` once it existed; WP01 legitimately deferred that because the module didn't exist yet.
-- **Why deferred:** On `feat`'s *current* state the filter is still correct (`core/execution_context.py` exists; `mission_runtime/` does not). It only goes stale when the lane relocation **merges to feat**. So this is a **merge-time** remediation, not a feat edit now.
-- **Rough effort:** Low. At/after the mission merge: add `src/mission_runtime/**` to the `execution_context` filter and drop the deleted `core/execution_context.py` path. Completes FR-024.
+- **Status:** **RESOLVED at closeout (2026-06-08).** Now that the relocation is merged to feat (`core/execution_context.py` is gone, `src/mission_runtime/` exists), dropped the deleted path and added `src/mission_runtime/**` to the `execution_context` filter. `test_ci_quality_path_filters.py` green. Completes FR-024.
+- **Rough effort:** Done.
 
 ---
 
@@ -40,13 +40,13 @@ Format per entry: location · tool/rule · description · why deferred · rough 
 
 ---
 
-## S-04 — pre-existing environmental test failures on the lane base (must clear before merge)
+## S-04 — pre-existing environmental test failures on the lane base — **RESOLVED (editable-install artifact)**
 
 - **Location:** `tests/runtime/test_bootstrap_unit.py` (≈14 failures); also seen earlier: `test_agent_utils_status` (×2), `test_internal_runtime_parity` snapshot drift.
 - **Tool/rule:** pytest (environmental, not lint).
 - **Description:** `test_bootstrap_unit.py` fails because `SPEC_KITTY_TEMPLATE_ROOT` / `get_package_asset_root` expects a real checkout asset layout not present in the lane/test env. The WP04 + WP02/03 re-reviews both proved these are **pre-existing and unrelated** to this mission's changes (the relevant `src/` files are byte-identical to the WP base; reproduced on a pure-feat baseline).
-- **Why deferred:** Not caused by any WP here, and out of the residue-routing/relocation scope. But they are real RED tests on the branch.
-- **Rough effort:** Unknown until triaged. **Action required before mission merge / for CI green:** triage whether these are (a) genuinely environmental (need a fixture/asset-root setup or a skip marker for non-checkout envs) or (b) a real regression on `feat` from another mission (e.g. the session_presence merge). Do NOT let the mission merge with these RED — either fix, mark xfail/skip with rationale, or confirm CI's env provides the asset layout so they pass there.
+- **Status:** **RESOLVED at closeout (2026-06-08).** Root cause was that the active dev interpreter (`pyenv 3.11.15`) had no editable install of `specify_cli`, so the subprocess-spawning tests (`sys.executable -m specify_cli`) and asset-root lookups failed with `No module named specify_cli`. Running `python -m pip install -e .` into the active env fixed it: `test_bootstrap_unit.py` → **42 passed**, `test_execution_context_parity.py` → **9 passed**. Not a code defect and not a branch RED in a correctly-provisioned env (CI installs the package). No source change required.
+- **Rough effort:** Done — environment provisioning, not code.
 
 ---
 
@@ -56,7 +56,8 @@ Format per entry: location · tool/rule · description · why deferred · rough 
 - **Tool/rule:** pytest (test hermeticity).
 - **Description:** The test creates a markerless temp dir under `/tmp` and asserts `locate_project_root()` returns `None`, but the walk-up finds `/tmp/.kittify` and returns `/tmp`. Surfaced + proven by the WP06 reviewer (moving the stray dir makes it pass); `locate_project_root` was unchanged by any WP here.
 - **Why deferred:** environmental + a pre-existing test-isolation weakness, unrelated to this mission's surface.
-- **Rough effort:** Low. Either make the test hermetic (build the temp tree outside any `/tmp/.kittify` ancestor, e.g. monkeypatch the walk-up ceiling) or remove the stray `/tmp/.kittify` from the dev box. NOTE: I did **not** delete `/tmp/.kittify` — unsure whether it's an intentional operator scratch; flag for the operator to clear if it's cruft.
+- **Status (2026-06-08 closeout):** Confirmed environmental, **NOT a merge blocker**. `/tmp/.kittify` is a live operator scratch dir created today (a `spec-kitty do` lightweight-dispatch artifact: `mission-brief.md`, `brief-source.yaml`, `charter/interview/`). The test only fails on this dev box; CI has no such stray dir. `locate_project_root` is untouched by this mission. **Not deleting** the operator's in-use scratch dir; the durable fix (make the test hermetic by capping the walk-up ceiling) belongs to a focused runtime-test cleanup, not this mission's relocation surface.
+- **Rough effort:** Low. Either make the test hermetic (build the temp tree outside any `/tmp/.kittify` ancestor, e.g. monkeypatch the walk-up ceiling) or remove the stray `/tmp/.kittify` from the dev box.
 
 ---
 
@@ -80,10 +81,10 @@ Format per entry: location · tool/rule · description · why deferred · rough 
 
 ---
 
-## S-08 — `status.history_parser` is now a DEAD module (orphaned by WP08 inlining) — `test_no_dead_modules` RED (merge blocker)
+## S-08 — `status.history_parser` is now a DEAD module (orphaned by WP08 inlining) — **RESOLVED (module deleted)**
 
 - **Location:** `src/specify_cli/status/history_parser.py`; failing test `tests/architectural/test_no_dead_modules.py` (or equivalent).
 - **Tool/rule:** architectural dead-module gate (RED).
 - **Description:** `history_parser` was classified PRIVATE/migration-only in the occurrence map. WP08's T031 inlined its last external consumer (`extract_done_evidence` → inlined into `merge.py`), leaving the module with **zero consumers** → the dead-module ratchet now fails. This is **mission-introduced** (WP08), not truly pre-existing — surfaced by the WP10 implementer.
-- **Why deferred:** out of WP10's consumption-rework scope; needs an owner decision (delete the module vs. retain for migration).
-- **Rough effort:** Low–Medium. **Action before merge:** confirm `history_parser` has no internal/migration consumer (`grep -rn history_parser src/ tests/`), then either DELETE the module (it's migration-only and orphaned — cleanest, Randy-Reducer dead-weight elimination) or, if a migration path still needs it, restore a real consumer / mark it appropriately. Natural owner: WP13 (legacy-migration rebuild) or a focused cleanup. Do NOT let the mission merge with the dead-module gate RED.
+- **Status:** **RESOLVED at closeout (2026-06-08, commit 35db0271a).** Confirmed zero src callers (`grep -rn history_parser src/` → only the inline comment in `merge.py`); deleted `src/specify_cli/status/history_parser.py` and its unit test `tests/status/test_history_parser.py`. Removed the two stale `history_parser.extract_done_evidence` mock-patches in `test_merge_status_commit.py` and `test_merge.py` (the function is now inlined in `merge.py`, no patch target), and dropped the module from the lane-regression-guard excluded list. `test_no_dead_modules` + `test_no_dead_symbols` now GREEN. Randy-Reducer dead-weight elimination — cleanest option taken.
+- **Rough effort:** Done.
