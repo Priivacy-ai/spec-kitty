@@ -55,7 +55,11 @@ class ClaudeCodeHookRegistrar:
     def _settings_path(self, project_root: Path) -> Path:
         root = project_root.expanduser().resolve()
         path = root.joinpath(*_SETTINGS_PATH_PARTS)
-        path.relative_to(root)
+        try:
+            path.resolve(strict=False).relative_to(root)
+        except ValueError as exc:
+            msg = "Claude settings path escapes project root"
+            raise ValueError(msg) from exc
         return path
 
     def _sibling_path(self, path: Path, suffix: str) -> Path:
