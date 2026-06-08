@@ -46,7 +46,6 @@ from runtime.next._internal_runtime import (
 from runtime.next._internal_runtime.schema import ActorIdentity, MissionRuntimeError, load_mission_template_file
 
 from specify_cli.core.atomic import atomic_write
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.mission import get_mission_type
 from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
 from specify_cli.status.models import Lane
@@ -76,7 +75,19 @@ class DecisionGitLogUnavailable(RuntimeError):
 
 
 def _primary_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
-    return Path(repo_root, KITTY_SPECS_DIR, mission_slug)
+    """Return the topology-aware mission feature dir for meta.json reads.
+
+    Routes through the canonical coord-aware resolver
+    (:func:`candidate_feature_dir_for_mission`) rather than re-deriving
+    ``repo_root / "kitty-specs" / mission_slug`` by hand (the residual
+    slug-derived path-builder that ignored coord topology and the
+    ``-<mid8>`` suffix). One resolver, one path — FR-007/FR-009/FR-036.
+    """
+    from specify_cli.missions.feature_dir_resolver import (
+        candidate_feature_dir_for_mission,
+    )
+
+    return candidate_feature_dir_for_mission(repo_root, mission_slug)
 
 
 def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:

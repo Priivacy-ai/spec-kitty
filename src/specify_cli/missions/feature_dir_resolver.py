@@ -15,11 +15,12 @@ def candidate_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Pat
     from specify_cli.missions._read_path_resolver import _compose_mission_dir
 
     mid8 = mid8_from_slug(mission_slug)
-    mission_dir_name = _compose_mission_dir(mission_slug, mid8)
-    primary_candidate = repo_root / KITTY_SPECS_DIR / mission_dir_name
+    mission_dir_name: str = _compose_mission_dir(mission_slug, mid8)
+    primary_candidate: Path = repo_root / KITTY_SPECS_DIR / mission_dir_name
     coord_candidate: Path | None = None
     if mid8:
-        coord_candidate = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8) / KITTY_SPECS_DIR / mission_dir_name
+        coord_root: Path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
+        coord_candidate = coord_root / KITTY_SPECS_DIR / mission_dir_name
         if coord_candidate.exists() and (coord_candidate / "meta.json").exists():
             return coord_candidate
     if primary_candidate.exists():
