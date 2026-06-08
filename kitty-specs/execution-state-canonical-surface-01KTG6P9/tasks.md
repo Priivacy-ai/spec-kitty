@@ -226,9 +226,9 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T033 Widen the pytestarch rule + AST scan scope to all of `src/specify_cli` (WP09)
-- [ ] T034 Preserve documented exemptions; keep/extend the injection proof (WP09)
-- [ ] T035 Confirm zero non-exempt violations and ≤15 s scan time (WP09)
+- [x] T033 Widen the pytestarch rule + AST scan scope to all of `src/specify_cli` (WP09)
+- [x] T034 Preserve documented exemptions; keep/extend the injection proof (WP09)
+- [x] T035 Confirm zero non-exempt violations and ≤15 s scan time (WP09)
 
 ### Dependencies
 

@@ -22,8 +22,8 @@ subtasks:
 - T035
 phase: Phase 4 - Facade
 assignee: ''
-agent: "claude:sonnet:python-pedro:implementer"
-shell_pid: "2889521"
+agent: "claude:sonnet:reviewer-renata:reviewer"
+shell_pid: "2896090"
 history:
 - at: '2026-06-07T05:16:24Z'
   actor: system
@@ -93,3 +93,5 @@ Widen `tests/architectural/test_status_module_boundary.py` from the 6 WP03 packa
 
 - 2026-06-07T05:16:24Z – system – Prompt created.
 - 2026-06-08T09:42:44Z – claude:sonnet:python-pedro:implementer – shell_pid=2889521 – Assigned agent via action command
+- 2026-06-08T09:48:12Z – claude:sonnet:python-pedro:implementer – shell_pid=2889521 – Ready for review: Widened scope to ALL src/specify_cli + src/runtime (T033). Allow-list: 2 permanent C-004 plumbing exemptions + 14 ROUTE-deferred-to-WP10 files (21 import sites). Bite test: injected status.store import into agent_utils/__init__.py → RED; reverted → GREEN. Runtime: 2.66s (NFR-005 ≤15s). 5 tests, ruff exit 0, mypy 0 issues. Commit c7662239b.
+- 2026-06-08T09:48:50Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=2896090 – Started review via action command
