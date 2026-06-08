@@ -32,12 +32,12 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T001 Author lane-worktree and direct-to-target fixtures in `tests/architectural/test_execution_context_parity.py` (WP01)
-- [ ] T002 Drive the full `next→implement→move-task→review→status` sequence from the repository-root-checkout CWD (WP01)
-- [ ] T003 Drive the same sequence from lane-worktree CWD and assert parity of WP identity, lane transitions, status output (WP01)
-- [ ] T004 Drive direct-to-target mode; assert mode-correct branch and refusal of unauthorized mainline writes (WP01)
-- [ ] T005 Add non-vacuous negative control (inject re-derivation → ratchet fails) (WP01)
-- [ ] T006 De-overclaim the docstring; register the ratchet as a CI gate for the targeted paths (WP01)
+- [x] T001 Author lane-worktree and direct-to-target fixtures in `tests/architectural/test_execution_context_parity.py` (WP01)
+- [x] T002 Drive the full `next→implement→move-task→review→status` sequence from the repository-root-checkout CWD (WP01)
+- [x] T003 Drive the same sequence from lane-worktree CWD and assert parity of WP identity, lane transitions, status output (WP01)
+- [x] T004 Drive direct-to-target mode; assert mode-correct branch and refusal of unauthorized mainline writes (WP01)
+- [x] T005 Add non-vacuous negative control (inject re-derivation → ratchet fails) (WP01)
+- [x] T006 De-overclaim the docstring; register the ratchet as a CI gate for the targeted paths (WP01)
 
 ### Dependencies
 
