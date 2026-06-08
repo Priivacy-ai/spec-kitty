@@ -12,7 +12,7 @@ from typing_extensions import Annotated
 
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.paths import locate_project_root
-from specify_cli.core.execution_context import (
+from mission_runtime import (
     ACTION_NAMES,
     ActionName,
     ActionContextError,

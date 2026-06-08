@@ -37,7 +37,7 @@ def resolve_feature_dir_for_mission(
     env: Mapping[str, str] | None = None,
 ) -> Path:
     """Resolve a mission directory through ``resolve_action_context``."""
-    from specify_cli.core.execution_context import resolve_action_context
+    from mission_runtime import resolve_action_context
 
     context = resolve_action_context(
         repo_root=repo_root,

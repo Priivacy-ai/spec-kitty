@@ -3032,7 +3032,7 @@ def query_current_state(  # noqa: C901
         mission_slug: Mission slug (e.g. '069-planning-pipeline-integrity').
         repo_root: Repository root path.
     """
-    from specify_cli.core.execution_context import ActionContextError, resolve_action_context
+    from mission_runtime import ActionContextError, resolve_action_context
 
     now = datetime.now(UTC).isoformat()
     try:
@@ -3187,7 +3187,7 @@ def answer_decision_via_runtime(
 
     logger = logging.getLogger(__name__)
 
-    from specify_cli.core.execution_context import ActionContextError, resolve_action_context
+    from mission_runtime import ActionContextError, resolve_action_context
 
     try:
         _ctx = resolve_action_context(

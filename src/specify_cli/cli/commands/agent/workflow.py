@@ -851,7 +851,7 @@ def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tup
     OHS entry point; ``target_branch`` is read from its returned ActionContext
     rather than derived independently.
     """
-    from specify_cli.core.execution_context import ActionContextError, resolve_action_context
+    from mission_runtime import ActionContextError, resolve_action_context
     from specify_cli.core.git_ops import get_current_branch
 
     main_repo_root = get_main_repo_root(repo_root)

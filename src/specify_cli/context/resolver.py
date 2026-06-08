@@ -15,7 +15,7 @@ from pathlib import Path
 from ulid import ULID
 from ruamel.yaml import YAML
 
-from specify_cli.core.execution_context import ActionContextError
+from mission_runtime import ActionContextError
 from specify_cli.context.errors import (
     FeatureNotFoundError,
     MissingArgumentError,
