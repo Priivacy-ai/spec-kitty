@@ -1,0 +1,70 @@
+# DIRECTIVE_035 occurrence map — execution-state-canonical-surface-01KTG6P9
+# Required because meta.json::change_mode == "bulk_edit".
+# Primary bulk change: migrate ~225 deep `specify_cli.status.<sub>` imports (outside status/)
+# to the public facade (`from specify_cli.status import ...`) or the MissionStatus aggregate (FR-013..FR-016).
+# Implementing agents MUST consult this before touching any matching import.
+# NOTE: classified by distinct submodule string (25 submodules), NOT per-file — a 225-row
+# per-file list is stale on first commit. The widened boundary test (FR-015) is the completeness gate.
+
+target:
+  term: "from specify_cli.status.<submodule> import …  /  import specify_cli.status.<submodule>"
+  operation: rewrite_import
+  replacement: "from specify_cli.status import …  (facade)  OR  MissionStatus.<method>(…)"
+
+categories:
+
+  import_paths:
+    action: rewrite
+    notes: |
+      Per-submodule disposition. PROMOTE = add symbol(s) to status/__init__.py __all__
+      and rewrite importers to the facade. ROUTE = replace with MissionStatus read/write
+      calls (mission-level access). PRIVATE = no external consumer; `_`-prefix and remove
+      external sites. Decisions are PRELIMINARY — confirmed during IC-05 by inspecting each
+      symbol's real consumers; the boundary test enforces zero non-exempt residue.
+    occurrences:
+      - submodule: status.models        ; count: 38 ; decision: PROMOTE ; reason: shared types/enums (Lane, StatusEvent) — broad legitimate external need.
+      - submodule: status.transitions   ; count: 12 ; decision: PROMOTE ; reason: resolve_lane_alias / validate_transition are legitimate facade API.
+      - submodule: status.progress      ; count: 7  ; decision: PROMOTE ; reason: progress projection is a read-only public view.
+      - submodule: status.views         ; count: 2  ; decision: PROMOTE ; reason: public read projection.
+      - submodule: status.validate      ; count: 4  ; decision: PROMOTE ; reason: public validation entry.
+      - submodule: status.wp_metadata   ; count: 21 ; decision: REVIEW  ; reason: high count — split: promote read accessors, route writes to MissionStatus.
+      - submodule: status.wp_state      ; count: 4  ; decision: REVIEW  ; reason: confirm read vs write split.
+      - submodule: status.adapters      ; count: 4  ; decision: REVIEW  ; reason: confirm whether external consumers need it or it is internal.
+      - submodule: status.store         ; count: 42 ; decision: ROUTE   ; reason: event-log I/O — mission-level access goes through MissionStatus.
+      - submodule: status.reducer       ; count: 37 ; decision: ROUTE   ; reason: materialize() is mission-level read — route to MissionStatus.load().
+      - submodule: status.lane_reader   ; count: 26 ; decision: ROUTE   ; reason: get_wp_lane mission-level read — route to MissionStatus.claim().
+      - submodule: status.emit          ; count: 10 ; decision: ROUTE   ; reason: transition write — route to MissionStatus.transition().
+      - submodule: status.lifecycle_events ; count: 13 ; decision: ROUTE ; reason: lifecycle writes — through the aggregate.
+      - submodule: status.work_package_lifecycle ; count: 4 ; decision: ROUTE ; reason: WP lifecycle writes — through the aggregate.
+      - submodule: status.lifecycle     ; count: 3  ; decision: ROUTE   ; reason: lifecycle access — through the aggregate.
+      - submodule: status.event_log_merge ; count: 1 ; decision: REVIEW ; reason: confirm internal vs external.
+      - submodule: status.transition_context ; count: 1 ; decision: REVIEW ; reason: confirm internal vs external.
+      - submodule: status.aggregate     ; count: 1  ; decision: PROMOTE ; reason: MissionStatus itself — import from the facade, not the submodule.
+      - submodule: status.locking       ; count: 5  ; decision: REVIEW  ; reason: likely PRIVATE unless a genuine external lock consumer exists.
+      - submodule: status.identity_audit ; count: 5 ; decision: REVIEW  ; reason: audit tooling — confirm consumer set.
+      - submodule: status.bootstrap     ; count: 2  ; decision: REVIEW  ; reason: bootstrap path — likely PROMOTE a narrow entry.
+      - submodule: status.uninitialized_hint ; count: 2 ; decision: REVIEW ; reason: hint helper — PROMOTE or PRIVATE.
+      - submodule: status.preflight     ; count: 1  ; decision: REVIEW  ; reason: single site — PROMOTE or inline.
+      - submodule: status.history_parser ; count: 1 ; decision: PRIVATE ; reason: migration-only module; remove external import.
+      - submodule: status.doctor        ; count: 1  ; decision: REVIEW  ; reason: doctor tooling — confirm.
+
+  code_symbols:
+    action: manual_review
+    notes: |
+      Promoted symbols are added to status/__init__.py __all__ (C-007 charter convention).
+      Demoted symbols get a `_` prefix. Track the final __all__ delta in the IC-05 WP.
+
+  filesystem_paths:
+    action: manual_review
+    notes: |
+      Secondary (refactor, not term-replace): ~125 raw `main_repo_root / "kitty-specs" / mission_slug`
+      path-builder occurrences across ~160 files, and 8 duplicate _resolve_feature_dir implementations,
+      are routed through mission_runtime.resolve_action_context / collapsed to one resolver and deleted
+      (FR-009/FR-010/FR-011). Enumerated and routed during IC-04; the parity ratchet + a grep success
+      criterion (SC-004) gate completeness. Not a string-replacement, so listed here as manual_review.
+
+exemptions:
+  - path: src/specify_cli/coordination/status_transition.py
+    reason: Internal Mission-Management plumbing (BookkeepingTransaction caller) — exempt (C-004, doc 06 §4).
+  - path: src/specify_cli/coordination/transaction.py
+    reason: BookkeepingTransaction infrastructure — exempt; internals unchanged (NFR-006).
