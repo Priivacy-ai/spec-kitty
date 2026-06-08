@@ -9,7 +9,8 @@ WP03 relocates the hardened ``resolve_action_context`` (and its helpers) from
 ``specify_cli.core.execution_context`` here under the Strangler migration. The
 implementation is moved verbatim — this is the single sanctioned resolver
 (FR-003/FR-005); behaviour is preserved (NFR-001) and no parallel resolver
-survives (NFR-002). ``core/execution_context.py`` becomes a thin re-export shim.
+survives (NFR-002). The old ``core/execution_context.py`` is removed entirely —
+no importers remained after the caller migration, so it is deleted, not shimmed.
 
 Prompts should not discover context on their own. They call into this
 command-owned resolver, which determines the active mission, target branch,

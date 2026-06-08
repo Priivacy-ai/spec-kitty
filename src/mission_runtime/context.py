@@ -9,7 +9,8 @@ WP03 relocates the hardened context value object from
 ``specify_cli.core.execution_context`` (the historical ``ActionContext``) into
 this module under the Strangler migration, preserving the public field/API shape
 (NFR-001). The canonical name is :class:`ExecutionContext`; ``ActionContext`` is
-retained as an alias so the transitional shim at the old path keeps resolving.
+retained as a re-exported alias so callers using the historical name keep
+resolving (the old ``core/execution_context`` module itself was removed).
 """
 from __future__ import annotations
 
