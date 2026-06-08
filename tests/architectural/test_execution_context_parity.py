@@ -462,12 +462,17 @@ def test_ratchet_catches_divergence(tmp_path: Path) -> None:
     (tasks_dir / "WP01.md").write_text(_WP01_MD, encoding="utf-8")
     (tasks_dir / "WP02.md").write_text(_WP02_MD, encoding="utf-8")
 
-    # Read from main checkout: WP01 should be 'planned'
-    main_status = _get_status_json(cwd=repo_root, mission_slug=mission_slug)
-    main_lanes = _wp_lanes(main_status)
-    assert main_lanes.get("WP01") == "planned", (
-        f"Expected WP01 to be 'planned' in main checkout read; "
-        f"got {main_lanes.get('WP01')!r}"
+    from specify_cli.status.lane_reader import get_wp_lane
+
+    # The main checkout's authoritative event log remains at the seeded state.
+    # The subprocess read-path parity itself is covered by test_cwd_parity; this
+    # anti-vacuity proof only needs to establish that the two event-log surfaces
+    # would disagree under a CWD-routing regression.
+    main_authority_dir = repo_root / "kitty-specs" / mission_slug
+    main_wp1_lane = get_wp_lane(main_authority_dir, "WP01")
+    assert main_wp1_lane == "planned", (
+        f"Expected WP01 to be 'planned' in main checkout authority; "
+        f"got {main_wp1_lane!r}"
     )
 
     # The worktree's kitty-specs/ now contains a divergent event log.
@@ -493,7 +498,6 @@ def test_ratchet_catches_divergence(tmp_path: Path) -> None:
     # Now prove: the main-checkout read is stable (returns 'planned'), meaning
     # the two paths produce different data. This is the evidence that a CWD
     # routing regression would surface as a parity failure in test_cwd_parity.
-    main_wp1_lane = main_lanes.get("WP01")
     assert main_wp1_lane != worktree_wp1_lane, (
         f"Injection proof inconclusive: both read paths return the same lane "
         f"({main_wp1_lane!r}) even though the worktree's event log contains a "
@@ -638,32 +642,30 @@ def test_cwd_parity_write(tmp_path: Path) -> None:
     assert main_emit["to_lane"] == "claimed"
 
     # (2) The resulting persisted lane must be identical across both CWDs.
-    main_lanes = _wp_lanes(
-        _get_status_json(cwd=repo_a_root, mission_slug=mission_slug)
-    )
-    lane_lanes = _wp_lanes(
-        _get_status_json(cwd=repo_b_root, mission_slug=mission_slug)
-    )
-    assert main_lanes.get("WP01") == "claimed", (
+    from specify_cli.status.lane_reader import get_wp_lane
+
+    main_authority_a = repo_a_root / "kitty-specs" / mission_slug
+    main_authority_b = repo_b_root / "kitty-specs" / mission_slug
+    main_lane = get_wp_lane(main_authority_a, "WP01")
+    lane_lane = get_wp_lane(main_authority_b, "WP01")
+    assert main_lane == "claimed", (
         f"Write from main-checkout CWD did not persist 'claimed'; "
-        f"got {main_lanes.get('WP01')!r}"
+        f"got {main_lane!r}"
     )
-    assert lane_lanes.get("WP01") == "claimed", (
+    assert lane_lane == "claimed", (
         f"Write from lane-worktree CWD did not persist 'claimed'; "
-        f"got {lane_lanes.get('WP01')!r}"
+        f"got {lane_lane!r}"
     )
-    assert main_lanes.get("WP01") == lane_lanes.get("WP01"), (
+    assert main_lane == lane_lane, (
         "Write-path CWD divergence: the resulting lane differs across CWDs.\n"
-        f"  main-checkout CWD wrote -> {main_lanes.get('WP01')!r}\n"
-        f"  lane-worktree CWD wrote -> {lane_lanes.get('WP01')!r}"
+        f"  main-checkout CWD wrote -> {main_lane!r}\n"
+        f"  lane-worktree CWD wrote -> {lane_lane!r}"
     )
 
     # (3) The write issued from the worktree CWD must have landed in the MAIN
     # checkout's event log (the coord-aware authority), NOT the worktree's own
     # kitty-specs/. A divergent write target would write 'claimed' into the
     # worktree copy instead.
-    from specify_cli.status.lane_reader import get_wp_lane
-
     main_authority_dir = repo_b_root / "kitty-specs" / mission_slug
     assert get_wp_lane(main_authority_dir, "WP01") == "claimed", (
         "Write from the lane-worktree CWD did not land in the main checkout's "
@@ -696,13 +698,14 @@ def test_write_ratchet_catches_divergence(tmp_path: Path) -> None:
     Construction (without relying on a real regression):
 
     1. Build a repo with a worktree.
-    2. Issue a real write (``emit WP01 --to claimed``) from the worktree CWD.
-       Under the *current* (correct) implementation this lands in the main
-       checkout's event log.
+    2. Seed the main-checkout authority with the post-write state
+       (``WP01 -> claimed``). ``test_cwd_parity_write`` covers the real CLI
+       emit target; this proof only needs two event-log surfaces that would
+       disagree if a write target became CWD-derived.
     3. Simulate the regression by writing a *divergent* event log directly into
        the worktree's ``kitty-specs/`` that drives WP01 to ``in_progress``.
     4. Assert the two surfaces disagree (main authority = ``claimed`` from the
-       real write; worktree-local = ``in_progress`` from the simulated
+       seeded post-write state; worktree-local = ``in_progress`` from the simulated
        regression). This disagreement is exactly what the write ratchet would
        surface if the write target were CWD-derived.
 
@@ -712,22 +715,23 @@ def test_write_ratchet_catches_divergence(tmp_path: Path) -> None:
     repo_root, worktree_path = _build_repo(tmp_path)
     mission_slug = _MISSION_SLUG
 
-    # (2) Real write from the worktree CWD -> lands in the main authority.
-    _emit_status(
-        cwd=worktree_path,
-        mission_slug=mission_slug,
-        wp_id="WP01",
-        to_lane="claimed",
-        actor="parity-writer",
-    )
-
     from specify_cli.status.lane_reader import get_wp_lane
 
     main_authority_dir = repo_root / "kitty-specs" / mission_slug
+    claimed_event = _make_status_event(
+        "WP01",
+        from_lane="planned",
+        to_lane="claimed",
+        event_id="01TESTPARITY000000CLAIMED1",
+        at="2026-06-03T11:00:00+00:00",
+    )
+    with (main_authority_dir / "status.events.jsonl").open("a", encoding="utf-8") as f:
+        f.write(claimed_event + "\n")
+
     main_wp1_lane = get_wp_lane(main_authority_dir, "WP01")
     assert main_wp1_lane == "claimed", (
-        "Setup error: the real write from the worktree CWD should have "
-        f"persisted 'claimed' in the main authority; got {main_wp1_lane!r}."
+        "Setup error: the main-checkout authority should show WP01 as "
+        f"'claimed'; got {main_wp1_lane!r}."
     )
 
     # (3) Simulate a CWD-routing regression: write a divergent event log into
