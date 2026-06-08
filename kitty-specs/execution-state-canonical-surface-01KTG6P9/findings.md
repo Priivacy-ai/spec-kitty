@@ -179,6 +179,24 @@ Rebuilt **lane-b = current coord head + the four WP CODE commits cherry-picked**
 
 ---
 
+## F-07 — #1772 Bug 0 reproduced IN THIS MISSION's own planning commit (tracked nested `.worktrees/`)
+
+**Severity:** High (would have polluted feat at merge). **Phase:** discovered during the WP09→WP10 cross-lane merge. **Status:** RESOLVED (untracked) + dogfood evidence for WP14/FR-035. **Domain:** `.worktrees/` hygiene (#1772 Bug 0).
+
+### What
+The mission's planning-artifacts commit `05953c5ad` staged **37 tracked files under `.worktrees/execution-state-canonical-surface-01KTG6P9-coord/kitty-specs/…`** — gitignored *nested duplicates* of the coordination worktree's own `kitty-specs/`. This is **exactly #1772 Bug 0** ("finalize/recovery `git add` flows staged tracked `.worktrees/` content") — reproduced by our own finalize, on our own mission. Spread: coord 37, lane-a 33, lane-b 37, lane-c 37; **feat = 0** (clean). The cross-lane merges propagated it between lanes; surfaced when the lane-c→lane-b merge reported `create mode 100644 .worktrees/…-coord/…`.
+
+### Why it matters
+`.worktrees/` is gitignored (`.gitignore:58`) — these were force-/erroneously-added at finalize. Because feat is clean, leaving them would have **newly polluted feat at the final lane→feat merge** with 37 junk files (and the nested-coord path is the same double-resolution shape FR-036 targets).
+
+### Fix applied
+`git rm -r --cached .worktrees/` on coord + lane-a + lane-b + lane-c (untrack only; on-disk worktree content preserved); committed per branch (lane-b: `aeb1ccb82`). Verified: 0 tracked `.worktrees/` on all four; boundary test + mission_runtime intact on lane-b (5 passed).
+
+### Dogfood value for WP14 (FR-035)
+This is live proof for WP14's FR-035 work: (1) the finalize/recovery `git add` MUST exclude `.worktrees/` (the guard that would have prevented `05953c5ad`); (2) the `spec-kitty doctor` check MUST flag pre-existing tracked `.worktrees/` — point it at this exact reproduction as a fixture/case. The mission both *fixes the flow* and *had to clean up the bug's output in its own branches*.
+
+---
+
 ## SYNTHESIS — toward a stable "codependent lanes" solution (distilled from F-04/F-05/F-06)
 
 This mission required a lot of **manual git/lane juggling** that the tooling should own. Captured here as design signal — the concrete operations done by hand, their trigger, and what a stable solution must guarantee. The throughline: **the tool models lane *status* dependencies but not lane *code* topology**, and it conflates **code** (lane-owned, merges to target) with **status/planning** (coord-owned), so any base movement or cross-lane dependency forces hand surgery.

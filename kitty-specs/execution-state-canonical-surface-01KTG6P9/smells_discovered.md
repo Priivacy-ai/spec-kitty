@@ -67,3 +67,13 @@ Format per entry: location · tool/rule · description · why deferred · rough 
 - **Description:** On WP07's cycle-2 re-review (after a cycle-1 rejection + fix), the approval was blocked because a `review-cycle-2.md` artifact carried `verdict: rejected` — the cycle-1 rejection content had been written under the cycle-2 filename. The reviewer had to pass `--skip-review-artifact-check` with a rationale to approve a genuinely-resolved finding. The cycle index / artifact verdict didn't advance cleanly with the re-review.
 - **Why deferred:** workflow tooling friction, not mission code; the reviewer handled it correctly (documented skip, not an arbiter override).
 - **Rough effort:** Medium (tooling). The review-artifact check should key off the CURRENT cycle's verdict, and re-claiming review for a fixed WP should supersede/clear the prior cycle's rejection artifact rather than leaving a stale `rejected` that blocks the next approval. Worth filing upstream alongside the codependent-lanes epic.
+
+---
+
+## S-07 — status-boundary test: misleading SR-1 docstring + file-existence-only allow-list rot guard
+
+- **Location:** `tests/architectural/test_status_module_boundary.py` (added by WP09).
+- **Tool/rule:** doc accuracy + test-completeness (surfaced by the WP09 review, non-blocking).
+- **Description:** Two minor issues: (a) the `SR-1` section header + class docstring say the rule was "widened to ALL of `src/specify_cli`", but SR-1's pytestarch rule still asserts only against the 6 WP03-fixed packages — the repo-wide gate is exclusively SR-2 (architecturally fine, but the doc misleads). (b) `test_ast_scan_allow_list_covers_known_residuals` only checks that allow-listed files EXIST on disk — it will NOT catch a stale `_WP10_DEFERRED_FILES` entry once WP10 migrates a file's imports but forgets to remove it from the allow-list.
+- **Why deferred:** non-blocking doc/robustness polish; WP09 met its spec.
+- **Rough effort:** Low. (a) Correct the SR-1 header/docstring to say SR-1 = regression-lock on the 6 clean packages, SR-2 = repo-wide gate. (b) Strengthen the rot guard to assert each allow-listed file STILL contains a deep status import (so a migrated-but-not-delisted file fails the guard) — ideally land this WITH WP10 so the shrinking ledger self-polices. **Action for WP10:** as it routes each ROUTE-deferred symbol, remove that file from `_WP10_DEFERRED_FILES`; the WP10 reviewer must confirm the allow-list shrank to only the permanent cycle-breaker + C-004 exemptions.
