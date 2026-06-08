@@ -78,7 +78,9 @@ def materialize(
         ).canonical_value
 
     if mission_slug:
-        feature_dirs = [specs_dir / mission_slug]
+        from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug
+
+        feature_dirs = [resolve_feature_dir_for_slug(repo_root, mission_slug)]
         if not feature_dirs[0].exists():
             console.print(f"[red]Error:[/red] Mission not found: {mission_slug}")
             raise typer.Exit(1)

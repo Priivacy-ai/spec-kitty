@@ -78,9 +78,9 @@ def _primary_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
     """Return the topology-aware mission feature dir for meta.json reads.
 
     Routes through the canonical coord-aware resolver
-    (:func:`candidate_feature_dir_for_mission`) rather than re-deriving
-    ``repo_root / "kitty-specs" / mission_slug`` by hand (the residual
-    slug-derived path-builder that ignored coord topology and the
+    (:func:`candidate_feature_dir_for_mission`) rather than re-deriving a
+    raw mission-spec dir from the repo root and the bare slug by hand (the
+    residual slug-derived path-builder that ignored coord topology and the
     ``-<mid8>`` suffix). One resolver, one path — FR-007/FR-009/FR-036.
     """
     from specify_cli.missions.feature_dir_resolver import (
