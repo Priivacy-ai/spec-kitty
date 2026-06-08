@@ -47,7 +47,11 @@ from specify_cli.mission import get_mission_type
 from specify_cli.doc_analysis.doc_state import GeneratorConfig
 from specify_cli.ownership import infer_ownership, validate_ownership
 from specify_cli.ownership.audit_targets import validate_audit_coverage
-from specify_cli.ownership.validation import build_wp_manifests, validate_glob_matches
+from specify_cli.ownership.frontmatter_source import (
+    FinalizeFrontmatterSource,
+    resolve_wp_manifests,
+)
+from specify_cli.ownership.validation import validate_glob_matches
 from specify_cli.core.wps_manifest import (
     load_wps_manifest,
     check_concern_refs_coverage,
@@ -2656,7 +2660,10 @@ def finalize_tasks(
         # In validate-only mode the bootstrap loop above populates frontmatter
         # in memory but does NOT write to disk.  Re-reading from disk would miss
         # the inferred ownership fields, silently skipping ownership/lane
-        # validation.  We therefore use the in-memory state when available.
+        # validation.  The frontmatter-source port owns this prefer-in-memory-
+        # then-disk acquisition (FR-031) so the resolve→validate path is testable
+        # without stubbing the reader; ``wp_bodies`` is gathered alongside for
+        # downstream lane/preview consumers.
         wp_frontmatters: dict[str, WPMetadata] = {}
         wp_bodies: dict[str, str] = {}
         for wp_file in wp_files:
@@ -2673,7 +2680,11 @@ def finalize_tasks(
                 wp_bodies[wp_id] = wp_body
                 wp_frontmatters[wp_id] = fm_meta
 
-        wp_manifests = build_wp_manifests(wp_frontmatters)
+        ownership_source = FinalizeFrontmatterSource(
+            wp_files=list(wp_files),
+            inmemory=_inmemory_frontmatter,
+        )
+        wp_manifests = resolve_wp_manifests(ownership_source)
 
         if wp_manifests:
             ownership_result = validate_ownership(wp_manifests)

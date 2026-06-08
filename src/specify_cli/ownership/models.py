@@ -98,7 +98,9 @@ class OwnershipManifest:
             raw_files = [raw_files]
         owned_files = tuple(raw_files)
 
-        authoritative_surface = data.get("authoritative_surface", "")
+        # ``or ""`` (not ``dict.get(k, "")``) so a present-but-None value coerces
+        # to "" identically to the WPMetadata branch above (FR-030 symmetry).
+        authoritative_surface = data.get("authoritative_surface") or ""
         scope = data.get("scope") or None
 
         return cls(

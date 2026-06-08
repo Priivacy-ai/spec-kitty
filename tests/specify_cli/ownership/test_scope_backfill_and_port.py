@@ -28,7 +28,6 @@ from specify_cli.frontmatter import FrontmatterManager
 from specify_cli.migration.backfill_ownership import backfill_ownership
 from specify_cli.ownership.models import (
     SCOPE_CODEBASE_WIDE,
-    ExecutionMode,
     OwnershipManifest,
 )
 from specify_cli.status.wp_metadata import WPMetadata
@@ -209,6 +208,7 @@ class TestFrontmatterSourcePort:
         disk_wp01 = tasks_dir / "WP01-foo.md"
         disk_wp01.write_text(
             "---\n"
+            "work_package_id: WP01\n"
             "title: WP01\n"
             "dependencies: []\n"
             "execution_mode: code_change\n"
@@ -220,6 +220,7 @@ class TestFrontmatterSourcePort:
         disk_wp02 = tasks_dir / "WP02-bar.md"
         disk_wp02.write_text(
             "---\n"
+            "work_package_id: WP02\n"
             "title: WP02\n"
             "dependencies: []\n"
             "execution_mode: code_change\n"
