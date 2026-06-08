@@ -417,6 +417,19 @@ class TestToleranceCategories:
         assert snapshot.malformed == []
         assert snapshot.not_helpful_top[0].urn == "retrospective:not_helpful:process"
 
+    def test_legacy_integer_schema_version_record_is_not_malformed(self, tmp_path: Path) -> None:
+        missions_root = tmp_path / ".kittify" / "missions"
+        missions_root.mkdir(parents=True)
+        mission_dir = missions_root / MISSION_ID_2
+        mission_dir.mkdir()
+        legacy_yaml = _make_brief_yaml().replace('schema_version: "1"', "schema_version: 1")
+        (mission_dir / "retrospective.yaml").write_text(legacy_yaml, encoding="utf-8")
+
+        snapshot = build_summary(project_path=tmp_path)
+
+        assert snapshot.completed_count == 1
+        assert snapshot.malformed == []
+
     def test_malformed_entries_have_path_and_reason(self, tmp_path: Path) -> None:
         project = _build_corpus(tmp_path)
         snapshot = build_summary(project_path=project)
