@@ -21,8 +21,8 @@ from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
 from specify_cli.lanes.branch_naming import mid8_from_slug
-from specify_cli.status.locking import feature_status_lock
-from specify_cli.status.store import EVENTS_FILENAME, EventPersistenceError, StoreError
+from specify_cli.status import feature_status_lock
+from specify_cli.status import EVENTS_FILENAME, EventPersistenceError, StoreError
 
 logger = logging.getLogger(__name__)
 
@@ -130,17 +130,20 @@ def _output_error(json_mode: bool, error_message: str, diagnostic: dict | None =
         console.print(f"[red]Error:[/red] {error_message}")
 
 
-def _resolve_feature_dir(
+def _resolve_status_surface(
     explicit_mission: str | None = None,
     explicit_feature: str | None = None,
     *,
     json_output: bool = False,
 ) -> tuple[Path, str, Path]:
-    """Resolve mission directory, mission slug, and repo root.
+    """Resolve the status read surface, mission slug, and repo root.
 
-    Uses ``MissionStatus.load()`` to resolve the coord-aware read path so
-    that coordination-topology missions read from the coord worktree rather
-    than the (potentially stale) primary checkout.
+    This is the ``MissionStatus`` authority resolver (slug validation +
+    fail-closed coord authority), **not** the dir-only feature-dir resolver
+    in :mod:`specify_cli.missions.feature_dir_resolver`. It uses
+    ``MissionStatus.load()`` to resolve the coord-aware read path so that
+    coordination-topology missions read from the coord worktree rather than
+    the (potentially stale) primary checkout.
 
     Returns:
         (feature_dir, mission_slug, repo_root)
@@ -204,12 +207,12 @@ def _resolve_mission_status_for_repo(
         raise typer.Exit(1)
 
 
-def _resolve_feature_dir_for_repo(
+def _resolve_status_surface_for_repo(
     main_repo_root: Path,
     mission_slug: str,
     json_output: bool = False,
 ) -> tuple[Path, str, Path]:
-    """Resolve coord-aware feature_dir given an already-resolved main_repo_root.
+    """Resolve coord-aware status read_dir given an already-resolved main_repo_root.
 
     Factored out to avoid duplicating MissionStatus.load + CoordAuthorityUnavailable
     handling across multiple commands (reduces cyclomatic complexity).
@@ -313,10 +316,8 @@ def emit(
                 raise typer.Exit(1)
 
         # Lazy import to avoid circular imports
-        from specify_cli.status.emit import (
-            TransitionError,
-        )
-        from specify_cli.status.models import TransitionRequest
+        from specify_cli.status import TransitionError
+        from specify_cli.status import TransitionRequest
 
         # FR-004: the MissionStatus aggregate is the sole write entry point.
         # ms.transition() validates and delegates to the transactional path,
@@ -379,7 +380,7 @@ def emit(
     except Exception as exc:
         # Check if it's a TransitionError (imported lazily above)
         try:
-            from specify_cli.status.emit import TransitionError
+            from specify_cli.status import TransitionError
             if isinstance(exc, TransitionError):
                 _output_error(json_output, str(exc))
                 raise typer.Exit(1)
@@ -421,11 +422,11 @@ def materialize(
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
         # Resolve coord-aware mission directory via MissionStatus aggregate
-        feature_dir, _, _ = _resolve_feature_dir_for_repo(main_repo_root, mission_slug, json_output)
+        feature_dir, _, _ = _resolve_status_surface_for_repo(main_repo_root, mission_slug, json_output)
 
         # Lazy import to avoid circular imports
-        from specify_cli.status.reducer import materialize as do_materialize
-        from specify_cli.status.store import EVENTS_FILENAME
+        from specify_cli.status import materialize as do_materialize
+        from specify_cli.status import EVENTS_FILENAME
 
         # Check that the events file exists
         events_path = feature_dir / EVENTS_FILENAME
@@ -518,7 +519,7 @@ def doctor(
     from specify_cli.runtime.doctor import run_global_checks
     from specify_cli.status.doctor import run_doctor
 
-    feature_dir, mission_slug, repo_root = _resolve_feature_dir(mission, feature, json_output=json_output)
+    feature_dir, mission_slug, repo_root = _resolve_status_surface(mission, feature, json_output=json_output)
 
     # Run global runtime checks BEFORE project-specific checks
     global_checks = run_global_checks(project_dir=repo_root)
@@ -637,9 +638,9 @@ def lifecycle(
     whether a mission is active, recently completed, stale, abandoned, or
     now just recoverable/archive history.
     """
-    from specify_cli.status.lifecycle import derive_mission_lifecycle
+    from specify_cli.status import derive_mission_lifecycle
 
-    feature_dir, mission_slug, _repo_root = _resolve_feature_dir(mission, feature, json_output=json_output)
+    feature_dir, mission_slug, _repo_root = _resolve_status_surface(mission, feature, json_output=json_output)
     try:
         result = derive_mission_lifecycle(feature_dir)
     except StoreError as exc:
@@ -812,13 +813,8 @@ def _collect_status_validation_findings(feature_dir: Path, result: Any) -> bool:
 
     Returns False when there are no events to validate.
     """
-    from specify_cli.status.store import read_events, read_events_raw
-    from specify_cli.status.validate import (
-        validate_done_evidence,
-        validate_event_schema,
-        validate_materialization_drift,
-        validate_transition_legality,
-    )
+    from specify_cli.status import read_events, read_events_raw
+    from specify_cli.status import validate_done_evidence, validate_event_schema, validate_materialization_drift, validate_transition_legality
 
     try:
         raw_events = read_events_raw(feature_dir)
@@ -871,7 +867,7 @@ def validate(
         spec-kitty agent status validate --mission 034-my-feature
         spec-kitty agent status validate --json
     """
-    from specify_cli.status.validate import ValidationResult
+    from specify_cli.status import ValidationResult
 
     cwd = Path.cwd().resolve()
     repo_root = locate_project_root(cwd)
@@ -885,7 +881,7 @@ def validate(
     mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
     main_repo_root = get_main_repo_root(repo_root)
-    feature_dir, _, _ = _resolve_feature_dir_for_repo(main_repo_root, mission_slug, json_output)
+    feature_dir, _, _ = _resolve_status_surface_for_repo(main_repo_root, mission_slug, json_output)
 
     if not feature_dir.exists():
         msg = f"Mission directory not found: {feature_dir}"

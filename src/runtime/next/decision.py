@@ -30,7 +30,7 @@ from typing import Any
 
 from specify_cli.mission_metadata import mission_identity_fields
 from specify_cli.status import wp_state_for
-from specify_cli.status.models import Lane
+from specify_cli.status import Lane
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
 
@@ -276,10 +276,7 @@ def _get_wp_lanes(feature_dir: Path) -> dict[str, str]:
     canonical event log exists yet (#1775 Randy-Reducer F5 — this was a verbatim
     duplicate of ``get_all_wp_lanes`` minus the fail-loud guard).
     """
-    from specify_cli.status.lane_reader import (
-        CanonicalStatusNotFoundError,
-        get_all_wp_lanes,
-    )
+    from specify_cli.status import CanonicalStatusNotFoundError, get_all_wp_lanes
 
     try:
         return get_all_wp_lanes(feature_dir)
@@ -332,8 +329,8 @@ def _compute_wp_progress(feature_dir: Path) -> dict[str, int | float] | None:
 
     # Compute weighted progress from the materialized snapshot
     try:
-        from specify_cli.status.progress import compute_weighted_progress
-        from specify_cli.status.reducer import materialize
+        from specify_cli.status import compute_weighted_progress
+        from specify_cli.status import materialize
 
         snapshot = materialize(feature_dir)
         progress = compute_weighted_progress(snapshot)

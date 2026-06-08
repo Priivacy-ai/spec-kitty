@@ -344,8 +344,8 @@ def _is_arbiter_override(
     if not force:
         return False
 
-    from specify_cli.status.models import Lane
-    from specify_cli.status.store import read_events
+    from specify_cli.status import Lane
+    from specify_cli.status import read_events
 
     if Lane(old_lane) != Lane.PLANNED:
         return False

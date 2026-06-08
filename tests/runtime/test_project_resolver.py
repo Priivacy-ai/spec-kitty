@@ -4,7 +4,6 @@ import pytest
 from specify_cli.core.project_resolver import (
     locate_project_root,
     resolve_template_path,
-    resolve_worktree_aware_feature_dir,
 )
 
 pytestmark = pytest.mark.fast
@@ -35,28 +34,3 @@ def test_locate_project_root_and_template_resolution(tmp_path):
     # Assert
     assert root == project
     assert template_path == project / ".kittify" / "missions" / "software-dev" / "templates" / "foo.txt"
-
-
-def test_resolve_worktree_awareness(tmp_path):
-    """resolve_worktree_aware_feature_dir uses worktree path when CWD is inside a worktree."""
-    # Arrange
-    repo_root = tmp_path / "spec-kitty"
-    mission_slug = "004-modular-code-refactoring"
-    worktree = repo_root / ".worktrees" / mission_slug / "kitty-specs" / mission_slug / "tasks"
-    worktree.mkdir(parents=True)
-
-    cwd_inside = worktree / "doing"
-    cwd_inside.mkdir()
-
-    # Assumption check
-    assert cwd_inside.exists(), "CWD inside worktree must exist"
-
-    # Act
-    resolved = resolve_worktree_aware_feature_dir(repo_root, mission_slug, cwd=cwd_inside)
-
-    # Assert
-    assert resolved == repo_root / ".worktrees" / mission_slug / "kitty-specs" / mission_slug
-
-    repo_root.mkdir(exist_ok=True)
-    fallback = resolve_worktree_aware_feature_dir(repo_root, "999-new-feature")
-    assert fallback == repo_root / "kitty-specs" / "999-new-feature"

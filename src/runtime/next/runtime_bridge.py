@@ -46,11 +46,10 @@ from runtime.next._internal_runtime import (
 from runtime.next._internal_runtime.schema import ActorIdentity, MissionRuntimeError, load_mission_template_file
 
 from specify_cli.core.atomic import atomic_write
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.mission import get_mission_type
-from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
-from specify_cli.status.models import Lane
-from specify_cli.status.wp_state import wp_state_for
+from specify_cli.status import CanonicalStatusNotFoundError
+from specify_cli.status import Lane
+from specify_cli.status import wp_state_for
 from runtime.next.decision import (
     Decision,
     DecisionKind,
@@ -76,7 +75,19 @@ class DecisionGitLogUnavailable(RuntimeError):
 
 
 def _primary_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
-    return Path(repo_root, KITTY_SPECS_DIR, mission_slug)
+    """Return the topology-aware mission feature dir for meta.json reads.
+
+    Routes through the canonical coord-aware resolver
+    (:func:`candidate_feature_dir_for_mission`) rather than re-deriving a
+    raw mission-spec dir from the repo root and the bare slug by hand (the
+    residual slug-derived path-builder that ignored coord topology and the
+    ``-<mid8>`` suffix). One resolver, one path — FR-007/FR-009/FR-036.
+    """
+    from specify_cli.missions.feature_dir_resolver import (
+        candidate_feature_dir_for_mission,
+    )
+
+    return candidate_feature_dir_for_mission(repo_root, mission_slug)
 
 
 def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:
@@ -872,7 +883,7 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
 
     # Get canonical lane state from event log (hard-fail if absent)
     import re as _re
-    from specify_cli.status.lane_reader import get_wp_lane
+    from specify_cli.status import get_wp_lane
 
     for wp_file in wp_files:
         wp_match = _re.match(r"(WP\d+)", wp_file.stem)
@@ -3032,7 +3043,7 @@ def query_current_state(  # noqa: C901
         mission_slug: Mission slug (e.g. '069-planning-pipeline-integrity').
         repo_root: Repository root path.
     """
-    from specify_cli.core.execution_context import ActionContextError, resolve_action_context
+    from mission_runtime import ActionContextError, resolve_action_context
 
     now = datetime.now(UTC).isoformat()
     try:
@@ -3187,7 +3198,7 @@ def answer_decision_via_runtime(
 
     logger = logging.getLogger(__name__)
 
-    from specify_cli.core.execution_context import ActionContextError, resolve_action_context
+    from mission_runtime import ActionContextError, resolve_action_context
 
     try:
         _ctx = resolve_action_context(

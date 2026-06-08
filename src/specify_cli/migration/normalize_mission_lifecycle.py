@@ -17,9 +17,9 @@ from specify_cli.migration.backfill_identity import (
     backfill_wp_ids,
     trigger_feature_dossier_sync_if_enabled,
 )
-from specify_cli.status.lifecycle import derive_mission_lifecycle, generate_lifecycle_json
-from specify_cli.status.progress import generate_progress_json
-from specify_cli.status.views import write_derived_views
+from specify_cli.status import derive_mission_lifecycle, generate_lifecycle_json
+from specify_cli.status import generate_progress_json
+from specify_cli.status import write_derived_views
 
 
 @dataclass

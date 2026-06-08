@@ -296,7 +296,7 @@ def _read_lane_from_frontmatter(file_path: Path) -> str | None:
     from pydantic import ValidationError
 
     from specify_cli.frontmatter import FrontmatterError
-    from specify_cli.status.wp_metadata import read_wp_frontmatter
+    from specify_cli.status import read_wp_frontmatter
 
     try:
         meta, _body = read_wp_frontmatter(file_path)
@@ -311,7 +311,7 @@ def _read_lane_from_frontmatter(file_path: Path) -> str | None:
         wp_id = wp_id_match.group(1)
     feature_dir = file_path.parent.parent  # tasks/ -> feature_dir
 
-    from specify_cli.status.lane_reader import get_wp_lane
+    from specify_cli.status import get_wp_lane
 
     return get_wp_lane(feature_dir, wp_id)
 

@@ -135,8 +135,8 @@ def scan_inflight_missions(
     if not removed_steps:
         return []
 
-    from specify_cli.status.store import read_events  # noqa: PLC0415 — lazy; avoids heavy import
-    from specify_cli.status.reducer import reduce  # noqa: PLC0415
+    from specify_cli.status import read_events  # noqa: PLC0415 — lazy; avoids heavy import
+    from specify_cli.status import reduce  # noqa: PLC0415
 
     # Collect all in-flight WPs across all missions once, then map them to
     # each removed step (conservative: all removed steps get the same set).

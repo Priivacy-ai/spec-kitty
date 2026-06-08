@@ -14,7 +14,7 @@ from typing import Any
 from specify_cli.dashboard.charter_path import resolve_project_charter_path
 from specify_cli.legacy_detector import is_legacy_format
 from specify_cli.status import wp_state_for
-from specify_cli.status.models import Lane
+from specify_cli.status import Lane
 from specify_cli.text_sanitization import sanitize_file
 
 
@@ -475,7 +475,7 @@ def _count_wps_by_lane(tasks_dir: Path) -> dict[str, int]:
     # feature_dir is the parent of tasks/
     feature_dir = tasks_dir.parent
 
-    from specify_cli.status.lane_reader import get_all_wp_lanes
+    from specify_cli.status import get_all_wp_lanes
 
     event_lanes = get_all_wp_lanes(feature_dir)
 
@@ -541,8 +541,8 @@ def _build_legacy_kanban_stats(tasks_dir: Path) -> dict[str, int]:
 
 
 def _build_event_log_kanban_stats(feature_dir: Path, tasks_dir: Path) -> dict[str, Any]:
-    from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
-    from specify_cli.status.store import StoreError
+    from specify_cli.status import CanonicalStatusNotFoundError
+    from specify_cli.status import StoreError
 
     kanban_stats: dict[str, Any] = {"total": 0, "planned": 0, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
     try:
@@ -552,8 +552,8 @@ def _build_event_log_kanban_stats(feature_dir: Path, tasks_dir: Path) -> dict[st
             kanban_stats["total"] += count
 
         try:
-            from specify_cli.status.progress import compute_weighted_progress
-            from specify_cli.status.reducer import materialize
+            from specify_cli.status import compute_weighted_progress
+            from specify_cli.status import materialize
 
             snap = materialize(feature_dir)
             progress = compute_weighted_progress(snap)
@@ -655,7 +655,7 @@ def _process_wp_file(
             "encoding_error": True,
         }
 
-    from specify_cli.status.wp_metadata import read_wp_frontmatter
+    from specify_cli.status import read_wp_frontmatter
 
     try:
         wp_meta_dict, prompt_body = read_wp_frontmatter(prompt_file)
@@ -666,7 +666,7 @@ def _process_wp_file(
     title = title_match.group(1) if title_match else prompt_file.stem
 
     wp_id = wp_meta_dict.work_package_id
-    from specify_cli.status.lane_reader import has_event_log, get_wp_lane
+    from specify_cli.status import has_event_log, get_wp_lane
 
     stem = prompt_file.stem
     wp_id_match = re.match(r"^(WP\d+)", stem, re.IGNORECASE)
@@ -682,7 +682,7 @@ def _process_wp_file(
         if is_legacy_format(feature_candidate):
             lane = default_lane
         else:
-            from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
+            from specify_cli.status import CanonicalStatusNotFoundError
 
             raise CanonicalStatusNotFoundError(
                 f"Canonical status not found for feature "
@@ -759,7 +759,7 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> dict[str, list[di
             lanes[lane].sort(key=work_package_sort_key)
     else:
         # New format: scan flat tasks/ directory, lane from event log
-        from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
+        from specify_cli.status import CanonicalStatusNotFoundError
 
         for prompt_file in tasks_dir.glob("WP*.md"):
             try:

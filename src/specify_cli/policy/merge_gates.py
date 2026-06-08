@@ -20,7 +20,7 @@ from typing import Any
 
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
 from specify_cli.policy.config import MergeGateConfig
-from specify_cli.status.models import Lane
+from specify_cli.status import Lane
 
 
 class GateVerdict(StrEnum):
@@ -143,7 +143,7 @@ def _evaluate_evidence_gate(
 ) -> GateResult:
     """Check that all WPs have reviewer approval in the event log."""
     try:
-        from specify_cli.status.store import read_events
+        from specify_cli.status import read_events
 
         events = read_events(feature_dir)
         # Find WPs that reached 'approved' lane.
@@ -232,8 +232,8 @@ def _evaluate_dependency_gate(
     """Check that all WP dependencies are in done lane."""
     try:
         from specify_cli.core.dependency_graph import build_dependency_graph
-        from specify_cli.status.reducer import reduce
-        from specify_cli.status.store import read_events
+        from specify_cli.status import reduce
+        from specify_cli.status import read_events
 
         graph = build_dependency_graph(feature_dir)
         # Merge gate evaluation must remain read-only. Writing status.json here

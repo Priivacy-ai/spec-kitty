@@ -12,7 +12,7 @@ from rich.table import Table
 
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.helpers import console, get_project_root_or_exit
-from specify_cli.core.project_resolver import resolve_worktree_aware_feature_dir
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from specify_cli.text_sanitization import detect_problematic_characters, sanitize_directory
 
@@ -88,7 +88,7 @@ def validate_encoding(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
-    feature_dir = resolve_worktree_aware_feature_dir(repo_root, mission_slug, Path.cwd(), console)
+    feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
 
     if not feature_dir.exists():
         console.print(f"[red]Error:[/red] Feature directory not found: {feature_dir}")

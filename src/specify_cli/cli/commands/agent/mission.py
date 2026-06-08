@@ -42,7 +42,7 @@ from specify_cli.core.worktree import (
 )
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status import COORD_OWNED_STATUS_FILES
-from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
+from specify_cli.status import WPMetadata, read_wp_frontmatter
 from specify_cli.mission import get_mission_type
 from specify_cli.doc_analysis.doc_state import GeneratorConfig
 from specify_cli.ownership import infer_ownership, validate_ownership
@@ -55,7 +55,7 @@ from specify_cli.core.wps_manifest import (
     generate_tasks_md_from_manifest,
 )
 from specify_cli.diagnostics import mark_invocation_succeeded
-from specify_cli.status.bootstrap import bootstrap_canonical_state
+from specify_cli.status import bootstrap_canonical_state
 from specify_cli.sync.events import emit_wp_created, get_emitter
 from specify_cli.sync.feature_flags import is_saas_sync_enabled
 from specify_cli.workspace.context import resolve_feature_worktree
@@ -3216,7 +3216,7 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[
 def _parse_requirement_refs_from_wp_files(wp_files: list[Path]) -> dict[str, list[str]]:
     """Parse requirement refs directly from WP prompt frontmatter."""
     from specify_cli.requirement_mapping import normalize_requirement_refs_value
-    from specify_cli.status.wp_metadata import read_wp_frontmatter
+    from specify_cli.status import read_wp_frontmatter
 
     parsed: dict[str, list[str]] = {}
     for wp_file in wp_files:

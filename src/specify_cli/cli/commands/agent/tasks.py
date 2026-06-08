@@ -30,12 +30,12 @@ from specify_cli.coordination.status_transition import (
     emit_status_transition_transactional,
     read_events_transactional,
 )
-from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
-from specify_cli.status.preflight import is_dossier_snapshot as _is_dossier_snapshot
-from specify_cli.status.progress import PROGRESS_SEMANTICS, compute_done_percentage, compute_weighted_progress
-from specify_cli.status.transitions import resolve_lane_alias
-from specify_cli.status.store import EventPersistenceError, EVENTS_FILENAME
-from specify_cli.status.reducer import SNAPSHOT_FILENAME
+from specify_cli.status import Lane, StatusEvent, TransitionRequest
+from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
+from specify_cli.status import PROGRESS_SEMANTICS, compute_done_percentage, compute_weighted_progress
+from specify_cli.status import resolve_lane_alias
+from specify_cli.status import EventPersistenceError, EVENTS_FILENAME
+from specify_cli.status import SNAPSHOT_FILENAME
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.lanes.persistence import MissingLanesError
@@ -46,9 +46,9 @@ from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.mission import get_mission_type
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import protected_branches
-from specify_cli.status.locking import feature_status_lock
+from specify_cli.status import feature_status_lock
 from specify_cli.core.agent_config import get_auto_commit_default
-from specify_cli.status.bootstrap import bootstrap_canonical_state
+from specify_cli.status import bootstrap_canonical_state
 from specify_cli.core.utils import write_text_within_directory
 from specify_cli.workspace.context import get_normalized_wp, resolve_workspace_for_wp
 
@@ -316,7 +316,7 @@ def _wp_lane_from_status_events(events: list[StatusEvent], wp_id: str) -> Lane:
     """Return a WP's current lane from canonical status events."""
     if not events:
         return Lane.PLANNED
-    from specify_cli.status.reducer import reduce as _reduce_status_events
+    from specify_cli.status import reduce as _reduce_status_events
 
     snapshot = _reduce_status_events(events)
     state = snapshot.work_packages.get(wp_id)
@@ -1032,8 +1032,8 @@ def _check_dependent_warnings(repo_root: Path, mission_slug: str, wp_id: str, ta
     # Check if any dependents are incomplete (not yet done)
     # Lane is event-log-only; read from canonical event log
     try:
-        from specify_cli.status.store import read_events as _dw_read_events
-        from specify_cli.status.reducer import reduce as _dw_reduce
+        from specify_cli.status import read_events as _dw_read_events
+        from specify_cli.status import reduce as _dw_reduce
 
         _dw_events = _dw_read_events(feature_dir)
         _dw_snapshot = _dw_reduce(_dw_events) if _dw_events else None
@@ -2114,9 +2114,7 @@ def move_task(
                 # first. If an unresolved dependency cycle is the reason finalize
                 # could not bootstrap status, surface that as the root cause
                 # (#1589) instead of a "run finalize-tasks" hint that loops.
-                from specify_cli.status.uninitialized_hint import (
-                    uninitialized_status_error,
-                )
+                from specify_cli.status import uninitialized_status_error
 
                 raise RuntimeError(
                     uninitialized_status_error(mission_slug, task_id, feature_dir)
@@ -2167,7 +2165,7 @@ def move_task(
                         and evidence_dict is not None
                     )
                 ):
-                    from specify_cli.status.models import ReviewResult
+                    from specify_cli.status import ReviewResult
 
                     review_section = evidence_dict.get("review", {})
                     hop_review_result = ReviewResult(
@@ -2297,9 +2295,7 @@ def move_task(
             if tracker_ref_values and not _skip_target_commit:
                 try:
                     from specify_cli.frontmatter import write_frontmatter as _write_fm
-                    from specify_cli.status.wp_metadata import (
-                        read_wp_frontmatter as _read_wp_fm,
-                    )
+                    from specify_cli.status import read_wp_frontmatter as _read_wp_fm
 
                     _wp_meta, _body = _read_wp_fm(wp.path)
                     _existing = list(_wp_meta.tracker_refs or [])
@@ -3033,8 +3029,8 @@ def list_tasks(
         # Load canonical lanes from event log
         _lt_feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
         try:
-            from specify_cli.status.store import read_events as _lt_read_events
-            from specify_cli.status.reducer import reduce as _lt_reduce
+            from specify_cli.status import read_events as _lt_read_events
+            from specify_cli.status import reduce as _lt_reduce
 
             _lt_events = _lt_read_events(_lt_feature_dir)
             _lt_snapshot = _lt_reduce(_lt_events) if _lt_events else None
@@ -3236,7 +3232,7 @@ def finalize_tasks(
             raise typer.Exit(1)
 
         from specify_cli.frontmatter import write_frontmatter as _write_fm
-        from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter as _read_wp_fm
+        from specify_cli.status import WPMetadata, read_wp_frontmatter as _read_wp_fm
 
         # --- Pre-loop: read all existing frontmatter for conflict detection (T004) ---
         existing_frontmatter: dict[str, WPMetadata] = {}
@@ -3427,7 +3423,7 @@ def map_requirements(
 ) -> None:
     """Register requirement-to-WP mappings with immediate validation."""
     from specify_cli.frontmatter import write_frontmatter
-    from specify_cli.status.wp_metadata import read_wp_frontmatter
+    from specify_cli.status import read_wp_frontmatter
     from specify_cli.requirement_mapping import (
         compute_coverage,
         normalize_requirement_refs_value,
@@ -3762,8 +3758,8 @@ def validate_workflow(
         # Get lane from event log (canonical source)
         _vw_feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
         try:
-            from specify_cli.status.store import read_events as _vw_read_events
-            from specify_cli.status.reducer import reduce as _vw_reduce
+            from specify_cli.status import read_events as _vw_read_events
+            from specify_cli.status import reduce as _vw_reduce
 
             _vw_events = _vw_read_events(_vw_feature_dir)
             _vw_snapshot = _vw_reduce(_vw_events) if _vw_events else None
@@ -3908,8 +3904,8 @@ def status(
         _st_events: list[StatusEvent] = []
         _st_lanes: dict = {}
         try:
-            from specify_cli.status.store import read_events as _st_read_events
-            from specify_cli.status.reducer import reduce as _st_reduce
+            from specify_cli.status import read_events as _st_read_events
+            from specify_cli.status import reduce as _st_reduce
 
             _st_events = _st_read_events(feature_dir)
             _st_snapshot = _st_reduce(_st_events) if _st_events else None

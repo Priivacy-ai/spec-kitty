@@ -75,7 +75,7 @@ from specify_cli.post_merge.review_artifact_consistency import (
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
 from specify_cli.sync import emit_diff_summary_recorded, emit_mission_closed
 from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
-from specify_cli.status.wp_metadata import read_wp_frontmatter
+from specify_cli.status import read_wp_frontmatter
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from specify_cli.status.lifecycle_events import REVIEWER_SELF_APPROVAL
 
@@ -286,16 +286,33 @@ def _mark_wp_merged_done(
     # writes into local, non-durable file edits.
     resolve_status_surface(repo_root, mission_slug)
     feature_dir = primary_feature_dir
-    from specify_cli.status.models import DoneEvidence, ReviewApproval
+    from specify_cli.status import DoneEvidence, ReviewApproval, WPMetadata
     from specify_cli.coordination.status_transition import (
         emit_status_transition_transactional,
         read_current_wp_state_transactional,
     )
-    from specify_cli.status.emit import TransitionError
-    from specify_cli.status.models import TransitionRequest
-    from specify_cli.status.history_parser import extract_done_evidence
+    from specify_cli.status import TransitionError
+    from specify_cli.status import TransitionRequest
 
-    from specify_cli.status.models import Lane as _Lane
+    from specify_cli.status import Lane as _Lane
+
+    def extract_done_evidence(meta: WPMetadata, wp: str) -> DoneEvidence | None:
+        """Build DoneEvidence from approved review frontmatter, else None.
+
+        Inlined from the migration-only ``status.history_parser`` module (T031):
+        merge is the sole production consumer, so the public ``status`` facade
+        (DoneEvidence/ReviewApproval) is used directly instead of a deep import.
+        """
+        reviewed_by = meta.reviewed_by
+        if meta.review_status == "approved" and reviewed_by and str(reviewed_by).strip():
+            return DoneEvidence(
+                review=ReviewApproval(
+                    reviewer=str(reviewed_by).strip(),
+                    verdict="approved",
+                    reference=f"frontmatter-migration:{wp}",
+                )
+            )
+        return None
 
     lane, _actor = read_current_wp_state_transactional(
         feature_dir=feature_dir,
@@ -318,8 +335,8 @@ def _mark_wp_merged_done(
     # into main without passing through the coordination branch.
     _force_done = False
     if lane == _Lane.PLANNED:
-        from specify_cli.status.lane_reader import get_wp_lane as _get_wp_lane  # noqa: PLC0415
-        from specify_cli.status.transitions import resolve_lane_alias as _resolve_lane_alias  # noqa: PLC0415
+        from specify_cli.status import get_wp_lane as _get_wp_lane  # noqa: PLC0415
+        from specify_cli.status import resolve_lane_alias as _resolve_lane_alias  # noqa: PLC0415
 
         primary_raw = _get_wp_lane(primary_feature_dir, wp_id)  # primary checkout, not coord surface
         try:
@@ -424,10 +441,10 @@ def _assert_merged_wps_reached_done(
     wp_ids: list[str],
 ) -> None:
     """Fail the merge if merged WPs did not reach ``done`` in the event log."""
-    from specify_cli.status.lane_reader import get_wp_lane
-    from specify_cli.status.models import Lane
-    from specify_cli.status.store import StoreError
-    from specify_cli.status.transitions import resolve_lane_alias
+    from specify_cli.status import get_wp_lane
+    from specify_cli.status import Lane
+    from specify_cli.status import StoreError
+    from specify_cli.status import resolve_lane_alias
 
     # Resolve the canonical status surface so reads are on the same side as
     # the writes in _mark_wp_merged_done (fixes coordination-branch divergence).

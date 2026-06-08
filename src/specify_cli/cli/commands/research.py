@@ -13,7 +13,8 @@ from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.helpers import console, get_project_root_or_exit, show_banner
 from specify_cli.core import MISSION_CHOICES
-from specify_cli.core.project_resolver import resolve_template_path, resolve_worktree_aware_feature_dir
+from specify_cli.core.project_resolver import resolve_template_path
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug
 from specify_cli.mission import get_mission_type
 from specify_cli.plan_validation import PlanValidationError, validate_plan_filled
 from specify_cli.task_utils import TaskCliError, find_repo_root
@@ -73,7 +74,7 @@ def research(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    feature_dir = resolve_worktree_aware_feature_dir(repo_root, mission_slug, Path.cwd(), console)
+    feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
     feature_dir.mkdir(parents=True, exist_ok=True)
 
     # Get mission from feature's meta.json (not project-level default)
