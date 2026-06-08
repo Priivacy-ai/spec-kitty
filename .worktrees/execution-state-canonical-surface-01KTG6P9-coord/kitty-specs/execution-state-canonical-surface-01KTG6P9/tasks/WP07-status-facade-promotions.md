@@ -20,7 +20,8 @@ subtasks:
 - T028
 phase: Phase 4 - Facade
 assignee: ''
-agent: ''
+agent: "claude:sonnet:reviewer-renata:reviewer"
+shell_pid: "2864666"
 history:
 - at: '2026-06-07T05:16:24Z'
   actor: system
@@ -92,3 +93,11 @@ Finalize per-submodule promote/demote/route decisions and update `status/__init_
 ## Activity Log
 
 - 2026-06-07T05:16:24Z – system – Prompt created.
+- 2026-06-08T09:05:50Z – claude:opus:python-pedro:implementer – shell_pid=2844466 – Started implementation via action command
+- 2026-06-08T09:10:28Z – claude:opus:python-pedro:implementer – shell_pid=2844466 – Ready for review: finalized 11 REVIEW submodule decisions (8 PROMOTE, 2 ROUTE, 1 PRIVATE-no-rename); added 17 symbols to status/__init__.py __all__ (now 95). Facade import OK, ruff+mypy clean, 2739 status tests green.
+- 2026-06-08T09:13:19Z – claude:opus:reviewer-renata:reviewer – shell_pid=2854112 – Started review via action command
+- 2026-06-08T09:17:37Z – user – shell_pid=2854112 – Moved to planned
+- 2026-06-08T09:18:26Z – claude:sonnet:python-pedro:implementer – shell_pid=2861361 – Started implementation via action command
+- 2026-06-08T09:20:11Z – claude:sonnet:python-pedro:implementer – shell_pid=2861361 – Cycle 2: demoted filter_dossier_snapshots (test-only over-promotion); still importable from status.preflight
+- 2026-06-08T09:20:36Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=2864666 – Started review via action command
+- 2026-06-08T09:21:55Z – user – shell_pid=2864666 – Review passed (cycle 2): filter_dossier_snapshots demoted, is_dossier_snapshot retained, facade 94, green. Cycle-2 reject artifact was the cycle-1 finding now resolved by commit 5f84e2ba0.

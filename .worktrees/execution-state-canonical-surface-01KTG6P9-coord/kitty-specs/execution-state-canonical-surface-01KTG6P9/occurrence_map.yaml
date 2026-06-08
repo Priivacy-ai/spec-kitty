@@ -68,16 +68,16 @@ categories:
         reason: "public validation entry."
       - submodule: status.wp_metadata
         count: 21
-        decision: REVIEW
-        reason: "high count — split: promote read accessors, route writes to MissionStatus."
+        decision: PROMOTE
+        reason: "WP07: ~20 src consumers (runtime, core/worktree, dependency_graph, workspace, ownership, dashboard, bulk_edit, CLI); WPMetadata/read_wp_frontmatter are facade API."
       - submodule: status.wp_state
         count: 4
-        decision: REVIEW
-        reason: "confirm read vs write split."
+        decision: PROMOTE
+        reason: "WP07: WPState/wp_state_for/InvalidTransitionError consumed by runtime_bridge + tasks_cli; internal FSM state classes (InProgressState/InReviewState) NOT promoted (test-only)."
       - submodule: status.adapters
         count: 4
-        decision: REVIEW
-        reason: "confirm whether external consumers need it or it is internal."
+        decision: PROMOTE
+        reason: "WP07: register_* sync handlers + fire_saas_fanout (coordination/outbound) promoted; fire_dossier_sync stays PRIVATE (only the exempt status_transition consumes it)."
       - submodule: status.store
         count: 42
         decision: ROUTE
@@ -108,44 +108,44 @@ categories:
         reason: "lifecycle access — through the aggregate."
       - submodule: status.event_log_merge
         count: 1
-        decision: REVIEW
-        reason: "confirm internal vs external."
+        decision: PROMOTE
+        reason: "WP07: merge_event_log_files/EventLogMergeError consumed by cli/merge_driver (raw git merge driver, not a mission aggregate → facade, not ROUTE)."
       - submodule: status.transition_context
         count: 1
-        decision: REVIEW
-        reason: "confirm internal vs external."
+        decision: PROMOTE
+        reason: "WP07: FSM type surface for wp_state_for; kept in __all__ (no external src consumer but part of the public FSM types)."
       - submodule: status.aggregate
         count: 1
         decision: PROMOTE
         reason: "MissionStatus itself — import from the facade, not the submodule."
       - submodule: status.locking
         count: 5
-        decision: REVIEW
-        reason: "likely PRIVATE unless a genuine external lock consumer exists."
+        decision: PROMOTE
+        reason: "WP07: feature_status_lock/FeatureStatusLockTimeoutError consumed by cli status/workflow/tasks (transaction.py is exempt plumbing)."
       - submodule: status.identity_audit
         count: 5
-        decision: REVIEW
-        reason: "audit tooling — confirm consumer set."
+        decision: PROMOTE
+        reason: "WP07: IdentityState/classify_mission/audit_repo/summarize/find_duplicate_prefixes/find_ambiguous_selectors consumed by audit/* + cli/doctor."
       - submodule: status.bootstrap
         count: 2
-        decision: REVIEW
-        reason: "bootstrap path — likely PROMOTE a narrow entry."
+        decision: PROMOTE
+        reason: "WP07: bootstrap_canonical_state/BootstrapResult consumed by agent/mission + agent/tasks."
       - submodule: status.uninitialized_hint
         count: 2
-        decision: REVIEW
-        reason: "hint helper — PROMOTE or PRIVATE."
+        decision: PROMOTE
+        reason: "WP07: uninitialized_status_error consumed by agent/workflow + agent/tasks."
       - submodule: status.preflight
         count: 1
-        decision: REVIEW
-        reason: "single site — PROMOTE or inline."
+        decision: PROMOTE
+        reason: "WP07: is_dossier_snapshot consumed by agent/tasks -> PROMOTE; filter_dossier_snapshots is test-only (no production consumer) -> NOT promoted, importable from status.preflight (cycle-2 review fix)."
       - submodule: status.history_parser
         count: 1
         decision: PRIVATE
         reason: "migration-only module; remove external import."
       - submodule: status.doctor
         count: 1
-        decision: REVIEW
-        reason: "doctor tooling — confirm."
+        decision: ROUTE
+        reason: "WP07: run_doctor is a mission-level diagnostic read (single consumer cli/agent/status) — routed via MissionStatus in WP10, not promoted."
 
   cli_commands:
     action: manual_review
@@ -197,3 +197,6 @@ exceptions:
   - path: src/specify_cli/coordination/transaction.py
     action: do_not_change
     reason: "BookkeepingTransaction infrastructure — exempt; internals unchanged (NFR-006)."
+  - path: "kitty-specs/**"
+    action: manual_review
+    reason: "Mission planning + status artifacts (status.events.jsonl, status.json, ADR/findings docs, .gitkeep). Auto-committed by the implement/move-task flow onto every lane branch; they carry no `specify_cli.status.*` import to rewrite, so they are outside the bulk-edit surface. Non-blocking review surfacing only."

@@ -32,12 +32,12 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T001 Author lane-worktree and direct-to-target fixtures in `tests/architectural/test_execution_context_parity.py` (WP01)
-- [ ] T002 Drive the full `next→implement→move-task→review→status` sequence from the repository-root-checkout CWD (WP01)
-- [ ] T003 Drive the same sequence from lane-worktree CWD and assert parity of WP identity, lane transitions, status output (WP01)
-- [ ] T004 Drive direct-to-target mode; assert mode-correct branch and refusal of unauthorized mainline writes (WP01)
-- [ ] T005 Add non-vacuous negative control (inject re-derivation → ratchet fails) (WP01)
-- [ ] T006 De-overclaim the docstring; register the ratchet as a CI gate for the targeted paths (WP01)
+- [x] T001 Author lane-worktree and direct-to-target fixtures in `tests/architectural/test_execution_context_parity.py` (WP01)
+- [x] T002 Drive the full `next→implement→move-task→review→status` sequence from the repository-root-checkout CWD (WP01)
+- [x] T003 Drive the same sequence from lane-worktree CWD and assert parity of WP identity, lane transitions, status output (WP01)
+- [x] T004 Drive direct-to-target mode; assert mode-correct branch and refusal of unauthorized mainline writes (WP01)
+- [x] T005 Add non-vacuous negative control (inject re-derivation → ratchet fails) (WP01)
+- [x] T006 De-overclaim the docstring; register the ratchet as a CI gate for the targeted paths (WP01)
 
 ### Dependencies
 
@@ -58,10 +58,10 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T007 Write the design ADR in `architecture/3.x/adr/` (module name, public API shape, context-object abstraction, Strangler migration order) (WP02)
-- [ ] T008 Create `src/mission_runtime/` package with `__init__.py` exposing the curated `__all__` (WP02)
-- [ ] T009 Register `mission_runtime` in `_DEFINED_LAYERS` (`tests/architectural/test_layer_rules.py`) and the `conftest.py` landscape fixture (WP02)
-- [ ] T010 Add `tests/architectural/test_mission_runtime_surface.py` (sole-resolver / no-internal-import enforcement) (WP02)
+- [x] T007 Write the design ADR in `architecture/3.x/adr/` (module name, public API shape, context-object abstraction, Strangler migration order) (WP02)
+- [x] T008 Create `src/mission_runtime/` package with `__init__.py` exposing the curated `__all__` (WP02)
+- [x] T009 Register `mission_runtime` in `_DEFINED_LAYERS` (`tests/architectural/test_layer_rules.py`) and the `conftest.py` landscape fixture (WP02)
+- [x] T010 Add `tests/architectural/test_mission_runtime_surface.py` (sole-resolver / no-internal-import enforcement) (WP02)
 
 ### Dependencies
 
@@ -82,10 +82,10 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T011 Move `ExecutionContext`/`ActionContext` value object into `src/mission_runtime/context.py` (WP03)
-- [ ] T012 Relocate `resolve_action_context` into `src/mission_runtime/resolution.py` as a Stage-C façade delegating to the existing resolver (WP03)
-- [ ] T013 Add a thin re-export shim at `src/specify_cli/core/execution_context.py` (WP03)
-- [ ] T014 Update internal references; keep the parity ratchet green (WP03)
+- [x] T011 Move `ExecutionContext`/`ActionContext` value object into `src/mission_runtime/context.py` (WP03)
+- [x] T012 Relocate `resolve_action_context` into `src/mission_runtime/resolution.py` as a Stage-C façade delegating to the existing resolver (WP03)
+- [x] T013 Add a thin re-export shim at `src/specify_cli/core/execution_context.py` (WP03)
+- [x] T014 Update internal references; keep the parity ratchet green (WP03)
 
 ### Dependencies
 
@@ -106,12 +106,12 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T015 Route `runtime/next/runtime_bridge.py` query-mode through `resolve_action_context` (WP04)
-- [ ] T016 Route `cli/commands/agent/workflow.py` fix-mode `repo_root`/`target_branch` through `resolve_action_context` (WP04)
-- [ ] T017 Implement mode-correct target-branch resolution (planning/direct-to-target/worktree) and refuse unauthorized mainline writes (WP04)
-- [ ] T018 Verify the parity ratchet stays green across all modes (WP04)
-- [ ] T052 Relocate the `runtime_bridge.py` operational-context builders (`build_operational_context_for_claim`, `_build_operational_context_for_decision`, `_resolve_tech_stack_for_profile`) into the umbrella; `runtime_bridge` consumes the umbrella API (bounded runtime_bridge exec-state extraction, operator decision 2026-06-08; realizes IC-02 for the runtime_bridge surface, kept in WP04 since it owns `runtime_bridge.py`) (WP04)
-- [ ] T053 Collapse the `runtime_bridge.py` path/feature-dir/coord-branch/ULID resolvers (`_primary_runtime_feature_dir`, `_resolve_runtime_feature_dir`, `_resolve_run_dir_for_mission`, `_resolve_coordination_branch`, `_resolve_mission_ulid`) into the umbrella's single resolver; fix `candidate_feature_dir_for_mission` / `coordination/surface_resolver.py::resolve_status_surface` to resolve the coord feature-dir/status path **exactly once** (no nested `.worktrees/<m>-coord/.worktrees/…` double-resolution; ignore nested `.worktrees/`) — FR-036, #1772 Bugs 1/2 (WP04)
+- [x] T015 Route `runtime/next/runtime_bridge.py` query-mode through `resolve_action_context` (WP04)
+- [x] T016 Route `cli/commands/agent/workflow.py` fix-mode `repo_root`/`target_branch` through `resolve_action_context` (WP04)
+- [x] T017 Implement mode-correct target-branch resolution (planning/direct-to-target/worktree) and refuse unauthorized mainline writes (WP04)
+- [x] T018 Verify the parity ratchet stays green across all modes (WP04)
+- [x] T052 Relocate the `runtime_bridge.py` operational-context builders (`build_operational_context_for_claim`, `_build_operational_context_for_decision`, `_resolve_tech_stack_for_profile`) into the umbrella; `runtime_bridge` consumes the umbrella API (bounded runtime_bridge exec-state extraction, operator decision 2026-06-08; realizes IC-02 for the runtime_bridge surface, kept in WP04 since it owns `runtime_bridge.py`) (WP04)
+- [x] T053 Collapse the `runtime_bridge.py` path/feature-dir/coord-branch/ULID resolvers (`_primary_runtime_feature_dir`, `_resolve_runtime_feature_dir`, `_resolve_run_dir_for_mission`, `_resolve_coordination_branch`, `_resolve_mission_ulid`) into the umbrella's single resolver; fix `candidate_feature_dir_for_mission` / `coordination/surface_resolver.py::resolve_status_surface` to resolve the coord feature-dir/status path **exactly once** (no nested `.worktrees/<m>-coord/.worktrees/…` double-resolution; ignore nested `.worktrees/`) — FR-036, #1772 Bugs 1/2 (WP04)
 
 ### Dependencies
 
@@ -132,9 +132,9 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T019 Inventory the 8 `_resolve_feature_dir`/feature-dir resolver implementations; select the canonical one (WP05)
-- [ ] T020 Repoint the 7 redundant call sites to the canonical resolver (WP05)
-- [ ] T021 Delete the redundant implementations (no dead code) (WP05)
+- [x] T019 Inventory the 8 `_resolve_feature_dir`/feature-dir resolver implementations; select the canonical one (WP05)
+- [x] T020 Repoint the 7 redundant call sites to the canonical resolver (WP05)
+- [x] T021 Delete the redundant implementations (no dead code) (WP05)
 
 ### Dependencies
 
@@ -155,10 +155,10 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T022 Enumerate the remaining raw `main_repo_root / "kitty-specs" / mission_slug`-class constructions (WP06)
-- [ ] T023 Route each through the `mission_runtime` canonical surface (WP06)
-- [ ] T024 Delete now-unreachable path-builder functions (WP06)
-- [ ] T025 Confirm the SC-004 grep returns zero (WP06)
+- [x] T022 Enumerate the remaining raw `main_repo_root / "kitty-specs" / mission_slug`-class constructions (WP06)
+- [x] T023 Route each through the `mission_runtime` canonical surface (WP06)
+- [x] T024 Delete now-unreachable path-builder functions (WP06)
+- [x] T025 Confirm the SC-004 grep returns zero (WP06)
 
 ### Dependencies
 
@@ -179,9 +179,9 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T026 Finalize promote/demote/route decisions per submodule using `occurrence_map.yaml` (resolve all REVIEW entries) (WP07)
-- [ ] T027 Add promoted symbols to `status/__init__.py` `__all__`; `_`-prefix demoted symbols (WP07)
-- [ ] T028 Update `status/` internal references for any renames (WP07)
+- [x] T026 Finalize promote/demote/route decisions per submodule using `occurrence_map.yaml` (resolve all REVIEW entries) (WP07)
+- [x] T027 Add promoted symbols to `status/__init__.py` `__all__`; `_`-prefix demoted symbols (WP07)
+- [x] T028 Update `status/` internal references for any renames (WP07)
 
 ### Dependencies
 
@@ -202,10 +202,10 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T029 Consult `occurrence_map.yaml`; rewrite PROMOTE imports to the facade (WP08)
-- [ ] T030 Rewrite ROUTE imports to `MissionStatus` calls (WP08)
-- [ ] T031 Handle REVIEW/PRIVATE submodules per the WP07 decision (WP08)
-- [ ] T032 Preserve the `coordination/` plumbing exemptions (WP08)
+- [x] T029 Consult `occurrence_map.yaml`; rewrite PROMOTE imports to the facade (WP08)
+- [x] T030 Rewrite ROUTE imports to `MissionStatus` calls (WP08)
+- [x] T031 Handle REVIEW/PRIVATE submodules per the WP07 decision (WP08)
+- [x] T032 Preserve the `coordination/` plumbing exemptions (WP08)
 
 ### Dependencies
 

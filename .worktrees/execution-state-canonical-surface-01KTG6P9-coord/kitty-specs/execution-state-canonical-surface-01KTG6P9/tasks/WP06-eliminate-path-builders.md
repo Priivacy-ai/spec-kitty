@@ -22,7 +22,8 @@ subtasks:
 - T025
 phase: Phase 3 - Strangle
 assignee: ''
-agent: ''
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "2831026"
 history:
 - at: '2026-06-07T05:16:24Z'
   actor: system
@@ -99,3 +100,7 @@ Route or delete the remaining ~125 raw `main_repo_root / "kitty-specs" / mission
 ## Activity Log
 
 - 2026-06-07T05:16:24Z – system – Prompt created.
+- 2026-06-08T08:35:50Z – claude:opus:randy-reducer:implementer – shell_pid=2777783 – Started implementation via action command
+- 2026-06-08T08:57:11Z – claude:opus:randy-reducer:implementer – shell_pid=2777783 – Ready for review: routed/eliminated raw feature-dir path-builders to canonical resolver. Real inline builders outside canonical+status: 5 routed (paths.py, git_ops.py, worktree_topology.py via candidate_feature_dir_for_mission; research/validate_tasks/validate_encoding via resolve_feature_dir_for_slug; materialize via resolve_feature_dir_for_slug) + 1 dead resolver deleted (resolve_worktree_aware_feature_dir). #1681 SC-004 architectural ratchet now fully GREEN (was red on base). 1 justified-exempt: events/decision_log.py:88 (sanctioned constructor file per #1681 allowlist, caller-resolved worktree_root). WP01 ratchet + FR-036 surface green; ruff/mypy clean on changed files.
+- 2026-06-08T08:57:58Z – claude:opus:reviewer-renata:reviewer – shell_pid=2831026 – Started review via action command
+- 2026-06-08T09:04:50Z – user – shell_pid=2831026 – Review passed (reviewer-renata + paula-patterns): SC-004 #1681 ratchet GREEN and genuinely enforcing (verified it FAILs on a synthetic raw kitty-specs/slug offender; every KITTY_SPECS_DIR/word + literal kitty-specs match across src is accounted for by _SEMANTIC_CONSTRUCTOR_FILES allowlist or status/+migration exempts). The 1 remaining builder decision_log.py:88 is correctly exempt: runtime_bridge._wrap_with_decision_git_log already coord-resolves worktree_root via CoordinationWorkspace.worktree_path/.resolve, so re-routing would reintroduce #1772 coord-nesting; it is in the allowlist. Deleted resolve_worktree_aware_feature_dir has ZERO surviving callers (grep src/ tests/ clean) + exports dropped; the removed test_resolve_worktree_awareness pinned only the deleted pre-083 raw-slug behavior, not surviving contract. Circular-import fix sound: coordination/__init__ -> surface_resolver -> _read_path_resolver cycle is real; lazy CoordinationWorkspace import breaks it (verified cold import of coordination+materialize succeeds), no layer-spine violation. Routed sites behavior-preserving: candidate_feature_dir_for_mission/resolve_feature_dir_for_slug return identical root/kitty-specs/<slug> for legacy missions and additionally honor -<mid8>+coord topology (latent pre-083 raw-slug bug fix, strict superset). ruff clean; mypy 2 no-any-return errors are pre-existing at _read_path_resolver.py:181/196 (untouched by WP06). 1 test failure test_paths_unit::test_locate_project_root_no_marker is an ENV leak (stray /tmp/.kittify scratch dir) - PROVEN: passes once moved; locate_project_root unchanged. No WP06-caused regression.

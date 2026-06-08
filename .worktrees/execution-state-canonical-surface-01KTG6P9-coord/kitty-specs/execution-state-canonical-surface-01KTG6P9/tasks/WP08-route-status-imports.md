@@ -22,7 +22,8 @@ subtasks:
 - T032
 phase: Phase 4 - Facade
 assignee: ''
-agent: ''
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "2880743"
 history:
 - at: '2026-06-07T05:16:24Z'
   actor: system
@@ -94,3 +95,7 @@ Rewrite the ~225 deep `status.*` submodule imports outside `status/` to the faca
 ## Activity Log
 
 - 2026-06-07T05:16:24Z – system – Prompt created.
+- 2026-06-08T09:22:55Z – claude:opus:python-pedro:implementer – shell_pid=2867679 – Started implementation via action command
+- 2026-06-08T09:34:17Z – claude:opus:python-pedro:implementer – shell_pid=2867679 – Ready for review: deep status imports 219->21. 199 stmts rewritten to facade (T029 PROMOTE + on-facade ROUTE: store/reducer/lane_reader/emit/lifecycle). T031: extract_done_evidence inlined into merge.py. Residual 21 = ROUTE-deferred-to-WP10 (lifecycle_events x11, work_package_lifecycle x4, reducer.materialize_snapshot x2, doctor.run_doctor x1, aggregate.InvalidMissionSlug x1 — none on facade, need MissionStatus consumption refactor) + 1 documented status<->workspace cycle-breaker (workspace/context.py). Ratchet+status green (2739 passed); ruff/mypy zero new issues vs HEAD.
+- 2026-06-08T09:35:11Z – claude:opus:reviewer-renata:reviewer – shell_pid=2880743 – Started review via action command
+- 2026-06-08T09:41:10Z – user – shell_pid=2880743 – Review passed (reviewer-renata + paula-patterns): 199 deep-import rewrites verified (every PROMOTE target on facade __all__, no rewrite to non-exported name); 21 residual EACH justified — 20 ROUTE-deferred-to-WP10 (lifecycle_events/work_package_lifecycle/reducer.materialize_snapshot/doctor.run_doctor/aggregate.InvalidMissionSlug — all confirmed NOT on facade __all__) + 1 REAL cycle-breaker (workspace/context.py: status.emit imports specify_cli.workspace during status/__init__ exec, facade form would ImportError; impl correctly facade-routed the call-time imports in same file); history_parser.extract_done_evidence inline in merge.py behavior-equivalent (WPMetadata branch, same approval gate + DoneEvidence/ReviewApproval facade types); fire_dossier_sync left private (only exempt status_transition consumes); exemptions zero diff; ratchet+status suites 2739 passed; status_module_boundary 4 passed; ruff+mypy clean on sampled changed files (0 new); no kitty-specs staged.
