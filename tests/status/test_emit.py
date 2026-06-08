@@ -344,6 +344,26 @@ class TestEmitStatusTransition:
         assert len(events) == 2
         assert events[-1].event_id == event.event_id
 
+    def test_force_cannot_persist_genesis_as_target_lane(self, feature_dir: Path):
+        """Genesis is a non-display seed source, never a persisted target lane."""
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+
+        with pytest.raises(TransitionError, match="Illegal transition: planned -> genesis"):
+            emit_status_transition(TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="genesis",
+                actor="admin",
+                force=True,
+                reason="force regression",
+            ))
+
+        events = read_events(feature_dir)
+        assert [(str(event.from_lane), str(event.to_lane)) for event in events] == [
+            ("genesis", "planned")
+        ]
+
     def test_snapshot_materialized(self, feature_dir: Path):
         """Snapshot file is written after successful emit."""
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")

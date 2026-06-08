@@ -461,8 +461,8 @@ def _count_wps_by_lane(tasks_dir: Path) -> dict[str, int]:
     """Count work packages by lane from the canonical event log.
 
     Raises ``CanonicalStatusNotFoundError`` when the event log is absent.
-    WPs not present in the event log are counted as ``"planned"``
-    (mapped from ``"uninitialized"``).
+    WPs not present in the event log are treated as ``genesis`` and excluded
+    from display counts until finalize-tasks seeds them.
 
     Lane-to-column mapping is driven by :meth:`WPState.display_category`
     via :data:`_KANBAN_COLUMN_MAP`.
@@ -484,12 +484,11 @@ def _count_wps_by_lane(tasks_dir: Path) -> dict[str, int]:
         wp_id_match = re.match(r"^(WP\d+)", stem, re.IGNORECASE)
         wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
 
-        lane = event_lanes.get(wp_id, "uninitialized")
+        lane = event_lanes.get(wp_id, Lane.GENESIS)
 
-        # Resolve via WPState — "uninitialized" is not a valid lane, so map
-        # it to "planned" before querying the state object.
-        if lane == "uninitialized":
-            lane = "planned"
+        # Genesis/uninitialized WPs are non-display and must not inflate planned.
+        if lane in {Lane.GENESIS, Lane.GENESIS.value, "uninitialized"}:
+            continue
         state = wp_state_for(lane)
         column = _KANBAN_COLUMN_FOR_LANE.get(state.lane, "planned")
         if column in counts:
