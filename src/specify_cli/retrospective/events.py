@@ -220,7 +220,7 @@ def emit_retrospective_event(
 
     logger.debug("Appended retrospective event %s (%s) to %s", event_id, event_name, events_path)
     try:
-        from specify_cli.status.reducer import materialize
+        from specify_cli.status import materialize
 
         materialize(feature_dir)
     except Exception as exc:  # noqa: BLE001 - append succeeded; keep event durable

@@ -97,7 +97,6 @@ _EXCLUDED_PREFIXES = [
     "migration/",
 ]
 _EXCLUDED_FILES = [
-    "status/history_parser.py",
     "task_metadata_validation.py",
     "cli/commands/validate_tasks.py",      # legacy command (migration-only)
 ]

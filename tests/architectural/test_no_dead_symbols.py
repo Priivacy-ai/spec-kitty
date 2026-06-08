@@ -370,6 +370,9 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle::MIGRATION_ID",
         "specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle::TARGET_VERSION",
         "specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle::UnifiedBundleMigration",
+        # 3.2.0rc39 orientation-block refresh migration: auto-discovered; no
+        # static importer. Class is exercised via the MigrationRegistry.
+        "specify_cli.upgrade.migrations.m_3_2_0rc39_refresh_orientation_block::RefreshOrientationBlockMigration",
         "specify_cli.upgrade.migrations::MigrationDiscoveryError",
         "specify_cli.validators.csv_schema::CSVSchemaValidation",
         "specify_cli.validators.paths::PathValidationResult",
@@ -458,12 +461,6 @@ _CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH: frozenset[str] = frozenset(
         # rewiring and test fixtures.
         "specify_cli.missions._create::CoordinationBranchResult",
         "specify_cli.missions._create::coordination_branch_name",
-        # STATUS_READ_PATH_NOT_FOUND_CODE / StatusReadPathNotFound are
-        # the public error contract of the read-path resolver used by
-        # WP08's CLI status mediation. Today the CLI uses the resolver
-        # function directly; the structured error code is exercised by
-        # tests/integration/test_cli_status_mediation.py.
-        "specify_cli.missions._read_path_resolver::STATUS_READ_PATH_NOT_FOUND_CODE",
         # resolve_planning_branch_from_meta is the pure-helper variant
         # used by tests/specify_cli/cli/commands/agent/test_mission_finalize_tasks.py;
         # production callers route through the IO-shaped wrapper that

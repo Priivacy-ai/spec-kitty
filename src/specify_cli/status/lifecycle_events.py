@@ -258,6 +258,70 @@ def _canonical_lifecycle_payload_for_saas(
     return projected
 
 
+def repo_root_for_lifecycle_log(log_path: Path | None) -> Path | None:
+    """Public alias for :func:`_repo_root_for_lifecycle_log`.
+
+    Exposed on the ``status`` facade so the sync fan-out handler can resolve the
+    repo root for a lifecycle log without reaching into a ``status`` submodule
+    (repo-wide import-boundary contract). Pure helper, no side effects.
+    """
+    return _repo_root_for_lifecycle_log(log_path)
+
+
+def build_saas_lifecycle_queue_event(
+    envelope: Mapping[str, Any],
+    *,
+    build_id: str,
+    project_uuid: str,
+    project_slug: str | None,
+    node_id: str,
+    lamport_clock: int,
+) -> dict[str, Any] | None:
+    """Project a local lifecycle ``envelope`` to the strict SaaS queue event.
+
+    Encapsulates the lifecycle-specific shaping (canonical payload projection,
+    strict contract validation, and canonical-envelope assembly) so the sync
+    fan-out handler can build a queueable event without importing ``status``
+    internals directly (repo-wide import-boundary contract). Identity- and
+    clock-derived primitives are passed in by the caller, keeping this module
+    free of sync/identity/queue dependencies.
+
+    Returns ``None`` when the envelope is not a queueable lifecycle event
+    (missing/invalid ``event_type``, ``payload``, or ``aggregate_type``).
+    """
+    event_type = envelope.get("event_type")
+    payload = envelope.get("payload")
+    if not isinstance(event_type, str) or not isinstance(payload, Mapping):
+        return None
+
+    aggregate_type = envelope.get("aggregate_type")
+    if not isinstance(aggregate_type, str):
+        return None
+
+    saas_payload = _canonical_lifecycle_payload_for_saas(event_type, payload)
+    _validate_lifecycle_payload(event_type, saas_payload)
+
+    event_id = _generate_event_id()
+    aggregate_id = envelope.get("aggregate_id") or payload.get("mission_slug") or event_id
+    # canonical-producer-exempt: #1198 -- lifecycle-to-SaaS wire envelope.
+    return {
+        "event_id": event_id,
+        "event_type": event_type,
+        "aggregate_id": str(aggregate_id),
+        "aggregate_type": aggregate_type,
+        "schema_version": "3.0.0",
+        "build_id": build_id,
+        "payload": saas_payload,
+        "node_id": node_id,
+        "lamport_clock": lamport_clock,
+        "causation_id": None,
+        "correlation_id": event_id,
+        "timestamp": envelope.get("timestamp") or _now_iso(),
+        "project_uuid": project_uuid,
+        "project_slug": project_slug or envelope.get("project_slug"),
+    }
+
+
 def _build_saas_lifecycle_event(
     envelope: Mapping[str, Any],
     *,
@@ -777,4 +841,6 @@ __all__ = [
     "emit_reviewer_self_approval",
     "read_lifecycle_events",
     "has_non_bootstrap_status_history",
+    "repo_root_for_lifecycle_log",
+    "build_saas_lifecycle_queue_event",
 ]

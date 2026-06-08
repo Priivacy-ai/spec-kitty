@@ -2,16 +2,7 @@
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from pathlib import Path
-
-from rich.console import Console
-
-ConsoleType = Console | None
-
-
-def _resolve_console(console: ConsoleType) -> Console:
-    return console if console is not None else Console()
 
 
 def locate_project_root(start: Path | None = None) -> Path | None:
@@ -68,41 +59,7 @@ def resolve_template_path(project_root: Path, mission_type: str, template_subpat
     return None
 
 
-def resolve_worktree_aware_feature_dir(
-    repo_root: Path,
-    mission_slug: str,
-    cwd: Path | None = None,
-    console: ConsoleType = None,
-) -> Path:
-    """Resolve the correct feature directory, preferring worktree locations when available."""
-    resolved_console = _resolve_console(console)
-    current_dir = (cwd or Path.cwd()).resolve()
-
-    parts = current_dir.parts
-    for idx, part in enumerate(parts):
-        if part == ".worktrees" and idx + 1 < len(parts) and parts[idx + 1] == mission_slug:
-            worktree_root = Path(*parts[: idx + 2])
-            feature_dir = worktree_root / KITTY_SPECS_DIR / mission_slug
-            resolved_console.print(f"[green]✓[/green] Using worktree location: {feature_dir}")
-            return feature_dir
-
-    worktree_path = repo_root / ".worktrees" / mission_slug
-    if worktree_path.exists():
-        feature_dir = worktree_path / KITTY_SPECS_DIR / mission_slug
-        resolved_console.print(f"[green]✓[/green] Found worktree, using: {feature_dir}")
-        resolved_console.print(f"[yellow]Tip:[/yellow] Run commands from {worktree_path} for better isolation")
-        return feature_dir
-
-    feature_dir = repo_root / KITTY_SPECS_DIR / mission_slug
-    resolved_console.print(f"[yellow]⚠[/yellow] No worktree found, using root location: {feature_dir}")
-    resolved_console.print(
-        f"[yellow]Tip:[/yellow] Consider creating a worktree with: git worktree add .worktrees/{mission_slug} {mission_slug}"  # noqa: E501
-    )
-    return feature_dir
-
-
 __all__ = [
     "locate_project_root",
     "resolve_template_path",
-    "resolve_worktree_aware_feature_dir",
 ]

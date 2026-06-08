@@ -407,7 +407,11 @@ def check_issue_matrix(feature_dir: Path) -> list[Finding]:
                 category=Category.ISSUE_MATRIX,
                 wp_id=None,
                 message=str(diagnostic.get("message", "issue-matrix.md contains an unresolved issue verdict.")),
-                recommended_action="Replace unknown/deferred issue verdicts with fixed, verified-already-fixed, or a documented follow-up.",
+                recommended_action=(
+                    "Replace unknown/deferred issue verdicts with fixed, "
+                    "verified-already-fixed, a documented follow-up, or "
+                    "in-mission (until a later WP in this mission closes it)."
+                ),
             )
         )
 

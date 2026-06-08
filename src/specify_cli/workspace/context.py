@@ -23,9 +23,12 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug
 from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals
 from specify_cli.ownership.models import ExecutionMode
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
+# Deep import: status.emit imports this module during status/__init__ execution,
+# so the status facade is not yet initialized here — importing from it would cycle.
 from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
 
 
@@ -33,13 +36,6 @@ _FEATURE_CONTEXT_INDEX_CACHE: dict[tuple[str, str], dict[str, WorkspaceContext]]
 _FEATURE_WP_METADATA_CACHE: dict[tuple[str, str], dict[str, NormalizedWorkPackage]] = {}
 _FEATURE_WP_METADATA_ERROR_CACHE: dict[tuple[str, str], dict[str, ValueError]] = {}
 _FEATURE_WP_METADATA_SNAPSHOT_CACHE: dict[tuple[str, str], tuple[tuple[str, int], ...]] = {}
-
-
-def _resolve_feature_dir(repo_root: Path, mission_slug: str) -> Path:
-    from specify_cli.lanes.branch_naming import mid8_from_slug
-    from specify_cli.missions._read_path_resolver import resolve_mission_read_path
-
-    return resolve_mission_read_path(repo_root, mission_slug, mid8_from_slug(mission_slug))
 
 
 @dataclass(frozen=True)
@@ -361,7 +357,7 @@ def resolve_active_wp_for_branch(
         )
 
     context = matching_contexts[0]
-    feature_dir = _resolve_feature_dir(repo_root, context.mission_slug)
+    feature_dir = resolve_feature_dir_for_slug(repo_root, context.mission_slug)
     lane_wp_ids = _context_lane_wp_ids(context)
 
     if not feature_dir.is_dir():
@@ -372,8 +368,8 @@ def resolve_active_wp_for_branch(
         )
 
     try:
-        from specify_cli.status.lane_reader import get_all_wp_lanes
-        from specify_cli.status.models import Lane
+        from specify_cli.status import get_all_wp_lanes
+        from specify_cli.status import Lane
 
         lanes_by_wp = get_all_wp_lanes(feature_dir)
         active_candidates = [
@@ -557,7 +553,7 @@ def build_normalized_wp_index(
     callers share one canonical classification result.
     """
     cache_key = _normalized_feature_cache_key(repo_root, mission_slug)
-    feature_dir = _resolve_feature_dir(repo_root, mission_slug)
+    feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
     tasks_dir = feature_dir / "tasks"
     snapshot = _normalized_feature_snapshot(tasks_dir)
     cached = _FEATURE_WP_METADATA_CACHE.get(cache_key)
@@ -605,7 +601,7 @@ def get_normalized_wp(
         error = _FEATURE_WP_METADATA_ERROR_CACHE.get(cache_key, {}).get(wp_id)
         if error is not None:
             raise error
-        raise ValueError(f"Work package {wp_id} was not found under {_resolve_feature_dir(repo_root, mission_slug) / 'tasks'}")
+        raise ValueError(f"Work package {wp_id} was not found under {resolve_feature_dir_for_slug(repo_root, mission_slug) / 'tasks'}")
     return entry
 
 
@@ -643,7 +639,7 @@ def resolve_workspace_for_wp(
         )
         # Try to populate lane_wp_ids from lanes.json if available.
         lane_wp_ids: list[str] = []
-        feature_dir = _resolve_feature_dir(repo_root, mission_slug)
+        feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
         lanes_manifest = read_lanes_json(feature_dir)
         if lanes_manifest is not None:
             planning_lane = lanes_manifest.lane_for_wp(wp_id)
@@ -681,7 +677,7 @@ def resolve_workspace_for_wp(
             context=context,
         )
 
-    feature_dir = _resolve_feature_dir(repo_root, mission_slug)
+    feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.compute import PLANNING_LANE_ID, is_planning_lane
     from specify_cli.lanes.persistence import require_lanes_json
@@ -737,7 +733,7 @@ def resolve_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:
         if candidate.is_dir():
             return candidate
 
-    feature_dir = _resolve_feature_dir(repo_root, mission_slug)
+    feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
     from specify_cli.lanes.persistence import read_lanes_json
 
     lanes_manifest = read_lanes_json(feature_dir)

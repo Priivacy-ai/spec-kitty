@@ -217,6 +217,9 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # core-misc suite. Pre-existing upstream debt, not a mission regression.
         "specify_cli.upgrade.migrations.m_3_3_0_session_presence_all_harnesses",
         "specify_cli.upgrade.migrations.m_3_3_0_session_presence_claude_code",
+        # 3.2.0rc39 orientation-block refresh migration: auto-discovered via
+        # pkgutil.iter_modules; never statically imported by runtime code.
+        "specify_cli.upgrade.migrations.m_3_2_0rc39_refresh_orientation_block",
     }
 )
 

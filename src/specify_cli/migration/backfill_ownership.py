@@ -106,10 +106,19 @@ def backfill_ownership(feature_dir: Path, feature_slug: str) -> None:
         _m_code = re.match(r"^(WP\d+)", wp_file.stem)
         _wp_code_key = _m_code.group(1) if _m_code else wp_file.stem
 
-        # Skip if all three ownership fields already present
+        # Skip if all ownership fields already present.
+        #
+        # ``scope`` is human-authored only (no inference path — see
+        # specify_cli.ownership.inference.infer_ownership). It is *scope-aware*
+        # here only so the guard does not treat a WP as fully resolved while
+        # silently ignoring a human-authored ``scope`` (FR-028): when scope is
+        # present it must round-trip through the canonical owner
+        # (OwnershipManifest.from_frontmatter) on every write below, never via
+        # incidental dict passthrough.
         has_mode = "execution_mode" in frontmatter
         has_files = "owned_files" in frontmatter
         has_surface = "authoritative_surface" in frontmatter
+        has_scope = "scope" in frontmatter
         if has_mode and has_files and has_surface:
             logger.debug("Ownership already present for %s — skipping", wp_file.name)
             # Still gather for validation
@@ -166,6 +175,18 @@ def backfill_ownership(feature_dir: Path, feature_slug: str) -> None:
             current_files: list[str] = updates.get("owned_files") or frontmatter.get("owned_files") or []  # MIGRATION-ONLY: raw dict read-mutate-write
             surface = infer_authoritative_surface(current_files)
             updates["authoritative_surface"] = surface
+
+        # FR-028: ``scope`` is human-authored only (never inferred). When the WP
+        # already declares a scope, persist it through the canonical owner so the
+        # written value is the normalized one (``codebase-wide`` or None) rather
+        # than relying on incidental dict passthrough.
+        if has_scope:
+            from specify_cli.ownership.models import OwnershipManifest as _OMScope
+
+            merged = {**frontmatter, **updates}
+            canonical_scope = _OMScope.from_frontmatter(merged).scope
+            if canonical_scope is not None:
+                updates["scope"] = canonical_scope
 
         if updates:
             frontmatter.update(updates)

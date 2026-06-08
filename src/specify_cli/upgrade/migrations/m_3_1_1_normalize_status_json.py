@@ -21,8 +21,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from specify_cli.status.reducer import SNAPSHOT_FILENAME, reduce
-from specify_cli.status.store import read_events
+from specify_cli.status import SNAPSHOT_FILENAME, reduce
+from specify_cli.status import read_events
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult

@@ -74,3 +74,22 @@ def test_staging_copies_only_existing_non_status_artifacts(tmp_path: Path) -> No
     assert {p.name for p in staged} == {"tasks.md", "acceptance-matrix.json"}
     assert (coord_wt / "kitty-specs" / "060-test" / "tasks.md").exists()
     assert not (coord_wt / "kitty-specs" / "060-test" / "acceptance-matrix.json").exists()
+
+
+def test_staging_skips_artifacts_already_under_worktrees(tmp_path: Path) -> None:
+    """FR-035: coord-resolved sources must not create nested .worktrees paths."""
+    repo_root = tmp_path / "repo"
+    coord_wt = repo_root / ".worktrees" / "060-test-01KT3YBD-coord"
+    nested_source = _write(
+        coord_wt / "kitty-specs" / "060-test-01KT3YBD" / "tasks.md",
+        "# tasks\n",
+    )
+
+    staged = _stage_finalize_artifacts_in_coord_worktree(
+        [nested_source], coord_wt, repo_root
+    )
+
+    assert staged == []
+    assert not (
+        coord_wt / ".worktrees" / "060-test-01KT3YBD-coord"
+    ).exists()

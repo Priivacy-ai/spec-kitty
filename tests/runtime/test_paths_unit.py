@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.core import paths as paths_module
 from specify_cli.core.paths import (
     get_main_repo_root,
     locate_project_root,
@@ -291,8 +292,17 @@ def test_broken_symlink_handling(tmp_path: Path) -> None:
 
 @pytest.mark.non_sandbox
 def test_locate_project_root_no_marker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test path resolution when no .kittify marker exists."""
-    # Create directory without .kittify
+    """Test path resolution when no marker exists anywhere up the tree.
+
+    Hermetic against stray ancestor markers (e.g. a developer's `/tmp/.kittify`
+    scratch dir): the walk-up searches for ``KITTIFY_DIR`` in every parent up to
+    the filesystem root, so a real ``.kittify`` above ``tmp_path`` would make the
+    real marker match and return a non-None root. We point the marker name at a
+    guaranteed-absent sentinel so the "no marker found → None" path is tested
+    deterministically regardless of the host's /tmp contents.
+    """
+    monkeypatch.setattr(paths_module, "KITTIFY_DIR", ".kittify-absent-sentinel-xyz")
+    # Create directory without the (sentinel) marker
     no_marker = tmp_path / "no-marker-dir"
     no_marker.mkdir()
     monkeypatch.chdir(no_marker)

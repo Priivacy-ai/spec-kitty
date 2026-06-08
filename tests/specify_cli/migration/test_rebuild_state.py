@@ -616,13 +616,17 @@ class TestRebuildIsDeterministic:
         assert set(a) <= set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
 
 
-class TestRebuildStateEmitsDeprecationWarning:
-    """The legacy rebuild_state module must announce itself as deprecated so
-    callers migrate to specify_cli.migration.mission_state.repair_repo
-    (Priivacy-ai/spec-kitty#930).
+class TestRebuildStateIsImplementationBehindCanonicalSeam:
+    """``rebuild_state`` is the per-mission rebuild *implementation* behind the
+    canonical ``mission_state.rebuild_mission_event_log`` seam (WP13, #1754).
+
+    It must NOT emit an import-time ``DeprecationWarning``: it is no longer a
+    deprecated alternative to ``repair_repo`` (which is repo-level and not
+    equivalent — see #1754). The single public seam is the ``mission_state``
+    entry; importing the implementation module is benign.
     """
 
-    def test_importing_module_warns(self) -> None:
+    def test_importing_module_does_not_warn(self) -> None:
         import importlib
         import warnings
 
@@ -632,10 +636,17 @@ class TestRebuildStateEmitsDeprecationWarning:
             warnings.simplefilter("always")
             importlib.reload(legacy_mod)
 
-        deprecation_warnings = [w for w in caught if issubclass(w.category, DeprecationWarning)]
-        assert deprecation_warnings, (
-            "Importing specify_cli.migration.rebuild_state must emit a "
-            "DeprecationWarning pointing at mission_state.repair_repo."
+        deprecation_warnings = [
+            w for w in caught if issubclass(w.category, DeprecationWarning)
+        ]
+        assert not deprecation_warnings, (
+            "Importing specify_cli.migration.rebuild_state must not emit a "
+            "DeprecationWarning; it is the implementation behind the canonical "
+            f"mission_state seam. Got: {[str(w.message) for w in deprecation_warnings]}"
         )
-        messages = " ".join(str(w.message) for w in deprecation_warnings)
-        assert "mission_state.repair_repo" in messages
+
+    def test_canonical_seam_is_mission_state_entry(self) -> None:
+        from specify_cli.migration import mission_state
+
+        assert hasattr(mission_state, "rebuild_mission_event_log")
+        assert "rebuild_mission_event_log" in mission_state.__all__

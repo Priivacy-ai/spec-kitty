@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
 
 if TYPE_CHECKING:
-    from specify_cli.status.wp_metadata import WPMetadata
+    from specify_cli.status import WPMetadata
 
 __all__ = [
     "ValidationResult",

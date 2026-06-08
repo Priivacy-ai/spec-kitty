@@ -434,7 +434,7 @@ def create_mission_core(
     # ------------------------------------------------------------------
     try:
         from specify_cli.identity.project import load_identity
-        from specify_cli.status.lifecycle_events import emit_mission_created_local
+        from specify_cli.status import emit_mission_created_local
 
         _identity = load_identity(resolved_root / ".kittify" / "config.yaml")
         emit_mission_created_local(
@@ -468,7 +468,7 @@ def create_mission_core(
     # to ``SpecifyCompleted``, leaving the specify-phase entry point
     # invisible to dashboards and TeamSpace — see issue #1067.
     try:
-        from specify_cli.status.lifecycle_events import (
+        from specify_cli.status import (
             SPECIFY_STARTED,
             emit_artifact_phase,
         )

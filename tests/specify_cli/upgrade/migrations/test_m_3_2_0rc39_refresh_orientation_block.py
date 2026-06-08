@@ -11,6 +11,10 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
+pytestmark = [pytest.mark.fast]
+
 _WORKTREE_SRC = Path(__file__).resolve().parents[5] / "src"
 if str(_WORKTREE_SRC) not in sys.path:
     sys.path.insert(0, str(_WORKTREE_SRC))

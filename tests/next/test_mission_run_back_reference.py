@@ -6,11 +6,17 @@ WP05 (FR-024/FR-025/FR-026/FR-027/FR-028/FR-029/FR-030):
 - start_mission_run accepts and plumbs mission_id/mission_slug into snapshot/ref
 - All snapshot-copy sites carry the new fields through
 - Existing on-disk state.json files (no mission_id/mission_slug) load with None defaults
+
+WP11 (#1663, FR-025/FR-026/FR-027, SC-006):
+- runtime_bridge._advance_run_state_after_composition preserves mission_id/mission_slug
+  through both snapshot reconstruction sites (auto-complete and final persist).
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -184,3 +190,234 @@ def test_start_mission_run_defaults_mission_fields_to_none(tmp_path: Path):
     state = json.loads((run_dir / "state.json").read_text())
     assert state.get("mission_slug") is None
     assert state.get("mission_id") is None
+
+
+# ---------------------------------------------------------------------------
+# T039/T040 — WP11 (#1663): runtime_bridge snapshot reconstructions carry identity
+# ---------------------------------------------------------------------------
+
+
+def _make_snapshot_with_identity(
+    run_dir: Path,
+    *,
+    mission_id: str,
+    mission_slug: str,
+    issued_step_id: str | None = "specify",
+) -> MissionRunSnapshot:
+    """Write a state.json with known identity fields and an in-progress step.
+
+    Simulates what the engine writes after ``start_mission_run`` + an
+    initial ``next_step`` call that issues a step.
+    """
+    from specify_cli.next._internal_runtime.engine import _write_snapshot
+
+    snapshot = MissionRunSnapshot(
+        run_id="test-run-id-001",
+        mission_key="software-dev",
+        template_path=str(run_dir / "mission_template_frozen.yaml"),
+        template_hash="a" * 64,
+        policy_snapshot=MissionPolicySnapshot(),
+        issued_step_id=issued_step_id,
+        completed_steps=[],
+        inputs={},
+        decisions={},
+        pending_decisions={},
+        blocked_reason=None,
+        mission_id=mission_id,
+        mission_slug=mission_slug,
+    )
+    _write_snapshot(run_dir, snapshot)
+    return snapshot
+
+
+class _NullSyncEmitter:
+    """Minimal sync emitter that satisfies _advance_run_state_after_composition."""
+
+    def seed_from_snapshot(self, snapshot: object) -> None:
+        return None
+
+    def emit_next_step_auto_completed(self, payload: object) -> None:
+        return None
+
+    def emit_next_step_issued(self, payload: object) -> None:
+        return None
+
+    def emit_mission_run_completed(self, payload: object) -> None:
+        return None
+
+    def emit_decision_input_requested(self, payload: object) -> None:
+        return None
+
+
+def test_advance_run_state_preserves_identity_through_autocomplete_reconstruction(
+    tmp_path: Path,
+) -> None:
+    """Regression for #1663: the auto-complete snapshot reconstruction (site 1)
+    in _advance_run_state_after_composition must carry mission_id/mission_slug.
+
+    Before the fix, ``issued_step_id is not None`` triggered a MissionRunSnapshot(...)
+    that omitted both identity fields, resetting them to None.  This test asserts
+    they survive through the Step 1 reconstruction and are persisted to disk.
+    """
+    from specify_cli.next._internal_runtime.engine import _read_snapshot
+    from specify_cli.next._internal_runtime.schema import NextDecision
+    from specify_cli.next.runtime_bridge import _advance_run_state_after_composition
+
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    # Provide the frozen template with the exact name _load_frozen_template expects.
+    # At least one step is required by load_mission_template_file validation.
+    (run_dir / "mission_template_frozen.yaml").write_text(
+        "mission:\n  key: software-dev\n  name: Test\n  version: 1.0.0\n"
+        "steps:\n  - id: specify\n    title: Specify\n",
+        encoding="utf-8",
+    )
+
+    _make_snapshot_with_identity(
+        run_dir,
+        mission_id="01REGR001TEST000000000000",
+        mission_slug="regression-test-1663",
+        issued_step_id="specify",  # non-null → triggers site-1 reconstruction
+    )
+
+    run_ref = MissionRunRef(
+        run_id="test-run-id-001",
+        run_dir=str(run_dir),
+        mission_key="software-dev",
+        mission_id="01REGR001TEST000000000000",
+        mission_slug="regression-test-1663",
+    )
+    feature_dir = tmp_path / "kitty-specs" / "regression-test-1663"
+    feature_dir.mkdir(parents=True)
+
+    with (
+        patch(
+            "runtime.next._internal_runtime.planner.plan_next",
+            return_value=NextDecision(
+                kind="step",
+                run_id="test-run-id-001",
+                mission_key="software-dev",
+                step_id="plan",
+            ),
+        ),
+        patch(
+            "specify_cli.next.runtime_bridge._resolve_retrospective_policy_for_runtime",
+            return_value=(None, {}, None),
+        ),
+        patch(
+            "specify_cli.next.runtime_bridge._map_runtime_decision",
+            return_value=None,
+        ),
+    ):
+        _advance_run_state_after_composition(
+            run_ref=run_ref,
+            agent="test-agent",
+            mission_slug="regression-test-1663",
+            mission_type="software-dev",
+            repo_root=tmp_path,
+            feature_dir=feature_dir,
+            timestamp="2026-06-08T00:00:00+00:00",
+            progress={},
+            origin={},
+            sync_emitter=_NullSyncEmitter(),  # type: ignore[arg-type]
+        )
+
+    persisted = _read_snapshot(run_dir)
+    assert persisted.mission_id == "01REGR001TEST000000000000", (
+        f"Expected mission_id='01REGR001TEST000000000000' but got {persisted.mission_id!r}; "
+        "site-1 reconstruction dropped identity (#1663)"
+    )
+    assert persisted.mission_slug == "regression-test-1663", (
+        f"Expected mission_slug='regression-test-1663' but got {persisted.mission_slug!r}; "
+        "site-1 reconstruction dropped identity (#1663)"
+    )
+
+    # Also confirm in the raw JSON (state.json round-trip)
+    state = json.loads((run_dir / "state.json").read_text())
+    assert state["mission_id"] == "01REGR001TEST000000000000"
+    assert state["mission_slug"] == "regression-test-1663"
+
+
+def test_advance_run_state_preserves_identity_through_final_persist_reconstruction(
+    tmp_path: Path,
+) -> None:
+    """Regression for #1663: the final-persist snapshot reconstruction (site 2)
+    in _advance_run_state_after_composition must carry mission_id/mission_slug.
+
+    This covers the Step 4 reconstruction that happens whether or not there was
+    an issued_step_id.  Before the fix, both fields were reset to None in the
+    persisted state.json.
+    """
+    from specify_cli.next._internal_runtime.engine import _read_snapshot
+    from specify_cli.next._internal_runtime.schema import NextDecision
+    from specify_cli.next.runtime_bridge import _advance_run_state_after_composition
+
+    run_dir = tmp_path / "run2"
+    run_dir.mkdir()
+    # Provide the frozen template with the exact name _load_frozen_template expects.
+    # At least one step is required by load_mission_template_file validation.
+    (run_dir / "mission_template_frozen.yaml").write_text(
+        "mission:\n  key: software-dev\n  name: Test\n  version: 1.0.0\n"
+        "steps:\n  - id: specify\n    title: Specify\n",
+        encoding="utf-8",
+    )
+
+    # No issued_step_id — skips site-1, exercises site-2 directly.
+    _make_snapshot_with_identity(
+        run_dir,
+        mission_id="01REGR002TEST000000000000",
+        mission_slug="regression-test-1663-site2",
+        issued_step_id=None,
+    )
+
+    run_ref = MissionRunRef(
+        run_id="test-run-id-001",
+        run_dir=str(run_dir),
+        mission_key="software-dev",
+        mission_id="01REGR002TEST000000000000",
+        mission_slug="regression-test-1663-site2",
+    )
+    feature_dir = tmp_path / "kitty-specs" / "regression-test-1663-site2"
+    feature_dir.mkdir(parents=True)
+
+    with (
+        patch(
+            "runtime.next._internal_runtime.planner.plan_next",
+            return_value=NextDecision(
+                kind="step",
+                run_id="test-run-id-001",
+                mission_key="software-dev",
+                step_id="specify",
+            ),
+        ),
+        patch(
+            "specify_cli.next.runtime_bridge._resolve_retrospective_policy_for_runtime",
+            return_value=(None, {}, None),
+        ),
+        patch(
+            "specify_cli.next.runtime_bridge._map_runtime_decision",
+            return_value=None,
+        ),
+    ):
+        _advance_run_state_after_composition(
+            run_ref=run_ref,
+            agent="test-agent",
+            mission_slug="regression-test-1663-site2",
+            mission_type="software-dev",
+            repo_root=tmp_path,
+            feature_dir=feature_dir,
+            timestamp="2026-06-08T00:00:00+00:00",
+            progress={},
+            origin={},
+            sync_emitter=_NullSyncEmitter(),  # type: ignore[arg-type]
+        )
+
+    persisted = _read_snapshot(run_dir)
+    assert persisted.mission_id == "01REGR002TEST000000000000", (
+        f"Expected mission_id='01REGR002TEST000000000000' but got {persisted.mission_id!r}; "
+        "site-2 final-persist reconstruction dropped identity (#1663)"
+    )
+    assert persisted.mission_slug == "regression-test-1663-site2", (
+        f"Expected mission_slug='regression-test-1663-site2' but got {persisted.mission_slug!r}; "
+        "site-2 final-persist reconstruction dropped identity (#1663)"
+    )

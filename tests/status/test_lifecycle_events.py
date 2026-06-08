@@ -850,3 +850,32 @@ def test_validate_lifecycle_payload_falls_through_for_unknown_event_types() -> N
     upstream doesn't become a sudden hard failure for installed CLIs."""
     # Should not raise even for a completely-made-up event_type.
     lifecycle._validate_lifecycle_payload("NotARealEventType", {"foo": "bar"})
+
+
+_SAAS_KW = {
+    "build_id": "build-1",
+    "project_uuid": "proj-uuid",
+    "project_slug": "demo",
+    "node_id": "node-1",
+    "lamport_clock": 1,
+}
+
+
+def test_build_saas_lifecycle_queue_event_returns_none_for_invalid_event_type_or_payload() -> None:
+    """A non-queueable envelope (bad ``event_type``/``payload``) yields None."""
+    # Non-str event_type.
+    assert lifecycle.build_saas_lifecycle_queue_event(
+        {"event_type": None, "payload": {}}, **_SAAS_KW
+    ) is None
+    # Non-Mapping payload.
+    assert lifecycle.build_saas_lifecycle_queue_event(
+        {"event_type": "ProjectInitialized", "payload": "not-a-mapping"}, **_SAAS_KW
+    ) is None
+
+
+def test_build_saas_lifecycle_queue_event_returns_none_for_invalid_aggregate_type() -> None:
+    """A valid event_type+payload but non-str ``aggregate_type`` yields None."""
+    assert lifecycle.build_saas_lifecycle_queue_event(
+        {"event_type": "ProjectInitialized", "payload": {}, "aggregate_type": None},
+        **_SAAS_KW,
+    ) is None

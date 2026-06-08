@@ -202,7 +202,7 @@ jobs:
               - '.kittify/doctrine/overlays/**'
               - 'tests/doctrine/**'
             execution_context:
-              - 'src/specify_cli/core/execution_context.py'
+              - 'src/mission_runtime/**'
               - 'src/specify_cli/status/**'
               - 'src/runtime/next/**'
               - 'src/specify_cli/cli/commands/agent/**'

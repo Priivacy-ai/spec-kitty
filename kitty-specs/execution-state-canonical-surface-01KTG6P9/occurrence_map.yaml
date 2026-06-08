@@ -1,0 +1,202 @@
+# DIRECTIVE_035 occurrence map — execution-state-canonical-surface-01KTG6P9
+# Required because meta.json::change_mode == "bulk_edit".
+#
+# Primary bulk change: migrate ~225 deep `specify_cli.status.<sub>` imports (outside status/)
+# to the public facade (`from specify_cli.status import ...`) or the MissionStatus aggregate
+# (FR-013..FR-016). Implementing agents MUST consult this before touching any matching import.
+#
+# Schema: src/doctrine/schemas/occurrence-map.schema.yaml
+#   - target.operation ∈ {rename, remove, deprecate}
+#   - category action  ∈ {rename, manual_review, do_not_change, rename_if_user_visible}
+#   - all 8 standard categories must be present (FR-004)
+#
+# This mission is a *structural* refactor (import routing + resolver consolidation),
+# not a mechanical term-rename. The path-heuristic review gate (FR-007/008) classifies
+# each changed file to ONE category by path; for this mission code, CLI-command modules,
+# tests, and configs are all legitimately touched, so those matched categories are
+# `manual_review` (reviewer-renata adjudicates per WP) rather than `do_not_change`.
+# The real, fine-grained governance lives in `categories.import_paths.occurrences`
+# (per-submodule PROMOTE/ROUTE/REVIEW/PRIVATE) below.
+
+target:
+  term: "from specify_cli.status.<submodule> import …  /  import specify_cli.status.<submodule>"
+  replacement: "from specify_cli.status import …  (facade)  OR  MissionStatus.<method>(…)"
+  operation: rename
+
+categories:
+
+  # --- Categories the path heuristic can actually emit -----------------------
+
+  code_symbols:
+    action: manual_review
+    notes: |
+      `src/**/*.py` (non-CLI, non-test). Import rewrites + canonical-reader routing
+      need case-by-case judgment (PROMOTE vs ROUTE vs PRIVATE per the occurrences
+      table). Promoted symbols are added to status/__init__.py __all__ (C-007).
+
+  import_paths:
+    action: manual_review
+    notes: |
+      Per-submodule disposition. PROMOTE = add symbol(s) to status/__init__.py __all__
+      and rewrite importers to the facade. ROUTE = replace with MissionStatus read/write
+      calls (mission-level access). PRIVATE = no external consumer; `_`-prefix and remove
+      external sites. Decisions are PRELIMINARY — confirmed during IC-05 by inspecting each
+      symbol's real consumers; the boundary test enforces zero non-exempt residue.
+      NOTE: the path heuristic never emits `import_paths` (a `.py` file maps to
+      code_symbols/cli_commands/tests_fixtures); this block is the governance record,
+      not a review-gate trigger.
+    occurrences:
+      - submodule: status.models
+        count: 38
+        decision: PROMOTE
+        reason: "shared types/enums (Lane, StatusEvent) — broad legitimate external need."
+      - submodule: status.transitions
+        count: 12
+        decision: PROMOTE
+        reason: "resolve_lane_alias / validate_transition are legitimate facade API."
+      - submodule: status.progress
+        count: 7
+        decision: PROMOTE
+        reason: "progress projection is a read-only public view."
+      - submodule: status.views
+        count: 2
+        decision: PROMOTE
+        reason: "public read projection."
+      - submodule: status.validate
+        count: 4
+        decision: PROMOTE
+        reason: "public validation entry."
+      - submodule: status.wp_metadata
+        count: 21
+        decision: PROMOTE
+        reason: "WP07: ~20 src consumers (runtime, core/worktree, dependency_graph, workspace, ownership, dashboard, bulk_edit, CLI); WPMetadata/read_wp_frontmatter are facade API."
+      - submodule: status.wp_state
+        count: 4
+        decision: PROMOTE
+        reason: "WP07: WPState/wp_state_for/InvalidTransitionError consumed by runtime_bridge + tasks_cli; internal FSM state classes (InProgressState/InReviewState) NOT promoted (test-only)."
+      - submodule: status.adapters
+        count: 4
+        decision: PROMOTE
+        reason: "WP07: register_* sync handlers + fire_saas_fanout (coordination/outbound) promoted; fire_dossier_sync stays PRIVATE (only the exempt status_transition consumes it)."
+      - submodule: status.store
+        count: 42
+        decision: ROUTE
+        reason: "event-log I/O — mission-level access goes through MissionStatus."
+      - submodule: status.reducer
+        count: 37
+        decision: ROUTE
+        reason: "materialize() is mission-level read — route to MissionStatus.load()."
+      - submodule: status.lane_reader
+        count: 26
+        decision: ROUTE
+        reason: "get_wp_lane mission-level read — route to MissionStatus.claim()."
+      - submodule: status.emit
+        count: 10
+        decision: ROUTE
+        reason: "transition write — route to MissionStatus.transition()."
+      - submodule: status.lifecycle_events
+        count: 13
+        decision: ROUTE
+        reason: "lifecycle writes — through the aggregate."
+      - submodule: status.work_package_lifecycle
+        count: 4
+        decision: ROUTE
+        reason: "WP lifecycle writes — through the aggregate."
+      - submodule: status.lifecycle
+        count: 3
+        decision: ROUTE
+        reason: "lifecycle access — through the aggregate."
+      - submodule: status.event_log_merge
+        count: 1
+        decision: PROMOTE
+        reason: "WP07: merge_event_log_files/EventLogMergeError consumed by cli/merge_driver (raw git merge driver, not a mission aggregate → facade, not ROUTE)."
+      - submodule: status.transition_context
+        count: 1
+        decision: PROMOTE
+        reason: "WP07: FSM type surface for wp_state_for; kept in __all__ (no external src consumer but part of the public FSM types)."
+      - submodule: status.aggregate
+        count: 1
+        decision: PROMOTE
+        reason: "MissionStatus itself — import from the facade, not the submodule."
+      - submodule: status.locking
+        count: 5
+        decision: PROMOTE
+        reason: "WP07: feature_status_lock/FeatureStatusLockTimeoutError consumed by cli status/workflow/tasks (transaction.py is exempt plumbing)."
+      - submodule: status.identity_audit
+        count: 5
+        decision: PROMOTE
+        reason: "WP07: IdentityState/classify_mission/audit_repo/summarize/find_duplicate_prefixes/find_ambiguous_selectors consumed by audit/* + cli/doctor."
+      - submodule: status.bootstrap
+        count: 2
+        decision: PROMOTE
+        reason: "WP07: bootstrap_canonical_state/BootstrapResult consumed by agent/mission + agent/tasks."
+      - submodule: status.uninitialized_hint
+        count: 2
+        decision: PROMOTE
+        reason: "WP07: uninitialized_status_error consumed by agent/workflow + agent/tasks."
+      - submodule: status.preflight
+        count: 1
+        decision: PROMOTE
+        reason: "WP07: is_dossier_snapshot consumed by agent/tasks -> PROMOTE; filter_dossier_snapshots is test-only (no production consumer) -> NOT promoted, importable from status.preflight (cycle-2 review fix)."
+      - submodule: status.history_parser
+        count: 1
+        decision: PRIVATE
+        reason: "migration-only module; remove external import."
+      - submodule: status.doctor
+        count: 1
+        decision: ROUTE
+        reason: "WP07: run_doctor is a mission-level diagnostic read (single consumer cli/agent/status) — routed via MissionStatus in WP10, not promoted."
+
+  cli_commands:
+    action: manual_review
+    notes: |
+      `src/specify_cli/cli/commands/*.py`. CLI modules are major status consumers and
+      are legitimately edited (WP14 owns merge.py + doctor.py; WP08/WP10 route callers).
+      No CLI *command name or flag* is renamed — only import/routing internals.
+
+  tests_fixtures:
+    action: manual_review
+    notes: |
+      Test imports of deep status paths are updated alongside the rewrite; new RED-first
+      regression tests (e.g. WP14 T057) are added. Reviewer confirms tags + non-vacuity.
+
+  user_facing_strings:
+    action: manual_review
+    notes: |
+      Docs / CHANGELOG / README touched only when a moved symbol or facade rule is
+      documented. No user-visible term rename intended.
+
+  serialized_keys:
+    action: manual_review
+    notes: |
+      YAML/JSON/TOML. This map governs imports, NOT serialized keys — no status JSON/YAML
+      key is renamed. Set to manual_review (not do_not_change) only because path-heuristic
+      classification would otherwise block legitimately-touched config/fixture files;
+      reviewer confirms no key was actually renamed.
+
+  # --- Categories the path heuristic never emits (admissibility-only) --------
+
+  filesystem_paths:
+    action: manual_review
+    notes: |
+      Secondary (refactor, not term-replace): ~125 raw `main_repo_root / "kitty-specs" /
+      mission_slug` path-builder occurrences and 8 duplicate _resolve_feature_dir
+      implementations are routed through the umbrella single resolver / collapsed
+      (FR-009/010/011). Enumerated and routed during IC-04; the parity ratchet + grep
+      success criterion (SC-004) gate completeness.
+
+  logs_telemetry:
+    action: do_not_change
+    notes: |
+      No metric/log key or analytics event is renamed by this mission.
+
+exceptions:
+  - path: src/specify_cli/coordination/status_transition.py
+    action: do_not_change
+    reason: "Internal Mission-Management plumbing (BookkeepingTransaction caller) — exempt (C-004, doc 06 §4)."
+  - path: src/specify_cli/coordination/transaction.py
+    action: do_not_change
+    reason: "BookkeepingTransaction infrastructure — exempt; internals unchanged (NFR-006)."
+  - path: "kitty-specs/**"
+    action: manual_review
+    reason: "Mission planning + status artifacts (status.events.jsonl, status.json, ADR/findings docs, .gitkeep). Auto-committed by the implement/move-task flow onto every lane branch; they carry no `specify_cli.status.*` import to rewrite, so they are outside the bulk-edit surface. Non-blocking review surfacing only."

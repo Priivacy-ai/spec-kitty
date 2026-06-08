@@ -52,9 +52,9 @@ def materialize(
         spec-kitty materialize --mission 034-my-feature
         spec-kitty materialize --json
     """
-    from specify_cli.status.views import write_derived_views
-    from specify_cli.status.lifecycle import generate_lifecycle_json
-    from specify_cli.status.progress import generate_progress_json
+    from specify_cli.status import write_derived_views
+    from specify_cli.status import generate_lifecycle_json
+    from specify_cli.status import generate_progress_json
 
     repo_root = locate_project_root()
     if repo_root is None:
@@ -78,7 +78,9 @@ def materialize(
         ).canonical_value
 
     if mission_slug:
-        feature_dirs = [specs_dir / mission_slug]
+        from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug
+
+        feature_dirs = [resolve_feature_dir_for_slug(repo_root, mission_slug)]
         if not feature_dirs[0].exists():
             console.print(f"[red]Error:[/red] Mission not found: {mission_slug}")
             raise typer.Exit(1)

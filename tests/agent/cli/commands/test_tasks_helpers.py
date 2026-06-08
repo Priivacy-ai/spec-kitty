@@ -113,6 +113,32 @@ def test_issue_matrix_approval_blocker_requires_resolved_verdicts(tmp_path: Path
     assert _issue_matrix_approval_blocker(feature_dir) is None
 
 
+def test_issue_matrix_in_mission_passes_approved_blocks_done(tmp_path: Path) -> None:
+    from specify_cli.status.models import Lane
+
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text(
+        "Fix Priivacy-ai/spec-kitty issue #1582.\n", encoding="utf-8"
+    )
+    _write_issue_matrix(feature_dir, "in-mission", evidence_ref="WP14 (this mission)")
+
+    # Accepted at per-WP approval: a later WP in this mission closes #1582.
+    assert _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.APPROVED) is None
+    # Default (unspecified) target behaves like approval.
+    assert _issue_matrix_approval_blocker(feature_dir) is None
+
+    # Rejected at mission done: must reach a terminal verdict first.
+    blocker = _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.DONE)
+    assert blocker is not None
+    assert "in-mission" in blocker
+    assert "#1582" in blocker
+
+    # Resolving to a terminal verdict clears the done-time block.
+    _write_issue_matrix(feature_dir, "fixed", evidence_ref="commit abc123")
+    assert _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.DONE) is None
+
+
 def test_issue_matrix_approval_blocker_fails_closed_on_evaluation_error(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

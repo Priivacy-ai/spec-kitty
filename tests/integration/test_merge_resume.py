@@ -2,10 +2,12 @@
 
 Pins two contracts on resume:
 
-1. **Idempotence**: when ``MergeState.completed_wps`` already covers every WP in
-   ``wp_order``, re-running the merge does NOT re-call the per-WP done-recording
-   pipeline. This is what protects an operator who ran merge to completion and
-   then unintentionally re-runs it: nothing should happen.
+1. **Idempotence**: when the lane branches are already fully integrated into the
+   mission branch (``git rev-list --count <lane> ^<mission>`` == "0"), re-running
+   the merge does NOT re-call the per-WP done-recording pipeline and does NOT
+   re-merge any lane.  This is what protects an operator who ran merge to
+   completion and then unintentionally re-runs it: nothing should happen.
+   (FR-037: the skip gate is tree-state, not the ``completed_wps`` proxy.)
 
 2. **Resume after interruption**: when state shows partial progress, the
    resumed pass picks up exactly the remaining WPs and skips the completed
@@ -17,6 +19,12 @@ Pins two contracts on resume:
 """
 
 from __future__ import annotations
+
+# FR-037 import-order guard: ensure the status sub-package is initialised
+# before merge.py's deferred imports fire.  Without this, collection-order
+# shifts (e.g. a new test file added in the same suite) can trigger a
+# ``BookkeepingTransaction`` partially-initialised-module cycle.
+import specify_cli.status  # noqa: F401  (side-effect: module registration)
 
 import contextlib
 import json
@@ -99,6 +107,7 @@ def _patches(
     initial_state: MergeState | None,
     mark_done_calls: list[str],
     lane_merge_calls: list[str],
+    integrated_lane_ids: frozenset[str] = frozenset(),
 ):
     lane_result = MagicMock()
     lane_result.success = True
@@ -112,6 +121,15 @@ def _patches(
     def fake_run_command(cmd, *args, **kwargs):  # noqa: ANN001
         if "merge-base" in cmd:
             return (0, "abc123\n", "")
+        # FR-037: model the real ``git rev-list --count <lane> ^<mission>``
+        # integration check.  Return "0" (zero commits ahead = already
+        # integrated) for any lane branch whose lane-id is in
+        # ``integrated_lane_ids``; return "" (non-zero / unknown) otherwise so
+        # that un-integrated lanes are correctly attempted.
+        if "rev-list" in cmd and "--count" in cmd:
+            lane_branch_arg = cmd[3] if len(cmd) > 3 else ""
+            if any(lid in lane_branch_arg for lid in integrated_lane_ids):
+                return (0, "0", "")
         return (0, "", "")
 
     def fake_lane_merge(repo_root, mission_slug, lane_id, lanes_manifest):  # noqa: ANN001
@@ -180,12 +198,15 @@ class TestMergeResumeIdempotence:
         mark_done_calls: list[str] = []
         lane_merge_calls: list[str] = []
 
+        # FR-037: all three lanes are already integrated into the mission branch
+        # (tree-state gate, not the completed_wps proxy).
         patches = _patches(
             tmp_path=tmp_path,
             manifest=manifest,
             initial_state=existing,
             mark_done_calls=mark_done_calls,
             lane_merge_calls=lane_merge_calls,
+            integrated_lane_ids=frozenset({"lane-a", "lane-b", "lane-c"}),
         )
 
         with contextlib.ExitStack() as stack:
@@ -213,20 +234,19 @@ class TestMergeResumeIdempotence:
                 strategy=MergeStrategy.SQUASH,
             )
 
-        # Idempotence contract: every WP was already in completed_wps, so
-        # _mark_wp_merged_done MUST NOT have been called for any of them.
+        # Idempotence contract: every lane branch is already integrated
+        # (rev-list returns "0") so _mark_wp_merged_done MUST NOT be called.
         assert mark_done_calls == [], (
-            f"FR-002/NFR-005 idempotence regression: re-running merge with a "
-            f"fully-completed MergeState re-marked {mark_done_calls!r}. "
+            f"FR-002/NFR-005 idempotence regression: re-running merge with all "
+            f"lanes already integrated re-marked {mark_done_calls!r}. "
             "The per-WP done pipeline must skip already-completed WPs."
         )
 
-        # Lane-merge step is also skipped per-lane when all WPs in a lane are done.
+        # Lane-merge step must also be skipped for every lane (tree-state gate).
         assert lane_merge_calls == [], (
             f"Idempotence regression at the lane step: lanes "
-            f"{lane_merge_calls!r} were re-merged even though every WP in each "
-            "lane was already in completed_wps. See _run_lane_based_merge_locked "
-            "lane-skip guard."
+            f"{lane_merge_calls!r} were re-merged even though their rev-list "
+            "count was 0 (already integrated). See FR-037 _lane_already_integrated."
         )
 
 
@@ -253,12 +273,15 @@ class TestMergeResumeAfterInterruption:
         mark_done_calls: list[str] = []
         lane_merge_calls: list[str] = []
 
+        # FR-037: lane-a is already integrated into the mission branch
+        # (rev-list returns "0"); lane-b and lane-c are not yet integrated.
         patches = _patches(
             tmp_path=tmp_path,
             manifest=manifest,
             initial_state=existing,
             mark_done_calls=mark_done_calls,
             lane_merge_calls=lane_merge_calls,
+            integrated_lane_ids=frozenset({"lane-a"}),
         )
 
         with contextlib.ExitStack() as stack:
@@ -294,10 +317,11 @@ class TestMergeResumeAfterInterruption:
             f"Resume failed to finish remaining WPs: {mark_done_calls!r}"
         )
 
-        # Lane-a (WP01) skipped, lane-b/lane-c merged.
+        # Lane-a already integrated (rev-list "0") — must not be re-merged.
         assert "lane-a" not in lane_merge_calls, (
-            f"Resume re-merged completed lane-a: {lane_merge_calls!r}"
+            f"Resume re-merged already-integrated lane-a: {lane_merge_calls!r}"
         )
+        # Lane-b and lane-c have unintegrated code — must be merged.
         assert "lane-b" in lane_merge_calls and "lane-c" in lane_merge_calls
 
 

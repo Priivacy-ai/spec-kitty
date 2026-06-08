@@ -448,7 +448,7 @@ def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> st
         wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
 
     try:
-        from specify_cli.status.lane_reader import get_wp_lane
+        from specify_cli.status import get_wp_lane
 
         return get_wp_lane(feature_dir, wp_id)
     except RuntimeError as exc:

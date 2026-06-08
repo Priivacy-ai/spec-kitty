@@ -455,13 +455,13 @@ def test_status_json_reducer_oserror_detail_is_deterministic(
     path = tmp_path / "status.events.jsonl"
     (tmp_path / "status.json").write_text("{}", encoding="utf-8")
 
-    from specify_cli.status import reducer
+    import specify_cli.status as status
 
     def raise_reducer_oserror(mission_dir: Path) -> object:
         assert mission_dir == tmp_path
         raise FileNotFoundError(2, "No such file or directory", str(path))
 
-    monkeypatch.setattr(reducer, "materialize_snapshot", raise_reducer_oserror)
+    monkeypatch.setattr(status, "materialize_snapshot", raise_reducer_oserror)
 
     findings = classify_status_json(tmp_path)
 
@@ -482,13 +482,13 @@ def test_status_json_reducer_oserror_strerror_path_is_redacted(
     path = tmp_path / "status.events.jsonl"
     (tmp_path / "status.json").write_text("{}", encoding="utf-8")
 
-    from specify_cli.status import reducer
+    import specify_cli.status as status
 
     def raise_reducer_oserror(mission_dir: Path) -> object:
         assert mission_dir == tmp_path
         raise OSError(None, f"failed reading {path}")
 
-    monkeypatch.setattr(reducer, "materialize_snapshot", raise_reducer_oserror)
+    monkeypatch.setattr(status, "materialize_snapshot", raise_reducer_oserror)
 
     findings = classify_status_json(tmp_path)
 

@@ -23,13 +23,6 @@ LANE_ALIASES: dict[str, str] = {"doing": "in_progress"}
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
-def _resolve_feature_dir(repo_root: Path, feature: str) -> Path:
-    from specify_cli.lanes.branch_naming import mid8_from_slug
-    from specify_cli.missions._read_path_resolver import resolve_mission_read_path
-
-    return resolve_mission_read_path(repo_root, feature, mid8_from_slug(feature))
-
-
 class TaskCliError(RuntimeError):
     """Raised when task operations cannot be completed safely."""
 
@@ -289,7 +282,7 @@ class WorkPackage:
 
     @property
     def lane(self) -> str | None:
-        from specify_cli.status.lane_reader import get_wp_lane
+        from specify_cli.status import get_wp_lane
 
         # WP files are at kitty-specs/<mission_slug>/tasks/WP01.md
         # feature_dir is the parent of the tasks/ directory
@@ -308,11 +301,12 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     New format: WP files in flat tasks/ directory with lane in frontmatter
     """
     from specify_cli.core.paths import get_main_repo_root
+    from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug
 
     # Always use main repo's kitty-specs - it's the source of truth
     # This fixes the bug where worktree's stale kitty-specs/ would be used
     main_root = get_main_repo_root(repo_root)
-    feature_path = _resolve_feature_dir(main_root, feature)
+    feature_path = resolve_feature_dir_for_slug(main_root, feature)
 
     tasks_root = feature_path / "tasks"
     if not tasks_root.exists():
@@ -397,7 +391,7 @@ def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> st
         wp_id_match = re.match(r"^(WP\d+)(?=$|[-_.])", stem, re.IGNORECASE)
         wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
 
-    from specify_cli.status.lane_reader import get_wp_lane
+    from specify_cli.status import get_wp_lane
 
     return get_wp_lane(feature_dir, wp_id)
 

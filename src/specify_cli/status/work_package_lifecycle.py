@@ -12,11 +12,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from specify_cli.coordination.status_transition import (
-    emit_status_transition_batch_transactional,
-    emit_status_transition_transactional,
-    read_current_wp_state_transactional,
-)
 from specify_cli.status.emit import TransitionError
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
@@ -98,6 +93,16 @@ def start_implementation_status(
     rework_reason: str = "Re-implementing after review feedback",
 ) -> WorkPackageStartResult:
     """Idempotently move a WP into ``in_progress`` for an implementation actor."""
+    # Lazy import breaks the status↔coordination cycle (status/__init__ imports
+    # this module; coordination.status_transition imports back into status via
+    # coordination.transaction). Deferring to call time lets the facade finish
+    # initializing before coordination is touched.
+    from specify_cli.coordination.status_transition import (
+        emit_status_transition_batch_transactional,
+        emit_status_transition_transactional,
+        read_current_wp_state_transactional,
+    )
+
     feature_dir = canonicalize_feature_dir(feature_dir)
     lock_root = _repo_root_for_lock(feature_dir, repo_root)
 
@@ -209,6 +214,12 @@ def start_review_status(
     review_ref: str | None = "action-review-claim",
 ) -> WorkPackageStartResult:
     """Idempotently move a WP into ``in_review`` for a reviewer actor."""
+    # Lazy import breaks the status↔coordination cycle (see start_implementation_status).
+    from specify_cli.coordination.status_transition import (
+        emit_status_transition_transactional,
+        read_current_wp_state_transactional,
+    )
+
     feature_dir = canonicalize_feature_dir(feature_dir)
     lock_root = _repo_root_for_lock(feature_dir, repo_root)
 

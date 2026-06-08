@@ -167,7 +167,7 @@ def test_research_creates_artifacts(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(research_module, "get_mission_type", lambda *_args, **_kwargs: "software-dev")
     monkeypatch.setattr(
         research_module,
-        "resolve_worktree_aware_feature_dir",
+        "resolve_feature_dir_for_slug",
         lambda *_args, **_kwargs: feature_dir,
     )
     monkeypatch.setattr(research_module, "resolve_template_path", lambda *_args, **_kwargs: None)

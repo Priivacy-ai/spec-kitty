@@ -42,12 +42,16 @@ from specify_cli.core.worktree import (
 )
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status import COORD_OWNED_STATUS_FILES
-from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
+from specify_cli.status import WPMetadata, read_wp_frontmatter
 from specify_cli.mission import get_mission_type
 from specify_cli.doc_analysis.doc_state import GeneratorConfig
 from specify_cli.ownership import infer_ownership, validate_ownership
 from specify_cli.ownership.audit_targets import validate_audit_coverage
-from specify_cli.ownership.validation import build_wp_manifests, validate_glob_matches
+from specify_cli.ownership.frontmatter_source import (
+    FinalizeFrontmatterSource,
+    resolve_wp_manifests,
+)
+from specify_cli.ownership.validation import validate_glob_matches
 from specify_cli.core.wps_manifest import (
     load_wps_manifest,
     check_concern_refs_coverage,
@@ -55,7 +59,7 @@ from specify_cli.core.wps_manifest import (
     generate_tasks_md_from_manifest,
 )
 from specify_cli.diagnostics import mark_invocation_succeeded
-from specify_cli.status.bootstrap import bootstrap_canonical_state
+from specify_cli.status import bootstrap_canonical_state
 from specify_cli.sync.events import emit_wp_created, get_emitter
 from specify_cli.sync.feature_flags import is_saas_sync_enabled
 from specify_cli.workspace.context import resolve_feature_worktree
@@ -108,7 +112,16 @@ def _stage_finalize_artifacts_in_coord_worktree(
     for src in files_to_commit:
         if src.name in COORD_OWNED_STATUS_FILES:
             continue
-        dst = coord_worktree / src.relative_to(repo_root)
+        rel = src.relative_to(repo_root)
+        # FR-035: finalize must never copy/stage paths that are already under
+        # the repository's .worktrees/ tree. Otherwise a coord-resolved source
+        # path maps to coord_wt/.worktrees/<mission>-coord/... and re-pollutes
+        # the branch with nested worktree content.
+        from specify_cli.cli.commands.merge import path_is_under_worktrees
+
+        if path_is_under_worktrees(rel):
+            continue
+        dst = coord_worktree / rel
         if src.exists():
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
@@ -1587,7 +1600,7 @@ def setup_plan(
         # before performing any further work. This is the canonical handoff
         # marker for the spec→plan transition (issue #1067).
         try:
-            from specify_cli.status.lifecycle_events import (
+            from specify_cli.status import (
                 emit_artifact_phase,
                 SPECIFY_COMPLETED,
                 PLAN_STARTED,
@@ -1618,7 +1631,7 @@ def setup_plan(
         if plan_is_substantive:
             _commit_to_branch(plan_file, mission_slug, "plan", repo_root, target_branch, json_output)
             try:
-                from specify_cli.status.lifecycle_events import (
+                from specify_cli.status import (
                     emit_artifact_phase,
                     PLAN_COMPLETED,
                 )
@@ -2656,7 +2669,10 @@ def finalize_tasks(
         # In validate-only mode the bootstrap loop above populates frontmatter
         # in memory but does NOT write to disk.  Re-reading from disk would miss
         # the inferred ownership fields, silently skipping ownership/lane
-        # validation.  We therefore use the in-memory state when available.
+        # validation.  The frontmatter-source port owns this prefer-in-memory-
+        # then-disk acquisition (FR-031) so the resolve→validate path is testable
+        # without stubbing the reader; ``wp_bodies`` is gathered alongside for
+        # downstream lane/preview consumers.
         wp_frontmatters: dict[str, WPMetadata] = {}
         wp_bodies: dict[str, str] = {}
         for wp_file in wp_files:
@@ -2673,7 +2689,11 @@ def finalize_tasks(
                 wp_bodies[wp_id] = wp_body
                 wp_frontmatters[wp_id] = fm_meta
 
-        wp_manifests = build_wp_manifests(wp_frontmatters)
+        ownership_source = FinalizeFrontmatterSource(
+            wp_files=list(wp_files),
+            inmemory=_inmemory_frontmatter,
+        )
+        wp_manifests = resolve_wp_manifests(ownership_source)
 
         if wp_manifests:
             ownership_result = validate_ownership(wp_manifests)
@@ -2722,7 +2742,7 @@ def finalize_tasks(
         # set; the matching TasksCompleted is emitted after commit.
         if not validate_only:
             try:
-                from specify_cli.status.lifecycle_events import (
+                from specify_cli.status import (
                     emit_artifact_phase,
                     TASKS_STARTED,
                 )
@@ -2819,7 +2839,7 @@ def finalize_tasks(
         # bootstrap_canonical_state so replay consumers see WPCreated before
         # the first WPStatusChanged event for each WP.
         try:
-            from specify_cli.status.lifecycle_events import (
+            from specify_cli.status import (
                 emit_artifact_phase,
                 emit_wp_created_local,
                 TASKS_COMPLETED,
@@ -3216,7 +3236,7 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[
 def _parse_requirement_refs_from_wp_files(wp_files: list[Path]) -> dict[str, list[str]]:
     """Parse requirement refs directly from WP prompt frontmatter."""
     from specify_cli.requirement_mapping import normalize_requirement_refs_value
-    from specify_cli.status.wp_metadata import read_wp_frontmatter
+    from specify_cli.status import read_wp_frontmatter
 
     parsed: dict[str, list[str]] = {}
     for wp_file in wp_files:

@@ -69,6 +69,7 @@ def test_wheel_contains_only_known_packages(build_artifacts: dict[str, Path]) ->
         "charter/",
         "kernel/",
         "glossary/",
+        "mission_runtime/",
         "runtime/",
     )
 

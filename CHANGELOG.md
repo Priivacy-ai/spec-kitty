@@ -9,6 +9,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc41] - 2026-06-08
+
+### ✨ Added
+
+- Introduced canonical `mission_runtime` umbrella package (`src/mission_runtime/`) as the sole
+  sanctioned execution-state resolver; `resolve_action_context` is now the single entry point
+  for all mission/WP context resolution (epic #1666 slice 2, ADR `2026-06-07-1-execution-state-canonical-surface.md`).
+- Added `_branch_trees_equal` predicate in merge command for content-based squash-resume
+  idempotency (FR-037); replaces ancestry-based `rev-list` check that failed after squash merges.
+- Added `path_is_under_worktrees` guard to `_stage_finalize_artifacts_in_coord_worktree`
+  (FR-035); finalize/implement can no longer stage sources already under `.worktrees/`, preventing
+  nested-worktree path pollution on coord-topology missions (#1772 Bug 0).
+- Added `rebuild_mission_event_log` canonical rebuild entry point for migration paths (#1754).
+- New ADR `2026-06-07-1-execution-state-canonical-surface.md` documenting the sole-resolver
+  boundary and migration contract.
+
+### 🔧 Changed
+
+- `status/` facade now enforced repo-wide: ~219 deep `specify_cli.status.<sub>` imports
+  collapsed to 21 across `src/specify_cli` and `src/runtime` (724 files covered by boundary test).
+- `mission_read_path.py` converted to a thin compatibility shim over the canonical
+  `specify_cli.missions._read_path_resolver`; duplicate resolver implementation eliminated.
+- `mission_runtime.__all__` trimmed to the 4-symbol public contract; historical first-party
+  names (`ActionContext`, `ActionName`, `ACTION_NAMES`, `_resolve_mission_slug`) served via
+  `__getattr__` without appearing in the public surface.
+- `resolve_action_context` top-level imports moved to deferred (inside function bodies),
+  breaking the `mission_runtime → dependency_graph → status → uninitialized_hint → dependency_graph`
+  circular import; cold `import mission_runtime` now works without prior status initialization.
+- `FrontmatterSource` and `resolve_wp_manifests` routed through single ownership ports (#1757).
+- Mission-identity snapshot carry-through added to `runtime_bridge.py` (#1663).
+- Full-sequence parity ratchet (`test_execution_context_parity.py`) extended to cover
+  `next → implement → move-task → review → status` across three execution modes plus a
+  negative control (#1672).
+
+### 🐛 Fixed
+
+- Coord-topology merge hardening (#1772): `path_is_under_worktrees` predicate applied at
+  staging; `_lane_already_integrated` tree-diff gate (fail-loud on zero-diff squash); in-branch
+  status validation; `doctor` check for tracked `.worktrees/` content.
+- Cold import of `mission_runtime` no longer raises `ImportError: cannot import name
+  'detect_cycles' from partially initialized module` (circular import via status facade).
+- `mission_runtime_api.md` contract corrected to match actual `resolve_action_context` signature
+  (`action`/`feature` keyword args, not positional `mission`).
+- `status_boundary.md` updated to document `workspace/context.py` as a permanent third
+  exemption (import-time cycle breaker); contract and test allow-list now in sync.
+- Raw `kitty-specs/` path construction eliminated from call sites; all paths go through the
+  single resolver (FR-009).
+- Closed: #1673, #1664, #1672, #1663, #1757, #1754, #1772.
+
 ## [3.2.0rc40] - 2026-06-07
 
 ### ✨ Added

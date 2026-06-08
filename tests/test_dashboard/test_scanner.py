@@ -215,14 +215,17 @@ def test_build_event_log_kanban_stats_surfaces_missing_event_log(tmp_path):
 
 
 def test_build_event_log_kanban_stats_tolerates_weighted_progress_failure(tmp_path, monkeypatch):
-    from specify_cli.status import reducer
+    import specify_cli.status as status_facade
 
     feature_dir = _create_feature(tmp_path, "001-progress-fallback")
 
     def fail_materialize(_feature_dir):
         raise RuntimeError("progress unavailable")
 
-    monkeypatch.setattr(reducer, "materialize", fail_materialize)
+    # scanner resolves materialize through the status facade
+    # (`from specify_cli.status import materialize`), so patch the facade name it
+    # actually looks up — patching the reducer submodule would not be seen.
+    monkeypatch.setattr(status_facade, "materialize", fail_materialize)
 
     stats = scanner._build_event_log_kanban_stats(feature_dir, feature_dir / "tasks")
 
@@ -249,6 +252,25 @@ work_package_id: WP01
 
     assert stats["total"] == 0
     assert stats["planned"] == 0
+
+
+def test_process_wp_file_raises_without_canonical_log_for_nonlegacy(tmp_path, monkeypatch):
+    """A non-legacy WP with no canonical event log surfaces CanonicalStatusNotFoundError."""
+    from specify_cli.status import CanonicalStatusNotFoundError
+
+    feature_dir = tmp_path / "kitty-specs" / "001-no-canonical-log"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    prompt_file = tasks_dir / "WP01-demo.md"
+    prompt_file.write_text(
+        "---\nwork_package_id: WP01\n---\n# Work Package Prompt: Demo\n",
+        encoding="utf-8",
+    )
+    # No status.events.jsonl anywhere; force the non-legacy branch.
+    monkeypatch.setattr(scanner, "is_legacy_format", lambda _feature_dir: False)
+
+    with pytest.raises(CanonicalStatusNotFoundError):
+        scanner._process_wp_file(prompt_file, tmp_path, "planned")
 
 
 def test_build_kanban_stats_handles_absent_and_legacy_paths(tmp_path, monkeypatch):

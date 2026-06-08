@@ -65,22 +65,22 @@ from acceptance_support import (  # noqa: E402
 )
 
 from specify_cli.mission_metadata import finalize_merge, record_merge  # noqa: E402
-from specify_cli.status.models import Lane, StatusEvent  # noqa: E402
-from specify_cli.status.reducer import materialize as _materialize  # noqa: E402
-from specify_cli.status.store import append_event  # noqa: E402
-from specify_cli.status.transitions import resolve_lane_alias  # noqa: E402
+from specify_cli.status import Lane, StatusEvent  # noqa: E402
+from specify_cli.status import materialize as _materialize  # noqa: E402
+from specify_cli.status import append_event  # noqa: E402
+from specify_cli.status import resolve_lane_alias  # noqa: E402
 
 
 def _derive_current_lane(feature_dir: Path, wp_id: str) -> str:
     """Derive current canonical lane for a WP from reduced status events."""
-    from specify_cli.status.models import Lane
-    from specify_cli.status.store import StoreError, read_events  # noqa: F401
+    from specify_cli.status import Lane
+    from specify_cli.status import StoreError, read_events  # noqa: F401
 
     events = read_events(feature_dir)  # raises StoreError on corrupt JSONL
     if not events:
         return Lane.PLANNED
 
-    from specify_cli.status.reducer import reduce as _reduce
+    from specify_cli.status import reduce as _reduce
 
     snapshot = _reduce(events)
     wp_state = snapshot.work_packages.get(wp_id)
@@ -254,7 +254,7 @@ def update_command(args: argparse.Namespace) -> None:
 
     wp = locate_work_package(repo_root, feature, args.work_package)
 
-    from specify_cli.status.models import Lane as _LaneCheck  # noqa: PLC0415
+    from specify_cli.status import Lane as _LaneCheck  # noqa: PLC0415
     if _LaneCheck(wp.current_lane) == _LaneCheck(validated_lane):
         raise TaskCliError(f"Work package already in lane '{validated_lane}'.")
 
@@ -362,8 +362,8 @@ def list_command(args: argparse.Namespace) -> None:
                 )
     else:
         # New format: scan flat tasks/ directory and read canonical lane from the event log
-        from specify_cli.status.store import read_events as _read_events  # noqa: PLC0415
-        from specify_cli.status.wp_state import wp_state_for  # noqa: PLC0415
+        from specify_cli.status import read_events as _read_events  # noqa: PLC0415
+        from specify_cli.status import wp_state_for  # noqa: PLC0415
 
         # Validate that canonical status events exist for this feature
         _feature_events = _read_events(feature_path)
@@ -436,7 +436,7 @@ def rollback_command(args: argparse.Namespace) -> None:
     wp = locate_work_package(repo_root, args.feature, args.work_package)
     wp_id = wp.work_package_id or wp.path.stem
     feature_dir = wp.path.parent.parent
-    from specify_cli.status.store import read_events
+    from specify_cli.status import read_events
 
     events = read_events(feature_dir)
     wp_events = [e for e in events if e.wp_id == wp_id]

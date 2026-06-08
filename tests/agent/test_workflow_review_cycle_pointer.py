@@ -79,7 +79,6 @@ def test_canonical_review_cycle_pointer_resolves_for_fix_context(
 
     has_feedback, ref, path, source = workflow._resolve_review_feedback_context(
         feature_dir,
-        repo,
         "WP01",
         "",
     )
@@ -127,7 +126,7 @@ def test_fix_context_skips_action_review_claim_sentinel(
         ),
     )
 
-    ref, path, _ = workflow._latest_review_feedback_reference(feature_dir, repo, "WP01")
+    ref, path, _ = workflow._latest_review_feedback_reference(feature_dir, "WP01")
 
     assert ref == pointer
     assert path is not None
