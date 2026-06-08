@@ -57,3 +57,13 @@ Format per entry: location · tool/rule · description · why deferred · rough 
 - **Description:** The test creates a markerless temp dir under `/tmp` and asserts `locate_project_root()` returns `None`, but the walk-up finds `/tmp/.kittify` and returns `/tmp`. Surfaced + proven by the WP06 reviewer (moving the stray dir makes it pass); `locate_project_root` was unchanged by any WP here.
 - **Why deferred:** environmental + a pre-existing test-isolation weakness, unrelated to this mission's surface.
 - **Rough effort:** Low. Either make the test hermetic (build the temp tree outside any `/tmp/.kittify` ancestor, e.g. monkeypatch the walk-up ceiling) or remove the stray `/tmp/.kittify` from the dev box. NOTE: I did **not** delete `/tmp/.kittify` — unsure whether it's an intentional operator scratch; flag for the operator to clear if it's cruft.
+
+---
+
+## S-06 — review-cycle artifact verdict goes stale across re-review cycles
+
+- **Location:** `spec-kitty agent action review` / `move-task --to approved` review-artifact check; `tasks/<WP>/review-cycle-N.md`.
+- **Tool/rule:** review workflow (cross-cycle artifact naming/verdict).
+- **Description:** On WP07's cycle-2 re-review (after a cycle-1 rejection + fix), the approval was blocked because a `review-cycle-2.md` artifact carried `verdict: rejected` — the cycle-1 rejection content had been written under the cycle-2 filename. The reviewer had to pass `--skip-review-artifact-check` with a rationale to approve a genuinely-resolved finding. The cycle index / artifact verdict didn't advance cleanly with the re-review.
+- **Why deferred:** workflow tooling friction, not mission code; the reviewer handled it correctly (documented skip, not an arbiter override).
+- **Rough effort:** Medium (tooling). The review-artifact check should key off the CURRENT cycle's verdict, and re-claiming review for a fixed WP should supersede/clear the prior cycle's rejection artifact rather than leaving a stale `rejected` that blocks the next approval. Worth filing upstream alongside the codependent-lanes epic.
