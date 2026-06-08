@@ -197,3 +197,6 @@ exceptions:
   - path: src/specify_cli/coordination/transaction.py
     action: do_not_change
     reason: "BookkeepingTransaction infrastructure — exempt; internals unchanged (NFR-006)."
+  - path: "kitty-specs/**"
+    action: manual_review
+    reason: "Mission planning + status artifacts (status.events.jsonl, status.json, ADR/findings docs, .gitkeep). Auto-committed by the implement/move-task flow onto every lane branch; they carry no `specify_cli.status.*` import to rewrite, so they are outside the bulk-edit surface. Non-blocking review surfacing only."

@@ -46,3 +46,31 @@ the mission targets — it surfaced here at the *planning-artifact* layer.
 3. **Planning-artifact fixes on coord-topology missions require a manual double-commit** (primary + coord branch). Consider a helper that syncs a corrected planning artifact to the coordination branch, or have the implement claim read the primary checkout for planning artifacts.
 
 **Commits:** `3fe19b869` / `fc8d343ba` (YAML), `febeee4ee` (+ coord mirror) (schema).
+
+---
+
+## F-02 — bulk-edit **review** diff-compliance gate used the wrong head ref (coord-topology false-block)
+
+**Severity:** High (false-blocks every bulk-edit WP review on a coord-topology mission). **Phase:** WP02 review claim. **Status:** Fixed in product source. **Domain:** coord-vs-primary split (#1589/#1772 class).
+
+### Symptom
+`spec-kitty agent action review WP02` failed the bulk-edit diff-compliance gate (FR-007/FR-008) listing ~hundreds of "unclassified / forbidden surface touched" files that WP02 never modified — other missions' `status.events.jsonl`, `.gitkeep`, `uv.lock`, `.github/`, `.worktrees/…-coord/…`, plus `status_transition.py` (an intended `do_not_change` exemption flagged as a violation).
+
+### Root cause
+`src/specify_cli/cli/commands/agent/workflow.py` (review path) called `check_review_diff_compliance(..., repo_root=main_repo_root, base_ref=<mission_branch>, head_ref="HEAD")`. The diff runs in the **main repo checkout**, whose `HEAD` is the mission's **target branch** (`feat/execution-state-strangler`). So the gate computed `git diff <mission_branch>..feat-tip` = **458 files** of unrelated target-branch delta, instead of the WP's actual lane diff. Correct diff `<mission_branch>..<lane_branch>` = **10 files**.
+
+### Fix
+Use the WP's resolved lane branch as the head ref:
+```python
+_head_ref = review_workspace.branch_name or "HEAD"   # fall back to HEAD only for repo_root / direct-to-target
+```
+`ResolvedWorkspace.branch_name` is the lane branch for `lane_workspace` and `None` for `repo_root` (planning/direct-to-target, where the changes genuinely are on HEAD). After the fix the gate sees the real 10-file diff: 0 violations, 10 non-blocking `manual_review` warnings.
+
+### Secondary fix (occurrence map)
+Even the correct 10-file lane diff includes the mission's own auto-committed artifacts (`kitty-specs/<m>/status.events.jsonl` is unclassified because the path heuristic matches `\.json$` not `.jsonl`; plus `.gitkeep`). Added a `kitty-specs/**` → `manual_review` exception: these are tooling-managed planning/status artifacts on every lane branch, carrying no `specify_cli.status.*` import to rewrite, so they are legitimately outside the bulk-edit surface (non-blocking surfacing).
+
+### Upstream gaps worth filing
+1. **Review diff-compliance head-ref bug** is a coordination-topology defect in `workflow.py` — fixed here in source, but it has **no regression test**. Add one: a coord-topology bulk-edit fixture where review-from-main-checkout must diff the lane branch, not the target tip. (Adjacent to WP14's #1772 path/status-surface hardening.)
+2. **The path heuristic misses `.jsonl`** (`diff_check.py` `serialized_keys` matches `\.json$` only). `status.events.jsonl` — the canonical status log — is classified *unclassified* and would block any WP that touches it without an exception. Either add `\.jsonl$` to `serialized_keys` or have the diff check ignore the mission's own `kitty-specs/<m>/` status artifacts by construction.
+
+**Commits:** see `feat/execution-state-strangler` — workflow.py head-ref fix + occurrence_map `kitty-specs/**` exception (+ coord mirror).
