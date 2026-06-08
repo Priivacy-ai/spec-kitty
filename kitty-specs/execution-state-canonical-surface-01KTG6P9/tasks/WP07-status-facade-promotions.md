@@ -20,8 +20,8 @@ subtasks:
 - T028
 phase: Phase 4 - Facade
 assignee: ''
-agent: "claude:sonnet:python-pedro:implementer"
-shell_pid: "2861361"
+agent: "claude:sonnet:reviewer-renata:reviewer"
+shell_pid: "2864666"
 history:
 - at: '2026-06-07T05:16:24Z'
   actor: system
@@ -98,3 +98,5 @@ Finalize per-submodule promote/demote/route decisions and update `status/__init_
 - 2026-06-08T09:13:19Z – claude:opus:reviewer-renata:reviewer – shell_pid=2854112 – Started review via action command
 - 2026-06-08T09:17:37Z – user – shell_pid=2854112 – Moved to planned
 - 2026-06-08T09:18:26Z – claude:sonnet:python-pedro:implementer – shell_pid=2861361 – Started implementation via action command
+- 2026-06-08T09:20:11Z – claude:sonnet:python-pedro:implementer – shell_pid=2861361 – Cycle 2: demoted filter_dossier_snapshots (test-only over-promotion); still importable from status.preflight
+- 2026-06-08T09:20:36Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=2864666 – Started review via action command
