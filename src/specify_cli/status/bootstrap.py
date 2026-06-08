@@ -18,10 +18,6 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from specify_cli.frontmatter import FrontmatterError
-from specify_cli.coordination.status_transition import (
-    emit_status_transition_transactional,
-    read_events_transactional,
-)
 from specify_cli.status.models import TransitionRequest
 from specify_cli.status.reducer import materialize
 from specify_cli.status.wp_metadata import read_wp_frontmatter
@@ -116,6 +112,16 @@ def bootstrap_canonical_state(
     Returns:
         A :class:`BootstrapResult` with counts and per-WP detail strings.
     """
+    # Lazy import breaks an import cycle: ``status/__init__`` imports this module
+    # (bootstrap), and ``coordination.status_transition`` imports back into the
+    # status package via ``coordination.transaction``. Importing the transactional
+    # helpers at call time (rather than module load) lets ``status/__init__``
+    # finish initializing before the coordination package is touched.
+    from specify_cli.coordination.status_transition import (
+        emit_status_transition_transactional,
+        read_events_transactional,
+    )
+
     result = BootstrapResult()
 
     tasks_dir = feature_dir / "tasks"

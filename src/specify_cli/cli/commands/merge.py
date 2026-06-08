@@ -480,6 +480,7 @@ def _assert_merged_wps_reached_done(
     wp_ids: list[str],
 ) -> None:
     """Fail the merge if merged WPs did not reach ``done`` in the event log."""
+    from specify_cli.status import CanonicalStatusNotFoundError
     from specify_cli.status import get_wp_lane
     from specify_cli.status import Lane
     from specify_cli.status import StoreError
@@ -502,6 +503,19 @@ def _assert_merged_wps_reached_done(
                 continue
             if lane != Lane.DONE:
                 incomplete.append(f"{wp_id}={lane.value}")
+    except CanonicalStatusNotFoundError as exc:
+        # The canonical event log is absent (e.g. a legacy mission that never ran
+        # finalize-tasks, or a surface that diverged from the mark-done writes).
+        # Code integration already succeeded; surface this as a deliberate,
+        # actionable validation failure rather than an uncaught crash.
+        console.print(
+            "[red]Error:[/red] Post-merge status validation could not run: "
+            f"no canonical event log at {surface_path}. Code was integrated, but "
+            "WP done-state cannot be confirmed. Run "
+            f"'spec-kitty agent mission finalize-tasks --mission {mission_slug}' "
+            "to bootstrap the event log, then re-run the merge."
+        )
+        raise typer.Exit(1) from exc
     except StoreError as exc:
         console.print(
             "[red]Error:[/red] Post-merge status validation failed: "
