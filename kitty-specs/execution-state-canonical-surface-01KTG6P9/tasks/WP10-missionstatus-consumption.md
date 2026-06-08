@@ -56,6 +56,8 @@ One status entry point. Mission-level reads/writes go through `MissionStatus`; t
 
 Route mission-level status read/write consumers onto the `MissionStatus` aggregate; eliminate direct `BookkeepingTransaction` calls outside `status/` and documented plumbing.
 
+> **Post-FSM-rebase note (2026-06-08):** the canonical-reader routing pattern is **already demonstrated** — `runtime/next/decision.py::_get_wp_lanes` now delegates to `lane_reader.get_all_wp_lanes` (with `CanonicalStatusNotFoundError` fallback). Use it as the **reference exemplar**; that consumer is **done** — drop it from the to-do set. Also: `orchestrator_api/commands.py::_is_run_affecting` was renamed `_transition_requires_policy` (distinct from `WPState.is_run_affecting`) — use the new name, don't conflate.
+
 - FR-017/018/019. NFR-002, NFR-006 (no `transaction.py` internals change). SC-005.
 
 ## Context & Constraints

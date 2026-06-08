@@ -8,6 +8,7 @@ requirement_refs:
 - FR-007
 - FR-008
 - FR-012
+- FR-036
 - C-001
 - C-002
 tracker_refs: []
@@ -23,6 +24,8 @@ subtasks:
 - T016
 - T017
 - T018
+- T052
+- T053
 phase: Phase 3 - Strangle
 assignee: ''
 agent: ''
@@ -39,6 +42,8 @@ owned_files:
 - src/runtime/next/runtime_bridge.py
 - src/specify_cli/cli/commands/agent/workflow.py
 - src/mission_runtime/resolution.py
+- src/specify_cli/missions/feature_dir_resolver.py
+- src/specify_cli/coordination/surface_resolver.py
 role: implementer
 tags: []
 task_type: implement

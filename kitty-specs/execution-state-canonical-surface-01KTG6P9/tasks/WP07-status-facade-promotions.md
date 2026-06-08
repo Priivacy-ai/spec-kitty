@@ -49,6 +49,8 @@ Load `/ad-hoc-profile-load` (profile below).
 
 Finalize per-submodule promote/demote/route decisions and update `status/__init__.py` `__all__`, so the facade exposes exactly the symbols external consumers legitimately need.
 
+> **Post-FSM-rebase note (2026-06-08):** `COORD_OWNED_STATUS_FILES` is **already promoted** into `status/__init__.py` `__all__` (derived from `EVENTS_FILENAME`/`SNAPSHOT_FILENAME`) by the FSM reduction pass — record it as done in the inventory, do **not** re-promote it.
+
 - FR-013. C-007 (`__all__` convention). Enables WP08.
 
 ## Context & Constraints
