@@ -297,11 +297,11 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 > **ATDD-first (C-011):** author + commit the failing test subtask **T046 RED first**, before the T042–T045 implementation subtasks. Reviewer verifies red→green.
 
-- [ ] T042 Add `scope` to the `migration/backfill_ownership.py` "already present" guard and write step (persist `scope` when present) (WP12)
-- [ ] T043 Document `scope` as human-authored (no inference) in `ownership/inference.py::infer_ownership` (explicit no-op note) (WP12)
-- [ ] T044 Normalize the `from_frontmatter` raw-dict branch `authoritative_surface` with `... or ""` (provable symmetry) (WP12)
-- [ ] T045 Introduce a frontmatter-source port so the finalize resolve→validate path (`build_wp_manifests` + `read_wp_frontmatter`) is testable without stubbing the reader; route the finalize caller through it (WP12)
-- [ ] T046 Add tests: backfill re-run preserves `scope`; `from_frontmatter` symmetry; port-driven resolve→validate (WP12)
+- [x] T042 Add `scope` to the `migration/backfill_ownership.py` "already present" guard and write step (persist `scope` when present) (WP12)
+- [x] T043 Document `scope` as human-authored (no inference) in `ownership/inference.py::infer_ownership` (explicit no-op note) (WP12)
+- [x] T044 Normalize the `from_frontmatter` raw-dict branch `authoritative_surface` with `... or ""` (provable symmetry) (WP12)
+- [x] T045 Introduce a frontmatter-source port so the finalize resolve→validate path (`build_wp_manifests` + `read_wp_frontmatter`) is testable without stubbing the reader; route the finalize caller through it (WP12)
+- [x] T046 Add tests: backfill re-run preserves `scope`; `from_frontmatter` symmetry; port-driven resolve→validate (WP12)
 
 ### Dependencies
 
