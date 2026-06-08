@@ -91,6 +91,36 @@ from .progress import (
 )
 from .adapters import (
     fire_saas_fanout,
+    register_dossier_sync_handler,
+    register_lifecycle_saas_fanout_handler,
+    register_saas_fanout_handler,
+)
+from .bootstrap import (
+    BootstrapResult,
+    bootstrap_canonical_state,
+)
+from .event_log_merge import (
+    EventLogMergeError,
+    merge_event_log_files,
+)
+from .identity_audit import (
+    IdentityState,
+    audit_repo,
+    classify_mission,
+    find_ambiguous_selectors,
+    find_duplicate_prefixes,
+    summarize,
+)
+from .locking import (
+    FeatureStatusLockTimeoutError,
+    feature_status_lock,
+)
+from .preflight import (
+    filter_dossier_snapshots,
+    is_dossier_snapshot,
+)
+from .uninitialized_hint import (
+    uninitialized_status_error,
 )
 from .lifecycle import (
     DERIVED_LIFECYCLE_FILENAME,
@@ -127,9 +157,13 @@ __all__ = [
     "ActiveWPStatus",
     "AgentAssignment",
     "ALLOWED_TRANSITIONS",
+    "BootstrapResult",
     "COORD_OWNED_STATUS_FILES",
     "CoordAuthorityUnavailable",
+    "EventLogMergeError",
+    "FeatureStatusLockTimeoutError",
     "GuardContext",
+    "IdentityState",
     "MissionMetadataUnavailable",
     "MissionStatus",
     "TransitionRequest",
@@ -173,7 +207,21 @@ __all__ = [
     "ValidationResult",
     "VerificationResult",
     "WPMetadata",
+    "audit_repo",
     "append_event",
+    "bootstrap_canonical_state",
+    "classify_mission",
+    "feature_status_lock",
+    "filter_dossier_snapshots",
+    "find_ambiguous_selectors",
+    "find_duplicate_prefixes",
+    "is_dossier_snapshot",
+    "merge_event_log_files",
+    "register_dossier_sync_handler",
+    "register_lifecycle_saas_fanout_handler",
+    "register_saas_fanout_handler",
+    "summarize",
+    "uninitialized_status_error",
     "append_event_verified",
     "append_events_atomic_verified",
     "append_primary_checkout_event_verified",
