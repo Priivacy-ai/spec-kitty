@@ -20,7 +20,8 @@ subtasks:
 - T028
 phase: Phase 4 - Facade
 assignee: ''
-agent: ''
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "2844466"
 history:
 - at: '2026-06-07T05:16:24Z'
   actor: system
@@ -92,3 +93,4 @@ Finalize per-submodule promote/demote/route decisions and update `status/__init_
 ## Activity Log
 
 - 2026-06-07T05:16:24Z – system – Prompt created.
+- 2026-06-08T09:05:50Z – claude:opus:python-pedro:implementer – shell_pid=2844466 – Started implementation via action command
