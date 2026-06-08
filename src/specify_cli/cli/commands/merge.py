@@ -391,10 +391,14 @@ def _mark_wp_merged_done(
     # into main without passing through the coordination branch.
     _force_done = False
     if lane == _Lane.PLANNED:
-        from specify_cli.status import get_wp_lane as _get_wp_lane  # noqa: PLC0415
+        from specify_cli.status import CanonicalStatusNotFoundError  # noqa: PLC0415
+        from specify_cli.status import lane_reader as _lane_reader  # noqa: PLC0415
         from specify_cli.status import resolve_lane_alias as _resolve_lane_alias  # noqa: PLC0415
 
-        primary_raw = _get_wp_lane(primary_feature_dir, wp_id)  # primary checkout, not coord surface
+        try:
+            primary_raw = _lane_reader.get_wp_lane(primary_feature_dir, wp_id)  # primary checkout, not coord surface
+        except CanonicalStatusNotFoundError:
+            primary_raw = "uninitialized"
         try:
             lane = _Lane(_resolve_lane_alias(str(primary_raw)))
             # The coord has no events for this WP; force the done transition so
@@ -498,7 +502,7 @@ def _assert_merged_wps_reached_done(
 ) -> None:
     """Fail the merge if merged WPs did not reach ``done`` in the event log."""
     from specify_cli.status import CanonicalStatusNotFoundError
-    from specify_cli.status import get_wp_lane
+    from specify_cli.status import lane_reader
     from specify_cli.status import Lane
     from specify_cli.status import StoreError
     from specify_cli.status import resolve_lane_alias
@@ -511,7 +515,7 @@ def _assert_merged_wps_reached_done(
     try:
         incomplete: list[str] = []
         for wp_id in wp_ids:
-            raw = get_wp_lane(feature_dir, wp_id)
+            raw = lane_reader.get_wp_lane(feature_dir, wp_id)
             try:
                 lane = Lane(resolve_lane_alias(raw))
             except ValueError:
