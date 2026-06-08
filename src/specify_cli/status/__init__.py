@@ -116,7 +116,6 @@ from .locking import (
     feature_status_lock,
 )
 from .preflight import (
-    filter_dossier_snapshots,
     is_dossier_snapshot,
 )
 from .uninitialized_hint import (
@@ -212,7 +211,6 @@ __all__ = [
     "bootstrap_canonical_state",
     "classify_mission",
     "feature_status_lock",
-    "filter_dossier_snapshots",
     "find_ambiguous_selectors",
     "find_duplicate_prefixes",
     "is_dossier_snapshot",
