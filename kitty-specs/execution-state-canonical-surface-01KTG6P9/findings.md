@@ -220,3 +220,29 @@ This mission required a lot of **manual git/lane juggling** that the tooling sho
 
 ### Recommended next step
 File a single tracker epic ("codependent-lane topology: code-aware rebase") gathering F-04/F-05/F-06, with the 5 guarantees above as acceptance criteria and a 2-lane + coord-topology fixture (lane-B depends on lane-A; target advances mid-mission) as the regression bed.
+
+---
+
+## F-08 — WP approval recorded on the coordination branch never propagated to the merged feature branch
+
+**Severity:** High (a fully-approved WP appears unreviewed/in-review on the branch that actually merges). **Phase:** closeout (post-lane-merge, flagged by the operator noticing WP14 "For Review"). **Status:** Reconciled manually. **Domain:** coord-vs-primary status split ([[project_lane_loop_status_desync]], #1589) — the exact failure class this mission targets, dogfooded one last time at its own closeout.
+
+### What
+After the lane→feat merge + PR open, the operator observed **WP14 still showing "For Review"**. The canonical truth diverged by surface:
+- **Coordination worktree** (`.worktrees/<mission>-coord/.../status.events.jsonl`): WP14 = **approved** — a real `in_review → approved` event by the operator (cycle-2 verdict, event `01KTKJ0TWA9B68X69GGW5ZWCFT`, full review evidence).
+- **Primary feat checkout** (the tracked `kitty-specs/<mission>/status.events.jsonl` that the PR merges): WP14 = **in_review** — the approve event was **absent**.
+
+So the WP was genuinely approved, but only on the coordination branch; the merged feature branch's tracked event log lagged by exactly one (the terminal) event.
+
+### Why it happened
+The approve transition was emitted *after* the lane branches were built/merged, and it landed on the **coordination branch** (where `move-task` writes, because `meta.json` declares `coordination_branch`). The lane→feat merge carried WP14's **code** but not the coordination branch's subsequent **status event**. Two consequences compounded the confusion:
+1. **Reader split:** `spec-kitty agent tasks status` / `get_status_read_root()` read the **coord** surface (showed WP14 advanced), while `materialize(primary_feature_dir)` read the **primary** log (in_review). The two disagreed silently.
+2. **`move-task` couldn't fix it:** because `move-task` also targets the coord surface (already approved), re-running it returned `Illegal transition: approved -> approved` — it cannot repair the primary log it isn't writing to.
+
+### Reconciliation applied
+Copied the **exact** coord approve event (preserving `event_id`, `actor`, `at`, and review `evidence`) into the primary feat `status.events.jsonl` and re-materialized `status.json`. All 14 WPs then read `approved` on the merged surface. (Also hit the **S-06** stale `review-cycle-2.md verdict=rejected` artifact, which blocked a normal `move-task --to approved`; that is the cosmetic cross-cycle artifact bug, not a live rejection.)
+
+### Upstream gaps worth filing (extends the F-04/F-05/F-06 SYNTHESIS)
+1. **Terminal status events on the coordination branch must propagate to the feature branch at merge.** `spec-kitty merge` (or the lane→feat integration) should fold the coordination branch's WP lifecycle events into the merged feature log, so the branch that ships carries the same canonical state the board shows. Today code and status integrate on different paths.
+2. **Surface-divergence detector.** `doctor` should flag when the coord surface and the primary feature-dir log disagree on any WP's terminal lane (approved/done), instead of leaving it for a human to notice a "For Review" chip on an approved WP.
+3. **`move-task` should be able to repair the primary log**, or at least error with the *real* diagnosis ("primary log is N events behind the coordination branch for WP14") rather than a bare `Illegal transition: approved -> approved`.
