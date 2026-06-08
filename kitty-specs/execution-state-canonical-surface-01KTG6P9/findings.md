@@ -176,3 +176,29 @@ Rebuilt **lane-b = current coord head + the four WP CODE commits cherry-picked**
 ### Lesson / upstream gaps
 - The correct way to rebase a lane onto a moved base is **coord-head + cherry-picked code commits**, NOT a wholesale `feat`→lane merge (which drags `kitty-specs/` into the lane). The F-05 coord resync (merge feat→coord) was fine; the lane resync should have been code-only from the start.
 - Upstream: (a) the auto-rebase classifier should treat **any** conflicted `kitty-specs/<mission>/` path (doc *or* status) as coordination-owned (theirs-wins) instead of halting — its `RULES` set only covers `pyproject.toml`/`__init__.py`/`urls.py`/`uv.lock`; (b) it must resolve **sparse/skip-worktree** conflicted files from the index/blob, not `read_text()` the (absent) worktree path — current behavior is a hard `FileNotFoundError`.
+
+---
+
+## SYNTHESIS — toward a stable "codependent lanes" solution (distilled from F-04/F-05/F-06)
+
+This mission required a lot of **manual git/lane juggling** that the tooling should own. Captured here as design signal — the concrete operations done by hand, their trigger, and what a stable solution must guarantee. The throughline: **the tool models lane *status* dependencies but not lane *code* topology**, and it conflates **code** (lane-owned, merges to target) with **status/planning** (coord-owned), so any base movement or cross-lane dependency forces hand surgery.
+
+### The manual operations performed this session (each is a gap)
+| # | Manual op done by hand | Trigger | Tool gap (F-ref) |
+|---|------------------------|---------|------------------|
+| 1 | `git merge lane-a → lane-b` before claiming WP04 | WP04 (lane-b) depends on WP01 (lane-a); claim gates on dependency *status* only, never propagates dependency *code* across lanes | F-04 |
+| 2 | `git merge feat → coord` (resolve `kitty-specs/` conflicts: status→coord, findings→feat) | coord forked from a stale `feat` snapshot (240 commits / 77 src files behind) | F-05 |
+| 3 | `git merge feat → lane-a`, `feat → lane-b` (sparse `status.json` needed index-level `--theirs`/`restore`) | same stale base; lanes had to pick up feat's reduced FSM surfaces + events 6.0.0 | F-05 |
+| 4 | Rebuild **lane-b = coord-head + cherry-pick(WP01,WP02,WP03,docstring)** | the feat→lane *merge* dragged `kitty-specs/` into the lane → every doc/status file became a conflict → auto-rebase `R-DEFAULT-MANUAL` halt (and sparse `status.json` → `FileNotFoundError`) | F-06 |
+| 5 | Mirror every planning-artifact edit to **both** `feat` and the coord branch | coord-vs-primary split: the implement/review gates read the coord worktree, the PR reads `feat` | F-01 (coord double-write) |
+| 6 | Pending: `lane-b → lane-c` (before WP09), `lane-c → lane-b` (before WP10) | the remaining cross-lane joins | F-04 |
+
+### What a stable solution must guarantee
+1. **Code dependencies are first-class, not just status.** When WP-B depends on WP-A in another lane, claiming WP-B must integrate WP-A's *code* (merge the dependency's resolved lane branch), not only check that WP-A is `approved`. "approved unblocks dependents immediately" is a lie if the dependent gets a stale tree.
+2. **Lanes are `coord-base + code-only`, by construction.** A lane should *never* carry `kitty-specs/` modifications. Enforce it (the guard already *warns*; make the lane lifecycle make it *true*), so coord→lane merges always fast-take coord's version and never conflict. The clean-rebuild recipe (reset to coord head, cherry-pick the code commits) is the canonical "re-base a lane" primitive — the tool should expose it as one command.
+3. **One command to re-anchor a whole mission onto a moved target.** When `feat` advances (or is rebased), there should be a single `spec-kitty mission rebase` that: merges target→coord (code), keeps coord's status, and re-derives every lane as coord+code. Today this is ~8 hand-run merges/cherry-picks with bespoke conflict calls.
+4. **The auto-rebase classifier must not halt on coord-owned files** (treat any `kitty-specs/<mission>/` path as theirs-wins) and must read **sparse** conflicted files from the index/blob.
+5. **Detect staleness early.** A lane/coord that has fallen behind the target should be flagged at claim time (or by `doctor`), not discovered by a reviewer noticing missing upstream code (this mission found it only via manual `git merge-base` archaeology — F-05).
+
+### Recommended next step
+File a single tracker epic ("codependent-lane topology: code-aware rebase") gathering F-04/F-05/F-06, with the 5 guarantees above as acceptance criteria and a 2-lane + coord-topology fixture (lane-B depends on lane-A; target advances mid-mission) as the regression bed.
