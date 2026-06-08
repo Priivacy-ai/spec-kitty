@@ -179,6 +179,41 @@ class TestAdviseWithExplicitProfile:
         assert "lane (ambiguous)" in result.output
         assert result.output.index("lane (ambiguous)") < result.output.index("compact governance context")
 
+    def test_rich_output_includes_op_record_commit_hint(self, tmp_path: Path) -> None:
+        """Rich output prints a git add hint for the op record file."""
+        project = _setup_project(tmp_path)
+        with (
+            patch("specify_cli.cli.commands.advise.find_repo_root", return_value=project),
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["advise", "implement the feature", "--profile", "implementer-fixture"],
+            )
+        assert result.exit_code == 0, result.output
+        assert "git add kitty-ops/" in result.output
+        assert ".jsonl" in result.output
+
+    def test_json_output_omits_op_record_commit_hint(self, tmp_path: Path) -> None:
+        """--json output does not include the commit hint (machine-readable path)."""
+        project = _setup_project(tmp_path)
+        with (
+            patch("specify_cli.cli.commands.advise.find_repo_root", return_value=project),
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["advise", "--json", "implement the feature", "--profile", "implementer-fixture"],
+            )
+        assert result.exit_code == 0, result.output
+        assert "git add kitty-ops/" not in result.output
+
 
 class TestAdviseMissingProfile:
     def test_missing_profile_exits_1(self, tmp_path: Path) -> None:

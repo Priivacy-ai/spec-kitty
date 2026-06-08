@@ -263,6 +263,48 @@ class TestDoSuccessfulRouting:
         assert result.exit_code == 0, result.output
         assert "Close this record" not in result.output
 
+    def test_rich_output_includes_op_record_commit_hint(self, tmp_path: Path) -> None:
+        """Rich output prints a git add hint for the op record file."""
+        project = _setup_project(tmp_path)
+        mock_registry = _IMPLEMENTER_REGISTRY()
+        with (
+            patch("specify_cli.cli.commands.do_cmd.find_repo_root", return_value=project),
+            patch("specify_cli.cli.commands.do_cmd.ProfileRegistry", return_value=mock_registry),
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["do", "implement the feature"],
+            )
+        assert result.exit_code == 0, result.output
+        # Rich may wrap at narrow terminal widths; check parts independently
+        flat = result.output.replace("\n", " ")
+        assert "git add" in flat
+        assert "kitty-ops/" in flat
+        assert ".jsonl" in flat
+
+    def test_json_output_omits_op_record_commit_hint(self, tmp_path: Path) -> None:
+        """--json output does not include the commit hint (machine-readable path)."""
+        project = _setup_project(tmp_path)
+        mock_registry = _IMPLEMENTER_REGISTRY()
+        with (
+            patch("specify_cli.cli.commands.do_cmd.find_repo_root", return_value=project),
+            patch("specify_cli.cli.commands.do_cmd.ProfileRegistry", return_value=mock_registry),
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["do", "--json", "implement the feature"],
+            )
+        assert result.exit_code == 0, result.output
+        assert "git add kitty-ops/" not in result.output
+
     def test_rich_output_surfaces_high_severity_glossary_warning(self, tmp_path: Path) -> None:
         """High-severity glossary conflicts should be shown inline before governance context."""
         project = _setup_project(tmp_path)
