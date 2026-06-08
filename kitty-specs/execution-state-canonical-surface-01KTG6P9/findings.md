@@ -100,3 +100,28 @@ Touched (all `ruff`+`mypy` clean, tests added + green, terminology guard green):
 
 ### Upstream gap worth filing
 The per-WP `approved` issue-matrix gate is arguably mis-scoped for multi-WP missions even with `in-mission` — consider gating only at mission accept/`done` by default. The `in-mission` verdict is the pragmatic fix; the deeper scoping question remains.
+
+---
+
+## F-04 — cross-lane dependency CODE is not propagated to dependents (implement claim gates status only)
+
+**Severity:** High (a dependent WP can run against a codebase missing its dependency's changes → false-green or merge surprises). **Phase:** lane orchestration. **Status:** Mitigated by explicit orchestration; tooling gap to file. **Domain:** execution lanes.
+
+### Root cause
+`spec-kitty agent action implement WP##` (claim path in `cli/commands/agent/workflow.py`) uses `_dependency_lanes` **only to gate** — it checks each dependency is `approved`/`done` (`dependency_readiness_for_wp`) and then merges the **mission branch** into the lane. But approved WP *code* stays on its **lane branch** and is never promoted to the mission branch (verified: `src/mission_runtime/` from approved WP02 has **0 files** on `kitty/mission-…-01KTG6P9`). So a dependent WP in a *different lane* gets the mission branch (status/coordination only), not its dependency's code.
+
+- **Same lane == same code** holds (shared lane branch/worktree): the lane-b chain WP02→WP03→WP04→… inherits each other's commits. ✓
+- **Cross-lane dependencies do NOT**: lane-a is not an ancestor of lane-b (verified `git merge-base --is-ancestor` → false; WP01's full-sequence ratchet = 0 markers on lane-b).
+
+### Cross-lane join points in THIS mission (must merge dependency lane → dependent lane before dispatch)
+1. **WP04 (lane-b) ← WP01 (lane-a)** — merge `…-lane-a` into `…-lane-b` after WP01 approved + WP03 done, before claiming WP04.
+2. **WP09 (lane-c) ← WP08 (lane-b)** — merge `…-lane-b` into `…-lane-c` after WP08 approved, before claiming WP09.
+3. **WP10 (lane-b) ← WP09 (lane-c)** — merge `…-lane-c` into `…-lane-b` after WP09 approved, before claiming WP10.
+
+(All other dependencies are intra-lane-b and need no action. `git merge` is idempotent on commits, so re-merging at final `spec-kitty merge` is safe.)
+
+### Mitigation (orchestration discipline for this mission)
+At each join point, with the dependent lane's worktree idle: `git -C <dependent-lane-worktree> merge <dependency-lane-branch>`, resolve any conflict (cross-lane deps generally touch disjoint files), confirm the dependency's code/markers are present, THEN claim+dispatch the dependent. Tracked as explicit loop tasks so a join is never skipped.
+
+### Upstream gap worth filing
+The claim flow should integrate approved cross-lane dependency code automatically: after the dependency-readiness gate, merge each dependency's resolved lane branch into the dependent's lane branch (not only the mission branch). Needs a regression test: a 2-lane fixture where lane-B WP depends on a lane-A WP and must see lane-A's code at claim. Without it, "approved unblocks dependents immediately" silently gives dependents a stale base.
