@@ -1,7 +1,7 @@
 {
-  "event_count": 84,
-  "last_event_id": "01KTKFE48V1WGT3NFA31KFZWRB",
-  "materialized_at": "2026-06-08T11:21:10.171444+00:00",
+  "event_count": 86,
+  "last_event_id": "01KTKFETWFWVBKNEREGTPCH50W",
+  "materialized_at": "2026-06-08T11:21:33.327244+00:00",
   "mission_number": "",
   "mission_slug": "execution-state-canonical-surface-01KTG6P9",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -109,11 +109,11 @@
       "last_transition_at": "2026-06-08T11:21:10.171444+00:00"
     },
     "WP14": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus:paula-patterns:implementer",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01KTJP09C74YMYNMBMWYCXXH5R",
-      "last_transition_at": "2026-06-08T03:56:42.247426+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KTKFETWFWVBKNEREGTPCH50W",
+      "last_transition_at": "2026-06-08T11:21:33.327244+00:00"
     }
   }
 }
