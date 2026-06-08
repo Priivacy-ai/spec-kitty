@@ -77,3 +77,13 @@ Format per entry: location · tool/rule · description · why deferred · rough 
 - **Description:** Two minor issues: (a) the `SR-1` section header + class docstring say the rule was "widened to ALL of `src/specify_cli`", but SR-1's pytestarch rule still asserts only against the 6 WP03-fixed packages — the repo-wide gate is exclusively SR-2 (architecturally fine, but the doc misleads). (b) `test_ast_scan_allow_list_covers_known_residuals` only checks that allow-listed files EXIST on disk — it will NOT catch a stale `_WP10_DEFERRED_FILES` entry once WP10 migrates a file's imports but forgets to remove it from the allow-list.
 - **Why deferred:** non-blocking doc/robustness polish; WP09 met its spec.
 - **Rough effort:** Low. (a) Correct the SR-1 header/docstring to say SR-1 = regression-lock on the 6 clean packages, SR-2 = repo-wide gate. (b) Strengthen the rot guard to assert each allow-listed file STILL contains a deep status import (so a migrated-but-not-delisted file fails the guard) — ideally land this WITH WP10 so the shrinking ledger self-polices. **Action for WP10:** as it routes each ROUTE-deferred symbol, remove that file from `_WP10_DEFERRED_FILES`; the WP10 reviewer must confirm the allow-list shrank to only the permanent cycle-breaker + C-004 exemptions.
+
+---
+
+## S-08 — `status.history_parser` is now a DEAD module (orphaned by WP08 inlining) — `test_no_dead_modules` RED (merge blocker)
+
+- **Location:** `src/specify_cli/status/history_parser.py`; failing test `tests/architectural/test_no_dead_modules.py` (or equivalent).
+- **Tool/rule:** architectural dead-module gate (RED).
+- **Description:** `history_parser` was classified PRIVATE/migration-only in the occurrence map. WP08's T031 inlined its last external consumer (`extract_done_evidence` → inlined into `merge.py`), leaving the module with **zero consumers** → the dead-module ratchet now fails. This is **mission-introduced** (WP08), not truly pre-existing — surfaced by the WP10 implementer.
+- **Why deferred:** out of WP10's consumption-rework scope; needs an owner decision (delete the module vs. retain for migration).
+- **Rough effort:** Low–Medium. **Action before merge:** confirm `history_parser` has no internal/migration consumer (`grep -rn history_parser src/ tests/`), then either DELETE the module (it's migration-only and orphaned — cleanest, Randy-Reducer dead-weight elimination) or, if a migration path still needs it, restore a real consumer / mark it appropriately. Natural owner: WP13 (legacy-migration rebuild) or a focused cleanup. Do NOT let the mission merge with the dead-module gate RED.
