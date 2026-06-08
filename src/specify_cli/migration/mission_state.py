@@ -1771,15 +1771,86 @@ def _git(repo_root: Path, *args: str, check: bool) -> subprocess.CompletedProces
     )
 
 
+# ---------------------------------------------------------------------------
+# Canonical per-mission event-rebuild entry (WP13, Priivacy-ai/spec-kitty#1754)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class MissionEventRebuildResult:
+    """Count-shaped outcome of rebuilding one mission's canonical event log.
+
+    This is the single canonical reporting contract for per-mission event
+    rebuild (FR-032). It preserves the per-feature counts the migration runner
+    and lifecycle normalizer depend on (``events_generated`` /
+    ``events_corrected``) plus the ``errors`` / ``warnings`` channels, without
+    leaking the richer internal :class:`RebuildResult` shape across the seam.
+    """
+
+    mission_slug: str
+    events_generated: int
+    events_corrected: int
+    errors: list[str]
+    warnings: list[str]
+    skipped: bool = False
+
+
+def rebuild_mission_event_log(
+    feature_dir: Path,
+    mission_slug: str,
+    *,
+    wp_id_map: Mapping[str, str] | None = None,
+) -> MissionEventRebuildResult:
+    """Rebuild one mission's canonical ``status.events.jsonl`` from legacy state.
+
+    This is the **single canonical** per-mission event-rebuild entry point
+    (FR-032, NFR-002). Both live legacy-migration callers — the one-shot
+    migration runner (Step 4) and the lifecycle normalizer — route through here
+    instead of importing the underlying rebuild symbol directly.
+
+    The rebuild logic itself lives once in
+    :mod:`specify_cli.migration.rebuild_state`; this entry adapts its richer
+    :class:`RebuildResult` down to the stable count-shaped
+    :class:`MissionEventRebuildResult` contract. Behavior is preserved exactly:
+    the same legacy fixture produces byte-identical ``status.events.jsonl``
+    output regardless of which seam invokes the rebuild (NFR-004).
+
+    Args:
+        feature_dir: Path to the mission directory (e.g. ``kitty-specs/057-…``).
+        mission_slug: Slug of the mission (e.g. ``"057-…"``).
+        wp_id_map: Optional mapping of ``wp_code → work_package_id`` used to
+            enrich events that lack ``work_package_id``. Defaults to empty.
+
+    Returns:
+        :class:`MissionEventRebuildResult` with per-mission counts and channels.
+    """
+    # Imported at point of use: the rebuild implementation is an internal detail
+    # of the migration package, and deferring the import keeps unrelated
+    # importers of this module off the rebuild dependency chain.
+    from specify_cli.migration.rebuild_state import rebuild_event_log
+
+    result = rebuild_event_log(feature_dir, mission_slug, dict(wp_id_map or {}))
+    return MissionEventRebuildResult(
+        mission_slug=result.feature_slug,
+        events_generated=result.events_generated,
+        events_corrected=result.events_corrected,
+        errors=list(result.errors),
+        warnings=list(result.warnings),
+        skipped=result.skipped,
+    )
+
+
 __all__ = [
     "CANONICAL_ENVELOPE_SCHEMA_VERSION",
     "MIGRATION_SCHEMA_VERSION",
+    "MissionEventRebuildResult",
     "MissionStateDryRunError",
     "MissionStateRepairError",
     "RepairReport",
     "TeamspaceDryRunRowMapping",
     "TeamspaceDryRunReport",
     "deterministic_ulid",
+    "rebuild_mission_event_log",
     "repair_repo",
     "teamspace_dry_run",
 ]

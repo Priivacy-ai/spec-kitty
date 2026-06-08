@@ -417,7 +417,7 @@ def run_migration(repo_root: Path, dry_run: bool = False) -> MigrationReport:  #
         backfill_wp_ids,
     )
     from specify_cli.migration.backfill_ownership import backfill_ownership
-    from specify_cli.migration.rebuild_state import rebuild_event_log
+    from specify_cli.migration.mission_state import rebuild_mission_event_log
     from specify_cli.migration.strip_frontmatter import strip_mutable_fields
     from specify_cli.migration.rewrite_shims import rewrite_agent_shims
 
@@ -504,7 +504,7 @@ def run_migration(repo_root: Path, dry_run: bool = False) -> MigrationReport:  #
         slug = feature_dir.name
         wp_id_map = all_wp_id_maps.get(slug, {})
         try:
-            rb = rebuild_event_log(feature_dir, slug, wp_id_map)
+            rb = rebuild_mission_event_log(feature_dir, slug, wp_id_map=wp_id_map)
             total_events_generated += rb.events_generated
             for w in rb.warnings:
                 report.warnings.append(w)

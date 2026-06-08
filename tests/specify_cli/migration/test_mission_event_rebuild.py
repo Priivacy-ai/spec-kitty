@@ -118,34 +118,31 @@ def test_canonical_entry_accepts_wp_id_map(tmp_path: Path) -> None:
 def test_behavior_preserved_vs_underlying_impl(tmp_path: Path, wps: list[dict]) -> None:
     """The canonical entry produces byte-identical output and equal counts.
 
-    Rebuild the *same* legacy fixture twice — once through the underlying
-    ``rebuild_state`` implementation directly, once through the canonical
-    ``mission_state`` entry — and assert the resulting event log bytes and the
-    reported counts are identical. This is the NFR-004 behavior-preservation
-    proof: routing the callers off the deprecated symbol changes nothing.
+    Rebuild the *same* legacy fixture (identical slug, separate directories)
+    twice: once through the underlying ``rebuild_state`` implementation
+    directly, once through the canonical ``mission_state`` entry. Assert the
+    resulting event log bytes and the reported counts are identical. This is the
+    NFR-004 behavior-preservation proof: routing the callers off the deprecated
+    symbol changes nothing about the migrated output.
     """
     from specify_cli.migration import mission_state
     from specify_cli.migration.rebuild_state import rebuild_event_log
 
-    legacy_dir = _make_feature(tmp_path, "059-legacy", wps)
-    canonical_dir = _make_feature(tmp_path, "059-legacy-canonical", wps)
+    legacy_root = tmp_path / "legacy"
+    canonical_root = tmp_path / "canonical"
+    legacy_dir = _make_feature(legacy_root, "059-legacy", wps)
+    canonical_dir = _make_feature(canonical_root, "059-legacy", wps)
 
     legacy_result = rebuild_event_log(legacy_dir, "059-legacy", {})
-    canonical_result = mission_state.rebuild_mission_event_log(
-        canonical_dir, "059-legacy-canonical"
-    )
+    canonical_result = mission_state.rebuild_mission_event_log(canonical_dir, "059-legacy")
 
     assert canonical_result.events_generated == legacy_result.events_generated
     assert canonical_result.events_corrected == legacy_result.events_corrected
     assert bool(canonical_result.errors) == bool(legacy_result.errors)
 
-    # Byte-identical apart from the slug-bearing fields: normalize the slug so
-    # the structural event content can be compared directly.
-    legacy_text = _read_events_text(legacy_dir).replace("059-legacy", "SLUG")
-    canonical_text = _read_events_text(canonical_dir).replace(
-        "059-legacy-canonical", "SLUG"
-    )
-    assert canonical_text == legacy_text
+    # Identical slug + identical fixture => byte-identical event log output,
+    # proving the canonical seam changes nothing about the migrated bytes.
+    assert _read_events_text(canonical_dir) == _read_events_text(legacy_dir)
 
 
 # ---------------------------------------------------------------------------
