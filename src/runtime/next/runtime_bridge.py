@@ -47,9 +47,9 @@ from runtime.next._internal_runtime.schema import ActorIdentity, MissionRuntimeE
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.mission import get_mission_type
-from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
-from specify_cli.status.models import Lane
-from specify_cli.status.wp_state import wp_state_for
+from specify_cli.status import CanonicalStatusNotFoundError
+from specify_cli.status import Lane
+from specify_cli.status import wp_state_for
 from runtime.next.decision import (
     Decision,
     DecisionKind,
@@ -883,7 +883,7 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
 
     # Get canonical lane state from event log (hard-fail if absent)
     import re as _re
-    from specify_cli.status.lane_reader import get_wp_lane
+    from specify_cli.status import get_wp_lane
 
     for wp_file in wp_files:
         wp_match = _re.match(r"(WP\d+)", wp_file.stem)

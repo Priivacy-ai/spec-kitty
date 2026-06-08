@@ -21,8 +21,8 @@ from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
 from specify_cli.lanes.branch_naming import mid8_from_slug
-from specify_cli.status.locking import feature_status_lock
-from specify_cli.status.store import EVENTS_FILENAME, EventPersistenceError, StoreError
+from specify_cli.status import feature_status_lock
+from specify_cli.status import EVENTS_FILENAME, EventPersistenceError, StoreError
 
 logger = logging.getLogger(__name__)
 
@@ -316,10 +316,8 @@ def emit(
                 raise typer.Exit(1)
 
         # Lazy import to avoid circular imports
-        from specify_cli.status.emit import (
-            TransitionError,
-        )
-        from specify_cli.status.models import TransitionRequest
+        from specify_cli.status import TransitionError
+        from specify_cli.status import TransitionRequest
 
         # FR-004: the MissionStatus aggregate is the sole write entry point.
         # ms.transition() validates and delegates to the transactional path,
@@ -382,7 +380,7 @@ def emit(
     except Exception as exc:
         # Check if it's a TransitionError (imported lazily above)
         try:
-            from specify_cli.status.emit import TransitionError
+            from specify_cli.status import TransitionError
             if isinstance(exc, TransitionError):
                 _output_error(json_output, str(exc))
                 raise typer.Exit(1)
@@ -427,8 +425,8 @@ def materialize(
         feature_dir, _, _ = _resolve_status_surface_for_repo(main_repo_root, mission_slug, json_output)
 
         # Lazy import to avoid circular imports
-        from specify_cli.status.reducer import materialize as do_materialize
-        from specify_cli.status.store import EVENTS_FILENAME
+        from specify_cli.status import materialize as do_materialize
+        from specify_cli.status import EVENTS_FILENAME
 
         # Check that the events file exists
         events_path = feature_dir / EVENTS_FILENAME
@@ -640,7 +638,7 @@ def lifecycle(
     whether a mission is active, recently completed, stale, abandoned, or
     now just recoverable/archive history.
     """
-    from specify_cli.status.lifecycle import derive_mission_lifecycle
+    from specify_cli.status import derive_mission_lifecycle
 
     feature_dir, mission_slug, _repo_root = _resolve_status_surface(mission, feature, json_output=json_output)
     try:
@@ -815,13 +813,8 @@ def _collect_status_validation_findings(feature_dir: Path, result: Any) -> bool:
 
     Returns False when there are no events to validate.
     """
-    from specify_cli.status.store import read_events, read_events_raw
-    from specify_cli.status.validate import (
-        validate_done_evidence,
-        validate_event_schema,
-        validate_materialization_drift,
-        validate_transition_legality,
-    )
+    from specify_cli.status import read_events, read_events_raw
+    from specify_cli.status import validate_done_evidence, validate_event_schema, validate_materialization_drift, validate_transition_legality
 
     try:
         raw_events = read_events_raw(feature_dir)
@@ -874,7 +867,7 @@ def validate(
         spec-kitty agent status validate --mission 034-my-feature
         spec-kitty agent status validate --json
     """
-    from specify_cli.status.validate import ValidationResult
+    from specify_cli.status import ValidationResult
 
     cwd = Path.cwd().resolve()
     repo_root = locate_project_root(cwd)

@@ -11,7 +11,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from specify_cli.status.wp_metadata import read_wp_frontmatter
+from specify_cli.status import read_wp_frontmatter
 
 # ---------------------------------------------------------------------------
 # Weight tables

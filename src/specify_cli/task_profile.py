@@ -103,7 +103,7 @@ def apply_profile_suggestions(
         List of (wp_id, profile) pairs for WPs that received a suggestion.
     """
     from specify_cli.frontmatter import update_field
-    from specify_cli.status.wp_metadata import read_wp_frontmatter
+    from specify_cli.status import read_wp_frontmatter
 
     suggestions: list[tuple[str, str]] = []
 

@@ -38,8 +38,9 @@ from specify_cli.migration.canonicalization import (
     MigrationContext,
     apply_rules,
 )
-from specify_cli.status.models import ULID_PATTERN, Lane, StatusEvent
-from specify_cli.status.reducer import materialize_snapshot, materialize_to_json
+from specify_cli.status import ULID_PATTERN, Lane, StatusEvent
+from specify_cli.status import materialize_to_json
+from specify_cli.status.reducer import materialize_snapshot
 
 MIGRATION_SCHEMA_VERSION = "1.0.0"
 CANONICAL_ENVELOPE_SCHEMA_VERSION = "3.0.0"
@@ -568,7 +569,7 @@ def teamspace_dry_run(
     row_mappings: list[TeamspaceDryRunRowMapping] = []
     context_warnings = _teamspace_context_warnings(repo_root.resolve(), project_uuid)
 
-    from specify_cli.status.store import read_events
+    from specify_cli.status import read_events
 
     for mission_dir in mission_dirs:
         side_logs.extend(_classify_side_logs(repo_root.resolve(), mission_dir))

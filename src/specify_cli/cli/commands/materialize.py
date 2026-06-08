@@ -52,9 +52,9 @@ def materialize(
         spec-kitty materialize --mission 034-my-feature
         spec-kitty materialize --json
     """
-    from specify_cli.status.views import write_derived_views
-    from specify_cli.status.lifecycle import generate_lifecycle_json
-    from specify_cli.status.progress import generate_progress_json
+    from specify_cli.status import write_derived_views
+    from specify_cli.status import generate_lifecycle_json
+    from specify_cli.status import generate_progress_json
 
     repo_root = locate_project_root()
     if repo_root is None:

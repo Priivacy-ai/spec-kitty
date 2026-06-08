@@ -27,6 +27,8 @@ from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_sl
 from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals
 from specify_cli.ownership.models import ExecutionMode
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
+# Deep import: status.emit imports this module during status/__init__ execution,
+# so the status facade is not yet initialized here — importing from it would cycle.
 from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
 
 
@@ -366,8 +368,8 @@ def resolve_active_wp_for_branch(
         )
 
     try:
-        from specify_cli.status.lane_reader import get_all_wp_lanes
-        from specify_cli.status.models import Lane
+        from specify_cli.status import get_all_wp_lanes
+        from specify_cli.status import Lane
 
         lanes_by_wp = get_all_wp_lanes(feature_dir)
         active_candidates = [

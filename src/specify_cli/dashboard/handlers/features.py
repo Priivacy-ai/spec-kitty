@@ -163,8 +163,8 @@ class FeatureHandler(DashboardHandler):
             weighted_pct = None
             if feature_dir and not is_legacy:
                 try:
-                    from specify_cli.status.progress import compute_weighted_progress
-                    from specify_cli.status.reducer import materialize
+                    from specify_cli.status import compute_weighted_progress
+                    from specify_cli.status import materialize
 
                     snap = materialize(feature_dir)
                     progress = compute_weighted_progress(snap)

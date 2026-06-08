@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from specify_cli.status.models import Lane, StatusEvent
+    from specify_cli.status import Lane, StatusEvent
 
 
 class StatusReadSource(enum.StrEnum):

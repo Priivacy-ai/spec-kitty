@@ -84,7 +84,8 @@ def classify_status_json(
     # NEVER call reducer.materialize() — it writes status.json to disk.
     # materialize_snapshot() keeps parity with materialize() without writing.
     try:
-        from specify_cli.status.reducer import materialize_snapshot, materialize_to_json
+        from specify_cli.status import materialize_to_json
+        from specify_cli.status.reducer import materialize_snapshot
 
         snapshot = materialize_snapshot(mission_dir)
         computed_json = materialize_to_json(snapshot)

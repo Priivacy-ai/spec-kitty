@@ -28,7 +28,7 @@ from charter.resolver import GovernanceResolutionError, resolve_project_governan
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.runtime.resolver import resolve_command
 from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
-from specify_cli.status.wp_metadata import read_wp_frontmatter
+from specify_cli.status import read_wp_frontmatter
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
 

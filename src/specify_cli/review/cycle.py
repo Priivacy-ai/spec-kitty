@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Literal
 
 from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
-from specify_cli.status.models import ReviewResult
+from specify_cli.status import ReviewResult
 
 UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim"})

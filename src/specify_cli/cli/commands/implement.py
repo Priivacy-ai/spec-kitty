@@ -32,8 +32,8 @@ from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
 from specify_cli.coordination.status_transition import emit_status_transition_transactional
 from specify_cli.status import COORD_OWNED_STATUS_FILES
-from specify_cli.status.emit import TransitionError
-from specify_cli.status.models import Lane, TransitionRequest
+from specify_cli.status import TransitionError
+from specify_cli.status import Lane, TransitionRequest
 from specify_cli.status.work_package_lifecycle import (
     WorkPackageClaimConflict,
     WorkPackageStartRejected,
@@ -72,8 +72,8 @@ def _get_wp_lane_from_event_log(feature_dir: Path, wp_id: str) -> str:
     behaviour (Contract 3, FR-008).
     """
     try:
-        from specify_cli.status.reducer import reduce
-        from specify_cli.status.store import read_events
+        from specify_cli.status import reduce
+        from specify_cli.status import read_events
 
         events = read_events(feature_dir)
         if events:
@@ -804,8 +804,8 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
             if protected_error is not None:
                 raise ValueError(protected_error)
 
-        from specify_cli.status.reducer import reduce as _reduce_events
-        from specify_cli.status.store import read_events as _read_events
+        from specify_cli.status import reduce as _reduce_events
+        from specify_cli.status import read_events as _read_events
         from specify_cli.missions._read_path_resolver import resolve_mission_read_path as _resolve_read_path
         from specify_cli.lanes.branch_naming import mid8_from_slug as _mid8_from_slug
 

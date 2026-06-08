@@ -47,8 +47,8 @@ from specify_cli.retrospective.schema import (
 )
 from specify_cli.retrospective.schema import RecordValidationError
 from specify_cli.retrospective.writer import WriterError, write_gen_record, write_record
-from specify_cli.status.reducer import reduce as reduce_status_events
-from specify_cli.status.store import read_events
+from specify_cli.status import reduce as reduce_status_events
+from specify_cli.status import read_events
 
 app = typer.Typer(
     name="retrospect",

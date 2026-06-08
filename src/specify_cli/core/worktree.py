@@ -26,7 +26,7 @@ from .constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
 from .vcs import get_vcs
 from specify_cli.ownership.models import ExecutionMode
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
-from specify_cli.status.wp_metadata import WPMetadata
+from specify_cli.status import WPMetadata
 
 logger = logging.getLogger(__name__)
 

@@ -292,11 +292,7 @@ def register_default_handlers() -> None:
     tests that depend on the lifecycle SaaS fan-out being registered.
     """
     with _contextlib.suppress(ImportError):
-        from specify_cli.status.adapters import (
-            register_dossier_sync_handler,
-            register_lifecycle_saas_fanout_handler,
-            register_saas_fanout_handler,
-        )
+        from specify_cli.status import register_dossier_sync_handler, register_lifecycle_saas_fanout_handler, register_saas_fanout_handler
 
         register_dossier_sync_handler(_dossier_sync_handler)
         register_saas_fanout_handler(_saas_fanout_handler)

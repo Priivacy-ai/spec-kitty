@@ -115,7 +115,7 @@ def _read_all_wp_refs(
         extractor: Callable(value) -> list[str] applied to the raw
             ``requirement_refs`` frontmatter value of each WP file.
     """
-    from specify_cli.status.wp_metadata import read_wp_frontmatter
+    from specify_cli.status import read_wp_frontmatter
 
     result: dict[str, list[str]] = {}
     if not tasks_dir.exists():

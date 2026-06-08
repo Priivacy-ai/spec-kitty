@@ -11,7 +11,7 @@ sites stay one line:
 
 Rather than:
 
-    from specify_cli.status.adapters import fire_saas_fanout
+    from specify_cli.status import fire_saas_fanout
     txn.defer_outbound(lambda: fire_saas_fanout(...))
 
 Rationale: FR-022 requires that no outbound side-effect fires if the
@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from specify_cli.coordination.transaction import BookkeepingTransaction
-    from specify_cli.status.models import StatusEvent
+    from specify_cli.status import StatusEvent
 
 
 def queue_saas_emission(

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import typer
 
-from specify_cli.status.event_log_merge import EventLogMergeError, merge_event_log_files
+from specify_cli.status import EventLogMergeError, merge_event_log_files
 
 
 def merge_driver_event_log(

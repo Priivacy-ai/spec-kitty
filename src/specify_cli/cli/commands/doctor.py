@@ -62,7 +62,7 @@ def _is_interactive_environment() -> bool:
     )
 
 if TYPE_CHECKING:
-    from specify_cli.status.identity_audit import IdentityState
+    from specify_cli.status import IdentityState
 
 app = typer.Typer(name="doctor", help="Project health diagnostics")
 console = Console()
@@ -806,7 +806,7 @@ def _scope_to_mission(
     mission: str,
 ) -> list[IdentityState]:
     """Filter states to a single mission slug (or classify it directly)."""
-    from specify_cli.status.identity_audit import classify_mission
+    from specify_cli.status import classify_mission
 
     filtered = [s for s in all_states if s.slug == mission]
     if filtered:
@@ -944,12 +944,7 @@ def identity(
         spec-kitty doctor identity --mission 083-foo
         spec-kitty doctor identity --fail-on legacy,orphan
     """
-    from specify_cli.status.identity_audit import (
-        audit_repo,
-        find_ambiguous_selectors,
-        find_duplicate_prefixes,
-        summarize,
-    )
+    from specify_cli.status import audit_repo, find_ambiguous_selectors, find_duplicate_prefixes, summarize
 
     try:
         repo_root = locate_project_root()

@@ -282,7 +282,7 @@ class WorkPackage:
 
     @property
     def lane(self) -> str | None:
-        from specify_cli.status.lane_reader import get_wp_lane
+        from specify_cli.status import get_wp_lane
 
         # WP files are at kitty-specs/<mission_slug>/tasks/WP01.md
         # feature_dir is the parent of the tasks/ directory
@@ -391,7 +391,7 @@ def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> st
         wp_id_match = re.match(r"^(WP\d+)(?=$|[-_.])", stem, re.IGNORECASE)
         wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
 
-    from specify_cli.status.lane_reader import get_wp_lane
+    from specify_cli.status import get_wp_lane
 
     return get_wp_lane(feature_dir, wp_id)
 
