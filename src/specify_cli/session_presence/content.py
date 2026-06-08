@@ -65,6 +65,10 @@ class SessionPresenceContent:
             "  → run `/spec-kitty.specify`\n"
             "- **Lightweight dispatch** (ad-hoc fix, question, or advice — no mission created):\n"
             '  trigger: "hey spec kitty", "use spec kitty to", "spec kitty, fix/do/ask/advise"\n'
-            '  → run `spec-kitty do "<request verbatim>"`\n'
+            '  → **ALWAYS run `spec-kitty do "<request verbatim>"` — do NOT answer directly.**\n'
+            "  If you know the right profile, pass it to skip routing:\n"
+            '  `spec-kitty do --profile <profile-id> "<request verbatim>"`\n'
+            "  Reason: `spec-kitty do` loads governance context, routes to the correct agent\n"
+            "  profile, and records the Op. Skipping it produces ungoverned, untracked responses.\n"
             f"{SECTION_CLOSE}\n"
         )
