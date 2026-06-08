@@ -1,7 +1,7 @@
 {
   "event_count": 31,
-  "last_event_id": "01KTJWNM4WNQYF27JNX4P6M12B",
-  "materialized_at": "2026-06-08T05:53:12.860135+00:00",
+  "last_event_id": "01KTJWXD51NBPE92W25G69XVM7",
+  "materialized_at": "2026-06-08T05:57:27.841434+00:00",
   "mission_number": "",
   "mission_slug": "execution-state-canonical-surface-01KTG6P9",
   "mission_type": "software-dev",
@@ -42,8 +42,8 @@
       "actor": "claude:opus:randy-reducer:implementer",
       "force_count": 0,
       "lane": "in_progress",
-      "last_event_id": "01KTJWNM4WNQYF27JNX4P6M12B",
-      "last_transition_at": "2026-06-08T05:53:12.860135+00:00"
+      "last_event_id": "01KTJWXD51NBPE92W25G69XVM7",
+      "last_transition_at": "2026-06-08T05:57:27.841434+00:00"
     },
     "WP05": {
       "actor": "finalize-tasks",
