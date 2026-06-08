@@ -71,6 +71,7 @@ Format per entry: location · tool/rule · description · why deferred · rough 
 - **Description:** The test creates a markerless temp dir under `/tmp` and asserts `locate_project_root()` returns `None`, but the walk-up finds `/tmp/.kittify` and returns `/tmp`. Surfaced + proven by the WP06 reviewer (moving the stray dir makes it pass); `locate_project_root` was unchanged by any WP here.
 - **Why deferred:** environmental + a pre-existing test-isolation weakness, unrelated to this mission's surface.
 - **Status:** **RESOLVED at closeout boy-scout pass (2026-06-08).** Made the test hermetic without mutating the operator's live `/tmp/.kittify` scratch dir and without a production signature change: the test now monkeypatches `specify_cli.core.paths.KITTIFY_DIR` to a guaranteed-absent sentinel, so the "no marker found anywhere up the tree → None" path is exercised deterministically regardless of any real `.kittify` above `tmp_path`. Test passes despite the live `/tmp/.kittify` (root cause of the original flake). `locate_project_root` itself unchanged.
+- **Same family also fixed (2026-06-08):** `tests/agent/test_agent_utils_status.py` ×2 failed identically — `show_kanban_status` resolves the mission dir via `get_status_read_root()` (walks up from cwd), which `_patch_project` did not pin, so it escaped into `/tmp/.kittify` → `/tmp/kitty-specs/<slug>` not found. Fixed by adding `get_status_read_root` to the `_patch_project` monkeypatch set (the `test_agent_utils_status (×2)` items noted under S-04).
 - **Rough effort:** Done.
 
 ---
