@@ -110,12 +110,12 @@ This mission was rebased onto `mission/wp-lane-state-machine-fsm` (`c03972531`),
 
 ### IC-02 — ExecutionContext relocation as Strangler façade (Stage C)
 
-- **Purpose**: Relocate `resolve_action_context` + the context value object into the umbrella as a stable façade that delegates to today's resolver; leave a thin shim at `core/execution_context.py`.
+- **Purpose**: Relocate `resolve_action_context` + the context value object into the umbrella as a stable façade that delegates to today's resolver; leave a thin shim at `core/execution_context.py`. **Also relocate the `runtime_bridge.py` operational-context builders** — `build_operational_context_for_claim`, `_build_operational_context_for_decision`, `_resolve_tech_stack_for_profile` — into the umbrella (they *are* execution-state resolution); `runtime_bridge` then consumes the umbrella API. (Bounded `runtime_bridge` decomposition: operator decision 2026-06-08 — extract only the exec-state/path/operational-context clusters; the decision-engine / composition / parsing / retrospective clusters stay put for a possible later god-module split.)
 - **Relevant requirements**: FR-003, FR-004
-- **Affected surfaces**: `src/mission_runtime/context.py`, `src/mission_runtime/resolution.py`, `src/specify_cli/core/execution_context.py`
+- **Affected surfaces**: `src/mission_runtime/context.py`, `src/mission_runtime/resolution.py`, `src/specify_cli/core/execution_context.py`, `src/runtime/next/runtime_bridge.py` (operational-context builders moved out; import shim if needed)
 - **Sequencing/depends-on**: IC-01
 - **Persona IC**: **Randy Reducer** — behavior-preserving relocation; the façade is the only resolution path; no parallel resolver retained; shim is minimal and temporary.
-- **Risks**: Import cycles; must keep the parity ratchet green throughout.
+- **Risks**: Import cycles; must keep the parity ratchet green throughout; `runtime_bridge` is 3623 LOC with many call sites — extractions need import-compat shims and the IC-03 ratchet as the safety net.
 
 ### IC-03 — Full-sequence parity ratchet across execution modes (the gate)
 
@@ -128,9 +128,9 @@ This mission was rebased onto `mission/wp-lane-state-machine-fsm` (`c03972531`),
 
 ### IC-04 — Path-builder residue strangling + dup-resolver collapse + mode-correct branch
 
-- **Purpose**: Route the residue surfaces (`runtime_bridge` query-mode, `workflow.py` fix-mode, …) through the umbrella; collapse the 8 duplicate feature-dir resolvers to one; delete dead path-builders; make the gate observe the mode-correct target branch.
+- **Purpose**: Route the residue surfaces (`runtime_bridge` query-mode, `workflow.py` fix-mode, …) through the umbrella; collapse the 8 duplicate feature-dir resolvers to one; delete dead path-builders; make the gate observe the mode-correct target branch. **Within `runtime_bridge.py`, the mission/path-resolution cluster is part of the collapse** — `_primary_runtime_feature_dir`, `_resolve_runtime_feature_dir`, `_resolve_run_dir_for_mission`, `_resolve_coordination_branch`, `_resolve_mission_ulid` re-derive feature dirs / coord branch / ULID independently; route them through the umbrella's single resolver (operator decision 2026-06-08, bounded scope).
 - **Relevant requirements**: FR-007, FR-008, FR-009, FR-010, FR-011, FR-012
-- **Affected surfaces**: `runtime/next/runtime_bridge.py`, `cli/commands/agent/workflow.py`, `workspace/context.py`, `task_utils/support.py`, `cli/commands/verify.py`, `cli/commands/agent/status.py`, `dashboard/scanner.py`, `missions/feature_dir_resolver.py`, ~160 files with raw path constructions
+- **Affected surfaces**: `runtime/next/runtime_bridge.py` (path/feature-dir/coord-branch/ULID resolvers collapsed into the umbrella), `cli/commands/agent/workflow.py`, `workspace/context.py`, `task_utils/support.py`, `cli/commands/verify.py`, `cli/commands/agent/status.py`, `dashboard/scanner.py`, `missions/feature_dir_resolver.py`, ~160 files with raw path constructions
 - **Sequencing/depends-on**: IC-02 (destination), IC-03 (gate)
 - **Persona IC**: **Randy Reducer** (collapse to one resolver, delete dups) + **Paula Patterns** (no boundary leak survives).
 - **Risks**: Large blast radius; mode-correct branch logic must honor C-001 (never mainline unauthorized).
