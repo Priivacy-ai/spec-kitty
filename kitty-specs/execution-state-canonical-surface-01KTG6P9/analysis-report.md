@@ -4,18 +4,18 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: execution-state-canonical-surface-01KTG6P9
 mission_id: 01KTG6P99C3ZGDT2Z97S7ZN5VE
-generated_at: '2026-06-07T08:57:11.935780+00:00'
+generated_at: '2026-06-08T03:56:16.250670+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/kitty-specs/execution-state-canonical-surface-01KTG6P9/spec.md
-    sha256: e298c4b0ffa749f50a874de9224280b16899036c130b2d43b09e1c9f5c458c29
+    sha256: 7b3bbac2b07b132d60b81f42369167d670f2b8673e3fb3ab95dbbc351de46584
   plan.md:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/kitty-specs/execution-state-canonical-surface-01KTG6P9/plan.md
-    sha256: b1eaf8825c144c39e621a5ca54eb999f13d6ec225258b137c30a8eee28c525e4
+    sha256: 5265eafb168ed7b1201211d4d51dfdd175600d9c46e810f3928c0728bbf0fb44
   tasks.md:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/kitty-specs/execution-state-canonical-surface-01KTG6P9/tasks.md
-    sha256: ba0f2af5c89fb01bfc2d4ad46f6777f2bbf8de32645e07d32e55c6b20273284f
+    sha256: d05e82ea1df828a705687195100908f9e135d1fb491b63e285a1b6d34d146396
   charter:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/.kittify/charter/charter.md
     sha256: a59cddc8725b34acacd83b9bec24e97b1ae68aa80716b7335c425c6106c18791
@@ -27,58 +27,49 @@ issue_counts:
   low:
 ---
 
-# Specification Analysis Report — execution-state-canonical-surface-01KTG6P9 (re-run)
+# Specification Analysis Report
 
-**Generated:** 2026-06-07 (re-run after remediation) · **Artifacts:** spec.md, plan.md, tasks.md · **Charter:** `.kittify/charter/charter.md` (v1.1.5)
-**Context:** Second pass after addressing the first report's findings (commit `58efbaedc`). **Verdict: READY — 0 critical, 0 high, 0 medium open.** FR coverage 34/34 = 100%; 0 duplications.
+**Mission**: execution-state-canonical-surface-01KTG6P9 · **Branch**: feat/execution-state-strangler
+**Scope**: post-revision consistency analysis (post-FSM-rebase reconciliation + #1772 fold-in). Cross-artifact check across spec.md / plan.md / tasks.md + charter.
 
-## Resolution of prior findings
+**Verdict: READY FOR IMPLEMENTATION — PASS (0 critical).**
 
-| ID | Prior Sev | Status | Evidence |
-|----|-----------|--------|----------|
-| C1 | HIGH | ✅ RESOLVED | plan.md now carries **IC-08** (ownership `scope`/port) + **IC-09** (migration rebuild single-port); Summary, Technical Context scope, Charter Check (ATDD), and Project Structure updated. |
-| U1 | MEDIUM | ✅ RESOLVED | FR-032 pinned: add the per-mission `mission_state` entry; do not retire onto `repair_repo`. Mirrored in tasks.md T047 + WP13 prompt. |
-| H1 | MEDIUM | ✅ RESOLVED | WP12/WP13 carry an ATDD-first note: test subtask (T046/T051) authored + committed RED before implementation; reviewer verifies red→green (charter C-011). |
-| M1 | MEDIUM | ✅ RESOLVED | #1757 assigned to the HiC on GitHub; #1754 already assigned to a maintainer (`robertDouglass`) — left intact. Both issues now have a human assignee. |
-| C2 | LOW | ✅ RESOLVED | NFR-007 row added to the tasks.md coverage table. |
-| I1 | LOW | ✅ RESOLVED | plan.md summary disambiguated (~40 residue command surfaces vs ~225 deep `status.*` imports). |
-| T1 | MEDIUM | ✅ RESOLVED | "main-checkout" → "repository root checkout" across spec.md, tasks.md, contracts/parity_ratchet.md. Code refs to `main_repo_root` correctly left intact. |
-| T2 | LOW | ✅ RESOLVED (prose) | US1 abstract "feature dir" → "mission directory". Remaining "feature-dir resolver" / "feature dir/workspace/branch" entries name real code symbols (`_resolve_feature_dir`, `feature_dir`) and are accurate; charter tolerates internal code names. |
+| ID | Category | Severity | Location(s) | Summary | Recommendation |
+|----|----------|----------|-------------|---------|----------------|
+| I1 | Inconsistency | MEDIUM | plan.md IC-02 ↔ tasks.md WP04 (T052) | plan IC-02 narrates relocating the `runtime_bridge` operational-context builders, but tasks.md assigns that subtask (T052) to **WP04** (the IC-04 WP), not WP03 (IC-02). | Intentional — WP04 owns `runtime_bridge.py`, so co-locating both runtime_bridge extractions avoids a WP03↔WP04 ownership overlap. Note kept in WP04 (T052) and the plan reconciliation; no action required. |
+| C1 | Coverage | LOW | tasks.md WP14 owned_files | `tests/specify_cli/cli/commands/test_merge_coord_topology_1772.py` matches zero files (not yet created). | Expected — created RED-first at implement (T057). Benign finalize warning, same class as other not-yet-created module globs. |
+| D1 | Duplication | LOW | tasks.md FR-036 (WP04 + WP14) | FR-036 referenced by WP04 (owns) and WP14 (consumes). | Deliberate cross-reference, not a duplicate — coverage table maps FR-036 → WP04; WP14 depends on WP04. No action. |
+| A1 | Ambiguity | LOW | spec.md FR-035..038 | New #1772 FRs use concrete, testable criteria (e.g. "exactly once / no nested `.worktrees/` double-resolution", "fail loudly on zero-diff squash"). | None — measurable; SC-011 + WP14 T057 fixture provide the objective gate. |
 
-## New findings this pass
+## Coverage Summary
 
-None at MEDIUM or above. One operational note (not an artifact inconsistency):
+| Requirement set | Count | Mapped | Notes |
+|-----------------|-------|--------|-------|
+| Functional (FR-001..FR-038) | 38 | 38 (100%) | validate-only finalize: no unmapped functional requirements |
+| Non-functional (NFR-001..007) | 7 | 7 | NFR-001 → WP03/04/14; NFR-006/007 covered |
+| Success criteria (SC-001..011) | 11 | 11 | SC-011 (#1772) → WP14 |
+| User stories (US1..US9) | 9 | 9 | US9 (#1772) → WP14 |
+| Work packages | 14 | — | WP01..WP14; 3 lanes; no dependency cycles |
 
-| ID | Category | Severity | Location | Summary | Recommendation |
-|----|----------|----------|----------|---------|----------------|
-| O1 | Operational note | INFO | finalize outputs (`lanes.json`, `status.json`, `acceptance-matrix.json`) | These were committed to the **coordination branch** `kitty/mission-…` by `finalize-tasks` and appear untracked in the `feat/execution-state-strangler` checkout (the known coord-vs-checkout pattern, upstream #1589). Not a spec/plan/tasks defect. | When running `spec-kitty implement WP##`, let the resolver read mission state from the coordination authority; do not hand-commit these into the feature branch. |
+**Charter Alignment Issues**: none. Plan Charter Check (layer-guard registration, `__all__` convention C-007, ATDD-first C-011, burn-down C-004, terminology canon, bulk-edit DIRECTIVE_035) is satisfied; the #1772 additions introduce no charter conflict. NFR-006 (no `coordination/transaction.py` internals change) explicitly preserved by WP14.
 
-## Coverage Summary (requirement → task)
+**Unmapped Tasks**: none — every subtask (T001..T057) is bound to exactly one WP.
 
-| Requirement group | Has Task? | Work Package(s) |
-|-------------------|-----------|-----------------|
-| FR-001..006 | ✅ | WP02 |
-| FR-007/008/012 | ✅ | WP04 (codebase-wide) |
-| FR-009/010/011 | ✅ | WP05, WP06 (codebase-wide) |
-| FR-013 | ✅ | WP07 |
-| FR-014/015/016 | ✅ | WP08, WP09 |
-| FR-017/018/019 | ✅ | WP10 (codebase-wide) |
-| FR-020..024 | ✅ | WP01 (gate) |
-| FR-025/026/027 | ✅ | WP11 |
-| FR-028/029/030/031 | ✅ | WP12 |
-| FR-032/033/034 | ✅ | WP13 |
-| NFR-001..007 | ✅ | tabulated (NFR-007 now a global gate row) |
+**Bulk-edit**: `change_mode: bulk_edit` with `occurrence_map.yaml` present; the #1772 additions (FR-036 resolver correctness, FR-037 merge gating) are logic fixes, not new string-rename occurrences — occurrence_map remains valid.
 
-**FR coverage: 34/34 = 100%. No orphan tasks. No charter MUST violation.**
+**Coordination-topology note**: this mission targets the coord-vs-primary split (#1589/#1772). The analysis report is recorded to the primary checkout; finalize on this topology may read the coordination authority — re-sync if the freshness gate looks at the coord worktree.
 
 ## Metrics
 
-- User Stories: **8** · FRs: **34** · NFRs: **7** · Constraints: **10**
-- Work Packages: **13** · Subtasks: **51** · Lanes: **3**
-- FR coverage: **100%** · Ambiguity: **0** (FR-032 either/or now pinned) · Duplication: **0** · **Critical: 0**
+- Total Requirements: 38 FR + 7 NFR = 45
+- Total Tasks (subtasks): 57 across 14 WPs
+- Coverage: 100% (every FR has ≥1 task)
+- Ambiguity Count: 0 (blocking) / 1 (LOW, measurable)
+- Duplication Count: 0 (1 LOW deliberate cross-ref)
+- Critical Issues Count: 0
 
 ## Next Actions
 
-Clean pass — proceed to implementation. Per the lane plan, start with **WP01** (the full-sequence parity ratchet — the gate, no dependencies), which must be green before the strangling WPs (WP04/06/07/08/09/10) are considered complete (C-003). WP02 (umbrella + ADR) has no dependencies either and can proceed in parallel.
-
-Suggested: `spec-kitty implement WP01` → implement via the assigned `python-pedro` profile → review via `reviewer-renata` → advance the dependency graph.
+- No CRITICAL/HIGH findings → proceed to `finalize-tasks` then implementation.
+- I1 (MEDIUM) is an intentional, documented WP-ownership decision — no remediation needed.
+- Suggested: real `finalize-tasks` → `/spec-kitty-implement-review` (WP01 gate + WP02 umbrella first).
