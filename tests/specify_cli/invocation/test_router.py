@@ -500,6 +500,33 @@ class TestToolGatedRouting:
         """TOOL_KEYWORD_MAP maps 'github' to 'gh'."""
         assert TOOL_KEYWORD_MAP.get("github") == "gh"
 
+    @pytest.mark.parametrize("token", ["dockerfile", "docker-compose"])
+    def test_tool_keyword_map_maps_docker_variants_to_docker(self, token: str) -> None:
+        """dockerfile and docker-compose resolve to the 'docker' tool."""
+        assert TOOL_KEYWORD_MAP.get(token) == "docker"
+
+    @pytest.mark.parametrize("text", [
+        "build the Dockerfile",
+        "update the dockerfile",
+        "run docker-compose up",
+        "build docker-compose services",
+    ])
+    def test_no_tools_profile_excluded_for_dockerfile_requests(self, text: str) -> None:
+        """Requests mentioning Dockerfile or docker-compose derive docker requirement,
+        and profiles without docker declared are excluded."""
+        registry = _make_registry_with_tools([
+            {"profile_id": "impl", "role_value": "implementer", "available_tools": []},
+        ])
+        router = ActionRouter(registry)
+        tokens = set(_normalize_tokens(text))
+        required_tools = frozenset(
+            tool for token, tool in TOOL_KEYWORD_MAP.items() if token in tokens
+        )
+        assert "docker" in required_tools, f"Expected docker in required_tools for {text!r}, got {required_tools}"
+        decision = router.route(text, required_tools=required_tools)
+        assert decision.profile_id is None
+        assert decision.confidence == "no_tool_match"
+
     def test_no_tool_match_reason_lists_required_tools(self) -> None:
         """no_tool_match decision includes the required tools in match_reason."""
         registry = _make_registry_with_tools([

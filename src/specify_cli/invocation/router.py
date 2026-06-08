@@ -129,6 +129,8 @@ TOOL_KEYWORD_MAP: dict[str, str] = {
     "github": "gh",
     "gh": "gh",
     "docker": "docker",
+    "dockerfile": "docker",
+    "docker-compose": "docker",
     "terraform": "terraform",
     "aws": "aws",
     "gcloud": "gcloud",
