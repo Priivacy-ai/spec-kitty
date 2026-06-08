@@ -132,9 +132,9 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T019 Inventory the 8 `_resolve_feature_dir`/feature-dir resolver implementations; select the canonical one (WP05)
-- [ ] T020 Repoint the 7 redundant call sites to the canonical resolver (WP05)
-- [ ] T021 Delete the redundant implementations (no dead code) (WP05)
+- [x] T019 Inventory the 8 `_resolve_feature_dir`/feature-dir resolver implementations; select the canonical one (WP05)
+- [x] T020 Repoint the 7 redundant call sites to the canonical resolver (WP05)
+- [x] T021 Delete the redundant implementations (no dead code) (WP05)
 
 ### Dependencies
 

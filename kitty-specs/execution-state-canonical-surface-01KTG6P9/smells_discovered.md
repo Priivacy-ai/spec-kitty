@@ -37,3 +37,13 @@ Format per entry: location · tool/rule · description · why deferred · rough 
 - **Description:** Docstrings described `core/execution_context.py` as a "thin re-export shim", but WP03 deleted it outright (no importers remained). Stale wording.
 - **Status:** **Remediated** in `4b52a86d7` (docstring-only; ruff/mypy clean). Reworded to state the module was removed and the historical names are re-exported from the package root. Listed here for the audit trail.
 - **Note:** `.contextive/execution.yml:21` (a glossary string referencing `core/execution_context.py` as owner) is absent in the lanes but may exist on other branches — verify/update at merge if present.
+
+---
+
+## S-04 — pre-existing environmental test failures on the lane base (must clear before merge)
+
+- **Location:** `tests/runtime/test_bootstrap_unit.py` (≈14 failures); also seen earlier: `test_agent_utils_status` (×2), `test_internal_runtime_parity` snapshot drift.
+- **Tool/rule:** pytest (environmental, not lint).
+- **Description:** `test_bootstrap_unit.py` fails because `SPEC_KITTY_TEMPLATE_ROOT` / `get_package_asset_root` expects a real checkout asset layout not present in the lane/test env. The WP04 + WP02/03 re-reviews both proved these are **pre-existing and unrelated** to this mission's changes (the relevant `src/` files are byte-identical to the WP base; reproduced on a pure-feat baseline).
+- **Why deferred:** Not caused by any WP here, and out of the residue-routing/relocation scope. But they are real RED tests on the branch.
+- **Rough effort:** Unknown until triaged. **Action required before mission merge / for CI green:** triage whether these are (a) genuinely environmental (need a fixture/asset-root setup or a skip marker for non-checkout envs) or (b) a real regression on `feat` from another mission (e.g. the session_presence merge). Do NOT let the mission merge with these RED — either fix, mark xfail/skip with rationale, or confirm CI's env provides the asset layout so they pass there.
