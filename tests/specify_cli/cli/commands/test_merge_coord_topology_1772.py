@@ -273,7 +273,7 @@ def test_retry_after_abort_integrates_lane_code_or_fails_loudly(tmp_path: Path) 
     zero-code success. The lane code never reaches ``main``.
     """
     _init_git_repo(tmp_path)
-    feature_dir = _bootstrap_coord_mission(tmp_path)
+    _bootstrap_coord_mission(tmp_path)
     lane_code = "src/feature_code.py"
 
     # Pre-existing aborted-merge state: every WP already marked completed.
@@ -326,7 +326,7 @@ def test_fresh_merge_integrates_lane_code(tmp_path: Path) -> None:
     """Healthy-merge path (NFR-001): with no aborted MergeState, a fresh merge
     integrates the lane code onto the target branch."""
     _init_git_repo(tmp_path)
-    feature_dir = _bootstrap_coord_mission(tmp_path)
+    _bootstrap_coord_mission(tmp_path)
     lane_code = "src/feature_code.py"
 
     with _real_merge_external_mocks():
@@ -398,7 +398,6 @@ def test_post_merge_validation_reads_in_branch_status_path(tmp_path: Path) -> No
 
     captured_refs: list[str] = []
 
-    real_run_command = None
     import specify_cli.cli.commands.merge as merge_mod
 
     real_run_command = merge_mod.run_command

@@ -2927,6 +2927,62 @@ def _check_git_version(
     )]
 
 
+def _check_tracked_worktrees_content(repo_root: Path) -> list[DoctorFinding]:
+    """FR-035 (#1772 Bug 0): flag any TRACKED content under ``.worktrees/``.
+
+    ``.worktrees/`` is execution scratch space and must never be committed.
+    Tracked content there (e.g. ``.worktrees/<m>-coord/…`` junk) is the
+    precondition for the #1772 merge-staging failures: finalize/recovery/merge
+    flows could re-stage it, and post-merge validation could try to read it from
+    a branch tree. This check uses ``git ls-files`` to surface such content with
+    a remediation hint. It reuses the single ``.worktrees/`` predicate that the
+    merge staging guards use (Randy Reducer: one predicate, no copies).
+    """
+    import subprocess as _subprocess
+
+    from specify_cli.cli.commands.merge import path_is_under_worktrees
+    from specify_cli.core.constants import WORKTREES_DIR
+
+    try:
+        out = _subprocess.check_output(
+            ["git", "-C", str(repo_root), "ls-files", "--", WORKTREES_DIR],
+            text=True,
+            stderr=_subprocess.DEVNULL,
+        )
+    except (OSError, _subprocess.CalledProcessError):
+        # Not a git repo / git error — nothing to report here.
+        return []
+
+    tracked = [
+        line
+        for line in out.splitlines()
+        if line.strip() and path_is_under_worktrees(Path(line.strip()))
+    ]
+    if not tracked:
+        return [DoctorFinding(
+            severity="ok",
+            message=f"No tracked content under {WORKTREES_DIR}/.",
+        )]
+
+    preview = tracked[:10]
+    more = "" if len(tracked) <= 10 else f" (+{len(tracked) - 10} more)"
+    return [DoctorFinding(
+        severity="error",
+        message=(
+            f"{len(tracked)} tracked file(s) under {WORKTREES_DIR}/ — this is "
+            "execution scratch space and must never be committed. Tracked "
+            "content here drives the #1772 merge-staging failures."
+        ),
+        next_step=(
+            f"Remove it from version control: "
+            f"`git rm -r --cached {WORKTREES_DIR}/` then commit, and ensure "
+            f"`{WORKTREES_DIR}/` is gitignored."
+        ),
+        error_code="TRACKED_WORKTREES_CONTENT",
+        extra={"tracked": preview, "tracked_count": len(tracked), "truncated": more != ""},
+    )]
+
+
 def _check_coordination_worktree_health(
     repo_root: Path, mission_meta: dict[str, object],
 ) -> list[DoctorFinding]:
@@ -3171,6 +3227,8 @@ def coordination_health(
 
     findings: list[DoctorFinding] = []
     findings.extend(_check_git_version())
+    # FR-035 (#1772 Bug 0): repo-level tracked-.worktrees/ hygiene check.
+    findings.extend(_check_tracked_worktrees_content(repo_root))
 
     specs_dir = repo_root / KITTY_SPECS_DIR
     if specs_dir.exists():

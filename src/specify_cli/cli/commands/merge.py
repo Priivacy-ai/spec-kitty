@@ -19,7 +19,7 @@ Recovery semantics (WP01 / 067):
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
 from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
 import contextlib
@@ -99,6 +99,46 @@ LINEAR_HISTORY_REJECTION_TOKENS: tuple[str, ...] = (
 
 MissionBranchBlocker = dict[str, str | bool]
 HollowReviewWarnings = dict[str, list[str]]
+
+
+def _lane_already_integrated(
+    repo_root: Path, lane_branch: str, mission_branch: str
+) -> bool:
+    """Return True when ``lane_branch`` carries no commits absent from ``mission_branch``.
+
+    FR-037 (#1772 Bug 3): the lane-skip decision must gate on the ACTUAL lane
+    tree state vs. the mission branch — never on a per-WP ``done`` status, which
+    a prior aborted merge may have recorded before any code was integrated.
+    Uses ``git rev-list <lane> ^<mission>``: an empty result means every lane
+    commit is already reachable from the mission branch, so re-merging would be
+    a genuine no-op. A non-empty result means real, un-integrated lane work
+    remains and the lane MUST be merged.
+    """
+    ret, out, _err = run_command(
+        ["git", "rev-list", "--count", lane_branch, f"^{mission_branch}"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        # Unknown ref / git error — be conservative and do NOT treat as
+        # integrated, so the lane merge runs and any real error surfaces there.
+        return False
+    return out.strip() == "0"
+
+
+def path_is_under_worktrees(path: Path) -> bool:
+    """Return True when ``path`` lies under the ``.worktrees/`` directory.
+
+    FR-035 / #1772 Bug 0: nested-worktree paths (``.worktrees/<m>-coord/…``)
+    must never be staged via ``git add`` from finalize/recovery/merge flows,
+    and ``spec-kitty doctor`` flags such content when it is already tracked.
+    This is the single reusable predicate for that decision (Randy Reducer:
+    one guard, not per-call-site copies). It is path-shape based — it does not
+    touch the filesystem — so it works for both real paths and committed-tree
+    relative paths.
+    """
+    return WORKTREES_DIR in path.parts
 
 
 class BaselineMergeCommitError(RuntimeError):
@@ -491,9 +531,17 @@ def _assert_merged_wps_done_on_target(
     if mission_id is None:
         return
 
+    # FR-038 (#1772 Bug 4): post-merge validation reads ``git show <branch>:<rel>``,
+    # which only resolves paths TRACKED in the branch tree. A coord-aware
+    # ``feature_dir`` may point under ``.worktrees/<m>-coord/…`` (never tracked
+    # in a branch tree), producing a spurious "path exists on disk, but not in
+    # <branch>" failure. Always resolve the IN-BRANCH tracked status path:
+    # ``kitty-specs/<m>/status.events.jsonl``.
     try:
         rel_events_path = feature_dir.relative_to(repo_root) / _STATUS_EVENTS_FILENAME
     except ValueError:
+        rel_events_path = Path(KITTY_SPECS_DIR) / mission_slug / _STATUS_EVENTS_FILENAME
+    if path_is_under_worktrees(rel_events_path):
         rel_events_path = Path(KITTY_SPECS_DIR) / mission_slug / _STATUS_EVENTS_FILENAME
 
     ret_show, out_show, err_show = run_command(
@@ -814,7 +862,28 @@ def _write_mission_number_to_branch(
             )
             return False
 
-        meta_path = candidate_feature_dir_for_mission(mission_tmp_path, mission_slug) / "meta.json"
+        # FR-037 (#1772 Bug 3, _write_mission_number_to_branch half): resolve the
+        # IN-BRANCH feature dir for the detached mission-branch worktree, not a
+        # nested-worktree meta.json. ``candidate_feature_dir_for_mission`` is
+        # coord-aware and would return a tracked ``.worktrees/<m>-coord/…`` path
+        # when the mission-branch tree carries that pollution — staging it via
+        # ``git add`` then re-pollutes the tree. The mission-branch tree always
+        # carries the canonical mission dir directly under ``kitty-specs/``, so
+        # compose that path by hand and never resolve into ``.worktrees/``.
+        from specify_cli.lanes.branch_naming import mid8_from_slug as _mid8_from_slug
+        from specify_cli.missions._read_path_resolver import _compose_mission_dir as _compose_dir
+
+        _mission_dir_name = _compose_dir(mission_slug, _mid8_from_slug(mission_slug))
+        meta_path = mission_tmp_path / KITTY_SPECS_DIR / _mission_dir_name / "meta.json"
+        if path_is_under_worktrees(meta_path):
+            logger.warning(
+                "Refusing to bake mission_number for %s: resolved meta path is under "
+                "%s (%s)",
+                mission_slug,
+                WORKTREES_DIR,
+                meta_path,
+            )
+            return False
         if not meta_path.exists():
             logger.warning(
                 "meta.json missing on mission branch %s for %s; cannot bake mission_number",
@@ -853,6 +922,15 @@ def _write_mission_number_to_branch(
         write_meta(meta_path.parent, meta_data, validate=False)
 
         rel_meta = meta_path.relative_to(mission_tmp_path)
+        if path_is_under_worktrees(rel_meta):
+            # FR-035: never stage a path under .worktrees/ (defense in depth).
+            logger.warning(
+                "Refusing to stage %s for %s: path is under %s",
+                rel_meta,
+                mission_slug,
+                WORKTREES_DIR,
+            )
+            return False
         _subprocess.run(
             ["git", "add", str(rel_meta)],
             cwd=str(mission_tmp_path),
@@ -1866,8 +1944,6 @@ def _run_lane_based_merge_locked(
         )
         save_state(state, main_repo)
 
-    completed_set = set(state.completed_wps)
-
     console.print(f"[bold]Lane-based merge for {mission_slug}[/bold]")
     console.print(f"  Mission branch: {lanes_manifest.mission_branch}")
     console.print(f"  Lanes: {', '.join(ln.lane_id for ln in lanes_manifest.lanes)}")
@@ -1910,18 +1986,37 @@ def _run_lane_based_merge_locked(
         assume_yes=assume_yes,
     )
 
-    # -- Lane merges (skip lanes whose WPs are all already completed) --
+    # -- Lane merges (skip a lane only when its code is ALREADY integrated) --
+    # FR-037 (#1772 Bug 3 — data integrity): the skip MUST gate on the actual
+    # lane tree-diff vs. the mission branch, NOT on per-WP ``done`` status. A
+    # prior aborted merge can leave every WP marked ``done`` in MergeState while
+    # zero code was integrated; skipping on that proxy squashed zero diffs and
+    # reported success. The per-WP ``done`` state drives only the bookkeeping
+    # pass (``_record_merged_wps_done_for_merge``), never the integration skip.
+    any_lane_had_unintegrated_code = False
     for lane in lanes_manifest.lanes:
-        lane_wp_set = set(lane.wp_ids)
-        if lane_wp_set.issubset(completed_set):
-            console.print(f"  [dim]Skipping {lane.lane_id} (all WPs already done)[/dim]")
-            continue
-
         if planning_artifact_only and is_planning_lane(lane):
             console.print(
                 f"  [green]✓[/green] {lane.lane_id} already on {lanes_manifest.target_branch}"
             )
             continue
+
+        # FR-037: skip ONLY when the lane branch is already fully integrated into
+        # the mission branch (real tree state), never on the ``done`` proxy.
+        _lane_branch = lane_branch_name(
+            mission_slug,
+            lane.lane_id,
+            planning_base_branch=lanes_manifest.target_branch,
+        )
+        if not is_planning_lane(lane) and _lane_already_integrated(
+            main_repo, _lane_branch, lanes_manifest.mission_branch
+        ):
+            console.print(
+                f"  [dim]Skipping {lane.lane_id} (already integrated into "
+                f"{lanes_manifest.mission_branch})[/dim]"
+            )
+            continue
+        any_lane_had_unintegrated_code = True
 
         console.print(f"  [dim]Checking and merging {lane.lane_id}...[/dim]")
         lane_result = merge_lane_to_mission(main_repo, mission_slug, lane.lane_id, lanes_manifest)
@@ -1999,15 +2094,46 @@ def _run_lane_based_merge_locked(
             )
 
         # -- Mission-to-target merge (T010: honor strategy for this step only) --
+        # FR-037 (#1772 Bug 3): a no-op squash is only legitimate when the
+        # mission branch is GENUINELY already integrated into the target (its
+        # tip carries no commits absent from target). Gating ``allow_already_
+        # applied`` on ``is_resume`` alone let a retry-after-abort silently
+        # squash zero diffs and report success. Gate on the real tree state.
+        _mission_integrated_into_target = _lane_already_integrated(
+            main_repo,
+            lanes_manifest.mission_branch,
+            lanes_manifest.target_branch,
+        )
+        _allow_noop = is_resume and _mission_integrated_into_target
         console.print(f"  [dim]Merging mission branch into {lanes_manifest.target_branch}...[/dim]")
         mission_result = merge_mission_to_target(
             main_repo,
             mission_slug,
             lanes_manifest,
             strategy=strategy,
-            allow_already_applied=is_resume,
+            allow_already_applied=_allow_noop,
         )
         mission_already_applied = getattr(mission_result, "already_applied", False) is True
+        # FR-037 fail-loud: a no-op result is only acceptable when the mission
+        # branch was genuinely already integrated AND no un-integrated lane code
+        # was discovered this run. Otherwise the merge integrated zero diffs
+        # while real work remained — refuse to report success.
+        if (
+            mission_already_applied
+            and not planning_artifact_only
+            and (any_lane_had_unintegrated_code or not _mission_integrated_into_target)
+        ):
+            console.print(
+                "[red]Error:[/red] Mission→target merge integrated zero lane "
+                "diffs but un-integrated lane work remains. Refusing to report a "
+                "zero-code squash as success (#1772 FR-037)."
+            )
+            console.print(
+                f"  Mission branch: {lanes_manifest.mission_branch}; "
+                f"target: {lanes_manifest.target_branch}. "
+                "Inspect the lane branches and rerun, or `spec-kitty merge --abort`."
+            )
+            raise typer.Exit(1)
         if not mission_result.success:
             # T005: tolerate already-merged on retry
             already_merged = any("already" in e.lower() or "up to date" in e.lower() for e in mission_result.errors)
@@ -2733,5 +2859,6 @@ __all__ = [
     "_enforce_review_artifact_consistency",
     "_bake_mission_number_into_mission_branch",
     "LINEAR_HISTORY_REJECTION_TOKENS",
+    "path_is_under_worktrees",
     "merge",
 ]
