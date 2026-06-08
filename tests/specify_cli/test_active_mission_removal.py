@@ -149,39 +149,39 @@ def test_mission_current_no_feature_shows_message(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# _resolve_feature_dir (verify.py helper) tests
+# _existing_feature_dir (verify.py helper) tests
 # --------------------------------------------------------------------------- #
 
 def test_resolve_feature_dir_with_explicit_feature(tmp_path: Path) -> None:
-    """_resolve_feature_dir returns feature directory when given an explicit slug."""
-    from specify_cli.cli.commands.verify import _resolve_feature_dir
+    """_existing_feature_dir returns feature directory when given an explicit slug."""
+    from specify_cli.cli.commands.verify import _existing_feature_dir
 
     project_root = tmp_path / "project"
     feature_dir = project_root / "kitty-specs" / "099-research-feature"
     feature_dir.mkdir(parents=True)
 
-    # No mocking needed: _resolve_feature_dir uses only the explicit feature arg
-    result = _resolve_feature_dir(project_root, feature="099-research-feature")
+    # No mocking needed: _existing_feature_dir uses only the explicit feature arg
+    result = _existing_feature_dir(project_root, feature="099-research-feature")
 
     assert result == feature_dir
 
 
 def test_resolve_feature_dir_returns_none_when_no_feature(tmp_path: Path) -> None:
-    """_resolve_feature_dir returns None when no explicit feature is given."""
-    from specify_cli.cli.commands.verify import _resolve_feature_dir
+    """_existing_feature_dir returns None when no explicit feature is given."""
+    from specify_cli.cli.commands.verify import _existing_feature_dir
 
     # No feature flag → no auto-detection → returns None
-    result = _resolve_feature_dir(tmp_path)
+    result = _existing_feature_dir(tmp_path, None)
 
     assert result is None
 
 
 def test_resolve_feature_dir_returns_none_when_feature_dir_missing(tmp_path: Path) -> None:
-    """_resolve_feature_dir returns None when the feature directory does not exist."""
-    from specify_cli.cli.commands.verify import _resolve_feature_dir
+    """_existing_feature_dir returns None when the feature directory does not exist."""
+    from specify_cli.cli.commands.verify import _existing_feature_dir
 
     # Feature slug given but directory doesn't exist on disk
-    result = _resolve_feature_dir(tmp_path, feature="099-nonexistent-feature")
+    result = _existing_feature_dir(tmp_path, feature="099-nonexistent-feature")
 
     assert result is None
 
@@ -192,7 +192,7 @@ def test_resolve_feature_dir_returns_none_when_feature_dir_missing(tmp_path: Pat
 
 
 def test_resolve_feature_dir_from_worktree_without_mock(tmp_path: Path) -> None:
-    """_resolve_feature_dir finds features when called from a worktree CWD.
+    """_existing_feature_dir finds features when called from a worktree CWD.
 
     This test creates a realistic directory layout:
       main_repo/
@@ -203,12 +203,12 @@ def test_resolve_feature_dir_from_worktree_without_mock(tmp_path: Path) -> None:
       worktree/
         .git  (file: "gitdir: <main>/.git/worktrees/my-wt")
 
-    Calling _resolve_feature_dir(worktree_root, feature=...) must still
+    Calling _existing_feature_dir(worktree_root, feature=...) must still
     resolve the feature directory under main_repo/kitty-specs/ because
     worktree path resolution must anchor to the planning repo, not rely on the
     current working directory contents.
     """
-    from specify_cli.cli.commands.verify import _resolve_feature_dir
+    from specify_cli.cli.commands.verify import _existing_feature_dir
 
     # --- Set up main repo ---
     main_repo = tmp_path / "main_repo"
@@ -234,16 +234,16 @@ def test_resolve_feature_dir_from_worktree_without_mock(tmp_path: Path) -> None:
     (worktree_root / ".kittify").mkdir()
     # Do NOT create kitty-specs/ here — that's the whole point
 
-    # No mocking needed: _resolve_feature_dir uses explicit feature arg only
-    result = _resolve_feature_dir(worktree_root, feature="099-research-feature")
+    # No mocking needed: _existing_feature_dir uses explicit feature arg only
+    result = _existing_feature_dir(worktree_root, feature="099-research-feature")
 
-    # With an explicit slug, _resolve_feature_dir checks
+    # With an explicit slug, _existing_feature_dir checks
     # worktree_root / "kitty-specs" / mission_slug.  The worktree does NOT
     # have kitty-specs/, so the result is None.
     # This confirms the contract: resolution does NOT walk up through the
     # worktree .git pointer (that was feature_detection heuristics, removed).
     assert result is None, (
-        "_resolve_feature_dir should return None when the feature directory "
+        "_existing_feature_dir should return None when the feature directory "
         "does not exist under the given project_root (worktree path)"
     )
 

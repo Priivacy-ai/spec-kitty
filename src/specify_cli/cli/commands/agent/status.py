@@ -130,17 +130,20 @@ def _output_error(json_mode: bool, error_message: str, diagnostic: dict | None =
         console.print(f"[red]Error:[/red] {error_message}")
 
 
-def _resolve_feature_dir(
+def _resolve_status_surface(
     explicit_mission: str | None = None,
     explicit_feature: str | None = None,
     *,
     json_output: bool = False,
 ) -> tuple[Path, str, Path]:
-    """Resolve mission directory, mission slug, and repo root.
+    """Resolve the status read surface, mission slug, and repo root.
 
-    Uses ``MissionStatus.load()`` to resolve the coord-aware read path so
-    that coordination-topology missions read from the coord worktree rather
-    than the (potentially stale) primary checkout.
+    This is the ``MissionStatus`` authority resolver (slug validation +
+    fail-closed coord authority), **not** the dir-only feature-dir resolver
+    in :mod:`specify_cli.missions.feature_dir_resolver`. It uses
+    ``MissionStatus.load()`` to resolve the coord-aware read path so that
+    coordination-topology missions read from the coord worktree rather than
+    the (potentially stale) primary checkout.
 
     Returns:
         (feature_dir, mission_slug, repo_root)
@@ -204,12 +207,12 @@ def _resolve_mission_status_for_repo(
         raise typer.Exit(1)
 
 
-def _resolve_feature_dir_for_repo(
+def _resolve_status_surface_for_repo(
     main_repo_root: Path,
     mission_slug: str,
     json_output: bool = False,
 ) -> tuple[Path, str, Path]:
-    """Resolve coord-aware feature_dir given an already-resolved main_repo_root.
+    """Resolve coord-aware status read_dir given an already-resolved main_repo_root.
 
     Factored out to avoid duplicating MissionStatus.load + CoordAuthorityUnavailable
     handling across multiple commands (reduces cyclomatic complexity).
@@ -421,7 +424,7 @@ def materialize(
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
         # Resolve coord-aware mission directory via MissionStatus aggregate
-        feature_dir, _, _ = _resolve_feature_dir_for_repo(main_repo_root, mission_slug, json_output)
+        feature_dir, _, _ = _resolve_status_surface_for_repo(main_repo_root, mission_slug, json_output)
 
         # Lazy import to avoid circular imports
         from specify_cli.status.reducer import materialize as do_materialize
@@ -518,7 +521,7 @@ def doctor(
     from specify_cli.runtime.doctor import run_global_checks
     from specify_cli.status.doctor import run_doctor
 
-    feature_dir, mission_slug, repo_root = _resolve_feature_dir(mission, feature, json_output=json_output)
+    feature_dir, mission_slug, repo_root = _resolve_status_surface(mission, feature, json_output=json_output)
 
     # Run global runtime checks BEFORE project-specific checks
     global_checks = run_global_checks(project_dir=repo_root)
@@ -639,7 +642,7 @@ def lifecycle(
     """
     from specify_cli.status.lifecycle import derive_mission_lifecycle
 
-    feature_dir, mission_slug, _repo_root = _resolve_feature_dir(mission, feature, json_output=json_output)
+    feature_dir, mission_slug, _repo_root = _resolve_status_surface(mission, feature, json_output=json_output)
     try:
         result = derive_mission_lifecycle(feature_dir)
     except StoreError as exc:
@@ -885,7 +888,7 @@ def validate(
     mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
     main_repo_root = get_main_repo_root(repo_root)
-    feature_dir, _, _ = _resolve_feature_dir_for_repo(main_repo_root, mission_slug, json_output)
+    feature_dir, _, _ = _resolve_status_surface_for_repo(main_repo_root, mission_slug, json_output)
 
     if not feature_dir.exists():
         msg = f"Mission directory not found: {feature_dir}"
