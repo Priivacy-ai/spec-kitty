@@ -3,7 +3,7 @@
 **Mission:** Execution-State Canonical Domain Surface (#1666 Strangler Slice 2)
 **Branch:** feat/execution-state-strangler
 **Created:** 2026-06-07
-**WP column status:** filled (tasks authored 2026-06-07; #1754/#1757 folded in 2026-06-07 after #1756 landed). 13 WPs (WP01–WP13); `finalize-tasks` tooling gap #1753 **resolved** by #1756 (merged to upstream/main 2026-06-07), so the broad strangler WPs now declare `scope: codebase-wide` and the set is finalize-ready.
+**WP column status:** filled (tasks authored 2026-06-07; #1754/#1757 folded in 2026-06-07 after #1756 landed). 13 WPs (WP01–WP13); `finalize-tasks` tooling gap #1753 **resolved** by #1756 (merged to upstream/main 2026-06-07), so the broad strangler WPs now declare `scope: codebase-wide` and the set is finalize-ready. **2026-06-08:** rebased onto the WP-lane FSM branch + plan revised for the new code shape; **#1772 folded in (US9 / FR-035..038 / IC-10)**. The WP files are now stale vs. the revised plan — **re-run `/spec-kitty.tasks`** to regenerate (expect a new WP14 for #1772 plus IC-04/IC-06 WP extensions) before finalize.
 
 ---
 
@@ -20,6 +20,7 @@
 | **#1757** scope not backfill-aware + half-pure seam + dict asymmetry (#1756 review) | OPEN | Ownership single-ownership fold-in | FR-028 … FR-031 | US7 | SC-9 | WP12 |
 | **#1754** legacy migration `rebuild_event_log` vs `repair_repo` (#1756 follow-up) | OPEN | Migration single-port fold-in | FR-032 … FR-034 | US8 | SC-10 | WP13 |
 | **#1753** WPMetadata `scope` gap (filed this slice) | **CLOSED** (fixed in #1756) | Tooling — unblocked finalize-tasks | n/a | n/a | n/a | n/a (tooling fix, merged upstream/main) |
+| **#1772** coord-topology merge fails + silently skips code integration | OPEN | Coord-topology merge & path/status-surface hardening | FR-035 … FR-038 | US9 | SC-011 | WP14 (+ extends IC-04/IC-06 WPs) |
 
 ---
 
@@ -35,8 +36,9 @@
 | FR-025..FR-027 (snapshot mission-identity carry-through) | #1663 |
 | FR-028..FR-031 (scope backfill-awareness, dict symmetry, frontmatter-source port) | #1757 + #1666 (one owning port) |
 | FR-032..FR-034 (canonical per-mission event-rebuild, migrate legacy callers, fixtures) | #1754 + #1666 (one owning port) |
+| FR-035..FR-038 (no `.worktrees/` staging + doctor; single coord-aware resolver; merge gated on tree-state not done-status; in-branch status validation) | #1772 + #1666 (Bugs 1/2/4 are the duplicated resolution this slice strangles; Bug 0/3 folded in) |
 
-**No orphan FRs.** Every FR-001..FR-034 traces to a source issue. Every source issue has ≥1 FR.
+**No orphan FRs.** Every FR-001..FR-038 traces to a source issue. Every source issue has ≥1 FR.
 
 ---
 

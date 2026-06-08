@@ -182,8 +182,22 @@ This mission was rebased onto `mission/wp-lane-state-machine-fsm` (`c03972531`),
 - **Persona IC**: **Randy Reducer** — exactly one rebuild path; deprecated symbol removed or thin-shimmed with no live callers.
 - **Risks**: behavioral change to legacy-project migration — fixture-backed (NFR-004); the canonical entry must preserve the per-feature event-count reporting contract `repair_repo` lacks.
 
+### IC-10 — Coordination-topology merge & path/status-surface hardening (#1772)
+
+- **Purpose**: Harden `spec-kitty merge` on coordination-topology missions so it never silently drops lane code, and fix the duplicated feature-dir / status-surface resolution defects that broke it. #1772 is a P0 with a **data-integrity** failure (a retry after a partial abort produced a zero-code squash-merge while reporting success). Added per operator request 2026-06-08.
+- **Relevant requirements**: FR-035, FR-036, FR-037, FR-038
+- **Affected surfaces**:
+  - **Bugs 1+2 (FR-036)** — `coordination/surface_resolver.py::resolve_status_surface` + `candidate_feature_dir_for_mission`: resolve the coord feature dir/status path exactly once, ignore nested `.worktrees/`. **This is the same duplicated resolution IC-04/IC-06 collapse** — implement it *as part of* the canonical resolver so there is one coord-aware path, not a merge-local patch.
+  - **Bug 0 (FR-035)** — finalize/recovery staging in `cli/commands/agent/mission.py` + `merge/` flows: never `git add` under `.worktrees/`; add a `status/doctor.py` (or `doctor`) check for tracked `.worktrees/` content.
+  - **Bug 3 (FR-037, highest priority)** — `merge/executor.py` (+ `merge.py::_write_mission_number_to_branch`): gate lane integration on the actual tree-diff, not the per-WP `done` event; fail loudly on a zero-diff squash; do not reset lane HEADs on a no-op merge.
+  - **Bug 4 (FR-038)** — `_assert_merged_wps_reached_done`-adjacent validation: resolve the in-branch status path, not a worktree path.
+- **Sequencing/depends-on**: FR-036/FR-038 build on **IC-04 + IC-06** (the canonical coord-aware resolver / status surface) — extend those rather than patching merge locally. FR-035 + FR-037 are largely standalone (merge/finalize/doctor) and can land in parallel; FR-037 (data-integrity) is the top priority within this IC.
+- **Persona IC**: **Paula Patterns** — one coord-aware resolver owns feature-dir/status-path resolution on every path including merge; **Randy Reducer** — the merge must not carry a parallel `done`-status proxy for "code integrated".
+- **Scope note**: FR-037 touches `merge/executor.py`, which is broader than the strangler core — included because #1772's data-integrity loss is the operator's stated priority and shares the one-owning-surface theme. NFR-006 still holds: `coordination/transaction.py` internals stay unchanged.
+- **Risks**: merge-executor change needs coord-topology fixtures (the #1772 reproduction: tracked `.worktrees/` junk + pre-recorded `done` events from an aborted merge); behavior-preserving for the healthy-merge path; the parity ratchet (IC-03) plus a dedicated merge-integration regression test are the safety net.
+
 ## Phases
 
 - **Phase 0 — Research** (`research.md`): resolve the carried-forward decisions (module name, ExecutionContext shape, migration order, import-classification strategy, shim approach). All resolved from doc 06/17 — see research.md.
 - **Phase 1 — Design** (`data-model.md`, `contracts/`, `quickstart.md`, `occurrence_map.yaml`): the umbrella's public API surface, the context objects, the boundary + ratchet contracts, and the bulk-edit occurrence map.
-- **Phase 2 — Tasks** (`/spec-kitty.tasks`): translate IC-01..IC-09 into work packages with persona ICs, applying the [Post-FSM-Rebase Reconciliation](#post-fsm-rebase-reconciliation-2026-06-08) deltas (drop already-done items, fix renamed/moved references). **Not produced by this command.**
+- **Phase 2 — Tasks** (`/spec-kitty.tasks`): translate IC-01..IC-10 into work packages with persona ICs, applying the [Post-FSM-Rebase Reconciliation](#post-fsm-rebase-reconciliation-2026-06-08) deltas (drop already-done items, fix renamed/moved references). IC-10 (#1772) FR-036/FR-038 should be expressed as extensions of the IC-04/IC-06 WPs (one coord-aware resolver), with FR-035/FR-037 as their own WP(s). **Not produced by this command.**

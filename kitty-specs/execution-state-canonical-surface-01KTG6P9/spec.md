@@ -137,6 +137,22 @@ A maintainer migrating a legacy project gets per-mission event-log rebuild throu
 2. **Given** a per-mission rebuild, **When** it runs, **Then** the canonical entry returns event counts (`events_generated`/`events_corrected`/`errors`/`warnings`) sufficient for the runner's reporting.
 3. **Given** legacy missions and migration fixtures, **When** migration runs end-to-end, **Then** behavior is preserved (events generated/corrected equivalent; legacy missions migrate unchanged) and the deprecated `rebuild_event_log` is removed or reduced to a thin shim with no live callers.
 
+### User Story 9 - Coordination-topology merge & path/status-surface hardening (#1772) (Priority: P1)
+
+`spec-kitty merge` on a healthy, fully-approved coordination-topology mission integrates the lane code correctly and never silently drops it. The path/status-surface resolution it relies on resolves the mission's feature dir and status path exactly once, with no nested-`.worktrees/` double-resolution, and finalize/recovery never stage `.worktrees/` content.
+
+**Why this priority**: #1772 is a P0 with a **data-integrity** failure — on a retry after a partial abort, the merge skipped code integration for all lanes (gating on `done` status as a proxy for "already integrated") and produced a squash-merge commit containing zero WP source while reporting success. Its root causes (Bugs 1/2/4) are the very duplicated feature-dir / status-surface resolution this mission strangles, so it belongs here; Bug 3 (merge integration correctness) and Bug 0 (worktree staging hygiene) are folded in as the same one-owning-surface discipline applied to the merge path.
+
+**Independent Test**: On a coord-topology fixture with (a) tracked `.worktrees/` junk present and (b) per-WP `done` events already recorded from a prior aborted merge, run the merge: it must integrate the real lane diffs (or fail loudly), never emit a zero-diff squash, and the canonical resolver must return the single correct in-branch status path without a `.worktrees/<m>-coord/.worktrees/<m>-coord/...` double-resolution.
+
+**Acceptance Scenarios**:
+
+1. **Given** a coord-topology mission whose feature dir is requested during merge, **When** `candidate_feature_dir_for_mission` / `resolve_status_surface` resolve it, **Then** the coord worktree is resolved exactly once (no nested `.worktrees/` re-resolution) and `_assert_merged_wps_reached_done` reads the in-branch status path, not a worktree path.
+2. **Given** a prior merge aborted after writing per-WP `done` events, **When** the merge is retried, **Then** code integration is gated on the actual lane tree-diff (not the `done` status), and a merge that would integrate zero lane diffs fails loudly instead of reporting success.
+3. **Given** finalize/recovery flows that stage artifacts, **When** they `git add`, **Then** no path under `.worktrees/` is ever staged, and `spec-kitty doctor` flags any pre-existing tracked `.worktrees/` content.
+
+---
+
 ### Edge Cases
 
 - What happens when a coord-topology mission's coord authority path is unavailable? → The status read fails closed (no silent stale primary-checkout fallback).
@@ -186,6 +202,10 @@ A maintainer migrating a legacy project gets per-mission event-log rebuild throu
 | FR-032 | Canonical per-mission event-rebuild entry | US8 · a per-mission canonical event-rebuild entry on `mission_state` returns event counts (`events_generated`/`events_corrected`/`errors`/`warnings`). **Decision (2026-06-07):** add the per-mission entry rather than retiring the runner onto `repair_repo` — `repair_repo` is repo-level and drops the per-feature event-count reporting the runner needs; full retirement is deferred to a separate fixture-backed change. | High | Open |
 | FR-033 | Migrate legacy rebuild callers | US8 · `migration/normalize_mission_lifecycle.py` and `migration/runner.py` (Step 4) no longer depend on the deprecated `rebuild_event_log`; the deprecated symbol is removed or kept only as a thin shim with no live callers, and `migration/__init__.__all__` no longer lists an unbound lazy symbol that static analyzers flag (#1757.4). | High | Open |
 | FR-034 | Legacy migration fixtures + behavior preservation | US8 · migration fixtures cover the per-mission rebuild path; legacy missions migrate unchanged and event counts/transformations are equivalent to the deprecated path. | Medium | Open |
+| FR-035 | No `.worktrees/` staging (#1772 Bug 0) | US9 · finalize/recovery staging flows never `git add` a path under `.worktrees/` (explicit guard); `spec-kitty doctor` flags pre-existing tracked `.worktrees/` content so the precondition cannot recur. | High | Open |
+| FR-036 | Single coord-aware feature-dir/status resolution (#1772 Bugs 1+2) | US9 · `candidate_feature_dir_for_mission` / `resolve_status_surface` resolve a coordination mission's feature dir and status path **exactly once** — no nested `.worktrees/<m>-coord/.worktrees/<m>-coord/…` double-resolution, and nested `.worktrees/` is ignored when searching. Builds on the IC-04/IC-06 canonical resolver. | High | Open |
+| FR-037 | Merge integration gated on tree-state, not `done` status (#1772 Bug 3, data-integrity) | US9 · `spec-kitty merge` gates lane code integration on the actual lane tree-diff, not the per-WP `done` status proxy; a squash-merge that would integrate **zero** lane diffs fails loudly instead of reporting success — no silent code-payload loss after a partial/aborted merge. | High | Open |
+| FR-038 | Post-merge validation resolves in-branch status path (#1772 Bug 4) | US9 · post-merge target validation (`_assert_merged_wps_reached_done`-adjacent) resolves the **in-branch** status path, not a `.worktrees/` worktree path that is never tracked in a branch tree. | Medium | Open |
 
 ### Non-Functional Requirements
 
@@ -242,6 +262,7 @@ A maintainer migrating a legacy project gets per-mission event-log rebuild throu
 - **SC-008**: No regressions — full existing integration + architectural suite passes; `ruff` + `mypy` clean (zero issues/warnings, no disabled checks — NFR-007) on touched modules.
 - **SC-009**: Ownership `scope` is single-ported and backfill-aware — a `scope: codebase-wide` added to an already-backfilled WP survives a `backfill_ownership` re-run; `from_frontmatter` is provably symmetric across input shapes; the finalize resolve→validate path is exercised through the frontmatter-source port without stubbing the reader (#1757).
 - **SC-010**: Legacy migration rebuild is single-ported — `migration/runner.py` and `normalize_mission_lifecycle.py` rebuild via the canonical `mission_state` entry (not `rebuild_event_log`); fixtures prove behavior preservation; the deprecated symbol has no live callers (#1754).
+- **SC-011**: Coordination-topology merge is hardened (#1772) — on a coord-topology fixture with tracked `.worktrees/` junk and pre-recorded `done` events from an aborted merge, `spec-kitty merge` integrates the real lane diffs or fails loudly (never a zero-code squash reported as success); the feature-dir/status path resolves exactly once (no nested `.worktrees/` double-resolution); post-merge validation reads the in-branch status path; finalize/recovery never stage `.worktrees/` content and `doctor` flags pre-existing tracked `.worktrees/`.
 
 <!--
   Domain Language (terminology discipline): canonical terms — "execution-state domain
