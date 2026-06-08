@@ -155,10 +155,10 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T022 Enumerate the remaining raw `main_repo_root / "kitty-specs" / mission_slug`-class constructions (WP06)
-- [ ] T023 Route each through the `mission_runtime` canonical surface (WP06)
-- [ ] T024 Delete now-unreachable path-builder functions (WP06)
-- [ ] T025 Confirm the SC-004 grep returns zero (WP06)
+- [x] T022 Enumerate the remaining raw `main_repo_root / "kitty-specs" / mission_slug`-class constructions (WP06)
+- [x] T023 Route each through the `mission_runtime` canonical surface (WP06)
+- [x] T024 Delete now-unreachable path-builder functions (WP06)
+- [x] T025 Confirm the SC-004 grep returns zero (WP06)
 
 ### Dependencies
 
