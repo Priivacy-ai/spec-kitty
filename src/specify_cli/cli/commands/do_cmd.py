@@ -1,8 +1,8 @@
-"""CLI command: spec-kitty do <request> [--json]
+"""CLI command: spec-kitty do <request> [--profile <id>] [--json]
 
-Anonymous profile dispatch — always routes through ActionRouter, never
-accepts an explicit profile hint. This is the simplest entry point for
-operators who want governance context without knowing which profile to target.
+Anonymous profile dispatch — routes through ActionRouter by default.
+An optional --profile bypasses the router when the caller already knows
+which profile to target (avoids ROUTER_AMBIGUOUS on generic verbs like "fix").
 
 Registration: do is a plain function registered via @app.command() in __init__.py.
 """
@@ -101,19 +101,24 @@ def do(
     request: str = typer.Argument(
         ..., help="Natural language request. The router picks the best profile."
     ),
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        help="Optional profile ID. Bypasses the router — use when the request is ambiguous.",
+    ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON payload"),
 ) -> None:
     """Route a request to the best-matching profile (anonymous dispatch).
 
-    Always uses ActionRouter — no explicit profile hint. On ambiguity or no-match,
-    exits 1 with a structured error listing candidates.
-    Use 'spec-kitty ask <profile> <request>' to be explicit.
+    Uses ActionRouter by default. Pass --profile to bypass routing when the
+    request verb is ambiguous (e.g. 'fix' matches multiple implementer profiles).
+    On ambiguity or no-match without --profile, exits 1 with a structured error.
     """
     repo_root = _get_repo_root()
     executor = _build_executor(repo_root)
     mode = derive_mode("do")
     try:
-        payload = executor.invoke(request, profile_hint=None, actor=_detect_actor(), mode_of_work=mode)
+        payload = executor.invoke(request, profile_hint=profile, actor=_detect_actor(), mode_of_work=mode)
     except RouterAmbiguityError as e:
         error_obj = {
             "error": "routing_failed",
