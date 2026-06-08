@@ -28,8 +28,8 @@ subtasks:
 - T053
 phase: Phase 3 - Strangle
 assignee: ''
-agent: "claude:opus:randy-reducer:implementer"
-shell_pid: "2692683"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "2746244"
 history:
 - at: '2026-06-07T05:16:24Z'
   actor: system
@@ -115,3 +115,5 @@ Route the primary residue surfaces through `mission_runtime.resolve_action_conte
 
 - 2026-06-07T05:16:24Z – system – Prompt created.
 - 2026-06-08T05:57:28Z – claude:opus:randy-reducer:implementer – shell_pid=2692683 – Started implementation via action command
+- 2026-06-08T08:08:24Z – claude:opus:randy-reducer:implementer – shell_pid=2692683 – Ready for review: routed runtime_bridge meta readers + surface_resolver through canonical resolver (deleted slug-derived path-builders); FR-036 single coord-aware resolution (no nested .worktrees) with regression test; T017 mode-correct target_branch + mainline write-guard unit tests; WP01 ratchet green all 3 modes; mypy/ruff clean on changed files.
+- 2026-06-08T08:10:04Z – claude:opus:reviewer-renata:reviewer – shell_pid=2746244 – Started review via action command
