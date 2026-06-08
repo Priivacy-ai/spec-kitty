@@ -194,6 +194,7 @@ def test_record_analysis_refuses_dirty_worktree_before_write(tmp_path, monkeypat
     input_file = tmp_path.parent / f"{tmp_path.name}-analysis.md"
     input_file.write_text("# Analysis\n\nPASS\n", encoding="utf-8")
 
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("specify_cli.cli.commands.agent.mission.locate_project_root", lambda: repo_root)
     monkeypatch.setattr("specify_cli.cli.commands.agent.mission.get_main_repo_root", lambda path: path)
     emitted: dict[str, object] = {}

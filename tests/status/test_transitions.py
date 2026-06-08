@@ -243,6 +243,15 @@ class TestForceOverride:
         assert ok is True
         assert error is None
 
+    def test_force_cannot_target_genesis(self) -> None:
+        ok, error = validate_transition(
+            "planned",
+            "genesis",
+            GuardContext(force=True, actor="admin", reason="force regression"),
+        )
+        assert ok is False
+        assert error == "Illegal transition: planned -> genesis"
+
 
 class TestGuardConditions:
     def test_actor_required_for_claim(self) -> None:

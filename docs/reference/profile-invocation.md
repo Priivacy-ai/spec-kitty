@@ -24,7 +24,7 @@ Three CLI commands open a governed invocation record:
 |---|---|---|
 | Ask | `spec-kitty ask <profile> <request>` | Invoke a named profile directly for a query or advisory flow. The caller specifies the profile. |
 | Advise | `spec-kitty advise [--profile <profile>] <request>` | Get governance context for a request; opens an invocation record. Runtime may auto-route. |
-| Do | `spec-kitty do <request>` | Route a request to the best-matching profile for action (anonymous dispatch). |
+| Do | `spec-kitty do [--profile <profile>] <request>` | Route a request to the best-matching profile for action (anonymous dispatch). Pass `--profile` to bypass routing when the request verb is ambiguous. |
 
 ---
 

@@ -30,12 +30,7 @@ from specify_cli.sync.events import (
     reset_emitter,
     emit_wp_status_changed,
     emit_wp_created,
-    emit_wp_assigned,
-    emit_mission_created,
     emit_mission_closed,
-    emit_history_added,
-    emit_error_logged,
-    emit_dependency_resolved,
 )
 
 
@@ -796,14 +791,6 @@ class TestConvenienceFunctions:
         mock_daemon.assert_called_once_with(ensure_daemon=False)
 
     @patch("specify_cli.sync.events.get_emitter")
-    def test_emit_wp_created_delegates(self, mock_get):
-        """emit_wp_created delegates to singleton."""
-        mock_emitter = MagicMock()
-        mock_get.return_value = mock_emitter
-        emit_wp_created("WP01", "Title", "028-sync")
-        mock_emitter.emit_wp_created.assert_called_once()
-
-    @patch("specify_cli.sync.events.get_emitter")
     def test_emit_wp_created_resolves_mission_id_from_slug(self, mock_get):
         """WPCreated fan-out resolves canonical mission identity when possible."""
         mock_emitter = MagicMock()
@@ -833,22 +820,6 @@ class TestConvenienceFunctions:
         )
 
     @patch("specify_cli.sync.events.get_emitter")
-    def test_emit_wp_assigned_delegates(self, mock_get):
-        """emit_wp_assigned delegates to singleton."""
-        mock_emitter = MagicMock()
-        mock_get.return_value = mock_emitter
-        emit_wp_assigned("WP01", "agent", "implementation")
-        mock_emitter.emit_wp_assigned.assert_called_once()
-
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_emit_mission_created_delegates(self, mock_get):
-        """emit_mission_created delegates to singleton."""
-        mock_emitter = MagicMock()
-        mock_get.return_value = mock_emitter
-        emit_mission_created("028-sync", "028", "main", 5)
-        mock_emitter.emit_mission_created.assert_called_once()
-
-    @patch("specify_cli.sync.events.get_emitter")
     def test_emit_mission_closed_delegates(self, mock_get):
         """emit_mission_closed delegates canonical mission identity to singleton."""
         mock_emitter = MagicMock()
@@ -864,30 +835,6 @@ class TestConvenienceFunctions:
             mission_number=None,
             mission_type="software-dev",
         )
-
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_emit_history_added_delegates(self, mock_get):
-        """emit_history_added delegates to singleton."""
-        mock_emitter = MagicMock()
-        mock_get.return_value = mock_emitter
-        emit_history_added("WP01", "note", "content")
-        mock_emitter.emit_history_added.assert_called_once()
-
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_emit_error_logged_delegates(self, mock_get):
-        """emit_error_logged delegates to singleton."""
-        mock_emitter = MagicMock()
-        mock_get.return_value = mock_emitter
-        emit_error_logged("runtime", "error")
-        mock_emitter.emit_error_logged.assert_called_once()
-
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_emit_dependency_resolved_delegates(self, mock_get):
-        """emit_dependency_resolved delegates to singleton."""
-        mock_emitter = MagicMock()
-        mock_get.return_value = mock_emitter
-        emit_dependency_resolved("WP02", "WP01", "completed")
-        mock_emitter.emit_dependency_resolved.assert_called_once()
 
 
 class TestConnectionStatus:

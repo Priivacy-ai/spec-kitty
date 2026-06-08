@@ -108,6 +108,10 @@ def _render_rich_payload(payload: InvocationPayload) -> None:
         f"\n[dim]Close this record:[/dim] "
         f"spec-kitty profile-invocation complete --invocation-id {payload.invocation_id}"
     )
+    console.print(
+        f"[dim]Commit the op record:[/dim] "
+        f"git add kitty-ops/{payload.invocation_id}.jsonl"
+    )
 
 
 def _run_invoke(

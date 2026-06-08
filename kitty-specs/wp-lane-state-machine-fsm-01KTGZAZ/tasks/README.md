@@ -23,9 +23,15 @@ Each WP file **MUST** use YAML frontmatter:
 work_package_id: "WP01"
 title: "Work Package Title"
 dependencies: []
+<<<<<<<< HEAD:kitty-specs/execution-state-canonical-surface-01KTG6P9/tasks/README.md
+planning_base_branch: "feat/execution-state-strangler"
+merge_target_branch: "feat/execution-state-strangler"
+branch_strategy: "Planning artifacts were generated on feat/execution-state-strangler; completed changes must merge back into feat/execution-state-strangler."
+========
 planning_base_branch: "mission/wp-lane-state-machine-fsm"
 merge_target_branch: "mission/wp-lane-state-machine-fsm"
 branch_strategy: "Planning artifacts were generated on mission/wp-lane-state-machine-fsm; completed changes must merge back into mission/wp-lane-state-machine-fsm."
+>>>>>>>> refs/rewritten/onto:kitty-specs/wp-lane-state-machine-fsm-01KTGZAZ/tasks/README.md
 subtasks:
   - "T001"
   - "T002"

@@ -315,14 +315,14 @@ def _lane_targets_for_emit(current_lane: str, requested_lane: str) -> list[str]:
 def _wp_lane_from_status_events(events: list[StatusEvent], wp_id: str) -> Lane:
     """Return a WP's current lane from canonical status events."""
     if not events:
-        return Lane.PLANNED
+        return Lane.GENESIS
     from specify_cli.status import reduce as _reduce_status_events
 
     snapshot = _reduce_status_events(events)
     state = snapshot.work_packages.get(wp_id)
     if not state:
-        return Lane.PLANNED
-    return Lane(state.get("lane", Lane.PLANNED))
+        return Lane.GENESIS
+    return Lane(state.get("lane", Lane.GENESIS))
 
 
 def _read_transactional_wp_lane(
@@ -3911,7 +3911,7 @@ def status(
             _st_snapshot = _st_reduce(_st_events) if _st_events else None
             if _st_snapshot:
                 for _st_wp_id, _st_state in _st_snapshot.work_packages.items():
-                    _st_lanes[_st_wp_id] = Lane(_st_state.get("lane", Lane.PLANNED))
+                    _st_lanes[_st_wp_id] = Lane(_st_state.get("lane", Lane.GENESIS))
         except Exception:
             _st_events = []
             _st_lanes = {}
@@ -3923,7 +3923,7 @@ def status(
 
             wp_id = extract_scalar(front, "work_package_id")
             title = extract_scalar(front, "title")
-            lane = resolve_lane_alias(_st_lanes.get(wp_id or wp_file.stem, Lane.PLANNED))
+            lane = resolve_lane_alias(_st_lanes.get(wp_id or wp_file.stem, Lane.GENESIS))
             phase = extract_scalar(front, "phase") or "Unknown Phase"
             agent = extract_scalar(front, "agent") or ""
             agent_profile = extract_scalar(front, "agent_profile") or ""

@@ -97,7 +97,6 @@ from .adapters import (
     register_saas_fanout_handler,
 )
 from .bootstrap import (
-    BootstrapResult,
     bootstrap_canonical_state,
 )
 from .event_log_merge import (
@@ -180,11 +179,17 @@ from .doctor import (
 # (finalize in agent/mission.py and implement.py) — review M7.
 COORD_OWNED_STATUS_FILES = frozenset({EVENTS_FILENAME, SNAPSHOT_FILENAME})
 
+# The canonical status artifacts (event log + snapshot). On coordination-topology
+# missions these are owned by the transactional status emitter on the coordination
+# branch; the primary checkout's copies are stale and must not clobber the seed
+# during finalize/implement (#1589). Single source for both commit paths
+# (finalize in agent/mission.py and implement.py) — review M7.
+COORD_OWNED_STATUS_FILES = frozenset({EVENTS_FILENAME, SNAPSHOT_FILENAME})
+
 __all__ = [
     "ActiveWPStatus",
     "AgentAssignment",
     "ALLOWED_TRANSITIONS",
-    "BootstrapResult",
     "COORD_OWNED_STATUS_FILES",
     "CoordAuthorityUnavailable",
     "EventLogMergeError",

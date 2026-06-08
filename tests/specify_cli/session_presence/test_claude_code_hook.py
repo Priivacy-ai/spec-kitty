@@ -7,6 +7,7 @@ preservation of other entries, and atomic writes.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any, cast
 from unittest.mock import patch
@@ -115,6 +116,42 @@ class TestRegister:
         data = _read_settings(claude_project)
         assert isinstance(data.get("hooks"), dict)
         assert isinstance(data["hooks"].get("SessionStart"), list)
+
+    @pytest.mark.requires_symlinks
+    def test_rejects_symlinked_claude_dir_escape(self, claude_project: Path) -> None:
+        outside = claude_project.parent / f"{claude_project.name}-outside-claude"
+        outside.mkdir()
+        protected = outside / "settings.json"
+        protected.write_text("DO_NOT_OVERWRITE\n", encoding="utf-8")
+        (claude_project / ".claude").rmdir()
+        try:
+            os.symlink(outside, claude_project / ".claude", target_is_directory=True)
+        except (OSError, NotImplementedError):
+            pytest.skip("symlinks not supported on this platform")
+
+        reg = ClaudeCodeHookRegistrar()
+        with pytest.raises(ValueError, match="escapes project root"):
+            reg.register(claude_project, _CMD)
+
+        assert protected.read_text(encoding="utf-8") == "DO_NOT_OVERWRITE\n"
+
+    @pytest.mark.requires_symlinks
+    def test_rejects_symlinked_settings_file_escape(self, claude_project: Path) -> None:
+        outside = claude_project.parent / f"{claude_project.name}-outside-settings"
+        outside.mkdir()
+        protected = outside / "settings.json"
+        protected.write_text("DO_NOT_OVERWRITE\n", encoding="utf-8")
+        _settings_path(claude_project).parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.symlink(protected, _settings_path(claude_project))
+        except (OSError, NotImplementedError):
+            pytest.skip("symlinks not supported on this platform")
+
+        reg = ClaudeCodeHookRegistrar()
+        with pytest.raises(ValueError, match="escapes project root"):
+            reg.register(claude_project, _CMD)
+
+        assert protected.read_text(encoding="utf-8") == "DO_NOT_OVERWRITE\n"
 
 
 class TestUnregister:

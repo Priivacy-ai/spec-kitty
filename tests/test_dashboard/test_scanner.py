@@ -231,6 +231,26 @@ def test_build_event_log_kanban_stats_tolerates_weighted_progress_failure(tmp_pa
     assert "weighted_percentage" not in stats
 
 
+def test_build_event_log_kanban_stats_excludes_unseeded_wps(tmp_path):
+    feature_dir = tmp_path / "kitty-specs" / "001-unseeded"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-demo.md").write_text(
+        """---
+work_package_id: WP01
+---
+# Work Package Prompt: Demo
+""",
+        encoding="utf-8",
+    )
+    (feature_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+
+    stats = scanner._build_event_log_kanban_stats(feature_dir, tasks_dir)
+
+    assert stats["total"] == 0
+    assert stats["planned"] == 0
+
+
 def test_build_kanban_stats_handles_absent_and_legacy_paths(tmp_path, monkeypatch):
     feature_dir = tmp_path / "kitty-specs" / "001-legacy"
     tasks_dir = feature_dir / "tasks"

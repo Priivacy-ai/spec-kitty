@@ -165,8 +165,13 @@ class WPState(ABC):
         Returns ``(ok, error_message)`` with the exact parity messages of the
         historical ``validate_transition``. ``force`` (with actor + reason)
         overrides both the edge check and the guards — including terminal
-        force-exit from ``done``/``canceled`` to any lane.
+        force-exit from ``done``/``canceled`` to any display lane. ``genesis``
+        remains a non-display seed source and is never a valid target.
         """
+        if target == Lane.GENESIS:
+            # Genesis is a seed source, not a persisted/display target. Force may
+            # bypass edges and guards, but it must not create a current genesis WP.
+            return False, f"Illegal transition: {self.lane.value} -> {target.value}"
         if not self.may_transition_to(target):
             # Edge does not exist: only force (with actor + reason) can override.
             if ctx.force:

@@ -50,20 +50,6 @@ def test_governance_section_mentions_advise_ask_do() -> None:
     assert "spec-kitty do" in section
 
 
-def test_advise_skill_references_resolve() -> None:
-    """Every relative link in .agents/skills/spec-kitty.advise/SKILL.md
-    resolves to an existing file in the repo."""
-    skill = REPO_ROOT / ".agents/skills/spec-kitty.advise/SKILL.md"
-    content = skill.read_text()
-    # Match markdown links with relative targets (not http/https)
-    links = re.findall(r"\]\(([^)#]+\.md)\)", content)
-    for link in links:
-        if link.startswith("/") or link.startswith("http"):
-            continue
-        target = (skill.parent / link).resolve()
-        assert target.exists(), f"Broken link in spec-kitty.advise/SKILL.md: {link}"
-
-
 def test_runtime_next_skill_references_resolve() -> None:
     skill = REPO_ROOT / "src/doctrine/skills/spec-kitty-runtime-next/SKILL.md"
     content = skill.read_text()

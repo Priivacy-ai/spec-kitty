@@ -27,11 +27,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 REVIEW_TEMPLATE_PATH = (
     REPO_ROOT
     / "src"
-    / "specify_cli"
+    / "doctrine"
     / "missions"
+    / "mission-steps"
     / "software-dev"
-    / "command-templates"
-    / "review.md"
+    / "review"
+    / "prompt.md"
 )
 
 EIGHT_DRIFT_OUTCOMES = (

@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import datetime
 import json
+import sys
 import time
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -32,7 +34,14 @@ from specify_cli.cli.commands.invocations_cmd import (
 # Marked for mutmut sandbox skip — subprocess CLI invocation.
 pytestmark = pytest.mark.non_sandbox
 
-runner = CliRunner()
+class ArgvCliRunner(CliRunner):
+    def invoke(self, app, args=None, **kwargs):  # type: ignore[no-untyped-def]
+        argv = ["spec-kitty", *(list(args) if args is not None and not isinstance(args, str) else [])]
+        with patch.object(sys, "argv", argv):
+            return super().invoke(app, args, **kwargs)
+
+
+runner = ArgvCliRunner()
 
 
 # ---------------------------------------------------------------------------

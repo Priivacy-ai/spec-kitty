@@ -18,42 +18,42 @@
   },
   "work_packages": {
     "WP01": {
-      "actor": "spec-kitty merge",
+      "actor": "spec-kitty-merge",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KT6XXNTGNRJ2VYY33K4DVES3",
       "last_transition_at": "2026-06-03T14:24:12.112690+00:00"
     },
     "WP02": {
-      "actor": "spec-kitty merge",
+      "actor": "spec-kitty-merge",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KT6XXS0C3ZHDN952A8EZN7SD",
       "last_transition_at": "2026-06-03T14:24:15.372221+00:00"
     },
     "WP03": {
-      "actor": "spec-kitty merge",
+      "actor": "spec-kitty-merge",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KT6XXVEJTKASHHK978TF7KQY",
       "last_transition_at": "2026-06-03T14:24:17.874721+00:00"
     },
     "WP04": {
-      "actor": "spec-kitty merge",
+      "actor": "spec-kitty-merge",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KT6XXXW21JAJJT3M7D09GG6X",
       "last_transition_at": "2026-06-03T14:24:20.354493+00:00"
     },
     "WP05": {
-      "actor": "spec-kitty merge",
+      "actor": "spec-kitty-merge",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KT6XY09HS5C86QJDPHBPGWJ8",
       "last_transition_at": "2026-06-03T14:24:22.833779+00:00"
     },
     "WP06": {
-      "actor": "spec-kitty merge",
+      "actor": "spec-kitty-merge",
       "force_count": 7,
       "lane": "done",
       "last_event_id": "01KT6XY2S2NA5HEAPQXMBR4S0E",

@@ -33,14 +33,6 @@ def test_shipped_graph_loads_and_validates() -> None:
     assert_valid(merged)
 
 
-def test_shipped_graph_has_no_requires_cycles() -> None:
-    """assert_valid checks requires cycles; exercise it as an explicit
-    assertion so a regression in the validator surface is caught here."""
-    graph = load_graph(SHIPPED_GRAPH)
-    merged = merge_layers(graph, None)
-    assert_valid(merged)
-
-
 def test_shipped_graph_has_at_least_one_edge() -> None:
     """Smoke check that the graph file is non-degenerate."""
     graph = load_graph(SHIPPED_GRAPH)

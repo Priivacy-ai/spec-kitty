@@ -7,6 +7,7 @@ corrupt-YAML, and schema-invalid cases without catching broad exceptions.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from pydantic import ValidationError
 from ruamel.yaml import YAML
@@ -110,8 +111,10 @@ _PROPOSAL_CATEGORIES = frozenset({"glossary", "drg", "doctrine", "tooling", "pro
 _EVIDENCE_KINDS = frozenset({"file", "event_range", "external"})
 _FINDINGS_STATUSES = frozenset({"has_findings", "ran_no_findings"})
 
+YamlMapping = dict[str, Any]
 
-def _load_yaml_mapping(path: Path) -> dict:
+
+def _load_yaml_mapping(path: Path) -> YamlMapping:
     raw_text = path.read_text(encoding="utf-8")
     yaml = YAML(typ="safe")
     try:
@@ -124,13 +127,33 @@ def _load_yaml_mapping(path: Path) -> dict:
     return data
 
 
-def _validate_keys(raw: dict, allowed: frozenset[str], *, label: str) -> None:
+def _coerce_legacy_schema_versions(data: YamlMapping) -> YamlMapping:
+    """Accept legacy YAML scalar versions while keeping the model schema strict."""
+    normalized = dict(data)
+
+    schema_version = normalized.get("schema_version")
+    if type(schema_version) is int:
+        normalized["schema_version"] = str(schema_version)
+
+    provenance = normalized.get("provenance")
+    if isinstance(provenance, dict):
+        provenance_schema_version = provenance.get("schema_version")
+        if type(provenance_schema_version) is int:
+            normalized["provenance"] = {
+                **provenance,
+                "schema_version": str(provenance_schema_version),
+            }
+
+    return normalized
+
+
+def _validate_keys(raw: YamlMapping, allowed: frozenset[str], *, label: str) -> None:
     extra = sorted(set(raw) - allowed)
     if extra:
         raise ValueError(f"{label} has unsupported field(s): {', '.join(extra)}")
 
 
-def _validate_mapping(raw: object, *, label: str) -> dict:
+def _validate_mapping(raw: object, *, label: str) -> YamlMapping:
     if not isinstance(raw, dict):
         raise ValueError(f"{label} must be a mapping")
     return raw
@@ -188,7 +211,7 @@ def _validate_gen_proposal(raw: object, *, label: str) -> None:
     _validate_string_list(proposal.get("evidence_refs", []), label=f"{label}.evidence_refs")
 
 
-def _validate_gen_header(data: dict) -> None:
+def _validate_gen_header(data: YamlMapping) -> None:
     _validate_keys(data, _GEN_TOP_LEVEL_KEYS, label="record")
     missing = sorted(_GEN_REQUIRED_KEYS - set(data))
     if missing:
@@ -199,7 +222,7 @@ def _validate_gen_header(data: dict) -> None:
         raise ValueError("findings_status must be has_findings or ran_no_findings")
 
 
-def _validate_gen_mapping(data: dict) -> None:
+def _validate_gen_mapping(data: YamlMapping) -> None:
     _validate_gen_header(data)
 
     _validate_gen_actor(data.get("created_by"), label="created_by")
@@ -220,7 +243,7 @@ def _validate_gen_mapping(data: dict) -> None:
         _validate_gen_provenance(item, label=f"provenance_history[{idx}]")
 
 
-def _gen_record_from_mapping(data: dict) -> GenRetrospectiveRecord:
+def _gen_record_from_mapping(data: YamlMapping) -> GenRetrospectiveRecord:
     def _actor(raw: object) -> GenActor:
         if not isinstance(raw, dict):
             raw = {}
@@ -240,7 +263,7 @@ def _gen_record_from_mapping(data: dict) -> GenRetrospectiveRecord:
             command=raw.get("command"),
         )
 
-    def _evidence_ref(raw: dict) -> GenEvidenceRef:
+    def _evidence_ref(raw: YamlMapping) -> GenEvidenceRef:
         return GenEvidenceRef(
             id=raw["id"],
             kind=raw["kind"],
@@ -249,7 +272,7 @@ def _gen_record_from_mapping(data: dict) -> GenRetrospectiveRecord:
             url=raw.get("url"),
         )
 
-    def _finding(raw: dict) -> GenFinding:
+    def _finding(raw: YamlMapping) -> GenFinding:
         return GenFinding(
             id=raw["id"],
             category=raw["category"],
@@ -258,7 +281,7 @@ def _gen_record_from_mapping(data: dict) -> GenRetrospectiveRecord:
             details=raw.get("details"),
         )
 
-    def _proposal(raw: dict) -> GenProposal:
+    def _proposal(raw: YamlMapping) -> GenProposal:
         return GenProposal(
             id=raw["id"],
             category=raw["category"],
@@ -329,7 +352,7 @@ def read_record(path: Path, *, verify_evidence: bool = False) -> RetrospectiveRe
 
     # Schema validation via Pydantic.
     try:
-        record = RetrospectiveRecord.model_validate(data)
+        record = RetrospectiveRecord.model_validate(_coerce_legacy_schema_versions(data))
     except ValidationError as exc:
         raise SchemaError(
             f"Schema validation failed for {path}:\n{exc}"

@@ -439,6 +439,13 @@ def _setup_upgrade_project(tmp_path: Path) -> Path:
     return tmp_path
 
 
+def _run_upgrade(**kwargs):
+    kwargs.setdefault("agent_check", False)
+    kwargs.setdefault("agent_choice", None)
+    kwargs.setdefault("agent_latest", None)
+    return upgrade_cmd.upgrade(**kwargs)
+
+
 def test_upgrade_no_migrations_json_includes_auto_commit_fields(
     tmp_path: Path,
     monkeypatch,
@@ -466,7 +473,7 @@ def test_upgrade_no_migrations_json_includes_auto_commit_fields(
         lambda **_kw: object(),
     )
 
-    upgrade_cmd.upgrade(
+    _run_upgrade(
         dry_run=False,
         force=True,
         target="1.0.0a1",  # same as metadata → no migrations
@@ -541,7 +548,7 @@ def test_upgrade_no_migrations_stamps_missing_schema_version(
 
     assert get_project_schema_version(project_path) is None
 
-    upgrade_cmd.upgrade(
+    _run_upgrade(
         dry_run=False,
         force=True,
         target="3.2.0rc14",
@@ -614,7 +621,7 @@ def test_upgrade_no_migrations_stamps_existing_worktree_schema_version(
     monkeypatch.setattr(upgrade_cmd, "_git_status_paths", _fake_status)
     monkeypatch.setattr(upgrade_cmd, "safe_commit", _fake_safe_commit)
 
-    upgrade_cmd.upgrade(
+    _run_upgrade(
         dry_run=False,
         force=True,
         target="1.0.0a1",
@@ -669,7 +676,7 @@ def test_upgrade_no_migrations_respects_no_worktrees_for_schema_stamp(
     monkeypatch.setattr(upgrade_cmd, "_git_status_paths", lambda _repo_path: {".kittify/metadata.yaml"})
     monkeypatch.setattr(upgrade_cmd, "safe_commit", lambda **_kw: object())
 
-    upgrade_cmd.upgrade(
+    _run_upgrade(
         dry_run=False,
         force=True,
         target="1.0.0a1",
@@ -708,7 +715,7 @@ def test_upgrade_no_migrations_surfaces_teamspace_mission_state_prompt(
         _fake_offer,
     )
 
-    upgrade_cmd.upgrade(
+    _run_upgrade(
         dry_run=False,
         force=True,
         target="1.0.0a1",
@@ -748,7 +755,7 @@ def test_upgrade_dry_run_skips_auto_commit(
     # T037 routes dry_run+json_output through the compat-planner path which
     # exits before reaching the auto-commit guard.  The test's goal is just to
     # confirm safe_commit is NOT called in dry-run mode, so skip json_output.
-    upgrade_cmd.upgrade(
+    _run_upgrade(
         dry_run=True,
         force=True,
         target="1.0.0a1",
@@ -783,7 +790,7 @@ def test_upgrade_dry_run_json_output_exits_before_auto_commit(
     monkeypatch.setattr(upgrade_cmd, "_run_planner_json", lambda **_kw: (_ for _ in ()).throw(typer.Exit(0)))
 
     with pytest.raises(typer.Exit) as exc:
-        upgrade_cmd.upgrade(
+        _run_upgrade(
             dry_run=True,
             force=True,
             target="1.0.0a1",
@@ -818,7 +825,7 @@ def test_upgrade_baseline_failure_skips_auto_commit(
 
     monkeypatch.setattr(upgrade_cmd, "safe_commit", _spy_safe_commit)
 
-    upgrade_cmd.upgrade(
+    _run_upgrade(
         dry_run=False,
         force=True,
         target="1.0.0a1",
@@ -866,7 +873,7 @@ def test_upgrade_no_migrations_rich_output_shows_auto_commit(
     )
     monkeypatch.setattr(upgrade_cmd, "show_banner", lambda: None)
 
-    upgrade_cmd.upgrade(
+    _run_upgrade(
         dry_run=False,
         force=True,
         target="1.0.0a1",
@@ -906,7 +913,7 @@ def test_upgrade_no_migrations_safe_commit_failure_shows_warning(
         lambda **_kw: (_ for _ in ()).throw(RuntimeError("boom")),
     )
 
-    upgrade_cmd.upgrade(
+    _run_upgrade(
         dry_run=False,
         force=True,
         target="1.0.0a1",
@@ -934,7 +941,7 @@ def test_upgrade_rejects_downgrade_target_in_json_mode(
     monkeypatch.setattr(upgrade_cmd, "_git_status_paths", lambda _rp: set())
 
     with pytest.raises(typer.Exit) as exc:
-        upgrade_cmd.upgrade(
+        _run_upgrade(
             dry_run=False,
             force=True,
             target="0.9.0",
@@ -995,7 +1002,7 @@ def test_upgrade_suppresses_auto_commit_when_manual_review_required(
 
     monkeypatch.setattr(upgrade_cmd, "safe_commit", _spy_safe_commit)
 
-    upgrade_cmd.upgrade(
+    _run_upgrade(
         dry_run=False,
         force=True,
         target="3.2.0a4",
@@ -1053,7 +1060,7 @@ def test_upgrade_auto_commits_clean_run_when_no_manual_review(
         lambda **_kw: (True, [".kittify/metadata.yaml"], None),
     )
 
-    upgrade_cmd.upgrade(
+    _run_upgrade(
         dry_run=False,
         force=True,
         target="3.2.0a4",

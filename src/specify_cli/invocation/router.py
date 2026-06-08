@@ -286,7 +286,7 @@ class ActionRouter:
                 request_text,
                 "ROUTER_NO_MATCH",
                 [],
-                "No profile matched. Use 'spec-kitty ask <profile> <request>' to be explicit.",
+                "No profile matched. Use 'spec-kitty do --profile <id> <request>' or 'spec-kitty ask <profile> <request>'.",
             )
 
         if len(candidates) == 1:
@@ -330,7 +330,7 @@ class ActionRouter:
                 }
                 for c in top_candidates
             ],
-            "Multiple profiles matched. Use 'spec-kitty ask <profile> <request>' to be explicit.",
+            "Multiple profiles matched. Use 'spec-kitty do --profile <id> <request>' or 'spec-kitty ask <profile> <request>'.",
         )
 
     def _derive_action_from_tokens(self, request_text: str, role: object) -> str:

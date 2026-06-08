@@ -861,6 +861,7 @@ _Route a request to the best-matching profile (anonymous dispatch)._
  Usage: spec-kitty do [OPTIONS] REQUEST
 
  Route a request to the best-matching profile (anonymous dispatch).
+ Pass --profile to bypass routing when the request verb is ambiguous.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    request      TEXT  Natural language request. The router picks the best  │
@@ -868,6 +869,8 @@ _Route a request to the best-matching profile (anonymous dispatch)._
 │                         [required]                                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --profile TEXT  Optional profile ID. Bypasses the router — use when the     │
+│                 request is ambiguous (e.g. multiple implementer profiles).   │
 │ --json          Output JSON payload                                          │
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯

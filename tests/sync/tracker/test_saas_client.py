@@ -755,17 +755,6 @@ class TestNetworkErrors:
 
 
 class TestConstructorDefaults:
-    @pytest.mark.skip(
-        reason=(
-            "Obsolete after WP08 HTTP transport rewire: SaaSTrackerClient no "
-            "longer instantiates CredentialStore directly. Tokens are fetched "
-            "lazily via the process-wide TokenManager, so the default-path "
-            "construction no longer touches CredentialStore at all."
-        )
-    )
-    def test_defaults_when_none(self) -> None:
-        pass
-
     def test_custom_instances_used(
         self, mock_credential_store: MagicMock, mock_sync_config: MagicMock
     ) -> None:
@@ -875,30 +864,6 @@ class TestAsyncErrorEnvelopeParsing:
 
         with pytest.raises(SaaSTrackerClientError, match="Operation failed"):
             client.push("jira", "proj-1", [{"title": "Bug"}])
-
-
-class TestAuthClientUsesCorrectConfig:
-    """Fix 2 (FR-020): historically, SaaSTrackerClient used to reach into
-    AuthClient and rewire its credential_store + config on every 401 refresh.
-
-    After the WP08 HTTP-transport rewire, refresh is driven through the
-    process-wide ``TokenManager`` single-flight, which always uses the same
-    backing storage and config surface by construction. There is no longer a
-    per-call AuthClient instance to inspect. The concern FR-020 raised is
-    still satisfied — the TokenManager resolves its server URL through
-    ``get_saas_base_url()`` — but the legacy attribute-level assertion is
-    no longer meaningful.
-    """
-
-    @pytest.mark.skip(
-        reason=(
-            "Obsolete after WP08 HTTP transport rewire: refresh is now a "
-            "TokenManager single-flight call, not a per-request AuthClient "
-            "instance whose attributes can be inspected from outside."
-        )
-    )
-    def test_401_refresh_uses_client_sync_config(self) -> None:
-        pass
 
 
 # ---------------------------------------------------------------------------
