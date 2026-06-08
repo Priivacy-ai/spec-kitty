@@ -137,7 +137,7 @@ categories:
       - submodule: status.preflight
         count: 1
         decision: PROMOTE
-        reason: "WP07: is_dossier_snapshot/filter_dossier_snapshots consumed by agent/tasks (pure path classification helpers)."
+        reason: "WP07: is_dossier_snapshot consumed by agent/tasks -> PROMOTE; filter_dossier_snapshots is test-only (no production consumer) -> NOT promoted, importable from status.preflight (cycle-2 review fix)."
       - submodule: status.history_parser
         count: 1
         decision: PRIVATE
