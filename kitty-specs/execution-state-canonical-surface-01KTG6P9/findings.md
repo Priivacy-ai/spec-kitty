@@ -153,3 +153,26 @@ Backups taken first: `backup/{coord,lane-a,lane-b}-stale-20260608`. Then merged 
 - **lane-a** `ed4d7fb1a` — WP01 ratchet **9 passed** on feat base; ratchet still bites.
 - **lane-b** `ee327b429` — WP02+WP03 **22 architectural passed**; `execution_context.py` deletion held; **single resolver (1)**; **no dangling imports** from feat's newer callers; `test_uv_lock_pin_drift` now PASSES (events 6.0.0).
 - **Re-reviews** (reviewer-renata; WP01 sonnet, WP02+WP03 opus) both **PASS — approvals hold**. The 31 broader-suite failures were proven pre-existing by baseline reproduction on pure-feat (none reference the relocation surface). Minor doc smells fixed in `4b52a86d7` (see S-03). Cross-lane note: lane-b still lacks WP01's ratchet (WP01 is not on feat), so the WP04 pre-merge guard (lane-a→lane-b) still applies.
+
+---
+
+## F-06 — lane auto-rebase can't handle mission-introduced `kitty-specs/` docs or sparse status conflicts
+
+**Severity:** High (blocked the next WP claim after the F-05 rebase). **Phase:** WP04 claim. **Status:** RESOLVED — lane-b rebuilt as coord+code. **Domain:** coordination-branch / lane auto-rebase.
+
+### Symptom
+After the F-05 rebase, claiming WP04 failed the implement-time lane auto-rebase (`spec-kitty agent action implement` runs `git merge <coord>` inside the lane worktree, per `src/specify_cli/lanes/auto_rebase.py`) two ways in sequence:
+1. `LANE_AUTO_REBASE_FAILED: no classifier rule matched … findings.md` → Manual → refused.
+2. `LANE_AUTO_REBASE_FAILED: could not read conflicted file … status.json: FileNotFoundError` — lane worktrees are **sparse-checkout** (status files not materialized); when such a file conflicts, the classifier's `read_text()` throws before it can even classify.
+
+### Root cause (and answer to "are mission/spec files ignored by the guard?")
+**No — they are not specially ignored.** The auto-rebase conflict classifier (`src/specify_cli/merge/conflict_classifier.py`, `RULES`) auto-resolves exactly FOUR file types: `pyproject.toml` deps, `__init__.py` imports, `urls.py` lists, `uv.lock`. **Everything else** (`spec.md`, `plan.md`, `tasks.md`, `status.json`, `status.events.jsonl`, `meta.json`, WP files, and our `findings.md`/`smells_discovered.md`) falls through to `R-DEFAULT-MANUAL` → halt.
+
+The reason mission/spec/status files don't normally break the auto-rebase is **not** that they're ignored — it's that they **never conflict** in a healthy lane: a normal lane never modifies `kitty-specs/` (a guard warns against it), so the coord→lane merge fast-takes coord's version with no conflict region for the classifier to see. The **F-05 `feat`→lane rebase merge violated that** — feat carries the mission's `kitty-specs/` docs, so merging feat into the lanes made the lane "modify" them, turning every one into a 3-way conflict. Our dossier files were simply **first in line** to halt the classifier; `status.json` (and `tasks.md`, WP files, `meta.json`) would each halt it too. They are not uniquely cursed — so the right fix is general (no `kitty-specs/` modifications on the lane at all), not "special-case the two new docs."
+
+### Fix applied
+Rebuilt **lane-b = current coord head + the four WP CODE commits cherry-picked** (`55a83e38f` WP01, `9398cca0a` WP02, `67a8d3dd4` WP03, `4b52a86d7` docstring) — **zero `kitty-specs/` modifications** on the lane. Verified: `git diff coord -- kitty-specs/` = 0; 27 architectural tests pass; single resolver; deletion held. The auto-rebase merge is now clean and WP04 claimed successfully. Backup: `backup/lane-b-prerebuild-20260608`.
+
+### Lesson / upstream gaps
+- The correct way to rebase a lane onto a moved base is **coord-head + cherry-picked code commits**, NOT a wholesale `feat`→lane merge (which drags `kitty-specs/` into the lane). The F-05 coord resync (merge feat→coord) was fine; the lane resync should have been code-only from the start.
+- Upstream: (a) the auto-rebase classifier should treat **any** conflicted `kitty-specs/<mission>/` path (doc *or* status) as coordination-owned (theirs-wins) instead of halting — its `RULES` set only covers `pyproject.toml`/`__init__.py`/`urls.py`/`uv.lock`; (b) it must resolve **sparse/skip-worktree** conflicted files from the index/blob, not `read_text()` the (absent) worktree path — current behavior is a hard `FileNotFoundError`.
