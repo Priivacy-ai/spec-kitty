@@ -202,10 +202,10 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T029 Consult `occurrence_map.yaml`; rewrite PROMOTE imports to the facade (WP08)
-- [ ] T030 Rewrite ROUTE imports to `MissionStatus` calls (WP08)
-- [ ] T031 Handle REVIEW/PRIVATE submodules per the WP07 decision (WP08)
-- [ ] T032 Preserve the `coordination/` plumbing exemptions (WP08)
+- [x] T029 Consult `occurrence_map.yaml`; rewrite PROMOTE imports to the facade (WP08)
+- [x] T030 Rewrite ROUTE imports to `MissionStatus` calls (WP08)
+- [x] T031 Handle REVIEW/PRIVATE submodules per the WP07 decision (WP08)
+- [x] T032 Preserve the `coordination/` plumbing exemptions (WP08)
 
 ### Dependencies
 
