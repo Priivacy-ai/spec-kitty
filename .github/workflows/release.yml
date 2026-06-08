@@ -150,7 +150,9 @@ jobs:
         run: |
           ARGS=()
 
-          if [ "${{ steps.fetch_refs.outputs.saas_fetched }}" = "true" ]; then
+          if [ "${SKIP_DOWNSTREAM}" = "true" ]; then
+            echo "::warning::Skipping SaaS shared-package pin drift under manual maintainer waiver."
+          elif [ "${{ steps.fetch_refs.outputs.saas_fetched }}" = "true" ]; then
             ARGS+=(
               --saas-pyproject "${{ steps.fetch_refs.outputs.saas_pyproject }}"
             )
@@ -162,6 +164,7 @@ jobs:
         run: python scripts/release/check_exact_install.py --package spec-kitty-cli --console-script spec-kitty --console-arg=--version
 
       - name: Validate candidate against SaaS consumer contract
+        if: ${{ env.SKIP_DOWNSTREAM != 'true' }}
         run: |
           python scripts/release/check_candidate_consumer_compat.py \
             --package spec-kitty-cli \
