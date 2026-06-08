@@ -82,10 +82,10 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T011 Move `ExecutionContext`/`ActionContext` value object into `src/mission_runtime/context.py` (WP03)
-- [ ] T012 Relocate `resolve_action_context` into `src/mission_runtime/resolution.py` as a Stage-C façade delegating to the existing resolver (WP03)
-- [ ] T013 Add a thin re-export shim at `src/specify_cli/core/execution_context.py` (WP03)
-- [ ] T014 Update internal references; keep the parity ratchet green (WP03)
+- [x] T011 Move `ExecutionContext`/`ActionContext` value object into `src/mission_runtime/context.py` (WP03)
+- [x] T012 Relocate `resolve_action_context` into `src/mission_runtime/resolution.py` as a Stage-C façade delegating to the existing resolver (WP03)
+- [x] T013 Add a thin re-export shim at `src/specify_cli/core/execution_context.py` (WP03)
+- [x] T014 Update internal references; keep the parity ratchet green (WP03)
 
 ### Dependencies
 
