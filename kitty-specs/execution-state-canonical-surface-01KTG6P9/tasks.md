@@ -106,12 +106,12 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T015 Route `runtime/next/runtime_bridge.py` query-mode through `resolve_action_context` (WP04)
-- [ ] T016 Route `cli/commands/agent/workflow.py` fix-mode `repo_root`/`target_branch` through `resolve_action_context` (WP04)
-- [ ] T017 Implement mode-correct target-branch resolution (planning/direct-to-target/worktree) and refuse unauthorized mainline writes (WP04)
-- [ ] T018 Verify the parity ratchet stays green across all modes (WP04)
-- [ ] T052 Relocate the `runtime_bridge.py` operational-context builders (`build_operational_context_for_claim`, `_build_operational_context_for_decision`, `_resolve_tech_stack_for_profile`) into the umbrella; `runtime_bridge` consumes the umbrella API (bounded runtime_bridge exec-state extraction, operator decision 2026-06-08; realizes IC-02 for the runtime_bridge surface, kept in WP04 since it owns `runtime_bridge.py`) (WP04)
-- [ ] T053 Collapse the `runtime_bridge.py` path/feature-dir/coord-branch/ULID resolvers (`_primary_runtime_feature_dir`, `_resolve_runtime_feature_dir`, `_resolve_run_dir_for_mission`, `_resolve_coordination_branch`, `_resolve_mission_ulid`) into the umbrella's single resolver; fix `candidate_feature_dir_for_mission` / `coordination/surface_resolver.py::resolve_status_surface` to resolve the coord feature-dir/status path **exactly once** (no nested `.worktrees/<m>-coord/.worktrees/…` double-resolution; ignore nested `.worktrees/`) — FR-036, #1772 Bugs 1/2 (WP04)
+- [x] T015 Route `runtime/next/runtime_bridge.py` query-mode through `resolve_action_context` (WP04)
+- [x] T016 Route `cli/commands/agent/workflow.py` fix-mode `repo_root`/`target_branch` through `resolve_action_context` (WP04)
+- [x] T017 Implement mode-correct target-branch resolution (planning/direct-to-target/worktree) and refuse unauthorized mainline writes (WP04)
+- [x] T018 Verify the parity ratchet stays green across all modes (WP04)
+- [x] T052 Relocate the `runtime_bridge.py` operational-context builders (`build_operational_context_for_claim`, `_build_operational_context_for_decision`, `_resolve_tech_stack_for_profile`) into the umbrella; `runtime_bridge` consumes the umbrella API (bounded runtime_bridge exec-state extraction, operator decision 2026-06-08; realizes IC-02 for the runtime_bridge surface, kept in WP04 since it owns `runtime_bridge.py`) (WP04)
+- [x] T053 Collapse the `runtime_bridge.py` path/feature-dir/coord-branch/ULID resolvers (`_primary_runtime_feature_dir`, `_resolve_runtime_feature_dir`, `_resolve_run_dir_for_mission`, `_resolve_coordination_branch`, `_resolve_mission_ulid`) into the umbrella's single resolver; fix `candidate_feature_dir_for_mission` / `coordination/surface_resolver.py::resolve_status_surface` to resolve the coord feature-dir/status path **exactly once** (no nested `.worktrees/<m>-coord/.worktrees/…` double-resolution; ignore nested `.worktrees/`) — FR-036, #1772 Bugs 1/2 (WP04)
 
 ### Dependencies
 
