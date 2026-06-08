@@ -298,11 +298,11 @@ class TestDiscoverMissions:
     """Tests for discover_missions() function."""
 
     def test_discovers_all_missions(self, sample_kittify_dir: Path) -> None:
-        """Should find all valid missions in .kittify/missions/."""
+        """Should find project missions plus packaged built-ins."""
         missions = discover_missions(sample_kittify_dir.parent)
         assert "software-dev" in missions
         assert "research" in missions
-        assert len(missions) == 2
+        assert len(missions) >= 2
 
     def test_returns_mission_and_source_tuple(self, sample_kittify_dir: Path) -> None:
         """Should return (Mission, source) tuples."""
@@ -311,15 +311,19 @@ class TestDiscoverMissions:
         assert isinstance(mission, Mission)
         assert source == "project"
 
-    def test_returns_empty_dict_when_no_kittify(self, tmp_path: Path) -> None:
-        """Should return empty dict when .kittify doesn't exist."""
-        assert discover_missions(tmp_path) == {}
+    def test_returns_built_ins_when_no_kittify(self, tmp_path: Path) -> None:
+        """Should still return packaged built-ins when .kittify doesn't exist."""
+        missions = discover_missions(tmp_path)
+        assert "software-dev" in missions
+        assert all(source == "built-in" for _, source in missions.values())
 
-    def test_returns_empty_dict_when_no_missions_dir(self, tmp_path: Path) -> None:
-        """Should return empty dict when missions/ doesn't exist."""
+    def test_returns_built_ins_when_no_project_missions_dir(self, tmp_path: Path) -> None:
+        """Should still return packaged built-ins when project missions/ doesn't exist."""
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
-        assert discover_missions(tmp_path) == {}
+        missions = discover_missions(tmp_path)
+        assert "software-dev" in missions
+        assert all(source == "built-in" for _, source in missions.values())
 
     def test_skips_invalid_missions(self, sample_kittify_dir: Path) -> None:
         """Should skip missions with invalid mission.yaml."""

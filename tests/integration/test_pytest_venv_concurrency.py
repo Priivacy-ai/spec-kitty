@@ -10,6 +10,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+import os
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -17,6 +18,16 @@ import pytest
 from tests.utils import REPO_ROOT
 
 pytestmark = pytest.mark.slow
+
+
+@pytest.fixture(autouse=True)
+def _restore_shared_test_venv_after_test() -> None:
+    yield
+    from tests.conftest import _ensure_test_venv
+    from tests.test_isolation_helpers import get_source_version
+
+    venv_dir = _ensure_test_venv(REPO_ROOT, get_source_version())
+    os.environ["SPEC_KITTY_TEST_VENV"] = str(venv_dir)
 
 
 def _run_collection(suite: str) -> subprocess.CompletedProcess[str]:

@@ -39,6 +39,15 @@ MISSION_ID = "01KPWT8PNY8683QX3WBW6VXYM7"
 ACTOR = "test-actor"
 
 
+@pytest.fixture(autouse=True)
+def _direct_mission_dir(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These emission tests target event serialization, not mission lookup."""
+    monkeypatch.setattr(
+        "specify_cli.decisions.emit.resolve_feature_dir_for_mission",
+        lambda repo_root, mission_slug: repo_root / "kitty-specs" / mission_slug,
+    )
+
+
 def _make_entry(
     decision_id: str,
     status: DecisionStatus = DecisionStatus.OPEN,

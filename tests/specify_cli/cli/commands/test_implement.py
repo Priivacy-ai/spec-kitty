@@ -300,13 +300,6 @@ class TestImplementModuleImports:
         # auto-commit path).
         assert hasattr(implement, "safe_commit")
 
-    def test_implement_command_callable(self) -> None:
-        from specify_cli.cli.commands.implement import implement
-
-        # Just ensure the symbol is importable as a Typer command.
-        assert callable(implement)
-
-
 class TestPlanningArtifactAutoCommit:
     """Planning artifacts stage from the transaction worktree, not the caller checkout."""
 

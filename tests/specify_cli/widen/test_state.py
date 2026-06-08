@@ -59,6 +59,16 @@ def _make_entry(
     )
 
 
+def _make_store(repo_root: Path, mission_slug: str) -> WidenPendingStore:
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    (mission_dir / "meta.json").write_text(
+        json.dumps({"mission_slug": mission_slug}),
+        encoding="utf-8",
+    )
+    return WidenPendingStore(repo_root, mission_slug)
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -66,19 +76,19 @@ def _make_entry(
 
 class TestPath:
     def test_path_is_under_kitty_specs(self, tmp_path: Path) -> None:
-        store = WidenPendingStore(tmp_path, "my-mission-01XYZ")
+        store = _make_store(tmp_path, "my-mission-01XYZ")
         expected = tmp_path / "kitty-specs" / "my-mission-01XYZ" / "widen-pending.jsonl"
         assert store.path == expected
 
 
 class TestListPendingMissingFile:
     def test_missing_file_returns_empty_list(self, tmp_path: Path) -> None:
-        store = WidenPendingStore(tmp_path, "no-file-mission")
+        store = _make_store(tmp_path, "no-file-mission")
         result = store.list_pending()
         assert result == []
 
     def test_empty_file_returns_empty_list(self, tmp_path: Path) -> None:
-        store = WidenPendingStore(tmp_path, "empty-file-mission")
+        store = _make_store(tmp_path, "empty-file-mission")
         store.path.parent.mkdir(parents=True, exist_ok=True)
         store.path.write_text("", encoding="utf-8")
         assert store.list_pending() == []
@@ -86,7 +96,7 @@ class TestListPendingMissingFile:
 
 class TestAddAndList:
     def test_add_single_entry_then_list(self, tmp_path: Path) -> None:
-        store = WidenPendingStore(tmp_path, "slug-01")
+        store = _make_store(tmp_path, "slug-01")
         entry = _make_entry()
         store.add_pending(entry)
         result = store.list_pending()
@@ -94,7 +104,7 @@ class TestAddAndList:
         assert result[0].decision_id == entry.decision_id
 
     def test_add_multiple_entries_preserved_order(self, tmp_path: Path) -> None:
-        store = WidenPendingStore(tmp_path, "slug-02")
+        store = _make_store(tmp_path, "slug-02")
         e1 = _make_entry(decision_id="01AAAA0000000000000000AA01")
         e2 = _make_entry(decision_id="01AAAA0000000000000000AA02")
         store.add_pending(e1)
@@ -104,7 +114,7 @@ class TestAddAndList:
 
     def test_round_trip_full_field_equality(self, tmp_path: Path) -> None:
         """Serialise → write → read back → compare every field."""
-        store = WidenPendingStore(tmp_path, "slug-rt")
+        store = _make_store(tmp_path, "slug-rt")
         original = _make_entry()
         store.add_pending(original)
         recovered = store.list_pending()[0]
@@ -113,7 +123,7 @@ class TestAddAndList:
 
 class TestDuplicateDecisionId:
     def test_duplicate_raises_value_error(self, tmp_path: Path) -> None:
-        store = WidenPendingStore(tmp_path, "slug-dup")
+        store = _make_store(tmp_path, "slug-dup")
         entry = _make_entry()
         store.add_pending(entry)
         with pytest.raises(ValueError, match="already pending"):
@@ -122,7 +132,7 @@ class TestDuplicateDecisionId:
     def test_second_entry_not_written_after_duplicate_error(
         self, tmp_path: Path
     ) -> None:
-        store = WidenPendingStore(tmp_path, "slug-dup2")
+        store = _make_store(tmp_path, "slug-dup2")
         e1 = _make_entry(decision_id="01AAAA0000000000000000AA01")
         store.add_pending(e1)
         with contextlib.suppress(ValueError):
@@ -132,7 +142,7 @@ class TestDuplicateDecisionId:
 
 class TestRemovePending:
     def test_remove_existing_entry(self, tmp_path: Path) -> None:
-        store = WidenPendingStore(tmp_path, "slug-rm")
+        store = _make_store(tmp_path, "slug-rm")
         e1 = _make_entry(decision_id="01AAAA0000000000000000RM01")
         e2 = _make_entry(decision_id="01AAAA0000000000000000RM02")
         store.add_pending(e1)
@@ -143,7 +153,7 @@ class TestRemovePending:
         assert result[0].decision_id == e2.decision_id
 
     def test_remove_noop_when_not_present(self, tmp_path: Path) -> None:
-        store = WidenPendingStore(tmp_path, "slug-rm2")
+        store = _make_store(tmp_path, "slug-rm2")
         e1 = _make_entry(decision_id="01AAAA0000000000000000RM01")
         store.add_pending(e1)
         # Should not raise
@@ -151,7 +161,7 @@ class TestRemovePending:
         assert len(store.list_pending()) == 1
 
     def test_remove_all_entries_leaves_empty_file(self, tmp_path: Path) -> None:
-        store = WidenPendingStore(tmp_path, "slug-rm3")
+        store = _make_store(tmp_path, "slug-rm3")
         entry = _make_entry()
         store.add_pending(entry)
         store.remove_pending(entry.decision_id)
@@ -160,20 +170,20 @@ class TestRemovePending:
 
 class TestClear:
     def test_clear_removes_file(self, tmp_path: Path) -> None:
-        store = WidenPendingStore(tmp_path, "slug-clr")
+        store = _make_store(tmp_path, "slug-clr")
         store.add_pending(_make_entry())
         assert store.path.exists()
         store.clear()
         assert not store.path.exists()
 
     def test_clear_on_missing_file_is_noop(self, tmp_path: Path) -> None:
-        store = WidenPendingStore(tmp_path, "slug-clr2")
+        store = _make_store(tmp_path, "slug-clr2")
         # Should not raise even when file doesn't exist
         store.clear()
         assert not store.path.exists()
 
     def test_list_after_clear_returns_empty(self, tmp_path: Path) -> None:
-        store = WidenPendingStore(tmp_path, "slug-clr3")
+        store = _make_store(tmp_path, "slug-clr3")
         store.add_pending(_make_entry())
         store.clear()
         assert store.list_pending() == []
@@ -181,7 +191,7 @@ class TestClear:
 
 class TestCorruptedJsonl:
     def test_corrupted_line_is_skipped(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-        store = WidenPendingStore(tmp_path, "slug-corrupt")
+        store = _make_store(tmp_path, "slug-corrupt")
         good_entry = _make_entry(decision_id="01AAAA0000000000000000GD01")
         store.add_pending(good_entry)
 
@@ -209,7 +219,7 @@ class TestCorruptedJsonl:
     def test_fully_corrupt_file_returns_empty(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
-        store = WidenPendingStore(tmp_path, "slug-corrupt2")
+        store = _make_store(tmp_path, "slug-corrupt2")
         store.path.parent.mkdir(parents=True, exist_ok=True)
         store.path.write_text("{bad\n{alsoBad\n", encoding="utf-8")
         import logging
@@ -221,14 +231,14 @@ class TestCorruptedJsonl:
 
 class TestAtomicWrite:
     def test_no_tmp_file_left_after_successful_write(self, tmp_path: Path) -> None:
-        store = WidenPendingStore(tmp_path, "slug-atomic")
+        store = _make_store(tmp_path, "slug-atomic")
         store.add_pending(_make_entry())
         # mkstemp-based tmp files have unique names; verify none left behind
         tmp_files = list(store.path.parent.glob(".widen-pending-*.tmp"))
         assert tmp_files == []
 
     def test_file_contains_valid_jsonl_after_write(self, tmp_path: Path) -> None:
-        store = WidenPendingStore(tmp_path, "slug-atomic2")
+        store = _make_store(tmp_path, "slug-atomic2")
         store.add_pending(_make_entry())
         lines = [ln for ln in store.path.read_text().splitlines() if ln.strip()]
         assert len(lines) == 1
@@ -249,7 +259,7 @@ class TestConcurrentAppend:
         This test verifies the store is usable after concurrent attempts
         finish — at least one entry survives and no data corruption occurs.
         """
-        store = WidenPendingStore(tmp_path, "slug-concurrent")
+        store = _make_store(tmp_path, "slug-concurrent")
         # Pre-create the directory to remove dir-creation race
         store.path.parent.mkdir(parents=True, exist_ok=True)
 

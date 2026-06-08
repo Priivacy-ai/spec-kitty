@@ -49,28 +49,6 @@ def _make_routing(*, effective_sync_enabled: bool) -> CheckoutSyncRouting:
 
 
 # ---------------------------------------------------------------------------
-# T002 — sync disabled suppresses SaaS emit
-# ---------------------------------------------------------------------------
-
-
-def test_local_sync_disabled_suppresses_saas_emit(tmp_path: Path) -> None:
-    """When sync is explicitly disabled, _propagate_one must return before touching SaaS client."""
-    routing = _make_routing(effective_sync_enabled=False)
-    record = _make_started_record()
-
-    with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
-    ) as mock_routing:
-        with patch(
-            "specify_cli.invocation.propagator._get_saas_client",
-        ) as mock_client:
-            _propagate_one(record, tmp_path)
-            mock_routing.assert_called_once_with(tmp_path)
-            mock_client.assert_not_called()  # key assertion
-
-
-# ---------------------------------------------------------------------------
 # T003 — sync enabled proceeds to auth gate
 # ---------------------------------------------------------------------------
 

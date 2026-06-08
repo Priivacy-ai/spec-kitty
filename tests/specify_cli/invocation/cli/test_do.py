@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -28,9 +29,17 @@ from specify_cli.invocation.writer import EVENTS_DIR
 # Marked for mutmut sandbox skip — subprocess CLI invocation.
 pytestmark = pytest.mark.non_sandbox
 
-runner = CliRunner()
+class ArgvCliRunner(CliRunner):
+    def invoke(self, app, args=None, **kwargs):  # type: ignore[no-untyped-def]
+        argv = ["spec-kitty", *(list(args) if args is not None and not isinstance(args, str) else [])]
+        with patch.object(sys, "argv", argv):
+            return super().invoke(app, args, **kwargs)
+
+
+runner = ArgvCliRunner()
 
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "profiles"
+
 
 # ---------------------------------------------------------------------------
 # Shared context mocks

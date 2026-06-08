@@ -426,30 +426,3 @@ def test_saas_legacy_call_without_mission_id_falls_back_to_slug(
     assert "mission_id" not in event["payload"], (
         "Legacy payload must not contain a false mission_id key"
     )
-
-
-# ---------------------------------------------------------------------------
-# Dossier surface — enumerated for FR-063 completeness, but currently
-# out-of-scope for mission 083.  The skip documents why.
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.skip(
-    reason=(
-        "FR-063 enumeration: dossier snapshot schema does not yet carry a "
-        "top-level mission_id field. Mission 083 intentionally scoped dossier "
-        "changes to slug-only to avoid expanding beyond the collision fix. "
-        "Follow-up tracked for a future mission — remove this skip when the "
-        "dossier snapshot gains mission_id."
-    )
-)
-def test_dossier_snapshot_has_mission_id() -> None:
-    """Surface 6: dossier snapshot-latest.json must include mission_id.
-
-    When unblocked, this test should:
-    1. Seed a fixture feature_dir with a valid meta.json (mission_id + slug).
-    2. Invoke ``specify_cli.dossier.snapshot.compute_snapshot(...)``.
-    3. Load the emitted JSON from ``.kittify/dossiers/<slug>/snapshot-latest.json``.
-    4. Assert ``snapshot["mission_id"] == ULID_CANONICAL``.
-    """
-    raise NotImplementedError  # pragma: no cover

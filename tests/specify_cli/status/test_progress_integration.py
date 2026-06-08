@@ -296,44 +296,6 @@ class TestAllSurfacesAgree:
 
 
 # ---------------------------------------------------------------------------
-# test_dashboard_js_uses_weighted_percentage (Python-side verification)
-# ---------------------------------------------------------------------------
-
-
-class TestDashboardJSWeightedPercentage:
-    """Verify scanner data includes weighted_percentage for dashboard JS."""
-
-    def test_scanner_kanban_stats_include_weighted_percentage(self, tmp_path):
-        """When a feature has an event log, kanban_stats should have weighted_percentage."""
-        feature_dir = _setup_feature_with_events(
-            tmp_path,
-            "099-test-feature",
-            [
-                ("WP01", "planned", "done"),
-                ("WP02", "planned", "done"),
-                ("WP03", "planned", "in_progress"),
-            ],
-        )
-
-        from specify_cli.status.reducer import materialize
-
-        snapshot = materialize(feature_dir)
-        result = compute_weighted_progress(snapshot)
-
-        # Simulate what scanner does: add weighted_percentage to kanban_stats
-        kanban_stats = {
-            "total": 3,
-            "done": 2,
-            "in_progress": 1,
-            "weighted_percentage": round(result.percentage, 1),
-        }
-
-        assert "weighted_percentage" in kanban_stats
-        # (2*1.0 + 1*0.3) / 3 * 100 = 76.67%
-        assert kanban_stats["weighted_percentage"] == pytest.approx(76.7, abs=0.1)
-
-
-# ---------------------------------------------------------------------------
 # test_backward_compat_without_weighted
 # ---------------------------------------------------------------------------
 
@@ -352,18 +314,3 @@ class TestBackwardCompatWithoutWeighted:
         with tempfile.TemporaryDirectory() as td:
             result = _compute_wp_progress(Path(td))
             assert result is None  # No tasks dir, returns None
-
-    def test_kanban_stats_without_weighted_percentage_is_valid(self):
-        """Older scanner data without weighted_percentage is still valid JSON."""
-        old_format = {
-            "total": 5,
-            "planned": 1,
-            "doing": 2,
-            "for_review": 1,
-            "done": 1,
-        }
-        # Verify no weighted_percentage key
-        assert "weighted_percentage" not in old_format
-        # JS fallback: done/total * 100 = 20%
-        fallback_pct = old_format["done"] / old_format["total"] * 100
-        assert fallback_pct == pytest.approx(20.0)

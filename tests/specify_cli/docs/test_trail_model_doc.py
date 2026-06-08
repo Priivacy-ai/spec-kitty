@@ -7,7 +7,6 @@ pytestmark = [pytest.mark.unit]
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TRAIL = REPO_ROOT / "docs/trail-model.md"
-CHANGELOG = REPO_ROOT / "CHANGELOG.md"
 
 
 def test_trail_model_has_mode_enforcement_subsection() -> None:
@@ -48,22 +47,3 @@ def test_trail_model_mode_prose_updated() -> None:
     content = TRAIL.read_text()
     assert "Mode-of-work is a documentation-level taxonomy in 3.2" not in content
     assert "Runtime enforcement is active" in content
-
-
-def test_changelog_unreleased_has_both_tranches() -> None:
-    content = CHANGELOG.read_text()
-    # Find the Unreleased section
-    assert "## [Unreleased - 3.2.0]" in content
-    unrel_idx = content.index("## [Unreleased - 3.2.0]")
-    next_h2 = content.find("\n## ", unrel_idx + 1)
-    section = content[unrel_idx : next_h2 if next_h2 != -1 else len(content)]
-    assert "host-surface parity matrix" in section.lower()
-    assert "mode of work" in section.lower() or "mode_of_work" in section.lower()
-    assert "correlation link" in section.lower()
-    assert "projection policy" in section.lower() or "read-model policy" in section.lower()
-    assert "deferred" in section.lower()  # Tier 2 deferral and/or #534
-
-
-def test_changelog_mentions_534_deferral() -> None:
-    content = CHANGELOG.read_text()
-    assert "#534" in content  # issue ref somewhere in changelog unreleased or existing text

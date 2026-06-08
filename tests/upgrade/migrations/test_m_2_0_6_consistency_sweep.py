@@ -203,20 +203,3 @@ def test_apply_cleans_legacy_worktree_assets(
     assert not commands_dir.exists()
     assert not scripts_dir.exists()
     assert any("cleaned 1 worktree" in change for change in result.changes_made)
-
-
-# ---------------------------------------------------------------------------
-# _status_events_need_repair — tombstone (WP05 deletion)
-# ---------------------------------------------------------------------------
-# _status_events_need_repair was removed from m_2_0_6_consistency_sweep in
-# WP05 along with the migrate.py module. The migration no longer bootstraps
-# events from frontmatter — the event log is the sole authority.
-
-
-def test_status_events_need_repair_removed() -> None:
-    """Verify _status_events_need_repair was removed from the migration module."""
-    from specify_cli.upgrade.migrations import m_2_0_6_consistency_sweep
-
-    assert not hasattr(m_2_0_6_consistency_sweep, "_status_events_need_repair"), (
-        "_status_events_need_repair must not exist after WP05 deletion of migrate.py"
-    )

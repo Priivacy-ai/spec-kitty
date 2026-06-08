@@ -21,18 +21,17 @@ from doctrine.spdd_reasons.template_renderer import (
 pytestmark = [pytest.mark.unit]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TEMPLATES_DIR = REPO_ROOT / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
 
 ACTION_TEMPLATES: list[tuple[str, str]] = [
-    ("specify.md", "REASONS Guidance — Specify"),
-    ("plan.md", "REASONS Guidance — Plan"),
-    ("tasks.md", "REASONS Guidance — Tasks"),
-    ("implement.md", "REASONS Guidance — Implement"),
+    ("src/doctrine/missions/mission-steps/software-dev/specify/prompt.md", "REASONS Guidance — Specify"),
+    ("src/doctrine/missions/mission-steps/software-dev/plan/prompt.md", "REASONS Guidance — Plan"),
+    ("src/doctrine/missions/mission-steps/software-dev/tasks/prompt.md", "REASONS Guidance — Tasks"),
+    ("src/doctrine/missions/mission-steps/software-dev/implement/prompt.md", "REASONS Guidance — Implement"),
 ]
 
 
 def _read_template(name: str) -> str:
-    return (TEMPLATES_DIR / name).read_text(encoding="utf-8")
+    return (REPO_ROOT / name).read_text(encoding="utf-8")
 
 
 # =============================================================================
@@ -153,23 +152,6 @@ class TestInactiveBaselineEquivalence:
         # render — defends NFR-001 in spirit even if synthesis ever drifted.
         assert "REASONS Guidance" not in rendered
 
-    def test_inactive_specify_byte_equivalent_to_baseline(self) -> None:
-        text = _read_template("specify.md")
-        assert process_spdd_blocks(text, active=False) == _baseline_for(text)
-
-    def test_inactive_plan_byte_equivalent_to_baseline(self) -> None:
-        text = _read_template("plan.md")
-        assert process_spdd_blocks(text, active=False) == _baseline_for(text)
-
-    def test_inactive_tasks_byte_equivalent_to_baseline(self) -> None:
-        text = _read_template("tasks.md")
-        assert process_spdd_blocks(text, active=False) == _baseline_for(text)
-
-    def test_inactive_implement_byte_equivalent_to_baseline(self) -> None:
-        text = _read_template("implement.md")
-        assert process_spdd_blocks(text, active=False) == _baseline_for(text)
-
-
 # =============================================================================
 # TestActiveTemplatesContainBlock — FR-014
 # =============================================================================
@@ -186,23 +168,3 @@ class TestActiveTemplatesContainBlock:
         # Markers themselves are stripped even when active.
         assert REASONS_BLOCK_START not in rendered
         assert REASONS_BLOCK_END not in rendered
-
-    def test_active_specify_contains_headline(self) -> None:
-        text = _read_template("specify.md")
-        rendered = process_spdd_blocks(text, active=True)
-        assert "REASONS Guidance — Specify" in rendered
-
-    def test_active_plan_contains_headline(self) -> None:
-        text = _read_template("plan.md")
-        rendered = process_spdd_blocks(text, active=True)
-        assert "REASONS Guidance — Plan" in rendered
-
-    def test_active_tasks_contains_headline(self) -> None:
-        text = _read_template("tasks.md")
-        rendered = process_spdd_blocks(text, active=True)
-        assert "REASONS Guidance — Tasks" in rendered
-
-    def test_active_implement_contains_headline(self) -> None:
-        text = _read_template("implement.md")
-        rendered = process_spdd_blocks(text, active=True)
-        assert "REASONS Guidance — Implement" in rendered
