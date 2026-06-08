@@ -179,9 +179,9 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T026 Finalize promote/demote/route decisions per submodule using `occurrence_map.yaml` (resolve all REVIEW entries) (WP07)
-- [ ] T027 Add promoted symbols to `status/__init__.py` `__all__`; `_`-prefix demoted symbols (WP07)
-- [ ] T028 Update `status/` internal references for any renames (WP07)
+- [x] T026 Finalize promote/demote/route decisions per submodule using `occurrence_map.yaml` (resolve all REVIEW entries) (WP07)
+- [x] T027 Add promoted symbols to `status/__init__.py` `__all__`; `_`-prefix demoted symbols (WP07)
+- [x] T028 Update `status/` internal references for any renames (WP07)
 
 ### Dependencies
 

@@ -47,3 +47,13 @@ Format per entry: location · tool/rule · description · why deferred · rough 
 - **Description:** `test_bootstrap_unit.py` fails because `SPEC_KITTY_TEMPLATE_ROOT` / `get_package_asset_root` expects a real checkout asset layout not present in the lane/test env. The WP04 + WP02/03 re-reviews both proved these are **pre-existing and unrelated** to this mission's changes (the relevant `src/` files are byte-identical to the WP base; reproduced on a pure-feat baseline).
 - **Why deferred:** Not caused by any WP here, and out of the residue-routing/relocation scope. But they are real RED tests on the branch.
 - **Rough effort:** Unknown until triaged. **Action required before mission merge / for CI green:** triage whether these are (a) genuinely environmental (need a fixture/asset-root setup or a skip marker for non-checkout envs) or (b) a real regression on `feat` from another mission (e.g. the session_presence merge). Do NOT let the mission merge with these RED — either fix, mark xfail/skip with rationale, or confirm CI's env provides the asset layout so they pass there.
+
+---
+
+## S-05 — `test_locate_project_root_no_marker` is non-hermetic (walks up into a stray `/tmp/.kittify`)
+
+- **Location:** `tests/runtime/test_paths_unit.py::test_locate_project_root_no_marker`; root cause in `locate_project_root()` walk-up + an operator scratch dir `/tmp/.kittify` (contains `charter/`, `mission-brief.md`).
+- **Tool/rule:** pytest (test hermeticity).
+- **Description:** The test creates a markerless temp dir under `/tmp` and asserts `locate_project_root()` returns `None`, but the walk-up finds `/tmp/.kittify` and returns `/tmp`. Surfaced + proven by the WP06 reviewer (moving the stray dir makes it pass); `locate_project_root` was unchanged by any WP here.
+- **Why deferred:** environmental + a pre-existing test-isolation weakness, unrelated to this mission's surface.
+- **Rough effort:** Low. Either make the test hermetic (build the temp tree outside any `/tmp/.kittify` ancestor, e.g. monkeypatch the walk-up ceiling) or remove the stray `/tmp/.kittify` from the dev box. NOTE: I did **not** delete `/tmp/.kittify` — unsure whether it's an intentional operator scratch; flag for the operator to clear if it's cruft.
