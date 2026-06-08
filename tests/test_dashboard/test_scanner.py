@@ -418,10 +418,20 @@ def test_display_category_matches_kanban_columns():
 
 @pytest.mark.fast
 def test_kanban_column_map_covers_all_lanes():
-    """_KANBAN_COLUMN_FOR_LANE covers every Lane enum member (NFR-006)."""
+    """_KANBAN_COLUMN_FOR_LANE covers every display Lane enum member (NFR-006).
+
+    'genesis' is a non-display lane (pre-finalize state); it is never the
+    current lane of a materialized WP and has no kanban column by design, so
+    it is excluded from the column map.
+    """
     from specify_cli.dashboard.scanner import _KANBAN_COLUMN_FOR_LANE
 
     for member in Lane:
+        if member is Lane.GENESIS:
+            assert member not in _KANBAN_COLUMN_FOR_LANE, (
+                "genesis is non-display and must not have a kanban column"
+            )
+            continue
         assert member in _KANBAN_COLUMN_FOR_LANE, (
             f"Lane.{member.name} missing from _KANBAN_COLUMN_FOR_LANE"
         )

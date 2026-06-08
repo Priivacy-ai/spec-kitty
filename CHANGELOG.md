@@ -9,6 +9,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc40] - 2026-06-07
+
+### ✨ Added
+
+- Introduced `Lane.GENESIS` pseudo-state and a canonical `WPState` State-pattern FSM in
+  `specify_cli.status.wp_state`, making the FSM the single source of truth for WP lanes,
+  edges, and transitions (mission `wp-lane-state-machine-fsm-01KTGZAZ`).
+- Added ADR `2026-06-07-1-wp-lane-fsm-genesis-and-finalize-clobber.md` documenting the
+  genesis-lane bootstrap and the finalize event-log clobber fix.
+
+### 🔧 Changed
+
+- Routed all WP lane validation and mutation through the single FSM transition primitive;
+  callers no longer reconstruct transition authority from derived constants (#1666).
+
+### 🐛 Fixed
+
+- `implement` and `finalize` no longer overwrite the coordination branch's canonical
+  status event log (`status.events.jsonl`/`status.json`) with the primary checkout's
+  stale copies, preserving seeded lane state on coordination-topology missions (#1589).
+- Reconciled the genesis gate and `spec_kitty_events` 6.0.0 expectations for CI.
+
+## [3.2.0rc39] - 2026-06-07
+
+### ✨ Added
+
+- Added `session_presence` package with `SessionPresenceManager`, `InstallResult`,
+  `ClaudeCodeWriter`, `MarkdownRulesWriter`, `ClaudeCodeHookRegistrar`, `UpgradeChecker`,
+  `SessionPresenceContent`, and supporting writer/hook infrastructure.
+- Added `spec-kitty session-start` CLI command (invoked by the Claude Code `SessionStart`
+  hook) that emits an orientation block to stdout when run inside a spec-kitty project.
+  The command always exits 0 and never blocks a Claude Code session start.
+- `spec-kitty init` now calls `SessionPresenceManager.install()` after saving agent
+  configuration, writing the orientation block and registering the `SessionStart` hook for
+  Claude Code projects automatically.
+- Added Phase 1 upgrade migration (`3_3_0_session_presence_claude_code`) that detects
+  existing Claude Code projects missing the orientation section or `SessionStart` hook and
+  backfills both artefacts on `spec-kitty upgrade`.
+
+### 🐛 Fixed
+
+- Work packages can now declare `scope: codebase-wide` so cross-cutting/refactor
+  WPs are exempt from `owned_files` overlap validation, end-to-end through
+  `finalize-tasks` (#1753). Two coupled defects were fixed: (1) the strict
+  (`extra="forbid"`) `WPMetadata` parser rejected the `scope` key at parse time,
+  and (2) `OwnershipManifest.from_frontmatter` hard-coded `scope = None` on its
+  `WPMetadata` branch — the exact path `finalize-tasks` uses — silently dropping
+  the exemption even when the key parsed. The adapter now propagates `scope`, and
+  acceptance tests assert that narrow WPs claiming the same files still fail
+  regardless of lane/dependency structure, while a codebase-wide WP is exempt.
+  Also removed redundant `@overload` stubs on `from_frontmatter` that tripped
+  strict mypy (`overload-cannot-match`).
+
+### 📝 Docs
+
+- AGENTS.md: added "Use Canonical Sources, Never Improvise" guidance and a
+  ruff/mypy-clean (no disabled checks) code-style rule.
+- `tasks-finalize` doctrine prompt: documented ownership-overlap handling for
+  domain/refactor missions (linearize shared surfaces; declare codebase-wide).
+
 ## [3.2.0rc38] - 2026-06-06
 
 ### ✨ Added

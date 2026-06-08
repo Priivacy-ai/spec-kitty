@@ -33,6 +33,7 @@ context-sources:
     - semantic-compression-dead-weight-elimination
     - semantic-compression-semantic-consolidation
     - semantic-compression-equivalence-verification
+    - test-scaffolding-as-design-smell
   additional:
     - semantic-compression-paradigm
     - characterization-tests
@@ -154,3 +155,5 @@ tactic-references:
     rationale: Collapse split business-rule paths into one canonical owner
   - id: semantic-compression-equivalence-verification
     rationale: Prove the smaller implementation still preserves the behavioral envelope
+  - id: test-scaffolding-as-design-smell
+    rationale: Heavy test setup signals duplicated, IO-coupled code paths and a missing seam — extract one pure boundary and collapse the variants.

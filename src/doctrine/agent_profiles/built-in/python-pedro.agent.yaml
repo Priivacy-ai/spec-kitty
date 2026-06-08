@@ -27,6 +27,8 @@ context-sources:
     - "024"
     - "025"
     - "030"
+  tactics:
+    - test-scaffolding-as-design-smell
   additional:
     - coding-standards
     - test-strategy
@@ -165,3 +167,10 @@ directive-references:
   - code: "034"
     name: Test-First Development
     rationale: Tests define the contract before production code — TDD red-green-refactor is the default implementation rhythm
+
+tactic-references:
+  - id: test-scaffolding-as-design-smell
+    rationale: >
+      Write code whose behavior is testable without infrastructure. If a unit test
+      would need real files, git, or several mocks to run, invert the dependency and
+      extract a pure seam before adding the test, rather than expanding the mock setup.

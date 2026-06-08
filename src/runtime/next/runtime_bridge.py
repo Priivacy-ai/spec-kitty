@@ -279,30 +279,33 @@ def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
 
 def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[str]]:
     """Parse requirement references per WP from tasks.md content."""
-    requirement_refs: dict[str, list[str]] = {}
+    return {
+        wp_id: _collect_requirement_refs_for_section(section_content)
+        for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items()
+    }
 
-    for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items():
-        refs: list[str] = []
-        in_requirement_ref_list = False
-        for line in section_content.splitlines():
-            stripped_line = line.strip()
-            if in_requirement_ref_list:
-                if not stripped_line:
-                    continue
-                if stripped_line.startswith(("-", "*")):
-                    refs.extend(_iter_requirement_refs(stripped_line))
-                    continue
-                in_requirement_ref_list = False
 
-            suffix = _requirement_inline_refs_suffix(line)
-            if suffix is not None:
-                refs.extend(_iter_requirement_refs(suffix))
+def _collect_requirement_refs_for_section(section_content: str) -> list[str]:
+    """Collect deduplicated requirement refs from one WP section."""
+    refs: list[str] = []
+    in_requirement_ref_list = False
+    for line in section_content.splitlines():
+        stripped_line = line.strip()
+        if in_requirement_ref_list:
+            if not stripped_line:
                 continue
-            if _is_requirement_heading(stripped_line):
-                in_requirement_ref_list = True
-        requirement_refs[wp_id] = list(dict.fromkeys(refs))
+            if stripped_line.startswith(("-", "*")):
+                refs.extend(_iter_requirement_refs(stripped_line))
+                continue
+            in_requirement_ref_list = False
 
-    return requirement_refs
+        suffix = _requirement_inline_refs_suffix(line)
+        if suffix is not None:
+            refs.extend(_iter_requirement_refs(suffix))
+            continue
+        if _is_requirement_heading(stripped_line):
+            in_requirement_ref_list = True
+    return list(dict.fromkeys(refs))
 
 
 def _iter_requirement_refs(text: str) -> list[str]:

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-import pytest
+from collections.abc import Callable
 from pathlib import Path
+
+import pytest
 
 from specify_cli.status.models import (
     DoneEvidence,
@@ -14,8 +16,80 @@ from specify_cli.status.models import (
     StatusSnapshot,
     VerificationResult,
 )
+from specify_cli.status.store import append_event
+from specify_cli.status.wp_state import wp_state_for
 
 _THIS_DIR = Path(__file__).parent
+
+# ---------------------------------------------------------------------------
+# T027 — shared seed helper + fixture (replaces ~12 per-file _seed_planned copies)
+# ---------------------------------------------------------------------------
+
+# Unique event-id counter (module-level, monotonic).
+_SEED_COUNTER = 0
+
+
+def _make_seed_event_id() -> str:
+    global _SEED_COUNTER  # noqa: PLW0603 — intentional module-level counter for unique IDs
+    _SEED_COUNTER += 1
+    return f"01SEED{_SEED_COUNTER:020d}"
+
+
+def seed_wp_to_planned(
+    feature_dir: Path,
+    wp_id: str,
+    slug: str = "test-feature",
+) -> None:
+    """Seed a WP from genesis -> planned (the finalize-tasks seed).
+
+    Writes directly to the event log (no emit pipeline), so no fan-out,
+    no git transaction, and no emit side-effects are triggered. This mirrors
+    what ``finalize-tasks`` does before the lane lifecycle begins.
+
+    T029 (FR-017) — validates the source state via the operator-mandated FSM
+    API (``wp_state_for(...).current_lane`` / ``.may_transition_to()``) before
+    writing, locking those methods in as real callers.
+
+    Importable directly from this module for test files that prefer plain
+    function calls over the pytest fixture form.
+    """
+    # T029: validate via the mandated FSM interface before writing.
+    genesis_state = wp_state_for(Lane.GENESIS)
+    assert genesis_state.current_lane == Lane.GENESIS
+    assert genesis_state.may_transition_to(Lane.PLANNED)
+
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=_make_seed_event_id(),
+            mission_slug=slug,
+            wp_id=wp_id,
+            from_lane=Lane.GENESIS,
+            to_lane=Lane.PLANNED,
+            at="2026-01-01T00:00:00+00:00",
+            actor="seed",
+            force=False,
+            execution_mode="worktree",
+            reason="seed",
+        ),
+    )
+
+
+@pytest.fixture
+def seed_to_planned() -> Callable[[Path, str, str], None]:
+    """Pytest fixture returning the shared WP seed callable.
+
+    Usage::
+
+        def test_something(feature_dir, seed_to_planned):
+            seed_to_planned(feature_dir, "WP01")
+            seed_to_planned(feature_dir, "WP02", slug="my-mission")
+
+    Delegates to :func:`seed_wp_to_planned`. Test files that prefer a plain
+    import can use ``from tests.status.conftest import seed_wp_to_planned``
+    directly.
+    """
+    return seed_wp_to_planned
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:

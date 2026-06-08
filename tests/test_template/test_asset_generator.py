@@ -74,6 +74,7 @@ def test_render_command_template_injects_claude_upgrade_check(tmp_path: Path) ->
 
     assert "<!-- spec-kitty-command-version:" in output
     assert "## Startup Upgrade Check" in output
+    assert "at most once per active agent session" in output
     assert "spec-kitty upgrade --agent-check --json" in output
     assert output.index("<!-- spec-kitty-command-version:") < output.index("## Startup Upgrade Check")
     assert output.index("## Startup Upgrade Check") < output.index("Run echo hi")
@@ -98,6 +99,7 @@ def test_render_command_template_injects_upgrade_check_for_all_command_agents(
 
     searchable = tomllib.loads(output)["prompt"] if config["ext"] == "toml" else output
     assert "## Startup Upgrade Check" in searchable
+    assert "at most once per active agent session" in searchable
     assert "spec-kitty upgrade --agent-check --json" in searchable
     assert "Run echo hi" in searchable
 

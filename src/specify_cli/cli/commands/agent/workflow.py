@@ -1200,7 +1200,11 @@ def implement(
             print("Re-run move-task with --review-feedback-file so the fix cycle can attach the canonical review artifact.")
             raise typer.Exit(1)
 
-        _require_current_analysis_report(feature_dir, main_repo_root, mission_slug)
+        _require_current_analysis_report(
+            candidate_feature_dir_for_mission(main_repo_root, mission_slug),
+            main_repo_root,
+            mission_slug,
+        )
 
         workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
         workspace_path = workspace.worktree_path
@@ -2089,11 +2093,20 @@ def review(
                 _base_ref = _lanes_manifest.mission_branch if _lanes_manifest is not None else target_branch
             except Exception:
                 _base_ref = target_branch
+            # The WP diff must be the lane branch's changes on top of the mission
+            # branch, NOT `HEAD`. When review runs from the main repo checkout,
+            # `HEAD` is the mission's *target* branch (e.g. feat/...), so diffing
+            # base..HEAD surfaces the entire target-branch delta (hundreds of
+            # unrelated files) and the bulk-edit gate false-blocks. Use the WP's
+            # resolved lane branch as head; fall back to HEAD only for repo_root
+            # (direct-to-target / planning) workspaces where the changes really
+            # are on the current HEAD.
+            _head_ref = review_workspace.branch_name or "HEAD"
             _diff_result = check_review_diff_compliance(
                 feature_dir=feature_dir,
                 repo_root=main_repo_root,
                 base_ref=_base_ref,
-                head_ref="HEAD",
+                head_ref=_head_ref,
             )
             if _diff_result is None:
                 # Non-bulk-edit mission — skip silently. check_review_diff_compliance

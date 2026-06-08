@@ -432,6 +432,112 @@ class TestStatusFacadeExports:
 
 
 class TestTransitionHappyPath:
+    def test_resolve_current_lane_maps_uninitialized_to_genesis(self, tmp_path: Path) -> None:
+        """Unseeded transactional reads resolve to genesis, not planned (#1775).
+
+        An unseeded WP cannot be claimed; resolving to genesis lets the FSM reject
+        genesis -> claimed instead of silently treating the WP as planned.
+        """
+        from specify_cli.status import TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+        from specify_cli.status.models import Lane
+
+        ms = MissionStatus(
+            mission_slug="034-lane-fallback",
+            mission_id=None,
+            mid8="",
+            topology="legacy",
+            read_dir=tmp_path,
+            repo_root=tmp_path,
+        )
+        request = TransitionRequest(
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="claude",
+            feature_dir=tmp_path,
+            mission_slug=ms.mission_slug,
+        )
+
+        from_lane, current_actor = ms._resolve_current_lane(
+            request=request,
+            read_current_wp_state_transactional=lambda **_: ("uninitialized", "claude"),
+            lane_unseeded=Lane.GENESIS,
+        )
+
+        assert from_lane == "genesis"
+        assert current_actor == "claude"
+
+    def test_resolve_workspace_context_prefers_request_value(self, tmp_path: Path) -> None:
+        """Explicit workspace context must bypass aggregate inference."""
+        from specify_cli.status import TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+
+        ms = MissionStatus(
+            mission_slug="034-workspace-context",
+            mission_id=None,
+            mid8="",
+            topology="legacy",
+            read_dir=tmp_path,
+            repo_root=tmp_path,
+        )
+        request = TransitionRequest(
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="claude",
+            feature_dir=tmp_path,
+            mission_slug=ms.mission_slug,
+            workspace_context="explicit-context",
+        )
+
+        assert ms._resolve_workspace_context(request) == "explicit-context"
+
+    def test_resolve_review_gate_inputs_infers_missing_review_guards(self, tmp_path: Path) -> None:
+        """Entering review infers both guard inputs when omitted."""
+        from specify_cli.status import TransitionRequest
+        from specify_cli.status.aggregate import MissionStatus
+        from specify_cli.status.models import Lane
+
+        ms = MissionStatus(
+            mission_slug="034-review-gate-inputs",
+            mission_id=None,
+            mid8="",
+            topology="legacy",
+            read_dir=tmp_path,
+            repo_root=tmp_path,
+        )
+        request = TransitionRequest(
+            wp_id="WP07",
+            to_lane="for_review",
+            actor="claude",
+            feature_dir=tmp_path,
+            mission_slug=ms.mission_slug,
+        )
+
+        class _StatusEmit:
+            @staticmethod
+            def _infer_subtasks_complete(read_dir: Path, wp_id: str) -> bool:
+                assert read_dir == tmp_path
+                assert wp_id == "WP07"
+                return True
+
+            @staticmethod
+            def _infer_implementation_evidence(read_dir: Path, wp_id: str) -> bool:
+                assert read_dir == tmp_path
+                assert wp_id == "WP07"
+                return True
+
+        subtasks_complete, implementation_evidence_present = ms._resolve_review_gate_inputs(
+            request=request,
+            from_lane_str=str(Lane.IN_PROGRESS),
+            resolved_to_lane=str(Lane.FOR_REVIEW),
+            status_emit=_StatusEmit,
+            lane_in_progress=Lane.IN_PROGRESS,
+            lane_for_review=Lane.FOR_REVIEW,
+        )
+
+        assert subtasks_complete is True
+        assert implementation_evidence_present is True
+
     def test_transition_validates_then_applies(self, tmp_path: Path) -> None:
         """transition() rejects illegal transitions before calling BookkeepingTransaction."""
         slug = "034-transition-test"
@@ -628,24 +734,21 @@ class TestTransitionHappyPath:
 
         assert result is marker
 
-    def test_transition_treats_empty_event_log_as_planned(
+    def test_transition_rejects_empty_event_log_as_genesis(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Empty canonical log matches legacy writer: first transition starts planned."""
+        """Empty canonical log is unseeded; claim must not bypass genesis."""
         slug = "034-empty-log-transition"
         mission_dir = _make_mission_dir(tmp_path, slug)
         _write_events_file(mission_dir, [])
 
         from specify_cli.status import TransitionRequest
+        from specify_cli.status.emit import TransitionError
         from specify_cli.status.aggregate import MissionStatus
         import specify_cli.coordination.status_transition as status_transition
 
-        marker = object()
-
         def _fake_transactional(request, **kwargs):  # noqa: ANN001, ANN003
-            assert request.wp_id == "WP01"
-            assert request.to_lane == "claimed"
-            return marker
+            raise AssertionError("unseeded transition must fail before transactional emit")
 
         monkeypatch.setattr(
             status_transition,
@@ -654,22 +757,21 @@ class TestTransitionHappyPath:
         )
 
         ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
-        result = ms.transition(
-            TransitionRequest(
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="claude",
-                feature_dir=ms.read_dir,
-                mission_slug=slug,
+        with pytest.raises(TransitionError, match="Illegal transition: genesis -> claimed"):
+            ms.transition(
+                TransitionRequest(
+                    wp_id="WP01",
+                    to_lane="claimed",
+                    actor="claude",
+                    feature_dir=ms.read_dir,
+                    mission_slug=slug,
+                )
             )
-        )
 
-        assert result is marker
-
-    def test_transition_treats_unknown_wp_in_nonempty_log_as_planned(
+    def test_transition_rejects_unknown_wp_in_nonempty_log_as_genesis(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Unknown WP rows match legacy writer: no WP state means planned."""
+        """Unknown WP rows are unseeded; claim must not bypass genesis."""
         slug = "034-unknown-wp-transition"
         mission_dir = _make_mission_dir(tmp_path, slug)
         _write_events_file(mission_dir, [
@@ -677,15 +779,12 @@ class TestTransitionHappyPath:
         ])
 
         from specify_cli.status import TransitionRequest
+        from specify_cli.status.emit import TransitionError
         from specify_cli.status.aggregate import MissionStatus
         import specify_cli.coordination.status_transition as status_transition
 
-        marker = object()
-
         def _fake_transactional(request, **kwargs):  # noqa: ANN001, ANN003
-            assert request.wp_id == "WP99"
-            assert request.to_lane == "claimed"
-            return marker
+            raise AssertionError("unknown WP transition must fail before transactional emit")
 
         monkeypatch.setattr(
             status_transition,
@@ -694,17 +793,16 @@ class TestTransitionHappyPath:
         )
 
         ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
-        result = ms.transition(
-            TransitionRequest(
-                wp_id="WP99",
-                to_lane="claimed",
-                actor="claude",
-                feature_dir=ms.read_dir,
-                mission_slug=slug,
+        with pytest.raises(TransitionError, match="Illegal transition: genesis -> claimed"):
+            ms.transition(
+                TransitionRequest(
+                    wp_id="WP99",
+                    to_lane="claimed",
+                    actor="claude",
+                    feature_dir=ms.read_dir,
+                    mission_slug=slug,
+                )
             )
-        )
-
-        assert result is marker
 
     def test_transition_infers_workspace_context_for_claimed_to_in_progress(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

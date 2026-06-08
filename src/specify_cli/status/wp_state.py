@@ -1,31 +1,67 @@
-"""WPState ABC, 9 concrete lane state classes, and wp_state_for() factory.
+"""WPState ABC, 10 concrete lane state classes, and wp_state_for() factory.
 
 Implements the State Pattern for work-package lane behavior. Each lane
 has a frozen dataclass subclass that owns its allowed transitions,
 guard conditions, progress bucket, and display category.
 
+Single-ownership (WP01, DM-01KTH03G): the WPState objects are the SOLE
+authority for BOTH the transition edge graph AND the act of transitioning
+(structural edge + guards + force-override). ``transitions.validate_transition``
+is a thin delegator over :meth:`WPState.transition_to`; no edge/guard/force
+logic lives outside these state objects, and no production code consults a
+parallel ``(from, to)`` table as a gate.
+
 See ADR: architecture/2.x/adr/2026-04-06-1-wp-state-pattern-for-lane-behavior.md
+See also: architecture/3.x/adr/2026-06-07-1-wp-lane-fsm-genesis-and-finalize-clobber.md
+(genesis lane, guard/force migration into the state objects, finalize clobber fix)
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import Protocol
 
 from specify_cli.status.models import Lane
 
-if TYPE_CHECKING:
-    from specify_cli.status.transition_context import TransitionContext
+# Shared error message constants (single source for parity with the historical
+# ``transitions.py`` implementation these guards were migrated from).
+_FORCE_REQUIRES_ACTOR_AND_REASON = "Force transitions require actor and reason"
+_REVIEWER_APPROVAL_REQUIRED = "Transition to approved/done requires evidence (reviewer identity and approval reference)"
+
+
+class TransitionInputs(Protocol):
+    """Structural protocol over the guard inputs a transition consults.
+
+    Both :class:`specify_cli.status.transition_context.TransitionContext` and
+    :class:`specify_cli.status.models.GuardContext` satisfy this protocol, so
+    the FSM can own guard + force evaluation for callers of either context
+    without coupling to a single concrete type.
+    """
+
+    actor: str | None
+    workspace_context: str | None
+    subtasks_complete: bool | None
+    implementation_evidence_present: bool | None
+    reason: str | None
+    review_ref: str | None
+    evidence: object
+    force: bool
+    review_result: object
+    current_actor: str | None
 
 
 class InvalidTransitionError(Exception):
     """Raised when a state transition is not allowed."""
 
-    def __init__(self, source: Lane, target: Lane) -> None:
+    def __init__(self, source: Lane, target: Lane, reason: str | None = None) -> None:
         self.source = source
         self.target = target
-        super().__init__(f"Cannot transition from {source!r} to {target!r}")
+        self.reason = reason
+        message = f"Cannot transition from {source!r} to {target!r}"
+        if reason:
+            message = f"{message}: {reason}"
+        super().__init__(message)
 
 
 @dataclass(frozen=True)
@@ -63,7 +99,7 @@ class WPState(ABC):
 
         Returns:
             True  if lane in {planned, claimed, in_progress, for_review, in_review, approved}
-            False if lane in {done, blocked, canceled}
+            False if lane in {genesis, done, blocked, canceled}
 
         Usage::
 
@@ -82,13 +118,87 @@ class WPState(ABC):
     @abstractmethod
     def allowed_targets(self) -> frozenset[Lane]: ...
 
-    @abstractmethod
-    def can_transition_to(self, target: Lane, ctx: TransitionContext) -> bool: ...
+    @property
+    def current_lane(self) -> Lane:
+        """The lane this state represents (State-pattern FSM accessor).
 
-    def transition(self, target: Lane, ctx: TransitionContext) -> WPState:
-        """Return the new state after a validated transition."""
-        if not self.can_transition_to(target, ctx):
-            raise InvalidTransitionError(self.lane, target)
+        Alias of :attr:`lane` using the canonical FSM vocabulary.
+        """
+        return self.lane
+
+    def may_transition_to(self, target: Lane) -> bool:
+        """Structural edge check only (guard-free, force-free).
+
+        This is the single authority for the lane-adjacency graph: a target is
+        reachable iff it is in this state's ``allowed_targets()``. Production
+        edge-legality questions route here instead of consulting any parallel
+        ``(from, to)`` table.
+        """
+        return target in self.allowed_targets()
+
+    def guard_for(self, target: Lane, ctx: TransitionInputs) -> tuple[bool, str | None]:  # noqa: ARG002 -- target/ctx are the contract every override consumes; the default hook is unguarded
+        """Evaluate this state's entry guard for ``target``.
+
+        Subclasses with guarded outbound edges override this. The default is
+        unguarded (any structurally-allowed target is permitted). Returns the
+        ``(ok, error_message)`` decision; ``error_message`` is the parity
+        message the historical ``transitions._run_guard`` produced.
+        """
+        return True, None
+
+    def can_transition_to(self, target: Lane, ctx: TransitionInputs) -> bool:
+        """Guard-aware boolean edge check (no force-override).
+
+        Returns True iff the structural edge exists AND this state's entry
+        guard for ``target`` is satisfied by ``ctx``. Force is NOT consulted
+        here — use :meth:`check_transition` / :meth:`transition_to` for the
+        full force-aware decision.
+        """
+        if not self.may_transition_to(target):
+            return False
+        ok, _ = self.guard_for(target, ctx)
+        return ok
+
+    def check_transition(self, target: Lane, ctx: TransitionInputs) -> tuple[bool, str | None]:
+        """Full transition decision: structural edge + guard + force-override.
+
+        Returns ``(ok, error_message)`` with the exact parity messages of the
+        historical ``validate_transition``. ``force`` (with actor + reason)
+        overrides both the edge check and the guards — including terminal
+        force-exit from ``done``/``canceled`` to any lane.
+        """
+        if not self.may_transition_to(target):
+            # Edge does not exist: only force (with actor + reason) can override.
+            if ctx.force:
+                return self._check_force(ctx)
+            return False, f"Illegal transition: {self.lane.value} -> {target.value}"
+
+        # Structurally-allowed edge. Force bypasses the guard but still requires
+        # actor + reason for audit; otherwise run this state's entry guard.
+        if ctx.force:
+            return self._check_force(ctx)
+        return self.guard_for(target, ctx)
+
+    @staticmethod
+    def _check_force(ctx: TransitionInputs) -> tuple[bool, str | None]:
+        """Force-override gate: requires a non-empty actor AND reason."""
+        if not ctx.actor or not ctx.actor.strip():
+            return False, _FORCE_REQUIRES_ACTOR_AND_REASON
+        if not ctx.reason or not ctx.reason.strip():
+            return False, _FORCE_REQUIRES_ACTOR_AND_REASON
+        return True, None
+
+    def transition_to(self, target: Lane, ctx: TransitionInputs) -> WPState:
+        """Return the new state after a full edge + guard + force transition.
+
+        Canonical FSM name. Honours ``ctx.force`` (requires actor + reason)
+        exactly where the historical ``validate_transition`` force branch
+        permitted it, including terminal force-exit. Raises
+        :class:`InvalidTransitionError` on rejection.
+        """
+        ok, error = self.check_transition(target, ctx)
+        if not ok:
+            raise InvalidTransitionError(self.lane, target, error)
         return wp_state_for(target)
 
     @abstractmethod
@@ -103,17 +213,43 @@ class WPState(ABC):
 
 
 # ---------------------------------------------------------------------------
-# Helper: check actor is present
+# Guard helpers (used by concrete classes)
 # ---------------------------------------------------------------------------
 
 
-def _has_actor(ctx: TransitionContext) -> bool:
+def _has_actor(ctx: TransitionInputs) -> bool:
     return bool(ctx.actor and ctx.actor.strip())
 
 
 # ---------------------------------------------------------------------------
 # Concrete state classes
 # ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class GenesisState(WPState):
+    """Work package created but not yet seeded into the lane lifecycle.
+
+    Pre-finalize, non-display state. ``finalize-tasks`` performs the explicit
+    ``genesis -> planned`` seed. A genesis WP has no lane events and so never
+    materializes into a snapshot or onto the board; this state exists to make
+    the seed transition explicit rather than an implied ``planned -> planned``.
+    """
+
+    @property
+    def lane(self) -> Lane:
+        return Lane.GENESIS
+
+    def allowed_targets(self) -> frozenset[Lane]:
+        return frozenset({Lane.PLANNED, Lane.CANCELED})
+
+    def progress_bucket(self) -> str:
+        return "not_started"
+
+    def display_category(self) -> str:
+        # Non-display lane: group under Planned so no separate board column is
+        # ever introduced for the transient genesis state.
+        return "Planned"
 
 
 @dataclass(frozen=True)
@@ -127,12 +263,10 @@ class PlannedState(WPState):
     def allowed_targets(self) -> frozenset[Lane]:
         return frozenset({Lane.CLAIMED, Lane.BLOCKED, Lane.CANCELED})
 
-    def can_transition_to(self, target: Lane, ctx: TransitionContext) -> bool:
-        if target not in self.allowed_targets():
-            return False
-        if target == Lane.CLAIMED:
-            return _has_actor(ctx)
-        return True
+    def guard_for(self, target: Lane, ctx: TransitionInputs) -> tuple[bool, str | None]:
+        if target == Lane.CLAIMED and not _has_actor(ctx):
+            return False, "Transition requires actor identity"
+        return True, None
 
     def progress_bucket(self) -> str:
         return "not_started"
@@ -152,12 +286,10 @@ class ClaimedState(WPState):
     def allowed_targets(self) -> frozenset[Lane]:
         return frozenset({Lane.IN_PROGRESS, Lane.BLOCKED, Lane.CANCELED})
 
-    def can_transition_to(self, target: Lane, ctx: TransitionContext) -> bool:
-        if target not in self.allowed_targets():
-            return False
-        if target == Lane.IN_PROGRESS:
-            return bool(ctx.workspace_context and ctx.workspace_context.strip())
-        return True
+    def guard_for(self, target: Lane, ctx: TransitionInputs) -> tuple[bool, str | None]:
+        if target == Lane.IN_PROGRESS and not (ctx.workspace_context and ctx.workspace_context.strip()):
+            return False, "Transition claimed -> in_progress requires workspace context"
+        return True, None
 
     def progress_bucket(self) -> str:
         return "in_flight"
@@ -185,18 +317,32 @@ class InProgressState(WPState):
             }
         )
 
-    def can_transition_to(self, target: Lane, ctx: TransitionContext) -> bool:
-        if target not in self.allowed_targets():
-            return False
+    def guard_for(self, target: Lane, ctx: TransitionInputs) -> tuple[bool, str | None]:
+        # NB: guards must NOT consult ``ctx.force`` — force is handled once, at the
+        # caller (``check_transition._check_force``), which bypasses the guard
+        # entirely. A force branch here is dead on the canonical path and breaks
+        # the ``can_transition_to`` contract ("Force is NOT consulted here"), making
+        # ``can_transition_to(FOR_REVIEW, force=True)`` disagree with
+        # ``check_transition`` (#1775 review M2).
         if target == Lane.FOR_REVIEW:
-            if ctx.force:
-                return True
-            return ctx.subtasks_complete is True and ctx.implementation_evidence_present is True
+            if ctx.subtasks_complete is not True:
+                return (
+                    False,
+                    "Transition in_progress -> for_review requires completed subtasks or force with reason",
+                )
+            if ctx.implementation_evidence_present is not True:
+                return (
+                    False,
+                    "Transition in_progress -> for_review requires implementation evidence or force with reason",
+                )
+            return True, None
         if target == Lane.APPROVED:
-            return _has_reviewer_approval(ctx)
+            return _check_reviewer_approval(ctx)
         if target == Lane.PLANNED:
-            return bool(ctx.reason and ctx.reason.strip())
-        return True
+            if not (ctx.reason and ctx.reason.strip()):
+                return False, "Transition in_progress -> planned requires reason"
+            return True, None
+        return True, None
 
     def progress_bucket(self) -> str:
         return "in_flight"
@@ -216,12 +362,12 @@ class ForReviewState(WPState):
     def allowed_targets(self) -> frozenset[Lane]:
         return frozenset({Lane.IN_REVIEW, Lane.BLOCKED, Lane.CANCELED})
 
-    def can_transition_to(self, target: Lane, ctx: TransitionContext) -> bool:
-        if target not in self.allowed_targets():
-            return False
+    def guard_for(self, target: Lane, ctx: TransitionInputs) -> tuple[bool, str | None]:
         if target == Lane.IN_REVIEW:
-            return _has_actor(ctx) and _no_review_conflict(ctx)
-        return True
+            if not _has_actor(ctx):
+                return False, "Transition requires actor identity"
+            return _check_no_review_conflict(ctx)
+        return True, None
 
     def progress_bucket(self) -> str:
         return "review"
@@ -250,11 +396,9 @@ class InReviewState(WPState):
             }
         )
 
-    def can_transition_to(self, target: Lane, ctx: TransitionContext) -> bool:
-        if target not in self.allowed_targets():
-            return False
-        # FR-012c: ALL outbound transitions from in_review require ReviewResult
-        return _has_review_result(ctx)
+    def guard_for(self, target: Lane, ctx: TransitionInputs) -> tuple[bool, str | None]:  # noqa: ARG002 -- FR-012c applies the same guard to every outbound target, so ``target`` is intentionally not branched on
+        # FR-012c: ALL outbound transitions from in_review require ReviewResult.
+        return _check_review_result(ctx)
 
     def progress_bucket(self) -> str:
         return "review"
@@ -282,14 +426,14 @@ class ApprovedState(WPState):
             }
         )
 
-    def can_transition_to(self, target: Lane, ctx: TransitionContext) -> bool:
-        if target not in self.allowed_targets():
-            return False
+    def guard_for(self, target: Lane, ctx: TransitionInputs) -> tuple[bool, str | None]:
         if target == Lane.DONE:
-            return _has_reviewer_approval(ctx)
+            return _check_reviewer_approval(ctx)
         if target in (Lane.IN_PROGRESS, Lane.PLANNED):
-            return bool(ctx.review_ref and ctx.review_ref.strip())
-        return True
+            if not (ctx.review_ref and ctx.review_ref.strip()):
+                return False, "Transition requires review_ref (review feedback reference)"
+            return True, None
+        return True, None
 
     def progress_bucket(self) -> str:
         return "review"
@@ -313,9 +457,6 @@ class DoneState(WPState):
     def allowed_targets(self) -> frozenset[Lane]:
         return frozenset()
 
-    def can_transition_to(self, target: Lane, ctx: TransitionContext) -> bool:  # noqa: ARG002
-        return False
-
     def progress_bucket(self) -> str:
         return "terminal"
 
@@ -337,9 +478,6 @@ class BlockedState(WPState):
 
     def allowed_targets(self) -> frozenset[Lane]:
         return frozenset({Lane.IN_PROGRESS, Lane.CANCELED})
-
-    def can_transition_to(self, target: Lane, ctx: TransitionContext) -> bool:  # noqa: ARG002
-        return target in self.allowed_targets()
 
     def progress_bucket(self) -> str:
         return "in_flight"
@@ -363,9 +501,6 @@ class CanceledState(WPState):
     def allowed_targets(self) -> frozenset[Lane]:
         return frozenset()
 
-    def can_transition_to(self, target: Lane, ctx: TransitionContext) -> bool:  # noqa: ARG002
-        return False
-
     def progress_bucket(self) -> str:
         return "terminal"
 
@@ -374,47 +509,58 @@ class CanceledState(WPState):
 
 
 # ---------------------------------------------------------------------------
-# Guard helpers (used by concrete classes)
+# Guard helpers (evidence / review-result / conflict) — own the parity messages
 # ---------------------------------------------------------------------------
 
 
-def _has_reviewer_approval(ctx: TransitionContext) -> bool:
-    """Check that ctx.evidence contains valid reviewer approval."""
-    if ctx.evidence is None:
-        return False
-    review = getattr(ctx.evidence, "review", None)
+def _check_reviewer_approval(ctx: TransitionInputs) -> tuple[bool, str | None]:
+    """Guard: approval/done transitions require reviewer approval evidence."""
+    evidence = ctx.evidence
+    if evidence is None:
+        return False, _REVIEWER_APPROVAL_REQUIRED
+    review = getattr(evidence, "review", None)
     reviewer = getattr(review, "reviewer", None) if review is not None else None
     reference = getattr(review, "reference", None) if review is not None else None
     if not reviewer or not str(reviewer).strip():
-        return False
-    return bool(reference and str(reference).strip())
+        return False, _REVIEWER_APPROVAL_REQUIRED
+    if not reference or not str(reference).strip():
+        return False, _REVIEWER_APPROVAL_REQUIRED
+    return True, None
 
 
-def _no_review_conflict(ctx: TransitionContext) -> bool:
-    """Check that no other actor already holds the review claim.
+def _check_no_review_conflict(ctx: TransitionInputs) -> tuple[bool, str | None]:
+    """Guard: for_review -> in_review rejects a conflicting reviewer claim.
 
-    Returns True if:
-    - No current_actor is set (no existing claim), OR
-    - current_actor matches the requesting actor (idempotent re-claim).
+    Permits an idempotent re-claim when ``current_actor`` matches ``actor``.
     """
-    if not ctx.current_actor or not ctx.current_actor.strip():
-        return True
-    return ctx.current_actor.strip() == ctx.actor.strip()
+    current_actor = ctx.current_actor
+    actor = ctx.actor or ""
+    if current_actor and current_actor.strip() and current_actor.strip() != actor.strip():
+        return (
+            False,
+            f"WP already claimed for review by {current_actor.strip()}; cannot be claimed by {actor.strip()}",
+        )
+    return True, None
 
 
-def _has_review_result(ctx: TransitionContext) -> bool:
-    """Check that ctx.review_result is a valid ReviewResult."""
+def _check_review_result(ctx: TransitionInputs) -> tuple[bool, str | None]:
+    """Guard: all outbound in_review transitions require a ReviewResult."""
     rr = ctx.review_result
     if rr is None:
-        return False
+        return (
+            False,
+            "Transition from in_review requires review_result (structured review outcome)",
+        )
     reviewer = getattr(rr, "reviewer", None)
     verdict = getattr(rr, "verdict", None)
     reference = getattr(rr, "reference", None)
     if not reviewer or not str(reviewer).strip():
-        return False
+        return False, "Transition from in_review requires review_result with reviewer"
     if not verdict or not str(verdict).strip():
-        return False
-    return bool(reference and str(reference).strip())
+        return False, "Transition from in_review requires review_result with verdict"
+    if not reference or not str(reference).strip():
+        return False, "Transition from in_review requires review_result with reference"
+    return True, None
 
 
 # ---------------------------------------------------------------------------
@@ -422,6 +568,7 @@ def _has_review_result(ctx: TransitionContext) -> bool:
 # ---------------------------------------------------------------------------
 
 _STATE_MAP: dict[str, type[WPState]] = {
+    "genesis": GenesisState,
     "planned": PlannedState,
     "claimed": ClaimedState,
     "in_progress": InProgressState,

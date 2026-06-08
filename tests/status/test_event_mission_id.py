@@ -83,6 +83,9 @@ def _write_events(events_path: Path, events: list[dict[str, Any]]) -> None:
             fh.write(json.dumps(event, sort_keys=True) + "\n")
 
 
+from tests.status.conftest import seed_wp_to_planned as _seed_planned
+
+
 def _make_feature_dir(tmp_path: Path, slug: str = _MISSION_SLUG, with_meta: bool = True) -> Path:
     """Create a minimal feature directory under kitty-specs/<slug>/."""
     kitty_specs = tmp_path / "kitty-specs"
@@ -360,8 +363,10 @@ class TestRoundTripMissionId:
 
     @pytest.fixture
     def feature_dir_with_meta(self, tmp_path: Path) -> Path:
-        """Feature directory with meta.json containing mission_id."""
-        return _make_feature_dir(tmp_path)
+        """Feature directory with meta.json containing mission_id, WP01 seeded to planned."""
+        feature_dir = _make_feature_dir(tmp_path)
+        _seed_planned(feature_dir, "WP01", slug=_MISSION_SLUG)
+        return feature_dir
 
     def test_emitted_event_carries_mission_id_from_meta(
         self, feature_dir_with_meta: Path
@@ -484,6 +489,7 @@ class TestRoundTripMissionId:
             "mission_type": "software-dev",
         }
         (feature_dir / "meta.json").write_text(json.dumps(meta_without_id), encoding="utf-8")
+        _seed_planned(feature_dir, "WP01", slug=_MISSION_SLUG)
 
         with patch("specify_cli.status.emit._saas_fan_out"):
             emit_status_transition(TransitionRequest(

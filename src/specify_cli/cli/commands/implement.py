@@ -8,6 +8,7 @@ import json
 import os
 import re
 import subprocess
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from io import StringIO
 from pathlib import Path
@@ -30,9 +31,14 @@ from specify_cli.git.commit_helpers import protected_branches
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
 from specify_cli.coordination.status_transition import emit_status_transition_transactional
+from specify_cli.status import COORD_OWNED_STATUS_FILES
 from specify_cli.status.emit import TransitionError
 from specify_cli.status.models import Lane, TransitionRequest
-from specify_cli.status.work_package_lifecycle import WorkPackageClaimConflict, start_implementation_status
+from specify_cli.status.work_package_lifecycle import (
+    WorkPackageClaimConflict,
+    WorkPackageStartRejected,
+    start_implementation_status,
+)
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
@@ -59,7 +65,12 @@ def _status_commit_destination_branch(repo_root: Path, fallback_branch: str) -> 
 
 
 def _get_wp_lane_from_event_log(feature_dir: Path, wp_id: str) -> str:
-    """Get the canonical WP lane, defaulting to planned when unbootstrapped."""
+    """Get the canonical WP lane, defaulting to genesis for unseeded WPs.
+
+    An unseeded WP (no events, or no snapshot entry) defaults to
+    ``Lane.GENESIS`` — matching the write-side ``_derive_from_lane``
+    behaviour (Contract 3, FR-008).
+    """
     try:
         from specify_cli.status.reducer import reduce
         from specify_cli.status.store import read_events
@@ -69,10 +80,10 @@ def _get_wp_lane_from_event_log(feature_dir: Path, wp_id: str) -> str:
             snapshot = reduce(events)
             state = snapshot.work_packages.get(wp_id)
             if state:
-                return Lane(state.get("lane", Lane.PLANNED))
+                return Lane(state.get("lane", Lane.GENESIS))
     except Exception:  # noqa: S110 — best-effort lane lookup, fallback is safe
         pass
-    return Lane.PLANNED
+    return Lane.GENESIS
 
 
 def _json_safe_output(func):
@@ -397,6 +408,30 @@ def _feature_dir_file_paths(repo_root: Path, feature_dir: Path) -> list[str]:
     return paths
 
 
+def _exclude_coord_owned(paths: Iterable[str], coord_branch_for_filter: str | None) -> list[str]:
+    """Drop the canonical status log/snapshot (``COORD_OWNED_STATUS_FILES``) from
+    *paths* on coordination-topology missions only.
+
+    On a coordination mission those files are owned by the transactional emitter on
+    the coord branch, and the primary checkout's copies are stale — committing them
+    would clobber the seeded lane state (#1589). On a non-coordination (flat/legacy)
+    mission there is no coord authority, so the primary checkout's status files ARE
+    canonical and must be committed; excluding them there silently drops a status
+    edit (review M3). Single predicate for both commit-path sources (review F-03).
+    """
+    if coord_branch_for_filter:
+        return [p for p in paths if Path(p).name not in COORD_OWNED_STATUS_FILES]
+    return list(paths)
+
+
+def _status_paths_for_commit(
+    entries: list[_PorcelainEntry], coord_branch_for_filter: str | None
+) -> list[str]:
+    """The feature-dir paths to commit from ``git status`` entries — see
+    :func:`_exclude_coord_owned`."""
+    return _exclude_coord_owned((e.path for e in entries), coord_branch_for_filter)
+
+
 def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestration helper; unrelated to issue #1386
     repo_root: Path,
     feature_dir: Path,
@@ -436,10 +471,14 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
         feature_dir, mission_slug
     )[0]
 
-    status_paths = [e.path for e in entries]
+    status_paths = _status_paths_for_commit(entries, coord_branch_for_filter)
     files_to_commit = list(status_paths)
     if coord_branch_for_filter:
-        files_to_commit.extend(_feature_dir_file_paths(repo_root, feature_dir))
+        files_to_commit.extend(
+            _exclude_coord_owned(
+                _feature_dir_file_paths(repo_root, feature_dir), coord_branch_for_filter
+            )
+        )
     files_to_commit = list(dict.fromkeys(files_to_commit))
     if not files_to_commit:
         return
@@ -775,9 +814,20 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         _status_feature_dir = _resolve_read_path(repo_root, mission_slug, _mid8)
 
         _wp_lanes = {
-            _wp_id: _state.get("lane", Lane.PLANNED)
+            _wp_id: _state.get("lane", Lane.GENESIS)
             for _wp_id, _state in _reduce_events(_read_events(_status_feature_dir)).work_packages.items()
         }
+        # T012 / Contract 3: reject unseeded WPs BEFORE any workspace
+        # allocation.  A genesis WP has not been through finalize-tasks; the
+        # user must run it first to seed the genesis→planned bootstrap event.
+        _current_wp_lane = _wp_lanes.get(wp_id, Lane.GENESIS)
+        if _current_wp_lane == Lane.GENESIS:
+            # FR-009: same rejection (and exception type) as the lifecycle layer,
+            # so programmatic callers catching WorkPackageStartRejected see this
+            # path too (review M5).
+            raise WorkPackageStartRejected(
+                f"WP {wp_id} is not finalized; run `spec-kitty agent mission finalize-tasks`"
+            )
         _dependency_readiness = dependency_readiness_for_wp(wp_id, declared_deps, _wp_lanes)
         if not _dependency_readiness.satisfied:
             blocked = ", ".join(_dependency_readiness.unsatisfied)
@@ -869,7 +919,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
             tracker.complete("validate", f"Lane: {lane.lane_id}")
         else:
             tracker.complete("validate", "Execution: repository root planning workspace")
-    except (CorruptLanesError, MissingLanesError, ValueError, typer.Exit) as exc:
+    except (CorruptLanesError, MissingLanesError, WorkPackageStartRejected, ValueError, typer.Exit) as exc:
         tracker.error("validate", str(exc))
         console.print(tracker.render())
         raise typer.Exit(1) from exc

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import yaml
 
-from specify_cli.status.models import get_all_lane_values
+from specify_cli.status_lanes import CANONICAL_LANES
 from specify_cli.template import parse_frontmatter
 from specify_cli.task_utils import build_document
 
@@ -224,12 +224,14 @@ def validate_task_metadata(task_file: Path) -> list[str]:  # MIGRATION-ONLY: raw
         if field not in frontmatter or not frontmatter[field]:
             issues.append(f"Missing required field: {field}")
 
-    # Validate lane value against the canonical 9-lane model.
+    # Validate lane value against the 9 active/display lanes (CANONICAL_LANES).
+    # "genesis" is intentionally excluded — it is a non-display/non-authorable
+    # lane that no WP file should carry in its frontmatter.
     # "doing" is retained as a recognised alias for "in_progress" so that
     # legacy WP files written before the Lane enum migration don't report
     # false positives during the transition period.
     lane = frontmatter.get("lane", "")
-    valid_lanes = get_all_lane_values() | {"doing"}
+    valid_lanes = frozenset(CANONICAL_LANES) | {"doing"}
     if lane and lane not in valid_lanes:
         issues.append(f"Invalid lane value: '{lane}' (must be one of {sorted(valid_lanes)})")
 

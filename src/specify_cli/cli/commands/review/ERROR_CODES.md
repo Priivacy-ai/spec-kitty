@@ -38,7 +38,7 @@ MISSION_REVIEW_MODE_MISMATCH: --mode post-merge was requested but meta.json.base
 
 **Remediation**:
 1. Create `kitty-specs/<slug>/issue-matrix.md` with mandatory columns `issue`, `verdict`, and `evidence_ref`.
-2. Populate one row per GitHub issue in scope with a valid verdict from the allow-list: `fixed`, `verified-already-fixed`, or `deferred-with-followup`.
+2. Populate one row per GitHub issue in scope with a valid verdict from the allow-list: `fixed`, `verified-already-fixed`, `deferred-with-followup`, or `in-mission`.
 3. If running a lightweight consistency check, use `--mode lightweight` to bypass the issue-matrix requirement.
 
 **Body example**:
@@ -74,14 +74,15 @@ MISSION_REVIEW_ISSUE_MATRIX_SCHEMA_DRIFT: Unknown column(s) not in mandatory or 
 
 **Code**: `MISSION_REVIEW_ISSUE_MATRIX_VERDICT_UNKNOWN`
 
-**When it fires**: A verdict cell value in `issue-matrix.md` is not in the closed-set allow-list (`fixed`, `verified-already-fixed`, `deferred-with-followup`).
+**When it fires**: A verdict cell value in `issue-matrix.md` is not in the closed-set allow-list (`fixed`, `verified-already-fixed`, `deferred-with-followup`, `in-mission`).
 
 **JSON stability**: this code string is stable across minor releases; consumers may match it as an opaque identifier.
 
 **Remediation**:
-1. Replace the unknown verdict with one of: `fixed`, `verified-already-fixed`, or `deferred-with-followup`.
+1. Replace the unknown verdict with one of: `fixed`, `verified-already-fixed`, `deferred-with-followup`, or `in-mission`.
 2. `deferred` (without `-with-followup`) is not valid; use `deferred-with-followup` and add a follow-up handle to `evidence_ref`.
-3. Backtick-quoted verdicts (`` `fixed` ``) are accepted; the backticks are stripped during parsing.
+3. `in-mission` declares the issue is being closed by a later WP in *this* mission. It is accepted at per-WP `approved`, but is rejected on the `done` transition (mission merge) — resolve it to a terminal verdict (`fixed` / `verified-already-fixed` / `deferred-with-followup`) before the mission lands.
+4. Backtick-quoted verdicts (`` `fixed` ``) are accepted; the backticks are stripped during parsing.
 
 **Body example**:
 

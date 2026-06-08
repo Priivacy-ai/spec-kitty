@@ -33,7 +33,7 @@ from specify_cli.cli.commands._auth_recovery import (  # noqa: F401
 )
 
 _READINESS_CTX_KEY = "readiness"
-_PROTOCOL_OUTPUT_SUBCOMMANDS = frozenset({"next"})
+_PROTOCOL_OUTPUT_SUBCOMMANDS = frozenset({"do", "next"})
 
 
 class OutputPolicy(StrEnum):

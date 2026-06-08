@@ -307,6 +307,47 @@ class TestImplementModuleImports:
         assert callable(implement)
 
 
+class TestNonCoordStatusFilesCommitted:
+    """#1775 review M3: the coord-owned status-file exclusion must be coord-only.
+
+    On a non-coordination (flat/legacy) mission there is no coord branch that owns
+    the canonical status log/snapshot, so the primary checkout's ``status.events.jsonl``
+    / ``status.json`` ARE canonical and must be committed. The pre-fix code excluded
+    them unconditionally, silently dropping a status edit on flat missions.
+    """
+
+    def _entries(self):
+        from specify_cli.cli.commands.implement import _PorcelainEntry
+
+        return [
+            _PorcelainEntry(xy=" M", path="kitty-specs/m/status.events.jsonl", is_structural=False),
+            _PorcelainEntry(xy=" M", path="kitty-specs/m/status.json", is_structural=False),
+            _PorcelainEntry(xy=" M", path="kitty-specs/m/tasks.md", is_structural=False),
+        ]
+
+    def test_non_coord_includes_status_files(self) -> None:
+        from specify_cli.cli.commands.implement import _status_paths_for_commit
+
+        # No coordination branch → the primary checkout's status files are
+        # canonical and must be committed (not dropped).
+        paths = _status_paths_for_commit(self._entries(), coord_branch_for_filter=None)
+        assert "kitty-specs/m/status.events.jsonl" in paths
+        assert "kitty-specs/m/status.json" in paths
+        assert "kitty-specs/m/tasks.md" in paths
+
+    def test_coord_excludes_status_files(self) -> None:
+        from specify_cli.cli.commands.implement import _status_paths_for_commit
+
+        # Coordination branch present → status log/snapshot are coord-owned and
+        # excluded so the primary checkout's stale copies do not clobber the seed.
+        paths = _status_paths_for_commit(
+            self._entries(), coord_branch_for_filter="kitty/mission-m-01ABCDEF"
+        )
+        assert "kitty-specs/m/status.events.jsonl" not in paths
+        assert "kitty-specs/m/status.json" not in paths
+        assert "kitty-specs/m/tasks.md" in paths
+
+
 class TestPlanningArtifactAutoCommit:
     """Planning artifacts stage from the transaction worktree, not the caller checkout."""
 

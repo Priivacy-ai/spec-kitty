@@ -173,6 +173,7 @@ def test_render_includes_agent_upgrade_check() -> None:
     skill = render(_all_templates()[0], "codex", _TEST_VERSION)
 
     assert skill.body.startswith("## Startup Upgrade Check")
+    assert "at most once per active agent session" in skill.body
     assert "spec-kitty upgrade --agent-check --json" in skill.body
     assert "spec-kitty upgrade --agent-choice" in skill.body
 

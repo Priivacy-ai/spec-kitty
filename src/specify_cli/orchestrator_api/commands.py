@@ -188,12 +188,15 @@ _HELP_ACTOR = "Actor identity"
 _HELP_POLICY = "Policy metadata JSON (required)"
 
 
-def _is_run_affecting(lane: str) -> bool:
-    """Return True if transitioning to *lane* requires --policy metadata.
+def _transition_requires_policy(lane: str) -> bool:
+    """Return True if transitioning to *lane* requires ``--policy`` metadata.
 
-    A lane is run-affecting when its WPState is neither terminal, blocked,
-    nor not-yet-started.  This replaces the former ``_RUN_AFFECTING_LANES``
-    frozenset with a state-object query.
+    A transition requires policy when the target's WPState is neither terminal,
+    blocked, nor not-yet-started — i.e. claimed/in_progress/for_review/in_review/
+    approved. Note this is intentionally NARROWER than ``WPState.is_run_affecting``
+    (which also counts ``planned`` as active): a transition to ``planned`` does not
+    require policy. The two are distinct concepts despite the historical shared name
+    (#1775 review FSM-7); do not collapse them.
     """
     state = wp_state_for(lane)
     return state.progress_bucket() not in ("not_started", "terminal") and not state.is_blocked
@@ -931,9 +934,9 @@ def transition(
 
     to_lane = resolve_lane_alias(to)
 
-    # Policy required for run-affecting lanes
+    # Policy required for transitions into active-execution lanes (not planned).
     policy_dict: dict | None = None
-    if _is_run_affecting(to_lane):
+    if _transition_requires_policy(to_lane):
         if not policy:
             _fail(
                 cmd,

@@ -220,6 +220,14 @@ class WPMetadata(BaseModel):
     execution_mode: str | None = None
     owned_files: list[str] = Field(default_factory=list)
     authoritative_surface: str | None = None
+    scope: str | None = Field(
+        default=None,
+        description=(
+            'Ownership scope. "codebase-wide" marks a cross-cutting/refactor WP that '
+            "is exempt from owned_files overlap and authoritative-surface checks "
+            "(see specify_cli.ownership.validation). None = narrow/default."
+        ),
+    )
     task_type: str | None = None
 
     # ── Optional: workflow metadata ────────────────────────────

@@ -104,6 +104,14 @@ def _append_lane_event(feature_dir: Path, wp_id: str, lane: str) -> None:
     )
 
 
+from tests.status.conftest import seed_wp_to_planned as _seed_planned_shared
+
+
+def _seed_planned(feature_dir: Path, wp_id: str) -> None:
+    """Seed a WP out of the non-display 'genesis' state into 'planned'."""
+    _seed_planned_shared(feature_dir, wp_id, slug=feature_dir.name)
+
+
 class TestDetectFeatureContext:
     def test_detect_with_explicit_flag(self) -> None:
         number, slug = detect_feature_context("010-lane-only-runtime")
@@ -191,6 +199,7 @@ class TestImplementCommand:
             "---\n# WP01",
             encoding="utf-8",
         )
+        _seed_planned(feature_dir, "WP01")
 
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
@@ -246,6 +255,7 @@ class TestImplementCommand:
             "---\n# WP01",
             encoding="utf-8",
         )
+        _seed_planned(feature_dir, "WP01")
 
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
@@ -286,6 +296,7 @@ class TestImplementCommand:
             "---\n# WP02",
             encoding="utf-8",
         )
+        _seed_planned(feature_dir, "WP02")
         _append_lane_event(feature_dir, "WP01", "done")
 
         with (
@@ -343,6 +354,9 @@ class TestImplementCommand:
             "---\n# WP02",
             encoding="utf-8",
         )
+        # WP02 is seeded past genesis so the dependency gate (not genesis gate) fires.
+        # WP01 is intentionally left unapproved so the dependency check rejects.
+        _seed_planned(feature_dir, "WP02")
 
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
@@ -391,6 +405,7 @@ class TestImplementCommand:
             "---\n# WP01",
             encoding="utf-8",
         )
+        _seed_planned(feature_dir, "WP01")
 
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
@@ -472,6 +487,7 @@ class TestImplementCommand:
             "---\n# WP01",
             encoding="utf-8",
         )
+        _seed_planned(feature_dir, "WP01")
 
         captured: dict[str, str] = {}
 
@@ -536,6 +552,7 @@ class TestImplementCommand:
             "---\n"
             "# WP02\n"
         )
+        _seed_planned(feature_dir, "WP02")
 
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),

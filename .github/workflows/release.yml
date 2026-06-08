@@ -407,6 +407,7 @@ jobs:
   verify-pypi-installability:
     name: Verify PyPI exact install
     needs: publish-pypi
+    if: ${{ always() && needs.publish-pypi.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository

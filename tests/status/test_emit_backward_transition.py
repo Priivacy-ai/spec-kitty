@@ -32,6 +32,7 @@ by filename; we extend that allowlist by overriding the fixture locally.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -89,6 +90,27 @@ def _drive_forward_chain(
     transition (the canary uses ``spec-kitty agent tasks move-task`` for
     each lane individually, which has the same effect at the emit layer).
     """
+    # Seed the WP out of the non-display 'genesis' state into 'planned' by
+    # writing the seed event directly to the log (no emit → no fan-out call),
+    # so the fan-out counts below reflect only the forward lane chain.
+    seed_event = {
+        "event_id": "01HXYZ0123456789ABCDEFGS01",
+        "mission_slug": "test-1141-feature",
+        "wp_id": wp_id,
+        "from_lane": "genesis",
+        "to_lane": "planned",
+        "at": "2026-06-01T12:00:00+00:00",
+        "actor": "seed",
+        "force": True,
+        "execution_mode": "worktree",
+        "evidence": None,
+        "reason": "seed",
+        "review_ref": None,
+        "feature_slug": "test-1141-feature",
+    }
+    events_path = feature_dir / "status.events.jsonl"
+    with events_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(seed_event) + "\n")
     # planned → claimed
     emit_status_transition(
         TransitionRequest(

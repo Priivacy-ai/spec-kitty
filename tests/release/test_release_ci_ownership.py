@@ -175,6 +175,7 @@ def test_release_verifies_pypi_exact_install_after_publish() -> None:
     job_dump = repr(job)
 
     assert job["needs"] == "publish-pypi"
+    assert job["if"] == "${{ always() && needs.publish-pypi.result == 'success' }}"
     assert "--from-index" in job_dump
     assert "spec-kitty-cli" in job_dump
 

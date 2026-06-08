@@ -35,6 +35,7 @@ from specify_cli.status.preflight import is_dossier_snapshot as _is_dossier_snap
 from specify_cli.status.progress import PROGRESS_SEMANTICS, compute_done_percentage, compute_weighted_progress
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.status.store import EventPersistenceError, EVENTS_FILENAME
+from specify_cli.status.reducer import SNAPSHOT_FILENAME
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.lanes.persistence import MissingLanesError
@@ -145,15 +146,31 @@ _VALID_VERDICTS: frozenset[str] = frozenset(
 )
 
 
-def _issue_matrix_approval_blocker(feature_dir: Path) -> str | None:
-    """Return a blocking message when referenced issues still lack final verdicts."""
+def _issue_matrix_approval_blocker(
+    feature_dir: Path,
+    *,
+    target_lane: Lane | None = None,
+) -> str | None:
+    """Return a blocking message when referenced issues still lack final verdicts.
+
+    ``target_lane`` controls how the non-terminal ``in-mission`` verdict is
+    treated. At ``approved`` (or when unspecified) an ``in-mission`` row is
+    acceptable — the issue is being closed by a later WP in this same mission,
+    so a dependency chain is not blocked on its own downstream work. At ``done``
+    (mission merge/acceptance) ``in-mission`` is rejected: every issue must have
+    reached a terminal verdict (``fixed`` / ``verified-already-fixed`` /
+    ``deferred-with-followup``) before the mission lands.
+    """
     spec_path = feature_dir / "spec.md"
     if not spec_path.exists():
         return None
 
     try:
         from specify_cli.cli.commands.review._diagnostics import MissionReviewDiagnostic
-        from specify_cli.cli.commands.review._issue_matrix import validate_issue_matrix
+        from specify_cli.cli.commands.review._issue_matrix import (
+            IssueMatrixVerdict,
+            validate_issue_matrix,
+        )
         from specify_cli.tasks.issue_matrix import detect_issue_references
 
         refs = detect_issue_references(spec_path)
@@ -185,7 +202,19 @@ def _issue_matrix_approval_blocker(feature_dir: Path) -> str | None:
         if match:
             matrix_issues.add(match.group(1))
     missing_issues = sorted(referenced_issues - matrix_issues)
-    if result.passed and not missing_issues:
+
+    # `in-mission` is acceptable at per-WP approval but not at mission done:
+    # by the time WPs merge to done, every issue must have a terminal verdict.
+    unresolved_in_mission: list[str] = []
+    if target_lane == Lane.DONE:
+        unresolved_in_mission = sorted(
+            row.issue
+            for row in result.rows
+            if row.verdict is IssueMatrixVerdict.IN_MISSION
+            and row.issue in referenced_issues
+        )
+
+    if result.passed and not missing_issues and not unresolved_in_mission:
         return None
 
     unknown_issues: list[str] = []
@@ -203,6 +232,11 @@ def _issue_matrix_approval_blocker(feature_dir: Path) -> str | None:
         lines.append(f"Missing rows: {', '.join(missing_issues)}")
     if unknown_issues:
         lines.append(f"Unknown: {', '.join(sorted(set(unknown_issues)))}")
+    if unresolved_in_mission:
+        lines.append(
+            "Still 'in-mission' (resolve to fixed / verified-already-fixed / "
+            f"deferred-with-followup before done): {', '.join(unresolved_in_mission)}"
+        )
     for message in other_messages:
         lines.append(f"- {message}")
     return "\n".join(lines)
@@ -484,8 +518,8 @@ def _collect_status_artifacts(feature_dir: Path) -> list[Path]:
         List of existing artifact paths (may be empty).
     """
     candidates = [
-        feature_dir / "status.events.jsonl",
-        feature_dir / "status.json",
+        feature_dir / EVENTS_FILENAME,
+        feature_dir / SNAPSHOT_FILENAME,
         feature_dir / TASKS_MD_FILENAME,
     ]
     return [p for p in candidates if p.exists()]
@@ -2032,7 +2066,9 @@ def move_task(
             pass  # review package not available yet
 
         if target_lane in (Lane.APPROVED, Lane.DONE):
-            issue_matrix_blocker = _issue_matrix_approval_blocker(feature_dir)
+            issue_matrix_blocker = _issue_matrix_approval_blocker(
+                feature_dir, target_lane=target_lane
+            )
             if issue_matrix_blocker:
                 _output_error(json_output, issue_matrix_blocker)
                 raise typer.Exit(1)
@@ -3993,8 +4029,9 @@ def status(
             return
 
         # Rich table output
-        # Group by lane
-        by_lane = {lane: [] for lane in Lane}
+        # Group by lane — exclude GENESIS (non-display lane; no WP should be in
+        # genesis at display time, but if one is it falls through to "other")
+        by_lane = {lane: [] for lane in Lane if lane is not Lane.GENESIS}
         for wp in work_packages:
             lane = wp["lane"]
             if lane in by_lane:

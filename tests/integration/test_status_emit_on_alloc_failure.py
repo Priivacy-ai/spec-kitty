@@ -109,6 +109,31 @@ def test_implement_blocks_without_claiming_when_alloc_fails(
     events_log = feature_dir / "status.events.jsonl"
     assert not events_log.exists()
 
+    # Seed WP01 out of the non-display 'genesis' state into 'planned' (as
+    # finalize-tasks does) so the alloc-failure path records the canonical
+    # planned -> blocked transition rather than an illegal genesis -> blocked.
+    events_log.write_text(
+        json.dumps(
+            {
+                "actor": "seed",
+                "at": "2026-04-25T00:00:00+00:00",
+                "event_id": "01HXYZ0123456789ABCDEFGS01",
+                "evidence": None,
+                "execution_mode": "worktree",
+                "force": False,
+                "from_lane": "genesis",
+                "mission_slug": feature_slug,
+                "reason": "seed",
+                "review_ref": None,
+                "to_lane": "planned",
+                "wp_id": "WP01",
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
     with (
         patch(
             "specify_cli.cli.commands.implement.find_repo_root",
@@ -151,12 +176,16 @@ def test_implement_blocks_without_claiming_when_alloc_fails(
         for line in events_log.read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
-    transitions = [(e["from_lane"], e["to_lane"]) for e in events]
+    # Exclude the genesis->planned seed; assert only on the implement-emitted
+    # transitions.
+    transitions = [
+        (e["from_lane"], e["to_lane"]) for e in events if e["from_lane"] != "genesis"
+    ]
 
     # Allocation failure should not leave an implementation claim behind.
     assert transitions == [("planned", "blocked")]
 
-    blocked_event = events[0]
+    blocked_event = next(e for e in events if e["from_lane"] != "genesis")
     assert blocked_event["reason"] == "worktree_alloc_failed"
     # Evidence may live under policy_metadata; either a plain "evidence"
     # string or a structured map containing one is acceptable.

@@ -415,6 +415,7 @@ class TestShippedProfilesContextSources:
                     "code-review-incremental",
                     "language-driven-design",
                     "reverse-speccing",
+                    "test-scaffolding-as-design-smell",
                 ],
             ),
         ],

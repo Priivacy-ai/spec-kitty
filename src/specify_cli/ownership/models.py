@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from specify_cli.status.wp_metadata import WPMetadata
@@ -54,14 +54,6 @@ class OwnershipManifest:
         """Return True if this WP has codebase-wide scope."""
         return self.scope == SCOPE_CODEBASE_WIDE
 
-    @overload
-    @classmethod
-    def from_frontmatter(cls, data: WPMetadata) -> OwnershipManifest: ...
-
-    @overload
-    @classmethod
-    def from_frontmatter(cls, data: dict[str, Any]) -> OwnershipManifest: ...
-
     @classmethod
     def from_frontmatter(cls, data: dict[str, Any] | WPMetadata) -> OwnershipManifest:
         """Construct an OwnershipManifest from parsed frontmatter data.
@@ -81,19 +73,22 @@ class OwnershipManifest:
         from specify_cli.status.wp_metadata import WPMetadata
 
         if isinstance(data, WPMetadata):
-            raw_mode = data.execution_mode
-            if raw_mode is None:
+            # Normalize to a dict and fall through to the single extraction path.
+            # Two contracts must be preserved through the normalization:
+            #   1. KeyError (not the ValueError that ``ExecutionMode(None)`` would
+            #      raise via the dict path) when execution_mode is None — guarded
+            #      explicitly here before normalizing.
+            #   2. ``authoritative_surface`` defaults to "" (not None), so coerce
+            #      with ``or ""`` rather than letting ``dict.get(k, "")`` return a
+            #      present-but-None value.
+            if data.execution_mode is None:
                 raise KeyError("execution_mode")
-            execution_mode = ExecutionMode(raw_mode)
-            owned_files = tuple(data.owned_files) if data.owned_files else ()
-            authoritative_surface = data.authoritative_surface or ""
-            scope = None  # WPMetadata doesn't carry scope field
-            return cls(
-                execution_mode=execution_mode,
-                owned_files=owned_files,
-                authoritative_surface=authoritative_surface,
-                scope=scope,
-            )
+            data = {
+                "execution_mode": data.execution_mode,
+                "owned_files": data.owned_files,
+                "authoritative_surface": data.authoritative_surface or "",
+                "scope": data.scope,
+            }
 
         raw_mode = data["execution_mode"]
         execution_mode = ExecutionMode(raw_mode)

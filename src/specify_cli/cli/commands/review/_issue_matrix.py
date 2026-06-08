@@ -52,12 +52,20 @@ class IssueMatrixVerdict(StrEnum):
 
     Derived from audit of 6 existing matrices (2026-05-12); no drift observed.
 
+    ``in-mission`` (2026-06-08) is a non-terminal verdict: the issue is being
+    fixed *by this mission* in a work package that has not yet completed. It is
+    accepted at per-WP ``approved`` (so a long dependency chain is not blocked
+    on issues its own later WPs will close), but it must NOT survive to mission
+    ``done``/merge — the approval blocker rejects any ``in-mission`` row on a
+    ``done`` transition, forcing resolution to a terminal verdict first.
+
     See: src/specify_cli/cli/commands/review/ERROR_CODES.md
     """
 
     FIXED = "fixed"
     VERIFIED_ALREADY_FIXED = "verified-already-fixed"
     DEFERRED_WITH_FOLLOWUP = "deferred-with-followup"
+    IN_MISSION = "in-mission"
 
 
 # ---------------------------------------------------------------------------

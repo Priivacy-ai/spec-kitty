@@ -211,8 +211,12 @@ class TestInReviewMetrics:
         assert self._compute_in_progress_metric(wps) == 4
 
     def test_all_nine_lanes_accounted_for(self):
-        """Every Lane enum value has a slot in the by_lane grouping dict."""
-        expected_lanes = {lane.value for lane in Lane}
+        """Every display Lane enum value has a slot in the by_lane grouping dict.
+
+        'genesis' is a non-display lane (pre-finalize state); it is never a
+        board column, so it is excluded from the grouping dict by design.
+        """
+        expected_lanes = {lane.value for lane in Lane if lane is not Lane.GENESIS}
         grouping_lanes = {
             "planned",
             "claimed",

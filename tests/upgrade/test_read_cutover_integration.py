@@ -56,6 +56,33 @@ def _setup_feature(
         json.dumps(meta), encoding="utf-8"
     )
 
+    # Seed each WP out of the non-display 'genesis' state into 'planned' (as
+    # finalize-tasks does), written directly to the event log so the lane
+    # lifecycle starts at planned.
+    seed_lines = [
+        json.dumps(
+            {
+                "actor": "seed",
+                "at": "2026-05-31T00:00:00+00:00",
+                "event_id": f"01HXYZ0123456789ABCDEFGS{wp_id[-2:]}",
+                "evidence": None,
+                "execution_mode": "worktree",
+                "force": False,
+                "from_lane": "genesis",
+                "mission_slug": mission_slug,
+                "reason": "seed",
+                "review_ref": None,
+                "to_lane": "planned",
+                "wp_id": wp_id,
+            },
+            sort_keys=True,
+        )
+        for wp_id in ("WP01", "WP02")
+    ]
+    (feature_dir / "status.events.jsonl").write_text(
+        "\n".join(seed_lines) + "\n", encoding="utf-8"
+    )
+
     return feature_dir
 
 def _read_snapshot_dict(feature_dir: Path) -> dict:

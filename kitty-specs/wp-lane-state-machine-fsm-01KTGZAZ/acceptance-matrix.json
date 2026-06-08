@@ -1,0 +1,229 @@
+{
+  "mission_slug": "wp-lane-state-machine-fsm-01KTGZAZ",
+  "mission_number": null,
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Edges are owned by WPState.allowed_targets(), with no hand-maintained production transition table.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_wp_state.py::TestTransitionMatrixEquivalence and ::TestFsmIsSoleEdgeAuthority; pytest tests/status tests/specify_cli/status tests/unit/status tests/specify_cli/lanes/test_recovery.py -> 2811 passed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "WP01 approved; final patch removed the vestigial guard-only WPState.transition()."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "The runtime FSM API is current_lane, may_transition_to(target), and transition_to(target, ctx).",
+      "proof_type": "automated_test",
+      "evidence": "validate_transition now delegates through wp_state_for(from).transition_to(to, ctx); tests/specify_cli/status/test_wp_state.py pins transition_to, current_lane, and may_transition_to usage.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "No remaining WPState.transition() callers in src/specify_cli/status or FSM tests."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Historical nine-lane transition and guard behavior is preserved.",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_transitions.py behavior-preservation parity plus tests/specify_cli/status/test_wp_state.py -> 1898 passed; expanded status suite -> 2811 passed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "InvalidTransitionError.reason preserves the parity diagnostic returned by validate_transition."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Lane.GENESIS is a valid non-display lane and is excluded from canonical board lanes.",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_emit.py::TestDeriveFromLane::test_no_events_returns_genesis; tests/status/test_bootstrap.py; tests/specify_cli/status/test_wp_state.py state/property coverage.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "WP01/WP03 approvals record genesis as first-class but non-display."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Unseeded WPs derive from genesis and bootstrap emits explicit genesis -> planned seeds.",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_emit.py::TestDeriveFromLane and tests/status/test_bootstrap.py passed in the expanded status suite.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "Mission status events contain genesis -> planned seed rows for WP01-WP06."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Finalize does not clobber the coordination event log.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved with e2e finalize-clobber regression; reviewer note: non-vacuity proven and realism confirmed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "Status CLI reports WP05 done."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Genesis is excluded from materialized snapshot summaries.",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved; expanded status suite includes reducer/view coverage and genesis non-display tests.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "Reviewer recorded invariant complete across FR-007/FR-013/FR-014."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Read-side defaults report unseeded WPs as genesis.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved; tests/status/test_emit.py derives genesis for no events and unknown WPs; aggregate tests now reject empty/unknown WP transitions from genesis.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "Stale planned-default tests were corrected in the final patch."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Implementing an unfinalized WP fails before workspace allocation with an actionable finalize-tasks message.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approval states FR-009 fail-fast verified; status regression suite covers unseeded genesis rejection.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "No workspace allocation bypass is accepted for genesis WPs."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Genesis seed fan-out to SaaS is contract-valid when the events package supports genesis.",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_emit.py::TestGenesisSaasFanOutCompatibilityGate passed; WP04 approved with explicit capability gate and events PR noted.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "Gate preserves compatibility before and after the spec_kitty_events genesis enum release."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "SaaS WPStatusChanged lane validation is single-sourced.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 approval records T021 single-sourced lane validator; status fan-out compatibility tests passed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "No hardcoded parallel nine-lane SaaS validator remains for the changed path."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "WPState owns guards and force override; validate_transition is a thin transition_to delegator.",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_transitions.py terminal force and parity coverage; tests/specify_cli/status/test_wp_state.py guard equivalence; final patch routes validate_transition through transition_to.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "No edge, guard, or force logic remains in transitions.py."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Discovery and task status surfaces hide genesis without dropping genesis WPs.",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved; expanded status suite includes task/status and discovery-adjacent status coverage.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "Genesis remains non-display while still fail-closed in write paths."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Frontmatter validation does not offer genesis as an authorable lane.",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approval covers FR-014; terminology and status architectural gates passed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "Genesis is runtime/bootstrap state only, not authorable task metadata."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Canonical event validation accepts genesis only as from_lane, never as to_lane.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approval records genesis from_lane-only validation; tests/architectural/test_status_module_boundary.py passed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "validate.py routes edge legality through the FSM."
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Duplicated seed helpers are consolidated to no more than two shared fixtures.",
+      "proof_type": "code_review",
+      "evidence": "WP06 approval records 12 -> 1 seed helper as a genuine reduction; reviewer accepted Randy+Paula leanness lenses.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "WP06 status is done."
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "FSM API is load-bearing through real callers.",
+      "proof_type": "automated_test",
+      "evidence": "WP06 approval records FSM API locked in with real callers; final patch makes validate_transition use transition_to directly.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "current_lane, may_transition_to, and transition_to are retained and exercised."
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Stale docstrings/comments are corrected and tautological count tests are annotated.",
+      "proof_type": "code_review",
+      "evidence": "WP06 approval records bootstrap force dropped, stale comments fixed, and tautological test annotated; final patch updates transition_to documentation.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "No new terminology violations in tests/architectural/test_no_legacy_terminology.py."
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "Finalize clobber regression is covered end-to-end.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved; e2e finalize-clobber test was reviewed as realistic and non-vacuous.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "Coordination event log preservation is explicitly verified."
+    },
+    {
+      "criterion_id": "FR-020",
+      "description": "Bootstrap no longer records redundant force=true for guard-free genesis -> planned seeds.",
+      "proof_type": "code_review",
+      "evidence": "WP06 approval records bootstrap force dropped and proven; status bootstrap tests passed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "Bootstrap seed remains explicit without redundant force."
+    },
+    {
+      "criterion_id": "FR-021",
+      "description": "ALLOWED_TRANSITIONS is not a parallel production authority.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_wp_state.py::TestFsmIsSoleEdgeAuthority checks no production membership gate on ALLOWED_TRANSITIONS.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "ALLOWED_TRANSITIONS remains only a derived projection for tests/graph tooling."
+    },
+    {
+      "criterion_id": "FR-022",
+      "description": "State objects own both edge graph and act of transitioning.",
+      "proof_type": "automated_test",
+      "evidence": "validate_transition delegates through WPState.transition_to; tests/status/test_transitions.py and tests/specify_cli/status/test_wp_state.py pass across edge, guard, force, and parity cases.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-07T18:22:03Z",
+      "notes": "Final patch removed the redundant guard-only transition() method."
+    }
+  ],
+  "negative_invariants": []
+}

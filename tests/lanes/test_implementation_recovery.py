@@ -104,6 +104,32 @@ def _setup_feature(repo: Path, mission_slug: str = "010-feat") -> Path:
     for wp in ["WP01", "WP02", "WP03"]:
         (tasks_dir / f"{wp}-task.md").write_text(f"---\nwork_package_id: {wp}\n---\n# {wp}\n")
 
+    # Seed each WP out of the non-display 'genesis' state into 'planned' (as
+    # finalize-tasks does), written directly to the event log so the lane
+    # lifecycle starts at planned.
+    seed_lines = []
+    for wp in ["WP01", "WP02", "WP03"]:
+        seed_lines.append(
+            json.dumps(
+                {
+                    "actor": "seed",
+                    "at": "2026-05-31T00:00:00+00:00",
+                    "event_id": f"01HXYZ0123456789ABCDEFGS{wp[-2:]}",
+                    "evidence": None,
+                    "execution_mode": "worktree",
+                    "force": False,
+                    "from_lane": "genesis",
+                    "mission_slug": mission_slug,
+                    "reason": "seed",
+                    "review_ref": None,
+                    "to_lane": "planned",
+                    "wp_id": wp,
+                },
+                sort_keys=True,
+            )
+        )
+    (feature_dir / "status.events.jsonl").write_text("\n".join(seed_lines) + "\n", encoding="utf-8")
+
     # Create .kittify/workspaces directory
     (repo / ".kittify" / "workspaces").mkdir(parents=True, exist_ok=True)
 
@@ -367,7 +393,9 @@ class TestStatusReconciliation:
         from specify_cli.status.store import read_events
 
         events = read_events(feature_dir)
-        wp_events = [e for e in events if e.wp_id == "WP01"]
+        # Filter to recovery-emitted events (the genesis->planned seed uses a
+        # different actor and is not part of the reconciliation under test).
+        wp_events = [e for e in events if e.wp_id == "WP01" and e.actor == RECOVERY_ACTOR]
         assert len(wp_events) == 2
         assert wp_events[0].actor == RECOVERY_ACTOR
         assert wp_events[1].actor == RECOVERY_ACTOR
@@ -446,7 +474,8 @@ class TestStatusReconciliation:
 
         events = read_events(feature_dir)
         for event in events:
-            if event.wp_id == "WP01":
+            # Skip the genesis->planned seed; it is not a recovery transition.
+            if event.wp_id == "WP01" and str(event.from_lane) != "genesis":
                 assert event.actor == RECOVERY_ACTOR
 
     def test_recovery_from_claimed_emits_only_in_progress(self, tmp_path: Path) -> None:

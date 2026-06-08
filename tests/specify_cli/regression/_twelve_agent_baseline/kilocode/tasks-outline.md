@@ -5,7 +5,10 @@ description: Create a work package manifest
 
 ## Startup Upgrade Check
 
-Before continuing, run:
+Run this at most once per active agent session before the first Spec Kitty command workflow.
+If you already ran `spec-kitty upgrade --agent-check --json` in this session, reuse that result and skip this block.
+Do not run or announce an upgrade check again for later Spec Kitty commands in the same session.
+Otherwise, before continuing, run:
 
 ```bash
 spec-kitty upgrade --agent-check --json
@@ -131,8 +134,8 @@ Group subtasks into work packages (IDs `WP01`, `WP02`, ...):
 
 ### 4a. Cite plan concern refs for each WP
 
-For each work package, record which implementation concern(s) from `plan.md` it
-addresses by populating `plan_concern_refs` in `wps.yaml`.
+For each work package, record which implementation concern<!-- glossary:glossary:implementation-concern -->(s) from `plan.md` it
+addresses by populating `plan_concern_refs<!-- glossary:glossary:plan_concern_refs -->` in `wps.yaml`.
 
 - If the WP covers exactly one concern: `plan_concern_refs: [IC-01]`
 - If the WP spans multiple concerns: `plan_concern_refs: [IC-01, IC-03]`

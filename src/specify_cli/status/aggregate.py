@@ -28,12 +28,12 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 
 if TYPE_CHECKING:
-    pass
+    from specify_cli.status import TransitionRequest
 
 _logger = logging.getLogger(__name__)
 
@@ -421,40 +421,24 @@ class MissionStatus:
         )
         from specify_cli.status import emit as status_emit
 
-        # Derive from_lane from the same target the transactional writer will
-        # use. For declared coordination branches without a materialized
-        # worktree, this reads the branch ref rather than stale primary files.
-        from_lane_enum, current_actor = read_current_wp_state_transactional(
-            feature_dir=self.read_dir,
-            mission_slug=self.mission_slug,
-            wp_id=request.wp_id or "",
-            repo_root=self.repo_root,
-        )
-        if str(from_lane_enum) == "uninitialized":
-            from_lane_enum = Lane.PLANNED
-        to_lane_str = request.to_lane or ""
-        from_lane_str = str(from_lane_enum)
-
         from specify_cli.status.transitions import resolve_lane_alias
 
+        from_lane_str, current_actor = self._resolve_current_lane(
+            request=request,
+            read_current_wp_state_transactional=read_current_wp_state_transactional,
+            lane_unseeded=Lane.GENESIS,
+        )
+        to_lane_str = request.to_lane or ""
         resolved_to_lane = resolve_lane_alias(to_lane_str)
-        workspace_context = request.workspace_context
-        if workspace_context is None:
-            context_root = request.repo_root if request.repo_root is not None else self.read_dir
-            workspace_context = f"{request.execution_mode}:{context_root}"
-
-        subtasks_complete = request.subtasks_complete
-        implementation_evidence_present = request.implementation_evidence_present
-        if subtasks_complete is None and from_lane_str == Lane.IN_PROGRESS and resolved_to_lane == Lane.FOR_REVIEW:
-            subtasks_complete = status_emit._infer_subtasks_complete(self.read_dir, request.wp_id or "")
-        if (
-            implementation_evidence_present is None
-            and from_lane_str == Lane.IN_PROGRESS
-            and resolved_to_lane == Lane.FOR_REVIEW
-        ):
-            implementation_evidence_present = status_emit._infer_implementation_evidence(
-                self.read_dir, request.wp_id or ""
-            )
+        workspace_context = self._resolve_workspace_context(request)
+        subtasks_complete, implementation_evidence_present = self._resolve_review_gate_inputs(
+            request=request,
+            from_lane_str=from_lane_str,
+            resolved_to_lane=resolved_to_lane,
+            status_emit=status_emit,
+            lane_in_progress=Lane.IN_PROGRESS,
+            lane_for_review=Lane.FOR_REVIEW,
+        )
 
         if status_emit._legacy_alias_collapses_to_current_lane(
             to_lane_str,
@@ -499,6 +483,60 @@ class MissionStatus:
             mission_slug=self.mission_slug,
         )
         return emit_status_transition_transactional(enriched)
+
+    def _resolve_current_lane(
+        self,
+        *,
+        request: TransitionRequest,
+        read_current_wp_state_transactional: Any,
+        lane_unseeded: Any,
+    ) -> tuple[str, str | None]:
+        """Resolve the lane/current actor from the transactional authority.
+
+        An unseeded WP resolves to ``genesis`` (``lane_unseeded``), NOT ``planned``:
+        a created-but-unfinalized WP cannot be claimed, and the FSM correctly
+        rejects ``genesis -> claimed``. The transactional reader already returns
+        ``Lane.GENESIS`` for unseeded WPs; the ``"uninitialized"`` string sentinel
+        is handled here for any reader that still emits it (#1775 review M4/Tier 3).
+        """
+        from_lane_enum, current_actor = read_current_wp_state_transactional(
+            feature_dir=self.read_dir,
+            mission_slug=self.mission_slug,
+            wp_id=request.wp_id or "",
+            repo_root=self.repo_root,
+        )
+        if str(from_lane_enum) == "uninitialized":
+            from_lane_enum = lane_unseeded
+        return str(from_lane_enum), current_actor
+
+    def _resolve_workspace_context(self, request: TransitionRequest) -> str:
+        """Return the workspace context string used by transition guards."""
+        if request.workspace_context is not None:
+            return request.workspace_context
+        context_root = request.repo_root if request.repo_root is not None else self.read_dir
+        return f"{request.execution_mode}:{context_root}"
+
+    def _resolve_review_gate_inputs(
+        self,
+        *,
+        request: TransitionRequest,
+        from_lane_str: str,
+        resolved_to_lane: str,
+        status_emit: Any,
+        lane_in_progress: Any,
+        lane_for_review: Any,
+    ) -> tuple[bool | None, bool | None]:
+        """Infer review gate inputs only for in-progress -> for-review transitions."""
+        subtasks_complete = request.subtasks_complete
+        implementation_evidence_present = request.implementation_evidence_present
+        entering_review = from_lane_str == lane_in_progress and resolved_to_lane == lane_for_review
+        if entering_review and subtasks_complete is None:
+            subtasks_complete = status_emit._infer_subtasks_complete(self.read_dir, request.wp_id or "")
+        if entering_review and implementation_evidence_present is None:
+            implementation_evidence_present = status_emit._infer_implementation_evidence(
+                self.read_dir, request.wp_id or ""
+            )
+        return subtasks_complete, implementation_evidence_present
 
     def save(self, *, operation: str) -> CommitReceipt:  # noqa: F821
         """Persist staged transitions via ``BookkeepingTransaction``.

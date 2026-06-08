@@ -5,7 +5,10 @@ user-invocable: true
 ---
 ## Startup Upgrade Check
 
-Before continuing, run:
+Run this at most once per active agent session before the first Spec Kitty command workflow.
+If you already ran `spec-kitty upgrade --agent-check --json` in this session, reuse that result and skip this block.
+Do not run or announce an upgrade check again for later Spec Kitty commands in the same session.
+Otherwise, before continuing, run:
 
 ```bash
 spec-kitty upgrade --agent-check --json
@@ -233,7 +236,7 @@ Prompts do not rediscover feature context. Commands do.
    **Ownership rules**:
    - No two WPs may have overlapping `owned_files`.
    - Use specific paths, not broad globs like `src/**`.
-   - Agents working on a WP must not modify files outside their `owned_files` list.
+   - Agents working on a WP should prefer to stay within their `owned_files` list; a small, well-justified out-of-map edit is acceptable when recorded with a one-line rationale (the no-overlap rule above is the real guard against parallel-WP collisions).
    - Run `spec-kitty agent mission finalize-tasks --validate-only --mission <mission-slug> --json` to check ownership before committing.
 
 8. **Finalize tasks with dependency parsing and commit**:

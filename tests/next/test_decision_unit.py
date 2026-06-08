@@ -92,7 +92,10 @@ def feature_with_tasks(feature_dir: Path) -> Path:
         "---\nwork_package_id: WP04\nlane: for_review\n---\nContent WP04\n",
         encoding="utf-8",
     )
-    # Seed event log for WPs with non-planned lanes
+    # Seed the canonical event log for every WP. WP01 must be seeded to planned
+    # too: an unseeded WP is genesis (not claimable) under the FSM, so relying on
+    # a default would make WP01 invisible to claim selection (#1775).
+    _seed_wp_lane(feature_dir, "WP01", "planned")
     _seed_wp_lane(feature_dir, "WP02", "in_progress")
     _seed_wp_lane(feature_dir, "WP03", "done")
     _seed_wp_lane(feature_dir, "WP04", "for_review")
