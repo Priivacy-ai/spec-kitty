@@ -16,7 +16,7 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 
-from specify_cli.invocation.errors import InvocationError, InvocationWriteError, RouterAmbiguityError
+from specify_cli.invocation.errors import InvocationError, InvocationWriteError, ProfileNotFoundError, RouterAmbiguityError
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
 from specify_cli.invocation.modes import derive_mode
 from specify_cli.invocation.registry import ProfileRegistry
@@ -119,6 +119,18 @@ def do(
     mode = derive_mode("do")
     try:
         payload = executor.invoke(request, profile_hint=profile, actor=_detect_actor(), mode_of_work=mode)
+    except ProfileNotFoundError as e:
+        typer.echo(
+            json.dumps({
+                "error": "routing_failed",
+                "error_code": "PROFILE_NOT_FOUND",
+                "message": str(e),
+                "candidates": [],
+                "suggestion": "Run 'spec-kitty agent profile list' to see available profiles.",
+            }),
+            err=True,
+        )
+        raise typer.Exit(1) from e
     except RouterAmbiguityError as e:
         error_obj = {
             "error": "routing_failed",

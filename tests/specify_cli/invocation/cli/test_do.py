@@ -478,6 +478,114 @@ class TestDoProfileHint:
 
 
 # ---------------------------------------------------------------------------
+# Invalid --profile: structured JSON error, no mutation
+# ---------------------------------------------------------------------------
+
+
+class TestDoInvalidProfile:
+    def test_invalid_profile_exits_1(self, tmp_path: Path) -> None:
+        """--profile with unknown ID exits 1."""
+        project = _setup_project(tmp_path)
+        mock_registry = _IMPLEMENTER_REGISTRY()
+        with (
+            patch("specify_cli.cli.commands.do_cmd.find_repo_root", return_value=project),
+            patch("specify_cli.cli.commands.do_cmd.ProfileRegistry", return_value=mock_registry),
+            patch("specify_cli.invocation.executor.ProfileRegistry", return_value=mock_registry),
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["do", "--profile", "no-such-profile", "fix the bug", "--json"],
+                catch_exceptions=False,
+            )
+        assert result.exit_code == 1
+
+    def test_invalid_profile_emits_structured_json(self, tmp_path: Path) -> None:
+        """--profile with unknown ID emits PROFILE_NOT_FOUND JSON on stderr (merged by CliRunner)."""
+        project = _setup_project(tmp_path)
+        mock_registry = _IMPLEMENTER_REGISTRY()
+        with (
+            patch("specify_cli.cli.commands.do_cmd.find_repo_root", return_value=project),
+            patch("specify_cli.cli.commands.do_cmd.ProfileRegistry", return_value=mock_registry),
+            patch("specify_cli.invocation.executor.ProfileRegistry", return_value=mock_registry),
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["do", "--profile", "no-such-profile", "fix the bug", "--json"],
+                catch_exceptions=False,
+            )
+        out = result.output.strip()
+        assert out, "Expected JSON error output on invalid profile"
+        data = json.loads(out)
+        assert data["error"] == "routing_failed"
+        assert data["error_code"] == "PROFILE_NOT_FOUND"
+
+    def test_invalid_profile_writes_no_op_record(self, tmp_path: Path) -> None:
+        """--profile with unknown ID must not write any Op record (no mutation on failure)."""
+        project = _setup_project(tmp_path)
+        mock_registry = _IMPLEMENTER_REGISTRY()
+        with (
+            patch("specify_cli.cli.commands.do_cmd.find_repo_root", return_value=project),
+            patch("specify_cli.cli.commands.do_cmd.ProfileRegistry", return_value=mock_registry),
+            patch("specify_cli.invocation.executor.ProfileRegistry", return_value=mock_registry),
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+        ):
+            runner.invoke(
+                cli_app,
+                ["do", "--profile", "no-such-profile", "fix the bug", "--json"],
+            )
+        events_dir = project / EVENTS_DIR
+        op_files = [
+            f for f in (events_dir.glob("*.jsonl") if events_dir.exists() else [])
+            if f.name != "ops-index.jsonl"
+        ]
+        assert op_files == [], f"No Op records should be written on PROFILE_NOT_FOUND, got: {op_files}"
+
+
+# ---------------------------------------------------------------------------
+# Ambiguity error surfaces --profile escape hatch
+# ---------------------------------------------------------------------------
+
+
+class TestDoAmbiguityMentionsProfileFlag:
+    def test_ambiguity_error_mentions_do_profile(self, tmp_path: Path) -> None:
+        """ROUTER_AMBIGUOUS suggestion must mention 'do --profile' so agents know the escape hatch."""
+        project = _setup_project(tmp_path)
+        ambiguous_registry = _make_mock_registry([
+            {"profile_id": "implementer-a", "role_value": "implementer", "routing_priority": 50},
+            {"profile_id": "implementer-b", "role_value": "implementer", "routing_priority": 50},
+        ])
+        with (
+            patch("specify_cli.cli.commands.do_cmd.find_repo_root", return_value=project),
+            patch("specify_cli.cli.commands.do_cmd.ProfileRegistry", return_value=ambiguous_registry),
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["do", "fix the bug", "--json"],
+                catch_exceptions=False,
+            )
+        assert result.exit_code == 1
+        data = json.loads(result.output.strip())
+        assert "do --profile" in data["suggestion"], (
+            f"Ambiguity suggestion must mention 'do --profile', got: {data['suggestion']!r}"
+        )
+
+
+# ---------------------------------------------------------------------------
 # Help / discoverability tests
 # ---------------------------------------------------------------------------
 
