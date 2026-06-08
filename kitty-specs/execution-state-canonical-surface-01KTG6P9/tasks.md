@@ -272,9 +272,9 @@ description: "Work package task list — Execution-State Canonical Domain Surfac
 
 ### Included Subtasks
 
-- [ ] T039 Carry `mission_id`/`mission_slug` through `runtime/next/runtime_bridge.py:1723` and `:1860` reconstructions (WP11)
-- [ ] T040 Add a regression test on the auto-complete reconstruction path (WP11)
-- [ ] T041 Confirm #1663 is closeable (all snapshot sites preserve identity) (WP11)
+- [x] T039 Carry `mission_id`/`mission_slug` through `runtime/next/runtime_bridge.py:1723` and `:1860` reconstructions (WP11)
+- [x] T040 Add a regression test on the auto-complete reconstruction path (WP11)
+- [x] T041 Confirm #1663 is closeable (all snapshot sites preserve identity) (WP11)
 
 ### Dependencies
 
