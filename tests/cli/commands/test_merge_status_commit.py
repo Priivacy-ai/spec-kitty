@@ -150,6 +150,34 @@ def _baseline_run_command_side_effect(feature_dir: Path, baseline_sha: str):
     return _side_effect
 
 
+class TestAssertMergedWpsReachedDoneAbsentLog:
+    """Absent canonical log must fail cleanly, not crash post-integration."""
+
+    def test_clean_exit_when_canonical_log_absent(self, tmp_path: Path) -> None:
+        import typer
+
+        from specify_cli.cli.commands.merge import _assert_merged_wps_reached_done
+        from specify_cli.status import CanonicalStatusNotFoundError
+
+        mission_slug = "068-no-canonical-log"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        feature_dir.mkdir(parents=True)
+
+        with (
+            patch(
+                "specify_cli.cli.commands.merge.resolve_status_surface",
+                return_value=feature_dir / "status.json",
+            ),
+            patch(
+                "specify_cli.status.get_wp_lane",
+                side_effect=CanonicalStatusNotFoundError("no event log"),
+            ),
+            # Deliberate typer.Exit, NOT an uncaught CanonicalStatusNotFoundError.
+            pytest.raises(typer.Exit),
+        ):
+            _assert_merged_wps_reached_done(tmp_path, mission_slug, ["WP01"])
+
+
 class TestBaselineMergeCommitMetadata:
     def test_record_baseline_merge_commit_fills_blank_field(self, tmp_path: Path) -> None:
         mission_slug = "068-baseline-meta"
@@ -213,7 +241,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             patch("specify_cli.cli.commands.merge.save_state"),
             patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path),
             patch("specify_cli.cli.commands.merge._enforce_target_branch_sync_preflight"),
-            patch("specify_cli.status.lane_reader.get_wp_lane", return_value="done"),
+            patch("specify_cli.status.get_wp_lane", return_value="done"),
             patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
             patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),
@@ -354,7 +382,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             patch("specify_cli.cli.commands.merge.save_state"),
             patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path),
             patch("specify_cli.cli.commands.merge._enforce_target_branch_sync_preflight"),
-            patch("specify_cli.status.lane_reader.get_wp_lane", return_value="done"),
+            patch("specify_cli.status.get_wp_lane", return_value="done"),
             patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
             patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),
@@ -409,8 +437,16 @@ class TestMergeDoneTransitions:
         _write_meta(feature_dir, mission_slug, mission_id=None)
         _write_wp_file(tasks_dir, "WP01")
 
+        from specify_cli.status import Lane
+
         with (
-            patch("specify_cli.status.lane_reader.get_wp_lane", return_value="approved"),
+            # _mark_wp_merged_done reads the current lane via
+            # read_current_wp_state_transactional (coord-aware, #1772/FSM); patch
+            # it so the WP reads as approved and the lightweight done-emit fires.
+            patch(
+                "specify_cli.coordination.status_transition.read_current_wp_state_transactional",
+                return_value=(Lane.APPROVED, "reviewer-1"),
+            ),
             patch("specify_cli.cli.commands.merge._has_transition_to", return_value=False),
             patch("specify_cli.coordination.status_transition.emit_status_transition_transactional") as mock_emit,
         ):
@@ -466,7 +502,7 @@ class TestMergeDoneTransitions:
             patch("specify_cli.cli.commands.merge.save_state"),
             patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path),
             patch("specify_cli.cli.commands.merge._enforce_target_branch_sync_preflight"),
-            patch("specify_cli.status.lane_reader.get_wp_lane", return_value="done"),
+            patch("specify_cli.status.get_wp_lane", return_value="done"),
             patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
             patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),
@@ -796,7 +832,7 @@ class TestDoneEventsCommittedToGit:
             patch("specify_cli.cli.commands.merge.save_state"),
             patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path),
             patch("specify_cli.cli.commands.merge._enforce_target_branch_sync_preflight"),
-            patch("specify_cli.status.lane_reader.get_wp_lane", return_value="done"),
+            patch("specify_cli.status.get_wp_lane", return_value="done"),
             patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
             patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),

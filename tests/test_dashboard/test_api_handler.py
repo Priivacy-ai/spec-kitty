@@ -203,6 +203,31 @@ class TestFeaturesEndpointErrorHandling:
         assert payload["worktrees_root"] is None
         assert payload["active_worktree"] is not None
 
+    def test_handle_kanban_computes_weighted_progress_for_nonlegacy(self, tmp_path):
+        """Non-legacy features compute weighted_percentage from the canonical snapshot."""
+        from specify_cli.dashboard.handlers import features as features_module
+
+        feature_dir = tmp_path / "kitty-specs" / "001-wp"
+        feature_dir.mkdir(parents=True)
+
+        handler = MagicMock()
+        handler.project_dir = str(tmp_path)
+
+        progress = SimpleNamespace(percentage=42.345)
+        with (
+            patch.object(features_module, "scan_feature_kanban", return_value={"planned": []}),
+            patch.object(features_module, "resolve_feature_dir", return_value=feature_dir),
+            patch.object(features_module, "is_legacy_format", return_value=False),
+            patch("specify_cli.status.materialize", return_value=object()),
+            patch("specify_cli.status.compute_weighted_progress", return_value=progress),
+        ):
+            features_module.FeatureHandler.handle_kanban(handler, "/api/kanban/001-wp")
+
+        handler.wfile.write.assert_called_once()
+        payload = json.loads(handler.wfile.write.call_args.args[0].decode())
+        assert payload["weighted_percentage"] == 42.3
+        assert payload["is_legacy"] is False
+
     def test_feature_subhandlers_require_project_dir(self):
         from specify_cli.dashboard.handlers import features as features_module
 

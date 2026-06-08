@@ -174,3 +174,82 @@ def _dep_name(entry: str) -> str:
         if ch in _DEP_NAME_TERMINATORS:
             return entry[:i].strip()
     return entry.strip()
+
+
+# ---------------------------------------------------------------------------
+# Wheel completeness — every first-party top-level package imported by shipped
+# code MUST be packaged in the wheel. Regression guard for the mission_runtime
+# omission (PR #1787 / FR-010): src/mission_runtime existed and was imported by
+# specify_cli, but was absent from [tool.hatch.build.targets.wheel].packages,
+# so clean installs crashed with ModuleNotFoundError.
+# ---------------------------------------------------------------------------
+
+import ast  # noqa: E402
+
+_SRC_ROOT = _REPO_ROOT / "src"
+# Shipped entry-point trees whose imports define the runtime closure.
+_SHIPPED_TREES = ("specify_cli", "runtime")
+
+
+def _wheel_packages() -> set[str]:
+    data = _load_pyproject()
+    pkgs = data["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"]
+    # Stored as "src/<name>"; reduce to the bare top-level package name.
+    return {Path(p).name for p in pkgs}
+
+
+def _first_party_top_level_dirs() -> set[str]:
+    """Top-level dirs under src/ that contain at least one .py file."""
+    names: set[str] = set()
+    for child in _SRC_ROOT.iterdir():
+        if child.is_dir() and any(child.rglob("*.py")):
+            names.add(child.name)
+    return names
+
+
+def _imported_top_level_packages() -> set[str]:
+    """Scan shipped trees for first-party top-level imports.
+
+    Returns the set of top-level package names (that exist as src/ dirs)
+    imported anywhere under the shipped entry-point trees.
+    """
+    first_party = _first_party_top_level_dirs()
+    imported: set[str] = set()
+    for tree in _SHIPPED_TREES:
+        root = _SRC_ROOT / tree
+        for py_file in root.rglob("*.py"):
+            try:
+                node = ast.parse(py_file.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError):
+                continue
+            for stmt in ast.walk(node):
+                if isinstance(stmt, ast.Import):
+                    for alias in stmt.names:
+                        head = alias.name.split(".", 1)[0]
+                        if head in first_party:
+                            imported.add(head)
+                elif isinstance(stmt, ast.ImportFrom) and stmt.level == 0 and stmt.module:
+                    head = stmt.module.split(".", 1)[0]
+                    if head in first_party:
+                        imported.add(head)
+    return imported
+
+
+def test_wheel_packages_include_every_imported_first_party_package() -> None:
+    """Every first-party top-level package imported by shipped code must ship.
+
+    Catches the class of bug where a new top-level package (e.g.
+    ``mission_runtime``) is added under ``src/`` and imported by
+    ``specify_cli``/``runtime`` but never added to the wheel ``packages``
+    list — which silently produces a wheel that ``ModuleNotFoundError``s on
+    a clean install.
+    """
+    wheel = _wheel_packages()
+    imported = _imported_top_level_packages()
+    missing = sorted(imported - wheel)
+    assert not missing, (
+        "Shipped code imports first-party top-level packages that are NOT in the "
+        "wheel [tool.hatch.build.targets.wheel].packages list, so a clean install "
+        f"will ModuleNotFoundError: {missing}.\n"
+        "Add each to the wheel packages list (as 'src/<name>')."
+    )

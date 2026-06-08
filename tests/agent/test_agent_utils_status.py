@@ -88,6 +88,10 @@ def _patch_project(monkeypatch: pytest.MonkeyPatch, project: Path) -> None:
     monkeypatch.chdir(project)
     monkeypatch.setattr("specify_cli.agent_utils.status.locate_project_root", lambda cwd: project)
     monkeypatch.setattr("specify_cli.agent_utils.status.get_main_repo_root", lambda repo_root: project)
+    # show_kanban_status resolves the mission dir via get_status_read_root(), which
+    # walks up from cwd — pin it to the test project so it cannot escape into a
+    # stray ancestor marker (e.g. a dev's /tmp/.kittify). Keeps the test hermetic.
+    monkeypatch.setattr("specify_cli.agent_utils.status.get_status_read_root", lambda: project)
 
 
 def test_show_kanban_status_reports_rejected_artifact_under_wp_slug_dir(

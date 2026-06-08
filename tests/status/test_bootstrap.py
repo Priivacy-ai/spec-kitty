@@ -263,8 +263,10 @@ class TestBootstrapSkipsInitialized:
             }
             return [StatusEvent(**event)]
 
+        # bootstrap_canonical_state imports read_events_transactional lazily at
+        # call time (cycle-breaker), so patch it at the source module it resolves.
         monkeypatch.setattr(
-            "specify_cli.status.bootstrap.read_events_transactional",
+            "specify_cli.coordination.status_transition.read_events_transactional",
             fake_transactional_read,
         )
 

@@ -530,7 +530,10 @@ class TestEmitRetrospectiveEvent:
         def fail_materialize(feature_dir: Path) -> None:
             raise RuntimeError(f"cannot materialize {feature_dir.name}")
 
-        monkeypatch.setattr("specify_cli.status.reducer.materialize", fail_materialize)
+        # emit_retrospective_event resolves materialize through the status facade
+        # (`from specify_cli.status import materialize`), so patch the facade name
+        # it actually looks up — patching the reducer submodule would not be seen.
+        monkeypatch.setattr("specify_cli.status.materialize", fail_materialize)
 
         with caplog.at_level("WARNING", logger="specify_cli.retrospective.events"):
             event_id = emit_retrospective_event(
