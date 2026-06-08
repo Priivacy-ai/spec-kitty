@@ -130,7 +130,7 @@ The claim flow should integrate approved cross-lane dependency code automaticall
 
 ## F-05 — coordination branch (and ALL lanes) forked from a STALE feat snapshot
 
-**Severity:** High (every WP is implemented against an out-of-date target base). **Phase:** discovered during lane-base verification. **Status:** OPEN — remediation pending operator decision. **Domain:** coordination-branch / rebase.
+**Severity:** High (every WP is implemented against an out-of-date target base). **Phase:** discovered during lane-base verification. **Status:** RESOLVED — lanes rebased onto feat + re-reviewed (operator chose "rebase lanes onto feat now"). **Domain:** coordination-branch / rebase.
 
 ### What
 The coordination/mission branch `kitty/mission-…-01KTG6P9` (the base all lane branches fork from) is **240 commits behind `feat/execution-state-strangler`** (the mission's declared `planning_base_branch` == `merge_target_branch`). Real `src/` divergence: **77 files, ~2,886 insertions / 769 deletions** — including the very files this mission strangles:
@@ -146,3 +146,10 @@ WP01/02/03 are approved **but built on the stale base**. WP02's `mission_runtime
 
 ### Remediation (operator decision pending)
 Fix the base now while only 3 WPs are done (cheap) rather than at final merge (expensive). Options: (A) rebase the lane branches onto current feat + re-validate WP01/02/03; (B) re-finalize from feat tip (recreate coordination + lanes) and re-apply the 3 WPs; (C) continue and reconcile at merge (NOT recommended). Re-validation must re-check WP03's single-resolver + no-dangling-import invariants against feat's newer caller set.
+
+### Resolution (2026-06-08) — Option A executed via merges (not history-rewriting rebases)
+Backups taken first: `backup/{coord,lane-a,lane-b}-stale-20260608`. Then merged `feat` into the coordination branch and both lane branches (merge keeps feat an ancestor → clean final lane→feat merge; no force-push). All conflicts were confined to `kitty-specs/` (resolved: status files → coord's live versions, `findings.md` → feat's superset); **all `src/` code merged cleanly**. Results:
+- **coord** `55e9c5dfa` — 0 src files differ from feat; status authority intact.
+- **lane-a** `ed4d7fb1a` — WP01 ratchet **9 passed** on feat base; ratchet still bites.
+- **lane-b** `ee327b429` — WP02+WP03 **22 architectural passed**; `execution_context.py` deletion held; **single resolver (1)**; **no dangling imports** from feat's newer callers; `test_uv_lock_pin_drift` now PASSES (events 6.0.0).
+- **Re-reviews** (reviewer-renata; WP01 sonnet, WP02+WP03 opus) both **PASS — approvals hold**. The 31 broader-suite failures were proven pre-existing by baseline reproduction on pure-feat (none reference the relocation surface). Minor doc smells fixed in `4b52a86d7` (see S-03). Cross-lane note: lane-b still lacks WP01's ratchet (WP01 is not on feat), so the WP04 pre-merge guard (lane-a→lane-b) still applies.
