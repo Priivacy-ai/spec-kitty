@@ -35,6 +35,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import tempfile
 from pathlib import Path
 
 __all__ = ["ClaudeCodeHookRegistrar"]
@@ -62,18 +63,17 @@ class ClaudeCodeHookRegistrar:
             raise ValueError(msg) from exc
         return path
 
-    def _sibling_path(self, path: Path, suffix: str) -> Path:
-        candidate = path.parent / f"{path.name}{suffix}"
-        candidate.relative_to(path.parent)
-        return candidate
-
-    def _invalid_backup_path(self, path: Path) -> Path:
-        backup = self._sibling_path(path, ".invalid")
-        counter = 1
-        while backup.exists():
-            backup = self._sibling_path(path, f".invalid.{counter}")
-            counter += 1
-        return backup
+    def _create_temp_path(self, path: Path, *, suffix: str = "", prefix: str | None = None) -> Path:
+        fd, temp_path = tempfile.mkstemp(
+            dir=path.parent,
+            prefix=path.name if prefix is None else prefix,
+            suffix=suffix,
+            text=True,
+        )
+        os.close(fd)
+        temp = Path(temp_path)
+        temp.relative_to(path.parent)
+        return temp
 
     def _session_start_entries(self, data: dict[str, object]) -> list[object] | None:
         hooks_section = data.get("hooks")
@@ -124,14 +124,18 @@ class ClaudeCodeHookRegistrar:
 
     def _preserve_invalid(self, path: Path, text: str) -> None:
         """Copy invalid settings content to a sibling backup before overwrite."""
-        backup = self._invalid_backup_path(path)
-        backup.write_text(text, encoding="utf-8")
+        backup = self._create_temp_path(path, prefix=f"{path.name}.invalid.")
+        try:
+            backup.write_text(text, encoding="utf-8")
+        except Exception:
+            backup.unlink(missing_ok=True)
+            raise
         _logger.warning("Preserved invalid Claude settings JSON at %s", backup)
 
     def _save(self, path: Path, data: dict[str, object]) -> None:
         """Write *data* as JSON to *path* atomically."""
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self._sibling_path(path, ".tmp")
+        tmp = self._create_temp_path(path, suffix=".tmp")
         try:
             tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
             os.replace(tmp, path)

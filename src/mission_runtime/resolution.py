@@ -162,35 +162,46 @@ def _resolve_review_wp_id(feature_dir: Path) -> str | None:
     try:
         events = read_events(feature_dir)
 
-        def _is_review_claimed(_wp_id: str) -> bool:
-            for event in reversed(events):
-                if getattr(event, "wp_id", None) == _wp_id:
-                    return bool(
-                        event.to_lane == Lane.IN_REVIEW  # new canonical shape
-                        or (
-                            event.to_lane == Lane.IN_PROGRESS  # legacy shape
-                            and event.review_ref == "action-review-claim"
-                        )
-                    )
-            return False
+        def _is_review_claimed(candidate_wp_id: str) -> bool:
+            latest_event = next(
+                (
+                    event
+                    for event in reversed(events)
+                    if getattr(event, "wp_id", None) == candidate_wp_id
+                ),
+                None,
+            )
+            if latest_event is None:
+                return False
+            return bool(
+                latest_event.to_lane == Lane.IN_REVIEW
+                or (
+                    latest_event.to_lane == Lane.IN_PROGRESS
+                    and latest_event.review_ref == "action-review-claim"
+                )
+            )
 
-        def _candidates() -> list[str]:
-            ids: list[str] = []
-            for wp_file in sorted(tasks_dir.glob("WP*.md")):
-                content = wp_file.read_text(encoding="utf-8-sig")
-                frontmatter, _, _ = split_frontmatter(content)
-                candidate_wp_id = extract_scalar(frontmatter, "work_package_id")
-                if candidate_wp_id:
-                    ids.append(str(candidate_wp_id))
-            return ids
+        candidate_wp_ids = [
+            str(candidate_wp_id)
+            for wp_file in sorted(tasks_dir.glob("WP*.md"))
+            if (
+                candidate_wp_id := extract_scalar(
+                    split_frontmatter(wp_file.read_text(encoding="utf-8-sig"))[0],
+                    "work_package_id",
+                )
+            )
+        ]
 
-        for candidate_wp_id in _candidates():
+        for candidate_wp_id in candidate_wp_ids:
             if get_wp_lane(feature_dir, candidate_wp_id) == Lane.FOR_REVIEW:
                 return candidate_wp_id
 
-        for candidate_wp_id in _candidates():
+        for candidate_wp_id in candidate_wp_ids:
             candidate_lane = get_wp_lane(feature_dir, candidate_wp_id)
-            if candidate_lane in (Lane.IN_PROGRESS, Lane.IN_REVIEW) and _is_review_claimed(candidate_wp_id):
+            if (
+                candidate_lane in (Lane.IN_PROGRESS, Lane.IN_REVIEW)
+                and _is_review_claimed(candidate_wp_id)
+            ):
                 return candidate_wp_id
     except CanonicalStatusNotFoundError as exc:
         raise ActionContextError("CANONICAL_STATUS_NOT_FOUND", str(exc)) from exc

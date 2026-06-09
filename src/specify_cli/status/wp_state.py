@@ -401,7 +401,7 @@ class InReviewState(WPState):
             }
         )
 
-    def guard_for(self, target: Lane, ctx: TransitionInputs) -> tuple[bool, str | None]:  # noqa: ARG002 -- FR-012c applies the same guard to every outbound target, so ``target`` is intentionally not branched on
+    def guard_for(self, _target: Lane, ctx: TransitionInputs) -> tuple[bool, str | None]:
         # FR-012c: ALL outbound transitions from in_review require ReviewResult.
         return _check_review_result(ctx)
 

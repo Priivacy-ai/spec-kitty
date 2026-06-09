@@ -146,6 +146,49 @@ _VALID_VERDICTS: frozenset[str] = frozenset(
 )
 
 
+def _issue_matrix_evaluation(
+    feature_dir: Path,
+) -> tuple[object, set[str], list[str], list[str]]:
+    from specify_cli.cli.commands.review._issue_matrix import (
+        IssueMatrixVerdict,
+        validate_issue_matrix,
+    )
+    from specify_cli.tasks.issue_matrix import detect_issue_references
+
+    spec_path = feature_dir / "spec.md"
+    refs = detect_issue_references(spec_path)
+    matrix_path = feature_dir / "issue-matrix.md"
+    result = validate_issue_matrix(matrix_path)
+    referenced_issues = {f"#{ref.number}" for ref in refs}
+    matrix_issues = {row.issue for row in result.rows}
+    for diagnostic in result.diagnostics:
+        match = re.search(r"Row for issue '([^']+)'", diagnostic.get("message", ""))
+        if match:
+            matrix_issues.add(match.group(1))
+    unresolved_in_mission = sorted(
+        row.issue
+        for row in result.rows
+        if row.verdict is IssueMatrixVerdict.IN_MISSION
+        and row.issue in referenced_issues
+    )
+    return result, referenced_issues, sorted(referenced_issues - matrix_issues), unresolved_in_mission
+
+
+def _issue_matrix_diagnostic_lines(result: object) -> tuple[list[str], list[str]]:
+    from specify_cli.cli.commands.review._diagnostics import MissionReviewDiagnostic
+
+    unknown_issues: list[str] = []
+    other_messages: list[str] = []
+    for diagnostic in result.diagnostics:
+        message = diagnostic.get("message", "")
+        if diagnostic.get("diagnostic_code") == str(MissionReviewDiagnostic.ISSUE_MATRIX_VERDICT_UNKNOWN):
+            match = re.search(r"issue '([^']+)'", message)
+            unknown_issues.append(match.group(1) if match else message)
+        else:
+            other_messages.append(message)
+    return unknown_issues, other_messages
+
+
 def _issue_matrix_approval_blocker(
     feature_dir: Path,
     *,
@@ -166,11 +209,6 @@ def _issue_matrix_approval_blocker(
         return None
 
     try:
-        from specify_cli.cli.commands.review._diagnostics import MissionReviewDiagnostic
-        from specify_cli.cli.commands.review._issue_matrix import (
-            IssueMatrixVerdict,
-            validate_issue_matrix,
-        )
         from specify_cli.tasks.issue_matrix import detect_issue_references
 
         refs = detect_issue_references(spec_path)
@@ -194,38 +232,14 @@ def _issue_matrix_approval_blocker(
             "Fill verdicts before approving."
         )
 
-    result = validate_issue_matrix(matrix_path)
-    referenced_issues = {f"#{ref.number}" for ref in refs}
-    matrix_issues = {row.issue for row in result.rows}
-    for diagnostic in result.diagnostics:
-        match = re.search(r"Row for issue '([^']+)'", diagnostic.get("message", ""))
-        if match:
-            matrix_issues.add(match.group(1))
-    missing_issues = sorted(referenced_issues - matrix_issues)
-
-    # `in-mission` is acceptable at per-WP approval but not at mission done:
-    # by the time WPs merge to done, every issue must have a terminal verdict.
-    unresolved_in_mission: list[str] = []
-    if target_lane == Lane.DONE:
-        unresolved_in_mission = sorted(
-            row.issue
-            for row in result.rows
-            if row.verdict is IssueMatrixVerdict.IN_MISSION
-            and row.issue in referenced_issues
-        )
+    result, _, missing_issues, unresolved_in_mission = _issue_matrix_evaluation(feature_dir)
+    if target_lane != Lane.DONE:
+        unresolved_in_mission = []
 
     if result.passed and not missing_issues and not unresolved_in_mission:
         return None
 
-    unknown_issues: list[str] = []
-    other_messages: list[str] = []
-    for diagnostic in result.diagnostics:
-        message = diagnostic.get("message", "")
-        if diagnostic.get("diagnostic_code") == str(MissionReviewDiagnostic.ISSUE_MATRIX_VERDICT_UNKNOWN):
-            match = re.search(r"issue '([^']+)'", message)
-            unknown_issues.append(match.group(1) if match else message)
-        else:
-            other_messages.append(message)
+    unknown_issues, other_messages = _issue_matrix_diagnostic_lines(result)
 
     lines = ["ERROR: issue-matrix.md has unresolved entries. Fill in verdicts before approving."]
     if missing_issues:

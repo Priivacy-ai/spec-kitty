@@ -35,6 +35,10 @@ def _write_settings(project_root: Path, data: dict[str, Any]) -> None:
     _settings_path(project_root).write_text(json.dumps(data), encoding="utf-8")
 
 
+def _invalid_backups(project_root: Path) -> list[Path]:
+    return sorted(_settings_path(project_root).parent.glob("settings.json.invalid.*"))
+
+
 class TestRegister:
     def test_creates_settings_json_if_absent(self, claude_project: Path) -> None:
         reg = ClaudeCodeHookRegistrar()
@@ -95,7 +99,9 @@ class TestRegister:
         # File should now be valid JSON
         data = _read_settings(claude_project)
         assert "hooks" in data
-        backup = _settings_path(claude_project).with_name("settings.json.invalid")
+        backups = _invalid_backups(claude_project)
+        assert len(backups) == 1
+        backup = backups[0]
         assert backup.read_text(encoding="utf-8") == "NOT JSON"
 
     def test_handles_non_object_json_without_losing_original(
@@ -107,7 +113,9 @@ class TestRegister:
         reg.register(claude_project, _CMD)
         data = _read_settings(claude_project)
         assert "hooks" in data
-        backup = _settings_path(claude_project).with_name("settings.json.invalid")
+        backups = _invalid_backups(claude_project)
+        assert len(backups) == 1
+        backup = backups[0]
         assert backup.read_text(encoding="utf-8") == original
 
     def test_creates_valid_structure_from_empty(self, claude_project: Path) -> None:
@@ -235,5 +243,4 @@ class TestAtomicWrite:
             reg.register(claude_project, _CMD)
 
         # No .tmp file should be left behind
-        tmp_file = settings.with_suffix(".tmp")
-        assert not tmp_file.exists()
+        assert not list(settings.parent.glob("settings.json*.tmp"))
