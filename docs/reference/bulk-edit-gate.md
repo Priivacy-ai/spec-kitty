@@ -1,6 +1,6 @@
 ---
 title: "Bulk-edit gate reference"
-description: "Reference for Bulk-edit gate reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+description: "Reference schema for Spec Kitty bulk-edit gates. Learn how to configure occurrence_map.yaml for renaming operations, actions, and validation."
 ---
 
 # Bulk-edit gate reference

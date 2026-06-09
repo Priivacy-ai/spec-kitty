@@ -1,6 +1,6 @@
 ---
 title: "Terminology Reference"
-description: "Reference for Terminology Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+description: "Terminology reference for Spec Kitty. Clear vocabulary definitions for missions, work packages, lanes, charters, and status event logs."
 ---
 
 # Terminology Reference

@@ -1,6 +1,6 @@
 ---
 title: "spec-kitty upgrade lifecycle"
-description: "Reference for spec-kitty upgrade lifecycle in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+description: "Reference for the spec-kitty upgrade command lifecycle. Understand the project schema check, CLI migrations, and agent command synchronization."
 type: reference
 audience: end-users
 ---

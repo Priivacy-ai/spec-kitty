@@ -1,6 +1,6 @@
 ---
 title: "Event Envelope Reference"
-description: "Reference for Event Envelope Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+description: "Reference for Spec Kitty event envelopes. Understand the 3.0.0 contract schema, canonical terms, and validation parameters for outbound payloads."
 ---
 
 # Event Envelope Reference

@@ -1,6 +1,6 @@
 ---
 title: "Agent Plan Artifacts Reference"
-description: "Reference for Agent Plan Artifacts Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+description: "Reference for agent plan artifacts generated during missions. Learn the role of spec.md, plan.md, tasks.md, and checklists/requirements.md."
 ---
 
 # Agent Plan Artifacts Reference

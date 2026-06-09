@@ -1,6 +1,6 @@
 ---
 title: "File Structure Reference"
-description: "Reference for File Structure Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+description: "Reference for Spec Kitty file and directory structure. Learn the roles of .kittify/, kitty-specs/, .worktrees/, and agent directories."
 ---
 
 # File Structure Reference
