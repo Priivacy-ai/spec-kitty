@@ -502,9 +502,9 @@ def _assert_merged_wps_reached_done(
 ) -> None:
     """Fail the merge if merged WPs did not reach ``done`` in the event log."""
     from specify_cli.status import CanonicalStatusNotFoundError
-    from specify_cli.status import lane_reader
     from specify_cli.status import Lane
     from specify_cli.status import StoreError
+    from specify_cli.status import get_wp_lane
     from specify_cli.status import resolve_lane_alias
 
     # Resolve the canonical status surface so reads are on the same side as
@@ -515,7 +515,7 @@ def _assert_merged_wps_reached_done(
     try:
         incomplete: list[str] = []
         for wp_id in wp_ids:
-            raw = lane_reader.get_wp_lane(feature_dir, wp_id)
+            raw = get_wp_lane(feature_dir, wp_id)
             try:
                 lane = Lane(resolve_lane_alias(raw))
             except ValueError:
