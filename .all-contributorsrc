@@ -540,6 +540,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "AkramKs",
+      "name": "Akram Kasimi",
+      "avatar_url": "https://avatars.githubusercontent.com/u/88448145?v=4",
+      "profile": "https://github.com/AkramKs",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "commitType": "docs"

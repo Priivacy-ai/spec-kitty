@@ -1,6 +1,6 @@
 ---
-title: "Slash Command Reference"
-description: "Reference for Slash Command Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+title: "Spec Kitty slash commands reference — CLI quick reference"
+description: "Quick reference guide for Spec Kitty slash commands. Learn how to invoke specify, plan, tasks, implement, review, accept, and merge within AI coding agents."
 ---
 
 # Slash Command Reference

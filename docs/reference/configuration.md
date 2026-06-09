@@ -1,6 +1,6 @@
 ---
 title: "Configuration Reference"
-description: "Reference for Configuration Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+description: "Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, and agent settings."
 ---
 
 # Configuration Reference

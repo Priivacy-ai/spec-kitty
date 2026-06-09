@@ -1,6 +1,6 @@
 ---
 title: "finalize-tasks internals reference"
-description: "Reference for finalize-tasks internals reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+description: "Deep dive into the finalize-tasks internal command behavior. Learn about empty owned_files handling, status events, and dependency-depth cycle detection."
 ---
 
 # `finalize-tasks` internals reference

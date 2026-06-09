@@ -1,6 +1,6 @@
 ---
 title: "spec-kitty init lifecycle"
-description: "Reference for spec-kitty init lifecycle in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+description: "Reference for the spec-kitty init command lifecycle. Understand what files are created, ignored, and how options behave in non-interactive environments."
 type: reference
 audience: end-users
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Agent Subcommand Reference"
-description: "Reference for Agent Subcommand Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+description: "Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows."
 ---
 
 # Agent Subcommand Reference

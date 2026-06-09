@@ -1,6 +1,6 @@
 ---
 title: "Supported AI Agents Reference"
-description: "Reference for Supported AI Agents Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+description: "Reference for Spec Kitty supported AI agents. Learn about slash command integrations, global directories, and config-driven agent management."
 ---
 
 # Supported AI Agents Reference

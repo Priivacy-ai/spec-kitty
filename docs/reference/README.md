@@ -1,6 +1,6 @@
 ---
 title: "Reference Documentation"
-description: "Reference for Reference Documentation in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+description: "Reference documentation overview for Spec Kitty. Access CLI commands, configuration parameters, slash command reference, and file layouts."
 ---
 
 # Reference Documentation

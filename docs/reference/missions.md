@@ -1,6 +1,6 @@
 ---
 title: "Mission Types Reference"
-description: "Reference for Mission Types Reference in Spec Kitty 3.2, including exact CLI, file, schema, or runtime behavior."
+description: "Reference for Spec Kitty mission types (software-dev, research, and documentation). Learn how blueprints define phases, step bindings, and custom workflows."
 ---
 
 # Mission Types Reference
