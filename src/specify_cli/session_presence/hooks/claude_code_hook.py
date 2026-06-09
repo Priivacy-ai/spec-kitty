@@ -63,17 +63,26 @@ class ClaudeCodeHookRegistrar:
             raise ValueError(msg) from exc
         return path
 
-    def _create_temp_path(self, path: Path, *, suffix: str = "", prefix: str | None = None) -> Path:
+    def _create_temp_file(
+        self,
+        path: Path,
+        *,
+        suffix: str = "",
+        prefix: str | None = None,
+    ) -> tuple[Path, int]:
         fd, temp_path = tempfile.mkstemp(
             dir=path.parent,
             prefix=path.name if prefix is None else prefix,
             suffix=suffix,
             text=True,
         )
-        os.close(fd)
         temp = Path(temp_path)
         temp.relative_to(path.parent)
-        return temp
+        return temp, fd
+
+    def _write_fd_text(self, fd: int, text: str) -> None:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
 
     def _session_start_entries(self, data: dict[str, object]) -> list[object] | None:
         hooks_section = data.get("hooks")
@@ -124,9 +133,9 @@ class ClaudeCodeHookRegistrar:
 
     def _preserve_invalid(self, path: Path, text: str) -> None:
         """Copy invalid settings content to a sibling backup before overwrite."""
-        backup = self._create_temp_path(path, prefix=f"{path.name}.invalid.")
+        backup, fd = self._create_temp_file(path, prefix=f"{path.name}.invalid.")
         try:
-            backup.write_text(text, encoding="utf-8")
+            self._write_fd_text(fd, text)
         except Exception:
             backup.unlink(missing_ok=True)
             raise
@@ -135,9 +144,9 @@ class ClaudeCodeHookRegistrar:
     def _save(self, path: Path, data: dict[str, object]) -> None:
         """Write *data* as JSON to *path* atomically."""
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self._create_temp_path(path, suffix=".tmp")
+        tmp, fd = self._create_temp_file(path, suffix=".tmp")
         try:
-            tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+            self._write_fd_text(fd, json.dumps(data, indent=2) + "\n")
             os.replace(tmp, path)
         except Exception:
             tmp.unlink(missing_ok=True)
