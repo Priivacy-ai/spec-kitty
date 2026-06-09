@@ -1,0 +1,13 @@
+{
+  "coordination_branch": "kitty/mission-pre-and-post-mission-lifecycle-support-01KTNK1G",
+  "created_at": "2026-06-09T07:02:39.496578+00:00",
+  "friendly_name": "pre and post mission lifecycle support",
+  "mission_id": "01KTNK1G481QA8GK4MFEHBE9AK",
+  "mission_number": null,
+  "mission_slug": "pre-and-post-mission-lifecycle-support-01KTNK1G",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances pre and post mission lifecycle support on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "pre and post mission lifecycle support",
+  "slug": "pre-and-post-mission-lifecycle-support-01KTNK1G",
+  "target_branch": "main"
+}
