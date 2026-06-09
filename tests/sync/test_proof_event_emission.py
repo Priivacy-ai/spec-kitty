@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from uuid import UUID
+
+from spec_kitty_events.models import Event
+
 from specify_cli.proof.events import PROOF_EVENT_TYPES
 from specify_cli.sync.diagnose import diagnose_events
 from specify_cli.sync.emitter import EventEmitter, VALID_EVENT_TYPES
@@ -91,20 +96,20 @@ def test_diagnose_rejects_queued_proof_payload_missing_idempotency_key(
 ) -> None:
     payload = _test_payload()
     payload.pop("test_command")
-    event = {
-        "event_id": emitter.generate_causation_id(),
-        "event_type": "TestEvidenceCaptured",
-        "aggregate_id": "WP02",
-        "aggregate_type": "WorkPackage",
-        "payload": payload,
-        "timestamp": "2026-06-09T13:00:00+00:00",
-        "build_id": "test-build",
-        "node_id": "test-node",
-        "lamport_clock": 1,
-        "causation_id": None,
-        "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
-        "correlation_id": emitter.generate_causation_id(),
-    }
+    event = Event(
+        event_id=emitter.generate_causation_id(),
+        event_type="TestEvidenceCaptured",
+        aggregate_id="WP02",
+        payload=payload,
+        timestamp=datetime(2026, 6, 9, 13, 0, 0, tzinfo=UTC),
+        build_id="test-build",
+        node_id="test-node",
+        lamport_clock=1,
+        causation_id=None,
+        project_uuid=UUID("550e8400-e29b-41d4-a716-446655440000"),
+        correlation_id=emitter.generate_causation_id(),
+    ).model_dump(mode="json")
+    event["aggregate_type"] = "WorkPackage"
 
     result = diagnose_events([event])[0]
 

@@ -283,8 +283,10 @@ def proof_idempotency_key(event_type: str, payload: dict[str, Any]) -> str:
         for key, value in payload.items()
         if key not in {"idempotency_key", "observed_at"}
     }
+    canonical_event = {"event_type": event_type}
+    canonical_event["payload"] = canonical
     encoded = json.dumps(
-        {"event_type": event_type, "payload": canonical},
+        canonical_event,
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
