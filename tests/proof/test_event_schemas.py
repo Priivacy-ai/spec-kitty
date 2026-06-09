@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from pydantic import ValidationError
 
 from specify_cli.proof.events import (
@@ -9,6 +11,8 @@ from specify_cli.proof.events import (
     build_proof_payload,
     proof_idempotency_key,
 )
+
+pytestmark = pytest.mark.unit
 
 
 def _base_payload(**overrides: object) -> dict[str, object]:
@@ -88,6 +92,10 @@ def test_all_proof_payload_models_emit_required_fields() -> None:
         serialized = build_proof_payload(event_type, payload)
         missing = PROOF_EVENT_REQUIRED_FIELDS[event_type] - set(serialized)
         assert not missing, f"{event_type} missing {missing}"
+        subject = payload["subject"]
+        assert serialized["mission_id"] == subject["mission_id"]
+        assert serialized["mission_slug"] == subject["mission_slug"]
+        assert serialized["wp_id"] == subject["wp_id"]
 
 
 def test_build_test_evidence_payload_serializes_required_contract_fields() -> None:
@@ -105,6 +113,9 @@ def test_build_test_evidence_payload_serializes_required_contract_fields() -> No
 
     assert payload["proof_schema_version"] == "1.0.0"
     assert payload["subject"]["wp_id"] == "WP04"
+    assert payload["mission_id"] == "01JTJ8M3Z3ZV4A6J3B1Q4JQ8RM"
+    assert payload["mission_slug"] == "1223-cli-evidence-event-schema"
+    assert payload["wp_id"] == "WP04"
     assert payload["source"] == "pytest"
     assert payload["actor"]["actor_id"] == "codex"
     assert payload["confidence"] == 0.93
@@ -133,16 +144,35 @@ def test_idempotency_key_is_deterministic_and_ignores_observed_at() -> None:
     assert first["idempotency_key"] == proof_idempotency_key("ReviewProofRecorded", first)
 
 
-def test_provided_idempotency_key_is_preserved() -> None:
+def test_matching_idempotency_key_is_accepted() -> None:
+    canonical = build_proof_payload(
+        "ProofItemRecorded",
+        _base_payload(proof_kind="artifact"),
+    )
     payload = build_proof_payload(
         "ProofItemRecorded",
         _base_payload(
             proof_kind="artifact",
-            idempotency_key="b" * 64,
+            idempotency_key=canonical["idempotency_key"],
         ),
     )
 
-    assert payload["idempotency_key"] == "b" * 64
+    assert payload["idempotency_key"] == canonical["idempotency_key"]
+
+
+def test_mismatched_idempotency_key_is_rejected() -> None:
+    try:
+        build_proof_payload(
+            "ProofItemRecorded",
+            _base_payload(
+                proof_kind="artifact",
+                idempotency_key="b" * 64,
+            ),
+        )
+    except ValueError as exc:
+        assert "idempotency_key must match deterministic digest" in str(exc)
+    else:
+        raise AssertionError("mismatched idempotency key was accepted")
 
 
 def test_oversized_summary_is_rejected() -> None:

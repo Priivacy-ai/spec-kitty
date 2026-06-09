@@ -10,14 +10,15 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-PROOF_SCHEMA_VERSION = "1.0.0"
+PROOF_SCHEMA_VERSION: Final[Literal["1.0.0"]] = "1.0.0"
 MAX_PROOF_SUMMARY_BYTES = 4096
 MAX_PROOF_PAYLOAD_BYTES = 16_384
 MAX_PROOF_ARTIFACT_REFS = 20
+_PROOF_TOP_LEVEL_IDENTITY_FIELDS = ("mission_id", "mission_slug", "wp_id")
 
 ProofEventType = Literal[
     "ProofItemRecorded",
@@ -120,6 +121,9 @@ class ProofArtifactRef(_StrictModel):
 class BaseProofPayload(_StrictModel):
     proof_schema_version: Literal["1.0.0"] = PROOF_SCHEMA_VERSION
     subject: ProofSubject
+    mission_id: str | None = Field(default=None, min_length=1)
+    mission_slug: str | None = Field(default=None, min_length=1)
+    wp_id: str | None = Field(default=None, min_length=1)
     source: str = Field(min_length=1)
     actor: ProofActor
     confidence: float = Field(ge=0.0, le=1.0)
@@ -266,8 +270,13 @@ def build_proof_payload(event_type: str, payload: BaseProofPayload | dict[str, A
         )
 
     data = model.model_dump(mode="json", exclude_none=True)
-    if "idempotency_key" not in data:
-        data["idempotency_key"] = proof_idempotency_key(event_type, data)
+    _lift_subject_identity_fields(data)
+
+    provided_idempotency_key = data.get("idempotency_key")
+    expected_idempotency_key = proof_idempotency_key(event_type, data)
+    if provided_idempotency_key is not None and provided_idempotency_key != expected_idempotency_key:
+        raise ValueError("idempotency_key must match deterministic digest")
+    data["idempotency_key"] = expected_idempotency_key
 
     if _json_size(data) > MAX_PROOF_PAYLOAD_BYTES:
         raise ValueError(
@@ -296,6 +305,18 @@ def proof_idempotency_key(event_type: str, payload: dict[str, Any]) -> str:
 
 def infer_proof_aggregate(payload: dict[str, Any]) -> tuple[str, str]:
     """Infer ``(aggregate_type, aggregate_id)`` from a serialized proof payload."""
+    wp_id = payload.get("wp_id")
+    if isinstance(wp_id, str) and wp_id.strip():
+        return ("WorkPackage", wp_id)
+
+    mission_id = payload.get("mission_id")
+    if isinstance(mission_id, str) and mission_id.strip():
+        return ("Mission", mission_id)
+
+    mission_slug = payload.get("mission_slug")
+    if isinstance(mission_slug, str) and mission_slug.strip():
+        return ("Mission", mission_slug)
+
     subject = payload.get("subject")
     if not isinstance(subject, dict):
         return ("Mission", "proof")
@@ -314,6 +335,23 @@ def infer_proof_aggregate(payload: dict[str, Any]) -> tuple[str, str]:
             or "proof"
         ),
     )
+
+
+def _lift_subject_identity_fields(payload: dict[str, Any]) -> None:
+    subject = payload.get("subject")
+    if not isinstance(subject, dict):
+        return
+
+    for field_name in _PROOF_TOP_LEVEL_IDENTITY_FIELDS:
+        subject_value = subject.get(field_name)
+        if subject_value is None:
+            continue
+
+        existing_value = payload.get(field_name)
+        if existing_value is not None and existing_value != subject_value:
+            raise ValueError(f"{field_name} must match subject.{field_name}")
+
+        payload[field_name] = subject_value
 
 
 def _json_size(value: Any) -> int:

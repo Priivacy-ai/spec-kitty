@@ -3,12 +3,15 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
+import pytest
 from spec_kitty_events.models import Event
 
 from specify_cli.proof.events import PROOF_EVENT_TYPES
 from specify_cli.sync.diagnose import diagnose_events
 from specify_cli.sync.emitter import EventEmitter, VALID_EVENT_TYPES
 from specify_cli.sync.queue import OfflineQueue
+
+pytestmark = pytest.mark.fast
 
 
 def _test_payload() -> dict[str, object]:
@@ -57,6 +60,9 @@ def test_emit_proof_event_queues_bounded_payload(
     assert event["timestamp"] == "2026-06-09T13:00:00Z"
     assert event["payload"]["source"] == "pytest"
     assert event["payload"]["idempotency_key"]
+    assert event["payload"]["mission_id"] == "01JTJ8M3Z3ZV4A6J3B1Q4JQ8RM"
+    assert event["payload"]["mission_slug"] == "1223-cli-evidence-event-schema"
+    assert event["payload"]["wp_id"] == "WP02"
     assert event["payload"]["subject"]["project_uuid"]
     assert event["payload"]["subject"]["build_id"] == "test-build-id-0000-0000-000000000001"
     assert event["payload"]["subject"]["repo_slug"] == "test-org/test-repo"
