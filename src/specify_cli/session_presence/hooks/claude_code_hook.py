@@ -35,6 +35,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from contextlib import suppress
 from pathlib import Path
 
 __all__ = ["ClaudeCodeHookRegistrar"]
@@ -55,12 +56,13 @@ class ClaudeCodeHookRegistrar:
     def _settings_path(self, project_root: Path) -> Path:
         root = project_root.expanduser().resolve()
         path = root.joinpath(*_SETTINGS_PATH_PARTS)
+        resolved_path = path.resolve(strict=False)
         try:
-            path.resolve(strict=False).relative_to(root)
+            resolved_path.relative_to(root)
         except ValueError as exc:
             msg = "Claude settings path escapes project root"
             raise ValueError(msg) from exc
-        return path
+        return resolved_path
 
     def _sibling_path(self, path: Path, suffix: str) -> Path:
         candidate = path.parent / f"{path.name}{suffix}"
@@ -74,6 +76,45 @@ class ClaudeCodeHookRegistrar:
             backup = self._sibling_path(path, f".invalid.{counter}")
             counter += 1
         return backup
+
+    def _open_parent_dir(self, path: Path) -> int:
+        parent = path.parent.resolve()
+        flags = os.O_RDONLY
+        if hasattr(os, "O_DIRECTORY"):
+            flags |= os.O_DIRECTORY
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        return os.open(parent, flags)
+
+    def _write_fd_content(self, fd: int, content: bytes) -> None:
+        remaining = memoryview(content)
+        while remaining:
+            written = os.write(fd, remaining)
+            remaining = remaining[written:]
+
+    def _write_sibling_file(
+        self,
+        path: Path,
+        *,
+        sibling_name: str,
+        content: str,
+        exclusive: bool,
+    ) -> None:
+        parent_fd: int | None = None
+        target_fd: int | None = None
+        flags = os.O_WRONLY | os.O_CREAT
+        flags |= os.O_EXCL if exclusive else os.O_TRUNC
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        try:
+            parent_fd = self._open_parent_dir(path)
+            target_fd = os.open(sibling_name, flags, 0o600, dir_fd=parent_fd)
+            self._write_fd_content(target_fd, content.encode("utf-8"))
+        finally:
+            if target_fd is not None:
+                os.close(target_fd)
+            if parent_fd is not None:
+                os.close(parent_fd)
 
     def _session_start_entries(self, data: dict[str, object]) -> list[object] | None:
         hooks_section = data.get("hooks")
@@ -125,19 +166,37 @@ class ClaudeCodeHookRegistrar:
     def _preserve_invalid(self, path: Path, text: str) -> None:
         """Copy invalid settings content to a sibling backup before overwrite."""
         backup = self._invalid_backup_path(path)
-        backup.write_text(text, encoding="utf-8")
+        self._write_sibling_file(
+            path,
+            sibling_name=backup.name,
+            content=text,
+            exclusive=True,
+        )
         _logger.warning("Preserved invalid Claude settings JSON at %s", backup)
 
     def _save(self, path: Path, data: dict[str, object]) -> None:
         """Write *data* as JSON to *path* atomically."""
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self._sibling_path(path, ".tmp")
+        tmp_name = f"{path.name}.tmp"
+        payload = json.dumps(data, indent=2) + "\n"
+        parent_fd: int | None = None
         try:
-            tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-            os.replace(tmp, path)
+            parent_fd = self._open_parent_dir(path)
+            self._write_sibling_file(
+                path,
+                sibling_name=tmp_name,
+                content=payload,
+                exclusive=True,
+            )
+            os.replace(tmp_name, path.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
         except Exception:
-            tmp.unlink(missing_ok=True)
+            if parent_fd is not None:
+                with suppress(FileNotFoundError):
+                    os.unlink(tmp_name, dir_fd=parent_fd)
             raise
+        finally:
+            if parent_fd is not None:
+                os.close(parent_fd)
 
     def is_registered(self, project_root: Path, command: str) -> bool:
         """Return ``True`` when *command* is present in any SessionStart entry."""
