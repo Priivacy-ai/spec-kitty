@@ -1,0 +1,112 @@
+from __future__ import annotations
+
+from specify_cli.proof.events import PROOF_EVENT_TYPES
+from specify_cli.sync.diagnose import diagnose_events
+from specify_cli.sync.emitter import EventEmitter, VALID_EVENT_TYPES
+from specify_cli.sync.queue import OfflineQueue
+
+
+def _test_payload() -> dict[str, object]:
+    return {
+        "subject": {
+            "subject_type": "work_package",
+            "subject_id": "WP02",
+            "mission_id": "01JTJ8M3Z3ZV4A6J3B1Q4JQ8RM",
+            "mission_slug": "1223-cli-evidence-event-schema",
+            "wp_id": "WP02",
+        },
+        "source": "pytest",
+        "actor": {"actor_id": "codex", "actor_type": "llm"},
+        "confidence": 0.87,
+        "occurred_at": "2026-06-09T13:00:00+00:00",
+        "observed_at": "2026-06-09T13:00:02+00:00",
+        "artifact_refs": [
+            {
+                "kind": "log",
+                "uri": "artifacts/proof/pytest.log",
+                "sha256": "c" * 64,
+            }
+        ],
+        "summary": {"status": "passed"},
+        "test_command": "pytest tests/proof",
+        "exit_code": 0,
+        "status": "passed",
+        "runner": "pytest",
+    }
+
+
+def test_proof_event_types_are_outbound_cli_types() -> None:
+    assert PROOF_EVENT_TYPES <= VALID_EVENT_TYPES
+
+
+def test_emit_proof_event_queues_bounded_payload(
+    emitter: EventEmitter,
+    temp_queue: OfflineQueue,
+) -> None:
+    event = emitter.emit_proof_event("TestEvidenceCaptured", _test_payload())
+
+    assert event is not None
+    assert event["event_type"] == "TestEvidenceCaptured"
+    assert event["aggregate_type"] == "WorkPackage"
+    assert event["aggregate_id"] == "WP02"
+    assert event["timestamp"] == "2026-06-09T13:00:00Z"
+    assert event["payload"]["source"] == "pytest"
+    assert event["payload"]["idempotency_key"]
+    assert event["payload"]["subject"]["project_uuid"]
+    assert event["payload"]["subject"]["build_id"] == "test-build-id-0000-0000-000000000001"
+    assert event["payload"]["subject"]["repo_slug"] == "test-org/test-repo"
+    assert event["payload"]["subject"]["git_branch"] == "test-branch"
+    assert event["payload"]["subject"]["head_commit_sha"] == "a" * 40
+    assert temp_queue.size() == 1
+
+
+def test_emitted_proof_event_passes_queue_diagnose(
+    emitter: EventEmitter,
+    temp_queue: OfflineQueue,
+) -> None:
+    event = emitter.emit_proof_event("TestEvidenceCaptured", _test_payload())
+
+    assert event is not None
+    results = diagnose_events(temp_queue.drain_queue())
+    assert len(results) == 1
+    assert results[0].valid is True
+    assert results[0].event_type == "TestEvidenceCaptured"
+
+
+def test_malformed_proof_event_is_rejected_before_queue(
+    emitter: EventEmitter,
+    temp_queue: OfflineQueue,
+) -> None:
+    payload = _test_payload()
+    payload["confidence"] = 1.8
+
+    event = emitter.emit_proof_event("TestEvidenceCaptured", payload)
+
+    assert event is None
+    assert temp_queue.size() == 0
+
+
+def test_diagnose_rejects_queued_proof_payload_missing_idempotency_key(
+    emitter: EventEmitter,
+) -> None:
+    payload = _test_payload()
+    payload.pop("test_command")
+    event = {
+        "event_id": emitter.generate_causation_id(),
+        "event_type": "TestEvidenceCaptured",
+        "aggregate_id": "WP02",
+        "aggregate_type": "WorkPackage",
+        "payload": payload,
+        "timestamp": "2026-06-09T13:00:00+00:00",
+        "build_id": "test-build",
+        "node_id": "test-node",
+        "lamport_clock": 1,
+        "causation_id": None,
+        "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
+        "correlation_id": emitter.generate_causation_id(),
+    }
+
+    result = diagnose_events([event])[0]
+
+    assert result.valid is False
+    assert any("test_command" in error for error in result.errors)
