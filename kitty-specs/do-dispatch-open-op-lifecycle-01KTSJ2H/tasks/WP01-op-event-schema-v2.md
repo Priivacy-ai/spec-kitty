@@ -15,7 +15,8 @@ subtasks:
 - T003
 - T004
 - T005
-agent: claude
+agent: "claude:fable:python-pedro:implementer"
+shell_pid: "23900"
 history:
 - '2026-06-10T20:15:38Z: created by /spec-kitty.tasks'
 agent_profile: python-pedro
@@ -142,3 +143,7 @@ Planning base branch: `main`. Final merge target: `main`. Execution worktrees ar
 - **Hidden readers**: the grep in T004 is load-bearing — a missed consumer crashes at runtime on the new shape. Reviewer: re-run the grep and check each hit.
 - **executor.py scope creep**: only constructor-adaptation here; lifecycle semantics (auto-close removal, closed_by threading) belong to WP02/WP03. Reviewer: reject behavior changes to `invoke()`/`complete_invocation()` flow beyond compilation.
 - **Serialization drift**: the SaaS propagator (WP02 scope) builds envelopes from these models; field renames beyond the contract will ripple. Stick to the contract names exactly.
+
+## Activity Log
+
+- 2026-06-10T20:36:34Z – claude:fable:python-pedro:implementer – shell_pid=23900 – Assigned agent via action command
