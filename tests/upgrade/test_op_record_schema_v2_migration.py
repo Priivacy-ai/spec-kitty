@@ -21,6 +21,8 @@ from specify_cli.upgrade.migrations.m_3_3_0_op_record_schema_v2 import (
     OpRecordSchemaV2Migration,
 )
 
+pytestmark = pytest.mark.fast
+
 ULID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
 ULID2 = "01BX5ZZKBKACTAV9WEVGEMMVRZ"
 
