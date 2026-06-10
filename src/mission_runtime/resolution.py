@@ -18,9 +18,9 @@ work package, workspace path, and any action-specific commands to run.
 """
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Literal, cast, get_args
+from typing import Any, Literal, cast, get_args
 
 from mission_runtime.context import ExecutionContext
 
@@ -195,12 +195,12 @@ def _resolve_review_wp_id(feature_dir: Path) -> str | None:
 def _review_candidate_wp_ids(
     tasks_dir: Path,
     *,
-    extract_scalar: object,
-    split_frontmatter: object,
+    extract_scalar: Callable[[str, str], str | None],
+    split_frontmatter: Callable[[str], tuple[str, str, str]],
 ) -> list[str]:
     candidate_wp_ids: list[str] = []
     for wp_file in sorted(tasks_dir.glob("WP*.md")):
-        frontmatter, _ = split_frontmatter(wp_file.read_text(encoding="utf-8-sig"))
+        frontmatter = split_frontmatter(wp_file.read_text(encoding="utf-8-sig"))[0]
         candidate_wp_id = extract_scalar(frontmatter, "work_package_id")
         if candidate_wp_id:
             candidate_wp_ids.append(str(candidate_wp_id))
@@ -212,7 +212,7 @@ def _first_wp_in_lane(
     candidate_wp_ids: list[str],
     *,
     target_lane: object,
-    get_wp_lane: object,
+    get_wp_lane: Callable[[Path, str], object],
 ) -> str | None:
     for candidate_wp_id in candidate_wp_ids:
         if get_wp_lane(feature_dir, candidate_wp_id) == target_lane:
@@ -220,7 +220,7 @@ def _first_wp_in_lane(
     return None
 
 
-def _is_review_claimed(events: list[object], candidate_wp_id: str, *, Lane: object) -> bool:
+def _is_review_claimed(events: Sequence[Any], candidate_wp_id: str, *, Lane: Any) -> bool:
     latest_event = next(
         (
             event
