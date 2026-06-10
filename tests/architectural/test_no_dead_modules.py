@@ -220,6 +220,13 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # 3.2.0rc39 orientation-block refresh migration: auto-discovered via
         # pkgutil.iter_modules; never statically imported by runtime code.
         "specify_cli.upgrade.migrations.m_3_2_0rc39_refresh_orientation_block",
+        # do-dispatch-open-op-lifecycle-01KTSJ2H WP05 (FR-011): Op record
+        # schema v2 migration. Auto-discovered via pkgutil.iter_modules in
+        # migrations/__init__.py and registered through
+        # @MigrationRegistry.register at import time; never statically
+        # imported by runtime code. Test-exercised by
+        # tests/upgrade/test_op_record_schema_v2_migration.py.
+        "specify_cli.upgrade.migrations.m_3_3_0_op_record_schema_v2",
     }
 )
 
