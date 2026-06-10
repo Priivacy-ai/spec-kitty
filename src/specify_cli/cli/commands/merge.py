@@ -1953,6 +1953,7 @@ def _run_lane_based_merge_locked(
     from specify_cli.policy.merge_gates import evaluate_merge_gates
 
     # -- T001: MergeState lifecycle: load or create --
+    target_feature_dir = main_repo / KITTY_SPECS_DIR / mission_slug
     all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
     _enforce_review_artifact_consistency(
         repo_root=main_repo,
@@ -2196,7 +2197,7 @@ def _run_lane_based_merge_locked(
 
     try:
         baseline_meta_path = _record_baseline_merge_commit(
-            feature_dir,
+            target_feature_dir,
             target_baseline_sha,
             mission_id=_baseline_mission_id,
         )
@@ -2316,8 +2317,7 @@ def _run_lane_based_merge_locked(
     files_to_commit = list(dict.fromkeys(files_to_commit))
 
     has_bookkeeping_changes = _paths_have_status_changes(main_repo, files_to_commit)
-    may_skip_empty_bookkeeping = is_resume or mission_already_applied
-    if has_bookkeeping_changes or not may_skip_empty_bookkeeping:
+    if has_bookkeeping_changes:
         try:
             safe_commit(
                 repo_root=main_repo,
@@ -2364,7 +2364,7 @@ def _run_lane_based_merge_locked(
             mission_slug,
             lanes_manifest.target_branch,
             target_baseline_sha,
-            feature_dir=feature_dir,
+            feature_dir=target_feature_dir,
             mission_id=_baseline_mission_id,
         )
     except BaselineMergeCommitError as exc:

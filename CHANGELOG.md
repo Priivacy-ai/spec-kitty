@@ -46,6 +46,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   still shows the notices.
 - Updated the rich `ask` / `advise` close hint to include the now-required
   `--outcome <done|failed|abandoned>` flag.
+- Replaced stale short profile aliases in shipped mission-runtime templates
+  (`researcher`, `architect`, `planner`, `implementer`, `reviewer`) with the
+  canonical shipped profile IDs, preventing fresh `software-dev` runs from
+  blocking on missing invocation profiles.
+- `spec-kitty merge` now skips empty post-merge bookkeeping commits after a
+  successful lane merge instead of failing the command after the target branch
+  has already been updated.
 
 ## [3.2.0rc41] - 2026-06-08
 

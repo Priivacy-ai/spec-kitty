@@ -33,7 +33,7 @@ mission:
 steps:
   - id: discovery
     title: Discovery & Research
-    agent-profile: researcher
+    agent-profile: researcher-robbie
     prompt_template: research.md
     description: Research technologies and best practices
 
@@ -46,28 +46,28 @@ steps:
   - id: plan
     title: Implementation Planning
     depends_on: [specify]
-    agent-profile: architect
+    agent-profile: architect-alphonso
     prompt_template: plan.md
     description: Design technical architecture
 
   - id: tasks
     title: Tasks
     depends_on: [plan]
-    agent-profile: planner
+    agent-profile: planner-priti
     prompt_template: tasks.md
     description: Create task breakdown, work package prompts, and finalized dependencies
 
   - id: implement
     title: Implementation
     depends_on: [tasks]
-    agent-profile: implementer
+    agent-profile: implementer-ivan
     prompt_template: implement.md
     description: Execute implementation
 
   - id: review
     title: Code Review
     depends_on: [implement]
-    agent-profile: reviewer
+    agent-profile: reviewer-renata
     prompt_template: review.md
     description: Review and validate
 
