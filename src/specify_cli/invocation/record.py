@@ -45,7 +45,7 @@ class OpStartedEvent(BaseModel):
     action: str = Field(min_length=1)  # canonical action token; non-empty
     request_text: str  # may be empty only in query mode (executor enforces)
     actor: str = Field(min_length=1)  # "claude" | "codex" | "operator" | …
-    mode_of_work: str = Field(min_length=1)  # task_execution | advisory | mission_step | query
+    mode_of_work: Literal["task_execution", "advisory", "mission_step", "query"]  # task_execution | advisory | mission_step | query
     governance_context_hash: str  # first 16 hex chars of SHA-256
     governance_context_available: bool
     router_confidence: str | None = None  # exact | canonical_verb | domain_keyword
@@ -145,18 +145,14 @@ MINIMAL_VIABLE_TRAIL_POLICY = MinimalViableTrailPolicy(
     tier_1=TierPolicy(
         name="every_invocation",
         mandatory=True,
-        description=(
-            "One InvocationRecord written locally before executor returns. "
-            "Applies to all advise / ask / do invocations."
-        ),
+        description=("One InvocationRecord written locally before executor returns. Applies to all advise / ask / do invocations."),
         storage_path="kitty-ops/{invocation_id}.jsonl",
     ),
     tier_2=TierPolicy(
         name="evidence_artifact",
         mandatory=False,
         description=(
-            "Optional EvidenceArtifact for invocations that produce checkable output. "
-            "Created when caller passes --evidence to profile-invocation complete."
+            "Optional EvidenceArtifact for invocations that produce checkable output. Created when caller passes --evidence to profile-invocation complete."
         ),
         storage_path=".kittify/evidence/{invocation_id}/",
         promotion_trigger="caller sets evidence_ref on profile-invocation complete",
@@ -179,18 +175,24 @@ MINIMAL_VIABLE_TRAIL_POLICY = MinimalViableTrailPolicy(
 # ---------------------------------------------------------------------------
 
 # Actions that qualify for Tier 3 (durable project state changes)
-TIER_3_ACTIONS: frozenset[str] = frozenset({
-    "specify", "plan", "tasks", "merge", "accept",
-})
+TIER_3_ACTIONS: frozenset[str] = frozenset(
+    {
+        "specify",
+        "plan",
+        "tasks",
+        "merge",
+        "accept",
+    }
+)
 
 
 @dataclass(frozen=True)
 class TierEligibility:
     """Which trail tiers apply to a given invocation."""
 
-    tier_1: bool = True    # always True — every invocation has Tier 1
-    tier_2: bool = False   # True if evidence_ref is set on completed event
-    tier_3: bool = False   # True if action is in TIER_3_ACTIONS
+    tier_1: bool = True  # always True — every invocation has Tier 1
+    tier_2: bool = False  # True if evidence_ref is set on completed event
+    tier_3: bool = False  # True if action is in TIER_3_ACTIONS
 
 
 def tier_eligible(
@@ -295,9 +297,7 @@ class ProfileInvocationRecord:
 
         phase_raw = data.get("phase")
         if phase_raw not in ("started", "completed", "failed"):
-            raise ValueError(
-                f"ProfileInvocationRecord.phase must be started|completed|failed, got {phase_raw!r}"
-            )
+            raise ValueError(f"ProfileInvocationRecord.phase must be started|completed|failed, got {phase_raw!r}")
 
         return cls(
             canonical_action_id=str(data["canonical_action_id"]),

@@ -33,6 +33,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   session end, and the doctrine skill pack / standalone command templates
   document the open→work→close contract.
 
+### 🐛 Fixed
+
+- Hardened the v2 Op migration and readers: `spec-kitty invocations list` skips
+  dangling `ops-index.jsonl` rows after unsalvageable Op files are deleted, and
+  migration idempotency now treats only v2-parseable `mode_of_work` / `closed_by`
+  values as already migrated.
+- Preserved machine-readable output for `do`, `ask`, and `advise --json` by
+  suppressing post-payload inline glossary notices on JSON paths; rich output
+  still shows the notices.
+- Updated the rich `ask` / `advise` close hint to include the now-required
+  `--outcome <done|failed|abandoned>` flag.
+
 ## [3.2.0rc41] - 2026-06-08
 
 ### ✨ Added

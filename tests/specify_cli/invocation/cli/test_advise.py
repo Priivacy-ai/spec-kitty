@@ -25,6 +25,7 @@ from specify_cli.invocation.writer import EVENTS_DIR
 # Marked for mutmut sandbox skip — subprocess CLI invocation.
 pytestmark = pytest.mark.non_sandbox
 
+
 class ArgvCliRunner(CliRunner):
     def invoke(self, app, args=None, **kwargs):  # type: ignore[no-untyped-def]
         argv = ["spec-kitty", *(list(args) if args is not None and not isinstance(args, str) else [])]
@@ -139,9 +140,7 @@ class TestAdviseWithExplicitProfile:
             )
         assert result.exit_code == 0, result.output
         contract = json.loads(result.output)["close_contract"]
-        assert "evidence_flag" not in contract, (
-            "advisory-mode close contract must omit evidence_flag"
-        )
+        assert "evidence_flag" not in contract, "advisory-mode close contract must omit evidence_flag"
         assert contract["artifact_flag"] == "--artifact"
         assert contract["commit_flag"] == "--commit"
 
@@ -160,10 +159,7 @@ class TestAdviseWithExplicitProfile:
                 ["advise", "implement the feature", "--profile", "implementer-fixture", "--json"],
             )
         assert result.exit_code == 0, result.output
-        jsonl_files = [
-            path for path in (project / EVENTS_DIR).glob("*.jsonl")
-            if path.name != "ops-index.jsonl"
-        ]
+        jsonl_files = [path for path in (project / EVENTS_DIR).glob("*.jsonl") if path.name != "ops-index.jsonl"]
         assert len(jsonl_files) == 1
 
     def test_rich_output_exits_zero(self, tmp_path: Path) -> None:
@@ -181,6 +177,25 @@ class TestAdviseWithExplicitProfile:
                 ["advise", "implement the feature", "--profile", "implementer-fixture"],
             )
         assert result.exit_code == 0, result.output
+
+    def test_rich_output_close_hint_includes_required_outcome(self, tmp_path: Path) -> None:
+        """Rich close hint must stay executable now that --outcome is required."""
+        project = _setup_project(tmp_path)
+        with (
+            patch("specify_cli.cli.commands.advise.find_repo_root", return_value=project),
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["advise", "implement the feature", "--profile", "implementer-fixture"],
+            )
+        assert result.exit_code == 0, result.output
+        flat = result.output.replace("\n", " ")
+        assert "profile-invocation complete" in flat
+        assert "--outcome <done|failed|abandoned>" in flat
 
     def test_rich_output_surfaces_high_severity_glossary_warning(self, tmp_path: Path) -> None:
         """High-severity glossary conflicts should be shown inline before governance context."""
@@ -239,6 +254,27 @@ class TestAdviseWithExplicitProfile:
             )
         assert result.exit_code == 0, result.output
         assert "git add kitty-ops/" not in result.output
+
+    def test_json_output_does_not_render_inline_glossary_notices(self, tmp_path: Path) -> None:
+        """--json output must stay a single parseable JSON document."""
+        project = _setup_project(tmp_path)
+        with (
+            patch("specify_cli.cli.commands.advise.find_repo_root", return_value=project),
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+            patch("glossary.observation.ObservationSurface.collect_notices") as collect,
+            patch("glossary.observation.ObservationSurface.render_notices") as render,
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["advise", "--json", "implement the feature", "--profile", "implementer-fixture"],
+            )
+        assert result.exit_code == 0, result.output
+        json.loads(result.output)
+        collect.assert_not_called()
+        render.assert_not_called()
 
 
 class TestAdviseMissingProfile:
@@ -299,10 +335,7 @@ class TestAdviseNoCharter:
                 ["advise", "implement the feature", "--profile", "implementer-fixture", "--json"],
             )
         assert result.exit_code == 0
-        jsonl_files = [
-            path for path in (project / EVENTS_DIR).glob("*.jsonl")
-            if path.name != "ops-index.jsonl"
-        ]
+        jsonl_files = [path for path in (project / EVENTS_DIR).glob("*.jsonl") if path.name != "ops-index.jsonl"]
         assert len(jsonl_files) == 1
 
 
@@ -379,9 +412,12 @@ class TestProfileInvocationComplete:
             result2 = runner.invoke(
                 cli_app,
                 [
-                    "profile-invocation", "complete",
-                    "--invocation-id", invocation_id,
-                    "--outcome", "done",
+                    "profile-invocation",
+                    "complete",
+                    "--invocation-id",
+                    invocation_id,
+                    "--outcome",
+                    "done",
                     "--json",
                 ],
             )
@@ -400,8 +436,10 @@ class TestProfileInvocationComplete:
             result = runner.invoke(
                 cli_app,
                 [
-                    "profile-invocation", "complete",
-                    "--invocation-id", invocation_id,
+                    "profile-invocation",
+                    "complete",
+                    "--invocation-id",
+                    invocation_id,
                     "--json",
                 ],
             )
@@ -418,9 +456,12 @@ class TestProfileInvocationComplete:
             runner.invoke(
                 cli_app,
                 [
-                    "profile-invocation", "complete",
-                    "--invocation-id", invocation_id,
-                    "--outcome", "done",
+                    "profile-invocation",
+                    "complete",
+                    "--invocation-id",
+                    invocation_id,
+                    "--outcome",
+                    "done",
                     "--json",
                 ],
             )
@@ -430,9 +471,12 @@ class TestProfileInvocationComplete:
             result3 = runner.invoke(
                 cli_app,
                 [
-                    "profile-invocation", "complete",
-                    "--invocation-id", invocation_id,
-                    "--outcome", "done",
+                    "profile-invocation",
+                    "complete",
+                    "--invocation-id",
+                    invocation_id,
+                    "--outcome",
+                    "done",
                     "--json",
                 ],
             )
@@ -450,9 +494,12 @@ class TestProfileInvocationComplete:
             result = runner.invoke(
                 cli_app,
                 [
-                    "profile-invocation", "complete",
-                    "--invocation-id", "01AAAAAAAAAAAAAAAAAAAAAAA0",
-                    "--outcome", "done",
+                    "profile-invocation",
+                    "complete",
+                    "--invocation-id",
+                    "01AAAAAAAAAAAAAAAAAAAAAAA0",
+                    "--outcome",
+                    "done",
                     "--json",
                 ],
             )

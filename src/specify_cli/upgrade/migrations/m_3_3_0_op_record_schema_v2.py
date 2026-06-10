@@ -34,7 +34,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pydantic import ValidationError
 
@@ -86,13 +86,23 @@ class _FilePlan:
 
 
 def _is_v2_started(data: dict[str, Any]) -> bool:
-    mode = data.get("mode_of_work")
-    return isinstance(mode, str) and bool(mode)
+    from specify_cli.invocation.record import OpStartedEvent
+
+    try:
+        OpStartedEvent.model_validate(data)
+    except ValidationError:
+        return False
+    return True
 
 
 def _is_v2_completed(data: dict[str, Any]) -> bool:
-    closed_by = data.get("closed_by")
-    return isinstance(closed_by, str) and bool(closed_by)
+    from specify_cli.invocation.record import OpCompletedEvent
+
+    try:
+        OpCompletedEvent.model_validate(data)
+    except ValidationError:
+        return False
+    return True
 
 
 def _str_or_empty(value: Any) -> str:
@@ -129,7 +139,7 @@ def _map_completed_line(
         )
     except ValidationError:
         return None
-    return event.to_jsonl_line()
+    return cast(str, event.to_jsonl_line())
 
 
 def _plan_file(path: Path) -> _FilePlan:

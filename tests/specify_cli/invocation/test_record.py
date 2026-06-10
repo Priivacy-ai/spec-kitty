@@ -126,6 +126,10 @@ class TestOpStartedEvent:
         event = OpStartedEvent(**_started_kwargs(request_text="", mode_of_work="query"))  # type: ignore[arg-type]
         assert event.request_text == ""
 
+    def test_mode_of_work_value_constrained(self) -> None:
+        with pytest.raises(ValidationError):
+            OpStartedEvent(**_started_kwargs(mode_of_work="bogus"))  # type: ignore[arg-type]
+
 
 # ---------------------------------------------------------------------------
 # OpCompletedEvent schema contract
@@ -320,9 +324,7 @@ def test_tier_eligible_tier2_requires_evidence_ref() -> None:
     started = _make_started(action="implement")
     assert tier_eligible(started, None).tier_2 is False
     assert tier_eligible(started, _make_completed()).tier_2 is False
-    assert tier_eligible(
-        started, _make_completed(evidence_ref=".kittify/evidence/test/")
-    ).tier_2 is True
+    assert tier_eligible(started, _make_completed(evidence_ref=".kittify/evidence/test/")).tier_2 is True
 
 
 @pytest.mark.parametrize("action", ["specify", "plan", "tasks", "merge", "accept"])

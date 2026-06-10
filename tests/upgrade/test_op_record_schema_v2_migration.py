@@ -132,6 +132,13 @@ class TestMappingTable:
         assert line["actor"] == "unrecorded"
         assert line["action"] == "unrecorded"
 
+    def test_invalid_mode_of_work_is_deleted_not_skipped(self, migration: OpRecordSchemaV2Migration, project: Path) -> None:
+        """A bogus non-empty mode_of_work is not "already v2" and fails closed."""
+        path = _write(project, f"{ULID}.jsonl", [_legacy_started(mode_of_work="bogus")])
+        result = migration.apply(project)
+        assert not path.exists()
+        assert any("Deleted unsalvageable" in change for change in result.changes_made)
+
     def test_completed_with_outcome_gains_closed_by_agent(self, migration: OpRecordSchemaV2Migration, project: Path) -> None:
         """Row 3: completed with non-null outcome → closed_by="agent"."""
         path = _write(project, f"{ULID}.jsonl", [_legacy_started(), _legacy_completed(outcome="failed")])
@@ -142,6 +149,18 @@ class TestMappingTable:
         assert completed["completed_at"] == "2026-01-01T01:00:00Z"
         assert not result.warnings
         OpCompletedEvent.model_validate(completed)
+
+    def test_invalid_completed_closed_by_is_repaired_not_skipped(self, migration: OpRecordSchemaV2Migration, project: Path) -> None:
+        """A bogus non-empty closed_by is not already-v2; repair to agent."""
+        path = _write(
+            project,
+            f"{ULID}.jsonl",
+            [_legacy_started(), _legacy_completed(outcome="done", closed_by="bogus")],
+        )
+        migration.apply(project)
+        completed = json.loads(path.read_text().splitlines()[1])
+        assert completed["outcome"] == "done"
+        assert completed["closed_by"] == "agent"
 
     def test_missing_completed_at_falls_back_to_started_at_and_flags(self, migration: OpRecordSchemaV2Migration, project: Path) -> None:
         """Row 3 fallback: missing completed_at → started_at, flagged in report."""

@@ -34,6 +34,7 @@ from specify_cli.cli.commands.invocations_cmd import (
 # Marked for mutmut sandbox skip — subprocess CLI invocation.
 pytestmark = pytest.mark.non_sandbox
 
+
 class ArgvCliRunner(CliRunner):
     def invoke(self, app, args=None, **kwargs):  # type: ignore[no-untyped-def]
         argv = ["spec-kitty", *(list(args) if args is not None and not isinstance(args, str) else [])]
@@ -82,9 +83,7 @@ def _write_started(
     return path
 
 
-def _write_completed(
-    path: Path, *, invocation_id: str, outcome: str = "done", closed_by: str = "agent"
-) -> None:
+def _write_completed(path: Path, *, invocation_id: str, outcome: str = "done", closed_by: str = "agent") -> None:
     record = {
         "event": "completed",
         "invocation_id": invocation_id,
@@ -317,9 +316,7 @@ class TestInvocationsListJSON:
         assert record["status"] == "closed"
         assert record["outcome"] == "done"
 
-    def test_indexed_status_closed_when_correlation_links_follow_completion(
-        self, tmp_path: Path
-    ) -> None:
+    def test_indexed_status_closed_when_correlation_links_follow_completion(self, tmp_path: Path) -> None:
         """Index path must also scan for completed before post-terminal links."""
         events_dir = _make_events_dir(tmp_path)
         invocation_id = _new_ulid()
@@ -334,6 +331,31 @@ class TestInvocationsListJSON:
         record = next(r for r in records if r["invocation_id"] == invocation_id)
         assert record["status"] == "closed"
         assert record["outcome"] == "done"
+
+    def test_indexed_reader_skips_dangling_index_entries_after_migration_delete(self, tmp_path: Path) -> None:
+        """Deleted unsalvageable op files must not reappear as phantom open Ops."""
+        events_dir = _make_events_dir(tmp_path)
+        live_id = _new_ulid()
+        deleted_id = _new_ulid()
+
+        live_path = _write_started(events_dir, invocation_id=live_id)
+        append_to_index(
+            tmp_path,
+            json.loads(live_path.read_text(encoding="utf-8").splitlines()[0]),
+        )
+        append_to_index(
+            tmp_path,
+            {
+                "invocation_id": deleted_id,
+                "profile_id": "implementer-fixture",
+                "started_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            },
+        )
+
+        records = list(_iter_records(events_dir, None, 10, repo_root=tmp_path))
+        listed_ids = {record["invocation_id"] for record in records}
+        assert live_id in listed_ids
+        assert deleted_id not in listed_ids
 
     def test_no_events_dir_returns_empty(self, tmp_path: Path) -> None:
         """When kitty-ops does not exist, return []."""
@@ -372,10 +394,7 @@ def test_list_performance_10k(tmp_path: Path) -> None:
     elapsed = time.monotonic() - start
 
     assert len(records) == 100, f"Expected 100 records, got {len(records)}"
-    assert elapsed < 0.200, (
-        f"Performance gate failed: {elapsed:.3f}s (threshold: 0.200s). "
-        "The index-based path should meet this threshold — check index I/O."
-    )
+    assert elapsed < 0.200, f"Performance gate failed: {elapsed:.3f}s (threshold: 0.200s). The index-based path should meet this threshold — check index I/O."
 
 
 # ---------------------------------------------------------------------------
@@ -438,9 +457,7 @@ class TestInvocationsListV2:
             "action": "implement",
             "started_at": "2026-04-22T06:00:00+00:00",
         }
-        (events_dir / f"{legacy_id}.jsonl").write_text(
-            json.dumps(legacy_record) + "\n", encoding="utf-8"
-        )
+        (events_dir / f"{legacy_id}.jsonl").write_text(json.dumps(legacy_record) + "\n", encoding="utf-8")
 
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(
@@ -458,13 +475,8 @@ class TestInvocationsListV2:
                 "specify_cli.cli.commands.invocations_cmd.find_repo_root",
                 lambda: tmp_path,
             )
-            json_result = runner.invoke(
-                cli_app, ["invocations", "list", "--json"], catch_exceptions=False
-            )
-        listed_ids = {
-            r["invocation_id"]
-            for r in json.loads(json_result.output[json_result.output.index("[") :])
-        }
+            json_result = runner.invoke(cli_app, ["invocations", "list", "--json"], catch_exceptions=False)
+        listed_ids = {r["invocation_id"] for r in json.loads(json_result.output[json_result.output.index("[") :])}
         assert v2_id in listed_ids
         assert legacy_id not in listed_ids
 

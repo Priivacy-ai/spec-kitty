@@ -107,11 +107,7 @@ def _read_completed_record(path: Path, invocation_id: str) -> dict | None:  # ty
                     data = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                if (
-                    isinstance(data, dict)
-                    and data.get("event") == "completed"
-                    and data.get("invocation_id") == invocation_id
-                ):
+                if isinstance(data, dict) and data.get("event") == "completed" and data.get("invocation_id") == invocation_id:
                     return data
     except OSError:
         return None
@@ -148,8 +144,7 @@ def _warn_legacy(legacy_ids: list[str]) -> None:
     """Emit a single warning for any legacy (pre-v2) records that were skipped."""
     if legacy_ids:
         _console_err.print(
-            f"[yellow]Warning:[/yellow] skipped {len(legacy_ids)} legacy Op record(s) "
-            "(pre-v2 schema). Run 'spec-kitty upgrade' to migrate kitty-ops records."
+            f"[yellow]Warning:[/yellow] skipped {len(legacy_ids)} legacy Op record(s) (pre-v2 schema). Run 'spec-kitty upgrade' to migrate kitty-ops records."
         )
 
 
@@ -275,12 +270,13 @@ def _iter_records_from_index(
             record["status"] = "open"
         # Also read full started record to get 'action' field (not stored in index).
         started_raw = _read_first_line(inv_file)
-        if started_raw:
-            started = _parse_started(started_raw, legacy_ids)
-            if started is None:
-                continue  # legacy line → warn-and-skip (see _warn_legacy)
-            record.setdefault("action", started.action)
-            record.setdefault("event", started.event)
+        if started_raw is None:
+            continue  # stale/dangling index row; canonical per-op file is gone/unreadable
+        started = _parse_started(started_raw, legacy_ids)
+        if started is None:
+            continue  # legacy line → warn-and-skip (see _warn_legacy)
+        record.setdefault("action", started.action)
+        record.setdefault("event", started.event)
         yield record
         count += 1
 
@@ -368,21 +364,15 @@ def _iter_records(
         index_path = events_dir / "ops-index.jsonl"
 
     if index_path.exists():
-        yield from _iter_records_from_index(
-            events_dir, index_path, profile_filter, limit, legacy_ids
-        )
+        yield from _iter_records_from_index(events_dir, index_path, profile_filter, limit, legacy_ids)
     else:
         yield from _iter_records_from_dir(events_dir, profile_filter, limit, legacy_ids)
 
 
 @app.command("list")
 def list_invocations(
-    profile: str | None = typer.Option(
-        None, "--profile", "-p", help="Filter by profile ID (reads file content, not filename)"
-    ),
-    limit: int = typer.Option(
-        20, "--limit", "-n", help="Maximum number of records to return (default: 20)"
-    ),
+    profile: str | None = typer.Option(None, "--profile", "-p", help="Filter by profile ID (reads file content, not filename)"),
+    limit: int = typer.Option(20, "--limit", "-n", help="Maximum number of records to return (default: 20)"),
     json_output: bool = typer.Option(False, "--json", help="Emit a JSON array instead of a table"),
 ) -> None:
     """List recent invocation records from the local audit log.
@@ -401,9 +391,7 @@ def list_invocations(
     repo_root = _get_repo_root()
     events_dir = repo_root / EVENTS_DIR
     legacy_ids: list[str] = []
-    records = list(
-        _iter_records(events_dir, profile, limit, repo_root=repo_root, legacy_ids=legacy_ids)
-    )
+    records = list(_iter_records(events_dir, profile, limit, repo_root=repo_root, legacy_ids=legacy_ids))
 
     if json_output:
         _warn_legacy(legacy_ids)

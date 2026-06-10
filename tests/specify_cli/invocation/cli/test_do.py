@@ -38,6 +38,7 @@ from specify_cli.invocation.writer import EVENTS_DIR
 # (FR-012 untracked-Op test runs git via subprocess).
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
 
+
 class ArgvCliRunner(CliRunner):
     def invoke(self, app, args=None, **kwargs):  # type: ignore[no-untyped-def]
         argv = ["spec-kitty", *(list(args) if args is not None and not isinstance(args, str) else [])]
@@ -139,6 +140,7 @@ def _make_mock_registry(profile_specs: list[dict]) -> MagicMock:
 
     def _resolve(pid: str) -> object:
         from specify_cli.invocation.errors import ProfileNotFoundError  # noqa: PLC0415
+
         profile = _get(pid)
         if profile is None:
             raise ProfileNotFoundError(pid, [p.profile_id for p in mock_profiles])
@@ -149,25 +151,32 @@ def _make_mock_registry(profile_specs: list[dict]) -> MagicMock:
     return registry
 
 
-_IMPLEMENTER_REGISTRY = lambda: _make_mock_registry([  # noqa: E731
-    {
-        "profile_id": "implementer-fixture",
-        "role_value": "implementer",
-        "routing_priority": 50,
-        "name": "Implementer (fixture)",
-        "domain_keywords": ["implement", "build", "code"],
-    },
-])
+def _IMPLEMENTER_REGISTRY() -> object:
+    return _make_mock_registry(
+        [
+            {
+                "profile_id": "implementer-fixture",
+                "role_value": "implementer",
+                "routing_priority": 50,
+                "name": "Implementer (fixture)",
+                "domain_keywords": ["implement", "build", "code"],
+            },
+        ]
+    )
 
-_REVIEWER_REGISTRY = lambda: _make_mock_registry([  # noqa: E731
-    {
-        "profile_id": "reviewer-fixture",
-        "role_value": "reviewer",
-        "routing_priority": 50,
-        "name": "Reviewer (fixture)",
-        "domain_keywords": ["review", "audit"],
-    },
-])
+
+def _REVIEWER_REGISTRY() -> object:
+    return _make_mock_registry(
+        [
+            {
+                "profile_id": "reviewer-fixture",
+                "role_value": "reviewer",
+                "routing_priority": 50,
+                "name": "Reviewer (fixture)",
+                "domain_keywords": ["review", "audit"],
+            },
+        ]
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -242,18 +251,13 @@ class TestDoSuccessfulRouting:
         assert result.exit_code == 0, result.output
         events_dir = project / EVENTS_DIR
         # Filter out ops-index.jsonl — it is the O(n) index aide, not an invocation file.
-        invocation_files = [
-            f for f in (events_dir.glob("*.jsonl") if events_dir.exists() else [])
-            if f.name != "ops-index.jsonl"
-        ]
+        invocation_files = [f for f in (events_dir.glob("*.jsonl") if events_dir.exists() else []) if f.name != "ops-index.jsonl"]
         assert len(invocation_files) == 1
         # FR-001/FR-002: do leaves the Op OPEN — exactly one started lifecycle
         # event, never a completed event.
         events = [json.loads(line) for line in invocation_files[0].read_text().splitlines() if line.strip()]
         lifecycle = [e.get("event") for e in events if e.get("event") in ("started", "completed")]
-        assert lifecycle == ["started"], (
-            f"do must write exactly one started event and no completed event, got: {lifecycle}"
-        )
+        assert lifecycle == ["started"], f"do must write exactly one started event and no completed event, got: {lifecycle}"
 
     def test_rich_output_exits_zero(self, tmp_path: Path) -> None:
         """Without --json, rich output is produced with exit 0."""
@@ -298,14 +302,10 @@ class TestDoSuccessfulRouting:
         # Rich may wrap at narrow terminal widths; check parts independently
         flat = result.output.replace("\n", " ")
         assert "This Op is OPEN" in flat
-        assert "profile-invocation complete" in flat.replace("  ", " ") or (
-            "profile-invocation" in flat and "complete" in flat
-        )
+        assert "profile-invocation complete" in flat.replace("  ", " ") or ("profile-invocation" in flat and "complete" in flat)
         # The real invocation id is interpolated into the complete command.
         events_dir = project / EVENTS_DIR
-        invocation_files = [
-            f for f in events_dir.glob("*.jsonl") if f.name != "ops-index.jsonl"
-        ]
+        invocation_files = [f for f in events_dir.glob("*.jsonl") if f.name != "ops-index.jsonl"]
         assert len(invocation_files) == 1
         invocation_id = invocation_files[0].stem
         squashed = flat.replace(" ", "")
@@ -334,6 +334,29 @@ class TestDoSuccessfulRouting:
         assert "This Op is OPEN" not in result.output
         # Output parses as a single JSON document.
         json.loads(result.output)
+
+    def test_json_output_does_not_render_inline_glossary_notices(self, tmp_path: Path) -> None:
+        """--json output must not be polluted by post-payload inline notices."""
+        project = _setup_project(tmp_path)
+        mock_registry = _IMPLEMENTER_REGISTRY()
+        with (
+            patch("specify_cli.cli.commands.do_cmd.find_repo_root", return_value=project),
+            patch("specify_cli.cli.commands.do_cmd.ProfileRegistry", return_value=mock_registry),
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+            patch("glossary.observation.ObservationSurface.collect_notices") as collect,
+            patch("glossary.observation.ObservationSurface.render_notices") as render,
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["do", "--json", "implement the feature"],
+            )
+        assert result.exit_code == 0, result.output
+        json.loads(result.output)
+        collect.assert_not_called()
+        render.assert_not_called()
 
     def test_rich_output_surfaces_high_severity_glossary_warning(self, tmp_path: Path) -> None:
         """High-severity glossary conflicts should be shown inline before governance context."""
@@ -410,12 +433,18 @@ class TestDoOpenOpLifecycle:
         assert (project / op_rel).exists()
         tracked = subprocess.run(
             ["git", "ls-files", "--", op_rel],
-            cwd=project, check=True, capture_output=True, text=True,
+            cwd=project,
+            check=True,
+            capture_output=True,
+            text=True,
         ).stdout.strip()
         assert tracked == "", f"open Op record must stay untracked, but git tracks: {tracked}"
         status = subprocess.run(
             ["git", "status", "--porcelain", "--", op_rel],
-            cwd=project, check=True, capture_output=True, text=True,
+            cwd=project,
+            check=True,
+            capture_output=True,
+            text=True,
         ).stdout
         assert status.startswith("??"), f"expected untracked (??) status, got: {status!r}"
 
@@ -476,9 +505,7 @@ class TestDoOpenOpLifecycle:
         assert result.exit_code == 0, result.output
         client_spy.assert_not_called()
         invocation_id = json.loads(result.output)["invocation_id"]
-        assert (project / EVENTS_DIR / f"{invocation_id}.jsonl").exists(), (
-            "local started record must be written even when sync is disabled"
-        )
+        assert (project / EVENTS_DIR / f"{invocation_id}.jsonl").exists(), "local started record must be written even when sync is disabled"
 
     def test_propagator_submission_is_non_blocking(self, tmp_path: Path) -> None:
         """NFR-001: do returns without awaiting propagation delivery.
@@ -501,18 +528,14 @@ class TestDoOpenOpLifecycle:
             result = self._invoke_do(
                 project,
                 ["implement the feature", "--json"],
-                extra_patches=(
-                    patch.object(propagator_mod, "_propagate_one", _blocking_propagate),
-                ),
+                extra_patches=(patch.object(propagator_mod, "_propagate_one", _blocking_propagate),),
             )
             elapsed = time.monotonic() - start
         finally:
             release.set()  # unblock the worker so the executor can drain at exit
         assert result.exit_code == 0, result.output
         assert started_propagating.wait(timeout=5), "propagation worker never started"
-        assert elapsed < 10, (
-            f"do blocked for {elapsed:.1f}s — propagator submission must be non-blocking"
-        )
+        assert elapsed < 10, f"do blocked for {elapsed:.1f}s — propagator submission must be non-blocking"
 
 
 # ---------------------------------------------------------------------------
@@ -637,9 +660,7 @@ class TestDoProfileHint:
             )
         assert result.exit_code == 0, result.output
         assert len(captured_hints) == 1
-        assert captured_hints[0] is None, (
-            f"do without --profile must pass profile_hint=None, got: {captured_hints[0]!r}"
-        )
+        assert captured_hints[0] is None, f"do without --profile must pass profile_hint=None, got: {captured_hints[0]!r}"
 
     def test_executor_called_with_profile_hint_when_profile_flag_given(self, tmp_path: Path) -> None:
         """With --profile, do forwards the profile ID as profile_hint to executor.invoke()."""
@@ -670,18 +691,18 @@ class TestDoProfileHint:
             )
         assert result.exit_code == 0, result.output
         assert len(captured_hints) == 1
-        assert captured_hints[0] == "implementer-fixture", (
-            f"do --profile must forward the profile ID as profile_hint, got: {captured_hints[0]!r}"
-        )
+        assert captured_hints[0] == "implementer-fixture", f"do --profile must forward the profile ID as profile_hint, got: {captured_hints[0]!r}"
 
     def test_profile_flag_bypasses_ambiguous_routing(self, tmp_path: Path) -> None:
         """--profile succeeds even when the request would otherwise be ROUTER_AMBIGUOUS."""
         project = _setup_project(tmp_path)
         # Two implementer profiles — "fix" alone would be ambiguous
-        ambiguous_registry = _make_mock_registry([
-            {"profile_id": "implementer-a", "role_value": "implementer", "routing_priority": 50},
-            {"profile_id": "implementer-b", "role_value": "implementer", "routing_priority": 50},
-        ])
+        ambiguous_registry = _make_mock_registry(
+            [
+                {"profile_id": "implementer-a", "role_value": "implementer", "routing_priority": 50},
+                {"profile_id": "implementer-b", "role_value": "implementer", "routing_priority": 50},
+            ]
+        )
         with (
             patch("specify_cli.cli.commands.do_cmd.find_repo_root", return_value=project),
             patch("specify_cli.cli.commands.do_cmd.ProfileRegistry", return_value=ambiguous_registry),
@@ -771,10 +792,7 @@ class TestDoInvalidProfile:
                 ["do", "--profile", "no-such-profile", "fix the bug", "--json"],
             )
         events_dir = project / EVENTS_DIR
-        op_files = [
-            f for f in (events_dir.glob("*.jsonl") if events_dir.exists() else [])
-            if f.name != "ops-index.jsonl"
-        ]
+        op_files = [f for f in (events_dir.glob("*.jsonl") if events_dir.exists() else []) if f.name != "ops-index.jsonl"]
         assert op_files == [], f"No Op records should be written on PROFILE_NOT_FOUND, got: {op_files}"
 
 
@@ -787,10 +805,12 @@ class TestDoAmbiguityMentionsProfileFlag:
     def test_ambiguity_error_mentions_do_profile(self, tmp_path: Path) -> None:
         """ROUTER_AMBIGUOUS suggestion must mention 'do --profile' so agents know the escape hatch."""
         project = _setup_project(tmp_path)
-        ambiguous_registry = _make_mock_registry([
-            {"profile_id": "implementer-a", "role_value": "implementer", "routing_priority": 50},
-            {"profile_id": "implementer-b", "role_value": "implementer", "routing_priority": 50},
-        ])
+        ambiguous_registry = _make_mock_registry(
+            [
+                {"profile_id": "implementer-a", "role_value": "implementer", "routing_priority": 50},
+                {"profile_id": "implementer-b", "role_value": "implementer", "routing_priority": 50},
+            ]
+        )
         with (
             patch("specify_cli.cli.commands.do_cmd.find_repo_root", return_value=project),
             patch("specify_cli.cli.commands.do_cmd.ProfileRegistry", return_value=ambiguous_registry),
@@ -806,9 +826,7 @@ class TestDoAmbiguityMentionsProfileFlag:
             )
         assert result.exit_code == 1
         data = json.loads(result.output.strip())
-        assert "do --profile" in data["suggestion"], (
-            f"Ambiguity suggestion must mention 'do --profile', got: {data['suggestion']!r}"
-        )
+        assert "do --profile" in data["suggestion"], f"Ambiguity suggestion must mention 'do --profile', got: {data['suggestion']!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -826,7 +844,4 @@ class TestDoHelp:
         result = runner.invoke(cli_app, ["do", "--help"])
         assert result.exit_code == 0
         # Should mention routing / ActionRouter concept
-        assert any(
-            keyword in result.output.lower()
-            for keyword in ("route", "router", "profile", "dispatch")
-        )
+        assert any(keyword in result.output.lower() for keyword in ("route", "router", "profile", "dispatch"))
