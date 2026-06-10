@@ -71,7 +71,7 @@ Teach the ecosystem the open→work→close contract. Claude Code session-start 
    Sweep stale ones: spec-kitty doctor ops --close-stale
    ```
 2. Zero open Ops → zero extra output (don't add noise to every session).
-3. Keep it fast: this runs on every session start — reuse the orphan scan, no git calls.
+3. Keep it fast: this runs on every session start — reuse the orphan scan, no git calls. Measurable bound: the open-Ops section must add <0.5 s at 1,000 Op files (same pro-rata budget as WP04's T018 guard, since it is the same `list_orphan_ops()` scan); cover it in the T018-style perf test or share that fixture.
 
 **Validation**: unit test renders orientation with 0 and N open Ops fixtures.
 

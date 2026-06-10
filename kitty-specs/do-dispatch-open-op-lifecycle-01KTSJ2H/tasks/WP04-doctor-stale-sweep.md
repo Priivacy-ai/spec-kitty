@@ -100,7 +100,7 @@ Give `spec-kitty doctor ops` an active remediation mode: `--close-stale [--thres
 **Steps**:
 1. Extend `tests/specify_cli/invocation/test_doctor_ops.py`: sweep closes only stale; `closed_by="doctor_sweep"` and `outcome="abandoned"` in the written event; auto-commit fired per close (spy on safe_commit path or check git log in a fixture repo); threshold 0 sweeps everything; fresh-only dir → nothing swept, exit 1.
 2. New `tests/specify_cli/invocation/cli/test_doctor_ops_cli.py` for the CLI layer (flags, JSON, exit codes).
-3. Performance guard: generate 1,000 synthetic op files in tmp_path, assert sweep enumeration+decision (mock the actual close) completes in well under the budget pro-rated (e.g. <0.5 s for 1k) — marks the NFR without a slow 10k test in the default suite.
+3. Performance guard: generate 1,000 synthetic op files in tmp_path, assert sweep enumeration+decision (mock the actual close) completes in well under the budget pro-rated (<0.5 s for 1k). Additionally add the full NFR-002 case — 10,000 files, <5 s — behind an opt-in marker (`@pytest.mark.slow` or the repo's existing convention) so the budget is exercised on demand without slowing the default suite. The default-suite guard is an extrapolation; the slow marker is the authoritative NFR-002 check.
 
 **Validation**: `.venv/bin/pytest tests/specify_cli/invocation -q` green; mypy --strict + ruff clean.
 

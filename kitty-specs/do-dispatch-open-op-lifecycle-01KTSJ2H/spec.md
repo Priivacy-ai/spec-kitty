@@ -35,7 +35,7 @@ Today `spec-kitty do` closes its operation record with outcome "done" the moment
 4. **Given** `doctor ops --close-stale --threshold 0`, **then** all open Ops are closed as `abandoned` regardless of age.
 5. **Given** a completed event in the new schema, **when** read in isolation from its JSONL file, **then** it has a required, non-null outcome and no misleading blank-default fields (no `actor: "unknown"`, no empty `action`/`started_at` masquerading as data).
 6. **Given** sync is enabled, **when** `do` opens or the agent closes an Op, **then** the corresponding events are propagated to SaaS asynchronously (same behavior `ask`/`advise` already have); when sync is disabled, local records are still written.
-7. **Given** a Claude Code session with an open Op, **when** the session starts (and, if feasible within the existing hook surface, when the session stops), **then** the operator/agent is informed of open Ops and how to close them.
+7. **Given** a Claude Code session with an open Op, **when** the session starts and when the session stops (research R5 confirmed both hooks are supported by the existing registrar surface), **then** the operator/agent is informed of open Ops and how to close them.
 8. **Given** a repository containing pre-mission Op records in the old schema, **when** the migration runs, **then** salvageable records are rewritten to the new schema and unsalvageable records are deleted; readers never crash on a migrated directory.
 
 ### Edge Cases
@@ -47,7 +47,7 @@ Today `spec-kitty do` closes its operation record with outcome "done" the moment
 
 ## Domain Language
 
-- **Op (operation record)**: the Tier 1 permanent record of a standalone invocation, stored as one append-only JSONL file in `kitty-ops/`. Canonical term: **Op**. Avoid "invocation record" in new user-facing prose except where the CLI surface already uses `profile-invocation`.
+- **Op (operation record)**: the Tier 1 permanent record of a standalone invocation, stored as one append-only JSONL file in `kitty-ops/`. Canonical term: **Op**. Avoid "invocation record" in new user-facing prose except where the CLI surface already uses `profile-invocation`. Until the deferred `dispatch` rename mission (#1810) unifies the CLI surface, `profile-invocation` remains the close-command term; all other new prose says "Op".
 - **Open Op / orphan**: an Op with a started event and no completed event. "Orphan" is reserved for open Ops that are *unexpectedly* open (crashed/forgotten); the doctor surface uses this term.
 - **Dispatch**: the act of routing + governance loading + opening the Op. Dispatch does **not** imply completion. (The command rename to `dispatch` is deferred.)
 - **Close**: appending the completed event with a real outcome (`done` | `failed` | `abandoned`).
@@ -64,7 +64,7 @@ Today `spec-kitty do` closes its operation record with outcome "done" the moment
 | FR-006 | `spec-kitty doctor ops` MUST continue to report all open Ops, and MUST gain `--close-stale` which closes open Ops older than a staleness threshold with outcome `abandoned`, recording that the closure was performed by the doctor sweep (not by the working agent). | Proposed |
 | FR-007 | `--close-stale` MUST accept a configurable threshold (default 24 hours); `--threshold 0` closes all open Ops. Ops younger than the threshold are reported but never auto-closed. | Proposed |
 | FR-008 | `do` MUST propagate Op events to SaaS via the same asynchronous, best-effort propagator already used by `ask` and `advise`, gated by the existing sync routing (local-first; no propagation when sync is disabled). | Proposed |
-| FR-009 | Claude Code session presence MUST surface open Ops: the session-start surface lists open Ops with their ids and the close command. A stop-time reminder MUST be included if the existing hook surface supports it without new harness work; otherwise it is documented as a follow-up. Other harnesses rely on the capsule text and skill pack for this mission. | Proposed |
+| FR-009 | Claude Code session presence MUST surface open Ops: the session-start surface lists open Ops with their ids and the close command, and a stop-time reminder hook is registered alongside it (research R5 confirmed the existing registrar surface supports both without new harness work). Other harnesses rely on the capsule text and skill pack for this mission. | Proposed |
 | FR-010 | The host wrapper / skill pack / session-presence orientation text MUST state the open→work→close contract explicitly: `do` opens, the agent works under the loaded governance, the agent closes with the real outcome and evidence. All canonical source templates that currently describe `do` as single-shot MUST be updated. | Proposed |
 | FR-011 | A migration MUST upgrade existing `kitty-ops/` records to the new schema: salvageable records are rewritten; unsalvageable records (e.g. blank-field completed events with no recoverable identity) are deleted. Readers (`invocations list`, doctor, lifecycle tooling) MUST operate without error on a migrated directory. | Proposed |
 | FR-012 | Auto-commit of the Op record MUST occur at close time (as today for completed Ops), including closes performed by `doctor ops --close-stale`. Open Ops remain uncommitted working-tree files so orphan state stays visible. | Proposed |

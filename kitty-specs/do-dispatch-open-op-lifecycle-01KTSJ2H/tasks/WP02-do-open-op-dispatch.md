@@ -128,6 +128,7 @@ Make `spec-kitty do` an honest dispatch: open the Op, route, load governance, pr
 - rich output contains close contract; JSON output contains `status`/`close_contract`.
 - routing failure → no Op file (unchanged).
 - propagator invoked on started event when sync enabled (mock/spy, mirroring ask/advise tests); not invoked when disabled.
+- NFR-001 verification: assert propagator submission is non-blocking — the spy records that `submit()` was called but `do` returns without awaiting delivery (e.g. a propagator stub that blocks on an event the test never sets must not delay command exit). This pins that adding the propagator is latency-neutral, which is the only latency-relevant change in this WP.
 - remove/replace all assertions that expected `outcome: "done"` or the commit hint.
 
 **Validation**: `.venv/bin/pytest tests/specify_cli/invocation -q` green; mypy/ruff clean.

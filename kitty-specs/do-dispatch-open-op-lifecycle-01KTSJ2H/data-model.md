@@ -72,8 +72,9 @@ Unchanged: `{invocation_id, profile_id, started_at}` per started event.
 
 | Legacy record | Disposition |
 |---------------|-------------|
-| started event with `invocation_id` + `profile_id` | rewrite → `OpStartedEvent` (missing `mode_of_work` → `"task_execution"`; `actor` preserved) |
-| completed event with non-null `outcome` | rewrite → `OpCompletedEvent`, `closed_by="agent"` |
+| started event with `invocation_id` + `profile_id` | rewrite → `OpStartedEvent` (missing `mode_of_work` → `"task_execution"`; `actor` preserved when non-empty) |
+| started event with missing/empty `actor` or `action` | emit the literal `"unrecorded"` for the missing field — never fabricate a plausible value |
+| completed event with non-null `outcome` | rewrite → `OpCompletedEvent`, `closed_by="agent"` (missing `completed_at` → fall back to the started event's `started_at`, flagged in the migration report) |
 | completed event with null `outcome` (old auto-close artifacts) | rewrite → `OpCompletedEvent`, `outcome="abandoned"`, `closed_by="agent"` |
 | link/glossary events | pass through unchanged |
 | file with unparseable/identity-less started event | delete file |

@@ -21,7 +21,7 @@ agent_profile: python-pedro
 authoritative_surface: src/specify_cli/upgrade/migrations/
 execution_mode: code_change
 owned_files:
-- src/specify_cli/upgrade/migrations/m_3_2_1_op_record_schema_v2.py
+- src/specify_cli/upgrade/migrations/m_*_op_record_schema_v2.py
 - tests/upgrade/test_op_record_schema_v2_migration.py
 role: implementer
 tags: []

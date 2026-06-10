@@ -37,7 +37,9 @@ Existing payload fields preserved, plus:
 }
 ```
 
-## Close surface (unchanged API, extended semantics)
+## Close surface (informative summary)
+
+> Normative source for record lifecycle and git behavior: `op-record-events.md`. This section is an informative summary for CLI consumers; on any divergence, `op-record-events.md` wins.
 
 `spec-kitty profile-invocation complete --invocation-id <id> --outcome <o> [--evidence …] [--artifact …]* [--commit <sha>]`
 - Writes `OpCompletedEvent` with `closed_by="agent"`.
