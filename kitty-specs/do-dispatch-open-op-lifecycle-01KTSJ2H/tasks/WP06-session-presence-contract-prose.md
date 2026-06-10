@@ -17,7 +17,8 @@ subtasks:
 - T025
 - T026
 - T027
-agent: claude
+agent: "claude:fable:reviewer-renata:reviewer"
+shell_pid: "56228"
 history:
 - '2026-06-10T20:15:38Z: created by /spec-kitty.tasks'
 agent_profile: python-pedro
@@ -132,3 +133,10 @@ Planning base branch: `main`. Final merge target: `main`. Execution worktrees ar
 - **C-005 is the trap**: edits must land in `src/doctrine/` and `session_presence/` sources, never `.claude/`/`.cursor/` generated copies. Reviewer: check the diff paths first.
 - **Stop hook must be unobtrusive**: non-zero exit or slow IO in `session-stop` degrades every Claude Code session. Keep it scan-only, no git, exit 0 unconditionally.
 - **Snapshot churn**: command-template snapshots may need regeneration; reviewer should verify snapshot diffs show only the intended prose change.
+
+## Activity Log
+
+- 2026-06-10T21:46:31Z – claude:fable:python-pedro:implementer – shell_pid=51901 – Assigned agent via action command
+- 2026-06-10T22:07:44Z – claude:fable:python-pedro:implementer – shell_pid=51901 – Ready for review: presence + Stop hook + contract prose + CHANGELOG
+- 2026-06-10T22:08:23Z – claude:fable:reviewer-renata:reviewer – shell_pid=56228 – Started review via action command
+- 2026-06-10T22:11:22Z – user – shell_pid=56228 – Review passed: session presence (open-Ops at start, exit-0 session-stop Stop hook), generalized registrar + migration backfill, open→work→close prose across skill pack/12 harness copies/content.py, CHANGELOG breaking entry; merge resolutions preserved both lanes (do_cmd no complete_invocation, executor kw-only closed_by, v2 model_dump envelopes); 532+14 tests, mypy --strict and ruff clean, straggler grep zero hits

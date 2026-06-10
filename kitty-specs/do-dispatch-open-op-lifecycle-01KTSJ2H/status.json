@@ -1,63 +1,63 @@
 {
-  "event_count": 19,
-  "last_event_id": "01KTSNY7S2WY1NJ77CNDSRX2XC",
-  "materialized_at": "2026-06-10T21:10:16.097906+00:00",
-  "mission_number": "",
+  "event_count": 44,
+  "last_event_id": "01KTSSV4M00D561PAK4NFZ4RRQ",
+  "materialized_at": "2026-06-10T22:18:28.865006+00:00",
+  "mission_number": "130",
   "mission_slug": "do-dispatch-open-op-lifecycle-01KTSJ2H",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 1,
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 6,
     "for_review": 0,
     "in_progress": 3,
     "in_review": 0,
-    "planned": 2
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 1,
-      "lane": "approved",
-      "last_event_id": "01KTSNWEA4JX4896H8KH3VRR53",
-      "last_transition_at": "2026-06-10T21:09:17.252843+00:00"
+      "lane": "done",
+      "last_event_id": "01KTSSV0XZV9WFB4NGST2N4DQ4",
+      "last_transition_at": "2026-06-10T22:18:25.087511+00:00"
     },
     "WP02": {
-      "actor": "claude:fable:python-pedro:implementer",
+      "actor": "merge",
       "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01KTSNXQRW070R645EA0EZZMQF",
-      "last_transition_at": "2026-06-10T21:09:59.708180+00:00"
+      "lane": "done",
+      "last_event_id": "01KTSSV1QXRPV24HF29GBJENAY",
+      "last_transition_at": "2026-06-10T22:18:25.917984+00:00"
     },
     "WP03": {
-      "actor": "claude:fable:python-pedro:implementer",
+      "actor": "merge",
       "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01KTSNXZVA5WMBQWVNTT72ZS6H",
-      "last_transition_at": "2026-06-10T21:10:07.978592+00:00"
+      "lane": "done",
+      "last_event_id": "01KTSSV2EFV2WN6BMQGPRQ9KVT",
+      "last_transition_at": "2026-06-10T22:18:26.639333+00:00"
     },
     "WP04": {
-      "actor": "finalize-tasks",
+      "actor": "merge",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01KTSK7KCSR3XC774Y43S1RBWH",
-      "last_transition_at": "2026-06-10T20:22:57.177859+00:00"
+      "lane": "done",
+      "last_event_id": "01KTSSV3XQ1W1N20ZMD4TXNQ6A",
+      "last_transition_at": "2026-06-10T22:18:28.151609+00:00"
     },
     "WP05": {
-      "actor": "claude:fable:python-pedro:implementer",
+      "actor": "merge",
       "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01KTSNY7S2WY1NJ77CNDSRX2XC",
-      "last_transition_at": "2026-06-10T21:10:16.097906+00:00"
+      "lane": "done",
+      "last_event_id": "01KTSSV354227XGRJE5C33WD3R",
+      "last_transition_at": "2026-06-10T22:18:27.364435+00:00"
     },
     "WP06": {
-      "actor": "finalize-tasks",
+      "actor": "merge",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01KTSK7M2S6R8WEKYM7RKTJ3C4",
-      "last_transition_at": "2026-06-10T20:22:57.881997+00:00"
+      "lane": "done",
+      "last_event_id": "01KTSSV4M00D561PAK4NFZ4RRQ",
+      "last_transition_at": "2026-06-10T22:18:28.865006+00:00"
     }
   }
 }

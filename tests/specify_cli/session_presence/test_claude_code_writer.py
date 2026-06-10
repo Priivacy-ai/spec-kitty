@@ -14,6 +14,7 @@ import pytest
 from specify_cli.session_presence.content import SessionPresenceContent
 from specify_cli.session_presence.writers.claude_code import (
     SESSION_START_CMD,
+    SESSION_STOP_CMD,
     ClaudeCodeWriter,
 )
 
@@ -38,7 +39,9 @@ class TestWrite:
         ):
             writer.write(tmp_path, _content())
         mock_md_write.assert_called_once_with(tmp_path, _content())
-        mock_hook_reg.assert_called_once_with(tmp_path, SESSION_START_CMD)
+        registered = [call.args for call in mock_hook_reg.call_args_list]
+        assert (tmp_path, SESSION_START_CMD) in registered
+        assert (tmp_path, SESSION_STOP_CMD) in registered
 
 
 class TestRemove:
@@ -55,7 +58,38 @@ class TestRemove:
         ):
             writer.remove(tmp_path)
         mock_md_remove.assert_called_once_with(tmp_path)
-        mock_hook_unreg.assert_called_once_with(tmp_path, SESSION_START_CMD)
+        unregistered = [call.args for call in mock_hook_unreg.call_args_list]
+        assert (tmp_path, SESSION_START_CMD) in unregistered
+        assert (tmp_path, SESSION_STOP_CMD) in unregistered
+
+
+class TestHasPresenceStopHook:
+    """WP06 — has_presence() additionally requires the Stop hook."""
+
+    def test_false_when_stop_hook_missing(self, claude_project: Path) -> None:
+        """A pre-WP06 project (SessionStart only) reports incomplete presence."""
+        from specify_cli.session_presence.content import SECTION_CLOSE, SECTION_OPEN
+
+        (claude_project / ".claude" / "CLAUDE.md").write_text(
+            f"{SECTION_OPEN}\nSome content\n{SECTION_CLOSE}\n", encoding="utf-8"
+        )
+        (claude_project / ".claude" / "settings.json").write_text(
+            '{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "spec-kitty session-start"}]}]}}',
+            encoding="utf-8",
+        )
+        assert ClaudeCodeWriter().has_presence(claude_project) is False
+
+    def test_write_registers_stop_hook(self, claude_project: Path) -> None:
+        import json as _json
+
+        ClaudeCodeWriter().write(claude_project, _content())
+        data = _json.loads(
+            (claude_project / ".claude" / "settings.json").read_text(encoding="utf-8")
+        )
+        stop_commands = [
+            h["command"] for entry in data["hooks"]["Stop"] for h in entry["hooks"]
+        ]
+        assert stop_commands == [SESSION_STOP_CMD]
 
 
 class TestHasPresence:

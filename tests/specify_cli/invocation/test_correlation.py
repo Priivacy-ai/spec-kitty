@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.invocation.record import InvocationRecord
+from specify_cli.invocation.record import OpStartedEvent
 from specify_cli.invocation.writer import InvocationWriter, normalise_ref
 
 
@@ -68,12 +68,15 @@ def test_normalise_ref_repo_relative_path_uses_repo_root(
 
 def _write_started(writer: InvocationWriter, invocation_id: str) -> None:
     """Write a minimal started record directly via writer."""
-    record = InvocationRecord(
-        event="started",
+    record = OpStartedEvent(
         invocation_id=invocation_id,
         profile_id="test-profile",
         action="implement",
         request_text="test request",
+        actor="claude",
+        mode_of_work="task_execution",
+        governance_context_hash="abcdef0123456789",
+        governance_context_available=True,
         started_at="2026-04-23T06:00:00Z",
     )
     writer.write_started(record)

@@ -232,3 +232,70 @@ class TestMigrationAttributes:
         """Migration is registered in MigrationRegistry (test via registry lookup)."""
         migration_ids = {m.migration_id for m in MigrationRegistry.get_all()}
         assert "3_3_0_session_presence_claude_code" in migration_ids
+
+
+class TestStopHookBackfill:
+    """WP06 T024/T027 — existing projects get the Stop hook on upgrade."""
+
+    def _write_presence(self, project: Path) -> None:
+        from specify_cli.session_presence.content import SessionPresenceContent
+        from specify_cli.session_presence.writers.claude_code import ClaudeCodeWriter
+
+        content = SessionPresenceContent("3.2.0", "test-project", "healthy", None)
+        with (
+            patch(
+                "specify_cli.session_presence.manager.UpgradeChecker"
+            ) as mock_checker_cls,
+            patch("importlib.metadata.version", return_value="3.2.0"),
+            patch("specify_cli.compat.plan", side_effect=Exception("no compat")),
+        ):
+            mock_checker_cls.return_value.get_available_version.return_value = None
+            ClaudeCodeWriter().write(project, content)
+
+    def _strip_stop_hook(self, project: Path) -> None:
+        """Simulate a pre-WP06 project: presence written, but no Stop hook."""
+        settings = project / ".claude" / "settings.json"
+        data = json.loads(settings.read_text(encoding="utf-8"))
+        data["hooks"].pop("Stop", None)
+        settings.write_text(json.dumps(data), encoding="utf-8")
+
+    def test_detect_true_when_stop_hook_missing(self, claude_project: Path) -> None:
+        self._write_presence(claude_project)
+        self._strip_stop_hook(claude_project)
+        assert SessionPresenceClaudeCodeMigration().detect(claude_project) is True
+
+    def test_detect_false_on_current_project(self, claude_project: Path) -> None:
+        self._write_presence(claude_project)
+        assert SessionPresenceClaudeCodeMigration().detect(claude_project) is False
+
+    def test_apply_backfills_stop_hook_preserving_session_start(
+        self, claude_project: Path
+    ) -> None:
+        self._write_presence(claude_project)
+        self._strip_stop_hook(claude_project)
+        migration = SessionPresenceClaudeCodeMigration()
+        with (
+            patch(
+                "specify_cli.session_presence.manager.UpgradeChecker"
+            ) as mock_checker_cls,
+            patch("importlib.metadata.version", return_value="3.2.0"),
+            patch("specify_cli.compat.plan", side_effect=Exception("no compat")),
+        ):
+            mock_checker_cls.return_value.get_available_version.return_value = None
+            result = migration.apply(claude_project)
+        assert result.success
+        data = json.loads(
+            (claude_project / ".claude" / "settings.json").read_text(encoding="utf-8")
+        )
+        stop_commands = [
+            h["command"] for entry in data["hooks"]["Stop"] for h in entry["hooks"]
+        ]
+        assert stop_commands == ["spec-kitty session-stop"]
+        start_commands = [
+            h["command"]
+            for entry in data["hooks"]["SessionStart"]
+            for h in entry["hooks"]
+        ]
+        assert start_commands.count("spec-kitty session-start") == 1
+        # Migration is now satisfied — no-ops on a current project.
+        assert migration.detect(claude_project) is False

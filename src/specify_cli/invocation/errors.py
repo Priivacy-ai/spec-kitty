@@ -42,6 +42,24 @@ class RouterAmbiguityError(InvocationError):
         super().__init__(f"{error_code}: {suggestion}")
 
 
+class LegacyRecordError(InvocationError):
+    """A kitty-ops JSONL line uses the pre-v2 (legacy) record shape.
+
+    Raised by ``parse_op_event`` when a line cannot be parsed as a v2
+    ``OpStartedEvent`` / ``OpCompletedEvent`` (e.g. a completed event without
+    ``closed_by``). Readers should warn once — pointing at ``spec-kitty
+    upgrade`` — and skip the record; the WP05 migration rewrites these files.
+    """
+
+    def __init__(self, invocation_id: str | None, reason: str) -> None:
+        self.invocation_id = invocation_id
+        self.reason = reason
+        super().__init__(
+            f"Legacy Op record{f' {invocation_id}' if invocation_id else ''}: {reason}. "
+            "Run 'spec-kitty upgrade' to migrate kitty-ops records to the v2 schema."
+        )
+
+
 class AlreadyClosedError(InvocationError):
     def __init__(self, invocation_id: str) -> None:
         super().__init__(f"Invocation {invocation_id} is already closed.")

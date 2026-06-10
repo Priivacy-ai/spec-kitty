@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from specify_cli.invocation.errors import AlreadyClosedError, InvocationError, InvocationWriteError
-from specify_cli.invocation.record import InvocationRecord
+from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
 
 if TYPE_CHECKING:
     from glossary.chokepoint import GlossaryObservationBundle
@@ -66,7 +66,7 @@ class InvocationWriter:
         """
         return self._dir / f"{invocation_id}.jsonl"
 
-    def _append_to_index(self, record: InvocationRecord) -> None:
+    def _append_to_index(self, record: OpStartedEvent) -> None:
         """Append a lightweight entry to the invocation index.
 
         The index at ``kitty-ops/ops-index.jsonl`` stores
@@ -85,7 +85,7 @@ class InvocationWriter:
                 {
                     "invocation_id": record.invocation_id,
                     "profile_id": record.profile_id,
-                    "started_at": record.started_at or "",
+                    "started_at": record.started_at,
                 }
             )
             with index_path.open("a", encoding="utf-8") as f:
@@ -93,7 +93,7 @@ class InvocationWriter:
         except OSError:
             pass  # index is a performance aid; silently degrade
 
-    def write_started(self, record: InvocationRecord) -> Path:
+    def write_started(self, record: OpStartedEvent) -> Path:
         """Write the ``started`` event. Returns the JSONL file path.
 
         Uses exclusive-create (``"x"`` mode) to detect ULID collision
@@ -107,10 +107,9 @@ class InvocationWriter:
         path = self.invocation_path(record.invocation_id)
         try:
             # Use "x" mode (exclusive create) to detect ULID collision (extremely rare).
-            # exclude_none=True omits optional fields not set on the started event
-            # (e.g. mode_of_work=None for legacy callers, completed_at, outcome, etc.)
+            # None fields (router_confidence, mission_id, wp_id) are omitted.
             with path.open("x", encoding="utf-8") as f:
-                f.write(json.dumps(record.model_dump(exclude_none=True)) + "\n")
+                f.write(record.to_jsonl_line() + "\n")
         except FileExistsError:
             raise InvocationWriteError(
                 f"ULID collision on {path} — retry with a new invocation_id"
@@ -120,52 +119,29 @@ class InvocationWriter:
         self._append_to_index(record)
         return path
 
-    def write_completed(
-        self,
-        invocation_id: str,
-        repo_root: Path,  # noqa: ARG002 — reserved for future cross-repo writes
-        *,
-        outcome: str | None = None,
-        evidence_ref: str | None = None,
-    ) -> InvocationRecord:
+    def write_completed(self, record: OpCompletedEvent) -> Path:
         """Append the ``completed`` event to an existing invocation file.
 
-        Reads profile_id from the started event (first line) for the completed record.
         Raises ``AlreadyClosedError`` if a completed event already exists (idempotent guard).
-        Raises ``InvocationError`` if invocation_id is not found.
+        Raises ``InvocationError`` if the invocation file is not found.
         Raises ``InvocationWriteError`` on filesystem failure.
         """
-        path = self.invocation_path(invocation_id)
+        path = self.invocation_path(record.invocation_id)
         if not path.exists():
-            raise InvocationError(f"Invocation record not found: {invocation_id}")
+            raise InvocationError(f"Invocation record not found: {record.invocation_id}")
 
         raw = path.read_text(encoding="utf-8")
         lines = [line.strip() for line in raw.splitlines() if line.strip()]
-        records = [json.loads(line) for line in lines]
-        if any(record.get("event") == "completed" for record in records):
-            raise AlreadyClosedError(invocation_id)
+        existing = [json.loads(line) for line in lines]
+        if any(entry.get("event") == "completed" for entry in existing):
+            raise AlreadyClosedError(record.invocation_id)
 
-        # Read profile_id from the started event (first line) for the completed record.
-        first = records[0] if records else {}
-        profile_id = first.get("profile_id", "")
-
-        completed = InvocationRecord(
-            event="completed",
-            invocation_id=invocation_id,
-            profile_id=profile_id,
-            action="",  # not re-stated in completed event
-            completed_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            outcome=outcome,  # type: ignore[arg-type]
-            evidence_ref=evidence_ref,
-            mission_id=first.get("mission_id"),  # type: ignore[arg-type]
-            wp_id=first.get("wp_id"),  # type: ignore[arg-type]
-        )
         try:
             with path.open("a", encoding="utf-8") as f:
-                f.write(json.dumps(completed.model_dump()) + "\n")
+                f.write(record.to_jsonl_line() + "\n")
         except OSError as e:
             raise InvocationWriteError(f"Failed to append completed event: {e}") from e
-        return completed
+        return path
 
     def append_correlation_link(
         self,

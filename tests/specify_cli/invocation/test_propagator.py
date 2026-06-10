@@ -24,7 +24,7 @@ from specify_cli.invocation.propagator import (
     _log_propagation_error,
     _propagate_one,
 )
-from specify_cli.invocation.record import InvocationRecord
+from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
 
 
 # ---------------------------------------------------------------------------
@@ -34,13 +34,16 @@ from specify_cli.invocation.record import InvocationRecord
 
 pytestmark = [pytest.mark.unit]
 
-def make_started_record() -> InvocationRecord:
-    return InvocationRecord(
-        event="started",
+def make_started_record() -> OpStartedEvent:
+    return OpStartedEvent(
         invocation_id="01KPQRX2EVGMRVB4Q1JQBAZJV3",
         profile_id="implementer-fixture",
         action="implement",
         request_text="implement the feature",
+        actor="claude",
+        mode_of_work="task_execution",
+        governance_context_hash="abcdef0123456789",
+        governance_context_available=True,
         started_at="2026-04-21T10:00:00Z",
     )
 
@@ -130,6 +133,73 @@ def test_propagator_sends_invocation_id_in_event_dict(tmp_path: pytest.TempPathF
     assert len(captured) == 1
     assert captured[0]["invocation_id"] == record.invocation_id
     assert captured[0]["event_type"] == "ProfileInvocationStarted"
+
+
+def test_started_envelope_field_set_follows_v2_contract(tmp_path: pytest.TempPathFactory) -> None:
+    """Started envelope is built 1:1 from OpStartedEvent (op-record-events.md).
+
+    None fields (router_confidence, mission_id, wp_id) are omitted; the v2
+    fields governance_context_available and mode_of_work are present.
+    """
+    record = make_started_record()
+    captured: list[dict[str, object]] = []
+
+    with patch("specify_cli.invocation.propagator._get_saas_client") as mock_factory:
+        mock_client = MagicMock()
+
+        async def mock_send(event_dict: dict[str, object]) -> None:
+            captured.append(event_dict)
+
+        mock_client.send_event = mock_send
+        mock_factory.return_value = mock_client
+        _propagate_one(record, tmp_path)
+
+    assert len(captured) == 1
+    envelope = captured[0]
+    assert envelope == {
+        "event_type": "ProfileInvocationStarted",
+        "invocation_id": record.invocation_id,
+        "profile_id": "implementer-fixture",
+        "action": "implement",
+        "request_text": "implement the feature",
+        "actor": "claude",
+        "mode_of_work": "task_execution",
+        "governance_context_hash": "abcdef0123456789",
+        "governance_context_available": True,
+        "started_at": "2026-04-21T10:00:00Z",
+    }
+
+
+def test_completed_envelope_field_set_follows_v2_contract(tmp_path: pytest.TempPathFactory) -> None:
+    """Completed envelope is built 1:1 from OpCompletedEvent — includes closed_by;
+    evidence_ref omitted when None (on-disk parity)."""
+    record = OpCompletedEvent(
+        invocation_id="01KPQRX2EVGMRVB4Q1JQBAZJV3",
+        completed_at="2026-04-21T11:00:00Z",
+        outcome="done",
+        closed_by="agent",
+        evidence_ref=None,
+    )
+    captured: list[dict[str, object]] = []
+
+    with patch("specify_cli.invocation.propagator._get_saas_client") as mock_factory:
+        mock_client = MagicMock()
+
+        async def mock_send(event_dict: dict[str, object]) -> None:
+            captured.append(event_dict)
+
+        mock_client.send_event = mock_send
+        mock_factory.return_value = mock_client
+        _propagate_one(record, tmp_path)
+
+    assert len(captured) == 1
+    assert captured[0] == {
+        "event_type": "ProfileInvocationCompleted",
+        "invocation_id": record.invocation_id,
+        "completed_at": "2026-04-21T11:00:00Z",
+        "outcome": "done",
+        "closed_by": "agent",
+    }
 
 
 def test_propagator_tracks_tasks_until_completion(tmp_path: pytest.TempPathFactory) -> None:

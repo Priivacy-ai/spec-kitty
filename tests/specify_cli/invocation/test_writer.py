@@ -1,4 +1,4 @@
-"""Tests for InvocationWriter."""
+"""Tests for InvocationWriter (schema v2 events)."""
 
 from __future__ import annotations
 
@@ -8,11 +8,10 @@ from pathlib import Path
 import pytest
 
 from specify_cli.invocation.errors import AlreadyClosedError, InvocationError, InvocationWriteError
-from specify_cli.invocation.record import InvocationRecord
 from specify_cli.invocation.lifecycle import LIFECYCLE_LOG_RELATIVE_PATH
 from specify_cli.invocation.propagator import PROPAGATION_ERRORS_PATH
+from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
 from specify_cli.invocation.writer import EVENTS_DIR, INDEX_PATH, InvocationWriter
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -24,9 +23,8 @@ _INVOCATION_ID = "01ABCDEFGHJKMNPQRSTVWXYZ12"
 _INVOCATION_ID_2 = "01BCDEFGHJKMNPQRSTVWXYZ123"
 
 
-def _make_record(invocation_id: str = _INVOCATION_ID, **overrides: object) -> InvocationRecord:
+def _make_started(invocation_id: str = _INVOCATION_ID, **overrides: object) -> OpStartedEvent:
     defaults: dict[str, object] = {
-        "event": "started",
         "invocation_id": invocation_id,
         "profile_id": "implementer-fixture",
         "action": "generate",
@@ -34,10 +32,22 @@ def _make_record(invocation_id: str = _INVOCATION_ID, **overrides: object) -> In
         "governance_context_hash": "abcdef0123456789",
         "governance_context_available": True,
         "actor": "claude",
+        "mode_of_work": "task_execution",
         "started_at": "2026-04-21T12:00:00+00:00",
     }
     defaults.update(overrides)
-    return InvocationRecord(**defaults)  # type: ignore[arg-type]
+    return OpStartedEvent(**defaults)  # type: ignore[arg-type]
+
+
+def _make_completed(invocation_id: str = _INVOCATION_ID, **overrides: object) -> OpCompletedEvent:
+    defaults: dict[str, object] = {
+        "invocation_id": invocation_id,
+        "completed_at": "2026-04-21T13:00:00+00:00",
+        "outcome": "done",
+        "closed_by": "agent",
+    }
+    defaults.update(overrides)
+    return OpCompletedEvent(**defaults)  # type: ignore[arg-type]
 
 
 # ---------------------------------------------------------------------------
@@ -48,26 +58,25 @@ def _make_record(invocation_id: str = _INVOCATION_ID, **overrides: object) -> In
 class TestWriteStartedCreatesFile:
     def test_write_started_creates_file(self, tmp_path: Path) -> None:
         writer = InvocationWriter(tmp_path)
-        record = _make_record()
-        file_path = writer.write_started(record)
+        file_path = writer.write_started(_make_started())
         assert file_path.exists()
 
     def test_write_started_contains_valid_json_line(self, tmp_path: Path) -> None:
         writer = InvocationWriter(tmp_path)
-        record = _make_record()
-        file_path = writer.write_started(record)
+        file_path = writer.write_started(_make_started())
         lines = [line for line in file_path.read_text(encoding="utf-8").splitlines() if line.strip()]
         assert len(lines) == 1
         data = json.loads(lines[0])
         assert data["event"] == "started"
         assert data["invocation_id"] == _INVOCATION_ID
         assert data["profile_id"] == "implementer-fixture"
+        assert data["mode_of_work"] == "task_execution"
 
     def test_write_started_creates_events_dir(self, tmp_path: Path) -> None:
         writer = InvocationWriter(tmp_path)
         events_dir = tmp_path / EVENTS_DIR
         assert not events_dir.exists()
-        writer.write_started(_make_record())
+        writer.write_started(_make_started())
         assert events_dir.exists()
 
 
@@ -79,7 +88,7 @@ class TestKittyOpsStorage:
 
     def test_index_written_at_kitty_ops_ops_index(self, tmp_path: Path) -> None:
         writer = InvocationWriter(tmp_path)
-        writer.write_started(_make_record())
+        writer.write_started(_make_started())
 
         assert (tmp_path / "kitty-ops" / "ops-index.jsonl").exists()
         assert not (tmp_path / "invocation-index.jsonl").exists()
@@ -93,9 +102,8 @@ def test_lifecycle_log_relative_path_is_kitty_ops() -> None:
 class TestWriteCompletedAppendsLine:
     def test_write_completed_appends_second_line(self, tmp_path: Path) -> None:
         writer = InvocationWriter(tmp_path)
-        record = _make_record()
-        writer.write_started(record)
-        writer.write_completed(_INVOCATION_ID, tmp_path, outcome="done")
+        writer.write_started(_make_started())
+        writer.write_completed(_make_completed())
         file_path = writer.invocation_path(_INVOCATION_ID)
         lines = [
             line for line in file_path.read_text(encoding="utf-8").splitlines() if line.strip()
@@ -104,51 +112,22 @@ class TestWriteCompletedAppendsLine:
         completed_data = json.loads(lines[1])
         assert completed_data["event"] == "completed"
         assert completed_data["outcome"] == "done"
-        assert completed_data["profile_id"] == "implementer-fixture"
+        assert completed_data["closed_by"] == "agent"
 
-    def test_write_completed_returns_completed_record(self, tmp_path: Path) -> None:
+    def test_write_completed_returns_path(self, tmp_path: Path) -> None:
         writer = InvocationWriter(tmp_path)
-        writer.write_started(_make_record())
-        completed = writer.write_completed(_INVOCATION_ID, tmp_path, outcome="done")
-        assert completed.event == "completed"
-        assert completed.outcome == "done"
-
-    def test_write_completed_reads_profile_id_from_started_event(self, tmp_path: Path) -> None:
-        """write_completed reads profile_id from the file's first line (started event)."""
-        writer = InvocationWriter(tmp_path)
-        writer.write_started(_make_record(profile_id="reviewer-fixture"))
-        completed = writer.write_completed(_INVOCATION_ID, tmp_path)
-        assert completed.profile_id == "reviewer-fixture"
-
-    def test_write_completed_preserves_mission_correlation_from_started_event(
-        self, tmp_path: Path
-    ) -> None:
-        writer = InvocationWriter(tmp_path)
-        writer.write_started(
-            _make_record(
-                mission_id="01KTB49KJKRJ71YR8KERVDMHHA",
-                wp_id="WP01",
-            )
-        )
-
-        completed = writer.write_completed(_INVOCATION_ID, tmp_path, outcome="done")
-
-        assert completed.mission_id == "01KTB49KJKRJ71YR8KERVDMHHA"
-        assert completed.wp_id == "WP01"
-
-        file_path = writer.invocation_path(_INVOCATION_ID)
-        completed_data = json.loads(file_path.read_text(encoding="utf-8").splitlines()[1])
-        assert completed_data["mission_id"] == "01KTB49KJKRJ71YR8KERVDMHHA"
-        assert completed_data["wp_id"] == "WP01"
+        writer.write_started(_make_started())
+        path = writer.write_completed(_make_completed())
+        assert path == writer.invocation_path(_INVOCATION_ID)
 
 
 class TestWriteStartedAppendOnly:
     def test_write_started_mode_is_exclusive_create(self, tmp_path: Path) -> None:
         """A second write_started with the same id raises InvocationWriteError (x mode)."""
         writer = InvocationWriter(tmp_path)
-        writer.write_started(_make_record())
+        writer.write_started(_make_started())
         with pytest.raises(InvocationWriteError, match="ULID collision"):
-            writer.write_started(_make_record())
+            writer.write_started(_make_started())
 
 
 class TestWriteStartedCollisionRaises:
@@ -160,16 +139,16 @@ class TestWriteStartedCollisionRaises:
         collision_path = events_dir / f"{_INVOCATION_ID}.jsonl"
         collision_path.write_text("existing content\n", encoding="utf-8")
         with pytest.raises(InvocationWriteError):
-            writer.write_started(_make_record())
+            writer.write_started(_make_started())
 
 
 class TestAlreadyClosed:
     def test_double_complete_raises_already_closed_error(self, tmp_path: Path) -> None:
         writer = InvocationWriter(tmp_path)
-        writer.write_started(_make_record())
-        writer.write_completed(_INVOCATION_ID, tmp_path, outcome="done")
+        writer.write_started(_make_started())
+        writer.write_completed(_make_completed())
         with pytest.raises(AlreadyClosedError):
-            writer.write_completed(_INVOCATION_ID, tmp_path, outcome="done")
+            writer.write_completed(_make_completed())
 
     @pytest.mark.parametrize(
         ("link_kwargs", "link_event"),
@@ -182,12 +161,12 @@ class TestAlreadyClosed:
         self, tmp_path: Path, link_kwargs: dict[str, str], link_event: str
     ) -> None:
         writer = InvocationWriter(tmp_path)
-        writer.write_started(_make_record())
-        writer.write_completed(_INVOCATION_ID, tmp_path, outcome="done")
+        writer.write_started(_make_started())
+        writer.write_completed(_make_completed())
         writer.append_correlation_link(_INVOCATION_ID, **link_kwargs)
 
         with pytest.raises(AlreadyClosedError):
-            writer.write_completed(_INVOCATION_ID, tmp_path, outcome="failed")
+            writer.write_completed(_make_completed(outcome="failed"))
 
         file_path = writer.invocation_path(_INVOCATION_ID)
         events = [
@@ -202,7 +181,87 @@ class TestAlreadyClosed:
     ) -> None:
         writer = InvocationWriter(tmp_path)
         with pytest.raises(InvocationError):
-            writer.write_completed("no-such-id", tmp_path)
+            writer.write_completed(_make_completed(invocation_id=_INVOCATION_ID_2))
+
+
+class TestWrittenLineShapes:
+    """Written lines contain exactly the schema-v2 fields and nothing else."""
+
+    def test_completed_line_contains_exactly_v2_fields(self, tmp_path: Path) -> None:
+        writer = InvocationWriter(tmp_path)
+        writer.write_started(_make_started())
+        writer.write_completed(_make_completed(evidence_ref=".kittify/evidence/x"))
+
+        lines = writer.invocation_path(_INVOCATION_ID).read_text(encoding="utf-8").splitlines()
+        data = json.loads(lines[1])
+        assert set(data) == {
+            "event",
+            "invocation_id",
+            "completed_at",
+            "outcome",
+            "closed_by",
+            "evidence_ref",
+        }
+        assert data["closed_by"] == "agent"
+
+    def test_completed_line_omits_none_evidence_ref(self, tmp_path: Path) -> None:
+        writer = InvocationWriter(tmp_path)
+        writer.write_started(_make_started())
+        writer.write_completed(_make_completed())
+
+        data = json.loads(
+            writer.invocation_path(_INVOCATION_ID).read_text(encoding="utf-8").splitlines()[1]
+        )
+        assert set(data) == {"event", "invocation_id", "completed_at", "outcome", "closed_by"}
+
+    def test_started_line_omits_none_fields(self, tmp_path: Path) -> None:
+        writer = InvocationWriter(tmp_path)
+        writer.write_started(_make_started(router_confidence=None))
+
+        data = json.loads(
+            writer.invocation_path(_INVOCATION_ID).read_text(encoding="utf-8").splitlines()[0]
+        )
+        assert "router_confidence" not in data
+        assert "mission_id" not in data
+        assert "wp_id" not in data
+
+    def test_index_entry_shape_unchanged(self, tmp_path: Path) -> None:
+        writer = InvocationWriter(tmp_path)
+        writer.write_started(_make_started())
+        entry = json.loads(
+            (tmp_path / "kitty-ops" / "ops-index.jsonl")
+            .read_text(encoding="utf-8")
+            .splitlines()[0]
+        )
+        assert entry == {
+            "invocation_id": _INVOCATION_ID,
+            "profile_id": "implementer-fixture",
+            "started_at": "2026-04-21T12:00:00+00:00",
+        }
+
+    def test_unchanged_event_shapes_byte_identical(self, tmp_path: Path) -> None:
+        """artifact_link / commit_link shapes are untouched by the schema split."""
+        writer = InvocationWriter(tmp_path)
+        writer.write_started(_make_started())
+        writer.append_correlation_link(
+            _INVOCATION_ID, kind="artifact", ref="spec.md", at="2026-06-10T21:00:00+00:00"
+        )
+        writer.append_correlation_link(_INVOCATION_ID, sha="abc123", at="2026-06-10T21:00:01+00:00")
+
+        lines = writer.invocation_path(_INVOCATION_ID).read_text(encoding="utf-8").splitlines()
+        assert json.loads(lines[1]) == {
+            "event": "artifact_link",
+            "invocation_id": _INVOCATION_ID,
+            "at": "2026-06-10T21:00:00+00:00",
+            "kind": "artifact",
+            "ref": "spec.md",
+        }
+        assert json.loads(lines[2]) == {
+            "event": "commit_link",
+            "invocation_id": _INVOCATION_ID,
+            "at": "2026-06-10T21:00:01+00:00",
+            "sha": "abc123",
+        }
 
 
 class TestInvocationPathFormat:

@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.invocation.propagator import _propagate_one
-from specify_cli.invocation.record import InvocationRecord
+from specify_cli.invocation.record import OpStartedEvent
 from specify_cli.sync.routing import CheckoutSyncRouting
 
 
@@ -25,12 +25,16 @@ from specify_cli.sync.routing import CheckoutSyncRouting
 
 pytestmark = [pytest.mark.unit]
 
-def _make_started_record() -> InvocationRecord:
-    return InvocationRecord(
-        event="started",
-        invocation_id="01HXYZABCDEFGHIJKLMNOPQRST",
+def _make_started_record() -> OpStartedEvent:
+    return OpStartedEvent(
+        invocation_id="01HXYZABCDEFGH1JK2MN3PQRST",
         profile_id="test-profile",
         action="implement",
+        request_text="test request",
+        actor="claude",
+        mode_of_work="task_execution",
+        governance_context_hash="abcdef0123456789",
+        governance_context_available=True,
         started_at="2026-04-22T06:00:00Z",
     )
 

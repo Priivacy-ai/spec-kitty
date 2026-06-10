@@ -1423,20 +1423,94 @@ def invocation_pairing(
     raise typer.Exit(1)
 
 
+def _run_ops_sweep(repo_root: Path, *, threshold_hours: float, json_output: bool) -> None:
+    """Run the stale sweep and exit per contracts/doctor-ops-close-stale.md."""
+    import datetime as _dt
+
+    from specify_cli.doctor.ops import close_stale_ops
+
+    report = close_stale_ops(
+        repo_root,
+        threshold_hours=threshold_hours,
+        now=_dt.datetime.now(_dt.UTC),
+    )
+    # Exit 1 on per-op write/IO errors or when open-but-fresh Ops remain after
+    # the sweep (consistent with report mode); already_closed is not a failure.
+    exit_code = 1 if (report.has_errors or report.skipped_fresh > 0) else 0
+
+    if json_output:
+        console.print_json(json.dumps(report.to_dict(), indent=2))
+        raise typer.Exit(exit_code)
+
+    console.print(
+        f"\n[bold]Ops sweep[/bold] — threshold {report.threshold_hours}h: "
+        f"{report.swept} closed as abandoned, {report.skipped_fresh} fresh (skipped)\n"
+    )
+    if report.open_ops:
+        table = Table(box=None, padding=(0, 2), show_edge=False)
+        table.add_column("Invocation ID", style="cyan", min_width=26)
+        table.add_column("Profile", min_width=10)
+        table.add_column("Started At", min_width=20)
+        table.add_column("Age (h)", justify="right", min_width=8)
+        table.add_column("Action", min_width=16)
+        for entry in report.open_ops:
+            age_text = f"{entry.age_hours:.1f}" if entry.age_hours is not None else "?"
+            action_text = entry.action_taken if entry.error is None else f"error: {entry.error}"
+            table.add_row(
+                entry.invocation_id,
+                entry.profile_id,
+                entry.started_at,
+                age_text,
+                action_text,
+            )
+        console.print(table)
+    if report.skipped_fresh:
+        console.print(
+            "\nFresh open Ops remain — close them with "
+            "spec-kitty profile-invocation complete, or re-run with --threshold 0."
+        )
+    console.print()
+    raise typer.Exit(exit_code)
+
+
 @app.command(name="ops")
 def ops(
     json_output: Annotated[
         bool,
         typer.Option("--json", help="Machine-readable JSON output"),
     ] = False,
+    close_stale: Annotated[
+        bool,
+        typer.Option(
+            "--close-stale",
+            help="Close open Ops older than --threshold as abandoned (closed_by=doctor_sweep)",
+        ),
+    ] = False,
+    threshold: Annotated[
+        float | None,
+        typer.Option(
+            "--threshold",
+            help="Staleness threshold in hours (default 24; 0 closes all). Requires --close-stale.",
+        ),
+    ] = None,
 ) -> None:
-    """List orphan Op records."""
+    """List orphan Op records; --close-stale sweeps stale ones closed as abandoned."""
     from specify_cli.doctor.ops import list_orphan_ops
+
+    if threshold is not None and not close_stale:
+        raise typer.BadParameter("--threshold requires --close-stale")
 
     repo_root = locate_project_root()
     if repo_root is None:
         console.print("[red]Error:[/red] Not in a spec-kitty project")
         raise typer.Exit(1)
+
+    if close_stale:
+        _run_ops_sweep(
+            repo_root,
+            threshold_hours=threshold if threshold is not None else 24.0,
+            json_output=json_output,
+        )
 
     orphans = list_orphan_ops(repo_root)
     if json_output:

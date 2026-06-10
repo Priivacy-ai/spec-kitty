@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import Literal
 
 import typer
 from rich.console import Console
@@ -206,14 +207,14 @@ def _handle_complete_already_closed(
     *,
     json_output: bool,
 ) -> None:
-    msg: dict[str, str] = {"warning": "already_closed", "invocation_id": invocation_id}
+    msg: dict[str, str] = {"error": "already_closed", "invocation_id": invocation_id}
     if json_output:
-        typer.echo(json.dumps(msg))
+        typer.echo(json.dumps(msg), err=True)
     else:
         console.print(
-            f"[yellow]Warning:[/yellow] Invocation {invocation_id} is already closed."
+            f"[red]Error:[/red] Invocation {invocation_id} is already closed."
         )
-    raise typer.Exit(0) from None
+    raise typer.Exit(1) from None
 
 
 def _render_complete_response(
@@ -253,8 +254,8 @@ def complete_invocation(
     invocation_id: str = typer.Option(
         ..., "--invocation-id", "-i", help="Invocation ULID to close"
     ),
-    outcome: str | None = typer.Option(
-        None, "--outcome", help="done | failed | abandoned"
+    outcome: str = typer.Option(
+        ..., "--outcome", help="done | failed | abandoned"
     ),
     evidence: str | None = typer.Option(
         None, "--evidence", help="Path to evidence file (Tier 2 promotion)"
@@ -271,22 +272,39 @@ def complete_invocation(
     ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON payload"),
 ) -> None:
-    """Close an open invocation record. Only --invocation-id is required.
+    """Close an open invocation record. --invocation-id and --outcome are required.
 
     Use --artifact (repeatable) to link output artifacts to this invocation.
     Use --commit (singular) to link the primary git commit produced.
     Use --evidence to promote a file to a Tier 2 evidence artifact.
     Note: --evidence is not allowed on advisory or query invocations (FR-009).
     """
+    # Explicit-outcome guard (schema v2): a missing or invalid outcome is a
+    # usage error at the CLI boundary — never silently coerced to "done".
+    valid_outcomes: dict[str, Literal["done", "failed", "abandoned"]] = {
+        "done": "done",
+        "failed": "failed",
+        "abandoned": "abandoned",
+    }
+    checked_outcome = valid_outcomes.get(outcome)
+    if checked_outcome is None:
+        raise typer.BadParameter(
+            f"invalid outcome {outcome!r}: must be one of done, failed, abandoned",
+            param_hint="--outcome",
+        )
+
     repo_root = _get_repo_root()
     executor = _build_executor(repo_root)
     try:
         completed = executor.complete_invocation(
             invocation_id=invocation_id,
-            outcome=outcome,
+            outcome=checked_outcome,
             evidence_ref=evidence,
             artifact_refs=artifact or [],
             commit_sha=commit,
+            # The CLI surface is the manual/agent close path; the doctor sweep
+            # (the only other closer) calls the executor directly (FR-003).
+            closed_by="agent",
         )
     except InvalidModeForEvidenceError as e:
         console.print(f"[red]Error:[/red] {e}")

@@ -60,11 +60,11 @@
 - **Priority**: P0 — the headline behavior change.
 - **Independent test**: `do --json` yields `status: "open"`, a `close_contract` object, and a JSONL file with exactly one started event.
 - **Subtasks**:
-  - [ ] T006 Remove auto-close from `do` (WP02)
-  - [ ] T007 Wire SaaS propagator into `do` (WP02)
-  - [ ] T008 Close-contract block in rich output (WP02)
-  - [ ] T009 `status` + `close_contract` in JSON payload (WP02)
-  - [ ] T010 Rewrite `do` integration tests (WP02)
+  - [x] T006 Remove auto-close from `do` (WP02)
+  - [x] T007 Wire SaaS propagator into `do` (WP02)
+  - [x] T008 Close-contract block in rich output (WP02)
+  - [x] T009 `status` + `close_contract` in JSON payload (WP02)
+  - [x] T010 Rewrite `do` integration tests (WP02)
 - **Dependencies**: WP01
 - **Estimated prompt size**: ~340 lines
 
@@ -75,10 +75,10 @@
 - **Priority**: P0.
 - **Independent test**: Closing an Op writes `closed_by="agent"` and auto-commits with `op(<profile>): <action> [<id8>]`; second close errors cleanly.
 - **Subtasks**:
-  - [ ] T011 `closed_by` in executor close path (WP03)
-  - [ ] T012 CLI close writes `closed_by="agent"` (WP03)
-  - [ ] T013 Close-time auto-commit semantics (WP03)
-  - [ ] T014 Close-surface tests (WP03)
+  - [x] T011 `closed_by` in executor close path (WP03)
+  - [x] T012 CLI close writes `closed_by="agent"` (WP03)
+  - [x] T013 Close-time auto-commit semantics (WP03)
+  - [x] T014 Close-surface tests (WP03)
 - **Dependencies**: WP01
 - **Estimated prompt size**: ~290 lines
 
@@ -89,10 +89,10 @@
 - **Priority**: P1 — the safety net that makes open-by-default sustainable.
 - **Independent test**: Quickstart step 5 — sweep closes an old open Op, skips a fresh one, reports `already_closed` on race.
 - **Subtasks**:
-  - [ ] T015 `close_stale_ops()` implementation (WP04)
-  - [ ] T016 CLI flags wiring (WP04)
-  - [ ] T017 Race handling (WP04)
-  - [ ] T018 Sweep tests + perf guard (WP04)
+  - [x] T015 `close_stale_ops()` implementation (WP04)
+  - [x] T016 CLI flags wiring (WP04)
+  - [x] T017 Race handling (WP04)
+  - [x] T018 Sweep tests + perf guard (WP04)
 - **Dependencies**: WP03
 - **Estimated prompt size**: ~300 lines
 
@@ -103,10 +103,10 @@
 - **Priority**: P1.
 - **Independent test**: Fixture dir with legacy records → one run produces v2 files per the data-model mapping table; second run is a no-op.
 - **Subtasks**:
-  - [ ] T019 Migration scaffold (detect/apply) (WP05)
-  - [ ] T020 Legacy→v2 rewrite mapping (WP05)
-  - [ ] T021 Delete + atomic rewrite + idempotency (WP05)
-  - [ ] T022 Migration tests (WP05)
+  - [x] T019 Migration scaffold (detect/apply) (WP05)
+  - [x] T020 Legacy→v2 rewrite mapping (WP05)
+  - [x] T021 Delete + atomic rewrite + idempotency (WP05)
+  - [x] T022 Migration tests (WP05)
 - **Dependencies**: WP01
 - **Estimated prompt size**: ~280 lines
 
@@ -117,11 +117,11 @@
 - **Priority**: P1.
 - **Independent test**: `spec-kitty session-start` with an open Op present prints id + close command; doctrine text contains no single-shot description of `do`.
 - **Subtasks**:
-  - [ ] T023 Open-Ops section in session-start orientation (WP06)
-  - [ ] T024 Stop hook via generalized registrar (WP06)
-  - [ ] T025 Doctrine skill/template prose updates (WP06)
-  - [ ] T026 CHANGELOG + terminology guard (WP06)
-  - [ ] T027 Presence/prose tests (WP06)
+  - [x] T023 Open-Ops section in session-start orientation (WP06)
+  - [x] T024 Stop hook via generalized registrar (WP06)
+  - [x] T025 Doctrine skill/template prose updates (WP06)
+  - [x] T026 CHANGELOG + terminology guard (WP06)
+  - [x] T027 Presence/prose tests (WP06)
 - **Dependencies**: WP02, WP04
 - **Estimated prompt size**: ~330 lines
 

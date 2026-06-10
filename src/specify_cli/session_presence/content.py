@@ -69,6 +69,9 @@ class SessionPresenceContent:
             "  If you know the right profile, pass it to skip routing:\n"
             '  `spec-kitty do --profile <profile-id> "<request verbatim>"`\n'
             "  Reason: `spec-kitty do` loads governance context, routes to the correct agent\n"
-            "  profile, and records the Op. Skipping it produces ungoverned, untracked responses.\n"
+            "  profile, and opens the Op. Skipping it produces ungoverned, untracked responses.\n"
+            "  After finishing the work, close the Op with the command printed in the capsule\n"
+            "  (`spec-kitty profile-invocation complete --invocation-id <id> "
+            "--outcome <done|failed|abandoned>`).\n"
             f"{SECTION_CLOSE}\n"
         )

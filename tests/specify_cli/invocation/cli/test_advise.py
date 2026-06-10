@@ -118,6 +118,9 @@ class TestAdviseWithExplicitProfile:
         assert "invocation_id" in data
         assert data["profile_id"] == "implementer-fixture"
         assert data["action"] is not None
+        # WP06 carry-over from WP02 review: ask/advise JSON also carries the
+        # close contract (the Op stays open until the agent closes it).
+        assert data["status"] == "open" and "close_contract" in data
 
     def test_creates_jsonl_file(self, tmp_path: Path) -> None:
         """A JSONL file is written before the response is output."""
@@ -364,8 +367,9 @@ class TestProfileInvocationComplete:
         assert data2["result"] == "success"
         assert data2["outcome"] == "done"
 
-    def test_complete_only_needs_invocation_id(self, tmp_path: Path) -> None:
-        """No --profile-id required — lookup is by invocation_id alone."""
+    def test_complete_requires_outcome(self, tmp_path: Path) -> None:
+        """WP03: --outcome is required — a missing outcome is a usage error,
+        never silently coerced to "done"."""
         project = _setup_project(tmp_path)
         invocation_id = self._invoke_and_get_id(project)
 
@@ -378,12 +382,11 @@ class TestProfileInvocationComplete:
                     "--json",
                 ],
             )
-        assert result.exit_code == 0, result.output
-        data = json.loads(result.output)
-        assert data["result"] == "success"
+        assert result.exit_code == 2, result.output
 
-    def test_complete_already_closed_exits_zero_with_warning(self, tmp_path: Path) -> None:
-        """Calling complete twice returns exit 0 with already_closed warning — no duplicate write."""
+    def test_complete_already_closed_exits_one_with_error(self, tmp_path: Path) -> None:
+        """WP03: calling complete twice exits 1 with the structured already-closed
+        error — no duplicate write."""
         project = _setup_project(tmp_path)
         invocation_id = self._invoke_and_get_id(project)
 
@@ -394,23 +397,25 @@ class TestProfileInvocationComplete:
                 [
                     "profile-invocation", "complete",
                     "--invocation-id", invocation_id,
+                    "--outcome", "done",
                     "--json",
                 ],
             )
 
-        # Second complete — should warn, not error
+        # Second complete — structured error, exit 1
         with patch("specify_cli.cli.commands.advise.find_repo_root", return_value=project):
             result3 = runner.invoke(
                 cli_app,
                 [
                     "profile-invocation", "complete",
                     "--invocation-id", invocation_id,
+                    "--outcome", "done",
                     "--json",
                 ],
             )
-        assert result3.exit_code == 0, result3.output
+        assert result3.exit_code == 1, result3.output
         data3 = json.loads(result3.output)
-        assert data3.get("warning") == "already_closed"
+        assert data3.get("error") == "already_closed"
         assert data3.get("invocation_id") == invocation_id
 
     def test_complete_unknown_invocation_exits_1(self, tmp_path: Path) -> None:
@@ -424,6 +429,7 @@ class TestProfileInvocationComplete:
                 [
                     "profile-invocation", "complete",
                     "--invocation-id", "01AAAAAAAAAAAAAAAAAAAAAAA0",
+                    "--outcome", "done",
                     "--json",
                 ],
             )

@@ -236,7 +236,7 @@ class TestAutoCommitOnCompleteInvocation:
         ):
             executor = ProfileInvocationExecutor(tmp_path)
             payload = executor.invoke("implement feature", profile_hint="implementer-fixture")
-            executor.complete_invocation(payload.invocation_id, outcome="done")
+            executor.complete_invocation(payload.invocation_id, outcome="done", closed_by="agent")
 
         result = subprocess.run(
             ["git", "-C", str(tmp_path), "log", "--oneline"],
@@ -263,7 +263,7 @@ class TestAutoCommitOnCompleteInvocation:
         ):
             executor = ProfileInvocationExecutor(tmp_path)
             payload = executor.invoke("test", profile_hint="implementer-fixture")
-            executor.complete_invocation(payload.invocation_id, outcome="done")
+            executor.complete_invocation(payload.invocation_id, outcome="done", closed_by="agent")
 
         op_file = tmp_path / EVENTS_DIR / f"{payload.invocation_id}.jsonl"
         assert op_file.exists()
@@ -291,7 +291,7 @@ class TestAutoCommitOnCompleteInvocation:
             payload = executor.invoke("implement mission", profile_hint="implementer-fixture")
 
         with patch("specify_cli.invocation.executor.safe_commit") as mock_safe_commit:
-            executor.complete_invocation(payload.invocation_id, outcome="done")
+            executor.complete_invocation(payload.invocation_id, outcome="done", closed_by="agent")
 
         call_kwargs = mock_safe_commit.call_args.kwargs
         assert call_kwargs["repo_root"] == tmp_path
@@ -323,7 +323,7 @@ class TestAutoCommitOnCompleteInvocation:
         ):
             executor = ProfileInvocationExecutor(tmp_path)
             payload = executor.invoke("implement mission", profile_hint="implementer-fixture")
-            executor.complete_invocation(payload.invocation_id, outcome="done")
+            executor.complete_invocation(payload.invocation_id, outcome="done", closed_by="agent")
 
         committed_files = subprocess.run(
             ["git", "-C", str(tmp_path), "show", "--name-only", "--format=", "HEAD"],
@@ -360,7 +360,7 @@ class TestAutoCommitOnCompleteInvocation:
             executor = ProfileInvocationExecutor(tmp_path)
             orphan = executor.invoke("orphan op", profile_hint="implementer-fixture")
             completed = executor.invoke("completed op", profile_hint="implementer-fixture")
-            executor.complete_invocation(completed.invocation_id, outcome="done")
+            executor.complete_invocation(completed.invocation_id, outcome="done", closed_by="agent")
 
         tracked_files = subprocess.run(
             ["git", "-C", str(tmp_path), "ls-tree", "-r", "--name-only", "HEAD", EVENTS_DIR],
@@ -452,7 +452,7 @@ class TestAutoCommitOnCompleteInvocation:
 
         with patch("specify_cli.invocation.executor.safe_commit", side_effect=RuntimeError("git not found")):
             with caplog.at_level(logging.WARNING):
-                result = executor.complete_invocation(payload.invocation_id, outcome="done")
+                result = executor.complete_invocation(payload.invocation_id, outcome="done", closed_by="agent")
 
         assert result is not None
         warning_messages = [r.message for r in caplog.records if r.levelno >= logging.WARNING]

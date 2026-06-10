@@ -221,11 +221,14 @@ class StepContractExecutor:
                 self._invocation_executor.complete_invocation(
                     payload.invocation_id,
                     outcome="failed",
+                    closed_by="agent",
                 )
                 raise
             else:
                 # outcome describes the composition-step trail only; not host-LLM generation status.
-                self._invocation_executor.complete_invocation(payload.invocation_id, outcome="done")
+                self._invocation_executor.complete_invocation(
+                    payload.invocation_id, outcome="done", closed_by="agent"
+                )
 
         return StepContractExecutionResult(
             contract_id=selected_contract.id,

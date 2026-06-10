@@ -5,7 +5,7 @@
 spec_kitty:
   version: 3.2.0rc41
   initialized_at: '2026-04-07T09:10:40.826207'
-  last_upgraded_at: '2026-06-08T10:03:59.356798'
+  last_upgraded_at: '2026-06-10T23:21:15.315351'
   schema_version: 3
 environment:
   python_version: 3.14.0

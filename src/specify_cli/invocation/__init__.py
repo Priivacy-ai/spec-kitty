@@ -2,7 +2,7 @@
 
 This package provides the core primitives for profile-governed invocations:
 - ProfileInvocationExecutor — the single execution entry point
-- InvocationRecord — the v1 JSONL audit trail event model
+- OpStartedEvent / OpCompletedEvent — the v2 JSONL audit trail event models
 - ProfileRegistry — thin wrapper over AgentProfileRepository
 - InvocationWriter — append-only JSONL writer
 - Structured error types
@@ -17,6 +17,7 @@ from specify_cli.invocation.errors import (
     ContextUnavailableError,
     InvocationError,
     InvocationWriteError,
+    LegacyRecordError,
     ProfileNotFoundError,
     RouterAmbiguityError,
 )
@@ -38,14 +39,16 @@ from specify_cli.invocation.lifecycle import (
 )
 from specify_cli.invocation.record import (
     EvidenceArtifact,
-    InvocationRecord,
     MINIMAL_VIABLE_TRAIL_POLICY,
     MinimalViableTrailPolicy,
+    OpCompletedEvent,
+    OpStartedEvent,
     ProfileInvocationPhase,
     ProfileInvocationRecord,
     TIER_3_ACTIONS,
     TierEligibility,
     TierPolicy,
+    parse_op_event,
     promote_to_evidence,
     tier_eligible,
 )
@@ -58,13 +61,15 @@ __all__ = [
     "EvidenceArtifact",
     "InvocationError",
     "InvocationPayload",
-    "InvocationRecord",
     "InvocationWriteError",
     "InvocationWriter",
     "LIFECYCLE_LOG_RELATIVE_PATH",
+    "LegacyRecordError",
     "LifecycleGroup",
     "MINIMAL_VIABLE_TRAIL_POLICY",
     "MinimalViableTrailPolicy",
+    "OpCompletedEvent",
+    "OpStartedEvent",
     "ProfileInvocationExecutor",
     "ProfileInvocationPhase",
     "ProfileInvocationRecord",
@@ -82,6 +87,7 @@ __all__ = [
     "group_by_action",
     "lifecycle_log_path",
     "make_canonical_action_id",
+    "parse_op_event",
     "promote_to_evidence",
     "read_lifecycle_records",
     "tier_eligible",

@@ -16,9 +16,10 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 
-from specify_cli.invocation.errors import InvocationError, InvocationWriteError, ProfileNotFoundError, RouterAmbiguityError
+from specify_cli.invocation.errors import InvocationWriteError, ProfileNotFoundError, RouterAmbiguityError
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
 from specify_cli.invocation.modes import derive_mode
+from specify_cli.invocation.propagator import InvocationSaaSPropagator
 from specify_cli.invocation.registry import ProfileRegistry
 from specify_cli.invocation.router import ActionRouter
 from specify_cli.task_utils import find_repo_root
@@ -37,9 +38,11 @@ def _get_repo_root() -> Path:
 
 
 def _build_executor(repo_root: Path) -> ProfileInvocationExecutor:
+    """Construct the executor with router + SaaS propagator (parity with advise/ask, FR-008)."""
     registry = ProfileRegistry(repo_root)
     router = ActionRouter(registry)
-    return ProfileInvocationExecutor(repo_root, router=router)
+    propagator = InvocationSaaSPropagator(repo_root)
+    return ProfileInvocationExecutor(repo_root, router=router, propagator=propagator)
 
 
 def _detect_actor() -> str:
@@ -147,23 +150,25 @@ def do(
         )
         raise typer.Exit(1) from e
 
-    # do is a single-shot routing command: close before emitting success output
-    # so completion write failures cannot masquerade as successful JSON.
-    try:
-        executor.complete_invocation(payload.invocation_id, outcome="done")
-    except InvocationError as e:
-        typer.echo(
-            json.dumps({"error": "write_failed", "message": str(e)}), err=True
-        )
-        raise typer.Exit(1) from e
-
+    # FR-001/FR-002: do is an honest dispatch — the Op stays OPEN. The caller
+    # closes it via `spec-kitty profile-invocation complete` with the real outcome.
     if json_output:
         typer.echo(json.dumps(payload.to_dict(), indent=2))
     else:
         _render_rich_payload(payload)
         console.print(
-            f"\n[dim]Op record written — commit it:[/dim] "
-            f"git add kitty-ops/{payload.invocation_id}.jsonl"
+            "\n[bold]This Op is OPEN.[/bold] "
+            "After completing the work, close it with the real outcome:"
+        )
+        console.print(
+            f"  [dim]spec-kitty profile-invocation complete "
+            f"--invocation-id {payload.invocation_id} "
+            f"--outcome <done|failed|abandoned> "
+            f"\\[--evidence <file>] \\[--artifact <path>] \\[--commit <sha>][/dim]"
+        )
+        console.print(
+            "[dim]Unclosed Ops are reported by `spec-kitty doctor ops` "
+            "and swept to 'abandoned' when stale.[/dim]"
         )
 
     # Inline drift observation — reads glossary events written by the chokepoint

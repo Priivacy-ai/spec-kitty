@@ -343,5 +343,6 @@ class ActionRouter:
                 return action
         caps = DEFAULT_ROLE_CAPABILITIES.get(role) if isinstance(role, Role) else None
         if caps and caps.canonical_verbs:
-            return caps.canonical_verbs[0]
+            # str() re-types the upstream Any (follow_imports=skip) as str.
+            return str(caps.canonical_verbs[0])
         return "advise"
