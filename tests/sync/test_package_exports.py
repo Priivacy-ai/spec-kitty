@@ -25,3 +25,4 @@ def test_lazy_event_exports_resolve_to_events_module_symbols() -> None:
     assert sync_package.reset_emitter is events.reset_emitter
     assert sync_package.emit_wp_status_changed is events.emit_wp_status_changed
     assert sync_package.emit_diff_summary_recorded is events.emit_diff_summary_recorded
+    assert sync_package.emit_proof_event is events.emit_proof_event

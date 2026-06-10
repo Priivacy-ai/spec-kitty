@@ -508,3 +508,23 @@ def emit_diff_summary_recorded(
         _publish_event_via_sync_daemon(event, repo_root)
         _request_dashboard_sync(repo_root)
     return event
+
+
+def emit_proof_event(
+    event_type: str,
+    payload: Any,
+    *,
+    causation_id: str | None = None,
+    ensure_daemon: bool = True,
+) -> dict[str, Any] | None:
+    """Emit a CLI-owned proof/evidence event via the singleton emitter."""
+    repo_root = _ensure_dashboard_sync_daemon_for_active_project(ensure_daemon=ensure_daemon)
+    event = get_emitter().emit_proof_event(
+        event_type=event_type,
+        payload=payload,
+        causation_id=causation_id,
+    )
+    if event is not None:
+        _publish_event_via_sync_daemon(event, repo_root)
+        _request_dashboard_sync(repo_root)
+    return event

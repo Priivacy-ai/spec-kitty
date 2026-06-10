@@ -39,6 +39,13 @@ from rich.console import Console
 
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.mission_metadata import mission_number_from_slug
+from specify_cli.proof.events import (
+    PROOF_EVENT_REQUIRED_FIELDS,
+    PROOF_EVENT_TYPES,
+    PROOF_SCHEMA_VERSION,
+    build_proof_payload,
+    infer_proof_aggregate,
+)
 from specify_cli.status import get_all_lane_values
 from specify_cli.status_lanes import CANONICAL_LANES
 from spec_kitty_events import normalize_event_id as _normalize_event_id
@@ -221,6 +228,151 @@ def _is_non_negative_number(value: Any) -> bool:
 
 def _is_sha256_hex(value: Any) -> bool:
     return isinstance(value, str) and bool(_SHA256_HEX_RE.match(value))
+
+
+def _is_probability(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and 0 <= value <= 1
+
+
+def _is_proof_actor(value: Any) -> bool:
+    if not isinstance(value, dict):
+        return False
+    actor_type = value.get("actor_type")
+    actor_id = value.get("actor_id")
+    return isinstance(actor_id, str) and len(actor_id.strip()) >= 1 and actor_type in {"human", "llm", "service"}
+
+
+def _is_proof_subject(value: Any) -> bool:
+    if not isinstance(value, dict):
+        return False
+    subject_type = value.get("subject_type")
+    subject_id = value.get("subject_id")
+    if not isinstance(subject_id, str) or not subject_id.strip():
+        return False
+    if subject_type == "work_package":
+        wp_id = value.get("wp_id")
+        return isinstance(wp_id, str) and bool(_WP_ID_PATTERN.match(wp_id))
+    if subject_type == "mission":
+        return isinstance(value.get("mission_id"), str) or isinstance(value.get("mission_slug"), str)
+    if subject_type == "mission_run":
+        return isinstance(value.get("run_id"), str)
+    return subject_type in {"review", "pull_request"}
+
+
+def _is_proof_artifact_refs(value: Any) -> bool:
+    if not isinstance(value, list) or len(value) > 20:
+        return False
+    for ref in value:
+        if not isinstance(ref, dict):
+            return False
+        if not isinstance(ref.get("uri"), str) or not ref.get("uri"):
+            return False
+        if ref.get("kind") not in {
+            "file",
+            "log",
+            "junit",
+            "coverage",
+            "report",
+            "url",
+            "commit",
+            "pull_request",
+            "benchmark",
+            "security_scan",
+            "other",
+        }:
+            return False
+        sha256 = ref.get("sha256")
+        if sha256 is not None and not _is_sha256_hex(sha256):
+            return False
+        size_bytes = ref.get("size_bytes")
+        if size_bytes is not None and (not isinstance(size_bytes, int) or size_bytes < 0):
+            return False
+    return True
+
+
+def _is_hex_digest(value: Any) -> bool:
+    return isinstance(value, str) and bool(_SHA256_HEX_RE.match(value))
+
+
+def _proof_validators_for(event_type: str) -> dict[str, Any]:
+    validators: dict[str, Any] = {
+        "proof_schema_version": lambda v: v == PROOF_SCHEMA_VERSION,
+        "subject": _is_proof_subject,
+        "source": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
+        "actor": _is_proof_actor,
+        "confidence": _is_probability,
+        "occurred_at": _is_datetime_string,
+        "observed_at": _is_datetime_string,
+        "artifact_refs": _is_proof_artifact_refs,
+        "summary": lambda v: isinstance(v, dict),
+        "idempotency_key": _is_hex_digest,
+    }
+    if event_type == "ProofItemRecorded":
+        validators["proof_kind"] = lambda v: v in {"artifact", "claim", "observation", "note", "other"}
+    elif event_type == "ReviewProofRecorded":
+        validators.update(
+            {
+                "review_kind": lambda v: v in {"code_review", "qa", "mission_review", "security_review", "other"},
+                "verdict": lambda v: v in {"approved", "changes_requested", "commented", "rejected", "unknown"},
+                "review_ref": _is_nullable_string,
+            }
+        )
+    elif event_type == "TestEvidenceCaptured":
+        validators.update(
+            {
+                "test_command": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
+                "exit_code": lambda v: isinstance(v, int) and v >= 0,
+                "status": lambda v: v in {"passed", "failed", "error", "skipped"},
+                "runner": _is_nullable_string,
+                "cwd": _is_nullable_string,
+                "duration_ms": lambda v: isinstance(v, int) and v >= 0,
+                "total_tests": lambda v: isinstance(v, int) and v >= 0,
+                "passed_tests": lambda v: isinstance(v, int) and v >= 0,
+                "failed_tests": lambda v: isinstance(v, int) and v >= 0,
+                "skipped_tests": lambda v: isinstance(v, int) and v >= 0,
+                "failure_summary": _is_nullable_string,
+                "branch": _is_nullable_string,
+                "commit": _is_nullable_string,
+                "build_id": _is_nullable_string,
+            }
+        )
+    elif event_type == "BenchmarkEvidenceAttached":
+        validators.update(
+            {
+                "benchmark_name": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
+                "benchmark_suite": _is_nullable_string,
+                "baseline_ref": _is_nullable_string,
+                "comparison_ref": _is_nullable_string,
+            }
+        )
+    elif event_type == "SecurityScanCompleted":
+        validators.update(
+            {
+                "scanner": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
+                "status": lambda v: v in {"passed", "failed", "completed", "error"},
+                "findings_summary": lambda v: isinstance(v, dict),
+            }
+        )
+    elif event_type == "PullRequestLineageRecorded":
+        validators.update(
+            {
+                "provider": lambda v: v in {"github", "gitlab", "bitbucket", "other"},
+                "repository": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
+                "pull_request_url": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
+                "pull_request_number": lambda v: isinstance(v, int) and v >= 1,
+                "base_ref": _is_nullable_string,
+                "head_ref": _is_nullable_string,
+            }
+        )
+    elif event_type == "HumanApprovalRecorded":
+        validators.update(
+            {
+                "approver": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
+                "approval_status": lambda v: v in {"approved", "rejected", "requested_changes", "acknowledged"},
+                "approval_ref": _is_nullable_string,
+            }
+        )
+    return validators
 
 
 def _default_mission_display_name(mission_slug: str) -> str:
@@ -495,6 +647,13 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "lines_deleted": lambda v: isinstance(v, int) and v >= 0,
             "source": lambda v: isinstance(v, str) and len(v) >= 1,
         },
+    },
+    **{
+        event_type: {
+            "required": set(PROOF_EVENT_REQUIRED_FIELDS[event_type]),
+            "validators": _proof_validators_for(event_type),
+        }
+        for event_type in sorted(PROOF_EVENT_TYPES)
     },
     "HistoryAdded": {
         "required": {"wp_id", "entry_type", "entry_content"},
@@ -1462,6 +1621,67 @@ class EventEmitter:
             causation_id=causation_id,
         )
 
+    def emit_proof_event(
+        self,
+        event_type: str,
+        payload: Any,
+        *,
+        causation_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Emit one of the CLI-owned proof/evidence event types."""
+        try:
+            data = build_proof_payload(
+                event_type,
+                self._enrich_proof_subject(payload),
+            )
+        except Exception as exc:  # noqa: BLE001 - producer contract preserves None-on-invalid
+            _console.print(f"[yellow]Warning: {event_type} payload validation failed: {exc}[/yellow]")
+            return None
+
+        aggregate_type, aggregate_id = infer_proof_aggregate(data)
+        return self._emit(
+            event_type=event_type,
+            aggregate_id=aggregate_id,
+            aggregate_type=aggregate_type,
+            payload=data,
+            causation_id=causation_id,
+            occurred_at=str(data.get("occurred_at") or ""),
+        )
+
+    def _enrich_proof_subject(self, payload: Any) -> dict[str, Any]:
+        data = self._payload_dict(payload)
+        subject = data.get("subject")
+        if not isinstance(subject, dict):
+            return data
+
+        enriched = dict(subject)
+        identity = self._get_identity()
+        git_meta = self._get_git_metadata()
+
+        if identity.project_uuid is not None:
+            enriched.setdefault("project_uuid", str(identity.project_uuid))
+        if identity.project_slug:
+            enriched.setdefault("project_slug", identity.project_slug)
+        if identity.build_id:
+            enriched.setdefault("build_id", identity.build_id)
+        if git_meta.repo_slug:
+            enriched.setdefault("repo_slug", git_meta.repo_slug)
+        if git_meta.git_branch:
+            enriched.setdefault("git_branch", git_meta.git_branch)
+        if git_meta.head_commit_sha:
+            enriched.setdefault("head_commit_sha", git_meta.head_commit_sha)
+
+        team_slug = (
+            self._get_team_slug()
+            if is_saas_sync_enabled()
+            else self._get_cached_private_team_slug()
+        )
+        if team_slug:
+            enriched.setdefault("team_slug", team_slug)
+
+        data["subject"] = enriched
+        return data
+
     def emit_history_added(
         self,
         wp_id: str,
@@ -1783,6 +2003,20 @@ class EventEmitter:
         except Exception as e:
             _console.print(f"[yellow]Warning: Could not resolve team_slug: {e}[/yellow]")
         return None
+
+    @staticmethod
+    def _get_cached_private_team_slug() -> str | None:
+        """Read Private Teamspace id from cached auth session without ingress I/O."""
+        try:
+            from specify_cli.auth import get_token_manager
+            from specify_cli.auth.session import require_private_team_id
+
+            session = get_token_manager().get_current_session()
+            if session is None:
+                return None
+            return require_private_team_id(session)
+        except Exception:
+            return None
 
     def _validate_event(self, event: dict[str, Any]) -> bool:
         """Validate event against spec-kitty-events models and payload schemas.
