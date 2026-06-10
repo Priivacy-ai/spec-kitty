@@ -25,6 +25,7 @@ from specify_cli.invocation.writer import EVENTS_DIR
 # Marked for mutmut sandbox skip — subprocess CLI invocation.
 pytestmark = pytest.mark.non_sandbox
 
+
 class ArgvCliRunner(CliRunner):
     def invoke(self, app, args=None, **kwargs):  # type: ignore[no-untyped-def]
         argv = ["spec-kitty", *(list(args) if args is not None and not isinstance(args, str) else [])]
@@ -118,6 +119,30 @@ class TestAdviseWithExplicitProfile:
         assert "invocation_id" in data
         assert data["profile_id"] == "implementer-fixture"
         assert data["action"] is not None
+        # WP06 carry-over from WP02 review: ask/advise JSON also carries the
+        # close contract (the Op stays open until the agent closes it).
+        assert data["status"] == "open" and "close_contract" in data
+
+    def test_advisory_close_contract_omits_evidence_flag(self, tmp_path: Path) -> None:
+        """Advisory mode refuses --evidence (InvalidModeForEvidenceError), so the
+        close contract must not advertise evidence_flag (contracts/cli-do-output.md)."""
+        project = _setup_project(tmp_path)
+        with (
+            patch("specify_cli.cli.commands.advise.find_repo_root", return_value=project),
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["advise", "implement the feature", "--profile", "implementer-fixture", "--json"],
+            )
+        assert result.exit_code == 0, result.output
+        contract = json.loads(result.output)["close_contract"]
+        assert "evidence_flag" not in contract, "advisory-mode close contract must omit evidence_flag"
+        assert contract["artifact_flag"] == "--artifact"
+        assert contract["commit_flag"] == "--commit"
 
     def test_creates_jsonl_file(self, tmp_path: Path) -> None:
         """A JSONL file is written before the response is output."""
@@ -134,10 +159,7 @@ class TestAdviseWithExplicitProfile:
                 ["advise", "implement the feature", "--profile", "implementer-fixture", "--json"],
             )
         assert result.exit_code == 0, result.output
-        jsonl_files = [
-            path for path in (project / EVENTS_DIR).glob("*.jsonl")
-            if path.name != "ops-index.jsonl"
-        ]
+        jsonl_files = [path for path in (project / EVENTS_DIR).glob("*.jsonl") if path.name != "ops-index.jsonl"]
         assert len(jsonl_files) == 1
 
     def test_rich_output_exits_zero(self, tmp_path: Path) -> None:
@@ -155,6 +177,25 @@ class TestAdviseWithExplicitProfile:
                 ["advise", "implement the feature", "--profile", "implementer-fixture"],
             )
         assert result.exit_code == 0, result.output
+
+    def test_rich_output_close_hint_includes_required_outcome(self, tmp_path: Path) -> None:
+        """Rich close hint must stay executable now that --outcome is required."""
+        project = _setup_project(tmp_path)
+        with (
+            patch("specify_cli.cli.commands.advise.find_repo_root", return_value=project),
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["advise", "implement the feature", "--profile", "implementer-fixture"],
+            )
+        assert result.exit_code == 0, result.output
+        flat = result.output.replace("\n", " ")
+        assert "profile-invocation complete" in flat
+        assert "--outcome <done|failed|abandoned>" in flat
 
     def test_rich_output_surfaces_high_severity_glossary_warning(self, tmp_path: Path) -> None:
         """High-severity glossary conflicts should be shown inline before governance context."""
@@ -213,6 +254,27 @@ class TestAdviseWithExplicitProfile:
             )
         assert result.exit_code == 0, result.output
         assert "git add kitty-ops/" not in result.output
+
+    def test_json_output_does_not_render_inline_glossary_notices(self, tmp_path: Path) -> None:
+        """--json output must stay a single parseable JSON document."""
+        project = _setup_project(tmp_path)
+        with (
+            patch("specify_cli.cli.commands.advise.find_repo_root", return_value=project),
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+            patch("glossary.observation.ObservationSurface.collect_notices") as collect,
+            patch("glossary.observation.ObservationSurface.render_notices") as render,
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["advise", "--json", "implement the feature", "--profile", "implementer-fixture"],
+            )
+        assert result.exit_code == 0, result.output
+        json.loads(result.output)
+        collect.assert_not_called()
+        render.assert_not_called()
 
 
 class TestAdviseMissingProfile:
@@ -273,10 +335,7 @@ class TestAdviseNoCharter:
                 ["advise", "implement the feature", "--profile", "implementer-fixture", "--json"],
             )
         assert result.exit_code == 0
-        jsonl_files = [
-            path for path in (project / EVENTS_DIR).glob("*.jsonl")
-            if path.name != "ops-index.jsonl"
-        ]
+        jsonl_files = [path for path in (project / EVENTS_DIR).glob("*.jsonl") if path.name != "ops-index.jsonl"]
         assert len(jsonl_files) == 1
 
 
@@ -353,9 +412,12 @@ class TestProfileInvocationComplete:
             result2 = runner.invoke(
                 cli_app,
                 [
-                    "profile-invocation", "complete",
-                    "--invocation-id", invocation_id,
-                    "--outcome", "done",
+                    "profile-invocation",
+                    "complete",
+                    "--invocation-id",
+                    invocation_id,
+                    "--outcome",
+                    "done",
                     "--json",
                 ],
             )
@@ -364,8 +426,9 @@ class TestProfileInvocationComplete:
         assert data2["result"] == "success"
         assert data2["outcome"] == "done"
 
-    def test_complete_only_needs_invocation_id(self, tmp_path: Path) -> None:
-        """No --profile-id required — lookup is by invocation_id alone."""
+    def test_complete_requires_outcome(self, tmp_path: Path) -> None:
+        """WP03: --outcome is required — a missing outcome is a usage error,
+        never silently coerced to "done"."""
         project = _setup_project(tmp_path)
         invocation_id = self._invoke_and_get_id(project)
 
@@ -373,17 +436,18 @@ class TestProfileInvocationComplete:
             result = runner.invoke(
                 cli_app,
                 [
-                    "profile-invocation", "complete",
-                    "--invocation-id", invocation_id,
+                    "profile-invocation",
+                    "complete",
+                    "--invocation-id",
+                    invocation_id,
                     "--json",
                 ],
             )
-        assert result.exit_code == 0, result.output
-        data = json.loads(result.output)
-        assert data["result"] == "success"
+        assert result.exit_code == 2, result.output
 
-    def test_complete_already_closed_exits_zero_with_warning(self, tmp_path: Path) -> None:
-        """Calling complete twice returns exit 0 with already_closed warning — no duplicate write."""
+    def test_complete_already_closed_exits_one_with_error(self, tmp_path: Path) -> None:
+        """WP03: calling complete twice exits 1 with the structured already-closed
+        error — no duplicate write."""
         project = _setup_project(tmp_path)
         invocation_id = self._invoke_and_get_id(project)
 
@@ -392,25 +456,33 @@ class TestProfileInvocationComplete:
             runner.invoke(
                 cli_app,
                 [
-                    "profile-invocation", "complete",
-                    "--invocation-id", invocation_id,
+                    "profile-invocation",
+                    "complete",
+                    "--invocation-id",
+                    invocation_id,
+                    "--outcome",
+                    "done",
                     "--json",
                 ],
             )
 
-        # Second complete — should warn, not error
+        # Second complete — structured error, exit 1
         with patch("specify_cli.cli.commands.advise.find_repo_root", return_value=project):
             result3 = runner.invoke(
                 cli_app,
                 [
-                    "profile-invocation", "complete",
-                    "--invocation-id", invocation_id,
+                    "profile-invocation",
+                    "complete",
+                    "--invocation-id",
+                    invocation_id,
+                    "--outcome",
+                    "done",
                     "--json",
                 ],
             )
-        assert result3.exit_code == 0, result3.output
+        assert result3.exit_code == 1, result3.output
         data3 = json.loads(result3.output)
-        assert data3.get("warning") == "already_closed"
+        assert data3.get("error") == "already_closed"
         assert data3.get("invocation_id") == invocation_id
 
     def test_complete_unknown_invocation_exits_1(self, tmp_path: Path) -> None:
@@ -422,8 +494,12 @@ class TestProfileInvocationComplete:
             result = runner.invoke(
                 cli_app,
                 [
-                    "profile-invocation", "complete",
-                    "--invocation-id", "01AAAAAAAAAAAAAAAAAAAAAAA0",
+                    "profile-invocation",
+                    "complete",
+                    "--invocation-id",
+                    "01AAAAAAAAAAAAAAAAAAAAAAA0",
+                    "--outcome",
+                    "done",
                     "--json",
                 ],
             )

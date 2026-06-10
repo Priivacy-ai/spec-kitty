@@ -34,6 +34,7 @@ from specify_cli.cli.commands.invocations_cmd import (
 # Marked for mutmut sandbox skip — subprocess CLI invocation.
 pytestmark = pytest.mark.non_sandbox
 
+
 class ArgvCliRunner(CliRunner):
     def invoke(self, app, args=None, **kwargs):  # type: ignore[no-untyped-def]
         argv = ["spec-kitty", *(list(args) if args is not None and not isinstance(args, str) else [])]
@@ -70,6 +71,11 @@ def _write_started(
         "invocation_id": invocation_id,
         "profile_id": profile_id,
         "action": action,
+        "request_text": "test request",
+        "actor": "claude",
+        "mode_of_work": "task_execution",
+        "governance_context_hash": "abcdef0123456789",
+        "governance_context_available": True,
         "started_at": started_at,
     }
     path = events_dir / f"{invocation_id}.jsonl"
@@ -77,12 +83,13 @@ def _write_started(
     return path
 
 
-def _write_completed(path: Path, *, invocation_id: str, outcome: str = "done") -> None:
+def _write_completed(path: Path, *, invocation_id: str, outcome: str = "done", closed_by: str = "agent") -> None:
     record = {
         "event": "completed",
         "invocation_id": invocation_id,
         "completed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "outcome": outcome,
+        "closed_by": closed_by,
     }
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record) + "\n")
@@ -118,6 +125,11 @@ def create_fixture_invocations(
             "invocation_id": inv_id,
             "profile_id": profile_id,
             "action": "implement",
+            "request_text": "test request",
+            "actor": "claude",
+            "mode_of_work": "task_execution",
+            "governance_context_hash": "abcdef0123456789",
+            "governance_context_available": True,
             "started_at": started_at,
         }
         path = events_dir / f"{inv_id}.jsonl"
@@ -304,9 +316,7 @@ class TestInvocationsListJSON:
         assert record["status"] == "closed"
         assert record["outcome"] == "done"
 
-    def test_indexed_status_closed_when_correlation_links_follow_completion(
-        self, tmp_path: Path
-    ) -> None:
+    def test_indexed_status_closed_when_correlation_links_follow_completion(self, tmp_path: Path) -> None:
         """Index path must also scan for completed before post-terminal links."""
         events_dir = _make_events_dir(tmp_path)
         invocation_id = _new_ulid()
@@ -321,6 +331,31 @@ class TestInvocationsListJSON:
         record = next(r for r in records if r["invocation_id"] == invocation_id)
         assert record["status"] == "closed"
         assert record["outcome"] == "done"
+
+    def test_indexed_reader_skips_dangling_index_entries_after_migration_delete(self, tmp_path: Path) -> None:
+        """Deleted unsalvageable op files must not reappear as phantom open Ops."""
+        events_dir = _make_events_dir(tmp_path)
+        live_id = _new_ulid()
+        deleted_id = _new_ulid()
+
+        live_path = _write_started(events_dir, invocation_id=live_id)
+        append_to_index(
+            tmp_path,
+            json.loads(live_path.read_text(encoding="utf-8").splitlines()[0]),
+        )
+        append_to_index(
+            tmp_path,
+            {
+                "invocation_id": deleted_id,
+                "profile_id": "implementer-fixture",
+                "started_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            },
+        )
+
+        records = list(_iter_records(events_dir, None, 10, repo_root=tmp_path))
+        listed_ids = {record["invocation_id"] for record in records}
+        assert live_id in listed_ids
+        assert deleted_id not in listed_ids
 
     def test_no_events_dir_returns_empty(self, tmp_path: Path) -> None:
         """When kitty-ops does not exist, return []."""
@@ -359,7 +394,111 @@ def test_list_performance_10k(tmp_path: Path) -> None:
     elapsed = time.monotonic() - start
 
     assert len(records) == 100, f"Expected 100 records, got {len(records)}"
-    assert elapsed < 0.200, (
-        f"Performance gate failed: {elapsed:.3f}s (threshold: 0.200s). "
-        "The index-based path should meet this threshold — check index I/O."
-    )
+    assert elapsed < 0.200, f"Performance gate failed: {elapsed:.3f}s (threshold: 0.200s). The index-based path should meet this threshold — check index I/O."
+
+
+# ---------------------------------------------------------------------------
+# Schema v2: closed-record display + legacy warn-and-skip (WP01)
+# ---------------------------------------------------------------------------
+
+
+class TestInvocationsListV2:
+    def test_closed_record_exposes_outcome_and_closed_by(self, tmp_path: Path) -> None:
+        """Closed v2 Ops expose outcome and closed_by in JSON output."""
+        events_dir = _make_events_dir(tmp_path)
+        open_id = "01KPQRX2EVGMRVB4Q1JQBAZJV1"
+        closed_id = "01KPQRX2EVGMRVB4Q1JQBAZJV2"
+        _write_started(events_dir, invocation_id=open_id)
+        path = _write_started(events_dir, invocation_id=closed_id)
+        _write_completed(path, invocation_id=closed_id, outcome="failed", closed_by="doctor_sweep")
+
+        with pytest.MonkeyPatch().context() as mp:
+            mp.setattr(
+                "specify_cli.cli.commands.invocations_cmd.find_repo_root",
+                lambda: tmp_path,
+            )
+            result = runner.invoke(cli_app, ["invocations", "list", "--json"])
+        assert result.exit_code == 0, result.output
+        data = {r["invocation_id"]: r for r in json.loads(result.output)}
+        assert data[open_id]["status"] == "open"
+        assert "closed_by" not in data[open_id]
+        assert data[closed_id]["status"] == "closed"
+        assert data[closed_id]["outcome"] == "failed"
+        assert data[closed_id]["closed_by"] == "doctor_sweep"
+
+    def test_table_output_shows_outcome_and_closed_by_columns(self, tmp_path: Path) -> None:
+        events_dir = _make_events_dir(tmp_path)
+        closed_id = "01KPQRX2EVGMRVB4Q1JQBAZJV2"
+        path = _write_started(events_dir, invocation_id=closed_id)
+        _write_completed(path, invocation_id=closed_id, outcome="done", closed_by="agent")
+
+        with pytest.MonkeyPatch().context() as mp:
+            mp.setattr(
+                "specify_cli.cli.commands.invocations_cmd.find_repo_root",
+                lambda: tmp_path,
+            )
+            result = runner.invoke(cli_app, ["invocations", "list"])
+        assert result.exit_code == 0, result.output
+        assert "Outcome" in result.output
+        assert "Closed By" in result.output
+        assert "agent" in result.output
+
+    def test_legacy_record_warns_and_skips(self, tmp_path: Path) -> None:
+        """Legacy (pre-v2) lines produce one warning naming spec-kitty upgrade, never a traceback."""
+        events_dir = _make_events_dir(tmp_path)
+        v2_id = "01KPQRX2EVGMRVB4Q1JQBAZJV1"
+        legacy_id = "01KPQRX2EVGMRVB4Q1JQBAZJV5"
+        _write_started(events_dir, invocation_id=v2_id)
+        # Legacy v1 started line: no actor / mode_of_work.
+        legacy_record = {
+            "event": "started",
+            "invocation_id": legacy_id,
+            "profile_id": "implementer-fixture",
+            "action": "implement",
+            "started_at": "2026-04-22T06:00:00+00:00",
+        }
+        (events_dir / f"{legacy_id}.jsonl").write_text(json.dumps(legacy_record) + "\n", encoding="utf-8")
+
+        with pytest.MonkeyPatch().context() as mp:
+            mp.setattr(
+                "specify_cli.cli.commands.invocations_cmd.find_repo_root",
+                lambda: tmp_path,
+            )
+            result = runner.invoke(cli_app, ["invocations", "list"], catch_exceptions=False)
+        assert result.exit_code == 0, result.output
+        assert "spec-kitty upgrade" in result.output
+        assert result.output.count("legacy Op record") == 1
+        # The v2 record is still listed; the legacy one is skipped
+        # (verified via the JSON surface, which is not column-truncated).
+        with pytest.MonkeyPatch().context() as mp:
+            mp.setattr(
+                "specify_cli.cli.commands.invocations_cmd.find_repo_root",
+                lambda: tmp_path,
+            )
+            json_result = runner.invoke(cli_app, ["invocations", "list", "--json"], catch_exceptions=False)
+        listed_ids = {r["invocation_id"] for r in json.loads(json_result.output[json_result.output.index("[") :])}
+        assert v2_id in listed_ids
+        assert legacy_id not in listed_ids
+
+    def test_legacy_completed_line_warns_and_skips(self, tmp_path: Path) -> None:
+        """A v1 completed line (no closed_by) is skipped with the migration warning."""
+        events_dir = _make_events_dir(tmp_path)
+        legacy_id = "01KPQRX2EVGMRVB4Q1JQBAZJV6"
+        path = _write_started(events_dir, invocation_id=legacy_id)
+        legacy_completed = {
+            "event": "completed",
+            "invocation_id": legacy_id,
+            "completed_at": "2026-04-22T07:00:00+00:00",
+            "outcome": None,
+        }
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(legacy_completed) + "\n")
+
+        with pytest.MonkeyPatch().context() as mp:
+            mp.setattr(
+                "specify_cli.cli.commands.invocations_cmd.find_repo_root",
+                lambda: tmp_path,
+            )
+            result = runner.invoke(cli_app, ["invocations", "list"], catch_exceptions=False)
+        assert result.exit_code == 0, result.output
+        assert "spec-kitty upgrade" in result.output

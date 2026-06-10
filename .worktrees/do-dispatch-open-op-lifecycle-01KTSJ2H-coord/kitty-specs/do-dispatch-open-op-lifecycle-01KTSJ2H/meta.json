@@ -1,0 +1,16 @@
+{
+  "baseline_merge_commit": "af386180010e0cd5938d3e2d469aef4c4915ca03",
+  "coordination_branch": "kitty/mission-do-dispatch-open-op-lifecycle-01KTSJ2H",
+  "created_at": "2026-06-10T20:02:42.592268+00:00",
+  "friendly_name": "Do Dispatch Open-Op Lifecycle",
+  "mission_id": "01KTSJ2H8E5YF2EGJYGAE5Z5Q2",
+  "mission_number": null,
+  "mission_slug": "do-dispatch-open-op-lifecycle-01KTSJ2H",
+  "mission_type": "software-dev",
+  "purpose_context": "Today 'spec-kitty do' closes its operation record with outcome 'done' the moment it dispatches, before any work happens, so the permanent audit record in kitty-ops can claim success for work that failed or never occurred. This mission makes the record truthful: dispatch opens the record, the working agent closes it with the real outcome and evidence, hooks remind about open records, and doctor sweeps stale ones — so product owners, auditors, and other agents can trust who did what, when, and why.",
+  "purpose_tldr": "Make 'spec-kitty do' record honest open→work→close Op lifecycles instead of falsely marking work done at dispatch.",
+  "slug": "do-dispatch-open-op-lifecycle-01KTSJ2H",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-10T21:09:56.416013+00:00"
+}

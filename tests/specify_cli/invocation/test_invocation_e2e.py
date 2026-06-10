@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
+from typing import Literal
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -34,8 +35,8 @@ import pytest
 from specify_cli.invocation.errors import InvalidModeForEvidenceError
 from specify_cli.invocation.executor import ProfileInvocationExecutor
 from specify_cli.invocation.modes import ModeOfWork
-from specify_cli.invocation.record import InvocationRecord
-from specify_cli.invocation.writer import EVENTS_DIR, InvocationWriter
+from specify_cli.invocation.record import OpStartedEvent
+from specify_cli.invocation.writer import EVENTS_DIR
 from specify_cli.sync.routing import CheckoutSyncRouting
 
 
@@ -43,7 +44,8 @@ from specify_cli.sync.routing import CheckoutSyncRouting
 # Shared helpers / fixtures
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+# git_repo: the e2e flow exercises close-time auto-commit via subprocess git.
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "profiles"
 
@@ -73,14 +75,17 @@ def _setup_minimal_project(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _make_started_record(invocation_id: str = "01KPQRX2EVGMRVB4Q1JQBAZJV3") -> InvocationRecord:
+def _make_started_record(invocation_id: str = "01KPQRX2EVGMRVB4Q1JQBAZJV3") -> OpStartedEvent:
     """Create a minimal started record for direct writer/propagator tests."""
-    return InvocationRecord(
-        event="started",
+    return OpStartedEvent(
         invocation_id=invocation_id,
         profile_id="implementer-fixture",
         action="implement",
         request_text="test request",
+        actor="claude",
+        mode_of_work="task_execution",
+        governance_context_hash="abcdef0123456789",
+        governance_context_available=True,
         started_at="2026-04-22T06:00:00Z",
     )
 
@@ -159,7 +164,7 @@ def test_complete_writes_completed_event(tmp_path: Path) -> None:
     ):
         executor.complete_invocation(
             invocation_id=invocation_id,
-            outcome="done",
+            outcome="done", closed_by="agent",
         )
 
     # Step 3: Verify JSONL has started + completed
@@ -179,6 +184,10 @@ def test_complete_writes_completed_event(tmp_path: Path) -> None:
     )
     assert completed["invocation_id"] == invocation_id, (
         f"invocation_id mismatch: {completed['invocation_id']!r} != {invocation_id!r}"
+    )
+    # FR-003: the closing actor is recorded verbatim on the written line.
+    assert '"closed_by": "agent"' in lines[1], (
+        f"Expected literal closed_by=agent on the completed line, got: {lines[1]!r}"
     )
 
 
@@ -211,11 +220,9 @@ def test_invocations_list_reads_local_only(tmp_path: Path) -> None:
         "governance_context_hash": "abc123",
         "governance_context_available": True,
         "actor": "claude",
+        "mode_of_work": "task_execution",
         "router_confidence": None,
         "started_at": "2026-04-22T06:00:00Z",
-        "completed_at": None,
-        "outcome": None,
-        "evidence_ref": None,
     }
     jsonl.write_text(json.dumps(started_record) + "\n", encoding="utf-8")
 
@@ -316,18 +323,25 @@ def _invoke_with_mode(
 
 
 def _write_legacy_started(project: Path, invocation_id: str) -> None:
-    """Write a legacy started event WITHOUT mode_of_work (pre-WP06 format)."""
-    writer = InvocationWriter(project)
-    record = InvocationRecord(
-        event="started",
-        invocation_id=invocation_id,
-        profile_id="implementer-fixture",
-        action="implement",
-        request_text="legacy test request",
-        started_at="2026-04-22T06:00:00Z",
-        # Intentionally no mode_of_work
+    """Write a legacy started event WITHOUT mode_of_work (pre-WP06 format).
+
+    Written as a raw JSONL line — the v2 ``OpStartedEvent`` model cannot
+    represent this legacy shape (mode_of_work is required by construction).
+    """
+    events_dir = project / EVENTS_DIR
+    events_dir.mkdir(parents=True, exist_ok=True)
+    line = json.dumps(
+        {
+            "event": "started",
+            "invocation_id": invocation_id,
+            "profile_id": "implementer-fixture",
+            "action": "implement",
+            "request_text": "legacy test request",
+            "started_at": "2026-04-22T06:00:00Z",
+            # Intentionally no mode_of_work
+        }
     )
-    writer.write_started(record)
+    (events_dir / f"{invocation_id}.jsonl").write_text(line + "\n", encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -388,7 +402,7 @@ def test_complete_with_two_artifacts_and_commit(tmp_path: Path) -> None:
         executor = ProfileInvocationExecutor(project)
         executor.complete_invocation(
             invocation_id=inv_id,
-            outcome="done",
+            outcome="done", closed_by="agent",
             artifact_refs=["src/foo.py", "src/bar.py"],
             commit_sha="deadbeef1234",
         )
@@ -430,7 +444,7 @@ def test_complete_artifact_ref_normalisation_in_checkout(tmp_path: Path) -> None
         executor = ProfileInvocationExecutor(project)
         executor.complete_invocation(
             invocation_id=inv_id,
-            outcome="done",
+            outcome="done", closed_by="agent",
             artifact_refs=[str(artifact_file)],
         )
 
@@ -466,7 +480,7 @@ def test_complete_artifact_ref_outside_checkout(
         executor = ProfileInvocationExecutor(project)
         executor.complete_invocation(
             invocation_id=inv_id,
-            outcome="done",
+            outcome="done", closed_by="agent",
             artifact_refs=[str(outside)],
         )
 
@@ -504,7 +518,7 @@ def test_complete_rejects_evidence_on_advisory(tmp_path: Path) -> None:
         with pytest.raises(InvalidModeForEvidenceError) as exc_info:
             executor.complete_invocation(
                 invocation_id=inv_id,
-                outcome="done",
+                outcome="done", closed_by="agent",
                 evidence_ref=str(evidence_file),
             )
 
@@ -548,7 +562,7 @@ def test_complete_rejects_evidence_on_query(tmp_path: Path) -> None:
         with pytest.raises(InvalidModeForEvidenceError) as exc_info:
             executor.complete_invocation(
                 invocation_id=inv_id,
-                outcome="done",
+                outcome="done", closed_by="agent",
                 evidence_ref=str(evidence_file),
             )
 
@@ -581,7 +595,7 @@ def test_complete_allows_evidence_on_task_execution(tmp_path: Path) -> None:
         executor = ProfileInvocationExecutor(project)
         completed = executor.complete_invocation(
             invocation_id=inv_id,
-            outcome="done",
+            outcome="done", closed_by="agent",
             evidence_ref=str(evidence_file),
         )
 
@@ -618,7 +632,7 @@ def test_complete_allows_evidence_on_mission_step(tmp_path: Path) -> None:
         executor = ProfileInvocationExecutor(project)
         completed = executor.complete_invocation(
             invocation_id=inv_id,
-            outcome="done",
+            outcome="done", closed_by="agent",
             evidence_ref=str(evidence_file),
         )
 
@@ -640,7 +654,7 @@ def test_complete_on_pre_mission_record_allows_evidence(tmp_path: Path) -> None:
     None mode as permissive — no enforcement (FR-009 null-tolerant clause).
     """
     project = _setup_minimal_project(tmp_path)
-    inv_id = "01KPWA5XLEGACY0000000000WP"
+    inv_id = "01KPWA5X1EGACY0000000000WP"
     _write_legacy_started(project, inv_id)
 
     evidence_file = tmp_path / "legacy_evidence.md"
@@ -656,7 +670,7 @@ def test_complete_on_pre_mission_record_allows_evidence(tmp_path: Path) -> None:
         executor = ProfileInvocationExecutor(project)
         completed = executor.complete_invocation(
             invocation_id=inv_id,
-            outcome="done",
+            outcome="done", closed_by="agent",
             evidence_ref=str(evidence_file),
         )
 
@@ -861,7 +875,7 @@ def test_sync_disabled_no_propagation_errors(tmp_path: Path) -> None:
             # Complete with artifact and commit links
             executor.complete_invocation(
                 invocation_id=inv_id,
-                outcome="done",
+                outcome="done", closed_by="agent",
                 artifact_refs=["src/example.py"],
                 commit_sha="cafebabe1234",
             )
@@ -887,3 +901,135 @@ def test_sync_disabled_no_propagation_errors(tmp_path: Path) -> None:
     if prop_errors.exists():
         content = prop_errors.read_text()
         assert not content.strip(), f"Expected empty propagation-errors but got: {content}"
+
+
+# ===========================================================================
+# WP03 (T011/T013/T014) — closed_by threading + close-time auto-commit
+# ===========================================================================
+
+
+def _git(project: Path, *args: str) -> str:
+    import subprocess
+
+    return subprocess.run(
+        ["git", "-C", str(project), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+
+def _init_git(project: Path) -> None:
+    _git(project, "init", "-b", "wp03-test-branch")
+    _git(project, "config", "user.email", "test@example.com")
+    _git(project, "config", "user.name", "Test")
+    (project / "README.md").write_text("repo\n", encoding="utf-8")
+    _git(project, "add", "README.md")
+    _git(project, "commit", "--no-verify", "-m", "init")
+
+
+@pytest.mark.parametrize("outcome", ["done", "failed", "abandoned"])
+def test_each_outcome_written_verbatim(
+    tmp_path: Path, outcome: Literal["done", "failed", "abandoned"]
+) -> None:
+    """Every supported outcome value is written verbatim — never coerced (FR-003)."""
+    project = _setup_minimal_project(tmp_path)
+    inv_id = _invoke_with_mode(project, ModeOfWork.TASK_EXECUTION)
+
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project)
+        executor.complete_invocation(
+            invocation_id=inv_id,
+            outcome=outcome,
+            closed_by="agent",
+        )
+
+    lines = (project / EVENTS_DIR / f"{inv_id}.jsonl").read_text().splitlines()
+    completed = json.loads(lines[1])
+    assert completed["outcome"] == outcome
+    assert completed["closed_by"] == "agent"
+
+
+def test_closed_by_doctor_sweep_written_verbatim(tmp_path: Path) -> None:
+    """The executor records whichever closing actor the caller threads (FR-003)."""
+    project = _setup_minimal_project(tmp_path)
+    inv_id = _invoke_with_mode(project, ModeOfWork.TASK_EXECUTION)
+
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project)
+        executor.complete_invocation(
+            invocation_id=inv_id,
+            outcome="abandoned",
+            closed_by="doctor_sweep",
+        )
+
+    lines = (project / EVENTS_DIR / f"{inv_id}.jsonl").read_text().splitlines()
+    assert json.loads(lines[1])["closed_by"] == "doctor_sweep"
+
+
+def test_double_close_raises_already_closed_and_appends_nothing(tmp_path: Path) -> None:
+    """Second close raises AlreadyClosedError and leaves the trail untouched (idempotent)."""
+    from specify_cli.invocation.errors import AlreadyClosedError
+
+    project = _setup_minimal_project(tmp_path)
+    inv_id = _invoke_with_mode(project, ModeOfWork.TASK_EXECUTION)
+
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project)
+        executor.complete_invocation(invocation_id=inv_id, outcome="done", closed_by="agent")
+        before = (project / EVENTS_DIR / f"{inv_id}.jsonl").read_text()
+        with pytest.raises(AlreadyClosedError):
+            executor.complete_invocation(invocation_id=inv_id, outcome="done", closed_by="agent")
+
+    after = (project / EVENTS_DIR / f"{inv_id}.jsonl").read_text()
+    assert after == before, "Double close must not append any event"
+
+
+def test_open_op_untracked_then_committed_with_message_format(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-012: an open Op stays untracked; the close-time auto-commit message is
+    ``op(<profile-id>): <action> [<id8>]``."""
+    import re
+
+    monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
+    project = _setup_minimal_project(tmp_path)
+    _init_git(project)
+
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project)
+        payload = executor.invoke(
+            "implement the feature",
+            profile_hint="implementer-fixture",
+            mode_of_work=ModeOfWork.TASK_EXECUTION,
+        )
+        op_rel = f"{EVENTS_DIR}/{payload.invocation_id}.jsonl"
+
+        # Before close: the Op record exists but is NOT tracked by git.
+        assert (project / op_rel).exists()
+        assert op_rel not in _git(project, "ls-files").splitlines()
+
+        executor.complete_invocation(
+            payload.invocation_id, outcome="done", closed_by="agent"
+        )
+
+    # After close: file committed with the pinned message format.
+    assert op_rel in _git(project, "ls-files").splitlines()
+    subject = _git(project, "log", "-1", "--format=%s").strip()
+    id8 = payload.invocation_id[:8]
+    assert re.fullmatch(rf"op\(implementer-fixture\): \S+ \[{re.escape(id8)}\]", subject), (
+        f"Unexpected auto-commit subject: {subject!r}"
+    )

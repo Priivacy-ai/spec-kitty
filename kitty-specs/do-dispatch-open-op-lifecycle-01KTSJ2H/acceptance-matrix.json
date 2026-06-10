@@ -1,0 +1,129 @@
+{
+  "mission_slug": "do-dispatch-open-op-lifecycle-01KTSJ2H",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "do leaves Op open: tests/specify_cli/invocation/cli/test_do.py asserts exactly one started event, no completed event; grep complete_invocation in do_cmd.py empty (WP02 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T22:12:47.259652+00:00",
+      "notes": "Verified during WP02 review (cycle 1 approval); full suites green in lane worktrees."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Close contract in rich ('This Op is OPEN') + JSON (status, close_contract byte-matching contracts/cli-do-output.md) pinned in test_do.py; ask/advise pinned in test_advise.py:123 (WP02/WP06 reviews)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T22:12:47.259652+00:00",
+      "notes": "Verified during WP02 review (cycle 1 approval); full suites green in lane worktrees."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/cli/test_complete.py: outcomes verbatim, closed_by=agent, no --closed-by flag, double close exit 1 structured error; evidence mode gate pre-write (WP03 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T22:12:47.259652+00:00",
+      "notes": "Verified during WP03 review (cycle 1 approval); full suites green in lane worktrees."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_record.py TestOpStartedEvent/TestOpCompletedEvent: outcome+closed_by required no-default, no started-only fields on completed, frozen models (WP01 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T22:12:47.259652+00:00",
+      "notes": "Verified during WP01 review (cycle 1 approval); full suites green in lane worktrees."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Contract example round-trips + invocations list displays outcome/closed_by from single JSONL file; legacy lines warn-and-skip naming spec-kitty upgrade (WP01 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T22:12:47.259652+00:00",
+      "notes": "Verified during WP01 review (cycle 1 approval); full suites green in lane worktrees."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_doctor_ops.py: report-only unchanged, --close-stale closes via executor with outcome=abandoned closed_by=doctor_sweep, sweep-close attribution pinned verbatim (WP04 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T22:12:47.259652+00:00",
+      "notes": "Verified during WP04 review (cycle 1 approval); full suites green in lane worktrees."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Threshold tests: default 24h, --threshold 0 sweeps all, fresh ops reported never closed, --threshold without --close-stale usage error (WP04 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T22:12:47.259652+00:00",
+      "notes": "Verified during WP04 review (cycle 1 approval); full suites green in lane worktrees."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "do builds InvocationSaaSPropagator like advise; v2 model_dump envelopes incl closed_by; sync-gate test proves local-write-without-propagation; NFR-001 non-blocking test (WP02 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T22:12:47.259652+00:00",
+      "notes": "Verified during WP02 review (cycle 1 approval); full suites green in lane worktrees."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_open_ops.py: session-start lists open Ops (0/1/N), session-stop always exit 0, Stop hook registered idempotently, migration backfills (WP06 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T22:12:47.259652+00:00",
+      "notes": "Verified during WP06 review (cycle 1 approval); full suites green in lane worktrees."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "open-work-close contract in spec-kitty.advise/SKILL.md, 12 standalone harness files, content.py; straggler grep zero hits, re-run by reviewer (WP06 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T22:12:47.259652+00:00",
+      "notes": "Verified during WP06 review (cycle 1 approval); full suites green in lane worktrees."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_op_record_schema_v2_migration.py: 24 tests covering every mapping-table row, deletion reporting, byte-identical double-run, detect() matrix, excluded files (WP05 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T22:12:47.259652+00:00",
+      "notes": "Verified during WP05 review (cycle 1 approval); full suites green in lane worktrees."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "e2e: Op file untracked before close, auto-commit at close with op(<profile>): <action> [<id8>] subject, sweep closes auto-commit too (WP03/WP04 reviews)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T22:12:47.259652+00:00",
+      "notes": "Verified during WP03 review (cycle 1 approval); full suites green in lane worktrees."
+    }
+  ],
+  "negative_invariants": []
+}

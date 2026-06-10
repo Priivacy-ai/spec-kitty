@@ -1,8 +1,11 @@
 """Migration: install session presence orientation for existing Claude Code projects.
 
 Detects projects that have ``claude`` configured but are missing the orientation
-section in ``.claude/CLAUDE.md`` or the ``spec-kitty session-start`` entry in
-``.claude/settings.json``, and backfills both artefacts on ``spec-kitty upgrade``.
+section in ``.claude/CLAUDE.md``, the ``spec-kitty session-start`` SessionStart
+entry, or the ``spec-kitty session-stop`` Stop entry in ``.claude/settings.json``,
+and backfills all artefacts on ``spec-kitty upgrade``.  Idempotent: hook
+registration no-ops when entries already exist; foreign hook entries are
+preserved.
 """
 
 from __future__ import annotations
@@ -18,7 +21,7 @@ class SessionPresenceClaudeCodeMigration(BaseMigration):
     """Backfill session presence orientation for existing Claude Code projects."""
 
     migration_id = "3_3_0_session_presence_claude_code"
-    description = "Write session presence orientation to .claude/CLAUDE.md and register SessionStart hook for existing Claude Code projects"
+    description = "Write session presence orientation to .claude/CLAUDE.md and register SessionStart + Stop hooks for existing Claude Code projects"
     target_version = "3.2.0rc39"
     runs_on_worktrees = False
 
@@ -42,12 +45,12 @@ class SessionPresenceClaudeCodeMigration(BaseMigration):
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
-        """Write the CLAUDE.md section and register the SessionStart hook."""
+        """Write the CLAUDE.md section and register the SessionStart + Stop hooks."""
         if dry_run:
             return MigrationResult(
                 success=True,
                 changes_made=[
-                    "Would write orientation to .claude/CLAUDE.md and register SessionStart hook"
+                    "Would write orientation to .claude/CLAUDE.md and register SessionStart + Stop hooks"
                 ],
             )
         from specify_cli.core.agent_config import load_agent_config
@@ -63,5 +66,6 @@ class SessionPresenceClaudeCodeMigration(BaseMigration):
             changes_made=[
                 "Wrote spec-kitty orientation to .claude/CLAUDE.md",
                 "Registered spec-kitty session-start SessionStart hook",
+                "Registered spec-kitty session-stop Stop hook",
             ],
         )

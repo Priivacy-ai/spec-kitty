@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from specify_cli.invocation.propagator import PROPAGATION_ERRORS_PATH, _propagate_one
-from specify_cli.invocation.record import InvocationRecord
+from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
 from specify_cli.sync.routing import CheckoutSyncRouting
 
 
@@ -40,31 +40,34 @@ def _make_routing(*, effective_sync_enabled: bool, repo_root: Path) -> CheckoutS
     )
 
 
-def _make_started_record(mode: str | None, invocation_id: str = "01KPQRX2EVGMRVB4Q1JQBAZJV3") -> InvocationRecord:
-    return InvocationRecord(
-        event="started",
+def _make_started_record(mode: str | None, invocation_id: str = "01KPQRX2EVGMRVB4Q1JQBAZJV3") -> OpStartedEvent:
+    # Schema v2: mode_of_work is required; ``None`` callers map to the
+    # task_execution default (mirrors the executor / WP05 migration default).
+    return OpStartedEvent(
         invocation_id=invocation_id,
         profile_id="implementer-fixture",
         action="implement",
         request_text="the request text",
         governance_context_hash="abc123",
+        governance_context_available=True,
         actor="claude",
         started_at="2026-04-23T00:00:00+00:00",
-        mode_of_work=mode,
+        mode_of_work=mode or "task_execution",
     )
 
 
-def _make_completed_record(mode: str | None, invocation_id: str = "01KPQRX2EVGMRVB4Q1JQBAZJV3") -> InvocationRecord:
-    return InvocationRecord(
-        event="completed",
+def _make_completed_record(
+    mode: str | None,  # noqa: ARG001 — v2 completed events carry no mode_of_work
+    invocation_id: str = "01KPQRX2EVGMRVB4Q1JQBAZJV3",
+) -> OpCompletedEvent:
+    # Schema v2: completed events carry NO started-only fields (incl. mode).
+    # The propagator resolves their policy with mode=None (task_execution default).
+    return OpCompletedEvent(
         invocation_id=invocation_id,
-        profile_id="implementer-fixture",
-        action="implement",
-        started_at="2026-04-23T00:00:00+00:00",
         completed_at="2026-04-23T00:01:00+00:00",
         outcome="done",
+        closed_by="agent",
         evidence_ref="kitty-specs/001/evidence.md",
-        mode_of_work=mode,
     )
 
 
@@ -203,10 +206,15 @@ def test_task_execution_completed_includes_evidence_ref(tmp_path: Path) -> None:
     assert envelope["evidence_ref"] == "kitty-specs/001/evidence.md"
 
 
-def test_advisory_completed_omits_evidence_ref(tmp_path: Path) -> None:
-    """ADVISORY/completed projects but without evidence_ref key in envelope."""
+def test_completed_event_resolves_policy_without_mode(tmp_path: Path) -> None:
+    """v2 completed events carry no mode; policy resolves as task_execution default.
+
+    The advisory/query evidence gate moved to write time (executor raises
+    InvalidModeForEvidenceError before any completed event exists), so
+    advisory completed events can never carry an evidence_ref in v2.
+    """
     routing = _make_routing(effective_sync_enabled=True, repo_root=tmp_path)
-    record = _make_completed_record("advisory")
+    record = _make_completed_record(None)
     mock_client = _make_mock_client()
 
     with patch(
@@ -219,12 +227,10 @@ def test_advisory_completed_omits_evidence_ref(tmp_path: Path) -> None:
         ):
             _propagate_one(record, tmp_path)
 
-    assert len(mock_client._captured) == 1, "ADVISORY/completed should project (advisory projects)"
+    assert len(mock_client._captured) == 1
     envelope = mock_client._captured[0]
     assert envelope["event_type"] == "ProfileInvocationCompleted"
-    assert "evidence_ref" not in envelope, (
-        "ADVISORY/completed must omit evidence_ref key (policy.include_evidence_ref=False)"
-    )
+    assert envelope["evidence_ref"] == "kitty-specs/001/evidence.md"
 
 
 def test_mission_step_started_includes_request_text(tmp_path: Path) -> None:

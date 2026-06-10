@@ -54,5 +54,10 @@ def session_start() -> None:
         agent_config = load_agent_config(project_root)
         content = SessionPresenceManager(project_root, agent_config)._build_content()
         typer.echo(content.render())
+        from specify_cli.session_presence.open_ops import render_open_ops_section
+
+        open_ops_section = render_open_ops_section(project_root)
+        if open_ops_section:
+            typer.echo(open_ops_section)
     except Exception:
         pass  # Always exit 0 — never fail the Claude Code session

@@ -12,26 +12,16 @@
 # calls it via asyncio.ensure_future() when a loop is running, or via
 # loop.run_until_complete() otherwise.
 #
-# Fields in the outbound envelope match the existing emitter contract:
-#   ProfileInvocationStarted:   event_type, invocation_id, profile_id, action,
-#                               request_text, governance_context_hash, actor,
-#                               started_at
-#   ProfileInvocationCompleted: event_type, invocation_id, outcome, evidence_ref,
-#                               completed_at
-#
-# Fields verified against InvocationRecord v1:
-#   invocation_id        ✅ present
-#   profile_id           ✅ present (started only)
-#   action               ✅ present (started only)
-#   started_at           ✅ present (started only)
-#   request_text         ✅ present (started only)
-#   governance_context_hash ✅ present (started only)
-#   outcome              ✅ present (completed only)
-#   evidence_ref         ✅ present (completed only)
-#   completed_at         ✅ present (completed only)
-#
-# No contract gaps detected.  WP07 is NOT blocked.
-# -- verified 2026-04-21 by claude:sonnet-4-6:implementer --
+# Envelope shape (mission do-dispatch-open-op-lifecycle, decision
+# 01KTSJEQANMNEV16WMSAJP6FR1 — no wire-compat with the pre-mission envelope;
+# SaaS handlers are unimplemented, #1720/#1693):
+#   Envelope dicts are rebuilt 1:1 from the v2 Op event models
+#   (contracts/op-record-events.md):
+#   ProfileInvocationStarted:   event_type + all OpStartedEvent fields
+#                               (None fields omitted; request_text policy-gated)
+#   ProfileInvocationCompleted: event_type + all OpCompletedEvent fields incl.
+#                               closed_by (evidence_ref omitted when None and
+#                               policy-gated)
 
 from __future__ import annotations
 
@@ -45,8 +35,11 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.invocation.projection_policy import EventKind, ModeOfWork, resolve_projection
-from specify_cli.invocation.record import InvocationRecord
+from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
 from specify_cli.sync.routing import resolve_checkout_sync_routing
+
+# v2 Op lifecycle events accepted by the propagator (WP01 schema split).
+OpEvent = OpStartedEvent | OpCompletedEvent
 
 logger = logging.getLogger(__name__)
 
@@ -92,8 +85,8 @@ def _get_saas_client(repo_root: Path) -> Any | None:  # noqa: ARG001
         return None  # No token configured or sync module unavailable → no-op
 
 
-def _propagate_one(record: InvocationRecord, repo_root: Path) -> None:
-    """Propagate a single InvocationRecord to SaaS.
+def _propagate_one(record: OpEvent, repo_root: Path) -> None:
+    """Propagate a single Op lifecycle event to SaaS.
 
     Runs in a background thread.  Logs errors to propagation-errors.jsonl on
     failure.  Never raises — swallows all exceptions.
@@ -126,7 +119,7 @@ def _propagate_one(record: InvocationRecord, repo_root: Path) -> None:
         return  # Policy says no projection for this (mode, event) pair.
 
     try:
-        event_dict = _build_event_dict(record, rule, mode)
+        event_dict = _build_event_dict(record, rule)
         _send_event(client, event_dict)
 
     except Exception as exc:  # noqa: BLE001
@@ -134,11 +127,12 @@ def _propagate_one(record: InvocationRecord, repo_root: Path) -> None:
 
     # NOTE: Correlation events (artifact_link / commit_link) are written locally by
     # InvocationWriter.append_correlation_link() in executor.py but are NOT currently
-    # submitted to the propagator (executor.py:290 comment: "WP07 will add the policy
-    # gate").  WP06 only submits the `completed` InvocationRecord to propagator.submit().
-    # The dict-record branch for correlation events is therefore deferred to a follow-on
-    # WP once the executor wires correlation-event propagation.  When that wiring lands,
-    # add a branch here:
+    # submitted to the propagator.  The executor submits both v2 lifecycle events
+    # (OpStartedEvent at invoke time, OpCompletedEvent at close time) to
+    # propagator.submit(); correlation events remain local-only per the ADR-004
+    # Tier-2 stance.  The dict-record branch for correlation events is therefore
+    # deferred until the executor wires correlation-event propagation.  When that
+    # wiring lands, add a branch here:
     #   if isinstance(record, dict):
     #       event_type_map = {"artifact_link": "ProfileInvocationArtifactLink",
     #                         "commit_link": "ProfileInvocationCommitLink"}
@@ -167,45 +161,43 @@ def _coerce_mode(raw_mode: str | None) -> ModeOfWork | None:
 
 
 def _build_event_dict(
-    record: InvocationRecord,
+    record: OpEvent,
     rule: Any,
-    mode: ModeOfWork | None,
 ) -> dict[str, object]:
-    if record.event == "started":
-        return _build_started_event_dict(record, rule, mode)
+    if isinstance(record, OpStartedEvent):
+        return _build_started_event_dict(record, rule)
     return _build_completed_event_dict(record, rule)
 
 
 def _build_started_event_dict(
-    record: InvocationRecord,
+    record: OpStartedEvent,
     rule: Any,
-    mode: ModeOfWork | None,
 ) -> dict[str, object]:
-    event_dict: dict[str, object] = {
-        "event_type": "ProfileInvocationStarted",
-        "invocation_id": record.invocation_id,
-        "profile_id": record.profile_id,
-        "action": record.action,
-        "governance_context_hash": record.governance_context_hash,
-        "actor": record.actor,
-        "started_at": record.started_at,
-    }
-    if rule.include_request_text:
-        event_dict["request_text"] = record.request_text
-    if mode is not None:
-        event_dict["mode_of_work"] = mode.value
+    """Envelope built 1:1 from the v2 OpStartedEvent (op-record-events.md).
+
+    No wire-compat with the pre-mission envelope (decision
+    01KTSJEQANMNEV16WMSAJP6FR1). None fields (router_confidence, mission_id,
+    wp_id) are omitted, mirroring the on-disk JSONL shape. request_text is
+    policy-gated (projection_policy.include_request_text).
+    """
+    event_dict: dict[str, object] = record.model_dump(exclude_none=True)
+    del event_dict["event"]
+    event_dict["event_type"] = "ProfileInvocationStarted"
+    if not rule.include_request_text:
+        event_dict.pop("request_text", None)
     return event_dict
 
 
-def _build_completed_event_dict(record: InvocationRecord, rule: Any) -> dict[str, object]:
-    event_dict: dict[str, object] = {
-        "event_type": "ProfileInvocationCompleted",
-        "invocation_id": record.invocation_id,
-        "outcome": record.outcome,
-        "completed_at": record.completed_at,
-    }
-    if rule.include_evidence_ref:
-        event_dict["evidence_ref"] = record.evidence_ref
+def _build_completed_event_dict(record: OpCompletedEvent, rule: Any) -> dict[str, object]:
+    """Envelope built 1:1 from the v2 OpCompletedEvent — includes ``closed_by``.
+
+    evidence_ref is omitted when None (on-disk parity) and policy-gated.
+    """
+    event_dict: dict[str, object] = record.model_dump(exclude_none=True)
+    del event_dict["event"]
+    event_dict["event_type"] = "ProfileInvocationCompleted"
+    if not rule.include_evidence_ref:
+        event_dict.pop("evidence_ref", None)
     return event_dict
 
 
@@ -223,7 +215,7 @@ def _send_event(client: Any, event_dict: dict[str, object]) -> None:
 
 
 def _log_propagation_error(
-    repo_root: Path, record: InvocationRecord, error: str
+    repo_root: Path, record: OpEvent, error: str
 ) -> None:
     """Append propagation failure to the local error log.  Never raises."""
     try:
@@ -244,7 +236,7 @@ def _log_propagation_error(
 
 
 class InvocationSaaSPropagator:
-    """Background-thread SaaS propagator for InvocationRecord events.
+    """Background-thread SaaS propagator for Op lifecycle events.
 
     Properties:
     - Non-blocking: submit() returns immediately; propagation happens in background.
@@ -262,7 +254,7 @@ class InvocationSaaSPropagator:
         self._pending: list[Future[None]] = []
         atexit.register(self._shutdown)
 
-    def submit(self, record: InvocationRecord) -> None:
+    def submit(self, record: OpEvent) -> None:
         """Submit a record for background propagation.  Returns immediately."""
         future: Future[None] = self._executor.submit(_propagate_one, record, self._repo_root)
         self._pending.append(future)

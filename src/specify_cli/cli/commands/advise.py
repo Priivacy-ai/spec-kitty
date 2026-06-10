@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import Literal
 
 import typer
 from rich.console import Console
@@ -69,9 +70,7 @@ def _detect_actor() -> str:
 
 def _render_rich_payload(payload: InvocationPayload) -> None:
     """Rich console output for human-readable advise/ask response."""
-    console.print(
-        f"[bold green]Profile:[/bold green] {payload.profile_friendly_name} ({payload.profile_id})"
-    )
+    console.print(f"[bold green]Profile:[/bold green] {payload.profile_friendly_name} ({payload.profile_id})")
     console.print(f"[bold]Action:[/bold] {payload.action}")
     if payload.router_confidence:
         console.print(f"[dim]Router confidence:[/dim] {payload.router_confidence}")
@@ -96,22 +95,13 @@ def _render_rich_payload(payload: InvocationPayload) -> None:
             )
         )
     if payload.governance_context_available and payload.governance_context_text:
-        console.print(
-            Panel(payload.governance_context_text, title="Governance Context", expand=False)
-        )
+        console.print(Panel(payload.governance_context_text, title="Governance Context", expand=False))
     else:
-        console.print(
-            "[yellow]Governance context unavailable.[/yellow] "
-            "Run 'spec-kitty charter synthesize'."
-        )
+        console.print("[yellow]Governance context unavailable.[/yellow] Run 'spec-kitty charter synthesize'.")
     console.print(
-        f"\n[dim]Close this record:[/dim] "
-        f"spec-kitty profile-invocation complete --invocation-id {payload.invocation_id}"
+        f"\n[dim]Close this record:[/dim] spec-kitty profile-invocation complete --invocation-id {payload.invocation_id} --outcome <done|failed|abandoned>"
     )
-    console.print(
-        f"[dim]Commit the op record:[/dim] "
-        f"git add kitty-ops/{payload.invocation_id}.jsonl"
-    )
+    console.print(f"[dim]Commit the op record:[/dim] git add kitty-ops/{payload.invocation_id}.jsonl")
 
 
 def _run_invoke(
@@ -137,20 +127,19 @@ def _run_invoke(
         typer.echo(json.dumps(error_obj), err=True)
         raise typer.Exit(1) from e
     except ProfileNotFoundError as e:
-        typer.echo(
-            json.dumps({"error": "profile_not_found", "message": str(e)}), err=True
-        )
+        typer.echo(json.dumps({"error": "profile_not_found", "message": str(e)}), err=True)
         raise typer.Exit(1) from e
     except InvocationWriteError as e:
-        typer.echo(
-            json.dumps({"error": "write_failed", "message": str(e)}), err=True
-        )
+        typer.echo(json.dumps({"error": "write_failed", "message": str(e)}), err=True)
         raise typer.Exit(1) from e
 
     if json_output:
         typer.echo(json.dumps(payload.to_dict(), indent=2))
     else:
         _render_rich_payload(payload)
+
+    if json_output:
+        return
 
     # Inline drift observation — reads glossary events written by the chokepoint
     # (WP5.2). Returns [] silently on any error; never blocks or crashes the CLI.
@@ -168,9 +157,7 @@ def _run_invoke(
 
 def advise(
     request: str = typer.Argument(..., help="Natural language request to route"),
-    profile: str | None = typer.Option(
-        None, "--profile", "-p", help="Explicit profile ID or name"
-    ),
+    profile: str | None = typer.Option(None, "--profile", "-p", help="Explicit profile ID or name"),
     json_output: bool = typer.Option(False, "--json", help="Output JSON payload"),
 ) -> None:
     """Get governance context for a request. Opens an invocation record. Does NOT spawn an LLM."""
@@ -206,14 +193,12 @@ def _handle_complete_already_closed(
     *,
     json_output: bool,
 ) -> None:
-    msg: dict[str, str] = {"warning": "already_closed", "invocation_id": invocation_id}
+    msg: dict[str, str] = {"error": "already_closed", "invocation_id": invocation_id}
     if json_output:
-        typer.echo(json.dumps(msg))
+        typer.echo(json.dumps(msg), err=True)
     else:
-        console.print(
-            f"[yellow]Warning:[/yellow] Invocation {invocation_id} is already closed."
-        )
-    raise typer.Exit(0) from None
+        console.print(f"[red]Error:[/red] Invocation {invocation_id} is already closed.")
+    raise typer.Exit(1) from None
 
 
 def _render_complete_response(
@@ -250,15 +235,9 @@ def _render_complete_response(
 
 @profile_invocation_app.command("complete")
 def complete_invocation(
-    invocation_id: str = typer.Option(
-        ..., "--invocation-id", "-i", help="Invocation ULID to close"
-    ),
-    outcome: str | None = typer.Option(
-        None, "--outcome", help="done | failed | abandoned"
-    ),
-    evidence: str | None = typer.Option(
-        None, "--evidence", help="Path to evidence file (Tier 2 promotion)"
-    ),
+    invocation_id: str = typer.Option(..., "--invocation-id", "-i", help="Invocation ULID to close"),
+    outcome: str = typer.Option(..., "--outcome", help="done | failed | abandoned"),
+    evidence: str | None = typer.Option(None, "--evidence", help="Path to evidence file (Tier 2 promotion)"),
     artifact: list[str] = typer.Option(
         None,
         "--artifact",
@@ -271,22 +250,39 @@ def complete_invocation(
     ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON payload"),
 ) -> None:
-    """Close an open invocation record. Only --invocation-id is required.
+    """Close an open invocation record. --invocation-id and --outcome are required.
 
     Use --artifact (repeatable) to link output artifacts to this invocation.
     Use --commit (singular) to link the primary git commit produced.
     Use --evidence to promote a file to a Tier 2 evidence artifact.
     Note: --evidence is not allowed on advisory or query invocations (FR-009).
     """
+    # Explicit-outcome guard (schema v2): a missing or invalid outcome is a
+    # usage error at the CLI boundary — never silently coerced to "done".
+    valid_outcomes: dict[str, Literal["done", "failed", "abandoned"]] = {
+        "done": "done",
+        "failed": "failed",
+        "abandoned": "abandoned",
+    }
+    checked_outcome = valid_outcomes.get(outcome)
+    if checked_outcome is None:
+        raise typer.BadParameter(
+            f"invalid outcome {outcome!r}: must be one of done, failed, abandoned",
+            param_hint="--outcome",
+        )
+
     repo_root = _get_repo_root()
     executor = _build_executor(repo_root)
     try:
         completed = executor.complete_invocation(
             invocation_id=invocation_id,
-            outcome=outcome,
+            outcome=checked_outcome,
             evidence_ref=evidence,
             artifact_refs=artifact or [],
             commit_sha=commit,
+            # The CLI surface is the manual/agent close path; the doctor sweep
+            # (the only other closer) calls the executor directly (FR-003).
+            closed_by="agent",
         )
     except InvalidModeForEvidenceError as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -294,9 +290,7 @@ def complete_invocation(
     except AlreadyClosedError:
         _handle_complete_already_closed(invocation_id, json_output=json_output)
     except Exception as e:
-        typer.echo(
-            json.dumps({"error": "complete_failed", "message": str(e)}), err=True
-        )
+        typer.echo(json.dumps({"error": "complete_failed", "message": str(e)}), err=True)
         raise typer.Exit(1) from e
 
     _render_complete_response(

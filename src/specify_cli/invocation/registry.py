@@ -27,7 +27,8 @@ class ProfileRegistry:
 
     def list_all(self) -> list[AgentProfile]:
         """Return all loaded profiles sorted by profile_id."""
-        return self._repo.list_all()
+        # list() re-types the upstream Any (follow_imports=skip) as list[AgentProfile].
+        return list(self._repo.list_all())
 
     def get(self, profile_id: str) -> AgentProfile | None:
         """Get profile by ID or None if not found."""

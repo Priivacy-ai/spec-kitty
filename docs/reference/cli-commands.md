@@ -3056,6 +3056,20 @@ _Emit spec-kitty orientation for the Claude Code SessionStart hook._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty session-stop
+
+_Print an open-Ops reminder for the Claude Code Stop hook._
+
+```
+ Usage: spec-kitty session-stop [OPTIONS]
+
+ Print an open-Ops reminder for the Claude Code Stop hook.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty specify
 
 ```

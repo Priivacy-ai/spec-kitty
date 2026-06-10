@@ -61,7 +61,7 @@ def test_complete_with_evidence_creates_tier2_directory(tmp_path: Path) -> None:
 
     executor.complete_invocation(
         invocation_id=invocation_id,
-        outcome="done",
+        outcome="done", closed_by="agent",
         evidence_ref=str(evidence_file),
     )
 
@@ -76,7 +76,7 @@ def test_complete_without_evidence_skips_tier2(tmp_path: Path) -> None:
     """complete_invocation without evidence_ref must NOT create any evidence directory."""
     executor, invocation_id = _make_executor_with_started_record(tmp_path)
 
-    executor.complete_invocation(invocation_id=invocation_id, outcome="done")
+    executor.complete_invocation(invocation_id=invocation_id, outcome="done", closed_by="agent")
 
     evidence_dir = tmp_path / ".kittify" / "evidence"
     # Either dir doesn't exist, or exists but is empty
@@ -90,7 +90,7 @@ def test_complete_with_nonexistent_evidence_path_uses_inline_content(tmp_path: P
 
     executor.complete_invocation(
         invocation_id=invocation_id,
-        outcome="done",
+        outcome="done", closed_by="agent",
         evidence_ref="all tests passed: 42/42",  # a label, not a path
     )
 
@@ -107,7 +107,7 @@ def test_complete_with_relative_escape_path_uses_inline_content(tmp_path: Path) 
 
     executor.complete_invocation(
         invocation_id=invocation_id,
-        outcome="done",
+        outcome="done", closed_by="agent",
         evidence_ref=f"../{outside_file.name}",
     )
 

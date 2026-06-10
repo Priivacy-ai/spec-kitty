@@ -14,7 +14,11 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.session_presence.hooks.claude_code_hook import ClaudeCodeHookRegistrar
+from specify_cli.session_presence.hooks.claude_code_hook import (
+    SESSION_START_EVENT,
+    STOP_EVENT,
+    ClaudeCodeHookRegistrar,
+)
 
 pytestmark = [pytest.mark.unit]
 
@@ -245,3 +249,74 @@ class TestAtomicWrite:
         # No .tmp file should be left behind, including the shared writer's
         # hidden temp-file prefix.
         assert not list(settings.parent.glob("*settings.json*.tmp"))
+
+
+class TestStopEvent:
+    """WP06 T024/T027 — registrar generalized to the Stop hook event key."""
+
+    _STOP_CMD = "spec-kitty session-stop"
+
+    def test_register_stop_hook(self, claude_project: Path) -> None:
+        reg = ClaudeCodeHookRegistrar(STOP_EVENT)
+        reg.register(claude_project, self._STOP_CMD)
+        data = _read_settings(claude_project)
+        commands = [
+            h["command"]
+            for entry in data["hooks"]["Stop"]
+            for h in entry["hooks"]
+        ]
+        assert commands == [self._STOP_CMD]
+        assert reg.is_registered(claude_project, self._STOP_CMD) is True
+
+    def test_stop_register_idempotent(self, claude_project: Path) -> None:
+        reg = ClaudeCodeHookRegistrar(STOP_EVENT)
+        reg.register(claude_project, self._STOP_CMD)
+        reg.register(claude_project, self._STOP_CMD)
+        data = _read_settings(claude_project)
+        assert len(data["hooks"]["Stop"]) == 1
+
+    def test_stop_preserves_foreign_stop_entries(self, claude_project: Path) -> None:
+        _write_settings(
+            claude_project,
+            {"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "other-tool stop"}]}]}},
+        )
+        ClaudeCodeHookRegistrar(STOP_EVENT).register(claude_project, self._STOP_CMD)
+        data = _read_settings(claude_project)
+        commands = [
+            h["command"]
+            for entry in data["hooks"]["Stop"]
+            for h in entry["hooks"]
+        ]
+        assert "other-tool stop" in commands
+        assert self._STOP_CMD in commands
+
+    def test_stop_register_preserves_session_start_entries(self, claude_project: Path) -> None:
+        """Registering the Stop hook never touches existing SessionStart entries."""
+        ClaudeCodeHookRegistrar(SESSION_START_EVENT).register(claude_project, _CMD)
+        ClaudeCodeHookRegistrar(STOP_EVENT).register(claude_project, self._STOP_CMD)
+        data = _read_settings(claude_project)
+        start_commands = [
+            h["command"]
+            for entry in data["hooks"]["SessionStart"]
+            for h in entry["hooks"]
+        ]
+        assert start_commands == [_CMD]
+        assert ClaudeCodeHookRegistrar(SESSION_START_EVENT).is_registered(claude_project, _CMD)
+
+    def test_stop_is_registered_independent_of_session_start(self, claude_project: Path) -> None:
+        ClaudeCodeHookRegistrar(SESSION_START_EVENT).register(claude_project, _CMD)
+        assert ClaudeCodeHookRegistrar(STOP_EVENT).is_registered(claude_project, _CMD) is False
+
+    def test_stop_unregister_removes_only_stop_entry(self, claude_project: Path) -> None:
+        ClaudeCodeHookRegistrar(SESSION_START_EVENT).register(claude_project, _CMD)
+        ClaudeCodeHookRegistrar(STOP_EVENT).register(claude_project, self._STOP_CMD)
+        ClaudeCodeHookRegistrar(STOP_EVENT).unregister(claude_project, self._STOP_CMD)
+        assert ClaudeCodeHookRegistrar(STOP_EVENT).is_registered(claude_project, self._STOP_CMD) is False
+        assert ClaudeCodeHookRegistrar(SESSION_START_EVENT).is_registered(claude_project, _CMD) is True
+
+    def test_default_event_key_is_session_start(self, claude_project: Path) -> None:
+        """Backward compatibility: no-arg construction still targets SessionStart."""
+        ClaudeCodeHookRegistrar().register(claude_project, _CMD)
+        data = _read_settings(claude_project)
+        assert "SessionStart" in data["hooks"]
+        assert "Stop" not in data["hooks"]

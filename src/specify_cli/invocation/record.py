@@ -1,48 +1,112 @@
-"""InvocationRecord Pydantic v2 model and MinimalViableTrailPolicy.
+"""Op event Pydantic v2 models (schema v2) and MinimalViableTrailPolicy.
+
+Schema v2 (contracts/op-record-events.md) splits the old dual-purpose
+``InvocationRecord`` into two frozen models so invalid blank-default states
+are unrepresentable:
+
+- ``OpStartedEvent`` — first JSONL line, write-once (exclusive create)
+- ``OpCompletedEvent`` — appended at most once; requires ``outcome`` and
+  ``closed_by`` and carries NO started-only fields
 
 Validation rules:
-- invocation_id must be a valid ULID (26 chars)
-- started_at must be ISO-8601 UTC
-- event discriminator must be "started" or "completed"
+- invocation_id must be a valid ULID (26 chars, Crockford base32)
+- started_at / completed_at must be non-empty ISO-8601 UTC strings
+- legacy (pre-v2) lines raise ``LegacyRecordError`` from ``parse_op_event``
 """
 
 from __future__ import annotations
 
 import datetime as _dt
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ValidationError, field_validator
+
+from specify_cli.invocation.errors import LegacyRecordError
+
+_ULID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 
 
-class InvocationRecord(BaseModel):
-    """v1 JSONL event record. Each invocation produces one file with two events."""
+def _validate_ulid(value: str) -> str:
+    if not _ULID_RE.fullmatch(value):
+        raise ValueError(f"invocation_id must be a 26-char ULID, got {value!r}")
+    return value
 
-    event: Literal["started", "completed"]
+
+class OpStartedEvent(BaseModel):
+    """v2 ``started`` event — required fields make blank records unrepresentable."""
+
+    event: Literal["started"] = "started"
     invocation_id: str  # ULID (26 chars)
-    profile_id: str
-    action: str  # canonical action token
-    request_text: str = ""
-    governance_context_hash: str = ""  # first 16 hex chars of SHA-256
-    governance_context_available: bool = True
-    actor: str = "unknown"  # "claude" | "operator" | "unknown"
-    router_confidence: str | None = None  # "exact" | "canonical_verb" | "domain_keyword"
-    started_at: str = ""  # ISO-8601 UTC
-    # completed event fields (null until profile-invocation complete)
-    completed_at: str | None = None
-    outcome: Literal["done", "failed", "abandoned"] | None = None
-    evidence_ref: str | None = None
-
-    # Additive optional field (FR-008): derived from CLI entry command via derive_mode().
-    # None for pre-mission records (legacy invocations that predate WP06).
-    # Serialised as the enum value string (e.g. "advisory"); excluded when None.
-    mode_of_work: str | None = None
+    profile_id: str = Field(min_length=1)
+    action: str = Field(min_length=1)  # canonical action token; non-empty
+    request_text: str  # may be empty only in query mode (executor enforces)
+    actor: str = Field(min_length=1)  # "claude" | "codex" | "operator" | …
+    mode_of_work: Literal["task_execution", "advisory", "mission_step", "query"]  # task_execution | advisory | mission_step | query
+    governance_context_hash: str  # first 16 hex chars of SHA-256
+    governance_context_available: bool
+    router_confidence: str | None = None  # exact | canonical_verb | domain_keyword
+    started_at: str = Field(min_length=1)  # ISO-8601 UTC
     mission_id: str | None = None
     wp_id: str | None = None
 
     model_config = {"frozen": True}
+
+    _ulid = field_validator("invocation_id")(_validate_ulid)
+
+    def to_jsonl_line(self) -> str:
+        """Serialise to a single JSON line, omitting None fields."""
+        return json.dumps(self.model_dump(exclude_none=True))
+
+
+class OpCompletedEvent(BaseModel):
+    """v2 ``completed`` event — meaningful in isolation, no started-only fields."""
+
+    event: Literal["completed"] = "completed"
+    invocation_id: str  # ULID (26 chars); must match file
+    completed_at: str = Field(min_length=1)  # ISO-8601 UTC
+    outcome: Literal["done", "failed", "abandoned"]  # required, no default
+    closed_by: Literal["agent", "doctor_sweep"]  # required, no default
+    evidence_ref: str | None = None
+
+    model_config = {"frozen": True}
+
+    _ulid = field_validator("invocation_id")(_validate_ulid)
+
+    def to_jsonl_line(self) -> str:
+        """Serialise to a single JSON line, omitting None fields."""
+        return json.dumps(self.model_dump(exclude_none=True))
+
+
+def parse_op_event(data: dict[str, Any]) -> OpStartedEvent | OpCompletedEvent:
+    """Dispatch a parsed JSONL dict to the right v2 event model.
+
+    Raises:
+        LegacyRecordError: the dict is a pre-v2 (legacy) record — e.g. a
+            completed event without ``closed_by``, or a started event missing
+            required v2 fields. Catchable so readers and the WP05 migration
+            can identify legacy lines deliberately rather than crash.
+        ValueError: ``event`` is not a lifecycle event (started/completed).
+    """
+    event = data.get("event")
+    invocation_id = data.get("invocation_id")
+    inv_id = invocation_id if isinstance(invocation_id, str) else None
+    if event == "completed":
+        if "closed_by" not in data:
+            raise LegacyRecordError(inv_id, "completed event lacks 'closed_by'")
+        try:
+            return OpCompletedEvent.model_validate(data)
+        except ValidationError as exc:
+            raise LegacyRecordError(inv_id, f"completed event not v2-parseable: {exc}") from exc
+    if event == "started":
+        try:
+            return OpStartedEvent.model_validate(data)
+        except ValidationError as exc:
+            raise LegacyRecordError(inv_id, f"started event not v2-parseable: {exc}") from exc
+    raise ValueError(f"not an Op lifecycle event: {event!r}")
 
 
 # ---------------------------------------------------------------------------
@@ -81,18 +145,14 @@ MINIMAL_VIABLE_TRAIL_POLICY = MinimalViableTrailPolicy(
     tier_1=TierPolicy(
         name="every_invocation",
         mandatory=True,
-        description=(
-            "One InvocationRecord written locally before executor returns. "
-            "Applies to all advise / ask / do invocations."
-        ),
+        description=("One InvocationRecord written locally before executor returns. Applies to all advise / ask / do invocations."),
         storage_path="kitty-ops/{invocation_id}.jsonl",
     ),
     tier_2=TierPolicy(
         name="evidence_artifact",
         mandatory=False,
         description=(
-            "Optional EvidenceArtifact for invocations that produce checkable output. "
-            "Created when caller passes --evidence to profile-invocation complete."
+            "Optional EvidenceArtifact for invocations that produce checkable output. Created when caller passes --evidence to profile-invocation complete."
         ),
         storage_path=".kittify/evidence/{invocation_id}/",
         promotion_trigger="caller sets evidence_ref on profile-invocation complete",
@@ -115,26 +175,39 @@ MINIMAL_VIABLE_TRAIL_POLICY = MinimalViableTrailPolicy(
 # ---------------------------------------------------------------------------
 
 # Actions that qualify for Tier 3 (durable project state changes)
-TIER_3_ACTIONS: frozenset[str] = frozenset({
-    "specify", "plan", "tasks", "merge", "accept",
-})
+TIER_3_ACTIONS: frozenset[str] = frozenset(
+    {
+        "specify",
+        "plan",
+        "tasks",
+        "merge",
+        "accept",
+    }
+)
 
 
 @dataclass(frozen=True)
 class TierEligibility:
     """Which trail tiers apply to a given invocation."""
 
-    tier_1: bool = True    # always True — every invocation has Tier 1
-    tier_2: bool = False   # True if evidence_ref is set on completed event
-    tier_3: bool = False   # True if action is in TIER_3_ACTIONS
+    tier_1: bool = True  # always True — every invocation has Tier 1
+    tier_2: bool = False  # True if evidence_ref is set on completed event
+    tier_3: bool = False  # True if action is in TIER_3_ACTIONS
 
 
-def tier_eligible(record: InvocationRecord) -> TierEligibility:
-    """Determine which trail tiers apply to a completed InvocationRecord."""
+def tier_eligible(
+    started: OpStartedEvent,
+    completed: OpCompletedEvent | None = None,
+) -> TierEligibility:
+    """Determine which trail tiers apply to an Op.
+
+    ``action`` lives on the started event (v2); ``evidence_ref`` on the
+    completed event. Pass ``completed=None`` for still-open Ops.
+    """
     return TierEligibility(
         tier_1=True,
-        tier_2=record.evidence_ref is not None,
-        tier_3=record.action in TIER_3_ACTIONS,
+        tier_2=completed is not None and completed.evidence_ref is not None,
+        tier_3=started.action in TIER_3_ACTIONS,
     )
 
 
@@ -224,9 +297,7 @@ class ProfileInvocationRecord:
 
         phase_raw = data.get("phase")
         if phase_raw not in ("started", "completed", "failed"):
-            raise ValueError(
-                f"ProfileInvocationRecord.phase must be started|completed|failed, got {phase_raw!r}"
-            )
+            raise ValueError(f"ProfileInvocationRecord.phase must be started|completed|failed, got {phase_raw!r}")
 
         return cls(
             canonical_action_id=str(data["canonical_action_id"]),
@@ -252,7 +323,7 @@ def _ensure_iso_utc(dt: _dt.datetime) -> str:
 
 
 def promote_to_evidence(
-    record: InvocationRecord,
+    record: OpCompletedEvent,
     evidence_base_dir: Path,
     content: str,
 ) -> EvidenceArtifact:

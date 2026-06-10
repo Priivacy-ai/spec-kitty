@@ -31,7 +31,7 @@ test_no_dead_modules:
   # wp-lane-state-machine-fsm): upstream #1756 added m_3_3_0_session_presence_all_harnesses
   # and m_3_3_0_session_presence_claude_code; both auto-discovered via
   # pkgutil.iter_modules, never statically imported. Growth here is expected/routine.
-  category_1_auto_discovered_migrations: 82  # justification: +1 for m_3_2_0rc39_refresh_orientation_block (auto-discovered orientation-block refresh migration added to upstream/main as part of rc40); growth is expected/routine for this category.
+  category_1_auto_discovered_migrations: 83  # justification: +1 (82->83) for m_3_3_0_op_record_schema_v2 (do-dispatch-open-op-lifecycle-01KTSJ2H WP05 Op record schema v2 migration; auto-discovered via pkgutil.iter_modules, never statically imported); growth is expected/routine for this category.
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live

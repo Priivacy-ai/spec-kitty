@@ -1,16 +1,16 @@
 {
-  "event_count": 15,
-  "last_event_id": "01KT649ZM08DMCGK1Z4MJWGPH3",
-  "materialized_at": "2026-06-03T06:56:32.384468+00:00",
+  "event_count": 21,
+  "last_event_id": "01KT64WZ2Q242KB7QR7CVPG3QQ",
+  "materialized_at": "2026-06-03T07:06:54.423926+00:00",
   "mission_number": "",
   "mission_slug": "agent-harness-install-audit-follow-through-01KT5YTQ",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 3,
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 3,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -19,24 +19,24 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
-      "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01KT6472F4EPZ8G06CMWV4TGDZ",
-      "last_transition_at": "2026-06-03T06:54:56.996857+00:00"
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KT64WRZCYCEYK5W86QK2PHQ6",
+      "last_transition_at": "2026-06-03T07:06:48.172954+00:00"
     },
     "WP02": {
       "actor": "user",
-      "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01KT64608M2CCA1YZ895T7VBAM",
-      "last_transition_at": "2026-06-03T06:54:21.972478+00:00"
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KT64WW3NGVV6PG2T2EXXVBTE",
+      "last_transition_at": "2026-06-03T07:06:51.381946+00:00"
     },
     "WP03": {
       "actor": "user",
-      "force_count": 1,
-      "lane": "approved",
-      "last_event_id": "01KT649ZM08DMCGK1Z4MJWGPH3",
-      "last_transition_at": "2026-06-03T06:56:32.384468+00:00"
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KT64WZ2Q242KB7QR7CVPG3QQ",
+      "last_transition_at": "2026-06-03T07:06:54.423926+00:00"
     }
   }
 }

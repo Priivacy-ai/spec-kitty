@@ -1,111 +1,267 @@
-"""Tests for InvocationRecord Pydantic model and MinimalViableTrailPolicy."""
+"""Tests for the Op event models, MinimalViableTrailPolicy, and tier helpers.
+
+Sections:
+- Schema-contract tests for OpStartedEvent / OpCompletedEvent / parse_op_event
+  (pins contracts/op-record-events.md: required-field enforcement, None-field
+  omission, round-trip of both contract examples, dispatch parsing, and
+  legacy-line detection).
+- MinimalViableTrailPolicy / tier helper tests.
+"""
 
 from __future__ import annotations
 
-import pytest
+import json
+from pathlib import Path
 
+import pytest
+from pydantic import ValidationError
+
+from specify_cli.invocation.errors import LegacyRecordError
 from specify_cli.invocation.record import (
     MINIMAL_VIABLE_TRAIL_POLICY,
     TIER_3_ACTIONS,
-    InvocationRecord,
     MinimalViableTrailPolicy,
+    OpCompletedEvent,
+    OpStartedEvent,
     TierPolicy,
+    parse_op_event,
     promote_to_evidence,
     tier_eligible,
 )
 
-
-# ---------------------------------------------------------------------------
-# InvocationRecord tests
-# ---------------------------------------------------------------------------
-
-
 pytestmark = [pytest.mark.unit]
 
-def _make_started(**overrides: object) -> InvocationRecord:
+_ULID = "01ABCDEFGHJKMNPQRSTVWXYZ12"
+_CONTRACT_ULID = "01KTK5JBD69FQ8XVRFV1J630MJ"
+
+# Contract examples (contracts/op-record-events.md), verbatim.
+CONTRACT_STARTED = {
+    "event": "started",
+    "invocation_id": _CONTRACT_ULID,
+    "profile_id": "implementer-iris",
+    "action": "implement",
+    "request_text": "fix that bug",
+    "actor": "claude",
+    "mode_of_work": "task_execution",
+    "governance_context_hash": "d5ccab5678dcc4c8",
+    "governance_context_available": True,
+    "router_confidence": "canonical_verb",
+    "started_at": "2026-06-10T20:00:00+00:00",
+}
+CONTRACT_COMPLETED = {
+    "event": "completed",
+    "invocation_id": _CONTRACT_ULID,
+    "completed_at": "2026-06-10T20:25:00+00:00",
+    "outcome": "done",
+    "closed_by": "agent",
+    "evidence_ref": ".kittify/evidence/01KTK5JBD69FQ8XVRFV1J630MJ",
+}
+
+
+def _started_kwargs(**overrides: object) -> dict[str, object]:
+    data: dict[str, object] = dict(CONTRACT_STARTED)
+    data.pop("event")
+    data.update(overrides)
+    return data
+
+
+def _completed_kwargs(**overrides: object) -> dict[str, object]:
+    data: dict[str, object] = dict(CONTRACT_COMPLETED)
+    data.pop("event")
+    data.update(overrides)
+    return data
+
+
+# ---------------------------------------------------------------------------
+# OpStartedEvent schema contract
+# ---------------------------------------------------------------------------
+
+
+class TestOpStartedEvent:
+    def test_contract_example_round_trips(self) -> None:
+        event = OpStartedEvent.model_validate(CONTRACT_STARTED)
+        assert json.loads(event.to_jsonl_line()) == CONTRACT_STARTED
+
+    def test_missing_action_raises(self) -> None:
+        kwargs = _started_kwargs()
+        kwargs.pop("action")
+        with pytest.raises(ValidationError):
+            OpStartedEvent(**kwargs)  # type: ignore[arg-type]
+
+    def test_empty_action_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            OpStartedEvent(**_started_kwargs(action=""))  # type: ignore[arg-type]
+
+    @pytest.mark.parametrize("field", ["profile_id", "actor", "mode_of_work", "started_at"])
+    def test_empty_required_string_fields_raise(self, field: str) -> None:
+        with pytest.raises(ValidationError):
+            OpStartedEvent(**_started_kwargs(**{field: ""}))  # type: ignore[arg-type]
+
+    def test_invalid_ulid_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            OpStartedEvent(**_started_kwargs(invocation_id="not-a-ulid"))  # type: ignore[arg-type]
+
+    def test_frozen(self) -> None:
+        event = OpStartedEvent.model_validate(CONTRACT_STARTED)
+        with pytest.raises(ValidationError):
+            event.action = "other"  # type: ignore[misc]
+
+    def test_none_fields_omitted_from_jsonl(self) -> None:
+        event = OpStartedEvent(**_started_kwargs(router_confidence=None))  # type: ignore[arg-type]
+        data = json.loads(event.to_jsonl_line())
+        assert "router_confidence" not in data
+        assert "mission_id" not in data
+        assert "wp_id" not in data
+
+    def test_mission_and_wp_present_when_set(self) -> None:
+        event = OpStartedEvent(
+            **_started_kwargs(mission_id="01KTK5JBD69FQ8XVRFV1J630MJ", wp_id="WP01")  # type: ignore[arg-type]
+        )
+        data = json.loads(event.to_jsonl_line())
+        assert data["mission_id"] == "01KTK5JBD69FQ8XVRFV1J630MJ"
+        assert data["wp_id"] == "WP01"
+
+    def test_request_text_may_be_empty(self) -> None:
+        # Empty only legitimate for query mode — no model-level gate (executor enforces).
+        event = OpStartedEvent(**_started_kwargs(request_text="", mode_of_work="query"))  # type: ignore[arg-type]
+        assert event.request_text == ""
+
+    def test_mode_of_work_value_constrained(self) -> None:
+        with pytest.raises(ValidationError):
+            OpStartedEvent(**_started_kwargs(mode_of_work="bogus"))  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# OpCompletedEvent schema contract
+# ---------------------------------------------------------------------------
+
+
+class TestOpCompletedEvent:
+    def test_contract_example_round_trips(self) -> None:
+        event = OpCompletedEvent.model_validate(CONTRACT_COMPLETED)
+        assert json.loads(event.to_jsonl_line()) == CONTRACT_COMPLETED
+
+    def test_outcome_required_no_default(self) -> None:
+        kwargs = _completed_kwargs()
+        kwargs.pop("outcome")
+        with pytest.raises(ValidationError):
+            OpCompletedEvent(**kwargs)  # type: ignore[arg-type]
+
+    def test_outcome_none_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            OpCompletedEvent(**_completed_kwargs(outcome=None))  # type: ignore[arg-type]
+
+    def test_closed_by_required_no_default(self) -> None:
+        kwargs = _completed_kwargs()
+        kwargs.pop("closed_by")
+        with pytest.raises(ValidationError):
+            OpCompletedEvent(**kwargs)  # type: ignore[arg-type]
+
+    def test_closed_by_value_constrained(self) -> None:
+        with pytest.raises(ValidationError):
+            OpCompletedEvent(**_completed_kwargs(closed_by="elf"))  # type: ignore[arg-type]
+
+    def test_no_started_only_fields(self) -> None:
+        fields = set(OpCompletedEvent.model_fields)
+        assert fields == {
+            "event",
+            "invocation_id",
+            "completed_at",
+            "outcome",
+            "closed_by",
+            "evidence_ref",
+        }
+
+    def test_evidence_ref_omitted_when_none(self) -> None:
+        event = OpCompletedEvent(**_completed_kwargs(evidence_ref=None))  # type: ignore[arg-type]
+        data = json.loads(event.to_jsonl_line())
+        assert "evidence_ref" not in data
+
+    def test_frozen(self) -> None:
+        event = OpCompletedEvent.model_validate(CONTRACT_COMPLETED)
+        with pytest.raises(ValidationError):
+            event.outcome = "failed"  # type: ignore[misc]
+
+    def test_invalid_ulid_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            OpCompletedEvent(**_completed_kwargs(invocation_id="x" * 26))  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# parse_op_event dispatch + legacy detection
+# ---------------------------------------------------------------------------
+
+
+class TestParseOpEvent:
+    def test_dispatches_started(self) -> None:
+        assert isinstance(parse_op_event(dict(CONTRACT_STARTED)), OpStartedEvent)
+
+    def test_dispatches_completed(self) -> None:
+        assert isinstance(parse_op_event(dict(CONTRACT_COMPLETED)), OpCompletedEvent)
+
+    def test_legacy_completed_without_closed_by_raises_legacy_error(self) -> None:
+        legacy = {
+            "event": "completed",
+            "invocation_id": _CONTRACT_ULID,
+            "profile_id": "implementer-iris",
+            "action": "",
+            "actor": "unknown",
+            "completed_at": "2026-06-10T20:25:00+00:00",
+            "outcome": None,
+        }
+        with pytest.raises(LegacyRecordError) as exc_info:
+            parse_op_event(legacy)
+        assert exc_info.value.invocation_id == _CONTRACT_ULID
+        assert "spec-kitty upgrade" in str(exc_info.value)
+
+    def test_legacy_started_missing_v2_fields_raises_legacy_error(self) -> None:
+        legacy = {
+            "event": "started",
+            "invocation_id": _CONTRACT_ULID,
+            "profile_id": "implementer-iris",
+            "action": "implement",
+            # legacy v1 line: no mode_of_work, actor may default "unknown"
+        }
+        with pytest.raises(LegacyRecordError):
+            parse_op_event(legacy)
+
+    def test_non_lifecycle_event_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="not an Op lifecycle event"):
+            parse_op_event({"event": "artifact_link", "invocation_id": _CONTRACT_ULID})
+
+    def test_legacy_error_is_distinct_and_catchable(self) -> None:
+        from specify_cli.invocation.errors import InvocationError
+
+        assert issubclass(LegacyRecordError, InvocationError)
+        assert not issubclass(LegacyRecordError, ValidationError)
+
+
+def _make_started(**overrides: object) -> OpStartedEvent:
     defaults: dict[str, object] = {
-        "event": "started",
-        "invocation_id": "01ABCDEFGHJKMNPQRSTVWXYZ12",  # 26-char ULID
+        "invocation_id": _ULID,
         "profile_id": "implementer-fixture",
         "action": "generate",
-        "request_text": "implement the new feature",
+        "request_text": "implement the new behaviour",
         "governance_context_hash": "abcdef0123456789",
         "governance_context_available": True,
         "actor": "claude",
+        "mode_of_work": "task_execution",
         "router_confidence": "exact",
         "started_at": "2026-04-21T12:00:00+00:00",
     }
     defaults.update(overrides)
-    return InvocationRecord(**defaults)  # type: ignore[arg-type]
+    return OpStartedEvent(**defaults)  # type: ignore[arg-type]
 
 
-class TestInvocationRecordStartedFields:
-    def test_required_fields_present(self) -> None:
-        record = _make_started()
-        assert record.event == "started"
-        assert record.invocation_id == "01ABCDEFGHJKMNPQRSTVWXYZ12"
-        assert record.profile_id == "implementer-fixture"
-        assert record.action == "generate"
-        assert record.actor == "claude"
-        assert record.started_at == "2026-04-21T12:00:00+00:00"
-
-    def test_optional_fields_default(self) -> None:
-        record = InvocationRecord(
-            event="started",
-            invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-            profile_id="implementer-fixture",
-            action="generate",
-        )
-        assert record.request_text == ""
-        assert record.governance_context_hash == ""
-        assert record.governance_context_available is True
-        assert record.actor == "unknown"
-        assert record.router_confidence is None
-        assert record.started_at == ""
-        assert record.completed_at is None
-        assert record.outcome is None
-        assert record.evidence_ref is None
-
-    def test_completed_event_fields(self) -> None:
-        record = InvocationRecord(
-            event="completed",
-            invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-            profile_id="implementer-fixture",
-            action="",
-            completed_at="2026-04-21T13:00:00+00:00",
-            outcome="done",
-            evidence_ref="some-ref",
-        )
-        assert record.event == "completed"
-        assert record.completed_at == "2026-04-21T13:00:00+00:00"
-        assert record.outcome == "done"
-        assert record.evidence_ref == "some-ref"
-
-
-class TestInvocationRecordFrozen:
-    def test_mutation_raises_validation_error(self) -> None:
-        record = _make_started()
-        with pytest.raises((TypeError, Exception)):
-            record.action = "new_action"  # type: ignore[misc]
-
-
-class TestInvocationRecordJsonRoundtrip:
-    def test_model_dump_roundtrip_is_lossless(self) -> None:
-        original = _make_started()
-        data = original.model_dump()
-        restored = InvocationRecord(**data)
-        assert restored.model_dump() == original.model_dump()
-
-    def test_model_dump_includes_all_fields(self) -> None:
-        record = _make_started()
-        data = record.model_dump()
-        expected_keys = {
-            "event", "invocation_id", "profile_id", "action", "request_text",
-            "governance_context_hash", "governance_context_available", "actor",
-            "router_confidence", "started_at", "completed_at", "outcome", "evidence_ref",
-            "mode_of_work", "mission_id", "wp_id",
-        }
-        assert set(data.keys()) == expected_keys
+def _make_completed(**overrides: object) -> OpCompletedEvent:
+    defaults: dict[str, object] = {
+        "invocation_id": _ULID,
+        "completed_at": "2026-04-21T13:00:00+00:00",
+        "outcome": "done",
+        "closed_by": "agent",
+    }
+    defaults.update(overrides)
+    return OpCompletedEvent(**defaults)  # type: ignore[arg-type]
 
 
 # ---------------------------------------------------------------------------
@@ -161,82 +317,24 @@ def test_mvt_policy_storage_paths_present() -> None:
 
 
 def test_tier_eligible_tier1_always_true() -> None:
-    record = InvocationRecord(
-        event="started", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p", action="implement",
-    )
-    eligibility = tier_eligible(record)
-    assert eligibility.tier_1 is True
+    assert tier_eligible(_make_started(action="implement")).tier_1 is True
 
 
 def test_tier_eligible_tier2_requires_evidence_ref() -> None:
-    record_no_ev = InvocationRecord(
-        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p", action="implement",
-    )
-    record_with_ev = InvocationRecord(
-        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p", action="implement",
-        evidence_ref=".kittify/evidence/test/",
-    )
-    assert tier_eligible(record_no_ev).tier_2 is False
-    assert tier_eligible(record_with_ev).tier_2 is True
+    started = _make_started(action="implement")
+    assert tier_eligible(started, None).tier_2 is False
+    assert tier_eligible(started, _make_completed()).tier_2 is False
+    assert tier_eligible(started, _make_completed(evidence_ref=".kittify/evidence/test/")).tier_2 is True
 
 
-def test_tier_eligible_tier3_for_specify() -> None:
-    record = InvocationRecord(
-        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p", action="specify",
-    )
-    assert tier_eligible(record).tier_3 is True
+@pytest.mark.parametrize("action", ["specify", "plan", "tasks", "merge", "accept"])
+def test_tier_eligible_tier3_for_durable_actions(action: str) -> None:
+    assert tier_eligible(_make_started(action=action)).tier_3 is True
 
 
-def test_tier_eligible_tier3_for_plan() -> None:
-    record = InvocationRecord(
-        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p", action="plan",
-    )
-    assert tier_eligible(record).tier_3 is True
-
-
-def test_tier_eligible_tier3_for_tasks() -> None:
-    record = InvocationRecord(
-        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p", action="tasks",
-    )
-    assert tier_eligible(record).tier_3 is True
-
-
-def test_tier_eligible_tier3_for_merge() -> None:
-    record = InvocationRecord(
-        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p", action="merge",
-    )
-    assert tier_eligible(record).tier_3 is True
-
-
-def test_tier_eligible_tier3_for_accept() -> None:
-    record = InvocationRecord(
-        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p", action="accept",
-    )
-    assert tier_eligible(record).tier_3 is True
-
-
-def test_tier_eligible_tier3_not_for_advise() -> None:
-    record = InvocationRecord(
-        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p", action="advise",
-    )
-    assert tier_eligible(record).tier_3 is False
-
-
-def test_tier_eligible_tier3_not_for_implement() -> None:
-    record = InvocationRecord(
-        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p", action="implement",
-    )
-    assert tier_eligible(record).tier_3 is False
+@pytest.mark.parametrize("action", ["advise", "implement"])
+def test_tier_eligible_tier3_not_for_non_durable_actions(action: str) -> None:
+    assert tier_eligible(_make_started(action=action)).tier_3 is False
 
 
 # ---------------------------------------------------------------------------
@@ -244,60 +342,31 @@ def test_tier_eligible_tier3_not_for_implement() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_promote_to_evidence_creates_files(tmp_path: object) -> None:
-    from pathlib import Path
-    tmp = Path(str(tmp_path))  # type: ignore[arg-type]
-    record = InvocationRecord(
-        event="completed",
-        invocation_id="01KPQRX2EVGMRVB4Q1JQBAZJV3",
-        profile_id="cleo",
-        action="implement",
-    )
-    artifact = promote_to_evidence(record, tmp, "# Evidence\n\nThis is evidence.")
+def _evidence_record() -> OpCompletedEvent:
+    return _make_completed(invocation_id="01KPQRX2EVGMRVB4Q1JQBAZJV3")
+
+
+def test_promote_to_evidence_creates_files(tmp_path: Path) -> None:
+    artifact = promote_to_evidence(_evidence_record(), tmp_path, "# Evidence\n\nThis is evidence.")
     assert artifact.evidence_file.exists()
     assert artifact.record_snapshot.exists()
     assert artifact.evidence_file.read_text() == "# Evidence\n\nThis is evidence."
 
 
-def test_promote_to_evidence_record_snapshot_is_valid_json(tmp_path: object) -> None:
-    import json
-    from pathlib import Path
-    tmp = Path(str(tmp_path))  # type: ignore[arg-type]
-    record = InvocationRecord(
-        event="completed",
-        invocation_id="01KPQRX2EVGMRVB4Q1JQBAZJV3",
-        profile_id="cleo",
-        action="implement",
-    )
-    artifact = promote_to_evidence(record, tmp, "content")
+def test_promote_to_evidence_record_snapshot_is_valid_json(tmp_path: Path) -> None:
+    artifact = promote_to_evidence(_evidence_record(), tmp_path, "content")
     data = json.loads(artifact.record_snapshot.read_text())
     assert data["invocation_id"] == "01KPQRX2EVGMRVB4Q1JQBAZJV3"
+    assert data["closed_by"] == "agent"
 
 
-def test_promote_to_evidence_creates_exactly_two_files(tmp_path: object) -> None:
-    from pathlib import Path
-    tmp = Path(str(tmp_path))  # type: ignore[arg-type]
-    record = InvocationRecord(
-        event="completed",
-        invocation_id="01KPQRX2EVGMRVB4Q1JQBAZJV3",
-        profile_id="cleo",
-        action="implement",
-    )
-    artifact = promote_to_evidence(record, tmp, "content")
-    files = list(artifact.directory.iterdir())
-    assert len(files) == 2
+def test_promote_to_evidence_creates_exactly_two_files(tmp_path: Path) -> None:
+    artifact = promote_to_evidence(_evidence_record(), tmp_path, "content")
+    assert len(list(artifact.directory.iterdir())) == 2
 
 
-def test_promote_to_evidence_directory_named_by_invocation_id(tmp_path: object) -> None:
-    from pathlib import Path
-    tmp = Path(str(tmp_path))  # type: ignore[arg-type]
-    record = InvocationRecord(
-        event="completed",
-        invocation_id="01KPQRX2EVGMRVB4Q1JQBAZJV3",
-        profile_id="cleo",
-        action="implement",
-    )
-    artifact = promote_to_evidence(record, tmp, "content")
+def test_promote_to_evidence_directory_named_by_invocation_id(tmp_path: Path) -> None:
+    artifact = promote_to_evidence(_evidence_record(), tmp_path, "content")
     assert artifact.directory.name == "01KPQRX2EVGMRVB4Q1JQBAZJV3"
     assert artifact.invocation_id == "01KPQRX2EVGMRVB4Q1JQBAZJV3"
 
@@ -308,18 +377,11 @@ def test_promote_to_evidence_directory_named_by_invocation_id(tmp_path: object) 
 
 
 def test_tier3_actions_contains_expected() -> None:
-    assert "specify" in TIER_3_ACTIONS
-    assert "plan" in TIER_3_ACTIONS
-    assert "tasks" in TIER_3_ACTIONS
-    assert "merge" in TIER_3_ACTIONS
-    assert "accept" in TIER_3_ACTIONS
+    assert {"specify", "plan", "tasks", "merge", "accept"} <= TIER_3_ACTIONS
 
 
-def test_tier3_actions_excludes_advise() -> None:
+def test_tier3_actions_excludes_advise_and_implement() -> None:
     assert "advise" not in TIER_3_ACTIONS
-
-
-def test_tier3_actions_excludes_implement() -> None:
     assert "implement" not in TIER_3_ACTIONS
 
 

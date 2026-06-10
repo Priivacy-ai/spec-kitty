@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 💥 Changed
+
+- **Op record schema v2 (WP01, do-dispatch-open-op-lifecycle)**: the dual-purpose
+  `InvocationRecord` model is split into frozen `OpStartedEvent` /
+  `OpCompletedEvent` Pydantic v2 models. Completed events now require `outcome`
+  and `closed_by` and carry no started-only fields; blank-default records are
+  unrepresentable. Readers of `kitty-ops/*.jsonl` warn-and-skip legacy (pre-v2)
+  lines, pointing at `spec-kitty upgrade`; `parse_op_event` raises a catchable
+  `LegacyRecordError` for them. `spec-kitty invocations list` now shows
+  `outcome` and `closed_by` for closed Ops. `artifact_link`, `commit_link`, and
+  `glossary_checked` event shapes are unchanged.
+- **Breaking — `spec-kitty do` no longer auto-closes its Op as `done`
+  (do-dispatch-open-op-lifecycle)**: `do` / `ask` / `advise` now only OPEN the
+  Op and load governance context; the working agent closes it via
+  `spec-kitty profile-invocation complete --invocation-id <id>
+  --outcome <done|failed|abandoned>` (completed-event schema v2: `outcome`
+  required, new `closed_by` field). New `spec-kitty doctor ops --close-stale`
+  sweeps stale open Ops closed as `abandoned` (`closed_by: doctor_sweep`).
+  Legacy `kitty-ops` records are migrated (rewrite-or-delete) by
+  `spec-kitty upgrade`. Claude Code session presence now lists open Ops at
+  session start, a new `Stop` hook (`spec-kitty session-stop`) reminds at
+  session end, and the doctrine skill pack / standalone command templates
+  document the open→work→close contract.
+
+### 🐛 Fixed
+
+- Hardened the v2 Op migration and readers: `spec-kitty invocations list` skips
+  dangling `ops-index.jsonl` rows after unsalvageable Op files are deleted, and
+  migration idempotency now treats only v2-parseable `mode_of_work` / `closed_by`
+  values as already migrated.
+- Preserved machine-readable output for `do`, `ask`, and `advise --json` by
+  suppressing post-payload inline glossary notices on JSON paths; rich output
+  still shows the notices.
+- Updated the rich `ask` / `advise` close hint to include the now-required
+  `--outcome <done|failed|abandoned>` flag.
+
 ## [3.2.0rc41] - 2026-06-08
 
 ### ✨ Added

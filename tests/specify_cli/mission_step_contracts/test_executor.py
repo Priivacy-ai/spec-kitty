@@ -294,8 +294,9 @@ def test_command_step_inputs_are_rendered_into_runtime_request_text(tmp_path: Pa
             self.request_texts.append(request_text)
             return SimpleNamespace(invocation_id="inv-1")
 
-        def complete_invocation(self, _invocation_id: str, *, outcome: str) -> None:
+        def complete_invocation(self, _invocation_id: str, *, outcome: str, closed_by: str) -> None:
             assert outcome == "done"
+            assert closed_by == "agent"
 
     fake_invocations = FakeInvocationExecutor()
     result = StepContractExecutor(
@@ -366,8 +367,9 @@ def test_input_only_step_renders_required_inputs_into_runtime_request_text(
             self.request_texts.append(request_text)
             return SimpleNamespace(invocation_id="inv-1")
 
-        def complete_invocation(self, _invocation_id: str, *, outcome: str) -> None:
+        def complete_invocation(self, _invocation_id: str, *, outcome: str, closed_by: str) -> None:
             assert outcome == "done"
+            assert closed_by == "agent"
 
     fake_invocations = FakeInvocationExecutor()
     result = StepContractExecutor(

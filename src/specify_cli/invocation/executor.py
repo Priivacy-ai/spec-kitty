@@ -15,7 +15,7 @@ import json as _json_mod
 import logging
 import subprocess as _subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol
 
 if TYPE_CHECKING:
     from glossary.chokepoint import (
@@ -30,7 +30,7 @@ from specify_cli.git import safe_commit
 from specify_cli.invocation.errors import InvalidModeForEvidenceError, InvocationError
 from specify_cli.invocation.modes import ModeOfWork
 from specify_cli.invocation.propagator import InvocationSaaSPropagator
-from specify_cli.invocation.record import InvocationRecord, promote_to_evidence
+from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent, promote_to_evidence
 from specify_cli.invocation.registry import ProfileRegistry
 from specify_cli.invocation.router import ActionRouter, RouterDecision  # WP02: router implemented
 from specify_cli.invocation.writer import InvocationWriter, normalise_ref
@@ -61,6 +61,31 @@ class ActionRouterPlugin(Protocol):
     # No methods in v1. Fill in WP02's ActionRouterPlugin slot here.
 
 
+def build_close_contract(
+    invocation_id: str, mode_of_work: str | None = None
+) -> dict[str, object]:
+    """Machine-readable close contract for an open Op (contracts/cli-do-output.md).
+
+    Emitted in every invocation JSON payload so orchestrators know exactly how
+    to close the Op with the real outcome.  ``evidence_flag`` is omitted for
+    advisory/query modes because ``profile-invocation complete`` refuses
+    ``--evidence`` there (InvalidModeForEvidenceError, FR-009).
+    """
+    contract: dict[str, object] = {
+        "command": (
+            "spec-kitty profile-invocation complete "
+            f"--invocation-id {invocation_id} --outcome <done|failed|abandoned>"
+        ),
+        "outcomes": ["done", "failed", "abandoned"],
+        "evidence_flag": "--evidence",
+        "artifact_flag": "--artifact",
+        "commit_flag": "--commit",
+    }
+    if mode_of_work in (ModeOfWork.ADVISORY.value, ModeOfWork.QUERY.value):
+        del contract["evidence_flag"]
+    return contract
+
+
 class InvocationPayload:
     """Ephemeral response returned to CLI callers."""
 
@@ -78,6 +103,7 @@ class InvocationPayload:
     governance_context_available: bool
     router_confidence: str | None
     glossary_observations: GlossaryObservationBundle | None
+    mode_of_work: str | None
 
     __slots__ = (
         "invocation_id",
@@ -89,6 +115,7 @@ class InvocationPayload:
         "governance_context_available",
         "router_confidence",
         "glossary_observations",
+        "mode_of_work",
     )
 
     def __init__(self, **kwargs: object) -> None:
@@ -98,6 +125,10 @@ class InvocationPayload:
     def to_dict(self) -> dict[str, object]:
         result: dict[str, object] = {}
         for s in self.__slots__:
+            # mode_of_work shapes the close contract below but is not part of
+            # the serialized payload surface (contracts/cli-do-output.md).
+            if s == "mode_of_work":
+                continue
             # Use getattr default so callers that omit glossary_observations
             # (e.g. tests constructing InvocationPayload directly) get None
             # instead of AttributeError. C-005 backward-compat fix.
@@ -109,6 +140,12 @@ class InvocationPayload:
                 result[s] = val.to_dict()
             else:
                 result[s] = val
+        # FR-002 / contracts/cli-do-output.md: invoke() leaves the Op open;
+        # every JSON payload carries the explicit close contract.
+        result["status"] = "open"
+        result["close_contract"] = build_close_contract(
+            self.invocation_id, getattr(self, "mode_of_work", None)
+        )
         return result
 
 
@@ -216,8 +253,7 @@ class ProfileInvocationExecutor:
 
         # 3. Write started record (raises InvocationWriteError on fs failure)
         started_at = datetime.datetime.now(datetime.UTC).isoformat()
-        record = InvocationRecord(
-            event="started",
+        record = OpStartedEvent(
             invocation_id=invocation_id,
             profile_id=profile.profile_id,
             action=action,
@@ -227,7 +263,9 @@ class ProfileInvocationExecutor:
             actor=actor,
             router_confidence=router_confidence,
             started_at=started_at,
-            mode_of_work=mode_of_work.value if mode_of_work else None,
+            # mode_of_work is required in schema v2; default legacy callers to
+            # task_execution (matches the WP05 migration default).
+            mode_of_work=mode_of_work.value if mode_of_work else ModeOfWork.TASK_EXECUTION.value,
             mission_id=mission_id,
             wp_id=wp_id,
         )
@@ -253,20 +291,29 @@ class ProfileInvocationExecutor:
             governance_context_available=ctx_available,
             router_confidence=router_confidence,
             glossary_observations=bundle,
+            mode_of_work=record.mode_of_work,
         )
 
     def complete_invocation(
         self,
         invocation_id: str,
-        outcome: str | None = None,
+        outcome: Literal["done", "failed", "abandoned"],
         evidence_ref: str | None = None,
         artifact_refs: list[str] | None = None,
         commit_sha: str | None = None,
-    ) -> InvocationRecord:
+        *,
+        closed_by: Literal["agent", "doctor_sweep"],
+    ) -> OpCompletedEvent:
         """Close an open invocation record and propagate the completed event.
 
         Wraps ``InvocationWriter.write_completed`` so that the completed record
         is also submitted to the SaaS propagator (non-blocking, best-effort).
+
+        ``outcome`` is required (schema v2): callers must be explicit; a missing
+        outcome is a usage error at the CLI boundary, never silently "done".
+        ``closed_by`` is keyword-only and default-free (FR-003 / C-001): every
+        close records the closing actor explicitly — a default of "agent" would
+        let the doctor sweep silently misattribute closes.
 
         Raises ``AlreadyClosedError`` if already closed (idempotent guard).
         Raises ``InvocationError`` if invocation_id is not found.
@@ -283,12 +330,14 @@ class ProfileInvocationExecutor:
             raise InvalidModeForEvidenceError(invocation_id, started_mode)
 
         # Step 3: Append completed event (existing behaviour).
-        completed = self._writer.write_completed(
-            invocation_id,
-            self._repo_root,
+        completed = OpCompletedEvent(
+            invocation_id=invocation_id,
+            completed_at=datetime.datetime.now(datetime.UTC).isoformat(),
             outcome=outcome,
+            closed_by=closed_by,
             evidence_ref=evidence_ref,
         )
+        self._writer.write_completed(completed)
 
         # Step 4: Promote to Tier 2 evidence artifact if --evidence was supplied (existing behaviour).
         self._promote_evidence_if_requested(completed, evidence_ref)
@@ -316,7 +365,7 @@ class ProfileInvocationExecutor:
 
     def _promote_evidence_if_requested(
         self,
-        completed: InvocationRecord,
+        completed: OpCompletedEvent,
         evidence_ref: str | None,
     ) -> None:
         if evidence_ref is None:

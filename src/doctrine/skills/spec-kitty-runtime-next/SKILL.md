@@ -557,13 +557,15 @@ Spec Kitty never spawns a parallel LLM call. You are the host; Spec Kitty routes
 3. **Execute**:
    Do the work. Generate the code, analysis, or plan.
 
-4. **Close the record**:
+4. **Close the Op** (mandatory — `do`/`ask`/`advise` leave it open):
    ```bash
    spec-kitty profile-invocation complete \
      --invocation-id <invocation_id> \
-     --outcome done
+     --outcome <done|failed|abandoned>
    ```
-   Use `failed` or `abandoned` as appropriate.
+   Use the real outcome: `done` for completed work, `failed` for work that did
+   not succeed, `abandoned` for dropped work. Never leave an Op open
+   deliberately — `spec-kitty doctor ops` reports and sweeps orphans.
 
 ### Trail produced
 

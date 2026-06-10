@@ -127,3 +127,20 @@ class TestNoNextImports:
             assert "specify_cli/next" not in mod_file.replace("\\", "/"), (
                 f"Module {name} file is in specify_cli.next: {mod_file}"
             )
+
+
+class TestRenderCloseContract:
+    """WP06 T025/T027 — orientation teaches the open→work→close contract."""
+
+    def test_contains_close_instruction(self, healthy_content: SessionPresenceContent) -> None:
+        rendered = healthy_content.render()
+        assert "After finishing the work, close the Op" in rendered
+        assert (
+            "spec-kitty profile-invocation complete --invocation-id <id> "
+            "--outcome <done|failed|abandoned>"
+        ) in rendered
+
+    def test_says_do_opens_the_op(self, healthy_content: SessionPresenceContent) -> None:
+        rendered = healthy_content.render()
+        assert "opens the Op" in rendered
+        assert "records the Op" not in rendered

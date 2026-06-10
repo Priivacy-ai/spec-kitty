@@ -36,11 +36,14 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from specify_cli.invocation.errors import LegacyRecordError
+from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent, parse_op_event
 from specify_cli.invocation.writer import EVENTS_DIR, INDEX_PATH
 from specify_cli.task_utils import find_repo_root
 
 app = typer.Typer(name="invocations", help="Query local invocation records.")
 console = Console()
+_console_err = Console(stderr=True)
 
 # Read this many bytes at a time from the end of the index when scanning in
 # reverse.  4 KiB covers ~30-60 typical index lines per read, keeping I/O
@@ -104,15 +107,45 @@ def _read_completed_record(path: Path, invocation_id: str) -> dict | None:  # ty
                     data = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                if (
-                    isinstance(data, dict)
-                    and data.get("event") == "completed"
-                    and data.get("invocation_id") == invocation_id
-                ):
+                if isinstance(data, dict) and data.get("event") == "completed" and data.get("invocation_id") == invocation_id:
                     return data
     except OSError:
         return None
     return None
+
+
+def _parse_started(data: dict, legacy_ids: list[str] | None) -> OpStartedEvent | None:  # type: ignore[type-arg]
+    """Parse a started dict as a v2 event; record legacy lines for a later warning."""
+    try:
+        event = parse_op_event(data)
+    except LegacyRecordError as exc:
+        if legacy_ids is not None:
+            legacy_ids.append(exc.invocation_id or "?")
+        return None
+    except ValueError:
+        return None
+    return event if isinstance(event, OpStartedEvent) else None
+
+
+def _parse_completed(data: dict, legacy_ids: list[str] | None) -> OpCompletedEvent | None:  # type: ignore[type-arg]
+    """Parse a completed dict as a v2 event; record legacy lines for a later warning."""
+    try:
+        event = parse_op_event(data)
+    except LegacyRecordError as exc:
+        if legacy_ids is not None:
+            legacy_ids.append(exc.invocation_id or "?")
+        return None
+    except ValueError:
+        return None
+    return event if isinstance(event, OpCompletedEvent) else None
+
+
+def _warn_legacy(legacy_ids: list[str]) -> None:
+    """Emit a single warning for any legacy (pre-v2) records that were skipped."""
+    if legacy_ids:
+        _console_err.print(
+            f"[yellow]Warning:[/yellow] skipped {len(legacy_ids)} legacy Op record(s) (pre-v2 schema). Run 'spec-kitty upgrade' to migrate kitty-ops records."
+        )
 
 
 def append_to_index(repo_root: Path, record: dict) -> None:  # type: ignore[type-arg]
@@ -196,6 +229,7 @@ def _iter_records_from_index(
     index_path: Path,
     profile_filter: str | None,
     limit: int,
+    legacy_ids: list[str] | None = None,
 ) -> Iterator[dict]:  # type: ignore[type-arg]
     """Yield invocation records using the index for O(N) scanning instead of O(N*disk).
 
@@ -222,19 +256,27 @@ def _iter_records_from_index(
         # Determine open / closed by checking the per-invocation file.
         inv_file = events_dir / f"{inv_id}.jsonl"
         record: dict = dict(entry)  # type: ignore[type-arg]
-        completed = _read_completed_record(inv_file, inv_id)
-        if completed is not None:
-            record["completed_at"] = completed.get("completed_at")
-            record["outcome"] = completed.get("outcome")
-            record["evidence_ref"] = completed.get("evidence_ref")
+        completed_raw = _read_completed_record(inv_file, inv_id)
+        if completed_raw is not None:
+            completed = _parse_completed(completed_raw, legacy_ids)
+            if completed is None:
+                continue  # legacy line → warn-and-skip (see _warn_legacy)
+            record["completed_at"] = completed.completed_at
+            record["outcome"] = completed.outcome
+            record["closed_by"] = completed.closed_by
+            record["evidence_ref"] = completed.evidence_ref
             record["status"] = "closed"
         else:
             record["status"] = "open"
         # Also read full started record to get 'action' field (not stored in index).
-        started = _read_first_line(inv_file)
-        if started:
-            record.setdefault("action", started.get("action", ""))
-            record.setdefault("event", started.get("event", "started"))
+        started_raw = _read_first_line(inv_file)
+        if started_raw is None:
+            continue  # stale/dangling index row; canonical per-op file is gone/unreadable
+        started = _parse_started(started_raw, legacy_ids)
+        if started is None:
+            continue  # legacy line → warn-and-skip (see _warn_legacy)
+        record.setdefault("action", started.action)
+        record.setdefault("event", started.event)
         yield record
         count += 1
 
@@ -243,6 +285,7 @@ def _iter_records_from_dir(
     events_dir: Path,
     profile_filter: str | None,
     limit: int,
+    legacy_ids: list[str] | None = None,
 ) -> Iterator[dict]:  # type: ignore[type-arg]
     """Fallback: yield records by scanning the directory.
 
@@ -261,18 +304,25 @@ def _iter_records_from_dir(
 
     raw_records: list[dict] = []  # type: ignore[type-arg]
     for path in events_dir.glob("*.jsonl"):
-        started = _read_first_line(path)
+        started_raw = _read_first_line(path)
+        if started_raw is None:
+            continue
+        if profile_filter and started_raw.get("profile_id") != profile_filter:
+            continue
+        started = _parse_started(started_raw, legacy_ids)
         if started is None:
-            continue
-        if profile_filter and started.get("profile_id") != profile_filter:
-            continue
-        record: dict = dict(started)  # type: ignore[type-arg]
-        inv_id = record.get("invocation_id")
-        completed = _read_completed_record(path, inv_id) if isinstance(inv_id, str) else None
-        if completed is not None:
-            record["completed_at"] = completed.get("completed_at")
-            record["outcome"] = completed.get("outcome")
-            record["evidence_ref"] = completed.get("evidence_ref")
+            continue  # legacy line → warn-and-skip (see _warn_legacy)
+        record: dict = started.model_dump(exclude_none=True)  # type: ignore[type-arg]
+        inv_id = started.invocation_id
+        completed_raw = _read_completed_record(path, inv_id)
+        if completed_raw is not None:
+            completed = _parse_completed(completed_raw, legacy_ids)
+            if completed is None:
+                continue  # legacy line → warn-and-skip (see _warn_legacy)
+            record["completed_at"] = completed.completed_at
+            record["outcome"] = completed.outcome
+            record["closed_by"] = completed.closed_by
+            record["evidence_ref"] = completed.evidence_ref
             record["status"] = "closed"
         else:
             record["status"] = "open"
@@ -294,6 +344,7 @@ def _iter_records(
     limit: int,
     *,
     repo_root: Path | None = None,
+    legacy_ids: list[str] | None = None,
 ) -> Iterator[dict]:  # type: ignore[type-arg]
     """Yield invocation record dicts, newest first.
 
@@ -313,19 +364,15 @@ def _iter_records(
         index_path = events_dir / "ops-index.jsonl"
 
     if index_path.exists():
-        yield from _iter_records_from_index(events_dir, index_path, profile_filter, limit)
+        yield from _iter_records_from_index(events_dir, index_path, profile_filter, limit, legacy_ids)
     else:
-        yield from _iter_records_from_dir(events_dir, profile_filter, limit)
+        yield from _iter_records_from_dir(events_dir, profile_filter, limit, legacy_ids)
 
 
 @app.command("list")
 def list_invocations(
-    profile: str | None = typer.Option(
-        None, "--profile", "-p", help="Filter by profile ID (reads file content, not filename)"
-    ),
-    limit: int = typer.Option(
-        20, "--limit", "-n", help="Maximum number of records to return (default: 20)"
-    ),
+    profile: str | None = typer.Option(None, "--profile", "-p", help="Filter by profile ID (reads file content, not filename)"),
+    limit: int = typer.Option(20, "--limit", "-n", help="Maximum number of records to return (default: 20)"),
     json_output: bool = typer.Option(False, "--json", help="Emit a JSON array instead of a table"),
 ) -> None:
     """List recent invocation records from the local audit log.
@@ -343,12 +390,15 @@ def list_invocations(
     """
     repo_root = _get_repo_root()
     events_dir = repo_root / EVENTS_DIR
-    records = list(_iter_records(events_dir, profile, limit, repo_root=repo_root))
+    legacy_ids: list[str] = []
+    records = list(_iter_records(events_dir, profile, limit, repo_root=repo_root, legacy_ids=legacy_ids))
 
     if json_output:
+        _warn_legacy(legacy_ids)
         typer.echo(json.dumps(records, indent=2))
         return
 
+    _warn_legacy(legacy_ids)
     if not records:
         console.print("[dim]No invocation records found.[/dim]")
         return
@@ -358,6 +408,8 @@ def list_invocations(
     table.add_column("Profile")
     table.add_column("Action")
     table.add_column("Status")
+    table.add_column("Outcome")
+    table.add_column("Closed By")
     table.add_column("Started At")
     for r in records:
         status_style = "green" if r.get("status") == "closed" else "yellow"
@@ -368,6 +420,8 @@ def list_invocations(
             r.get("profile_id", "?"),
             r.get("action", "?"),
             f"[{status_style}]{r.get('status', '?')}[/{status_style}]",
+            r.get("outcome") or "-",
+            r.get("closed_by") or "-",
             (r.get("started_at") or "?")[:19],
         )
     console.print(table)
