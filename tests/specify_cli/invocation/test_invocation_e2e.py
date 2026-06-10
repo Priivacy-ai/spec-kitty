@@ -44,7 +44,8 @@ from specify_cli.sync.routing import CheckoutSyncRouting
 # Shared helpers / fixtures
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+# git_repo: the e2e flow exercises close-time auto-commit via subprocess git.
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "profiles"
 

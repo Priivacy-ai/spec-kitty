@@ -34,8 +34,9 @@ from glossary.models import (
 )
 from specify_cli.invocation.writer import EVENTS_DIR
 
-# Marked for mutmut sandbox skip — subprocess CLI invocation.
-pytestmark = pytest.mark.non_sandbox
+# Marked for mutmut sandbox skip (subprocess CLI invocation) and git_repo
+# (FR-012 untracked-Op test runs git via subprocess).
+pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
 
 class ArgvCliRunner(CliRunner):
     def invoke(self, app, args=None, **kwargs):  # type: ignore[no-untyped-def]
