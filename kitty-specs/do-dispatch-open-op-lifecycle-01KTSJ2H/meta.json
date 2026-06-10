@@ -6,10 +6,11 @@
   "mission_number": 130,
   "mission_slug": "do-dispatch-open-op-lifecycle-01KTSJ2H",
   "mission_type": "software-dev",
-  "purpose_context": "Today 'spec-kitty do' closes its operation record with outcome 'done' the moment it dispatches, before any work happens, so the permanent audit record in kitty-ops can claim success for work that failed or never occurred. This mission makes the record truthful: dispatch opens the record, the working agent closes it with the real outcome and evidence, hooks remind about open records, and doctor sweeps stale ones — so product owners, auditors, and other agents can trust who did what, when, and why.",
-  "purpose_tldr": "Make 'spec-kitty do' record honest open→work→close Op lifecycles instead of falsely marking work done at dispatch.",
+  "purpose_context": "Today 'spec-kitty do' closes its operation record with outcome 'done' the moment it dispatches, before any work happens, so the permanent audit record in kitty-ops can claim success for work that failed or never occurred. This mission makes the record truthful: dispatch opens the record, the working agent closes it with the real outcome and evidence, hooks remind about open records, and doctor sweeps stale ones \u2014 so product owners, auditors, and other agents can trust who did what, when, and why.",
+  "purpose_tldr": "Make 'spec-kitty do' record honest open\u2192work\u2192close Op lifecycles instead of falsely marking work done at dispatch.",
   "slug": "do-dispatch-open-op-lifecycle-01KTSJ2H",
   "target_branch": "main",
   "vcs": "git",
-  "vcs_locked_at": "2026-06-10T21:09:56.416013+00:00"
+  "vcs_locked_at": "2026-06-10T21:09:56.416013+00:00",
+  "baseline_merge_commit": "b6d1bd63440e3e9e5eb2caa78c904cc39e0c7d02"
 }
