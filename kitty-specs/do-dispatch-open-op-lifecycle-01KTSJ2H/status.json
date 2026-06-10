@@ -1,7 +1,7 @@
 {
-  "event_count": 6,
-  "last_event_id": "01KTSK7M2S6R8WEKYM7RKTJ3C4",
-  "materialized_at": "2026-06-10T20:22:57.881997+00:00",
+  "event_count": 8,
+  "last_event_id": "01KTSM0G722VCYFNGFR928Y816",
+  "materialized_at": "2026-06-10T20:36:33.122467+00:00",
   "mission_number": "",
   "mission_slug": "do-dispatch-open-op-lifecycle-01KTSJ2H",
   "mission_type": "software-dev",
@@ -12,17 +12,17 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 6
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "claude:fable:python-pedro:implementer",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01KTSK7HYBP0NWX2JMNVTC217X",
-      "last_transition_at": "2026-06-10T20:22:55.691664+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KTSM0G722VCYFNGFR928Y816",
+      "last_transition_at": "2026-06-10T20:36:33.122467+00:00"
     },
     "WP02": {
       "actor": "finalize-tasks",
