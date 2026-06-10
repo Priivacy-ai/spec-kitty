@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc42] - 2026-06-11
+
 ### 💥 Changed
 
 - **Op record schema v2 (WP01, do-dispatch-open-op-lifecycle)**: the dual-purpose
