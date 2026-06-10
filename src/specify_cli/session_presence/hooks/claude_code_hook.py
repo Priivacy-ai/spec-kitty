@@ -34,9 +34,10 @@ from __future__ import annotations
 
 import json
 import logging
-import os
-import tempfile
 from pathlib import Path
+from uuid import uuid4
+
+from specify_cli.core.utils import write_text_within_directory
 
 __all__ = ["ClaudeCodeHookRegistrar"]
 
@@ -62,27 +63,6 @@ class ClaudeCodeHookRegistrar:
             msg = "Claude settings path escapes project root"
             raise ValueError(msg) from exc
         return path
-
-    def _create_temp_file(
-        self,
-        path: Path,
-        *,
-        suffix: str = "",
-        prefix: str | None = None,
-    ) -> tuple[Path, int]:
-        fd, temp_path = tempfile.mkstemp(
-            dir=path.parent,
-            prefix=path.name if prefix is None else prefix,
-            suffix=suffix,
-            text=True,
-        )
-        temp = Path(temp_path)
-        temp.relative_to(path.parent)
-        return temp, fd
-
-    def _write_fd_text(self, fd: int, text: str) -> None:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(text)
 
     def _session_start_entries(self, data: dict[str, object]) -> list[object] | None:
         hooks_section = data.get("hooks")
@@ -133,24 +113,17 @@ class ClaudeCodeHookRegistrar:
 
     def _preserve_invalid(self, path: Path, text: str) -> None:
         """Copy invalid settings content to a sibling backup before overwrite."""
-        backup, fd = self._create_temp_file(path, prefix=f"{path.name}.invalid.")
-        try:
-            self._write_fd_text(fd, text)
-        except Exception:
-            backup.unlink(missing_ok=True)
-            raise
+        backup = path.parent / f"{path.name}.invalid.{uuid4().hex}"
+        write_text_within_directory(backup, text, root=path.parent)
         _logger.warning("Preserved invalid Claude settings JSON at %s", backup)
 
     def _save(self, path: Path, data: dict[str, object]) -> None:
         """Write *data* as JSON to *path* atomically."""
-        path.parent.mkdir(parents=True, exist_ok=True)
-        tmp, fd = self._create_temp_file(path, suffix=".tmp")
-        try:
-            self._write_fd_text(fd, json.dumps(data, indent=2) + "\n")
-            os.replace(tmp, path)
-        except Exception:
-            tmp.unlink(missing_ok=True)
-            raise
+        write_text_within_directory(
+            path,
+            json.dumps(data, indent=2) + "\n",
+            root=path.parent,
+        )
 
     def is_registered(self, project_root: Path, command: str) -> bool:
         """Return ``True`` when *command* is present in any SessionStart entry."""
