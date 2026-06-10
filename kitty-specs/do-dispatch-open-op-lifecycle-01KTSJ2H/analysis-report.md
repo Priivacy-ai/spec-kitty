@@ -4,6 +4,35 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: do-dispatch-open-op-lifecycle-01KTSJ2H
 mission_id: 01KTSJ2H8E5YF2EGJYGAE5Z5Q2
+generated_at: '2026-06-10T20:35:35.464853+00:00'
+analyzer_agent: unknown
+input_artifacts:
+  spec.md:
+    path: /Users/robert/spec-kitty-dev/spec-kitty-20260610-210527-m9vDkX/spec-kitty/kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/spec.md
+    sha256: 119b56f156b45137b025d0b5abea01208ecd7110cb009a9d25e77266772c1a41
+  plan.md:
+    path: /Users/robert/spec-kitty-dev/spec-kitty-20260610-210527-m9vDkX/spec-kitty/kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/plan.md
+    sha256: 58cd4fbb9666c7a35da2d825988e35e09812f331a8001c2c5acd5908ffff911e
+  tasks.md:
+    path: /Users/robert/spec-kitty-dev/spec-kitty-20260610-210527-m9vDkX/spec-kitty/kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/tasks.md
+    sha256: 2a48efe2b2ae01554190ab507a0cac93ce905c3d7e8f69ca89b7724c6295e1af
+  charter:
+    path: /Users/robert/spec-kitty-dev/spec-kitty-20260610-210527-m9vDkX/spec-kitty/.kittify/charter/charter.md
+    sha256: a59cddc8725b34acacd83b9bec24e97b1ae68aa80716b7335c425c6106c18791
+verdict: blocked
+issue_counts:
+  critical: 0
+  high:
+  medium:
+  low:
+---
+
+---
+schema_version: 1
+artifact_type: spec-kitty.analysis-report
+command: /spec-kitty.analyze
+mission_slug: do-dispatch-open-op-lifecycle-01KTSJ2H
+mission_id: 01KTSJ2H8E5YF2EGJYGAE5Z5Q2
 generated_at: '2026-06-10T20:26:52.341997+00:00'
 analyzer_agent: unknown
 input_artifacts:
