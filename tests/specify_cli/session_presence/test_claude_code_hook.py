@@ -242,5 +242,6 @@ class TestAtomicWrite:
         with patch("os.replace", side_effect=OSError("disk full")), pytest.raises(OSError):
             reg.register(claude_project, _CMD)
 
-        # No .tmp file should be left behind
-        assert not list(settings.parent.glob("settings.json*.tmp"))
+        # No .tmp file should be left behind, including the shared writer's
+        # hidden temp-file prefix.
+        assert not list(settings.parent.glob("*settings.json*.tmp"))
