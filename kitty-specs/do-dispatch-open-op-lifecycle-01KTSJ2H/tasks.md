@@ -45,11 +45,11 @@
 - **Priority**: P0 — every other WP builds on these models.
 - **Independent test**: Unit suite proves a completed event without outcome is unconstructible and serialized events match `contracts/op-record-events.md`.
 - **Subtasks**:
-  - [ ] T001 Define `OpStartedEvent` model (WP01)
-  - [ ] T002 Define `OpCompletedEvent` model (WP01)
-  - [ ] T003 Update `InvocationWriter` for v2 events (WP01)
-  - [ ] T004 Update readers for v2 shapes (WP01)
-  - [ ] T005 Unit tests for models/writer/readers (WP01)
+  - [x] T001 Define `OpStartedEvent` model (WP01)
+  - [x] T002 Define `OpCompletedEvent` model (WP01)
+  - [x] T003 Update `InvocationWriter` for v2 events (WP01)
+  - [x] T004 Update readers for v2 shapes (WP01)
+  - [x] T005 Unit tests for models/writer/readers (WP01)
 - **Dependencies**: none
 - **Estimated prompt size**: ~330 lines
 
