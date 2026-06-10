@@ -1671,10 +1671,13 @@ class EventEmitter:
         if git_meta.head_commit_sha:
             enriched.setdefault("head_commit_sha", git_meta.head_commit_sha)
 
-        if is_saas_sync_enabled():
-            team_slug = self._get_team_slug()
-            if team_slug:
-                enriched.setdefault("team_slug", team_slug)
+        team_slug = (
+            self._get_team_slug()
+            if is_saas_sync_enabled()
+            else self._get_cached_private_team_slug()
+        )
+        if team_slug:
+            enriched.setdefault("team_slug", team_slug)
 
         data["subject"] = enriched
         return data
@@ -2000,6 +2003,20 @@ class EventEmitter:
         except Exception as e:
             _console.print(f"[yellow]Warning: Could not resolve team_slug: {e}[/yellow]")
         return None
+
+    @staticmethod
+    def _get_cached_private_team_slug() -> str | None:
+        """Read Private Teamspace id from cached auth session without ingress I/O."""
+        try:
+            from specify_cli.auth import get_token_manager
+            from specify_cli.auth.session import require_private_team_id
+
+            session = get_token_manager().get_current_session()
+            if session is None:
+                return None
+            return require_private_team_id(session)
+        except Exception:
+            return None
 
     def _validate_event(self, event: dict[str, Any]) -> bool:
         """Validate event against spec-kitty-events models and payload schemas.

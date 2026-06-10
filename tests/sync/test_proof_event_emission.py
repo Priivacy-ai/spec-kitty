@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
@@ -69,6 +70,37 @@ def test_emit_proof_event_queues_bounded_payload(
     assert event["payload"]["subject"]["git_branch"] == "test-branch"
     assert event["payload"]["subject"]["head_commit_sha"] == "a" * 40
     assert temp_queue.size() == 1
+
+
+def test_proof_subject_uses_cached_team_when_saas_sync_disabled(
+    emitter: EventEmitter,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
+
+    def fail_if_direct_ingress_resolves(self: EventEmitter) -> str | None:
+        raise AssertionError("direct-ingress team resolver should stay behind SaaS sync")
+
+    monkeypatch.setattr(EventEmitter, "_get_team_slug", fail_if_direct_ingress_resolves)
+    monkeypatch.setattr(
+        "specify_cli.auth.get_token_manager",
+        lambda: SimpleNamespace(
+            get_current_session=lambda: SimpleNamespace(
+                teams=[
+                    SimpleNamespace(
+                        id="private-team-id",
+                        is_private_teamspace=True,
+                    )
+                ],
+            )
+        ),
+    )
+
+    event = emitter.emit_proof_event("TestEvidenceCaptured", _test_payload())
+
+    assert event is not None
+    assert event["team_slug"] is None
+    assert event["payload"]["subject"]["team_slug"] == "private-team-id"
 
 
 def test_emitted_proof_event_passes_queue_diagnose(
