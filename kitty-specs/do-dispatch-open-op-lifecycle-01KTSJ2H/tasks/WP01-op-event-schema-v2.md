@@ -15,8 +15,8 @@ subtasks:
 - T003
 - T004
 - T005
-agent: "claude:fable:python-pedro:implementer"
-shell_pid: "23900"
+agent: "claude:fable:reviewer-renata:reviewer"
+shell_pid: "31238"
 history:
 - '2026-06-10T20:15:38Z: created by /spec-kitty.tasks'
 agent_profile: python-pedro
@@ -149,3 +149,4 @@ Planning base branch: `main`. Final merge target: `main`. Execution worktrees ar
 - 2026-06-10T20:36:34Z – claude:fable:python-pedro:implementer – shell_pid=23900 – Assigned agent via action command
 - 2026-06-10T21:02:43Z – claude:fable:python-pedro:implementer – shell_pid=23900 – WP01 implementation complete: v2 op event schema, writer, readers, tests; gates green (339 passed, mypy clean, ruff clean)
 - 2026-06-10T21:03:37Z – claude:fable:python-pedro:implementer – shell_pid=23900 – Deviation: T005's specified test_record_v2.py/test_writer_v2.py were consolidated into test_record.py/test_writer.py (classes TestOpStartedEvent/TestOpCompletedEvent/TestParseOpEvent, TestWrittenLineShapes) — transitional version labels must not live in permanent filenames. Coverage unchanged; suite 339 passed, mypy and ruff clean.
+- 2026-06-10T21:04:06Z – claude:fable:reviewer-renata:reviewer – shell_pid=31238 – Started review via action command
