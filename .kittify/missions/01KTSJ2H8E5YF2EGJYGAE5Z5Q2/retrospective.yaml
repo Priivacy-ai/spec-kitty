@@ -1,0 +1,266 @@
+schema_version: 1
+mission_id: 01KTSJ2H8E5YF2EGJYGAE5Z5Q2
+mission_slug: do-dispatch-open-op-lifecycle-01KTSJ2H
+mission_number: 130
+friendly_name: Do Dispatch Open-Op Lifecycle
+mission_type: software-dev
+target_branch: main
+created_at: '2026-06-10T22:49:03.957652+00:00'
+created_by:
+  kind: human
+  id: cli
+  display: spec-kitty retrospect
+provenance:
+  kind: explicit_create
+  invoked_at: '2026-06-10T22:49:03.957652+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+  command: spec-kitty retrospect create
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: process
+  summary: Pre-implementation /spec-kitty.analyze caught 8 findings cheaply
+  evidence_refs:
+  - e-014
+  details: The analyze gate found an unverifiable NFR (dispatch latency), a normative-doc gap in the migration mapping, and
+    6 smaller drifts before any code existed. All were fixed in minutes at planning altitude; the same gaps found post-implementation
+    would have cost review cycles.
+- id: h-002
+  category: process
+  summary: All 6 WPs approved on review cycle 1
+  evidence_refs:
+  - e-011
+  details: Detailed WP prompts (file:line anchors, normative contract pointers, sanctioned-deviation lists, explicit reviewer
+    rejection criteria) plus independent reviewer subagents produced zero rejection cycles across the mission.
+- id: h-003
+  category: process
+  summary: Stale-base tripwires in dispatch prompts prevented wrong-base implementation
+  evidence_refs:
+  - e-011
+  details: WP03 agent stopped cleanly on the documented tripwire (dependency commits absent from its lane) instead of implementing
+    against the wrong schema; later dispatches included an explicit dependency-check + lane-merge step and self-healed.
+- id: h-004
+  category: process
+  summary: Post-merge mission review caught a real cross-WP bug
+  evidence_refs:
+  - e-013
+  details: Doctor-sweep closes were never propagated to SaaS (executor built without propagator). Every per-WP review missed
+    it because the propagator was outside WP04 owned_files. Mission-level review is the only altitude that sees this class
+    of gap.
+not_helpful:
+- id: n-001
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-012
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime guard
+    failed or the operator routed around it; investigate the underlying cause.
+- id: n-002
+  category: tooling
+  summary: Lane bases did not include approved dependency WPs
+  evidence_refs:
+  - e-011
+  details: 'lanes were cut from the mission branch before dependency lanes merged back, so WP03/WP04/WP06 all started on bases
+    missing their approved dependencies. Each needed manual or agent-driven lane-to-lane merges (lane-f even had to merge
+    two lanes and resolve 4 conflicts). The dependency graph knows the order; implement should rebase/merge the lane base
+    automatically. Related to upstream issue #771.'
+- id: n-003
+  category: tooling
+  summary: Protected-branch guard in dogfooding repo forced constant workarounds
+  evidence_refs:
+  - e-016
+  details: 'safe_commit refuses commits on local main, so spec/plan/tasks/analysis/acceptance bookkeeping bounced between
+    root checkout, coordination branch, and coordination worktree all session. SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1
+    bypasses only one of the two guard classes (assert_not_protected_branch but not ProtectedBranchRefused in the safe_commit
+    destination check), so the workaround is partial. Robert questions whether local-main protection is useful at all: the
+    policy that matters is origin:main (PR-only, enforced by GitHub + CI). Conflating local:main with origin:main is the suspected
+    root cause. DECISION INPUT: either honor the env var consistently in both guard paths, or drop local-main protection and
+    rely on remote enforcement; always qualify main as local:main or origin:main in messages and docs.'
+- id: n-004
+  category: tooling
+  summary: Status authority split between coordination worktree and root checkout
+  evidence_refs:
+  - e-011
+  details: Dashboard and root-side readers consume the root checkout status files while lane/coord operations write the coordination
+    worktree copies; the board went stale repeatedly until files were manually synced or merged. Readers should resolve status
+    through the coordination worktree when one exists.
+- id: n-005
+  category: tooling
+  summary: Mission merge required four manual interventions
+  evidence_refs:
+  - e-013
+  details: (1) stale lane-c needed manual conflict resolution; (2) .kittify/metadata.yaml upgrade-noise blocked a lane merge;
+    (3) the coord worktree fell behind its own branch mid-merge, tripping the safe_commit backstop twice; (4) post-merge baseline
+    validation ran before the tool wrote the baseline_merge_commit field it validates, requiring manual meta.json repair.
+    The merge succeeded but is not yet an unattended operation.
+- id: n-006
+  category: tooling
+  summary: accept auto-commit fails through gitignored .worktrees path
+  evidence_refs:
+  - e-011
+  details: spec-kitty accept resolved mission artifacts through the coordination worktree path (.worktrees/...) and tried
+    to git-add them in the root repo where .worktrees is gitignored — TaskCliError. --no-commit succeeded; the write path
+    needs to commit from inside the coord worktree or via repo-relative paths.
+- id: n-007
+  category: tooling
+  summary: Tracked .worktrees junk committed again
+  evidence_refs:
+  - e-011
+  details: A planning-artifact auto-commit swept 23 files under .worktrees/<coord>/ into the repo — second occurrence in history
+    (prior fix commit 529a7b992). Whatever stages git add -A in the coord worktree needs a pathspec exclusion.
+- id: n-008
+  category: tooling
+  summary: finalize-tasks/record-analysis surprised the orchestrator by switching branches
+  evidence_refs:
+  - e-011
+  details: finalize-tasks checked out the target branch under the session, and record-analysis enforced repo-wide clean-tree
+    including unrelated dirty files in other checkouts. Both behaviors are defensible but undocumented in the command prompts
+    that drive them; the prompts should state the branch/cleanliness contracts.
+gaps:
+- id: g-001
+  category: coverage
+  summary: Cross-repo e2e gate not exercisable against the merged code
+  evidence_refs:
+  - e-013
+  details: The e2e harness resolved a different spec-kitty checkout (~/spec-kitty-dev/spec-kitty .venv, rc35) and lacked SaaS
+    credentials, so the gate validated neither this merge nor sync paths. The harness needs a way to pin the CLI under test
+    to the current checkout.
+- id: g-002
+  category: coverage
+  summary: CLI reference docs not generated for new commands
+  evidence_refs:
+  - e-013
+  details: WP06 added session-stop without docs/reference/cli-commands.md parity; only the post-merge full-suite architectural
+    run caught it. The docs-parity check should run in the per-WP gate set for WPs that add CLI surface.
+- id: g-003
+  category: process
+  summary: Acceptance matrix scaffold carried TODO placeholders to the accept gate
+  evidence_refs:
+  - e-011
+  details: 'finalize-tasks generated per-FR criteria with "TODO: replace with a real acceptance criterion"; nothing in the
+    workflow populates them until accept blocks. Either tasks-phase should author real criteria or the review flow should
+    fill verdicts as WPs are approved.'
+- id: g-002
+  category: doctrine
+  summary: 'FOLLOW-UP: Decide and document local-main protection policy (terminology: local:main vs origin:main)'
+  evidence_refs:
+  - e-016
+  details: 'Follow-up from n-003. Options: (a) make SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS govern both guard classes; (b)
+    remove local-main protection entirely, keep origin enforcement; (c) keep as-is but auto-route via coordination worktree
+    transparently. Adopt the local:main / origin:main qualification rule in all guard messages, prompts, and docs regardless
+    of option chosen.'
+- id: g-003
+  category: tooling
+  summary: 'FOLLOW-UP: Auto-refresh lane bases from approved dependency lanes at implement time'
+  evidence_refs:
+  - e-011
+  details: 'spec-kitty agent action implement should merge/rebase approved dependency lane branches into the target lane before
+    handing the workspace to the agent (extends #771).'
+- id: g-004
+  category: tooling
+  summary: 'FOLLOW-UP: Unify status reads through the coordination worktree'
+  evidence_refs:
+  - e-011
+  details: Dashboard daemon and root-side status readers should resolve status.events.jsonl via the mission coordination worktree
+    when present, eliminating the manual sync.
+- id: g-005
+  category: process
+  summary: 'FOLLOW-UP: Run docs-parity and dead-code architectural checks in per-WP review gates'
+  evidence_refs:
+  - e-013
+  details: Five architectural failures (docs parity, dead-code allowlists, test markers) surfaced only post-merge; adding
+    tests/architectural to the per-WP reviewer gate list would catch them at cycle 1.
+- id: g-008
+  category: tooling
+  summary: 'FOLLOW-UP: retrospective writer/summary/synthesize schema mismatch'
+  evidence_refs:
+  - e-011
+  details: 'Observed while authoring this record: `retrospect create` writes findings as {id, category, summary, evidence_refs,
+    details}, but `agent retrospect synthesize` validates them against the strict Finding model {id, target, note, provenance}
+    (schema.py) and rejects the generator''s own format with pydantic extra_forbidden; `retrospect summary` reports 2 of 3
+    records on disk as malformed. The three surfaces need one schema (or an explicit format version negotiation). Until then,
+    machine proposals cannot flow from generator-authored records.'
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/tasks/WP01-op-event-schema-v2.md
+- id: e-006
+  kind: file
+  path: kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/tasks/WP02-do-open-op-dispatch.md
+- id: e-007
+  kind: file
+  path: kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/tasks/WP03-close-surface-closing-actor.md
+- id: e-008
+  kind: file
+  path: kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/tasks/WP04-doctor-stale-sweep.md
+- id: e-009
+  kind: file
+  path: kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/tasks/WP05-legacy-record-migration.md
+- id: e-010
+  kind: file
+  path: kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/tasks/WP06-session-presence-contract-prose.md
+- id: e-011
+  kind: file
+  path: kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/status.events.jsonl
+- id: e-012
+  kind: event_range
+  path: kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/status.events.jsonl
+  range: 01KTSNK9DJH7K92BWRWDHJ4HM8
+- id: e-013
+  kind: file
+  path: kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/mission-review-report.md
+- id: e-014
+  kind: file
+  path: kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/analysis-report.md
+- id: e-015
+  kind: file
+  path: kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/issue-matrix.md
+- id: e-016
+  kind: file
+  path: src/specify_cli/git/commit_helpers.py
+generator_version: '1.0'
+provenance_history: []
