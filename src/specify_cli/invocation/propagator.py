@@ -127,11 +127,12 @@ def _propagate_one(record: OpEvent, repo_root: Path) -> None:
 
     # NOTE: Correlation events (artifact_link / commit_link) are written locally by
     # InvocationWriter.append_correlation_link() in executor.py but are NOT currently
-    # submitted to the propagator (executor.py:290 comment: "WP07 will add the policy
-    # gate").  WP06 only submits the `completed` InvocationRecord to propagator.submit().
-    # The dict-record branch for correlation events is therefore deferred to a follow-on
-    # WP once the executor wires correlation-event propagation.  When that wiring lands,
-    # add a branch here:
+    # submitted to the propagator.  The executor submits both v2 lifecycle events
+    # (OpStartedEvent at invoke time, OpCompletedEvent at close time) to
+    # propagator.submit(); correlation events remain local-only per the ADR-004
+    # Tier-2 stance.  The dict-record branch for correlation events is therefore
+    # deferred until the executor wires correlation-event propagation.  When that
+    # wiring lands, add a branch here:
     #   if isinstance(record, dict):
     #       event_type_map = {"artifact_link": "ProfileInvocationArtifactLink",
     #                         "commit_link": "ProfileInvocationCommitLink"}
