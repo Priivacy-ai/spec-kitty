@@ -30,6 +30,8 @@ import pytest
 from mission_runtime import resolve_action_context
 from specify_cli.coordination.policy import WorkflowMutationPolicy
 from specify_cli.coordination.types import Allowed, GitChangeSet, Refused
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.store import append_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -70,6 +72,39 @@ def _build_mission(repo_root: Path, *, target_branch: str) -> None:
     )
 
 
+def _write_review_wp(feature_dir: Path) -> None:
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir()
+    (tasks_dir / "WP01-review.md").write_text(
+        "---\n"
+        "work_package_id: WP01\n"
+        "title: Review target\n"
+        "dependencies: []\n"
+        "execution_mode: planning_artifact\n"
+        "owned_files: []\n"
+        "---\n"
+        "# WP01\n",
+        encoding="utf-8",
+    )
+
+
+def _seed_for_review(feature_dir: Path) -> None:
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id="test-WP01-for-review",
+            mission_slug=feature_dir.name,
+            wp_id="WP01",
+            from_lane=Lane.IN_PROGRESS,
+            to_lane=Lane.FOR_REVIEW,
+            at="2026-01-01T00:00:00+00:00",
+            actor="test",
+            force=True,
+            execution_mode="worktree",
+        ),
+    )
+
+
 @pytest.fixture
 def repo(tmp_path: Path) -> Path:
     """Minimal git repo with a mission and a non-protected target branch."""
@@ -95,6 +130,19 @@ def test_resolver_returns_mode_correct_target_branch(repo: Path) -> None:
     ctx = resolve_action_context(repo, action="tasks", feature=_MISSION_SLUG)
 
     assert ctx.target_branch == "feat/execution-state-strangler"
+
+
+def test_review_context_resolves_wp_from_frontmatter(repo: Path) -> None:
+    """Review resolution must use real split_frontmatter's 3-field contract."""
+    _build_mission(repo, target_branch="main")
+    feature_dir = repo / "kitty-specs" / _MISSION_SLUG
+    _write_review_wp(feature_dir)
+    _seed_for_review(feature_dir)
+
+    ctx = resolve_action_context(repo, action="review", feature=_MISSION_SLUG, agent="codex")
+
+    assert ctx.wp_id == "WP01"
+    assert ctx.commands["workflow"].endswith("review WP01 --agent codex")
 
 
 def test_resolver_does_not_invent_branch_for_mainline_target(repo: Path) -> None:

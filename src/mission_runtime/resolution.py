@@ -18,9 +18,9 @@ work package, workspace path, and any action-specific commands to run.
 """
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Literal, cast, get_args
+from typing import Any, Literal, cast, get_args
 
 from mission_runtime.context import ExecutionContext
 
@@ -162,46 +162,26 @@ def _resolve_review_wp_id(feature_dir: Path) -> str | None:
     try:
         events = read_events(feature_dir)
 
-        def _is_review_claimed(candidate_wp_id: str) -> bool:
-            latest_event = next(
-                (
-                    event
-                    for event in reversed(events)
-                    if getattr(event, "wp_id", None) == candidate_wp_id
-                ),
-                None,
-            )
-            if latest_event is None:
-                return False
-            return bool(
-                latest_event.to_lane == Lane.IN_REVIEW
-                or (
-                    latest_event.to_lane == Lane.IN_PROGRESS
-                    and latest_event.review_ref == "action-review-claim"
-                )
-            )
+        candidate_wp_ids = _review_candidate_wp_ids(
+            tasks_dir,
+            extract_scalar=extract_scalar,
+            split_frontmatter=split_frontmatter,
+        )
 
-        candidate_wp_ids = [
-            str(candidate_wp_id)
-            for wp_file in sorted(tasks_dir.glob("WP*.md"))
-            if (
-                candidate_wp_id := extract_scalar(
-                    split_frontmatter(wp_file.read_text(encoding="utf-8-sig"))[0],
-                    "work_package_id",
-                )
-            )
-        ]
-
-        for candidate_wp_id in candidate_wp_ids:
-            if get_wp_lane(feature_dir, candidate_wp_id) == Lane.FOR_REVIEW:
-                return candidate_wp_id
+        review_ready_wp_id = _first_wp_in_lane(
+            feature_dir,
+            candidate_wp_ids,
+            target_lane=Lane.FOR_REVIEW,
+            get_wp_lane=get_wp_lane,
+        )
+        if review_ready_wp_id is not None:
+            return review_ready_wp_id
 
         for candidate_wp_id in candidate_wp_ids:
             candidate_lane = get_wp_lane(feature_dir, candidate_wp_id)
-            if (
-                candidate_lane in (Lane.IN_PROGRESS, Lane.IN_REVIEW)
-                and _is_review_claimed(candidate_wp_id)
-            ):
+            if candidate_lane not in (Lane.IN_PROGRESS, Lane.IN_REVIEW):
+                continue
+            if _is_review_claimed(events, candidate_wp_id, Lane=Lane):
                 return candidate_wp_id
     except CanonicalStatusNotFoundError as exc:
         raise ActionContextError("CANONICAL_STATUS_NOT_FOUND", str(exc)) from exc
@@ -210,6 +190,54 @@ def _resolve_review_wp_id(feature_dir: Path) -> str | None:
     except Exception:
         return None
     return None
+
+
+def _review_candidate_wp_ids(
+    tasks_dir: Path,
+    *,
+    extract_scalar: Callable[[str, str], str | None],
+    split_frontmatter: Callable[[str], tuple[str, str, str]],
+) -> list[str]:
+    candidate_wp_ids: list[str] = []
+    for wp_file in sorted(tasks_dir.glob("WP*.md")):
+        frontmatter = split_frontmatter(wp_file.read_text(encoding="utf-8-sig"))[0]
+        candidate_wp_id = extract_scalar(frontmatter, "work_package_id")
+        if candidate_wp_id:
+            candidate_wp_ids.append(str(candidate_wp_id))
+    return candidate_wp_ids
+
+
+def _first_wp_in_lane(
+    feature_dir: Path,
+    candidate_wp_ids: list[str],
+    *,
+    target_lane: object,
+    get_wp_lane: Callable[[Path, str], object],
+) -> str | None:
+    for candidate_wp_id in candidate_wp_ids:
+        if get_wp_lane(feature_dir, candidate_wp_id) == target_lane:
+            return candidate_wp_id
+    return None
+
+
+def _is_review_claimed(events: Sequence[Any], candidate_wp_id: str, *, Lane: Any) -> bool:
+    latest_event = next(
+        (
+            event
+            for event in reversed(events)
+            if getattr(event, "wp_id", None) == candidate_wp_id
+        ),
+        None,
+    )
+    if latest_event is None:
+        return False
+    return bool(
+        latest_event.to_lane == Lane.IN_REVIEW
+        or (
+            latest_event.to_lane == Lane.IN_PROGRESS
+            and latest_event.review_ref == "action-review-claim"
+        )
+    )
 
 
 def _resolve_wp_id(

@@ -155,23 +155,38 @@ def _issue_matrix_evaluation(
     )
     from specify_cli.tasks.issue_matrix import detect_issue_references
 
-    spec_path = feature_dir / "spec.md"
-    refs = detect_issue_references(spec_path)
-    matrix_path = feature_dir / "issue-matrix.md"
-    result = validate_issue_matrix(matrix_path)
+    refs = detect_issue_references(feature_dir / "spec.md")
+    result = validate_issue_matrix(feature_dir / "issue-matrix.md")
     referenced_issues = {f"#{ref.number}" for ref in refs}
+    matrix_issues = _issue_matrix_row_issues(result)
+    unresolved_in_mission = _issue_matrix_in_mission_rows(
+        result,
+        referenced_issues,
+        IssueMatrixVerdict.IN_MISSION,
+    )
+    missing_issues = sorted(referenced_issues - matrix_issues)
+    return result, referenced_issues, missing_issues, unresolved_in_mission
+
+
+def _issue_matrix_row_issues(result: object) -> set[str]:
     matrix_issues = {row.issue for row in result.rows}
     for diagnostic in result.diagnostics:
         match = re.search(r"Row for issue '([^']+)'", diagnostic.get("message", ""))
         if match:
             matrix_issues.add(match.group(1))
-    unresolved_in_mission = sorted(
+    return matrix_issues
+
+
+def _issue_matrix_in_mission_rows(
+    result: object,
+    referenced_issues: set[str],
+    in_mission_verdict: object,
+) -> list[str]:
+    return sorted(
         row.issue
         for row in result.rows
-        if row.verdict is IssueMatrixVerdict.IN_MISSION
-        and row.issue in referenced_issues
+        if row.verdict is in_mission_verdict and row.issue in referenced_issues
     )
-    return result, referenced_issues, sorted(referenced_issues - matrix_issues), unresolved_in_mission
 
 
 def _issue_matrix_diagnostic_lines(result: object) -> tuple[list[str], list[str]]:
