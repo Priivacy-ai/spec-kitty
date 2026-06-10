@@ -11,5 +11,6 @@
   "slug": "do-dispatch-open-op-lifecycle-01KTSJ2H",
   "target_branch": "main",
   "vcs": "git",
-  "vcs_locked_at": "2026-06-10T21:09:56.416013+00:00"
+  "vcs_locked_at": "2026-06-10T21:09:56.416013+00:00",
+  "baseline_merge_commit": "44775466926514c4368e2c5d404b39c837686021"
 }
