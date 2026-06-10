@@ -61,13 +61,17 @@ class ActionRouterPlugin(Protocol):
     # No methods in v1. Fill in WP02's ActionRouterPlugin slot here.
 
 
-def build_close_contract(invocation_id: str) -> dict[str, object]:
+def build_close_contract(
+    invocation_id: str, mode_of_work: str | None = None
+) -> dict[str, object]:
     """Machine-readable close contract for an open Op (contracts/cli-do-output.md).
 
     Emitted in every invocation JSON payload so orchestrators know exactly how
-    to close the Op with the real outcome.
+    to close the Op with the real outcome.  ``evidence_flag`` is omitted for
+    advisory/query modes because ``profile-invocation complete`` refuses
+    ``--evidence`` there (InvalidModeForEvidenceError, FR-009).
     """
-    return {
+    contract: dict[str, object] = {
         "command": (
             "spec-kitty profile-invocation complete "
             f"--invocation-id {invocation_id} --outcome <done|failed|abandoned>"
@@ -77,6 +81,9 @@ def build_close_contract(invocation_id: str) -> dict[str, object]:
         "artifact_flag": "--artifact",
         "commit_flag": "--commit",
     }
+    if mode_of_work in (ModeOfWork.ADVISORY.value, ModeOfWork.QUERY.value):
+        del contract["evidence_flag"]
+    return contract
 
 
 class InvocationPayload:
@@ -96,6 +103,7 @@ class InvocationPayload:
     governance_context_available: bool
     router_confidence: str | None
     glossary_observations: GlossaryObservationBundle | None
+    mode_of_work: str | None
 
     __slots__ = (
         "invocation_id",
@@ -107,6 +115,7 @@ class InvocationPayload:
         "governance_context_available",
         "router_confidence",
         "glossary_observations",
+        "mode_of_work",
     )
 
     def __init__(self, **kwargs: object) -> None:
@@ -116,6 +125,10 @@ class InvocationPayload:
     def to_dict(self) -> dict[str, object]:
         result: dict[str, object] = {}
         for s in self.__slots__:
+            # mode_of_work shapes the close contract below but is not part of
+            # the serialized payload surface (contracts/cli-do-output.md).
+            if s == "mode_of_work":
+                continue
             # Use getattr default so callers that omit glossary_observations
             # (e.g. tests constructing InvocationPayload directly) get None
             # instead of AttributeError. C-005 backward-compat fix.
@@ -130,7 +143,9 @@ class InvocationPayload:
         # FR-002 / contracts/cli-do-output.md: invoke() leaves the Op open;
         # every JSON payload carries the explicit close contract.
         result["status"] = "open"
-        result["close_contract"] = build_close_contract(self.invocation_id)
+        result["close_contract"] = build_close_contract(
+            self.invocation_id, getattr(self, "mode_of_work", None)
+        )
         return result
 
 
@@ -276,6 +291,7 @@ class ProfileInvocationExecutor:
             governance_context_available=ctx_available,
             router_confidence=router_confidence,
             glossary_observations=bundle,
+            mode_of_work=record.mode_of_work,
         )
 
     def complete_invocation(

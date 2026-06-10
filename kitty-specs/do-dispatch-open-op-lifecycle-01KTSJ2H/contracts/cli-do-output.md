@@ -37,6 +37,8 @@ Existing payload fields preserved, plus:
 }
 ```
 
+`evidence_flag` is omitted when the Op's `mode_of_work` is `advisory` or `query`, because `profile-invocation complete` refuses `--evidence` for those modes (InvalidModeForEvidenceError, FR-009).
+
 ## Close surface (informative summary)
 
 > Normative source for record lifecycle and git behavior: `op-record-events.md`. This section is an informative summary for CLI consumers; on any divergence, `op-record-events.md` wins.

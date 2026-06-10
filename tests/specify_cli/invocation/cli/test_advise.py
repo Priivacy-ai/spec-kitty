@@ -122,6 +122,29 @@ class TestAdviseWithExplicitProfile:
         # close contract (the Op stays open until the agent closes it).
         assert data["status"] == "open" and "close_contract" in data
 
+    def test_advisory_close_contract_omits_evidence_flag(self, tmp_path: Path) -> None:
+        """Advisory mode refuses --evidence (InvalidModeForEvidenceError), so the
+        close contract must not advertise evidence_flag (contracts/cli-do-output.md)."""
+        project = _setup_project(tmp_path)
+        with (
+            patch("specify_cli.cli.commands.advise.find_repo_root", return_value=project),
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["advise", "implement the feature", "--profile", "implementer-fixture", "--json"],
+            )
+        assert result.exit_code == 0, result.output
+        contract = json.loads(result.output)["close_contract"]
+        assert "evidence_flag" not in contract, (
+            "advisory-mode close contract must omit evidence_flag"
+        )
+        assert contract["artifact_flag"] == "--artifact"
+        assert contract["commit_flag"] == "--commit"
+
     def test_creates_jsonl_file(self, tmp_path: Path) -> None:
         """A JSONL file is written before the response is output."""
         project = _setup_project(tmp_path)
