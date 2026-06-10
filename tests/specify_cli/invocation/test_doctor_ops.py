@@ -139,6 +139,78 @@ def test_sweep_writes_closed_by_and_outcome_verbatim(tmp_path: Path) -> None:
     assert completed["closed_by"] == "doctor_sweep"
 
 
+def test_sweep_propagates_completed_event_when_sync_enabled(tmp_path: Path) -> None:
+    """D1/R1 fix: sweep closes go through the shared SaaS propagator (FR-008 parity)."""
+    from unittest.mock import patch
+
+    from specify_cli.invocation.propagator import InvocationSaaSPropagator
+
+    ops_dir = _ops_dir(tmp_path)
+    stale = ops_dir / "01KTBE0RQY9XKTV0PE49PJD030.jsonl"
+    _write_op(stale, completed=False, started_at=_iso(_NOW - timedelta(hours=48)))
+    submitted: list[object] = []
+
+    def _spy_submit(self: object, record: object) -> None:
+        submitted.append(record)
+
+    with patch.object(InvocationSaaSPropagator, "submit", _spy_submit):
+        report = close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
+
+    assert report.swept == 1
+    assert len(submitted) == 1, "exactly one (completed) event must be submitted"
+    record = submitted[0]
+    assert isinstance(record, OpCompletedEvent)
+    assert record.invocation_id == stale.stem
+    assert record.outcome == "abandoned"
+    assert record.closed_by == "doctor_sweep"
+
+
+def test_sweep_sync_disabled_closes_locally_without_propagation(tmp_path: Path) -> None:
+    """Sync-gated: with sync disabled, the SaaS client is never consulted but
+    the swept Op is still closed locally (LOCAL-FIRST invariant)."""
+    from unittest.mock import MagicMock, patch
+
+    from specify_cli.invocation import propagator as propagator_mod
+    from specify_cli.sync.routing import CheckoutSyncRouting
+
+    ops_dir = _ops_dir(tmp_path)
+    stale = ops_dir / "01KTBE0RQY9XKTV0PE49PJD031.jsonl"
+    _write_op(stale, completed=False, started_at=_iso(_NOW - timedelta(hours=48)))
+    routing = CheckoutSyncRouting(
+        repo_root=tmp_path,
+        project_uuid="test-uuid",
+        project_slug="test-slug",
+        build_id=None,
+        repo_slug="test-repo",
+        local_sync_enabled=False,
+        repo_default_sync_enabled=None,
+        effective_sync_enabled=False,
+    )
+
+    # Run propagation synchronously so the sync-gate is exercised in-test.
+    def _sync_submit(
+        self: propagator_mod.InvocationSaaSPropagator, record: object
+    ) -> None:
+        propagator_mod._propagate_one(record, tmp_path)  # type: ignore[arg-type]
+
+    client_spy = MagicMock()
+    with (
+        patch.object(propagator_mod.InvocationSaaSPropagator, "submit", _sync_submit),
+        patch.object(
+            propagator_mod, "resolve_checkout_sync_routing", return_value=routing
+        ),
+        patch.object(propagator_mod, "_get_saas_client", client_spy),
+    ):
+        report = close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
+
+    assert report.swept == 1
+    client_spy.assert_not_called()
+    events = _read_events(stale)
+    assert [event["event"] for event in events] == ["started", "completed"], (
+        "local completed event must be written even when sync is disabled"
+    )
+
+
 def test_sweep_fires_auto_commit_per_close(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

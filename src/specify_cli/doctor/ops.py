@@ -141,13 +141,19 @@ def close_stale_ops(
     ``threshold_hours == 0`` sweeps all open Ops.
     """
     from specify_cli.invocation.executor import ProfileInvocationExecutor
+    from specify_cli.invocation.propagator import InvocationSaaSPropagator
 
     report = SweepReport(threshold_hours=threshold_hours)
     orphans = list_orphan_ops(repo_root)
     if not orphans:
         return report
 
-    executor = ProfileInvocationExecutor(repo_root)
+    # Same SaaS propagator the do/ask/advise close paths use (FR-008 parity):
+    # sync-gated and best-effort inside the propagator itself, so swept
+    # `abandoned` completions reach SaaS instead of leaving the Op open there.
+    executor = ProfileInvocationExecutor(
+        repo_root, propagator=InvocationSaaSPropagator(repo_root)
+    )
     for path in orphans:
         invocation_id = path.stem
         profile_id, started_at = _read_started_fields(path)
