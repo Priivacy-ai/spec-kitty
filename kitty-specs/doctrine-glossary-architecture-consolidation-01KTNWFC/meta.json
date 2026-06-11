@@ -13,6 +13,7 @@
   "accepted_at": "2026-06-11T19:02:57.439038+00:00",
   "accepted_by": "stijn",
   "accepted_from_commit": "bd4f359f24a42a33c99e24c5d7f992c44eee209c",
+  "baseline_merge_commit": "f6c359559f3d6527d40867949af5664bb54e3495",
   "created_at": "2026-06-09T09:47:31.307711+00:00",
   "friendly_name": "Doctrine, Glossary & Architecture Consolidation",
   "mission_id": "01KTNWFC3B1ZGFR9FTT77X7H2Y",
