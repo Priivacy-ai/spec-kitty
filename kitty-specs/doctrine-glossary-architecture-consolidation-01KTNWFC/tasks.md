@@ -76,7 +76,7 @@
 
 ### WP05 — Author planning/tracking styleguide + toolguide
 - **Goal**: Styleguide (functional-vs-meta, community-precedence, conventions, naming) + toolguide (gh/GraphQL mechanics).
-- **Subtasks**: - [ ] T017 (WP05) · - [ ] T018 (WP05) | **Depends on**: WP01, WP02 | **Est**: ~280 lines
+- **Subtasks**: - [x] T017 (WP05) · - [x] T018 (WP05) | **Depends on**: WP01, WP02 | **Est**: ~280 lines
 - **Risks**: "Feature"/"features" prose vs terminology guard; architect sign-off (encodes architecture conventions).
 
 ### WP06 — Author the Ops ADR
