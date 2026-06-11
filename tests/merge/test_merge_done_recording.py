@@ -273,6 +273,9 @@ def test_assert_merged_wps_reached_done_allows_done_snapshot(
         encoding="utf-8",
     )
 
+    # Patch the re-exported binding _assert_merged_wps_reached_done actually
+    # imports (`from specify_cli.status import get_wp_lane`, resolved at call
+    # time) — patching the lane_reader original would not intercept it.
     monkeypatch.setattr(
         "specify_cli.status.get_wp_lane",
         lambda *_a, **_kw: "done",
@@ -293,6 +296,9 @@ def test_assert_merged_wps_reached_done_fails_when_wp_not_done(
     )
 
     lanes = {"WP01": "done", "WP02": "planned"}
+    # Same call-time re-export binding as the allows_done_snapshot test above;
+    # with the lane_reader target this passed for the WRONG reason (the real
+    # get_wp_lane raised CanonicalStatusNotFoundError -> Exit, not the lane check).
     monkeypatch.setattr(
         "specify_cli.status.get_wp_lane",
         lambda _feature_dir, wp_id: lanes[wp_id],
