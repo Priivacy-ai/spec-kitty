@@ -492,3 +492,31 @@ do_not_mutate = [
     "src/specify_cli/upgrade/migrations/",
     "src/specify_cli/version_utils.py",
 ]
+
+# ---------------------------------------------------------------------------
+# Coverage configuration
+# ---------------------------------------------------------------------------
+# relative_files = true: stores file paths relative to the project root (CWD)
+# in the .coverage data file.  This matters when multiple test jobs each run
+# with a narrow --cov=src/<package> argument, which would otherwise write
+# absolute per-package paths into each coverage.xml (e.g.
+# <source>/github/workspace/src/specify_cli</source> and
+# <source>/github/workspace/src/mission_runtime</source>).  SonarCloud then
+# tries to resolve a bare filename such as __init__.py against EVERY <source>
+# entry and, finding it under several of them, emits:
+#   ERROR Cannot resolve the file path '__init__.py' of the coverage report,
+#         ambiguity, the file exists in several 'source'.
+# With relative_files = true the Sonar normalization step in ci-quality.yml
+# can re-emit the XML with a single canonical <source>src</source> so every
+# path is unambiguous (e.g. src/specify_cli/__init__.py).
+#
+# [paths] maps per-package absolute source roots back to the single src/ tree
+# so that coverage combine (if ever used) merges data files correctly too.
+[tool.coverage.run]
+relative_files = true
+
+[tool.coverage.paths]
+source = [
+    "src/",
+    "/home/runner/work/spec-kitty/spec-kitty/src/",
+]
