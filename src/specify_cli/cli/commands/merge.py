@@ -44,6 +44,7 @@ from specify_cli.cli.helpers import console, show_banner
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.git_ops import has_remote, run_command
 from specify_cli.core.git_preflight import build_git_preflight_failure_payload, run_git_preflight
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
@@ -2323,12 +2324,20 @@ def _run_lane_based_merge_locked(
     has_bookkeeping_changes = _paths_have_status_changes(main_repo, files_to_commit)
     if has_bookkeeping_changes:
         try:
+            # Done-events bookkeeping lands on the target branch, which is a
+            # protected branch (e.g. ``main``) in the normal merge flow. This is
+            # the sanctioned merge-bookkeeping protected flow (WP02 data model),
+            # so assert MERGE_BOOKKEEPING at this bona-fide call site. Pre-guard-
+            # consolidation this commit rode the deleted ``chore:`` message-prefix
+            # allowlist; that channel is gone (FR-008 / C-GUARD-2), and the only
+            # authorization is now this explicit capability.
             safe_commit(
                 repo_root=main_repo,
                 worktree_root=main_repo,
                 destination_ref=lanes_manifest.target_branch,
                 message=f"chore({mission_slug}): record done transitions for merged WPs",
                 paths=tuple(files_to_commit),
+                capability=GuardCapability.MERGE_BOOKKEEPING,
             )
         except Exception as exc:
             if not (isinstance(exc, SafeCommitRecoveryFailed) and exc.commit_sha is not None):
