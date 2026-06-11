@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import subprocess
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 import typer
@@ -162,6 +163,27 @@ def test_charter_hash_falls_back_to_repo_root_outside_git(tmp_path):
 
     assert hashes["charter"]["path"] == str(charter_file)
     assert hashes["charter"]["sha256"] is not None
+
+
+def test_charter_hash_propagates_git_common_dir_unavailable(tmp_path):
+    """If git/common-dir resolution is unavailable, do not synthesize a local
+    charter hash that pretends canonical evidence was available."""
+    from charter.resolution import GitCommonDirUnavailableError, resolve_canonical_repo_root
+
+    from specify_cli.analysis_report import collect_input_artifact_hashes
+
+    charter_file = tmp_path / ".kittify" / "charter" / "charter.md"
+    charter_file.parent.mkdir(parents=True)
+    charter_file.write_text("# Local charter\n", encoding="utf-8")
+    feature_dir = tmp_path / "kitty-specs" / "sample-01KS"
+    _write_required_artifacts(feature_dir)
+
+    resolve_canonical_repo_root.cache_clear()
+    with (
+        patch("charter.resolution.subprocess.run", side_effect=FileNotFoundError("git")),
+        pytest.raises(GitCommonDirUnavailableError),
+    ):
+        collect_input_artifact_hashes(feature_dir, tmp_path)
 
 
 def test_implement_gate_blocks_missing_analysis_report(tmp_path, capsys):

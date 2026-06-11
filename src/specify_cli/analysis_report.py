@@ -13,7 +13,6 @@ from typing import Any
 from ruamel.yaml import YAML
 
 from charter.resolution import (
-    GitCommonDirUnavailableError,
     NotInsideRepositoryError,
     resolve_canonical_repo_root,
 )
@@ -127,13 +126,14 @@ def _artifact_hash_entry(path: Path) -> dict[str, str | None]:
 def _charter_path(repo_root: Path) -> Path | None:
     # #1823: resolve through the canonical-root resolver so a worktree-local
     # charter copy is never hashed in place of the main checkout's charter.
-    # This is a read-only hashing probe over arbitrary roots, so resolver
-    # failures degrade to the passed root (same posture as
-    # dashboard.charter_path.resolve_project_charter_path).
+    # This is a read-only hashing probe over arbitrary roots, so non-git roots
+    # degrade to the passed root. Resolver infrastructure failures still
+    # propagate; otherwise we would synthesize a local charter hash when the
+    # canonical root is unknowable.
     canonical_root: Path
     try:
         canonical_root = resolve_canonical_repo_root(repo_root)
-    except (NotInsideRepositoryError, GitCommonDirUnavailableError):
+    except NotInsideRepositoryError:
         canonical_root = repo_root
     for candidate in (
         canonical_root / ".kittify" / "charter" / "charter.md",
