@@ -528,7 +528,8 @@ def write_gen_record(
     # Back-compat: a record authored before relocation lives at the legacy
     # gitignored path. error/update modes must treat it as the prior record.
     legacy = _legacy_record_path(repo_root, record.mission_id) if record.mission_id else None
-    prior = canonical if canonical.exists() else (legacy if legacy and legacy.exists() else None)
+    legacy_prior = legacy if legacy and legacy.exists() else None
+    prior = canonical if canonical.exists() else legacy_prior
 
     try:
         target_dir.mkdir(parents=True, exist_ok=True)

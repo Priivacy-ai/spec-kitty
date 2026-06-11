@@ -161,27 +161,29 @@ def _resolve_git_dirs(repo_root: Path) -> tuple[Path, ...]:
     daemon/dashboard read without process-spawn overhead, and cannot itself
     perturb a concurrent git operation.
     """
+    dirs: list[Path] = []
     git_path = repo_root / ".git"
     if not git_path.exists():
-        return ()
+        return tuple(dirs)
 
     if git_path.is_dir():
-        return (git_path,)
+        dirs.append(git_path)
+        return tuple(dirs)
 
     # Linked worktree: .git is a file "gitdir: <per-worktree gitdir>".
     try:
         content = git_path.read_text(encoding="utf-8").strip()
     except OSError:
-        return ()
+        return tuple(dirs)
     if not content.startswith("gitdir:"):
-        return ()
+        return tuple(dirs)
     worktree_gitdir = Path(content.split(":", 1)[1].strip())
     if not worktree_gitdir.exists():
         # Conservative: cannot resolve the gitdir → report nothing rather than
         # guessing. materialize_if_stale will fall through to its normal path.
-        return ()
+        return tuple(dirs)
 
-    dirs: list[Path] = [worktree_gitdir]
+    dirs.append(worktree_gitdir)
     # The common gitdir is the ancestor that contains the ``worktrees`` dir:
     #   <common-gitdir>/worktrees/<name>
     for ancestor in worktree_gitdir.parents:
