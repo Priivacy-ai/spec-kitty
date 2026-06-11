@@ -30,7 +30,7 @@ from specify_cli.status.views import (
     materialize_if_stale,
 )
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 def _git(args: list[str], cwd: Path) -> None:

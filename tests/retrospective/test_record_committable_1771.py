@@ -23,7 +23,7 @@ from specify_cli.retrospective.writer import (
     write_record,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 # Reuse the canonical fixture record from the round-trip suite.
 from tests.retrospective.test_schema_roundtrip import make_completed_record  # noqa: E402

@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from specify_cli.core.constants import KITTY_SPECS_DIR
 
 if TYPE_CHECKING:
-    from mission_runtime.context import StatusSurfaceFragment
+    from mission_runtime import StatusSurfaceFragment
     from specify_cli.status import TransitionRequest
 
 _logger = logging.getLogger(__name__)
