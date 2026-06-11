@@ -163,8 +163,23 @@ def detect_feature_context(
 
 
 def find_wp_file(repo_root: Path, mission_slug: str, wp_id: str) -> Path:
-    """Find the markdown file for a work package."""
-    tasks_dir = resolve_feature_dir_for_mission(repo_root, mission_slug) / "tasks"
+    """Find the markdown file for a work package.
+
+    WP05 / FR-003 (coord-topology regression fix): WP prompt files under
+    ``tasks/`` are authored on the PRIMARY checkout (``mission_creation`` writes
+    the mission dir there and the ``tasks`` step appends beside it). On a
+    coordination-topology mission finalize-tasks commits a COPY of those files
+    onto the coordination branch, but a freshly-resolved ``find_wp_file`` runs
+    before the lane worktree is allocated and must locate the authored prompt on
+    the surface that always carries it. The topology-aware
+    ``resolve_feature_dir_for_mission`` selects the coordination worktree once
+    one exists, which need not carry every authored prompt — so anchor the
+    WP-file read on the primary surface, consistent with finalize-tasks and
+    ``mission_runtime.resolve_placement_only``.
+    """
+    from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+
+    tasks_dir = primary_feature_dir_for_mission(repo_root, mission_slug) / "tasks"
     if not tasks_dir.exists():
         raise FileNotFoundError(f"Tasks directory not found: {tasks_dir}")
 

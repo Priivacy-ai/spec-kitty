@@ -291,13 +291,28 @@ def _resolve_coordination_branch(primary_root: Path, mission_slug: str) -> str |
     Returns ``None`` under flattened topology (no separate coordination branch,
     C-001). Anchored on the canonical *primary* dir so the value is identical
     from any CWD (never trust a lane-supplied surface — WP02 carry-forward).
+
+    FR-003 / C-GUARD-3a (coord-topology placement regression fix): ``meta.json``
+    is written by ``mission create`` and only ever lives on the PRIMARY checkout.
+    Reading it through the topology-aware ``candidate_feature_dir_for_mission``
+    selected the coordination worktree once one was materialized — and that
+    worktree's ``kitty-specs/<slug>/`` dir carries no ``meta.json`` — so the
+    coordination branch read back as ``None`` and the placement *kind* flipped
+    from COORDINATION to FLATTENED depending on whether a coord worktree existed.
+    That made the single placement authority CWD/topology-DEPENDENT (e.g.
+    ``setup-plan`` resolved COORDINATION and committed plan.md to the coord
+    worktree, while ``finalize-tasks`` later resolved FLATTENED and committed to
+    the target branch — a split-brain). The fix is to anchor the ``meta.json``
+    read on the topology-BLIND primary constructor (the SAME anchoring
+    ``finalize-tasks`` uses for its merge-target read), restoring a CWD-invariant
+    placement with NO second destination authority.
     """
     from specify_cli.mission_metadata import load_meta
-    from specify_cli.missions.feature_dir_resolver import (
-        candidate_feature_dir_for_mission,
+    from specify_cli.missions._read_path_resolver import (
+        primary_feature_dir_for_mission,
     )
 
-    primary_dir = candidate_feature_dir_for_mission(primary_root, mission_slug)
+    primary_dir = primary_feature_dir_for_mission(primary_root, mission_slug)
     try:
         meta = load_meta(primary_dir)
     except ValueError:
@@ -317,13 +332,19 @@ def _resolve_mission_id(primary_root: Path, mission_slug: str) -> str:
     ``legacy-<slug>`` sentinel (mirroring ``status_transition`` identity
     resolution) so pre-identity missions still resolve a stable, CWD-invariant
     value — ``mid8`` is then derived once from that value (FR-012 / C-CTX-3).
+
+    FR-003 / C-GUARD-3a: ``meta.json`` only ever lives on the PRIMARY checkout,
+    so the read is anchored on the topology-blind primary constructor — the
+    coord-aware resolver would return the (meta-less) coordination worktree once
+    one exists and spuriously degrade to the ``legacy-`` sentinel (see
+    :func:`_resolve_coordination_branch` for the full split-brain rationale).
     """
     from specify_cli.mission_metadata import load_meta
-    from specify_cli.missions.feature_dir_resolver import (
-        candidate_feature_dir_for_mission,
+    from specify_cli.missions._read_path_resolver import (
+        primary_feature_dir_for_mission,
     )
 
-    primary_dir = candidate_feature_dir_for_mission(primary_root, mission_slug)
+    primary_dir = primary_feature_dir_for_mission(primary_root, mission_slug)
     try:
         meta = load_meta(primary_dir)
     except ValueError:

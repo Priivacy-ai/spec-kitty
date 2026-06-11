@@ -586,13 +586,23 @@ def _safe_load_meta(repo_root: Path, mission_slug: str) -> dict[str, object] | N
 
     Used only to derive the ``mid8`` worktree disambiguator — NEVER as a commit
     destination authority (that is ``resolve_placement_only``, FR-003).
+
+    FR-003 / C-GUARD-3a (coord-topology placement regression fix): ``meta.json``
+    only ever lives on the PRIMARY checkout, so the read is anchored on the
+    topology-blind primary constructor. The coord-aware
+    ``candidate_feature_dir_for_mission`` returns the coordination worktree once
+    one exists — and that worktree carries no ``meta.json`` — so ``mid8`` read
+    back as ``None`` and ``_planning_commit_worktree`` silently fell back to the
+    main checkout, making ``safe_commit`` reject the (correctly COORDINATION)
+    placement because the main checkout HEAD is the target branch, not the coord
+    branch.
     """
     from specify_cli.mission_metadata import load_meta
-    from specify_cli.missions.feature_dir_resolver import (
-        candidate_feature_dir_for_mission,
+    from specify_cli.missions._read_path_resolver import (
+        primary_feature_dir_for_mission,
     )
 
-    feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    feature_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
     try:
         meta = load_meta(feature_dir)
     except ValueError:
@@ -2416,6 +2426,19 @@ def finalize_tasks(
         from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
 
         _primary_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
+        # WP05 / FR-003 (coord-topology regression fix): the planning INPUT
+        # artifacts (``tasks/``, ``spec.md``, ``tasks.md``, ``meta.json``) are
+        # authored on the PRIMARY checkout — ``mission_creation`` writes the
+        # mission dir there and the ``tasks`` step appends beside it. The
+        # topology-aware ``feature_dir`` selects the coordination worktree once
+        # one exists (the canonical status reader + the COORDINATION commit
+        # destination), but the input artifacts are NOT staged there until commit
+        # time (``_planning_commit_worktree`` copies them across AFTER these
+        # reads). So read the inputs from the primary surface — the SAME anchoring
+        # as the merge-target read above and ``resolve_placement_only`` — while
+        # the commit + status emission still route to the resolved (coord)
+        # placement. This keeps ONE placement authority and one status surface.
+        planning_dir = _primary_dir
         try:
             target_branch = _resolve_planning_branch(
                 repo_root,
@@ -2440,7 +2463,7 @@ def finalize_tasks(
         if not json_output:
             console.print(f"[bold cyan]Branch:[/bold cyan] {target_branch} (target for this mission)")
 
-        tasks_dir = feature_dir / "tasks"
+        tasks_dir = planning_dir / "tasks"
         if not tasks_dir.exists():
             error_msg = f"Tasks directory not found: {tasks_dir}"
             if json_output:
@@ -2451,7 +2474,7 @@ def finalize_tasks(
         wp_files = list(tasks_dir.glob("WP*.md"))
         expected_wp_ids = _extract_wp_ids_from_task_files(wp_files)
 
-        spec_md = feature_dir / "spec.md"
+        spec_md = planning_dir / "spec.md"
         if not spec_md.exists():
             error_msg = f"spec.md not found: {spec_md}"
             if json_output:
@@ -2474,7 +2497,7 @@ def finalize_tasks(
             try:
                 from specify_cli.tasks.issue_matrix import scaffold_issue_matrix
 
-                issue_matrix_path = scaffold_issue_matrix(feature_dir, spec_md)
+                issue_matrix_path = scaffold_issue_matrix(planning_dir, spec_md)
             except Exception as _issue_matrix_exc:
                 # Never block finalize-tasks on a scaffold failure — this is a
                 # convenience artifact, not a correctness gate.
@@ -2493,7 +2516,7 @@ def finalize_tasks(
 
         # ─── TIER 0: wps.yaml manifest ────────────────────────────────────────
         try:
-            wps_manifest = load_wps_manifest(feature_dir)
+            wps_manifest = load_wps_manifest(planning_dir)
         except Exception as exc:
             error_msg = f"wps.yaml is present but could not be loaded: {exc}"
             if json_output:
@@ -2515,7 +2538,7 @@ def finalize_tasks(
         # 2. explicit WP frontmatter dependencies (including explicit [])
         # 3. tasks.md text parsing as a legacy fallback only when frontmatter
         #    lacks the dependencies field entirely
-        tasks_md = feature_dir / TASKS_MD_FILENAME
+        tasks_md = planning_dir / TASKS_MD_FILENAME
         wp_dependencies: dict[str, list[str]] = {}
         tasks_md_dependencies: dict[str, list[str]] = {}
         wp_requirement_refs: dict[str, list[str]] = {}
@@ -2966,8 +2989,8 @@ def finalize_tasks(
                     console.print(f"[yellow]Audit coverage warning:[/yellow] {warning}")
 
         # Prepare metadata for event emission
-        mission_slug = feature_dir.name
-        meta_path = feature_dir / "meta.json"
+        mission_slug = planning_dir.name
+        meta_path = planning_dir / "meta.json"
         meta = None
         if meta_path.exists():
             try:
@@ -2988,7 +3011,7 @@ def finalize_tasks(
                 )
 
                 emit_artifact_phase(
-                    feature_dir,
+                    planning_dir,
                     event_type=TASKS_STARTED,
                     mission_slug=mission_slug,
                     actor=FINALIZE_TASKS_COMMAND_NAME,
@@ -3005,7 +3028,7 @@ def finalize_tasks(
         if validate_only:
             # Bootstrap dry-run: report what would be seeded (no mutation)
             bootstrap_result = bootstrap_canonical_state(
-                feature_dir,
+                planning_dir,
                 mission_slug,
                 dry_run=True,
             )
@@ -3092,7 +3115,7 @@ def finalize_tasks(
                 _wp_path: str | None = None
                 try:
                     _candidate = next(
-                        iter(sorted((feature_dir / "tasks").glob(f"{_wp_id}*.md"))),
+                        iter(sorted((planning_dir / "tasks").glob(f"{_wp_id}*.md"))),
                         None,
                     )
                     if _candidate is not None:
@@ -3100,7 +3123,7 @@ def finalize_tasks(
                 except Exception:  # noqa: BLE001
                     _wp_path = None
                 emit_wp_created_local(
-                    feature_dir,
+                    planning_dir,
                     mission_slug=mission_slug,
                     wp_id=_wp_id,
                     wp_title=_wp_title,
@@ -3109,7 +3132,7 @@ def finalize_tasks(
                     actor=FINALIZE_TASKS_COMMAND_NAME,
                 )
 
-            _tasks_artifact = feature_dir / TASKS_MD_FILENAME
+            _tasks_artifact = planning_dir / TASKS_MD_FILENAME
             _tasks_artifact_rel: str | None = None
             if _tasks_artifact.exists():
                 try:
@@ -3117,7 +3140,7 @@ def finalize_tasks(
                 except ValueError:
                     _tasks_artifact_rel = str(_tasks_artifact)
             emit_artifact_phase(
-                feature_dir,
+                planning_dir,
                 event_type=TASKS_COMPLETED,
                 mission_slug=mission_slug,
                 actor=FINALIZE_TASKS_COMMAND_NAME,
@@ -3132,7 +3155,7 @@ def finalize_tasks(
 
         # Bootstrap canonical status state for all WPs
         bootstrap_result = bootstrap_canonical_state(
-            feature_dir,
+            planning_dir,
             mission_slug,
             dry_run=False,
             # WP03 channel-deletion (merge resolution): removed bool -> explicit
@@ -3159,7 +3182,7 @@ def finalize_tasks(
                 wp_bodies=wp_bodies,
                 mission_id=mission_id,
             )
-            lanes_path = write_lanes_json(feature_dir, lanes_manifest)
+            lanes_path = write_lanes_json(planning_dir, lanes_manifest)
             if not json_output:
                 console.print(f"[green]✓[/green] Computed {len(lanes_manifest.lanes)} execution lane(s)")
                 if lanes_manifest.collapse_report and lanes_manifest.collapse_report.independent_wps_collapsed > 0:
@@ -3217,7 +3240,7 @@ def finalize_tasks(
                 from specify_cli.acceptance.matrix import scaffold_acceptance_matrix
 
                 acceptance_matrix_path = scaffold_acceptance_matrix(
-                    feature_dir,
+                    planning_dir,
                     mission_slug,
                     requirement_ids=sorted(functional_spec_requirement_ids),
                 )
@@ -3251,14 +3274,14 @@ def finalize_tasks(
             )
 
             trigger_feature_dossier_sync_if_enabled(
-                feature_dir,
+                planning_dir,
                 mission_slug,
                 repo_root,
             )
 
         try:
             files_to_commit = _collect_finalize_artifacts(
-                feature_dir,
+                planning_dir,
                 tasks_dir,
                 mission_slug,
                 lanes_path=lanes_path,
