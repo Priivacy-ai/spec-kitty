@@ -90,6 +90,8 @@ def _base_row(**overrides: Any) -> _Row:
         ({"event_type": "some_event", "wp_id": "WP01"}, "quarantined_non_status_event"),
         # happy case — event_name present → quarantine error
         ({"event_name": "custom_event"}, "quarantined_non_status_event"),
+        # happy case — retrospective lifecycle type event → quarantine error
+        ({"type": "RetrospectiveCaptured", "wp_id": "WP01"}, "quarantined_non_status_event"),
         # no-op — neither key present → pass-through
         ({"wp_id": "WP01", "to_lane": "done"}, None),
     ],

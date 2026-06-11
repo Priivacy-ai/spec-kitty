@@ -74,14 +74,17 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
         "work_package_id": "WP01",
     }
     duplicate_row = dict(status_row)
-    typed_row = {
+    retrospective_row = {
         "at": "2026-01-01T00:00:01+00:00",
         "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGS",
-        "event_type": "DecisionPointOpened",
-        "payload": {"decision_point_id": "DP01"},
+        "type": "RetrospectiveCaptured",
+        "payload": {"mission_slug": "042-historical-shape"},
     }
     (mission / "status.events.jsonl").write_text(
-        "\n".join(json.dumps(row, sort_keys=True) for row in (status_row, duplicate_row, typed_row)) + "\n",
+        "\n".join(
+            json.dumps(row, sort_keys=True) for row in (status_row, duplicate_row, retrospective_row)
+        )
+        + "\n",
         encoding="utf-8",
     )
     (mission / "mission-events.jsonl").write_text(
@@ -142,7 +145,7 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     status_summary = cast(dict[str, object], status["summary"])
     assert status_summary["in_review"] == 1
     quarantine = repo / ".kittify" / "migrations" / "mission-state" / "quarantine" / report.run_id / "042-historical-shape" / "status.events.jsonl"
-    assert "DecisionPointOpened" in quarantine.read_text(encoding="utf-8")
+    assert "RetrospectiveCaptured" in quarantine.read_text(encoding="utf-8")
 
     if not _has_events_5():
         with pytest.raises(MissionStateDryRunError, match="requires spec-kitty-events >= 5.0.0"):

@@ -40,6 +40,7 @@ from specify_cli.migration.canonicalization import (
 )
 from specify_cli.status import ULID_PATTERN, Lane, StatusEvent
 from specify_cli.status import materialize_snapshot, materialize_to_json
+from specify_cli.status.store import _should_skip_status_event
 
 MIGRATION_SCHEMA_VERSION = "1.0.0"
 CANONICAL_ENVELOPE_SCHEMA_VERSION = "3.0.0"
@@ -1233,7 +1234,7 @@ def _rule_reject_non_status_event(
     row: _Row, _ctx: MigrationContext
 ) -> CanonicalStepResult[_Row]:
     """Rule 1: quarantine rows that carry event_type or event_name (not status events)."""
-    if "event_type" in row or "event_name" in row:
+    if "event_name" in row or _should_skip_status_event(row):
         return CanonicalStepResult(
             state=row,
             actions=("quarantined_non_status_event",),
