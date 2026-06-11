@@ -1,11 +1,13 @@
-# Occurrence Map — DRAFT (bulk-edit reference rewrites for IC-01 / IC-02)
+# Reference-rewrite CHECKLIST (planning aid) for WP01 / WP02 — NOT a gate artifact.
 #
-# SCOPE NOTE (R-05): bulk-edit is applied SELECTIVELY to the rewrite WPs, not mission-wide.
-# This map is a PLANNING DRAFT enumerating the rewrite surface; it is FINALIZED per-WP at
-# /spec-kitty.tasks → finalize-tasks (exact old→new paths confirmed against the tree at
-# implement time). meta.json change_mode is intentionally NOT set to bulk_edit mission-wide;
-# the IC-01/IC-02 WPs carry the bulk-edit discipline via their ICs. If hard gate-enforcement
-# is desired, flip meta.json change_mode to bulk_edit (see final report caveat).
+# UPDATE (2026-06-09, analysis remediation O1): mission `change_mode: bulk_edit` was REVERTED.
+# Reason: the canonical occurrence-map (DIRECTIVE_035) models a SINGLE `target.term → replacement`
+# string-rename across 8 categories — it does NOT model this mission's MULTI-PATH directory
+# restructure (glossary promotion + architecture moves). The bulk-edit gate is the wrong tool here.
+# Instead, reference integrity is enforced by the WP01/WP02 Definition-of-Done: post-move grep,
+# `spec-kitty glossary validate`, and `doctor doctrine` (this is R-05's original selective intent).
+# This file remains a CHECKLIST of the rewrite surface for the implementer — not a runtime gate.
+# Mechanism gap filed upstream (occurrence-map can't model structural restructures).
 
 mission: doctrine-glossary-architecture-consolidation-01KTNWFC
 status: draft
