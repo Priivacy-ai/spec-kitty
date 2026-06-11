@@ -6,9 +6,12 @@ No HTTP API in this mission; the "contracts" are the config-schema and CLI-surfa
 
 **Schema addition (additive, optional):**
 ```yaml
-# org-charter.yaml
-extends:                      # optional list; absent = current behaviour
-  - <base-org-charter-ref>    # resolvable reference to a base org charter
+# pydantic_model: specify_cli.doctrine.org_charter.OrgCharterPolicy
+# expect: valid
+# org-charter.yaml — `extends` is an optional single-parent reference; absent =
+# current behaviour. Multi-level chains arise transitively (A extends B extends C)
+# and are resolved base-first, fail-closed, by charter.org_extends (WP08).
+extends: base/org-charter.yaml
 ```
 
 **Resolution contract:**
