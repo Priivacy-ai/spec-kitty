@@ -15,8 +15,8 @@ subtasks:
 - T023
 - T024
 - T025
-agent: claude
-shell_pid: '752364'
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "795622"
 history:
 - '2026-06-09: created by /spec-kitty.tasks (planner-priti)'
 agent_profile: python-pedro
@@ -61,3 +61,7 @@ Doctrine/charter sign-off + reviewer profile (reviewer-renata). Reviewer verifie
 
 ## Risks
 - Forking a parallel resolver (C-005 violation) — explicitly reuse activation_engine/cascade.
+
+## Activity Log
+
+- 2026-06-11T15:06:12Z – claude:opus:reviewer-renata:reviewer – shell_pid=795622 – Started review via action command
