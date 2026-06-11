@@ -424,6 +424,20 @@ def protected_branches(repo_path: Path) -> frozenset[str]:
     return frozenset(branches)
 
 
+def _operator_protected_branch_hatch_active() -> bool:
+    """True when the ONE documented operator escape hatch is set.
+
+    ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` truthy (``1``/``true``/``yes``)
+    is the operator-level declaration "my protected branch is mine to commit to"
+    (solo-fork operators who own ``main``). Consumed by the legacy pre-check AND
+    by ``safe_commit``'s ``ProtectionState`` input computation — never by
+    ``commit_guard.evaluate`` itself (the policy stays environment-free).
+    """
+    return os.environ.get(
+        "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", ""
+    ).lower() in ("1", "true", "yes")
+
+
 def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -> None:
     """Fail loudly before a Spec Kitty status commit can pollute local main.
 
@@ -436,8 +450,7 @@ def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -
     the call site instead of ambient env. Privilege is asserted-at-the-surface,
     never derived from environment.
     """
-    _ALLOWED_VALUES = ("1", "true", "yes")
-    if os.environ.get("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "").lower() in _ALLOWED_VALUES:
+    if _operator_protected_branch_hatch_active():
         return
 
     repo_path = repo_path.resolve()
@@ -908,7 +921,15 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
     #    ``SPEC_KITTY_TEST_MODE`` env hatch) were DELETED in WP03 (FR-008): the
     #    asserted-at-the-surface ``capability`` is now the only authorization,
     #    never derived from message text, file content, or environment.
-    is_protected = (
+    #
+    #    The ONE retained operator escape hatch
+    #    (``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` — solo-fork operators
+    #    who own ``main``) acts on the ``ProtectionState`` INPUT, exactly as it
+    #    does in ``assert_not_protected_branch``: the operator declares the
+    #    branch unprotected for this repo. ``evaluate`` itself never reads the
+    #    environment — agent privilege stays capability-asserted (FR-008);
+    #    this is the documented operator-level declaration, not an agent channel.
+    is_protected = not _operator_protected_branch_hatch_active() and (
         destination_ref in protected_branches(repo_root)
         or destination_ref in protected_branches(worktree_root)
     )
