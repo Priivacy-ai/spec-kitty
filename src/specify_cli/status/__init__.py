@@ -6,6 +6,8 @@ The event log (status.events.jsonl) is the sole authority for mutable
 WP state. No frontmatter reads or writes occur in this module.
 """
 
+from pathlib import Path
+
 from .models import (
     AgentAssignment,
     DoneEvidence,
@@ -118,9 +120,6 @@ from .locking import (
 from .preflight import (
     is_dossier_snapshot,
 )
-from .uninitialized_hint import (
-    uninitialized_status_error,
-)
 from .lifecycle import (
     DERIVED_LIFECYCLE_FILENAME,
     MISSION_ABANDONED_THRESHOLD_DAYS,
@@ -171,6 +170,13 @@ from .work_package_lifecycle import (
 from .doctor import (
     run_doctor,
 )
+
+
+def uninitialized_status_error(mission_slug: str, wp_id: str, feature_dir: Path) -> str:
+    """Return the cycle-aware missing-status message without eager dependency-graph imports."""
+    from .uninitialized_hint import uninitialized_status_error as _uninitialized_status_error
+
+    return _uninitialized_status_error(mission_slug, wp_id, feature_dir)
 
 # The canonical status artifacts (event log + snapshot). On coordination-topology
 # missions these are owned by the transactional status emitter on the coordination
