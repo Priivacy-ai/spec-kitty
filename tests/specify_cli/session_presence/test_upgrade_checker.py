@@ -24,6 +24,7 @@ def patched_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Monkeypatch CACHE_PATH to a tmp_path location."""
     cache_file = tmp_path / "last-cli-check.json"
     monkeypatch.setattr(upgrade_check_module, "CACHE_PATH", cache_file)
+    monkeypatch.delenv(upgrade_check_module.OPT_OUT_ENV_VAR, raising=False)
     # Also patch the attribute in the module namespace for class usage
     return cache_file
 

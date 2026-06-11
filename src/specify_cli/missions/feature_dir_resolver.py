@@ -30,6 +30,13 @@ def candidate_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Pat
     return primary_candidate
 
 
+def primary_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:
+    """Return the mission dir in the primary checkout, never a coordination worktree."""
+    from specify_cli.missions._read_path_resolver import compose_meta_json_path
+
+    return compose_meta_json_path(repo_root, mission_slug).parent
+
+
 def resolve_feature_dir_for_slug(repo_root: Path, mission_slug: str) -> Path:
     """Resolve a mission directory **without** asserting it exists.
 
@@ -72,6 +79,7 @@ def resolve_feature_dir_for_mission(
 
 __all__ = [
     "candidate_feature_dir_for_mission",
+    "primary_feature_dir_for_mission",
     "resolve_feature_dir_for_slug",
     "resolve_feature_dir_for_mission",
 ]

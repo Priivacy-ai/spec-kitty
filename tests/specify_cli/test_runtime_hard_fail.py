@@ -194,8 +194,8 @@ class TestEventLogExistsWPMissing:
         assert has_event_log(feature_dir)
         assert get_wp_lane(feature_dir, "WP01") == "uninitialized"
 
-    def test_dashboard_count_shows_uninitialized_as_planned(self, tmp_path: Path) -> None:
-        """Dashboard counts WPs not in event log under 'planned'."""
+    def test_dashboard_count_excludes_uninitialized_wps(self, tmp_path: Path) -> None:
+        """Dashboard excludes WPs not yet seeded in the event log."""
         from specify_cli.dashboard.scanner import _count_wps_by_lane
 
         feature_dir = _make_feature_dir(tmp_path)
@@ -203,7 +203,7 @@ class TestEventLogExistsWPMissing:
         tasks_dir = feature_dir / "tasks"
         counts = _count_wps_by_lane(tasks_dir)
         assert counts["doing"] == 1  # WP01 (in_progress -> doing display)
-        assert counts["planned"] == 1  # WP02 (uninitialized -> planned display)
+        assert counts["planned"] == 0  # WP02 is genesis/uninitialized and not displayed
 
 
 # ---------------------------------------------------------------------------
@@ -299,17 +299,17 @@ class TestEventLogExistsWPHasState:
 
 
 class TestMergePreflightHardFail:
-    """merge.py _mark_wp_merged_done hard-fails when canonical state is absent."""
+    """merge.py _mark_wp_merged_done handles absent canonical state explicitly."""
 
-    def test_mark_wp_merged_done_raises_without_event_log(self, tmp_path: Path) -> None:
-        """_mark_wp_merged_done should propagate CanonicalStatusNotFoundError."""
+    def test_mark_wp_merged_done_skips_without_event_log(self, tmp_path: Path) -> None:
+        """_mark_wp_merged_done should not invent done state without canonical history."""
         from specify_cli.cli.commands.merge import _mark_wp_merged_done
 
         feature_dir = _make_feature_dir(tmp_path)
-        with pytest.raises(CanonicalStatusNotFoundError):
-            _mark_wp_merged_done(
-                repo_root=tmp_path,
-                mission_slug=feature_dir.name,
-                wp_id="WP01",
-                target_branch="main",
-            )
+        _mark_wp_merged_done(
+            repo_root=tmp_path,
+            mission_slug=feature_dir.name,
+            wp_id="WP01",
+            target_branch="main",
+        )
+        assert not (feature_dir / EVENTS_FILENAME).exists()

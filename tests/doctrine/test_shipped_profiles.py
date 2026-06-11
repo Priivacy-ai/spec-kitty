@@ -21,6 +21,11 @@ from doctrine.agent_profiles.validation import validate_agent_profile_yaml
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 BUILT_IN_DIR = Path(__file__).parent.parent.parent / "src" / "doctrine" / "agent_profiles" / "built-in"
+REPO_ROOT = BUILT_IN_DIR.parent.parent.parent.parent
+MISSION_RUNTIME_DIRS = (
+    REPO_ROOT / "src" / "doctrine" / "missions",
+    REPO_ROOT / ".kittify" / "overrides" / "missions",
+)
 AGENT_PROFILES_README = BUILT_IN_DIR.parent / "README.md"
 BUILT_IN_README = BUILT_IN_DIR / "README.md"
 
@@ -77,6 +82,19 @@ def _profile_ids_from_readme_table(readme_path: Path, profile_id_column: str) ->
     raise AssertionError(f"No markdown table with column {profile_id_column!r} in {readme_path}")
 
 
+def _iter_agent_profile_refs(value: object) -> set[str]:
+    refs: set[str] = set()
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key == "agent-profile" and isinstance(child, str):
+                refs.add(child)
+            refs.update(_iter_agent_profile_refs(child))
+    elif isinstance(value, list):
+        for child in value:
+            refs.update(_iter_agent_profile_refs(child))
+    return refs
+
+
 @pytest.fixture(scope="module")
 def repo() -> AgentProfileRepository:
     """Load repository from the actual shipped profiles directory."""
@@ -110,6 +128,20 @@ class TestShippedProfilesLoad:
         assert loaded_ids == EXPECTED_PROFILE_IDS, (
             f"Missing: {EXPECTED_PROFILE_IDS - loaded_ids}, Extra: {loaded_ids - EXPECTED_PROFILE_IDS}"
         )
+
+    def test_mission_runtime_agent_profiles_are_shipped(self):
+        """Mission runtime templates only reference shipped profile IDs."""
+        yaml = YAML(typ="safe")
+        refs_by_path: dict[str, set[str]] = {}
+        for runtime_dir in MISSION_RUNTIME_DIRS:
+            for runtime_path in runtime_dir.glob("*/mission-runtime.yaml"):
+                data = yaml.load(runtime_path.read_text(encoding="utf-8")) or {}
+                refs = _iter_agent_profile_refs(data)
+                missing = refs - EXPECTED_PROFILE_IDS
+                if missing:
+                    refs_by_path[str(runtime_path.relative_to(REPO_ROOT))] = missing
+
+        assert refs_by_path == {}
 
     def test_no_duplicate_profile_ids(self, all_profiles: list[AgentProfile]):
         """No duplicate profile IDs exist."""

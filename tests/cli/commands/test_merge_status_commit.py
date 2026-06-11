@@ -457,7 +457,9 @@ class TestMergeDoneTransitions:
         assert kwargs["ensure_sync_daemon"] is False
         assert kwargs["sync_dossier"] is False
 
-    def test_safe_commit_called_before_worktree_removal(self, tmp_path: Path) -> None:
+    def test_safe_commit_called_before_worktree_removal(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """FR-019: safe_commit must precede any worktree removal step."""
         mission_slug = "068-test-order"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
@@ -495,6 +497,11 @@ class TestMergeDoneTransitions:
             if "worktree" in cmd and "remove" in cmd:
                 call_order.append("worktree_remove")
             return (0, "", "")
+
+        monkeypatch.setattr(
+            "specify_cli.cli.commands.merge._paths_have_status_changes",
+            lambda _repo_root, _paths: True,
+        )
 
         with (
             patch("specify_cli.cli.commands.merge.require_lanes_json", return_value=manifest),

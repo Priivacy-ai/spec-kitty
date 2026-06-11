@@ -274,7 +274,7 @@ def test_assert_merged_wps_reached_done_allows_done_snapshot(
     )
 
     monkeypatch.setattr(
-        "specify_cli.status.lane_reader.get_wp_lane",
+        "specify_cli.status.get_wp_lane",
         lambda *_a, **_kw: "done",
     )
 
@@ -294,7 +294,7 @@ def test_assert_merged_wps_reached_done_fails_when_wp_not_done(
 
     lanes = {"WP01": "done", "WP02": "planned"}
     monkeypatch.setattr(
-        "specify_cli.status.lane_reader.get_wp_lane",
+        "specify_cli.status.get_wp_lane",
         lambda _feature_dir, wp_id: lanes[wp_id],
     )
 

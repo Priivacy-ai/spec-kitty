@@ -272,7 +272,7 @@ async def test_get_access_token_without_session_raises():
 @pytest.mark.asyncio
 async def test_get_access_token_raises_typed_error_for_naive_expired_refresh():
     tm = TokenManager(FakeStorage())
-    naive_past = datetime.now() - timedelta(minutes=1)
+    naive_past = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1)
     tm.set_session(
         _make_session(
             access_expires_in=-60,

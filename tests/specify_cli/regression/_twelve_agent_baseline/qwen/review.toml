@@ -52,8 +52,9 @@ compliance with any applicable guardrails (e.g., bulk edit<!-- glossary:glossary
 ## Working Directory
 
 **IMPORTANT**: This step works inside the execution workspace<!-- glossary:glossary:workspace --> (worktree)
-allocated by `spec-kitty agent action review WPxx --agent <name>`. Do NOT modify files outside
-your `owned_files` boundaries.
+allocated by `spec-kitty agent action review WPxx --agent <name>`. Prefer to stay within
+your `owned_files` boundaries; any out-of-map change must be small, justified, and carry a
+one-line rationale in the commit message.
 
 **In repos with multiple missions, always pass `--mission<!-- glossary:glossary:mission --> <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id<!-- glossary:glossary:mission_id -->` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of the ULID), or `mission_slug<!-- glossary:glossary:mission_slug -->`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
@@ -141,7 +142,7 @@ above documents what the prompt is guaranteed to carry.
 
 Read the WP prompt file from `feature_dir/tasks/WPxx-slug.md`.
 Parse frontmatter for:
-- `owned_files` -- only these globs should have been modified
+- `owned_files` -- the expected modification surface; out-of-map edits are acceptable when small and accompanied by a one-line rationale
 - `authoritative_surface` -- primary directory for this WP
 - `execution_mode` -- `code_change` or `planning_artifact`
 - `subtasks` -- ordered list of subtask IDs
@@ -164,7 +165,7 @@ implementer profile anyway and note the oversight in your review comments.
 For each subtask:
 1. Confirm the subtask has been implemented as specified
 2. Check that tests exist and pass (for code_change subtasks)
-3. Verify no files outside `owned_files` were modified
+3. Verify any files modified outside `owned_files` are small, justified, and carry a one-line rationale (do not reject a well-justified, rationale-logged crossing)
 
 ### 4. Check Quality
 

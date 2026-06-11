@@ -132,6 +132,7 @@ class TestPostMergeRefreshAndInvariant:
             patch("specify_cli.policy.config.load_policy_config", return_value=policy),
             patch("specify_cli.cli.commands.merge.run_command", side_effect=fake_run_command),
             patch("specify_cli.cli.commands.merge._raw_porcelain_status", side_effect=fake_raw_porcelain),
+            patch("specify_cli.cli.commands.merge._paths_have_status_changes", return_value=True),
             patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
             patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
             patch("specify_cli.cli.commands.merge.clear_state"),
