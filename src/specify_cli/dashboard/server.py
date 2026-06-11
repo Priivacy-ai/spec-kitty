@@ -129,7 +129,7 @@ def start_dashboard(
         return port, proc.pid
 
     handler_class = _build_handler_class(project_dir_abs, project_token)
-    server = HTTPServer(('127.0.0.1', port), handler_class)
+    server = HTTPServer(('127.0.0.1', port), handler_class)  # NOSONAR -- dashboard control plane binds to localhost only
 
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()

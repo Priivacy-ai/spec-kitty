@@ -274,8 +274,13 @@ def _fetch_health_payload(health_url: str, timeout: float = 0.5) -> dict[str, An
     return data if isinstance(data, dict) else None
 
 
+def _loopback_health_url(port: int) -> str:
+    """Return the localhost-only daemon health endpoint."""
+    return f"http://127.0.0.1:{port}/api/health"  # NOSONAR -- loopback-only control-plane URL, never exposed off-host
+
+
 def _check_sync_daemon_health(port: int, expected_token: str | None, timeout: float = 0.5) -> bool:
-    data = _fetch_health_payload(f"http://127.0.0.1:{port}/api/health", timeout=timeout)
+    data = _fetch_health_payload(_loopback_health_url(port), timeout=timeout)
     if not data:
         return False
     if data.get("status") != "ok":
@@ -288,14 +293,13 @@ def _check_sync_daemon_health(port: int, expected_token: str | None, timeout: fl
 
 def _daemon_version_matches(port: int, expected_token: str | None, timeout: float = 0.5) -> bool:
     """Return True if the running daemon reports the current protocol + package version."""
-    data = _fetch_health_payload(f"http://127.0.0.1:{port}/api/health", timeout=timeout)
+    data = _fetch_health_payload(_loopback_health_url(port), timeout=timeout)
     if not data:
         return False
     if data.get("status") != "ok":
         return False
-    if expected_token:
-        if data.get("token") != expected_token:
-            return False
+    if expected_token and data.get("token") != expected_token:
+        return False
     remote_proto = data.get("protocol_version")
     remote_pkg = data.get("package_version")
     if remote_proto != DAEMON_PROTOCOL_VERSION:
@@ -722,7 +726,7 @@ def get_sync_daemon_status(timeout: float = 0.5) -> SyncDaemonStatus:
     if port is None:
         return SyncDaemonStatus(healthy=False, url=url, token=token, pid=pid)
 
-    data = _fetch_health_payload(f"http://127.0.0.1:{port}/api/health", timeout=timeout)
+    data = _fetch_health_payload(_loopback_health_url(port), timeout=timeout)
     if not data:
         return SyncDaemonStatus(
             healthy=False,

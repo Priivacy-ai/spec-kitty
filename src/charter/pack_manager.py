@@ -431,7 +431,7 @@ class CharterPackManager:
         artifact_id: str,
         *,
         cascade: bool = False,  # noqa: ARG002 — kept for caller API stability
-        layer_roots: dict[str, Path] | None = None,  # noqa: ARG002 — symmetry with activate
+        _layer_roots: dict[str, Path] | None = None,  # noqa: ARG002 — symmetry with activate
     ) -> ActivationResult:
         """Deactivate ``artifact_id`` for ``kind`` in the project charter pack.
 
