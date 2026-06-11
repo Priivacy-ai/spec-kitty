@@ -66,7 +66,7 @@
 
 ### WP03 — Refresh the 3.x C4 model
 - **Goal**: Update living C4 (Markdown+Mermaid, numbered levels) to the 3.x domain model.
-- **Subtasks**: - [ ] T011 (WP03) · - [ ] T012 (WP03) · - [ ] T013 (WP03) | **Depends on**: WP02 | **Est**: ~240 lines
+- **Subtasks**: - [x] T011 (WP03) · - [x] T012 (WP03) · - [x] T013 (WP03) | **Depends on**: WP02 | **Est**: ~240 lines
 - **Risks**: Mermaid drift (generated-C4 swap deferred to #1812).
 
 ### WP04 — Author planning/tracking procedure + tactics

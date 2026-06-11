@@ -70,3 +70,4 @@ Owned: `architecture/diagrams/**`. **Out-of-map edits allowed with a recorded on
 ## Activity Log
 
 - 2026-06-11T15:28:03Z – claude:opus:tbd:implementer – shell_pid=822589 – Assigned agent via action command
+- 2026-06-11T15:37:21Z – claude:opus:tbd:implementer – shell_pid=822589 – C4 refreshed to 3.x canonical shapes: four bounded modules + Op tier; mission_runtime canonical surface; CommitTarget(ref, kind); commit_guard.evaluate + GuardCapability; resolve_placement_only / resolve_status_surface_with_anchor; 9-lane WP FSM; retired execution_context.py and (worktree_root, destination_ref) explicitly omitted. 12 Mermaid blocks render (mmdc); markdownlint-cli2@0.18.1 0 errors; link-integrity + terminology guards green. Lane commit 2b6366d6a.
