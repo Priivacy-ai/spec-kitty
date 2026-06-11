@@ -64,3 +64,4 @@ Owned: `architecture/3.x/adr/**` (add one ADR; do not edit unrelated ADRs). **Ou
 ## Activity Log
 
 - 2026-06-11T15:28:16Z – claude:opus:tbd:implementer – shell_pid=822589 – Assigned agent via action command
+- 2026-06-11T15:40:16Z – claude:opus:tbd:implementer – shell_pid=822589 – Moved to for_review

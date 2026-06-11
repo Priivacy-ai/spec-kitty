@@ -81,7 +81,7 @@
 
 ### WP06 — Author the Ops ADR
 - **Goal**: Ratify "Op as first-class execution artifact" covering pre/post-mission lifecycle (shared abstraction; #1804+#1802).
-- **Subtasks**: - [ ] T019 (WP06) · - [ ] T020 (WP06) | **Depends on**: WP02 | **Est**: ~240 lines
+- **Subtasks**: - [x] T019 (WP06) · - [x] T020 (WP06) | **Depends on**: WP02 | **Est**: ~240 lines
 - **Risks**: must define ONE shared abstraction (C-005), not two parallel ones.
 
 ## Code lanes (parallel from start)
