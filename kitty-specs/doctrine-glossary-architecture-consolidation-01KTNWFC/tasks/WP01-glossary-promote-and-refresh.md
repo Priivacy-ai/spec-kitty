@@ -88,3 +88,7 @@ Doctrine/glossary sign-off + reviewer profile (reviewer-renata). Reviewer verifi
 
 ## Risks
 - A missed reference breaks glossary loading or the charter authority path. Mitigate via the occurrence-map inventory + post-move grep.
+
+## Activity Log
+
+- 2026-06-11T15:00:59Z – claude – shell_pid=754690 – Glossary reconcile complete: 7/7 subtasks done; residual architecture/glossary pointer deleted; planning-and-tracking context page added; 104 tests green incl. terminology guard; occurrence_map finalize relocated to planning branch. Implementer: curator-carla, lane-a 3c74f7686.

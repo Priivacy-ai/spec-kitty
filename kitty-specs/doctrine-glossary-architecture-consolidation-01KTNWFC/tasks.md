@@ -51,7 +51,7 @@
 ### WP01 — Glossary: reconcile top-level surface + content refresh
 - **Goal**: RECONCILE the already-canonical top-level `glossary/` + DELETE residual `architecture/glossary/` pointer content (C-005, R-01); update loader/path refs; refresh content for the new epics (FR-010) and record the runtime-scope defer (FR-011). *(Merged former WP07 to keep `glossary/**` ownership in one WP.)*
 - **Priority**: P1 (gates Phase 2 authoring) | **Independent test**: `glossary validate` + loader tests pass against top-level `glossary/`; no dangling glossary refs; `architecture/glossary/` absent.
-- **Subtasks**: - [ ] T001 (WP01) · - [ ] T002 (WP01) · - [ ] T003 (WP01) · - [ ] T004 (WP01) · - [ ] T005 (WP01) · - [ ] T021 (WP01) · - [ ] T022 (WP01)
+- **Subtasks**: - [x] T001 (WP01) · - [x] T002 (WP01) · - [x] T003 (WP01) · - [x] T004 (WP01) · - [x] T005 (WP01) · - [x] T021 (WP01) · - [x] T022 (WP01)
 - **change_mode**: standard (O1 revert: occurrence_map is a reference-rewrite advisory checklist, not a gate) | **Depends on**: none | **Est**: ~420 lines
 - **Risks**: missed reference breaks glossary loading / charter authority path; terminology guard on refreshed content.
 
@@ -88,12 +88,12 @@
 
 ### WP08 — Charter `extends:` (additive multi-org config)
 - **Goal**: `org-charter.yaml` `extends:` additive merge, base precedence, cycle detection, via activation_engine/cascade (no parallel resolver).
-- **Subtasks**: - [ ] T023 (WP08) · - [ ] T024 (WP08) · - [ ] T025 (WP08) | **Depends on**: none | **Est**: ~340 lines
+- **Subtasks**: - [x] T023 (WP08) · - [x] T024 (WP08) · - [x] T025 (WP08) | **Depends on**: none | **Est**: ~340 lines
 - **Risks**: cycle detection; reuse activation/cascade (C-005); preserve charter content (C-004); ruff/mypy clean.
 
 ### WP09 — DRG generator/freshness gaps
 - **Goal**: Regeneration command (deterministic) + symmetric profile-edge detection + freshness gate (code only).
-- **Subtasks**: - [ ] T026 (WP09) · - [ ] T027 (WP09) · - [ ] T028 (WP09) | **Depends on**: none | **Est**: ~300 lines
+- **Subtasks**: - [x] T026 (WP09) · - [x] T027 (WP09) · - [x] T028 (WP09) | **Depends on**: none | **Est**: ~300 lines
 - **Risks**: determinism; ruff/mypy clean.
 
 ### WP10 — Built-in DRG + profile re-curation
