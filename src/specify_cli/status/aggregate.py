@@ -34,7 +34,9 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 
 if TYPE_CHECKING:
     from mission_runtime import StatusSurfaceFragment
+    from specify_cli.coordination.types import CommitReceipt
     from specify_cli.status import TransitionRequest
+    from specify_cli.status.models import Lane, StatusEvent
 
 _logger = logging.getLogger(__name__)
 
@@ -154,8 +156,8 @@ class ActiveWPStatus:
     """
 
     wp_id: str
-    current_lane: Lane  # noqa: F821 — resolved at runtime via TYPE_CHECKING guard
-    last_event: StatusEvent | None  # noqa: F821
+    current_lane: Lane
+    last_event: StatusEvent | None
 
 
 # ---------------------------------------------------------------------------
@@ -324,7 +326,7 @@ class MissionStatus:
             # No meta.json at the canonical location yet (create→first-write
             # window): the primary checkout remains authoritative.
             return primary_candidate
-        resolved_dir = events_path.parent
+        resolved_dir: Path = Path(events_path.parent)
         # A composed-but-unmaterialized coord dir is not yet authoritative; the
         # primary checkout owns the create→first-write window (the historical
         # ``coord_candidate.exists()`` semantics).
@@ -459,7 +461,7 @@ class MissionStatus:
             last_event=last_event,
         )
 
-    def transition(self, request: TransitionRequest) -> StatusEvent:  # noqa: F821
+    def transition(self, request: TransitionRequest) -> StatusEvent:
         """Validate and apply a lane transition via ``BookkeepingTransaction`` internally.
 
         Domain invariant: the transition is validated before it is handed off
@@ -515,9 +517,12 @@ class MissionStatus:
             )
             return emit_status_transition_transactional(enriched)
 
-        evidence = request.evidence
-        if evidence is not None:
-            evidence = status_emit._build_done_evidence(evidence)
+        raw_evidence = request.evidence
+        built_evidence = (
+            status_emit._build_done_evidence(raw_evidence)
+            if raw_evidence is not None
+            else None
+        )
 
         # Build a GuardContext from behavior-preserving inferred request fields.
         ctx = GuardContext(
@@ -527,7 +532,7 @@ class MissionStatus:
             implementation_evidence_present=implementation_evidence_present,
             reason=request.reason,
             review_ref=request.review_ref,
-            evidence=evidence,
+            evidence=built_evidence,
             force=request.force,
             review_result=request.review_result,
             current_actor=current_actor,
@@ -575,7 +580,7 @@ class MissionStatus:
     def _resolve_workspace_context(self, request: TransitionRequest) -> str:
         """Return the workspace context string used by transition guards."""
         if request.workspace_context is not None:
-            return request.workspace_context
+            return str(request.workspace_context)
         context_root = request.repo_root if request.repo_root is not None else self.read_dir
         return f"{request.execution_mode}:{context_root}"
 
@@ -601,7 +606,7 @@ class MissionStatus:
             )
         return subtasks_complete, implementation_evidence_present
 
-    def save(self, *, operation: str) -> CommitReceipt:  # noqa: F821
+    def save(self, *, operation: str) -> CommitReceipt:
         """Persist staged transitions via ``BookkeepingTransaction``.
 
         This is a low-level escape hatch for callers that have already staged

@@ -756,8 +756,8 @@ def _get_current_build_id(repo_root: Path) -> str:
         config_path = repo_root / ".kittify" / "config.yaml"
         identity = load_identity(config_path)
         if identity.build_id:
-            return identity.build_id
-        return generate_build_id()
+            return str(identity.build_id)
+        return str(generate_build_id())
     except Exception:  # noqa: BLE001
         return str(uuid.uuid4())
 
