@@ -25,17 +25,36 @@ from __future__ import annotations
 
 from typing import Any
 
-from mission_runtime.context import ExecutionContext, ExecutionMode
+from mission_runtime.context import (
+    ArtifactPlacementFragment,
+    BranchRefFragment,
+    CommitTarget,
+    CommitTargetKind,
+    ExecutionContext,
+    ExecutionMode,
+    IdentityFragment,
+    PromptSourceFragment,
+    StatusSurfaceFragment,
+    WorkspaceFragment,
+)
 from mission_runtime.resolution import (
     ActionContextError,
     resolve_action_context,
 )
 
 __all__ = [
+    "ActionContextError",
+    "ArtifactPlacementFragment",
+    "BranchRefFragment",
+    "CommitTarget",
+    "CommitTargetKind",
     "ExecutionContext",
     "ExecutionMode",
+    "IdentityFragment",
+    "PromptSourceFragment",
+    "StatusSurfaceFragment",
+    "WorkspaceFragment",
     "resolve_action_context",
-    "ActionContextError",
 ]
 
 _COMPAT_ATTRS = frozenset(

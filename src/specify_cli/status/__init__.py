@@ -80,6 +80,7 @@ from .lane_reader import (
 )
 from .views import (
     generate_status_view,
+    git_operation_in_progress,
     materialize_if_stale,
     write_derived_views,
 )
@@ -282,6 +283,7 @@ __all__ = [
     "generate_status_view",
     "get_all_wp_lanes",
     "get_wp_lane",
+    "git_operation_in_progress",
     "has_event_log",
     "is_terminal",
     "materialize",

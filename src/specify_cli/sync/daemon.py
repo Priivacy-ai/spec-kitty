@@ -947,6 +947,16 @@ def _ensure_sync_daemon_running_locked(
     if existing is not None:
         return existing
 
+    # FR-014b / #1071: before spawning a replacement, reap any stale
+    # ``run_sync_daemon`` orphans that belong to THIS interpreter/auth-scope.
+    # This enforces one daemon per host/auth-scope: a leak from two
+    # interpreters (editable vs pipx) each recycling the other's recorded PID
+    # leaves untracked same-executable orphans on fresh ports; the canonical
+    # reaper clears them at spawn. Scoped by executable identity so a daemon
+    # from a different ``$HOME`` / container is never touched (reaper-over-kill
+    # guard). Best-effort: a reaper failure must not block the spawn.
+    _reap_same_executable_orphans()
+
     if preferred_port is not None:
         port = preferred_port
     else:
@@ -975,6 +985,28 @@ def _ensure_sync_daemon_running_locked(
         _kill_and_cleanup(proc.pid)
 
     raise RuntimeError(f"Sync daemon failed health check on port {port}")
+
+
+def _reap_same_executable_orphans() -> None:
+    """Reap stale same-executable ``run_sync_daemon`` orphans at spawn time.
+
+    Delegates to the single canonical reaper (``owner.reap_orphan_daemons``),
+    scoped by this process's interpreter identity. Best-effort: any failure is
+    logged at DEBUG and swallowed so a reaper hiccup never blocks daemon
+    startup.
+    """
+    try:
+        from specify_cli.sync.owner import reap_orphan_daemons
+
+        result = reap_orphan_daemons()
+        if result.reaped:
+            logger.info(
+                "Reaped %d stale sync-daemon orphan(s) at spawn: %s",
+                len(result.reaped),
+                result.reaped,
+            )
+    except Exception:  # noqa: BLE001 — reaping is best-effort on the spawn path.
+        logger.debug("Spawn-path orphan reap raised; continuing", exc_info=True)
 
 
 def _reuse_or_cleanup_existing_daemon() -> tuple[str, int, bool] | None:
@@ -1175,6 +1207,14 @@ def cleanup_orphan_sync_daemons(
 ) -> tuple[DaemonSingletonReport, list[int]]:
     """Terminate orphan sync-daemon processes; return report and PIDs killed.
 
+    Diagnostic surface for ``sync status`` / ``sync doctor``. The actual kill
+    escalation delegates to the canonical reaper's single sweep
+    (``owner._sweep_daemon_process``) so there is exactly ONE kill path
+    host-wide (FR-015 / SC-7). Unlike :func:`reap_orphan_daemons`, this surface
+    is *not* executable-scoped: operators running ``sync status`` expect to see
+    and clear every leaked ``run_sync_daemon`` they own, regardless of
+    interpreter.
+
     Args:
         dry_run: When True, report the orphans without terminating
             anything. Useful for diagnostics and tests.
@@ -1187,28 +1227,19 @@ def cleanup_orphan_sync_daemons(
         that received a kill signal. When ``dry_run`` is True the list
         is always empty.
     """
+    from specify_cli.sync.owner import _sweep_daemon_process
+
     report = scan_sync_daemons()
     killed: list[int] = []
     if dry_run:
         return report, killed
 
     for orphan in report.orphan_processes:
-        try:
-            proc = psutil.Process(orphan.pid)
-        except psutil.NoSuchProcess:
-            continue
-        try:
-            proc.terminate()
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
-        try:
-            proc.wait(timeout=timeout)
-        except psutil.TimeoutExpired:
-            try:
-                proc.kill()
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass
-        except psutil.NoSuchProcess:
-            pass
-        killed.append(orphan.pid)
+        reaped, _reason = _sweep_daemon_process(
+            orphan.pid,
+            terminate_wait_s=timeout,
+            kill_wait_s=timeout,
+        )
+        if reaped:
+            killed.append(orphan.pid)
     return report, killed

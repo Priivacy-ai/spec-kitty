@@ -59,6 +59,24 @@ definitions:
         $ref: '#/definitions/action'
       reason:
         type: string
+  move_entry:
+    type: object
+    additionalProperties: false
+    required:
+    - from
+    - to
+    properties:
+      from:
+        type: array
+        minItems: 1
+        items:
+          type: string
+          minLength: 1
+      to:
+        type: string
+        minLength: 1
+      reason:
+        type: string
 properties:
   target:
     type: object
@@ -86,6 +104,18 @@ properties:
     - 'null'
     items:
       $ref: '#/definitions/exception_entry'
+  moves:
+    description: >-
+      Optional multi-path structural-move block (IC-10, #1815). Each entry maps
+      one or more `from` source paths to a single `to` destination path,
+      describing a structural relocation that the eight single-term-rename
+      categories cannot express. Omitting this block leaves legacy single-term
+      maps unchanged (C-OMAP-1 backward compatibility).
+    type:
+    - array
+    - 'null'
+    items:
+      $ref: '#/definitions/move_entry'
   status:
     type:
     - object

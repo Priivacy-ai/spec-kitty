@@ -1,37 +1,29 @@
-"""Single canonical-root resolver for spec-kitty (FR-013, WP03/T013).
+"""Canonical-root re-exports + feature-dir canonicalization (FR-013, IC-04).
 
-This module exposes :func:`resolve_canonical_root`, the single source of
-truth for the question "given some CWD (which may be a worktree), what is
-the canonical mission repository root?".
+Historically this module carried its *own* worktree-pointer parser
+(``_read_worktree_pointer`` / ``_canonical_from_worktree_gitdir`` /
+``resolve_canonical_root``), duplicating the parser in
+:mod:`specify_cli.core.paths`.  Two parsers meant two opinions about the
+canonical ``primary_root`` — the Cluster C split-brain (research R-B).
 
-Status emit, charter writes, and config writes all delegate to this helper
-so that no command writes to a stale worktree-local copy of the mission
-artifacts.
-
-Resolution rules:
-
-1. ``cwd`` is inside a regular git repo (``.git`` is a directory): return
-   the directory that contains ``.git``.
-2. ``cwd`` is inside a worktree (``.git`` is a *file* with a
-   ``gitdir: <path>`` pointer at ``.git/worktrees/<name>``): read the
-   ``commondir`` file under ``.git/worktrees/<name>/`` and return its
-   parent (the main repo's working tree). When ``commondir`` holds a
-   relative path, it is resolved relative to the worktree's gitdir.
-3. ``cwd`` is not inside a git repo at all: raise
-   :class:`WorkspaceRootNotFound`.
-
-The result is cached per resolved ``cwd`` for the lifetime of the
-process, since canonical-root resolution is idempotent and is hit by
-every emit pipeline at least once. The cache is module-level state and
-is implicitly reset between processes; tests that need to bypass it can
-call :func:`_reset_cache`.
+WP05 (IC-04 / C-005) collapses to a **single** worktree-pointer parser in
+:mod:`specify_cli.core.paths`.  ``resolve_canonical_root`` and
+``WorkspaceRootNotFound`` are now re-exported from there so existing callers
+keep their import sites unchanged (C-004 strangler: re-point before delete).
+What remains here is :func:`canonicalize_feature_dir`, which is *not* a
+worktree-pointer parser — it is a feature-dir rewrite helper that *consumes*
+the single resolver.
 """
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from pathlib import Path
-from threading import Lock
+
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.paths import (
+    WorkspaceRootNotFound,
+    resolve_canonical_root,
+)
 
 __all__ = [
     "WorkspaceRootNotFound",
@@ -40,126 +32,14 @@ __all__ = [
 ]
 
 
-class WorkspaceRootNotFound(Exception):
-    """Raised when a canonical mission repo root cannot be resolved."""
-
-    def __init__(self, cwd: Path | str) -> None:
-        self.cwd = Path(cwd)
-        super().__init__(f"No git repository found at or above {self.cwd}")
-
-
-# Module-level cache: resolved cwd -> canonical root.
-# Keys are absolute, resolved paths so two equivalent inputs share a hit.
-_CACHE: dict[Path, Path] = {}
-_CACHE_LOCK = Lock()
-
-
 def _reset_cache() -> None:
-    """Reset the module-level cache (test helper)."""
-    with _CACHE_LOCK:
-        _CACHE.clear()
+    """No-op cache reset (test-compatibility shim).
 
-
-def _read_worktree_pointer(git_file: Path) -> Path | None:
-    """Return the gitdir referenced by a worktree ``.git`` file, or None.
-
-    A worktree ``.git`` file contains a single line of the form
-    ``gitdir: /abs/path/to/main/.git/worktrees/<name>``. The path may be
-    absolute or relative (relative to the file's directory).
+    The collapsed single parser (:func:`specify_cli.core.paths.resolve_canonical_root`)
+    is cheap and stateless, so there is no module-level cache to clear. This
+    shim is retained so existing tests that called the old caching parser's
+    ``_reset_cache`` continue to import cleanly.
     """
-    try:
-        text = git_file.read_text(encoding="utf-8", errors="replace").strip()
-    except OSError:
-        return None
-    if not text.startswith("gitdir:"):
-        return None
-    raw = text.split(":", 1)[1].strip()
-    if not raw:
-        return None
-    candidate = Path(raw)
-    if not candidate.is_absolute():
-        candidate = (git_file.parent / candidate).resolve()
-    return candidate
-
-
-def _canonical_from_worktree_gitdir(gitdir: Path) -> Path | None:
-    """Return the canonical main-repo working tree for a worktree gitdir.
-
-    ``gitdir`` is expected to be ``<commondir>/worktrees/<name>``. We
-    confirm topology, read the ``commondir`` file when present (it may be
-    a relative path), and return the parent of the resolved commondir
-    (the main repo's working tree).
-
-    Returns None when the topology does not match a true worktree
-    (covers submodules and separate-git-dir clones).
-    """
-    if gitdir.parent.name != "worktrees":
-        return None
-    if not gitdir.parent.parent.name.endswith(".git"):
-        return None
-
-    commondir_file = gitdir / "commondir"
-    if commondir_file.exists():
-        try:
-            commondir_raw = commondir_file.read_text(encoding="utf-8", errors="replace").strip()
-        except OSError:
-            commondir_raw = ""
-        if commondir_raw:
-            commondir = Path(commondir_raw)
-            if not commondir.is_absolute():
-                commondir = (gitdir / commondir).resolve()
-            # commondir typically points at the main repo's `.git` dir.
-            return commondir.parent
-
-    # Fallback: derive from gitdir topology directly.
-    return gitdir.parent.parent.parent
-
-
-def resolve_canonical_root(cwd: Path | None = None) -> Path:
-    """Return the canonical mission repo root for ``cwd``.
-
-    See module docstring for resolution rules. Result is cached.
-
-    Args:
-        cwd: Starting directory. Defaults to :func:`Path.cwd`.
-
-    Returns:
-        Absolute, resolved path to the canonical repo root.
-
-    Raises:
-        WorkspaceRootNotFound: when ``cwd`` is not inside a git repo.
-    """
-    start = (cwd or Path.cwd()).resolve()
-
-    with _CACHE_LOCK:
-        cached = _CACHE.get(start)
-    if cached is not None:
-        return cached
-
-    for candidate in [start, *start.parents]:
-        git_path = candidate / ".git"
-
-        if git_path.is_dir():
-            # Regular repo (or main repo of a worktree set).
-            resolved = candidate.resolve()
-            with _CACHE_LOCK:
-                _CACHE[start] = resolved
-            return resolved
-
-        if git_path.is_file():
-            gitdir = _read_worktree_pointer(git_path)
-            if gitdir is None:
-                # Malformed pointer; keep walking so we still find the
-                # enclosing repo if there is one.
-                continue
-            canonical = _canonical_from_worktree_gitdir(gitdir)
-            if canonical is not None:
-                resolved = canonical.resolve()
-                with _CACHE_LOCK:
-                    _CACHE[start] = resolved
-                return resolved
-
-    raise WorkspaceRootNotFound(start)
 
 
 def canonicalize_feature_dir(feature_dir: Path) -> Path:

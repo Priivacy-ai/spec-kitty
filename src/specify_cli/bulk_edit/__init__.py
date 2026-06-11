@@ -11,6 +11,7 @@ from specify_cli.bulk_edit.occurrence_map import (
     STANDARD_CATEGORIES,
     VALID_ACTIONS,
     VALID_OPERATIONS,
+    MoveEntry,
     OccurrenceMap,
     ValidationResult,
     check_admissibility,
@@ -24,6 +25,7 @@ from specify_cli.bulk_edit.occurrence_map import (
 
 __all__ = [
     "OccurrenceMap",
+    "MoveEntry",
     "ValidationResult",
     "load_occurrence_map",
     "load_schema",

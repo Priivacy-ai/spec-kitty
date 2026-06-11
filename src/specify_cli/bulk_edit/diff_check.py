@@ -135,6 +135,43 @@ def classify_path(path: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 
+def _move_for(path: str, omap: OccurrenceMap) -> tuple[str, str] | None:
+    """Return ``(role, reason)`` when *path* participates in a declared move.
+
+    ``role`` is ``"move-source"`` or ``"move-destination"``. A declared
+    structural move (IC-10, #1815) is an explicit, reviewer-approved relocation;
+    its source and destination paths are expected to change, so they are not
+    subject to the ``do_not_change`` path heuristic. Source/destination paths
+    are matched as path globs (``*``/``**`` supported) or as a directory
+    prefix when the declared path is a directory (no glob, trailing-slash or
+    bare directory form), so ``to: src/auth`` covers ``src/auth/login.py``.
+    """
+    posix = Path(path).as_posix()
+    for move in omap.moves:
+        for source in move.sources:
+            if _path_matches(posix, source):
+                return ("move-source", move.reason or "declared move source")
+        if _path_matches(posix, move.destination):
+            return ("move-destination", move.reason or "declared move destination")
+    return None
+
+
+def _path_matches(posix: str, declared: str) -> bool:
+    """Match *posix* against a declared move path (glob or directory prefix)."""
+    declared = declared.strip()
+    if not declared:
+        return False
+    normalized = Path(declared).as_posix().rstrip("/")
+    if "*" in normalized or "?" in normalized:
+        if fnmatch(posix, normalized):
+            return True
+        return "**" in normalized and _fnmatch_recursive(posix, normalized)
+    if posix == normalized:
+        return True
+    # Directory-prefix match: ``src/auth`` covers ``src/auth/login.py``.
+    return posix.startswith(f"{normalized}/")
+
+
 def _exception_for(path: str, omap: OccurrenceMap) -> dict[str, str] | None:
     """Return the first exception whose glob matches *path*, if any."""
     posix = Path(path).as_posix()
@@ -222,7 +259,22 @@ def assess_file(path: str, omap: OccurrenceMap) -> FileAssessment:
             reason=f"Exception '{exception.get('path', '?')}' allows {action!r}: {reason}",
         )
 
-    # 2) Path heuristic classification.
+    # 2) Declared structural moves (IC-10, #1815). A move source/destination is
+    #    a reviewer-approved relocation, so it is exempt from the
+    #    do_not_change path heuristic.
+    move = _move_for(path, omap)
+    if move is not None:
+        role, move_reason = move
+        return FileAssessment(
+            path=path,
+            category=None,
+            source="move",
+            action="move",
+            violation=False,
+            reason=f"Declared structural {role}: {move_reason}",
+        )
+
+    # 3) Path heuristic classification.
     category = classify_path(path)
     if category is None:
         return FileAssessment(
@@ -238,7 +290,7 @@ def assess_file(path: str, omap: OccurrenceMap) -> FileAssessment:
             ),
         )
 
-    # 3) The classified category must appear in the map.
+    # 4) The classified category must appear in the map.
     category_entry = omap.categories.get(category)
     if category_entry is None:
         return FileAssessment(

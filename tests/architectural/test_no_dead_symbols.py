@@ -566,26 +566,6 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[str] = frozenset(
 )
 
 
-# ---------- C. Upstream coordination status_service (pre-existing on main) ----------
-# These five public symbols in ``specify_cli.coordination.status_service``
-# predate this mission — they landed on ``upstream/main`` via #1614 and have
-# no live src/ caller there either. They surfaced in this WP's gate run only
-# because the upstream rebase brought the module into the close-out branch.
-# They are NOT this mission's code; the close-out must not patch upstream
-# coordination internals. Allowlisted-with-tracker so the gate is GREEN.
-# Follow-up tracker (DIRECTIVE_013): Priivacy-ai/spec-kitty#1622 tracks
-# wiring or pruning these upstream symbols and shrinking this baseline.
-_CATEGORY_C_UPSTREAM_STATUS_SERVICE: frozenset[str] = frozenset(
-    {
-        "specify_cli.coordination.status_service::EventLogWriteTarget",
-        "specify_cli.coordination.status_service::StatusContractError",
-        "specify_cli.coordination.status_service::StatusReadSource",
-        "specify_cli.coordination.status_service::append_event_log_batch",
-        "specify_cli.coordination.status_service::read_wp_lane_actor",
-    }
-)
-
-
 # ---------- C. Upstream session-presence public surface (pre-existing on main) ----------
 # Three public symbols in ``specify_cli.session_presence`` modules that were
 # added to ``upstream/main`` (#1756) ahead of callers that will land in a
@@ -626,7 +606,6 @@ _SYMBOL_ALLOWLIST: frozenset[str] = (
     | _CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP
     | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION
     | _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT
-    | _CATEGORY_C_UPSTREAM_STATUS_SERVICE
     | _CATEGORY_C_UPSTREAM_SESSION_PRESENCE
 )
 

@@ -309,6 +309,33 @@ def _iter_mission_dirs(project_path: Path) -> Generator[Path, None, None]:
             yield entry
 
 
+def _resolve_summary_record_path(project_path: Path, mission_dir: Path) -> Path:
+    """Resolve the retrospective.yaml path to read for a discovered mission dir.
+
+    FR-006 (#1771): the record now lives in the tracked feature_dir
+    (``kitty-specs/<slug>/retrospective.yaml``). The mission registry under
+    ``.kittify/missions/<id>/`` is still used for discovery (it carries
+    ``meta.json``), but the record is read from the tracked home — falling back
+    to the legacy in-registry path for pre-relocation records.
+    """
+    mission_slug: str | None = None
+    meta_path = mission_dir / "meta.json"
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            mission_slug = meta.get("mission_slug") or meta.get("slug")
+        except Exception:
+            mission_slug = None
+    if mission_slug:
+        from specify_cli.retrospective.writer import canonical_record_path
+
+        tracked: Path = canonical_record_path(project_path, mission_slug)
+        if tracked.exists():
+            return tracked
+    # Back-compat: legacy in-registry record path.
+    return mission_dir / "retrospective.yaml"
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -359,7 +386,7 @@ def build_summary(
     superseded_proposals = 0
 
     for mission_dir in _iter_mission_dirs(project_path):
-        retro_path = mission_dir / "retrospective.yaml"
+        retro_path = _resolve_summary_record_path(project_path, mission_dir)
 
         if not retro_path.exists():
             # No retrospective file — classify the mission

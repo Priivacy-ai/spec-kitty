@@ -338,9 +338,10 @@ def emit_captured(
     event_id = _generate_ulid()
     at = _now_utc()
 
-    canonical_path = (
-        repo_root / ".kittify" / "missions" / record.mission_id / "retrospective.yaml"
-    )
+    # FR-006 (#1771): the record lives in the tracked feature_dir, not the
+    # gitignored .kittify/missions/ tree. feature_dir is already resolved above
+    # through the canonical coord-topology-aware read primitive.
+    canonical_path = feature_dir / "retrospective.yaml"
 
     event = RetrospectiveCaptured(
         schema_version=1,

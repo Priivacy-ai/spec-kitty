@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
+from mission_runtime import ActionContextError, CommitTarget, CommitTargetKind
 import contextlib
 import json
 import logging
@@ -140,7 +140,7 @@ def _emit_console_or_json_error(*, json_output: bool, message: str) -> None:
 def _emit_check_prerequisites_detection_error(
     *,
     repo_root: Path,
-    detection_error: ValueError,
+    detection_error: ValueError | ActionContextError,
     feature: str | None,
     json_output: bool,
     paths_only: bool,
@@ -489,12 +489,64 @@ def _git_dirty_paths(repo_root: Path) -> list[str]:
     return dirty
 
 
-def _enforce_analysis_report_write_preflight(repo_root: Path, *, json_output: bool) -> None:
-    """Fail before `record-analysis` mutates a mission artifact in unsafe git state."""
+def _resolve_record_analysis_placement_ref(
+    repo_root: Path, feature_dir: Path
+) -> CommitTarget | None:
+    """Resolve the context's artifact-placement ref for ``record-analysis``.
+
+    Routes through the single canonical resolver (``resolve_action_context``,
+    C-CTX-1) using the planning-phase ``tasks`` action — ``record-analysis``
+    persists a planning artifact whose placement is the same single
+    :class:`CommitTarget` (C-PLACE-1). The mission slug is the resolved
+    mission directory name (already CWD-invariant via the read primitive).
+    Returns ``None`` on any resolution failure so the dirty-tree preflight
+    keeps its original (conservative) behaviour (C-004 — never break the
+    lifecycle on a context-resolution edge case).
+    """
+    from mission_runtime import ActionContextError, resolve_action_context
+
+    try:
+        context = resolve_action_context(
+            repo_root,
+            action="tasks",
+            feature=feature_dir.name,
+        )
+    except ActionContextError:
+        return None
+    placement = context.artifact_placement
+    return placement.placement_ref if placement is not None else None
+
+
+def _enforce_analysis_report_write_preflight(
+    repo_root: Path,
+    *,
+    json_output: bool,
+    placement_ref: CommitTarget | None = None,
+) -> None:
+    """Fail before `record-analysis` mutates a mission artifact in unsafe git state.
+
+    WP06 / T020 / C-PLACE-1 (#1814): the dirty-tree check is **context-aware**.
+    Under coordination topology the canonical status log/snapshot
+    (``COORD_OWNED_STATUS_FILES``) is owned by the transactional emitter on the
+    coordination branch; the primary checkout legitimately carries stale copies
+    of those files. Counting that coord-residue as a "dirty working tree" was the
+    #1814 deadlock — ``record-analysis`` could never run from the primary
+    checkout of a coord mission. When ``placement_ref`` resolves to a
+    coordination target we drop the coord-owned files from the dirty set so the
+    preflight gates only on *genuine* uncommitted edits. Under flattened/primary
+    topology there is no coord owner, so nothing is excluded (the primary status
+    files are canonical there).
+    """
     if not is_git_repo(repo_root):
         return
 
     dirty_paths = _git_dirty_paths(repo_root)
+    if placement_ref is not None and placement_ref.kind is CommitTargetKind.COORDINATION:
+        dirty_paths = [
+            path
+            for path in dirty_paths
+            if Path(path).name not in COORD_OWNED_STATUS_FILES
+        ]
     if dirty_paths:
         payload = {
             "success": False,
@@ -752,10 +804,16 @@ def _find_feature_directory(
     _cwd: Path,
     explicit_feature: str | None = None,
 ) -> Path:
-    """Find the mission directory from an explicit mission slug.
+    """Find the mission directory from an explicit mission handle.
 
-    Uses the canonical mission resolver which handles ambiguous numeric-prefix
-    handles, mid8 prefixes, and full ULID forms.
+    WP06 / T020 / C-CTX-4: routes through the single read primitive
+    (:func:`specify_cli.missions._read_path_resolver.resolve_mission_read_path`),
+    so a ``--mission <mid8>`` handle resolves to the same directory as the full
+    slug (F-001/F-003/F-004). There is **no silent fallback** to a
+    wrong-but-plausible primary-checkout path: an unresolvable handle raises a
+    structured :class:`ActionContextError` (``FEATURE_CONTEXT_UNRESOLVED``) and
+    an ambiguous handle raises ``MISSION_AMBIGUOUS_SELECTOR`` (C-CTX-4 / C-009).
+    WP04 deliberately left this caller for WP06, which owns ``mission.py``.
 
     Args:
         repo_root: Repository root path
@@ -766,18 +824,36 @@ def _find_feature_directory(
         Path to mission directory
 
     Raises:
-        ValueError: If no handle is provided.
+        ActionContextError: If no handle is provided, the handle is ambiguous, or
+            it resolves to no existing mission directory (structured error).
     """
+    from specify_cli.lanes.branch_naming import mid8_from_slug
+    from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
+        StatusReadPathNotFound,
+        resolve_mission_read_path,
+    )
+
     if not explicit_feature:
-        raise ValueError("--mission <slug> is required")
+        raise ActionContextError(
+            "FEATURE_CONTEXT_UNRESOLVED", "--mission <slug> is required"
+        )
     try:
-        resolved = resolve_mission_handle(explicit_feature, repo_root)
-        return cast(Path, resolved.feature_dir)
-    except (SystemExit, typer.Exit):
-        candidate = candidate_feature_dir_for_mission(repo_root, explicit_feature)
-        if candidate.exists():
-            return cast(Path, candidate)
-        raise ValueError(f"Mission directory not found: {explicit_feature}") from None
+        feature_dir = resolve_mission_read_path(
+            repo_root,
+            explicit_feature,
+            mid8_from_slug(explicit_feature),
+            require_exists=True,
+        )
+    except MissionSelectorAmbiguous as exc:
+        raise ActionContextError(exc.error_code, str(exc)) from exc
+    except StatusReadPathNotFound as exc:
+        raise ActionContextError(
+            "FEATURE_CONTEXT_UNRESOLVED",
+            f"Mission not found for handle {explicit_feature!r}; checked the "
+            f"coordination worktree and the primary checkout. {exc}",
+        ) from exc
+    return cast(Path, feature_dir)
 
 
 def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
@@ -1218,7 +1294,7 @@ def check_prerequisites(
                 cwd,
                 explicit_feature=feature,
             )
-        except ValueError as detection_error:
+        except (ValueError, ActionContextError) as detection_error:
             _emit_check_prerequisites_detection_error(
                 repo_root=repo_root,
                 detection_error=detection_error,
@@ -1276,15 +1352,18 @@ def record_analysis(
             raise typer.Exit(1)
         cwd_repo_root = repo_root  # preserve CWD root for branch-protection check
         repo_root = get_main_repo_root(repo_root)
-        _enforce_analysis_report_write_preflight(cwd_repo_root, json_output=json_output)
 
+        # WP06 / T020 (#1814): resolve the mission read/write surface FIRST (via
+        # the consolidated read primitive — no silent fallback) so the dirty-tree
+        # preflight can key off the context's placement ref and not deadlock on
+        # coord-residue in the primary checkout.
         try:
             feature_dir = _find_feature_directory(
                 repo_root,
                 Path.cwd().resolve(),
                 explicit_feature=feature,
             )
-        except ValueError as detection_error:
+        except (ValueError, ActionContextError) as detection_error:
             payload = _build_setup_plan_detection_error(
                 repo_root,
                 str(detection_error),
@@ -1298,6 +1377,18 @@ def record_analysis(
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
             raise typer.Exit(1) from None
+
+        # C-PLACE-1: the placement ref is the ONE CommitTarget that planning
+        # artifacts (incl. analysis-report) AND status events resolve to. The
+        # dirty-tree preflight uses it to ignore coord-owned residue (#1814).
+        placement_ref = _resolve_record_analysis_placement_ref(
+            repo_root, feature_dir
+        )
+        _enforce_analysis_report_write_preflight(
+            cwd_repo_root,
+            json_output=json_output,
+            placement_ref=placement_ref,
+        )
 
         body = sys.stdin.read() if input_file == "-" else Path(input_file).read_text(encoding="utf-8")
         if not body.strip():
@@ -1506,7 +1597,7 @@ def setup_plan(
                 cwd,
                 explicit_feature=feature,
             )
-        except ValueError as detection_error:
+        except (ValueError, ActionContextError) as detection_error:
             payload = _build_setup_plan_detection_error(repo_root, str(detection_error), feature)
             if json_output:
                 _emit_json(payload)
@@ -2153,7 +2244,7 @@ def finalize_tasks(
                 cwd,
                 explicit_feature=feature,
             )
-        except ValueError as detection_error:
+        except (ValueError, ActionContextError) as detection_error:
             payload = _build_setup_plan_detection_error(
                 repo_root,
                 str(detection_error),

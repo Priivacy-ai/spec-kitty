@@ -46,7 +46,12 @@ from specify_cli.retrospective.schema import (
     RetrospectiveRecord,
 )
 from specify_cli.retrospective.schema import RecordValidationError
-from specify_cli.retrospective.writer import WriterError, write_gen_record, write_record
+from specify_cli.retrospective.writer import (
+    WriterError,
+    resolve_existing_record_path,
+    write_gen_record,
+    write_record,
+)
 from specify_cli.status import reduce as reduce_status_events
 from specify_cli.status import read_events
 
@@ -70,9 +75,15 @@ def resolve_mission_handle(handle: str, repo_root: Path, *, json_mode: bool = Fa
 # ---------------------------------------------------------------------------
 
 
-def _retro_path(repo_root: Path, mission_id: str) -> Path:
-    """Return the canonical retrospective.yaml path for a mission."""
-    return repo_root / ".kittify" / "missions" / mission_id / "retrospective.yaml"
+def _retro_path(repo_root: Path, mission_slug: str, mission_id: str = "") -> Path:
+    """Return the retrospective.yaml path to read for a mission.
+
+    FR-006 (#1771): the record lives in the tracked feature_dir
+    (``kitty-specs/<slug>/retrospective.yaml``); falls back to the legacy
+    gitignored ``.kittify/missions/<id>/`` location for pre-relocation records.
+    """
+    record_path: Path = resolve_existing_record_path(repo_root, mission_slug, mission_id)
+    return record_path
 
 
 def _build_actor(actor_id: Optional[str]) -> ActorRef:
@@ -384,7 +395,7 @@ def synthesize_cmd(
     # Step 3: Load retrospective record
     # Exit 2 = I/O error, 3 = malformed/missing
     # ------------------------------------------------------------------
-    retro_file = _retro_path(repo_root, mission_id)
+    retro_file = _retro_path(repo_root, resolved.mission_slug, mission_id)
     outcome = "retrospective_synthesized"
     generator_record = None
     try:

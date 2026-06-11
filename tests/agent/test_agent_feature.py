@@ -1199,40 +1199,46 @@ class TestFindFeatureDirectory:
         assert result == kitty_specs / "001-test-feature"
 
     def test_raises_error_when_no_explicit_slug(self, tmp_path: Path):
-        """Should raise ValueError when explicit_feature is None (auto-detection removed)."""
+        """WP06 / C-CTX-4: a missing handle raises a structured ActionContextError
+        (was ValueError before the read-primitive consolidation)."""
+        from mission_runtime import ActionContextError
         from specify_cli.cli.commands.agent.mission import _find_feature_directory
 
         kitty_specs = tmp_path / "kitty-specs"
         kitty_specs.mkdir()
         (kitty_specs / "001-test-feature").mkdir()
 
-        # Execute without explicit slug — must raise ValueError
-        with pytest.raises(ValueError):
+        with pytest.raises(ActionContextError) as excinfo:
             _find_feature_directory(tmp_path, tmp_path, explicit_feature=None)
+        assert excinfo.value.code == "FEATURE_CONTEXT_UNRESOLVED"
 
     def test_raises_error_when_feature_dir_not_found(self, tmp_path: Path):
-        """Should raise ValueError when the specified mission directory does not exist."""
+        """WP06 / C-CTX-4: an unresolvable handle raises a structured
+        ActionContextError, NOT a silent fallback to a wrong-but-plausible dir."""
+        from mission_runtime import ActionContextError
         from specify_cli.cli.commands.agent.mission import _find_feature_directory
 
         kitty_specs = tmp_path / "kitty-specs"
         kitty_specs.mkdir()
 
-        # Execute & Verify (updated to match centralized error message)
-        with pytest.raises(ValueError, match="Mission directory not found"):
+        with pytest.raises(ActionContextError) as excinfo:
             _find_feature_directory(tmp_path, tmp_path, explicit_feature="001-nonexistent")
+        assert excinfo.value.code == "FEATURE_CONTEXT_UNRESOLVED"
 
     def test_raises_error_when_no_explicit_slug_with_multiple_features(self, tmp_path: Path):
-        """Should raise ValueError when no slug is given even with multiple features present."""
+        """WP06 / C-CTX-4: a missing handle raises a structured ActionContextError
+        even with multiple missions present (no auto-detection / no silent pick)."""
+        from mission_runtime import ActionContextError
         from specify_cli.cli.commands.agent.mission import _find_feature_directory
 
-        # Create main repo structure with multiple features
         kitty_specs = tmp_path / "kitty-specs"
         kitty_specs.mkdir()
         for slug in ("001-feature", "002-feature", "003-feature"):
             (kitty_specs / slug).mkdir()
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ActionContextError) as excinfo:
             _find_feature_directory(tmp_path, tmp_path, explicit_feature=None)
+        assert excinfo.value.code == "FEATURE_CONTEXT_UNRESOLVED"
 
     def test_finds_correct_feature_among_multiple(self, tmp_path: Path):
         """Should return the exact matching directory when explicit slug is given."""

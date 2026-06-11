@@ -22,10 +22,23 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Literal, cast, get_args
 
-from mission_runtime.context import ExecutionContext
+from mission_runtime.context import (
+    ArtifactPlacementFragment,
+    BranchRefFragment,
+    CommitTarget,
+    CommitTargetKind,
+    ExecutionContext,
+    IdentityFragment,
+    PromptSourceFragment,
+    StatusSurfaceFragment,
+    WorkspaceFragment,
+)
 
 
 ActionName = Literal[
+    "specify",
+    "plan",
+    "analyze",
     "tasks",
     "tasks_outline",
     "tasks_packages",
@@ -33,8 +46,16 @@ ActionName = Literal[
     "implement",
     "review",
     "accept",
+    "status",
 ]
 ACTION_NAMES: tuple[str, ...] = cast(tuple[str, ...], get_args(ActionName))
+
+__all__ = [
+    "ACTION_NAMES",
+    "ActionContextError",
+    "ActionName",
+    "resolve_action_context",
+]
 
 
 class ActionContextError(RuntimeError):
@@ -263,6 +284,241 @@ def _resolve_wp_id(
     return None
 
 
+def _resolve_coordination_branch(primary_root: Path, mission_slug: str) -> str | None:
+    """Read the mission ``coordination_branch`` from meta (canonical anchor).
+
+    Returns ``None`` under flattened topology (no separate coordination branch,
+    C-001). Anchored on the canonical *primary* dir so the value is identical
+    from any CWD (never trust a lane-supplied surface — WP02 carry-forward).
+    """
+    from specify_cli.mission_metadata import load_meta
+    from specify_cli.missions.feature_dir_resolver import (
+        candidate_feature_dir_for_mission,
+    )
+
+    primary_dir = candidate_feature_dir_for_mission(primary_root, mission_slug)
+    try:
+        meta = load_meta(primary_dir)
+    except ValueError:
+        # Malformed meta: treat coordination topology as undeclared. Downstream
+        # surface resolution reports the same condition consistently.
+        return None
+    if not meta:
+        return None
+    raw = meta.get("coordination_branch")
+    return str(raw) if raw else None
+
+
+def _resolve_mission_id(primary_root: Path, mission_slug: str) -> str:
+    """Resolve the canonical ``mission_id`` for the mission.
+
+    Reads ``meta.json`` at the canonical primary dir. Falls back to a
+    ``legacy-<slug>`` sentinel (mirroring ``status_transition`` identity
+    resolution) so pre-identity missions still resolve a stable, CWD-invariant
+    value — ``mid8`` is then derived once from that value (FR-012 / C-CTX-3).
+    """
+    from specify_cli.mission_metadata import load_meta
+    from specify_cli.missions.feature_dir_resolver import (
+        candidate_feature_dir_for_mission,
+    )
+
+    primary_dir = candidate_feature_dir_for_mission(primary_root, mission_slug)
+    try:
+        meta = load_meta(primary_dir)
+    except ValueError:
+        meta = None
+    if meta:
+        raw_mission_id = meta.get("mission_id")
+        if raw_mission_id:
+            return str(raw_mission_id)
+    return f"legacy-{mission_slug}"
+
+
+def _resolve_status_surface_dir(primary_root: Path, mission_slug: str) -> Path:
+    """Resolve the canonical status-surface DIRECTORY via WP02's resolver.
+
+    Consumes :func:`resolve_status_surface` (IC-01) — the single status-surface
+    authority — and returns the containing directory (the resolver yields the
+    ``status.events.jsonl`` path). Never re-derives the surface (FR-003/#1737).
+    Falls back to the canonical primary dir when meta is absent/malformed so
+    bootstrap windows and ad-hoc fixtures keep resolving.
+    """
+    from specify_cli.coordination.surface_resolver import resolve_status_surface
+    from specify_cli.missions.feature_dir_resolver import (
+        candidate_feature_dir_for_mission,
+    )
+
+    try:
+        surface = resolve_status_surface(primary_root, mission_slug)
+    except (FileNotFoundError, ValueError):
+        fallback_dir: Path = candidate_feature_dir_for_mission(primary_root, mission_slug)
+        return fallback_dir
+    surface_parent: Path = surface.parent
+    return surface_parent
+
+
+def _assemble_workspace_fragment(
+    primary_root: Path,
+    *,
+    mission_slug: str,
+    mid8: str,
+    coordination_branch: str | None,
+    cwd: Path | None,
+) -> WorkspaceFragment:
+    """Assemble the WP05-owned WorkspaceFragment (IC-04 / C-005).
+
+    ``primary_root`` is the canonical main-checkout root produced by the
+    **single** worktree-pointer parser
+    (:func:`specify_cli.core.paths.resolve_canonical_root`, which
+    :func:`get_main_repo_root` feeds — IC-04). It is never the lane-supplied
+    root, so it is CWD-invariant (C-CTX-2 / WP02 carry-forward): the parity
+    ratchet asserts that both the primary-CWD and lane-CWD arms resolve the
+    same ``primary_root``.
+
+    ``coord_worktree`` is the per-mission coordination worktree path when the
+    mission declares a coordination branch, else ``None`` under flattened
+    topology (C-001). It is derived from the canonical primary root, not the
+    current CWD, so it too is CWD-invariant. ``current_cwd`` records where the
+    command actually runs; ``allowed_command_cwd`` is the primary-resolving
+    guard CWD for surfaces that must run git ops against the main checkout.
+    ``execution_workspace`` (the lane worktree for implement/review) is attached
+    later by the action-specific branch when a WP is resolved.
+    """
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    current_cwd = (cwd or primary_root).resolve()
+    coord_worktree: Path | None = None
+    if coordination_branch is not None:
+        coord_worktree = CoordinationWorkspace.worktree_path(
+            primary_root, mission_slug, mid8
+        )
+
+    return WorkspaceFragment(
+        primary_root=primary_root,
+        current_cwd=current_cwd,
+        coord_worktree=coord_worktree,
+        execution_workspace=None,
+        allowed_command_cwd=primary_root,
+    )
+
+
+def _assemble_core_fragments(
+    repo_root: Path,
+    *,
+    mission_slug: str,
+    target_branch: str,
+    cwd: Path | None,
+) -> tuple[IdentityFragment, BranchRefFragment, StatusSurfaceFragment, WorkspaceFragment]:
+    """Assemble the WP02/WP03/WP05-owned fragments of the op-composite (IC-02).
+
+    This is the single fragment-assembly path (C-CTX-1): the builder derives
+    each fragment's domain values exactly once and never lets a call site
+    recompute them.
+
+    * ``IdentityFragment`` — ``mid8`` single-derived as ``mission_id[:8]``.
+    * ``BranchRefFragment`` — ``target_branch`` carried (already resolved once by
+      the caller, FR-012); ``coordination_branch`` from meta (``None`` when
+      flattened, C-001); ``destination_ref`` a :class:`CommitTarget` whose
+      ``kind`` reflects coord-branch presence. The flattened-topology *kind*
+      collapse (``kind == FLATTENED``) is WP08's resolution (IC-12); WP03 only
+      stands up the CommitTarget value object with a coordination-vs-primary
+      kind.
+    * ``StatusSurfaceFragment`` — read/write dirs from WP02's
+      :func:`resolve_status_surface` (IC-01); collapse to one dir absent a coord
+      worktree.
+    * ``WorkspaceFragment`` — ``primary_root`` via the single worktree-pointer
+      parser (WP05 / IC-04 / C-005); CWD-invariant by construction.
+
+    The canonical *primary* root is resolved here (never the lane-supplied root)
+    so every fragment value is CWD-invariant (C-CTX-2 / WP02 carry-forward).
+    ArtifactPlacement / PromptSource fragments are intentionally NOT assembled
+    here — they land in WP04/06/07 (C-004 strangler ordering).
+    """
+    from specify_cli.core.paths import get_main_repo_root
+
+    primary_root = get_main_repo_root(repo_root)
+
+    mission_id = _resolve_mission_id(primary_root, mission_slug)
+    identity = IdentityFragment.derive(
+        mission_id=mission_id, mission_slug=mission_slug
+    )
+
+    coordination_branch = _resolve_coordination_branch(primary_root, mission_slug)
+    if coordination_branch is not None:
+        destination_ref = CommitTarget(
+            ref=coordination_branch, kind=CommitTargetKind.COORDINATION
+        )
+    else:
+        # WP08 / IC-12 directed out-of-map edit: no coordination branch ⇒ flattened
+        # topology (landing == coordination == target on the single branch, C-001 /
+        # C-PLACE-1). WP03 left this kind as PRIMARY pending the WP08 collapse; here
+        # we classify it FLATTENED so there is no primary↔coord split to reconcile.
+        destination_ref = CommitTarget(
+            ref=target_branch, kind=CommitTargetKind.FLATTENED
+        )
+    branch_ref = BranchRefFragment(
+        target_branch=target_branch,
+        coordination_branch=coordination_branch,
+        destination_ref=destination_ref,
+    )
+
+    surface_dir = _resolve_status_surface_dir(primary_root, mission_slug)
+    status_surface = StatusSurfaceFragment(
+        status_read_dir=surface_dir,
+        status_write_dir=surface_dir,
+    )
+
+    workspace = _assemble_workspace_fragment(
+        primary_root,
+        mission_slug=mission_slug,
+        mid8=identity.mid8,
+        coordination_branch=coordination_branch,
+        cwd=cwd,
+    )
+
+    return identity, branch_ref, status_surface, workspace
+
+
+def _assemble_artifact_placement_fragment(
+    branch_ref: BranchRefFragment,
+) -> ArtifactPlacementFragment:
+    """Assemble the WP06-owned ArtifactPlacementFragment (IC-05 / C-PLACE-1).
+
+    The placement ref is the **same** :class:`CommitTarget` carried on
+    :class:`BranchRefFragment.destination_ref` — it is not re-derived from
+    meta.json or git here (C-005: no parallel placement logic). This makes the
+    FR-004 invariant a *structural* identity: planning artifacts
+    (spec/plan/tasks/analysis-report) and status events resolve to literally the
+    same value object, so implement-claim (#1816) and record-analysis (#1814)
+    can never reconcile a primary↔coord split — under flattened topology the
+    shared ``destination_ref`` already collapses (``kind == FLATTENED``, WP08).
+
+    The fragment is CWD-invariant by construction because ``destination_ref`` is
+    assembled from the canonical primary root (C-CTX-2 / WP02 carry-forward).
+    """
+    return ArtifactPlacementFragment(placement_ref=branch_ref.destination_ref)
+
+
+def _assemble_prompt_source_fragment(feature_dir: Path) -> PromptSourceFragment:
+    """Assemble the WP04-owned PromptSourceFragment (IC-03 / T014, FR-012).
+
+    ``prompt_source_dir`` is routed through the resolved read path
+    (``<feature_dir>/tasks``, where the per-WP prompt files live), so
+    implement/review prompt files are located via the context rather than an
+    independent derivation. ``feature_dir`` is the output of the single read
+    primitive (``_read_path_resolver.resolve_mission_read_path``), so the
+    prompt-source dir is CWD-invariant by construction (C-CTX-2).
+
+    The read-path *directory* itself is carried on
+    :class:`StatusSurfaceFragment.status_read_dir` (attached by the core
+    assembler): IC-03 folds the duplicate read-path resolver into the one read
+    surface, and that surface is the status read dir. WP04 does not attach a
+    :class:`WorkspaceFragment` — ``primary_root`` and the single worktree-pointer
+    parser land in WP05 (IC-04, C-004 strangler ordering).
+    """
+    return PromptSourceFragment(prompt_source_dir=feature_dir / "tasks")
+
+
 def resolve_action_context(
     repo_root: Path,
     *,
@@ -292,7 +548,26 @@ def resolve_action_context(
     from specify_cli.workspace.context import resolve_workspace_for_wp
 
     mission_slug, feature_dir = _resolve_mission_slug(repo_root, feature=feature, cwd=cwd, env=env)
+    # FR-012 / C-CTX-3: ``target_branch`` is resolved exactly once here and
+    # threaded onto both the flat substrate field and the BranchRefFragment; no
+    # downstream surface re-derives it.
     target_branch = get_feature_target_branch(repo_root, mission_slug)
+
+    identity, branch_ref, status_surface, workspace = _assemble_core_fragments(
+        repo_root,
+        mission_slug=mission_slug,
+        target_branch=target_branch,
+        cwd=cwd,
+    )
+    # IC-03 (WP04 / T014): route the prompt-source dir through the single read
+    # primitive's resolved ``feature_dir`` so consumers never re-derive it
+    # (FR-012). The read-path *directory* is carried on
+    # ``status_surface.status_read_dir`` (the one read surface, C-005).
+    prompt_source = _assemble_prompt_source_fragment(feature_dir)
+    # IC-05 (WP06 / T019): the artifact-placement ref is the SAME CommitTarget
+    # status events resolve to (C-PLACE-1) — assembled from ``branch_ref`` so no
+    # surface re-derives a parallel primary/coord placement (C-005).
+    artifact_placement = _assemble_artifact_placement_fragment(branch_ref)
 
     context = ExecutionContext(
         action=action,
@@ -301,9 +576,27 @@ def resolve_action_context(
         target_branch=target_branch,
         detection_method="explicit",
         commands=_tasks_commands(mission_slug),
+        identity=identity,
+        branch_ref=branch_ref,
+        status_surface=status_surface,
+        workspace=workspace,
+        artifact_placement=artifact_placement,
+        prompt_source=prompt_source,
     )
 
-    if action in {"tasks", "tasks_outline", "tasks_packages", "tasks_finalize", "accept"}:
+    if action in {
+        "specify",
+        "plan",
+        "analyze",
+        "tasks",
+        "tasks_outline",
+        "tasks_packages",
+        "tasks_finalize",
+        "accept",
+        "status",
+    }:
+        # Mission-level lifecycle actions (planning/analysis/status) resolve the
+        # mission context without a work package — FR-011 full-lifecycle parity.
         return context
 
     normalized_wp_id = _resolve_wp_id(action, feature_dir, wp_id)

@@ -1,33 +1,23 @@
-"""Feature directory resolver backed by the canonical action context."""
+"""Feature directory resolver backed by the canonical action context.
+
+C-004 / C-005 strangler note: ``candidate_feature_dir_for_mission`` no longer
+carries its own coord-vs-primary logic. The canonical implementation lives in
+:mod:`specify_cli.missions._read_path_resolver` (the ONE read primitive). This
+module re-exports it so the 30+ historical import sites keep working unchanged
+until each is converted to consume the resolved context directly (later WPs).
+"""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
-
-
-def candidate_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:
-    """Return the topology-aware mission-dir candidate without requiring it to exist."""
-    from specify_cli.coordination.workspace import CoordinationWorkspace
-    from specify_cli.lanes.branch_naming import mid8_from_slug
-    from specify_cli.missions._read_path_resolver import _compose_mission_dir
-
-    mid8 = mid8_from_slug(mission_slug)
-    mission_dir_name: str = _compose_mission_dir(mission_slug, mid8)
-    primary_candidate: Path = repo_root / KITTY_SPECS_DIR / mission_dir_name
-    coord_candidate: Path | None = None
-    if mid8:
-        coord_root: Path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
-        coord_candidate = coord_root / KITTY_SPECS_DIR / mission_dir_name
-        if coord_candidate.exists() and (coord_candidate / "meta.json").exists():
-            return coord_candidate
-    if primary_candidate.exists():
-        return primary_candidate
-    if coord_candidate is not None and coord_candidate.exists():
-        return coord_candidate
-    return primary_candidate
+# Re-export the canonical read primitive (C-005: one resolver). Folding the
+# duplicate here into ``_read_path_resolver`` means a ``--mission <mid8>`` handle
+# now resolves identically to the full slug for every caller (F-001/F-003/F-004).
+from specify_cli.missions._read_path_resolver import (
+    candidate_feature_dir_for_mission as candidate_feature_dir_for_mission,
+)
 
 
 def primary_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:

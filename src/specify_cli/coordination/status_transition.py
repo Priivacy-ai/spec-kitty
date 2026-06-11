@@ -103,8 +103,115 @@ def _transaction_topology_available(identity: _TransactionIdentity, mission_slug
     )
 
 
+_WORKTREES_DIR_NAME = ".worktrees"
+
+
 def _is_coordination_feature_dir(feature_dir: Path) -> bool:
-    return ".worktrees" in feature_dir.parts
+    return _WORKTREES_DIR_NAME in feature_dir.parts
+
+
+def _is_coord_worktree_feature_dir(feature_dir: Path) -> bool:
+    """Return True only for paths inside a coordination (``-coord``) worktree.
+
+    Distinguishes a coordination worktree (authoritative status surface) from a
+    lane worktree (sparse-excluded, never a valid status anchor).
+    """
+    return any(
+        part == _WORKTREES_DIR_NAME for part in feature_dir.parts
+    ) and any(
+        ancestor.parent.name == _WORKTREES_DIR_NAME and ancestor.name.endswith("-coord")
+        for ancestor in (feature_dir, *feature_dir.parents)
+    )
+
+
+def _canonical_repo_root(feature_dir: Path, repo_root: Path) -> Path:
+    """Return the canonical (main-checkout) repo root for the status anchor.
+
+    The CWD-invariant primary feature-dir anchor must be composed from the
+    *main-checkout* repo root; deriving it from a lane-worktree root would
+    anchor status on a lane-local (sparse-excluded) surface. We therefore
+    canonicalize the root via the single worktree-pointer resolver. Coordination
+    worktree roots are returned as-is (they already are the authoritative
+    surface for their mission). Falls back to the supplied root when no
+    enclosing git repo is found (ad-hoc test fixtures built outside a worktree).
+    """
+    if _is_coordination_feature_dir(feature_dir):
+        return repo_root
+
+    from specify_cli.workspace.root_resolver import (  # noqa: PLC0415
+        WorkspaceRootNotFound,
+        resolve_canonical_root,
+    )
+
+    try:
+        canonical: Path = resolve_canonical_root(feature_dir)
+    except WorkspaceRootNotFound:
+        return repo_root
+    return canonical
+
+
+def _canonical_primary_feature_dir(
+    repo_root: Path, mission_slug: str, fallback: Path
+) -> Path:
+    """Resolve the CWD-invariant primary feature-dir anchor via the facade.
+
+    Consumes the single canonical authority (``candidate_feature_dir_for_mission``
+    — the coord-aware resolver that ``resolve_status_surface`` / ``MissionStatus``
+    are built on) so the primary anchor is identical whether the request
+    originates from a sparse lane worktree or the primary checkout. This is the
+    #1737 / F-007 root fix: the transaction-identity anchor no longer re-derives
+    where status lives from a CWD-dependent path, so an in-progress WP can no
+    longer be misread as ``genesis`` from a lane worktree.
+
+    Coordination topology resolution downstream
+    (``_read_contract_from_transaction_target``) still derives the coord path
+    from this anchor + ``meta.json``; we keep the anchor on the canonical primary
+    dir so that meta loading and coord-ref derivation remain intact (C-004).
+
+    Returns ``fallback`` (the canonicalized request dir) when no canonical
+    surface can be resolved — e.g. ad-hoc test fixtures or bootstrap windows
+    where ``meta.json`` is not yet present.
+    """
+    from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415
+        resolve_status_surface,
+    )
+
+    # resolve_status_surface returns the coord surface when a coord worktree is
+    # materialized; for the primary anchor we want the canonical primary dir.
+    # candidate_feature_dir_for_mission already returns the coord dir only when
+    # that worktree exists on disk, otherwise the primary candidate — exactly
+    # the anchor semantics the existing topology logic expects.
+    from specify_cli.missions.feature_dir_resolver import (  # noqa: PLC0415
+        candidate_feature_dir_for_mission,
+    )
+
+    def _fallback() -> Path:
+        # The request-derived fallback is only safe when it is the canonical
+        # coord surface or a non-worktree primary path. A *lane* ``.worktrees``
+        # path is a sparse-excluded surface that would both misread status and
+        # trip the primary-checkout read contract, so anchor on the canonical
+        # primary candidate instead (fail to the authority, never to the lane).
+        if _is_coord_worktree_feature_dir(fallback):
+            return fallback
+        if _WORKTREES_DIR_NAME in fallback.parts:
+            anchor: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
+            return anchor
+        return fallback
+
+    try:
+        # Touch resolve_status_surface to keep the facade as the single
+        # authority for surface existence/validation (raises on malformed meta).
+        resolve_status_surface(repo_root, mission_slug)
+    except FileNotFoundError:
+        # No meta.json at the canonical location: degrade to the request dir so
+        # ad-hoc fixtures and the create→first-write window keep working.
+        return _fallback()
+    except ValueError:
+        # Malformed meta — surface the canonical anchor anyway; downstream meta
+        # loading will report the same condition consistently.
+        pass
+    canonical_anchor: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    return canonical_anchor
 
 
 def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
@@ -112,11 +219,20 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
     if raw_feature_dir is None:
         raise TypeError("transactional status emit requires feature_dir/mission_dir")
 
-    feature_dir = canonicalize_feature_dir(raw_feature_dir)
-    repo_root = _repo_root_for_feature(feature_dir, request.repo_root)
     mission_slug = request.mission_slug or request._legacy_mission_slug
     if mission_slug is None:
         raise TypeError("transactional status emit requires mission_slug")
+
+    # #1737 / F-007: anchor the transaction identity on the CWD-invariant
+    # canonical primary feature dir resolved through the facade, instead of
+    # trusting the (CWD-dependent, existence-gated) canonicalize redirect alone.
+    canonical_feature_dir = canonicalize_feature_dir(raw_feature_dir)
+    interim_repo_root = _repo_root_for_feature(canonical_feature_dir, request.repo_root)
+    canonical_repo_root = _canonical_repo_root(canonical_feature_dir, interim_repo_root)
+    feature_dir = _canonical_primary_feature_dir(
+        canonical_repo_root, mission_slug, fallback=canonical_feature_dir
+    )
+    repo_root = request.repo_root or canonical_repo_root
 
     meta = load_meta(feature_dir)
 

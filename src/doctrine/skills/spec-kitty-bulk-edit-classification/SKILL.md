@@ -182,6 +182,44 @@ This is a starting point to propose to the user. Tune per-project.
 | `tests_fixtures` | `rename` | Tests should reflect new terminology |
 | `logs_telemetry` | `do_not_change` | Dashboards and alerts depend on exact label strings |
 
+### Multi-path structural moves (the `moves:` block)
+
+The eight categories classify a single-term rename. They cannot express a
+**structural relocation** — moving one or more source paths to a single
+destination (`src/legacy/auth/*` → `src/auth/`). For those, add an optional
+top-level `moves:` block alongside the categories:
+
+```yaml
+moves:
+  - from:
+      - src/legacy/auth/login.py
+      - src/legacy/auth/session.py
+    to: src/auth
+    reason: "Consolidate auth modules under the canonical package"
+  - from:
+      - docs/old-guide.md
+    to: docs/guides/getting-started.md
+    reason: "Relocate and rename the onboarding guide"
+```
+
+Rules for `moves:`:
+
+- Each entry has a non-empty `from` list (one or more source paths) and a
+  single `to` destination. `reason` is optional but recommended.
+- Source and destination paths may be exact paths, globs (`*`/`**`), or a
+  directory prefix (`to: src/auth` covers `src/auth/login.py`).
+- A path that participates in a declared move is treated as a
+  reviewer-approved relocation. At review time it is **exempt** from the
+  `do_not_change` path heuristic — moving it is the whole point.
+- The block is **optional**. A map with only the eight categories and no
+  `moves:` validates and gates exactly as before — there is nothing new to
+  fill in unless your mission actually relocates paths.
+
+Use `moves:` when single-term renames cannot capture the change — for example
+when a paused restructure could only be described as path-to-path mappings.
+The categories still govern in-file string occurrences; `moves:` governs the
+relocation of whole paths.
+
 ### Interviewing the user
 
 The user knows the domain; you know the mechanics. For each category where the

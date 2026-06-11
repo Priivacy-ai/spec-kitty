@@ -43,6 +43,7 @@ __all__ = [
     "get_feature_artifacts",
     "get_workflow_status",
     "read_file_resilient",
+    "read_only_weighted_percentage",
     "resolve_feature_dir",
     "resolve_active_feature",
     "scan_all_features",
@@ -539,6 +540,63 @@ def _build_legacy_kanban_stats(tasks_dir: Path) -> dict[str, int]:
     return kanban_stats
 
 
+def read_only_weighted_percentage(feature_dir: Path) -> float | None:
+    """Return the weighted-progress percentage for ``feature_dir`` read-only.
+
+    WP11 / FR-014(a) / IC-12: the dashboard is a *viewer*. Computing progress
+    for a kanban request MUST NOT write tracked status (``status.json``) as a
+    side-effect — the writing ``materialize()`` clobbers tracked status during
+    git operations (#1789, the dashboard half). This helper reduces the event
+    log via the read-only ``materialize_snapshot`` and never writes.
+
+    The dashboard shares WP07's single git-op detection source
+    (``git_operation_in_progress``) rather than duplicating it (C-005): during
+    an active git op this path is *guaranteed* write-free, so the helper short-
+    circuits early with the same detection WP07's runtime writers consult. The
+    snapshot returns the exact reduced view ``materialize()`` would have written
+    (C-004 — rendered data is unchanged), only without the write.
+
+    Returns the rounded percentage, or ``None`` when progress is unavailable.
+    """
+    from specify_cli.status import compute_weighted_progress
+    from specify_cli.status import git_operation_in_progress
+    from specify_cli.status import materialize_snapshot
+
+    # Single-source git-op detection (C-005): the dashboard consumes WP07's
+    # shared helper rather than re-implementing marker probing. Reads here are
+    # always write-free (materialize_snapshot), so a git op never forces a
+    # different code path; we surface it for observability and to make the
+    # write-free-during-git-op contract explicit and testable (SC-6a).
+    repo_root = _resolve_checkout_root(feature_dir)
+    if repo_root is not None and git_operation_in_progress(repo_root):
+        logger.debug(
+            "Git operation in progress at '%s'; serving kanban for '%s' "
+            "read-only (no tracked status write).",
+            repo_root,
+            feature_dir.name,
+        )
+
+    snapshot = materialize_snapshot(feature_dir)
+    progress = compute_weighted_progress(snapshot)
+    return round(progress.percentage, 1)
+
+
+def _resolve_checkout_root(feature_dir: Path) -> Path | None:
+    """Return the checkout root (the dir holding ``.git``) for ``feature_dir``.
+
+    WP07's :func:`git_operation_in_progress` expects the checkout root (where
+    ``.git`` lives, file or directory), then internally resolves both the
+    per-worktree and shared common gitdirs. The dashboard receives a mission
+    ``feature_dir`` (``<root>/kitty-specs/<slug>``), so we walk up to the
+    nearest ancestor that owns a ``.git`` entry. Returns ``None`` when no
+    enclosing checkout is found (conservative: callers then skip the probe).
+    """
+    for candidate in (feature_dir, *feature_dir.parents):
+        if (candidate / ".git").exists():
+            return candidate
+    return None
+
+
 def _build_event_log_kanban_stats(feature_dir: Path, tasks_dir: Path) -> dict[str, Any]:
     from specify_cli.status import CanonicalStatusNotFoundError
     from specify_cli.status import StoreError
@@ -551,12 +609,9 @@ def _build_event_log_kanban_stats(feature_dir: Path, tasks_dir: Path) -> dict[st
             kanban_stats["total"] += count
 
         try:
-            from specify_cli.status import compute_weighted_progress
-            from specify_cli.status import materialize
-
-            snap = materialize(feature_dir)
-            progress = compute_weighted_progress(snap)
-            kanban_stats["weighted_percentage"] = round(progress.percentage, 1)
+            weighted = read_only_weighted_percentage(feature_dir)
+            if weighted is not None:
+                kanban_stats["weighted_percentage"] = weighted
         except Exception:
             logger.debug(
                 "Could not compute weighted progress for '%s'",

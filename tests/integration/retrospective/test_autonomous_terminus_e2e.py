@@ -144,7 +144,7 @@ def test_autonomous_terminus_emits_correct_event_sequence(
     assert requested["actor"]["id"] == "next"
 
     # --- retrospective.yaml at canonical path ---
-    canonical = tmp_path / ".kittify" / "missions" / mission_id / "retrospective.yaml"
+    canonical = feature_dir / "retrospective.yaml"
     assert canonical.exists(), (
         f"retrospective.yaml not found at canonical path: {canonical}"
     )
@@ -234,7 +234,7 @@ def test_autonomous_terminus_proposal_events(
         facilitator_callback=facilitator,
     )
 
-    canonical = tmp_path / ".kittify" / "missions" / mission_id / "retrospective.yaml"
+    canonical = feature_dir / "retrospective.yaml"
     assert canonical.exists()
     loaded = read_record(canonical)
     assert loaded.status == "completed"

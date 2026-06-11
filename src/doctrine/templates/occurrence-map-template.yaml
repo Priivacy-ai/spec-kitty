@@ -36,3 +36,14 @@ exceptions:
   # - path: "**/migrations/*.py"
   #   action: do_not_change
   #   reason: "Historical migrations must not be edited"
+
+# moves:
+#   Optional multi-path structural-move block. Use ONLY when the change relocates
+#   whole paths (one or more `from` sources → a single `to` destination) — the
+#   eight categories above cannot express a structural move. A move path is a
+#   reviewer-approved relocation and is exempt from the do_not_change heuristic.
+#   - from:
+#       - src/legacy/auth/login.py
+#       - src/legacy/auth/session.py
+#     to: src/auth
+#     reason: "Consolidate auth modules under the canonical package"

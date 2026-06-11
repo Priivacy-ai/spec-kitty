@@ -28,6 +28,7 @@ from specify_cli.mission_metadata import resolve_mission_identity, set_vcs_lock
 from specify_cli.frontmatter import FrontmatterError, update_fields
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import protected_branches
+from mission_runtime import CommitTarget, CommitTargetKind
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
 from specify_cli.coordination.status_transition import emit_status_transition_transactional
@@ -432,6 +433,56 @@ def _status_paths_for_commit(
     return _exclude_coord_owned((e.path for e in entries), coord_branch_for_filter)
 
 
+def _resolve_placement_ref(
+    repo_root: Path, *, mission_slug: str, wp_id: str
+) -> CommitTarget | None:
+    """Resolve the context's artifact-placement ref (C-PLACE-1 / IC-05).
+
+    Routes through the single canonical resolver (``resolve_action_context``,
+    C-CTX-1) and returns ``context.artifact_placement.placement_ref`` — the ONE
+    :class:`CommitTarget` that planning artifacts AND status events resolve to.
+    On any resolution failure it returns ``None`` so the caller keeps the legacy
+    meta-derived placement path (C-004 strangler: never break the implement
+    lifecycle on a context-resolution edge case).
+    """
+    from mission_runtime import (
+        ActionContextError,
+        resolve_action_context,
+    )
+
+    try:
+        context = resolve_action_context(
+            repo_root,
+            action="implement",
+            feature=mission_slug,
+            wp_id=wp_id,
+        )
+    except ActionContextError:
+        return None
+    placement = context.artifact_placement
+    return placement.placement_ref if placement is not None else None
+
+
+def _placement_coord_filter(placement_ref: CommitTarget | None) -> str | None:
+    """Return the coord-owned-exclusion ref implied by the context placement.
+
+    WP06 / T019 / C-PLACE-1: the coord/flattened/primary decision is read from
+    the context's single ``placement_ref`` (the SAME CommitTarget status events
+    resolve to) instead of independent meta.json/git logic (C-005). Only a
+    genuine *coordination* topology owns the status files on a separate branch
+    and therefore excludes them from the primary-checkout commit; under
+    flattened topology (``kind == FLATTENED``) there is no primary↔coord split,
+    so the primary status files are NOT filtered out — fixing the #1816
+    implement-claim deadlock that arose from treating a flattened mission as
+    coord-split. Returns ``None`` for flattened/primary topologies.
+    """
+    if placement_ref is None:
+        return None
+    if placement_ref.kind is CommitTargetKind.COORDINATION:
+        return placement_ref.ref
+    return None
+
+
 def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestration helper; unrelated to issue #1386
     repo_root: Path,
     feature_dir: Path,
@@ -440,8 +491,17 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     planning_branch: str,
     *,
     auto_commit: bool,
+    placement_ref: CommitTarget | None = None,
 ) -> None:
-    """Ensure planning artifacts are committed on the feature planning branch."""
+    """Ensure planning artifacts are committed on the feature planning branch.
+
+    ``placement_ref`` (WP06 / T019) is the context's resolved
+    :class:`CommitTarget` — the ONE ref planning artifacts AND status events
+    resolve to (C-PLACE-1). When supplied it drives the coord/flattened/primary
+    placement decision so implement-claim never reconciles a primary↔coord
+    split (#1816). When ``None`` (callers not yet threading the context, C-004
+    strangler) the legacy meta-derived path is used unchanged.
+    """
     current_branch = _git_stdout(repo_root, ["rev-parse", "--abbrev-ref", "HEAD"])
     entries = _feature_dir_status_entries(repo_root, feature_dir)
 
@@ -467,9 +527,16 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
         )
         raise typer.Exit(1)
 
-    coord_branch_for_filter = _resolve_bookkeeping_transaction_identifiers(
-        feature_dir, mission_slug
-    )[0]
+    # WP06 / T019 / C-PLACE-1: when the context supplies a placement ref, the
+    # coord/flattened/primary decision comes from that single CommitTarget — no
+    # independent meta-derived coord logic (C-005). Otherwise fall back to the
+    # legacy meta-derived coord branch (C-004 strangler).
+    if placement_ref is not None:
+        coord_branch_for_filter = _placement_coord_filter(placement_ref)
+    else:
+        coord_branch_for_filter = _resolve_bookkeeping_transaction_identifiers(
+            feature_dir, mission_slug
+        )[0]
 
     status_paths = _status_paths_for_commit(entries, coord_branch_for_filter)
     files_to_commit = list(status_paths)
@@ -523,6 +590,16 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
         effective_mission_id,
         effective_mid8,
     ) = _resolve_bookkeeping_transaction_identifiers(feature_dir, mission_slug)
+
+    # WP06 / T019 / C-PLACE-1: the placement destination is the context's single
+    # ``placement_ref`` when threaded — one ref for planning artifacts AND status
+    # events. Under flattened topology its ``kind`` is FLATTENED (no coord
+    # branch), so ``coord_branch`` collapses to ``None`` and the commit lands on
+    # ``planning_branch`` (== target == coordination); under coordination
+    # topology it is the coord ref. Identity (``mission_id`` / ``mid8``) is
+    # unaffected — only the placement decision moves to the context (C-005).
+    if placement_ref is not None:
+        coord_branch = _placement_coord_filter(placement_ref)
 
     # Route ALL planning-artifact commits through BookkeepingTransaction.
     # The transaction has a built-in legacy fallback (see
@@ -836,6 +913,16 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                 "all dependencies must be approved or done before implementation can start"
             )
 
+        # WP06 / T019 / C-PLACE-1: resolve the single artifact-placement ref from
+        # the canonical context so implement-claim never reconciles a
+        # primary↔coord planning-artifact split (#1816). The placement ref is the
+        # SAME CommitTarget status events resolve to. Resolution is best-effort:
+        # on a context-resolution error we pass ``None`` and the helper keeps the
+        # legacy meta-derived path (C-004 strangler — never break the lifecycle).
+        _placement_ref = _resolve_placement_ref(
+            repo_root, mission_slug=mission_slug, wp_id=wp_id
+        )
+
         _ensure_planning_artifacts_committed_git(
             repo_root=repo_root,
             feature_dir=feature_dir,
@@ -843,6 +930,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
             wp_id=wp_id,
             planning_branch=planning_branch,
             auto_commit=bool(auto_commit),
+            placement_ref=_placement_ref,
         )
 
         # Bulk edit occurrence classification gate (FR-006)

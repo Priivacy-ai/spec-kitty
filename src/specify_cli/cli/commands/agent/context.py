@@ -30,33 +30,61 @@ console = Console()
 
 def _find_feature_directory(
     repo_root: Path,
-    cwd: Path,
+    cwd: Path,  # noqa: ARG001 -- kept for signature compatibility
     explicit_mission: str | None = None,
     explicit_feature: str | None = None,
 ) -> Path:
-    """Find the mission directory from an explicit mission slug.
+    """Find the mission directory from an explicit mission handle.
 
-    Uses the canonical mission resolver which handles ambiguous numeric-prefix
-    handles, mid8 prefixes, and full ULID forms.
+    Routes through the single read primitive
+    (:func:`specify_cli.missions._read_path_resolver.resolve_mission_read_path`),
+    so a ``--mission <mid8>`` handle resolves to the same directory as the full
+    slug (F-001/F-003/F-004). There is **no silent fallback** to a
+    wrong-but-plausible primary-checkout path: an unresolvable handle raises a
+    structured :class:`ActionContextError` (``FEATURE_CONTEXT_UNRESOLVED``) and
+    an ambiguous handle raises ``MISSION_AMBIGUOUS_SELECTOR`` (C-CTX-4 / C-009).
 
     Args:
         repo_root: Repository root path
         cwd: Current working directory (unused — kept for signature compatibility)
-        explicit_mission: Mission slug provided explicitly (required)
-        explicit_feature: Mission slug provided via hidden --feature alias.
+        explicit_mission: Mission handle provided explicitly (required)
+        explicit_feature: Mission handle provided via hidden --feature alias.
 
     Returns:
         Path to mission directory
 
     Raises:
-        ValueError: If mission slug is not provided or directory doesn't exist.
+        ActionContextError: If no handle is provided, the handle is ambiguous, or
+            it resolves to no existing mission directory (structured error).
     """
+    from specify_cli.lanes.branch_naming import mid8_from_slug
+    from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
+        StatusReadPathNotFound,
+        resolve_mission_read_path,
+    )
+
     raw_handle = explicit_mission or explicit_feature
     if not raw_handle:
-        raise ValueError("--mission <slug> is required")
-    # resolve_mission_handle calls sys.exit(2) on error; on success returns ResolvedMission.
-    resolved = resolve_mission_handle(raw_handle, repo_root)
-    return resolved.feature_dir
+        raise ActionContextError(
+            "FEATURE_CONTEXT_UNRESOLVED", "--mission <slug> is required"
+        )
+    try:
+        feature_dir = resolve_mission_read_path(
+            repo_root,
+            raw_handle,
+            mid8_from_slug(raw_handle),
+            require_exists=True,
+        )
+    except MissionSelectorAmbiguous as exc:
+        raise ActionContextError(exc.error_code, str(exc)) from exc
+    except StatusReadPathNotFound as exc:
+        raise ActionContextError(
+            "FEATURE_CONTEXT_UNRESOLVED",
+            f"Mission not found for handle {raw_handle!r}; checked the "
+            f"coordination worktree and the primary checkout. {exc}",
+        ) from exc
+    return feature_dir
 
 
 @app.command(name="resolve")

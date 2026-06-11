@@ -198,12 +198,24 @@ def plan(
             # otherwise we fall back to detecting the slug from the working tree.
             _mission_slug = resolved_mission
             if _mission_slug is None:
+                # Detect the mission slug from the working tree for the optional
+                # plan interview. Route through the read-path-backed resolver
+                # (context._find_feature_directory) rather than the legacy
+                # silent-fallback helper: an unresolvable/ambiguous handle raises
+                # a structured error (C-CTX-4) which the surrounding suppress
+                # turns into "skip the interview" — never a wrong-but-plausible
+                # slug. There is no explicit handle here, so detection is a
+                # best-effort no-op until the operator passes --mission.
                 with contextlib.suppress(Exception):
-                    from specify_cli.cli.commands.agent.mission import (
+                    from specify_cli.cli.commands.agent.context import (
                         _find_feature_directory,
                     )
 
-                    _fd = _find_feature_directory(repo_root, pathlib.Path.cwd())
+                    _fd = _find_feature_directory(
+                        repo_root,
+                        pathlib.Path.cwd(),
+                        explicit_mission=resolved_mission,
+                    )
                     _mission_slug = _fd.name
 
             if _mission_slug is not None:

@@ -21,6 +21,10 @@ from typing import Optional, Tuple
 import psutil
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.sync.daemon import (
+    _fetch_health_payload as _fetch_localhost_json_payload,
+    _is_process_alive as _canonical_is_process_alive,
+)
 
 from .server import find_free_port, start_dashboard
 
@@ -121,8 +125,10 @@ def _write_dashboard_file(
 def _is_process_alive(pid: int) -> bool:
     """Check if a process with the given PID is alive.
 
-    Uses psutil.Process() which works across all platforms (Linux, macOS, Windows).
-    This replaces the POSIX-only os.kill(pid, 0) approach.
+    Canonical implementation lives in ``specify_cli.sync.daemon`` (FR-015 /
+    SC-7: one liveness probe across ``sync/`` + ``dashboard/``). This wrapper
+    preserves the dashboard's existing import surface while delegating to the
+    single source of truth.
 
     Args:
         pid: Process ID to check
@@ -130,19 +136,7 @@ def _is_process_alive(pid: int) -> bool:
     Returns:
         True if process exists and is running, False otherwise
     """
-    try:
-        proc = psutil.Process(pid)
-        return proc.is_running()
-    except psutil.NoSuchProcess:
-        # Process doesn't exist
-        return False
-    except psutil.AccessDenied:
-        # Process exists but we don't have permission to access it
-        # Consider this as "alive" since process exists
-        return True
-    except Exception:
-        # Unexpected error, assume process dead
-        return False
+    return _canonical_is_process_alive(pid)
 
 
 def _is_spec_kitty_dashboard(port: int, timeout: float = 0.3) -> bool:
@@ -164,21 +158,15 @@ def _is_spec_kitty_dashboard(port: int, timeout: float = 0.3) -> bool:
 
 
 def _fetch_dashboard_json_payload(url: str, timeout: float = 0.5) -> dict | None:
-    """Fetch and decode a JSON dashboard payload, returning None on failure."""
-    try:
-        with urllib.request.urlopen(url, timeout=timeout) as response:  # nosec B310 — URL is always localhost daemon health endpoint
-            if response.status != 200:
-                return None
-            payload = response.read()
-    except Exception:
-        return None
+    """Fetch and decode a JSON dashboard payload, returning None on failure.
 
-    try:
-        data = json.loads(payload.decode('utf-8'))
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        return None
-
-    return data if isinstance(data, dict) else None
+    Delegates the raw localhost GET + JSON decode to the canonical
+    ``specify_cli.sync.daemon._fetch_health_payload`` (FR-015 / SC-7: one
+    localhost-probe implementation across ``sync/`` + ``dashboard/``). The
+    dashboard-specific contract checks (``project_path``/``features``) live in
+    the callers, not in the transport helper.
+    """
+    return _fetch_localhost_json_payload(url, timeout=timeout)
 
 
 def _fetch_dashboard_features_payload(port: int, timeout: float = 0.5) -> dict | None:

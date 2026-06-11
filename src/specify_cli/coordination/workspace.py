@@ -32,7 +32,32 @@ real per-worktree gitdir path via
 from __future__ import annotations
 
 import subprocess
+import threading
 from pathlib import Path
+
+
+# #1357: serialize concurrent ``CoordinationWorkspace.resolve`` calls so two
+# callers cannot race the existence-check / ``git worktree add`` and materialize
+# divergent surfaces. The lock is keyed by the resolved worktree path so resolves
+# for *different* missions never contend, keeping the critical section minimal and
+# deadlock-free (each ``resolve`` acquires exactly one lock and never nests).
+_RESOLVE_LOCKS: dict[Path, threading.Lock] = {}
+_RESOLVE_LOCKS_GUARD = threading.Lock()
+
+
+def _resolve_lock_for(path: Path) -> threading.Lock:
+    """Return the per-worktree-path lock, creating it on first use.
+
+    The registry guard is held only for the dict lookup/insert, never across the
+    git operations themselves, so distinct-mission resolves stay concurrent.
+    """
+    key = path.resolve(strict=False)
+    with _RESOLVE_LOCKS_GUARD:
+        lock = _RESOLVE_LOCKS.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _RESOLVE_LOCKS[key] = lock
+        return lock
 
 
 class CoordinationWorkspaceBranchMismatch(Exception):
@@ -148,37 +173,42 @@ class CoordinationWorkspace:
         path = cls.worktree_path(repo_root, mission_slug, mid8)
         branch = cls.branch_name(mission_slug, mid8)
 
-        if path.exists():
-            # Verify HEAD points at the expected branch.
-            actual = subprocess.check_output(
-                ["git", "-C", str(path), "symbolic-ref", "HEAD"],
-                text=True,
-            ).strip()
-            # Canonical comparison: normalize via removeprefix.
-            # Belt-and-suspenders fallback retained for transitional safety.
-            if (
-                _normalize_ref(actual) != branch
-                and actual != f"refs/heads/{branch}"
-                and actual != branch
-            ):
-                raise CoordinationWorkspaceBranchMismatch(
-                    worktree_path=path, expected_ref=branch, actual_ref=actual,
-                )
-            return path
+        # #1357: serialize the check-then-create against this worktree path so
+        # concurrent resolves cannot both pass the ``not path.exists()`` guard and
+        # race ``git worktree add`` into divergent surfaces. The critical section
+        # holds exactly one path-keyed lock and never nests, so it is deadlock-free.
+        with _resolve_lock_for(path):
+            if path.exists():
+                # Verify HEAD points at the expected branch.
+                actual = subprocess.check_output(
+                    ["git", "-C", str(path), "symbolic-ref", "HEAD"],
+                    text=True,
+                ).strip()
+                # Canonical comparison: normalize via removeprefix.
+                # Belt-and-suspenders fallback retained for transitional safety.
+                if (
+                    _normalize_ref(actual) != branch
+                    and actual != f"refs/heads/{branch}"
+                    and actual != branch
+                ):
+                    raise CoordinationWorkspaceBranchMismatch(
+                        worktree_path=path, expected_ref=branch, actual_ref=actual,
+                    )
+                return path
 
-        # Create the worktree pointing at the existing branch.
-        # The caller is responsible for ensuring the branch already
-        # exists (WP03's mission create does this).
-        path.parent.mkdir(parents=True, exist_ok=True)
-        if _has_stale_worktree_registration(repo_root, path):
-            _remove_worktree_registration(repo_root, path)
-        subprocess.run(
-            ["git", "-C", str(repo_root), "worktree", "add", str(path), branch],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        return path
+            # Create the worktree pointing at the existing branch.
+            # The caller is responsible for ensuring the branch already
+            # exists (WP03's mission create does this).
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if _has_stale_worktree_registration(repo_root, path):
+                _remove_worktree_registration(repo_root, path)
+            subprocess.run(
+                ["git", "-C", str(repo_root), "worktree", "add", str(path), branch],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            return path
 
     @classmethod
     def teardown(

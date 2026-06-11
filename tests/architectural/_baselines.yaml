@@ -158,9 +158,8 @@ test_no_dead_symbols:
   # charter.template_catalog facade landed (the 4 doctrine.template_catalog
   # accessors remain genuinely unimported). Tracker: WP06/T021 (DIRECTIVE_013).
   category_c_org_doctrine_closeout: 15
-  # justification: 5 pre-existing upstream specify_cli.coordination.status_service
-  # public symbols (landed on upstream/main via #1614, no live caller there);
-  # surfaced in the close-out branch via the upstream rebase. NOT this mission's
-  # code; allowlisted-with-tracker so the gate is GREEN. Tracker (DIRECTIVE_013):
-  # Priivacy-ai/spec-kitty#1622 (wire or prune; then shrink this baseline).
-  category_c_upstream_status_service: 5
+  # category_c_upstream_status_service removed by execution-context-unification
+  # WP09 (#1622/#391): the 2 truly-dead functions (append_event_log_batch,
+  # read_wp_lane_actor) were deleted and the 3 internally-used types
+  # (EventLogWriteTarget, StatusContractError, StatusReadSource) were
+  # de-exported from status_service.__all__, so the baseline is now 0.

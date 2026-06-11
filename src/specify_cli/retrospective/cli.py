@@ -2,7 +2,7 @@
 
 Command surface: ``spec-kitty retrospect summary``
 
-Reads the project's mission corpus from .kittify/missions/*/retrospective.yaml
+Reads the project's mission corpus from kitty-specs/*/retrospective.yaml
 and kitty-specs/*/status.events.jsonl and emits a cross-mission summary.
 No mutation is performed.
 
@@ -35,7 +35,7 @@ app = typer.Typer(
     name="retrospect",
     help=(
         "Retrospective operator surface.\n\n"
-        "Reads .kittify/missions/*/retrospective.yaml and "
+        "Reads kitty-specs/*/retrospective.yaml and "
         "kitty-specs/*/status.events.jsonl. "
         "No mutation is performed."
     ),
@@ -186,7 +186,7 @@ def _render_rich(
     "summary",
     help=(
         "Cross-mission retrospective summary.\n\n"
-        "Reads .kittify/missions/*/retrospective.yaml and "
+        "Reads kitty-specs/*/retrospective.yaml and "
         "kitty-specs/*/status.events.jsonl to produce a cross-mission view.\n\n"
         "No mutation is performed."
     ),
@@ -225,7 +225,7 @@ def summary_cmd(
 ) -> None:
     """Cross-mission retrospective summary.
 
-    Reads .kittify/missions/*/retrospective.yaml and
+    Reads kitty-specs/*/retrospective.yaml and
     kitty-specs/*/status.events.jsonl.
     No mutation is performed.
     """

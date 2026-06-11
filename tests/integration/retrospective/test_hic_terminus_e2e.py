@@ -115,7 +115,7 @@ def test_hic_run_emits_correct_event_sequence(
     assert requested["actor"]["id"] == HUMAN_ACTOR.id
 
     # retrospective.yaml must exist with status=completed.
-    canonical = tmp_path / ".kittify" / "missions" / mission_id / "retrospective.yaml"
+    canonical = feature_dir / "retrospective.yaml"
     assert canonical.exists(), f"retrospective.yaml not found: {canonical}"
     loaded = read_record(canonical)
     assert loaded.status == "completed"
@@ -171,7 +171,7 @@ def test_hic_skip_emits_skipped_event_and_persists_record(
     assert skipped["payload"]["skip_reason"] == skip_reason
 
     # retrospective.yaml must exist with status=skipped and matching reason.
-    canonical = tmp_path / ".kittify" / "missions" / mission_id / "retrospective.yaml"
+    canonical = feature_dir / "retrospective.yaml"
     assert canonical.exists(), f"retrospective.yaml not found: {canonical}"
     loaded = read_record(canonical)
     assert loaded.status == "skipped"
