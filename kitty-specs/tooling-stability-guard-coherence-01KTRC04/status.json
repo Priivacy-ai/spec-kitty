@@ -1,0 +1,91 @@
+{
+  "event_count": 60,
+  "last_event_id": "01KTSNYWCTEZGPE81K06VHRZSC",
+  "materialized_at": "2026-06-10T21:10:37.210946+00:00",
+  "mission_number": "",
+  "mission_slug": "tooling-stability-guard-coherence-01KTRC04",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 10,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KTS23VDMMHHCPTG99TSG7ZNG",
+      "last_transition_at": "2026-06-10T15:23:48.532579+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KTS3B0K8AQMD68MACJ36JKMM",
+      "last_transition_at": "2026-06-10T15:45:11.784552+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KTSN1AP9T29BA4A0HRSX4BBT",
+      "last_transition_at": "2026-06-10T20:54:28.809985+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KTSKP9X8KVX1HTPYGJYF6EN0",
+      "last_transition_at": "2026-06-10T20:30:58.984834+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KTSN20RMRQYJQWFH9CJP33RW",
+      "last_transition_at": "2026-06-10T20:54:51.412280+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KTS28SRSWX9Z40PMTMZEPS3S",
+      "last_transition_at": "2026-06-10T15:26:30.681597+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KTS2A0YCKQDZ2VBHG6Y7A383",
+      "last_transition_at": "2026-06-10T15:27:10.796697+00:00"
+    },
+    "WP08": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KTS26ECH23BPPHNA72GBF3PT",
+      "last_transition_at": "2026-06-10T15:25:13.489264+00:00"
+    },
+    "WP09": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KTS2MHX4PAC3S9V074JQM7AW",
+      "last_transition_at": "2026-06-10T15:32:55.844867+00:00"
+    },
+    "WP10": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KTSNYWCTEZGPE81K06VHRZSC",
+      "last_transition_at": "2026-06-10T21:10:37.210946+00:00"
+    }
+  }
+}

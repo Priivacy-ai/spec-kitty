@@ -1,0 +1,101 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-06-10T10:03:33.849276Z",
+      "decision_id": "01KTRFSF2S8CAPX6YD6QYF3MM6",
+      "final_answer": "Shared Kernel policy module (operator choice after trade-off review): safe_commit in git/commit_helpers.py remains the single entry point (mechanism, no caller import churn); the protection POLICY is extracted to a small owned SK module (e.g. core/commit_guard.py) consuming CommitTarget + protection state + caller capability \u2014 mechanism/policy separated, independently tested, doc-17 ownership settled.",
+      "input_key": "guard_home",
+      "mission_id": "01KTRC044W67V3KC9H7TBFSY7B",
+      "mission_slug": "01KTRC04",
+      "opened_by": "cli",
+      "options": [
+        "shared-kernel",
+        "execution-domain",
+        "keep-in-git-module"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Which bounded-context home for the consolidated commit-guard entry point?",
+      "rationale": null,
+      "resolved_at": "2026-06-10T10:08:38.812724Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.guard-home",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-06-10T10:03:34.687813Z",
+      "decision_id": "01KTRFSFWZWYRDWM3TF72AY8HB",
+      "final_answer": "Provenanced[T] wrapper (operator choice): typed generic carrier holding model + provenance; provenance never pollutes the domain model. Accept the 3-layer consumer ripple \u2014 inventory getattr(node,'provenance',None) consumers first; migration is part of the AC.",
+      "input_key": "provenance_shape",
+      "mission_id": "01KTRC044W67V3KC9H7TBFSY7B",
+      "mission_slug": "01KTRC04",
+      "opened_by": "cli",
+      "options": [
+        "declared-optional-field",
+        "provenanced-wrapper"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "FR-007: typed Provenanced[T] wrapper vs declared optional field on DRG models?",
+      "rationale": null,
+      "resolved_at": "2026-06-10T10:06:57.664007Z",
+      "resolved_by": null,
+      "slot_key": "plan.drg.provenance-shape",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-06-10T10:03:35.523959Z",
+      "decision_id": "01KTRFSGQ3W8YE5CD1WNSQKG0A",
+      "final_answer": "Frontmatter block (operator choice): schema-validated YAML frontmatter on analysis-report.md (analysis-findings/v1: findings[] with id+severity from a canonical enum, counts). Verdict computed from frontmatter only; body prose is presentation; malformed/missing carrier fails loudly.",
+      "input_key": "findings_carrier",
+      "mission_id": "01KTRC044W67V3KC9H7TBFSY7B",
+      "mission_slug": "01KTRC04",
+      "opened_by": "cli",
+      "options": [
+        "frontmatter-block",
+        "validated-table-contract",
+        "both"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "FR-004: structured findings carrier form?",
+      "rationale": null,
+      "resolved_at": "2026-06-10T10:06:58.485108Z",
+      "resolved_by": null,
+      "slot_key": "plan.analysis.findings-carrier",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-06-10T15:16:57.595265Z",
+      "decision_id": "01KTS1QA3V5BKGZ9P1WP17GBES",
+      "final_answer": "REVISED to declared-optional-field (operator, 2026-06-10): add provenance: str | None = None on DRGNode/DRGEdge (FR-007's sanctioned alternative). Evidence change: the wrapper reshapes the public DRGGraph container + convenience methods + 15 test read-sites \u2014 the original '2 consumers' right-sizing counted getattr call sites but missed the container flow (T034 gate, F-004). Field is excluded from graph.yaml serialization (provenance is runtime-overlay-only; extractor.py generates graph.yaml independently).",
+      "input_key": "provenance_shape_revision",
+      "mission_id": "01KTRC044W67V3KC9H7TBFSY7B",
+      "mission_slug": "01KTRC04",
+      "opened_by": "cli",
+      "options": [
+        "declared-optional-field",
+        "keep-wrapper-reshape",
+        "defer-1624"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "WP09 T034 gate: Provenanced[T] cannot be confined (DRGGraph container reshape + 15 test sites). Revise D2?",
+      "rationale": null,
+      "resolved_at": "2026-06-10T15:16:58.409571Z",
+      "resolved_by": null,
+      "slot_key": "plan.drg.provenance-shape-revision",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KTRC044W67V3KC9H7TBFSY7B",
+  "version": 1
+}
