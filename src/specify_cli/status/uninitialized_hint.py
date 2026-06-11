@@ -20,7 +20,6 @@ from typing import cast
 
 from pydantic import ValidationError
 
-from specify_cli.core.dependency_graph import detect_cycles
 from specify_cli.frontmatter import FrontmatterError
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 
@@ -60,7 +59,15 @@ def find_wp_dependency_cycles(feature_dir: Path) -> list[list[str]] | None:
 
     Builds the graph from WP frontmatter ``dependencies`` and delegates to
     :func:`specify_cli.core.dependency_graph.detect_cycles`.
+
+    The ``detect_cycles`` import is deferred into the function body to break a
+    module-level import cycle: ``core.dependency_graph`` imports ``status`` (for
+    ``Lane``), ``status.__init__`` imports this module, and a module-level
+    ``detect_cycles`` import here would close the loop during status init.
     """
+    # Deferred to break the status <-> core.dependency_graph import cycle.
+    from specify_cli.core.dependency_graph import detect_cycles
+
     graph = _build_wp_dependency_graph(feature_dir)
     if not graph:
         return None
