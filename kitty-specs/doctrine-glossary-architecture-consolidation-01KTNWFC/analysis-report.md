@@ -4,60 +4,102 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: doctrine-glossary-architecture-consolidation-01KTNWFC
 mission_id: 01KTNWFC3B1ZGFR9FTT77X7H2Y
-generated_at: '2026-06-09T15:59:32.876907+00:00'
+generated_at: '2026-06-11T14:47:16.820338+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/kitty-specs/doctrine-glossary-architecture-consolidation-01KTNWFC/spec.md
-    sha256: dd9ae13d2550796aa2dff92748b96e60e089874d1ae5b17b5d369432e1d314b9
+    sha256: ee032335afa3b0d00a4c02e6e36e2c4775e4ecc361568b447a84e55856e27d31
   plan.md:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/kitty-specs/doctrine-glossary-architecture-consolidation-01KTNWFC/plan.md
-    sha256: 1e651ccdd3b0697dd2579e81f5728023d23fae576d7a9e46146fa1e11d768414
+    sha256: 47ab7fa3d9751506decfc6e952de6dc44d262197a3069e71f4244738ea4eeac4
   tasks.md:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/kitty-specs/doctrine-glossary-architecture-consolidation-01KTNWFC/tasks.md
-    sha256: 0e45553284349cc20b329cff7f66ac2fb63a71e1ff3e0fa8a1409c22a7b45a91
+    sha256: 2dbe917f13c07c8680d82cf261ff1c844bc3f25615bf7f4f1ca5aa465d6eb0a5
   charter:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/.kittify/charter/charter.md
     sha256: a59cddc8725b34acacd83b9bec24e97b1ae68aa80716b7335c425c6106c18791
 verdict: ready
 issue_counts:
-  critical: 4
-  high: 5
-  medium: 3
-  low: 5
+  low: 4
+  medium: 0
+  critical: 0
+  high: 0
+  info: 5
+findings:
+- id: D1
+  severity: low
+  category: consistency
+  summary: "plan.md IC-01/IC-02 still declare 'Change mode: bulk_edit' and 'move/promote' framing; the resume re-scope (move->reconcile, O1 bulk_edit revert) is encoded in spec.md/WP01/WP02/occurrence_map but NOT back-propagated to the plan ICs. Stale prose, not an operational instruction (implementers load WP prompts, which are correct)."
+- id: D2
+  severity: low
+  category: consistency
+  summary: "tasks.md body retains pre-amendment framing: header 'Phase 1 (moves, bulk_edit)', section 'Phase 1 - Restructure & moves (bulk_edit)', and Subtask-Index T002 'Move glossary content -> top-level glossary/'. The tasks.md top-matter change_mode line was corrected to 'standard', but the Phase-1 prose/T002 still say move/bulk_edit. Cosmetic vs the reconcile re-scope."
+- id: D3
+  severity: low
+  category: consistency
+  summary: "WP01 frontmatter title 'Glossary: promote to top-level + content refresh' contradicts its own Objective ('RECONCILE... not moves content to a new location'). Title is stale-trace; body is correct. Filename also says 'promote'. Title-only; no functional impact."
+- id: D4
+  severity: low
+  category: terminology
+  summary: WP06 Context uses 'no full ceremony' (colloquial). kitty-specs/ is excluded from the terminology guard (_SCAN_ROOTS = src/tests/docs) so this is NOT a CI regression, but WP06's deliverable ADR lands in architecture/3.x/adr/ which IS scanned -- implementer must not carry 'ceremony' into the ADR prose (use 'status commit' / 'heavyweight process').
 ---
 
-## Specification Analysis Report (re-recorded post-remediation) — doctrine-glossary-architecture-consolidation-01KTNWFC
+## Specification Analysis Report (resume / post-amendment) — doctrine-glossary-architecture-consolidation-01KTNWFC
 
-Pre-implementation cross-artifact analysis. Re-recorded after remediation of the prior HIGH finding.
+Non-remediating cross-artifact consistency analysis run after the 2026-06-11 resume: topology flattened, re-finalized (5/10 WPs across 10 single-WP lanes, WP07 absent), 3-profile resume review, and operator-approved amendments applied in commit `14b3c00ee`. This report supersedes the 2026-06-09 analysis-report.md (which predated re-finalize + amendments and carried a self-contradicting verdict carrier — see I1 below). **The resume reviews are treated as adjudicated inputs and are NOT re-litigated; this pass verifies they are encoded.**
 
-### Resolved since first pass
-- **O1 (was HIGH) — RESOLVED.** The mission was `change_mode: bulk_edit`, but the canonical occurrence-map (DIRECTIVE_035) models only a single `target.term → replacement` rename — it cannot express this mission's multi-path structural restructure. **Reverted to normal mode** (both primary + coord `meta.json` now carry no `change_mode`). Reference integrity is enforced via WP01/WP02 Definition-of-Done (post-move grep + `glossary validate` + `doctor doctrine`). Mechanism gap filed: **#1815** (→ #391). occurrence_map.yaml repurposed as a reference-rewrite checklist.
-- **C1 (was MEDIUM) — RESOLVED.** occurrence_map header reconciled (no longer claims "selective vs mission-wide").
+**Verdict: READY FOR IMPLEMENTATION (verdict ready).** Zero CRITICAL, zero HIGH. The 8 approved amendments are all encoded at the authoritative WP-prompt layer. Four LOW consistency/terminology findings are residual stale prose in non-authoritative artifacts (plan ICs, tasks.md Phase-1 framing, WP01 title) that do not alter any operational instruction an implementer receives.
+
+### Amendment-encoding check (8/8 OK)
+
+| # | Approved amendment | Encoded at | Status |
+|---|--------------------|-----------|--------|
+| A1 | Glossary re-scope: "move" -> "reconcile + delete residual" | spec.md FR-010 + Assumptions; WP01 Objective/Context/T002/DoD; occurrence_map header (O1 revert) | encoded |
+| A2 | #1805 fold (source FR) | WP02 tracker_refs ['#1805'] + "Closes #1805" DoD; WP03 tracker_refs ['#1805'] + Closes line; issue-matrix in-mission row | encoded |
+| A3 | #1839 carve-out / dedup vs #1812 | WP03 Context "Deliberately OUT of scope: ... upstream #1839, deduped vs #1812 ... cross-reference only" | encoded |
+| A4 | #1843 non-foreclosure DoD line | WP02 DoD "must not foreclose a future optional per-artifact tier field (#1843): tiers are declared fields - never directory structure" | encoded |
+| A5 | WP03 source refresh (Step-7 shapes) | WP03 Context UPDATED sources + T012: CommitTarget(ref,kind), mission_runtime, GuardCapability/commit_guard.evaluate, resolve_placement_only/resolve_status_surface_with_anchor; "do NOT depict execution_context.py / (worktree_root, destination_ref)" | encoded |
+| A6 | WP06 source refresh (Step-7 shapes) | WP06 Context UPDATED sources: same ADR addenda + GuardCapability + current-shapes directive | encoded |
+| A7 | WP09 provenance update (declared field shipped) | WP09 Context "PROVENANCE STATUS (updated): ... has shipped (01KTRC04); model_copy(update=...) no sidecar; graph.yaml unaffected; this WP does NOT create the field" | encoded |
+| A8 | WP10 provenance update | WP10 Context same PROVENANCE STATUS block; "Do NOT add or recreate a provenance sidecar" | encoded |
+| (aux) | occurrence-map advisory wording | occurrence_map.yaml header (O1 revert, checklist not a gate); WP01/WP02 Objective + change_mode lines | encoded |
+| (aux) | stale-trace caveats | WP04/WP05/WP11 Context: "work/ traces predate the 2026-06-09 tracker cleanup - re-verify at claim time"; profile-surface-live noted in aggregate | encoded |
+
+**Result: 8/8 approved amendments encoded at every authoritative layer they touch (plus the two auxiliary wording fixes).**
 
 ### Open findings (no CRITICAL, no HIGH)
 
-| ID | Category | Severity | Location | Summary | Recommendation |
-|----|----------|----------|----------|---------|----------------|
-| C2 | Charter | MEDIUM (info) | WP02 T006/T009 | WP02 edits the charter's own authority paths (self-referential). Not a violation (C-004 preserved). | Implementer verifies charter still loads + `doctor` healthy post-move. |
-| S1 | Sequencing | LOW (info) | WP01/WP02 | WP01→WP02 serialized (shared charter authority-path file), vs R-06's parallel framing. | Acceptable; ownership-driven. |
-| U1 | Underspecification | LOW | WP09 owned_files | DRG regeneration entry point assumed at `src/doctrine/drg/**`. | Out-of-map leeway covers it; implementer confirms. |
-| M1 | Mixed concern | LOW | WP01 T021/T022 | WP01 mixes the move with additive glossary content refresh. | Acceptable. |
-| N1 | Numbering | LOW | tasks/ | WP07 absent (merged into WP01). | Cosmetic. |
+| ID | Category | Severity | Location | Summary |
+|----|----------|----------|----------|---------|
+| D1 | Consistency | LOW | plan.md IC-01/IC-02 | "Change mode: bulk_edit" + move/promote framing not back-propagated from the reconcile re-scope (encoded in spec/WP/occurrence_map). Stale prose; implementers load WP prompts. |
+| D2 | Consistency | LOW | tasks.md Phase-1 header, heading, T002 | "moves, bulk_edit" / "Move glossary content" prose lags the corrected change_mode standard top-matter. Cosmetic. |
+| D3 | Consistency | LOW | WP01 frontmatter title / filename | "promote to top-level" contradicts the body's "RECONCILE... not moves content". Title-only. |
+| D4 | Terminology | LOW | WP06 Context | "no full ceremony" - not CI-blocking (kitty-specs/ excluded from guard) but must not leak into the WP06 ADR (architecture/ IS scanned). |
 
-**Coverage Summary:** FR-001…012 all mapped (100%); NFR-001…004 in WP DoDs; C-001…005 threaded; SC-1…7 covered (SC-6→WP11, SC-2→WP06, SC-7 cross-cutting).
+### Informational observations (presentation-only; not blocking findings)
 
-**Charter Alignment:** none CRITICAL. C-005 (no parallel mechanisms) consistently encoded.
+- **I1 (provenance):** Prior analysis-report.md (2026-06-09) frontmatter self-contradicts (verdict ready vs issue_counts critical:4/high:5) - the #1819 root cause the new analysis-findings/v1 carrier fixes. This fresh report supersedes it with a coherent carrier.
+- **I2 (sequencing):** Tier-0 = lane-a(WP01)/lane-g(WP08)/lane-h(WP09), all parallel_group 0 with no deps; matches the resume aggregate's order. WP01 is the keystone.
+- **I3 (coverage):** WP07 intentionally absent (merged into WP01 pre-planning) - handled consistently (tasks.md Dependencies-summary, lanes.json 10/10, no dangling refs).
+- **I4 (ownership):** No owned_files overlap across the 10 WPs; charter authority-path (.kittify/charter/**) owned solely by WP02; out-of-map-with-rationale leeway documented in every WP.
+- **I5 (tracker):** issue-matrix has 9 rows; #1805 carries the non-terminal in-mission verdict + folded-as-source-FR evidence; remaining 8 unknown (fill-at-WP-time) - acceptable pre-implementation.
 
-**Unmapped Tasks:** none.
+### Coverage Summary
 
-**Metrics:** 12 FR · 4 NFR · 5 C · 7 SC · 10 WP · 34 subtasks · coverage 100% · CRITICAL 0 · HIGH 0 · MEDIUM 1(info) · LOW 4 · duplication 0 · ambiguity 0.
+- **FR -> WP:** FR-001/002->WP04 . FR-003/004->WP05 . FR-005->WP01+WP02 (boundary/reconcile) . FR-006->WP02(carry)+WP03(refresh) . FR-007->WP06 . FR-008->WP08 . FR-009->WP09(code)+WP10(data) . FR-010/011->WP01 . FR-012->WP11. **12/12 FR mapped (100%).** The re-scope re-worded FR-005 (boundary) and FR-010 (reconcile, delete residual pointer) - WP01 requirement_refs (FR-005/010/011) match the re-worded spec.
+- **NFR-001..004:** threaded into WP DoDs (doctor doctrine, ruff/mypy, glossary validate, ADR template/C4 levels).
+- **C-001..005:** C-005 (single source of truth / no parallel mechanism) consistently encoded across glossary (WP01), architecture (WP02), charter extends (WP08), DRG (WP10), Ops ADR (WP06).
+- **SC-1..7:** SC-1/SC-6->WP11; SC-2->WP06 correlation-matrix close; SC-3->WP08; SC-4->WP09; SC-5->WP01; SC-7 cross-cutting (C-005).
+- **Dependency graph vs lanes.json:** consistent. 10 lanes / 10 WPs. WP01->WP02->WP03; {WP04,WP05,WP06}->Phase-1; WP08/WP09 no-deps (Tier-0); WP10->WP04/WP05/WP09; WP11->WP04/WP05. parallel_group ladder 0->1->2->3 matches.
+- **Unmapped tasks:** none. **Ownership overlap:** none.
 
-### Process gaps surfaced (filed, dogfood of this mission's premise)
-- **#1814** — `record-analysis` deadlocks on coord-residue (primary dirty-tree check vs coord-owned state) → #1666.
-- **#1815** — occurrence-map single-term limitation → #391.
+**Metrics:** 12 FR . 4 NFR . 5 C . 7 SC . 10 WP . 34 subtasks . FR-coverage 100% . CRITICAL 0 . HIGH 0 . MEDIUM 0 . LOW 4 . INFO 5 . amendment-encoding 8/8 . ownership-overlap 0 . duplication 0.
 
-## Next Actions
-- **No CRITICAL/HIGH issues — clear to implement.** O1 (the only prior blocker) is resolved.
-- C2/S1/U1/M1/N1 are informational; handle inline during the relevant WPs.
-- Proceed: `/spec-kitty-implement-review` (or the parallel code lanes WP08/WP09 first).
+### Next Actions
+
+- **No CRITICAL/HIGH - clear to implement.** All 8 adjudicated amendments are encoded; the resume reviews are verified, not re-litigated.
+- D1/D2/D3 (stale move/bulk_edit prose in plan.md ICs, tasks.md Phase-1 framing, WP01 title) are LOW cosmetic drift in non-authoritative artifacts - optional editorial cleanup; does NOT block dispatch because the authoritative WP prompts carry the correct reconcile framing. If touched, align plan IC-01/IC-02 + tasks.md Phase-1 wording + WP01 title to "reconcile" / change_mode standard.
+- D4: WP06 implementer must keep "ceremony" out of the landed ADR (architecture/ is terminology-guarded).
+- **Tier-0 dispatch (WP01 keystone, WP08, WP09) is unblocked.** WP01 has correct reconcile instructions; WP08/WP09 are dependency-free code lanes with current source guidance (WP09 provenance status corrected).
+- Proceed: /spec-kitty-implement-review starting Tier-0 (WP08/WP09/WP01).
