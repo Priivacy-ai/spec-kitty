@@ -431,7 +431,7 @@ class CharterPackManager:
         artifact_id: str,
         *,
         cascade: bool = False,  # noqa: ARG002 — kept for caller API stability
-        _layer_roots: dict[str, Path] | None = None,  # noqa: ARG002 — symmetry with activate
+        layer_roots: dict[str, Path] | None = None,
     ) -> ActivationResult:
         """Deactivate ``artifact_id`` for ``kind`` in the project charter pack.
 
@@ -470,6 +470,7 @@ class CharterPackManager:
             If the kind has no explicit activation set (the engine raises this;
             the CLI surfaces the upgrade guidance).
         """
+        del layer_roots  # Accepted for API symmetry with activate(); deactivation ignores external layer maps.
         self._require_kind(kind)
         yaml_key = YAML_KEY_MAP[kind]
 
