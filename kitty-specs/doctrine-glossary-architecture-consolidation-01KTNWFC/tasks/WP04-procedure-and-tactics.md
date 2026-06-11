@@ -15,7 +15,8 @@ subtasks:
 - T014
 - T015
 - T016
-agent: claude
+agent: "claude:opus:tbd:implementer"
+shell_pid: "822589"
 history:
 - '2026-06-09: created by /spec-kitty.tasks (planner-priti)'
 agent_profile: curator-carla
@@ -62,3 +63,7 @@ Doctrine sign-off (curator) + reviewer profile. **architect-alphonso advisory** 
 
 ## Risks
 - Terminology guard on prose ("Feature"/"features"); DRG must be regenerated after (WP10).
+
+## Activity Log
+
+- 2026-06-11T15:28:08Z – claude:opus:tbd:implementer – shell_pid=822589 – Assigned agent via action command
