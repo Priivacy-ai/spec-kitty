@@ -63,3 +63,7 @@ Doctrine sign-off + reviewer profile; reviewer verifies determinism + symmetric 
 
 ## Risks
 - Non-determinism (ordering/timestamps) in graph output — sort + stamp deterministically.
+
+## Activity Log
+
+- 2026-06-11T15:05:20Z – claude – shell_pid=754690 – DRG freshness: regenerate-graph CLI (--check twin of freshness gate, deterministic), symmetric profile-edge validation + lineage DAG check wired into validate_graph; 86+14+20+93 tests green, mypy --strict clean. Implementer: python-pedro, lane-h d7ad400dc.
