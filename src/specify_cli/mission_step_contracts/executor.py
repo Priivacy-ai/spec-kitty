@@ -19,9 +19,9 @@ if TYPE_CHECKING:
 from charter._drg_helpers import load_validated_graph
 from charter.drg import ArtifactKind, DRGGraph, NodeKind, ResolvedContext, filter_graph_by_activation, resolve_context
 from charter.mission_steps import (
-    MissionStep,
     MissionStepContract,
     MissionStepContractRepository,
+    MissionStepContractStep,
     MissionStepInput,
 )
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
@@ -273,7 +273,7 @@ class StepContractExecutor:
         *,
         graph: DRGGraph,
         action_context: ResolvedContext,
-        step: MissionStep,
+        step: MissionStepContractStep,
     ) -> tuple[list[ResolvedStepDelegation], list[str]]:
         if step.delegates_to is None:
             return [], []
@@ -345,7 +345,7 @@ class StepContractExecutor:
         *,
         contract: MissionStepContract,
         context: StepContractExecutionContext,
-        step: MissionStep,
+        step: MissionStepContractStep,
         resolved_delegations: list[ResolvedStepDelegation],
         unresolved_candidates: list[str],
     ) -> str:
@@ -373,7 +373,7 @@ class StepContractExecutor:
             lines.append(f"Step guidance: {step.guidance}")
         return "\n".join(lines)
 
-    def _render_declared_command(self, step: MissionStep) -> str:
+    def _render_declared_command(self, step: MissionStepContractStep) -> str:
         if not step.command or not step.inputs:
             return step.command or ""
         joined = " ".join(
