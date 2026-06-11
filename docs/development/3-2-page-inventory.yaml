@@ -3323,6 +3323,13 @@
   current_target: true
   citation_refs: []
   notes: 3.2 harness setup and usage page.
+- path: docs/how-to/harnesses/setup-lint-hooks.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: harnesses
+  current_target: true
+  citation_refs: []
+  notes: Guide for setting up post-edit lint hooks.
 - path: docs/how-to/harnesses/windsurf.md
   tag: current
   divio_type: how-to

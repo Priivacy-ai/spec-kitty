@@ -1909,6 +1909,28 @@ _Search tracker issues via the hosted read path_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty lint
+
+_Run ruff and mypy on a file and report errors._
+
+```
+ Usage: spec-kitty lint [OPTIONS] FILE_PATH
+
+ Run ruff and mypy on a file and report errors.
+
+ This command is designed to be used as a post-edit hook for AI agents,
+ providing immediate feedback on linting and type-checking violations.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    file_path      PATH  File path to lint and type-check [required]         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Output in JSON format for AI agents                          │
+│ --fix           Attempt to automatically fix lint errors                     │
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty materialize
 
 ```
