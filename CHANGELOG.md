@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc43] - 2026-06-11
+
+### ✨ Added / 🔧 Changed
+
+- **Tooling stability & guard coherence (mission 01KTRC04, slice of #1619, closes the #1796 cluster):**
+  the safe-commit / protected-branch guard is ONE mechanism — a pure Shared-Kernel policy module
+  (`core/commit_guard.evaluate(target, protection_state, capability) -> GuardVerdict`) behind the single
+  `git/commit_helpers.safe_commit` facade. The five legacy privilege channels (message-prefix allowlist,
+  `allow_protected_branch_in_test_mode`, `allow_completed_op_on_protected_branch`, op-record file-content
+  exception, env hatches) are DELETED; protected flows assert an explicit `GuardCapability` at the call
+  site (never derived from message/file/env). Operator escape hatch `SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`
+  retained. Permanently ratcheted by `tests/architectural/test_safe_commit_import_boundary.py` (#1355).
+- **Planning placement single authority (#1777/#1784/#1631/#1334):** `mission_runtime.resolve_placement_only`
+  is the one commit-destination authority for planning paths; `_resolve_planning_branch` destination
+  authority retired. Legit spec/plan commits on protected branches route to the resolved destination with
+  ZERO guard relaxation; the finalize-tasks branch catch-22 is gone (idempotent re-runs).
+- **safe-commit ergonomics (#1820/#1330):** directory arguments expand to contained dirty files with a
+  per-file report; explicit `--to-branch` honored; `SPEC_KITTY_INFER_DESTINATION_REF` retired.
+- `record-analysis` verdict derived from the structured `analysis-findings/v1` frontmatter table — prose
+  substring counting removed (#1819); severity vocabulary reuses `SEVERITY_ORDER` (no parallel model).
+- Carried `StatusSurfaceFragment` threaded through `MissionStatus.load` + `status_transition` (#1821).
+- `doctor.py` doctrine profile-health rendering extracted to `_profile_health_render.py` (#1623 slice).
+- DRG provenance is a declared typed field on `DRGNode`/`DRGEdge`; the `object.__setattr__` sidecar is
+  deleted; `graph.yaml` byte-stable (#1624).
+- ADR 2026-06-03-2 addendum: Strangler **Step 7 delivered** (CommitTarget consumed by safe_commit).
+
 ## [3.2.0rc42] - 2026-06-11
 
 ### 💥 Changed
