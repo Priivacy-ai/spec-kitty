@@ -14,7 +14,8 @@ subtasks:
 - T011
 - T012
 - T013
-agent: claude
+agent: "claude:opus:tbd:implementer"
+shell_pid: "822589"
 history:
 - '2026-06-09: created by /spec-kitty.tasks (planner-priti)'
 agent_profile: architect-alphonso
@@ -65,3 +66,7 @@ Owned: `architecture/diagrams/**`. **Out-of-map edits allowed with a recorded on
 
 ## Risks
 - Mermaid drift from reality (accepted; #1812 tracks the generated-C4 follow-up).
+
+## Activity Log
+
+- 2026-06-11T15:28:03Z – claude:opus:tbd:implementer – shell_pid=822589 – Assigned agent via action command
