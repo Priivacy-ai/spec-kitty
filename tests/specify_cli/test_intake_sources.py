@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.intake_sources import HARNESS_PLAN_SOURCES, scan_for_plans
+from tests.specify_cli.intake_test_helpers import patched_harness_plan_sources
 
 
 pytestmark = [pytest.mark.unit]
@@ -53,7 +54,7 @@ class TestScanForPlans:
         plan_file = plans_dir / "2026-04-20-my-plan.md"
         plan_file.write_text("# My Plan", encoding="utf-8")
 
-        with patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources):
+        with patched_harness_plan_sources(mock_sources):
             results = scan_for_plans(tmp_path)
 
         assert len(results) == 1
@@ -70,7 +71,7 @@ class TestScanForPlans:
         (plans_dir / "plan.json").write_text("{}", encoding="utf-8")
         (plans_dir / ".hidden").write_text("hidden", encoding="utf-8")
 
-        with patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources):
+        with patched_harness_plan_sources(mock_sources):
             results = scan_for_plans(tmp_path)
 
         assert len(results) == 1
@@ -85,7 +86,7 @@ class TestScanForPlans:
         (plans_dir / "2026-01-01-oldest.md").write_text("# Oldest", encoding="utf-8")
         (plans_dir / "2026-02-15-middle.md").write_text("# Middle", encoding="utf-8")
 
-        with patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources):
+        with patched_harness_plan_sources(mock_sources):
             results = scan_for_plans(tmp_path)
 
         assert [r[0].name for r in results] == [
@@ -101,7 +102,7 @@ class TestScanForPlans:
         ]
         (tmp_path / "plan-a.md").write_text("A", encoding="utf-8")
         (tmp_path / "plan-b.md").write_text("B", encoding="utf-8")
-        with patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources):
+        with patched_harness_plan_sources(mock_sources):
             results = scan_for_plans(tmp_path)
         assert len(results) == 2
         assert results[0][1] == "harness-a"
@@ -112,14 +113,16 @@ class TestScanForPlans:
         target = tmp_path / ".cursor" / "plans" / "plan.md"
         target.parent.mkdir(parents=True)
         target.write_text("# Plan", encoding="utf-8")
-        with patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources):
+        with patched_harness_plan_sources(mock_sources):
             results = scan_for_plans(tmp_path)
         assert len(results) == 1
         assert results[0][0] == target
 
     def test_no_exception_on_permission_error(self, tmp_path: Path):
         mock_sources = [("harness-x", "agent-x", ["secret.md"])]
-        with patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources), \
-             patch("pathlib.Path.is_file", side_effect=PermissionError("denied")):
+        with (
+            patched_harness_plan_sources(mock_sources),
+            patch("pathlib.Path.is_file", side_effect=PermissionError("denied")),
+        ):
             results = scan_for_plans(tmp_path)
         assert results == []
