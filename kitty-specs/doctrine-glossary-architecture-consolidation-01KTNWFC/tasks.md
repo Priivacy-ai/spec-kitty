@@ -58,7 +58,7 @@
 ### WP02 — Living-architecture layout + reconcile (closes #1805)
 - **Goal**: Top-level living `architecture/` (vision/, audience/, diagrams/, README boundary rule) + versioned history; RECONCILE + delete residual parallel content; carry C4 forward; rewrite architecture refs incl. charter authority paths. Closes #1805.
 - **Priority**: P1 | **Independent test**: reference-integrity grep clean; README states boundary rule + decay path; no residual parallel narrative surfaces.
-- **Subtasks**: - [ ] T006 (WP02) · - [ ] T007 (WP02) · - [ ] T008 (WP02) · - [ ] T009 (WP02) · - [ ] T010 (WP02)
+- **Subtasks**: - [x] T006 (WP02) · - [x] T007 (WP02) · - [x] T008 (WP02) · - [x] T009 (WP02) · - [x] T010 (WP02)
 - **change_mode**: standard (O1-reverted; occurrence_map is a reference-rewrite advisory checklist, not a gate) | **Depends on**: WP01 (shares the charter authority-path file; needs final glossary path) | **Est**: ~360 lines
 - **Risks**: broken internal doc links; decay rule must be documented to prevent re-drift; tier-field layout must remain open for #1843.
 
