@@ -96,8 +96,8 @@
 
 ## Template Notes
 
-- **Keep it concise**: ADRs should be 1-2 pages maximum
-- **One decision per ADR**: If you have multiple decisions, create separate ADRs
-- **Immutable once accepted**: Don't edit accepted ADRs; create new ones that supersede them
-- **Focus on "why"**: Explain reasoning and tradeoffs, not implementation details
-- **Include rejected options**: Document why alternatives were not chosen
+* **Keep it concise**: ADRs should be 1-2 pages maximum
+* **One decision per ADR**: If you have multiple decisions, create separate ADRs
+* **Immutable once accepted**: Don't edit accepted ADRs; create new ones that supersede them
+* **Focus on "why"**: Explain reasoning and tradeoffs, not implementation details
+* **Include rejected options**: Document why alternatives were not chosen

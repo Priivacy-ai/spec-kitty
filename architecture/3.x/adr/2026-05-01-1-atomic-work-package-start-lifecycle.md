@@ -44,25 +44,25 @@ semantics.
 
 ## Decision Drivers
 
-* **Agent-surface parity** — Claude, Codex, OpenCode, Cursor, and all other
+- **Agent-surface parity** — Claude, Codex, OpenCode, Cursor, and all other
   supported coding agents must observe the same lifecycle behavior.
-* **Crash consistency** — a logical lifecycle start must not leave a half-started
+- **Crash consistency** — a logical lifecycle start must not leave a half-started
   event log.
-* **Idempotent retry** — a same-actor retry after dispatch or process restart
+- **Idempotent retry** — a same-actor retry after dispatch or process restart
   should resume; a different actor should see a conflict.
-* **Event-log authority** — preserve the append-only status log and the 9-lane
+- **Event-log authority** — preserve the append-only status log and the 9-lane
   state machine rather than inventing a bypass.
-* **Visible ownership** — `claimed` is active work ownership and must be rendered
+- **Visible ownership** — `claimed` is active work ownership and must be rendered
   with Doing/progress, not hidden in Planned backlog.
 
 ## Considered Options
 
-* **Option 1:** Keep raw transition calls at every caller and document retry rules.
-* **Option 2:** Special-case the failing agent workflow path only.
-* **Option 3:** Collapse implementation start into a single `planned -> in_progress`
+- **Option 1:** Keep raw transition calls at every caller and document retry rules.
+- **Option 2:** Special-case the failing agent workflow path only.
+- **Option 3:** Collapse implementation start into a single `planned -> in_progress`
   transition.
-* **Option 4:** Move claim ownership to an external lock/control-plane service.
-* **Option 5:** Add a shared lifecycle service backed by atomic event batches.
+- **Option 4:** Move claim ownership to an external lock/control-plane service.
+- **Option 5:** Add a shared lifecycle service backed by atomic event batches.
 
 ## Decision Outcome
 
@@ -104,12 +104,12 @@ deterministically increasing timestamps inside the batch.
 
 This ADR does **not** supersede the existing status ADRs:
 
-* `2026-02-09-1` remains authoritative for the append-only JSONL event log and
+- `2026-02-09-1` remains authoritative for the append-only JSONL event log and
   derived `status.json` snapshot.
-* `2026-02-09-3` remains authoritative for merge-time concatenate, dedupe, sort,
+- `2026-02-09-3` remains authoritative for merge-time concatenate, dedupe, sort,
   and reduce semantics. This ADR acts earlier, at write time, by making a single
   process's logical start operation atomic before git merge semantics apply.
-* `2026-04-06-1` remains authoritative for the 9-lane state model and lane-owned
+- `2026-04-06-1` remains authoritative for the 9-lane state model and lane-owned
   behavior. This ADR clarifies which service owns multi-edge lifecycle commands
   that are built from those lane transitions.
 
@@ -120,31 +120,31 @@ transition validation remains state-machine-owned.**
 
 #### Positive
 
-* Same-agent retries become safe across CLI, workflow, and orchestrator API.
-* Different-agent overlap is detected consistently instead of depending on the
+- Same-agent retries become safe across CLI, workflow, and orchestrator API.
+- Different-agent overlap is detected consistently instead of depending on the
   entry point.
-* Crash windows no longer expose `planned -> claimed` without the paired
+- Crash windows no longer expose `planned -> claimed` without the paired
   `claimed -> in_progress` event for new implementation starts.
-* `claimed` work is visible as active Doing work, while still preserving the
+- `claimed` work is visible as active Doing work, while still preserving the
   separate canonical lane for stale-claim diagnostics and audit.
-* The design remains offline-first and git-native.
+- The design remains offline-first and git-native.
 
 #### Negative
 
-* Start lifecycle behavior now has a dedicated service layer that callers must
+- Start lifecycle behavior now has a dedicated service layer that callers must
   use correctly.
-* Atomic batch writes rewrite the JSONL file through a temp file, which is more
+- Atomic batch writes rewrite the JSONL file through a temp file, which is more
   code than simple append.
-* Diff coverage and tests must cover both single-event emit and batch-event emit
+- Diff coverage and tests must cover both single-event emit and batch-event emit
   paths.
 
 #### Neutral
 
-* The canonical event sequence remains two events; historical logs and reducers
+- The canonical event sequence remains two events; historical logs and reducers
   do not need migration.
-* The low-level status command can still emit individual legal transitions for
+- The low-level status command can still emit individual legal transitions for
   repair, migration, and operator workflows.
-* `claimed` remains distinct from `in_progress`; the display change only affects
+- `claimed` remains distinct from `in_progress`; the display change only affects
   progress grouping.
 
 ### Confirmation
@@ -166,70 +166,70 @@ This decision is valid when:
 
 **Pros:**
 
-* Minimal code movement.
-* Preserves every caller's current structure.
+- Minimal code movement.
+- Preserves every caller's current structure.
 
 **Cons:**
 
-* Keeps lifecycle policy duplicated across host surfaces.
-* Leaves retry and conflict semantics dependent on caller ordering.
-* Does not close the crash window between start events.
+- Keeps lifecycle policy duplicated across host surfaces.
+- Leaves retry and conflict semantics dependent on caller ordering.
+- Does not close the crash window between start events.
 
 ### Option 2: Special-case the failing agent workflow path only
 
 **Pros:**
 
-* Fastest targeted fix for Issue #944.
+- Fastest targeted fix for Issue #944.
 
 **Cons:**
 
-* Violates agent-surface parity.
-* Leaves orchestrator API and direct CLI with divergent behavior.
-* Creates a pattern for host-specific lifecycle exceptions.
+- Violates agent-surface parity.
+- Leaves orchestrator API and direct CLI with divergent behavior.
+- Creates a pattern for host-specific lifecycle exceptions.
 
 ### Option 3: Collapse implementation start into one transition
 
 **Pros:**
 
-* Removes the multi-event crash window.
+- Removes the multi-event crash window.
 
 **Cons:**
 
-* Destroys the audit distinction between claim and active implementation.
-* Conflicts with the canonical 9-lane state machine.
-* Breaks stale-claim diagnostics and existing event history semantics.
+- Destroys the audit distinction between claim and active implementation.
+- Conflicts with the canonical 9-lane state machine.
+- Breaks stale-claim diagnostics and existing event history semantics.
 
 ### Option 4: External lock/control-plane service
 
 **Pros:**
 
-* Could provide real-time distributed locking across machines.
+- Could provide real-time distributed locking across machines.
 
 **Cons:**
 
-* Violates offline-first status authority.
-* Makes local CLI correctness depend on network/service availability.
-* Duplicates ownership state outside the canonical event log.
+- Violates offline-first status authority.
+- Makes local CLI correctness depend on network/service availability.
+- Duplicates ownership state outside the canonical event log.
 
 ### Option 5: Shared lifecycle service backed by atomic event batches
 
 **Pros:**
 
-* Keeps event sourcing and the 9-lane model intact.
-* Centralizes lifecycle-start policy for all supported agents and APIs.
-* Provides crash consistency for composite start operations.
-* Keeps ownership visible and auditable.
+- Keeps event sourcing and the 9-lane model intact.
+- Centralizes lifecycle-start policy for all supported agents and APIs.
+- Provides crash consistency for composite start operations.
+- Keeps ownership visible and auditable.
 
 **Cons:**
 
-* Adds a service abstraction between callers and raw status emit.
-* Requires callers to distinguish semantic lifecycle operations from low-level
+- Adds a service abstraction between callers and raw status emit.
+- Requires callers to distinguish semantic lifecycle operations from low-level
   repair transitions.
 
 ## More Information
 
-* Issue: [#944](https://github.com/Priivacy-ai/spec-kitty/issues/944)
-* Implementation PR: [#946](https://github.com/Priivacy-ai/spec-kitty/pull/946)
-* Canonical status model: `2026-02-09-1-canonical-wp-status-model.md`
-* Event-log merge semantics: `2026-02-09-3-event-log-merge-semantics.md`
-* Current lane model: `2026-04-06-1-wp-state-pattern-for-lane-behavior.md`
+- Issue: [#944](https://github.com/Priivacy-ai/spec-kitty/issues/944)
+- Implementation PR: [#946](https://github.com/Priivacy-ai/spec-kitty/pull/946)
+- Canonical status model: `2026-02-09-1-canonical-wp-status-model.md`
+- Event-log merge semantics: `2026-02-09-3-event-log-merge-semantics.md`
+- Current lane model: `2026-04-06-1-wp-state-pattern-for-lane-behavior.md`

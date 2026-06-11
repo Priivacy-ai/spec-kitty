@@ -5,6 +5,7 @@ Use this skeleton to capture entities, attributes, and relationships uncovered d
 ## Entities
 
 ### Entity: <!-- e.g., Customer -->
+
 - **Description**: <!-- Summary -->
 - **Attributes**:
   - `field_name` (type) – purpose / constraints
@@ -12,6 +13,7 @@ Use this skeleton to capture entities, attributes, and relationships uncovered d
 - **Lifecycle Notes**: <!-- Creation, updates, archival -->
 
 ### Entity: <!-- e.g., Account -->
+
 - **Description**:
 - **Attributes**:
   - `field_name` (type) – purpose / constraints

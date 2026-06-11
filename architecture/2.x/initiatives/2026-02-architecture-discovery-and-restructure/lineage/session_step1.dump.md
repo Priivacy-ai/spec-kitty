@@ -582,5 +582,4 @@ If you agree, say:
 
 And I’ll generate it and we’ll refine it together at contributor-level depth.
 
-
 > Answer to your core question: the ad-hoc agent interactions are session based by default. Events and "memory-dump files" are emitted as usual, but no specific tracing exists. Formalization happens when the user instructs the system to do so "write down what we did", "formalize", ...

@@ -10,7 +10,7 @@
 The spec-kitty runtime has accumulated approximately 40 command surfaces that
 independently re-derive execution context (workspace path, feature directory,
 branch name). This independent re-derivation is the root cause documented in
-#1619: the same command produces divergent output depending on whether it is
+issue #1619: the same command produces divergent output depending on whether it is
 invoked from the main checkout root or from a lane worktree, because each
 surface reconstructs its own view of "where we are" rather than reading from a
 single resolved context.

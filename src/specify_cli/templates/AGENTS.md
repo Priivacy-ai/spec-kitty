@@ -216,7 +216,6 @@ Rules:
 - Use skill `$spec-kitty-docker-modes` for Docker mode operations and auth preflight workflows.
 - Runbook source of truth: `spec-kitty-saas/docs/docker-development-modes.md` in the sibling SaaS repo checkout.
 
-
 ---
 
 ## Terminology Canon (Mission vs Feature)

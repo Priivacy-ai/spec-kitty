@@ -48,20 +48,20 @@ How do we enforce location requirements consistently and reliably?
 
 ## Decision Drivers
 
-* **Critical: Must prevent nested worktrees** (causes git corruption)
-* Need consistent location validation across all commands
-* Want declarative approach (clear from function signature)
-* Should reduce boilerplate code
-* Must provide clear, actionable error messages
-* Can't rely on agent discipline (need enforcement)
-* Want reusable framework for all location-aware commands
+- **Critical: Must prevent nested worktrees** (causes git corruption)
+- Need consistent location validation across all commands
+- Want declarative approach (clear from function signature)
+- Should reduce boilerplate code
+- Must provide clear, actionable error messages
+- Can't rely on agent discipline (need enforcement)
+- Want reusable framework for all location-aware commands
 
 ## Considered Options
 
-* **Option 1:** Manual guards in each command (status quo)
-* **Option 2:** Decorator-based validation (`@require_main_repo`)
-* **Option 3:** Pre-command hooks (global validation)
-* **Option 4:** Wrapper scripts that validate before execution
+- **Option 1:** Manual guards in each command (status quo)
+- **Option 2:** Decorator-based validation (`@require_main_repo`)
+- **Option 3:** Pre-command hooks (global validation)
+- **Option 4:** Wrapper scripts that validate before execution
 
 ## Decision Outcome
 
@@ -78,25 +78,25 @@ How do we enforce location requirements consistently and reliably?
 
 #### Positive
 
-* Prevents nested worktrees automatically (critical bug prevention)
-* Consistent error messages across all commands
-* Declarative validation (self-documenting code)
-* Reduces code duplication (20+ lines → 1 line per command)
-* Easy to add validation to new commands
-* Clear from function signature what location is required
-* Testable in isolation (23 dedicated tests)
+- Prevents nested worktrees automatically (critical bug prevention)
+- Consistent error messages across all commands
+- Declarative validation (self-documenting code)
+- Reduces code duplication (20+ lines → 1 line per command)
+- Easy to add validation to new commands
+- Clear from function signature what location is required
+- Testable in isolation (23 dedicated tests)
 
 #### Negative
 
-* Adds decorator import to command files
-* Runtime overhead (context detection on each call, ~1ms)
-* Could be bypassed by calling function directly (not via CLI)
+- Adds decorator import to command files
+- Runtime overhead (context detection on each call, ~1ms)
+- Could be bypassed by calling function directly (not via CLI)
 
 #### Neutral
 
-* Three decorators: `@require_main_repo`, `@require_worktree`, `@require_either`
-* Error messages include current location, required location, and fix command
-* Context detection based on filesystem path analysis
+- Three decorators: `@require_main_repo`, `@require_worktree`, `@require_either`
+- Error messages include current location, required location, and fix command
+- Context detection based on filesystem path analysis
 
 ### Confirmation
 
@@ -112,60 +112,60 @@ We'll validate this decision by:
 ### Option 1: Manual Guards in Each Command
 
 **Pros:**
-* Full control over error messages per command
-* No framework overhead
-* Simple to understand (explicit code)
+- Full control over error messages per command
+- No framework overhead
+- Simple to understand (explicit code)
 
 **Cons:**
-* Verbose boilerplate (20+ lines per command)
-* Easy to forget for new commands
-* Inconsistent error messages
-* Can be accidentally removed
-* No reusable framework
-* Duplicated code across commands
+- Verbose boilerplate (20+ lines per command)
+- Easy to forget for new commands
+- Inconsistent error messages
+- Can be accidentally removed
+- No reusable framework
+- Duplicated code across commands
 
 ### Option 2: Decorator-Based Validation
 
 **Pros:**
-* Declarative (clear from signature)
-* Reusable (DRY principle)
-* Can't be accidentally removed
-* Consistent error messages
-* Minimal boilerplate (1 line)
-* Testable in isolation
-* Pythonic approach
+- Declarative (clear from signature)
+- Reusable (DRY principle)
+- Can't be accidentally removed
+- Consistent error messages
+- Minimal boilerplate (1 line)
+- Testable in isolation
+- Pythonic approach
 
 **Cons:**
-* Adds import overhead
-* Runtime detection cost (~1ms)
-* Could be bypassed if function called directly
+- Adds import overhead
+- Runtime detection cost (~1ms)
+- Could be bypassed if function called directly
 
 ### Option 3: Pre-Command Hooks (Global Validation)
 
 **Pros:**
-* Centralized validation logic
-* No per-command changes needed
-* Could validate multiple aspects
+- Centralized validation logic
+- No per-command changes needed
+- Could validate multiple aspects
 
 **Cons:**
-* Magic behavior (not clear from function)
-* Hard to customize per command
-* Difficult to test
-* Framework complexity
-* Unclear which commands are protected
+- Magic behavior (not clear from function)
+- Hard to customize per command
+- Difficult to test
+- Framework complexity
+- Unclear which commands are protected
 
 ### Option 4: Wrapper Scripts
 
 **Pros:**
-* Language-agnostic
-* Could add shell-level checks
+- Language-agnostic
+- Could add shell-level checks
 
 **Cons:**
-* Extra layer of indirection
-* Harder to maintain
-* Not integrated with Python code
-* Difficult to test
-* Breaks direct Python imports
+- Extra layer of indirection
+- Harder to maintain
+- Not integrated with Python code
+- Difficult to test
+- Breaks direct Python imports
 
 ## More Information
 

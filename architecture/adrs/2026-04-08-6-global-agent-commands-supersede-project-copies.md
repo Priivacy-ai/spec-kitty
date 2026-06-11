@@ -190,7 +190,7 @@ Add a mechanism to force `m_3_1_2` to re-run, or clear it from the migration log
 * **Related ADR:** ADR-C (2026-04-08-3) — Global skill installation with per-project symlinks (root cause of why per-project copies exist)
 * **Related ADR:** ADR-6 (2026-01-23-6) — Config-driven agent management (the `get_agent_dirs_for_project()` helper used by the migration)
 * **Code locations:**
-  - `src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py` — hardened active migration
-  - `src/specify_cli/upgrade/migrations/m_3_2_0a4_safe_globalize_commands.py` — follow-up safe migration for projects already past `3.1.2`
-  - `src/specify_cli/shims/generator.py:101` — version marker generation (referenced in invariant 4)
-  - Spec: Scenario F and Scenario G in `kitty-specs/076-init-command-overhaul/spec.md`
+  * `src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py` — hardened active migration
+  * `src/specify_cli/upgrade/migrations/m_3_2_0a4_safe_globalize_commands.py` — follow-up safe migration for projects already past `3.1.2`
+  * `src/specify_cli/shims/generator.py:101` — version marker generation (referenced in invariant 4)
+  * Spec: Scenario F and Scenario G in `kitty-specs/076-init-command-overhaul/spec.md`

@@ -107,7 +107,7 @@ It lives parallel, not underneath.
 
 # 4. A Clean Model That Won’t Rot
 
-## Two execution modes:
+## Two execution modes
 
 ### 1) Structured Mode (Mission)
 

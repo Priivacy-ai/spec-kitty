@@ -202,9 +202,9 @@ Run feature QA and acceptance only on the mission integration branch.
 ## More Information
 
 **Related ADRs:**
-- `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`
-- `2026-04-03-2-review-approval-and-integration-completion-are-distinct.md`
-- `2026-02-17-1-canonical-next-command-runtime-loop.md`
+* `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`
+* `2026-04-03-2-review-approval-and-integration-completion-are-distinct.md`
+* `2026-02-17-1-canonical-next-command-runtime-loop.md`
 
 **Related Product Document:**
-- Companion planning artifact: `prd-lane-based-execution-and-feature-acceptance-gates-v1.md` in the planning repo
+* Companion planning artifact: `prd-lane-based-execution-and-feature-acceptance-gates-v1.md` in the planning repo

@@ -24,18 +24,18 @@ Without structured decision documentation, we face:
 
 ## Decision Drivers
 
-* Need to preserve architectural knowledge as project evolves
-* Multiple AI agents need clear decision context
-* Want to avoid "tribal knowledge" that exists only in conversation history
-* Need accountability for architectural choices
-* Want to learn from both successful and unsuccessful decisions
+- Need to preserve architectural knowledge as project evolves
+- Multiple AI agents need clear decision context
+- Want to avoid "tribal knowledge" that exists only in conversation history
+- Need accountability for architectural choices
+- Want to learn from both successful and unsuccessful decisions
 
 ## Considered Options
 
-* **Option 1:** No formal decision documentation (status quo)
-* **Option 2:** Architecture Decision Records (ADRs)
-* **Option 3:** Design documents in wiki
-* **Option 4:** Comprehensive architecture specification document
+- **Option 1:** No formal decision documentation (status quo)
+- **Option 2:** Architecture Decision Records (ADRs)
+- **Option 3:** Design documents in wiki
+- **Option 4:** Comprehensive architecture specification document
 
 ## Decision Outcome
 
@@ -51,24 +51,24 @@ Without structured decision documentation, we face:
 
 #### Positive
 
-* Architectural decisions are documented and discoverable
-* New team members can understand decision history
-* AI agents have clear context for development work
-* Prevents revisiting settled decisions repeatedly
-* Creates knowledge base of tradeoffs and lessons learned
-* Supports code reviews with architectural validation
+- Architectural decisions are documented and discoverable
+- New team members can understand decision history
+- AI agents have clear context for development work
+- Prevents revisiting settled decisions repeatedly
+- Creates knowledge base of tradeoffs and lessons learned
+- Supports code reviews with architectural validation
 
 #### Negative
 
-* Requires discipline to create ADRs consistently
-* Additional documentation overhead
-* Risk of ADRs becoming stale if not maintained
+- Requires discipline to create ADRs consistently
+- Additional documentation overhead
+- Risk of ADRs becoming stale if not maintained
 
 #### Neutral
 
-* ADRs are stored in `architecture/1.x/adr/` and `architecture/2.x/adr/` directory
-* Use sequential numbering (0001, 0002, etc.)
-* Follow standardized template format
+- ADRs are stored in `architecture/1.x/adr/` and `architecture/2.x/adr/` directory
+- Use sequential numbering (0001, 0002, etc.)
+- Follow standardized template format
 
 ### Confirmation
 
@@ -83,54 +83,54 @@ We'll know this decision is successful if:
 ### Option 1: No Formal Decision Documentation
 
 **Pros:**
-* No overhead or process burden
-* Maximum flexibility
+- No overhead or process burden
+- Maximum flexibility
 
 **Cons:**
-* Architectural knowledge lost over time
-* Decisions must be reverse-engineered from code
-* Repeated debates about settled issues
-* Difficult onboarding for new contributors
+- Architectural knowledge lost over time
+- Decisions must be reverse-engineered from code
+- Repeated debates about settled issues
+- Difficult onboarding for new contributors
 
 ### Option 2: Architecture Decision Records (ADRs)
 
 **Pros:**
-* Lightweight and focused (one decision per document)
-* Immutable historical record
-* Widely adopted industry standard
-* Works well with version control
-* Easy for AI agents to read and reference
-* Template-driven for consistency
+- Lightweight and focused (one decision per document)
+- Immutable historical record
+- Widely adopted industry standard
+- Works well with version control
+- Easy for AI agents to read and reference
+- Template-driven for consistency
 
 **Cons:**
-* Requires discipline to maintain
-* Documentation overhead for each decision
-* Can become stale if not kept in sync
+- Requires discipline to maintain
+- Documentation overhead for each decision
+- Can become stale if not kept in sync
 
 ### Option 3: Design Documents in Wiki
 
 **Pros:**
-* Easy to update and edit
-* Can include diagrams and rich media
-* Searchable and cross-linked
+- Easy to update and edit
+- Can include diagrams and rich media
+- Searchable and cross-linked
 
 **Cons:**
-* Separate from code repository
-* Encourages editing rather than superseding
-* No clear versioning or history
-* Can become monolithic and hard to navigate
+- Separate from code repository
+- Encourages editing rather than superseding
+- No clear versioning or history
+- Can become monolithic and hard to navigate
 
 ### Option 4: Comprehensive Architecture Specification
 
 **Pros:**
-* Single comprehensive reference
-* Covers entire system architecture
+- Single comprehensive reference
+- Covers entire system architecture
 
 **Cons:**
-* Becomes outdated quickly
-* Too large to read or maintain
-* Doesn't capture decision history or alternatives
-* Difficult to determine when decisions were made
+- Becomes outdated quickly
+- Too large to read or maintain
+- Doesn't capture decision history or alternatives
+- Difficult to determine when decisions were made
 
 ## More Information
 

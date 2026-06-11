@@ -157,10 +157,10 @@ This decision is validated when all of the following are true:
 ## More Information
 
 **Related planning doc:**
-- `spec-kitty-planning/product-ideas/prd-private-teamspace-repository-sharing-and-active-teamspace-v1-2026-04-21.md`
+* `spec-kitty-planning/product-ideas/prd-private-teamspace-repository-sharing-and-active-teamspace-v1-2026-04-21.md`
 
 **Related issue:**
-- `Priivacy-ai/spec-kitty-saas#99`
+* `Priivacy-ai/spec-kitty-saas#99`
 
 ## Implementation Status (2026-04-21)
 

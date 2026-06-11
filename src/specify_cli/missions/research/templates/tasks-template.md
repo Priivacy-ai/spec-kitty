@@ -12,11 +12,13 @@ description: "Work package task list template for research methodology execution
 **Organization**: Research work packages organized by methodology phase. Each work package must be independently deliverable and testable (e.g., literature search complete before analysis).
 
 ## Subtask Format: `[Txxx] [P?] Description`
+
 - **[P]** indicates the subtask can proceed in parallel (different sources/analysts).
 - Always reference the file or artifact impacted (e.g., `research/evidence-log.csv`).
 - Use research terminology: phases, findings, synthesis, methodology.
 
 ## Path Conventions
+
 - **Workspace**: `research/`
 - **Data**: `data/`
 - **Deliverables**: `findings/`
@@ -31,6 +33,7 @@ description: "Work package task list template for research methodology execution
 **Prompt**: `/tasks/WP01-literature-search.md`
 
 ### Included Subtasks
+
 - [ ] T001 Define search keywords and inclusion/exclusion criteria
 - [ ] T002 [P] Search academic database 1 (IEEE, PubMed, arXiv, etc.)
 - [ ] T003 [P] Search academic database 2
@@ -40,6 +43,7 @@ description: "Work package task list template for research methodology execution
 - [ ] T007 Prioritize sources by relevance rating and status
 
 ### Implementation Notes
+
 - Document search queries and filters.
 - Capture DOIs/URLs and access dates in the source register.
 
@@ -52,6 +56,7 @@ description: "Work package task list template for research methodology execution
 **Prompt**: `/tasks/WP02-source-review.md`
 
 ### Included Subtasks
+
 - [ ] T008 [P] Review high-relevance sources (parallelizable by researcher/source)
 - [ ] T009 Extract key findings into evidence-log.csv
 - [ ] T010 Assign confidence levels to findings
@@ -59,6 +64,7 @@ description: "Work package task list template for research methodology execution
 - [ ] T012 Identify patterns/themes emerging from evidence
 
 ### Implementation Notes
+
 - Reference source IDs from source-register.csv within each evidence row.
 - Flag contradictory findings for deeper analysis.
 
@@ -71,6 +77,7 @@ description: "Work package task list template for research methodology execution
 **Prompt**: `/tasks/WP03-analysis-synthesis.md`
 
 ### Included Subtasks
+
 - [ ] T013 Code findings by theme/category
 - [ ] T014 Identify patterns across sources and confidence levels
 - [ ] T015 Assess strength of evidence supporting each claim
@@ -79,6 +86,7 @@ description: "Work package task list template for research methodology execution
 - [ ] T018 Write findings.md with synthesis and bibliography references
 
 ### Implementation Notes
+
 - Link every conclusion to evidence rows.
 - Summarize methodology adherence and outstanding questions.
 

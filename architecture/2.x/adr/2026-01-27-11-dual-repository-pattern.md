@@ -35,20 +35,20 @@ The library provides Lamport clocks, CRDT merge rules, and conflict detection - 
 
 ## Decision Drivers
 
-* **CI/CD autonomy** - Builds must work without developer's laptop
-* **Deterministic builds** - Same code every time (no "works on my machine")
-* **Private during MVP** - Events library hidden until stable
-* **PyPI compatibility** - Public users can install spec-kitty-cli
-* **Future open source path** - Clean transition when events goes public
-* **Solo developer simplicity** - No complex infrastructure overhead
+- **CI/CD autonomy** - Builds must work without developer's laptop
+- **Deterministic builds** - Same code every time (no "works on my machine")
+- **Private during MVP** - Events library hidden until stable
+- **PyPI compatibility** - Public users can install spec-kitty-cli
+- **Future open source path** - Clean transition when events goes public
+- **Solo developer simplicity** - No complex infrastructure overhead
 
 ## Considered Options
 
-* **Option 1:** Dual-repository with Git dependency + commit pinning
-* **Option 2:** Monorepo (single repository for both)
-* **Option 3:** Git submodule
-* **Option 4:** Private PyPI index (Gemfury, AWS CodeArtifact)
-* **Option 5:** Vendoring from day 1
+- **Option 1:** Dual-repository with Git dependency + commit pinning
+- **Option 2:** Monorepo (single repository for both)
+- **Option 3:** Git submodule
+- **Option 4:** Private PyPI index (Gemfury, AWS CodeArtifact)
+- **Option 5:** Vendoring from day 1
 
 ## Decision Outcome
 
@@ -65,25 +65,25 @@ The library provides Lamport clocks, CRDT merge rules, and conflict detection - 
 
 #### Positive
 
-* **CI/CD autonomy** - Deploy key + Git dependency = fully automated builds (2.x branch)
-* **Deterministic** - Commit hash pinning guarantees same behavior
-* **Explicit integration points** - You control when events updates land
-* **Private during MVP** - Events stays hidden, CLI remains public on PyPI
-* **Clean transition** - Remove vendoring when events goes public
-* **Shared library** - CLI (2.x) and Django use same logic (no code duplication)
-* **1.x unaffected** - Main branch stays simple (no private dependencies)
+- **CI/CD autonomy** - Deploy key + Git dependency = fully automated builds (2.x branch)
+- **Deterministic** - Commit hash pinning guarantees same behavior
+- **Explicit integration points** - You control when events updates land
+- **Private during MVP** - Events stays hidden, CLI remains public on PyPI
+- **Clean transition** - Remove vendoring when events goes public
+- **Shared library** - CLI (2.x) and Django use same logic (no code duplication)
+- **1.x unaffected** - Main branch stays simple (no private dependencies)
 
 #### Negative
 
-* **Manual commit updates** - Each events change requires updating pyproject.toml
-* **SSH key management** - Deploy key needs rotation every 12 months
-* **Vendoring complexity** - PyPI release requires vendor script
-* **Two-repo coordination** - Feature branches must be manually synchronized
+- **Manual commit updates** - Each events change requires updating pyproject.toml
+- **SSH key management** - Deploy key needs rotation every 12 months
+- **Vendoring complexity** - PyPI release requires vendor script
+- **Two-repo coordination** - Feature branches must be manually synchronized
 
 #### Neutral
 
-* **No local pip -e** - Forces rigorous workflow but slows rapid iteration
-* **Git dependency size** - Clones full repo history (but small <5MB)
+- **No local pip -e** - Forces rigorous workflow but slows rapid iteration
+- **Git dependency size** - Clones full repo history (but small <5MB)
 
 ### Confirmation
 
@@ -114,19 +114,19 @@ spec-kitty-events = { git = "ssh://git@github.com/Priivacy-ai/spec-kitty-events.
 
 **Pros:**
 
-* CI/CD works autonomously (no local paths) - 2.x branch
-* Deterministic builds (exact commit hash)
-* No infrastructure costs ($0/month)
-* Forces explicit integration points (good discipline)
-* Clean path to open source
-* **1.x simplicity preserved** - Main branch stays dependency-free
+- CI/CD works autonomously (no local paths) - 2.x branch
+- Deterministic builds (exact commit hash)
+- No infrastructure costs ($0/month)
+- Forces explicit integration points (good discipline)
+- Clean path to open source
+- **1.x simplicity preserved** - Main branch stays dependency-free
 
 **Cons:**
 
-* Manual commit hash updates (2.x branch maintenance)
-* SSH deploy key setup required (one-time per repo)
-* Vendoring step for PyPI releases (deferred to 2.x release feature)
-* Two-repo branch coordination (2.x feature branches only)
+- Manual commit hash updates (2.x branch maintenance)
+- SSH deploy key setup required (one-time per repo)
+- Vendoring step for PyPI releases (deferred to 2.x release feature)
+- Two-repo branch coordination (2.x feature branches only)
 
 ### Option 2: Monorepo
 
@@ -134,15 +134,15 @@ Single repository with both CLI and events as packages.
 
 **Pros:**
 
-* Single clone, easier local dev
-* Atomic commits across components
-* No Git dependency complications
+- Single clone, easier local dev
+- Atomic commits across components
+- No Git dependency complications
 
 **Cons:**
 
-* ❌ **Cannot make events private while keeping CLI public** (deal-breaker)
-* All contributors see events code (violates privacy requirement)
-* Release complexity (two packages from one repo)
+- ❌ **Cannot make events private while keeping CLI public** (deal-breaker)
+- All contributors see events code (violates privacy requirement)
+- Release complexity (two packages from one repo)
 
 ### Option 3: Git Submodule
 
@@ -150,15 +150,15 @@ Events as submodule in `external/spec-kitty-events/`.
 
 **Pros:**
 
-* Explicit version pinning (commit in .gitmodules)
-* No SSH setup for CI (submodule handles it)
+- Explicit version pinning (commit in .gitmodules)
+- No SSH setup for CI (submodule handles it)
 
 **Cons:**
 
-* ❌ Complex developer onboarding (`git submodule update --init`)
-* Easy to forget `git submodule update` (silent breakage)
-* Path dependency breaks CI without submodule
-* Still requires vendoring for PyPI
+- ❌ Complex developer onboarding (`git submodule update --init`)
+- Easy to forget `git submodule update` (silent breakage)
+- Path dependency breaks CI without submodule
+- Still requires vendoring for PyPI
 
 ### Option 4: Private PyPI Index
 
@@ -166,16 +166,16 @@ Host spec-kitty-events on private PyPI (Gemfury, AWS CodeArtifact).
 
 **Pros:**
 
-* Standard pip/poetry workflow (no Git deps)
-* Version ranges and semantic versioning
-* Good for larger teams
+- Standard pip/poetry workflow (no Git deps)
+- Version ranges and semantic versioning
+- Good for larger teams
 
 **Cons:**
 
-* ❌ Infrastructure overhead (setup + maintenance)
-* ❌ Cost ($50-200/month hosted, $0-500/month AWS)
-* ❌ Auth setup for CI and developers
-* ❌ Overkill for solo developer
+- ❌ Infrastructure overhead (setup + maintenance)
+- ❌ Cost ($50-200/month hosted, $0-500/month AWS)
+- ❌ Auth setup for CI and developers
+- ❌ Overkill for solo developer
 
 ### Option 5: Vendoring from Day 1
 
@@ -183,15 +183,15 @@ Copy events code into `src/specify_cli/_vendored/events/`.
 
 **Pros:**
 
-* Zero external dependencies
-* Works on PyPI without complications
+- Zero external dependencies
+- Works on PyPI without complications
 
 **Cons:**
 
-* ❌ Loses version control for events
-* ❌ Hard to sync changes between CLI and Django
-* ❌ No shared test suite (divergence risk)
-* ❌ Violates DRY (code duplication)
+- ❌ Loses version control for events
+- ❌ Hard to sync changes between CLI and Django
+- ❌ No shared test suite (divergence risk)
+- ❌ Violates DRY (code duplication)
 
 ## More Information
 

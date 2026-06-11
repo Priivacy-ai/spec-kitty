@@ -918,11 +918,13 @@ assert result.exit_code == 1
 ## Performance Requirements
 
 ### Encoding Validation
+
 - Single file validation: **< 50ms** (for 10KB file)
 - Directory scan (100 files): **< 2 seconds**
 - Dashboard auto-fix: **< 200ms** (first-time per file)
 
 ### Plan Validation
+
 - Template detection: **< 20ms** (for typical plan.md)
 - Research command gate: **< 100ms** total overhead
 
@@ -930,7 +932,7 @@ assert result.exit_code == 1
 
 ## Error Case Testing
 
-### Must Test These Failure Modes:
+### Must Test These Failure Modes
 
 1. **Binary file mistaken as markdown**
    - Verify sanitizer handles gracefully

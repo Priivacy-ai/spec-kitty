@@ -21,8 +21,8 @@ Every release, we encountered this workflow:
 5. Release blocked until manual import added
 
 **Why this keeps happening:**
-- Two-step process: Create file + Edit __init__.py
-- __init__.py is far from the migration file in editor
+- Two-step process: Create file + Edit **init**.py
+- **init**.py is far from the migration file in editor
 - Easy to forget second step when focused on migration logic
 - No IDE autocomplete reminder
 - Error only caught at release time (not during development)
@@ -46,20 +46,20 @@ from . import m_0_14_0_centralized_feature_detection  # ← Forgot this!
 
 ## Decision Drivers
 
-* **Eliminate recurring failure** - This issue blocks EVERY release
-* **Single responsibility** - Creating a migration should be one step, not two
-* **Fail-fast** - Errors should surface during development, not at release
-* **Developer experience** - Reduce cognitive load and manual bookkeeping
-* **Standard practice** - Most migration systems auto-discover (Django, Alembic, etc.)
-* **Backward compatibility** - Existing migrations and tests must continue working
-* **Performance** - Auto-discovery must be fast (<1 second)
+- **Eliminate recurring failure** - This issue blocks EVERY release
+- **Single responsibility** - Creating a migration should be one step, not two
+- **Fail-fast** - Errors should surface during development, not at release
+- **Developer experience** - Reduce cognitive load and manual bookkeeping
+- **Standard practice** - Most migration systems auto-discover (Django, Alembic, etc.)
+- **Backward compatibility** - Existing migrations and tests must continue working
+- **Performance** - Auto-discovery must be fast (<1 second)
 
 ## Considered Options
 
-* **Option 1:** Auto-discovery using pkgutil + importlib (filesystem scan)
-* **Option 2:** Code generation (auto-update __init__.py on migration creation)
-* **Option 3:** Status quo + better documentation/reminders
-* **Option 4:** Pre-commit hook to validate __init__.py
+- **Option 1:** Auto-discovery using pkgutil + importlib (filesystem scan)
+- **Option 2:** Code generation (auto-update **init**.py on migration creation)
+- **Option 3:** Status quo + better documentation/reminders
+- **Option 4:** Pre-commit hook to validate **init**.py
 
 ## Decision Outcome
 
@@ -75,25 +75,25 @@ from . import m_0_14_0_centralized_feature_detection  # ← Forgot this!
 
 #### Positive
 
-* **No more release blockers** - Migrations auto-discovered, no manual imports
-* **Single-step workflow** - Create m_*.py file, auto-registered
-* **Better developer experience** - Focus on migration logic, not bookkeeping
-* **Fail-fast** - Import errors surface immediately, not at release
-* **Standard architecture** - Aligns with Django, Alembic, and other migration systems
-* **Reduced code** - 43 lines of manual imports → 52 lines of auto-discovery (but scales to infinite migrations)
+- **No more release blockers** - Migrations auto-discovered, no manual imports
+- **Single-step workflow** - Create m_*.py file, auto-registered
+- **Better developer experience** - Focus on migration logic, not bookkeeping
+- **Fail-fast** - Import errors surface immediately, not at release
+- **Standard architecture** - Aligns with Django, Alembic, and other migration systems
+- **Reduced code** - 43 lines of manual imports → 52 lines of auto-discovery (but scales to infinite migrations)
 
 #### Negative
 
-* **Slightly slower startup** - Must scan directory and import modules (adds ~50ms)
-* **Module reload needed** - After `MigrationRegistry.clear()` in tests, must call `auto_discover_migrations()`
-* **Potential import errors** - Broken migration files fail loudly (but this is good!)
-* **Less explicit** - Can't see list of migrations in __init__.py (but registry provides this)
+- **Slightly slower startup** - Must scan directory and import modules (adds ~50ms)
+- **Module reload needed** - After `MigrationRegistry.clear()` in tests, must call `auto_discover_migrations()`
+- **Potential import errors** - Broken migration files fail loudly (but this is good!)
+- **Less explicit** - Can't see list of migrations in **init**.py (but registry provides this)
 
 #### Neutral
 
-* **Naming convention enforced** - Only `m_*.py` files auto-discovered
-* **Import-time execution** - Auto-discovery runs when migrations module imported
-* **Test isolation** - Tests must call `auto_discover_migrations()` after `clear()`
+- **Naming convention enforced** - Only `m_*.py` files auto-discovered
+- **Import-time execution** - Auto-discovery runs when migrations module imported
+- **Test isolation** - Tests must call `auto_discover_migrations()` after `clear()`
 
 ### Confirmation
 
@@ -113,66 +113,66 @@ We validated this decision by:
 Scan `migrations/` directory at runtime, dynamically import all `m_*.py` files.
 
 **Pros:**
-* Zero manual steps (just create file)
-* Impossible to forget registration
-* Standard pattern (Django, Alembic use this)
-* Fast (<100ms)
-* Testable and verifiable
-* Scales to infinite migrations (no manual list)
-* Fail-fast (import errors surface immediately)
+- Zero manual steps (just create file)
+- Impossible to forget registration
+- Standard pattern (Django, Alembic use this)
+- Fast (<100ms)
+- Testable and verifiable
+- Scales to infinite migrations (no manual list)
+- Fail-fast (import errors surface immediately)
 
 **Cons:**
-* Slightly slower startup (~50ms overhead)
-* Module reload needed after clear() in tests
-* Less explicit (can't see migration list in __init__.py)
-* Potential import errors (but good - catches broken migrations early)
+- Slightly slower startup (~50ms overhead)
+- Module reload needed after clear() in tests
+- Less explicit (can't see migration list in **init**.py)
+- Potential import errors (but good - catches broken migrations early)
 
-### Option 2: Code generation (auto-update __init__.py)
+### Option 2: Code generation (auto-update **init**.py)
 
-Generate __init__.py automatically when migration created (e.g., via CLI command).
+Generate **init**.py automatically when migration created (e.g., via CLI command).
 
 **Pros:**
-* Explicit migration list visible in __init__.py
-* No runtime scanning overhead
-* Familiar pattern (explicit imports)
+- Explicit migration list visible in **init**.py
+- No runtime scanning overhead
+- Familiar pattern (explicit imports)
 
 **Cons:**
-* Still two-step process (create migration, run codegen)
-* Can forget to run codegen command
-* Codegen complexity (when to run? pre-commit hook?)
-* Diff noise (every migration adds line to __init__.py)
-* Doesn't solve core problem (still manual step)
+- Still two-step process (create migration, run codegen)
+- Can forget to run codegen command
+- Codegen complexity (when to run? pre-commit hook?)
+- Diff noise (every migration adds line to **init**.py)
+- Doesn't solve core problem (still manual step)
 
 ### Option 3: Status quo + better documentation
 
 Keep manual imports, add reminders in docs and CI.
 
 **Pros:**
-* No code changes needed
-* Explicit migration list in __init__.py
-* No performance overhead
+- No code changes needed
+- Explicit migration list in **init**.py
+- No performance overhead
 
 **Cons:**
-* **Doesn't solve the problem** - Still requires human memory
-* Still blocks releases (proven track record)
-* Documentation doesn't prevent mistakes
-* Developer frustration persists
-* Wasted time on every release
+- **Doesn't solve the problem** - Still requires human memory
+- Still blocks releases (proven track record)
+- Documentation doesn't prevent mistakes
+- Developer frustration persists
+- Wasted time on every release
 
 ### Option 4: Pre-commit hook validation
 
-Git hook that checks __init__.py matches filesystem before commit.
+Git hook that checks **init**.py matches filesystem before commit.
 
 **Pros:**
-* Catches errors before commit
-* No runtime overhead
-* Fails early in development
+- Catches errors before commit
+- No runtime overhead
+- Fails early in development
 
 **Cons:**
-* Still requires manual import (doesn't eliminate problem)
-* Pre-commit hooks can be skipped (`--no-verify`)
-* Adds setup complexity for contributors
-* Doesn't prevent the mistake, just catches it earlier
+- Still requires manual import (doesn't eliminate problem)
+- Pre-commit hooks can be skipped (`--no-verify`)
+- Adds setup complexity for contributors
+- Doesn't prevent the mistake, just catches it earlier
 
 ## More Information
 

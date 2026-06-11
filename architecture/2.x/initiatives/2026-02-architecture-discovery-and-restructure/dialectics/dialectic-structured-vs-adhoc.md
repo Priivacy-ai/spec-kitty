@@ -14,20 +14,20 @@ them.**
 
 The User Journey chain demonstrates a coherent lifecycle:
 
-1.  Ad-hoc exploration (specialist session)\
-2.  Formalization (repeatable approach)\
-3.  Mission recipe creation (structured execution)
+1. Ad-hoc exploration (specialist session)\
+2. Formalization (repeatable approach)\
+3. Mission recipe creation (structured execution)
 
 This creates a disciplined gradient from thinking → structuring →
 executing.
 
 It supports:
 
--   Quick tasks without workflow overhead\
--   Perspective-driven reasoning\
--   Doctrine consistency across modes\
--   Emergent process crystallization\
--   Human-in-charge governance
+- Quick tasks without workflow overhead\
+- Perspective-driven reasoning\
+- Doctrine consistency across modes\
+- Emergent process crystallization\
+- Human-in-charge governance
 
 Rather than weakening identity, this strengthens it.\
 Spec Kitty becomes:
@@ -47,30 +47,30 @@ confusion.**
 
 Spec Kitty's current strength is clarity:
 
--   It runs missions.\
--   Missions are structured.\
--   Steps are deterministic.\
--   State is explicit.
+- It runs missions.\
+- Missions are structured.\
+- Steps are deterministic.\
+- State is explicit.
 
 Adding ad-hoc specialist sessions introduces:
 
--   Non-linear flow\
--   Conversational ambiguity\
--   Partial state\
--   Optional capture\
--   Deferred formalization
+- Non-linear flow\
+- Conversational ambiguity\
+- Partial state\
+- Optional capture\
+- Deferred formalization
 
 The system would now have:
 
--   Two reasoning models\
--   Two lifecycle depths\
--   Two tracing intensities
+- Two reasoning models\
+- Two lifecycle depths\
+- Two tracing intensities
 
 There is a risk that:
 
--   Ad-hoc mode becomes dominant and missions feel heavyweight.\
--   The system drifts toward persona-based chat tooling.\
--   Identity shifts from workflow engine to agent playground.
+- Ad-hoc mode becomes dominant and missions feel heavyweight.\
+- The system drifts toward persona-based chat tooling.\
+- Identity shifts from workflow engine to agent playground.
 
 Even if the User Journeys describe a clean transition, sustained usage
 may blur boundaries.
@@ -90,18 +90,18 @@ The User Journey chain encodes separation:
   Ad-Hoc          Session-based      Lightweight      Advisory        Exploration
 
   Formalization   Artifact-backed    Structured       Explicit        Capture
-                                     summary          trigger         
+                                     summary          trigger
 
-  Mission         Persistent         Deep tracing     Gated           Execution
+Mission         Persistent         Deep tracing     Gated           Execution
   ---------------------------------------------------------------------------------
 
 Guardrails are explicit:
 
--   No automatic mission promotion\
--   No silent tracing escalation\
--   No implicit state mutation\
--   Formalization requires explicit user intent\
--   Mission creation is gated
+- No automatic mission promotion\
+- No silent tracing escalation\
+- No implicit state mutation\
+- Formalization requires explicit user intent\
+- Mission creation is gated
 
 We are not merging chat and workflow.
 
@@ -127,20 +127,20 @@ It is:
 
 > A reasoning lifecycle with escalating structure.
 
-1.  **Think** --- Ad-hoc specialist sessions (advisory, session-based,
+1. **Think** --- Ad-hoc specialist sessions (advisory, session-based,
     exploratory)\
-2.  **Capture** --- Formalize approach into repeatable artifact
+2. **Capture** --- Formalize approach into repeatable artifact
     (explicit, reviewable)\
-3.  **Execute** --- Convert into mission recipe (gated, versioned,
+3. **Execute** --- Convert into mission recipe (gated, versioned,
     reproducible)
 
 This preserves:
 
--   Mission clarity\
--   Human-in-charge governance\
--   Doctrine consistency\
--   Step composability\
--   Observability discipline
+- Mission clarity\
+- Human-in-charge governance\
+- Doctrine consistency\
+- Step composability\
+- Observability discipline
 
 Spec Kitty evolves from:
 

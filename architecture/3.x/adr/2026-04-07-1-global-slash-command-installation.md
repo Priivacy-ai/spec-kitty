@@ -95,10 +95,10 @@ Global root = `Path.home() / AGENT_COMMAND_CONFIG[agent_key]["dir"]`
 ## More Information
 
 **Related ADRs:**
-- `cea2d8de` commit — skills globalization (the model this decision follows)
+* `cea2d8de` commit — skills globalization (the model this decision follows)
 
 **References:**
-- `src/specify_cli/runtime/agent_commands.py` — implementation
-- `src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py` — cleanup migration
-- `src/specify_cli/core/config.py` — `AGENT_COMMAND_CONFIG`
-- `src/doctrine/skills/spec-kitty-setup-doctor/references/agent-path-matrix.md` — full agent path matrix
+* `src/specify_cli/runtime/agent_commands.py` — implementation
+* `src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py` — cleanup migration
+* `src/specify_cli/core/config.py` — `AGENT_COMMAND_CONFIG`
+* `src/doctrine/skills/spec-kitty-setup-doctor/references/agent-path-matrix.md` — full agent path matrix

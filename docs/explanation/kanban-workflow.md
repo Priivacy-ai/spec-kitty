@@ -546,13 +546,16 @@ Work paused due to external dependency, then resumed.
 *This document explains how lanes work. For practical steps on moving work, see the how-to guides.*
 
 ## Try It
+
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
 
 ## How-To Guides
+
 - [Use the Dashboard](../how-to/use-dashboard.md)
 - [Sync Workspaces](../how-to/sync-workspaces.md)
 - [Non-Interactive Init](../how-to/non-interactive-init.md)
 
 ## Reference
+
 - [CLI Commands](../reference/cli-commands.md)
 - [Slash Commands](../reference/slash-commands.md)

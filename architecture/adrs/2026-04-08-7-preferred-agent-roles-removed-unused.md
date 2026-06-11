@@ -180,6 +180,6 @@ Print a deprecation notice when `--preferred-implementer` or `--preferred-review
 * **Spec:** `kitty-specs/076-init-command-overhaul/spec.md` — FR-017 (`preferred_implementer` and `preferred_reviewer` removed from data model), FR-018 (`select_implementer()` and `select_reviewer()` methods removed), FR-019 (`AgentSelectionConfig` removed entirely), FR-020 (cleanup migration strips orphaned keys from `config.yaml`)
 * **Related ADR:** ADR-6 (2026-01-23-6) — Config-driven agent management (the broader `AgentConfig` model that `AgentSelectionConfig` was a subcomponent of)
 * **Code locations:**
-  - `src/specify_cli/core/agent_config.py` — `AgentSelectionConfig`, `select_implementer()`, `select_reviewer()`, serialization blocks
-  - `src/specify_cli/init.py:735–736, 911–967` — `--preferred-implementer` and `--preferred-reviewer` flag definitions and selection stage
-  - `src/specify_cli/upgrade/migrations/m_3_2_1_remove_selection_config.py` — cleanup migration (new)
+  * `src/specify_cli/core/agent_config.py` — `AgentSelectionConfig`, `select_implementer()`, `select_reviewer()`, serialization blocks
+  * `src/specify_cli/init.py:735–736, 911–967` — `--preferred-implementer` and `--preferred-reviewer` flag definitions and selection stage
+  * `src/specify_cli/upgrade/migrations/m_3_2_1_remove_selection_config.py` — cleanup migration (new)

@@ -18,7 +18,7 @@ The spec-kitty codebase uses actor-identity vocabulary in three distinct places:
 
 These three vocabularies are currently fragmented — they use similar words but
 have no shared type and no formal relationship. The doc-01–doc-17 analysis in
-#1666 introduced the concept of an **Effector**: the Actor as realized inside
+issue #1666 introduced the concept of an **Effector**: the Actor as realized inside
 the Execution domain.
 
 The question is whether to materialize `Effector` as a code type now, or to

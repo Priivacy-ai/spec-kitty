@@ -141,6 +141,6 @@ Create a new `spec-kitty setup` command that handles per-project initialization 
 * **Related ADR:** ADR-A (2026-04-08-1) — Global `~/.kittify/` as machine-level runtime (establishes the machine/project boundary that makes this separation necessary)
 * **Related ADR:** ADR-6 (2026-01-23-6) — Config-driven agent management
 * **Code locations:**
-  - `src/specify_cli/init.py:392–572` — the three doctrine functions to be removed
-  - `src/specify_cli/init.py:1261` — call site for `_run_doctrine_stack_init`
-  - `tests/specify_cli/test_init_doctrine.py` — test file to be deleted
+  * `src/specify_cli/init.py:392–572` — the three doctrine functions to be removed
+  * `src/specify_cli/init.py:1261` — call site for `_run_doctrine_stack_init`
+  * `tests/specify_cli/test_init_doctrine.py` — test file to be deleted

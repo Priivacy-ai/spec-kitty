@@ -92,4 +92,3 @@ governance intent into repeatable operational behavior. It is successful when
 transitions are deterministic, boundaries are explicit, and failures are actionable.
 
 ---
-

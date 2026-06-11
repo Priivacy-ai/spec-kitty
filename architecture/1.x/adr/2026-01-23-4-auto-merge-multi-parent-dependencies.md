@@ -45,19 +45,19 @@ How do we handle multi-parent dependencies deterministically and automatically?
 
 ## Decision Drivers
 
-* Git limitation: can only branch from one base commit
-* Need deterministic behavior (same inputs → same outputs)
-* Want to eliminate manual merge steps for agents
-* Must validate all dependencies are included
-* Should create reproducible git history
-* Need clear conflict detection and reporting
+- Git limitation: can only branch from one base commit
+- Need deterministic behavior (same inputs → same outputs)
+- Want to eliminate manual merge steps for agents
+- Must validate all dependencies are included
+- Should create reproducible git history
+- Need clear conflict detection and reporting
 
 ## Considered Options
 
-* **Option 1:** Require manual --base selection and manual merge (status quo)
-* **Option 2:** Auto-merge all dependencies into temporary merge commit
-* **Option 3:** Topological-first parent selection (pick earliest dependency)
-* **Option 4:** Dependency weight-based selection (pick largest dependency)
+- **Option 1:** Require manual --base selection and manual merge (status quo)
+- **Option 2:** Auto-merge all dependencies into temporary merge commit
+- **Option 3:** Topological-first parent selection (pick earliest dependency)
+- **Option 4:** Dependency weight-based selection (pick largest dependency)
 
 ## Decision Outcome
 
@@ -72,25 +72,25 @@ How do we handle multi-parent dependencies deterministically and automatically?
 
 #### Positive
 
-* Fully deterministic multi-parent handling
-* No manual merge steps for agents
-* All dependencies validated before workspace creation
-* Clear conflict detection and reporting
-* Reproducible git history
-* Eliminates arbitrary base selection
+- Fully deterministic multi-parent handling
+- No manual merge steps for agents
+- All dependencies validated before workspace creation
+- Clear conflict detection and reporting
+- Reproducible git history
+- Eliminates arbitrary base selection
 
 #### Negative
 
-* Creates additional merge commits (increases git graph complexity)
-* Merge conflicts must be resolved before workspace creation
-* Temporary branches persist after workspace creation
-* Sequential merges (not octopus merge, slightly more commits)
+- Creates additional merge commits (increases git graph complexity)
+- Merge conflicts must be resolved before workspace creation
+- Temporary branches persist after workspace creation
+- Sequential merges (not octopus merge, slightly more commits)
 
 #### Neutral
 
-* Temporary merge base branch: `###-feature-WP##-merge-base`
-* Dependencies sorted for deterministic merge order
-* Merge strategy: sequential binary merges (not octopus)
+- Temporary merge base branch: `###-feature-WP##-merge-base`
+- Dependencies sorted for deterministic merge order
+- Merge strategy: sequential binary merges (not octopus)
 
 ### Confirmation
 
@@ -106,56 +106,56 @@ We'll validate this decision by:
 ### Option 1: Manual --base Selection + Manual Merge
 
 **Pros:**
-* Simple implementation (no auto-merge logic)
-* User has full control over merge order
-* Minimal git operations
+- Simple implementation (no auto-merge logic)
+- User has full control over merge order
+- Minimal git operations
 
 **Cons:**
-* Arbitrary base selection (non-deterministic)
-* Manual merge steps burden agents
-* No validation of complete dependency merge
-* Error-prone (agents may forget to merge all deps)
-* Inconsistent git histories across runs
+- Arbitrary base selection (non-deterministic)
+- Manual merge steps burden agents
+- No validation of complete dependency merge
+- Error-prone (agents may forget to merge all deps)
+- Inconsistent git histories across runs
 
 ### Option 2: Auto-Merge All Dependencies
 
 **Pros:**
-* Fully deterministic (sorted deps → same tree)
-* No manual steps required
-* All dependencies validated automatically
-* Clear conflict detection
-* Reproducible builds
-* Agents don't need merge knowledge
+- Fully deterministic (sorted deps → same tree)
+- No manual steps required
+- All dependencies validated automatically
+- Clear conflict detection
+- Reproducible builds
+- Agents don't need merge knowledge
 
 **Cons:**
-* Additional merge commits created
-* Conflicts block workspace creation
-* Temporary branches persist
-* More complex implementation
+- Additional merge commits created
+- Conflicts block workspace creation
+- Temporary branches persist
+- More complex implementation
 
 ### Option 3: Topological-First Parent Selection
 
 **Pros:**
-* Deterministic ordering (earliest dependency)
-* Single base branch (simpler than merge)
-* Fewer merge commits
+- Deterministic ordering (earliest dependency)
+- Single base branch (simpler than merge)
+- Fewer merge commits
 
 **Cons:**
-* Still requires manual merge of remaining deps
-* Not all dependencies included automatically
-* Partial solution (doesn't eliminate manual steps)
+- Still requires manual merge of remaining deps
+- Not all dependencies included automatically
+- Partial solution (doesn't eliminate manual steps)
 
 ### Option 4: Dependency Weight-Based Selection
 
 **Pros:**
-* Intelligent base selection (largest impact)
-* Potentially fewer merge conflicts
+- Intelligent base selection (largest impact)
+- Potentially fewer merge conflicts
 
 **Cons:**
-* Still requires manual merge
-* Non-deterministic if weights equal
-* Complex heuristic (file count? lines changed?)
-* Doesn't solve fundamental problem
+- Still requires manual merge
+- Non-deterministic if weights equal
+- Complex heuristic (file count? lines changed?)
+- Doesn't solve fundamental problem
 
 ## More Information
 

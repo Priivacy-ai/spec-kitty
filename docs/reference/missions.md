@@ -30,9 +30,11 @@ Terminology note:
 The default mission type for building software missions such as features.
 
 ### Domain
+
 Software development: building new features, APIs, user interfaces, and system components.
 
 ### Phases
+
 1. **research** — Understand requirements and constraints
 2. **design** — Plan architecture and data models
 3. **implement** — Build the solution
@@ -52,6 +54,7 @@ Software development: building new features, APIs, user interfaces, and system c
 | `wps.yaml` | `/spec-kitty.tasks` | Machine-readable WP manifest with `plan_concern_refs` traceability |
 
 ### When to Use
+
 - Adding a new software mission to an application
 - Building APIs or services
 - Creating user interfaces
@@ -65,9 +68,11 @@ Software development: building new features, APIs, user interfaces, and system c
 Mission for research and analysis work.
 
 ### Domain
+
 Research and analysis: investigating technologies, competitive analysis, feasibility studies, and technical deep-dives.
 
 ### Phases
+
 1. **question** — Define research questions
 2. **methodology** — Plan research approach
 3. **gather** — Collect data and evidence
@@ -87,6 +92,7 @@ Research and analysis: investigating technologies, competitive analysis, feasibi
 | `sources/` | Implementation | Source materials and references |
 
 ### When to Use
+
 - Technology evaluation
 - Competitive analysis
 - Feasibility studies
@@ -101,9 +107,11 @@ Research and analysis: investigating technologies, competitive analysis, feasibi
 Mission for creating documentation.
 
 ### Domain
+
 Documentation creation: user guides, API documentation, tutorials, and reference materials.
 
 ### Phases
+
 1. **discover** — Understand documentation needs
 2. **audit** — Assess existing documentation
 3. **design** — Plan documentation structure
@@ -134,6 +142,7 @@ The documentation mission uses the Divio 4-type system:
 | **Explanation** | Understanding | Explain concepts and "why" |
 
 ### When to Use
+
 - Creating user documentation
 - Writing API references
 - Building tutorial content
@@ -174,6 +183,7 @@ The mission type cannot be changed after mission creation. If you need a differe
 Advanced users can customize missions via configuration files.
 
 ### Location
+
 ```
 .kittify/missions/<mission-key>/mission.yaml
 ```
@@ -482,7 +492,7 @@ CLI invocations:
 **1. Default panel output (success)**
 
 ```bash
-$ spec-kitty mission run erp-integration --mission erp-q3-rollout
+spec-kitty mission run erp-integration --mission erp-q3-rollout
 ```
 
 A `rich.panel.Panel` titled "Mission Run Started" is rendered. The body shows the success message, `feature_dir`, and `run_dir`. Exit code 0.
@@ -533,11 +543,14 @@ For the operator-narrative walkthrough (decision resolution, advancement, recove
 - [Mission System](../explanation/mission-system.md) — Why missions exist
 
 ## Getting Started
+
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## Practical Usage
+
 - [Use the Dashboard](../how-to/use-dashboard.md)
 - [Non-Interactive Init](../how-to/non-interactive-init.md)
 
 ## Background
+
 - [Mission System](../explanation/mission-system.md)

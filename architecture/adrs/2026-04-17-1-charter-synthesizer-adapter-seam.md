@@ -86,8 +86,8 @@ Orchestration uses `generate_batch` when present (`hasattr(adapter, "generate_ba
 ### Provenance identity (Q2)
 
 `AdapterOutput` carries:
-- `adapter_id_override: str | None` — optional per-call identity override
-- `adapter_version_override: str | None` — optional per-call version override
+* `adapter_id_override: str | None` — optional per-call identity override
+* `adapter_version_override: str | None` — optional per-call version override
 
 Orchestration records `adapter_id_override or adapter.id` and `adapter_version_override or adapter.version` in provenance. This makes model rotation visible in provenance without requiring adapters to register new identities.
 

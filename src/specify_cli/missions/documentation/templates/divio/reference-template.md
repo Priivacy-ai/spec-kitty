@@ -135,12 +135,14 @@ outcome: user-knows-what-exists
 ## Version History
 
 ### Version {X.Y.Z}
+
 - Added: `{new-feature}`
 - Changed: `{modified-behavior}`
 - Deprecated: `{old-feature}` (use `{new-feature}` instead)
 - Removed: `{removed-feature}`
 
 ### Version {X.Y.Z}
+
 - {Changes in this version}
 
 ---

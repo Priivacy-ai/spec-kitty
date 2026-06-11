@@ -183,9 +183,9 @@ Additionally, Entire.io (Tier 1 competitive threat) is building multi-agent orch
 * Swarm architecture analysis: `spec-kitty-planning/competitive/tier-1-threats/entire-io/SWARM-COMPARISON.md`
 * Swarm codebase: https://github.com/mtomcal/swarm (see Docker sandbox implementation)
 * **Cursor scaling research**: https://cursor.com/blog/scaling-agents
-  - Key finding: Lock-based coordination creates severe bottlenecks (20 agents → 2-3 effective throughput)
-  - Validation: Hundreds of concurrent workers require process isolation (not locks)
-  - Conclusion: Isolation via containers enables scale; locking prevents it
+  * Key finding: Lock-based coordination creates severe bottlenecks (20 agents → 2-3 effective throughput)
+  * Validation: Hundreds of concurrent workers require process isolation (not locks)
+  * Conclusion: Isolation via containers enables scale; locking prevents it
 * Product requirements: `spec-kitty-planning/product-ideas/prd-agent-orchestration-integration-v1.md` (AD-001)
 * Integration spec: `spec-kitty-planning/competitive/tier-1-threats/entire-io/INTEGRATION-SPEC.md` (Section 2.1)
 

@@ -36,19 +36,19 @@ Where should we store runtime context information that is:
 
 ## Decision Drivers
 
-* Agents in worktrees need runtime access to workspace metadata
-* Context should be readable without querying main repo files
-* Need audit trail that persists after worktree deletion
-* Must not create merge conflicts or git state issues
-* Should align with existing architecture patterns
-* Want single query to get all workspace context
+- Agents in worktrees need runtime access to workspace metadata
+- Context should be readable without querying main repo files
+- Need audit trail that persists after worktree deletion
+- Must not create merge conflicts or git state issues
+- Should align with existing architecture patterns
+- Want single query to get all workspace context
 
 ## Considered Options
 
-* **Option 1:** Per-worktree `.spec-kitty-context` file
-* **Option 2:** Centralized storage in `.kittify/workspaces/`
-* **Option 3:** Environment variables only
-* **Option 4:** Store in git config
+- **Option 1:** Per-worktree `.spec-kitty-context` file
+- **Option 2:** Centralized storage in `.kittify/workspaces/`
+- **Option 3:** Environment variables only
+- **Option 4:** Store in git config
 
 ## Decision Outcome
 
@@ -64,24 +64,24 @@ Where should we store runtime context information that is:
 
 #### Positive
 
-* Context accessible from both main repo and worktrees via relative path
-* Persists after worktree deletion (post-mortem debugging)
-* No .gitignore or workspace-filtering complexity
-* Consistent with existing architecture (all state in `.kittify/`)
-* Simple cleanup (delete JSON file)
-* Queryable via CLI (`spec-kitty context info`)
+- Context accessible from both main repo and worktrees via relative path
+- Persists after worktree deletion (post-mortem debugging)
+- No .gitignore or workspace-filtering complexity
+- Consistent with existing architecture (all state in `.kittify/`)
+- Simple cleanup (delete JSON file)
+- Queryable via CLI (`spec-kitty context info`)
 
 #### Negative
 
-* Context files stored separately from worktrees
-* Agents must use relative path (`../../.kittify/workspaces/`)
-* Could become orphaned if worktree deleted without cleanup
+- Context files stored separately from worktrees
+- Agents must use relative path (`../../.kittify/workspaces/`)
+- Could become orphaned if worktree deleted without cleanup
 
 #### Neutral
 
-* JSON format for context files
-* One file per workspace: `###-feature-WP##.json`
-* Cleanup command: `spec-kitty context cleanup`
+- JSON format for context files
+- One file per workspace: `###-feature-WP##.json`
+- Cleanup command: `spec-kitty context cleanup`
 
 ### Confirmation
 
@@ -96,59 +96,59 @@ We'll validate this decision by:
 ### Option 1: Per-Worktree `.spec-kitty-context` File
 
 **Pros:**
-* High visibility (in worktree root)
-* No relative path needed
-* Colocated with workspace files
+- High visibility (in worktree root)
+- No relative path needed
+- Colocated with workspace files
 
 **Cons:**
-* Lost when worktree deleted (no audit trail)
-* Requires gitignoring (untracked, ephemeral)
-* Duplicates info from frontmatter
-* Adds .gitignore complexity
-* Could be accidentally committed
-* Not accessible from main repo
+- Lost when worktree deleted (no audit trail)
+- Requires gitignoring (untracked, ephemeral)
+- Duplicates info from frontmatter
+- Adds .gitignore complexity
+- Could be accidentally committed
+- Not accessible from main repo
 
 ### Option 2: Centralized Storage in `.kittify/workspaces/`
 
 **Pros:**
-* Survives worktree deletion (audit trail)
-* No .gitignore complexity
-* Consistent with `.kittify/` pattern
-* Queryable from anywhere
-* Simple cleanup
-* No merge conflicts
+- Survives worktree deletion (audit trail)
+- No .gitignore complexity
+- Consistent with `.kittify/` pattern
+- Queryable from anywhere
+- Simple cleanup
+- No merge conflicts
 
 **Cons:**
-* Requires relative path from worktree
-* Context stored separately from workspace
-* Could become orphaned
+- Requires relative path from worktree
+- Context stored separately from workspace
+- Could become orphaned
 
 ### Option 3: Environment Variables Only
 
 **Pros:**
-* No files to manage
-* Available to all processes
-* Traditional Unix approach
+- No files to manage
+- Available to all processes
+- Traditional Unix approach
 
 **Cons:**
-* Ephemeral (lost when shell exits)
-* Not queryable after command finishes
-* No audit trail
-* Must be set manually
-* Not accessible to new shells/processes
+- Ephemeral (lost when shell exits)
+- Not queryable after command finishes
+- No audit trail
+- Must be set manually
+- Not accessible to new shells/processes
 
 ### Option 4: Store in Git Config
 
 **Pros:**
-* Git-native approach
-* Persistent across shell sessions
+- Git-native approach
+- Persistent across shell sessions
 
 **Cons:**
-* Pollutes git config namespace
-* Difficult to query programmatically
-* Not human-readable
-* Cleanup complex
-* Non-standard use of git config
+- Pollutes git config namespace
+- Difficult to query programmatically
+- Not human-readable
+- Cleanup complex
+- Non-standard use of git config
 
 ## More Information
 

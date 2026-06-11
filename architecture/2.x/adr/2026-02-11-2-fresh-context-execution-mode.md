@@ -68,7 +68,7 @@ As Spec Kitty moves toward more sophisticated orchestration (Feature 013: cross-
 #### Negative
 
 * **Performance**: Slower execution (spawn/terminate overhead ~2-3 seconds per subtask)
-  - Example: 10-subtask WP adds 20-30 seconds total overhead
+  * Example: 10-subtask WP adds 20-30 seconds total overhead
 * **Lost continuity**: Agent doesn't learn from prior subtask execution (only reads results, not reasoning process)
 * **Complexity**: Adds execution mode dimension to orchestrator (more configuration, more testing)
 * **Resource usage**: More Docker container churn (if sandboxed mode enabled)
@@ -176,9 +176,9 @@ As Spec Kitty moves toward more sophisticated orchestration (Feature 013: cross-
 * Swarm architecture analysis: `spec-kitty-planning/competitive/tier-1-threats/entire-io/SWARM-COMPARISON.md` (Section "Ralph Mode")
 * Swarm codebase: https://github.com/mtomcal/swarm (see Ralph mode implementation in `loop.sh`)
 * **Cursor scaling research**: https://cursor.com/blog/scaling-agents
-  - Key quote: "Prompts matter more than the harness and models"
-  - Finding: Role-specific prompts prevent agent drift and maintain focus over long periods
-  - Validation: Focused prompts per task improve quality more than infrastructure complexity
+  * Key quote: "Prompts matter more than the harness and models"
+  * Finding: Role-specific prompts prevent agent drift and maintain focus over long periods
+  * Validation: Focused prompts per task improve quality more than infrastructure complexity
 * Product requirements: `spec-kitty-planning/product-ideas/prd-agent-orchestration-integration-v1.md` (AD-002)
 * Integration spec: `spec-kitty-planning/competitive/tier-1-threats/entire-io/INTEGRATION-SPEC.md` (Section 2.2)
 
