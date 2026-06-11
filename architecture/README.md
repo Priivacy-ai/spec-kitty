@@ -2,86 +2,120 @@
 
 This directory is the canonical architecture corpus for Spec Kitty.
 
+## Boundary rule (single source of truth)
+
+Two top-level surfaces, two jobs — they never duplicate each other:
+
+| Surface | Holds | Authority |
+|---|---|---|
+| `architecture/` | **Decisions & models** — ADRs, C4 diagrams, vision, audits, calibration | Authoritative; changes are deliberate and reviewed |
+| `docs/` | **Consumption** — Divio tutorials, how-tos, reference, explanation | Reader-facing; narrates and links *up* to architecture |
+
+- **`architecture/` = decisions & models.** ADRs, the C4 model, vision, audits, and
+  calibration live here. This is the deliberately-changed source of truth.
+- **`docs/` = consumption.** `docs/explanation/` narrates the "why" and **links up to
+  architecture — it never duplicates architecture narrative.** When the two overlap,
+  architecture wins; explanation points at it.
+- **C4 stays in `architecture/`** (under `diagrams/`), not in `docs/`.
+- **Vision is an architecture concern** — there is no `docs/vision/`. Forward intent
+  lives in `architecture/vision/`.
+- **Terminology canon lives in the top-level `glossary/`** surface (promoted out of
+  `architecture/` — see the project-root `glossary/README.md`). Architecture docs
+  *reference* glossary terms; they do not host a second glossary.
+
+## Living architecture at the top, versioned history beneath
+
+`architecture/` follows a **living-at-top + versioned-history-beneath** model:
+
+- **Top-level living surfaces** describe the architecture *now and going forward*:
+  - `architecture/vision/` — current + future vision (forward intent; may change).
+  - `architecture/diagrams/` — the living C4 model (`01_context/`, `02_containers/`,
+    `03_components/`), hand-authored Markdown + Mermaid.
+  - `architecture/audience/` — stakeholder/persona views.
+- **Per-version directories** (`architecture/1.x/`, `architecture/2.x/`,
+  `architecture/3.x/`) are the **traceability record** — each carries
+  `adr/ vision/ research/` for its era and is treated as immutable history.
+- **Current-era ADRs keep landing in `architecture/3.x/adr/`.** The living top-level
+  surfaces synthesize and *reference* those era-stamped ADRs; the ADRs themselves stay
+  immutable and dated.
+
+### Decay rule (so the layout can't re-drift)
+
+When a piece of the living top-level architecture is **no longer current or future**,
+it is **demoted into its version directory** — moved from `architecture/vision/`
+(or a refreshed `architecture/diagrams/` snapshot) into
+`architecture/<version>/vision/` (or `…/research/`). History accrues by version;
+**nothing is deleted.** This decay path is the only sanctioned way content leaves the
+living top level, which keeps the top-level surface honestly "current" over time.
+
 ## Structure
 
 | Path | Purpose |
 |---|---|
-| `architecture/1.x/` | Legacy architecture track (1.x), including 1.x ADRs |
-| `architecture/2.x/` | Prior architecture track (2.x), captures the 2.x → 3.x cutover |
-| `architecture/3.x/` | Current architecture track (3.x), starting with the 3.0.0 release (2026-03-30) |
+| `architecture/vision/` | Living current + future architecture vision (forward intent) |
+| `architecture/diagrams/` | Living C4 model — `01_context/`, `02_containers/`, `03_components/` |
 | `architecture/audience/` | Persona catalog for architecture audiences and actor links |
-| `architecture/glossary/` | Architecture-level glossary landing page and pointers |
+| `architecture/3.x/` | Current track (3.x) — `adr/`, `vision/`, `research/` (current-era ADRs land here) |
+| `architecture/2.x/` | Prior track (2.x) — frozen snapshot incl. the 2.x C4 and `adr/ vision/ research/` |
+| `architecture/1.x/` | Legacy track (1.x) — frozen, incl. 1.x ADRs and notes |
 | `architecture/adrs/` | Backward-compatibility links to moved 1.x ADR files (legacy compat shim) |
+| `architecture/audits/` | Architecture audits and assessments |
+| `architecture/calibration/` | Per-mission-type calibration notes |
+| `architecture/assessments/` | Code-as-a-crime-scene and similar assessments |
 | `architecture/adr-template.md` | Shared ADR template used by all tracks |
+
+> **Layout is structure, not policy.** Directory layout here intentionally encodes only
+> the boundary + version + decay rules. It does **not** encode per-artifact tiering: a
+> future optional per-artifact *tier* (upstream `#1843`), if introduced, is a **declared
+> field** on artifacts — never a directory level. New tier semantics must not be expressed
+> by adding a tier directory under `architecture/`.
 
 ## Versioned ADR Locations
 
-- 1.x ADRs: `architecture/1.x/adr/`
-- 2.x ADRs: `architecture/2.x/adr/` (pre-3.0 dates only; 3.x-era moves live under `3.x/`)
-- 3.x ADRs: `architecture/3.x/adr/` (canonical for the current track)
-- Legacy 1.x path compatibility: `architecture/adrs/` (symlink aliases)
-- 2.x → 3.x move compatibility: each moved ADR retains a symlink at its old `architecture/2.x/adr/<filename>` path pointing into `architecture/3.x/adr/`, so CHANGELOG entries, test snapshots, and shipped docs that reference the old path continue to resolve.
+- Current-era (3.x) ADRs: `architecture/3.x/adr/` — **canonical for the current track.**
+- 2.x ADRs: `architecture/2.x/adr/` (frozen 2.x-era decisions).
+- 1.x ADRs: `architecture/1.x/adr/`.
+- Legacy 1.x path compatibility: `architecture/adrs/`.
 
-## 2.x Architecture Model
+When a coding agent needs **architectural intent for a change today**, the current-era
+ADR surface is `architecture/3.x/adr/`; older era directories carry the decisions made
+in those eras and remain authoritative for that history.
 
-2.x architecture docs are split intentionally:
+## C4 model
 
-1. `architecture/2.x/README.md#domain-breakdown` - cross-cutting responsibility and behavior domains.
-2. `architecture/2.x/01_context/README.md` - external boundaries and authority contracts.
-3. `architecture/2.x/02_containers/README.md` - runtime/governance container responsibilities.
-4. `architecture/2.x/03_components/README.md` - component-level behavior sequences.
-5. `architecture/audience/internal/*.md` and `architecture/audience/external/*.md` - persona references linked from user journey actor tables.
+The living C4 lives under `architecture/diagrams/` with stable numbered levels:
 
-## Brainstorm Alignment Outcome
+1. [`architecture/diagrams/01_context/README.md`](diagrams/01_context/README.md) — system boundary and external interactions.
+2. [`architecture/diagrams/02_containers/README.md`](diagrams/02_containers/README.md) — runtime/governance container responsibilities.
+3. [`architecture/diagrams/03_components/README.md`](diagrams/03_components/README.md) — component-level behavior sequences.
 
-The brainstorming proposal was applied with two guardrails.
-Source corpus: `architecture/2.x/initiatives/2026-02-architecture-discovery-and-restructure/`.
-
-1. Adopted:
-   - Versioned architecture split (`1.x` and `2.x`)
-   - Dedicated 2.x `user_journey/` area
-   - Dedicated 2.x `initiatives/` area
-   - C4-oriented 2.x directories (`01_context`, `02_containers`, `03_components`)
-   - Domain and audience expansion (`architecture/2.x/README.md#domain-breakdown`, `architecture/audience/`)
-2. Deferred:
-   - `archive/` lifecycle structure (can be introduced later once process is formalized)
-3. Rejected for now:
-   - C4 `04_code` architecture docs in this repo, because code-level tracking already lives in `src/` README and package docs
-
-## Migration Notes
-
-1. Brainstorm proposals were normalized to repository reality:
-   - versioned docs live in `docs/1x` and `docs/2x`
-   - versioned architecture lives in `architecture/1.x` and `architecture/2.x`
-2. Legacy ADR links are intentionally preserved via `architecture/adrs/` compatibility aliases.
-3. Deprecated architecture docs were moved from `docs/architecture/` to `architecture/1.x/notes/`.
-4. Ongoing `next` mapping tracking moved from `docs/development/tracking/next-mission-mappings/` to `architecture/2.x/initiatives/next-mission-mappings/`.
+C4 is **hand-authored Markdown + Mermaid** (renders on GitHub, no build tooling).
+The 2.x C4 under `architecture/2.x/{01_context,02_containers,03_components}/` is kept
+frozen as the 2.x snapshot; the living copy under `diagrams/` is the one that is
+refreshed against the current domain model. (Generated-C4 tooling is deferred — `#1812`.)
 
 ## Creating a New ADR
 
-Use the shared template:
+Use the shared template, landing current-era ADRs in the 3.x track:
 
 ```bash
-cp architecture/adr-template.md architecture/2.x/adr/YYYY-MM-DD-N-your-decision.md
+cp architecture/adr-template.md architecture/3.x/adr/YYYY-MM-DD-N-your-decision.md
 ```
 
-Use `architecture/1.x/adr/` only when documenting legacy 1.x behavior.
+Use `architecture/1.x/adr/` or `architecture/2.x/adr/` only when documenting legacy
+behavior for those eras.
 
 ## Find ADRs
 
 ```bash
-ls -1 architecture/1.x/adr | sort
+ls -1 architecture/3.x/adr | sort
 ls -1 architecture/2.x/adr | sort
-rg -n "Status:|Decision Outcome|Technical Story" architecture/1.x/adr architecture/2.x/adr
+ls -1 architecture/1.x/adr | sort
+rg -n "Status:|Decision Outcome|Technical Story" architecture/3.x/adr architecture/2.x/adr architecture/1.x/adr
 ```
 
-### Notable Recent ADRs (2.x)
+## See also
 
-| Filename | Title | Status | Date |
-|---|---|---|---|
-| `2026-04-11-1-saas-rollout-and-readiness.md` | SaaS Rollout Gate and Hosted Readiness Split | Accepted | 2026-04-11 |
-
-See also:
-
-- `architecture/ARCHITECTURE_DOCS_GUIDE.md`
-- `architecture/NAVIGATION_GUIDE.md`
+- Project terminology canon: project-root [`glossary/README.md`](../glossary/README.md)
+- [`architecture/ARCHITECTURE_DOCS_GUIDE.md`](ARCHITECTURE_DOCS_GUIDE.md)
+- [`architecture/NAVIGATION_GUIDE.md`](NAVIGATION_GUIDE.md)

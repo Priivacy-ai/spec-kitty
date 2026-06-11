@@ -1772,13 +1772,6 @@
   current_target: false
   citation_refs: []
   notes: null
-- path: architecture/glossary/README.md
-  tag: internal
-  divio_type: none
-  owning_workstream: none
-  current_target: false
-  citation_refs: []
-  notes: null
 - path: docs/01KSMG8Y-closeout/baseline.md
   tag: internal
   divio_type: none

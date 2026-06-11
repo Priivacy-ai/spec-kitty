@@ -333,9 +333,15 @@ def _resolve_chain(
 ) -> list[OrgCharterPolicy]:
     """Resolve the ``extends:`` chain starting from ``pack_name``.
 
-    Walks ``extends:`` pointers depth-first from the overlay (``pack_name``)
-    down to the root base, then reverses the result so the returned list
-    is ordered base-first (``[root_base, ..., overlay]``).
+    Delegates the topology walk (cycle detection, missing-base detection,
+    base-first ordering) to the canonical charter-layer resolver
+    :func:`charter.org_extends.resolve_extends_order`. This module no longer
+    maintains its own depth-first walk — per C-005 / R-10 there is a single
+    ``extends:`` resolution mechanism, and the charter-layer functions are it
+    (FR-008). This loader only maps the resolved order back to the loaded
+    :class:`OrgCharterPolicy` objects and re-raises the charter-layer errors as
+    the established ``OrgCharter*`` exceptions so existing callers/tests see an
+    unchanged contract.
 
     Parameters
     ----------
@@ -359,27 +365,21 @@ def _resolve_chain(
     OrgCharterCycleError
         When a cycle is detected (a pack already in the chain re-appears).
     """
-    chain_names: list[str] = []
-    chain_policies: list[OrgCharterPolicy] = []
-    visited: set[str] = set()
+    from charter.org_extends import (
+        ExtendsBaseNotFoundError,
+        ExtendsCycleError,
+        resolve_extends_order,
+    )
 
-    current: str | None = pack_name
-    while current is not None:
-        if current in visited:
-            # Reveal the full cycle, appending the repeat for clarity.
-            cycle_path = [*chain_names, current]
-            raise OrgCharterCycleError(cycle_path)
-        if current not in pack_set:
-            raise OrgCharterExtensionError(current, chain_names)
-        visited.add(current)
-        chain_names.append(current)
-        policy = pack_set[current]
-        chain_policies.append(policy)
-        current = policy.extends
+    extends_edges = {name: policy.extends for name, policy in pack_set.items()}
+    try:
+        order = resolve_extends_order(pack_name, extends_edges)
+    except ExtendsCycleError as exc:
+        raise OrgCharterCycleError(exc.cycle_path) from exc
+    except ExtendsBaseNotFoundError as exc:
+        raise OrgCharterExtensionError(exc.missing_base, exc.chain) from exc
 
-    # chain_policies is [overlay, ..., root_base]; reverse for base-first.
-    chain_policies.reverse()
-    return chain_policies
+    return [pack_set[name] for name in order]
 
 
 def _merge_chain(chain: list[OrgCharterPolicy]) -> OrgCharterPolicy:

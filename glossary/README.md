@@ -29,6 +29,7 @@ Use policy docs to answer "what should this mean?" and runtime artifacts to answ
 | Lexical | Glossary internal data model — term surfaces, senses, provenance. | `glossary/contexts/lexical.md` |
 | Orchestration | Project/mission/feature/work-package lifecycle and runtime terms. Includes **Decision**, **Decision Input Request**, and **Decision Input Answer** — see disambiguation note in that file and in the SaaS `architecture/domain-glossary.md`. | `glossary/contexts/orchestration.md` |
 | Governance | Charter/ADR/policy precedence and rules. | `glossary/contexts/governance.md` |
+| Planning & Tracking | Issue-tracker organization (functional epics, meta-trackers, triage status, priority scheme) and the **Op** execution tier. Human-readable companion to `.kittify/glossaries/planning-and-tracking.yaml`. | `glossary/contexts/planning-and-tracking.md` |
 | Doctrine | Doctrine domain model and artifact taxonomy. | `glossary/contexts/doctrine.md` |
 | System Events | Event envelope, replay, glossary evolution, and system event types. | `glossary/contexts/system-events.md` |
 | Practices & Principles | Working agreements for low-friction, high-signal delivery. | `glossary/contexts/practices-principles.md` |

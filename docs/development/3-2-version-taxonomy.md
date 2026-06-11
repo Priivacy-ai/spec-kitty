@@ -288,14 +288,14 @@ git ls-files docs/ architecture/ README.md \
 | `docs/architecture/` | 4 | Internal mirror of architecture intent |
 | `docs/3x/` | 4 | All `current` |
 | `docs/doctrine/` | 2 | `current` — doctrine surface |
-| `architecture/glossary/` | 1 | Internal |
 | `architecture/assessments/` | 1 | Internal |
 | `docs/recovery/` | 1 | `current` |
 | `README.md` (root) | 1 | `current` |
 
 **Sanity totals.** `docs/**` accounts for 159 files;
-`architecture/**` accounts for 254 files; the root `README.md` accounts for
-1 file. The sum (413) matches the line count of the survey output.
+`architecture/**` accounts for 253 files; the root `README.md` accounts for
+1 file. The sum (412) matches the line count of the survey output (less the
+`architecture/glossary/` residual reconciled away per mission 01KTNWFC).
 
 **Provisional tag-distribution forecast** (subject to per-page review during
 WP02):
