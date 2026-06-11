@@ -1,7 +1,7 @@
 {
-  "event_count": 12,
-  "last_event_id": "01KTVJG8Q046MN6MVVEXWSDCGZ",
-  "materialized_at": "2026-06-11T14:48:41.440577+00:00",
+  "event_count": 14,
+  "last_event_id": "01KTVJKS8284DQXRGPXX9ZP639",
+  "materialized_at": "2026-06-11T14:50:36.673977+00:00",
   "mission_number": "",
   "mission_slug": "doctrine-glossary-architecture-consolidation-01KTNWFC",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 2,
     "in_review": 0,
-    "planned": 9
+    "planned": 8
   },
   "work_packages": {
     "WP01": {
@@ -67,11 +67,11 @@
       "last_transition_at": "2026-06-11T14:48:41.440577+00:00"
     },
     "WP09": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus:python-pedro:implementer",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01KTPGAZKBR3WP52AWA79SBXMA",
-      "last_transition_at": "2026-06-09T15:34:38.955466+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KTVJKS8284DQXRGPXX9ZP639",
+      "last_transition_at": "2026-06-11T14:50:36.673977+00:00"
     },
     "WP10": {
       "actor": "finalize-tasks",
