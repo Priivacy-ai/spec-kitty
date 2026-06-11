@@ -54,6 +54,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   successful lane merge instead of failing the command after the target branch
   has already been updated.
 
+### ✨ Added / 🔧 Changed
+
+- **Execution-context unification (mission 01KTPKST, slice of #1619/#1666):** structurally drained the
+  coord-vs-primary split-brain class. One `MissionExecutionContext` (doc-09 fragment/op-composite +
+  `CommitTarget`) resolved once and threaded through all command surfaces; status owned by the
+  Mission-Management OHS facade. Collapsed the duplicate read-path resolver, the two worktree-pointer
+  parsers, and the three sync-daemon orphan-reapers; `materialize_if_stale` now skips during git ops
+  (no status clobber on rebase); dashboard reads are write-free (`materialize_snapshot`); sync-daemon
+  singleton enforced one-per-host/auth-scope; occurrence-map gained multi-path `moves:` (backward-compatible);
+  retrospect record relocated to a tracked home (committable). Adds a dual-CWD + flattened-topology parity
+  ratchet (`tests/architectural/test_execution_context_parity.py`).
+- Drains #1814, #1816, #1789, #1071, #1062, #1572, #1737, #1357, #1735, #1771, #1736, #1770, #1764, #1815,
+  #1622 (partial); follow-ups #1819/#1820/#1821 filed.
+
 ## [3.2.0rc41] - 2026-06-08
 
 ### ✨ Added
