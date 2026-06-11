@@ -66,3 +66,4 @@ Doctrine sign-off (curator) + reviewer profile; reviewer verifies no valid edge 
 ## Activity Log
 
 - 2026-06-11T15:44:35Z – claude:opus:tbd:implementer – shell_pid=874911 – Assigned agent via action command
+- 2026-06-11T15:52:59Z – claude:opus:tbd:implementer – shell_pid=874911 – Moved to for_review

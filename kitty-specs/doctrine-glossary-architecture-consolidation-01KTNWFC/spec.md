@@ -63,7 +63,7 @@ Following a full issue-tracker remediation (see repo `work/` traces), turn the p
 - **SC-3:** A charter that declares `extends:` resolves additively and passes validation.
 - **SC-4:** Doctrine graph regenerates from a single command and the freshness gate passes deterministically.
 - **SC-5:** All touched glossary seeds validate; planning-and-tracking content is refreshed, and an explicit defer is recorded for runtime-scope promotion.
-- **SC-6:** #391 is split, its children reparented to functional homes, and #391 closed as superseded — accomplished using *only* the newly authored doctrine (proving SC-1 on a real case).
+- **SC-6:** #391 is organized per the newly authored doctrine — residual open children classified and reparented to functional homes where the procedure prescribes; #391 itself REMAINS OPEN as the canonical debt bucket (operator decision 2026-06-11: the 2026-06-09 tracker restructure deliberately keeps #391 live; the original 'close as superseded' wording predated it) — accomplished using *only* the new doctrine (proving SC-1 on a real case).
 - **SC-7:** No new parallel mechanism is introduced; each touched surface (glossary, charter config, DRG, architecture docs) has a single source of truth after the mission (C-005).
 
 ## Key Entities
