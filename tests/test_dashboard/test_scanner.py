@@ -30,8 +30,7 @@ def _set_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     materialize(feature_dir)
 
 
-def _create_feature(tmp_path: Path, slug: str = "001-demo-feature", *, lane: str = "planned") -> Path:
-    feature_dir = tmp_path / "kitty-specs" / slug
+def _create_feature_at(feature_dir: Path, *, lane: str = "planned") -> Path:
     (feature_dir / "tasks").mkdir(parents=True)
     (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
     (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
@@ -45,10 +44,14 @@ agent: codex
 # Work Package Prompt: Demo
 
 Body
-"""
+    """
     (feature_dir / "tasks" / "WP01-demo.md").write_text(prompt, encoding="utf-8")
     _set_wp_lane(feature_dir, "WP01", lane)
     return feature_dir
+
+
+def _create_feature(tmp_path: Path, slug: str = "001-demo-feature", *, lane: str = "planned") -> Path:
+    return _create_feature_at(tmp_path / "kitty-specs" / slug, lane=lane)
 
 
 def test_scan_all_features_detects_feature(tmp_path):
@@ -425,6 +428,31 @@ agent:
     task = lanes["planned"][0]
     assert task["agent"] == "codex"
     assert task["model"] == "gpt-5.4"
+
+
+def test_dashboard_scans_prefer_coord_worktree_over_root_checkout(tmp_path):
+    slug = "001-demo-feature"
+    _create_feature(tmp_path, slug, lane="planned")
+
+    coord_feature_dir = tmp_path / ".worktrees" / f"{slug}-coord" / "kitty-specs" / slug
+    _create_feature_at(coord_feature_dir, lane="approved")
+
+    features = scanner.scan_all_features(tmp_path)
+    assert len(features) == 1
+    feature = features[0]
+
+    assert feature["path"] == f".worktrees/{slug}-coord/kitty-specs/{slug}"
+    assert feature["worktree"]["exists"] is True
+    assert feature["worktree"]["path"] == scanner.format_path_for_display(
+        str(coord_feature_dir.parents[1])
+    )
+    assert feature["kanban_stats"]["approved"] == 1
+    assert feature["kanban_stats"]["planned"] == 0
+
+    lanes = scanner.scan_feature_kanban(tmp_path, slug)
+    assert len(lanes["approved"]) == 1
+    assert len(lanes["planned"]) == 0
+    assert lanes["approved"][0]["id"] == "WP01"
 
 
 # ── NFR-006: Dashboard kanban bucketing identity ───────────────────────────

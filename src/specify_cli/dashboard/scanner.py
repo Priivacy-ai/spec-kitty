@@ -301,13 +301,19 @@ def get_workflow_status(artifacts: dict[str, dict[str, any]]) -> dict[str, str]:
 def gather_feature_paths(project_dir: Path) -> dict[str, Path]:
     """Collect candidate feature directories from root and worktrees.
 
-    Main repo (kitty-specs/) paths take priority over worktree copies.
-    Worktrees may have stale data from when they were created, so the
-    main repo should be the source of truth for feature status.
+    Resolution priority:
+      1. Coordination worktree copies, when present, because they hold the
+         authoritative live mission state during active coordination-topology
+         missions.
+      2. Main repo copies under ``kitty-specs/``.
+      3. Lane worktree copies, which may be stale and should never outrank the
+         coordination worktree or main checkout.
     """
     feature_paths: dict[str, Path] = {}
+    coord_paths: dict[str, Path] = {}
 
-    # First scan worktrees (lower priority - may have stale data)
+    # First scan worktrees. Lane worktrees stay low priority, while the
+    # coordination worktree for a mission is remembered and applied last.
     worktrees_root = project_dir / ".worktrees"
     if worktrees_root.exists():
         for worktree_dir in worktrees_root.iterdir():
@@ -318,15 +324,21 @@ def gather_feature_paths(project_dir: Path) -> dict[str, Path]:
                 continue
             for feature_dir in wt_specs.iterdir():
                 if feature_dir.is_dir():
+                    is_coord_worktree = worktree_dir.name.endswith("-coord")
+                    if is_coord_worktree and feature_dir.name == worktree_dir.name.removesuffix("-coord"):
+                        coord_paths[feature_dir.name] = feature_dir
+                        continue
                     feature_paths[feature_dir.name] = feature_dir
 
-    # Then scan main repo (higher priority - source of truth)
-    # This will overwrite any worktree paths with the same feature name
+    # Main checkout beats lane worktrees.
     root_specs = project_dir / KITTY_SPECS_DIR
     if root_specs.exists():
         for feature_dir in root_specs.iterdir():
             if feature_dir.is_dir():
                 feature_paths[feature_dir.name] = feature_dir
+
+    # Coordination worktrees beat everything else.
+    feature_paths.update(coord_paths)
 
     return feature_paths
 
@@ -528,6 +540,23 @@ def _read_dashboard_feature_meta(feature_dir: Path) -> tuple[str, dict[str, Any]
     return friendly_name, meta_data
 
 
+def _resolve_feature_worktree_info(project_dir: Path, feature_dir: Path) -> dict[str, Any]:
+    """Return dashboard worktree metadata for a selected feature directory."""
+    worktrees_root = project_dir / ".worktrees"
+    if feature_dir.is_relative_to(worktrees_root):
+        worktree_root = feature_dir.parents[1]
+        return {
+            "path": format_path_for_display(str(worktree_root)),
+            "exists": True,
+        }
+
+    worktree_path = worktrees_root / feature_dir.name
+    return {
+        "path": format_path_for_display(str(worktree_path)),
+        "exists": worktree_path.exists(),
+    }
+
+
 def _build_legacy_kanban_stats(tasks_dir: Path) -> dict[str, int]:
     kanban_stats = {"total": 0, "planned": 0, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
     for lane in ["planned", "doing", "for_review", "done"]:
@@ -604,9 +633,7 @@ def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
         workflow = get_workflow_status(artifacts)
         kanban_stats = _build_kanban_stats(feature_dir, artifacts)
 
-        worktree_root = project_dir / ".worktrees"
-        worktree_path = worktree_root / feature_dir.name
-        worktree_exists = worktree_path.exists()
+        worktree = _resolve_feature_worktree_info(project_dir, feature_dir)
         display_name = format_feature_display_name(feature_id, friendly_name)
 
         features.append(
@@ -619,10 +646,7 @@ def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
                 "workflow": workflow,
                 "kanban_stats": kanban_stats,
                 "meta": meta_data or {},
-                "worktree": {
-                    "path": format_path_for_display(str(worktree_path)),
-                    "exists": worktree_exists,
-                },
+                "worktree": worktree,
             }
         )
 
