@@ -33,7 +33,10 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("DEFAULT_ROLE_CAPABILITIES", "doctrine.agent_profiles.capabilities"),
     ],
     "charter.mission_steps": [
-        ("MissionStep", "doctrine.missions.models"),
+        # MissionStep retired from the facade contract 2026-06-11: the last src/
+        # consumer was correctly retyped to MissionStepContractStep (executor.py);
+        # the symbol remains an explicit PEP 484 re-export for direct importers.
+        # See contracts/charter-facade-modules.md addendum.
         ("MissionStepContract", "doctrine.missions.step_contracts"),
         ("MissionStepInput", "doctrine.missions.step_contracts"),
         ("MissionStepContractRepository", "doctrine.missions.step_contracts"),
