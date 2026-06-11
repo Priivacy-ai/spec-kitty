@@ -32,6 +32,8 @@
   href: use-wps-yaml-manifest.md
 - name: Implement a Work Package
   href: implement-work-package.md
+- name: Keep MCP Agents in the Worktree
+  href: worktrees-with-mcp-agents.md
 - name: Review Work Packages
   href: review-work-package.md
 - name: Run an Autonomous Mission
