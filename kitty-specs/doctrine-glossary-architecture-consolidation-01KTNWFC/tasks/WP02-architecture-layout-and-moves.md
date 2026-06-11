@@ -17,7 +17,8 @@ subtasks:
 - T008
 - T009
 - T010
-agent: claude
+agent: "claude:opus:curator-carla:implementer"
+shell_pid: "804690"
 history:
 - '2026-06-09: created by /spec-kitty.tasks (planner-priti)'
 agent_profile: architect-alphonso
@@ -76,3 +77,7 @@ Owned: frontmatter. **Out-of-map edits allowed with a recorded one-line rational
 
 ## Risks
 - Broken internal doc links; charter authority-path miss. Mitigate via occurrence-map + grep (T010).
+
+## Activity Log
+
+- 2026-06-11T15:10:07Z – claude:opus:curator-carla:implementer – shell_pid=804690 – Assigned agent via action command
