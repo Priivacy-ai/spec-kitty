@@ -174,6 +174,70 @@ def _print_superseded_notice(superseded: list[Path]) -> None:
     print("\n".join(lines), file=sys.stderr)
 
 
+def _move_owned_prompts(
+    owned: list[LegacyCodexPrompt],
+    superseded_dir: Path,
+) -> tuple[list[Path], list[str]]:
+    """Move owned ``.codex/prompts/`` files to the superseded directory.
+
+    Creates *superseded_dir* if needed, moves each owned file atomically, and
+    handles idempotency: if the target already exists (a previous run completed
+    partially) the source copy is simply removed.
+
+    Returns:
+        A pair ``(moved, move_errors)`` where *moved* is the list of
+        successfully relocated paths and *move_errors* collects per-file error
+        messages for files that could not be moved.
+    """
+    moved: list[Path] = []
+    move_errors: list[str] = []
+
+    try:
+        superseded_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        move_errors.append(f"Could not create .codex/prompts.superseded/: {exc}")
+        return moved, move_errors
+
+    for p in owned:
+        target = superseded_dir / p.path.name
+        # Idempotency: if a previous run already moved this file, the target
+        # already exists — remove the stale active-path copy instead of
+        # overwriting the preserved one.
+        if target.exists():
+            try:
+                p.path.unlink()
+            except OSError as exc:
+                move_errors.append(f"{p.path.name}: {exc}")
+            continue
+        try:
+            p.path.rename(target)
+            moved.append(target)
+        except OSError as exc:
+            move_errors.append(f"{p.path.name}: {exc}")
+
+    return moved, move_errors
+
+
+def _try_remove_empty_prompts_dir(prompts_dir: Path) -> tuple[bool, str | None]:
+    """Remove *prompts_dir* if it is empty after the migration.
+
+    Returns:
+        ``(removed, warning)`` — *removed* is ``True`` if the directory was
+        deleted; *warning* is set to an error message on ``OSError``, else
+        ``None``.
+    """
+    if not prompts_dir.exists():
+        return False, None
+    try:
+        remaining = list(prompts_dir.iterdir())
+        if not remaining:
+            prompts_dir.rmdir()
+            return True, None
+    except OSError as exc:
+        return False, f"Could not remove .codex/prompts/ directory: {exc}"
+    return False, None
+
+
 # ---------------------------------------------------------------------------
 # Migration
 # ---------------------------------------------------------------------------
@@ -247,20 +311,7 @@ class CodexToSkillsMigration(BaseMigration):
 
         # --- Install new .agents/skills/ packages ----------------------------
         if dry_run:
-            changes.append(
-                "Would install 11 Codex skill packages under .agents/skills/"
-            )
-            changes.append(
-                f"Would delete {len(owned)} owned .codex/prompts/ file(s)"
-            )
-            if third_party:
-                warnings.append(
-                    f"Would preserve {len(third_party)} third-party file(s): "
-                    + ", ".join(p.path.name for p in third_party)
-                )
-            return MigrationResult(
-                success=True, changes_made=changes, warnings=warnings, errors=errors
-            )
+            return self._apply_dry_run(changes, warnings, errors, owned, third_party)
 
         try:
             _install_skills(project_path)
@@ -287,47 +338,25 @@ class CodexToSkillsMigration(BaseMigration):
         #      or port any customizations into .agents/skills/.
         #   3. A single notice lists every preserved file so the user knows
         #      where to look.
-        superseded_dir = prompts_dir.parent / "prompts.superseded"
-        moved: list[Path] = []
-        move_errors: list[str] = []
-
         if owned:
-            try:
-                superseded_dir.mkdir(parents=True, exist_ok=True)
-            except OSError as exc:
-                errors.append(f"Could not create .codex/prompts.superseded/: {exc}")
+            superseded_dir = prompts_dir.parent / "prompts.superseded"
+            moved, move_errors = _move_owned_prompts(owned, superseded_dir)
+            if move_errors and not moved:
+                # Could not even create the superseded dir — fatal.
+                errors.extend(move_errors)
                 return MigrationResult(
                     success=False, changes_made=changes, warnings=warnings, errors=errors
                 )
-
-            for p in owned:
-                target = superseded_dir / p.path.name
-                # If a previous run already moved this file (idempotency), leave
-                # both in place rather than overwriting. The active .codex/prompts/
-                # copy is the stale one; remove it.
-                if target.exists():
-                    try:
-                        p.path.unlink()
-                    except OSError as exc:
-                        move_errors.append(f"{p.path.name}: {exc}")
-                    continue
-                try:
-                    p.path.rename(target)
-                    moved.append(target)
-                except OSError as exc:
-                    move_errors.append(f"{p.path.name}: {exc}")
-
-        if moved:
-            changes.append(
-                f"Moved {len(moved)} superseded Codex prompt(s) from .codex/prompts/ "
-                f"to .codex/prompts.superseded/ (new skill packages live in .agents/skills/)"
-            )
-            _print_superseded_notice(moved)
-
-        if move_errors:
-            warnings.append(
-                "Could not move some .codex/prompts/ files: " + "; ".join(move_errors)
-            )
+            if moved:
+                changes.append(
+                    f"Moved {len(moved)} superseded Codex prompt(s) from .codex/prompts/ "
+                    f"to .codex/prompts.superseded/ (new skill packages live in .agents/skills/)"
+                )
+                _print_superseded_notice(moved)
+            if move_errors:
+                warnings.append(
+                    "Could not move some .codex/prompts/ files: " + "; ".join(move_errors)
+                )
 
         # --- Notify about third-party files -----------------------------------
         if third_party:
@@ -337,15 +366,36 @@ class CodexToSkillsMigration(BaseMigration):
             )
 
         # --- Remove prompts dir if empty -------------------------------------
-        if prompts_dir.exists():
-            try:
-                remaining = list(prompts_dir.iterdir())
-                if not remaining:
-                    prompts_dir.rmdir()
-                    changes.append("Removed empty .codex/prompts/ directory")
-            except OSError as exc:
-                warnings.append(f"Could not remove .codex/prompts/ directory: {exc}")
+        removed, rm_warning = _try_remove_empty_prompts_dir(prompts_dir)
+        if removed:
+            changes.append("Removed empty .codex/prompts/ directory")
+        if rm_warning:
+            warnings.append(rm_warning)
 
+        return MigrationResult(
+            success=True, changes_made=changes, warnings=warnings, errors=errors
+        )
+
+    @staticmethod
+    def _apply_dry_run(
+        changes: list[str],
+        warnings: list[str],
+        errors: list[str],
+        owned: list[LegacyCodexPrompt],
+        third_party: list[LegacyCodexPrompt],
+    ) -> MigrationResult:
+        """Return a dry-run :class:`MigrationResult` without touching the filesystem."""
+        changes.append(
+            "Would install 11 Codex skill packages under .agents/skills/"
+        )
+        changes.append(
+            f"Would delete {len(owned)} owned .codex/prompts/ file(s)"
+        )
+        if third_party:
+            warnings.append(
+                f"Would preserve {len(third_party)} third-party file(s): "
+                + ", ".join(p.path.name for p in third_party)
+            )
         return MigrationResult(
             success=True, changes_made=changes, warnings=warnings, errors=errors
         )

@@ -84,11 +84,12 @@ class UpdatePlanningTemplatesMigration(BaseMigration):
                         continue
         return False
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, _project_path: Path) -> tuple[bool, str]:
         """Check that runtime templates are available for rendering.
 
         Args:
-            project_path: Root of the consumer project.
+            _project_path: Root of the consumer project (unused; check is
+                against the installed package, not the project tree).
 
         Returns:
             (True, "") if templates are found; (False, reason) otherwise.
