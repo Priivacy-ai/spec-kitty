@@ -3,7 +3,7 @@
   "mission_slug": "doctrine-glossary-architecture-consolidation-01KTNWFC",
   "mission_id": "01KTNWFC3B1ZGFR9FTT77X7H2Y",
   "mission_branch": "kitty/mission-doctrine-glossary-architecture-consolidation-01KTNWFC",
-  "target_branch": "fixups/code-engine-stabilization",
+  "target_branch": "feat/doctrine-glossary-consolidation-01KTNWFC",
   "lanes": [
     {
       "lane_id": "lane-a",
@@ -200,7 +200,7 @@
       "parallel_group": 3
     }
   ],
-  "computed_at": "2026-06-09T15:34:40.120343+00:00",
+  "computed_at": "2026-06-11T11:57:41.608279+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": []
 }
