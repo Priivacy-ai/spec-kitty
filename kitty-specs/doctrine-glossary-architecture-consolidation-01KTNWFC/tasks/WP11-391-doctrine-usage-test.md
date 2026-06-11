@@ -14,7 +14,8 @@ subtasks:
 - T032
 - T033
 - T034
-agent: claude
+agent: "claude:opus:tbd:implementer"
+shell_pid: "874911"
 history:
 - '2026-06-09: created by /spec-kitty.tasks (planner-priti)'
 agent_profile: planner-priti
@@ -60,3 +61,7 @@ Reviewer profile (reviewer-renata); success = SC-1/SC-6 demonstrated (doctrine s
 
 ## Risks
 - Doctrine gaps surface mid-dogfood — that's the point; record them rather than improvising silently (validates the doctrine).
+
+## Activity Log
+
+- 2026-06-11T15:44:40Z – claude:opus:tbd:implementer – shell_pid=874911 – Assigned agent via action command
