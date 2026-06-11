@@ -1,19 +1,19 @@
 {
-  "event_count": 45,
-  "last_event_id": "01KTVNEPMXK4PYCCDGR4K7N0BN",
-  "materialized_at": "2026-06-11T15:40:15.901738+00:00",
+  "event_count": 46,
+  "last_event_id": "01KTVNFNQC1J0FWQBTABNAP15B",
+  "materialized_at": "2026-06-11T15:40:47.724711+00:00",
   "mission_number": "",
   "mission_slug": "doctrine-glossary-architecture-consolidation-01KTNWFC",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 4,
+    "approved": 5,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 1,
     "in_progress": 0,
-    "in_review": 3,
+    "in_review": 2,
     "planned": 2
   },
   "work_packages": {
@@ -46,11 +46,11 @@
       "last_transition_at": "2026-06-11T15:37:39.433686+00:00"
     },
     "WP05": {
-      "actor": "claude:opus:reviewer-renata:reviewer",
+      "actor": "user",
       "force_count": 0,
-      "lane": "in_review",
-      "last_event_id": "01KTVN8BVD9JV5Z2N81PGQ6B8R",
-      "last_transition_at": "2026-06-11T15:36:48.237381+00:00"
+      "lane": "approved",
+      "last_event_id": "01KTVNFNQC1J0FWQBTABNAP15B",
+      "last_transition_at": "2026-06-11T15:40:47.724711+00:00"
     },
     "WP06": {
       "actor": "claude:opus:tbd:implementer",
