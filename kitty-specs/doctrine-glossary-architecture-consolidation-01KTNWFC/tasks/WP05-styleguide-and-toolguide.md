@@ -14,8 +14,8 @@ branch_strategy: Planning artifacts for this mission were generated on feat/doct
 subtasks:
 - T017
 - T018
-agent: "claude:opus:tbd:implementer"
-shell_pid: "822589"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "849040"
 history:
 - '2026-06-09: created by /spec-kitty.tasks (planner-priti)'
 agent_profile: curator-carla
@@ -64,3 +64,4 @@ Doctrine sign-off + **architect-alphonso sign-off** (these encode architecture/t
 
 - 2026-06-11T15:28:12Z – claude:opus:tbd:implementer – shell_pid=822589 – Assigned agent via action command
 - 2026-06-11T15:35:59Z – claude:opus:tbd:implementer – shell_pid=822589 – Moved to for_review
+- 2026-06-11T15:36:48Z – claude:opus:reviewer-renata:reviewer – shell_pid=849040 – Started review via action command
