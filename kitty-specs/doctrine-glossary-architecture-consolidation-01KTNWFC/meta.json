@@ -8,5 +8,5 @@
   "purpose_context": "Following a full issue-tracker remediation, this mission turns the proven patterns and surfaced gaps into durable artefacts: it authors the planning/ticketing/tracing doctrine (procedure, tactics, styleguide, toolguide), restructures the architecture/ vs docs/ split with refreshed C4 models and a vision/ home, closes charter/DRG tooling gaps (org-charter extends, DRG generator), and refreshes the glossary for the new epic landscape and architectural direction.",
   "purpose_tldr": "Consolidate Spec Kitty's planning/tracking doctrine, glossary, and architecture documentation into coherent, governed artefacts.",
   "slug": "doctrine-glossary-architecture-consolidation-01KTNWFC",
-  "target_branch": "fixups/code-engine-stabilization"
+  "target_branch": "feat/doctrine-glossary-consolidation-01KTNWFC"
 }
