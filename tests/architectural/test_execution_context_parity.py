@@ -2013,3 +2013,143 @@ def test_flattened_topology_status_surface_collapses(
         "Under flattened topology status_read_dir must equal status_write_dir; "
         f"got read={read_dir!r}, write={write_dir!r} (C-001 / C-PLACE-1)."
     )
+
+
+# ---------------------------------------------------------------------------
+# T030 — Fragment-is-the-source ratchet (FR-005 / C-STAT-1 / #1821)
+# ---------------------------------------------------------------------------
+#
+# WP07 of tooling-stability-guard-coherence-01KTRC04 closed the latent SC-4
+# drift Debby flagged at the 01KTPKST closeout: ``MissionStatus.load`` and
+# ``status_transition._canonical_primary_feature_dir`` each composed the coord
+# candidate path by hand (a SECOND composition of the path the canonical
+# ``resolve_status_surface`` already owns). Both now consume the single
+# canonical surface — ``MissionStatus.load`` via ``resolve_status_surface`` (or
+# a carried ``StatusSurfaceFragment``) and ``status_transition`` via
+# ``resolve_status_surface_with_anchor``.
+#
+# This block EXTENDS the ratchet (C-005: extend, never fork) with two
+# assertions that the fragment / canonical surface IS the source:
+#
+# 1. ``test_no_local_coord_path_composition_in_status_surfaces`` — a static
+#    architectural grep: neither file may rebuild the coord feature dir locally
+#    (``CoordinationWorkspace.worktree_path`` composed with ``_compose_mission_dir``
+#    /``KITTY_SPECS_DIR``). If a future edit reintroduces a parallel composition,
+#    this fails (the C-STAT-1 "no local coord-path composition remains" gate).
+# 2. ``test_mission_status_load_consumes_carried_fragment`` — a behavioral spy:
+#    when ``MissionStatus.load`` is given a carried ``StatusSurfaceFragment`` it
+#    consumes ``status_read_dir`` directly and does NOT re-resolve the surface.
+# ---------------------------------------------------------------------------
+
+# Source files whose coord-path composition was folded into the canonical
+# surface by WP07. These are read as text (not imported) for the static check.
+_FRAGMENT_SOURCE_THREADING_FILES: tuple[str, ...] = (
+    "src/specify_cli/status/aggregate.py",
+    "src/specify_cli/coordination/status_transition.py",
+)
+
+
+def _repo_root_for_sources() -> Path:
+    """Resolve the spec-kitty repo root from this test file's location."""
+    # tests/architectural/test_execution_context_parity.py → repo root is 2 up.
+    return Path(__file__).resolve().parents[2]
+
+
+def test_no_local_coord_path_composition_in_status_surfaces() -> None:
+    """C-STAT-1 / FR-005: no second hand-rolled coord-path composition remains.
+
+    ``MissionStatus.load`` and ``status_transition`` must resolve the status
+    surface through the single canonical authority (``resolve_status_surface`` /
+    ``resolve_status_surface_with_anchor``), never by re-composing the
+    coordination feature dir locally. The drift seam Debby flagged was exactly
+    such a second composition: ``CoordinationWorkspace.worktree_path(...)``
+    joined with ``KITTY_SPECS_DIR`` and ``_compose_mission_dir(...)``.
+
+    This static gate fails if either file reintroduces that composition,
+    preventing the parallel-mechanism regression (NFR-003 / C-005).
+    """
+    repo_root = _repo_root_for_sources()
+    offenders: dict[str, list[str]] = {}
+    for rel_path in _FRAGMENT_SOURCE_THREADING_FILES:
+        source = (repo_root / rel_path).read_text(encoding="utf-8")
+        hits: list[str] = []
+        # A local coord-path composition needs BOTH the worktree-root primitive
+        # AND a mission-dir name join. Either alone is benign (the canonical
+        # resolver is allowed to be referenced); together they reconstruct the
+        # surface the canonical authority already owns.
+        composes_worktree_root = "CoordinationWorkspace.worktree_path" in source
+        composes_mission_dir = "_compose_mission_dir" in source
+        if composes_worktree_root and composes_mission_dir:
+            hits.append(
+                "rebuilds the coord feature dir locally "
+                "(CoordinationWorkspace.worktree_path + _compose_mission_dir) — "
+                "consume resolve_status_surface[_with_anchor] instead"
+            )
+        if hits:
+            offenders[rel_path] = hits
+
+    assert not offenders, (
+        "Second hand-rolled coord-path composition detected — the status surface "
+        "must be resolved through the single canonical authority, not re-composed "
+        f"locally (FR-005 / C-STAT-1 / #1821):\n{json.dumps(offenders, indent=2)}"
+    )
+
+
+def test_mission_status_load_consumes_carried_fragment(tmp_path: Path) -> None:
+    """FR-005 / #1821: ``MissionStatus.load`` reads the carried fragment as the source.
+
+    When a resolved ``StatusSurfaceFragment`` is threaded into
+    ``MissionStatus.load(surface=...)``, the aggregate's ``read_dir`` MUST be the
+    fragment's ``status_read_dir`` and the canonical ``resolve_status_surface``
+    MUST NOT be re-invoked (the fragment IS the source, not a re-derivation
+    trigger). A spy on the resolver proves no second resolution happens.
+    """
+    from mission_runtime.context import StatusSurfaceFragment
+    from specify_cli.status.aggregate import MissionStatus
+
+    # A minimal mission dir so ``_read_meta`` succeeds (identity is incidental;
+    # the carried fragment owns the read_dir).
+    repo_root = tmp_path / "repo"
+    feature_dir = repo_root / "kitty-specs" / _MISSION_SLUG
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(_META_JSON, encoding="utf-8")
+
+    # The carried surface points at a DISTINCT directory so we can prove the
+    # aggregate consumed it (not a re-resolved primary candidate).
+    carried_dir = tmp_path / "carried-surface"
+    carried_dir.mkdir()
+    fragment = StatusSurfaceFragment(
+        status_read_dir=carried_dir,
+        status_write_dir=carried_dir,
+    )
+
+    resolve_calls: list[tuple[Path, str]] = []
+
+    # Patch the canonical resolver at its source module; ``load`` imports it
+    # lazily, so the spy is installed where ``load`` looks it up.
+    import specify_cli.coordination.surface_resolver as surface_resolver
+
+    real = surface_resolver.resolve_status_surface
+
+    def _surface_spy(repo_root_arg: Path, mission_slug_arg: str) -> Path:
+        resolve_calls.append((repo_root_arg, mission_slug_arg))
+        return real(repo_root_arg, mission_slug_arg)
+
+    surface_resolver.resolve_status_surface = _surface_spy  # type: ignore[assignment]
+    try:
+        ms = MissionStatus.load(
+            repo_root=repo_root, mission_slug=_MISSION_SLUG, surface=fragment
+        )
+    finally:
+        surface_resolver.resolve_status_surface = real  # type: ignore[assignment]
+
+    assert ms.read_dir == carried_dir, (
+        "MissionStatus.load must consume the carried StatusSurfaceFragment's "
+        f"status_read_dir as its read_dir; got {ms.read_dir!r}, expected "
+        f"{carried_dir!r} (FR-005 / #1821)."
+    )
+    assert resolve_calls == [], (
+        "MissionStatus.load re-resolved the status surface even though a "
+        "StatusSurfaceFragment was carried — the carried fragment IS the source "
+        f"and must not trigger a second resolution (got calls: {resolve_calls!r})."
+    )

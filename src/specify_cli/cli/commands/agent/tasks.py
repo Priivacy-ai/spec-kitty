@@ -44,6 +44,8 @@ from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.core.paths import get_status_read_root
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.mission import get_mission_type
+from mission_runtime import CommitTarget, CommitTargetKind
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import protected_branches
 from specify_cli.status import feature_status_lock
@@ -2299,9 +2301,10 @@ def move_task(
                         commit_success = safe_commit(
                             repo_root=main_repo_root,
                             worktree_root=main_repo_root,
-                            destination_ref=target_branch,
+                            target=CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY),
                             message=commit_msg,
                             paths=tuple([actual_file_path] + status_artifacts),
+                            capability=GuardCapability.MERGE_BOOKKEEPING,
                         )
 
                     if commit_success:
@@ -2936,9 +2939,10 @@ def mark_status(
                     commit_success = safe_commit(
                         repo_root=main_repo_root,
                         worktree_root=main_repo_root,
-                        destination_ref=target_branch,
+                        target=CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY),
                         message=commit_msg,
                         paths=(actual_tasks_path,),
+                        capability=GuardCapability.MERGE_BOOKKEEPING,
                     )
 
                     if commit_success:
@@ -3712,9 +3716,10 @@ def map_requirements(
                     committed = safe_commit(
                         repo_root=main_repo_root,
                         worktree_root=main_repo_root,
-                        destination_ref=target_branch,
+                        target=CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY),
                         message=commit_msg,
                         paths=tuple(written_files),
+                        capability=GuardCapability.MERGE_BOOKKEEPING,
                     )
                 except Exception as exc_commit:
                     if not json_output:

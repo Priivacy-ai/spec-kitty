@@ -40,6 +40,7 @@ from mission_runtime.context import (
 from mission_runtime.resolution import (
     ActionContextError,
     resolve_action_context,
+    resolve_placement_only,
 )
 
 __all__ = [
@@ -55,6 +56,7 @@ __all__ = [
     "StatusSurfaceFragment",
     "WorkspaceFragment",
     "resolve_action_context",
+    "resolve_placement_only",
 ]
 
 _COMPAT_ATTRS = frozenset(

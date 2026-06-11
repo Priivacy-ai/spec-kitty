@@ -58,6 +58,7 @@ _PUBLIC_SURFACE = sorted(
         "StatusSurfaceFragment",
         "WorkspaceFragment",
         "resolve_action_context",
+        "resolve_placement_only",
     ]
 )
 

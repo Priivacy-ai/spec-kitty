@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.commit_guard import GuardCapability
 from mission_runtime import ActionContextError, CommitTarget, CommitTargetKind
 import contextlib
 import json
@@ -517,6 +518,88 @@ def _resolve_record_analysis_placement_ref(
     return placement.placement_ref if placement is not None else None
 
 
+def _resolve_planning_placement(repo_root: Path, mission_slug: str) -> CommitTarget:
+    """Resolve the single planning-phase :class:`CommitTarget` for ``mission_slug``.
+
+    WP05 / FR-003 / C-GUARD-3a (#1784): the ONE destination authority for every
+    planning-phase commit (spec / plan / tasks / finalize-tasks / doc-mission
+    bookkeeping). Routes through ``mission_runtime.resolve_placement_only`` — the
+    WP-less projection over the SAME resolution authority the full resolver uses
+    — so no planning commit path re-derives a destination from ``meta.json`` or
+    the current git checkout (the catch-22 root). The placement is CWD-invariant
+    and topology-correct (coordination / flattened / primary).
+    """
+    from mission_runtime import resolve_placement_only
+
+    return resolve_placement_only(repo_root, mission_slug)
+
+
+def _planning_commit_worktree(
+    repo_root: Path,
+    mission_slug: str,
+    placement: CommitTarget,
+    paths: tuple[Path, ...],
+) -> tuple[Path, tuple[Path, ...]]:
+    """Resolve the worktree a planning commit lands in for ``placement``.
+
+    WP05: ``safe_commit`` requires ``worktree_root`` HEAD to equal the
+    destination ref. For a :attr:`CommitTargetKind.COORDINATION` placement the
+    destination is the coordination branch, which is checked out in the
+    per-mission coordination worktree — so the commit must run there (and the
+    artifacts, written to the main checkout, are copied across for staging,
+    skipping coord-owned status files, #1589). For a flattened/primary placement
+    the destination is already HEAD of the main checkout, so it is used directly.
+
+    Returns ``(worktree_root, paths_to_commit)``.
+    """
+    if placement.kind is not CommitTargetKind.COORDINATION:
+        return repo_root, paths
+
+    meta = _safe_load_meta(repo_root, mission_slug)
+    raw_mid = meta.get("mission_id") if meta else None
+    mid8 = raw_mid[:8] if isinstance(raw_mid, str) and len(raw_mid) >= 8 else None
+    if not mid8:
+        return repo_root, paths
+
+    from specify_cli.coordination.workspace import CoordinationWorkspace as _CW
+
+    # Materialize the coordination worktree on demand (the coord branch already
+    # exists from ``mission create``). This is the catch-22 killer: the planning
+    # commit ALWAYS reaches its resolved coordination placement instead of
+    # falling back to the protected main checkout and tripping the guard.
+    try:
+        coord_wt = _CW.resolve(repo_root, mission_slug, mid8)
+    except Exception:
+        # Resolution failed (e.g. branch mismatch under a divergent worktree);
+        # fall back to the main checkout so the existing diagnostics surface
+        # rather than crashing the lifecycle (C-004 strangler safety).
+        return repo_root, paths
+
+    coord_paths = _stage_finalize_artifacts_in_coord_worktree(
+        list(paths), coord_wt, repo_root
+    )
+    return coord_wt, tuple(coord_paths)
+
+
+def _safe_load_meta(repo_root: Path, mission_slug: str) -> dict[str, object] | None:
+    """Load a mission's ``meta.json`` for worktree resolution, or ``None``.
+
+    Used only to derive the ``mid8`` worktree disambiguator — NEVER as a commit
+    destination authority (that is ``resolve_placement_only``, FR-003).
+    """
+    from specify_cli.mission_metadata import load_meta
+    from specify_cli.missions.feature_dir_resolver import (
+        candidate_feature_dir_for_mission,
+    )
+
+    feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    try:
+        meta = load_meta(feature_dir)
+    except ValueError:
+        return None
+    return meta or None
+
+
 def _enforce_analysis_report_write_preflight(
     repo_root: Path,
     *,
@@ -583,15 +666,29 @@ def _enforce_analysis_report_write_preflight(
     try:
         assert_not_protected_branch(cwd_toplevel, operation="record analysis report")
     except ProtectedBranchCommitError as exc:
+        # WP05 / FR-003 / T021 / C-GUARD-3: name the RESOLVED destination, never
+        # the pre-lanes "switch to the lane branch" advice (#1777/#1631). When a
+        # placement is known we tell the operator exactly where the analysis
+        # report commits to.
+        if placement_ref is not None:
+            error_text = (
+                f"Refusing to record analysis report from a protected branch. "
+                f"Planning artifacts for this mission commit to "
+                f"'{placement_ref.ref}'; run record-analysis so the commit lands "
+                f"there (the resolved placement), not on the protected checkout."
+            )
+        else:
+            error_text = str(exc)
         payload = {
             "success": False,
             "error_code": "PROTECTED_BRANCH_REFUSED",
-            "error": str(exc),
+            "error": error_text,
+            "resolved_destination": placement_ref.ref if placement_ref else None,
         }
         if json_output:
             _emit_json(payload)
         else:
-            console.print(f"[red]Error:[/red] {exc}")
+            console.print(f"[red]Error:[/red] {error_text}")
         raise typer.Exit(1) from None
 
 
@@ -746,34 +843,50 @@ def _commit_to_branch(
     _target_branch: str,
     json_output: bool = False,
 ) -> None:
-    """Commit planning artifact to current branch (respects user context).
+    """Commit a planning artifact to its single resolved placement.
+
+    WP05 / FR-003 / C-GUARD-3a (#1784 catch-22 fix): the commit destination is
+    the resolved placement :class:`CommitTarget` (``_resolve_planning_placement``
+    → the SAME authority the full resolver computes), NOT ``git HEAD`` /
+    ``current_branch``. Using HEAD was the root cause: on a protected-main repo
+    HEAD is ``main`` (protected) so the guard refused with a pre-lanes
+    "switch to the lane branch" instruction. The resolved placement is the
+    NON-protected coordination ref (or the flattened target), so a
+    ``GuardCapability.STANDARD`` commit lands cleanly with no relaxation.
 
     Args:
         file_path: Path to file being committed
         mission_slug: Feature slug (e.g., "001-my-feature")
         artifact_type: Type of artifact ("spec", "plan", "tasks")
         repo_root: Repository root path (ensures commits go to planning repo, not worktree)
-        target_branch: Branch the mission targets (for informational messages only)
+        _target_branch: Branch the mission targets (informational only; the
+            commit destination is the resolved placement, not this value)
         json_output: If True, suppress Rich console output
 
     Raises:
         subprocess.CalledProcessError: If commit fails unexpectedly
         RuntimeError: If safe_commit fails for anything other than an unchanged artifact
     """
-    current_branch = get_current_branch(repo_root)
-    if current_branch is None:
+    if get_current_branch(repo_root) is None:
         raise RuntimeError("Not in a git repository")
+
+    placement = _resolve_planning_placement(repo_root, mission_slug)
+    # Resolve the worktree the placement lands in. For a coordination placement
+    # the commit must run against the coord worktree (HEAD == coord ref); for a
+    # flattened/primary placement the main checkout is the worktree.
+    worktree_root, commit_paths = _planning_commit_worktree(
+        repo_root, mission_slug, placement, (file_path,)
+    )
 
     # Commit only this file (preserves staging area)
     commit_msg = f"Add {artifact_type} for feature {mission_slug}"
     try:
         safe_commit(
             repo_root=repo_root,
-            worktree_root=repo_root,
-            destination_ref=current_branch,
+            worktree_root=worktree_root,
+            target=placement,
             message=commit_msg,
-            paths=(file_path,),
-            allow_protected_branch_in_test_mode=True,
+            paths=commit_paths,
         )
 
     except subprocess.CalledProcessError as e:
@@ -788,7 +901,9 @@ def _commit_to_branch(
             _warn_commit_failed(artifact_type, file_path, e, json_output)
             raise
     except RuntimeError as e:
-        if _safe_commit_empty_changeset_error(e) and _artifact_has_no_git_changes(repo_root, file_path):
+        if _safe_commit_empty_changeset_error(e) and _artifact_has_no_git_changes(
+            worktree_root, commit_paths[0]
+        ):
             _print_artifact_unchanged(artifact_type, json_output)
             return
 
@@ -796,7 +911,9 @@ def _commit_to_branch(
         raise
 
     if not json_output:
-        console.print(f"[green]✓[/green] {artifact_type.capitalize()} committed to {current_branch}")
+        console.print(
+            f"[green]✓[/green] {artifact_type.capitalize()} committed to {placement.ref}"
+        )
 
 
 def _find_feature_directory(
@@ -1784,14 +1901,23 @@ def setup_plan(
                                 last_audit_date=analysis.analysis_date,
                                 coverage_percentage=analysis.coverage_matrix.get_coverage_percentage(),
                             )
-                            # Commit gap analysis and updated meta.json
+                            # Commit gap analysis and updated meta.json to the
+                            # single resolved placement (WP05 / FR-003), not the
+                            # raw meta.json target_branch.
                             with contextlib.suppress(Exception):  # Non-fatal: agent can commit separately
+                                _gap_placement = _resolve_planning_placement(repo_root, mission_slug)
+                                _gap_wt, _gap_paths = _planning_commit_worktree(
+                                    repo_root,
+                                    mission_slug,
+                                    _gap_placement,
+                                    (gap_analysis_output, meta_file),
+                                )
                                 safe_commit(
                                     repo_root=repo_root,
-                                    worktree_root=repo_root,
-                                    destination_ref=target_branch,
+                                    worktree_root=_gap_wt,
+                                    target=_gap_placement,
                                     message=f"Add gap analysis for feature {mission_slug}",
-                                    paths=(gap_analysis_output, meta_file),
+                                    paths=_gap_paths,
                                 )
                             if not json_output:
                                 coverage_pct = analysis.coverage_matrix.get_coverage_percentage() * 100
@@ -1823,12 +1949,16 @@ def setup_plan(
                 try:
                     set_generators_configured(meta_file, generators_detected)
                     with contextlib.suppress(Exception):  # Non-fatal
+                        _gen_placement = _resolve_planning_placement(repo_root, mission_slug)
+                        _gen_wt, _gen_paths = _planning_commit_worktree(
+                            repo_root, mission_slug, _gen_placement, (meta_file,)
+                        )
                         safe_commit(
                             repo_root=repo_root,
-                            worktree_root=repo_root,
-                            destination_ref=target_branch,
+                            worktree_root=_gen_wt,
+                            target=_gen_placement,
                             message=f"Update generator config for feature {mission_slug}",
-                            paths=(meta_file,),
+                            paths=_gen_paths,
                         )
                 except Exception as gen_err:
                     if not json_output:
@@ -2264,13 +2394,32 @@ def finalize_tasks(
             raise typer.Exit(1) from None
 
         mission_slug = feature_dir.name
-        # WP07 / FR-012 / SC-04: read the canonical target from meta.json.
+        # WP07 / FR-012 / SC-04: read the canonical merge target from meta.json.
         # The current checkout is NEVER consulted, so running finalize-tasks
         # from a prep/ branch no longer leaks that branch into WP frontmatter.
+        #
+        # WP05 / FR-003 / T020 (F-001 idempotency): anchor the meta read on the
+        # PRIMARY feature dir, not the topology-resolved ``feature_dir``. Once a
+        # coordination worktree exists (after the first finalize), the read-path
+        # resolver selects that worktree — but ``meta.json`` lives on the primary
+        # checkout (committed by ``mission create``), so a coord-anchored read
+        # raised PLANNING_BRANCH_NOT_PERSISTED on the SECOND finalize. Anchoring
+        # on the primary makes the merge-target read CWD/topology-invariant —
+        # the SAME anchoring ``resolve_placement_only`` uses — so finalize-tasks
+        # is idempotent across re-runs.
+        # Use the PRIMARY-checkout constructor. We deliberately do NOT route
+        # through the topology-aware ``candidate_feature_dir_for_mission``
+        # here: that resolver selects the coordination worktree once one exists,
+        # which is exactly the surface that lacks ``meta.json`` (it lives on the
+        # primary checkout). ``primary_feature_dir_for_mission`` is the sanctioned
+        # topology-blind constructor (see its docstring) — CWD/topology-invariant.
+        from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+
+        _primary_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
         try:
             target_branch = _resolve_planning_branch(
                 repo_root,
-                feature_dir,
+                _primary_dir,
                 target_branch_override=target_branch_override,
             )
         except PlanningBranchResolutionFailed as exc:
@@ -2986,7 +3135,9 @@ def finalize_tasks(
             feature_dir,
             mission_slug,
             dry_run=False,
-            allow_protected_branch_in_test_mode=True,
+            # WP03 channel-deletion (merge resolution): removed bool -> explicit
+            # TEST_MODE capability per bootstrap's converted signature.
+            capability=GuardCapability.TEST_MODE,
         )
         if not json_output and bootstrap_result.newly_seeded:
             console.print(f"[green]✓[/green] Bootstrapped canonical status: {bootstrap_result.newly_seeded} WPs seeded")
@@ -3135,40 +3286,30 @@ def finalize_tasks(
                 if not json_output:
                     console.print("[dim]Tasks unchanged, no commit needed[/dim]")
             else:
-                # Commit with descriptive message (safe_commit preserves staging area)
-                # Planning artifacts must land on the coordination branch, not on the
-                # final merge target (e.g. "main"), which is protected.
-                # locate_project_root() always returns the MAIN checkout (by design),
-                # but safe_commit requires worktree_root HEAD == destination_ref.
-                # When a coord worktree exists, use it as worktree_root.
-                coord_branch_for_commit = (
-                    meta.get("coordination_branch") if meta else None
-                ) or target_branch
-                _commit_worktree_root = repo_root
-                _commit_files = files_to_commit
-                if coord_branch_for_commit != target_branch and meta:
-                    _raw_mid = meta.get("mission_id")
-                    _mid8 = _raw_mid[:8] if isinstance(_raw_mid, str) and len(_raw_mid) >= 8 else None
-                    if _mid8:
-                        from specify_cli.coordination.workspace import CoordinationWorkspace as _CW
-                        _coord_wt = _CW.worktree_path(repo_root, mission_slug, _mid8)
-                        if _coord_wt.exists():
-                            _commit_worktree_root = _coord_wt
-                            # Files were written to the main checkout; copy to the
-                            # coord worktree before staging so safe_commit can find them.
-                            # The canonical status log/snapshot are skipped to preserve
-                            # the bootstrap's seeded lane state (#1589) — see the helper.
-                            _commit_files = _stage_finalize_artifacts_in_coord_worktree(
-                                files_to_commit, _coord_wt, repo_root
-                            )
+                # Commit with descriptive message (safe_commit preserves staging area).
+                # WP05 / FR-003 / C-GUARD-3a (#1784 catch-22 fix): the commit
+                # destination is the SINGLE resolved placement CommitTarget
+                # (``resolve_placement_only`` — the same authority the full
+                # resolver computes), NOT a hand-rolled meta.json read. On a
+                # protected-target repo ``mission create`` materialized a
+                # coordination branch, so the placement resolves to that
+                # NON-protected ref and a STANDARD commit lands cleanly — no
+                # catch-22, no refusal-to-nowhere.
+                placement = _resolve_planning_placement(repo_root, mission_slug)
+                # safe_commit requires worktree_root HEAD == destination ref; the
+                # shared resolver routes a coordination placement to the coord
+                # worktree (copying artifacts across, skipping #1589 status files)
+                # and a flattened/primary placement to the main checkout.
+                _commit_worktree_root, _commit_files = _planning_commit_worktree(
+                    repo_root, mission_slug, placement, tuple(files_to_commit)
+                )
                 commit_msg = f"Add tasks for feature {mission_slug}"
                 commit_success = safe_commit(
                     repo_root=repo_root,
                     worktree_root=_commit_worktree_root,
-                    destination_ref=coord_branch_for_commit,
+                    target=placement,
                     message=commit_msg,
-                    paths=tuple(_commit_files),
-                    allow_protected_branch_in_test_mode=True,
+                    paths=_commit_files,
                 )
 
                 if commit_success:
@@ -3178,7 +3319,7 @@ def finalize_tasks(
                     commit_created = True
 
                     if not json_output:
-                        console.print(f"[green]✓[/green] Tasks committed to {target_branch}")
+                        console.print(f"[green]✓[/green] Tasks committed to {placement.ref}")
                         console.print(f"[dim]Commit: {commit_hash[:7]}[/dim]")
                         console.print(f"[dim]Updated {updated_count} WP files with dependencies[/dim]")
                 else:

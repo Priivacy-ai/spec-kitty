@@ -55,6 +55,7 @@ __all__ = [
     "ActionContextError",
     "ActionName",
     "resolve_action_context",
+    "resolve_placement_only",
 ]
 
 
@@ -517,6 +518,68 @@ def _assemble_prompt_source_fragment(feature_dir: Path) -> PromptSourceFragment:
     parser land in WP05 (IC-04, C-004 strangler ordering).
     """
     return PromptSourceFragment(prompt_source_dir=feature_dir / "tasks")
+
+
+def resolve_placement_only(repo_root: Path, mission_slug: str) -> CommitTarget:
+    """Resolve the planning-phase :class:`CommitTarget` for a mission (FR-003).
+
+    The **WP-less placement projection** (IC-04 / C-GUARD-3a): the planning
+    phase (specify / plan / tasks / finalize-tasks) has no ``wp_id`` — no work
+    packages exist yet — so the full :func:`resolve_action_context` cannot be
+    driven to obtain an :class:`ArtifactPlacementFragment`. This function is a
+    narrower entry point over the **same** resolution authority, NOT a parallel
+    resolver (C-CTX-1): it resolves ``target_branch`` once via
+    :func:`get_feature_target_branch` and runs the single
+    :func:`_assemble_core_fragments` builder, then projects out the one
+    ``destination_ref`` :class:`CommitTarget` that builder already computes. The
+    topology classification (primary / coordination / flattened) is therefore
+    BYTE-IDENTICAL to what the full resolver assembles for the same mission —
+    there is no second derivation from ``meta.json`` or git on the planning
+    commit path (the #1784 catch-22 root: ``_resolve_planning_branch`` reading
+    one authority while the placement fragment reads another).
+
+    This is the literal #1784 fix: on a protected-target repo ``mission create``
+    materializes a coordination branch, so the resolved placement is the
+    NON-protected coordination ref — a ``GuardCapability.STANDARD`` commit lands
+    there cleanly, with no "switch to the lane branch before lanes exist"
+    refusal-to-nowhere.
+
+    Args:
+        repo_root: Repository root (resolved to the canonical primary root by
+            the shared builder, so the result is CWD-invariant).
+        mission_slug: The mission directory name / slug.
+
+    Returns:
+        The single :class:`CommitTarget` (``ref`` + topology ``kind``) planning
+        artifacts commit to — the same value object status events resolve to.
+
+    Raises:
+        ActionContextError: when the mission slug cannot be resolved (no silent
+            fallback — mirrors :func:`resolve_action_context`).
+    """
+    from specify_cli.core.paths import get_feature_target_branch
+
+    if not mission_slug or not mission_slug.strip():
+        raise ActionContextError(
+            "FEATURE_CONTEXT_UNRESOLVED",
+            "resolve_placement_only requires an explicit mission_slug.",
+        )
+
+    # FR-012 / C-CTX-3: ``target_branch`` is resolved exactly once here, exactly
+    # as ``resolve_action_context`` does, and threaded into the shared builder.
+    target_branch = get_feature_target_branch(repo_root, mission_slug)
+    _identity, branch_ref, _status_surface, _workspace = _assemble_core_fragments(
+        repo_root,
+        mission_slug=mission_slug,
+        target_branch=target_branch,
+        cwd=None,
+    )
+    # The placement ref is the SAME CommitTarget the full resolver projects via
+    # ``_assemble_artifact_placement_fragment`` (C-PLACE-1): one authority, two
+    # projections. We return the ``destination_ref`` directly rather than wrap it
+    # in an ArtifactPlacementFragment because planning callers want the bare
+    # CommitTarget to hand to ``safe_commit(target=...)``.
+    return branch_ref.destination_ref
 
 
 def resolve_action_context(

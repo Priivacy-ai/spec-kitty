@@ -31,6 +31,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.mission import app
 from specify_cli.coordination.status_transition import read_events_transactional
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.status.store import EVENTS_FILENAME
 
@@ -212,7 +213,7 @@ class TestT024CoordFinalizePreservesBootstrapEvents:
         # Step 1: bootstrap seeded events into the coord worktree (genesis → planned).
         bootstrap_result = bootstrap_canonical_state(
             feature_dir, mission_slug, dry_run=False,
-            allow_protected_branch_in_test_mode=True,
+            capability=GuardCapability.TEST_MODE,
         )
         assert bootstrap_result.newly_seeded == 2, (
             f"bootstrap should have seeded 2 WPs, got {bootstrap_result.newly_seeded}"
@@ -418,7 +419,7 @@ class TestT026CoordReFinalizeEmptyChangeset:
         # Bootstrap the coord events first.
         bootstrap_canonical_state(
             feature_dir, mission_slug, dry_run=False,
-            allow_protected_branch_in_test_mode=True,
+            capability=GuardCapability.TEST_MODE,
         )
 
         _finalize_patches = [

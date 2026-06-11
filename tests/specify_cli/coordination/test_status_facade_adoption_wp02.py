@@ -227,24 +227,29 @@ def test_f007_lane_state_parity_no_genesis_misread(
 def test_identity_consumes_canonical_surface_resolver(
     sparse_lane_repo: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """#1737: the anchor is resolved through the canonical surface authority.
+    """#1737 / #1821: the anchor is resolved through the canonical surface authority.
 
     Proves ``_identity_for_request`` no longer maintains a parallel derivation:
-    it consults ``surface_resolver.resolve_status_surface`` (the single authority
-    ``MissionStatus`` is built on). If a future change reintroduced an
-    independent derivation that skipped the resolver, this guard would fail.
+    it consults ``surface_resolver.resolve_status_surface_with_anchor`` (the
+    single single-pass authority that carries both the surface path and the
+    canonical primary anchor — the same authority ``MissionStatus`` is built
+    on). If a future change reintroduced an independent derivation that skipped
+    the resolver (the second hand-rolled composition Debby flagged at 01KTPKST
+    closeout), this guard would fail.
     """
     repo, _lane = sparse_lane_repo
     import specify_cli.coordination.surface_resolver as surface_resolver
 
     calls: list[tuple[Path, str]] = []
-    real = surface_resolver.resolve_status_surface
+    real = surface_resolver.resolve_status_surface_with_anchor
 
-    def _spy(repo_root: Path, mission_slug: str) -> Path:
+    def _spy(
+        repo_root: Path, mission_slug: str
+    ) -> surface_resolver.ResolvedStatusSurface:
         calls.append((repo_root, mission_slug))
         return real(repo_root, mission_slug)
 
-    monkeypatch.setattr(surface_resolver, "resolve_status_surface", _spy)
+    monkeypatch.setattr(surface_resolver, "resolve_status_surface_with_anchor", _spy)
 
     _identity_for_request(
         TransitionRequest(
@@ -258,8 +263,9 @@ def test_identity_consumes_canonical_surface_resolver(
     )
 
     assert calls, (
-        "_identity_for_request must consume resolve_status_surface (the canonical "
-        "authority), not re-derive the status surface independently (#1737)."
+        "_identity_for_request must consume resolve_status_surface_with_anchor "
+        "(the canonical authority), not re-derive the status surface "
+        "independently (#1737 / #1821)."
     )
     assert calls[0][1] == _MISSION_SLUG
 

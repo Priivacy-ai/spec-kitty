@@ -18,6 +18,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from mission_runtime import CommitTarget, CommitTargetKind
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.events.sanitizer import sanitize_event_for_log
 from specify_cli.git.commit_helpers import SafeCommitError, safe_commit
 from runtime.next._internal_runtime.events import (
@@ -76,11 +78,20 @@ class DecisionGitLog:
         *,
         inner: RuntimeEventEmitter,
         mission_id: str = "",
+        target: CommitTarget | None = None,
     ) -> None:
         self._repo_root = repo_root
         self._worktree_root = worktree_root
         self._destination_ref = destination_ref
         self._mission_slug = mission_slug
+        # T010: the CommitTarget is resolved by the calling surface
+        # (runtime_bridge) which knows the coordination topology — it is passed
+        # in, not re-derived here. When a legacy caller supplies only the string
+        # destination_ref, fall back to a COORDINATION target on that ref: the
+        # decision log always lands on the per-mission coordination branch.
+        self._target = target or CommitTarget(
+            ref=destination_ref, kind=CommitTargetKind.COORDINATION
+        )
         # Prefer the canonical ULID; fall back to slug for legacy callers.
         self._mission_id = mission_id or mission_slug
         self._inner = inner
@@ -193,9 +204,10 @@ class DecisionGitLog:
             safe_commit(
                 repo_root=self._repo_root,
                 worktree_root=self._worktree_root,
-                destination_ref=self._destination_ref,
+                target=self._target,
                 message="chore(decisions): record decision [skip ci]",
                 paths=(self._decisions_file,),
+                capability=GuardCapability.MERGE_BOOKKEEPING,
             )
         except SafeCommitError as exc:
             _observed = getattr(exc, "observed_head", None)

@@ -89,6 +89,13 @@ class DRGNode(BaseModel):
     urn: str
     kind: NodeKind
     label: str | None = None
+    # Merge-time provenance marker ("built-in" | "org:<pack>" | "project").
+    # Declared optional field (FR-013, D2-revised) replacing the former
+    # ``object.__setattr__`` sidecar. ``None`` for nodes that never pass
+    # through the three-layer merge (e.g. the extractor-built shipped graph),
+    # so the field is excluded from ``graph.yaml`` serialisation by the
+    # extractor's explicit field-by-field writer — graph output stays stable.
+    provenance: str | None = None
 
     @model_validator(mode="after")
     def _validate_urn(self) -> Self:
@@ -113,6 +120,10 @@ class DRGEdge(BaseModel):
     relation: Relation
     when: str | None = None
     reason: str | None = None
+    # Merge-time provenance marker; see ``DRGNode.provenance``. Named
+    # ``provenance`` (NOT ``source``) to avoid colliding with the source
+    # endpoint URN above.
+    provenance: str | None = None
 
     @model_validator(mode="after")
     def _validate_urns(self) -> Self:

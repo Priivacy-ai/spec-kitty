@@ -296,10 +296,16 @@ class TestAutoCommitOnCompleteInvocation:
         call_kwargs = mock_safe_commit.call_args.kwargs
         assert call_kwargs["repo_root"] == tmp_path
         assert call_kwargs["worktree_root"] == tmp_path
-        assert call_kwargs["destination_ref"] in {"main", "master"}
+        # WP02: executor now passes a CommitTarget (mission_runtime.context) rather
+        # than a bare destination_ref string; ref echoes the resolved branch.
+        assert call_kwargs["target"].ref in {"main", "master"}
         assert call_kwargs["message"].startswith("op(implementer-fixture):")
         assert call_kwargs["paths"] == (Path(f"{EVENTS_DIR}/{payload.invocation_id}.jsonl"),)
-        assert call_kwargs["allow_completed_op_on_protected_branch"] is True
+        # WP03 channel-deletion: the op-record file-content + completed-op bool
+        # channels are folded into the asserted MERGE_BOOKKEEPING capability.
+        from specify_cli.core.commit_guard import GuardCapability
+
+        assert call_kwargs["capability"] is GuardCapability.MERGE_BOOKKEEPING
 
     def test_complete_invocation_on_protected_branch_preserves_unrelated_staging(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

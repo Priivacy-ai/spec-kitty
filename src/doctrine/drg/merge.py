@@ -4,7 +4,7 @@ This module owns the **canonical relationship merge** for the Doctrine
 Reference Graph (OQ-2(ii) / C-009). It overlays the built-in DRG with
 organisation-tier fragments and an optional project-tier graph, producing a
 single merged :class:`~doctrine.drg.models.DRGGraph` whose nodes and edges
-carry a ``provenance`` sidecar attribute.
+carry a declared ``provenance`` field.
 
 Relocated from ``charter.drg`` (mission
 ``org-doctrine-profile-integrity-activation-closure-01KT1TV1`` WP03). The
@@ -189,35 +189,23 @@ class UnknownRelationError(Exception):
 
 
 def _tag_source(obj: _ModelT, source: str) -> _ModelT:
-    """Attach a ``provenance`` sidecar attribute to a frozen Pydantic model.
+    """Return a copy of *obj* with its declared ``provenance`` field set.
 
-    DRGNode / DRGEdge are :class:`BaseModel` instances with no native
-    ``provenance`` field. We thread provenance through the merged graph
-    without changing the built-in model shape by monkey-setting a plain
-    attribute. Consumers read with ``getattr(node, 'provenance', None)``.
+    DRGNode / DRGEdge now declare a typed ``provenance: str | None`` field
+    (FR-013, D2-revised). Provenance is set via ``model_copy(update=...)`` so
+    the field is populated through the model's own validation surface instead
+    of the former ``object.__setattr__`` sidecar. Consumers read the field
+    directly (``node.provenance``) or, where the graph object is duck-typed,
+    via ``getattr(node, "provenance", None)``.
 
     .. note::
-        The attribute is named ``provenance`` (NOT ``source``) to avoid
-        colliding with ``DRGEdge.source``, which is the source-endpoint URN
-        declared in the Pydantic model. Using ``source`` as the sidecar name
-        caused ``_tag_source`` to silently overwrite the endpoint URN on every
-        merged edge (P0 bug, Robert review 2026-05).
-
-    The Pydantic v2 ``object.__setattr__`` workaround is needed because
-    BaseModel restricts attribute assignment to declared fields by default.
-
-    .. note:: T013 (FR-013) — provenance sidecar typing.
-        A fully-typed provenance carrier (a declared optional field on the
-        DRG models or a typed wrapper dataclass) would change the public
-        shape of ``DRGNode`` / ``DRGEdge`` and ripple into every consumer
-        that reads ``getattr(node, "provenance", None)`` across the doctrine,
-        charter, and specify_cli layers. That is not a low-risk change for a
-        close-out WP, so the typed-provenance refactor is deferred to a
-        tracker per the "SHOULD … OR tracker" disposition. Follow-up tracker:
-        org-doctrine-profile-integrity-closeout WP06/T021 (DIRECTIVE_013).
+        The field is named ``provenance`` (NOT ``source``) to avoid colliding
+        with ``DRGEdge.source``, which is the source-endpoint URN. Using
+        ``source`` as the marker name caused an earlier sidecar to silently
+        overwrite the endpoint URN on every merged edge (P0 bug, Robert review
+        2026-05).
     """
-    object.__setattr__(obj, "provenance", source)
-    return obj
+    return obj.model_copy(update={"provenance": source})
 
 
 # ---------------------------------------------------------------------------
@@ -270,8 +258,7 @@ def _bridge_org_node_to_drg_node(node: Any, source: str) -> tuple[str, DRGNode]:
     singular = _PLURAL_TO_SINGULAR[node.kind]
     urn = f"{singular}:{node.id}"
     drg_node = DRGNode(urn=urn, kind=NodeKind(singular), label=node.title)
-    _tag_source(drg_node, source)
-    return urn, drg_node
+    return urn, _tag_source(drg_node, source)
 
 
 def _resolve_relation(relation_value: str, source_marker: str) -> Relation:
@@ -319,8 +306,7 @@ def _bridge_org_edge_to_drg_edge(
         target_urn = f"directive:{edge.target}"
 
     drg_edge = DRGEdge(source=source_urn, target=target_urn, relation=relation)
-    _tag_source(drg_edge, source)
-    return drg_edge
+    return _tag_source(drg_edge, source)
 
 
 def _merge_org_fragment(
@@ -420,8 +406,8 @@ def merge_three_layers(
     An org/project fragment edge with an unrecognised relation label raises
     :class:`UnknownRelationError` (FR-003 — no silent drop).
 
-    Every node and edge in the returned graph carries a ``provenance`` sidecar
-    attribute readable via ``getattr(node, 'provenance', None)``:
+    Every node and edge in the returned graph carries a declared ``provenance``
+    field readable via ``node.provenance``:
 
     * ``"built-in"`` — built-in layer (Mission A);
     * ``"org:<pack_name>"`` — contributed by an :class:`OrgDRGFragment`;
@@ -443,7 +429,7 @@ def merge_three_layers(
     Returns
     -------
     DRGGraph:
-        The merged graph. Nodes and edges carry the ``provenance`` sidecar.
+        The merged graph. Nodes and edges carry the declared ``provenance`` field.
 
     Raises
     ------
@@ -458,10 +444,10 @@ def merge_three_layers(
 
     # Seed the merged maps with the built-in layer.
     merged_nodes: dict[str, DRGNode] = {
-        n.urn: _tag_source(n.model_copy(), "built-in") for n in built_in.nodes
+        n.urn: _tag_source(n, "built-in") for n in built_in.nodes
     }
     merged_edges: list[DRGEdge] = [
-        _tag_source(e.model_copy(), "built-in") for e in built_in.edges
+        _tag_source(e, "built-in") for e in built_in.edges
     ]
 
     invariant_urns = _built_in_invariant_ids(built_in)
@@ -477,13 +463,11 @@ def merge_three_layers(
     if project is not None:
         for node in project.nodes:
             if node.urn in merged_nodes:
-                existing_provenance = getattr(
-                    merged_nodes[node.urn], "provenance", "unknown"
-                )
+                existing_provenance = merged_nodes[node.urn].provenance or "unknown"
                 _warn_project_override(node.urn, existing_provenance)
-            merged_nodes[node.urn] = _tag_source(node.model_copy(), "project")
+            merged_nodes[node.urn] = _tag_source(node, "project")
         for edge in project.edges:
-            merged_edges.append(_tag_source(edge.model_copy(), "project"))
+            merged_edges.append(_tag_source(edge, "project"))
 
     return DRGGraph(
         schema_version=built_in.schema_version,

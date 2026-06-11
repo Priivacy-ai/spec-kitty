@@ -295,13 +295,18 @@ def test_doctor_doctrine_human_renders_degraded_pack_and_invalid_profiles(
         "pack_health": project_pack.to_dict(),
     }
 
+    # WP08 (#1623): ``_render_doctrine_pack`` and the ``console`` singleton it
+    # emits through were extracted to ``_profile_health_render``; patch the
+    # canonical owner so the renderer writes to our buffer.
+    from specify_cli.cli.commands import _profile_health_render as render_mod
+
     buf = StringIO()
-    original = doctor_mod.console
-    doctor_mod.console = Console(file=buf, highlight=False, markup=True, width=200)
+    original = render_mod.console
+    render_mod.console = Console(file=buf, highlight=False, markup=True, width=200)
     try:
         doctor_mod._render_doctrine_pack(entry, 0)
     finally:
-        doctor_mod.console = original
+        render_mod.console = original
     output = buf.getvalue()
 
     assert "degraded" in output, output

@@ -16,7 +16,7 @@
   "created_at": "2026-06-10T08:57:17.724759+00:00",
   "friendly_name": "Tooling Stability & Guard Coherence",
   "mission_id": "01KTRC044W67V3KC9H7TBFSY7B",
-  "mission_number": null,
+  "mission_number": 130,
   "mission_slug": "tooling-stability-guard-coherence-01KTRC04",
   "mission_type": "software-dev",
   "purpose_context": "Mission 01KTPKST's closeout + dogfood surfaced tooling-stability papercuts (record-analysis verdict miscount #1819, safe-commit/protected-branch friction #1820/#1796, not-fully-threaded status surface #1821) plus deferred code-health debt (#1623 doctor.py god-module, #1624 merge.py typing). This follow-up slice of #1619 consolidates the safe-commit/protected-branch guard surface and fixes the findings + debt so the tooling is stable enough to PR the accumulated work.",

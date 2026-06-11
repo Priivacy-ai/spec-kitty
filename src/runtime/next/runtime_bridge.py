@@ -154,6 +154,7 @@ def _wrap_with_decision_git_log(
         mission_slug, repo_root,
     )
     try:
+        from mission_runtime import CommitTarget, CommitTargetKind
         from specify_cli.coordination.workspace import CoordinationWorkspace
         from specify_cli.events.decision_log import DecisionGitLog
 
@@ -171,12 +172,24 @@ def _wrap_with_decision_git_log(
         _coord_path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, _mid8)
         if _coord_path.exists():
             worktree_root = _coord_path
+            decision_target = CommitTarget(
+                ref=coordination_branch, kind=CommitTargetKind.COORDINATION
+            )
         elif declared_coord_topology:
             worktree_root = CoordinationWorkspace.resolve(
                 repo_root, mission_slug, _mid8,
             )
+            decision_target = CommitTarget(
+                ref=coordination_branch, kind=CommitTargetKind.COORDINATION
+            )
         else:
+            # Legacy mission without coord topology: decisions land on the
+            # primary checkout's current branch (a lane/mission branch), so the
+            # target is FLATTENED — landing == coordination == target.
             worktree_root = repo_root
+            decision_target = CommitTarget(
+                ref=coordination_branch, kind=CommitTargetKind.FLATTENED
+            )
 
         return DecisionGitLog(
             repo_root=repo_root,
@@ -185,6 +198,7 @@ def _wrap_with_decision_git_log(
             mission_slug=mission_slug,
             inner=emitter,
             mission_id=mission_id,
+            target=decision_target,
         )
     except Exception as exc:
         if declared_coord_topology:

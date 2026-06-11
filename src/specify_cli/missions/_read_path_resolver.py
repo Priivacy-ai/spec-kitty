@@ -363,11 +363,32 @@ def candidate_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Pat
     )
 
 
+def primary_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:
+    """Return the PRIMARY-checkout mission dir, deliberately topology-blind.
+
+    The inverse companion of :func:`candidate_feature_dir_for_mission`: it does
+    **NOT** route through :func:`resolve_mission_read_path`, because the
+    topology-aware resolver selects the coordination worktree once one exists —
+    which is exactly the surface that lacks ``meta.json`` (it lives on the
+    primary checkout). Callers that must read primary-anchored metadata
+    (e.g. ``finalize-tasks`` resolving the merge target, mission 01KTRC04
+    FR-003) use this so the read is CWD/topology-invariant — the SAME anchoring
+    ``mission_runtime.resolve_placement_only`` uses.
+
+    Lives here (a sanctioned path-constructor module) so the construction stays
+    inside the blessed owners of ``KITTY_SPECS_DIR`` path assembly enforced by
+    ``tests/architectural/test_no_raw_mission_spec_paths.py``.
+    """
+    from specify_cli.core.paths import get_main_repo_root
+
+    primary_dir: Path = get_main_repo_root(repo_root) / KITTY_SPECS_DIR / mission_slug
+    return primary_dir
+
+
 __all__ = [
-    "FEATURE_CONTEXT_UNRESOLVED_CODE",
-    "MISSION_AMBIGUOUS_SELECTOR_CODE",
     "MissionSelectorAmbiguous",
     "StatusReadPathNotFound",
     "candidate_feature_dir_for_mission",
+    "primary_feature_dir_for_mission",
     "resolve_mission_read_path",
 ]

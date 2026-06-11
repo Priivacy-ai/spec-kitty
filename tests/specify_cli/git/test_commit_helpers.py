@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import (
     CommitResult,
     ProtectedBranchRefused,
@@ -172,8 +173,14 @@ def test_safe_commit_protected_branch(tmp_path: Path) -> None:
     assert err.commit_message == "WP01: add alpha"
 
 
-def test_safe_commit_allows_completed_op_record_on_protected_branch(tmp_path: Path) -> None:
-    """The explicit Op policy can commit one completed Op file on protected branches."""
+def test_safe_commit_allows_op_record_on_protected_branch_with_capability(tmp_path: Path) -> None:
+    """An op-record bookkeeping commit lands on a protected branch with MERGE_BOOKKEEPING.
+
+    WP03/FR-008: the completed-op file-content + bool privilege channels are
+    DELETED. Op-record auto-commits now assert ``GuardCapability.MERGE_BOOKKEEPING``
+    at the surface; the file content and message convention no longer derive
+    privilege. The staging-preservation backstop is unchanged.
+    """
     repo = tmp_path / "repo"
     _init_repo(repo, initial_branch="main")
 
@@ -195,7 +202,7 @@ def test_safe_commit_allows_completed_op_record_on_protected_branch(tmp_path: Pa
         destination_ref="main",
         message=f"op(implementer-fixture): implement [{op_id[:8]}]",
         paths=(op_path,),
-        allow_completed_op_on_protected_branch=True,
+        capability=GuardCapability.MERGE_BOOKKEEPING,
     )
 
     assert isinstance(result, CommitResult)
@@ -208,17 +215,25 @@ def test_safe_commit_allows_completed_op_record_on_protected_branch(tmp_path: Pa
     assert staged_files == ["seed.txt"]
 
 
-def test_safe_commit_rejects_op_record_on_protected_branch_without_policy(
+def test_safe_commit_rejects_op_record_on_protected_branch_without_capability(
     tmp_path: Path,
 ) -> None:
-    """A valid Op path still refuses on main unless the Op policy is explicit."""
+    """A valid Op path refuses on main with the default STANDARD capability.
+
+    WP03/FR-008: with the file-content + bool channels deleted, an op-record
+    commit to a protected branch is refused unless an explicit protected-flow
+    capability is asserted. STANDARD (the default) authorizes no protected flow.
+    """
     repo = tmp_path / "repo"
     _init_repo(repo, initial_branch="main")
 
     op_id = "01KTBTTSWK43WGCPYKBMRCCY8T"
     op_path = repo / "kitty-ops" / f"{op_id}.jsonl"
     op_path.parent.mkdir()
-    op_path.write_text('{"event":"completed"}\n', encoding="utf-8")
+    op_path.write_text(
+        '{"event":"completed","invocation_id":"' + op_id + '"}\n',
+        encoding="utf-8",
+    )
 
     with pytest.raises(ProtectedBranchRefused):
         safe_commit(
@@ -230,130 +245,38 @@ def test_safe_commit_rejects_op_record_on_protected_branch_without_policy(
         )
 
 
-@pytest.mark.parametrize(
-    "content",
-    [
-        '{"event":"started","invocation_id":"01KTBTTSWK43WGCPYKBMRCCY8T"}\n',
-        '{"event":"completed","invocation_id":"01KTBTTSWK43WGCPYKBMRCCY8U"}\n',
-        "not json\n",
-    ],
-)
-def test_safe_commit_op_policy_requires_completed_event_for_matching_op_id(
-    tmp_path: Path,
-    content: str,
-) -> None:
-    """Protected-branch Op exception is content-aware, not path-only."""
-    repo = tmp_path / "repo"
-    _init_repo(repo, initial_branch="main")
+def test_safe_commit_protected_branch_requires_capability_not_message_prefix(tmp_path: Path) -> None:
+    """WP03/FR-008: the message-prefix exception is DELETED — capability is required.
 
-    op_id = "01KTBTTSWK43WGCPYKBMRCCY8T"
-    op_path = repo / "kitty-ops" / f"{op_id}.jsonl"
-    op_path.parent.mkdir()
-    op_path.write_text(content, encoding="utf-8")
-
-    with pytest.raises(ProtectedBranchRefused):
-        safe_commit(
-            repo_root=repo,
-            worktree_root=repo,
-            destination_ref="main",
-            message=f"op(implementer-fixture): implement [{op_id[:8]}]",
-            paths=(op_path,),
-            allow_completed_op_on_protected_branch=True,
-        )
-
-
-@pytest.mark.parametrize(
-    "relative_path",
-    [
-        Path("kitty-ops/ops-index.jsonl"),
-        Path("kitty-ops/lifecycle.jsonl"),
-        Path("kitty-ops/01KTBTTSWK43WGCPYKBMRCCY8T.txt"),
-        Path("kitty-ops/not-a-ulid.jsonl"),
-        Path("other/01KTBTTSWK43WGCPYKBMRCCY8T.jsonl"),
-    ],
-)
-def test_safe_commit_op_policy_rejects_non_op_paths_on_protected_branch(
-    tmp_path: Path,
-    relative_path: Path,
-) -> None:
-    """The Op protected-branch policy is limited to one kitty-ops/<op-id>.jsonl."""
-    repo = tmp_path / "repo"
-    _init_repo(repo, initial_branch="main")
-
-    target = repo / relative_path
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text("not a completed Op record\n", encoding="utf-8")
-
-    with pytest.raises(ProtectedBranchRefused):
-        safe_commit(
-            repo_root=repo,
-            worktree_root=repo,
-            destination_ref="main",
-            message="op(implementer-fixture): implement [01KTBTTS]",
-            paths=(target,),
-            allow_completed_op_on_protected_branch=True,
-        )
-
-
-def test_safe_commit_op_policy_rejects_extra_paths_on_protected_branch(tmp_path: Path) -> None:
-    """The Op protected-branch policy never widens to multi-path commits."""
-    repo = tmp_path / "repo"
-    _init_repo(repo, initial_branch="main")
-
-    op_id = "01KTBTTSWK43WGCPYKBMRCCY8T"
-    op_path = repo / "kitty-ops" / f"{op_id}.jsonl"
-    op_path.parent.mkdir()
-    op_path.write_text('{"event":"completed"}\n', encoding="utf-8")
-    extra_path = repo / "extra.txt"
-    extra_path.write_text("extra\n", encoding="utf-8")
-
-    with pytest.raises(ProtectedBranchRefused):
-        safe_commit(
-            repo_root=repo,
-            worktree_root=repo,
-            destination_ref="main",
-            message=f"op(implementer-fixture): implement [{op_id[:8]}]",
-            paths=(op_path, extra_path),
-            allow_completed_op_on_protected_branch=True,
-        )
-
-
-def test_safe_commit_op_policy_requires_op_commit_message(tmp_path: Path) -> None:
-    """The protected-branch Op policy also requires the op(...) convention."""
-    repo = tmp_path / "repo"
-    _init_repo(repo, initial_branch="main")
-
-    op_id = "01KTBTTSWK43WGCPYKBMRCCY8T"
-    op_path = repo / "kitty-ops" / f"{op_id}.jsonl"
-    op_path.parent.mkdir()
-    op_path.write_text('{"event":"completed"}\n', encoding="utf-8")
-
-    with pytest.raises(ProtectedBranchRefused):
-        safe_commit(
-            repo_root=repo,
-            worktree_root=repo,
-            destination_ref="main",
-            message="chore: arbitrary protected branch commit",
-            paths=(op_path,),
-            allow_completed_op_on_protected_branch=True,
-        )
-
-
-def test_safe_commit_protected_branch_allows_documented_exception(tmp_path: Path) -> None:
-    """Documented exception messages may land on a protected branch."""
+    The former "chore: apply spec-kitty upgrade changes" prefix allowlist no
+    longer grants privilege; the same upgrade flow now asserts
+    ``GuardCapability.UPGRADE_BOOKKEEPING`` explicitly. A bare prefixed message
+    with no capability is refused; the capability lets it land.
+    """
     repo = tmp_path / "repo"
     _init_repo(repo, initial_branch="main")
 
     target = repo / "alpha.txt"
     target.write_text("alpha v1\n", encoding="utf-8")
 
-    # "chore: apply spec-kitty upgrade changes" is on the documented exception list.
+    # Message prefix alone grants nothing now (the channel is deleted).
+    with pytest.raises(ProtectedBranchRefused):
+        safe_commit(
+            repo_root=repo,
+            worktree_root=repo,
+            destination_ref="main",
+            message="chore: apply spec-kitty upgrade changes (3.0.0 -> 3.1.0)",
+            paths=(target,),
+        )
+
+    # The explicit capability authorizes the same upgrade bookkeeping flow.
     result = safe_commit(
         repo_root=repo,
         worktree_root=repo,
         destination_ref="main",
         message="chore: apply spec-kitty upgrade changes (3.0.0 -> 3.1.0)",
         paths=(target,),
+        capability=GuardCapability.UPGRADE_BOOKKEEPING,
     )
     assert isinstance(result, CommitResult)
     assert result.destination_ref == "main"

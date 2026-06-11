@@ -28,6 +28,7 @@ from spec_kitty_events.mission_next import (
 )
 import pytest
 
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.events.decision_log import DecisionGitLog
 from specify_cli.next._internal_runtime.events import NullEmitter
 from specify_cli.next._internal_runtime.significance import (
@@ -127,7 +128,10 @@ class TestCommitTriggered:
             kwargs = mock_commit.call_args.kwargs
             assert kwargs["repo_root"] == tmp_path
             assert kwargs["worktree_root"] == tmp_path
-            assert kwargs["destination_ref"] == "kitty/mission-abc"
+            # T010: destination is carried on the CommitTarget passed in, not a
+            # re-derived destination_ref string.
+            assert kwargs["target"].ref == "kitty/mission-abc"
+            assert kwargs["capability"] is GuardCapability.MERGE_BOOKKEEPING
             assert "[skip ci]" in kwargs["message"]
             assert _decisions_file(tmp_path) in kwargs["paths"]
 

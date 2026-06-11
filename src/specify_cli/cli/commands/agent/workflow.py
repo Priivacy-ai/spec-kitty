@@ -61,6 +61,8 @@ from specify_cli.core.dependency_graph import (
 from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root, is_worktree_context, locate_project_root
 from specify_cli.lanes.branch_naming import mid8_from_slug
 from specify_cli.core.utils import write_text_within_directory
+from mission_runtime import CommitTarget, CommitTargetKind
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
 from specify_cli.mission import get_deliverables_path, get_mission_type
@@ -406,13 +408,18 @@ def _commit_via_legacy_safe_commit(
     wp_id: str,
 ) -> None:
     """Commit workflow changes directly on legacy mission branches."""
+    # Legacy mission-branch workflow commits land on ``target_branch`` (a lane /
+    # mission branch), which is normally not protected. The prior defensive
+    # test-mode bool escape (for fixtures running this path with
+    # ``target_branch == main``) is now the explicit TEST_MODE capability
+    # (FR-008 / T011) — no env, no bool.
     result = safe_commit(
         repo_root=repo_root,
         worktree_root=repo_root,
-        destination_ref=target_branch,
+        target=CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY),
         message=message,
         paths=tuple(paths),
-        allow_protected_branch_in_test_mode=True,
+        capability=GuardCapability.TEST_MODE,
     )
     _record_receipt(
         target_branch,
@@ -1467,13 +1474,17 @@ def implement(
                 if _baseline_artifact.exists():
                     # Mechanical WP06 pre-step migration.
                     try:
+                        # Baseline artifact lands on the mission/lane
+                        # ``target_branch`` (normally unprotected); TEST_MODE
+                        # makes the prior defensive test-only escape explicit
+                        # (FR-008 / T011) instead of the deleted bool channel.
                         safe_commit(
                             repo_root=main_repo_root,
                             worktree_root=main_repo_root,
-                            destination_ref=target_branch,
+                            target=CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY),
                             message=f"chore: Capture baseline tests for {normalized_wp_id}",
                             paths=(_baseline_artifact,),
-                            allow_protected_branch_in_test_mode=True,
+                            capability=GuardCapability.TEST_MODE,
                         )
                     except Exception as _bl_commit_exc:  # noqa: BLE001 — best-effort
                         import logging as _bl_logging2

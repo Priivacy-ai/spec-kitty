@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from specify_cli.core.constants import KITTY_SPECS_DIR
 
 if TYPE_CHECKING:
+    from mission_runtime.context import StatusSurfaceFragment
     from specify_cli.status import TransitionRequest
 
 _logger = logging.getLogger(__name__)
@@ -44,6 +45,12 @@ _logger = logging.getLogger(__name__)
 # already explicit, so the flag is belt-and-suspenders alongside the
 # ``.isascii()`` guard.
 _MISSION_SLUG_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$", re.ASCII)
+
+# A resolved status dir nested under a worktree root is the coordination
+# surface; the primary checkout has no ``.worktrees`` segment. This mirrors the
+# topology test the canonical ``resolve_status_surface`` applies (single source
+# of the coord/primary distinction — FR-005).
+_WORKTREES_SEGMENT = ".worktrees"
 
 
 def _enrich_transition_request(
@@ -183,21 +190,41 @@ class MissionStatus:
     # ------------------------------------------------------------------
 
     @classmethod
-    def load(cls, repo_root: Path, mission_slug: str) -> MissionStatus:
+    def load(
+        cls,
+        repo_root: Path,
+        mission_slug: str,
+        *,
+        surface: StatusSurfaceFragment | None = None,
+    ) -> MissionStatus:
         """Resolve topology once and return the authoritative status aggregate.
 
         Resolution logic
         ----------------
         1. Read ``meta.json`` to learn ``mission_id`` (and derive ``mid8``).
-        2. Check whether a coordination worktree exists on disk.
-        3. If a coord worktree root exists but lacks the mission dir, raise
-           ``CoordAuthorityUnavailable`` (fail closed).
-        4. Otherwise return the aggregate with the appropriate ``read_dir``.
+        2. Resolve the authoritative status directory **once** through the
+           canonical :func:`resolve_status_surface` helper — the single
+           coord-aware surface authority that ``status_transition`` is also
+           built on. When a caller already holds a resolved
+           :class:`~mission_runtime.context.StatusSurfaceFragment`, its
+           ``status_read_dir`` is consumed directly so the surface is never
+           re-derived (FR-005 / #1821).
+        3. If the coord worktree root exists but lacks the mission dir, the
+           canonical helper fails closed; ``load`` surfaces this as
+           ``CoordAuthorityUnavailable`` (preserving the historical contract).
+        4. Otherwise return the aggregate with the resolved ``read_dir``.
 
         Args:
             repo_root: Absolute repository root (primary checkout).
             mission_slug: Mission slug; may be bare human form or
                 ``<human>-<mid8>`` (post-WP03).
+            surface: Optional carried :class:`StatusSurfaceFragment` from a
+                resolved :class:`~mission_runtime.context.MissionExecutionContext`.
+                When provided, ``status_read_dir`` is used as the authoritative
+                ``read_dir`` and the canonical surface is **not** re-resolved
+                (the carried fragment IS the source). The default (``None``)
+                resolves once through the canonical helper — the same path, not
+                a parallel one.
 
         Returns:
             Populated :class:`MissionStatus` aggregate.
@@ -214,60 +241,96 @@ class MissionStatus:
         #    is used to compose paths, git refs, or worktree names.
         cls._validate_mission_slug(mission_slug)
 
-        # 1. Load meta.json (best-effort; legacy missions may not have one)
+        # 1. Load meta.json (best-effort; legacy missions may not have one) so
+        #    the aggregate carries identity + coord-branch declaration. The
+        #    read_dir itself comes from the canonical surface, not from any
+        #    hand-rolled composition here (FR-005 / #1821).
         mission_id, coordination_branch, primary_candidate = cls._read_meta(repo_root, mission_slug)
-        declares_coord_branch = coordination_branch is not None
         mid8 = mission_id[:8] if mission_id else ""
 
-        # 2. Build candidate paths using the same helper as _read_path_resolver.
-        coord_candidate: Path | None = None
-        coord_worktree_materialized = False
-        if mid8:
-            from specify_cli.coordination.workspace import CoordinationWorkspace
-            from specify_cli.missions._read_path_resolver import _compose_mission_dir
+        # 2. Resolve the authoritative status directory through the single
+        #    canonical surface. Consume a carried fragment when present; never
+        #    re-derive the coord candidate by hand (the second-composition seam
+        #    Debby flagged at 01KTPKST closeout).
+        read_dir = cls._resolve_read_dir(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            primary_candidate=primary_candidate,
+            surface=surface,
+        )
 
-            mission_dir_name = _compose_mission_dir(mission_slug, mid8)
-            coord_root = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
-            coord_worktree_materialized = coord_root.exists()
-            coord_candidate = coord_root / KITTY_SPECS_DIR / mission_dir_name
-
-        # 3. Resolve topology & read_dir.
-        if coord_candidate is not None and coord_candidate.exists():
-            return cls(
-                mission_slug=mission_slug,
-                mission_id=mission_id,
-                mid8=mid8,
-                topology="coordination",
-                read_dir=coord_candidate,
-                repo_root=repo_root,
-                coordination_branch=coordination_branch,
-            )
-
-        # Coord topology declared but the worktree root is already materialized
-        # without the mission dir → fail closed. If the coord worktree has not
-        # been created yet, the primary checkout is still authoritative for the
-        # create→first-write window.
-        if (
-            declares_coord_branch
-            and coord_candidate is not None
-            and coord_worktree_materialized
-        ):
-            raise CoordAuthorityUnavailable(
-                mission_slug=mission_slug,
-                coord_candidate=coord_candidate,
-                primary_candidate=primary_candidate,
-            )
-
-        # Legacy topology: use primary checkout.
+        topology: Literal["legacy", "coordination"] = (
+            "coordination" if cls._is_coord_dir(read_dir) else "legacy"
+        )
         return cls(
             mission_slug=mission_slug,
             mission_id=mission_id,
             mid8=mid8,
-            topology="legacy",
-            read_dir=primary_candidate,
+            topology=topology,
+            read_dir=read_dir,
             repo_root=repo_root,
             coordination_branch=coordination_branch,
         )
+
+    @staticmethod
+    def _is_coord_dir(read_dir: Path) -> bool:
+        """Return True when the resolved read dir lives in a coord worktree."""
+        return any(part == _WORKTREES_SEGMENT for part in read_dir.parts)
+
+    @classmethod
+    def _resolve_read_dir(
+        cls,
+        *,
+        repo_root: Path,
+        mission_slug: str,
+        primary_candidate: Path,
+        surface: StatusSurfaceFragment | None,
+    ) -> Path:
+        """Resolve the authoritative read dir via the single canonical surface.
+
+        Consumes the carried :class:`StatusSurfaceFragment` when present (the
+        fragment IS the source — FR-005 / #1821). Otherwise resolves exactly
+        once through :func:`resolve_status_surface`, the coord-aware authority
+        that ``status_transition`` is also built on, and never re-composes the
+        coord candidate by hand.
+
+        The canonical helper fails closed (``StatusReadPathNotFound``) when a
+        coord worktree is materialized without the mission dir; ``load``
+        re-raises that as :class:`CoordAuthorityUnavailable` to preserve the
+        historical aggregate contract. When the helper reports no ``meta.json``
+        (the create→first-write window), the primary checkout remains
+        authoritative. When the helper composes a coord path whose worktree is
+        **not yet materialized** (coord branch declared, pre-first-write), the
+        primary checkout is likewise authoritative until the worktree exists —
+        matching the historical ``coord_candidate.exists()`` gate.
+        """
+        if surface is not None:
+            # The carried fragment already resolved the surface once on the
+            # context — consume it directly, do NOT resolve again.
+            return surface.status_read_dir
+
+        from specify_cli.coordination.surface_resolver import resolve_status_surface
+        from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+
+        try:
+            events_path = resolve_status_surface(repo_root, mission_slug)
+        except StatusReadPathNotFound as exc:
+            raise CoordAuthorityUnavailable(
+                mission_slug=mission_slug,
+                coord_candidate=exc.coord_candidate,
+                primary_candidate=exc.primary_candidate,
+            ) from exc
+        except FileNotFoundError:
+            # No meta.json at the canonical location yet (create→first-write
+            # window): the primary checkout remains authoritative.
+            return primary_candidate
+        resolved_dir = events_path.parent
+        # A composed-but-unmaterialized coord dir is not yet authoritative; the
+        # primary checkout owns the create→first-write window (the historical
+        # ``coord_candidate.exists()`` semantics).
+        if cls._is_coord_dir(resolved_dir) and not resolved_dir.exists():
+            return primary_candidate
+        return resolved_dir
 
     # ------------------------------------------------------------------
     # Helpers

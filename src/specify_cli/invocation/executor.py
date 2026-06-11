@@ -26,6 +26,8 @@ if TYPE_CHECKING:
 import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/mission_creation.py
 
 from charter.context import build_charter_context
+from mission_runtime import CommitTarget, CommitTargetKind
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
 from specify_cli.invocation.errors import InvalidModeForEvidenceError, InvocationError
 from specify_cli.invocation.modes import ModeOfWork
@@ -491,10 +493,14 @@ class ProfileInvocationExecutor:
             safe_commit(
                 repo_root=self._repo_root,
                 worktree_root=self._repo_root,
-                destination_ref=current_branch,
+                target=CommitTarget(ref=current_branch, kind=CommitTargetKind.PRIMARY),
                 message=message,
                 paths=(op_relative_path,),
-                allow_completed_op_on_protected_branch=True,
+                # Op-record auto-commit is a bookkeeping flow: the asserted
+                # MERGE_BOOKKEEPING capability authorizes landing it on a
+                # protected branch (FR-008 / T011), replacing the deleted
+                # file-content + completed-op-bool privilege channels.
+                capability=GuardCapability.MERGE_BOOKKEEPING,
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("Op record auto-commit failed for %s: %r", invocation_id, exc)

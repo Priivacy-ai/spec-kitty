@@ -52,6 +52,8 @@ from specify_cli.coordination.types import (
     Refused,
 )
 from specify_cli.coordination.workspace import CoordinationWorkspace
+from mission_runtime import CommitTarget, CommitTargetKind
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed, safe_commit
 from specify_cli.status import reducer as _reducer
 from specify_cli.status.locking import (
@@ -589,7 +591,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         self._commit_recovery_failed_after_commit = False
         self._explicit_commit_message: str | None = None
         self._explicit_commit_receipt: CommitReceipt | None = None
-        self._allow_protected_branch_in_test_mode = False
+        self._capability: GuardCapability = GuardCapability.STANDARD
         self._legacy_mode = False
 
     # ---- acquire ----
@@ -605,7 +607,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         destination_ref: str,
         operation: str,
         timeout: float = 30.0,
-        allow_protected_branch_in_test_mode: bool = False,
+        capability: GuardCapability = GuardCapability.STANDARD,
     ) -> BookkeepingTransaction:
         """Construct, lock, and run the pre-flight policy gate.
 
@@ -647,7 +649,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 normalised_ref=normalised_ref,
                 operation=operation,
                 lock_cm=lock_cm,
-                allow_protected_branch_in_test_mode=allow_protected_branch_in_test_mode,
+                capability=capability,
             )
         except Exception:
             lock_cm.__exit__(None, None, None)
@@ -665,7 +667,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         normalised_ref: str,
         operation: str,
         lock_cm: AbstractContextManager[Path],
-        allow_protected_branch_in_test_mode: bool = False,
+        capability: GuardCapability = GuardCapability.STANDARD,
     ) -> BookkeepingTransaction:
         safe_mission_slug = _validate_safe_segment("mission_slug", mission_slug)
         safe_mid8 = _validate_safe_segment("mid8", mid8)
@@ -718,7 +720,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 paths=(),
                 message=f"<pending: {operation}>",
                 operation=operation,
-                allow_protected_branch_in_test_mode=allow_protected_branch_in_test_mode,
+                capability=capability,
             )
             caller_verdict = WorkflowMutationPolicy.assert_allowed(caller_change_set)
             if isinstance(caller_verdict, Refused):
@@ -776,7 +778,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             paths=(events_path, snapshot_path),
             message=f"<pending: {operation}>",
             operation=operation,
-            allow_protected_branch_in_test_mode=allow_protected_branch_in_test_mode,
+            capability=capability,
         )
         verdict = WorkflowMutationPolicy.assert_allowed(change_set)
         if isinstance(verdict, Refused):
@@ -808,7 +810,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             pre_emit_events_existed=pre_emit_events_existed,
             lock_cm=lock_cm,
         )
-        txn._allow_protected_branch_in_test_mode = allow_protected_branch_in_test_mode
+        txn._capability = capability
         txn._legacy_mode = legacy_mode
         return txn
 
@@ -1002,10 +1004,10 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             result = safe_commit(
                 repo_root=self.repo_root,
                 worktree_root=self.worktree_root,
-                destination_ref=self.destination_ref,
+                target=CommitTarget(ref=self.destination_ref, kind=CommitTargetKind.PRIMARY),
                 message=message,
                 paths=tuple(self._staged_paths),
-                allow_protected_branch_in_test_mode=self._allow_protected_branch_in_test_mode,
+                capability=self._capability,
             )
         except SafeCommitRecoveryFailed as exc:
             if exc.commit_sha is None:

@@ -1136,7 +1136,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                     safe_commit(
                         repo_root=repo_root,
                         worktree_root=repo_root,
-                        destination_ref=_cur_branch,
+                        target=CommitTarget(ref=_cur_branch, kind=CommitTargetKind.PRIMARY),
                         message=commit_msg,
                         paths=tuple(files_to_commit),
                     )

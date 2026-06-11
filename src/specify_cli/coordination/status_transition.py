@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import cast
 
 from specify_cli.coordination.outbound import queue_saas_emission
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.coordination.status_service import (
     EventLogReadContract,
     read_event_log,
@@ -173,14 +174,8 @@ def _canonical_primary_feature_dir(
     where ``meta.json`` is not yet present.
     """
     from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415
-        resolve_status_surface,
+        resolve_status_surface_with_anchor,
     )
-
-    # resolve_status_surface returns the coord surface when a coord worktree is
-    # materialized; for the primary anchor we want the canonical primary dir.
-    # candidate_feature_dir_for_mission already returns the coord dir only when
-    # that worktree exists on disk, otherwise the primary candidate — exactly
-    # the anchor semantics the existing topology logic expects.
     from specify_cli.missions.feature_dir_resolver import (  # noqa: PLC0415
         candidate_feature_dir_for_mission,
     )
@@ -198,10 +193,12 @@ def _canonical_primary_feature_dir(
             return anchor
         return fallback
 
+    # FR-005 / #1821: resolve the canonical surface ONCE and consume the carried
+    # primary anchor. The previous code resolved the surface for validation,
+    # discarded it, then re-invoked candidate_feature_dir_for_mission — a second
+    # composition of the same path. Now both halves come from one resolution.
     try:
-        # Touch resolve_status_surface to keep the facade as the single
-        # authority for surface existence/validation (raises on malformed meta).
-        resolve_status_surface(repo_root, mission_slug)
+        resolved = resolve_status_surface_with_anchor(repo_root, mission_slug)
     except FileNotFoundError:
         # No meta.json at the canonical location: degrade to the request dir so
         # ad-hoc fixtures and the create→first-write window keep working.
@@ -209,9 +206,9 @@ def _canonical_primary_feature_dir(
     except ValueError:
         # Malformed meta — surface the canonical anchor anyway; downstream meta
         # loading will report the same condition consistently.
-        pass
-    canonical_anchor: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
-    return canonical_anchor
+        malformed_anchor: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
+        return malformed_anchor
+    return resolved.primary_anchor
 
 
 def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
@@ -484,7 +481,7 @@ def emit_status_transition_transactional(
     ensure_sync_daemon: bool = True,
     sync_dossier: bool = True,
     operation: str | None = None,
-    allow_protected_branch_in_test_mode: bool = False,
+    capability: GuardCapability = GuardCapability.STANDARD,
 ) -> StatusEvent:
     """Validate, append, commit, then fan out one status transition."""
     feature_dir = request.feature_dir or request.mission_dir
@@ -507,7 +504,7 @@ def emit_status_transition_transactional(
         mid8=identity.mid8,
         destination_ref=identity.destination_ref,
         operation=operation or f"status transition {request.wp_id}",
-        allow_protected_branch_in_test_mode=allow_protected_branch_in_test_mode,
+        capability=capability,
     ) as txn:
         mission_id_for_event = None if identity.mission_id.startswith("legacy-") else identity.mission_id
         from_lane = str(_emit._derive_from_lane(txn.feature_dir, request.wp_id))
@@ -556,7 +553,7 @@ def emit_status_transition_batch_transactional(
     ensure_sync_daemon: bool = True,
     sync_dossier: bool = True,
     operation: str | None = None,
-    allow_protected_branch_in_test_mode: bool = False,
+    capability: GuardCapability = GuardCapability.STANDARD,
 ) -> list[StatusEvent]:
     """Validate, append, commit, then fan out a same-WP transition batch."""
     if not requests:
@@ -585,7 +582,7 @@ def emit_status_transition_batch_transactional(
         mid8=identity.mid8,
         destination_ref=identity.destination_ref,
         operation=operation or f"status transition batch {first.wp_id}",
-        allow_protected_branch_in_test_mode=allow_protected_branch_in_test_mode,
+        capability=capability,
     ) as txn:
         mission_id_for_event = None if identity.mission_id.startswith("legacy-") else identity.mission_id
         from_lane = str(_emit._derive_from_lane(txn.feature_dir, first.wp_id))

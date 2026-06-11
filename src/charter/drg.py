@@ -36,11 +36,10 @@ satisfy both surfaces:
   to the Mission B 8-kind plural universe (C-009 binding).
 * ``merge_three_layers`` bridges fragment nodes onto the built-in DRG by
   minting URNs of the form ``<singular_kind>:<id>`` (e.g. ``directive:sox-controls``).
-* Provenance is threaded by attaching a ``provenance`` sidecar attribute to
-  each merged node/edge. Because the built-in models are frozen
-  ``BaseModel`` instances, the merge returns a ``DRGGraph`` whose node /
-  edge objects carry a ``provenance`` attribute monkey-set after
-  construction; consumers read it with ``getattr(node, 'provenance', None)``.
+* Provenance is threaded via the declared ``provenance`` field on the DRG
+  models (FR-013, D2-revised). The merge returns a ``DRGGraph`` whose node /
+  edge objects carry their ``provenance`` set through ``model_copy``;
+  consumers read it directly with ``node.provenance``.
 
 This matches data-model.md §2's stated provenance semantics
 (``source: built-in | org:<pack> | project``) while honouring the
