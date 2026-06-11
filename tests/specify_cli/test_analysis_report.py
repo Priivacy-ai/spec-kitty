@@ -110,6 +110,60 @@ def test_analysis_report_survives_subtask_checkbox_churn(tmp_path):
     assert "tasks.md" in freshness.mismatches
 
 
+def test_charter_hash_resolves_canonical_root_from_worktree(tmp_path):
+    """#1823: analysis reports read from a linked worktree must hash the
+    canonical (main checkout) charter, not the worktree-local copy."""
+    from charter.resolution import resolve_canonical_repo_root
+
+    from specify_cli.analysis_report import _sha256_file, collect_input_artifact_hashes
+
+    main = tmp_path / "main"
+    charter_file = main / ".kittify" / "charter" / "charter.md"
+    charter_file.parent.mkdir(parents=True)
+    charter_file.write_text("# Canonical charter\n", encoding="utf-8")
+    _init_committed_git_project(main)
+
+    worktree = tmp_path / "wt"
+    subprocess.run(
+        ["git", "worktree", "add", "-b", "lane", str(worktree)],
+        cwd=main, check=True, capture_output=True,
+    )
+    # Diverge the worktree-local copy: hashing it instead of the canonical
+    # charter is exactly the #1823 bug.
+    worktree_charter = worktree / ".kittify" / "charter" / "charter.md"
+    worktree_charter.write_text("# Worktree-local drift\n", encoding="utf-8")
+
+    feature_dir = worktree / "kitty-specs" / "sample-01KS"
+    _write_required_artifacts(feature_dir)
+
+    resolve_canonical_repo_root.cache_clear()
+    hashes = collect_input_artifact_hashes(feature_dir, worktree)
+
+    assert hashes["charter"]["path"] == str(charter_file.resolve())
+    assert hashes["charter"]["sha256"] == _sha256_file(charter_file)
+    assert hashes["charter"]["sha256"] != _sha256_file(worktree_charter)
+
+
+def test_charter_hash_falls_back_to_repo_root_outside_git(tmp_path):
+    """Outside any git repo the resolver cannot run; the charter probe must
+    degrade to the passed repo_root instead of raising."""
+    from charter.resolution import resolve_canonical_repo_root
+
+    from specify_cli.analysis_report import collect_input_artifact_hashes
+
+    charter_file = tmp_path / ".kittify" / "charter" / "charter.md"
+    charter_file.parent.mkdir(parents=True)
+    charter_file.write_text("# Local charter\n", encoding="utf-8")
+    feature_dir = tmp_path / "kitty-specs" / "sample-01KS"
+    _write_required_artifacts(feature_dir)
+
+    resolve_canonical_repo_root.cache_clear()
+    hashes = collect_input_artifact_hashes(feature_dir, tmp_path)
+
+    assert hashes["charter"]["path"] == str(charter_file)
+    assert hashes["charter"]["sha256"] is not None
+
+
 def test_implement_gate_blocks_missing_analysis_report(tmp_path, capsys):
     repo_root = tmp_path
     feature_dir = repo_root / "kitty-specs" / "sample-01KS"
