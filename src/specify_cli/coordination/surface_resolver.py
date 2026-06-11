@@ -26,7 +26,10 @@ from pathlib import Path
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.mission_metadata import load_meta
-from specify_cli.missions._read_path_resolver import _compose_mission_dir
+from specify_cli.missions._read_path_resolver import (
+    StatusReadPathNotFound,
+    _compose_mission_dir,
+)
 from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
 
 _WORKTREES_SEGMENT = ".worktrees"
@@ -99,10 +102,20 @@ def resolve_status_surface_with_anchor(
        bug).
     2. Otherwise the resolver landed in the primary checkout. When that mission
        declares ``coordination_branch`` but the coord worktree is not yet
-       materialized, compose the coord path **directly** (one derivation).
+       materialized, compose the coord path **directly** (one derivation). If the
+       coord worktree root *is* materialized but lacks the mission dir, fail
+       closed with :class:`StatusReadPathNotFound` rather than handing back a
+       primary surface — the silent fallback is the #1589/#1821 split-brain
+       class this resolver exists to kill (FR-005). The bare-slug path used to
+       lose this signal because :func:`candidate_feature_dir_for_mission`
+       derives mid8 from the *slug* (empty for a bare slug), so the
+       materialization check never fired; here mid8 comes from ``meta`` so the
+       check holds for both bare and ``<slug>-<mid8>`` handles.
 
     Raises FileNotFoundError when meta.json is absent.
     Raises ValueError when meta.json is malformed.
+    Raises StatusReadPathNotFound when the coord worktree is materialized but
+        its mission dir is absent (fail closed).
     """
     feature_dir: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
     meta = load_meta(feature_dir)
@@ -140,6 +153,20 @@ def resolve_status_surface_with_anchor(
     dir_name: str = _compose_mission_dir(mission_slug, mid8)
     coord_root: Path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
     coord_feature_dir: Path = coord_root / KITTY_SPECS_DIR / dir_name
+    # Fail closed: the coord worktree root is materialized but its mission dir is
+    # absent → reading the primary checkout would expose a stale, split-brain
+    # status surface (#1589/#1821). Before materialization the composed coord
+    # path is returned as-is; the create→first-write window keeps the primary
+    # checkout authoritative one level up (the aggregate's not-yet-materialized
+    # gate). FR-005.
+    if coord_root.exists() and not coord_feature_dir.exists():
+        raise StatusReadPathNotFound(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            mid8=mid8,
+            coord_candidate=coord_feature_dir,
+            primary_candidate=feature_dir,
+        )
     return ResolvedStatusSurface(
         surface_path=coord_feature_dir / _STATUS_EVENTS_FILENAME,
         primary_anchor=feature_dir,
