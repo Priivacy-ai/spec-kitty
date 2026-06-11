@@ -13,6 +13,7 @@
   "accepted_at": "2026-06-11T02:26:28.696656+00:00",
   "accepted_by": "stijn",
   "accepted_from_commit": "16fd6ea6f89487f8a57fce55a19386fbf8334e3d",
+  "baseline_merge_commit": "c377331383ada37f1f0bd035b70bf26a82f2d521",
   "created_at": "2026-06-10T08:57:17.724759+00:00",
   "friendly_name": "Tooling Stability & Guard Coherence",
   "mission_id": "01KTRC044W67V3KC9H7TBFSY7B",
