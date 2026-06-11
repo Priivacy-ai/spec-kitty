@@ -161,12 +161,18 @@ or explicitly deferred with rationale.
 | ID | Status | Fixed by (FR/IC + commit) / deferral rationale |
 |----|--------|------------------------------------------------|
 | F-001 | 🟢 | FIXED — WP04 (`resolve_mission_read_path` canonicalizes mid8/ULID/slug to one dir; regression test) |
-| F-002 | 🟡 | worked-around (safe-commit needs explicit file paths, not dir args); tooling-ergonomics, not a mission FR → follow-up |
-| F-003 | 🟢 | FIXED — WP04 (one read-path resolver; CWD-invariant) |
+| F-002 | 🎫 | worked-around (explicit file paths, not dir args; `--to-branch` over the env-var infer) → **filed #1820** |
+| F-003 | 🟢 | FIXED — WP04 (one read-path resolver; CWD-invariant). *Acceptance-wording correction:* the target was `target_branch` single-source (achieved); `context resolve` never carried `current_branch`/`branch_matches_target` keys, so the original "same as setup-plan" wording was inapt — the "None" symptom is gone. |
 | F-004 | 🟢 | FIXED — WP04 (`check-prerequisites` resolves a non-null feature_dir via the consolidated primitive) |
-| F-005 | 🟢 | premise confirmation (flattened); coord-topology fix shipped in WP06 |
-| F-006 | 🟡 | worked-around (record-analysis verdict substring-counts prose); upstream tooling gap, not a mission FR → **file follow-up** |
+| F-005 | 🟢 | premise confirmation (flattened); coord-topology fix shipped in WP06 (debby closeout: coord path genuinely exercised, not flattened-only) |
+| F-006 | 🎫 | worked-around (record-analysis verdict substring-counts prose) → **filed #1819 (MEDIUM, recurring operator impact)** |
 | F-007 | 🟢 | FIXED — WP02 (`_identity_for_request` consumes the canonical surface; CWD-invariant, no genesis misread) |
 | F-008 | 🟢 | FIXED — closeout `fb9e1a5` (lifecycle actions resolvable; parity ratchet fully green) |
+| F-009 | 🟢/🎫 | post-merge review: `legacy_record_path` **privatized** (fixed); `ReapResult`/`canonical_executable_scope` = scan false-positives (no action); BLE001 pre-existing #1297 (out of scope) |
+| latent-drift | 🎫 | `MissionStatus.load` + `status_transition` not threaded onto carried `StatusSurfaceFragment` (correct today; defensive) → **filed #1821** |
 
-**Net:** 6 fixed (F-001/003/004/005/007/008), 2 worked-around tooling-ergonomics items (F-002 safe-commit dir-args, F-006 record-analysis verdict substring) — both non-mission-FR, recommended as follow-up tickets. (Tooling note, not a numbered finding: the `SPEC_KITTY_INFER_DESTINATION_REF=1` safe-commit path misfires with "No requested changes" — use explicit `--to-branch fixups/code-engine-stabilization`.)
+**Net:** 7 fixed (F-001/003/004/005/007/008 + F-009 privatization), 3 follow-up tickets filed (#1819 record-analysis verdict / #1820 safe-commit ergonomics / #1821 fragment-threading), 2 confirmed false-positives, 1 pre-existing out-of-scope.
+
+### Closeout narrative corrections (from the fan-out deep-dive; no code impact)
+- **FR-013 — "5 dead symbols" was a stale (pre-#1614) premise.** WP09 deleted **2** genuinely-dead symbols; the other **3** (`StatusReadSource`, `EventLogWriteTarget`, `StatusContractError`) became **live facade internals** and were correctly **de-exported from `__all__`**, not deleted (deleting would break the live contract layer + tests). Do NOT re-delete.
+- **NFR-005 — "LOC trends down" is not literally met.** The targeted collapses DID land (parser −120, status_service −23, reaper/lifecycle ≈ −40), but the doc-09 fragment value-objects + read-path consolidation add ~+650, so the squash-merge production diff is **net +1609 LOC**. This is genuine new value-object code, NOT surviving duplication (randy: zero duplicate mechanisms survived). The constraint should read "collapse duplication" (achieved), not "net subtraction".

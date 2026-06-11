@@ -49,7 +49,7 @@ def canonical_record_path(repo_root: Path, mission_slug: str) -> Path:
     return feature_dir / "retrospective.yaml"
 
 
-def legacy_record_path(repo_root: Path, mission_id: str) -> Path:
+def _legacy_record_path(repo_root: Path, mission_id: str) -> Path:
     """Return the pre-#1771 (gitignored) record path for back-compat reads only.
 
     Records authored before the FR-006 relocation live at
@@ -77,7 +77,7 @@ def resolve_existing_record_path(
     tracked = canonical_record_path(repo_root, mission_slug)
     if tracked.exists():
         return tracked
-    legacy = legacy_record_path(repo_root, mission_id)
+    legacy = _legacy_record_path(repo_root, mission_id)
     if legacy.exists():
         return legacy
     return tracked
@@ -527,7 +527,7 @@ def write_gen_record(
     target_dir = canonical.parent
     # Back-compat: a record authored before relocation lives at the legacy
     # gitignored path. error/update modes must treat it as the prior record.
-    legacy = legacy_record_path(repo_root, record.mission_id) if record.mission_id else None
+    legacy = _legacy_record_path(repo_root, record.mission_id) if record.mission_id else None
     prior = canonical if canonical.exists() else (legacy if legacy and legacy.exists() else None)
 
     try:

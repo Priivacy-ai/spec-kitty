@@ -19,7 +19,7 @@ import pytest
 
 from specify_cli.retrospective.writer import (
     canonical_record_path,
-    legacy_record_path,
+    _legacy_record_path,
     write_record,
 )
 
@@ -68,7 +68,7 @@ def test_legacy_path_was_gitignored_control(tmp_path: Path) -> None:
     """Control: the OLD .kittify/missions/ path IS git-ignored (the original bug)."""
     _init_repo_with_gitignore(tmp_path)
 
-    legacy = legacy_record_path(tmp_path, "01KQ6YEGT4YBZ3GZF7X680KQ3V")
+    legacy = _legacy_record_path(tmp_path, "01KQ6YEGT4YBZ3GZF7X680KQ3V")
 
     assert _is_git_ignored(tmp_path, legacy), (
         "The legacy .kittify/missions/ path should be git-ignored — proves the "
