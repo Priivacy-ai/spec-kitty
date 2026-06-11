@@ -105,7 +105,7 @@
 
 ### WP11 — #391 doctrine usage-test
 - **Goal**: Apply the new doctrine to reorganize #391 (split/reparent/close superseded) — dogfood proving SC-1/SC-6.
-- **Subtasks**: - [ ] T032 (WP11) · - [ ] T033 (WP11) · - [ ] T034 (WP11) | **Depends on**: WP04, WP05 | **Est**: ~240 lines
+- **Subtasks**: - [x] T032 (WP11) · - [x] T033 (WP11) · - [x] T034 (WP11) | **Depends on**: WP04, WP05 | **Est**: ~240 lines
 - **Risks**: community-precedence on dedup; follow toolguide rate-limit/mechanics findings.
 
 ---
