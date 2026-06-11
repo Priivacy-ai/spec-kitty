@@ -14,7 +14,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Annotated
+from collections.abc import Generator
+from typing import TYPE_CHECKING, Annotated, cast
 
 import typer
 from rich.console import Console
@@ -98,7 +99,7 @@ logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def _json_output_guard(enabled: bool):
+def _json_output_guard(enabled: bool) -> Generator[None, None, None]:
     """Keep ``--json`` stdout/stderr machine-clean."""
     if not enabled:
         yield
@@ -142,7 +143,7 @@ def _vibe_skill_path_configured(project_path: Path) -> bool:
 
     skill_paths = data.get("skill_paths")
     if isinstance(skill_paths, str):
-        return skill_paths == VIBE_SKILL_PATH
+        return bool(skill_paths == VIBE_SKILL_PATH)
     if isinstance(skill_paths, list):
         return VIBE_SKILL_PATH in [str(path) for path in skill_paths]
     return False
@@ -320,11 +321,11 @@ def _print_slash_command_payload(
     """Render human output for slash-command audit payload."""
     if slash_payload.get("errors"):
         console.print("\n[bold red]Slash-command audit failed[/bold red]")
-        for error in list(slash_payload["errors"]):
+        for error in cast(list[object], slash_payload["errors"]):
             console.print(f"  [red]![/red] {error}")
         return
 
-    configured_slash = list(slash_payload["configured_agents"])
+    configured_slash = cast(list[str], slash_payload["configured_agents"])
     slash_gaps = [
         SlashCommandGap(
             str(gap["agent_key"]),
@@ -332,13 +333,13 @@ def _print_slash_command_payload(
             Path(str(gap["expected_path"])),
             str(gap["status"]),
         )
-        for gap in list(slash_payload["gaps"])
+        for gap in cast(list[dict[str, object]], slash_payload["gaps"])
         if isinstance(gap, dict)
     ]
     _print_slash_command_report(configured_slash, slash_gaps, fix)
     if fix and slash_payload["repaired"]:
         console.print(
-            f"\n[green]Repaired:[/green] {len(slash_payload['repaired'])} slash command file(s)"
+            f"\n[green]Repaired:[/green] {len(cast(list[object], slash_payload['repaired']))} slash command file(s)"
         )
 
 
@@ -497,14 +498,14 @@ def _print_command_skill_report(payload: dict[str, object], fix: bool) -> None:
         )
         return
 
-    drift = list(payload["drift"])
-    gaps = list(payload["gaps"])
-    orphans = list(payload["orphans"])
-    stale = list(payload["stale"])
-    unsafe = list(payload["unsafe"])
-    uninstalled_agents = list(payload["uninstalled_agents"])
-    repaired = list(payload["repaired_agents"])
-    repair_errors = list(payload["repair_errors"])
+    drift = cast(list[str], payload["drift"])
+    gaps = cast(list[str], payload["gaps"])
+    orphans = cast(list[str], payload["orphans"])
+    stale = cast(list[str], payload["stale"])
+    unsafe = cast(list[str], payload["unsafe"])
+    uninstalled_agents = cast(list[str], payload["uninstalled_agents"])
+    repaired = cast(list[str], payload["repaired_agents"])
+    repair_errors = cast(list[str], payload["repair_errors"])
 
     console.print("\n[bold]Command Skills[/bold] - issue(s) found\n")
     summary = Table(box=None, padding=(0, 2), show_edge=False)
@@ -533,7 +534,7 @@ def _print_command_skill_report(payload: dict[str, object], fix: bool) -> None:
     if repaired:
         console.print(f"\n[green]Repaired:[/green] {', '.join(repaired)}")
     if payload["pruned"]:
-        console.print(f"\n[green]Pruned stale entries:[/green] {len(payload['pruned'])}")
+        console.print(f"\n[green]Pruned stale entries:[/green] {len(cast(list[object], payload['pruned']))}")
     if payload["repaired_vibe_config"]:
         console.print("\n[green]Repaired:[/green] Vibe skill path config")
     if repair_errors:
@@ -716,10 +717,13 @@ def skills(
     _print_command_skill_report(payload, fix)
 
     # --- Slash Commands audit ---
-    slash_payload = payload["slash_commands"]
-    if not isinstance(slash_payload, dict):
-        slash_payload = {"ok": False, "errors": ["invalid slash-command payload"]}
-    _print_slash_command_payload(slash_payload, fix)
+    slash_payload_raw = payload["slash_commands"]
+    slash_payload_for_print: dict[str, object] = (
+        {"ok": False, "errors": ["invalid slash-command payload"]}
+        if not isinstance(slash_payload_raw, dict)
+        else slash_payload_raw
+    )
+    _print_slash_command_payload(slash_payload_for_print, fix)
 
     raise typer.Exit(0 if payload["ok"] else 1)
 
@@ -2467,10 +2471,10 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
     try:
         fragments = load_org_drg(repo_root)
     except OrgPackMissingError as exc:
-        result["errors"] = [str(exc)]  # type: ignore[assignment]
+        result["errors"] = [str(exc)]
         return result
     except Exception as exc:  # noqa: BLE001
-        result["errors"] = [f"org-DRG load error: {exc}"]  # type: ignore[assignment]
+        result["errors"] = [f"org-DRG load error: {exc}"]
         return result
 
     packs = []
@@ -2486,7 +2490,7 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
                 "fetched": True,
             }
         )
-    result["configured_packs"] = packs  # type: ignore[assignment]
+    result["configured_packs"] = packs
 
     if not fragments:
         return result
@@ -2495,7 +2499,7 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
         built_in = load_graph_or_dir(resolve_doctrine_root())
         merge_three_layers(built_in=built_in, org_fragments=fragments, project=None)
     except OrgDRGConflictError as exc:
-        result["collision_warnings"] = [  # type: ignore[assignment]
+        result["collision_warnings"] = [
             {
                 "kind": c.kind,
                 "target_id": c.target_id,
@@ -2543,7 +2547,7 @@ def _resolve_artifact_source(
     repo = getattr(service, plural, None)
     if repo is not None:
         try:
-            provenance = repo.get_provenance(item_id)  # type: ignore[attr-defined]
+            provenance = repo.get_provenance(item_id)
         except (AttributeError, KeyError):
             provenance = None
         if provenance == "builtin":
