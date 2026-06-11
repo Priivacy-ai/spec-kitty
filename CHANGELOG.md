@@ -9,6 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- **Protected-branch guard capability honesty (PR #1850 review):** the bool→capability conversion had
+  re-opened protected-ref commits from production flows — three sites asserted `GuardCapability.TEST_MODE`
+  (legacy workflow commit, baseline-artifact commit, finalize-tasks bootstrap) and six non-merge flows
+  borrowed `MERGE_BOOKKEEPING` (move-task, mark-status, map-requirements, decision-log, op-record). All
+  now assert `STANDARD`; protected destinations refuse, and refusals degrade gracefully (decision events
+  and Op records are preserved on disk, nothing lands on the protected ref). `SPEC_KITTY_TEST_MODE` no
+  longer waives the command-level protected-branch prechecks — only the documented operator hatch
+  `SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS` does — and the coordination gate now computes the same
+  hatch-aware `ProtectionState` as `safe_commit`, so the two can no longer disagree. Ratcheted by
+  `tests/architectural/test_guard_capability_call_sites.py` (capability→flow allowlist; `TEST_MODE` has
+  zero `src/` callers) and `tests/git/test_guard_capability_regression.py`.
+- **Mission handle canonicalization completes at every CLI write boundary (PR #1850 review):** bare mid8,
+  numeric-prefix, and full-ULID handles now resolve to the identical canonical `mission_slug`,
+  `mission_id`, status surfaces, and placement (ref and kind) as the full slug — across
+  `resolve_status_surface_with_anchor`, `resolve_placement_only`, `MissionStatus.load`,
+  `_find_mission_slug` (agent tasks/status/workflow), `agent decision open`, `merge --mission`,
+  `spec-kitty next --mission`, `plan --mission`, `mission run/close --mission`,
+  `research --mission`, and `context resolve` (persisted `authoritative_ref`). No more
+  wrong-but-plausible `kitty-specs/<mid8>/` paths, `legacy-<mid8>` identities, split-brain runtime
+  runs or SaaS sync namespaces keyed by the raw handle, or `close --discard` silently leaving lane
+  branches/worktrees behind. Pinned by
+  `tests/specify_cli/missions/test_handle_equivalence_matrix.py` (78 parity tests).
+- **Sync daemon reaper is scoped to its daemon root, not just the interpreter (PR #1850 review):** the
+  spawner embeds the resolved daemon state root and spawn-time interpreter identity as inert argv markers;
+  the reaper kills only on marker + spawn-signature + interpreter-identity match and conservatively skips
+  unmarked or unidentifiable processes. Fixes both the cross-`$HOME` over-kill and the macOS
+  framework-Python inertness (where the re-exec rewrites `exe()` and `argv[0]` to the `Python.app` stub).
+- **CI `next` filter covers the canonical runtime:** `src/runtime/next/**` and `src/mission_runtime/**`
+  now trigger the next suites and count toward diff-coverage critical paths (previously only the
+  deprecated `src/specify_cli/next/` shim was mapped, so `integration-tests-next` skipped on
+  canonical-runtime changes).
+- **`StatusReadPathNotFound` no longer escapes `mission_runtime`'s single-error contract:** the fail-closed
+  refusal is translated to `ActionContextError` (error code and message preserved) at all three resolution
+  boundaries and handled in the transactional status path; `MissionStatus.load` keeps its established
+  `CoordAuthorityUnavailable` shape for every handle form in the fail-closed coordination window.
+- **Repo hygiene:** per-machine `.kittify/legacy-warning-shown-*` marker files untracked and gitignored.
+
 ## [3.2.0rc43] - 2026-06-11
 
 ### ✨ Added / 🔧 Changed

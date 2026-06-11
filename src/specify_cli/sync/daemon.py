@@ -702,6 +702,13 @@ def _background_script(port: int, daemon_token: str | None) -> str:
 
     Uses ``-m`` style import so the installed package is found via normal
     ``sys.path`` resolution rather than hard-coding a repo checkout path.
+
+    The spawner (``_spawn_sync_daemon_process``) appends the daemon-root
+    scope marker (:func:`daemon_scope_marker`) and the spawn-interpreter
+    identity marker (:func:`daemon_exec_marker`) as trailing argv elements so
+    the canonical reaper can positively attribute the daemon to its state
+    root and to the interpreter that spawned it; the script itself never
+    reads them.
     """
     return textwrap.dedent(
         f"""\
@@ -711,6 +718,62 @@ def _background_script(port: int, daemon_token: str | None) -> str:
         run_sync_daemon({port}, {repr(daemon_token)})
         """
     )
+
+
+# argv prefix marking which daemon state root a spawned ``run_sync_daemon``
+# process belongs to. The canonical reaper (``owner.reap_orphan_daemons``)
+# only reaps processes whose marker matches its own daemon root; processes
+# without a recognizable marker are never auto-reaped.
+DAEMON_SCOPE_ARG_PREFIX = "--spec-kitty-daemon-root="
+
+
+def _daemon_scope_root() -> str:
+    """Return the canonical (symlink-resolved) daemon state root for this process.
+
+    This is the ``$HOME``-derived scope identity embedded in the spawned
+    daemon's argv (:func:`daemon_scope_marker`) and matched by the canonical
+    reaper, so a daemon belonging to a different ``$HOME`` / container /
+    state root is never reaped.
+    """
+    root = _daemon_root()
+    try:
+        return str(root.resolve())
+    except (OSError, RuntimeError):
+        return str(root)
+
+
+def daemon_scope_marker() -> str:
+    """Return the argv scope-marker element for daemons spawned by this process."""
+    return DAEMON_SCOPE_ARG_PREFIX + _daemon_scope_root()
+
+
+# argv prefix recording the canonical (symlink-resolved) interpreter the
+# spawn used. On macOS framework Python the spawned interpreter re-execs the
+# ``Resources/Python.app/Contents/MacOS/Python`` stub, rewriting BOTH the
+# running daemon's ``Process.exe()`` AND its ``argv[0]`` to the stub path —
+# so no live-process identity source can ever equal the foreground's
+# canonical ``sys.executable``. The inert argv tail survives the re-exec
+# verbatim, so the reaper compares this spawn-recorded identity instead of
+# guessing platform rewrites.
+DAEMON_EXEC_ARG_PREFIX = "--spec-kitty-daemon-exec="
+
+
+def _spawn_interpreter_identity() -> str:
+    """Return the canonical (symlink-resolved) interpreter spawning daemons.
+
+    Mirrors ``owner._canonical_executable_path(sys.executable)`` without
+    importing ``owner`` (which imports this module). Resolve failures fall
+    back to the raw ``sys.executable`` string.
+    """
+    try:
+        return str(Path(sys.executable).resolve())
+    except (OSError, RuntimeError):
+        return str(sys.executable)
+
+
+def daemon_exec_marker() -> str:
+    """Return the argv exec-identity element for daemons spawned by this process."""
+    return DAEMON_EXEC_ARG_PREFIX + _spawn_interpreter_identity()
 
 
 def get_sync_daemon_status(timeout: float = 0.5) -> SyncDaemonStatus:
@@ -948,13 +1011,15 @@ def _ensure_sync_daemon_running_locked(
         return existing
 
     # FR-014b / #1071: before spawning a replacement, reap any stale
-    # ``run_sync_daemon`` orphans that belong to THIS interpreter/auth-scope.
-    # This enforces one daemon per host/auth-scope: a leak from two
-    # interpreters (editable vs pipx) each recycling the other's recorded PID
-    # leaves untracked same-executable orphans on fresh ports; the canonical
-    # reaper clears them at spawn. Scoped by executable identity so a daemon
-    # from a different ``$HOME`` / container is never touched (reaper-over-kill
-    # guard). Best-effort: a reaper failure must not block the spawn.
+    # ``run_sync_daemon`` orphans that belong to THIS scope — same canonical
+    # interpreter AND a cmdline daemon-root marker matching THIS daemon state
+    # root. This enforces one daemon per daemon-root scope: a leak from two
+    # spawners in one ``$HOME`` each recycling the other's recorded PID
+    # leaves untracked orphans on fresh ports; the canonical reaper clears
+    # them at spawn. A daemon from a different ``$HOME`` / container
+    # (different daemon root) or one without a recognizable marker
+    # (pre-marker spawns) is never touched (reaper-over-kill guard).
+    # Best-effort: a reaper failure must not block the spawn.
     _reap_same_executable_orphans()
 
     if preferred_port is not None:
@@ -988,12 +1053,12 @@ def _ensure_sync_daemon_running_locked(
 
 
 def _reap_same_executable_orphans() -> None:
-    """Reap stale same-executable ``run_sync_daemon`` orphans at spawn time.
+    """Reap stale same-scope ``run_sync_daemon`` orphans at spawn time.
 
     Delegates to the single canonical reaper (``owner.reap_orphan_daemons``),
-    scoped by this process's interpreter identity. Best-effort: any failure is
-    logged at DEBUG and swallowed so a reaper hiccup never blocks daemon
-    startup.
+    scoped by this process's interpreter identity AND its daemon-root scope
+    marker (see ``daemon_scope_marker``). Best-effort: any failure is logged
+    at DEBUG and swallowed so a reaper hiccup never blocks daemon startup.
     """
     try:
         from specify_cli.sync.owner import reap_orphan_daemons
@@ -1048,7 +1113,19 @@ def _spawn_sync_daemon_process(port: int, token: str) -> subprocess.Popen[str]:
     DAEMON_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     log_fh = open(DAEMON_LOG_FILE, "a")  # noqa: SIM115
     proc = subprocess.Popen(
-        [sys.executable, "-c", _background_script(port, token)],
+        # The trailing marker argv elements are inert for the script
+        # (``python -c`` exposes them only via ``sys.argv``) but let the
+        # canonical reaper attribute this daemon to THIS daemon state root
+        # and to THIS spawn interpreter (the exec marker is the only identity
+        # that survives the macOS framework re-exec, which rewrites exe()
+        # and argv[0] to the Python.app stub).
+        [
+            sys.executable,
+            "-c",
+            _background_script(port, token),
+            daemon_scope_marker(),
+            daemon_exec_marker(),
+        ],
         stdout=log_fh,
         stderr=log_fh,
         stdin=subprocess.DEVNULL,

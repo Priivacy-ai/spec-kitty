@@ -108,9 +108,11 @@ def bootstrap_canonical_state(
         dry_run: If ``True``, report what would happen without mutating
             any files.
         capability: Asserted-at-the-surface authorization for the seed
-            commit (FR-008). Defaults to ``GuardCapability.MERGE_BOOKKEEPING``;
-            legacy no-worktree fixtures that seed on a protected branch pass
-            ``GuardCapability.TEST_MODE``.
+            commit (FR-008). Defaults to ``GuardCapability.STANDARD``: the
+            transactional seed commit lands on the (unprotected) coordination
+            branch, so no protected-flow capability is required, and a
+            protected destination is refused. Test fixtures that seed on a
+            protected branch may pass ``GuardCapability.TEST_MODE``.
 
     Returns:
         A :class:`BootstrapResult` with counts and per-WP detail strings.

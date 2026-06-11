@@ -207,7 +207,11 @@ class DecisionGitLog:
                 target=self._target,
                 message="chore(decisions): record decision [skip ci]",
                 paths=(self._decisions_file,),
-                capability=GuardCapability.MERGE_BOOKKEEPING,
+                # The decision record lands on the (unprotected) coordination
+                # branch; STANDARD refuses a protected destination instead of
+                # waiving it — the refusal is logged below and the event line
+                # already written to disk is preserved (FR-008).
+                capability=GuardCapability.STANDARD,
             )
         except SafeCommitError as exc:
             _observed = getattr(exc, "observed_head", None)

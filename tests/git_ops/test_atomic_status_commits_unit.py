@@ -656,8 +656,13 @@ class TestMarkStatusAtomicCommit:
 
     @pytest.fixture
     def git_repo_with_feature(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-        """Create a git repo with a feature for mark-status testing."""
-        monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
+        """Create a git repo with a feature for mark-status testing.
+
+        The fixture branch is protected ``main``; the documented operator
+        escape hatch is the ONE sanctioned waiver for committing there
+        (``SPEC_KITTY_TEST_MODE`` no longer waives the pre-check).
+        """
+        monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
         repo = tmp_path / "test-repo"
         repo.mkdir()
         subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)

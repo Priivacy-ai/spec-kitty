@@ -9,7 +9,6 @@ from dataclasses import dataclass
 import enum
 import json
 import logging
-import os
 from kernel._safe_re import re
 import subprocess
 import traceback
@@ -47,7 +46,10 @@ from specify_cli.mission import get_mission_type
 from mission_runtime import CommitTarget, CommitTargetKind
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
-from specify_cli.git.commit_helpers import protected_branches
+from specify_cli.git.commit_helpers import (
+    _operator_protected_branch_hatch_active,
+    protected_branches,
+)
 from specify_cli.status import feature_status_lock
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.status import bootstrap_canonical_state
@@ -760,13 +762,16 @@ def _find_mission_slug(
         # worktree path directly.
         legacy_dir = candidate_feature_dir_for_mission(get_main_repo_root(repo_root), raw_handle)
         if legacy_dir.exists():
-            return raw_handle
+            # F-001: the candidate resolver canonicalizes mid8/ULID/numeric
+            # handles, so the resolved directory's NAME — not the raw operator
+            # handle — is the canonical mission slug downstream consumers need.
+            return legacy_dir.name
         try:
             resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
             return resolved.mission_slug
         except (SystemExit, typer.Exit):
             if legacy_dir.exists():
-                return raw_handle
+                return legacy_dir.name
             raise
 
     return raw_handle
@@ -800,7 +805,9 @@ def _output_error(json_mode: bool, error_message: str, diagnostic: dict | None =
 
 
 def _protected_branch_status_commit_error(branch: str, repo_root: Path, command: str) -> str | None:
-    if os.environ.get("SPEC_KITTY_TEST_MODE", "").lower() in {"1", "true", "yes"}:
+    # The ONE documented ambient waiver is the operator escape hatch
+    # (solo-fork operators who own ``main``) — never the test-mode env.
+    if _operator_protected_branch_hatch_active():
         return None
     if branch not in protected_branches(repo_root):
         return None
@@ -2305,7 +2312,7 @@ def move_task(
                             target=CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY),
                             message=commit_msg,
                             paths=tuple([actual_file_path] + status_artifacts),
-                            capability=GuardCapability.MERGE_BOOKKEEPING,
+                            capability=GuardCapability.STANDARD,
                         )
 
                     if commit_success:
@@ -2943,7 +2950,7 @@ def mark_status(
                         target=CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY),
                         message=commit_msg,
                         paths=(actual_tasks_path,),
-                        capability=GuardCapability.MERGE_BOOKKEEPING,
+                        capability=GuardCapability.STANDARD,
                     )
 
                     if commit_success:
@@ -3720,7 +3727,7 @@ def map_requirements(
                         target=CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY),
                         message=commit_msg,
                         paths=tuple(written_files),
-                        capability=GuardCapability.MERGE_BOOKKEEPING,
+                        capability=GuardCapability.STANDARD,
                     )
                 except Exception as exc_commit:
                     if not json_output:

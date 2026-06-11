@@ -78,13 +78,19 @@ def _resolve_mission_slug(
     cwd: Path | None,  # noqa: ARG001 -- kept for signature compatibility
     env: Mapping[str, str] | None,  # noqa: ARG001 -- kept for signature compatibility
 ) -> tuple[str, Path]:
-    """Resolve mission slug and read-side directory.
+    """Resolve the CANONICAL mission slug and read-side directory.
 
     Mission directory resolution is CWD-independent and topology-aware
     (WP08 T037, FR-030): for missions on the coord-branch topology the
     returned ``feature_dir`` points into the coordination worktree;
     for legacy missions it points into the primary checkout.  The
     caller never has to guess which view the operator is sitting in.
+
+    The returned slug is the canonical mission-dir name (the resolved
+    directory's name), NOT the raw operator handle: a bare ``mid8`` or
+    numeric-prefix handle must yield the SAME identity, status surface,
+    and placement as the full slug (F-001), so the raw handle never
+    flows into downstream compositions.
 
     Raises ActionContextError if feature is not provided or the mission
     directory cannot be located in either view.
@@ -97,33 +103,72 @@ def _resolve_mission_slug(
         raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", str(exc)) from exc
 
     # Derive mid8 from the post-WP03 ``<slug>-<mid8>`` shape when present.
-    mid8 = _read_side_mid8_from_slug(slug)
+    # Handle forms (bare mid8, numeric prefix, ULID) are canonicalized inside
+    # the read resolver itself — no heuristic fallback derivation here.
+    from specify_cli.lanes.branch_naming import mid8_from_slug
+
+    mid8 = mid8_from_slug(slug)
+    if not mid8:
+        # Canonical fallback (never a slug-tail shape guess): slugs without a
+        # parseable ``-<mid8>`` suffix (legacy / backfilled dir names) read the
+        # real mid8 from the primary meta.json — the canonical identity source —
+        # so a materialized coordination worktree is still located (FR-030).
+        # Raw handles have no primary meta and keep mid8 == "" — the read
+        # resolver canonicalizes the handle itself.
+        mid8 = _mid8_from_primary_meta(repo_root, slug)
 
     # Late import to avoid a hard module-load dependency for legacy
     # consumers of the resolver that pre-date its introduction.
     from specify_cli.missions._read_path_resolver import (
+        StatusReadPathNotFound,
         resolve_mission_read_path,
     )
 
-    feature_dir = resolve_mission_read_path(repo_root, slug, mid8)
+    try:
+        feature_dir = resolve_mission_read_path(repo_root, slug, mid8)
+    except StatusReadPathNotFound as exc:
+        # Boundary translation (PR #1850 M6): the read resolver's fail-closed
+        # refusal (coord worktree root materialized without the mission dir)
+        # must surface as the single consumer-facing error type, preserving
+        # the refusal message — never a raw specify_cli exception.
+        raise ActionContextError(exc.error_code, str(exc)) from exc
     if not feature_dir.exists():
         raise ActionContextError(
             "FEATURE_CONTEXT_UNRESOLVED",
             f"Mission directory not found: {feature_dir}. Check that "
             f"'{slug}' is the correct mission slug.",
         )
-    return slug, feature_dir
+    # Parse, don't re-derive: the resolved directory's name IS the canonical
+    # mission slug (identical in the coord-worktree and primary views).
+    return feature_dir.name, feature_dir
 
 
-def _read_side_mid8_from_slug(slug: str) -> str:
-    from specify_cli.lanes.branch_naming import mid8_from_slug
+def _mid8_from_primary_meta(repo_root: Path, mission_slug: str) -> str:
+    """Canonical mid8 for a slug whose name carries no parseable suffix.
 
-    parsed = mid8_from_slug(slug)
-    if parsed:
-        return str(parsed)
-    tail = slug.rsplit("-", 1)[-1] if "-" in slug else ""
-    if len(tail) == 8 and tail == tail.upper() and tail.isalnum():
-        return tail
+    Reads the primary-checkout ``meta.json`` (explicit ``mid8`` field, else
+    ``mission_id[:8]``) — mirroring the surface resolver's ``_coord_mid8``
+    derivation. Returns ``""`` when no identity-bearing meta exists (raw
+    handles, scaffolds, pre-identity legacy missions), preserving the
+    literal-slug behaviour.
+    """
+    from specify_cli.mission_metadata import load_meta
+    from specify_cli.missions._read_path_resolver import (
+        primary_feature_dir_for_mission,
+    )
+
+    try:
+        meta = load_meta(primary_feature_dir_for_mission(repo_root, mission_slug))
+    except ValueError:
+        return ""
+    if not meta:
+        return ""
+    raw_mid8 = meta.get("mid8")
+    if raw_mid8:
+        return str(raw_mid8)
+    raw_mission_id = meta.get("mission_id")
+    if raw_mission_id and len(str(raw_mission_id)) >= 8:
+        return str(raw_mission_id)[:8]
     return ""
 
 
@@ -363,15 +408,25 @@ def _resolve_status_surface_dir(primary_root: Path, mission_slug: str) -> Path:
     authority — and returns the containing directory (the resolver yields the
     ``status.events.jsonl`` path). Never re-derives the surface (FR-003/#1737).
     Falls back to the canonical primary dir when meta is absent/malformed so
-    bootstrap windows and ad-hoc fixtures keep resolving.
+    bootstrap windows and ad-hoc fixtures keep resolving. The fail-closed
+    surface refusal is NOT a fallback case: it translates to
+    :class:`ActionContextError` (PR #1850 M6).
     """
     from specify_cli.coordination.surface_resolver import resolve_status_surface
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
     from specify_cli.missions.feature_dir_resolver import (
         candidate_feature_dir_for_mission,
     )
 
     try:
         surface = resolve_status_surface(primary_root, mission_slug)
+    except StatusReadPathNotFound as exc:
+        # Fail closed (FR-005 / #1589 / #1821): the coord worktree root is
+        # materialized but its mission dir is absent. Degrading to the primary
+        # dir here would hand back the stale split-brain surface the refusal
+        # exists to kill — translate to the boundary's single error type
+        # instead, preserving the refusal message (PR #1850 M6).
+        raise ActionContextError(exc.error_code, str(exc)) from exc
     except (FileNotFoundError, ValueError):
         fallback_dir: Path = candidate_feature_dir_for_mission(primary_root, mission_slug)
         return fallback_dir
@@ -579,12 +634,33 @@ def resolve_placement_only(repo_root: Path, mission_slug: str) -> CommitTarget:
             fallback — mirrors :func:`resolve_action_context`).
     """
     from specify_cli.core.paths import get_feature_target_branch
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+    from specify_cli.missions.feature_dir_resolver import (
+        candidate_feature_dir_for_mission,
+    )
 
     if not mission_slug or not mission_slug.strip():
         raise ActionContextError(
             "FEATURE_CONTEXT_UNRESOLVED",
             "resolve_placement_only requires an explicit mission_slug.",
         )
+
+    # F-001: canonicalize the operator handle at entry. A bare mid8 / numeric
+    # prefix must compose the SAME placement (ref AND kind) as the full slug —
+    # composing from the raw handle reads no meta.json, flips a coord-topology
+    # mission to FLATTENED, and targets the (possibly protected) target branch
+    # (the #1784 class). When nothing resolves, the raw slug passes through and
+    # the builder degrades exactly as before (no behaviour change for missing
+    # missions).
+    try:
+        candidate_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    except StatusReadPathNotFound as exc:
+        # Fail-closed surface refusal at entry canonicalization: translate to
+        # the boundary's single error type, preserving the refusal message
+        # (PR #1850 M6) — mirrors :func:`_resolve_mission_slug`.
+        raise ActionContextError(exc.error_code, str(exc)) from exc
+    if candidate_dir.exists():
+        mission_slug = candidate_dir.name
 
     # FR-012 / C-CTX-3: ``target_branch`` is resolved exactly once here, exactly
     # as ``resolve_action_context`` does, and threaded into the shared builder.

@@ -176,6 +176,9 @@ def _canonical_primary_feature_dir(
     from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415
         resolve_status_surface_with_anchor,
     )
+    from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
+        StatusReadPathNotFound,
+    )
     from specify_cli.missions.feature_dir_resolver import (  # noqa: PLC0415
         candidate_feature_dir_for_mission,
     )
@@ -208,6 +211,16 @@ def _canonical_primary_feature_dir(
         # loading will report the same condition consistently.
         malformed_anchor: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
         return malformed_anchor
+    except StatusReadPathNotFound as exc:
+        # Fail-closed surface refusal (PR #1850 M6): the coord worktree root is
+        # materialized without the mission dir (#1589/#1821). The refusal
+        # protects status READERS from a stale primary surface; the transaction
+        # identity needs only the canonical primary anchor — which the
+        # structured error already carries (re-resolving via the candidate
+        # resolver would just re-raise). Coordination topology is still
+        # honoured downstream by ``_read_contract_from_transaction_target``.
+        refusal_anchor: Path = exc.primary_candidate
+        return refusal_anchor
     return resolved.primary_anchor
 
 

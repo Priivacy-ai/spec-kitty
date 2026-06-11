@@ -3158,9 +3158,10 @@ def finalize_tasks(
             planning_dir,
             mission_slug,
             dry_run=False,
-            # WP03 channel-deletion (merge resolution): removed bool -> explicit
-            # TEST_MODE capability per bootstrap's converted signature.
-            capability=GuardCapability.TEST_MODE,
+            # Seed commits land on the coordination branch (transactional
+            # topology) or fall back to the non-committing emit (legacy);
+            # STANDARD asserts no protected-branch flow (FR-008).
+            capability=GuardCapability.STANDARD,
         )
         if not json_output and bootstrap_result.newly_seeded:
             console.print(f"[green]✓[/green] Bootstrapped canonical status: {bootstrap_result.newly_seeded} WPs seeded")

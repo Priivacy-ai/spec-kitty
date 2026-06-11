@@ -47,12 +47,13 @@ domain (commit protection vs merge gating). Do not unify them.
 Operator escape hatch
 ---------------------
 
-The ambient env hatch ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` is retained
-for now (solo-fork operators who own ``main``). It is consumed by the legacy
-``assert_not_protected_branch`` pre-check in ``git/commit_helpers.py`` and is
-explicitly OUT of scope for this module — :func:`evaluate` never reads the
-environment. Its fate (keep / retire / fold into a capability) is decided by
-WP03 when the legacy channels are deleted.
+The ambient env hatch ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` is the ONE
+retained operator channel (solo-fork operators who own ``main``). It is
+consumed in ``git/commit_helpers.py`` by the protected-branch pre-checks and by
+``safe_commit``'s :class:`ProtectionState` input computation — the operator
+declares the branch unprotected for this repo. It never reaches this module:
+:func:`evaluate` is environment-free and decides purely on the typed inputs it
+is handed.
 """
 
 from __future__ import annotations

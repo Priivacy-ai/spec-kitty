@@ -170,8 +170,8 @@ def _resolve_existing_for_slug(
 
 def _canonicalize_handle(
     repo_root: Path, handle: str
-) -> tuple[str, str] | None:
-    """Resolve a mission *handle* to its canonical ``(slug, mid8)`` pair.
+) -> tuple[str, str, Path] | None:
+    """Resolve a mission *handle* to its canonical ``(slug, mid8, feature_dir)``.
 
     A *handle* is whatever the operator typed into ``--mission``: a full
     ``mission_id`` (ULID), an 8-char ``mid8`` prefix, a numeric prefix
@@ -180,6 +180,11 @@ def _canonicalize_handle(
     canonical-slug disambiguation happens for the read path, so every read-path
     caller resolves a ``--mission <mid8>`` identically to ``--mission
     <full-slug>`` (F-001 / F-003 / F-004).
+
+    The already-resolved ``feature_dir`` is carried alongside the canonical
+    pair (parse, don't re-derive): for backfilled missions whose directory name
+    lacks the ``-<mid8>`` suffix, recomposing ``<slug>-<mid8>`` double-suffixes
+    and misses the real directory the resolver already located.
 
     Returns ``None`` when the handle resolves to no identity-bearing mission
     (e.g. a brand-new scaffold whose ``meta.json`` has no ``mission_id`` yet, or
@@ -208,7 +213,7 @@ def _canonicalize_handle(
         ) from exc
     except MissionNotFoundError:
         return None
-    return resolved.mission_slug, resolved.mid8
+    return resolved.mission_slug, resolved.mid8, resolved.feature_dir
 
 
 def resolve_mission_read_path(
@@ -271,13 +276,26 @@ def resolve_mission_read_path(
     # Ambiguity raises MissionSelectorAmbiguous (no silent fallback, C-CTX-4).
     canonical = _canonicalize_handle(repo_root, mission_slug)
     if canonical is not None:
-        canonical_slug, canonical_mid8 = canonical
+        canonical_slug, canonical_mid8, canonical_dir = canonical
         if (canonical_slug, canonical_mid8) != (mission_slug, mid8):
             resolved = _resolve_existing_for_slug(
                 repo_root, canonical_slug, canonical_mid8
             )
             if resolved is not None:
                 return resolved
+        if (
+            _compose_mission_dir(canonical_slug, canonical_mid8) != canonical_dir.name
+            and canonical_dir.exists()
+        ):
+            # Backfilled mission: the directory name lacks the ``-<mid8>``
+            # suffix, so the recomposed ``<slug>-<mid8>`` candidate above
+            # double-suffixes and misses. The handle resolver already located
+            # the real directory — trust it (parse, don't re-derive). When the
+            # composed name MATCHES the directory name, ``canonical_dir`` is
+            # the same primary candidate ``_resolve_existing_for_slug`` just
+            # evaluated, so returning it here would bypass the fail-closed
+            # coord check — fall through to the diagnostic path instead.
+            return canonical_dir
         mission_slug, mid8 = canonical_slug, canonical_mid8
 
     # Neither the literal slug nor a canonical handle resolved to an existing

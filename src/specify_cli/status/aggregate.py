@@ -423,6 +423,37 @@ class MissionStatus:
         if raw_meta.exists():
             return raw_meta, primary_dir
 
+        # F-001: route handles (bare mid8, full ULID, numeric prefix) through
+        # the same canonical candidate resolution every other read surface
+        # uses, so ``MissionStatus.load(<mid8>)`` carries the real mission_id
+        # and primary dir. The candidate may land in a coord worktree (which
+        # carries no meta.json), so only its canonical NAME is consumed to
+        # re-anchor on the primary checkout. Ambiguous handles fall through to
+        # the historical silent-first-match glob below (S8 follow-up).
+        from specify_cli.missions._read_path_resolver import (
+            MissionSelectorAmbiguous,
+            StatusReadPathNotFound,
+            candidate_feature_dir_for_mission,
+        )
+
+        try:
+            candidate_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+        except MissionSelectorAmbiguous:
+            candidate_dir = None
+        except StatusReadPathNotFound:
+            # Fail-closed coordination window (coord worktree root
+            # materialized, mission dir absent): fall through to the
+            # historical resolution path so ``load`` surfaces the established
+            # CoordAuthorityUnavailable shape for EVERY handle form (full
+            # slug, mid8, ULID) instead of leaking the resolver's raw
+            # StatusReadPathNotFound out of ``MissionStatus.load``.
+            candidate_dir = None
+        if candidate_dir is not None and candidate_dir.name != mission_slug:
+            canonical_primary = repo_root / KITTY_SPECS_DIR / candidate_dir.name
+            canonical_meta = canonical_primary / "meta.json"
+            if canonical_meta.exists():
+                return canonical_meta, canonical_primary
+
         from specify_cli.lanes.branch_naming import mid8_from_slug
 
         if mid8_from_slug(mission_slug):

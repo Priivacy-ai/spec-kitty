@@ -5,7 +5,6 @@ from __future__ import annotations
 from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
 import functools
 import json
-import os
 import re
 import subprocess
 from collections.abc import Iterable
@@ -27,7 +26,10 @@ from specify_cli.core.vcs import VCSBackend
 from specify_cli.mission_metadata import resolve_mission_identity, set_vcs_lock
 from specify_cli.frontmatter import FrontmatterError, update_fields
 from specify_cli.git import safe_commit
-from specify_cli.git.commit_helpers import protected_branches
+from specify_cli.git.commit_helpers import (
+    _operator_protected_branch_hatch_active,
+    protected_branches,
+)
 from mission_runtime import CommitTarget, CommitTargetKind
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
@@ -48,7 +50,9 @@ _WP_ID_RE = re.compile(r"^WP\d{2}$", re.IGNORECASE)
 
 
 def _protected_branch_status_commit_error(branch: str, repo_root: Path) -> str | None:
-    if os.environ.get("SPEC_KITTY_TEST_MODE", "").lower() in {"1", "true", "yes"}:
+    # The ONE documented ambient waiver is the operator escape hatch
+    # (solo-fork operators who own ``main``) — never the test-mode env.
+    if _operator_protected_branch_hatch_active():
         return None
     if branch not in protected_branches(repo_root):
         return None

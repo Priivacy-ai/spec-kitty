@@ -1193,6 +1193,29 @@ def _extract_mission_slug(branch_name: str) -> str | None:
 
 def _resolve_mission_slug(repo_root: Path, mission_slug: str | None) -> str | None:
     if mission_slug:
+        # F-001: ``--mission`` accepts handles (bare mid8, full ULID, numeric
+        # prefix). Canonicalize at this boundary — the same pattern as the
+        # agent ``_find_mission_slug`` helpers — so every downstream
+        # composition (merge state, the committed ``kitty-specs/<slug>/
+        # meta.json`` read, ``primary_feature_dir_for_mission``, the dry-run
+        # payload) consumes the canonical directory name, never the raw
+        # operator handle. Handles that resolve to no existing directory keep
+        # their raw form, preserving the historical no-lanes / not-found
+        # error behaviour downstream.
+        from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+
+        try:
+            candidate = candidate_feature_dir_for_mission(
+                get_main_repo_root(repo_root), mission_slug
+            )
+        except StatusReadPathNotFound:
+            # Fail-closed coordination window (coord worktree root
+            # materialized, mission dir absent): fall back to the raw handle —
+            # ``merge --abort`` relies on slug resolution staying non-raising
+            # to clean up exactly that broken state.
+            return mission_slug
+        if candidate.exists():
+            return candidate.name
         return mission_slug
 
     retcode, current_branch, _stderr = run_command(

@@ -36,8 +36,13 @@ SPEC_CONTENT = """\
 
 @pytest.fixture(autouse=True)
 def _bypass_protected_branch_guard(monkeypatch: pytest.MonkeyPatch) -> None:
-    """These unit tests exercise mapping semantics on minimal main-branch fixtures."""
-    monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
+    """These unit tests exercise mapping semantics on minimal main-branch fixtures.
+
+    The documented operator escape hatch is the ONE sanctioned waiver for
+    fixtures committing on a protected branch (SPEC_KITTY_TEST_MODE no longer
+    waives the pre-check — PR #1850 guard-bypass fix).
+    """
+    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
 
 

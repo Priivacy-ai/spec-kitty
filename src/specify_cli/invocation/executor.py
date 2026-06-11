@@ -496,11 +496,14 @@ class ProfileInvocationExecutor:
                 target=CommitTarget(ref=current_branch, kind=CommitTargetKind.PRIMARY),
                 message=message,
                 paths=(op_relative_path,),
-                # Op-record auto-commit is a bookkeeping flow: the asserted
-                # MERGE_BOOKKEEPING capability authorizes landing it on a
-                # protected branch (FR-008 / T011), replacing the deleted
-                # file-content + completed-op-bool privilege channels.
-                capability=GuardCapability.MERGE_BOOKKEEPING,
+                # Op-record auto-commit targets the operator's CURRENT branch,
+                # which can be protected main; STANDARD asserts no
+                # protected-branch flow, so the guard refuses there and the
+                # handler below downgrades the refusal to a warning (the Op
+                # record stays on disk). The documented operator hatch
+                # (SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS) lands it for
+                # solo-fork operators who own main (FR-008).
+                capability=GuardCapability.STANDARD,
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("Op record auto-commit failed for %s: %r", invocation_id, exc)

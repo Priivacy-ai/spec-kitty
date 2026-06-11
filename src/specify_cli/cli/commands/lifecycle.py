@@ -193,30 +193,30 @@ def plan(
 
         repo_root = locate_project_root()
         if repo_root is not None:
-            # Resolve the mission slug from the plan context.
-            # When the caller supplies --mission, that slug is already resolved;
-            # otherwise we fall back to detecting the slug from the working tree.
-            _mission_slug = resolved_mission
-            if _mission_slug is None:
-                # Detect the mission slug from the working tree for the optional
-                # plan interview. Route through the read-path-backed resolver
-                # (context._find_feature_directory) rather than the legacy
-                # silent-fallback helper: an unresolvable/ambiguous handle raises
-                # a structured error (C-CTX-4) which the surrounding suppress
-                # turns into "skip the interview" — never a wrong-but-plausible
-                # slug. There is no explicit handle here, so detection is a
-                # best-effort no-op until the operator passes --mission.
-                with contextlib.suppress(Exception):
-                    from specify_cli.cli.commands.agent.context import (
-                        _find_feature_directory,
-                    )
+            # Resolve the mission slug for the interview seam. BOTH the
+            # explicit --mission path and the no-flag autodetect route through
+            # the read-path-backed resolver (context._find_feature_directory)
+            # and key by the resolved directory name (F-001): the explicit
+            # value is an operator HANDLE (full slug, bare mid8, numeric
+            # prefix) and passing it through raw persists a raw mission_slug
+            # into decisions/index.json via run_plan_interview ->
+            # _dm_service.open_decision. An unresolvable/ambiguous handle
+            # raises a structured error (C-CTX-4) which the surrounding
+            # suppress turns into "skip the interview" — never a
+            # wrong-but-plausible slug (setup_plan above has already surfaced
+            # the structured error for explicit handles).
+            _mission_slug: str | None = None
+            with contextlib.suppress(Exception):
+                from specify_cli.cli.commands.agent.context import (
+                    _find_feature_directory,
+                )
 
-                    _fd = _find_feature_directory(
-                        repo_root,
-                        pathlib.Path.cwd(),
-                        explicit_mission=resolved_mission,
-                    )
-                    _mission_slug = _fd.name
+                _fd = _find_feature_directory(
+                    repo_root,
+                    pathlib.Path.cwd(),
+                    explicit_mission=resolved_mission,
+                )
+                _mission_slug = _fd.name
 
             if _mission_slug is not None:
                 with contextlib.suppress(Exception):

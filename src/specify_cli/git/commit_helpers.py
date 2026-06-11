@@ -53,9 +53,11 @@ WP03 DELETED the historical privilege channels that used to grant this implicitl
 - the ``SPEC_KITTY_TEST_MODE`` env privilege hatch.
 
 The ONE retained operator escape hatch,
-``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS``, is consumed only by the legacy
-``assert_not_protected_branch`` pre-check (for solo-fork operators who own
-``main``) and never reaches ``commit_guard.evaluate``.
+``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` (for solo-fork operators who own
+``main``), is consumed by the protected-branch pre-checks AND by
+``safe_commit``'s ``ProtectionState`` input computation — the operator declares
+the branch unprotected for this repo. ``commit_guard.evaluate`` itself never
+reads the environment.
 
 Spec-kitty-internal exceptions (planning-artifact prefixes such as
 ``"chore: planning artifacts for "``) were removed as part of #1348 (FR-013):
@@ -817,15 +819,16 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
 
     Protection decision (ADR Step 7 / IC-02 / FR-008): step 6 below delegates
     the "is this destination allowed?" decision SOLELY to
-    ``core.commit_guard.evaluate`` (C-GUARD-1). WP03 DELETED every legacy
-    privilege channel (the message-prefix allowlist, the two ``allow_*`` bools,
-    the op-record file-content exception, and the ``SPEC_KITTY_TEST_MODE`` env
-    hatch). ``capability`` is now the ONLY authorization — asserted at the call
-    site and NEVER derived from message text, file content, or environment
-    (C-GUARD-2). The single retained operator escape hatch,
-    ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS``, lives in the legacy
-    ``assert_not_protected_branch`` pre-check only and is out of ``evaluate``'s
-    reach.
+    ``core.commit_guard.evaluate`` (C-GUARD-1). The legacy privilege channels
+    (the message-prefix allowlist, the two ``allow_*`` bools, the op-record
+    file-content exception, and the ``SPEC_KITTY_TEST_MODE`` env hatch) are
+    deleted. ``capability`` is now the ONLY authorization — asserted at the
+    call site and NEVER derived from message text, file content, or
+    environment (C-GUARD-2). The single retained operator escape hatch,
+    ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS``, is consumed by the
+    protected-branch pre-checks and by this function's ``ProtectionState``
+    input computation (step 6); ``evaluate`` itself never reads the
+    environment.
 
     Args:
         repo_root: Path to the primary git repository.
@@ -916,11 +919,13 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
 
     # 6. Protected-branch check. The protection DECISION is made SOLELY by the
     #    SK policy module (``commit_guard.evaluate``) — the ONE decision
-    #    (C-GUARD-1). All legacy privilege channels (the message-prefix list, the
-    #    two ``allow_*`` bools, the op-record file-content exception, the
-    #    ``SPEC_KITTY_TEST_MODE`` env hatch) were DELETED in WP03 (FR-008): the
-    #    asserted-at-the-surface ``capability`` is now the only authorization,
-    #    never derived from message text, file content, or environment.
+    #    (C-GUARD-1). The legacy privilege channels (the message-prefix list,
+    #    the two ``allow_*`` bools, the op-record file-content exception, the
+    #    ``SPEC_KITTY_TEST_MODE`` env hatch) are deleted (WP03 / FR-008; the
+    #    last surviving test-mode pre-check reads went with the PR #1850
+    #    guard-bypass fix): the asserted-at-the-surface ``capability`` is now
+    #    the only authorization, never derived from message text, file
+    #    content, or environment.
     #
     #    The ONE retained operator escape hatch
     #    (``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` — solo-fork operators

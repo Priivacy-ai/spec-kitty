@@ -20,18 +20,22 @@ opened directly from the next command.
 
 from __future__ import annotations
 
-from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
+from specify_cli.missions.feature_dir_resolver import (
+    candidate_feature_dir_for_mission,
+    resolve_feature_dir_for_mission,
+)
 import contextlib
 import io
 import importlib
 import json
 import sys
+from pathlib import Path
 
 import typer
 from typing import Annotated
 
 from specify_cli.core.context_validation import require_main_repo
-from specify_cli.core.paths import locate_project_root
+from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.cli.selector_resolution import resolve_selector
 from runtime.next._runtime_pkg_notice import maybe_emit_runtime_pkg_notice
 
@@ -103,7 +107,7 @@ def next_step(
 
     _run_charter_preflight_for_next(_Path(str(repo_root)), advancing=result is not None, json_output=json_output)
 
-    mission_slug = _resolve_mission_slug(mission, feature)
+    mission_slug = _resolve_mission_slug(mission, feature, repo_root)
     _validate_result_and_answer(result, answer, json_output)
     answered_id = _maybe_handle_answer(agent, mission_slug, answer, decision_id, repo_root, json_output)
 
@@ -310,7 +314,7 @@ def _run_charter_preflight_for_next(repo_root, *, advancing: bool, json_output: 
         run_preflight_for_dashboard(repo_root)
 
 
-def _resolve_mission_slug(mission: str | None, feature: str | None) -> str:
+def _resolve_mission_slug(mission: str | None, feature: str | None, repo_root: Path) -> str:
     try:
         resolved = resolve_selector(
             canonical_value=mission,
@@ -323,7 +327,34 @@ def _resolve_mission_slug(mission: str | None, feature: str | None) -> str:
     except typer.BadParameter as exc:
         print(f"Error: {exc}", file=sys.stderr)
         raise typer.Exit(1) from exc
-    return resolved.canonical_value
+
+    raw_handle = resolved.canonical_value
+    # F-001: ``--mission`` accepts handles (bare mid8, full ULID, numeric
+    # prefix). Canonicalize at this boundary — the same pattern as the agent
+    # ``_find_mission_slug`` helpers — so every downstream consumer
+    # (``decide_next``, ``get_or_start_run`` keying ``.kittify/runtime/
+    # feature-runs.json``, its persisted ``mission_slug``, and the run-scoped
+    # event emitter) receives the canonical directory name. A raw mid8 here
+    # creates a split-brain duplicate run vs the full-slug invocation.
+    # Handles that resolve to no existing directory keep their raw form,
+    # preserving the historical not-found behaviour downstream; an ambiguous
+    # handle propagates MissionSelectorAmbiguous (C-CTX-4 — structured error,
+    # never a silent fallback).
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+
+    try:
+        candidate = candidate_feature_dir_for_mission(
+            get_main_repo_root(repo_root), raw_handle
+        )
+    except StatusReadPathNotFound:
+        # Fail-closed coordination window (coord worktree root materialized,
+        # mission dir absent): fall back to the raw handle so slug resolution
+        # stays non-raising at this boundary — the runtime surfaces its own
+        # diagnostic downstream.
+        return raw_handle
+    if candidate.exists():
+        return candidate.name
+    return raw_handle
 
 
 def _print_error(message: str, json_output: bool) -> None:

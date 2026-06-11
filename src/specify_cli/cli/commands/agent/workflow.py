@@ -409,17 +409,16 @@ def _commit_via_legacy_safe_commit(
 ) -> None:
     """Commit workflow changes directly on legacy mission branches."""
     # Legacy mission-branch workflow commits land on ``target_branch`` (a lane /
-    # mission branch), which is normally not protected. The prior defensive
-    # test-mode bool escape (for fixtures running this path with
-    # ``target_branch == main``) is now the explicit TEST_MODE capability
-    # (FR-008 / T011) — no env, no bool.
+    # mission branch), which is normally not protected. STANDARD asserts no
+    # protected-branch flow: a protected ``target_branch`` (legacy missions
+    # tracking ``main``) is REFUSED by the guard, never waived (FR-008).
     result = safe_commit(
         repo_root=repo_root,
         worktree_root=repo_root,
         target=CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY),
         message=message,
         paths=tuple(paths),
-        capability=GuardCapability.TEST_MODE,
+        capability=GuardCapability.STANDARD,
     )
     _record_receipt(
         target_branch,
@@ -927,13 +926,16 @@ def _find_mission_slug(
     if raw_handle is not None and repo_root is not None:
         legacy_dir = candidate_feature_dir_for_mission(get_main_repo_root(repo_root), raw_handle)
         if legacy_dir.exists():
-            return raw_handle
+            # F-001: the candidate resolver canonicalizes mid8/ULID/numeric
+            # handles, so the resolved directory's NAME — not the raw operator
+            # handle — is the canonical mission slug downstream consumers need.
+            return legacy_dir.name
         try:
             resolved = resolve_mission_handle(raw_handle, repo_root)
             return resolved.mission_slug
         except (SystemExit, typer.Exit):
             if legacy_dir.exists():
-                return raw_handle
+                return legacy_dir.name
             raise
 
     return raw_handle
@@ -1475,16 +1477,17 @@ def implement(
                     # Mechanical WP06 pre-step migration.
                     try:
                         # Baseline artifact lands on the mission/lane
-                        # ``target_branch`` (normally unprotected); TEST_MODE
-                        # makes the prior defensive test-only escape explicit
-                        # (FR-008 / T011) instead of the deleted bool channel.
+                        # ``target_branch`` (normally unprotected); STANDARD
+                        # asserts no protected-branch flow, so a protected
+                        # target is refused — the best-effort handler below
+                        # logs the refusal (FR-008).
                         safe_commit(
                             repo_root=main_repo_root,
                             worktree_root=main_repo_root,
                             target=CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY),
                             message=f"chore: Capture baseline tests for {normalized_wp_id}",
                             paths=(_baseline_artifact,),
-                            capability=GuardCapability.TEST_MODE,
+                            capability=GuardCapability.STANDARD,
                         )
                     except Exception as _bl_commit_exc:  # noqa: BLE001 — best-effort
                         import logging as _bl_logging2

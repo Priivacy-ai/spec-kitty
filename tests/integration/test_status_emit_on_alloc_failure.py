@@ -27,9 +27,15 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture(autouse=True)
 def _disable_status_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the test hermetic; the fixture targets protected ``main``.
+
+    The documented operator escape hatch is the ONE sanctioned waiver for
+    status commits on a protected branch (``SPEC_KITTY_TEST_MODE`` no longer
+    waives the pre-check — PR #1850 guard-bypass fix).
+    """
     import specify_cli.status.emit as status_emit
 
-    monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
+    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
     monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
 

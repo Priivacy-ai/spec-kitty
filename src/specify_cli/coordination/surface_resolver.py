@@ -25,6 +25,7 @@ from pathlib import Path
 
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.lanes.branch_naming import mid8_from_slug
 from specify_cli.mission_metadata import load_meta
 from specify_cli.missions._read_path_resolver import (
     StatusReadPathNotFound,
@@ -70,6 +71,12 @@ def _coord_mid8(meta: dict[str, object], mission_slug: str) -> str:
         return str(raw_mid8)
     if raw_mission_id and len(str(raw_mission_id)) >= 8:
         return str(raw_mission_id)[:8]
+    # The canonical ``<slug>-<mid8>`` directory name carries the real mid8 —
+    # prefer it over the pure fabrication below (F-001: never compose a
+    # wrong-but-plausible coord path when the real disambiguator is in hand).
+    slug_mid8: str = mid8_from_slug(mission_slug)
+    if slug_mid8:
+        return slug_mid8
     return (mission_slug.replace("-", "") + "00000000")[:8]
 
 
@@ -119,6 +126,15 @@ def resolve_status_surface_with_anchor(
         its mission dir is absent (fail closed).
     """
     feature_dir: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    # F-001: the candidate resolution above is the single canonicalization
+    # point — a mid8 / ULID / numeric-prefix handle lands on the real mission
+    # directory, whose NAME is the canonical mission-dir name. Every downstream
+    # composition (the primary re-anchor, the coord-path assembly) consumes
+    # that canonical name; re-anchoring on the raw operator handle is exactly
+    # the wrong-but-plausible ``kitty-specs/<mid8>/`` surface this resolver
+    # must never hand back. (For unresolvable handles the candidate's name
+    # equals the raw handle, so the not-found behaviour is unchanged.)
+    mission_slug = feature_dir.name
     meta = load_meta(feature_dir)
 
     # If the single coord-aware resolution already landed inside a coord

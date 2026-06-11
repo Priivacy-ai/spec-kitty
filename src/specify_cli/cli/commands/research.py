@@ -75,6 +75,14 @@ def research(
         raise typer.Exit(1)
 
     feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
+    # F-001: re-key to the canonical directory name. `--mission` accepts
+    # handles (bare mid8, numeric prefix); the resolver canonicalizes the
+    # DIRECTORY only, while `trigger_feature_dossier_sync_if_enabled` keys the
+    # SaaS namespace (NamespaceRef.from_context + OfflineBodyUploadQueue) by
+    # this slug — a raw handle splits the namespace vs the full-slug
+    # invocation. Unresolvable slugs compose `kitty-specs/<raw>` so the
+    # re-key is an identity re-read for the scaffold-new-mission path.
+    mission_slug = feature_dir.name
     feature_dir.mkdir(parents=True, exist_ok=True)
 
     # Get mission from feature's meta.json (not project-level default)

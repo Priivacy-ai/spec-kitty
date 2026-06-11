@@ -29,7 +29,10 @@ from specify_cli.coordination.types import (
 )
 from specify_cli.core.commit_guard import ProtectionState
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
-from specify_cli.git.commit_helpers import protected_branches
+from specify_cli.git.commit_helpers import (
+    _operator_protected_branch_hatch_active,
+    protected_branches,
+)
 
 
 def _normalize_ref(raw: str) -> str:
@@ -202,10 +205,17 @@ class WorkflowMutationPolicy:
         # over the asserted-at-the-surface ``capability`` so the pre-flight gate
         # and ``safe_commit`` agree on a single authority. The privilege is
         # NEVER derived from env or message — the caller's capability carries it.
+        # The ONE retained operator escape hatch acts on the ProtectionState
+        # INPUT (the operator declares the branch unprotected for this repo),
+        # mirroring safe_commit's computation so the gate and the mechanism
+        # cannot disagree; ``evaluate`` itself stays environment-free.
         protected = protected_branches(repo_root)
+        is_protected = (
+            not _operator_protected_branch_hatch_active() and ref in protected
+        )
         guard_verdict = evaluate_commit_guard(
             CommitTarget(ref=ref, kind=CommitTargetKind.COORDINATION),
-            ProtectionState(is_protected=ref in protected),
+            ProtectionState(is_protected=is_protected),
             change_set.capability,
         )
         if not guard_verdict.allowed:

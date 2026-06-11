@@ -34,7 +34,10 @@ def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
 
     result = CharterPreflightResult(passed=True, checks=[])
-    monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
+    # Fixtures run implement on a protected ``main`` branch; the documented
+    # operator escape hatch is the ONE sanctioned waiver (SPEC_KITTY_TEST_MODE
+    # no longer waives the pre-check — PR #1850 guard-bypass fix).
+    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
     monkeypatch.setattr(
         "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
         lambda *_args, **_kwargs: result,

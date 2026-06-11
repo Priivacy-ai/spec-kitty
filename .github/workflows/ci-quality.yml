@@ -141,6 +141,8 @@ jobs:
             next:
               - 'src/specify_cli/next/**'
               - 'src/specify_cli/runtime/**'
+              - 'src/runtime/next/**'
+              - 'src/mission_runtime/**'
               - 'tests/next/**'
               - 'tests/specify_cli/next/**'
               - 'tests/runtime/**'
@@ -975,6 +977,7 @@ jobs:
           uv run python -m pytest tests/next/ tests/specify_cli/next/ \
             -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/next \
+            --cov=src/runtime/next \
             --cov-report=xml:out/reports/coverage/coverage-fast-next.xml
       - name: "Upload fast-next coverage"
         if: always()
@@ -1657,6 +1660,7 @@ jobs:
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/next \
+            --cov=src/runtime/next \
             --cov-report=xml:out/reports/coverage/coverage-integration-next.xml
       - name: "Upload integration-next coverage"
         if: always()
@@ -2022,6 +2026,8 @@ jobs:
             'src/specify_cli/dashboard/scanner.py'
             'src/specify_cli/merge/*'
             'src/specify_cli/next/*'
+            'src/runtime/next/*'
+            'src/mission_runtime/*'
           )
 
           coverage_reports=()

@@ -15,7 +15,11 @@ surface; they operate on per-mission metadata, not doctrine mission types.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
+from specify_cli.core.paths import get_main_repo_root
+from specify_cli.missions.feature_dir_resolver import (
+    candidate_feature_dir_for_mission,
+    resolve_feature_dir_for_mission,
+)
 import json
 from pathlib import Path
 from collections.abc import Iterable
@@ -412,6 +416,38 @@ def create_cmd(
     console.print()
 
 
+def _resolve_mission_slug(repo_root: Path, mission_slug: str) -> str:
+    """Canonicalize a ``--mission`` handle at the ``run`` boundary.
+
+    F-001: ``--mission`` accepts handles (bare mid8, full ULID, numeric
+    prefix). Canonicalize here — the same pattern as the agent
+    ``_find_mission_slug`` helpers and ``next_cmd._resolve_mission_slug`` —
+    so ``run_custom_mission`` -> ``get_or_start_run`` keys
+    ``.kittify/runtime/feature-runs.json`` (and its persisted
+    ``mission_slug``) by the canonical directory name. A raw mid8 here
+    creates a split-brain duplicate run vs the full-slug invocation.
+    Handles that resolve to no existing directory keep their raw form,
+    preserving the historical lazy-meta-creation behaviour downstream; an
+    ambiguous handle propagates MissionSelectorAmbiguous (C-CTX-4 —
+    structured error, never a silent fallback).
+    """
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+
+    try:
+        candidate: Path = candidate_feature_dir_for_mission(
+            get_main_repo_root(repo_root), mission_slug
+        )
+    except StatusReadPathNotFound:
+        # Fail-closed coordination window (coord worktree root materialized,
+        # mission dir absent): fall back to the raw handle so slug resolution
+        # stays non-raising at this boundary — the runtime surfaces its own
+        # diagnostic downstream.
+        return mission_slug
+    if candidate.exists():
+        return candidate.name
+    return mission_slug
+
+
 @app.command("run")
 def run_cmd(
     mission_key: Annotated[
@@ -434,6 +470,7 @@ def run_cmd(
     from specify_cli.mission_loader.command import run_custom_mission
 
     project_root = get_project_root_or_exit()
+    mission_slug = _resolve_mission_slug(project_root, mission_slug)
     result = run_custom_mission(mission_key, mission_slug, project_root)
     _render_envelope(result.envelope, json_output)
     raise typer.Exit(code=result.exit_code)
@@ -555,6 +592,15 @@ def close_cmd(
     if not feature_dir.exists():
         console.print(f"[red]Mission not found:[/red] {mission_slug}")
         raise typer.Exit(1)
+
+    # F-001: re-key to the canonical directory name. `--mission` accepts
+    # handles (bare mid8, numeric prefix); the resolver canonicalizes the
+    # DIRECTORY only, while `_discard_mission` / `_teardown_coordination_worktree`
+    # compose names from the slug — `_delete_lane_branches` via
+    # `lane_branch_name(raw, lane_id)` and `_remove_lane_worktrees` via the
+    # `.worktrees/` `f"{raw}-"` prefix match would silently no-op on a raw
+    # handle while the command reports success.
+    mission_slug = feature_dir.name
 
     meta_path = feature_dir / "meta.json"
     mid8_value = _read_mission_mid8(meta_path)

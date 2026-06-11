@@ -131,7 +131,9 @@ class TestCommitTriggered:
             # T010: destination is carried on the CommitTarget passed in, not a
             # re-derived destination_ref string.
             assert kwargs["target"].ref == "kitty/mission-abc"
-            assert kwargs["capability"] is GuardCapability.MERGE_BOOKKEEPING
+            # Decision-record bookkeeping is not the merge flow: it asserts
+            # STANDARD, so a protected destination is refused (PR #1850 fix).
+            assert kwargs["capability"] is GuardCapability.STANDARD
             assert "[skip ci]" in kwargs["message"]
             assert _decisions_file(tmp_path) in kwargs["paths"]
 

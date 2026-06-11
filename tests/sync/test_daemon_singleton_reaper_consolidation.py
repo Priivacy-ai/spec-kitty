@@ -3,10 +3,14 @@
 These tests lock the two acceptance criteria for the daemon half of #1789:
 
 * **SC-6b** — across multiple interpreters on one host, exactly one
-  ``run_sync_daemon`` runs per host/auth-scope and stale same-executable
-  orphans are reaped at the ``ensure_sync_daemon_running`` spawn path; a daemon
-  launched from a *different* interpreter (a legitimately-separate auth-scope)
-  is never killed (reaper-over-kill guard).
+  ``run_sync_daemon`` runs per daemon-root scope and stale same-scope orphans
+  are reaped at the ``ensure_sync_daemon_running`` spawn path. The reap scope
+  has TWO dimensions: the candidate's interpreter must resolve to this
+  process's canonical executable AND its cmdline must carry the daemon-root
+  scope marker for this process's daemon state root. A daemon launched from a
+  different interpreter, a different ``$HOME``/state root, or one carrying no
+  marker at all (pre-marker spawns) is never killed (reaper-over-kill guard,
+  #1071).
 * **SC-7** — exactly ONE daemon-lifecycle reaper and ONE liveness probe remain
   after the three-reaper collapse. Verified by source inspection (``rg``-style
   scan): the canonical kill path, the canonical reaper entry point, and
@@ -19,7 +23,10 @@ test-induced daemon leak: the reaper is exercised against in-memory fake
 
 from __future__ import annotations
 
+import contextlib
 import re
+import sys
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -34,6 +41,22 @@ pytestmark = [pytest.mark.unit]
 
 
 _SRC_ROOT = Path(__file__).resolve().parents[2] / "src" / "specify_cli"
+
+# Mirror ``daemon.DAEMON_SCOPE_ARG_PREFIX`` / ``daemon.DAEMON_EXEC_ARG_PREFIX``
+# (coupling asserted below) so the fixtures stay literal about the on-host
+# cmdline shape being matched.
+_SCOPE_MARKER_PREFIX = "--spec-kitty-daemon-root="
+_EXEC_MARKER_PREFIX = "--spec-kitty-daemon-exec="
+
+
+def _scope_marker(root: Path) -> str:
+    """Build the daemon-root scope marker argv element for *root*."""
+    return _SCOPE_MARKER_PREFIX + str(root.resolve())
+
+
+def _exec_marker(executable: str) -> str:
+    """Build the spawn-recorded interpreter identity argv element."""
+    return _EXEC_MARKER_PREFIX + executable
 
 
 # ---------------------------------------------------------------------------
@@ -78,8 +101,18 @@ def _install_fake_host(
     procs: list[_FakeProc],
     *,
     state_pid: int | None,
+    daemon_root: Path,
 ) -> None:
-    """Wire fake psutil + an absent/empty state file into the daemon module."""
+    """Wire fake psutil + an absent/empty state file into the daemon module.
+
+    ``daemon_root`` pins the reaper's own daemon-root scope (normally derived
+    from ``$HOME``) to a tmp path so marker matching is hermetic.
+    """
+    monkeypatch.setattr(
+        owner_module,
+        "_daemon_scope_root",
+        lambda: str(daemon_root.resolve()),
+    )
 
     def fake_iter(attrs: object = None) -> list[_FakeProc]:  # noqa: ARG001
         return list(procs)
@@ -114,14 +147,17 @@ def _install_fake_host(
 # ---------------------------------------------------------------------------
 
 
-def test_reaper_reaps_same_executable_orphans(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Two same-interpreter orphans on fresh ports are both reaped (the #1071 leak)."""
+def test_reaper_reaps_same_executable_orphans(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Two same-interpreter, same-root orphans on fresh ports are both reaped (the #1071 leak)."""
     my_exe = owner_module.canonical_executable_scope()
+    my_root = tmp_path / "home" / ".spec-kitty"
     orphans = [
-        _FakeProc(1001, [my_exe, "-c", "run_sync_daemon(9401)"], my_exe),
-        _FakeProc(1002, [my_exe, "-c", "run_sync_daemon(9402)"], my_exe),
+        _FakeProc(1001, [my_exe, "-c", "run_sync_daemon(9401)", _scope_marker(my_root)], my_exe),
+        _FakeProc(1002, [my_exe, "-c", "run_sync_daemon(9402)", _scope_marker(my_root)], my_exe),
     ]
-    _install_fake_host(monkeypatch, orphans, state_pid=None)
+    _install_fake_host(monkeypatch, orphans, state_pid=None, daemon_root=my_root)
 
     result = reap_orphan_daemons()
 
@@ -131,18 +167,30 @@ def test_reaper_reaps_same_executable_orphans(monkeypatch: pytest.MonkeyPatch) -
     assert all(p.terminated for p in orphans)
 
 
-def test_reaper_skips_other_executable_daemons(
-    monkeypatch: pytest.MonkeyPatch,
+def test_reaper_skips_same_executable_daemon_from_other_home(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """A daemon from a different interpreter / $HOME is left untouched (reaper-over-kill guard)."""
+    """Same interpreter, different $HOME/state root → skipped, never killed.
+
+    Two daemons share ``canonical_executable_scope`` but carry scope markers
+    for different daemon state roots (the shared-interpreter / multi-$HOME
+    host). Only the daemon belonging to THIS root is reaped; the cross-scope
+    one is a legitimately-separate daemon (reaper-over-kill guard, #1071).
+    """
     my_exe = owner_module.canonical_executable_scope()
+    my_root = tmp_path / "home-a" / ".spec-kitty"
+    other_root = tmp_path / "home-b" / ".spec-kitty"
     foreign = _FakeProc(
         2001,
-        ["/opt/other-venv/bin/python", "-c", "run_sync_daemon(9403)"],
-        "/opt/other-venv/bin/python",
+        [my_exe, "-c", "run_sync_daemon(9403)", _scope_marker(other_root)],
+        my_exe,
     )
-    mine = _FakeProc(2002, [my_exe, "-c", "run_sync_daemon(9404)"], my_exe)
-    _install_fake_host(monkeypatch, [foreign, mine], state_pid=None)
+    mine = _FakeProc(
+        2002,
+        [my_exe, "-c", "run_sync_daemon(9404)", _scope_marker(my_root)],
+        my_exe,
+    )
+    _install_fake_host(monkeypatch, [foreign, mine], state_pid=None, daemon_root=my_root)
 
     result = reap_orphan_daemons()
 
@@ -153,12 +201,190 @@ def test_reaper_skips_other_executable_daemons(
     assert mine.terminated is True
 
 
-def test_reaper_excludes_recorded_singleton(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_reaper_skips_other_interpreter_daemons(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A daemon from a different interpreter is skipped even with a matching root marker."""
+    my_root = tmp_path / "home" / ".spec-kitty"
+    foreign = _FakeProc(
+        2101,
+        ["/opt/other-venv/bin/python", "-c", "run_sync_daemon(9405)", _scope_marker(my_root)],
+        "/opt/other-venv/bin/python",
+    )
+    _install_fake_host(monkeypatch, [foreign], state_pid=None, daemon_root=my_root)
+
+    result = reap_orphan_daemons()
+
+    assert result.reaped == []
+    assert result.skipped_out_of_scope == [2101]
+    assert foreign.terminated is False
+    assert foreign.killed is False
+
+
+def test_reaper_skips_unmarked_pre_marker_daemons(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A same-interpreter daemon with NO scope marker is conservatively skipped.
+
+    Daemons spawned before the marker existed cannot be positively attributed
+    to a daemon root, so the auto-reaper leaves them alone. ``sync status`` /
+    ``sync doctor`` surface them (via ``scan_sync_daemons``) for the operator;
+    clearing them is a manual step — no production surface invokes
+    ``cleanup_orphan_sync_daemons`` automatically.
+    """
+    my_exe = owner_module.canonical_executable_scope()
+    my_root = tmp_path / "home" / ".spec-kitty"
+    unmarked = _FakeProc(2201, [my_exe, "-c", "run_sync_daemon(9406)"], my_exe)
+    _install_fake_host(monkeypatch, [unmarked], state_pid=None, daemon_root=my_root)
+
+    result = reap_orphan_daemons()
+
+    assert result.reaped == []
+    assert result.skipped_out_of_scope == [2201]
+    assert unmarked.terminated is False
+    assert unmarked.killed is False
+
+
+def test_reaper_matches_when_exe_diverges_but_argv0_is_spawn_interpreter(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A divergent ``exe()`` with a preserved argv[0] still matches via argv[0].
+
+    This pins the argv[0] identity dimension on its own (e.g. ``exe()``
+    misreported or unreadable while argv was left intact). NOTE: this is NOT
+    the real macOS framework shape — there the re-exec rewrites BOTH ``exe()``
+    AND argv[0] to the ``Python.app`` stub; that shape is covered by
+    ``test_reaper_matches_macos_framework_rewritten_exe_and_argv0``.
+    """
+    my_root = tmp_path / "home" / ".spec-kitty"
+    framework_stub = (
+        "/opt/fake-framework/Python.framework/Versions/3.11/"
+        "Resources/Python.app/Contents/MacOS/Python"
+    )
+    orphan = _FakeProc(
+        2301,
+        [sys.executable, "-c", "run_sync_daemon(9407)", _scope_marker(my_root)],
+        framework_stub,
+    )
+    _install_fake_host(monkeypatch, [orphan], state_pid=None, daemon_root=my_root)
+
+    result = reap_orphan_daemons()
+
+    assert result.reaped == [2301]
+    assert result.skipped_out_of_scope == []
+    assert orphan.terminated is True
+
+
+def test_reaper_matches_macos_framework_rewritten_exe_and_argv0(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """macOS framework Python rewrites BOTH ``exe()`` AND argv[0] to the stub.
+
+    Empirically proven on Homebrew framework builds: the spawned interpreter
+    re-execs ``Resources/Python.app/Contents/MacOS/Python``, so the running
+    daemon's ``Process.exe()`` and ``cmdline[0]`` BOTH report the stub path
+    while ``canonical_executable_scope()`` is the resolved ``bin/python3.x``.
+    Neither live-process identity source can ever match — the reaper must
+    recover the spawn interpreter from the spawn-recorded exec marker
+    (``daemon.DAEMON_EXEC_ARG_PREFIX``) embedded in argv at spawn, which the
+    re-exec preserves verbatim.
+    """
+    my_scope = owner_module.canonical_executable_scope()
+    my_root = tmp_path / "home" / ".spec-kitty"
+    framework_stub = (
+        "/opt/fake-framework/Python.framework/Versions/3.11/"
+        "Resources/Python.app/Contents/MacOS/Python"
+    )
+    orphan = _FakeProc(
+        2401,
+        [
+            framework_stub,  # argv[0] rewritten by the re-exec, like exe()
+            "-c",
+            "run_sync_daemon(9411)",
+            _scope_marker(my_root),
+            _exec_marker(my_scope),
+        ],
+        framework_stub,
+    )
+    _install_fake_host(monkeypatch, [orphan], state_pid=None, daemon_root=my_root)
+
+    result = reap_orphan_daemons()
+
+    assert result.reaped == [2401]
+    assert result.skipped_out_of_scope == []
+    assert orphan.terminated is True
+
+
+def test_reaper_skips_fully_rewritten_daemon_without_exec_marker(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Rewritten exe()+argv[0] with no exec marker → conservatively skipped.
+
+    A marker-bearing daemon spawned without the exec-identity token (or whose
+    token was lost) cannot be positively attributed to any interpreter once
+    macOS has rewritten both live identity sources, so it is never killed.
+    """
+    my_root = tmp_path / "home" / ".spec-kitty"
+    framework_stub = (
+        "/opt/fake-framework/Python.framework/Versions/3.11/"
+        "Resources/Python.app/Contents/MacOS/Python"
+    )
+    orphan = _FakeProc(
+        2501,
+        [framework_stub, "-c", "run_sync_daemon(9412)", _scope_marker(my_root)],
+        framework_stub,
+    )
+    _install_fake_host(monkeypatch, [orphan], state_pid=None, daemon_root=my_root)
+
+    result = reap_orphan_daemons()
+
+    assert result.reaped == []
+    assert result.skipped_out_of_scope == [2501]
+    assert orphan.terminated is False
+    assert orphan.killed is False
+
+
+def test_reaper_skips_non_spawn_shaped_cmdline(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A cmdline without the ``-c``+``run_sync_daemon`` spawn signature is skipped.
+
+    Marker and interpreter identity alone are not enough: the kill decision
+    also requires the production spawn shape (a ``-c`` flag whose script
+    payload references ``run_sync_daemon``). A tool that merely *mentions*
+    the daemon in a script-path argv (and somehow carries the markers) is
+    never a kill candidate.
+    """
+    my_exe = owner_module.canonical_executable_scope()
+    my_root = tmp_path / "home" / ".spec-kitty"
+    bystander = _FakeProc(
+        2601,
+        [my_exe, "/tmp/run_sync_daemon_helper.py", _scope_marker(my_root), _exec_marker(my_exe)],
+        my_exe,
+    )
+    _install_fake_host(monkeypatch, [bystander], state_pid=None, daemon_root=my_root)
+
+    result = reap_orphan_daemons()
+
+    assert result.reaped == []
+    assert result.skipped_out_of_scope == [2601]
+    assert bystander.terminated is False
+    assert bystander.killed is False
+
+
+def test_reaper_excludes_recorded_singleton(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """The recorded singleton PID is never reaped — one daemon survives per scope."""
     my_exe = owner_module.canonical_executable_scope()
-    singleton = _FakeProc(3001, [my_exe, "-c", "run_sync_daemon(9400)"], my_exe)
-    orphan = _FakeProc(3002, [my_exe, "-c", "run_sync_daemon(9405)"], my_exe)
-    _install_fake_host(monkeypatch, [singleton, orphan], state_pid=3001)
+    my_root = tmp_path / "home" / ".spec-kitty"
+    singleton = _FakeProc(
+        3001, [my_exe, "-c", "run_sync_daemon(9400)", _scope_marker(my_root)], my_exe
+    )
+    orphan = _FakeProc(
+        3002, [my_exe, "-c", "run_sync_daemon(9408)", _scope_marker(my_root)], my_exe
+    )
+    _install_fake_host(monkeypatch, [singleton, orphan], state_pid=3001, daemon_root=my_root)
 
     result = reap_orphan_daemons()
 
@@ -167,17 +393,160 @@ def test_reaper_excludes_recorded_singleton(monkeypatch: pytest.MonkeyPatch) -> 
     assert orphan.terminated is True
 
 
-def test_reaper_dry_run_sends_no_signals(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_reaper_dry_run_sends_no_signals(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """Dry-run classifies in-scope orphans without terminating anything."""
     my_exe = owner_module.canonical_executable_scope()
-    orphan = _FakeProc(4001, [my_exe, "-c", "run_sync_daemon(9406)"], my_exe)
-    _install_fake_host(monkeypatch, [orphan], state_pid=None)
+    my_root = tmp_path / "home" / ".spec-kitty"
+    orphan = _FakeProc(
+        4001, [my_exe, "-c", "run_sync_daemon(9409)", _scope_marker(my_root)], my_exe
+    )
+    _install_fake_host(monkeypatch, [orphan], state_pid=None, daemon_root=my_root)
 
     result = reap_orphan_daemons(dry_run=True)
 
     assert result.reaped == [4001]
     assert orphan.terminated is False
     assert orphan.killed is False
+
+
+def test_scope_marker_prefix_matches_daemon_constant() -> None:
+    """The fixture marker prefix must stay coupled to the spawn-side constant."""
+    assert _SCOPE_MARKER_PREFIX == daemon_module.DAEMON_SCOPE_ARG_PREFIX
+
+
+def test_exec_marker_prefix_matches_daemon_constant() -> None:
+    """The fixture exec-marker prefix must stay coupled to the spawn-side constant."""
+    assert _EXEC_MARKER_PREFIX == daemon_module.DAEMON_EXEC_ARG_PREFIX
+
+
+def test_spawned_daemon_cmdline_carries_scope_marker(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """``_spawn_sync_daemon_process`` embeds this root's scope marker in argv.
+
+    Without this wiring the canonical reaper could never positively attribute
+    a real spawned daemon to its daemon state root.
+    """
+    captured: dict[str, list[str]] = {}
+
+    class _FakePopen:
+        pid = 4242
+
+        def __init__(self, args: list[str], **kwargs: object) -> None:
+            captured["args"] = list(args)
+
+    monkeypatch.setattr("specify_cli.sync.daemon.subprocess.Popen", _FakePopen)
+    monkeypatch.setattr(daemon_module, "DAEMON_LOG_FILE", tmp_path / "daemon.log")
+
+    proc = daemon_module._spawn_sync_daemon_process(9410, "tok")
+
+    assert proc.pid == 4242
+    markers = [
+        arg for arg in captured["args"] if arg.startswith(daemon_module.DAEMON_SCOPE_ARG_PREFIX)
+    ]
+    assert markers == [
+        daemon_module.DAEMON_SCOPE_ARG_PREFIX + daemon_module._daemon_scope_root()
+    ]
+
+
+def test_spawned_daemon_cmdline_carries_exec_identity_marker(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """``_spawn_sync_daemon_process`` records the spawn interpreter in argv.
+
+    The exec marker is what survives the macOS framework re-exec (which
+    rewrites both ``exe()`` and argv[0] to the ``Python.app`` stub), so the
+    reaper compares spawn-recorded identity instead of guessing platform
+    rewrites.
+    """
+    captured: dict[str, list[str]] = {}
+
+    class _FakePopen:
+        pid = 4343
+
+        def __init__(self, args: list[str], **kwargs: object) -> None:
+            captured["args"] = list(args)
+
+    monkeypatch.setattr("specify_cli.sync.daemon.subprocess.Popen", _FakePopen)
+    monkeypatch.setattr(daemon_module, "DAEMON_LOG_FILE", tmp_path / "daemon.log")
+
+    daemon_module._spawn_sync_daemon_process(9413, "tok")
+
+    exec_markers = [
+        arg for arg in captured["args"] if arg.startswith(daemon_module.DAEMON_EXEC_ARG_PREFIX)
+    ]
+    assert exec_markers == [daemon_module.daemon_exec_marker()]
+    recorded = exec_markers[0][len(daemon_module.DAEMON_EXEC_ARG_PREFIX):]
+    # The recorded identity must equal the canonical interpreter scope the
+    # reap-time foreground computes, or the comparison can never succeed.
+    assert recorded == owner_module.canonical_executable_scope()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX spawn shape (start_new_session)")
+def test_live_stub_with_production_spawn_shape_is_reaped_on_this_host(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Host-level proof: a REAL process spawned with the production argv shape is reaped.
+
+    Uses the actual production spawner (``_spawn_sync_daemon_process``) with
+    only the ``-c`` script swapped for an inert sleep stub, so the argv shape
+    — interpreter, ``-c``, run_sync_daemon-referencing script, scope marker,
+    exec marker — is exactly what real daemons carry. On macOS framework
+    Python (e.g. Homebrew) the live process reports the ``Python.app`` stub
+    for BOTH ``exe()`` and argv[0]; the reaper must still positively match it
+    via the spawn-recorded exec marker. On non-framework hosts the live
+    identity matches directly; either way the stub must be classified
+    in-scope and reaped.
+    """
+    my_root = tmp_path / "home" / ".spec-kitty"
+    my_root.mkdir(parents=True)
+    pinned_root = str(my_root.resolve())
+    monkeypatch.setattr(daemon_module, "_daemon_scope_root", lambda: pinned_root)
+    monkeypatch.setattr(owner_module, "_daemon_scope_root", lambda: pinned_root)
+    monkeypatch.setattr(daemon_module, "DAEMON_STATE_FILE", tmp_path / "sync-daemon")
+    monkeypatch.setattr(daemon_module, "DAEMON_LOG_FILE", tmp_path / "daemon.log")
+
+    ready_file = tmp_path / "stub-ready"
+    stub_script = (
+        "# inert sleep stub standing in for: "
+        "from specify_cli.sync.daemon import run_sync_daemon\n"
+        "import pathlib, time\n"
+        f"pathlib.Path({str(ready_file)!r}).touch()\n"
+        "time.sleep(120)\n"
+    )
+    monkeypatch.setattr(
+        daemon_module, "_background_script", lambda _port, _token: stub_script
+    )
+
+    proc = daemon_module._spawn_sync_daemon_process(9414, "tok")
+    try:
+        deadline = time.monotonic() + 15.0
+        while not ready_file.exists():
+            assert time.monotonic() < deadline, "stub process never came up"
+            assert proc.poll() is None, "stub process exited prematurely"
+            time.sleep(0.05)
+
+        # Classification proof first (no signals): the live stub — whose
+        # exe()/argv[0] macOS may have rewritten to the Python.app stub —
+        # must be the ONLY process attributed to this (tmp) daemon root.
+        dry = reap_orphan_daemons(dry_run=True)
+        assert dry.reaped == [proc.pid]
+        assert proc.poll() is None
+
+        # Now the real reap: the stub must actually die.
+        result = reap_orphan_daemons()
+        assert proc.pid in result.reaped
+        deadline = time.monotonic() + 5.0
+        while proc.poll() is None:
+            assert time.monotonic() < deadline, "stub survived the reap"
+            time.sleep(0.05)
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            with contextlib.suppress(Exception):
+                proc.wait(timeout=5)
 
 
 def test_spawn_path_invokes_canonical_reaper(monkeypatch: pytest.MonkeyPatch) -> None:
