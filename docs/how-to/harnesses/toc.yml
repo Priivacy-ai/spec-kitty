@@ -1,3 +1,5 @@
+- name: Set up Post-Edit Lint Hooks
+  href: setup-lint-hooks.md
 - name: Claude Code
   href: claude-code.md
 - name: Codex
