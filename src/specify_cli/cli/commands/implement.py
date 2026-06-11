@@ -338,14 +338,37 @@ def _print_planning_artifact_commit_instructions(
 def _resolve_bookkeeping_transaction_identifiers(
     feature_dir: Path,
     mission_slug: str,
+    repo_root: Path | None = None,
 ) -> tuple[str | None, str | None, str | None, str, str]:
     from specify_cli.mission_metadata import load_meta as _load_meta
 
-    mission_meta: dict[str, Any] | None
-    try:
-        mission_meta = _load_meta(feature_dir)
-    except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
-        mission_meta = None
+    # FR-003 cascade layer 1: ``coordination_branch`` / ``mission_id`` / ``mid8``
+    # live ONLY in the PRIMARY-checkout meta.json; the coord worktree's mission
+    # dir has none. ``feature_dir`` is topology-aware and prefers the coord
+    # worktree once materialized — reading meta there returns empty, so every
+    # identifier silently fell back to the slug (``mid8`` -> ``<slug>0000``),
+    # which then names a non-existent coord branch/worktree at claim time
+    # ("Failed to resolve coordination worktree for <slug>-<slug-fallback>").
+    # Anchor the config read on the canonical primary dir first (the caller
+    # threads the true main ``repo_root``), before falling back to the passed
+    # dir, so config is read before topology is resolved.
+    mission_meta: dict[str, Any] | None = None
+    if repo_root is not None:
+        from specify_cli.missions._read_path_resolver import (
+            primary_feature_dir_for_mission,
+        )
+
+        try:
+            mission_meta = _load_meta(
+                primary_feature_dir_for_mission(repo_root, mission_slug)
+            )
+        except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
+            mission_meta = None
+    if mission_meta is None:
+        try:
+            mission_meta = _load_meta(feature_dir)
+        except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
+            mission_meta = None
 
     coord_branch: str | None = None
     mission_id: str | None = None
@@ -550,7 +573,7 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
         coord_branch_for_filter = _placement_coord_filter(placement_ref)
     else:
         coord_branch_for_filter = _resolve_bookkeeping_transaction_identifiers(
-            feature_dir, mission_slug
+            feature_dir, mission_slug, repo_root
         )[0]
 
     status_paths = _status_paths_for_commit(entries, coord_branch_for_filter)
@@ -604,7 +627,9 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
         mid8,
         effective_mission_id,
         effective_mid8,
-    ) = _resolve_bookkeeping_transaction_identifiers(feature_dir, mission_slug)
+    ) = _resolve_bookkeeping_transaction_identifiers(
+        feature_dir, mission_slug, repo_root
+    )
 
     # WP06 / T019 / C-PLACE-1: the placement destination is the context's single
     # ``placement_ref`` when threaded — one ref for planning artifacts AND status
@@ -876,6 +901,23 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
         if not (feature_dir / "meta.json").exists():
             feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+        # FR-003 cascade layer 1: meta.json lives ONLY on the PRIMARY checkout —
+        # the coord worktree's mission dir never carries it. Both resolvers above
+        # are topology-aware and prefer the coord worktree once materialized, so
+        # ``feature_dir`` lands on a meta-less coord dir and every downstream
+        # meta read (``_ensure_vcs_in_meta``, identity resolution) fails with
+        # "meta.json not found". When the resolved dir lacks meta, anchor on the
+        # canonical primary dir so config is readable before topology is
+        # resolved. (The coord surface stays authoritative for STATUS reads,
+        # which route through the canonical surface authority, not this dir.)
+        if not (feature_dir / "meta.json").exists():
+            from specify_cli.missions._read_path_resolver import (
+                primary_feature_dir_for_mission,
+            )
+
+            primary_candidate = primary_feature_dir_for_mission(repo_root, mission_slug)
+            if (primary_candidate / "meta.json").exists():
+                feature_dir = primary_candidate
         wp_file = find_wp_file(repo_root, mission_slug, wp_id)
         declared_deps = parse_wp_dependencies(wp_file)
         tracker.complete("detect", f"Feature: {mission_slug}")
@@ -898,12 +940,20 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
 
         from specify_cli.status import reduce as _reduce_events
         from specify_cli.status import read_events as _read_events
-        from specify_cli.missions._read_path_resolver import resolve_mission_read_path as _resolve_read_path
-        from specify_cli.lanes.branch_naming import mid8_from_slug as _mid8_from_slug
+        from specify_cli.coordination.surface_resolver import (
+            resolve_status_surface_with_anchor as _resolve_status_surface,
+        )
 
-        _mid8 = _mid8_from_slug(mission_slug)
-
-        _status_feature_dir = _resolve_read_path(repo_root, mission_slug, _mid8)
+        # FR-003 layer 4: read WP-lane status through the SAME canonical,
+        # config-determined surface authority the status WRITE path
+        # (coordination/status_transition) uses, never a second ad-hoc
+        # resolution. resolve_mission_read_path derived its own coord
+        # preference from a slug-derived mid8 (empty for bare slugs), so in the
+        # planning→implement window the read landed on a different surface than
+        # the write and saw genesis ("WP not finalized"). The anchor authority
+        # derives mid8 from meta and carries the fail-closed coord semantics
+        # (StatusReadPathNotFound) — one authority, C-STAT-1.
+        _status_feature_dir = _resolve_status_surface(repo_root, mission_slug).read_dir
 
         _wp_lanes = {
             _wp_id: _state.get("lane", Lane.GENESIS)
