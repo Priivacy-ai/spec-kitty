@@ -14,7 +14,8 @@ branch_strategy: Planning artifacts for this mission were generated on feat/doct
 subtasks:
 - T017
 - T018
-agent: claude
+agent: "claude:opus:tbd:implementer"
+shell_pid: "822589"
 history:
 - '2026-06-09: created by /spec-kitty.tasks (planner-priti)'
 agent_profile: curator-carla
@@ -58,3 +59,7 @@ Doctrine sign-off + **architect-alphonso sign-off** (these encode architecture/t
 
 ## Risks
 - Literal "Feature" issue-type term vs terminology guard — phrase carefully (it's the GitHub type, not the Mission domain object).
+
+## Activity Log
+
+- 2026-06-11T15:28:12Z – claude:opus:tbd:implementer – shell_pid=822589 – Assigned agent via action command
