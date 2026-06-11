@@ -12,7 +12,8 @@ branch_strategy: Planning artifacts for this mission were generated on feat/doct
 subtasks:
 - T019
 - T020
-agent: claude
+agent: "claude:opus:tbd:implementer"
+shell_pid: "822589"
 history:
 - '2026-06-09: created by /spec-kitty.tasks (planner-priti)'
 agent_profile: architect-alphonso
@@ -59,3 +60,7 @@ Owned: `architecture/3.x/adr/**` (add one ADR; do not edit unrelated ADRs). **Ou
 
 ## Risks
 - Authoring two parallel abstractions (violates C-005) — the ADR must explicitly unify #1804/#1802.
+
+## Activity Log
+
+- 2026-06-11T15:28:16Z – claude:opus:tbd:implementer – shell_pid=822589 – Assigned agent via action command
