@@ -1,7 +1,7 @@
 # Tasks: Doctrine, Glossary & Architecture Consolidation
 
-**Mission**: doctrine-glossary-architecture-consolidation-01KTNWFC | **Branch**: fixups/code-engine-stabilization
-**Plan**: [plan.md](./plan.md) | **Decisions**: [research.md](./research.md) | **change_mode**: bulk_edit
+**Mission**: doctrine-glossary-architecture-consolidation-01KTNWFC | **Branch**: feat/doctrine-glossary-consolidation-01KTNWFC
+**Plan**: [plan.md](./plan.md) | **Decisions**: [research.md](./research.md) | **change_mode**: standard (O1-reverted; checklist-only occurrence_map)
 
 11 work packages from the 9 ICs. Phase 1 (moves, bulk_edit) → Phase 2 (authoring) ; code lanes parallel ; #391 dogfood last.
 
@@ -52,14 +52,14 @@
 - **Goal**: Make `glossary/` the single source of truth (C-005, R-01); eliminate scattered glossary locations; refresh content for the new epics (FR-010) and record the runtime-scope defer (FR-011). *(Merged former WP07 to keep `glossary/**` ownership in one WP.)*
 - **Priority**: P1 (gates Phase 2 authoring) | **Independent test**: `glossary validate` + loader tests pass against top-level `glossary/`; no dangling glossary refs.
 - **Subtasks**: - [ ] T001 (WP01) · - [ ] T002 (WP01) · - [ ] T003 (WP01) · - [ ] T004 (WP01) · - [ ] T005 (WP01) · - [ ] T021 (WP01) · - [ ] T022 (WP01)
-- **change_mode**: bulk_edit (occurrence_map glossary section) | **Depends on**: none | **Est**: ~420 lines
+- **change_mode**: standard (O1 revert: occurrence_map is a reference-rewrite checklist, not a gate) | **Depends on**: none | **Est**: ~420 lines
 - **Risks**: missed reference breaks glossary loading / charter authority path; terminology guard on refreshed content.
 
 ### WP02 — Living-architecture layout + moves
 - **Goal**: Top-level living `architecture/` (vision/, audience/, diagrams/, README boundary rule) + versioned history; carry C4 forward; rewrite architecture refs incl. charter authority paths.
 - **Priority**: P1 | **Independent test**: reference-integrity grep clean; README states boundary rule + decay path.
 - **Subtasks**: - [ ] T006 (WP02) · - [ ] T007 (WP02) · - [ ] T008 (WP02) · - [ ] T009 (WP02) · - [ ] T010 (WP02)
-- **change_mode**: bulk_edit (occurrence_map architecture section) | **Depends on**: WP01 (shares the charter authority-path file; needs final glossary path) | **Est**: ~360 lines
+- **change_mode**: standard (O1-reverted; checklist-only occurrence_map) (occurrence_map architecture section) | **Depends on**: WP01 (shares the charter authority-path file; needs final glossary path) | **Est**: ~360 lines
 - **Risks**: broken internal doc links; decay rule must be documented to prevent re-drift.
 
 ## Phase 2 — Authoring (into the settled layout)

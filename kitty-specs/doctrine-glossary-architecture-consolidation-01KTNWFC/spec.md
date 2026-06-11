@@ -3,7 +3,7 @@
 **Mission ID**: 01KTNWFC3B1ZGFR9FTT77X7H2Y
 **Slug**: doctrine-glossary-architecture-consolidation
 **Type**: software-dev
-**Target branch**: fixups/code-engine-stabilization
+**Target branch**: feat/doctrine-glossary-consolidation-01KTNWFC
 **Tracker**: epic #1799 (Charter & Doctrine); bundles #1811, #1805, #1397, #1755, #1418
 
 ## Purpose
@@ -50,7 +50,7 @@ Following a full issue-tracker remediation (see repo `work/` traces), turn the p
 
 | ID | Constraint | Status |
 |----|-----------|--------|
-| C-001 | All work plans, implements, and merges on `fixups/code-engine-stabilization`; no new mission branch is introduced. | Active |
+| C-001 | All work plans, implements, and merges on `feat/doctrine-glossary-consolidation-01KTNWFC`; no new mission branch is introduced. | Active |
 | C-002 | Use canonical doctrine templates / CLI surfaces; do not improvise artefacts or copy older missions. | Active |
 | C-003 | Honour the Terminology Canon (Mission not feature; canonical glossary terms); terminology guard must pass. | Active |
 | C-004 | Preserve existing charter content and user customizations; charter `extends:` must be additive, not destructive. | Active |

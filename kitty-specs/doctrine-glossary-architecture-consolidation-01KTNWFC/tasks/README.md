@@ -23,9 +23,9 @@ Each WP file **MUST** use YAML frontmatter:
 work_package_id: "WP01"
 title: "Work Package Title"
 dependencies: []
-planning_base_branch: "fixups/code-engine-stabilization"
-merge_target_branch: "fixups/code-engine-stabilization"
-branch_strategy: "Planning artifacts were generated on fixups/code-engine-stabilization; completed changes must merge back into fixups/code-engine-stabilization."
+planning_base_branch: "feat/doctrine-glossary-consolidation-01KTNWFC"
+merge_target_branch: "feat/doctrine-glossary-consolidation-01KTNWFC"
+branch_strategy: "Planning artifacts were generated on feat/doctrine-glossary-consolidation-01KTNWFC; completed changes must merge back into feat/doctrine-glossary-consolidation-01KTNWFC."
 subtasks:
   - "T001"
   - "T002"

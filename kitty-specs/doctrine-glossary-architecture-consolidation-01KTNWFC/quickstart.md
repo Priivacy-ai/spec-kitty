@@ -2,7 +2,7 @@
 
 How to verify the consolidated artefacts (maps to NFR-001…004 and the Success Criteria).
 
-## Gate checks (run from repo root, on `fixups/code-engine-stabilization`)
+## Gate checks (run from repo root, on `feat/doctrine-glossary-consolidation-01KTNWFC`)
 
 ```bash
 # Terminology canon (C-003) — must pass after any prose/glossary edit
