@@ -129,22 +129,23 @@ def _render_doctrine_pack(pack_entry: dict[str, object], pack_index: int) -> Non
         f"[{color}]Pack:[/{color}] {name}  ({', '.join(summary_parts)}){status_suffix}"
     )
     _render_pack_invalid_profiles(pack_health)
+    _render_org_charter_line(pack_entry.get("org_charter"))
 
-    charter = pack_entry.get("org_charter") or {}
-    if isinstance(charter, dict) and charter.get("present"):
-        if charter.get("module_available", True):
-            counts_msg = (
-                f"{charter.get('interview_defaults_count', 0)} interview defaults, "
-                f"{charter.get('required_directives_count', 0)} required directives, "
-                f"{charter.get('governance_policies_count', 0)} governance policies"
-            )
-            console.print(f"  org-charter.yaml: {counts_msg}")
-        else:
-            console.print(
-                "  org-charter.yaml: present (policy module not yet shipped)"
-            )
-    else:
+
+def _render_org_charter_line(charter: object) -> None:
+    """Render the per-pack ``org-charter.yaml`` status line."""
+    if not (isinstance(charter, dict) and charter.get("present")):
         console.print("  org-charter.yaml: [dim]not present[/dim]")
+        return
+    if not charter.get("module_available", True):
+        console.print("  org-charter.yaml: present (policy module not yet shipped)")
+        return
+    counts_msg = (
+        f"{charter.get('interview_defaults_count', 0)} interview defaults, "
+        f"{charter.get('required_directives_count', 0)} required directives, "
+        f"{charter.get('governance_policies_count', 0)} governance policies"
+    )
+    console.print(f"  org-charter.yaml: {counts_msg}")
 
 
 def _emit_doctrine_human(

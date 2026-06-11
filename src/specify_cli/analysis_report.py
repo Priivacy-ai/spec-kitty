@@ -252,6 +252,16 @@ def _validate_findings_carrier(carrier: dict[str, Any]) -> tuple[list[dict[str, 
     if not isinstance(raw_findings, list):
         raise FindingsCarrierError("analysis-findings 'findings' must be a list.")
 
+    findings, tally = _normalize_findings(raw_findings)
+    counts = _resolve_counts(carrier.get("counts"), tally)
+    return findings, counts
+
+
+def _normalize_findings(
+    raw_findings: list[Any],
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    """Validate each finding entry and return ``(findings, severity tally)``."""
+
     findings: list[dict[str, Any]] = []
     tally = dict.fromkeys(_FINDING_SEVERITIES, 0)
     for entry in raw_findings:
@@ -272,29 +282,34 @@ def _validate_findings_carrier(carrier: dict[str, Any]) -> tuple[list[dict[str, 
                 "summary": entry.get("summary"),
             }
         )
+    return findings, tally
 
-    declared = carrier.get("counts")
+
+def _resolve_counts(
+    declared: Any, tally: dict[str, int]
+) -> dict[str, int | None]:
+    """Reconcile the declared ``counts`` block (if any) against the tally."""
+
     if declared is None:
         counts: dict[str, int | None] = {key: int(tally[key]) for key in _FINDING_SEVERITIES}
         counts["info"] = 0
-    else:
-        if not isinstance(declared, dict):
-            raise FindingsCarrierError("analysis-findings 'counts' must be a mapping.")
-        unknown_keys = set(declared) - _COUNT_KEYS
-        if unknown_keys:
+        return counts
+    if not isinstance(declared, dict):
+        raise FindingsCarrierError("analysis-findings 'counts' must be a mapping.")
+    unknown_keys = set(declared) - _COUNT_KEYS
+    if unknown_keys:
+        raise FindingsCarrierError(
+            f"Unknown counts keys {sorted(unknown_keys)}; allowed: {sorted(_COUNT_KEYS)}."
+        )
+    for key in _FINDING_SEVERITIES:
+        declared_count = declared.get(key, 0)
+        if declared_count != tally[key]:
             raise FindingsCarrierError(
-                f"Unknown counts keys {sorted(unknown_keys)}; allowed: {sorted(_COUNT_KEYS)}."
+                f"counts[{key!r}]={declared_count} does not equal findings tally {tally[key]}."
             )
-        for key in _FINDING_SEVERITIES:
-            declared_count = declared.get(key, 0)
-            if declared_count != tally[key]:
-                raise FindingsCarrierError(
-                    f"counts[{key!r}]={declared_count} does not equal findings tally {tally[key]}."
-                )
-        counts = {key: int(tally[key]) for key in _FINDING_SEVERITIES}
-        counts["info"] = int(declared.get("info", 0))
-
-    return findings, counts
+    counts = {key: int(tally[key]) for key in _FINDING_SEVERITIES}
+    counts["info"] = int(declared.get("info", 0))
+    return counts
 
 
 def compute_verdict_from_findings(findings: list[dict[str, Any]]) -> str:

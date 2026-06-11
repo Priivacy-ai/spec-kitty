@@ -256,18 +256,8 @@ def _iter_records_from_index(
         # Determine open / closed by checking the per-invocation file.
         inv_file = events_dir / f"{inv_id}.jsonl"
         record: dict = dict(entry)  # type: ignore[type-arg]
-        completed_raw = _read_completed_record(inv_file, inv_id)
-        if completed_raw is not None:
-            completed = _parse_completed(completed_raw, legacy_ids)
-            if completed is None:
-                continue  # legacy line → warn-and-skip (see _warn_legacy)
-            record["completed_at"] = completed.completed_at
-            record["outcome"] = completed.outcome
-            record["closed_by"] = completed.closed_by
-            record["evidence_ref"] = completed.evidence_ref
-            record["status"] = "closed"
-        else:
-            record["status"] = "open"
+        if not _apply_completion_status(record, inv_file, inv_id, legacy_ids):
+            continue  # legacy line → warn-and-skip (see _warn_legacy)
         # Also read full started record to get 'action' field (not stored in index).
         started_raw = _read_first_line(inv_file)
         if started_raw is None:
@@ -279,6 +269,32 @@ def _iter_records_from_index(
         record.setdefault("event", started.event)
         yield record
         count += 1
+
+
+def _apply_completion_status(
+    record: dict,  # type: ignore[type-arg]
+    inv_file: Path,
+    inv_id: str,
+    legacy_ids: list[str] | None,
+) -> bool:
+    """Enrich *record* with completed/open status from *inv_file*.
+
+    Returns ``False`` when the completion line is a legacy record that must be
+    warn-and-skipped (see ``_warn_legacy``); ``True`` otherwise.
+    """
+    completed_raw = _read_completed_record(inv_file, inv_id)
+    if completed_raw is None:
+        record["status"] = "open"
+        return True
+    completed = _parse_completed(completed_raw, legacy_ids)
+    if completed is None:
+        return False  # legacy line → warn-and-skip (see _warn_legacy)
+    record["completed_at"] = completed.completed_at
+    record["outcome"] = completed.outcome
+    record["closed_by"] = completed.closed_by
+    record["evidence_ref"] = completed.evidence_ref
+    record["status"] = "closed"
+    return True
 
 
 def _iter_records_from_dir(
@@ -314,18 +330,8 @@ def _iter_records_from_dir(
             continue  # legacy line → warn-and-skip (see _warn_legacy)
         record: dict = started.model_dump(exclude_none=True)  # type: ignore[type-arg]
         inv_id = started.invocation_id
-        completed_raw = _read_completed_record(path, inv_id)
-        if completed_raw is not None:
-            completed = _parse_completed(completed_raw, legacy_ids)
-            if completed is None:
-                continue  # legacy line → warn-and-skip (see _warn_legacy)
-            record["completed_at"] = completed.completed_at
-            record["outcome"] = completed.outcome
-            record["closed_by"] = completed.closed_by
-            record["evidence_ref"] = completed.evidence_ref
-            record["status"] = "closed"
-        else:
-            record["status"] = "open"
+        if not _apply_completion_status(record, path, inv_id, legacy_ids):
+            continue  # legacy line → warn-and-skip (see _warn_legacy)
         raw_records.append(record)
 
     raw_records.sort(key=lambda r: r.get("started_at", ""), reverse=True)
