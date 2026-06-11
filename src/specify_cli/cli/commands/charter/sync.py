@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 import typer
 
@@ -13,10 +14,13 @@ from specify_cli.cli.commands.charter._common import _emit_error, _resolve_chart
 # Test-patch shim — see ``synthesize.py``.
 import specify_cli.cli.commands.charter as _charter_pkg
 
+if TYPE_CHECKING:
+    from charter.sync import SyncResult
+
 __all__ = ["sync"]
 
 
-def _sync_json_payload(result: object) -> dict[str, object]:
+def _sync_json_payload(result: SyncResult) -> dict[str, object]:
     """Return stable JSON output for ``charter sync``."""
     return {
         "result": "success" if result.synced else "noop",
@@ -29,7 +33,7 @@ def _sync_json_payload(result: object) -> dict[str, object]:
     }
 
 
-def _emit_sync_human_result(result: object) -> None:
+def _emit_sync_human_result(result: SyncResult) -> None:
     """Render the non-JSON ``charter sync`` result."""
     if result.error:
         console.print(f"[red]Error:[/red] {result.error}")
