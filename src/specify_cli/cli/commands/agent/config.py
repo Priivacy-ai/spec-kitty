@@ -564,15 +564,21 @@ def sync_agents(
         help="Create directories for configured agents that are missing",
     ),
     remove_orphaned: bool = typer.Option(
-        True,
+        False,
         "--remove-orphaned/--keep-orphaned",
         help="Remove directories for agents not in config",
+    ),
+    sync_hooks: bool = typer.Option(
+        False,
+        "--sync-hooks",
+        help="Update AI harness hook configurations (Claude, Cursor, etc.)",
     ),
 ):
     """Sync filesystem with config.yaml.
 
     By default, removes orphaned directories (present but not configured).
     Use --create-missing to also create directories for configured agents.
+    Use --sync-hooks to update harness-specific post-edit hooks.
     """
     try:
         repo_root = find_repo_root()
@@ -593,10 +599,128 @@ def sync_agents(
     if create_missing:
         changes_made = _check_or_create_configured_agent_dirs(repo_root, config) or changes_made
 
+    # Sync hooks
+    if sync_hooks:
+        changes_made = _sync_harness_hooks(repo_root, config) or changes_made
+
     if not changes_made:
         console.print("[dim]No changes needed - filesystem matches config[/dim]")
     else:
         console.print("\n[green]✓ Sync complete[/green]")
+
+
+def _sync_harness_hooks(repo_root: Path, config: AgentConfig) -> bool:
+    """Update harness hook configurations based on lint_on_edit setting."""
+    console.print("\n[cyan]Syncing harness hooks...[/cyan]")
+    changes = False
+
+    # Claude Code
+    claude_settings = repo_root / ".claude" / "settings.json"
+    if "claude" in config.available or claude_settings.parent.exists():
+        if _sync_claude_hooks(claude_settings, config.lint_on_edit):
+            changes = True
+
+    # Cursor
+    cursor_hooks = repo_root / ".cursor" / "hooks.json"
+    if "cursor" in config.available or cursor_hooks.parent.exists():
+        if _sync_cursor_hooks(cursor_hooks, config.lint_on_edit):
+            changes = True
+
+    return changes
+
+
+def _sync_claude_hooks(path: Path, enabled: bool) -> bool:
+    import json
+    path.parent.mkdir(parents=True, exist_ok=True)
+    
+    data = {}
+    if path.exists():
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except Exception:
+            pass
+
+    hooks = data.get("hooks", {})
+    post_tool_use = hooks.get("PostToolUse", [])
+    
+    # Check if our lint hook already exists
+    lint_hook_command = "spec-kitty lint --json"
+    existing_hook_idx = -1
+    for i, h_group in enumerate(post_tool_use):
+        if h_group.get("matcher") == "Edit|Write":
+            for hook in h_group.get("hooks", []):
+                if hook.get("command") == lint_hook_command:
+                    existing_hook_idx = i
+                    break
+    
+    changed = False
+    if enabled:
+        if existing_hook_idx == -1:
+            post_tool_use.append({
+                "matcher": "Edit|Write",
+                "hooks": [{"type": "command", "command": lint_hook_command}]
+            })
+            changed = True
+    else:
+        if existing_hook_idx != -1:
+            post_tool_use.pop(existing_hook_idx)
+            changed = True
+            
+    if changed:
+        hooks["PostToolUse"] = post_tool_use
+        data["hooks"] = hooks
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)
+        console.print(f"  [green]✓[/green] {'Updated' if enabled else 'Removed'} Claude Code lint hook")
+    else:
+        console.print("  [dim]• Claude Code hooks already in sync[/dim]")
+        
+    return changed
+
+
+def _sync_cursor_hooks(path: Path, enabled: bool) -> bool:
+    import json
+    path.parent.mkdir(parents=True, exist_ok=True)
+    
+    data = {"version": 1, "hooks": {}}
+    if path.exists():
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except Exception:
+            pass
+
+    hooks = data.get("hooks", {})
+    after_file_edit = hooks.get("afterFileEdit", [])
+    
+    lint_hook_command = "spec-kitty lint --json"
+    existing_hook_idx = -1
+    for i, hook in enumerate(after_file_edit):
+        if hook.get("command") == lint_hook_command:
+            existing_hook_idx = i
+            break
+            
+    changed = False
+    if enabled:
+        if existing_hook_idx == -1:
+            after_file_edit.append({"command": lint_hook_command})
+            changed = True
+    else:
+        if existing_hook_idx != -1:
+            after_file_edit.pop(existing_hook_idx)
+            changed = True
+            
+    if changed:
+        hooks["afterFileEdit"] = after_file_edit
+        data["hooks"] = hooks
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)
+        console.print(f"  [green]✓[/green] {'Updated' if enabled else 'Removed'} Cursor lint hook")
+    else:
+        console.print("  [dim]• Cursor hooks already in sync[/dim]")
+        
+    return changed
 
 
 @app.command(name="set")
@@ -608,10 +732,11 @@ def set_config(
 
     Currently supported keys:
         auto_commit  - Enable/disable automatic commits by agents (true/false)
+        lint_on_edit - Enable/disable auto-linting feedback loop (true/false)
 
     Examples:
         spec-kitty agent config set auto_commit false
-        spec-kitty agent config set auto_commit true
+        spec-kitty agent config set lint_on_edit true
     """
     try:
         repo_root = find_repo_root()
@@ -634,13 +759,26 @@ def set_config(
 
         status_label = "[green]enabled[/green]" if config.auto_commit else "[yellow]disabled[/yellow]"
         console.print(f"[green]✓[/green] auto_commit set to {status_label}")
-        if not config.auto_commit:
-            console.print("[dim]Agents will stage changes but not create commits unless explicitly instructed.[/dim]")
-            console.print("[dim]Per-command flags (--auto-commit/--no-auto-commit) override this setting.[/dim]")
+    elif key == "lint_on_edit":
+        if value.lower() in ("true", "1", "yes", "on"):
+            config.lint_on_edit = True
+        elif value.lower() in ("false", "0", "no", "off"):
+            config.lint_on_edit = False
+        else:
+            console.print(f"[red]Error:[/red] Invalid value for lint_on_edit: '{value}'. Use 'true' or 'false'.")
+            raise typer.Exit(1)
+
+        save_agent_config(repo_root, config)
+
+        status_label = "[green]enabled[/green]" if config.lint_on_edit else "[yellow]disabled[/yellow]"
+        console.print(f"[green]✓[/green] lint_on_edit set to {status_label}")
+        if config.lint_on_edit:
+            console.print("[cyan]Tip:[/cyan] Run 'spec-kitty agent config sync --sync-hooks' to update harness configurations.")
     else:
         console.print(f"[red]Error:[/red] Unknown configuration key: '{key}'")
         console.print("\nSupported keys:")
         console.print("  auto_commit  - Enable/disable automatic commits by agents (true/false)")
+        console.print("  lint_on_edit - Enable/disable auto-linting feedback loop (true/false)")
         raise typer.Exit(1)
 
 
