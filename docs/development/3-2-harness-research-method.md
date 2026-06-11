@@ -41,7 +41,7 @@ The set is the union of (a) directories present in the repo, (b) entries in `CLA
 
 For each candidate harness, the research process records:
 
-1. **Installed surface directory** — the conventional path Spec Kitty deploys command/skill/prompt files to (e.g., `.claude/commands/`, `.codex/`, `.agents/skills/`).
+1. **Installed surface directory** — the conventional path Spec Kitty deploys command/skill/prompt files to (e.g., `.claude/commands/`, `.agents/skills/spec-kitty.advise`, `.amazonq/prompts/`); legacy `.codex/` roots may still appear on older hosts.
 2. **Presence check** — `ls -d <dir>` against the active host; record present/absent and file count.
 3. **Cross-reference** — every present surface must match an entry in `CLAUDE.md` §"Supported AI Agents".
 
@@ -68,7 +68,7 @@ done
 | Harness | Expected directory | On-disk? | Files observed |
 |---------|--------------------|----------|----------------|
 | Claude Code | `.claude/commands/` | partial (dir exists, no `commands/` subdir in this lane) | — |
-| Codex CLI | `.codex/` and/or `.agents/skills/spec-kitty.*` | yes (skills) | `.agents/skills/spec-kitty.advise` |
+| Codex CLI | `.agents/skills/spec-kitty.advise` | yes (skills) | `.agents/skills/spec-kitty.advise`; legacy `.codex/` only on pre-3.2 hosts |
 | OpenCode | `.opencode/command/` | yes | `spec-kitty-standalone.md` |
 | Cursor | `.cursor/commands/` | yes | `spec-kitty-standalone.md` |
 | Gemini CLI | `.gemini/commands/` | yes | `spec-kitty-standalone.md` |
