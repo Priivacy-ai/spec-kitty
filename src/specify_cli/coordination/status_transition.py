@@ -243,37 +243,7 @@ def _read_events_from_transaction_target(
     mission_slug: str,
 ) -> list[StatusEvent]:
     """Read target status events without creating worktrees or commits."""
-    if not _transaction_topology_available(identity, mission_slug):
-        if _is_coordination_feature_dir(identity.feature_dir):
-            return read_event_log(EventLogReadContract.coordination_worktree(identity.feature_dir))
-        return read_event_log(EventLogReadContract.primary_checkout(identity.feature_dir))
-    if identity.coordination_branch is None:
-        return read_event_log(EventLogReadContract.primary_checkout(identity.feature_dir))
-
-    from specify_cli.coordination.workspace import CoordinationWorkspace  # noqa: PLC0415
-
-    worktree_root = CoordinationWorkspace.worktree_path(
-        identity.repo_root,
-        mission_slug,
-        identity.mid8,
-    )
-    transaction_feature_dir = worktree_root / KITTY_SPECS_DIR / _transaction_dir_name(
-        mission_slug,
-        identity.mid8,
-    )
-    if worktree_root.exists():
-        return read_event_log(
-            EventLogReadContract.coordination_worktree(transaction_feature_dir)
-        )
-
-    return read_event_log(
-        EventLogReadContract.coordination_branch_ref(
-            repo_root=identity.repo_root,
-            destination_ref=identity.destination_ref,
-            feature_dir=transaction_feature_dir,
-            parser_feature_dir=identity.feature_dir,
-        )
-    )
+    return read_event_log(_read_contract_from_transaction_target(identity, mission_slug))
 
 
 def read_current_wp_state_transactional(
@@ -333,6 +303,12 @@ def _read_contract_from_transaction_target(
     )
     if worktree_root.exists():
         return EventLogReadContract.coordination_worktree(transaction_feature_dir)
+    if not _branch_exists(identity.repo_root, identity.destination_ref):
+        # The coordination branch was deleted (e.g. post-merge cleanup).
+        # FR-018 recreates it from the destination ref at write time, so the
+        # primary checkout is the authoritative read source until then;
+        # reading the dangling ref would report every WP as genesis (#1847).
+        return EventLogReadContract.primary_checkout(identity.feature_dir)
     return EventLogReadContract.coordination_branch_ref(
         repo_root=identity.repo_root,
         destination_ref=identity.destination_ref,
