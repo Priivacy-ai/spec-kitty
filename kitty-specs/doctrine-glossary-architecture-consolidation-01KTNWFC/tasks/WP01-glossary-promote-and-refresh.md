@@ -21,8 +21,8 @@ subtasks:
 - T005
 - T021
 - T022
-agent: claude
-shell_pid: '754690'
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "781423"
 history:
 - '2026-06-09: created by /spec-kitty.tasks (planner-priti)'
 agent_profile: curator-carla
@@ -92,3 +92,4 @@ Doctrine/glossary sign-off + reviewer profile (reviewer-renata). Reviewer verifi
 ## Activity Log
 
 - 2026-06-11T15:00:59Z – claude – shell_pid=754690 – Glossary reconcile complete: 7/7 subtasks done; residual architecture/glossary pointer deleted; planning-and-tracking context page added; 104 tests green incl. terminology guard; occurrence_map finalize relocated to planning branch. Implementer: curator-carla, lane-a 3c74f7686.
+- 2026-06-11T15:01:38Z – claude:opus:reviewer-renata:reviewer – shell_pid=781423 – Started review via action command
