@@ -140,6 +140,22 @@ or explicitly deferred with rationale.
 
 ---
 
+## F-009 — post-merge `spec-kitty review` verdict: fail (4 findings) 🟡 → fan-out
+
+- **When:** closeout, post-merge `spec-kitty review --mode post-merge` (2026-06-10). All 12 WPs `done`;
+  WP-lane ✓, review-artifact ✓, issue-matrix (19 rows) ✓. Dead-code scan + BLE001 flagged 4:
+  - **`retrospective/writer.py:legacy_record_path`** — only referenced intra-module (writer.py:80/530) + a
+    test → genuinely should be **private** (`_legacy_record_path`) or de-exported. **Real minor finding.**
+  - **`sync/owner.py:ReapResult`** + **`canonical_executable_scope`** — public API of owner.py consumed by
+    tests + internally (reaper return type / singleton-key helper). Likely the dead-code scan's documented
+    **"public-API-consumed-only-by-tests" false-positive**; de-export or annotate. **reducer-randy to adjudicate.**
+  - **`cli/commands/_auth_doctor.py:236` BLE001** — `except Exception: # noqa: BLE001` with no reason.
+    **Pre-existing (commit 38abeebf, #1297) — NOT a mission-touched file**; whole-repo scan artifact, out of mission scope.
+- **Disposition:** report at `kitty-specs/execution-context-unification-01KTPKST/mission-review-report.md`.
+  These feed the **fan-out deep-dive** (reducer-randy owns dead-code/export hygiene); remediation + the
+  `legacy_record_path` privatization land via the aggregation under operator direction.
+- **Status:** 🟡 surfaced; deferred to fan-out + operator (1 real privatization, 2 likely-false-positive, 1 pre-existing/out-of-scope).
+
 ## Closeout acceptance summary (fill at merge)
 
 | ID | Status | Fixed by (FR/IC + commit) / deferral rationale |

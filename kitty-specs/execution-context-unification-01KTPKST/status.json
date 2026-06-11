@@ -1,16 +1,16 @@
 {
-  "event_count": 82,
-  "last_event_id": "01KTR05ZVC9TYE2A5SMQCZ2EKJ",
-  "materialized_at": "2026-06-10T05:30:47.020496+00:00",
+  "event_count": 94,
+  "last_event_id": "01KTR1CTHSQ9XTGWSJGXAWNTMN",
+  "materialized_at": "2026-06-10T05:51:59.545384+00:00",
   "mission_number": "",
   "mission_slug": "execution-context-unification-01KTPKST",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 12,
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 12,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -18,88 +18,88 @@
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01KTPTWEKR4Y54HX47J6HF7DC1",
-      "last_transition_at": "2026-06-09T18:38:57.144389+00:00"
+      "lane": "done",
+      "last_event_id": "01KTR1CNSCARS23J2PVPRMXTQM",
+      "last_transition_at": "2026-06-10T05:51:54.668522+00:00"
     },
     "WP02": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01KTPXKFJH6K3CZ3HF9E9V1XGQ",
-      "last_transition_at": "2026-06-09T19:26:28.945451+00:00"
+      "lane": "done",
+      "last_event_id": "01KTR1CPA17WABSKBF1SJF4SFW",
+      "last_transition_at": "2026-06-10T05:51:55.201113+00:00"
     },
     "WP03": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01KTPZ3BP2A02V69Y5HVX22EJ9",
-      "last_transition_at": "2026-06-09T19:52:37.826038+00:00"
+      "lane": "done",
+      "last_event_id": "01KTR1CQKC47YXE68F4T0725SV",
+      "last_transition_at": "2026-06-10T05:51:56.524027+00:00"
     },
     "WP04": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01KTQQYXDPQNPHQB1ZGAC8339Z",
-      "last_transition_at": "2026-06-10T03:07:06.550978+00:00"
+      "lane": "done",
+      "last_event_id": "01KTR1CRE9BJG924HQGXDBRZ7G",
+      "last_transition_at": "2026-06-10T05:51:57.385982+00:00"
     },
     "WP05": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01KTQT9WBRR74QDZZYNXCEVH3Y",
-      "last_transition_at": "2026-06-10T03:48:03.064963+00:00"
+      "lane": "done",
+      "last_event_id": "01KTR1CRVAR7DJ741HGV439V2X",
+      "last_transition_at": "2026-06-10T05:51:57.802354+00:00"
     },
     "WP06": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01KTQSFE6F3TMR9N26KK6PPW8V",
-      "last_transition_at": "2026-06-10T03:33:36.591633+00:00"
+      "lane": "done",
+      "last_event_id": "01KTR1CT3VAVDG0Y5CQYYDBDHR",
+      "last_transition_at": "2026-06-10T05:51:59.099210+00:00"
     },
     "WP07": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01KTQV3NNF54YBJCE9APE9TQMR",
-      "last_transition_at": "2026-06-10T04:02:08.175078+00:00"
+      "lane": "done",
+      "last_event_id": "01KTR1CS8V8JGH5ZJBM0HQ3XCV",
+      "last_transition_at": "2026-06-10T05:51:58.235579+00:00"
     },
     "WP08": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 1,
-      "lane": "approved",
-      "last_event_id": "01KTQZDVBV64S5BW4C7FXAJSG2",
-      "last_transition_at": "2026-06-10T05:17:35.995858+00:00"
+      "lane": "done",
+      "last_event_id": "01KTR1CSP769V59MMX1DR2E862",
+      "last_transition_at": "2026-06-10T05:51:58.663138+00:00"
     },
     "WP09": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01KTQ2BRMKX3G82PCCSWWJXGWW",
-      "last_transition_at": "2026-06-09T20:49:38.963604+00:00"
+      "lane": "done",
+      "last_event_id": "01KTR1CR0P64PTCV864K0B364S",
+      "last_transition_at": "2026-06-10T05:51:56.950830+00:00"
     },
     "WP10": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01KTQ2CG24PW8JJ81RQAARG19X",
-      "last_transition_at": "2026-06-09T20:50:02.948976+00:00"
+      "lane": "done",
+      "last_event_id": "01KTR1CPQEWWF6FRAKF1613J9K",
+      "last_transition_at": "2026-06-10T05:51:55.630797+00:00"
     },
     "WP11": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01KTR05ZVC9TYE2A5SMQCZ2EKJ",
-      "last_transition_at": "2026-06-10T05:30:47.020496+00:00"
+      "lane": "done",
+      "last_event_id": "01KTR1CTHSQ9XTGWSJGXAWNTMN",
+      "last_transition_at": "2026-06-10T05:51:59.545384+00:00"
     },
     "WP12": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 1,
-      "lane": "approved",
-      "last_event_id": "01KTQ2Y43Z2V2MT6E0YAA794AC",
-      "last_transition_at": "2026-06-09T20:59:40.543574+00:00"
+      "lane": "done",
+      "last_event_id": "01KTR1CQ5BF86N6SC2HH6V2A4F",
+      "last_transition_at": "2026-06-10T05:51:56.075208+00:00"
     }
   }
 }

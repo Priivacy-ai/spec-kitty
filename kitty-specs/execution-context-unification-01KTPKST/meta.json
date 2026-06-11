@@ -13,6 +13,7 @@
   "accepted_at": "2026-06-10T05:45:00.743647+00:00",
   "accepted_by": "stijn",
   "accepted_from_commit": "c0e07b5e6d9d3b7cecc2593399fd7ffee46b3837",
+  "baseline_merge_commit": "88a5671085f6f47a5d998ffec1947242d200bcf7",
   "created_at": "2026-06-09T16:35:11.228066+00:00",
   "friendly_name": "Execution-Context Unification",
   "mission_id": "01KTPKSTQVPMFXEN413XSMDP24",
