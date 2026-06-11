@@ -12,7 +12,7 @@ Source-of-truth contract:
 from __future__ import annotations
 
 from specify_cli.coordination.surface_resolver import resolve_status_surface
-from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR
 from specify_cli.missions.feature_dir_resolver import (
     candidate_feature_dir_for_mission,
 )
@@ -500,7 +500,7 @@ def _discover_missions_for_backfill(
         mission_id, mission_slug, completed_at, meta_path
     """
     candidates: list[dict[str, object]] = []
-    missions_root = repo_root / ".kittify" / "missions"
+    missions_root = repo_root / KITTIFY_DIR / "missions"
 
     if not missions_root.is_dir():
         return candidates
@@ -940,7 +940,7 @@ def summary_cmd(  # noqa: C901
     # Resolve project root
     resolved_project: Path = project.resolve() if project is not None else Path.cwd()
 
-    has_kittify = (resolved_project / ".kittify").exists()
+    has_kittify = (resolved_project / KITTIFY_DIR).exists()
     has_mission_specs = (resolved_project / KITTY_SPECS_DIR).exists()
     if not has_kittify and not has_mission_specs:
         _err_console.print(
@@ -989,7 +989,7 @@ def summary_cmd(  # noqa: C901
         "failed": 0,
     }
 
-    missions_dir = resolved_project / ".kittify" / "missions"
+    missions_dir = resolved_project / KITTIFY_DIR / "missions"
     if missions_dir.is_dir():
         for mission_dir in sorted(missions_dir.iterdir()):
             if not mission_dir.is_dir():

@@ -80,6 +80,7 @@ from specify_cli.task_utils import (
 
 logger = logging.getLogger(__name__)
 TASKS_MD_FILENAME = "tasks.md"
+SPEC_MD_FILENAME = "spec.md"
 UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
@@ -157,7 +158,7 @@ def _issue_matrix_evaluation(
     )
     from specify_cli.tasks.issue_matrix import detect_issue_references
 
-    refs = detect_issue_references(feature_dir / "spec.md")
+    refs = detect_issue_references(feature_dir / SPEC_MD_FILENAME)
     result = validate_issue_matrix(feature_dir / "issue-matrix.md")
     referenced_issues = {f"#{ref.number}" for ref in refs}
     matrix_issues = _issue_matrix_row_issues(result)
@@ -221,7 +222,7 @@ def _issue_matrix_approval_blocker(
     reached a terminal verdict (``fixed`` / ``verified-already-fixed`` /
     ``deferred-with-followup``) before the mission lands.
     """
-    spec_path = feature_dir / "spec.md"
+    spec_path = feature_dir / SPEC_MD_FILENAME
     if not spec_path.exists():
         return None
 
@@ -3522,7 +3523,7 @@ def map_requirements(
             _output_error(json_output, f"Mission directory not found: {feature_dir}")
             raise typer.Exit(1)
 
-        spec_md = feature_dir / "spec.md"
+        spec_md = feature_dir / SPEC_MD_FILENAME
         if not spec_md.exists():
             _output_error(json_output, f"spec.md not found: {spec_md}")
             raise typer.Exit(1)

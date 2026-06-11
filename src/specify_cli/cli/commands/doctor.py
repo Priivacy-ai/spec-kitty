@@ -46,6 +46,10 @@ _CI_ENV_VARS = (
     "CIRCLECI",
 )
 
+#: Column header for the invocation/op start timestamp, reused across the
+#: orphan/open/closed invocation tables rendered by ``spec-kitty doctor``.
+_STARTED_AT_COLUMN = "Started At"
+
 
 def _is_interactive_environment() -> bool:
     """Return True iff stdin is a TTY AND no common CI env var is set.
@@ -1429,7 +1433,7 @@ def invocation_pairing(
     table.add_column("Agent", min_width=10)
     table.add_column("Mission ID", min_width=10)
     table.add_column("WP", min_width=6)
-    table.add_column("Started At", min_width=20)
+    table.add_column(_STARTED_AT_COLUMN, min_width=20)
     for entry in orphans_list:
         table.add_row(
             str(entry.get("canonical_action_id", "")),
@@ -1474,7 +1478,7 @@ def _run_ops_sweep(repo_root: Path, *, threshold_hours: float, json_output: bool
         table = Table(box=None, padding=(0, 2), show_edge=False)
         table.add_column("Invocation ID", style="cyan", min_width=26)
         table.add_column("Profile", min_width=10)
-        table.add_column("Started At", min_width=20)
+        table.add_column(_STARTED_AT_COLUMN, min_width=20)
         table.add_column("Age (h)", justify="right", min_width=8)
         table.add_column("Action", min_width=16)
         for entry in report.open_ops:
@@ -1941,7 +1945,7 @@ def orphan_daemons(
     table.add_column("Port", justify="right", min_width=6)
     table.add_column("Version", min_width=10)
     table.add_column("Executable", overflow="fold")
-    table.add_column("Started At", min_width=20)
+    table.add_column(_STARTED_AT_COLUMN, min_width=20)
     for record in orphans:
         table.add_row(
             str(record.pid),
