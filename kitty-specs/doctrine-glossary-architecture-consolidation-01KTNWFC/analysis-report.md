@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: doctrine-glossary-architecture-consolidation-01KTNWFC
 mission_id: 01KTNWFC3B1ZGFR9FTT77X7H2Y
-generated_at: '2026-06-11T14:47:16.820338+00:00'
+generated_at: '2026-06-11T15:09:10.098914+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -15,34 +15,18 @@ input_artifacts:
     sha256: 47ab7fa3d9751506decfc6e952de6dc44d262197a3069e71f4244738ea4eeac4
   tasks.md:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/kitty-specs/doctrine-glossary-architecture-consolidation-01KTNWFC/tasks.md
-    sha256: 2dbe917f13c07c8680d82cf261ff1c844bc3f25615bf7f4f1ca5aa465d6eb0a5
+    sha256: 1330e2c255942fce1c725606444077d7d65758ea8e13eafd592cb9266f5a2f08
   charter:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/.kittify/charter/charter.md
     sha256: a59cddc8725b34acacd83b9bec24e97b1ae68aa80716b7335c425c6106c18791
-verdict: ready
+verdict: unknown
 issue_counts:
-  low: 4
-  medium: 0
-  critical: 0
-  high: 0
-  info: 5
-findings:
-- id: D1
-  severity: low
-  category: consistency
-  summary: "plan.md IC-01/IC-02 still declare 'Change mode: bulk_edit' and 'move/promote' framing; the resume re-scope (move->reconcile, O1 bulk_edit revert) is encoded in spec.md/WP01/WP02/occurrence_map but NOT back-propagated to the plan ICs. Stale prose, not an operational instruction (implementers load WP prompts, which are correct)."
-- id: D2
-  severity: low
-  category: consistency
-  summary: "tasks.md body retains pre-amendment framing: header 'Phase 1 (moves, bulk_edit)', section 'Phase 1 - Restructure & moves (bulk_edit)', and Subtask-Index T002 'Move glossary content -> top-level glossary/'. The tasks.md top-matter change_mode line was corrected to 'standard', but the Phase-1 prose/T002 still say move/bulk_edit. Cosmetic vs the reconcile re-scope."
-- id: D3
-  severity: low
-  category: consistency
-  summary: "WP01 frontmatter title 'Glossary: promote to top-level + content refresh' contradicts its own Objective ('RECONCILE... not moves content to a new location'). Title is stale-trace; body is correct. Filename also says 'promote'. Title-only; no functional impact."
-- id: D4
-  severity: low
-  category: terminology
-  summary: WP06 Context uses 'no full ceremony' (colloquial). kitty-specs/ is excluded from the terminology guard (_SCAN_ROOTS = src/tests/docs) so this is NOT a CI regression, but WP06's deliverable ADR lands in architecture/3.x/adr/ which IS scanned -- implementer must not carry 'ceremony' into the ADR prose (use 'status commit' / 'heavyweight process').
+  medium:
+  low:
+  high:
+  critical:
+  info:
+findings: []
 ---
 
 ## Specification Analysis Report (resume / post-amendment) — doctrine-glossary-architecture-consolidation-01KTNWFC
