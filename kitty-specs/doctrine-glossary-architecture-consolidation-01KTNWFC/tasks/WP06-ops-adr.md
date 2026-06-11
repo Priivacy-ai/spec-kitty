@@ -33,6 +33,11 @@ Fill the top architecture gap (FR-007, `work/EPIC_ARCHITECTURE_CORRELATION.md`):
 ## Context
 - #1688 is the unratified proposal; #1810 collapses do/ask/advise → dispatch; #1802 lifecycle flows share the Op shape (bounded, governed, durable-record, no full ceremony). This ADR is the seam preventing divergence.
 - Use `architecture/adr-template.md`. Lands in `architecture/3.x/adr/` (depends on WP02 layout).
+- UPDATED sources (required — the Ops ADR must be coherent with the current execution shapes):
+  - ADR `architecture/3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md` INCLUDING its 2026-06-10 addendum (Step 7 delivered; CommitTarget is `(ref, kind)`)
+  - ADR `architecture/3.x/adr/2026-06-07-1-execution-state-canonical-surface.md` (`mission_runtime` canonical surface)
+  - `src/specify_cli/core/commit_guard.py` (`GuardCapability` model)
+  - C4/ADR content must depict these CURRENT shapes, not `execution_context.py` or `(worktree_root, destination_ref)`.
 
 ## Subtasks
 ### T019 — Author the ADR

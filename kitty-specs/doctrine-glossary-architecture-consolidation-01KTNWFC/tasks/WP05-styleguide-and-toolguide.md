@@ -36,6 +36,7 @@ Author the planning/tracking **styleguide** and the gh/GraphQL **toolguide** as 
 ## Context
 - Source material: `work/TRACKER_DOCTRINE_NOTES.md` (principles, styleguide rules) and `work/GH_TOOLING_NOTES.md` (toolguide mechanics + gotchas).
 - Schemas: `src/doctrine/schemas/styleguide.schema.yaml`, `toolguide.schema.yaml`. `src/doctrine/toolguides/` may be empty — create per schema. C-002 (canonical templates).
+- NOTE: the `work/` traces cited here predate the 2026-06-09 tracker cleanup — re-verify referenced tickets/epics against the live tracker at claim time.
 
 ## Subtasks
 ### T017 — Styleguide

@@ -6,7 +6,7 @@ Per FR-037 of the spec-kitty-mission-review skill Gate-4. One row per issue refe
 |-------|-------|---------|--------------|
 | #1799 | <fill at WP-implementation time> | unknown | <link or commit> |
 | #1811 | <fill at WP-implementation time> | unknown | <link or commit> |
-| #1805 | <fill at WP-implementation time> | unknown | <link or commit> |
+| #1805 | Restructure architecture/ vs docs/ split, refresh C4 drilldowns | in-mission | FR (WP02/WP03) — folded as source FR |
 | #1397 | <fill at WP-implementation time> | unknown | <link or commit> |
 | #1755 | <fill at WP-implementation time> | unknown | <link or commit> |
 | #1418 | <fill at WP-implementation time> | unknown | <link or commit> |

@@ -35,6 +35,7 @@ Close the DRG generator/freshness gaps (FR-009, #1755): a single **regeneration 
 ## Context
 - Contract: `contracts/charter-extends-and-drg-regen.md` §C2. DRG code in `src/doctrine/drg/` + `src/glossary/drg_builder.py`; output `src/doctrine/graph.yaml` (owned by WP10 — this WP regenerates it only in tests).
 - #1755: today there's no regeneration command and profile-edge detection is asymmetric.
+- PROVENANCE STATUS (updated): the declared `provenance: str | None` field on `DRGNode`/`DRGEdge` **has shipped** (mission 01KTRC04; `_tag_source` returns `model_copy(update=...)` — no `object.__setattr__` sidecar). The `graph.yaml` serialization is unaffected (extractor excludes the field). This WP does NOT need to create the provenance field — it is already present. Focus on regeneration command + symmetric edge detection only.
 
 ## Subtasks
 ### T026 — Regeneration command

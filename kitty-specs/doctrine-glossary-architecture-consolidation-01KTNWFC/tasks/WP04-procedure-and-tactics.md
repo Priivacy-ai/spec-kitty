@@ -38,6 +38,7 @@ Author the **planning/ticketing/tracing procedure** and supporting **tactics** a
 - Source material (authoritative): `work/TRACKER_DOCTRINE_NOTES.md` (principles, 10-step workflow, iterative-deepening, MoSCoW reminder), `work/EXECUTIVE_SUMMARY.md`, `work/TRIAGE_FINDINGS_BUGS_P0_P1.md`.
 - Schemas: `src/doctrine/schemas/procedure.schema.yaml`, `tactic.schema.yaml`. Use canonical templates — do not improvise structure (C-002).
 - Depends on WP01/WP02 (settled glossary + architecture layout to reference).
+- NOTE: the `work/` traces cited here predate the 2026-06-09 tracker cleanup — re-verify referenced tickets/epics against the live tracker at claim time.
 
 ## Subtasks
 ### T014 — Procedure: tracker-organisation workflow

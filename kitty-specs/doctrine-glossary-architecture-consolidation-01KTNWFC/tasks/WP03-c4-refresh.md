@@ -5,7 +5,8 @@ dependencies:
 - WP02
 requirement_refs:
 - FR-006
-tracker_refs: []
+tracker_refs:
+- '#1805'
 planning_base_branch: feat/doctrine-glossary-consolidation-01KTNWFC
 merge_target_branch: feat/doctrine-glossary-consolidation-01KTNWFC
 branch_strategy: Planning artifacts for this mission were generated on feat/doctrine-glossary-consolidation-01KTNWFC. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/doctrine-glossary-consolidation-01KTNWFC unless the human explicitly redirects the landing branch.
@@ -34,12 +35,19 @@ Refresh the living C4 (hand-authored Markdown + Mermaid, numbered levels) to the
 ## Context
 - Depends on WP02 (the `architecture/diagrams/` layout + carried-forward 2.x C4 must exist).
 - Source of truth for the 3.x model: the execution-state ADRs (2026-06-03-1/2/3, 2026-06-07-1), the Ops ADR (WP06), and `work/EPIC_ARCHITECTURE_CORRELATION.md`.
+- UPDATED sources (required — depict CURRENT shapes, not stale `execution_context.py` or `(worktree_root, destination_ref)`):
+  - ADR `architecture/3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md` INCLUDING its 2026-06-10 addendum (Step 7 delivered; CommitTarget is `(ref, kind)`)
+  - ADR `architecture/3.x/adr/2026-06-07-1-execution-state-canonical-surface.md` (`mission_runtime` canonical surface)
+  - `src/specify_cli/core/commit_guard.py` (`GuardCapability` model; `commit_guard.evaluate` is the single authority)
+  - Single resolution authorities: `resolve_placement_only` and `resolve_status_surface_with_anchor`
+- Deliberately OUT of scope: deterministic diagram generation (upstream #1839, deduped vs #1812) — this WP refreshes the hand-authored C4 per R-04; cross-reference only.
+- Closes #1805 (architecture/docs restructure + C4 refresh — folded as this mission's source FR).
 
 ## Subtasks
 ### T011 — Context level (01_context)
 Update the system-context Mermaid to current actors/externals (operators, agents, SaaS, tracker).
 ### T012 — Container level (02_containers)
-Reflect the three domains (Governance ⊕ Doctrine, Mission-Management durable, Execution/Runtime ephemeral) + the Op execution tier; status owned by Mission-Management (OHS facade).
+Reflect the three domains (Governance ⊕ Doctrine, Mission-Management durable, Execution/Runtime ephemeral) + the Op execution tier; status owned by Mission-Management (OHS facade). Depict `mission_runtime` as the canonical execution surface, `CommitTarget(ref, kind)` as the commit seam, and `GuardCapability` as the single commit-guard model — per the UPDATED sources listed in Context (do NOT depict `execution_context.py` or the old `(worktree_root, destination_ref)` pair).
 ### T013 — Component level (03_components)
 Refresh components for the changed domains; ensure cross-links to the relevant 3.x ADRs.
 

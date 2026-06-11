@@ -39,21 +39,21 @@ Before reading anything else, load your assigned profile: run `/ad-hoc-profile-l
 
 ## Objective
 
-Make `glossary/` the **single canonical source of truth** (C-005, R-01): consolidate the scattered glossary locations into a top-level `glossary/` surface, update all code/path references, and refresh the glossary **content** for the new epic landscape + architectural direction. Record the runtime-`GlossaryScope` promotion as an explicit **defer** (FR-011, #1418).
+**RECONCILE** the already-canonical top-level `glossary/` with the residual `architecture/glossary/` pointer content, and **DELETE** the residual (C-005, R-01): the top-level `glossary/` IS the single source of truth — this WP eliminates the parallel pointer surface, not moves content to a new location. Update all code/path references, and refresh the glossary **content** for the new epic landscape + architectural direction. Record the runtime-`GlossaryScope` promotion as an explicit **defer** (FR-011, #1418).
 
 ## Context
 
-- Decisions: `research.md` R-01 (promote glossary), R-08 (content now / scope defer), C-005 (no parallel mechanisms). This WP is **bulk_edit** — the path rewrites are governed by `occurrence_map.yaml` (glossary section); finalize that section as part of T001.
-- Today glossary lives across `architecture/glossary/`, `.kittify/glossaries/`, and is loaded via `src/glossary/scope.py` (`GlossaryScope` enum → `<scope>.yaml`). Promotion = one canonical top-level `glossary/` (+ `contexts/`).
+- Decisions: `research.md` R-01 (glossary top-level canonical), R-08 (content now / scope defer), C-005 (no parallel surfaces). The `architecture/glossary/` directory is a pointer README residual from pre-promotion — deleting it IS the C-005 fix; DO NOT re-fork a second surface. This WP is **standard** — the path rewrites are guided by the reference-rewrite checklist in `occurrence_map.yaml` (glossary section, O1 revert — advisory checklist, not an enforcement gate); finalize that section as part of T001.
+- The top-level `glossary/` (+ `contexts/`) already exists as the charter authority path (established in the #1636/01KTB6AN era + 2026-03-10 `glossary/contexts/` promotion). Confirm its presence, then remove the residual `architecture/glossary/` pointer content.
 - `GlossaryScope` enum currently: mission_local / team_domain / audience_domain / spec_kitty_core. Promotion of the planning-and-tracking subset to a runtime scope is **deferred** (record rationale; do not add an enum value here).
 
 ## Subtasks
 
 ### T001 — Inventory + finalize occurrence map (glossary section)
-Enumerate every glossary location and every reference site (charter authority paths, `src/glossary` loader, `.kittify/glossaries`, doctrine/doc cross-links). Fill the `glossary_promotion` move + the relevant categories in `occurrence_map.yaml` (filesystem_paths = rewrite; code_symbols/serialized_keys = review). All 8 categories must carry an explicit action.
+Confirm the canonical top-level `glossary/` surface and enumerate every residual reference site to `architecture/glossary/` (charter authority paths, `src/glossary` loader, `.kittify/glossaries`, doctrine/doc cross-links). Fill the `glossary_reconcile` rewrite + the relevant categories in `occurrence_map.yaml` (filesystem_paths = rewrite; code_symbols/serialized_keys = review). All 8 categories must carry an explicit action. The reference-rewrite checklist in `occurrence_map.yaml` is advisory (O1 revert — not an enforcement gate).
 
-### T002 — Move glossary content → top-level `glossary/` (+ `contexts/`)
-Hard moves, no stubs. Preserve `contexts/` (charter authority path). Frozen historical glossary snapshots inside `architecture/<version>/` are NOT moved.
+### T002 — Delete residual `architecture/glossary/` pointer content
+Delete the `architecture/glossary/` directory (pointer README and any stubs). The canonical top-level `glossary/` (+ `contexts/`) already exists — do not re-fork. Frozen historical glossary snapshots inside `architecture/<version>/` are NOT touched. Rationale: C-005 forbids parallel surfaces; the residual pointer must be removed, not preserved as a redirect.
 
 ### T003 — Update the `GlossaryScope` loader + seed paths
 Point `src/glossary/scope.py` / `seed_validation.py` at the canonical `glossary/` location. Keep the scope enum unchanged (FR-011 defer).
@@ -80,7 +80,7 @@ Owned: see frontmatter `owned_files`. **Out-of-map edits are permitted when clea
 Doctrine/glossary sign-off + reviewer profile (reviewer-renata). Reviewer verifies: single glossary surface (no second location), validate passes, no dangling refs.
 
 ## Definition of Done
-- Top-level `glossary/` is the only glossary surface; loader reads it; `glossary validate` + terminology guard pass; content refreshed; FR-011 defer recorded; occurrence_map glossary section finalized; no dangling references.
+- Top-level `glossary/` is the only glossary surface (residual `architecture/glossary/` pointer content deleted — C-005); loader reads it; `glossary validate` + terminology guard pass; content refreshed; FR-011 defer recorded; occurrence_map glossary section finalized (advisory checklist, O1 revert); no dangling references.
 
 ## Risks
 - A missed reference breaks glossary loading or the charter authority path. Mitigate via the occurrence-map inventory + post-move grep.

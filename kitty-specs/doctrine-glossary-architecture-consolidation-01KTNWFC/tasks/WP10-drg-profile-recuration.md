@@ -37,6 +37,7 @@ Sanitize and re-curate the **built-in DRG and agent profiles** (FR-009, R-09): f
 ## Context
 - Depends on WP04/WP05 (the new procedure/tactics/styleguide/toolguide must exist to be graphed) and WP09 (the regeneration command + symmetric detection).
 - Owns the committed `src/doctrine/graph.yaml` and `src/doctrine/agent_profiles/built-in/**`.
+- PROVENANCE STATUS (updated): the declared `provenance: str | None` field on `DRGNode`/`DRGEdge` **has shipped** (mission 01KTRC04; `_tag_source` returns `model_copy(update=...)` — no `object.__setattr__` sidecar exists or needs to be created). The `graph.yaml` extractor excludes this field — the committed `graph.yaml` format is unaffected. Do NOT attempt to add or recreate a provenance sidecar.
 
 ## Subtasks
 ### T029 — Add new artefacts to the DRG

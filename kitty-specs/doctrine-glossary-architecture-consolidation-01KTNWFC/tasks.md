@@ -1,7 +1,7 @@
 # Tasks: Doctrine, Glossary & Architecture Consolidation
 
 **Mission**: doctrine-glossary-architecture-consolidation-01KTNWFC | **Branch**: feat/doctrine-glossary-consolidation-01KTNWFC
-**Plan**: [plan.md](./plan.md) | **Decisions**: [research.md](./research.md) | **change_mode**: standard (O1-reverted; checklist-only occurrence_map)
+**Plan**: [plan.md](./plan.md) | **Decisions**: [research.md](./research.md) | **change_mode**: standard (O1-reverted; occurrence_map is a reference-rewrite advisory checklist, not an enforcement gate)
 
 11 work packages from the 9 ICs. Phase 1 (moves, bulk_edit) → Phase 2 (authoring) ; code lanes parallel ; #391 dogfood last.
 
@@ -48,19 +48,19 @@
 
 ## Phase 1 — Restructure & moves (bulk_edit)
 
-### WP01 — Glossary: promote to top-level + content refresh
-- **Goal**: Make `glossary/` the single source of truth (C-005, R-01); eliminate scattered glossary locations; refresh content for the new epics (FR-010) and record the runtime-scope defer (FR-011). *(Merged former WP07 to keep `glossary/**` ownership in one WP.)*
-- **Priority**: P1 (gates Phase 2 authoring) | **Independent test**: `glossary validate` + loader tests pass against top-level `glossary/`; no dangling glossary refs.
+### WP01 — Glossary: reconcile top-level surface + content refresh
+- **Goal**: RECONCILE the already-canonical top-level `glossary/` + DELETE residual `architecture/glossary/` pointer content (C-005, R-01); update loader/path refs; refresh content for the new epics (FR-010) and record the runtime-scope defer (FR-011). *(Merged former WP07 to keep `glossary/**` ownership in one WP.)*
+- **Priority**: P1 (gates Phase 2 authoring) | **Independent test**: `glossary validate` + loader tests pass against top-level `glossary/`; no dangling glossary refs; `architecture/glossary/` absent.
 - **Subtasks**: - [ ] T001 (WP01) · - [ ] T002 (WP01) · - [ ] T003 (WP01) · - [ ] T004 (WP01) · - [ ] T005 (WP01) · - [ ] T021 (WP01) · - [ ] T022 (WP01)
-- **change_mode**: standard (O1 revert: occurrence_map is a reference-rewrite checklist, not a gate) | **Depends on**: none | **Est**: ~420 lines
+- **change_mode**: standard (O1 revert: occurrence_map is a reference-rewrite advisory checklist, not a gate) | **Depends on**: none | **Est**: ~420 lines
 - **Risks**: missed reference breaks glossary loading / charter authority path; terminology guard on refreshed content.
 
-### WP02 — Living-architecture layout + moves
-- **Goal**: Top-level living `architecture/` (vision/, audience/, diagrams/, README boundary rule) + versioned history; carry C4 forward; rewrite architecture refs incl. charter authority paths.
-- **Priority**: P1 | **Independent test**: reference-integrity grep clean; README states boundary rule + decay path.
+### WP02 — Living-architecture layout + reconcile (closes #1805)
+- **Goal**: Top-level living `architecture/` (vision/, audience/, diagrams/, README boundary rule) + versioned history; RECONCILE + delete residual parallel content; carry C4 forward; rewrite architecture refs incl. charter authority paths. Closes #1805.
+- **Priority**: P1 | **Independent test**: reference-integrity grep clean; README states boundary rule + decay path; no residual parallel narrative surfaces.
 - **Subtasks**: - [ ] T006 (WP02) · - [ ] T007 (WP02) · - [ ] T008 (WP02) · - [ ] T009 (WP02) · - [ ] T010 (WP02)
-- **change_mode**: standard (O1-reverted; checklist-only occurrence_map) (occurrence_map architecture section) | **Depends on**: WP01 (shares the charter authority-path file; needs final glossary path) | **Est**: ~360 lines
-- **Risks**: broken internal doc links; decay rule must be documented to prevent re-drift.
+- **change_mode**: standard (O1-reverted; occurrence_map is a reference-rewrite advisory checklist, not a gate) | **Depends on**: WP01 (shares the charter authority-path file; needs final glossary path) | **Est**: ~360 lines
+- **Risks**: broken internal doc links; decay rule must be documented to prevent re-drift; tier-field layout must remain open for #1843.
 
 ## Phase 2 — Authoring (into the settled layout)
 

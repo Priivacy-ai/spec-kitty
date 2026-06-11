@@ -36,6 +36,7 @@ Load your profile first: `/ad-hoc-profile-load planner-priti`.
 - #391 ("Tech/Functional Debt Remediation") is a dumping ground, not a coherent functional epic (operator aside). This WP validates the doctrine on a real messy epic.
 - Apply the WP04 procedure + WP05 styleguide + toolguide verbatim; follow the toolguide's gh/GraphQL mechanics + rate-limit guidance and the community-precedence rule.
 - Tracker-only mutations (no repo source files); the deliverable record is the owned `docs/development/391-doctrine-usage-test.md` (a planning artifact).
+- NOTE: the `work/` traces cited here predate the 2026-06-09 tracker cleanup — re-verify referenced tickets/epics against the live tracker at claim time.
 
 ## Subtasks
 ### T032 — Classify + propose

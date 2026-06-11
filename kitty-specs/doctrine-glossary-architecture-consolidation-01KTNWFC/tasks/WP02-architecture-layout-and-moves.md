@@ -6,7 +6,8 @@ dependencies:
 requirement_refs:
 - FR-005
 - FR-006
-tracker_refs: []
+tracker_refs:
+- '#1805'
 planning_base_branch: feat/doctrine-glossary-consolidation-01KTNWFC
 merge_target_branch: feat/doctrine-glossary-consolidation-01KTNWFC
 branch_strategy: Planning artifacts for this mission were generated on feat/doctrine-glossary-consolidation-01KTNWFC. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/doctrine-glossary-consolidation-01KTNWFC unless the human explicitly redirects the landing branch.
@@ -40,11 +41,11 @@ tags: []
 Load your profile first: `/ad-hoc-profile-load architect-alphonso`. Adopt its identity and boundaries before proceeding.
 
 ## Objective
-Establish the **living-architecture-at-top + versioned-history-beneath** layout (R-02/R-03): top-level living `architecture/` with `vision/`, `audience/`, `diagrams/`, and a `README.md` that states the boundary rule; per-version `{adr,vision,research}` history beneath; carry the C4 forward; rewrite architecture-path references (incl. the charter authority paths). **bulk_edit** — governed by `occurrence_map.yaml` (architecture section).
+Establish the **living-architecture-at-top + versioned-history-beneath** layout (R-02/R-03): top-level living `architecture/` with `vision/`, `audience/`, `diagrams/`, and a `README.md` that states the boundary rule; per-version `{adr,vision,research}` history beneath; **RECONCILE the already-canonical top-level layout and DELETE residual parallel content** (architecture/glossary/ pointer belongs to WP01; verify no stale `architecture/docs/` or misplaced narrative remains here — C-005); carry the C4 forward; rewrite architecture-path references (incl. the charter authority paths). Path rewrites guided by the reference-rewrite checklist in `occurrence_map.yaml` (architecture section, O1 revert — advisory checklist, not an enforcement gate).
 
 ## Context
-- Decisions: research.md R-01 (boundary rule: architecture/ = decisions & models, docs/ = consumption, explanation links UP no dup), R-02 (living top + versioned history; decay = demote on obsolescence), R-03 (vision is an architecture concern; no docs/vision/). C-005 single source of truth.
-- The charter "Project authority paths" cite `architecture/2.x/adr/`, `architecture/adrs/`, `glossary/contexts/` — update them here (this WP owns `.kittify/charter/**`; glossary's new path comes from WP01).
+- Decisions: research.md R-01 (boundary rule: architecture/ = decisions & models, docs/ = consumption, explanation links UP no dup), R-02 (living top + versioned history; decay = demote on obsolescence), R-03 (vision is an architecture concern; no docs/vision/). C-005 single source of truth — no parallel architecture narrative surfaces.
+- The charter "Project authority paths" cite `architecture/2.x/adr/`, `architecture/adrs/`, `glossary/contexts/` — update them here (this WP owns `.kittify/charter/**`; glossary's canonical path confirmed by WP01).
 - WP03 owns `architecture/diagrams/**` content and WP06 owns `architecture/3.x/adr/**` — create the skeletons here, leave their content to them.
 
 ## Subtasks
@@ -69,7 +70,9 @@ Owned: frontmatter. **Out-of-map edits allowed with a recorded one-line rational
 **architect-alphonso sign-off** on the boundary rule + layout + decay rule; reviewer profile for reference integrity.
 
 ## Definition of Done
-- Living layout in place; README states boundary + decay rules; C4 carried forward; versioned history coherent; docs/explanation links up (no dup); all architecture refs rewritten; reference-integrity grep clean; occurrence_map architecture section finalized.
+- Living layout in place; README states boundary + decay rules; C4 carried forward; versioned history coherent; docs/explanation links up (no dup); all architecture refs rewritten; reference-integrity grep clean; occurrence_map architecture section finalized (advisory checklist, O1 revert).
+- Closes #1805 (architecture/docs restructure + C4 refresh — folded as this mission's source FR).
+- Consolidated doctrine artifact layout must not foreclose a future optional per-artifact tier field (upstream #1843): tiers, when they come, are declared fields — never directory structure.
 
 ## Risks
 - Broken internal doc links; charter authority-path miss. Mitigate via occurrence-map + grep (T010).
