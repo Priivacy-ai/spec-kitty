@@ -58,6 +58,9 @@ _ALL_AGENT_KEYS = [
     "qwen", "kilocode", "auggie", "q",
 ]
 
+_FROM_VERSION = "3.2.0rc38"
+_TARGET_VERSION = "3.2.0rc39"
+
 
 def _make_full_project(tmp_path: Path) -> Path:
     """Create a minimal spec-kitty project with all harness dirs present."""
@@ -70,9 +73,20 @@ def _make_full_project(tmp_path: Path) -> Path:
     )
     (kittify / "config.yaml").write_text(agents_yaml, encoding="utf-8")
 
-    # Write minimal metadata so the runner doesn't think version is "unknown"
-    (kittify / "metadata.json").write_text(
-        '{"version": "3.2.0", "created_at": "2026-01-01T00:00:00"}',
+    # Write real upgrade metadata so full-suite registry state cannot make this
+    # smoke test start from "unknown" and replay legacy migrations.
+    (kittify / "metadata.yaml").write_text(
+        f"""spec_kitty:
+  version: {_FROM_VERSION}
+  initialized_at: '2026-01-01T00:00:00'
+  last_upgraded_at:
+environment:
+  python_version: '3.11'
+  platform: test
+  platform_version: ''
+migrations:
+  applied: []
+""",
         encoding="utf-8",
     )
 
@@ -103,7 +117,7 @@ class TestUpgradeSmoke:
             ),
         ):
             mock_checker_cls.return_value.get_available_version.return_value = None
-            result = runner.upgrade("3.2.0rc39", dry_run=False, include_worktrees=False)
+            result = runner.upgrade(_TARGET_VERSION, dry_run=False, include_worktrees=False)
 
         assert result.success, f"Upgrade failed with errors: {result.errors}"
         assert result.errors == []
@@ -111,7 +125,7 @@ class TestUpgradeSmoke:
     def test_upgrade_dry_run_runs_without_errors(self, full_project: Path) -> None:
         """MigrationRunner.upgrade(dry_run=True) runs without errors."""
         runner = MigrationRunner(full_project)
-        result = runner.upgrade("3.2.0rc39", dry_run=True, include_worktrees=False)
+        result = runner.upgrade(_TARGET_VERSION, dry_run=True, include_worktrees=False)
         assert result.success, f"Dry-run upgrade failed: {result.errors}"
         assert result.errors == []
 
@@ -129,8 +143,8 @@ class TestUpgradeSmoke:
             ),
         ):
             mock_checker_cls.return_value.get_available_version.return_value = None
-            result1 = runner.upgrade("3.2.0rc39", dry_run=False, include_worktrees=False)
-            result2 = runner.upgrade("3.2.0rc39", dry_run=False, include_worktrees=False)
+            result1 = runner.upgrade(_TARGET_VERSION, dry_run=False, include_worktrees=False)
+            result2 = runner.upgrade(_TARGET_VERSION, dry_run=False, include_worktrees=False)
 
         assert result1.success, f"First upgrade failed: {result1.errors}"
         assert result2.success, f"Second upgrade failed: {result2.errors}"
@@ -159,7 +173,7 @@ class TestUpgradeSmoke:
             ),
         ):
             mock_checker_cls.return_value.get_available_version.return_value = None
-            runner.upgrade("3.2.0rc39", dry_run=False, include_worktrees=False)
+            runner.upgrade(_TARGET_VERSION, dry_run=False, include_worktrees=False)
 
         claude_md = full_project / ".claude" / "CLAUDE.md"
         assert claude_md.exists(), "CLAUDE.md should have been created by Phase 1"
@@ -181,7 +195,7 @@ class TestUpgradeSmoke:
             ),
         ):
             mock_checker_cls.return_value.get_available_version.return_value = None
-            runner.upgrade("3.2.0rc39", dry_run=False, include_worktrees=False)
+            runner.upgrade(_TARGET_VERSION, dry_run=False, include_worktrees=False)
 
         rules_file = full_project / ".cursor" / "rules" / "spec-kitty.mdc"
         assert rules_file.exists(), "cursor rules file should have been created"

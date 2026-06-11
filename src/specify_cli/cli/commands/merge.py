@@ -21,7 +21,11 @@ from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
 from specify_cli.coordination.surface_resolver import resolve_status_surface
-from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
+from specify_cli.missions.feature_dir_resolver import (
+    candidate_feature_dir_for_mission,
+    primary_feature_dir_for_mission,
+    resolve_feature_dir_for_mission,
+)
 import contextlib
 import json
 import logging
@@ -1953,7 +1957,7 @@ def _run_lane_based_merge_locked(
     from specify_cli.policy.merge_gates import evaluate_merge_gates
 
     # -- T001: MergeState lifecycle: load or create --
-    target_feature_dir = main_repo / KITTY_SPECS_DIR / mission_slug
+    target_feature_dir = primary_feature_dir_for_mission(main_repo, mission_slug)
     all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
     _enforce_review_artifact_consistency(
         repo_root=main_repo,
