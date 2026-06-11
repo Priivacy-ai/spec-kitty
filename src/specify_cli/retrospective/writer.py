@@ -16,7 +16,7 @@ import dataclasses
 import io
 import os
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from ruamel.yaml import YAML
 
@@ -206,16 +206,16 @@ def write_record(record: RetrospectiveRecord, *, repo_root: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def _gen_record_to_dict(record: GenRetrospectiveRecord) -> dict:
+def _gen_record_to_dict(record: GenRetrospectiveRecord) -> dict[str, Any]:
     """Serialize a GenRetrospectiveRecord to a plain Python dict for YAML."""
-    def _actor_to_dict(a: GenActor) -> dict:
-        d: dict = {"kind": a.kind, "id": a.id}
+    def _actor_to_dict(a: GenActor) -> dict[str, Any]:
+        d: dict[str, Any] = {"kind": a.kind, "id": a.id}
         if a.display is not None:
             d["display"] = a.display
         return d
 
-    def _provenance_to_dict(p: GenProvenance) -> dict:
-        d: dict = {
+    def _provenance_to_dict(p: GenProvenance) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "kind": p.kind,
             "invoked_at": p.invoked_at,
             "policy_resolved_from": dict(p.policy_resolved_from),
@@ -224,8 +224,8 @@ def _gen_record_to_dict(record: GenRetrospectiveRecord) -> dict:
             d["command"] = p.command
         return d
 
-    def _evidence_ref_to_dict(e: GenEvidenceRef) -> dict:
-        d: dict = {"id": e.id, "kind": e.kind}
+    def _evidence_ref_to_dict(e: GenEvidenceRef) -> dict[str, Any]:
+        d: dict[str, Any] = {"id": e.id, "kind": e.kind}
         if e.path is not None:
             d["path"] = e.path
         if e.range is not None:
@@ -234,8 +234,8 @@ def _gen_record_to_dict(record: GenRetrospectiveRecord) -> dict:
             d["url"] = e.url
         return d
 
-    def _finding_to_dict(f: GenFinding) -> dict:
-        d: dict = {
+    def _finding_to_dict(f: GenFinding) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "id": f.id,
             "category": f.category,
             "summary": f.summary,
@@ -245,8 +245,8 @@ def _gen_record_to_dict(record: GenRetrospectiveRecord) -> dict:
             d["details"] = f.details
         return d
 
-    def _proposal_to_dict(p: GenProposal) -> dict:
-        d: dict = {
+    def _proposal_to_dict(p: GenProposal) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "id": p.id,
             "category": p.category,
             "risk_class": p.risk_class,
@@ -282,12 +282,12 @@ def _gen_record_to_dict(record: GenRetrospectiveRecord) -> dict:
     }
 
 
-def _dict_to_gen_record(data: dict) -> GenRetrospectiveRecord:
+def _dict_to_gen_record(data: dict[str, Any]) -> GenRetrospectiveRecord:
     """Deserialize a plain dict (from YAML) into a GenRetrospectiveRecord."""
-    def _dict_to_actor(d: dict) -> GenActor:
+    def _dict_to_actor(d: dict[str, Any]) -> GenActor:
         return GenActor(kind=d["kind"], id=d["id"], display=d.get("display"))
 
-    def _dict_to_provenance(d: dict) -> GenProvenance:
+    def _dict_to_provenance(d: dict[str, Any]) -> GenProvenance:
         return GenProvenance(
             kind=d["kind"],
             invoked_at=d["invoked_at"],
@@ -295,7 +295,7 @@ def _dict_to_gen_record(data: dict) -> GenRetrospectiveRecord:
             command=d.get("command"),
         )
 
-    def _dict_to_evidence_ref(d: dict) -> GenEvidenceRef:
+    def _dict_to_evidence_ref(d: dict[str, Any]) -> GenEvidenceRef:
         return GenEvidenceRef(
             id=d["id"],
             kind=d["kind"],
@@ -304,7 +304,7 @@ def _dict_to_gen_record(data: dict) -> GenRetrospectiveRecord:
             url=d.get("url"),
         )
 
-    def _dict_to_finding(d: dict) -> GenFinding:
+    def _dict_to_finding(d: dict[str, Any]) -> GenFinding:
         return GenFinding(
             id=d["id"],
             category=d["category"],
@@ -313,7 +313,7 @@ def _dict_to_gen_record(data: dict) -> GenRetrospectiveRecord:
             details=d.get("details"),
         )
 
-    def _dict_to_proposal(d: dict) -> GenProposal:
+    def _dict_to_proposal(d: dict[str, Any]) -> GenProposal:
         return GenProposal(
             id=d["id"],
             category=d["category"],
@@ -382,10 +382,10 @@ def _merge_gen_records(existing: GenRetrospectiveRecord, new: GenRetrospectiveRe
         return merged
 
     # Deduplicate evidence_refs by (kind, path, range, url)
-    def _evidence_key(e: GenEvidenceRef) -> tuple:
+    def _evidence_key(e: GenEvidenceRef) -> tuple[str, str | None, str | None, str | None]:
         return (e.kind, e.path, e.range, e.url)
 
-    existing_ev_keys: set[tuple] = {_evidence_key(e) for e in existing.evidence_refs}
+    existing_ev_keys: set[tuple[str, str | None, str | None, str | None]] = {_evidence_key(e) for e in existing.evidence_refs}
     merged_evidence = list(existing.evidence_refs)
     for e in new.evidence_refs:
         if _evidence_key(e) not in existing_ev_keys:
@@ -416,7 +416,7 @@ def _merge_gen_records(existing: GenRetrospectiveRecord, new: GenRetrospectiveRe
     )
 
 
-def _atomic_write_gen(data: dict, canonical: Path, target_dir: Path) -> None:
+def _atomic_write_gen(data: dict[str, Any], canonical: Path, target_dir: Path) -> None:
     """Atomically write a dict as YAML to canonical path.
 
     Write to <canonical>.tmp.<pid>.<random>, fsync, os.replace.

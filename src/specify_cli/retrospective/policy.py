@@ -652,7 +652,7 @@ def resolve_policy(
     )
 
     if charter_error is not None:
-        _mark_source_map_error(source_map, charter_source_str)
+        _mark_source_map_error(source_map, charter_source_str or str(_CHARTER_REL))
         raise charter_error
 
     # ------------------------------------------------------------------

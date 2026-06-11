@@ -23,9 +23,10 @@ import datetime
 import json
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from specify_cli.retrospective.schema import (
+    FindingsStatus,
     GenActor,
     GenEvidenceRef,
     GenFinding,
@@ -84,39 +85,41 @@ def _resolve_mission_dir(mission_handle: str, repo_root: Path) -> Path | None:
         return None
 
     # Direct match
-    candidate = specs_root / mission_handle
+    candidate: Path = specs_root / mission_handle
     if candidate.exists() and candidate.is_dir():
         return candidate
 
     # Partial match: scan all dirs, match by slug or mission_id
-    for child in sorted(specs_root.iterdir()):
-        if not child.is_dir():
+    for child in sorted(specs_root.iterdir(), key=lambda p: p.name):
+        child_path = Path(child)
+        if not child_path.is_dir():
             continue
         # Match directory name prefix
-        if child.name == mission_handle or child.name.endswith(f"-{mission_handle}"):
-            return child
+        if child_path.name == mission_handle or child_path.name.endswith(f"-{mission_handle}"):
+            return child_path
         # Match via meta.json mission_id or mission_slug
-        meta_path = child / "meta.json"
+        meta_path = child_path / "meta.json"
         if meta_path.exists():
             try:
                 meta = json.loads(meta_path.read_text(encoding="utf-8"))
                 mid = str(meta.get("mission_id", ""))
                 slug = str(meta.get("mission_slug", ""))
                 if mid == mission_handle or mid[:8] == mission_handle or slug == mission_handle:
-                    return child
+                    return child_path
             except (json.JSONDecodeError, OSError):
                 continue
 
     return None
 
 
-def _load_meta(feature_dir: Path) -> dict:
+def _load_meta(feature_dir: Path) -> dict[str, Any]:
     """Load meta.json; return empty dict if missing or malformed."""
     meta_path = feature_dir / "meta.json"
     if not meta_path.exists():
         return {}
     try:
-        return json.loads(meta_path.read_text(encoding="utf-8"))
+        result: dict[str, Any] = json.loads(meta_path.read_text(encoding="utf-8"))
+        return result
     except (json.JSONDecodeError, OSError):
         return {}
 
@@ -131,7 +134,7 @@ def _read_optional_text(path: Path) -> str | None:
     return None
 
 
-def _load_events(feature_dir: Path) -> list[dict]:
+def _load_events(feature_dir: Path) -> list[dict[str, Any]]:
     """Load all status events from status.events.jsonl.
 
     Returns a list of event dicts sorted by natural file order (append order).
@@ -139,7 +142,7 @@ def _load_events(feature_dir: Path) -> list[dict]:
     events_path = feature_dir / "status.events.jsonl"
     if not events_path.exists():
         return []
-    events: list[dict] = []
+    events: list[dict[str, Any]] = []
     for line in events_path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line:
@@ -196,7 +199,7 @@ def _next_proposal_id(counter: list[int]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _has_review_feedback(event: dict) -> bool:
+def _has_review_feedback(event: dict[str, Any]) -> bool:
     """Return True when a lane event carries documented review feedback."""
     if event.get("review_ref"):
         return True
@@ -220,11 +223,11 @@ _BACKWARD_LANE_MOVES: frozenset[tuple[str, str]] = frozenset({
 })
 
 
-def _is_backward_lane_event(event: dict) -> bool:
+def _is_backward_lane_event(event: dict[str, Any]) -> bool:
     return (event.get("from_lane", ""), event.get("to_lane", "")) in _BACKWARD_LANE_MOVES
 
 
-def _is_review_rejection_event(event: dict) -> bool:
+def _is_review_rejection_event(event: dict[str, Any]) -> bool:
     return (
         event.get("from_lane", "") == "in_review"
         and event.get("to_lane", "") in ("planned", "in_progress", "claimed")
@@ -232,11 +235,11 @@ def _is_review_rejection_event(event: dict) -> bool:
     )
 
 
-def _is_lane_friction_event(event: dict) -> bool:
+def _is_lane_friction_event(event: dict[str, Any]) -> bool:
     return _is_backward_lane_event(event) and not _is_review_rejection_event(event)
 
 
-def _detect_rejection_cycles(events: list[dict]) -> dict[str, int]:
+def _detect_rejection_cycles(events: list[dict[str, Any]]) -> dict[str, int]:
     """Return a mapping of wp_id -> rejection_cycle_count.
 
     A rejection cycle is a documented reviewer-feedback transition out of
@@ -253,7 +256,7 @@ def _detect_rejection_cycles(events: list[dict]) -> dict[str, int]:
     return rejection_counts
 
 
-def _detect_lane_friction(events: list[dict]) -> dict[str, int]:
+def _detect_lane_friction(events: list[dict[str, Any]]) -> dict[str, int]:
     """Return backward lane moves that are not documented reviewer rejections."""
     friction_counts: dict[str, int] = {}
     for event in events:
@@ -265,7 +268,7 @@ def _detect_lane_friction(events: list[dict]) -> dict[str, int]:
     return friction_counts
 
 
-def _detect_done_wps(events: list[dict]) -> set[str]:
+def _detect_done_wps(events: list[dict[str, Any]]) -> set[str]:
     """Return wp_ids that reached 'done' or 'approved' state."""
     done_wps: set[str] = set()
     for event in events:
@@ -300,7 +303,7 @@ _ARBITER_MARKERS: tuple[str, ...] = (
 )
 
 
-def _is_force_override_event(event: dict) -> bool:
+def _is_force_override_event(event: dict[str, Any]) -> bool:
     """Return True if this event is a meaningful operator-driven --force override.
 
     Excludes finalize-tasks / bootstrap synthetic events whose force=True is a
@@ -315,7 +318,7 @@ def _is_force_override_event(event: dict) -> bool:
     return event.get("from_lane") != event.get("to_lane")
 
 
-def _detect_force_overrides(events: list[dict]) -> dict[str, int]:
+def _detect_force_overrides(events: list[dict[str, Any]]) -> dict[str, int]:
     """Count operator-driven --force transitions per WP."""
     counts: dict[str, int] = {}
     for event in events:
@@ -327,7 +330,7 @@ def _detect_force_overrides(events: list[dict]) -> dict[str, int]:
     return counts
 
 
-def _event_wp_id(event: dict) -> str:
+def _event_wp_id(event: dict[str, Any]) -> str:
     """Return WP id from status event top-level fields or lifecycle payload."""
     wp_id = event.get("wp_id")
     if isinstance(wp_id, str) and wp_id:
@@ -340,13 +343,13 @@ def _event_wp_id(event: dict) -> str:
     return ""
 
 
-def _is_reviewer_self_approval_event(event: dict) -> bool:
+def _is_reviewer_self_approval_event(event: dict[str, Any]) -> bool:
     from specify_cli.status import REVIEWER_SELF_APPROVAL
 
-    return event.get("event_type") == REVIEWER_SELF_APPROVAL
+    return bool(event.get("event_type") == REVIEWER_SELF_APPROVAL)
 
 
-def _detect_reviewer_self_approvals(events: list[dict]) -> dict[str, int]:
+def _detect_reviewer_self_approvals(events: list[dict[str, Any]]) -> dict[str, int]:
     counts: dict[str, int] = {}
     for event in events:
         if not _is_reviewer_self_approval_event(event):
@@ -357,7 +360,7 @@ def _detect_reviewer_self_approvals(events: list[dict]) -> dict[str, int]:
     return counts
 
 
-def _event_note(event: dict) -> str:
+def _event_note(event: dict[str, Any]) -> str:
     """Return the human-readable note/reason text from an event, lower-cased."""
     parts: list[str] = []
     reason = event.get("reason")
@@ -372,7 +375,7 @@ def _event_note(event: dict) -> str:
     return " ".join(parts).lower()
 
 
-def _is_arbiter_event(event: dict) -> bool:
+def _is_arbiter_event(event: dict[str, Any]) -> bool:
     """Return True if event note/reason contains an arbiter override marker."""
     note = _event_note(event)
     if not note:
@@ -380,7 +383,7 @@ def _is_arbiter_event(event: dict) -> bool:
     return any(marker in note for marker in _ARBITER_MARKERS)
 
 
-def _detect_arbiter_overrides(events: list[dict]) -> dict[str, int]:
+def _detect_arbiter_overrides(events: list[dict[str, Any]]) -> dict[str, int]:
     """Count arbiter-override events per WP."""
     counts: dict[str, int] = {}
     for event in events:
@@ -392,7 +395,7 @@ def _detect_arbiter_overrides(events: list[dict]) -> dict[str, int]:
     return counts
 
 
-def _detect_implementation_cycles(events: list[dict]) -> dict[str, int]:
+def _detect_implementation_cycles(events: list[dict[str, Any]]) -> dict[str, int]:
     """Count distinct planned→in_progress (or claimed→in_progress) cycles per WP.
 
     A WP that needs >1 implementation cycle indicates rework that didn't
@@ -446,7 +449,11 @@ def _classify_risk(suggested_action: str) -> tuple[str, bool]:
     return "structural", False
 
 
-def _event_id_range_for(events: list[dict], wp_id: str, predicate) -> str:  # type: ignore[no-untyped-def]
+def _event_id_range_for(
+    events: list[dict[str, Any]],
+    wp_id: str,
+    predicate: Any,
+) -> str:
     """Return ``first..last`` (or single id) for events matching ``predicate`` on a WP."""
     ids = [
         str(ev.get("event_id", ""))
@@ -460,7 +467,7 @@ def _event_id_range_for(events: list[dict], wp_id: str, predicate) -> str:  # ty
 
 def _build_event_mining_findings(
     *,
-    events: list[dict],
+    events: list[dict[str, Any]],
     events_rel: str,
     finding_id_counters: dict[str, list[int]],
     ev_reg: _EvidenceRegistry,
@@ -557,7 +564,7 @@ def _build_event_mining_findings(
 
 def _build_lane_friction_findings(
     *,
-    events: list[dict],
+    events: list[dict[str, Any]],
     lane_friction_counts: dict[str, int],
     events_rel: str,
     finding_id_counters: dict[str, list[int]],
@@ -641,7 +648,7 @@ def _resolve_mission_number(raw: object) -> int | None:
 
 def _build_findings(
     *,
-    events: list[dict],
+    events: list[dict[str, Any]],
     spec_text: str,
     plan_text: str,
     research_text: str | None,
@@ -941,7 +948,7 @@ def generate_retrospective(
     # NOTE: "missing" and "failed" are event-payload-only states and
     # MUST NOT appear in a persisted RetrospectiveRecord.
     # ------------------------------------------------------------------
-    findings_status = "has_findings" if any([helped, not_helpful, gaps, proposals]) else "ran_no_findings"
+    findings_status: FindingsStatus = "has_findings" if any([helped, not_helpful, gaps, proposals]) else "ran_no_findings"
 
     # ------------------------------------------------------------------
     # Step 6: Resolve mission identity from meta.json
@@ -975,7 +982,7 @@ def generate_retrospective(
         created_by=actor,
         provenance=provenance,
         policy_source=dict(policy_source),
-        findings_status=findings_status,  # type: ignore[arg-type]
+        findings_status=findings_status,
         helped=helped,
         not_helpful=not_helpful,
         gaps=gaps,
