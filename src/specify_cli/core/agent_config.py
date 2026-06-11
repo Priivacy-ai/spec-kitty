@@ -9,14 +9,13 @@ The configuration is stored in .kittify/config.yaml under the `agents` key
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from ruamel.yaml import YAML
 
 from specify_cli.core.config import AI_CHOICES
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -35,10 +34,13 @@ class AgentConfig:
             When False, agents may stage changes but MUST NOT create
             commits unless explicitly instructed. Per-command flags
             (--auto-commit/--no-auto-commit) override this setting.
+        lint_on_edit: Whether agents should receive automatic linting
+            and type-checking feedback after editing files.
     """
 
     available: list[str] = field(default_factory=list)
     auto_commit: bool = True
+    lint_on_edit: bool = False
 
 
 def load_agent_config(repo_root: Path) -> AgentConfig:
@@ -71,18 +73,25 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
 
     agents_data = data.get("agents") or data.get("tools") or {}
 
-    # Parse auto_commit setting first so top-level configs still work
-    # when no agents section is present.
+    # Parse settings from either the agents/tools dict or the top level
     auto_commit_raw = None
+    lint_on_edit_raw = None
+
     if isinstance(agents_data, dict):
         auto_commit_raw = agents_data.get("auto_commit")
+        lint_on_edit_raw = agents_data.get("lint_on_edit")
+
     if auto_commit_raw is None:
         auto_commit_raw = data.get("auto_commit")
+    if lint_on_edit_raw is None:
+        lint_on_edit_raw = data.get("lint_on_edit")
+
     auto_commit = auto_commit_raw if isinstance(auto_commit_raw, bool) else True
+    lint_on_edit = lint_on_edit_raw if isinstance(lint_on_edit_raw, bool) else False
 
     if not agents_data:
         logger.info("No agents section in config.yaml")
-        return AgentConfig(auto_commit=auto_commit)
+        return AgentConfig(auto_commit=auto_commit, lint_on_edit=lint_on_edit)
 
     # Parse available agents
     available = agents_data.get("available", [])
@@ -97,7 +106,7 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
         unknown = ", ".join(sorted(invalid_agents))
         raise AgentConfigError(f"Unknown agent key(s) in config.yaml: {unknown}. Valid agents: {valid_agents}")
 
-    return AgentConfig(available=available, auto_commit=auto_commit)
+    return AgentConfig(available=available, auto_commit=auto_commit, lint_on_edit=lint_on_edit)
 
 
 def save_agent_config(repo_root: Path, config: AgentConfig) -> None:
@@ -127,6 +136,7 @@ def save_agent_config(repo_root: Path, config: AgentConfig) -> None:
     data["agents"] = {
         "available": config.available,
         "auto_commit": config.auto_commit,
+        "lint_on_edit": config.lint_on_edit,
     }
 
     # Write back
