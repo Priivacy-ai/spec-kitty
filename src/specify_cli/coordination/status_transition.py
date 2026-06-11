@@ -243,7 +243,7 @@ def _read_events_from_transaction_target(
     mission_slug: str,
 ) -> list[StatusEvent]:
     """Read target status events without creating worktrees or commits."""
-    return read_event_log(_read_contract_from_transaction_target(identity, mission_slug))
+    return cast(list[StatusEvent], read_event_log(_read_contract_from_transaction_target(identity, mission_slug)))
 
 
 def read_current_wp_state_transactional(
@@ -275,7 +275,7 @@ def read_current_wp_state_transactional(
             # No events and no WP file resolved → unseeded WP; report GENESIS
             # (matching _derive_from_lane on the write side — Contract 3, FR-009).
             return Lane.GENESIS, None
-    return wp_lane_actor_from_events(events, wp_id)
+    return cast(tuple[Lane, str | None], wp_lane_actor_from_events(events, wp_id))
 
 
 def _read_contract_from_transaction_target(
