@@ -12,6 +12,10 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
+from charter.resolution import (
+    NotInsideRepositoryError,
+    resolve_canonical_repo_root,
+)
 from specify_cli.core.atomic import atomic_write
 from specify_cli.frontmatter import FrontmatterError, FrontmatterManager
 from specify_cli.mission_metadata import resolve_mission_identity
@@ -120,9 +124,20 @@ def _artifact_hash_entry(path: Path) -> dict[str, str | None]:
 
 
 def _charter_path(repo_root: Path) -> Path | None:
+    # #1823: resolve through the canonical-root resolver so a worktree-local
+    # charter copy is never hashed in place of the main checkout's charter.
+    # This is a read-only hashing probe over arbitrary roots, so non-git roots
+    # degrade to the passed root. Resolver infrastructure failures still
+    # propagate; otherwise we would synthesize a local charter hash when the
+    # canonical root is unknowable.
+    canonical_root: Path
+    try:
+        canonical_root = resolve_canonical_repo_root(repo_root)
+    except NotInsideRepositoryError:
+        canonical_root = repo_root
     for candidate in (
-        repo_root / ".kittify" / "charter" / "charter.md",
-        repo_root / "charter" / "charter.md",
+        canonical_root / ".kittify" / "charter" / "charter.md",
+        canonical_root / "charter" / "charter.md",
     ):
         if candidate.exists():
             return candidate
