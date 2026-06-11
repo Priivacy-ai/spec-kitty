@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: doctrine-glossary-architecture-consolidation-01KTNWFC
 mission_id: 01KTNWFC3B1ZGFR9FTT77X7H2Y
-generated_at: '2026-06-11T15:09:10.098914+00:00'
+generated_at: '2026-06-11T15:28:00.361020+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -15,17 +15,17 @@ input_artifacts:
     sha256: 47ab7fa3d9751506decfc6e952de6dc44d262197a3069e71f4244738ea4eeac4
   tasks.md:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/kitty-specs/doctrine-glossary-architecture-consolidation-01KTNWFC/tasks.md
-    sha256: 1330e2c255942fce1c725606444077d7d65758ea8e13eafd592cb9266f5a2f08
+    sha256: 111e9b96c792979aad8f4517597c66ffb6d9c6007f41213d213256b6020f8813
   charter:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/.kittify/charter/charter.md
     sha256: a59cddc8725b34acacd83b9bec24e97b1ae68aa80716b7335c425c6106c18791
 verdict: unknown
 issue_counts:
-  medium:
-  low:
   high:
-  critical:
+  medium:
   info:
+  critical:
+  low:
 findings: []
 ---
 
