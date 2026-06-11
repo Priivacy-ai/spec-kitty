@@ -46,9 +46,8 @@ history:
 ---
 
 ## Markdown Formatting
-
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
-Use language identifiers in code blocks: ````python`,````bash`
+Use language identifiers in code blocks: ````python`, ````bash`
 
 ---
 
@@ -72,7 +71,6 @@ Use language identifiers in code blocks: ````python`,````bash`
 ## Subtasks & Detailed Guidance
 
 ### Subtask TXXX – Replace with summary
-
 - **Purpose**: Explain why this research subtask exists.
 - **Steps**: Detailed, actionable instructions for conducting research.
 - **Sources**: Types of sources to search (academic, industry, gray literature).
@@ -81,7 +79,6 @@ Use language identifiers in code blocks: ````python`,````bash`
 - **Quality Criteria**: Minimum requirements for this subtask.
 
 ### Subtask TYYY – Replace with summary
-
 - Repeat the structure above for every included `Txxx` entry.
 
 ## Quality & Validation

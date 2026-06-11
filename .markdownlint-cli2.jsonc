@@ -55,6 +55,8 @@
     "tests/specify_cli/skills/__snapshots__/**",
     "tests/retrospective/fixtures/**",
     "src/doctrine/**",
+    "src/specify_cli/missions/**",
+    "src/specify_cli/templates/**",
     "examples/**",
     "scripts/**",
     "glossary/**",

@@ -159,7 +159,29 @@ Use this heuristic to prioritize findings:
 
 ### 6. Produce Compact Analysis Report
 
-Draft a Markdown report with the following structure:
+The report MUST begin with a structured **`analysis-findings/v1`** YAML frontmatter carrier, immediately followed by the human-readable Markdown body. The recorder computes the verdict and issue counts **from this carrier only** — report prose is presentation and is NEVER parsed for severity. Emit the carrier exactly in this shape:
+
+```yaml
+---
+schema: analysis-findings/v1
+findings:
+  - id: A1            # stable finding id (same id used in the body table)
+    severity: high    # one of: low | medium | high | critical (closed vocabulary; no other values)
+    category: coverage
+    summary: "One-line description of the finding."
+counts: {critical: 0, high: 1, medium: 0, low: 0, info: 0}   # MUST equal the findings[] tally per severity
+verdict_hint: blocked   # OPTIONAL author hint; the recorder COMPUTES the verdict — if your hint disagrees, recording FAILS LOUDLY
+---
+```
+
+Carrier rules (binding — a violation makes `record-analysis` fail on the write path):
+- `findings[].severity` MUST be one of `low`, `medium`, `high`, `critical`. Any other value fails schema validation.
+- `counts` per-severity values MUST equal the actual `findings[]` tally. `info` is a presentation-only bucket and never affects the verdict.
+- The verdict is derived from structure: **any `high` or `critical` finding → `blocked`; otherwise → `ready`.** Do not rely on prose wording.
+- If you include `verdict_hint`, it MUST match the computed verdict, or recording fails loudly.
+- A report with **no** findings emits `findings: []` and `counts: {critical: 0, high: 0, medium: 0, low: 0, info: 0}` → verdict `ready`.
+
+After the closing `---`, draft the Markdown body with the following structure:
 
 ## Specification Analysis Report
 
@@ -200,6 +222,8 @@ If your host supports piping reliable multiline stdin, this equivalent form is a
 ```bash
 spec-kitty agent mission record-analysis --mission <mission-slug> --input-file - --json
 ```
+
+The report file you pass MUST start with the `analysis-findings/v1` carrier from step 6. The recorder derives the verdict and counts from it; a malformed carrier (unknown severity, `counts` not matching the `findings[]` tally, or a disagreeing `verdict_hint`) makes the recorder fail loudly — fix the carrier and re-run.
 
 Treat persistence failure as command failure. The command is not complete until the JSON response reports success and names `analysis-report.md`.
 
