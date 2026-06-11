@@ -325,3 +325,56 @@ def test_transactional_emit_fails_closed_on_malformed_meta(
 
     assert mock_saas_sink.call_count == 0
     assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
+
+
+def _seed_planned_on_primary(repo: Path) -> StatusEvent:
+    """Append a genesis->planned seed directly to the primary checkout log."""
+    seed_event = StatusEvent(
+        event_id="01SEEDPRIMARY000000000001",
+        mission_slug=MISSION_SLUG,
+        mission_id=MISSION_ID,
+        wp_id="WP01",
+        from_lane=Lane.GENESIS,
+        to_lane=Lane.PLANNED,
+        at="2026-05-31T00:00:00+00:00",
+        actor="seed",
+        force=False,
+        reason="seed",
+        execution_mode="worktree",
+    )
+    append_event_log(
+        EventLogWriteContract.primary_checkout_append(repo / "kitty-specs" / MISSION_DIRNAME),
+        seed_event,
+    )
+    return seed_event
+
+
+def test_transactional_read_falls_back_to_primary_when_coord_branch_deleted(repo: Path) -> None:
+    """A deleted coordination branch must not mis-read WPs as genesis (#1847).
+
+    Post-merge cleanup deletes the coordination branch while meta.json still
+    declares it. The read path must then report lanes from the primary
+    checkout event log instead of reading the dangling ref as empty.
+    """
+    from specify_cli.coordination.status_transition import read_current_wp_state_transactional
+
+    seed = _seed_planned_on_primary(repo)
+    _git(repo, "add", "kitty-specs")
+    _git(repo, "commit", "-q", "-m", "merge mission artifacts to main")
+    _git(repo, "branch", "-D", COORD_BRANCH)
+
+    lane, actor = read_current_wp_state_transactional(
+        feature_dir=repo / "kitty-specs" / MISSION_DIRNAME,
+        mission_slug=MISSION_SLUG,
+        wp_id="WP01",
+        repo_root=repo,
+    )
+    assert lane == Lane.PLANNED
+    assert actor == "seed"
+
+    events = read_events_transactional(
+        feature_dir=repo / "kitty-specs" / MISSION_DIRNAME,
+        mission_slug=MISSION_SLUG,
+        repo_root=repo,
+    )
+    assert [e.event_id for e in events] == [seed.event_id]
