@@ -1,0 +1,75 @@
+---
+work_package_id: WP02
+title: Living-architecture layout + moves
+dependencies:
+- WP01
+requirement_refs:
+- FR-005
+- FR-006
+tracker_refs: []
+planning_base_branch: feat/doctrine-glossary-consolidation-01KTNWFC
+merge_target_branch: feat/doctrine-glossary-consolidation-01KTNWFC
+branch_strategy: Planning artifacts for this mission were generated on feat/doctrine-glossary-consolidation-01KTNWFC. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/doctrine-glossary-consolidation-01KTNWFC unless the human explicitly redirects the landing branch.
+subtasks:
+- T006
+- T007
+- T008
+- T009
+- T010
+agent: claude
+history:
+- '2026-06-09: created by /spec-kitty.tasks (planner-priti)'
+agent_profile: architect-alphonso
+authoritative_surface: architecture/
+execution_mode: code_change
+owned_files:
+- architecture/README.md
+- architecture/vision/**
+- architecture/audience/**
+- architecture/1.x/**
+- architecture/2.x/**
+- architecture/3.x/vision/**
+- architecture/3.x/research/**
+- docs/explanation/**
+- .kittify/charter/**
+role: architect
+tags: []
+---
+
+## ⚡ Do This First: Load Agent Profile
+Load your profile first: `/ad-hoc-profile-load architect-alphonso`. Adopt its identity and boundaries before proceeding.
+
+## Objective
+Establish the **living-architecture-at-top + versioned-history-beneath** layout (R-02/R-03): top-level living `architecture/` with `vision/`, `audience/`, `diagrams/`, and a `README.md` that states the boundary rule; per-version `{adr,vision,research}` history beneath; carry the C4 forward; rewrite architecture-path references (incl. the charter authority paths). **bulk_edit** — governed by `occurrence_map.yaml` (architecture section).
+
+## Context
+- Decisions: research.md R-01 (boundary rule: architecture/ = decisions & models, docs/ = consumption, explanation links UP no dup), R-02 (living top + versioned history; decay = demote on obsolescence), R-03 (vision is an architecture concern; no docs/vision/). C-005 single source of truth.
+- The charter "Project authority paths" cite `architecture/2.x/adr/`, `architecture/adrs/`, `glossary/contexts/` — update them here (this WP owns `.kittify/charter/**`; glossary's new path comes from WP01).
+- WP03 owns `architecture/diagrams/**` content and WP06 owns `architecture/3.x/adr/**` — create the skeletons here, leave their content to them.
+
+## Subtasks
+### T006 — Top-level living layout + README boundary rule
+Create `architecture/vision/`, `architecture/diagrams/` (skeleton with numbered C4 level dirs), retain `architecture/audience/`. Rewrite `architecture/README.md`: boundary rule (architecture=decisions&models, docs=consumption), navigation, and the **decay rule** (living-at-top → demote to `architecture/<version>/` on obsolescence) so it can't re-drift.
+### T007 — Carry C4 forward
+Move the current C4 (markdown+mermaid) into `architecture/diagrams/{01_context,02_containers,03_components}/`; leave the `architecture/2.x/` snapshot frozen as history. (Content refresh is WP03.)
+### T008 — Versioned history + docs de-dup
+Ensure `architecture/{1.x,2.x,3.x}/{adr,vision,research}` exist; demote any obsolete top-level narrative into its version dir. Update `docs/explanation/` to **link up** to architecture (remove duplicated architecture narrative — single source of truth).
+### T009 — Rewrite architecture references + charter authority paths
+Rewrite all references to moved architecture/glossary paths, including the charter's authority paths (`.kittify/charter/**`). Finalize the architecture section of `occurrence_map.yaml` (all 8 categories explicit).
+### T010 — Reference-integrity verification
+Grep for old paths (`architecture/2.x/adr`, `architecture/glossary`, etc.); confirm only intended/historical hits. Fill the occurrence_map verification block.
+
+## Branch Strategy
+Plan/merge target `feat/doctrine-glossary-consolidation-01KTNWFC`; per-lane worktree from `lanes.json` after finalize.
+
+## Ownership & out-of-map edits
+Owned: frontmatter. **Out-of-map edits allowed with a recorded one-line rationale.** Coordinate the charter authority-path file with WP01's glossary path output. Don't touch `architecture/diagrams/**` content (WP03) or `architecture/3.x/adr/**` (WP06) beyond skeletons.
+
+## Review / Sign-off (R-07)
+**architect-alphonso sign-off** on the boundary rule + layout + decay rule; reviewer profile for reference integrity.
+
+## Definition of Done
+- Living layout in place; README states boundary + decay rules; C4 carried forward; versioned history coherent; docs/explanation links up (no dup); all architecture refs rewritten; reference-integrity grep clean; occurrence_map architecture section finalized.
+
+## Risks
+- Broken internal doc links; charter authority-path miss. Mitigate via occurrence-map + grep (T010).

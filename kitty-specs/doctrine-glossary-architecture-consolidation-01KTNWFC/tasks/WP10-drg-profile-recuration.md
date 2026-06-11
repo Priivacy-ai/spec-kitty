@@ -1,0 +1,62 @@
+---
+work_package_id: WP10
+title: Built-in DRG + profile re-curation
+dependencies:
+- WP04
+- WP05
+- WP09
+requirement_refs:
+- FR-009
+tracker_refs: []
+planning_base_branch: feat/doctrine-glossary-consolidation-01KTNWFC
+merge_target_branch: feat/doctrine-glossary-consolidation-01KTNWFC
+branch_strategy: Planning artifacts for this mission were generated on feat/doctrine-glossary-consolidation-01KTNWFC. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/doctrine-glossary-consolidation-01KTNWFC unless the human explicitly redirects the landing branch.
+subtasks:
+- T029
+- T030
+- T031
+agent: claude
+history:
+- '2026-06-09: created by /spec-kitty.tasks (planner-priti)'
+agent_profile: curator-carla
+authoritative_surface: src/doctrine/agent_profiles/
+execution_mode: code_change
+owned_files:
+- src/doctrine/graph.yaml
+- src/doctrine/agent_profiles/built-in/**
+role: curator
+tags: []
+---
+
+## ⚡ Do This First: Load Agent Profile
+Load your profile first: `/ad-hoc-profile-load curator-carla`.
+
+## Objective
+Sanitize and re-curate the **built-in DRG and agent profiles** (FR-009, R-09): fold the new doctrine artefacts (WP04/WP05) into `graph.yaml` as nodes/edges, and prune stale/duplicate edges + dead profiles — so the graph reflects the consolidated doctrine (C-005: one coherent graph).
+
+## Context
+- Depends on WP04/WP05 (the new procedure/tactics/styleguide/toolguide must exist to be graphed) and WP09 (the regeneration command + symmetric detection).
+- Owns the committed `src/doctrine/graph.yaml` and `src/doctrine/agent_profiles/built-in/**`.
+
+## Subtasks
+### T029 — Add new artefacts to the DRG
+Regenerate `graph.yaml` (via WP09's command) so the new doctrine artefacts appear as nodes with correct edges (`requires`/`suggests`/`specializes_from` as applicable).
+### T030 — Prune stale/duplicate
+Remove dead/duplicate edges and obsolete profiles; **drop no valid edge silently** — record removals with rationale.
+### T031 — Validate
+`spec-kitty doctor doctrine --json` healthy (no skipped profiles); freshness gate green.
+
+## Branch Strategy
+Plan/merge target `feat/doctrine-glossary-consolidation-01KTNWFC`; per-lane worktree from `lanes.json`.
+
+## Ownership & out-of-map edits
+Owned: `src/doctrine/graph.yaml`, `src/doctrine/agent_profiles/built-in/**`. **Out-of-map edits allowed with a recorded one-line rationale.**
+
+## Review / Sign-off (R-07)
+Doctrine sign-off (curator) + reviewer profile; reviewer verifies no valid edge dropped + doctor healthy.
+
+## Definition of Done
+- New artefacts graphed; stale/duplicate pruned (rationale recorded); `doctor doctrine` healthy; freshness gate green.
+
+## Risks
+- Dropping a valid edge/profile — diff the graph before/after; record every removal.

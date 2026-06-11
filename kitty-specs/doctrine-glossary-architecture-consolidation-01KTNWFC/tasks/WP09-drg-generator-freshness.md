@@ -1,0 +1,60 @@
+---
+work_package_id: WP09
+title: DRG generator + freshness gaps
+dependencies: []
+requirement_refs:
+- FR-009
+tracker_refs: []
+planning_base_branch: feat/doctrine-glossary-consolidation-01KTNWFC
+merge_target_branch: feat/doctrine-glossary-consolidation-01KTNWFC
+branch_strategy: Planning artifacts for this mission were generated on feat/doctrine-glossary-consolidation-01KTNWFC. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/doctrine-glossary-consolidation-01KTNWFC unless the human explicitly redirects the landing branch.
+subtasks:
+- T026
+- T027
+- T028
+agent: claude
+history:
+- '2026-06-09: created by /spec-kitty.tasks (planner-priti)'
+agent_profile: python-pedro
+authoritative_surface: src/doctrine/drg/
+execution_mode: code_change
+owned_files:
+- src/doctrine/drg/**
+- src/glossary/drg_builder.py
+- tests/doctrine/drg/**
+role: implementer
+tags: []
+---
+
+## ⚡ Do This First: Load Agent Profile
+Load your profile first: `/ad-hoc-profile-load python-pedro`.
+
+## Objective
+Close the DRG generator/freshness gaps (FR-009, #1755): a single **regeneration command** producing deterministic `graph.yaml`, and **symmetric profile-edge detection** so a declared edge is validated/detected in both directions. (Code only; the built-in graph/profile *data* re-curation is WP10.)
+
+## Context
+- Contract: `contracts/charter-extends-and-drg-regen.md` §C2. DRG code in `src/doctrine/drg/` + `src/glossary/drg_builder.py`; output `src/doctrine/graph.yaml` (owned by WP10 — this WP regenerates it only in tests).
+- #1755: today there's no regeneration command and profile-edge detection is asymmetric.
+
+## Subtasks
+### T026 — Regeneration command
+Provide a deterministic `spec-kitty`-surfaced regeneration of `graph.yaml` (idempotent: regenerate-twice → byte-identical).
+### T027 — Symmetric profile-edge detection + freshness
+Detect/validate profile edges (e.g. `specializes_from`, `delegates_to`) symmetrically; wire into the freshness gate.
+### T028 — Tests
+Regenerate-twice-identical test; freshness gate green; `ruff` + `mypy` clean.
+
+## Branch Strategy
+Plan/merge target `feat/doctrine-glossary-consolidation-01KTNWFC`; per-lane worktree from `lanes.json`. **No dependencies — start immediately (parallel code lane).**
+
+## Ownership & out-of-map edits
+Owned: `src/doctrine/drg/**`, `src/glossary/drg_builder.py`, `tests/doctrine/drg/**`. **Out-of-map edits allowed with a recorded one-line rationale.** The committed `graph.yaml` is WP10's — only regenerate it in tests here.
+
+## Review / Sign-off (R-07)
+Doctrine sign-off + reviewer profile; reviewer verifies determinism + symmetric detection.
+
+## Definition of Done
+- Regeneration command deterministic; symmetric edge detection; freshness gate green; tests + ruff + mypy clean.
+
+## Risks
+- Non-determinism (ordering/timestamps) in graph output — sort + stamp deterministically.
