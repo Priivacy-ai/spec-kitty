@@ -1272,11 +1272,31 @@ _Manage org-layer doctrine packs_
 │ fetch         Fetch org doctrine pack(s) from their configured remote        │
 │               sources.                                                       │
 │ new           Scaffold a stub doctrine artifact YAML (FR-016).               │
-│ validate      Validate project-layer doctrine artifacts against their        │
+│ validate      Validate project-layer doctrine artifacts against their       │
 │               schemas (FR-017).                                              │
 │ pack          Validate or assemble doctrine packs.                           │
 │ org           Manage org-layer doctrine pack authoring (init, validate).     │
 │ mission-type  Mission type commands.                                         │
+│ regenerate-graph  Regenerate the shipped built-in DRG graph.yaml             │
+│               deterministically (FR-009); --check verifies freshness         │
+│               without writing (exit 1 when stale).                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine regenerate-graph
+
+```
+ Usage: spec-kitty doctrine regenerate-graph [OPTIONS]
+
+ Regenerate src/doctrine/graph.yaml from the built-in doctrine artifacts via
+ the deterministic extractor (sorted iteration, no timestamps). The operator
+ twin of the test_shipped_graph_yaml_is_fresh gate.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --check         Regenerate to a temp file and byte-compare against the      │
+│                 committed graph; exit 1 when stale or invalid.              │
+│ --json          Emit a machine-readable result.                             │
+│ --help          Show this message and exit.                                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

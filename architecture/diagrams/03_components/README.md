@@ -33,6 +33,7 @@ flowchart TB
     subgraph Governance["Governance Module"]
       activation["Charter Activation Engine"]
       cascade["Charter Cascade (DRG-driven)"]
+      orgExtends["Org Charter Extends Resolver"]
       doctrineCatalog["Doctrine Catalog Loader"]
       drg["Doctrine Relationship Graph"]
       profileRepo["Agent Profile Repository"]
@@ -109,6 +110,7 @@ flowchart TB
 | Op Invocation Context | Op Tier | Opens an Op under resolved governance context and closes it with the real outcome |
 | Charter Activation Engine | Governance | Plan/commit activation seam; writes config only after plan succeeds |
 | Charter Cascade | Governance | Follows DRG `requires`/`suggests` edges for cascade (de)activation |
+| Org Charter Extends Resolver | Governance | Canonical `org-charter.yaml extends:` chain resolver (`charter.org_extends`): base-first order, fail-closed on cycles/missing bases; the legacy loader delegates here |
 | Doctrine Catalog Loader | Governance | Loads doctrine assets as typed artifacts; surfaces load diagnostics |
 | Doctrine Relationship Graph | Governance | Generated edge graph; resolves profile lineage (`specializes_from`) |
 | Agent Profile Repository | Governance | Resolves agent profiles via DRG traversal |
@@ -142,7 +144,7 @@ flowchart TB
 
 | Domain (bounded module) | Primary Components |
 |---|---|
-| Governance | `Charter Activation Engine`, `Charter Cascade`, `Doctrine Catalog Loader`, `Doctrine Relationship Graph`, `Agent Profile Repository`, `Glossary Corpus` |
+| Governance | `Charter Activation Engine`, `Charter Cascade`, `Org Charter Extends Resolver`, `Doctrine Catalog Loader`, `Doctrine Relationship Graph`, `Agent Profile Repository`, `Glossary Corpus` |
 | Mission Management | `Mission + WP Lifecycle`, `Lifecycle Command Gateway`, `Event Reducer + Snapshot Materializer`, `Append-only Event Store`, `WP Lane State` |
 | Execution / Runtime | `resolve_action_context`, `resolve_placement_only`, `resolve_status_surface_with_anchor`, `Context Fragments`, `Workspace + Worktree Coordinator` |
 | Shared Kernel | `CommitTarget(ref, kind)`, `commit_guard.evaluate`, `GuardCapability` |
