@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: coordination-merge-stabilization-01KTXRVR
 mission_id: 01KTXRVR2HPMKGMH20K18JZ1SA
-generated_at: '2026-06-12T11:44:11.355285+00:00'
+generated_at: '2026-06-12T11:57:16.872068+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -12,7 +12,7 @@ input_artifacts:
     sha256: a2b555841d4bd73346e0d2002ede226bc5e5c22a49e73103d01048718adf5b69
   plan.md:
     path: /Users/robert/spec-kitty-dev/spec-kitty-20260612-090944-mmoj1h/spec-kitty/kitty-specs/coordination-merge-stabilization-01KTXRVR/plan.md
-    sha256: 14db6567becf7e17ce830543f339898b4f416502d956fb81c902132f51bf82d1
+    sha256: 8acad98d0046e9e740a16a2dafba1c2906382472d65a590558688ae02e42206e
   tasks.md:
     path: /Users/robert/spec-kitty-dev/spec-kitty-20260612-090944-mmoj1h/spec-kitty/kitty-specs/coordination-merge-stabilization-01KTXRVR/tasks.md
     sha256: e0faa01909fa80722d456ec1a10192cb03dc7d5d58bc276dee6dcad409635553
@@ -97,3 +97,7 @@ No CRITICAL or HIGH findings — **the mission is clear to proceed to `/spec-kit
 3. **U2**: WP01 closes #1735 citing both WP05 and the umbrella.
 
 All three can be absorbed into WP01's execution without re-planning. Items A1/C1/D1/A2/I3/T1 require no action beyond reviewer awareness already embedded in the WP prompts.
+
+## Addendum (2026-06-12, post-adjustments)
+
+Findings I1, I2, and U2 were applied in commit `cfb51f8b9` (plan.md errata; WP01 umbrella evidence section; #1735 dual-citation instruction). No other artifact changes since the original analysis. Findings register unchanged: 0 critical, 0 high.
