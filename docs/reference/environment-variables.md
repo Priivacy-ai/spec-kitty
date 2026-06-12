@@ -243,13 +243,14 @@ Suppress warnings for the deprecated mission-type alias surfaces.
 
 ## External Tool Convention
 
-### CODEX_HOME (legacy)
+### CODEX_HOME (legacy only)
 
 Legacy Codex prompt-home override.
 
 This is a **Codex CLI convention**, not a Spec Kitty variable. Current Spec
-Kitty Codex support uses project-local Agent Skills under `.agents/skills/`;
-do not set `CODEX_HOME` for current Spec Kitty command-skill installs.
+Kitty Codex support uses project-local Agent Skills under
+`.agents/skills/spec-kitty.<command>/SKILL.md`; do not set `CODEX_HOME` for
+current Spec Kitty command-skill installs.
 
 **Legacy-only example**:
 ```bash
@@ -285,7 +286,7 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 | `SPECIFY_REPO_ROOT` | Override repo-root discovery | `/path/to/repo` |
 | `SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION` | Silence deprecated `--feature` warnings | `1` |
 | `SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION` | Silence deprecated mission-type warnings | `1` |
-| `CODEX_HOME` | Legacy Codex CLI prompt-home override | Do not set for current Spec Kitty skills |
+| `CODEX_HOME` | Legacy Codex CLI prompt-home override | Legacy only; current Codex skills live under `.agents/skills/` |
 
 ---
 

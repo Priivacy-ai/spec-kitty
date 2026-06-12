@@ -70,7 +70,7 @@ A project initialized with `spec-kitty init` contains generated agent and scaffo
 ```bash
 rm -rf .kittify/          # project scaffold and config
 rm -rf .claude/           # agent command directory (one per configured agent)
-rm -rf .codex/
+rm -rf .codex/            # legacy Codex root (only present on installs that predate Agent Skills)
 rm -rf .gemini/
 rm -rf .agents/skills/    # codex/vibe skill packages
 # ... and any other configured agent directory listed in .kittify/config.yaml
@@ -134,7 +134,7 @@ Most spec-kitty-managed paths are version-controlled, so `git` is your rollback 
 
 ```bash
 cd /path/to/project
-git restore .kittify/ .claude/ .codex/ .gemini/    # whichever changed
+git restore .kittify/ .claude/ .agents/skills/ .gemini/    # whichever changed
 git status                                          # confirm clean
 ```
 
