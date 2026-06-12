@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- **Coordination & Merge stabilization (mission 131; closes #1826, #1861 Part 1, residuals of #1833/#1814/#1736/#1735):**
+  merge-pipeline ref advances now resync any worktree checked out on the advanced branch (shared
+  `git/ref_advance.py` helper with a no-raw-`update-ref` architectural ratchet), refusing loudly — never
+  resetting — when the worktree holds uncommitted state; the safe-commit backstop message names the diverged
+  worktree/ref/state; `finalize-tasks --validate-only` no longer switches the git checkout; task finalization
+  cleans its own primary-checkout residue (operator files untouched); workspace resolution treats non-worktree
+  "husk" directories under `.worktrees/` as structured failures instead of silently running git against the
+  primary repo, with a new `spec-kitty doctor workspaces [--fix]` check for self-serve recovery — **note:**
+  pre-existing husks that previously failed silently now produce explicit errors; run
+  `spec-kitty doctor workspaces --fix` once to clean them; retrospective gating reads route through the
+  canonical status surface (AC10 ratchet); `upgrade --dry-run` no longer prints a success line implying
+  changes were applied; merge-driver hardening (single `_make_merge_env()` authority, narrowed exception
+  mask, deterministic mixed-timestamp event-log sort).
 - **Protected-branch guard capability honesty (PR #1850 review):** the bool→capability conversion had
   re-opened protected-ref commits from production flows — three sites asserted `GuardCapability.TEST_MODE`
   (legacy workflow commit, baseline-artifact commit, finalize-tasks bootstrap) and six non-merge flows

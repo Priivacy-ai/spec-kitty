@@ -2,7 +2,7 @@
   "event_count": 36,
   "last_event_id": "01KTXYAB5XD25CVHW0V51VYSVK",
   "materialized_at": "2026-06-12T12:53:39.133452+00:00",
-  "mission_number": "",
+  "mission_number": "131",
   "mission_slug": "coordination-merge-stabilization-01KTXRVR",
   "mission_type": "software-dev",
   "summary": {
