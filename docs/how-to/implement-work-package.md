@@ -85,6 +85,7 @@ spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review: 
 ## See Also
 
 - [Generate Tasks](generate-tasks.md) - Required before implementation
+- [Keep MCP Agents in the Worktree](worktrees-with-mcp-agents.md) - Keep editor sessions attached to the active worktree
 - [Handle Dependencies](handle-dependencies.md) - How dependencies shape execution lanes
 - [Review a Work Package](review-work-package.md) - Next step after implementation
 
