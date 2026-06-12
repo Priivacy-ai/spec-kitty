@@ -14,6 +14,7 @@ reach `fixed` / `verified-already-fixed` / `deferred-with-followup` before missi
 | #1866 | Doctrine: canonical-tree carve-out for hygiene mutations | in-mission | FR-010 |
 | #1867 | Doctrine: canonical provisional-priority default | in-mission | FR-010 |
 | #1863 | DRG extractor never walks styleguides/toolguides | in-mission | FR-012 — walk + toolguide schema field; ~20 orphans needing curation stay deferred on the ticket |
+| #1896 | substantive-plan gate rejects bulleted Technical Context fields | in-mission | FR-013 — regex alignment + actionable blocked_reason (quick-fix WP) |
 | #1831 | implement prompt files collide across missions | verified-already-fixed | Fixed on this branch (Op-F, commit 0c8db2337); lands via PR #1895 |
 | #1880 | typed exceptions for substring control flow | verified-already-fixed | Fixed on this branch (Op-G, f512cb300); lands via PR #1895 |
 | #1881 | enum/constant sweep | verified-already-fixed | Fixed on this branch (Op-H b33eace72 + Op-I 358af429a); lands via PR #1895 |

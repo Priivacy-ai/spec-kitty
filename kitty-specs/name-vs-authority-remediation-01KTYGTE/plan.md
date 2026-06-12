@@ -35,6 +35,7 @@ Bind worktree/branch/identity resolution to declared authorities (two seams + a 
 | IC-09 | Doctrine deltas #1865/#1866/#1867 + addenda (drafted in research-fold-cluster §1); DIRECTIVE_018 additive; DRG regen if refs change | FR-010 | independent lane |
 | IC-10 | Authority-path flip: the ADR-recorded 7-link chain in ONE WP (resolver default → 2 source prompts → agent-copy regen → 2+3 tests → charter.md → parity baselines → full architectural green); ADR amended append-only to "executed" | FR-011 | independent lane |
 | IC-11 | Extractor walk: `_resolve_path_ref()` 6-pattern helper + toolguide schema `references` field + graph regen (+~27 edges); 7 self-healing orphans only | FR-012 | independent lane |
+| IC-13 | #1896 parser alignment: peer-field regex tolerates bullets; actionable blocked_reason; pinning test | FR-013 | rides the quick-fix WP |
 | IC-12 | Ratchet `test_topology_resolution_boundary.py`: 3 assertions (coord-predicate allowlist; AST unbackstopped-compose scan; zero fabrication idiom); rogue-injection strictness proofs | FR-009 | LAST (after IC-05/06/07) |
 
 ## WP shaping guidance (for /spec-kitty.tasks)
