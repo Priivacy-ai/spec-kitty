@@ -50,6 +50,7 @@ if TYPE_CHECKING:
 import psutil  # type: ignore[import-untyped]
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.loopback_http import build_loopback_url, create_loopback_server
 from specify_cli.sync.diagnostics import SyncDiagnosticCode, emit_sync_diagnostic
 
 logger = logging.getLogger(__name__)
@@ -280,7 +281,7 @@ def _loopback_health_url(port: int) -> str:
 
 
 def _check_sync_daemon_health(port: int, expected_token: str | None, timeout: float = 0.5) -> bool:
-    data = _fetch_health_payload(_loopback_health_url(port), timeout=timeout)
+    data = _fetch_health_payload(build_loopback_url(port, "/api/health"), timeout=timeout)
     if not data:
         return False
     if data.get("status") != "ok":
@@ -293,7 +294,7 @@ def _check_sync_daemon_health(port: int, expected_token: str | None, timeout: fl
 
 def _daemon_version_matches(port: int, expected_token: str | None, timeout: float = 0.5) -> bool:
     """Return True if the running daemon reports the current protocol + package version."""
-    data = _fetch_health_payload(_loopback_health_url(port), timeout=timeout)
+    data = _fetch_health_payload(build_loopback_url(port, "/api/health"), timeout=timeout)
     if not data:
         return False
     if data.get("status") != "ok":
@@ -683,7 +684,7 @@ def run_sync_daemon(port: int, daemon_token: str | None) -> None:
         (SyncDaemonHandler,),
         {"daemon_token": daemon_token},
     )
-    server = HTTPServer(("127.0.0.1", port), handler_class)  # NOSONAR -- sync daemon control plane binds to localhost only
+    server = create_loopback_server(port, handler_class)
 
     # Bind succeeded — record ownership BEFORE accepting traffic so any
     # health probe that arrives in the first scheduling slice already sees
