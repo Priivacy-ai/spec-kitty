@@ -1,0 +1,1 @@
+42 literal sites swept across 5 clusters; DecisionKind -> StrEnum with 4-test serialization proof; own circular-import self-resolved via function-body imports; commit b33eace72; 2429+485+205 tests green; architectural now fully green after facade boy-scout

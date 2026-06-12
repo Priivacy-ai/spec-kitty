@@ -7,7 +7,30 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-__all__ = ["SemanticConflictRecord", "iter_semantic_conflicts"]
+__all__ = [
+    "SemanticConflictRecord",
+    "iter_semantic_conflicts",
+    # Event-type string constants — import from here, never compare inline literals.
+    "EVT_SEMANTIC_CHECK_EVALUATED",
+    # EVT_SEMANTIC_CHECK_EVALUATED_LEGACY is intentionally NOT exported: it is an
+    # internal compatibility constant used only within this module to handle the
+    # older snake_case event shape in historical logs.
+    "EVT_GLOSSARY_SENSE_UPDATED",
+    "EVT_GLOSSARY_CLARIFICATION_REQUESTED",
+    "EVT_GLOSSARY_CLARIFICATION_RESOLVED",
+]
+
+# ---------------------------------------------------------------------------
+# Glossary event-type constants
+# ---------------------------------------------------------------------------
+# Canonical CamelCase form emitted by current producers and the CLI resolver.
+EVT_SEMANTIC_CHECK_EVALUATED = "SemanticCheckEvaluated"
+# Legacy snake_case form emitted by older test fixtures; handled in parallel with
+# the canonical form during replay so historical event logs remain readable.
+EVT_SEMANTIC_CHECK_EVALUATED_LEGACY = "semantic_check_evaluated"
+EVT_GLOSSARY_SENSE_UPDATED = "GlossarySenseUpdated"
+EVT_GLOSSARY_CLARIFICATION_REQUESTED = "GlossaryClarificationRequested"
+EVT_GLOSSARY_CLARIFICATION_RESOLVED = "GlossaryClarificationResolved"
 
 _EVENTS_DIR = Path(".kittify") / "events" / "glossary"
 _HIGH_SEVERITIES = {"high", "critical"}
@@ -166,9 +189,9 @@ def iter_semantic_conflicts(
                     continue
 
                 event_type = str(event.get("event_type") or "")
-                if event_type == "SemanticCheckEvaluated":
+                if event_type == EVT_SEMANTIC_CHECK_EVALUATED:
                     records.extend(_normalize_semantic_check_event(event))
-                elif event_type == "semantic_check_evaluated":
+                elif event_type == EVT_SEMANTIC_CHECK_EVALUATED_LEGACY:
                     records.extend(_normalize_legacy_event(event))
         except OSError:
             continue

@@ -79,6 +79,10 @@ REFRESH_LOCK_TIMEOUT_ERROR_CODE = "refresh_lock_timeout"
 # ---------------------------------------------------------------------------
 
 
+# Adopt-on-next-touch: this family predates the shared
+# ``specify_cli.core.errors.StructuredError`` base (#1893). It inherits from
+# ``AuthenticationError`` (not ``RuntimeError``), so adoption requires
+# reconciling that hierarchy; defer until this class is materially edited.
 class AuthRefreshFailed(AuthenticationError):
     """Raised when a forced token refresh fails inside the centralized client.
 

@@ -63,21 +63,41 @@ class ResolvedStatusSurface:
         return self.surface_path.parent
 
 
-def _coord_mid8(meta: dict[str, object], mission_slug: str) -> str:
-    """Derive the coord-worktree mid8 from meta, mirroring the read resolver."""
+def _coord_mid8(meta: dict[str, object], mission_slug: str, repo_root: Path) -> str:
+    """Derive the coord-worktree mid8 from declared authority, or fail closed.
+
+    Cascade of declared sources (post-083 ``meta.json`` is authoritative):
+    ``meta.mid8`` → ``meta.mission_id[:8]`` → the mid8 embedded in the canonical
+    ``<slug>-<mid8>`` directory name. When every declared source is exhausted the
+    disambiguator is genuinely lost, and composing a coord path would mis-route
+    to a wrong-but-plausible surface. Per the 3.x execution invariant ("raises
+    rather than silently falling back on unresolvable context"; F-001: never
+    compose a wrong-but-plausible coord path), this raises a structured
+    :class:`StatusReadPathNotFound` instead of fabricating a mid8.
+    """
     raw_mid8 = meta.get("mid8")
     raw_mission_id = meta.get("mission_id")
     if raw_mid8:
         return str(raw_mid8)
     if raw_mission_id and len(str(raw_mission_id)) >= 8:
         return str(raw_mission_id)[:8]
-    # The canonical ``<slug>-<mid8>`` directory name carries the real mid8 —
-    # prefer it over the pure fabrication below (F-001: never compose a
-    # wrong-but-plausible coord path when the real disambiguator is in hand).
+    # The canonical ``<slug>-<mid8>`` directory name carries the real mid8.
     slug_mid8: str = mid8_from_slug(mission_slug)
     if slug_mid8:
         return slug_mid8
-    return (mission_slug.replace("-", "") + "00000000")[:8]
+    # Cascade exhausted: no declared source carries the disambiguator. Fail
+    # closed rather than fabricate a wrong-but-plausible mid8 (FR-005 / F-001).
+    raise StatusReadPathNotFound(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        mid8="",
+        coord_candidate=CoordinationWorkspace.worktree_path(
+            repo_root, mission_slug, ""
+        )
+        / KITTY_SPECS_DIR
+        / mission_slug,
+        primary_candidate=repo_root / KITTY_SPECS_DIR / mission_slug,
+    )
 
 
 def resolve_status_surface(repo_root: Path, mission_slug: str) -> Path:
@@ -123,7 +143,8 @@ def resolve_status_surface_with_anchor(
     Raises FileNotFoundError when meta.json is absent.
     Raises ValueError when meta.json is malformed.
     Raises StatusReadPathNotFound when the coord worktree is materialized but
-        its mission dir is absent (fail closed).
+        its mission dir is absent, or when the coord-worktree mid8 cannot be
+        derived from any declared source (fail closed — never fabricate a mid8).
     """
     feature_dir: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
     # F-001: the candidate resolution above is the single canonicalization
@@ -193,7 +214,7 @@ def resolve_status_surface_with_anchor(
     # the coord feature dir once, by hand, from the primary-checkout meta. The
     # primary anchor stays the canonical primary candidate (the create→first-
     # write window authority the transaction-identity logic expects).
-    mid8: str = _coord_mid8(meta, mission_slug)
+    mid8: str = _coord_mid8(meta, mission_slug, repo_root)
     dir_name: str = _compose_mission_dir(mission_slug, mid8)
     coord_root: Path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
     coord_feature_dir: Path = coord_root / KITTY_SPECS_DIR / dir_name

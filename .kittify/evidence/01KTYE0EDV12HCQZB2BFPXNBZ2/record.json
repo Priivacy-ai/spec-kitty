@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KTYE0EDV12HCQZB2BFPXNBZ2",
+  "completed_at": "2026-06-12T17:47:39.200486+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "StructuredError base shipped (commit 37bcb0803): 3 fresh families adopted (GitPreflightError, PortUnavailableError, MissionRuntimeError \u2014 runtime boundary ruling CLEARED with evidence), 2 deferred with pointer comments (SafeCommitError, AuthRefreshFailed incl. hierarchy note); 9 new tests, 341 architectural, zero existing tests modified"
+}

@@ -3,7 +3,7 @@
 **Mission ID**: 01KTNWFC3B1ZGFR9FTT77X7H2Y
 **Slug**: doctrine-glossary-architecture-consolidation
 **Type**: software-dev
-**Target branch**: fixups/code-engine-stabilization
+**Target branch**: feat/doctrine-glossary-consolidation-01KTNWFC
 **Tracker**: epic #1799 (Charter & Doctrine); bundles #1811, #1805, #1397, #1755, #1418
 
 ## Purpose
@@ -28,12 +28,12 @@ Following a full issue-tracker remediation (see repo `work/` traces), turn the p
 | FR-002 | Author **tactic(s)**: iterative-deepening review (widening time windows) and the MoSCoW prioritisation *approach* (scoping lens, distinct from `priority:Px`). | #1811 | Draft |
 | FR-003 | Author the **styleguide**: functional-epic-vs-meta-tracker rule, community-precedence on dedup, label/type/priority conventions (single `priority:Px`; `bug`⟺Bug; `triage:*`, `usability`, `future`), epic naming, "no ticket list in epic body". | #1811 | Draft |
 | FR-004 | Author the **toolguide**: gh CLI + GitHub GraphQL mechanics & gotchas (sub-issues API, node-id vs db-id, batched parent lookups, secondary-rate-limit loop trap, auth). | #1811 | Draft |
-| FR-005 | Define and apply the **`architecture/` vs `docs/**` boundary** (ratified architecture vs explanatory docs) and introduce a **`vision/` directory** for forward-looking material. | #1805 | Draft |
+| FR-005 | **Reconcile** the `architecture/` vs `docs/**` boundary (ratified architecture vs explanatory docs): eliminate residual parallel content, introduce a `vision/` directory for forward-looking material, and delete pointer stubs — a single source of truth per surface (C-005). | #1805 | Draft |
 | FR-006 | Refresh the **C4 drilldowns** (context → container → component) for the current 3.x system. | #1805 | Draft |
 | FR-007 | Fill architecture gaps by authoring the **Ops ADR**, scoping its abstraction to also cover pre/post-mission lifecycle (the shared Op shape across #1804 and #1802). | #1805 / #1804 / #1802 | Draft |
 | FR-008 | Implement **`org-charter.yaml` `extends:`** for additive multi-org charter configuration. | #1397 | Draft |
 | FR-009 | Close **DRG generator/freshness gaps** (regeneration command + symmetric profile-edge detection) **and sanitize/re-curate the built-in DRG and agent profiles** — fold in this mission's new doctrine additions and prune stale/duplicate edges/profiles so the graph reflects the consolidated doctrine. | #1755 | Draft |
-| FR-010 | **Refresh and expand the glossary content NOW** for the new epic landscape and architectural direction; reconcile the planning-and-tracking subset terms. | glossary | Draft |
+| FR-010 | **Reconcile and refresh the glossary**: confirm the top-level `glossary/` as the single canonical surface (delete the residual `architecture/glossary/` pointer — C-005), then expand content for the new epic landscape and architectural direction; reconcile the planning-and-tracking subset terms. | glossary | Draft |
 | FR-011 | **Defer** promoting the planning-and-tracking subset to a runtime `GlossaryScope`; record an explicit deferral with rationale (reassess under #1418). | #1418 | Draft |
 | FR-012 | **Validate the new doctrine by applying it to #391**: use the authored procedure/tactic/styleguide to split the #391 dumping-ground epic, reparent its children to functional homes, and close #391 as superseded/deprecated (dogfood / usage test). | aside | Draft |
 
@@ -50,7 +50,7 @@ Following a full issue-tracker remediation (see repo `work/` traces), turn the p
 
 | ID | Constraint | Status |
 |----|-----------|--------|
-| C-001 | All work plans, implements, and merges on `fixups/code-engine-stabilization`; no new mission branch is introduced. | Active |
+| C-001 | All work plans, implements, and merges on `feat/doctrine-glossary-consolidation-01KTNWFC`; no new mission branch is introduced. | Active |
 | C-002 | Use canonical doctrine templates / CLI surfaces; do not improvise artefacts or copy older missions. | Active |
 | C-003 | Honour the Terminology Canon (Mission not feature; canonical glossary terms); terminology guard must pass. | Active |
 | C-004 | Preserve existing charter content and user customizations; charter `extends:` must be additive, not destructive. | Active |
@@ -63,7 +63,7 @@ Following a full issue-tracker remediation (see repo `work/` traces), turn the p
 - **SC-3:** A charter that declares `extends:` resolves additively and passes validation.
 - **SC-4:** Doctrine graph regenerates from a single command and the freshness gate passes deterministically.
 - **SC-5:** All touched glossary seeds validate; planning-and-tracking content is refreshed, and an explicit defer is recorded for runtime-scope promotion.
-- **SC-6:** #391 is split, its children reparented to functional homes, and #391 closed as superseded — accomplished using *only* the newly authored doctrine (proving SC-1 on a real case).
+- **SC-6:** #391 is organized per the newly authored doctrine — residual open children classified and reparented to functional homes where the procedure prescribes; #391 itself REMAINS OPEN as the canonical debt bucket (operator decision 2026-06-11: the 2026-06-09 tracker restructure deliberately keeps #391 live; the original 'close as superseded' wording predated it) — accomplished using *only* the new doctrine (proving SC-1 on a real case).
 - **SC-7:** No new parallel mechanism is introduced; each touched surface (glossary, charter config, DRG, architecture docs) has a single source of truth after the mission (C-005).
 
 ## Key Entities
@@ -77,8 +77,9 @@ Following a full issue-tracker remediation (see repo `work/` traces), turn the p
 ## Assumptions
 
 - Source material is authoritative: the repo `work/` traces (`TRACKER_DOCTRINE_NOTES.md`, `GH_TOOLING_NOTES.md`, `EPIC_ARCHITECTURE_CORRELATION.md`, `EXECUTIVE_SUMMARY.md`, `TRIAGE_FINDINGS_BUGS_P0_P1.md`) and `.kittify/glossaries/planning-and-tracking.yaml`.
-- The architecture/docs restructure (FR-005/006) executes within this mission (operator chose full #1805 scope), led by the architect profile.
-- Whether this mission needs `change_mode: bulk_edit` (for the doc/path restructure's cross-file reference updates) is to be confirmed during plan; default assumed non-bulk.
+- The architecture/docs reconciliation (FR-005/006, #1805 folded as source FR) executes within this mission (operator chose full scope), led by the architect profile.
+- The top-level `glossary/` is already the canonical surface (established #1636/01KTB6AN era); WP01 reconciles (deletes residual pointer), does NOT perform a new promotion move.
+- `change_mode: standard` (O1-reverted); occurrence_map is a reference-rewrite advisory checklist, not an enforcement gate.
 
 ## Out of Scope
 

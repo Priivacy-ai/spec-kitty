@@ -467,11 +467,15 @@ def workflow_cli_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[
         analyzer_agent="test",
     )
 
-    workspace = repo / ".worktrees" / f"{mission_slug}-lane-a"
-    workspace.mkdir(parents=True)
-
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
     subprocess.run(["git", "commit", "-m", "seed workflow fixture"], cwd=repo, check=True, capture_output=True)
+    workspace = repo / ".worktrees" / f"{mission_slug}-lane-a"
+    subprocess.run(
+        ["git", "worktree", "add", "-b", f"{mission_slug}-lane-a", str(workspace), "main"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
 
     monkeypatch.chdir(repo)
     return repo, feature_dir
@@ -526,7 +530,7 @@ class TestImplementReviewFeedbackHandoff:
 
         assert result.exit_code == 0, result.stdout
         assert "Fix mode" in result.stdout
-        prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md"
+        prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-001-test-feature-WP01.md"
         prompt_content = prompt_file.read_text(encoding="utf-8")
         assert "## Review Findings" in prompt_content
         assert "Use the canonical review artifact instead of the claim token." in prompt_content

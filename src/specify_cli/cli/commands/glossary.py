@@ -24,6 +24,12 @@ from glossary.events import (
     get_event_log_path,
     read_events,
 )
+from glossary.semantic_events import (
+    EVT_GLOSSARY_CLARIFICATION_REQUESTED,
+    EVT_GLOSSARY_CLARIFICATION_RESOLVED,
+    EVT_GLOSSARY_SENSE_UPDATED,
+    EVT_SEMANTIC_CHECK_EVALUATED,
+)
 from glossary.exceptions import SeedFileValidationError
 from glossary.models import (
     TermSense,
@@ -80,7 +86,7 @@ def _load_store_from_seeds(repo_root: Path) -> GlossaryStore:
             for event in read_events(event_file):
                 event_type = event.get("event_type", "")
 
-                if event_type == "GlossarySenseUpdated":
+                if event_type == EVT_GLOSSARY_SENSE_UPDATED:
                     # A new or updated sense from event log
                     new_sense_data = event.get("new_sense", {})
                     surface_text = new_sense_data.get("surface", event.get("term_surface", ""))
@@ -103,7 +109,7 @@ def _load_store_from_seeds(repo_root: Path) -> GlossaryStore:
                     except (ValueError, KeyError) as exc:
                         logger.warning("Skipping malformed GlossarySenseUpdated event: %s", exc)
 
-                elif event_type == "GlossaryClarificationResolved":
+                elif event_type == EVT_GLOSSARY_CLARIFICATION_RESOLVED:
                     # A resolved clarification may introduce a sense
                     selected = event.get("selected_sense", {})
                     surface_text = selected.get("surface", event.get("term_surface", ""))
@@ -198,7 +204,7 @@ def _extract_conflicts_from_events(  # noqa: C901
     for event in events:
         event_type = event.get("event_type", "")
 
-        if event_type == "SemanticCheckEvaluated":
+        if event_type == EVT_SEMANTIC_CHECK_EVALUATED:
             if event.get("blocked"):
                 step_id = event.get("step_id", "unknown")
                 check_event_index[step_id] = event
@@ -207,7 +213,7 @@ def _extract_conflicts_from_events(  # noqa: C901
                     term_text = term_data.get("surface_text", "unknown") if isinstance(term_data, dict) else str(term_data)
                     finding_index[(step_id, term_text)] = finding
 
-        elif event_type == "GlossaryClarificationRequested":
+        elif event_type == EVT_GLOSSARY_CLARIFICATION_REQUESTED:
             # Primary conflict source: has canonical UUID conflict_id
             cid = event.get("conflict_id", "")
             term_text = event.get("term", "unknown")
@@ -235,7 +241,7 @@ def _extract_conflicts_from_events(  # noqa: C901
                 }
             )
 
-        elif event_type == "GlossaryClarificationResolved":
+        elif event_type == EVT_GLOSSARY_CLARIFICATION_RESOLVED:
             cid = event.get("conflict_id", "")
             if cid:
                 resolved_conflict_ids.add(cid)
@@ -245,7 +251,7 @@ def _extract_conflicts_from_events(  # noqa: C901
     # check if they have a matching GlossaryClarificationResolved instead
     for event in events:
         event_type = event.get("event_type", "")
-        if event_type == "GlossaryClarificationResolved":
+        if event_type == EVT_GLOSSARY_CLARIFICATION_RESOLVED:
             cid = event.get("conflict_id", "")
             term_text = event.get("term_surface", "unknown")
             # If this resolved event's conflict_id is not yet in our list,
@@ -549,7 +555,7 @@ def resolve(  # noqa: C901
     # Index SemanticCheckEvaluated findings for enrichment
     finding_index: dict[tuple[str, str], dict] = {}
     for event in all_events:
-        if event.get("event_type") == "SemanticCheckEvaluated" and event.get("blocked"):
+        if event.get("event_type") == EVT_SEMANTIC_CHECK_EVALUATED and event.get("blocked"):
             step_id = event.get("step_id", "unknown")
             for finding in event.get("findings", []):
                 term_data = finding.get("term", {})
@@ -558,7 +564,7 @@ def resolve(  # noqa: C901
 
     # Search GlossaryClarificationRequested events for the UUID conflict_id
     for event in all_events:
-        if event.get("event_type") == "GlossaryClarificationRequested":  # noqa: SIM102
+        if event.get("event_type") == EVT_GLOSSARY_CLARIFICATION_REQUESTED:  # noqa: SIM102
             if event.get("conflict_id") == conflict_id:
                 requested_event = event
                 conflict_mission_id = event.get("mission_id", "unknown")
@@ -574,7 +580,7 @@ def resolve(  # noqa: C901
 
     # Check if already resolved
     resolved = any(
-        e.get("event_type") == "GlossaryClarificationResolved" and e.get("conflict_id") == conflict_id
+        e.get("event_type") == EVT_GLOSSARY_CLARIFICATION_RESOLVED and e.get("conflict_id") == conflict_id
         for e in all_events
     )
 

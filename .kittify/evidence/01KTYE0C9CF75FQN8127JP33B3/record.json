@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KTYE0C9CF75FQN8127JP33B3",
+  "completed_at": "2026-06-12T17:34:02.341116+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "_fold_policies extracted (commit 53c0f4798): 3-site behavioral matrix verified (only schema_version diverged \u2014 strict raises vs lenient last-truthy); parameterized strict_schema_version (default lenient = 2-of-3 sites + lower-risk); 7 new tests incl. end-to-end parity pin of the preserved inconsistency; 223 doctrine tests green, 341 architectural, net -29 LOC, zero existing tests modified"
+}

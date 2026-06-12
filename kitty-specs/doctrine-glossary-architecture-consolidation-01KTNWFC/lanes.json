@@ -1,0 +1,206 @@
+{
+  "version": 1,
+  "mission_slug": "doctrine-glossary-architecture-consolidation-01KTNWFC",
+  "mission_id": "01KTNWFC3B1ZGFR9FTT77X7H2Y",
+  "mission_branch": "kitty/mission-doctrine-glossary-architecture-consolidation-01KTNWFC",
+  "target_branch": "feat/doctrine-glossary-consolidation-01KTNWFC",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".kittify/glossaries/**",
+        "glossary/**",
+        "src/glossary/scope.py",
+        "src/glossary/seed_validation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/charter/**",
+        "tests/charter/**"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "src/doctrine/drg/**",
+        "src/glossary/drg_builder.py",
+        "tests/doctrine/drg/**"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".kittify/charter/**",
+        "architecture/1.x/**",
+        "architecture/2.x/**",
+        "architecture/3.x/research/**",
+        "architecture/3.x/vision/**",
+        "architecture/README.md",
+        "architecture/audience/**",
+        "architecture/vision/**",
+        "docs/explanation/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "architecture/diagrams/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/doctrine/procedures/**",
+        "src/doctrine/tactics/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/doctrine/styleguides/**",
+        "src/doctrine/toolguides/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "architecture/3.x/adr/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        "src/doctrine/agent_profiles/built-in/**",
+        "src/doctrine/graph.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-e",
+        "lane-h"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        "docs/development/391-doctrine-usage-test.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-06-11T11:57:41.608279+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

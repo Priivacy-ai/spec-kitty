@@ -351,3 +351,70 @@ def test_contract_ref_unresolved_code_string_is_stable() -> None:
         LoaderErrorCode.MISSION_CONTRACT_REF_UNRESOLVED.value
         == "MISSION_CONTRACT_REF_UNRESOLVED"
     )
+
+
+# ---------------------------------------------------------------------------
+# #1880: "has no steps" routing keys on the typed exception (NFR-007),
+# not on the message substring.
+# ---------------------------------------------------------------------------
+
+
+def test_no_steps_routes_by_typed_exception_not_substring(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``_classify_load_failure`` maps MissionTemplateHasNoStepsError to the
+    missing-steps error by exception TYPE, even when the message is reworded so
+    that the legacy ``"has no steps"`` substring is absent.
+    """
+    from runtime.next._internal_runtime.schema import MissionTemplateHasNoStepsError
+    from specify_cli.mission_loader import validator as validator_mod
+    from runtime.next._internal_runtime.discovery import DiscoveryWarning
+
+    def _raise_no_steps(_path: Path) -> None:
+        # Message deliberately omits the legacy "has no steps" substring.
+        raise MissionTemplateHasNoStepsError("template defines zero actions")
+
+    monkeypatch.setattr(
+        validator_mod, "load_mission_template_file", _raise_no_steps
+    )
+
+    warning = DiscoveryWarning(
+        path="/tmp/no-steps/mission.yaml",
+        tier="project_config",
+        origin="test",
+        error="prior load failure",
+    )
+    error = validator_mod._classify_load_failure(warning, "no-steps")
+
+    assert error.code is LoaderErrorCode.MISSION_REQUIRED_FIELD_MISSING
+    assert error.details["field"] == "steps"
+    # Confirm the exception carries the stable error_code contract.
+    assert MissionTemplateHasNoStepsError.error_code == "MISSION_TEMPLATE_HAS_NO_STEPS"
+
+
+def test_generic_runtime_error_still_maps_to_malformed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A bare MissionRuntimeError (not the no-steps subclass) maps to MALFORMED,
+    proving the typed split does not over-capture sibling runtime errors.
+    """
+    from runtime.next._internal_runtime.schema import MissionRuntimeError
+    from specify_cli.mission_loader import validator as validator_mod
+    from runtime.next._internal_runtime.discovery import DiscoveryWarning
+
+    def _raise_generic(_path: Path) -> None:
+        raise MissionRuntimeError("Mission template must be a mapping: /tmp/x")
+
+    monkeypatch.setattr(
+        validator_mod, "load_mission_template_file", _raise_generic
+    )
+
+    warning = DiscoveryWarning(
+        path="/tmp/bad/mission.yaml",
+        tier="project_config",
+        origin="test",
+        error="prior load failure",
+    )
+    error = validator_mod._classify_load_failure(warning, "bad")
+
+    assert error.code is LoaderErrorCode.MISSION_YAML_MALFORMED

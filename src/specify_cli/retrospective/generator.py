@@ -36,13 +36,18 @@ from specify_cli.retrospective.schema import (
     ProvenanceKind,
     validate_record,
 )
-# NOTE: ``REVIEWER_SELF_APPROVAL`` is imported lazily inside the consuming
-# function (see below) rather than at module scope. This module is reached
-# during ``status`` package initialization (status.models →
-# retrospective.schema → retrospective.__init__ → generator), so a module-level
-# ``from specify_cli.status import ...`` would form an import cycle against the
-# partially-initialized facade. The lazy import keeps the consumer on the public
-# facade without re-introducing a deep ``status.*`` submodule import.
+# NOTE: ``REVIEWER_SELF_APPROVAL`` and ``Lane`` are imported lazily inside the
+# consuming functions rather than at module scope. This module is reached
+# during ``status`` package initialization via:
+#   status/__init__.py → status/models.py → retrospective/__init__.py → generator.py
+# A module-level ``from specify_cli.status import ...`` or
+# ``from specify_cli.status.models import ...`` would form a circular import
+# against the partially-initialized status package. The lazy imports keep
+# the consumers on the public facade without triggering the cycle.
+# The former lazy → module-level conversion was attempted but reverted because
+# Python initializes retrospective.__init__ before retrospective.schema when
+# any sub-module of retrospective is imported, triggering generator.py before
+# status.models finishes loading.
 
 if TYPE_CHECKING:
     from specify_cli.retrospective.policy import RetrospectivePolicy
@@ -402,6 +407,7 @@ def _detect_implementation_cycles(events: list[dict[str, Any]]) -> dict[str, int
     surface as a documented review rejection.  Bootstrap and synthetic
     transitions are excluded.
     """
+    from specify_cli.status import Lane as _Lane  # cycle-breaker; see module note
     counts: dict[str, int] = {}
     for event in events:
         wp_id = event.get("wp_id", "")
@@ -412,7 +418,7 @@ def _detect_implementation_cycles(events: list[dict[str, Any]]) -> dict[str, int
             continue
         from_lane = event.get("from_lane", "")
         to_lane = event.get("to_lane", "")
-        if from_lane in ("planned", "claimed") and to_lane == "in_progress":
+        if from_lane in (_Lane.PLANNED, _Lane.CLAIMED) and to_lane == _Lane.IN_PROGRESS:
             counts[wp_id] = counts.get(wp_id, 0) + 1
     # Only WPs with MORE THAN ONE cycle are interesting (the first cycle is normal).
     return {wp: n for wp, n in counts.items() if n > 1}

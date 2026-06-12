@@ -11,6 +11,13 @@ from pathlib import Path
 from .models import Lane
 from .store import EVENTS_FILENAME
 
+# Sentinel returned by lane-reader functions when an event log exists but
+# contains no events for the requested WP.  Kept here (the canonical
+# lane-read surface) so every reader site can import a single shared
+# definition rather than inlining the raw ``"uninitialized"`` string.
+# ``status/aggregate.py`` imports this constant rather than redeclaring it.
+LEGACY_UNINITIALIZED_SENTINEL: str = "uninitialized"
+
 
 class CanonicalStatusNotFoundError(RuntimeError):
     """Raised when the event log file does not exist for a feature.
@@ -55,11 +62,11 @@ def get_wp_lane(feature_dir: Path, wp_id: str) -> Lane | str:
     events = read_events(feature_dir)
     if not events:
         # File exists but is empty — treat WP as uninitialized.
-        return "uninitialized"
+        return LEGACY_UNINITIALIZED_SENTINEL
     snapshot = reduce(events)
     wp_state = snapshot.work_packages.get(wp_id)
     if wp_state is None:
-        return "uninitialized"
+        return LEGACY_UNINITIALIZED_SENTINEL
     # Defensive default matches the write side (#1775 review M4 / I3 parity):
     # an entry that somehow lacks a lane is genesis (unseeded), not planned.
     return Lane(wp_state.get("lane", Lane.GENESIS))

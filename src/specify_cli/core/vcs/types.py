@@ -189,6 +189,10 @@ class WorkspaceCreateResult:
     success: bool
     workspace: WorkspaceInfo | None
     error: str | None
+    # Stable machine identifier for the failure cause (NFR-007). Populated when
+    # the failure originates from a deterministic git preflight check so that
+    # consumers can branch on the code rather than substring-matching ``error``.
+    error_code: str | None = None
 
 
 @dataclass

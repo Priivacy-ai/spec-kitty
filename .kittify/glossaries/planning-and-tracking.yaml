@@ -1,6 +1,13 @@
 # Spec Kitty — Planning & Tracking vocabulary
 # Subset glossary for issue-tracker organization concepts (epics, labels, triage,
 # priority, and the Op execution tier). Companion to spec_kitty_core.yaml.
+# Human-readable companion page: glossary/contexts/planning-and-tracking.md
+#
+# DEFERRED runtime scope (FR-011, #1418): this subset is NOT promoted to a
+# first-class GlossaryScope enum value. Mission runs are not yet wired into the
+# tracking concepts here, so a runtime scope would have no resolution surface to
+# bind against. The enum stays mission_local/team_domain/audience_domain/
+# spec_kitty_core (src/glossary/scope.py). Reassess under #1418.
 
 terms:
 

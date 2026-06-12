@@ -85,6 +85,22 @@ def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Create a minimal repo root for workflow review command tests."""
     repo_root = tmp_path
     (repo_root / ".kittify").mkdir()
+    (repo_root / ".kittify" / "config.yaml").write_text("# Config\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo_root, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(["git", "add", ".kittify/config.yaml"], cwd=repo_root, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "seed repo"], cwd=repo_root, check=True, capture_output=True)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)
     monkeypatch.setattr(

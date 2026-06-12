@@ -1,0 +1,1 @@
+3 typed exceptions per NFR-007 (GitPreflightError+codes, MissionTemplateHasNoStepsError, PortUnavailableError), behavior-preserving, substring-not-load-bearing proven per site (mutated-message tests); commit f512cb300, 210 focused tests, ruff/mypy clean, zero own architectural regressions (2 remaining failures attributed to sibling Op-H in flight)

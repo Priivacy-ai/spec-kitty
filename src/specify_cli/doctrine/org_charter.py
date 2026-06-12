@@ -333,9 +333,15 @@ def _resolve_chain(
 ) -> list[OrgCharterPolicy]:
     """Resolve the ``extends:`` chain starting from ``pack_name``.
 
-    Walks ``extends:`` pointers depth-first from the overlay (``pack_name``)
-    down to the root base, then reverses the result so the returned list
-    is ordered base-first (``[root_base, ..., overlay]``).
+    Delegates the topology walk (cycle detection, missing-base detection,
+    base-first ordering) to the canonical charter-layer resolver
+    :func:`charter.org_extends.resolve_extends_order`. This module no longer
+    maintains its own depth-first walk — per C-005 / R-10 there is a single
+    ``extends:`` resolution mechanism, and the charter-layer functions are it
+    (FR-008). This loader only maps the resolved order back to the loaded
+    :class:`OrgCharterPolicy` objects and re-raises the charter-layer errors as
+    the established ``OrgCharter*`` exceptions so existing callers/tests see an
+    unchanged contract.
 
     Parameters
     ----------
@@ -359,60 +365,68 @@ def _resolve_chain(
     OrgCharterCycleError
         When a cycle is detected (a pack already in the chain re-appears).
     """
-    chain_names: list[str] = []
-    chain_policies: list[OrgCharterPolicy] = []
-    visited: set[str] = set()
+    from charter.org_extends import (
+        ExtendsBaseNotFoundError,
+        ExtendsCycleError,
+        resolve_extends_order,
+    )
 
-    current: str | None = pack_name
-    while current is not None:
-        if current in visited:
-            # Reveal the full cycle, appending the repeat for clarity.
-            cycle_path = [*chain_names, current]
-            raise OrgCharterCycleError(cycle_path)
-        if current not in pack_set:
-            raise OrgCharterExtensionError(current, chain_names)
-        visited.add(current)
-        chain_names.append(current)
-        policy = pack_set[current]
-        chain_policies.append(policy)
-        current = policy.extends
+    extends_edges = {name: policy.extends for name, policy in pack_set.items()}
+    try:
+        order = resolve_extends_order(pack_name, extends_edges)
+    except ExtendsCycleError as exc:
+        raise OrgCharterCycleError(exc.cycle_path) from exc
+    except ExtendsBaseNotFoundError as exc:
+        raise OrgCharterExtensionError(exc.missing_base, exc.chain) from exc
 
-    # chain_policies is [overlay, ..., root_base]; reverse for base-first.
-    chain_policies.reverse()
-    return chain_policies
+    return [pack_set[name] for name in order]
 
 
-def _merge_chain(chain: list[OrgCharterPolicy]) -> OrgCharterPolicy:
-    """Merge a base-first ``chain`` into a single resolved :class:`OrgCharterPolicy`.
+def _fold_policies(
+    policies: list[OrgCharterPolicy],
+    *,
+    strict_schema_version: bool = False,
+) -> OrgCharterPolicy:
+    """Fold a list of policies (declaration order) into one resolved policy.
 
-    Merge semantics (C-002 / WP09 T058):
+    This is the single canonical merge-fold body extracted from the three
+    historical hand-rolled copies (``_merge_chain``, the legacy
+    ``load_org_charter_policies`` path, and the ``_load_with_pack_context``
+    cross-pack fold).  See #1894.
 
-    * ``required_<kind>`` (all 8) — **union** across layers; overlay adds,
-      never removes.  Result preserves first-seen order.
-    * ``interview_defaults`` — **per-key replacement**; iterate base→overlay
-      applying ``dict.update``.  Overlay key wins; unmentioned base keys
-      survive.
-    * ``schema_version`` — **must match** across all layers (WP09 T059).
-      Mismatch raises ``ValueError`` with both versions surfaced.
+    Fold semantics (identical across all callers):
+
+    * ``required_<kind>`` (all 8) — **union**; later policies add, never
+      remove.  Result preserves first-seen order.
+    * ``interview_defaults`` — **per-key replacement** via ``dict.update``;
+      later key wins; unmentioned earlier keys survive.
     * ``governance_policies`` — concatenated and deduplicated by
-      ``(field, value)`` keeping the *last* (overlay) occurrence.
+      ``(field, value)`` keeping the *last* occurrence.
     * ``activations`` — concatenated and deduplicated on the 4-tuple
       identity key keeping the *last* occurrence.
     * ``org_name`` — last non-empty value wins.
-    * ``extends`` — always ``None`` on the merged result (the merged
-      policy is the resolved snapshot, not a chain link).
-    """
-    if not chain:
-        return OrgCharterPolicy()
+    * ``extends`` — always ``None`` on the merged result (the merged policy
+      is the resolved snapshot, not a chain link).
 
-    # --- T059: schema_version must match across the chain -----------------
-    versions = {p.schema_version for p in chain}
-    if len(versions) > 1:
-        raise ValueError(
-            "schema_version mismatch in extends: chain. "
-            f"Versions found: {sorted(versions)}. All packs in a chain "
-            "must share the same schema_version."
-        )
+    ``schema_version`` handling is the one historical point of divergence
+    and is parameterised by *strict_schema_version*:
+
+    * ``True`` (the ``_merge_chain`` / extends-chain behaviour, WP09 T059):
+      every policy in *policies* **must** share the same ``schema_version``;
+      a mismatch raises ``ValueError`` with both versions surfaced.  The
+      single shared version is carried onto the result.
+    * ``False`` (the legacy ``config.yaml`` path and the cross-pack fold):
+      **no mismatch check** — the last truthy ``schema_version`` wins, with
+      a ``1`` fallback when none is truthy.
+
+    NOTE (#1894): the lenient (``strict_schema_version=False``) branch is a
+    LATENT inconsistency preserved deliberately — historically the legacy
+    path None-guarded ``schema_version`` while ``_merge_chain`` enforced
+    set-equality.  This extraction makes the delta an explicit parameter
+    rather than silent drift; it does not "fix" the lenient semantics.
+    """
+    if not policies:
+        return OrgCharterPolicy()
 
     merged_interview_defaults: dict[str, str | bool] = {}
     merged_required: dict[str, list[str]] = {kind: [] for kind in REQUIRED_KIND_FIELDS}
@@ -420,10 +434,28 @@ def _merge_chain(chain: list[OrgCharterPolicy]) -> OrgCharterPolicy:
     activation_dedup: dict[tuple[str, str, str, str], ActivationEntry] = {}
     org_name: str | None = None
 
-    for policy in chain:
+    if strict_schema_version:
+        # --- T059: schema_version must match across the chain -------------
+        versions = {p.schema_version for p in policies}
+        if len(versions) > 1:
+            raise ValueError(
+                "schema_version mismatch in extends: chain. "
+                f"Versions found: {sorted(versions)}. All packs in a chain "
+                "must share the same schema_version."
+            )
+        resolved_schema_version: int = next(iter(versions))
+    else:
+        # Lenient: last truthy schema_version wins; 1 fallback (see NOTE).
+        last_truthy: int | None = None
+        for policy in policies:
+            if policy.schema_version:
+                last_truthy = policy.schema_version
+        resolved_schema_version = last_truthy if last_truthy is not None else 1
+
+    for policy in policies:
         if policy.org_name:
             org_name = policy.org_name
-        # Per-key replacement: overlay key wins; base keys not overridden
+        # Per-key replacement: later key wins; earlier keys not overridden
         # remain in place.
         merged_interview_defaults.update(policy.interview_defaults)
         # Union semantics for every required_<kind>.
@@ -442,7 +474,7 @@ def _merge_chain(chain: list[OrgCharterPolicy]) -> OrgCharterPolicy:
     deduped_governance = list(seen.values())
 
     return OrgCharterPolicy(
-        schema_version=next(iter(versions)),
+        schema_version=resolved_schema_version,
         extends=None,
         org_name=org_name,
         interview_defaults=merged_interview_defaults,
@@ -457,6 +489,17 @@ def _merge_chain(chain: list[OrgCharterPolicy]) -> OrgCharterPolicy:
         governance_policies=deduped_governance,
         activations=list(activation_dedup.values()),
     )
+
+
+def _merge_chain(chain: list[OrgCharterPolicy]) -> OrgCharterPolicy:
+    """Merge a base-first ``chain`` into a single resolved :class:`OrgCharterPolicy`.
+
+    Thin wrapper over :func:`_fold_policies` with strict ``schema_version``
+    matching (C-002 / WP09 T058-T059): every pack in an ``extends:`` chain
+    must share the same ``schema_version``; a mismatch raises ``ValueError``.
+    All other fold semantics are documented on :func:`_fold_policies`.
+    """
+    return _fold_policies(chain, strict_schema_version=True)
 
 
 def load_org_charter_policies(
@@ -503,13 +546,7 @@ def load_org_charter_policies(
     if not registry.packs:
         return OrgCharterPolicy()
 
-    merged_interview_defaults: dict[str, str | bool] = {}
-    merged_required: dict[str, list[str]] = {kind: [] for kind in REQUIRED_KIND_FIELDS}
-    merged_governance: list[GovernancePolicy] = []
-    activation_dedup: dict[tuple[str, str, str, str], ActivationEntry] = {}
-    schema_version: int | None = None
-    org_name: str | None = None
-
+    policies: list[OrgCharterPolicy] = []
     for pack in registry.packs:
         try:
             policy = load_org_charter_policy(pack.local_path)
@@ -517,40 +554,11 @@ def load_org_charter_policies(
             continue
         if policy is None:
             continue
-        if policy.schema_version:
-            schema_version = policy.schema_version
-        if policy.org_name:
-            org_name = policy.org_name
-        merged_interview_defaults.update(policy.interview_defaults)
-        for kind in REQUIRED_KIND_FIELDS:
-            for item in getattr(policy, f"required_{kind}"):
-                if item not in merged_required[kind]:
-                    merged_required[kind].append(item)
-        merged_governance.extend(policy.governance_policies)
-        for entry in policy.activations:
-            activation_dedup[_activation_identity_key(entry)] = entry
+        policies.append(policy)
 
-    # Dedupe governance policies by (field, value), keeping the LAST entry.
-    seen: dict[tuple[str, str | bool], GovernancePolicy] = {}
-    for gp in merged_governance:
-        seen[(gp.field, gp.value)] = gp
-    deduped_governance = list(seen.values())
-
-    return OrgCharterPolicy(
-        schema_version=schema_version if schema_version is not None else 1,
-        org_name=org_name,
-        interview_defaults=merged_interview_defaults,
-        required_directives=merged_required["directives"],
-        required_tactics=merged_required["tactics"],
-        required_paradigms=merged_required["paradigms"],
-        required_styleguides=merged_required["styleguides"],
-        required_toolguides=merged_required["toolguides"],
-        required_procedures=merged_required["procedures"],
-        required_agent_profiles=merged_required["agent_profiles"],
-        required_mission_step_contracts=merged_required["mission_step_contracts"],
-        governance_policies=deduped_governance,
-        activations=list(activation_dedup.values()),
-    )
+    # Legacy config.yaml path: lenient schema_version (last truthy wins).
+    # See #1894 / _fold_policies NOTE for the historical strict-vs-lenient delta.
+    return _fold_policies(policies, strict_schema_version=False)
 
 
 def _load_with_pack_context(pack_context: PackContext) -> OrgCharterPolicy:
@@ -582,48 +590,11 @@ def _load_with_pack_context(pack_context: PackContext) -> OrgCharterPolicy:
         resolved_per_pack.append(_merge_chain(chain))
 
     # Cross-pack fold: union required_<kind>, per-key interview_defaults,
-    # last non-empty org_name, dedup governance + activations.
-    merged_interview_defaults: dict[str, str | bool] = {}
-    merged_required: dict[str, list[str]] = {kind: [] for kind in REQUIRED_KIND_FIELDS}
-    merged_governance: list[GovernancePolicy] = []
-    activation_dedup: dict[tuple[str, str, str, str], ActivationEntry] = {}
-    schema_version: int | None = None
-    org_name: str | None = None
-
-    for policy in resolved_per_pack:
-        if policy.schema_version:
-            schema_version = policy.schema_version
-        if policy.org_name:
-            org_name = policy.org_name
-        merged_interview_defaults.update(policy.interview_defaults)
-        for kind in REQUIRED_KIND_FIELDS:
-            for item in getattr(policy, f"required_{kind}"):
-                if item not in merged_required[kind]:
-                    merged_required[kind].append(item)
-        merged_governance.extend(policy.governance_policies)
-        for entry in policy.activations:
-            activation_dedup[_activation_identity_key(entry)] = entry
-
-    seen: dict[tuple[str, str | bool], GovernancePolicy] = {}
-    for gp in merged_governance:
-        seen[(gp.field, gp.value)] = gp
-    deduped_governance = list(seen.values())
-
-    return OrgCharterPolicy(
-        schema_version=schema_version if schema_version is not None else 1,
-        org_name=org_name,
-        interview_defaults=merged_interview_defaults,
-        required_directives=merged_required["directives"],
-        required_tactics=merged_required["tactics"],
-        required_paradigms=merged_required["paradigms"],
-        required_styleguides=merged_required["styleguides"],
-        required_toolguides=merged_required["toolguides"],
-        required_procedures=merged_required["procedures"],
-        required_agent_profiles=merged_required["agent_profiles"],
-        required_mission_step_contracts=merged_required["mission_step_contracts"],
-        governance_policies=deduped_governance,
-        activations=list(activation_dedup.values()),
-    )
+    # last non-empty org_name, dedup governance + activations.  Lenient
+    # schema_version (last truthy wins) matches the legacy config.yaml path;
+    # strict matching is already enforced per chain inside _merge_chain.
+    # See #1894 / _fold_policies NOTE for the historical strict-vs-lenient delta.
+    return _fold_policies(resolved_per_pack, strict_schema_version=False)
 
 
 # ---------------------------------------------------------------------------

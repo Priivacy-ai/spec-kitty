@@ -15,9 +15,34 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from spec_kitty_events.mission_next import RuntimeActorIdentity
 
+# ``specify_cli`` sits above ``runtime`` in the layer stack (runtime <-
+# specify_cli), so importing ``specify_cli.core.*`` here is allowed and
+# matches sibling modules (e.g. ``planner.py`` imports
+# ``specify_cli.core.constants``). The runtime/CLI-presentation boundary
+# only forbids ``specify_cli.cli`` / ``specify_cli.next`` imports.
+from specify_cli.core.errors import StructuredError
 
-class MissionRuntimeError(RuntimeError):
-    """Raised for runtime loading/planning errors."""
+
+class MissionRuntimeError(StructuredError):
+    """Raised for runtime loading/planning errors.
+
+    Subclasses carry a stable ``error_code`` (NFR-007, #1893) so consumers
+    branch on the typed value / code rather than substring-matching the
+    message text.
+    """
+
+    error_code: str = "MISSION_RUNTIME_ERROR"
+
+
+class MissionTemplateHasNoStepsError(MissionRuntimeError):
+    """Raised when a mission template defines neither steps nor audit steps.
+
+    Distinguished from generic malformed-template errors by ``error_code`` so
+    the loader can classify it deterministically instead of matching the
+    ``"has no steps"`` substring.
+    """
+
+    error_code = "MISSION_TEMPLATE_HAS_NO_STEPS"
 
 
 ActorIdentity = RuntimeActorIdentity
@@ -572,5 +597,5 @@ def load_mission_template_file(path: Path) -> MissionTemplate:
 
     template = MissionTemplate.model_validate(raw)
     if not template.steps and not template.audit_steps:
-        raise MissionRuntimeError(f"Mission template has no steps: {path}")
+        raise MissionTemplateHasNoStepsError(f"Mission template has no steps: {path}")
     return template

@@ -57,3 +57,7 @@ Use the shared template at [`../../adr-template.md`](../../adr-template.md).
 | 2026-06-03 | [ExecutionContext owner and CommitTarget atomicity](2026-06-03-2-executioncontext-owner-and-committarget.md) |
 | 2026-06-03 | [Effector/Actor model](2026-06-03-3-effector-actor-model.md) |
 | 2026-06-06 | [Plan concerns to work package traceability](2026-06-06-1-plan-concerns-to-work-package-traceability.md) |
+| 2026-06-07 | [Execution-state canonical surface (`mission_runtime`)](2026-06-07-1-execution-state-canonical-surface.md) |
+| 2026-06-07 | [Session presence: multi-harness architecture](2026-06-07-1-session-presence-multi-harness-architecture.md) |
+| 2026-06-07 | [WP lane FSM, the `genesis` lane, and the finalize event-log clobber fix](2026-06-07-1-wp-lane-fsm-genesis-and-finalize-clobber.md) |
+| 2026-06-11 | [Op as a first-class execution artifact (Mission ⟷ Op ⟷ ad-hoc)](2026-06-11-1-op-as-first-class-execution-artifact.md) |

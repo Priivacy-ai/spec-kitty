@@ -32,6 +32,12 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 
+# Legacy sentinel emitted by older transactional readers; not a Lane enum value.
+# Canonical definition lives in lane_reader (the canonical read surface); imported
+# as a private alias to preserve existing usage patterns throughout this module.
+# See LEGACY_UNINITIALIZED_SENTINEL in status/lane_reader.py for documentation.
+from .lane_reader import LEGACY_UNINITIALIZED_SENTINEL as _LEGACY_UNINITIALIZED_SENTINEL
+
 if TYPE_CHECKING:
     from mission_runtime import StatusSurfaceFragment
     from specify_cli.coordination.types import CommitReceipt
@@ -604,7 +610,7 @@ class MissionStatus:
             wp_id=request.wp_id or "",
             repo_root=self.repo_root,
         )
-        if str(from_lane_enum) == "uninitialized":
+        if str(from_lane_enum) == _LEGACY_UNINITIALIZED_SENTINEL:
             from_lane_enum = lane_unseeded
         return str(from_lane_enum), current_actor
 

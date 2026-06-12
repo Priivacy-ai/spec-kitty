@@ -24,6 +24,7 @@ import os
 import re
 import tempfile
 from dataclasses import dataclass, field
+from enum import StrEnum
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -39,14 +40,29 @@ from specify_cli.workspace.context import resolve_workspace_for_wp
 # ---------------------------------------------------------------------------
 
 
-class DecisionKind:
-    """String constants for decision kinds (avoids Enum import overhead)."""
+class DecisionKind(StrEnum):
+    """Canonical kind values for :class:`Decision` envelopes.
+
+    Declared as a ``StrEnum`` so that:
+
+    * Comparisons against raw strings (e.g. ``decision.kind == "terminal"``)
+      continue to work without change — every member *is* its string value.
+    * JSON serialisation of ``to_dict()`` is byte-identical to the pre-enum
+      form: ``self.kind`` in the dict is the bare string value.
+    * Type-checkers can now flag typos such as ``"terminl"`` at analysis time.
+
+    Serialisation note: ``DecisionKind.step.value == "step"``.  With
+    ``StrEnum``, ``str(DecisionKind.step) == "step"`` and
+    ``json.dumps({"kind": DecisionKind.step}) == '{"kind": "step"}'``.
+    The ``to_dict()`` method emits ``self.kind`` directly, which serialises
+    as the bare string value — byte-identical to the pre-enum form.
+    """
 
     step = "step"
     decision_required = "decision_required"
     blocked = "blocked"
     terminal = "terminal"
-    query = "query"  # New: bare next call; state not advanced
+    query = "query"  # bare next call; state not advanced
 
 
 class InvalidStepDecision(ValueError):

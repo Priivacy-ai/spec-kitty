@@ -1,0 +1,1 @@
+StructuredError base shipped (commit 37bcb0803): 3 fresh families adopted (GitPreflightError, PortUnavailableError, MissionRuntimeError — runtime boundary ruling CLEARED with evidence), 2 deferred with pointer comments (SafeCommitError, AuthRefreshFailed incl. hierarchy note); 9 new tests, 341 architectural, zero existing tests modified

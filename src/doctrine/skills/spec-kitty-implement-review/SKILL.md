@@ -363,21 +363,23 @@ Build a combined prompt and pipe to the agent. The mandatory instruction
 ensures the agent runs the `move-task` command after reviewing.
 
 ```bash
-# Build combined prompt with mandatory instruction
-printf 'IMPORTANT: After reviewing, you MUST execute the appropriate spec-kitty agent tasks move-task command shown at the bottom of this prompt.\n---\n' > /tmp/review-prompt-WP##.md
-cat "$REVIEW_PROMPT" >> /tmp/review-prompt-WP##.md
+# Build combined prompt with mandatory instruction.
+# Scope temp paths by <mission> so concurrent missions sharing a WP id (e.g.
+# two missions both with WP01) do not collide on the same /tmp file (#1831).
+printf 'IMPORTANT: After reviewing, you MUST execute the appropriate spec-kitty agent tasks move-task command shown at the bottom of this prompt.\n---\n' > /tmp/review-prompt-<mission>-WP##.md
+cat "$REVIEW_PROMPT" >> /tmp/review-prompt-<mission>-WP##.md
 
 # Dispatch to configured reviewer (same CLI patterns as Step 1b)
 # Example for codex:
-cat /tmp/review-prompt-WP##.md | codex exec --sandbox danger-full-access \
+cat /tmp/review-prompt-<mission>-WP##.md | codex exec --sandbox danger-full-access \
   -C "$WORKTREE" --add-dir "$(pwd)" \
-  -o "/tmp/review-result-WP##.md" -
+  -o "/tmp/review-result-<mission>-WP##.md" -
 
 # Example for claude:
-claude -p "$(cat /tmp/review-prompt-WP##.md)" --output-format json -C "$WORKTREE"
+claude -p "$(cat /tmp/review-prompt-<mission>-WP##.md)" --output-format json -C "$WORKTREE"
 
 # Example for gemini:
-gemini -p "$(cat /tmp/review-prompt-WP##.md)" --yolo --output-format json -C "$WORKTREE"
+gemini -p "$(cat /tmp/review-prompt-<mission>-WP##.md)" --yolo --output-format json -C "$WORKTREE"
 ```
 
 Capture the reviewer command exit status. If the configured/chosen reviewer
@@ -416,7 +418,7 @@ spec-kitty agent tasks move-task WP## --to approved --note "Review passed (by <a
 
 # If rejected:
 spec-kitty agent tasks move-task WP## --to planned --force \
-  --review-feedback-file /tmp/feedback-WP##.md
+  --review-feedback-file /tmp/feedback-<mission>-WP##.md
 ```
 
 ### Step 3c: Verify the Outcome
@@ -428,7 +430,7 @@ After review completes:
 spec-kitty agent tasks status
 
 # If reviewer output was captured to a file:
-cat /tmp/review-result-WP##.md
+cat /tmp/review-result-<mission>-WP##.md
 ```
 
 Before final approval, if `spec.md` references GitHub issues, ensure

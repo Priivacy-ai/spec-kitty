@@ -4,6 +4,10 @@ Surface area:
 
 * ``spec-kitty doctrine fetch [--pack <name>] [--dry-run]`` — fetch one or
   all configured org doctrine packs into their local snapshot directories.
+* ``spec-kitty doctrine regenerate-graph [--check] [--json]`` — deterministically
+  regenerate the shipped DRG ``graph.yaml`` from the built-in doctrine tree
+  (FR-009 / WP09). ``--check`` compares without writing and exits non-zero when
+  the committed graph is stale.
 * ``spec-kitty doctrine pack validate <pack-path> [--json]`` — validate a
   doctrine pack against the artifact / DRG / org-charter contracts.
 * ``spec-kitty doctrine pack assemble <out> <inputs...> [--force]
@@ -151,6 +155,135 @@ def fetch(
 
     if any_failed:
         raise typer.Exit(1)
+
+
+# ----------------------------------------------------------------------
+# regenerate-graph — deterministic DRG regeneration (FR-009 / WP09 T026)
+# ----------------------------------------------------------------------
+def _doctrine_root() -> Path:
+    """Return the built-in doctrine root that owns the shipped ``graph.yaml``.
+
+    The extractor walks ``<doctrine_root>/directives/built-in`` etc. and writes
+    ``<doctrine_root>/graph.yaml``. Regeneration must target the *working-tree*
+    source (``src/doctrine``) when invoked from inside a spec-kitty checkout —
+    that is the file the freshness gate reads and that a developer commits.
+
+    Resolution order:
+      1. Walk up from CWD for a ``src/doctrine`` dir carrying built-in
+         artifacts (``directives/built-in``) and a committed ``graph.yaml``.
+      2. Fall back to the installed :mod:`doctrine` package directory (e.g. a
+         consumer project running the CLI from a non-editable install).
+    """
+    cwd = Path.cwd().resolve()
+    for candidate in [cwd, *cwd.parents]:
+        src_doctrine = candidate / "src" / "doctrine"
+        if (src_doctrine / "directives" / "built-in").is_dir():
+            return src_doctrine
+
+    import doctrine
+
+    return Path(doctrine.__file__).resolve().parent
+
+
+@app.command(name="regenerate-graph")
+def regenerate_graph(
+    check: bool = typer.Option(
+        False,
+        "--check",
+        help=(
+            "Do not write; regenerate into a temp file and compare against the "
+            "committed graph.yaml. Exit 1 when stale (operator-runnable freshness "
+            "gate). Exit 0 when fresh."
+        ),
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Emit machine-readable JSON instead of rich text.",
+    ),
+) -> None:
+    """Regenerate the shipped DRG ``graph.yaml`` deterministically (FR-009).
+
+    Composes the DRG extractor + calibrator into ``src/doctrine/graph.yaml``.
+    Running twice on unchanged inputs yields byte-identical output. With
+    ``--check`` the command never writes: it regenerates into a temp file and
+    compares against the committed graph, exiting non-zero when stale — the
+    operator-facing twin of the ``test_shipped_graph_yaml_is_fresh`` gate.
+    """
+    import tempfile
+
+    from doctrine.drg.migration.extractor import generate_graph
+    from doctrine.drg.validator import DRGValidationError
+
+    doctrine_root = _doctrine_root()
+    committed = doctrine_root / "graph.yaml"
+
+    if check:
+        with tempfile.TemporaryDirectory() as tmp:
+            generated = Path(tmp) / "graph.yaml"
+            try:
+                generate_graph(doctrine_root, generated)
+            except DRGValidationError as exc:
+                _emit_regen_result(
+                    status="invalid",
+                    path=committed,
+                    json_output=json_output,
+                    detail="; ".join(exc.errors),
+                )
+                raise typer.Exit(1) from exc
+            fresh = generated.read_text(encoding="utf-8") == committed.read_text(
+                encoding="utf-8"
+            )
+        _emit_regen_result(
+            status="fresh" if fresh else "stale",
+            path=committed,
+            json_output=json_output,
+        )
+        raise typer.Exit(0 if fresh else 1)
+
+    try:
+        generate_graph(doctrine_root, committed)
+    except DRGValidationError as exc:
+        _emit_regen_result(
+            status="invalid",
+            path=committed,
+            json_output=json_output,
+            detail="; ".join(exc.errors),
+        )
+        raise typer.Exit(1) from exc
+
+    _emit_regen_result(status="written", path=committed, json_output=json_output)
+    raise typer.Exit(0)
+
+
+def _emit_regen_result(
+    *,
+    status: str,
+    path: Path,
+    json_output: bool,
+    detail: str | None = None,
+) -> None:
+    """Render the regenerate-graph outcome as JSON or rich text."""
+    if json_output:
+        payload: dict[str, object] = {"status": status, "path": str(path)}
+        if detail is not None:
+            payload["detail"] = detail
+        console.print_json(json.dumps(payload))
+        return
+
+    if status == "written":
+        console.print(f"[green]Regenerated DRG graph:[/green] {path}")
+    elif status == "fresh":
+        console.print(f"[green]DRG graph is fresh:[/green] {path}")
+    elif status == "stale":
+        console.print(
+            f"[red]DRG graph is stale:[/red] {path}\n"
+            "Run [bold]spec-kitty doctrine regenerate-graph[/bold] and commit the result."
+        )
+    elif status == "invalid":
+        console.print(
+            f"[red]DRG graph failed validation:[/red] {detail or '(no detail)'}"
+        )
 
 
 # ----------------------------------------------------------------------

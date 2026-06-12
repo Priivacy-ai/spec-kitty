@@ -65,6 +65,11 @@ from .sync import (
     post_save_hook,
     sync,
 )
+from .org_extends import (
+    ExtendsBaseNotFoundError,
+    ExtendsCycleError,
+    resolve_extends_order,
+)
 from .mission_type_profiles import (
     CANONICAL_MISSION_TYPES,
     GovernancePayload,
@@ -149,4 +154,7 @@ __all__ = [
     "CharterTemplateResolver",
     "PackContext",
     "CharterActivationError",
+    "ExtendsBaseNotFoundError",
+    "ExtendsCycleError",
+    "resolve_extends_order",
 ]

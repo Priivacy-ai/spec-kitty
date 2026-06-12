@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.constants import (
+    KITTY_SPECS_DIR,
+    MISSION_TYPE_DOCUMENTATION,
+)
+from specify_cli.coordination.types import PROTECTED_BRANCH_REFUSED
 from specify_cli.core.commit_guard import GuardCapability
 from mission_runtime import ActionContextError, CommitTarget, CommitTargetKind
 import contextlib
@@ -737,7 +741,7 @@ def _enforce_analysis_report_write_preflight(
             error_text = str(exc)
         payload = {
             "success": False,
-            "error_code": "PROTECTED_BRANCH_REFUSED",
+            "error_code": PROTECTED_BRANCH_REFUSED,
             "error": error_text,
             "resolved_destination": placement_ref.ref if placement_ref else None,
         }
@@ -1350,7 +1354,7 @@ def create_mission(
     # -- Output formatting (stays in the CLI layer) --
     if not json_output:
         console.print(f"[bold cyan]Branch:[/bold cyan] {result.target_branch} (target for this mission)")
-        if resolved_mission_type == "documentation":
+        if resolved_mission_type == MISSION_TYPE_DOCUMENTATION:
             console.print("[cyan]\u2192 Documentation state initialized in meta.json[/cyan]")
 
     if json_output:
@@ -1923,7 +1927,7 @@ def setup_plan(
         gap_analysis_path = None
         generators_detected: list[GeneratorConfig] = []
 
-        if mission_type == "documentation":
+        if mission_type == MISSION_TYPE_DOCUMENTATION:
             from specify_cli.doc_analysis.doc_state import (
                 read_documentation_state,
                 set_audit_metadata,

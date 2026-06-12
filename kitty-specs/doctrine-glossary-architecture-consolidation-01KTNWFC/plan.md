@@ -1,6 +1,6 @@
 # Implementation Plan: Doctrine, Glossary & Architecture Consolidation
 
-**Branch**: `fixups/code-engine-stabilization` | **Date**: 2026-06-09 | **Spec**: [spec.md](./spec.md)
+**Branch**: `feat/doctrine-glossary-consolidation-01KTNWFC` | **Date**: 2026-06-09 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `kitty-specs/doctrine-glossary-architecture-consolidation-01KTNWFC/spec.md`
 **Decisions**: [research.md](./research.md) (R-01…R-10, C-005, FR-012)
 
@@ -28,7 +28,7 @@ Consolidate Spec Kitty's governance, terminology, and architecture surfaces into
 - **Terminology Canon** (C-003): all authored prose + glossary must pass `tests/architectural/test_no_legacy_terminology.py`. Watch "Feature" (issue-type term) in toolguide/styleguide prose. ✅ with care.
 - **Doctrine-layer merge semantics** (ADR 2026-05-16-1): charter `extends:` (IC-07) and DRG re-curation (IC-08) must use the activation-engine/cascade, not a parallel path (C-005). ✅
 - **⚠️ Self-referential authority-path update:** the charter's "Project authority paths" cite `architecture/2.x/adr/`, `architecture/adrs/`, `glossary/contexts/` — these **move** under this mission. IC-01/IC-02 must update the charter's own references. (Tracked as a bulk-edit reference site.)
-- **CI/branch protection:** all work lands on `fixups/code-engine-stabilization`; no push to origin/main. ✅
+- **CI/branch protection:** all work lands on `feat/doctrine-glossary-consolidation-01KTNWFC`; no push to origin/main. ✅
 
 No charter violations requiring Complexity Tracking justification.
 

@@ -22,6 +22,7 @@ from specify_cli.doctrine.org_charter import (
     OrgCharterExtensionError,
     OrgCharterPolicy,
     _build_pack_set,
+    _fold_policies,
     _merge_chain,
     _resolve_chain,
     apply_org_charter_pre_fill,
@@ -770,6 +771,94 @@ class TestMergeChain:
         ]
         merged = _merge_chain(chain)
         assert merged.org_name == "Overlay"
+
+
+class TestFoldPolicies:
+    """Direct coverage of the extracted ``_fold_policies`` (#1894).
+
+    Pins the schema_version parameter in both modes, proving the strict
+    vs lenient delta is now an explicit decision rather than silent drift.
+    """
+
+    def test_empty_returns_default_policy(self) -> None:
+        assert _fold_policies([]).schema_version == 1
+
+    def test_strict_matching_versions_carry_version(self) -> None:
+        merged = _fold_policies(
+            [_policy(schema_version=2), _policy(schema_version=2)],
+            strict_schema_version=True,
+        )
+        assert merged.schema_version == 2
+
+    def test_strict_mismatch_raises(self) -> None:
+        with pytest.raises(ValueError, match="schema_version mismatch"):
+            _fold_policies(
+                [_policy(schema_version=1), _policy(schema_version=2)],
+                strict_schema_version=True,
+            )
+
+    def test_lenient_last_truthy_wins_no_raise(self) -> None:
+        # Lenient mode does NOT enforce equality: differing versions fold,
+        # last truthy wins (the legacy / cross-pack behaviour — #1894 NOTE).
+        merged = _fold_policies(
+            [_policy(schema_version=1), _policy(schema_version=2)],
+            strict_schema_version=False,
+        )
+        assert merged.schema_version == 2
+
+    def test_lenient_default_is_lenient(self) -> None:
+        # Default parameter value preserves the legacy lenient semantics.
+        merged = _fold_policies(
+            [_policy(schema_version=1), _policy(schema_version=3)],
+        )
+        assert merged.schema_version == 3
+
+    def test_fold_unions_and_dedups_like_sites(self) -> None:
+        merged = _fold_policies(
+            [
+                _policy(
+                    required_directives=["a", "b"],
+                    interview_defaults={"foo": "base", "bar": "base"},
+                ),
+                _policy(
+                    required_directives=["b", "c"],
+                    interview_defaults={"foo": "overlay"},
+                ),
+            ]
+        )
+        assert merged.required_directives == ["a", "b", "c"]
+        assert merged.interview_defaults == {"foo": "overlay", "bar": "base"}
+        assert merged.extends is None
+
+
+class TestLegacyPathFoldParity:
+    """FR parity: the legacy ``config.yaml`` path is lenient on schema_version.
+
+    Proves the legacy loader does NOT raise on a version mismatch across
+    packs (the pre-extraction None-guard behaviour), distinct from the
+    strict extends-chain path — the latent #1894 inconsistency, preserved.
+    """
+
+    def test_legacy_path_lenient_on_version_mismatch(
+        self, tmp_path: Path
+    ) -> None:
+        pack_a = tmp_path / "packs" / "a"
+        pack_b = tmp_path / "packs" / "b"
+        _write_org_charter(pack_a, "schema_version: 1\nrequired_directives: [x]\n")
+        _write_org_charter(pack_b, "schema_version: 2\nrequired_directives: [y]\n")
+        _write_kittify_config(
+            tmp_path,
+            [
+                {"name": "a", "local_path": str(pack_a)},
+                {"name": "b", "local_path": str(pack_b)},
+            ],
+        )
+
+        # No PackContext → legacy config.yaml path. Differing versions
+        # must NOT raise; last truthy (2) wins, directives union.
+        merged = load_org_charter_policies(tmp_path)
+        assert merged.schema_version == 2
+        assert merged.required_directives == ["x", "y"]
 
 
 class TestBuildPackSet:

@@ -32,6 +32,7 @@ from .reducer import (
     reduce,
 )
 from .store import (
+    is_retrospective_lifecycle_event,
     EVENTS_FILENAME,
     EventPersistenceError,
     StoreError,
@@ -74,6 +75,7 @@ from .wp_metadata import (
 )
 from .lane_reader import (
     CanonicalStatusNotFoundError,
+    LEGACY_UNINITIALIZED_SENTINEL,
     get_all_wp_lanes,
     get_wp_lane,
     has_event_log,
@@ -221,12 +223,14 @@ __all__ = [
     "emit_reviewer_self_approval",
     "emit_wp_created_local",
     "has_non_bootstrap_status_history",
+    "is_retrospective_lifecycle_event",
     "materialize_snapshot",
     "repo_root_for_lifecycle_log",
     "run_doctor",
     "start_implementation_status",
     "start_review_status",
     "CanonicalStatusNotFoundError",
+    "LEGACY_UNINITIALIZED_SENTINEL",
     "DEFAULT_LANE_WEIGHTS",
     "DERIVED_LIFECYCLE_FILENAME",
     "InvalidTransitionError",

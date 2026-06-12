@@ -6,7 +6,11 @@ from pathlib import Path
 
 import pytest
 
+import inspect
+
+from specify_cli.coordination import surface_resolver
 from specify_cli.coordination.surface_resolver import resolve_status_surface
+from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
 pytestmark = pytest.mark.fast
 
@@ -118,3 +122,26 @@ def test_materialized_coord_worktree_resolves_exactly_once(tmp_path: Path) -> No
         f"path: {result}"
     )
     assert result == coord_feature_dir / "status.events.jsonl"
+
+
+def test_unresolvable_mid8_fails_closed_instead_of_fabricating(tmp_path: Path) -> None:
+    """C-cluster fix (FR-005 / F-001): when a coord-topology mission declares a
+    coordination branch but no declared source carries the mid8 (no ``mid8``
+    field, no >=8-char ``mission_id``, and the slug embeds no mid8), the resolver
+    must fail closed with :class:`StatusReadPathNotFound` rather than fabricate a
+    wrong-but-plausible ``(slug+"00000000")[:8]`` coord path.
+    """
+    _write_meta(
+        tmp_path / "kitty-specs" / "my-mission",
+        coordination_branch="kitty/mission-my-mission",
+    )
+    with pytest.raises(StatusReadPathNotFound):
+        resolve_status_surface(tmp_path, "my-mission")
+
+
+def test_fabricated_mid8_idiom_is_gone_from_source() -> None:
+    """The forbidden fabrication idiom ``(... + "00000000")[:8]`` must have zero
+    occurrences in the resolver source — fabricating a mid8 violates the 3.x
+    invariant that unresolvable context raises rather than falling back."""
+    source = inspect.getsource(surface_resolver)
+    assert "00000000" not in source

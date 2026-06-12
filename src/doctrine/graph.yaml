@@ -256,6 +256,9 @@ nodes:
 - urn: procedure:test-first-bug-fixing
   kind: procedure
   label: Test-First Bug Fixing
+- urn: procedure:tracker-organisation-workflow
+  kind: procedure
+  label: Tracker Organisation Workflow
 - urn: styleguide:aggregate-design-rules
   kind: styleguide
   label: Aggregate Design Rules
@@ -271,6 +274,9 @@ nodes:
 - urn: styleguide:mutation-aware-test-design
   kind: styleguide
   label: Mutation-Aware Test Design
+- urn: styleguide:planning-and-tracking
+  kind: styleguide
+  label: Planning & Tracking Styleguide
 - urn: styleguide:python-conventions
   kind: styleguide
   label: Python Conventions Styleguide
@@ -431,12 +437,18 @@ nodes:
 - urn: tactic:interface-variation-design
   kind: tactic
   label: Interface Variation Design
+- urn: tactic:iterative-deepening-review
+  kind: tactic
+  label: Iterative-Deepening Review
 - urn: tactic:language-driven-design
   kind: tactic
   label: Language-Driven Design
 - urn: tactic:locality-of-change
   kind: tactic
   label: Locality of Change Assessment
+- urn: tactic:moscow-scoping-lens
+  kind: tactic
+  label: MoSCoW Scoping Lens
 - urn: tactic:mutation-testing-workflow
   kind: tactic
   label: Mutation Testing Workflow
@@ -645,6 +657,9 @@ nodes:
 - urn: toolguide:git-agent-commit-signing
   kind: toolguide
   label: Git Agent Commit Signing
+- urn: toolguide:github-tracker
+  kind: toolguide
+  label: GitHub Issue-Tracker Operations (gh CLI + GraphQL)
 - urn: toolguide:maven-review-checks
   kind: toolguide
   label: Maven Review Checks
@@ -1784,6 +1799,21 @@ edges:
 - source: procedure:test-first-bug-fixing
   target: tactic:test-boundaries-by-responsibility
   relation: requires
+- source: procedure:tracker-organisation-workflow
+  target: procedure:issue-triage-state-machine
+  relation: requires
+- source: procedure:tracker-organisation-workflow
+  target: styleguide:planning-and-tracking
+  relation: suggests
+- source: procedure:tracker-organisation-workflow
+  target: tactic:iterative-deepening-review
+  relation: requires
+- source: procedure:tracker-organisation-workflow
+  target: tactic:moscow-scoping-lens
+  relation: requires
+- source: procedure:tracker-organisation-workflow
+  target: toolguide:github-tracker
+  relation: suggests
 - source: tactic:acceptance-test-first
   target: tactic:tdd-red-green-refactor
   relation: suggests
@@ -2228,6 +2258,14 @@ edges:
   target: tactic:traceable-decisions
   relation: suggests
   when: Record the selected interface when the trade-off is durable and non-obvious.
+- source: tactic:iterative-deepening-review
+  target: procedure:tracker-organisation-workflow
+  relation: suggests
+  when: Sequencing the tracker-wide organisation sweep into widening rings.
+- source: tactic:iterative-deepening-review
+  target: tactic:moscow-scoping-lens
+  relation: suggests
+  when: Scoping what an emergent epic must, should, could, or won't carry once a ring surfaces it.
 - source: tactic:locality-of-change
   target: directive:DIRECTIVE_001
   relation: suggests
@@ -2240,6 +2278,10 @@ edges:
   target: directive:DIRECTIVE_024
   relation: suggests
   when: This tactic is the practical application protocol for Directive 024; use the directive for policy, this tactic for evaluation procedure
+- source: tactic:moscow-scoping-lens
+  target: procedure:tracker-organisation-workflow
+  relation: suggests
+  when: Scoping which slices a functional epic or bucket commits to in a cut, alongside the per-ticket priority labels that workflow enforces.
 - source: tactic:paula-patterns-architecture-scout-review
   target: directive:DIRECTIVE_001
   relation: suggests

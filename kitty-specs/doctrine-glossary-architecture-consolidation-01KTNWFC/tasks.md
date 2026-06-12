@@ -1,7 +1,7 @@
 # Tasks: Doctrine, Glossary & Architecture Consolidation
 
-**Mission**: doctrine-glossary-architecture-consolidation-01KTNWFC | **Branch**: fixups/code-engine-stabilization
-**Plan**: [plan.md](./plan.md) | **Decisions**: [research.md](./research.md) | **change_mode**: bulk_edit
+**Mission**: doctrine-glossary-architecture-consolidation-01KTNWFC | **Branch**: feat/doctrine-glossary-consolidation-01KTNWFC
+**Plan**: [plan.md](./plan.md) | **Decisions**: [research.md](./research.md) | **change_mode**: standard (O1-reverted; occurrence_map is a reference-rewrite advisory checklist, not an enforcement gate)
 
 11 work packages from the 9 ICs. Phase 1 (moves, bulk_edit) → Phase 2 (authoring) ; code lanes parallel ; #391 dogfood last.
 
@@ -48,25 +48,25 @@
 
 ## Phase 1 — Restructure & moves (bulk_edit)
 
-### WP01 — Glossary: promote to top-level + content refresh
-- **Goal**: Make `glossary/` the single source of truth (C-005, R-01); eliminate scattered glossary locations; refresh content for the new epics (FR-010) and record the runtime-scope defer (FR-011). *(Merged former WP07 to keep `glossary/**` ownership in one WP.)*
-- **Priority**: P1 (gates Phase 2 authoring) | **Independent test**: `glossary validate` + loader tests pass against top-level `glossary/`; no dangling glossary refs.
-- **Subtasks**: - [ ] T001 (WP01) · - [ ] T002 (WP01) · - [ ] T003 (WP01) · - [ ] T004 (WP01) · - [ ] T005 (WP01) · - [ ] T021 (WP01) · - [ ] T022 (WP01)
-- **change_mode**: bulk_edit (occurrence_map glossary section) | **Depends on**: none | **Est**: ~420 lines
+### WP01 — Glossary: reconcile top-level surface + content refresh
+- **Goal**: RECONCILE the already-canonical top-level `glossary/` + DELETE residual `architecture/glossary/` pointer content (C-005, R-01); update loader/path refs; refresh content for the new epics (FR-010) and record the runtime-scope defer (FR-011). *(Merged former WP07 to keep `glossary/**` ownership in one WP.)*
+- **Priority**: P1 (gates Phase 2 authoring) | **Independent test**: `glossary validate` + loader tests pass against top-level `glossary/`; no dangling glossary refs; `architecture/glossary/` absent.
+- **Subtasks**: - [x] T001 (WP01) · - [x] T002 (WP01) · - [x] T003 (WP01) · - [x] T004 (WP01) · - [x] T005 (WP01) · - [x] T021 (WP01) · - [x] T022 (WP01)
+- **change_mode**: standard (O1 revert: occurrence_map is a reference-rewrite advisory checklist, not a gate) | **Depends on**: none | **Est**: ~420 lines
 - **Risks**: missed reference breaks glossary loading / charter authority path; terminology guard on refreshed content.
 
-### WP02 — Living-architecture layout + moves
-- **Goal**: Top-level living `architecture/` (vision/, audience/, diagrams/, README boundary rule) + versioned history; carry C4 forward; rewrite architecture refs incl. charter authority paths.
-- **Priority**: P1 | **Independent test**: reference-integrity grep clean; README states boundary rule + decay path.
-- **Subtasks**: - [ ] T006 (WP02) · - [ ] T007 (WP02) · - [ ] T008 (WP02) · - [ ] T009 (WP02) · - [ ] T010 (WP02)
-- **change_mode**: bulk_edit (occurrence_map architecture section) | **Depends on**: WP01 (shares the charter authority-path file; needs final glossary path) | **Est**: ~360 lines
-- **Risks**: broken internal doc links; decay rule must be documented to prevent re-drift.
+### WP02 — Living-architecture layout + reconcile (closes #1805)
+- **Goal**: Top-level living `architecture/` (vision/, audience/, diagrams/, README boundary rule) + versioned history; RECONCILE + delete residual parallel content; carry C4 forward; rewrite architecture refs incl. charter authority paths. Closes #1805.
+- **Priority**: P1 | **Independent test**: reference-integrity grep clean; README states boundary rule + decay path; no residual parallel narrative surfaces.
+- **Subtasks**: - [x] T006 (WP02) · - [x] T007 (WP02) · - [x] T008 (WP02) · - [x] T009 (WP02) · - [x] T010 (WP02)
+- **change_mode**: standard (O1-reverted; occurrence_map is a reference-rewrite advisory checklist, not a gate) | **Depends on**: WP01 (shares the charter authority-path file; needs final glossary path) | **Est**: ~360 lines
+- **Risks**: broken internal doc links; decay rule must be documented to prevent re-drift; tier-field layout must remain open for #1843.
 
 ## Phase 2 — Authoring (into the settled layout)
 
 ### WP03 — Refresh the 3.x C4 model
 - **Goal**: Update living C4 (Markdown+Mermaid, numbered levels) to the 3.x domain model.
-- **Subtasks**: - [ ] T011 (WP03) · - [ ] T012 (WP03) · - [ ] T013 (WP03) | **Depends on**: WP02 | **Est**: ~240 lines
+- **Subtasks**: - [x] T011 (WP03) · - [x] T012 (WP03) · - [x] T013 (WP03) | **Depends on**: WP02 | **Est**: ~240 lines
 - **Risks**: Mermaid drift (generated-C4 swap deferred to #1812).
 
 ### WP04 — Author planning/tracking procedure + tactics
@@ -76,24 +76,24 @@
 
 ### WP05 — Author planning/tracking styleguide + toolguide
 - **Goal**: Styleguide (functional-vs-meta, community-precedence, conventions, naming) + toolguide (gh/GraphQL mechanics).
-- **Subtasks**: - [ ] T017 (WP05) · - [ ] T018 (WP05) | **Depends on**: WP01, WP02 | **Est**: ~280 lines
+- **Subtasks**: - [x] T017 (WP05) · - [x] T018 (WP05) | **Depends on**: WP01, WP02 | **Est**: ~280 lines
 - **Risks**: "Feature"/"features" prose vs terminology guard; architect sign-off (encodes architecture conventions).
 
 ### WP06 — Author the Ops ADR
 - **Goal**: Ratify "Op as first-class execution artifact" covering pre/post-mission lifecycle (shared abstraction; #1804+#1802).
-- **Subtasks**: - [ ] T019 (WP06) · - [ ] T020 (WP06) | **Depends on**: WP02 | **Est**: ~240 lines
+- **Subtasks**: - [x] T019 (WP06) · - [x] T020 (WP06) | **Depends on**: WP02 | **Est**: ~240 lines
 - **Risks**: must define ONE shared abstraction (C-005), not two parallel ones.
 
 ## Code lanes (parallel from start)
 
 ### WP08 — Charter `extends:` (additive multi-org config)
 - **Goal**: `org-charter.yaml` `extends:` additive merge, base precedence, cycle detection, via activation_engine/cascade (no parallel resolver).
-- **Subtasks**: - [ ] T023 (WP08) · - [ ] T024 (WP08) · - [ ] T025 (WP08) | **Depends on**: none | **Est**: ~340 lines
+- **Subtasks**: - [x] T023 (WP08) · - [x] T024 (WP08) · - [x] T025 (WP08) | **Depends on**: none | **Est**: ~340 lines
 - **Risks**: cycle detection; reuse activation/cascade (C-005); preserve charter content (C-004); ruff/mypy clean.
 
 ### WP09 — DRG generator/freshness gaps
 - **Goal**: Regeneration command (deterministic) + symmetric profile-edge detection + freshness gate (code only).
-- **Subtasks**: - [ ] T026 (WP09) · - [ ] T027 (WP09) · - [ ] T028 (WP09) | **Depends on**: none | **Est**: ~300 lines
+- **Subtasks**: - [x] T026 (WP09) · - [x] T027 (WP09) · - [x] T028 (WP09) | **Depends on**: none | **Est**: ~300 lines
 - **Risks**: determinism; ruff/mypy clean.
 
 ### WP10 — Built-in DRG + profile re-curation
@@ -105,7 +105,7 @@
 
 ### WP11 — #391 doctrine usage-test
 - **Goal**: Apply the new doctrine to reorganize #391 (split/reparent/close superseded) — dogfood proving SC-1/SC-6.
-- **Subtasks**: - [ ] T032 (WP11) · - [ ] T033 (WP11) · - [ ] T034 (WP11) | **Depends on**: WP04, WP05 | **Est**: ~240 lines
+- **Subtasks**: - [x] T032 (WP11) · - [x] T033 (WP11) · - [x] T034 (WP11) | **Depends on**: WP04, WP05 | **Est**: ~240 lines
 - **Risks**: community-precedence on dedup; follow toolguide rate-limit/mechanics findings.
 
 ---

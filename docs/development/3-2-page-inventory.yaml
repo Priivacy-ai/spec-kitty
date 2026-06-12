@@ -1772,13 +1772,6 @@
   current_target: false
   citation_refs: []
   notes: null
-- path: architecture/glossary/README.md
-  tag: internal
-  divio_type: none
-  owning_workstream: none
-  current_target: false
-  citation_refs: []
-  notes: null
 - path: docs/01KSMG8Y-closeout/baseline.md
   tag: internal
   divio_type: none
@@ -1961,6 +1954,13 @@
   current_target: false
   citation_refs: []
   notes: 3.2-docs mission internal planning artifact.
+- path: docs/development/391-doctrine-usage-test.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Mission 01KTNWFC doctrine dogfood record for issue #391.
 - path: docs/development/charter-path-resolution-gaps.md
   tag: internal
   divio_type: none

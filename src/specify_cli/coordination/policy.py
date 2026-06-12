@@ -23,8 +23,10 @@ from pathlib import Path
 from mission_runtime import CommitTarget, CommitTargetKind
 from specify_cli.coordination.types import (
     Allowed,
+    DESTINATION_REF_NOT_FOUND,
     GitChangeSet,
     PolicyVerdict,
+    PROTECTED_BRANCH_REFUSED,
     Refused,
 )
 from specify_cli.core.commit_guard import ProtectionState
@@ -188,7 +190,7 @@ class WorkflowMutationPolicy:
         # 3. Existence: local branch must resolve.
         if not _local_branch_exists(repo_root, ref):
             return Refused(
-                error_code="DESTINATION_REF_NOT_FOUND",
+                error_code=DESTINATION_REF_NOT_FOUND,
                 message=(
                     f"Refusing to record {change_set.operation!r}: "
                     f"destination_ref {ref!r} does not exist in {repo_root}."
@@ -220,7 +222,7 @@ class WorkflowMutationPolicy:
         )
         if not guard_verdict.allowed:
             return Refused(
-                error_code="PROTECTED_BRANCH_REFUSED",
+                error_code=PROTECTED_BRANCH_REFUSED,
                 message=(
                     f"Refusing to record {change_set.operation!r}: "
                     f"destination ref {ref!r} is on this project's "

@@ -45,6 +45,8 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Iterable, Mapping
 
+from .models import Lane as _Lane
+
 logger = logging.getLogger(__name__)
 
 
@@ -778,7 +780,7 @@ def _is_bootstrap_status_event(obj: Mapping[str, Any]) -> bool:
     if to_lane != "planned":
         return False
     from_lane = obj.get("from_lane")
-    if from_lane == "genesis":
+    if from_lane == _Lane.GENESIS:
         return True
     # Legacy forced bootstrap seed (pre-FSM): planned -> planned with force=True.
     return bool(obj.get("force")) and from_lane in (None, "planned")

@@ -66,18 +66,21 @@ An ADR is complete when:
 ## Useful Commands
 
 ```bash
-ls -1 architecture/1.x/adr | sort
+ls -1 architecture/3.x/adr | sort
 ls -1 architecture/2.x/adr | sort
-rg -n "Status:|Decision Outcome|Consequences" architecture/1.x/adr architecture/2.x/adr
+ls -1 architecture/1.x/adr | sort
+rg -n "Status:|Decision Outcome|Consequences" architecture/3.x/adr architecture/2.x/adr architecture/1.x/adr
 ```
 
 ## Track Assignment Rules
 
-Use `architecture/1.x/adr/` when the decision documents 1.x behavior.
+The **current track is 3.x** — new (current-era) ADRs land in `architecture/3.x/adr/`.
 
-Use `architecture/2.x/adr/` when the decision documents 2.x behavior.
+Use `architecture/2.x/adr/` only when the decision documents 2.x-era behavior, and
+`architecture/1.x/adr/` only when it documents 1.x-era behavior; both are frozen history.
 
-If a decision spans both tracks, place it in the active track and cross-reference from the other track.
+If a decision spans tracks, place it in the active (3.x) track and cross-reference the
+older track.
 
 ## 2.x Gaps Closed in This Cycle
 
