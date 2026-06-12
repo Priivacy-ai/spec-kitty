@@ -74,15 +74,22 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
         "work_package_id": "WP01",
     }
     duplicate_row = dict(status_row)
-    retrospective_row = {
+    typed_row = {
         "at": "2026-01-01T00:00:01+00:00",
         "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGS",
+        "event_type": "DecisionPointOpened",
+        "payload": {"decision_point_id": "DP01"},
+    }
+    retrospective_row = {
+        "at": "2026-01-01T00:00:02+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGT",
         "type": "RetrospectiveCaptured",
         "payload": {"mission_slug": "042-historical-shape"},
     }
     (mission / "status.events.jsonl").write_text(
         "\n".join(
-            json.dumps(row, sort_keys=True) for row in (status_row, duplicate_row, retrospective_row)
+            json.dumps(row, sort_keys=True)
+            for row in (status_row, duplicate_row, typed_row, retrospective_row)
         )
         + "\n",
         encoding="utf-8",
@@ -129,7 +136,7 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
         for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
-    assert len(rows) == 1
+    assert len(rows) == 2
     row = rows[0]
     assert row["mission_slug"] == "042-historical-shape"
     assert row["mission_id"] == meta["mission_id"]
@@ -140,12 +147,17 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     assert "feature_slug" not in row
     assert "work_package_id" not in row
     assert "legacy_aggregate_id" not in row
+    # Retrospective lifecycle rows are contracted provenance read back by
+    # retrospective consumers — repair must preserve them untouched.
+    assert rows[1] == retrospective_row
 
     status = _read_json(mission / "status.json")
     status_summary = cast(dict[str, object], status["summary"])
     assert status_summary["in_review"] == 1
     quarantine = repo / ".kittify" / "migrations" / "mission-state" / "quarantine" / report.run_id / "042-historical-shape" / "status.events.jsonl"
-    assert "RetrospectiveCaptured" in quarantine.read_text(encoding="utf-8")
+    quarantine_text = quarantine.read_text(encoding="utf-8")
+    assert "DecisionPointOpened" in quarantine_text
+    assert "RetrospectiveCaptured" not in quarantine_text
 
     if not _has_events_5():
         with pytest.raises(MissionStateDryRunError, match="requires spec-kitty-events >= 5.0.0"):
