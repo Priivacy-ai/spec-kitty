@@ -252,3 +252,96 @@ def test_upgrade_persists_successful_migrations_before_later_failure(
     assert metadata is not None
     assert metadata.has_migration(first.migration_id)
     assert any(record.id == second.migration_id and record.result == "failed" for record in metadata.applied_migrations)
+
+
+# ---------------------------------------------------------------------------
+# Issue #1872: not-applicable ("skipped") migrations must be recorded once,
+# not re-appended on every upgrade run over the same version range.
+# ---------------------------------------------------------------------------
+
+
+def test_record_migration_is_idempotent_for_identical_records() -> None:
+    """Recording the same (id, result) twice is a no-op (issue #1872)."""
+    metadata = ProjectMetadata(version="1.0.0", initialized_at=datetime.now())
+
+    first = metadata.record_migration("9.9.9_not_needed", "skipped", "Not applicable")
+    second = metadata.record_migration("9.9.9_not_needed", "skipped", "Not applicable")
+
+    assert first is True
+    assert second is False
+    assert len([m for m in metadata.applied_migrations if m.id == "9.9.9_not_needed"]) == 1
+
+
+def test_record_migration_appends_on_result_transition() -> None:
+    """A genuine failed -> success transition still appends (issue #1872)."""
+    metadata = ProjectMetadata(version="1.0.0", initialized_at=datetime.now())
+
+    assert metadata.record_migration("10.0.0_x", "failed", "boom") is True
+    assert metadata.record_migration("10.0.0_x", "success", "fixed") is True
+
+    results = [m.result for m in metadata.applied_migrations if m.id == "10.0.0_x"]
+    assert results == ["failed", "success"]
+    assert metadata.has_migration("10.0.0_x") is True
+
+
+def test_repeated_not_needed_upgrade_does_not_grow_applied_migrations(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    """Re-running an upgrade with a not-applicable migration records it once."""
+    project_path = _setup_project(tmp_path)
+    migration = _NotNeededMigration()
+
+    def _run() -> None:
+        runner = MigrationRunner(project_path)
+        monkeypatch.setattr(runner.detector, "detect_version", lambda: "1.0.0")
+        monkeypatch.setattr(
+            "specify_cli.upgrade.runner.MigrationRegistry.get_applicable",
+            lambda _from, _to, project_path=None: [migration],  # noqa: ARG005
+        )
+        runner.upgrade("9.9.9", include_worktrees=False)
+
+    _run()
+    _run()
+
+    metadata = ProjectMetadata.load(project_path / ".kittify")
+    assert metadata is not None
+    skipped = [m for m in metadata.applied_migrations if m.id == migration.migration_id]
+    assert len(skipped) == 1
+    assert skipped[0].result == "skipped"
+
+
+def test_worktree_skipped_migration_keeps_last_upgraded_at_stable_on_rerun(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    """A no-op skipped re-run must not bump the worktree's last_upgraded_at (issue #1872)."""
+    project_path = _setup_project(tmp_path)
+    worktree = project_path / ".worktrees" / "001-feature-lane-a"
+    (worktree / ".kittify").mkdir(parents=True)
+    ProjectMetadata(version="1.0.0", initialized_at=datetime.now()).save(worktree / ".kittify")
+    migration = _NotNeededMigration()
+
+    def _run() -> None:
+        runner = MigrationRunner(project_path)
+        monkeypatch.setattr(runner.detector, "detect_version", lambda: "1.0.0")
+        monkeypatch.setattr(
+            "specify_cli.upgrade.runner.MigrationRegistry.get_applicable",
+            lambda _from, _to, project_path=None: [migration],  # noqa: ARG005
+        )
+        runner.upgrade("9.9.9", include_worktrees=True)
+
+    _run()
+    wt_kittify = worktree / ".kittify"
+    after_first = ProjectMetadata.load(wt_kittify)
+    assert after_first is not None
+    stamp_first = after_first.last_upgraded_at
+
+    _run()
+    after_second = ProjectMetadata.load(wt_kittify)
+    assert after_second is not None
+
+    # Exactly one skipped record, and the timestamp did not move on the no-op re-run.
+    skipped = [m for m in after_second.applied_migrations if m.id == migration.migration_id]
+    assert len(skipped) == 1
+    assert after_second.last_upgraded_at == stamp_first

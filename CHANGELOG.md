@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- **Upgrade no longer re-records not-applicable migrations (issue #1872):** a migration whose `detect()`
+  is `False` was re-appended as a `skipped` / "Not applicable" `MigrationRecord` on every `spec-kitty upgrade`
+  run over the same version range, growing `applied_migrations` without bound and — for worktrees, after
+  #1857 — bumping `last_upgraded_at` on no-op runs. `ProjectMetadata.record_migration()` is now idempotent
+  (an identical `(id, result)` record is not re-appended) and the worktree upgrade path only marks metadata
+  dirty when a new record was actually written, restoring stable `last_upgraded_at` for no-op re-runs. A
+  genuine `failed → success` transition still records the new result.
 - **Coordination & Merge stabilization (mission 131; closes #1826, #1861 Part 1, residuals of #1833/#1814/#1736/#1735):**
   merge-pipeline ref advances now resync any worktree checked out on the advanced branch (shared
   `git/ref_advance.py` helper with a no-raw-`update-ref` architectural ratchet), refusing loudly — never
