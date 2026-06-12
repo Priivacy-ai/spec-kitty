@@ -58,6 +58,11 @@ def _build_handler_class(project_dir: Path, project_token: str | None) -> type[D
     )
 
 
+def _serve_loopback_http_forever(server: HTTPServer) -> None:
+    """Serve the localhost-only dashboard control plane."""
+    server.serve_forever()  # NOSONAR(pythonsecurity:S5332) -- binds to 127.0.0.1 only; no remote transport exposure
+
+
 def run_dashboard_server(project_dir: Path, port: int, project_token: str | None) -> None:
     """Run the dashboard server forever (used by detached child processes)."""
     try:
@@ -72,7 +77,7 @@ def run_dashboard_server(project_dir: Path, port: int, project_token: str | None
 
     handler_class = _build_handler_class(project_dir, project_token)
     server = HTTPServer(('127.0.0.1', port), handler_class)  # NOSONAR -- dashboard control plane binds to localhost only
-    server.serve_forever()
+    _serve_loopback_http_forever(server)
 
 
 def _background_script(project_dir: Path, port: int, project_token: str | None) -> str:
@@ -129,8 +134,8 @@ def start_dashboard(
         return port, proc.pid
 
     handler_class = _build_handler_class(project_dir_abs, project_token)
-    server = HTTPServer(('127.0.0.1', port), handler_class)
+    server = HTTPServer(('127.0.0.1', port), handler_class)  # NOSONAR -- dashboard control plane binds to localhost only
 
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread = threading.Thread(target=lambda: _serve_loopback_http_forever(server), daemon=True)
     thread.start()
     return port, None

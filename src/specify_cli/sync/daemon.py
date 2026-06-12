@@ -47,7 +47,7 @@ else:  # pragma: no cover - platform-specific
 if TYPE_CHECKING:
     from specify_cli.sync.config import SyncConfig
 
-import psutil  # type: ignore[import-untyped]
+import psutil
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.sync.diagnostics import SyncDiagnosticCode, emit_sync_diagnostic
@@ -691,10 +691,17 @@ def run_sync_daemon(port: int, daemon_token: str | None) -> None:
 
     tick = _start_self_check_tick(server, my_port=port)
     try:
-        server.serve_forever(poll_interval=DAEMON_SERVE_FOREVER_POLL_SECONDS)
+        _serve_loopback_http_forever(server, poll_interval=DAEMON_SERVE_FOREVER_POLL_SECONDS)
     finally:
         tick.cancel()
         cleanup_owner_record()
+
+
+def _serve_loopback_http_forever(server: HTTPServer, *, poll_interval: float) -> None:
+    """Serve the localhost-only sync daemon control plane."""
+    server.serve_forever(  # NOSONAR(pythonsecurity:S5332) -- binds to 127.0.0.1 only; no remote transport exposure
+        poll_interval=poll_interval
+    )
 
 
 def _background_script(port: int, daemon_token: str | None) -> str:
@@ -1130,6 +1137,7 @@ def _spawn_sync_daemon_process(port: int, token: str) -> subprocess.Popen[str]:
         stderr=log_fh,
         stdin=subprocess.DEVNULL,
         start_new_session=True,
+        text=True,
         env={**os.environ, "SPEC_KITTY_CLI_VERSION": _get_package_version()},
     )
     log_fh.close()
