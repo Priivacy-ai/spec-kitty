@@ -3,7 +3,6 @@ title: "How to Keep MCP Agents in the Worktree"
 description: "Keep MCP-backed editors and agents pointed at the active Spec Kitty worktree instead of the repository root."
 type: how-to
 audience: end-users
-os: windows
 ---
 
 # How to Keep MCP Agents in the Worktree
@@ -14,7 +13,7 @@ This is a workspace configuration issue, not a Spec Kitty workflow bug. Spec Kit
 
 ## What Goes Wrong
 
-During implementation, `spec-kitty` changes into an execution worktree under `.worktrees/`.
+For code-change work packages, `spec-kitty` creates an execution worktree under `.worktrees/` and prints its path; your shell, editor, and MCP server must follow it.
 If your MCP-backed editor keeps its own repository root, it can keep editing files in the main checkout while Spec Kitty thinks you are inside the worktree.
 
 That mismatch is the whole problem:
