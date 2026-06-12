@@ -315,9 +315,16 @@ class SafeCommitBackstopError(RuntimeError):
         self,
         unexpected: tuple[UnexpectedStagedPath, ...],
         requested: tuple[str, ...],
+        *,
+        worktree_root: Path | None = None,
+        destination_ref: str | None = None,
+        head_sha: str | None = None,
     ) -> None:
         self.unexpected = unexpected
         self.requested = requested
+        self.worktree_root = worktree_root
+        self.destination_ref = destination_ref
+        self.head_sha = head_sha
         message_lines = [
             "Commit aborted: staging area contains unexpected paths.",
             "",
@@ -330,7 +337,33 @@ class SafeCommitBackstopError(RuntimeError):
         for unexpected_path in unexpected:
             message_lines.append(f"  {unexpected_path.status_code} {unexpected_path.path}")
         message_lines.append("")
-        message_lines.append("This usually means the working tree is behind HEAD.")
+        # FR-012: name the diverged worktree/ref and the behind/ahead state
+        # instead of the bare "working tree is behind HEAD" guess.
+        has_phantom_deletions = any(
+            entry.status_code.startswith("D") for entry in unexpected
+        )
+        where = str(worktree_root) if worktree_root is not None else "this worktree"
+        ref_label = destination_ref if destination_ref is not None else "<unknown ref>"
+        head_label = head_sha[:12] if head_sha else "<unknown>"
+        message_lines.append(
+            f"Diverged worktree: {where} (checked out: {ref_label}, HEAD {head_label})."
+        )
+        if has_phantom_deletions:
+            message_lines.append(
+                "The index/working tree is BEHIND its own HEAD (the unexpected "
+                "staged deletions are files HEAD carries but the checkout lacks)."
+            )
+            message_lines.append(
+                f"Most likely cause: the branch ref {ref_label!r} was advanced "
+                "underneath this worktree (e.g. `git update-ref` during a merge "
+                "while the branch was checked out here, #1826)."
+            )
+        else:
+            message_lines.append(
+                "The index/working tree is AHEAD of (or sideways from) HEAD: "
+                "the unexpected entries are local additions/modifications that "
+                "were never requested for this commit."
+            )
         message_lines.append("Investigate before committing:")
         message_lines.append("  git diff --cached")
         message_lines.append("  git status")
@@ -504,6 +537,9 @@ def assert_staging_area_matches_expected(
         raise SafeCommitBackstopError(
             unexpected=(UnexpectedStagedPath(path="<probe-failed>", status_code="??"),),
             requested=tuple(expected_paths),
+            worktree_root=repo_path,
+            destination_ref=_current_branch(repo_path),
+            head_sha=_run_git_text(repo_path, ["rev-parse", "HEAD"]),
         )
 
     expected_set = {str(p).replace("\\", "/") for p in expected_paths}
@@ -526,6 +562,9 @@ def assert_staging_area_matches_expected(
         raise SafeCommitBackstopError(
             unexpected=tuple(unexpected),
             requested=tuple(expected_set),
+            worktree_root=repo_path,
+            destination_ref=_current_branch(repo_path),
+            head_sha=_run_git_text(repo_path, ["rev-parse", "HEAD"]),
         )
 
 

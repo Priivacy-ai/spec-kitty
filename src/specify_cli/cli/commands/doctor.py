@@ -832,6 +832,75 @@ def state_roots(
     raise typer.Exit(0 if report.healthy else 1)
 
 
+@app.command(name="workspaces")
+def workspaces(
+    fix: Annotated[
+        bool,
+        typer.Option("--fix", help="Remove husks that are NOT registered in `git worktree list` (registered worktrees are never removed)"),
+    ] = False,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Machine-readable JSON output"),
+    ] = False,
+) -> None:
+    """Report .worktrees/ husk directories (entries lacking a .git entry).
+
+    A husk is not a usable git worktree: git commands run inside it fall
+    through to the primary repository (#1833). Workspace resolution refuses
+    husks with a structured error; this check is the recovery path.
+
+    Examples:
+        spec-kitty doctor workspaces
+        spec-kitty doctor workspaces --fix
+        spec-kitty doctor workspaces --json
+    """
+    from specify_cli.status.doctor_husks import fix_workspace_husks, scan_workspace_husks
+
+    try:
+        repo_root = locate_project_root()
+    except Exception as exc:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1) from exc
+    if repo_root is None:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1)
+
+    if fix:
+        report, fix_result = fix_workspace_husks(repo_root)
+        remaining = list(fix_result.skipped_registered)
+        payload: dict[str, object] = {**report.to_dict(), **fix_result.to_dict(), "healthy": not remaining}
+        if json_output:
+            console.print_json(json.dumps(payload, indent=2))
+            raise typer.Exit(0 if not remaining else 1)
+        for removed in fix_result.removed:
+            console.print(f"[green]Removed husk:[/green] {removed}")
+        for skipped in remaining:
+            console.print(
+                f"[yellow]Preserved registered worktree:[/yellow] {skipped} "
+                "(repair manually: `git worktree repair` or `git worktree remove <path>`)"
+            )
+        if not report.husks:
+            console.print("[green]No workspace husks found.[/green]")
+        raise typer.Exit(0 if not remaining else 1)
+
+    report = scan_workspace_husks(repo_root)
+    if json_output:
+        console.print_json(json.dumps(report.to_dict(), indent=2))
+        raise typer.Exit(0 if report.healthy else 1)
+
+    if report.healthy:
+        console.print("[green]No workspace husks found.[/green]")
+        raise typer.Exit(0)
+
+    console.print(f"[bold]Workspace husks under {report.worktrees_dir}[/bold]")
+    for entry in report.husks:
+        status = "registered (manual repair needed)" if entry.registered else "unregistered (safe to --fix)"
+        console.print(f"  [yellow]![/yellow] {entry.path}  [dim]{status}[/dim]")
+    console.print()
+    console.print("Remove unregistered husks with: spec-kitty doctor workspaces --fix")
+    raise typer.Exit(1)
+
+
 def _scope_to_mission(
     repo_root: Path,
     all_states: list[IdentityState],

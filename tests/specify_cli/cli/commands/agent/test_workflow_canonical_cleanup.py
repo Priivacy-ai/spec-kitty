@@ -91,6 +91,19 @@ def _write_current_analysis_report(feature_dir: Path, repo_root: Path) -> None:
     )
 
 
+def _mint_fake_worktree(repo_root: Path, workspace: Path) -> None:
+    """Mark a fixture workspace as a git worktree (#1833 husk guard).
+
+    Tests in this module fabricate lane workspaces without running
+    ``git worktree add``; the fall-through-is-failure guards now require a
+    ``.git`` entry, so plant the gitfile marker the real command would create.
+    """
+    workspace.mkdir(parents=True, exist_ok=True)
+    gitdir = repo_root / ".git" / "worktrees" / workspace.name
+    gitdir.mkdir(parents=True, exist_ok=True)
+    (workspace / ".git").write_text(f"gitdir: {gitdir}\n", encoding="utf-8")
+
+
 @pytest.fixture()
 def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     repo_root = tmp_path
@@ -135,7 +148,7 @@ class TestImplementBodyNoteLaneFree:
         _write_current_analysis_report(feature_dir, workflow_repo)
 
         workspace = lane_worktree_path(workflow_repo, mission_slug)
-        workspace.mkdir(parents=True)
+        _mint_fake_worktree(workflow_repo, workspace)
 
         result = CliRunner().invoke(
             workflow.app,
@@ -166,7 +179,7 @@ class TestImplementBodyNoteLaneFree:
         _write_current_analysis_report(feature_dir, workflow_repo)
 
         workspace = lane_worktree_path(workflow_repo, mission_slug)
-        workspace.mkdir(parents=True)
+        _mint_fake_worktree(workflow_repo, workspace)
 
         result = CliRunner().invoke(
             workflow.app,
@@ -203,6 +216,10 @@ class TestReviewBodyNoteLaneFree:
         # Seed canonical state
         _seed_wp_lane(feature_dir, "WP01", "for_review")
 
+        # #1833: review no longer warn-and-continues past a failed worktree
+        # creation; pre-create the lane workspace with a .git marker.
+        _mint_fake_worktree(workflow_repo, lane_worktree_path(workflow_repo, mission_slug))
+
         result = CliRunner().invoke(
             workflow.app,
             ["review", "WP01", "--mission", mission_slug, "--agent", "test-reviewer"],
@@ -238,7 +255,7 @@ class TestImplementHardFailNoCanonical:
         # NO event seeding -- WP has no canonical state
 
         workspace = lane_worktree_path(workflow_repo, mission_slug)
-        workspace.mkdir(parents=True)
+        _mint_fake_worktree(workflow_repo, workspace)
 
         result = CliRunner().invoke(
             workflow.app,
@@ -263,7 +280,7 @@ class TestImplementHardFailNoCanonical:
         _seed_wp_lane(feature_dir, "WP02", "planned")
 
         workspace = lane_worktree_path(workflow_repo, mission_slug)
-        workspace.mkdir(parents=True)
+        _mint_fake_worktree(workflow_repo, workspace)
 
         result = CliRunner().invoke(
             workflow.app,
@@ -288,7 +305,7 @@ class TestImplementHardFailNoCanonical:
         _write_current_analysis_report(feature_dir, workflow_repo)
 
         workspace = lane_worktree_path(workflow_repo, mission_slug)
-        workspace.mkdir(parents=True)
+        _mint_fake_worktree(workflow_repo, workspace)
 
         result = CliRunner().invoke(
             workflow.app,
@@ -314,11 +331,8 @@ class TestImplementHardFailNoCanonical:
         _write_current_analysis_report(feature_dir, workflow_repo)
 
         workspace = lane_worktree_path(workflow_repo, mission_slug)
-        workspace.mkdir(parents=True)
+        _mint_fake_worktree(workflow_repo, workspace)
         (workspace / ".kittify").mkdir()
-        gitdir = workflow_repo / ".git" / "worktrees" / workspace.name
-        gitdir.mkdir(parents=True)
-        (workspace / ".git").write_text(f"gitdir: {gitdir}\n", encoding="utf-8")
         (workspace / "kitty-specs" / mission_slug).mkdir(parents=True)
         monkeypatch.setenv("SPECIFY_REPO_ROOT", str(workspace))
         monkeypatch.setattr(
@@ -395,6 +409,10 @@ class TestReviewHardFailNoCanonical:
         _write_wp_file(wp_path, "WP01", lane="for_review")
         # Seed canonical state
         _seed_wp_lane(feature_dir, "WP01", "for_review")
+
+        # #1833: review no longer warn-and-continues past a failed worktree
+        # creation; pre-create the lane workspace with a .git marker.
+        _mint_fake_worktree(workflow_repo, lane_worktree_path(workflow_repo, mission_slug))
 
         result = CliRunner().invoke(
             workflow.app,
@@ -596,7 +614,7 @@ class TestImplementDependencyGate:
         _seed_wp_lane(feature_dir, "WP01", "in_progress")
         _seed_wp_lane(feature_dir, "WP02", "planned")
         # Workspace already resolves so creation is skipped and the gate is reached.
-        lane_worktree_path(workflow_repo, mission_slug).mkdir(parents=True)
+        _mint_fake_worktree(workflow_repo, lane_worktree_path(workflow_repo, mission_slug))
 
         result = CliRunner().invoke(
             workflow.app,
@@ -619,7 +637,7 @@ class TestImplementDependencyGate:
         _seed_wp_lane(feature_dir, "WP01", "in_progress")
         _seed_wp_lane(feature_dir, "WP02", "in_progress", actor="test-agent")
         _write_current_analysis_report(feature_dir, workflow_repo)
-        lane_worktree_path(workflow_repo, mission_slug).mkdir(parents=True)
+        _mint_fake_worktree(workflow_repo, lane_worktree_path(workflow_repo, mission_slug))
 
         result = CliRunner().invoke(
             workflow.app,

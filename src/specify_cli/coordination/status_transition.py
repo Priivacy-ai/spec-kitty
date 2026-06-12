@@ -393,13 +393,27 @@ def read_current_wp_state_transactional(
     contract = _read_contract_from_transaction_target(identity, mission_slug)
     events = read_event_log(contract)
     if not events and not _transaction_topology_available(identity, mission_slug):
-        from specify_cli.status.lane_reader import get_wp_lane  # noqa: PLC0415
+        from specify_cli.status.lane_reader import (  # noqa: PLC0415
+            CanonicalStatusNotFoundError,
+            get_wp_lane,
+        )
 
         try:
             return Lane(resolve_lane_alias(get_wp_lane(identity.feature_dir, wp_id))), None
-        except Exception:  # noqa: BLE001 -- non-git test fixtures may lack WP files
-            # No events and no WP file resolved → unseeded WP; report GENESIS
-            # (matching _derive_from_lane on the write side — Contract 3, FR-009).
+        except (ValueError, FileNotFoundError, CanonicalStatusNotFoundError):
+            # GENESIS-fallback contract (FR-008d / R7): exactly two expected
+            # failure shapes mean "unseeded WP" and fall back to GENESIS
+            # (matching _derive_from_lane on the write side — Contract 3,
+            # FR-009): a pre-schema/unknown lane value (ValueError from
+            # Lane()/resolve_lane_alias, e.g. the "uninitialized" sentinel)
+            # and an absent log/WP file. ``CanonicalStatusNotFoundError`` is
+            # the codebase's concrete "absent log" signal (``get_wp_lane``
+            # raises it instead of FileNotFoundError; the contract names the
+            # shape, this names the type). Every other exception
+            # (PermissionError, corruption signals, ...) is a real error and
+            # MUST propagate — the former broad ``except Exception`` silently
+            # converted genesis-corruption signals into "unseeded WP" (#1736
+            # dormant mask 1).
             return Lane.GENESIS, None
     return cast(tuple[Lane, str | None], wp_lane_actor_from_events(events, wp_id))
 

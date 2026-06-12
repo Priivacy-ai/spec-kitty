@@ -861,6 +861,9 @@ class TestLaneGuardErrorMessage:
 
         fake_worktree = tmp_path / "worktree"
         fake_worktree.mkdir(exist_ok=True)
+        # #1833 husk guard: a resolved workspace must carry a .git entry; all
+        # git calls below are mocked, so a marker file is sufficient.
+        (fake_worktree / ".git").write_text("gitdir: mocked\n", encoding="utf-8")
 
         def _mock_subprocess(cmd: object, *args: object, **kwargs: object) -> MagicMock:
             result_mock = MagicMock()
@@ -868,7 +871,10 @@ class TestLaneGuardErrorMessage:
             result_mock.stdout = ""
             cmd_list = cmd if isinstance(cmd, list) else []
             cmd_str = " ".join(str(c) for c in cmd_list)
-            if "status" in cmd_str and "--porcelain" in cmd_str:
+            if "rev-parse" in cmd_str and "--show-toplevel" in cmd_str:
+                # #1833 toplevel assertion: the workspace is its own toplevel.
+                result_mock.stdout = f"{fake_worktree}\n"
+            elif "status" in cmd_str and "--porcelain" in cmd_str:
                 # No uncommitted changes in main or worktree
                 result_mock.stdout = ""
             elif "rev-list" in cmd_str and "HEAD.." in cmd_str:

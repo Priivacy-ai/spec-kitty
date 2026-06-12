@@ -3,7 +3,7 @@
   "created_at": "2026-06-12T11:18:17.939132+00:00",
   "friendly_name": "Coordination and Merge Stabilization",
   "mission_id": "01KTXRVR2HPMKGMH20K18JZ1SA",
-  "mission_number": null,
+  "mission_number": 131,
   "mission_slug": "coordination-merge-stabilization-01KTXRVR",
   "mission_type": "software-dev",
   "purpose_context": "The 3.2.0 release gate identified a cluster of coordination-topology merge bugs where git operations break under specific worktree states. A Debbie/Paula validation pass against HEAD confirmed most of the cluster was already structurally fixed by PR #1850, leaving three live root-cause classes (coordination worktree falling behind its own branch after update-ref, a validate-only command mutating the git checkout, and husk workspace directories silently resolving to the primary repo) plus narrow residuals. This mission ships those small localized fixes with regression ratchets so merge operations complete unattended, and closes the stale-open fixed issues that distort triage.",

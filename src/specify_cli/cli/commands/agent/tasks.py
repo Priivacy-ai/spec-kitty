@@ -1344,6 +1344,22 @@ def _validate_ready_for_review(
             worktree_path = workspace.worktree_path
 
         if worktree_path.exists():
+            # #1833 fall-through-is-failure guards. Order is load-bearing:
+            # the .git-marker check runs BEFORE any git invocation so a husk
+            # directory never causes git to walk up into the primary repo.
+            from specify_cli.workspace.context import husk_resolution_error, verify_workspace_toplevel
+
+            if not (worktree_path / ".git").exists():
+                guidance.append(str(husk_resolution_error(worktree_path)))
+                return False, guidance
+
+            # Last-line defense (R4): the resolved path must be the toplevel
+            # of its own working tree before any other git call runs there.
+            toplevel_error = verify_workspace_toplevel(worktree_path)
+            if toplevel_error is not None:
+                guidance.append(str(toplevel_error))
+                return False, guidance
+
             # Check for detached HEAD before other git status checks
             from specify_cli.core.git_ops import get_current_branch as _get_branch
 

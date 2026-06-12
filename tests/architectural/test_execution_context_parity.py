@@ -179,6 +179,7 @@ both CWDs and across repeated runs. The synthetic flattened mission is torn down
 
 from __future__ import annotations
 
+import ast
 import json
 import subprocess
 import sys
@@ -2152,4 +2153,158 @@ def test_mission_status_load_consumes_carried_fragment(tmp_path: Path) -> None:
         "MissionStatus.load re-resolved the status surface even though a "
         "StatusSurfaceFragment was carried — the carried fragment IS the source "
         f"and must not trigger a second resolution (got calls: {resolve_calls!r})."
+    )
+
+
+# ---------------------------------------------------------------------------
+# AC10 — Canonical status-read ratchet (FR-008e / FR-009 / #1735, WP05 of
+# coordination-merge-stabilization-01KTXRVR)
+# ---------------------------------------------------------------------------
+#
+# WP05 routed the last two Class A read stragglers — the retrospective
+# completion gate (``retrospective/gate.py``) and the retrospect command
+# surface (``cli/commands/agent_retrospect.py``) — through the canonical
+# ``resolve_status_surface``. Under coordination topology the authoritative
+# ``status.events.jsonl`` lives in the coordination worktree; a
+# ``feature_dir``-anchored direct read in these modules is exactly the #1735
+# split-brain bug class.
+#
+# This ratchet EXTENDS the static-gate convention above (C-005: extend, never
+# fork) with an AST scan scoped to the two known read families in the two
+# fixed modules (research/risks: a tree-wide ``feature_dir`` scan has dozens
+# of legitimate hits on already-resolved surfaces, so the scope is the two
+# modules whose reads were routed):
+#
+# 1. ``read_events(<…feature_dir…>)`` — a feature_dir-anchored event read.
+# 2. ``<…feature_dir…> / "status.events.jsonl"`` — a direct event-log path
+#    composition.
+#
+# The only exempt locations are the routed seam helpers themselves
+# (``_resolve_events_path`` / ``_canonical_events_dir``), whose legacy-mission
+# fallback composes the path AFTER first consulting the canonical resolver.
+# The ratchet additionally asserts each seam exists and calls
+# ``resolve_status_surface``, so deleting a seam (e.g. by reverting WP05's
+# T024/T025 routing) turns this test RED — the anti-vacuity property.
+# ---------------------------------------------------------------------------
+
+# module path → routed seam function names exempt from the read-family scan.
+_CANONICAL_STATUS_READ_FILES: dict[str, frozenset[str]] = {
+    "src/specify_cli/retrospective/gate.py": frozenset({"_resolve_events_path"}),
+    "src/specify_cli/cli/commands/agent_retrospect.py": frozenset({"_canonical_events_dir"}),
+}
+
+_STATUS_EVENTS_LITERAL = "status.events.jsonl"
+
+
+def _subtree_anchors_feature_dir(node: ast.AST) -> bool:
+    """True when *node*'s subtree references a ``feature_dir`` name/attribute."""
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Name) and sub.id == "feature_dir":
+            return True
+        if isinstance(sub, ast.Attribute) and sub.attr == "feature_dir":
+            return True
+    return False
+
+
+def _callee_name(node: ast.Call) -> str | None:
+    """Best-effort simple name of a call's callee (``f(...)`` / ``m.f(...)``)."""
+    callee = node.func
+    if isinstance(callee, ast.Name):
+        return callee.id
+    if isinstance(callee, ast.Attribute):
+        return callee.attr
+    return None
+
+
+def _feature_dir_read_family_hits(
+    func: ast.AST, exempt_seams: frozenset[str]
+) -> list[str]:
+    """Return AC10 read-family violations inside *func* (line-tagged).
+
+    An argument that is itself a call to a routed seam helper (e.g.
+    ``read_events(_canonical_events_dir(repo_root, slug, feature_dir))``) is
+    NOT a violation: there ``feature_dir`` is only the legacy fallback handed
+    to the seam, which consults ``resolve_status_surface`` first.
+    """
+    hits: list[str] = []
+    for node in ast.walk(func):
+        # Family 1: read_events(<…feature_dir…>)
+        if (
+            isinstance(node, ast.Call)
+            and _callee_name(node) == "read_events"
+            and any(
+                _subtree_anchors_feature_dir(arg)
+                and not (
+                    isinstance(arg, ast.Call) and _callee_name(arg) in exempt_seams
+                )
+                for arg in node.args
+            )
+        ):
+            hits.append(
+                f"line {node.lineno}: feature_dir-anchored read_events() call"
+            )
+        # Family 2: <…feature_dir…> / "status.events.jsonl"
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+            right = node.right
+            if (
+                isinstance(right, ast.Constant)
+                and right.value == _STATUS_EVENTS_LITERAL
+                and _subtree_anchors_feature_dir(node.left)
+            ):
+                hits.append(
+                    f"line {node.lineno}: feature_dir-anchored "
+                    f'"{_STATUS_EVENTS_LITERAL}" path composition'
+                )
+    return hits
+
+
+def test_no_feature_dir_anchored_status_event_reads() -> None:
+    """AC10 / FR-009 / #1735: retrospective reads route through the canonical surface.
+
+    Forbids ``feature_dir``-anchored ``read_events()`` calls and direct
+    ``status.events.jsonl`` path compositions in ``retrospective/gate.py`` and
+    ``cli/commands/agent_retrospect.py`` outside their routed seam helpers,
+    and asserts each seam consults ``resolve_status_surface``. Reverting the
+    WP05 T024/T025 routing reintroduces a forbidden read (or deletes a seam)
+    and turns this RED.
+    """
+    repo_root = _repo_root_for_sources()
+    offenders: dict[str, list[str]] = {}
+
+    for rel_path, exempt_seams in _CANONICAL_STATUS_READ_FILES.items():
+        source_path = repo_root / rel_path
+        tree = ast.parse(source_path.read_text(encoding="utf-8"))
+        hits: list[str] = []
+        seen_seams: set[str] = set()
+
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if node.name in exempt_seams:
+                seen_seams.add(node.name)
+                # The seam is only a legitimate exemption if it consults the
+                # canonical resolver before any fallback composition.
+                seam_source = ast.unparse(node)
+                if "resolve_status_surface" not in seam_source:
+                    hits.append(
+                        f"line {node.lineno}: routed seam {node.name!r} no longer "
+                        "calls resolve_status_surface — the exemption does not apply"
+                    )
+                continue
+            hits.extend(_feature_dir_read_family_hits(node, exempt_seams))
+
+        missing_seams = exempt_seams - seen_seams
+        if missing_seams:
+            hits.append(
+                f"routed seam(s) {sorted(missing_seams)!r} missing — the canonical "
+                "read routing (WP05 T024/T025) appears to have been reverted"
+            )
+        if hits:
+            offenders[rel_path] = hits
+
+    assert not offenders, (
+        "feature_dir-anchored status-event read detected — retrospective reads "
+        "must route through resolve_status_surface, never read "
+        "status.events.jsonl via the (identity-only) feature dir "
+        f"(AC10 / FR-009 / #1735):\n{json.dumps(offenders, indent=2)}"
     )

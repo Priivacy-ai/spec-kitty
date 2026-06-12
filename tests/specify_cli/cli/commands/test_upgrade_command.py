@@ -937,3 +937,61 @@ def test_existing_no_worktrees_flag_preserved(tmp_path: Path) -> None:
     _make_compatible_project(tmp_path, schema_version=3)
     result = _invoke_upgrade(["--dry-run", "--no-worktrees"], cwd=tmp_path)
     assert result.exit_code != 2, f"--no-worktrees caused a usage error: {result.output}"
+
+
+# ---------------------------------------------------------------------------
+# WP02 / FR-013 (#1784 P3 crumb) — honest --dry-run outcome line
+# ---------------------------------------------------------------------------
+
+
+def _make_upgrade_result(*, dry_run: bool, success: bool = True) -> Any:
+    from specify_cli.upgrade.runner import UpgradeResult
+
+    return UpgradeResult(
+        success=success,
+        from_version="3.1.0",
+        to_version="3.2.0",
+        dry_run=dry_run,
+    )
+
+
+def _render_upgrade_outcome(result: Any) -> str:
+    from specify_cli.cli.commands.upgrade import _display_upgrade_results
+    from specify_cli.cli.helpers import console
+
+    with console.capture() as capture:
+        _display_upgrade_results(
+            result,
+            manual_review_paths=[],
+            auto_committed=False,
+            auto_commit_paths=[],
+        )
+    return capture.get()
+
+
+def test_dry_run_success_does_not_print_upgrade_complete() -> None:
+    """A --dry-run never prints a line implying changes were applied (FR-013)."""
+    output = _render_upgrade_outcome(_make_upgrade_result(dry_run=True))
+    assert "Upgrade complete!" not in output, (
+        f"--dry-run printed a success line implying changes were applied:\n{output}"
+    )
+    assert "Dry run complete" in output
+    assert "no changes applied" in output
+
+
+def test_real_run_success_line_unchanged() -> None:
+    """A real (non-dry-run) successful upgrade keeps the success line."""
+    output = _render_upgrade_outcome(_make_upgrade_result(dry_run=False))
+    assert "Upgrade complete!" in output
+    assert "3.1.0 -> 3.2.0" in output
+    assert "Dry run complete" not in output
+
+
+def test_failed_run_exits_1_for_both_modes() -> None:
+    """Failure still exits 1 regardless of dry-run flag."""
+    for dry_run in (False, True):
+        with pytest.raises(typer.Exit) as excinfo:
+            _render_upgrade_outcome(
+                _make_upgrade_result(dry_run=dry_run, success=False)
+            )
+        assert excinfo.value.exit_code == 1

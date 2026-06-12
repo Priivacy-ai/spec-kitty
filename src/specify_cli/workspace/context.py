@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,81 @@ from specify_cli.ownership.workspace_strategy import create_planning_workspace
 # Deep import: status.emit imports this module during status/__init__ execution,
 # so the status facade is not yet initialized here — importing from it would cycle.
 from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
+
+
+#: Operator recovery command named by workspace husk resolution errors
+#: (NFR-003, #1833). Pinned by tests — keep in sync with the doctor command.
+WORKSPACE_HUSK_RECOVERY_COMMAND = "spec-kitty doctor workspaces --fix"
+
+
+class WorkspaceResolutionError(RuntimeError):
+    """Structured workspace resolution failure (#1833 — fall-through is failure).
+
+    Raised (or rendered) when a resolved lane workspace path is not an actual
+    git worktree, so git commands invoked there would silently walk up and
+    operate on the primary repository.
+    """
+
+    def __init__(self, *, workspace_path: Path, failed_check: str, detail: str) -> None:
+        self.workspace_path = workspace_path
+        self.failed_check = failed_check
+        self.detail = detail
+        super().__init__(
+            f"Workspace resolution failed: {workspace_path} failed check '{failed_check}'. "
+            f"{detail} "
+            f"Recover with: {WORKSPACE_HUSK_RECOVERY_COMMAND}"
+        )
+
+
+def husk_resolution_error(workspace_path: Path) -> WorkspaceResolutionError:
+    """Build the structured error for a husk directory (exists, no ``.git`` entry)."""
+    return WorkspaceResolutionError(
+        workspace_path=workspace_path,
+        failed_check="git-worktree-marker (.git entry)",
+        detail=(
+            "The directory exists but contains no .git entry (a stale 'husk'); "
+            "git commands run there would fall through to the primary repository "
+            "and produce misattributed verdicts."
+        ),
+    )
+
+
+def verify_workspace_toplevel(workspace_path: Path) -> WorkspaceResolutionError | None:
+    """Assert ``git -C <path> rev-parse --show-toplevel`` resolves to the path itself.
+
+    Last-line defense for workspace paths arriving from other resolver
+    lineages (#1833 R4). Returns a structured error on mismatch or git
+    failure, ``None`` when the path is the toplevel of its own working tree.
+    """
+    result = subprocess.run(
+        ["git", "-C", str(workspace_path), "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        return WorkspaceResolutionError(
+            workspace_path=workspace_path,
+            failed_check="git-toplevel",
+            detail=f"git rev-parse --show-toplevel failed: {result.stderr.strip()}.",
+        )
+    actual_toplevel = Path(result.stdout.strip())
+    try:
+        same = actual_toplevel.resolve() == workspace_path.resolve()
+    except OSError:
+        same = False
+    if not same:
+        return WorkspaceResolutionError(
+            workspace_path=workspace_path,
+            failed_check="git-toplevel",
+            detail=(
+                f"git resolves the working tree toplevel to {actual_toplevel}, "
+                f"not the resolved workspace path {workspace_path}."
+            ),
+        )
+    return None
 
 
 _FEATURE_CONTEXT_INDEX_CACHE: dict[tuple[str, str], dict[str, WorkspaceContext]] = {}
@@ -146,8 +222,34 @@ class ResolvedWorkspace:
 
     @property
     def exists(self) -> bool:
-        """Return True when the resolved worktree currently exists on disk."""
-        return self.worktree_path.exists()
+        """Return True when the resolved worktree is an actual git worktree on disk.
+
+        A bare directory under ``.worktrees/`` with no ``.git`` entry (a
+        "husk", #1833) is NOT a usable workspace: git commands run there fall
+        through to the primary repository. Note git worktrees carry a ``.git``
+        *file* (not directory), so this checks entry existence, not type.
+        The ``.git``-marker requirement applies to lane workspaces only; a
+        ``repo_root`` resolution points at the primary checkout itself.
+        """
+        if not self.worktree_path.exists():
+            return False
+        if self.resolution_kind != "lane_workspace":
+            return True
+        return (self.worktree_path / ".git").exists()
+
+    @property
+    def is_husk(self) -> bool:
+        """Return True for a lane workspace path that exists but lacks ``.git``.
+
+        Husks must be treated as absent-but-blocked: callers should surface a
+        structured error (see :func:`husk_resolution_error`) instead of
+        silently recreating a worktree on top — recreation hides the anomaly.
+        """
+        return (
+            self.resolution_kind == "lane_workspace"
+            and self.worktree_path.exists()
+            and not (self.worktree_path / ".git").exists()
+        )
 
 
 @dataclass(frozen=True)
@@ -787,7 +889,11 @@ __all__ = [
     "ActiveWPResolution",
     "NormalizedWorkPackage",
     "ResolvedWorkspace",
+    "WORKSPACE_HUSK_RECOVERY_COMMAND",
     "WorkspaceContext",
+    "WorkspaceResolutionError",
+    "husk_resolution_error",
+    "verify_workspace_toplevel",
     "build_normalized_wp_index",
     "build_feature_context_index",
     "clear_workspace_resolution_caches",

@@ -44,8 +44,12 @@ import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
+
+if TYPE_CHECKING:
+    from specify_cli.upgrade.runner import UpgradeResult
 from rich.panel import Panel
 from rich.table import Table
 
@@ -947,6 +951,31 @@ def upgrade(  # noqa: C901
         return
 
     # Display results
+    _display_upgrade_results(
+        result,
+        manual_review_paths=manual_review_paths,
+        auto_committed=auto_committed,
+        auto_commit_paths=auto_commit_paths_list,
+    )
+
+
+def _display_upgrade_results(
+    result: UpgradeResult,
+    *,
+    manual_review_paths: list[str],
+    auto_committed: bool,
+    auto_commit_paths: list[str],
+) -> None:
+    """Render the human-readable upgrade outcome.
+
+    WP02 / FR-013 (#1784 P3 crumb): a ``--dry-run`` invocation must never print
+    a success line implying changes were applied — the closing line is
+    dry-run-specific ("Dry run complete — no changes applied."), while a real
+    successful run keeps the "Upgrade complete!" line unchanged.
+
+    Raises:
+        typer.Exit: with code 1 when ``result.success`` is False.
+    """
     console.print()
 
     if result.dry_run:
@@ -983,13 +1012,19 @@ def upgrade(  # noqa: C901
             console.print(f"  [yellow]![/yellow] {path}")
 
     console.print()
-    if result.success:
-        console.print(f"[bold green]Upgrade complete![/bold green] {result.from_version} -> {result.to_version}")
-        if auto_committed:
-            console.print(f"[cyan]→ Auto-committed upgrade changes ({len(auto_commit_paths_list)} files)[/cyan]")
-    else:
+    if not result.success:
         console.print("[bold red]Upgrade failed.[/bold red]")
         raise typer.Exit(1)
+    if result.dry_run:
+        # Honest dry-run: nothing was applied, so do not imply it was.
+        console.print(
+            "[bold yellow]Dry run complete[/bold yellow] — no changes applied. "
+            f"({result.from_version} -> {result.to_version} previewed)"
+        )
+    else:
+        console.print(f"[bold green]Upgrade complete![/bold green] {result.from_version} -> {result.to_version}")
+        if auto_committed:
+            console.print(f"[cyan]→ Auto-committed upgrade changes ({len(auto_commit_paths)} files)[/cyan]")
 
 
 # ---------------------------------------------------------------------------

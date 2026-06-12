@@ -161,3 +161,43 @@ def test_read_event_file_accepts_event_without_timestamp(tmp_path: Path) -> None
     events = _read_event_file(path)
     assert len(events) == 1
     assert events[0]["event_id"] == "01AAA000000000000000000001"
+
+
+def test_merge_event_payloads_mixed_at_timestamp_neither() -> None:
+    """AC-F2 (FR-008c, WP03): mixed-schema event logs sort deterministically.
+
+    The sort key is the two-tuple
+    ``(str(payload.get("at") or payload.get("timestamp", "")), event_id)``:
+
+    * an event carrying ``at`` sorts by ``at``;
+    * an event carrying only ``timestamp`` sorts by ``timestamp``;
+    * an event carrying neither sorts by the empty string (i.e. FIRST);
+    * the **tie-break is the ULID ``event_id``**, which makes the ordering
+      total — two events never compare equal, so the result is stable across
+      repeated runs and across input-group permutations.
+    """
+    at_only = _event("01BBB000000000000000000002", "2026-04-09T06:02:00Z")
+    timestamp_only: dict[str, object] = {
+        "event_id": "01CCC000000000000000000003",
+        "timestamp": "2026-04-09T06:01:00Z",
+    }
+    neither_a: dict[str, object] = {"event_id": "01AAA000000000000000000001"}
+    neither_b: dict[str, object] = {"event_id": "01AAB000000000000000000004"}
+
+    expected_order = [
+        "01AAA000000000000000000001",  # no key → "" sorts first; ULID tie-break
+        "01AAB000000000000000000004",
+        "01CCC000000000000000000003",  # timestamp 06:01
+        "01BBB000000000000000000002",  # at 06:02
+    ]
+
+    forward = merge_event_payloads([at_only], [timestamp_only], [neither_a, neither_b])
+    reversed_groups = merge_event_payloads([neither_b, neither_a], [timestamp_only], [at_only])
+
+    assert [payload["event_id"] for payload in forward] == expected_order
+    assert forward == reversed_groups, (
+        "mixed-schema sort must be deterministic and total across input "
+        "permutations (AC-F2)"
+    )
+    # Repeated runs over identical input are byte-stable.
+    assert merge_event_payloads([at_only], [timestamp_only], [neither_a, neither_b]) == forward
