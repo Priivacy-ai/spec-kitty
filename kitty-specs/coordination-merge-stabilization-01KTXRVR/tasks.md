@@ -58,11 +58,11 @@ plan.md §Phase 2 hinted 6 WPs. Ownership analysis (no two WPs may own the same 
 **Goal**: `finalize-tasks --validate-only` mutates nothing (FR-002); finalize leaves zero planning-artifact residue on the primary checkout (FR-006); `upgrade --dry-run` stops claiming success (FR-013). Closes #1861-P1, #1814-residual.
 **Priority**: P1. **Independent test**: AC-C1 byte-identical HEAD/porcelain; AC-A1 clean primary tree post-finalize.
 
-- [ ] T005 Red test test_finalize_tasks_validate_only_readonly.py: HEAD + porcelain identical before/after (WP02)
-- [ ] T006 Guard mission.py:2462 `_ensure_branch_checked_out` behind `not validate_only` (WP02)
-- [ ] T007 upgrade.py:987 — no success line on --dry-run; assert in test (WP02)
-- [ ] T008 `_stage_finalize_artifacts_in_coord_worktree` (mission.py:99-131) removes/never-creates its primary-side copies; C-003: do NOT widen COORD_OWNED_STATUS_FILES (WP02)
-- [ ] T009 Extend tests/specify_cli/test_wp06_sc2_paused_mission_blockers.py: post-finalize porcelain clean; record-analysis unblocked (WP02)
+- [x] T005 Red test test_finalize_tasks_validate_only_readonly.py: HEAD + porcelain identical before/after (WP02)
+- [x] T006 Guard mission.py:2462 `_ensure_branch_checked_out` behind `not validate_only` (WP02)
+- [x] T007 upgrade.py:987 — no success line on --dry-run; assert in test (WP02)
+- [x] T008 `_stage_finalize_artifacts_in_coord_worktree` (mission.py:99-131) removes/never-creates its primary-side copies; C-003: do NOT widen COORD_OWNED_STATUS_FILES (WP02)
+- [x] T009 Extend tests/specify_cli/test_wp06_sc2_paused_mission_blockers.py: post-finalize porcelain clean; record-analysis unblocked (WP02)
 
 **Dependencies**: none. **Risks**: cleanup must only remove stager-materialized paths (research R6) — never operator files.
 

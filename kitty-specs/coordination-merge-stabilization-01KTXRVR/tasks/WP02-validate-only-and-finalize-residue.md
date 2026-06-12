@@ -16,8 +16,8 @@ subtasks:
 - T007
 - T008
 - T009
-agent: "claude:fable-5:python-pedro:implementer"
-shell_pid: "83268"
+agent: "claude:fable-5:reviewer-renata:reviewer"
+shell_pid: "54887"
 history:
 - '2026-06-12: created by /spec-kitty.tasks'
 agent_profile: python-pedro
@@ -115,3 +115,5 @@ Planning base and merge target are both `main`. Your execution worktree and bran
 ## Activity Log
 
 - 2026-06-12T11:57:50Z – claude:fable-5:python-pedro:implementer – shell_pid=83268 – Assigned agent via action command
+- 2026-06-12T12:29:32Z – claude:fable-5:python-pedro:implementer – shell_pid=83268 – WP02 complete: T005 red test (committed first) then T006 validate-only guard; T007 honest dry-run line; T008 stager residue cleanup (R6-scoped, C-003 intact); T009 residue+negative-control tests. ruff exit 0 (diff-scoped); mypy --strict exit 0 on mission.py+upgrade.py; pytest tests/specify_cli/cli/commands/ = 962 passed / 3 pre-existing failures (verified failing on baseline with changes stashed: test_wrapper_delegation x2, test_project_migration_needed_project_dry_run_json_contract); terminology guard 2 passed. Note: WP06 test file actually lives at tests/specify_cli/cli/commands/ (owned_files path typo); test_upgrade_command.py extension mandated by T007.
+- 2026-06-12T12:30:35Z – claude:fable-5:reviewer-renata:reviewer – shell_pid=54887 – Started review via action command
