@@ -146,5 +146,5 @@ Print a deprecation notice when `--script` is passed, then remove the flag in th
 * **Active replacement:** `src/specify_cli/shims/generator.py` — the active dispatch mechanism that made scripts obsolete
 * **Related ADR:** ADR-F (2026-04-08-6) — Global agent commands supersede per-project copies (describes the shim-generated command files that replaced scripts)
 * **Code locations:**
-  - `src/specify_cli/init.py:734, 982–992` — flag definition and selection block
-  - `src/specify_cli/template/manager.py:131–150` — script directory copying to be removed
+  * `src/specify_cli/init.py:734, 982–992` — flag definition and selection block
+  * `src/specify_cli/template/manager.py:131–150` — script directory copying to be removed

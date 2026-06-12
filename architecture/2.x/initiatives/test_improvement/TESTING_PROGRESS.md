@@ -19,6 +19,7 @@ Comprehensive functional test implementation according to `TESTING_REQUIREMENTS_
 **Commit:** `62f731a` (feat), `HEAD` (fix)
 
 #### Required Tests (6/6)
+
 - ✅ Test 1.1: Detect all 15+ problematic character types
 - ✅ Test 1.2: Sanitize text preserves content
 - ✅ Test 1.3: Sanitize file creates backup
@@ -27,6 +28,7 @@ Comprehensive functional test implementation according to `TESTING_REQUIREMENTS_
 - ✅ Test 1.6: Dry run mode doesn't modify
 
 #### Additional Tests (9/9)
+
 - ✅ Test 1.7-1.8: Performance (single file < 50ms, 100 files < 2s)
 - ✅ Test 1.9-1.12: Edge cases (binary, empty, large files, permissions)
 - ✅ Test 1.13-1.14: Regression tests (clean files, backup safety)
@@ -176,12 +178,14 @@ All critical guardrail functionality is now tested and validated:
 The following test suites provide additional integration testing but are not required for core functionality:
 
 #### Optional 1: Pre-Commit Hook Tests (Git Integration)
+
 **File:** `tests/test_pre_commit_hook_functional.py`
 **Tests:** 4
 **Value:** Git commit blocking
 **Estimated Time:** 1 hour
 
 #### Optional 2: Integration Tests (E2E Coverage)
+
 **File:** `tests/test_encoding_plan_integration.py`
 **Tests:** 3
 **Value:** End-to-end workflow validation
@@ -219,6 +223,7 @@ The following test suites provide additional integration testing but are not req
 ## Test Execution
 
 ### Run Completed Tests
+
 ```bash
 # All encoding validation tests
 pytest tests/test_encoding_validation_functional.py -v
@@ -231,6 +236,7 @@ pytest tests/test_encoding_validation_functional.py \
 ```
 
 ### Run All Tests (When Complete)
+
 ```bash
 # Run all encoding/plan tests
 pytest tests/test_*encoding*.py tests/test_*plan*.py -v
@@ -259,17 +265,20 @@ pytest tests/test_*encoding*.py tests/test_*plan*.py \
 ## Notes for Maintainers
 
 ### What's Working Well
+
 1. **Test Suite 1 is comprehensive** - Covers all requirements plus edge cases
 2. **Performance targets met** - Both single file and directory scans within spec
 3. **Real Unicode testing** - Tests use actual Unicode characters, not just ASCII
 4. **Edge cases covered** - Binary files, permissions, empty files, large files
 
 ### Technical Details
+
 - Tests use `spec-kitty-test/venv` which has spec-kitty installed in editable mode
 - All tests are deterministic and clean up after themselves
 - Tests work on macOS (tested), should work on Linux/Windows
 
 ### Recommendations for Remaining Tests
+
 1. Use `typer.testing.CliRunner` for CLI tests (Suite 2)
 2. Mock or use test fixtures for dashboard scanner tests (Suite 3)
 3. Create realistic test fixtures for plan validation (Suite 4)

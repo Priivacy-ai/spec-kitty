@@ -237,12 +237,15 @@ For background on why conflicts occur, see [Git Worktrees Explained](../explanat
 *This document explains why we use Divio. For how to write documentation, see the tutorials and how-to guides.*
 
 ## Try It
+
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## How-To Guides
+
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 - [Use the Dashboard](../how-to/use-dashboard.md)
 
 ## Reference
+
 - [Configuration](../reference/configuration.md)
 - [File Structure](../reference/file-structure.md)

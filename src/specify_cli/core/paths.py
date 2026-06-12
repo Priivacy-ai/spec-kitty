@@ -217,6 +217,68 @@ def check_broken_symlink(path: Path) -> bool:
     return path.is_symlink() and not path.exists()
 
 
+class WorkspaceRootNotFound(Exception):
+    """Raised when a canonical mission repo root cannot be resolved.
+
+    Owned here because :mod:`specify_cli.core.paths` is the single
+    worktree-pointer parser (IC-04): the canonical-root resolver and its
+    error type live together. ``specify_cli.workspace.root_resolver``
+    re-exports this name for backwards compatibility with existing callers.
+    """
+
+    def __init__(self, cwd: Path | str) -> None:
+        self.cwd = Path(cwd)
+        super().__init__(f"No git repository found at or above {self.cwd}")
+
+
+def resolve_canonical_root(cwd: Path | None = None) -> Path:
+    """Return the canonical mission repo root for ``cwd``.
+
+    This is the single worktree-pointer parser (IC-04): every consumer that
+    asks "given some CWD (which may be a worktree), what is the canonical
+    main-repo root?" resolves through here.  ``workspace/root_resolver``'s
+    historical duplicate parser was collapsed into this function.
+
+    Resolution rules (walking ancestors from ``cwd``):
+
+    1. ``.git`` is a *directory*: this is a regular repo (or the main repo of
+       a worktree set); return that ancestor.
+    2. ``.git`` is a *file* with a ``gitdir:`` pointer of the
+       ``.git/worktrees/<name>`` topology: follow the pointer back to the
+       main repo working tree (reusing :func:`get_main_repo_root`).
+    3. ``.git`` is a malformed/non-worktree pointer file: keep walking so an
+       enclosing repo is still found if one exists.
+    4. No git marker anywhere up the tree: raise :class:`WorkspaceRootNotFound`.
+
+    Args:
+        cwd: Starting directory. Defaults to :func:`Path.cwd`.
+
+    Returns:
+        Absolute, resolved path to the canonical repo root.
+
+    Raises:
+        WorkspaceRootNotFound: when ``cwd`` is not inside a git repo.
+    """
+    start = (cwd or Path.cwd()).resolve()
+
+    for candidate in [start, *start.parents]:
+        git_path = candidate / ".git"
+
+        if git_path.is_dir():
+            # Regular repo (or main repo of a worktree set).
+            return candidate.resolve()
+
+        if git_path.is_file():
+            if _read_worktree_gitdir(git_path) is None:
+                # Malformed or non-worktree pointer (submodule / separate-git-dir):
+                # keep walking so an enclosing repo is still resolved.
+                continue
+            # Real worktree pointer — follow it back to the main checkout.
+            return get_main_repo_root(candidate)
+
+    raise WorkspaceRootNotFound(start)
+
+
 def get_main_repo_root(current_path: Path) -> Path:
     """
     Get the main repository root, even if called from a worktree.
@@ -485,6 +547,8 @@ __all__ = [
     "resolve_with_context",
     "check_broken_symlink",
     "get_main_repo_root",
+    "resolve_canonical_root",
+    "WorkspaceRootNotFound",
     "get_status_read_root",
     "StatusReadUnsupported",
     "assert_worktree_supported",

@@ -71,7 +71,7 @@ def test_opt_out_no_events_no_record(tmp_path: Path) -> None:
     )
 
     # No record should have been written.
-    canonical = tmp_path / ".kittify" / "missions" / mission_id / "retrospective.yaml"
+    canonical = feature_dir / "retrospective.yaml"
     assert not canonical.exists(), (
         f"No record should be written when policy.enabled=False; found {canonical}"
     )

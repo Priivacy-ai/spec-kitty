@@ -129,6 +129,6 @@ Retain the CLI flag but hide it, removing the remote download path only.
 * **Spec:** `kitty-specs/076-init-command-overhaul/spec.md` — "Flags to Remove" table (`--debug`, `--skip-tls`, `--github-token`, `--template-root`), "Code Paths to Remove" table (remote GitHub tarball download, local-repo template override)
 * **Related ADR:** ADR-A (2026-04-08-1) — Global `~/.kittify/` as machine-level runtime
 * **Code locations:**
-  - `src/specify_cli/template/github_client.py` — module to be deleted
-  - `src/specify_cli/template/manager.py` — `get_local_repo_root` to be removed
-  - `src/specify_cli/init.py:743–750` — flags being removed
+  * `src/specify_cli/template/github_client.py` — module to be deleted
+  * `src/specify_cli/template/manager.py` — `get_local_repo_root` to be removed
+  * `src/specify_cli/init.py:743–750` — flags being removed

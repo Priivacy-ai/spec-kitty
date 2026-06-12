@@ -141,6 +141,8 @@ jobs:
             next:
               - 'src/specify_cli/next/**'
               - 'src/specify_cli/runtime/**'
+              - 'src/runtime/next/**'
+              - 'src/mission_runtime/**'
               - 'tests/next/**'
               - 'tests/specify_cli/next/**'
               - 'tests/runtime/**'
@@ -975,6 +977,7 @@ jobs:
           uv run python -m pytest tests/next/ tests/specify_cli/next/ \
             -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/next \
+            --cov=src/runtime/next \
             --cov-report=xml:out/reports/coverage/coverage-fast-next.xml
       - name: "Upload fast-next coverage"
         if: always()
@@ -1657,6 +1660,7 @@ jobs:
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/next \
+            --cov=src/runtime/next \
             --cov-report=xml:out/reports/coverage/coverage-integration-next.xml
       - name: "Upload integration-next coverage"
         if: always()
@@ -2022,6 +2026,8 @@ jobs:
             'src/specify_cli/dashboard/scanner.py'
             'src/specify_cli/merge/*'
             'src/specify_cli/next/*'
+            'src/runtime/next/*'
+            'src/mission_runtime/*'
           )
 
           coverage_reports=()
@@ -2299,6 +2305,110 @@ jobs:
           fi
 
           echo "report_paths=$report_paths" >> "$GITHUB_OUTPUT"
+
+      - name: "[ENFORCED] Normalize coverage XML paths for Sonar multi-package src layout"
+        if: steps.sonar_token.outputs.enabled == 'true'
+        run: |
+          # Problem: each CI test job runs with --cov=src/<package> which produces a
+          # coverage XML whose <sources> block lists the per-package absolute path, e.g.:
+          #   <source>/github/workspace/src/specify_cli</source>
+          #   <source>/github/workspace/src/mission_runtime</source>
+          # …and bare filenames like filename="__init__.py".
+          # SonarCloud tries to resolve every bare filename against ALL <source> entries
+          # simultaneously, finds __init__.py under multiple sources, and logs:
+          #   ERROR Cannot resolve the file path '__init__.py' of the coverage report,
+          #         ambiguity, the file exists in several 'source'.
+          # Fix: rewrite each XML so there is exactly ONE <source> (the common src/
+          # ancestor) and every filename is prefixed with its package sub-path, e.g.:
+          #   src/specify_cli/__init__.py, src/mission_runtime/__init__.py
+          # SonarCloud can then match each path to exactly one file in sonar.sources=src.
+          python3 - << 'PYEOF'
+          import os, sys, glob, xml.etree.ElementTree as ET
+
+          ET.register_namespace('', '')  # keep xmlns clean if present
+
+          artifact_dirs = ['out/reports/artifacts/current', 'out/reports/artifacts/fallback']
+          xml_files = []
+          for d in artifact_dirs:
+              xml_files.extend(glob.glob(os.path.join(d, '**', 'coverage-*.xml'), recursive=True))
+
+          if not xml_files:
+              print('No coverage XML files found to normalize.')
+              sys.exit(0)
+
+          normalized = 0
+          for xml_path in xml_files:
+              try:
+                  tree = ET.parse(xml_path)
+                  root = tree.getroot()
+              except ET.ParseError as e:
+                  print(f'  SKIP (parse error): {xml_path}: {e}')
+                  continue
+
+              sources_el = root.find('sources')
+              if sources_el is None:
+                  continue
+
+              raw_sources = [s.text.strip() for s in sources_el.findall('source') if s.text and s.text.strip()]
+              if len(raw_sources) <= 1:
+                  # Single source — check if it already has unambiguous paths or is an
+                  # absolute path that needs making relative.
+                  if not raw_sources:
+                      continue
+                  src = raw_sources[0]
+                  # If it's already a relative path ending in 'src' or similar, skip.
+                  if not os.path.isabs(src):
+                      continue
+                  # Single absolute source: just make it relative (strip CWD prefix).
+                  cwd = os.getcwd()
+                  rel = os.path.relpath(src, cwd)
+                  sources_el.clear()
+                  new_src = ET.SubElement(sources_el, 'source')
+                  new_src.text = rel
+                  # Filenames already include the package sub-path when there's one source,
+                  # so no filename prefixing is needed.
+                  tree.write(xml_path, encoding='unicode', xml_declaration=True)
+                  normalized += 1
+                  print(f'  Relativized single source: {xml_path}  ({src} -> {rel})')
+                  continue
+
+              # Multiple sources: find common ancestor (the src/ parent directory).
+              common = os.path.commonpath(raw_sources)
+              cwd = os.getcwd()
+              common_rel = os.path.relpath(common, cwd)  # e.g. 'src'
+
+              # Build prefix map: source_path -> relative_prefix (e.g. 'specify_cli')
+              prefix_map = {}
+              for src in raw_sources:
+                  rel_prefix = os.path.relpath(src, common)
+                  prefix_map[src] = rel_prefix
+
+              # Rewrite <source> block to single canonical entry.
+              sources_el.clear()
+              new_src = ET.SubElement(sources_el, 'source')
+              new_src.text = common_rel  # e.g. 'src'
+
+              # Prefix every <class filename=...> with the correct sub-path.
+              # We must determine which source each file belongs to by checking existence.
+              changed = 0
+              for cls in root.findall('packages/package/classes/class'):
+                  fname = cls.get('filename', '')
+                  if not fname or os.path.isabs(fname):
+                      continue
+                  for src_path, prefix in prefix_map.items():
+                      candidate = os.path.join(src_path, fname)
+                      if os.path.exists(candidate):
+                          new_fname = fname if prefix == '.' else os.path.join(prefix, fname)
+                          cls.set('filename', new_fname)
+                          changed += 1
+                          break
+
+              tree.write(xml_path, encoding='unicode', xml_declaration=True)
+              normalized += 1
+              print(f'  Normalized: {xml_path}  ({len(raw_sources)} sources -> {common_rel!r}, {changed} filenames prefixed)')
+
+          print(f'Normalization complete: {normalized}/{len(xml_files)} files updated.')
+          PYEOF
 
       - name: "[ENFORCED] Materialize effective Sonar config"
         if: steps.sonar_token.outputs.enabled == 'true'

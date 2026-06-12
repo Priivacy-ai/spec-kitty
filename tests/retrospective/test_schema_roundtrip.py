@@ -227,8 +227,11 @@ def test_write_read_roundtrip(tmp_path: Path, record_factory: object) -> None:
     record = record_factory()  # type: ignore[operator]
     canonical = write_record(record, repo_root=tmp_path)
 
-    # Canonical path must include the mission ULID.
-    assert MISSION_ID in str(canonical)
+    # FR-006 (#1771): canonical path is the tracked feature_dir, keyed by
+    # mission_slug — NOT the gitignored .kittify/missions/ tree.
+    assert record.mission.mission_slug in str(canonical)
+    assert "kitty-specs" in canonical.parts
+    assert ".kittify" not in canonical.parts
     assert canonical.name == "retrospective.yaml"
     assert canonical.exists()
 
@@ -236,12 +239,14 @@ def test_write_read_roundtrip(tmp_path: Path, record_factory: object) -> None:
     assert restored.model_dump() == record.model_dump()
 
 
-def test_canonical_path_contains_ulid(tmp_path: Path) -> None:
-    """Canonical path is keyed by mission_id (ULID), not by slug or number."""
+def test_canonical_path_is_tracked_feature_dir(tmp_path: Path) -> None:
+    """FR-006 (#1771): record lands in the tracked feature_dir, keyed by slug."""
     record = make_completed_record()
     canonical = write_record(record, repo_root=tmp_path)
     parts = canonical.parts
-    assert MISSION_ID in parts, f"Expected {MISSION_ID!r} in path segments {parts}"
+    assert "kitty-specs" in parts, f"Expected tracked kitty-specs/ in {parts}"
+    assert record.mission.mission_slug in parts
+    assert ".kittify" not in parts, f"Record must not live in .kittify tree: {parts}"
 
 
 def test_write_read_with_apply_attempt(tmp_path: Path) -> None:

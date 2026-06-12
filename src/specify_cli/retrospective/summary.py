@@ -22,7 +22,7 @@ import logging
 from collections import defaultdict
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Generator, Literal
+from typing import Any, Generator, Literal, cast
 
 from pydantic import BaseModel, ConfigDict
 
@@ -32,7 +32,7 @@ from specify_cli.retrospective.reader import (
     read_gen_record,
     read_record,
 )
-from specify_cli.retrospective.schema import MissionId
+from specify_cli.retrospective.schema import Finding, MissionId
 
 logger = logging.getLogger(__name__)
 
@@ -309,6 +309,33 @@ def _iter_mission_dirs(project_path: Path) -> Generator[Path, None, None]:
             yield entry
 
 
+def _resolve_summary_record_path(project_path: Path, mission_dir: Path) -> Path:
+    """Resolve the retrospective.yaml path to read for a discovered mission dir.
+
+    FR-006 (#1771): the record now lives in the tracked feature_dir
+    (``kitty-specs/<slug>/retrospective.yaml``). The mission registry under
+    ``.kittify/missions/<id>/`` is still used for discovery (it carries
+    ``meta.json``), but the record is read from the tracked home — falling back
+    to the legacy in-registry path for pre-relocation records.
+    """
+    mission_slug: str | None = None
+    meta_path = mission_dir / "meta.json"
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            mission_slug = meta.get("mission_slug") or meta.get("slug")
+        except Exception:
+            mission_slug = None
+    if mission_slug:
+        from specify_cli.retrospective.writer import canonical_record_path
+
+        tracked: Path = canonical_record_path(project_path, mission_slug)
+        if tracked.exists():
+            return tracked
+    # Back-compat: legacy in-registry record path.
+    return mission_dir / "retrospective.yaml"
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -359,7 +386,7 @@ def build_summary(
     superseded_proposals = 0
 
     for mission_dir in _iter_mission_dirs(project_path):
-        retro_path = mission_dir / "retrospective.yaml"
+        retro_path = _resolve_summary_record_path(project_path, mission_dir)
 
         if not retro_path.exists():
             # No retrospective file — classify the mission
@@ -490,12 +517,13 @@ def build_summary(
             failed_count += 1
 
         # Findings accumulation
-        for finding in record.not_helpful:
-            not_helpful_counter[finding.target.urn] += 1
+        pydantic_finding: Finding
+        for pydantic_finding in record.not_helpful:
+            not_helpful_counter[pydantic_finding.target.urn] += 1
 
-        for finding in record.gaps:
-            kind = finding.target.kind
-            urn = finding.target.urn
+        for pydantic_finding in record.gaps:
+            kind = pydantic_finding.target.kind
+            urn = pydantic_finding.target.urn
             category = _classify_gaps_finding(kind, urn)
             if category == "missing_term":
                 # Use the urn as the key for term counts
@@ -575,7 +603,7 @@ MissionRecordState = Literal["has_findings", "ran_no_findings", "missing", "fail
 def _most_recent_gen_event(
     feature_dir: Path,
     event_type: str,
-) -> dict | None:
+) -> dict[str, Any] | None:
     """Return the most-recent event dict matching ``type == event_type``, or None.
 
     Reads ``status.events.jsonl`` from the given feature directory.
@@ -586,7 +614,7 @@ def _most_recent_gen_event(
     if not events_path.exists():
         return None
 
-    best: dict | None = None
+    best: dict[str, Any] | None = None
     best_lamport: int = -1
 
     try:
@@ -643,9 +671,10 @@ def classify_mission_record(feature_dir: Path) -> MissionRecordState:
             _yaml = _YAML(typ="safe")
             raw = _yaml.load(record_path.read_text(encoding="utf-8"))
             if isinstance(raw, dict):
-                status = raw.get("findings_status", "ran_no_findings")
-                if status in ("has_findings", "ran_no_findings"):
-                    return status  # type: ignore[return-value]
+                status_raw = raw.get("findings_status", "ran_no_findings")
+                status_str = str(status_raw) if status_raw is not None else "ran_no_findings"
+                if status_str in ("has_findings", "ran_no_findings"):
+                    return cast(MissionRecordState, status_str)
         except Exception:
             pass
         # Fallback for Pydantic-model records (old schema).

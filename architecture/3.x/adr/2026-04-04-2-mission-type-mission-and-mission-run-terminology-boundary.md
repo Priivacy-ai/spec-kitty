@@ -240,15 +240,15 @@ This decision is validated when all of the following are true:
 ## More Information
 
 **Related Issues:**
-- [#241](https://github.com/Priivacy-ai/spec-kitty/issues/241)
-- [#364](https://github.com/Priivacy-ai/spec-kitty/issues/364)
-- [#367](https://github.com/Priivacy-ai/spec-kitty/issues/367)
+* [#241](https://github.com/Priivacy-ai/spec-kitty/issues/241)
+* [#364](https://github.com/Priivacy-ai/spec-kitty/issues/364)
+* [#367](https://github.com/Priivacy-ai/spec-kitty/issues/367)
 
 **Related Pull Request:**
-- [#348](https://github.com/Priivacy-ai/spec-kitty/pull/348)
+* [#348](https://github.com/Priivacy-ai/spec-kitty/pull/348)
 
 **Related ADRs:**
-- `2026-02-17-1-canonical-next-command-runtime-loop.md`
-- `2026-02-17-2-runtime-owned-mission-discovery-loading.md`
-- `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`
-- `2026-04-03-3-feature-acceptance-runs-on-the-integrated-mission-branch.md`
+* `2026-02-17-1-canonical-next-command-runtime-loop.md`
+* `2026-02-17-2-runtime-owned-mission-discovery-loading.md`
+* `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`
+* `2026-04-03-3-feature-acceptance-runs-on-the-integrated-mission-branch.md`

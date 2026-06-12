@@ -13,10 +13,10 @@ execution behavior (agents, tactics, directives, templates).
 
 ## Architectural Layers
 
-1.  User Journey (architectural choreography)
-2.  Mission Recipe (structured step composition)
-3.  Step Modules (atomic execution units)
-4.  Doctrine Packs (behavioral strategy layer)
+1. User Journey (architectural choreography)
+2. Mission Recipe (structured step composition)
+3. Step Modules (atomic execution units)
+4. Doctrine Packs (behavioral strategy layer)
 
 ## Stability Rule
 

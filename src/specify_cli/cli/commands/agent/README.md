@@ -166,14 +166,16 @@ When wrapping top-level commands, carefully map parameters:
 
 **Always document inversions in code comments!**
 
-## DO NOT:
+## DO NOT
+
 - Duplicate business logic from top-level commands
 - Call legacy `scripts/` code (tasks_cli.py is removed!)
 - Re-implement validation/orchestration logic
 - Skip lane validation before workspace creation
 - Use subprocess to call top-level commands (import and call directly!)
 
-## DO:
+## DO
+
 - Import and call top-level commands directly
 - Add agent-specific UX (prompts, auto-detection, status tracking)
 - Map parameter names if needed (document differences and inversions!)

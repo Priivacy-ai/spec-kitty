@@ -1,0 +1,1 @@
+src/doctrine/skills/spec-kitty-mission-system/SKILL.md — phantom 'agent profile hierarchy' removed; grep-zero phantom profile commands in src/doctrine; terminology guard 2 passed

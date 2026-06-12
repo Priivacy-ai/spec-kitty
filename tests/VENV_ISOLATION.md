@@ -43,7 +43,7 @@ The `tests/test_isolation_helpers.py` module provides utilities:
 
 - **`get_venv_python()`** - Returns path to venv's Python executable
 - **`get_venv_metadata_version()`** - Gets installed version from venv
-- **`get_venv_module_version()`** - Gets __version__ from venv's module
+- **`get_venv_module_version()`** - Gets **version** from venv's module
 - **`run_cli_subprocess()`** - Runs CLI through venv with isolation
 
 ### Usage in Tests

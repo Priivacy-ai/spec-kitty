@@ -345,15 +345,17 @@ task_types:
 ```
 
 ```bash
-# Discover available profiles
+# Discover activated profiles (--all for the full on-disk catalog)
 spec-kitty agent profile list
 
-# Inspect a profile's boundaries and initialization context
+# Inspect a profile's boundaries and initialization context (resolved
+# through the DRG chain, including specializes_from lineage)
 spec-kitty agent profile show <profile-id>
-
-# Visualize the specialization hierarchy
-spec-kitty agent profile hierarchy
 ```
+
+There is no separate hierarchy command: specialization lineage is declared as
+`specializes_from` edges in the doctrine DRG (see the org-pack DRG YAML /
+generated `graph.yaml`); `profile show` displays the resolved result.
 
 ### Action Indices (Doctrine Scoping)
 

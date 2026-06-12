@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-06-09T16:48:43.144100Z",
+      "decision_id": "01KTPMJKM82RRRM4HD56J9GAQV",
+      "final_answer": "facade-first: adopt the existing MissionStatus/OHS facade (Cluster B status surface) FIRST so downstream consumers have one stable status authority; then read-path (A), then artifact-placement (D, unblocks #1814/#1816), then runtime writers (E, highest-risk) last; extend parity ratchet + delete dead symbols throughout (strangler-ordered).",
+      "input_key": "strangle_order",
+      "mission_id": "01KTPKSTQVPMFXEN413XSMDP24",
+      "mission_slug": "execution-context-unification-01KTPKST",
+      "opened_by": "cli",
+      "options": [
+        "read-path-first",
+        "risk-first",
+        "facade-first"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "In what order should the ~7 resolvers (Clusters A-E) be strangled onto the unified context?",
+      "rationale": null,
+      "resolved_at": "2026-06-09T16:54:06.709880Z",
+      "resolved_by": null,
+      "slot_key": "plan.sequencing.strangle-order",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-06-09T16:48:43.871362Z",
+      "decision_id": "01KTPMJMAZ608WT88ZJM14C2DE",
+      "final_answer": "extend occurrence-map: grow the occurrence-map schema (and the bulk-edit-classification skill) to model multi-path structural moves (from->to path mappings) in addition to the 8 term-rename categories; one artifact, broader schema. FR-010 becomes a construction IC.",
+      "input_key": "fr010_approach",
+      "mission_id": "01KTPKSTQVPMFXEN413XSMDP24",
+      "mission_slug": "execution-context-unification-01KTPKST",
+      "opened_by": "cli",
+      "options": [
+        "scope-bulk-edit-plus-gate",
+        "extend-occurrence-map",
+        "defer-1815"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How to resolve the FR-010 bulk-edit/occurrence-map structural-move gap (#1815)?",
+      "rationale": null,
+      "resolved_at": "2026-06-09T16:54:07.445411Z",
+      "resolved_by": null,
+      "slot_key": "plan.bulk-edit.fr010-approach",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KTPKSTQVPMFXEN413XSMDP24",
+  "version": 1
+}

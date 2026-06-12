@@ -226,7 +226,10 @@ class TestAutoCommitOnCompleteInvocation:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
-        monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
+        # The fixture repo's branch is protected main/master; landing the
+        # op-record commit there requires the ONE documented operator hatch
+        # (op-record bookkeeping asserts STANDARD — PR #1850 fix).
+        monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
         _init_git_repo(tmp_path)
         _setup_fixture_profiles(tmp_path)
 
@@ -253,7 +256,9 @@ class TestAutoCommitOnCompleteInvocation:
     ) -> None:
         """T-004: op file is in git and can be restored after deletion."""
         monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
-        monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
+        # Operator hatch: the commit must land on the fixture's protected
+        # main/master for the restore-from-git assertion to be exercised.
+        monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
         _init_git_repo(tmp_path)
         _setup_fixture_profiles(tmp_path)
 
@@ -296,16 +301,60 @@ class TestAutoCommitOnCompleteInvocation:
         call_kwargs = mock_safe_commit.call_args.kwargs
         assert call_kwargs["repo_root"] == tmp_path
         assert call_kwargs["worktree_root"] == tmp_path
-        assert call_kwargs["destination_ref"] in {"main", "master"}
+        # WP02: executor now passes a CommitTarget (mission_runtime.context) rather
+        # than a bare destination_ref string; ref echoes the resolved branch.
+        assert call_kwargs["target"].ref in {"main", "master"}
         assert call_kwargs["message"].startswith("op(implementer-fixture):")
         assert call_kwargs["paths"] == (Path(f"{EVENTS_DIR}/{payload.invocation_id}.jsonl"),)
-        assert call_kwargs["allow_completed_op_on_protected_branch"] is True
+        # Op-record bookkeeping asserts STANDARD: it is not the merge flow, so
+        # a protected destination is refused (and swallowed into a warning)
+        # unless the operator hatch declares the branch unprotected.
+        from specify_cli.core.commit_guard import GuardCapability
+
+        assert call_kwargs["capability"] is GuardCapability.STANDARD
+
+    def test_complete_invocation_refused_on_protected_branch_without_hatch(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Env-clean op-record close on a protected branch: no commit, no crash.
+
+        ``STANDARD`` authorizes no protected-branch flow, so the auto-commit is
+        refused by the guard and swallowed into a warning; the Op record stays
+        on disk and the close itself succeeds. The documented operator hatch
+        (``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS``) is the ONE ambient
+        channel that lands it (PR #1850 guard-bypass regression fix).
+        """
+        monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+        monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
+        _init_git_repo(tmp_path)
+        _setup_fixture_profiles(tmp_path)
+
+        with patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=_COMPACT_CTX,
+        ):
+            executor = ProfileInvocationExecutor(tmp_path)
+            payload = executor.invoke("implement feature", profile_hint="implementer-fixture")
+            executor.complete_invocation(payload.invocation_id, outcome="done", closed_by="agent")
+
+        # The close succeeded and the Op record is on disk...
+        assert (tmp_path / EVENTS_DIR / f"{payload.invocation_id}.jsonl").exists()
+        # ...but nothing landed on the protected branch (init commit only).
+        log_lines = subprocess.run(
+            ["git", "-C", str(tmp_path), "log", "--oneline"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip().splitlines()
+        assert len(log_lines) == 1, (
+            f"op-record commit landed on a protected branch: {log_lines}"
+        )
 
     def test_complete_invocation_on_protected_branch_preserves_unrelated_staging(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
-        monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
+        # Operator hatch: this test verifies staging preservation when the
+        # commit DOES land on the operator-owned protected branch.
+        monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
         _init_git_repo(tmp_path)
         _setup_fixture_profiles(tmp_path)
 

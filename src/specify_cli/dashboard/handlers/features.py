@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import urllib.parse
@@ -19,6 +20,7 @@ from ..api_types import (
 )
 from ..scanner import (
     format_path_for_display,
+    read_only_weighted_percentage,
     resolve_active_feature,
     resolve_feature_dir,
     scan_all_features,
@@ -159,18 +161,16 @@ class FeatureHandler(DashboardHandler):
             feature_dir = resolve_feature_dir(project_path, feature_id)
             is_legacy = is_legacy_format(feature_dir) if feature_dir else False
 
-            # Pre-compute weighted progress for the kanban panel
+            # Pre-compute weighted progress for the kanban panel.
+            # WP11/FR-014(a): the dashboard is a read-only viewer. It MUST NOT
+            # write tracked status (status.json) as a side-effect of serving a
+            # kanban request — doing so clobbers status during git ops (#1789).
+            # The shared read-only helper reduces the event log without writing
+            # and consumes WP07's single git-op detection source (C-005).
             weighted_pct = None
             if feature_dir and not is_legacy:
-                try:
-                    from specify_cli.status import compute_weighted_progress
-                    from specify_cli.status import materialize
-
-                    snap = materialize(feature_dir)
-                    progress = compute_weighted_progress(snap)
-                    weighted_pct = round(progress.percentage, 1)
-                except Exception:
-                    pass
+                with contextlib.suppress(Exception):
+                    weighted_pct = read_only_weighted_percentage(feature_dir)
 
             response: KanbanResponse = {
                 "lanes": kanban_data,

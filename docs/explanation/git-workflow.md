@@ -236,11 +236,14 @@ Spec Kitty does not install or manage git hooks. The pre-commit hook that previo
 *This document explains the git workflow boundary. For the underlying worktree technology, see [Git Worktrees](git-worktrees.md). For the execution workspace model, see [Execution Workspace Model](execution-lanes.md).*
 
 ## Try It
+
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## How-To Guides
+
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 
 ## Reference
+
 - [CLI Commands](../reference/cli-commands.md)
 - [File Structure](../reference/file-structure.md)

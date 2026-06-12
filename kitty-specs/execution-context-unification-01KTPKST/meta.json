@@ -1,0 +1,29 @@
+{
+  "accept_commit": "9885641b78b5a3b72ececa903c63c2bf1f1b065d",
+  "acceptance_history": [
+    {
+      "accept_commit": "9885641b78b5a3b72ececa903c63c2bf1f1b065d",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-10T05:45:00.743647+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "c0e07b5e6d9d3b7cecc2593399fd7ffee46b3837"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-10T05:45:00.743647+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "c0e07b5e6d9d3b7cecc2593399fd7ffee46b3837",
+  "baseline_merge_commit": "88a5671085f6f47a5d998ffec1947242d200bcf7",
+  "created_at": "2026-06-09T16:35:11.228066+00:00",
+  "friendly_name": "Execution-Context Unification",
+  "mission_id": "01KTPKSTQVPMFXEN413XSMDP24",
+  "mission_number": null,
+  "mission_slug": "execution-context-unification-01KTPKST",
+  "mission_type": "software-dev",
+  "purpose_context": "Spec Kitty commands (specify/plan/tasks/finalize/analyze/implement/review/merge/retrospect) each independently re-resolve where a mission's state, branch, status, and artifacts live, so the primary checkout and coordination branch drift apart. This mission implements the ratified #1619/#1666 design for those seams: a single resolved MissionExecutionContext threaded through all surfaces, with status/durable state owned by Mission-Management behind an OHS facade — structurally eliminating the split-brain rather than patching individual symptoms.",
+  "purpose_tldr": "Drain the coord-vs-primary split-brain class by routing every command surface through one canonical MissionExecutionContext and a Mission-Management-owned status facade.",
+  "slug": "execution-context-unification-01KTPKST",
+  "target_branch": "fixups/code-engine-stabilization",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-09T18:21:24.891534+00:00"
+}

@@ -3,7 +3,10 @@
 
 from __future__ import annotations
 
-from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
+from specify_cli.missions.feature_dir_resolver import (
+    primary_feature_dir_for_mission,
+    resolve_feature_dir_for_mission,
+)
 import logging
 import os
 import re
@@ -569,6 +572,50 @@ def _status_read_feature_dir(repo_root: Path, feature: str, feature_dir: Path) -
     return status_dir if status_dir.exists() else feature_dir
 
 
+def _primary_anchor_feature_dir(repo_root: Path, feature: str, read_dir: Path) -> Path:
+    """Return the primary-checkout mission dir anchoring ``AcceptanceSummary``.
+
+    ``resolve_feature_dir_for_mission`` hands back the coord-aware READ
+    directory — the coordination worktree once one is materialized. The
+    summary's identity anchor (``AcceptanceSummary.feature_dir``) must stay on
+    the primary checkout (status source of truth is feature metadata on main:
+    ``_commit_acceptance_meta`` records acceptance into the primary
+    ``meta.json``), while artifact/status reads stay coord-aware through
+    ``_status_read_feature_dir``.
+
+    The primary dir name can differ from the read dir name — backfilled legacy
+    missions carry no ``-<mid8>`` suffix on the primary side while their coord
+    mission dir does — so the anchor is derived from the mission *handle*,
+    never recomposed from the read dir's name:
+
+    1. literal handle → primary composition (covers canonical ``<slug>-<mid8>``
+       names AND backfilled legacy names);
+    2. handle resolver (mid8 / ULID / numeric prefix / human slug) → the
+       primary directory it indexed;
+    3. fall back to the resolved read dir rather than fail when no
+       primary-side directory exists (identity/existence was already validated
+       by the read resolution).
+    """
+    primary_candidate: Path = primary_feature_dir_for_mission(repo_root, feature)
+    if primary_candidate.exists():
+        return primary_candidate
+
+    from specify_cli.context.mission_resolver import (
+        AmbiguousHandleError,
+        MissionNotFoundError,
+        resolve_mission,
+    )
+
+    try:
+        resolved = resolve_mission(feature, repo_root)
+    except (AmbiguousHandleError, MissionNotFoundError):
+        return read_dir
+    resolved_primary: Path = resolved.feature_dir
+    if resolved_primary.exists():
+        return resolved_primary
+    return read_dir
+
+
 def _validate_wp_readiness(
     expected_wp_ids: list[str],
     snapshot_wps: dict[str, dict[str, Any]],
@@ -878,7 +925,8 @@ def collect_feature_summary(
     strict_metadata: bool = True,
     mutate_matrix: bool = True,
 ) -> AcceptanceSummary:
-    feature_dir = resolve_feature_dir_for_mission(repo_root, feature)
+    read_feature_dir = resolve_feature_dir_for_mission(repo_root, feature)
+    feature_dir = _primary_anchor_feature_dir(repo_root, feature, read_feature_dir)
     tasks_dir = feature_dir / "tasks"
     if not feature_dir.exists():
         raise AcceptanceError(f"Mission directory not found: {feature_dir}")

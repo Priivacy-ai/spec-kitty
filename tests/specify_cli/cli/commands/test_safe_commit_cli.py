@@ -1,12 +1,11 @@
 """Integration tests for the post-#1348 ``spec-kitty safe-commit`` CLI.
 
-These tests exercise the four CLI modes specified by WP02 / T009:
+These tests exercise the CLI modes specified by WP02 / T009 (and WP04 / T016 —
+the ``SPEC_KITTY_INFER_DESTINATION_REF`` env-var inference path is retired):
 
 1. ``--to-branch <ref>`` happy path — succeeds when HEAD matches.
 2. Missing ``--to-branch`` — infers HEAD for compatibility and warns.
-3. Missing ``--to-branch`` WITH ``SPEC_KITTY_INFER_DESTINATION_REF=1`` —
-   succeeds without the stderr deprecation.
-4. ``--to-branch`` pointing at a non-HEAD branch — exits non-zero with the
+3. ``--to-branch`` pointing at a non-HEAD branch — exits non-zero with the
    ``SafeCommitHeadMismatch`` error surface (stable error code from WP01).
 """
 
@@ -58,7 +57,6 @@ def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 def test_cli_with_to_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`--to-branch <ref>` succeeds when HEAD matches the declared branch."""
-    monkeypatch.delenv("SPEC_KITTY_INFER_DESTINATION_REF", raising=False)
     monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
     _init_lane_repo(tmp_path, branch="kitty/mission-test-01ABCDEF")
 
@@ -99,7 +97,6 @@ def test_cli_with_to_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
 
 def test_cli_without_to_branch_infers_head_with_warning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """No `--to-branch` → infer HEAD for compatibility and warn on stderr."""
-    monkeypatch.delenv("SPEC_KITTY_INFER_DESTINATION_REF", raising=False)
     monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
     _init_lane_repo(tmp_path, branch="kitty/mission-test-01ABCDEF")
 
@@ -131,43 +128,8 @@ def test_cli_without_to_branch_infers_head_with_warning(tmp_path: Path, monkeypa
     assert head_after != head_before, "expected a new commit through HEAD inference"
 
 
-def test_cli_deprecation_env_var_suppresses_warning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """`SPEC_KITTY_INFER_DESTINATION_REF=1` keeps legacy scripts stderr-clean."""
-    monkeypatch.setenv("SPEC_KITTY_INFER_DESTINATION_REF", "1")
-    monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
-    _init_lane_repo(tmp_path, branch="kitty/mission-test-01ABCDEF")
-
-    target = tmp_path / "gamma.txt"
-    target.write_text("gamma v1\n", encoding="utf-8")
-
-    head_before = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
-
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        result = runner.invoke(
-            cli_app,
-            ["safe-commit", "--message", "T009: deprecation env var", "--json", "gamma.txt"],
-            catch_exceptions=False,
-        )
-    finally:
-        os.chdir(old_cwd)
-
-    assert result.exit_code == 0, (result.stdout or "") + (result.stderr or "")
-    payload = json.loads(result.stdout)
-    assert payload["success"] is True
-    assert payload["committed"] is True
-
-    stderr_text = result.stderr or ""
-    assert "warning:" not in stderr_text
-
-    head_after = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
-    assert head_after != head_before, "expected a new commit under the deprecation env var path"
-
-
 def test_cli_head_mismatch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`--to-branch` for a branch that isn't HEAD → exits non-zero with HEAD-mismatch surface."""
-    monkeypatch.delenv("SPEC_KITTY_INFER_DESTINATION_REF", raising=False)
     monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
     _init_lane_repo(tmp_path, branch="kitty/mission-test-01ABCDEF")
 
@@ -218,3 +180,175 @@ def test_cli_head_mismatch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
 
     head_after = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
     assert head_after == head_before, "no commit must be created on HEAD-mismatch"
+
+
+# ---------------------------------------------------------------------------
+# T017 — WP04 ergonomics regressions (#1820 / #1330 / F-002)
+# ---------------------------------------------------------------------------
+
+
+def test_cli_dir_arg_mixed_modified_and_untracked_commits_all_with_report(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """(a) A directory argument with mixed modified + untracked contents commits
+    every contained file and prints the explicit expansion report (no
+    'unexpected paths' backstop refusal — F-002)."""
+    monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+    branch = "kitty/mission-test-01ABCDEF"
+    _init_lane_repo(tmp_path, branch=branch)
+
+    # A tracked file we will MODIFY, plus a NEW untracked file, both under dir/.
+    pkg = tmp_path / "pkg"
+    pkg.mkdir()
+    tracked = pkg / "tracked.txt"
+    tracked.write_text("v1\n", encoding="utf-8")
+    _git(tmp_path, "add", "pkg/tracked.txt")
+    _git(tmp_path, "commit", "-q", "-m", "seed tracked file")
+
+    tracked.write_text("v2\n", encoding="utf-8")  # modified
+    (pkg / "untracked.txt").write_text("new\n", encoding="utf-8")  # untracked
+
+    head_before = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = runner.invoke(
+            cli_app,
+            ["safe-commit", "--to-branch", branch, "--message", "T017: dir expand", "--json", "pkg"],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    assert result.exit_code == 0, (result.stdout or "") + (result.stderr or "")
+    payload = json.loads(result.stdout)
+    assert payload["success"] is True
+    assert payload["committed"] is True
+
+    # The expansion report is present and names both contained files.
+    expansion = payload.get("expansion")
+    assert expansion is not None, "expected an expansion report for the dir arg"
+    expansion_text = "\n".join(expansion)
+    assert "Expanding pkg/ → 2 files" in expansion_text
+    assert "pkg/tracked.txt" in expansion_text
+    assert "pkg/untracked.txt" in expansion_text
+
+    head_after = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
+    assert head_after != head_before, "expected a new commit for the expanded dir"
+
+    # Both files actually landed in the commit.
+    committed_files = _git(tmp_path, "show", "--name-only", "--format=", "HEAD").stdout
+    assert "pkg/tracked.txt" in committed_files
+    assert "pkg/untracked.txt" in committed_files
+
+
+def test_cli_to_branch_honored_from_non_target_cwd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """(b) `--to-branch <branch>` is honored: the explicit value is the single
+    destination authority. Invoked from a subdirectory CWD (not the repo root)."""
+    monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+    branch = "kitty/mission-test-01ABCDEF"
+    _init_lane_repo(tmp_path, branch=branch)
+
+    sub = tmp_path / "nested"
+    sub.mkdir()
+    (sub / "epsilon.txt").write_text("epsilon v1\n", encoding="utf-8")
+
+    head_before = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(sub)  # non-target CWD inside the worktree
+        # Paths resolve against the worktree root (repo-relative), so pass the
+        # repo-relative path while CWD is the nested subdirectory.
+        result = runner.invoke(
+            cli_app,
+            ["safe-commit", "--to-branch", branch, "--message", "T017: to-branch honored", "--json", "nested/epsilon.txt"],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    assert result.exit_code == 0, (result.stdout or "") + (result.stderr or "")
+    payload = json.loads(result.stdout)
+    assert payload["success"] is True
+    assert payload["committed"] is True
+    # No deprecation warning when --to-branch is explicit.
+    assert "warning:" not in (result.stderr or "")
+
+    head_after = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
+    assert head_after != head_before
+    # The commit landed on the requested branch.
+    assert _git(tmp_path, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == branch
+
+
+def test_cli_retired_env_var_has_no_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """(c) The retired `SPEC_KITTY_INFER_DESTINATION_REF` env var has NO effect:
+    setting it does not suppress the no-flag deprecation warning (T016)."""
+    monkeypatch.setenv("SPEC_KITTY_INFER_DESTINATION_REF", "1")
+    monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+    _init_lane_repo(tmp_path, branch="kitty/mission-test-01ABCDEF")
+
+    (tmp_path / "zeta.txt").write_text("zeta v1\n", encoding="utf-8")
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = runner.invoke(
+            cli_app,
+            ["safe-commit", "--message", "T017: retired env var", "--json", "zeta.txt"],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    assert result.exit_code == 0, (result.stdout or "") + (result.stderr or "")
+    payload = json.loads(result.stdout)
+    assert payload["committed"] is True
+    # The env var no longer suppresses anything — the deprecation warning fires.
+    assert "warning:" in (result.stderr or "")
+    assert "--to-branch will be required in v3.3" in (result.stderr or "")
+
+
+def test_cli_genuinely_different_file_never_reports_no_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """(d) A file genuinely differing from HEAD is never reported 'No requested
+    changes' — the F-002 misfire repro (passed via a dir arg)."""
+    monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+    branch = "kitty/mission-test-01ABCDEF"
+    _init_lane_repo(tmp_path, branch=branch)
+
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    spec = docs / "spec.md"
+    spec.write_text("# Spec v1\n", encoding="utf-8")
+    _git(tmp_path, "add", "docs/spec.md")
+    _git(tmp_path, "commit", "-q", "-m", "seed spec")
+
+    spec.write_text("# Spec v2 (genuinely changed)\n", encoding="utf-8")
+
+    head_before = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        # Plain (non --json) so we can assert the human-facing message.
+        result = runner.invoke(
+            cli_app,
+            ["safe-commit", "--to-branch", branch, "--message", "T017: F-002 misfire", "docs"],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    assert result.exit_code == 0, (result.stdout or "") + (result.stderr or "")
+    assert "No requested changes" not in result.stdout
+    assert "Requested files committed" in result.stdout
+
+    head_after = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
+    assert head_after != head_before, "the genuinely-changed file must be committed"

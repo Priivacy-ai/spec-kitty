@@ -100,7 +100,10 @@ def _find_mission_slug(
     if repo_root is not None:
         legacy_dir = candidate_feature_dir_for_mission(get_main_repo_root(repo_root), raw_handle)
         if legacy_dir.exists():
-            return raw_handle
+            # F-001: the candidate resolver canonicalizes mid8/ULID/numeric
+            # handles, so the resolved directory's NAME — not the raw operator
+            # handle — is the canonical mission slug downstream consumers need.
+            return legacy_dir.name
         if resolved_bare := _resolve_bare_modern_mission_slug(get_main_repo_root(repo_root), raw_handle):
             return resolved_bare
         try:
@@ -108,7 +111,7 @@ def _find_mission_slug(
             return resolved.mission_slug
         except (SystemExit, typer.Exit):
             if legacy_dir.exists():
-                return raw_handle
+                return legacy_dir.name
             raise
 
     return raw_handle

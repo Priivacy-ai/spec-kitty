@@ -33,6 +33,7 @@ from dataclasses import dataclass
 
 import typer
 
+from mission_runtime import CommitTarget, CommitTargetKind
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.git.commit_helpers import (
     SafeCommitBackstopError,
@@ -1077,7 +1078,7 @@ def append_history(
         safe_commit(
             repo_root=main_repo_root,
             worktree_root=main_repo_root,
-            destination_ref=current_branch,
+            target=CommitTarget(ref=current_branch, kind=CommitTargetKind.PRIMARY),
             message=f"hist: append activity log entry for {mission}/{wp}",
             paths=(wp_path,),
         )

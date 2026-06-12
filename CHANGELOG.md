@@ -9,6 +9,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- **Protected-branch guard capability honesty (PR #1850 review):** the bool→capability conversion had
+  re-opened protected-ref commits from production flows — three sites asserted `GuardCapability.TEST_MODE`
+  (legacy workflow commit, baseline-artifact commit, finalize-tasks bootstrap) and six non-merge flows
+  borrowed `MERGE_BOOKKEEPING` (move-task, mark-status, map-requirements, decision-log, op-record). All
+  now assert `STANDARD`; protected destinations refuse, and refusals degrade gracefully (decision events
+  and Op records are preserved on disk, nothing lands on the protected ref). `SPEC_KITTY_TEST_MODE` no
+  longer waives the command-level protected-branch prechecks — only the documented operator hatch
+  `SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS` does — and the coordination gate now computes the same
+  hatch-aware `ProtectionState` as `safe_commit`, so the two can no longer disagree. Ratcheted by
+  `tests/architectural/test_guard_capability_call_sites.py` (capability→flow allowlist; `TEST_MODE` has
+  zero `src/` callers) and `tests/git/test_guard_capability_regression.py`.
+- **Mission handle canonicalization completes at every CLI write boundary (PR #1850 review):** bare mid8,
+  numeric-prefix, and full-ULID handles now resolve to the identical canonical `mission_slug`,
+  `mission_id`, status surfaces, and placement (ref and kind) as the full slug — across
+  `resolve_status_surface_with_anchor`, `resolve_placement_only`, `MissionStatus.load`,
+  `_find_mission_slug` (agent tasks/status/workflow), `agent decision open`, `merge --mission`,
+  `spec-kitty next --mission`, `plan --mission`, `mission run/close --mission`,
+  `research --mission`, and `context resolve` (persisted `authoritative_ref`). No more
+  wrong-but-plausible `kitty-specs/<mid8>/` paths, `legacy-<mid8>` identities, split-brain runtime
+  runs or SaaS sync namespaces keyed by the raw handle, or `close --discard` silently leaving lane
+  branches/worktrees behind. Pinned by
+  `tests/specify_cli/missions/test_handle_equivalence_matrix.py` (78 parity tests).
+- **Sync daemon reaper is scoped to its daemon root, not just the interpreter (PR #1850 review):** the
+  spawner embeds the resolved daemon state root and spawn-time interpreter identity as inert argv markers;
+  the reaper kills only on marker + spawn-signature + interpreter-identity match and conservatively skips
+  unmarked or unidentifiable processes. Fixes both the cross-`$HOME` over-kill and the macOS
+  framework-Python inertness (where the re-exec rewrites `exe()` and `argv[0]` to the `Python.app` stub).
+- **CI `next` filter covers the canonical runtime:** `src/runtime/next/**` and `src/mission_runtime/**`
+  now trigger the next suites and count toward diff-coverage critical paths (previously only the
+  deprecated `src/specify_cli/next/` shim was mapped, so `integration-tests-next` skipped on
+  canonical-runtime changes).
+- **`StatusReadPathNotFound` no longer escapes `mission_runtime`'s single-error contract:** the fail-closed
+  refusal is translated to `ActionContextError` (error code and message preserved) at all three resolution
+  boundaries and handled in the transactional status path; `MissionStatus.load` keeps its established
+  `CoordAuthorityUnavailable` shape for every handle form in the fail-closed coordination window.
+- **Repo hygiene:** per-machine `.kittify/legacy-warning-shown-*` marker files untracked and gitignored.
+
+## [3.2.0rc43] - 2026-06-11
+
+### ✨ Added / 🔧 Changed
+
+- **Tooling stability & guard coherence (mission 01KTRC04, slice of #1619, closes the #1796 cluster):**
+  the safe-commit / protected-branch guard is ONE mechanism — a pure Shared-Kernel policy module
+  (`core/commit_guard.evaluate(target, protection_state, capability) -> GuardVerdict`) behind the single
+  `git/commit_helpers.safe_commit` facade. The five legacy privilege channels (message-prefix allowlist,
+  `allow_protected_branch_in_test_mode`, `allow_completed_op_on_protected_branch`, op-record file-content
+  exception, env hatches) are DELETED; protected flows assert an explicit `GuardCapability` at the call
+  site (never derived from message/file/env). Operator escape hatch `SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`
+  retained. Permanently ratcheted by `tests/architectural/test_safe_commit_import_boundary.py` (#1355).
+- **Planning placement single authority (#1777/#1784/#1631/#1334):** `mission_runtime.resolve_placement_only`
+  is the one commit-destination authority for planning paths; `_resolve_planning_branch` destination
+  authority retired. Legit spec/plan commits on protected branches route to the resolved destination with
+  ZERO guard relaxation; the finalize-tasks branch catch-22 is gone (idempotent re-runs).
+- **safe-commit ergonomics (#1820/#1330):** directory arguments expand to contained dirty files with a
+  per-file report; explicit `--to-branch` honored; `SPEC_KITTY_INFER_DESTINATION_REF` retired.
+- `record-analysis` verdict derived from the structured `analysis-findings/v1` frontmatter table — prose
+  substring counting removed (#1819); severity vocabulary reuses `SEVERITY_ORDER` (no parallel model).
+- Carried `StatusSurfaceFragment` threaded through `MissionStatus.load` + `status_transition` (#1821).
+- `doctor.py` doctrine profile-health rendering extracted to `_profile_health_render.py` (#1623 slice).
+- DRG provenance is a declared typed field on `DRGNode`/`DRGEdge`; the `object.__setattr__` sidecar is
+  deleted; `graph.yaml` byte-stable (#1624).
+- ADR 2026-06-03-2 addendum: Strangler **Step 7 delivered** (CommitTarget consumed by safe_commit).
+
 ## [3.2.0rc42] - 2026-06-11
 
 ### 💥 Changed
@@ -53,6 +118,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `spec-kitty merge` now skips empty post-merge bookkeeping commits after a
   successful lane merge instead of failing the command after the target branch
   has already been updated.
+
+### ✨ Added / 🔧 Changed
+
+- **Execution-context unification (mission 01KTPKST, slice of #1619/#1666):** structurally drained the
+  coord-vs-primary split-brain class. One `MissionExecutionContext` (doc-09 fragment/op-composite +
+  `CommitTarget`) resolved once and threaded through all command surfaces; status owned by the
+  Mission-Management OHS facade. Collapsed the duplicate read-path resolver, the two worktree-pointer
+  parsers, and the three sync-daemon orphan-reapers; `materialize_if_stale` now skips during git ops
+  (no status clobber on rebase); dashboard reads are write-free (`materialize_snapshot`); sync-daemon
+  singleton enforced one-per-host/auth-scope; occurrence-map gained multi-path `moves:` (backward-compatible);
+  retrospect record relocated to a tracked home (committable). Adds a dual-CWD + flattened-topology parity
+  ratchet (`tests/architectural/test_execution_context_parity.py`).
+- Drains #1814, #1816, #1789, #1071, #1062, #1572, #1737, #1357, #1735, #1771, #1736, #1770, #1764, #1815,
+  #1622 (partial); follow-ups #1819/#1820/#1821 filed.
 
 ## [3.2.0rc41] - 2026-06-08
 

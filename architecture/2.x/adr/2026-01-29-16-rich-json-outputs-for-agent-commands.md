@@ -36,18 +36,18 @@ Agent: 🤔 Confused - did my commit work or not?
 
 ## Decision Drivers
 
-* **Agent decision-making** - LLMs need explicit confirmation, not implicit success
-* **Debugging** - Agents should be able to verify operations succeeded
-* **Unrelated dirty files** - Common in repos (templates, config, experimental code)
-* **Idempotency** - Agents should know when operation already completed
-* **Verification** - Agents should check results without re-running operations
+- **Agent decision-making** - LLMs need explicit confirmation, not implicit success
+- **Debugging** - Agents should be able to verify operations succeeded
+- **Unrelated dirty files** - Common in repos (templates, config, experimental code)
+- **Idempotency** - Agents should know when operation already completed
+- **Verification** - Agents should check results without re-running operations
 
 ## Considered Options
 
-* **Option 1:** Rich JSON with commit_hash, commit_created, files_committed
-* **Option 2:** Verbose mode flag (--verbose adds details)
-* **Option 3:** Separate verify command (spec-kitty verify finalize-tasks)
-* **Option 4:** Status quo (vague "success" message)
+- **Option 1:** Rich JSON with commit_hash, commit_created, files_committed
+- **Option 2:** Verbose mode flag (--verbose adds details)
+- **Option 3:** Separate verify command (spec-kitty verify finalize-tasks)
+- **Option 4:** Status quo (vague "success" message)
 
 ## Decision Outcome
 
@@ -62,26 +62,26 @@ Agent: 🤔 Confused - did my commit work or not?
 
 #### Positive
 
-* **Explicit confirmation** - commit_created: true means commit happened
-* **Verifiable results** - commit_hash for git rev-parse verification
-* **Clear scope** - files_committed shows exactly what changed
-* **Prevents confusion** - Unrelated dirty files don't mislead agent
-* **Idempotency check** - commit_created: false means already done
-* **Debugging-friendly** - JSON contains all info needed to verify operation
+- **Explicit confirmation** - commit_created: true means commit happened
+- **Verifiable results** - commit_hash for git rev-parse verification
+- **Clear scope** - files_committed shows exactly what changed
+- **Prevents confusion** - Unrelated dirty files don't mislead agent
+- **Idempotency check** - commit_created: false means already done
+- **Debugging-friendly** - JSON contains all info needed to verify operation
 
 #### Negative
 
-* **Larger JSON payloads** - More fields (commit_hash is 40 chars, files_committed is array)
-* **Breaking change** - Agents relying on old schema need updates
-* **Not all commands updated** - Only finalize-tasks enhanced so far (more work needed)
-* **Complexity** - More logic to populate additional fields
+- **Larger JSON payloads** - More fields (commit_hash is 40 chars, files_committed is array)
+- **Breaking change** - Agents relying on old schema need updates
+- **Not all commands updated** - Only finalize-tasks enhanced so far (more work needed)
+- **Complexity** - More logic to populate additional fields
 
 #### Neutral
 
-* **Backward compatibility** - Old fields still present (result, updated_wp_count)
-* **JSON only** - Human output unchanged (separate logic)
-* **Optional fields** - commit_hash can be null if no commit created
-* **Extensible pattern** - Can apply to other commands (move-task, mark-status)
+- **Backward compatibility** - Old fields still present (result, updated_wp_count)
+- **JSON only** - Human output unchanged (separate logic)
+- **Optional fields** - commit_hash can be null if no commit created
+- **Extensible pattern** - Can apply to other commands (move-task, mark-status)
 
 ### Confirmation
 
@@ -99,58 +99,58 @@ We validated this decision by:
 Add commit_hash, commit_created, files_committed to JSON response.
 
 **Pros:**
-* Explicit: Agent knows if commit happened
-* Verifiable: Can check git rev-parse HEAD = commit_hash
-* Clear scope: files_committed lists what changed
-* One response: All info in JSON (no follow-up needed)
-* Prevents confusion: Distinguishes related from unrelated changes
+- Explicit: Agent knows if commit happened
+- Verifiable: Can check git rev-parse HEAD = commit_hash
+- Clear scope: files_committed lists what changed
+- One response: All info in JSON (no follow-up needed)
+- Prevents confusion: Distinguishes related from unrelated changes
 
 **Cons:**
-* Larger JSON: More data to transmit
-* Breaking change: Requires agent updates
-* Code complexity: More fields to populate
+- Larger JSON: More data to transmit
+- Breaking change: Requires agent updates
+- Code complexity: More fields to populate
 
 ### Option 2: Verbose mode flag
 
 Add --verbose flag to include details.
 
 **Pros:**
-* Opt-in: Agents choose verbosity level
-* No breaking change: Default behavior unchanged
-* Smaller default response
+- Opt-in: Agents choose verbosity level
+- No breaking change: Default behavior unchanged
+- Smaller default response
 
 **Cons:**
-* Agents must know to use --verbose
-* Two modes to maintain
-* Still doesn't prevent confusion (agent might not use it)
+- Agents must know to use --verbose
+- Two modes to maintain
+- Still doesn't prevent confusion (agent might not use it)
 
 ### Option 3: Separate verify command
 
 Add spec-kitty verify finalize-tasks to check results.
 
 **Pros:**
-* Separation of concerns
-* No changes to existing command
+- Separation of concerns
+- No changes to existing command
 
 **Cons:**
-* Two commands instead of one
-* Agent must know to run verify
-* Duplicates logic (finalize-tasks knows what it did)
-* Slower (extra command execution)
+- Two commands instead of one
+- Agent must know to run verify
+- Duplicates logic (finalize-tasks knows what it did)
+- Slower (extra command execution)
 
 ### Option 4: Status quo
 
 Keep vague "success" message.
 
 **Pros:**
-* No changes needed
-* Minimal JSON payload
+- No changes needed
+- Minimal JSON payload
 
 **Cons:**
-* Agents get confused by unrelated dirty files
-* No verification mechanism
-* Cannot distinguish "already done" from "just done"
-* Poor debugging experience
+- Agents get confused by unrelated dirty files
+- No verification mechanism
+- Cannot distinguish "already done" from "just done"
+- Poor debugging experience
 
 ## More Information
 

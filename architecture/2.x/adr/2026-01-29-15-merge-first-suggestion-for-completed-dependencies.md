@@ -39,19 +39,19 @@ ADR-4 established auto-merge for multi-parent dependencies (e.g., WP04 depends o
 
 ## Decision Drivers
 
-* **Conflict prevention** - Completed WPs likely modified shared files (.gitignore, package.json, etc.)
-* **User experience** - Agents got stuck with auto-merge failures (trial-and-error)
-* **Workflow clarity** - Merge-first vs auto-merge have different use cases
-* **Agent guidance** - LLMs need explicit recommendations, not trial-and-error
-* **ADR-4 enhancement** - Build on auto-merge, don't replace it
-* **Backward compatibility** - Existing workflows must still work
+- **Conflict prevention** - Completed WPs likely modified shared files (.gitignore, package.json, etc.)
+- **User experience** - Agents got stuck with auto-merge failures (trial-and-error)
+- **Workflow clarity** - Merge-first vs auto-merge have different use cases
+- **Agent guidance** - LLMs need explicit recommendations, not trial-and-error
+- **ADR-4 enhancement** - Build on auto-merge, don't replace it
+- **Backward compatibility** - Existing workflows must still work
 
 ## Considered Options
 
-* **Option 1:** Detect all-done and suggest merge-first (error + guidance)
-* **Option 2:** Attempt auto-merge, fall back on conflict (reactive)
-* **Option 3:** Always require manual merge for multi-parent (strict)
-* **Option 4:** Status quo (auto-merge always, user handles conflicts)
+- **Option 1:** Detect all-done and suggest merge-first (error + guidance)
+- **Option 2:** Attempt auto-merge, fall back on conflict (reactive)
+- **Option 3:** Always require manual merge for multi-parent (strict)
+- **Option 4:** Status quo (auto-merge always, user handles conflicts)
 
 ## Decision Outcome
 
@@ -66,26 +66,26 @@ ADR-4 established auto-merge for multi-parent dependencies (e.g., WP04 depends o
 
 #### Positive
 
-* **Proactive guidance** - Detects problem before attempting auto-merge
-* **Clear workflow** - Agent knows to run merge command first
-* **Conflict control** - Merge conflicts resolved in structured manner
-* **Prevents confusion** - No trial-and-error with auto-merge failures
-* **Explicit choice** - Agent can choose merge-first or --force auto-merge
-* **ADR-4 enhancement** - Auto-merge still available for work-in-progress scenarios
+- **Proactive guidance** - Detects problem before attempting auto-merge
+- **Clear workflow** - Agent knows to run merge command first
+- **Conflict control** - Merge conflicts resolved in structured manner
+- **Prevents confusion** - No trial-and-error with auto-merge failures
+- **Explicit choice** - Agent can choose merge-first or --force auto-merge
+- **ADR-4 enhancement** - Auto-merge still available for work-in-progress scenarios
 
 #### Negative
 
-* **Extra step** - Must run merge command before implement
-* **Two commands** - merge then implement (instead of one)
-* **Code complexity** - Adds detection logic to implement command
-* **User decision** - Agent must choose between merge-first and --force
+- **Extra step** - Must run merge command before implement
+- **Two commands** - merge then implement (instead of one)
+- **Code complexity** - Adds detection logic to implement command
+- **User decision** - Agent must choose between merge-first and --force
 
 #### Neutral
 
-* **Detection trigger** - Multi-parent + all done → suggest merge
-* **Override mechanism** - --force flag bypasses suggestion
-* **Error message** - Blocks implement, suggests merge command
-* **Still automatic** - If not all done, auto-merge proceeds normally
+- **Detection trigger** - Multi-parent + all done → suggest merge
+- **Override mechanism** - --force flag bypasses suggestion
+- **Error message** - Blocks implement, suggests merge command
+- **Still automatic** - If not all done, auto-merge proceeds normally
 
 ### Confirmation
 
@@ -103,57 +103,57 @@ We validated this decision by:
 Pre-flight check before auto-merge. If all dependencies done, error with suggestion.
 
 **Pros:**
-* Proactive detection (before failure)
-* Clear guidance (suggests exact command)
-* Explains trade-offs (merge-first vs auto-merge)
-* Prevents common failure mode
-* Agent-friendly (no trial-and-error)
+- Proactive detection (before failure)
+- Clear guidance (suggests exact command)
+- Explains trade-offs (merge-first vs auto-merge)
+- Prevents common failure mode
+- Agent-friendly (no trial-and-error)
 
 **Cons:**
-* Extra step (two commands instead of one)
-* Code complexity (detection logic)
-* Requires --force to override
+- Extra step (two commands instead of one)
+- Code complexity (detection logic)
+- Requires --force to override
 
 ### Option 2: Attempt auto-merge, fall back on conflict (status quo)
 
 Try auto-merge, if fails, guide user to manual merge.
 
 **Pros:**
-* Works for non-conflicting cases
-* No pre-flight overhead
-* Simpler code (no detection)
+- Works for non-conflicting cases
+- No pre-flight overhead
+- Simpler code (no detection)
 
 **Cons:**
-* Reactive (fails first, then suggests)
-* Trial-and-error experience
-* Wastes time on predictable failures
-* Confusing for agents (did it fail or not?)
+- Reactive (fails first, then suggests)
+- Trial-and-error experience
+- Wastes time on predictable failures
+- Confusing for agents (did it fail or not?)
 
 ### Option 3: Always require manual merge
 
 Block multi-parent entirely, force user to merge first.
 
 **Pros:**
-* No surprises (never attempts auto-merge)
-* Explicit control over all merges
+- No surprises (never attempts auto-merge)
+- Explicit control over all merges
 
 **Cons:**
-* Loses auto-merge benefits for work-in-progress
-* Too restrictive (many WPs could auto-merge cleanly)
-* Breaks existing workflows
+- Loses auto-merge benefits for work-in-progress
+- Too restrictive (many WPs could auto-merge cleanly)
+- Breaks existing workflows
 
 ### Option 4: Status quo (auto-merge always)
 
 Always attempt auto-merge for multi-parent, let git handle it.
 
 **Pros:**
-* No changes needed
-* Works for non-conflicting cases
+- No changes needed
+- Works for non-conflicting cases
 
 **Cons:**
-* Predictable failures (all-done + shared files = conflict)
-* No guidance (agent stuck)
-* Poor UX (trial-and-error)
+- Predictable failures (all-done + shared files = conflict)
+- No guidance (agent stuck)
+- Poor UX (trial-and-error)
 
 ## More Information
 

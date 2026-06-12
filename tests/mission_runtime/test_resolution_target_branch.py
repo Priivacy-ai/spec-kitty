@@ -51,7 +51,6 @@ def _change_set(repo: Path, destination_ref: str) -> GitChangeSet:
         paths=(),
         message="status-event-append",
         operation="status-event-append",
-        allow_protected_branch_in_test_mode=False,
     )
 
 

@@ -33,12 +33,12 @@ A naive sequential-write approach ("write content files, then write provenance, 
 
 ## Decision Drivers
 
-* Zero partial writes under `.kittify/doctrine/` or `.kittify/charter/` — any failure must leave the live tree either as-before or fully promoted (C-002, FR-005, NFR-008).
-* Fail-closed: validation failures (schema, DRG, path-guard) produce no live-tree mutations (FR-008, NFR-004).
-* Interrupted-run recovery: operator should be able to diagnose what went wrong without re-running from scratch (EC-5).
-* Idempotent re-run: running synthesis again on unchanged inputs produces byte-identical output (FR-014, NFR-006).
-* Performance: fail-closed from detection to return < 5s (NFR-004). This is a correctness problem at kilobyte scale, not a throughput problem.
-* Cross-platform: `os.replace` is atomic-on-POSIX, atomic-rename-on-Windows (per Python docs) — acceptable for our scale.
+- Zero partial writes under `.kittify/doctrine/` or `.kittify/charter/` — any failure must leave the live tree either as-before or fully promoted (C-002, FR-005, NFR-008).
+- Fail-closed: validation failures (schema, DRG, path-guard) produce no live-tree mutations (FR-008, NFR-004).
+- Interrupted-run recovery: operator should be able to diagnose what went wrong without re-running from scratch (EC-5).
+- Idempotent re-run: running synthesis again on unchanged inputs produces byte-identical output (FR-014, NFR-006).
+- Performance: fail-closed from detection to return < 5s (NFR-004). This is a correctness problem at kilobyte scale, not a throughput problem.
+- Cross-platform: `os.replace` is atomic-on-POSIX, atomic-rename-on-Windows (per Python docs) — acceptable for our scale.
 
 ---
 
@@ -123,19 +123,19 @@ On any FAILED transition, the staging dir is renamed to `.staging/<runid>.failed
 
 ### Positive
 
-* Manifest-last provides a single, checkable "committed" signal that consumers and `bundle validate` can rely on without walking the content tree.
-* Staging under `.kittify/charter/.staging/` means content files under `.kittify/doctrine/` are never touched during failed runs. Legacy projects and consuming tools are never exposed to partial content.
-* `os.replace` is atomic at the OS level on POSIX and Windows — the promote window is O(file_count) individual atomic renames, not a database transaction. At kilobyte scale and tens of files, this is acceptable.
-* Preserved `.failed/` dirs give operators diagnostic information without requiring a re-run to reproduce the failure.
+- Manifest-last provides a single, checkable "committed" signal that consumers and `bundle validate` can rely on without walking the content tree.
+- Staging under `.kittify/charter/.staging/` means content files under `.kittify/doctrine/` are never touched during failed runs. Legacy projects and consuming tools are never exposed to partial content.
+- `os.replace` is atomic at the OS level on POSIX and Windows — the promote window is O(file_count) individual atomic renames, not a database transaction. At kilobyte scale and tens of files, this is acceptable.
+- Preserved `.failed/` dirs give operators diagnostic information without requiring a re-run to reproduce the failure.
 
 ### Negative
 
-* A SIGKILL during the PROMOTING phase after some `os.replace` calls have succeeded but before the manifest is written leaves the live tree in a partial state. The manifest is absent → readers treat the bundle as partial-and-rerunable. Operator must re-run synthesis. This is acceptable given the write scale.
-* `.failed/` dirs accumulate if synthesis fails repeatedly without manual cleanup. Mitigated by a `charter doctor` extension (flagged as follow-up, out of scope for this mission) and a staging-dir size warning in `bundle validate`.
+- A SIGKILL during the PROMOTING phase after some `os.replace` calls have succeeded but before the manifest is written leaves the live tree in a partial state. The manifest is absent → readers treat the bundle as partial-and-rerunable. Operator must re-run synthesis. This is acceptable given the write scale.
+- `.failed/` dirs accumulate if synthesis fails repeatedly without manual cleanup. Mitigated by a `charter doctor` extension (flagged as follow-up, out of scope for this mission) and a staging-dir size warning in `bundle validate`.
 
 ### Neutral
 
-* `StagingPromoteError` is raised when an `os.replace` or manifest write fails during promote; orchestration preserves the failed dir before raising. The CLI surfaces this error with the failed-dir path for diagnosis.
+- `StagingPromoteError` is raised when an `os.replace` or manifest write fails during promote; orchestration preserves the failed dir before raising. The CLI surfaces this error with the failed-dir path for diagnosis.
 
 ---
 
@@ -147,13 +147,13 @@ On any FAILED transition, the staging dir is renamed to `.staging/<runid>.failed
 
 ## Related Decisions
 
-* **ADR-2026-04-17-1** — Adapter seam and fixture keying.
-* **KD-5** — Fail-closed path guard integrated at write seam.
-* **KD-2** — Atomicity model (this ADR documents the implementation of KD-2).
-* **DIRECTIVE_003** — Decision documentation policy.
+- **ADR-2026-04-17-1** — Adapter seam and fixture keying.
+- **KD-5** — Fail-closed path guard integrated at write seam.
+- **KD-2** — Atomicity model (this ADR documents the implementation of KD-2).
+- **DIRECTIVE_003** — Decision documentation policy.
 
 ## More Information
 
-* Plan: `kitty-specs/phase-3-charter-synthesizer-pipeline-01KPE222/plan.md` §KD-2, §Risks & Premortem R-7
-* Data model: `kitty-specs/phase-3-charter-synthesizer-pipeline-01KPE222/data-model.md` §E-6, §E-9
-* Spec: `kitty-specs/phase-3-charter-synthesizer-pipeline-01KPE222/spec.md` §FR-005, §FR-008, §FR-014, §FR-016, §NFR-006, §NFR-008, §US-5, §EC-5
+- Plan: `kitty-specs/phase-3-charter-synthesizer-pipeline-01KPE222/plan.md` §KD-2, §Risks & Premortem R-7
+- Data model: `kitty-specs/phase-3-charter-synthesizer-pipeline-01KPE222/data-model.md` §E-6, §E-9
+- Spec: `kitty-specs/phase-3-charter-synthesizer-pipeline-01KPE222/spec.md` §FR-005, §FR-008, §FR-014, §FR-016, §NFR-006, §NFR-008, §US-5, §EC-5

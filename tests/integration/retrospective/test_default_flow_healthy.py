@@ -114,7 +114,7 @@ def test_default_flow_healthy_writes_record_and_emits_captured(tmp_path: Path) -
     assert result is not None, "Callback must return the generated record"
 
     # (b) Record written to canonical disk path.
-    canonical = tmp_path / ".kittify" / "missions" / mission_id / "retrospective.yaml"
+    canonical = feature_dir / "retrospective.yaml"
     assert canonical.exists(), f"Expected record at {canonical}"
 
     # (c) RetrospectiveCaptured event in status.events.jsonl.

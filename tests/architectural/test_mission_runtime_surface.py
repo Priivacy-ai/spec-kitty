@@ -40,12 +40,27 @@ pytestmark = pytest.mark.architectural
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC = _REPO_ROOT / "src"
 _PACKAGE_DIR = _SRC / "mission_runtime"
-_PUBLIC_SURFACE = [
-    "ExecutionContext",
-    "ExecutionMode",
-    "resolve_action_context",
-    "ActionContextError",
-]
+# WP03 (execution-context-unification-01KTPKST) grows the surface with the
+# doc-09 fragment / op-composite value objects that the conversion WPs
+# (WP04/05/06/07) consume via the package root. ``__all__`` is sorted, so the
+# expected surface is sorted too.
+_PUBLIC_SURFACE = sorted(
+    [
+        "ActionContextError",
+        "ArtifactPlacementFragment",
+        "BranchRefFragment",
+        "CommitTarget",
+        "CommitTargetKind",
+        "ExecutionContext",
+        "ExecutionMode",
+        "IdentityFragment",
+        "PromptSourceFragment",
+        "StatusSurfaceFragment",
+        "WorkspaceFragment",
+        "resolve_action_context",
+        "resolve_placement_only",
+    ]
+)
 
 
 # ---------------------------------------------------------------------------

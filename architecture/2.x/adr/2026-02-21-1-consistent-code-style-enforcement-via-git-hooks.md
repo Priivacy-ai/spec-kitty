@@ -36,15 +36,15 @@ We evaluated whether custom lint rules could extend ruff's formatter to cover th
 
 **Chosen option:** "Option 2: ruff format (Black-compatible) + ruff check + mypy via git hooks", because:
 
-- It provides immediate feedback at commit time with zero CI wait
-- Black-compatible formatting is the dominant Python standard, reducing onboarding friction
-- Incremental enforcement (staged files only) avoids a mass-reformatting commit
-- The trade-off of losing some multi-line formatting preferences (e.g., comprehension clause separation) is acceptable for the consistency gained
+* It provides immediate feedback at commit time with zero CI wait
+* Black-compatible formatting is the dominant Python standard, reducing onboarding friction
+* Incremental enforcement (staged files only) avoids a mass-reformatting commit
+* The trade-off of losing some multi-line formatting preferences (e.g., comprehension clause separation) is acceptable for the consistency gained
 
 ### Trade-offs Accepted
 
-- **Comprehension formatting:** `for`/`if` clauses in comprehensions may collapse to a single line at `line-length = 120`. We accept this because there is no way to enforce per-construct line breaks in Black/ruff format without a plugin system, and writing a standalone AST checker for a single style preference adds maintenance burden disproportionate to the benefit.
-- **Line length 120:** Wider than Black's default of 88. Chosen to match the existing codebase style, but it causes more expressions to fit on a single line. Reducing to 88 would restore more multi-line formatting but would require reformatting a significant portion of the codebase.
+* **Comprehension formatting:** `for`/`if` clauses in comprehensions may collapse to a single line at `line-length = 120`. We accept this because there is no way to enforce per-construct line breaks in Black/ruff format without a plugin system, and writing a standalone AST checker for a single style preference adds maintenance burden disproportionate to the benefit.
+* **Line length 120:** Wider than Black's default of 88. Chosen to match the existing codebase style, but it causes more expressions to fit on a single line. Reducing to 88 would restore more multi-line formatting but would require reformatting a significant portion of the codebase.
 
 ### Consequences
 

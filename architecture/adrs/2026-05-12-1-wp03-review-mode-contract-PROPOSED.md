@@ -35,18 +35,18 @@ The mission spec FR-005 calls for two explicit modes. The architectural question
 
 ## Decision Drivers
 
-* **Operator transparency.** A reviewer must never mistake a lightweight check for a release gate. The mode must be visible in stdout, JSON, and the persisted report.
-* **Backward compatibility.** Existing operator workflows (`spec-kitty review --mission <slug>` without a flag) should not break; behavior may change but not in a way that turns a currently-passing legitimate invocation into a stderr-only spew.
-* **Existing signals.** `meta.json.baseline_merge_commit` is already populated by post-083 mission merge and is the *only* explicit post-merge signal in code today (`review.py:284–285`). Reusing it avoids inventing a new lifecycle concept that #992 WS-1 may want to define centrally.
-* **JSON stability.** FR-009 requires diagnostic codes to be JSON-stable for the cross-surface fixture harness (#992 Phase 0). Mode names and failure codes must be machine-parseable strings.
-* **Lightweight mode must remain useful.** Pre-merge consistency checks are valuable during mission iteration; the contract must not push operators away from them.
+- **Operator transparency.** A reviewer must never mistake a lightweight check for a release gate. The mode must be visible in stdout, JSON, and the persisted report.
+- **Backward compatibility.** Existing operator workflows (`spec-kitty review --mission <slug>` without a flag) should not break; behavior may change but not in a way that turns a currently-passing legitimate invocation into a stderr-only spew.
+- **Existing signals.** `meta.json.baseline_merge_commit` is already populated by post-083 mission merge and is the *only* explicit post-merge signal in code today (`review.py:284–285`). Reusing it avoids inventing a new lifecycle concept that #992 WS-1 may want to define centrally.
+- **JSON stability.** FR-009 requires diagnostic codes to be JSON-stable for the cross-surface fixture harness (#992 Phase 0). Mode names and failure codes must be machine-parseable strings.
+- **Lightweight mode must remain useful.** Pre-merge consistency checks are valuable during mission iteration; the contract must not push operators away from them.
 
 ## Considered Options
 
-* **(A) Implicit mode via `baseline_merge_commit` only** — no CLI flag; command auto-selects.
-* **(B) Explicit `--mode {lightweight|post-merge}` flag with auto-detect default** — flag overrides; default is auto-detect from `baseline_merge_commit`.
-* **(C) Two separate subcommands** — `spec-kitty review consistency` vs `spec-kitty review mission`.
-* **(D) New `mission_state` field in `meta.json`** — explicit lifecycle field (`proposed | in_progress | merged | accepted`); command reads it.
+- **(A) Implicit mode via `baseline_merge_commit` only** — no CLI flag; command auto-selects.
+- **(B) Explicit `--mode {lightweight|post-merge}` flag with auto-detect default** — flag overrides; default is auto-detect from `baseline_merge_commit`.
+- **(C) Two separate subcommands** — `spec-kitty review consistency` vs `spec-kitty review mission`.
+- **(D) New `mission_state` field in `meta.json`** — explicit lifecycle field (`proposed | in_progress | merged | accepted`); command reads it.
 
 ## Proposed Decision Outcome
 
@@ -75,24 +75,27 @@ The mission spec FR-005 calls for two explicit modes. The architectural question
 ### Consequences if approved
 
 #### Positive
-* Operator can never mistake a lightweight check for a release gate (mode is in stdout, JSON, and the persisted report).
-* The auto-detect default preserves backward compatibility for the canonical happy-path invocation.
-* `issue-matrix.md` becomes a typed artifact (schema, validator) without inflating WP03 with auto-generation work.
-* Diagnostic codes plug directly into the #992 Phase 0 cross-surface fixture harness with stable names.
-* `baseline_merge_commit` becomes a real lifecycle signal — usable by #992 WS-1 later.
+
+- Operator can never mistake a lightweight check for a release gate (mode is in stdout, JSON, and the persisted report).
+- The auto-detect default preserves backward compatibility for the canonical happy-path invocation.
+- `issue-matrix.md` becomes a typed artifact (schema, validator) without inflating WP03 with auto-generation work.
+- Diagnostic codes plug directly into the #992 Phase 0 cross-surface fixture harness with stable names.
+- `baseline_merge_commit` becomes a real lifecycle signal — usable by #992 WS-1 later.
 
 #### Negative
-* One new CLI flag (`--mode`) on `spec-kitty review`.
-* Operator may run `--mode post-merge` on a pre-merge mission expecting a quick sanity check and get a hard fail. Mitigation: the `MISSION_REVIEW_MODE_MISMATCH` diagnostic is explicit. (HiC: choose warn vs block — see open sub-question.)
+
+- One new CLI flag (`--mode`) on `spec-kitty review`.
+- Operator may run `--mode post-merge` on a pre-merge mission expecting a quick sanity check and get a hard fail. Mitigation: the `MISSION_REVIEW_MODE_MISMATCH` diagnostic is explicit. (HiC: choose warn vs block — see open sub-question.)
 
 #### Neutral
-* The bare invocation `spec-kitty review --mission <slug>` continues to work; mode is implicit.
+
+- The bare invocation `spec-kitty review --mission <slug>` continues to work; mode is implicit.
 
 ### Confirmation
 
-* Regression: synthetic mission with `baseline_merge_commit` set, no `issue-matrix.md` → bare `spec-kitty review` exits non-zero with `MISSION_REVIEW_ISSUE_MATRIX_MISSING`.
-* Regression: same mission, `--mode lightweight` override → exit 0, report has `mode: lightweight`, body begins with "Lightweight consistency check; not a release gate".
-* Eat-our-own-dogfood (NFR-003): this mission's own final review runs in `--mode post-merge`, produces an `issue-matrix.md`, and records Gate 1–4.
+- Regression: synthetic mission with `baseline_merge_commit` set, no `issue-matrix.md` → bare `spec-kitty review` exits non-zero with `MISSION_REVIEW_ISSUE_MATRIX_MISSING`.
+- Regression: same mission, `--mode lightweight` override → exit 0, report has `mode: lightweight`, body begins with "Lightweight consistency check; not a release gate".
+- Eat-our-own-dogfood (NFR-003): this mission's own final review runs in `--mode post-merge`, produces an `issue-matrix.md`, and records Gate 1–4.
 
 ## Pros and Cons of the Options
 
@@ -101,13 +104,13 @@ The mission spec FR-005 calls for two explicit modes. The architectural question
 No CLI flag; command always auto-selects mode from the meta field.
 
 **Pros:**
-* Zero new CLI surface.
-* Smallest diff.
+- Zero new CLI surface.
+- Smallest diff.
 
 **Cons:**
-* No operator override. Verifying a merged mission from a detached worktree with a quick lightweight check becomes impossible.
-* "Magic" behavior: the same command does different things in different contexts with no visible switch.
-* Pre-083 missions (no `baseline_merge_commit` field) always run lightweight, even when run post-merge — silently.
+- No operator override. Verifying a merged mission from a detached worktree with a quick lightweight check becomes impossible.
+- "Magic" behavior: the same command does different things in different contexts with no visible switch.
+- Pre-083 missions (no `baseline_merge_commit` field) always run lightweight, even when run post-merge — silently.
 
 ### (B) Explicit `--mode` flag with auto-detect default
 
@@ -122,24 +125,24 @@ Recommended above.
 `spec-kitty review consistency` vs `spec-kitty review mission`.
 
 **Pros:**
-* Maximal clarity. Hard to misuse.
+- Maximal clarity. Hard to misuse.
 
 **Cons:**
-* Breaks every existing invocation of `spec-kitty review`. Hidden in agents, prompts, mission templates, doctrine, docs. Out of proportion for a stabilization mission.
-* Violates #822 anti-scope clause on "no new CLI surface beyond what a single bug fix requires."
+- Breaks every existing invocation of `spec-kitty review`. Hidden in agents, prompts, mission templates, doctrine, docs. Out of proportion for a stabilization mission.
+- Violates #822 anti-scope clause on "no new CLI surface beyond what a single bug fix requires."
 
 ### (D) New `mission_state` field in `meta.json`
 
 Add `mission_state: proposed | in_progress | merged | accepted` to meta.json; command reads it.
 
 **Pros:**
-* Cleanest semantic model.
-* Aligns with #992 WS-1 future direction.
+- Cleanest semantic model.
+- Aligns with #992 WS-1 future direction.
 
 **Cons:**
-* Cross-cutting: every status-mutating command (next, agent action, move-task, merge) would need to write the field consistently. That is exactly the WorkPackageLifecycle authority work the #992 epic is meant to do. **Doing it inside WP03 pre-empts and inflates a separate workstream.**
-* Migration: existing missions need backfill.
-* This is a *successor* mission's design, not WP03's.
+- Cross-cutting: every status-mutating command (next, agent action, move-task, merge) would need to write the field consistently. That is exactly the WorkPackageLifecycle authority work the #992 epic is meant to do. **Doing it inside WP03 pre-empts and inflates a separate workstream.**
+- Migration: existing missions need backfill.
+- This is a *successor* mission's design, not WP03's.
 
 ## Resolved sub-questions (HiC, 2026-05-12)
 
@@ -253,6 +256,6 @@ This (i) stabilizes the canonical contract that downstream consumers depend on, 
 
 ## More Information
 
-* Source bug body: [#985](https://github.com/Priivacy-ai/spec-kitty/issues/985)
-* Code reference: `src/specify_cli/cli/commands/review.py:235` (`review_mission` entry point); `src/specify_cli/cli/commands/review.py:284–285` (`baseline_merge_commit` check); `src/specify_cli/cli/commands/review.py:465–470` (current YAML frontmatter writer).
-* Mission spec FR-005 through FR-009 and NFR-001 through NFR-003 in [`kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md`](../../kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md).
+- Source bug body: [#985](https://github.com/Priivacy-ai/spec-kitty/issues/985)
+- Code reference: `src/specify_cli/cli/commands/review.py:235` (`review_mission` entry point); `src/specify_cli/cli/commands/review.py:284–285` (`baseline_merge_commit` check); `src/specify_cli/cli/commands/review.py:465–470` (current YAML frontmatter writer).
+- Mission spec FR-005 through FR-009 and NFR-001 through NFR-003 in [`kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md`](../../kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md).

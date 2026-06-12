@@ -9,11 +9,12 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, UTC
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
     from charter.pack_context import PackContext
     from charter.scope import CharterScope
+    from doctrine.drg.models import DRGGraph
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
@@ -326,7 +327,7 @@ def build_charter_context_include(
         )
         if section is None:
             raise ValueError(f"No charter section found for selector '{selector}'.")
-        return section
+        return str(section)
 
     org_roots = [org_root] if org_root is not None else None
 
@@ -363,9 +364,12 @@ def build_charter_context_include(
         # raises ("No agent_profile found ...") for a gated/missing one — it
         # never returns None here, so a direct return is sufficient (no dead
         # fall-through branch to guard).
-        return _render_doctrine_artifact_include(
+        artifact_result = _render_doctrine_artifact_include(
             gated_service, canonical_kind, identifier
         )
+        if artifact_result is None:
+            raise ValueError(f"No {canonical_kind} found for selector '{selector}'.")
+        return artifact_result
 
     service = _build_doctrine_service(repo_root, org_roots=org_roots)
     if canonical_kind == ArtifactKind.DIRECTIVE.value:
@@ -499,6 +503,7 @@ def _render_generic_artifact_include(service: object, identifier: str) -> str:
     ):
         selector = f"{candidate_kind}:{identifier}"
         try:
+            rendered: str | None
             if candidate_kind == "directive":
                 rendered = _render_directive_include(service, identifier, selector)
             elif candidate_kind == "tactic":
@@ -573,7 +578,7 @@ def _render_doctrine_artifact_include(
 
     repo_attr, label, title_attr, body_formatter = renderer
     repo = getattr(service, repo_attr, None)
-    artifact = repo.get(identifier) if repo is not None else None  # type: ignore[attr-defined]
+    artifact = repo.get(identifier) if repo is not None else None
     if artifact is None:
         raise ValueError(f"No {kind} found for selector '{kind}:{identifier}'.")
     title = getattr(artifact, title_attr, identifier)
@@ -612,7 +617,7 @@ def _prepare_context_state(
 
 def _classify_artifact_urns(
     artifact_urns: frozenset[str] | set[str],
-    merged: object,
+    merged: DRGGraph,
     project_directives: set[str],
     selected_tactics: set[str] | None = None,
     selected_paradigms: set[str] | None = None,
@@ -642,7 +647,7 @@ def _classify_artifact_urns(
     styleguide_ids: list[str] = []
     toolguide_ids: list[str] = []
     for urn in sorted(artifact_urns):
-        node = merged.get_node(urn)  # type: ignore[attr-defined]
+        node = merged.get_node(urn)
         if node is None:
             continue
         artifact_id = urn.split(":", 1)[1] if ":" in urn else urn
@@ -1009,13 +1014,14 @@ def _render_bootstrap_text(
     _extend_named_artifact_lines(lines, "Tactics", doctrine_bundle.tactic_ids, service.tactics, "name", "purpose", org_source_map=_action_org_source_map)  # type: ignore[attr-defined]
 
     if effective_depth >= _EXTENDED_CONTEXT_DEPTH:
-        _extend_named_artifact_lines(  # type: ignore[attr-defined]
+        _service_any: Any = service
+        _extend_named_artifact_lines(
             lines, "Styleguides", doctrine_bundle.styleguide_ids,
-            service.styleguides, "title", None, org_source_map=_action_org_source_map,
+            _service_any.styleguides, "title", None, org_source_map=_action_org_source_map,
         )
-        _extend_named_artifact_lines(  # type: ignore[attr-defined]
+        _extend_named_artifact_lines(
             lines, "Toolguides", doctrine_bundle.toolguide_ids,
-            service.toolguides, "title", None, org_source_map=_action_org_source_map,
+            _service_any.toolguides, "title", None, org_source_map=_action_org_source_map,
         )
 
     _append_guidelines_lines(lines, doctrine_bundle.mission, action)
@@ -1273,17 +1279,21 @@ def _build_doctrine_service(repo_root: Path, *, org_roots: list[Path] | None = N
 
     doctrine_root = resolve_doctrine_root()
     project_root = resolve_project_root(repo_root)
-    kwargs: dict[str, object] = {
-        "built_in_root": doctrine_root,
-        "project_root": project_root,
-        "active_languages": infer_repo_languages(repo_root),
-    }
     # Only pass ``org_roots`` when it carries paths so charter-internal
     # callers see byte-identical kwargs (preserves existing test stubs and
     # downstream constructors that may not declare the parameter).
     if org_roots:
-        kwargs["org_roots"] = org_roots
-    return DoctrineService(**kwargs)
+        return DoctrineService(
+            built_in_root=doctrine_root,
+            project_root=project_root,
+            active_languages=infer_repo_languages(repo_root),
+            org_roots=org_roots,
+        )
+    return DoctrineService(
+        built_in_root=doctrine_root,
+        project_root=project_root,
+        active_languages=infer_repo_languages(repo_root),
+    )
 
 
 def _build_activation_aware_doctrine_service(
@@ -1735,7 +1745,7 @@ def _render_fetch_stanza(
     indent is preserved here to match the existing profile-cited
     rendering shape.
     """
-    return _shared_fetch_stanza_lines(selector, when_clause, indent="    ")
+    return list(_shared_fetch_stanza_lines(selector, when_clause, indent="    "))
 
 
 def _render_profile_directives(
@@ -2105,7 +2115,7 @@ def _render_selected_artifacts(
     header: str,
     selector_kind: str,
     when_clause: str,
-    body_formatter,  # noqa: ANN001 — callable[(object), list[str]]
+    body_formatter: Callable[[object], list[str]],
     org_source_map: dict[str, str] | None = None,
 ) -> list[str]:
     """Shared implementation for the 8 ``_render_selected_<kind>`` helpers.
@@ -2564,12 +2574,12 @@ def _render_activation_block(
     from charter._activation_render import render_activation_stanza
 
     try:
-        return render_activation_stanza(
-            activations,  # type: ignore[arg-type]
+        return str(render_activation_stanza(
+            activations,
             service,
             mission_type=mission_type,
             action=action,
-        )
+        ))
     except Exception:  # noqa: BLE001 — defensive: never crash the prompt build
         _LOGGER.warning(
             "Activation stanza renderer raised; surface omitted for action %s.",
@@ -2843,7 +2853,7 @@ def _bundle_root_for_json(repo_root: Path) -> Path:
     except Exception:  # noqa: BLE001 - JSON metadata is best-effort
         return repo_root
     if refresh_result is not None and refresh_result.canonical_root is not None:
-        return refresh_result.canonical_root
+        return Path(refresh_result.canonical_root)
     return repo_root
 
 

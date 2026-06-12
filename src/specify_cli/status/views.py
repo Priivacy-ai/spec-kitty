@@ -26,6 +26,20 @@ BOARD_SUMMARY_FILENAME = "board-summary.json"
 DERIVED_STATUS_FILENAME = "status.json"
 DERIVED_PROGRESS_FILENAME = "progress.json"
 
+# Git-operation marker files/dirs that signal an in-progress operation during
+# which tracked status MUST NOT be re-materialized (FR-005 / C-RT-1, #1789/#1062).
+# These names are resolved against BOTH the per-worktree gitdir and the shared
+# common gitdir, because a marker may live in either depending on the operation
+# and whether the caller is in a linked worktree or the primary checkout.
+_GIT_OP_MARKERS: tuple[str, ...] = (
+    "rebase-merge",  # interactive / merge-backend rebase in progress
+    "rebase-apply",  # am / apply-backend rebase in progress
+    "MERGE_HEAD",  # merge in progress (conflicted or otherwise)
+    "CHERRY_PICK_HEAD",  # cherry-pick in progress
+    "REVERT_HEAD",  # revert in progress (same hazard class as cherry-pick)
+    "index.lock",  # index is being mutated by another git process
+)
+
 
 def generate_status_view(feature_dir: Path) -> dict[str, Any]:
     """Read the event log and return the current snapshot as a dict.
@@ -128,6 +142,104 @@ def _build_board_summary(snapshot: Any) -> dict[str, Any]:
     }
 
 
+def _resolve_git_dirs(repo_root: Path) -> tuple[Path, ...]:
+    """Resolve the gitdir(s) to scan for in-progress git-operation markers.
+
+    Returns the per-worktree gitdir and the shared common gitdir (deduplicated).
+    Handles the three layouts:
+
+    - **Primary checkout** — ``<repo_root>/.git`` is a directory; it is both the
+      per-worktree gitdir and the common gitdir.
+    - **Linked worktree** — ``<repo_root>/.git`` is a *file* of the form
+      ``gitdir: /path/to/.git/worktrees/<name>``; the common gitdir is the
+      parent of the ``worktrees/`` directory.
+    - **Missing / non-repo** — returns an empty tuple; the caller treats an
+      unresolvable repository conservatively (no git op detected, materialize
+      proceeds as before — C-004).
+
+    This is filesystem-only (no subprocess) so it is safe to call on every
+    daemon/dashboard read without process-spawn overhead, and cannot itself
+    perturb a concurrent git operation.
+    """
+    dirs: list[Path] = []
+    git_path = repo_root / ".git"
+    if not git_path.exists():
+        return tuple(dirs)
+
+    if git_path.is_dir():
+        dirs.append(git_path)
+        return tuple(dirs)
+
+    # Linked worktree: .git is a file "gitdir: <per-worktree gitdir>".
+    try:
+        content = git_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return tuple(dirs)
+    if not content.startswith("gitdir:"):
+        return tuple(dirs)
+    worktree_gitdir = Path(content.split(":", 1)[1].strip())
+    if not worktree_gitdir.exists():
+        # Conservative: cannot resolve the gitdir → report nothing rather than
+        # guessing. materialize_if_stale will fall through to its normal path.
+        return tuple(dirs)
+
+    dirs.append(worktree_gitdir)
+    # The common gitdir is the ancestor that contains the ``worktrees`` dir:
+    #   <common-gitdir>/worktrees/<name>
+    for ancestor in worktree_gitdir.parents:
+        if ancestor.name == "worktrees":
+            common = ancestor.parent
+            if common not in dirs:
+                dirs.append(common)
+            break
+    return tuple(dirs)
+
+
+def git_operation_in_progress(repo_root: Path) -> bool:
+    """Return ``True`` when a git operation is in progress for ``repo_root``.
+
+    Detects rebase (merge- or apply-backend), merge, cherry-pick, revert, and a
+    held ``index.lock`` by probing the enumerated :data:`_GIT_OP_MARKERS` against
+    both the per-worktree gitdir and the shared common gitdir. During any such
+    operation the working tree and tracked status files are in flux, so runtime
+    writers MUST NOT re-materialize tracked status (FR-005 / C-RT-1, #1789/#1062).
+
+    The detection is **conservative**: it is purely filesystem-based, never
+    spawns a subprocess, and reports ``False`` only when no marker is found and
+    the repository resolves cleanly. An unresolvable repository yields ``False``
+    so that legitimate materialization is never blocked by a non-repo path
+    (C-004); the hazardous direction (skip-when-unsure) is covered because every
+    real in-progress operation leaves at least one of these markers on disk.
+
+    Exposed as a reusable public helper: WP11 (dashboard) consumes the same
+    detection so reads and the dashboard share one source of truth (IC-12 /
+    FR-014(a)).
+    """
+    for git_dir in _resolve_git_dirs(repo_root):
+        for marker in _GIT_OP_MARKERS:
+            if (git_dir / marker).exists():
+                return True
+    return False
+
+
+def _stale_check_slug(feature_dir: Path) -> str:
+    """Resolve the context-aware staleness key for ``feature_dir`` (FR-012).
+
+    The derived-view location is keyed on the *canonical* mission slug from the
+    mission's ``meta.json`` (``resolve_mission_identity``), not on the literal
+    ``feature_dir.name``. This makes the staleness key invariant across CWDs:
+    the primary checkout and any lane/coordination worktree all resolve the same
+    mission identity, so they target the same ``.kittify/derived/<slug>/``
+    directory and the same mission is never falsely reported stale from a
+    different CWD (FR-012, no false re-materialize across primary/lane/coord).
+
+    Falls back to ``feature_dir.name`` when no canonical slug is recorded (legacy
+    missions without ``meta.json``), preserving prior behaviour (C-004).
+    """
+    identity = resolve_mission_identity(feature_dir)
+    return identity.mission_slug or feature_dir.name
+
+
 def materialize_if_stale(feature_dir: Path, repo_root: Path) -> StatusSnapshot:
     """Regenerate derived views when the event log is newer than the derived files.
 
@@ -146,7 +258,10 @@ def materialize_if_stale(feature_dir: Path, repo_root: Path) -> StatusSnapshot:
     """
     from .progress import generate_progress_json  # local import to avoid circular
 
-    mission_slug = feature_dir.name
+    # Context-aware staleness key (FR-012): key the derived-view location on the
+    # canonical mission slug, not the literal CWD-relative dir name, so the same
+    # mission is not falsely stale across primary/lane/coord CWDs.
+    mission_slug = _stale_check_slug(feature_dir)
     derived_dir = repo_root / ".kittify" / "derived"
     feature_derived = derived_dir / mission_slug
 
@@ -164,9 +279,18 @@ def materialize_if_stale(feature_dir: Path, repo_root: Path) -> StatusSnapshot:
         status_mtime = status_path.stat().st_mtime
         progress_mtime = progress_path.stat().st_mtime
         lifecycle_mtime = lifecycle_path.stat().st_mtime
-        return events_mtime > status_mtime or events_mtime > progress_mtime or events_mtime > lifecycle_mtime
+        return bool(
+            events_mtime > status_mtime
+            or events_mtime > progress_mtime
+            or events_mtime > lifecycle_mtime
+        )
 
-    if _is_stale():
+    # Git-op guard (FR-005 / C-RT-1, #1789/#1062): never re-materialize tracked
+    # status while a git operation is in progress. Defer regeneration until the
+    # op clears — the snapshot returned below is still reduced read-only from the
+    # event log, so callers get a correct in-memory view without clobbering the
+    # on-disk derived files mid-rebase/-merge/-cherry-pick.
+    if _is_stale() and not git_operation_in_progress(repo_root):
         write_derived_views(feature_dir, derived_dir)
         generate_progress_json(feature_dir, derived_dir)
         generate_lifecycle_json(feature_dir, derived_dir)

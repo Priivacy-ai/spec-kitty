@@ -70,12 +70,14 @@ DIR-032 (project glossary as the source of truth for vocabulary).
 ## Alternatives Considered
 
 ### Alternative A — Drop `extra="forbid"` on doctrine models
+
 **Rejected.** `extra="forbid"` is the principal defense against typo'd field
 names in pack YAMLs (e.g. `enhanced_by:` instead of `enhances:`). Loosening
 it would degrade the validation surface for every pack author to fix a single
 intent-declaration use case. The cost-benefit is wrong.
 
 ### Alternative B — Magic precedence rules (no declaration needed)
+
 **Rejected.** "Same ID + extra fields ⇒ enhances; same ID + same fields ⇒
 overrides" is implicit, fragile, and hostile to review. Pack authors and
 reviewers would need to memorize precedence rules instead of reading a
@@ -83,6 +85,7 @@ declarative statement at the top of the artifact. Implicit intent also makes
 the DRG edge type (`ENHANCES` vs `OVERRIDES`) unstable across refactors.
 
 ### Alternative C — `relation:` enum field with values `overrides`/`enhances`
+
 **Rejected.** A single `relation:` field couples the *kind* of relation to a
 *target ID* through positional convention, and a future relation type would
 force breaking changes to the field shape. Two narrowly-typed optional
@@ -92,6 +95,7 @@ make the mutually-exclusive validator trivially expressible.
 ## Consequences
 
 ### Positive
+
 - Pack authors can declare augmentation intent in one line per artifact.
 - The same-ID collision advisory (WP06) can suppress correctly on intentional
   augmentation, eliminating churn.
@@ -102,6 +106,7 @@ make the mutually-exclusive validator trivially expressible.
   the doctrine vocabulary; reviewers and downstream tooling share one term.
 
 ### Negative / cost
+
 - Five symmetric model changes plus five matching schema YAML changes are
   required; the cross-cutting fixture surface is large (NFR-004 forces a
   zero-regression sweep across the full doctrine test suite).
@@ -110,12 +115,14 @@ make the mutually-exclusive validator trivially expressible.
   "augments".
 
 ### Neutral
+
 - Both fields default to `None`; existing fixtures that omit them are
   unaffected. The added schema properties are not `required`.
 - `extra="forbid"` is preserved on all five models — only the known-field
   set widens.
 
 ### Forward chain
+
 - **WP06** (this mission): adds `Relation.OVERRIDES` and `Relation.ENHANCES`
   to the DRG enum, auto-emits edges from these fields in
   `org_pack_loader.py`, and rewords the collision advisory to suppress when

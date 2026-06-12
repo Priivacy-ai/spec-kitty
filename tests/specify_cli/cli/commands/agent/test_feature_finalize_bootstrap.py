@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.status.bootstrap import BootstrapResult
 
 
@@ -160,7 +161,9 @@ class TestFinalizeTasksCallsBootstrap:
             tmp_path / "kitty-specs" / mission_slug,
             mission_slug,
             dry_run=False,
-            allow_protected_branch_in_test_mode=True,
+            # Production finalize asserts STANDARD: the seed commit is refused
+            # on a protected destination, never waived (PR #1850 fix).
+            capability=GuardCapability.STANDARD,
         )
 
 
@@ -773,12 +776,13 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
             feature_path: Path,
             slug: str,
             dry_run: bool,
-            allow_protected_branch_in_test_mode: bool = False,
+            capability: GuardCapability = GuardCapability.STANDARD,
         ) -> BootstrapResult:
             assert feature_path == feature_dir
             assert slug == mission_slug
             assert dry_run is False
-            assert allow_protected_branch_in_test_mode is True
+            # Production finalize asserts STANDARD (PR #1850 fix).
+            assert capability is GuardCapability.STANDARD
             (feature_path / "status.events.jsonl").write_text('{"event":"seeded"}\n', encoding="utf-8")
             (feature_path / "status.json").write_text("{}", encoding="utf-8")
             return _make_bootstrap_result()

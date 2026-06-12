@@ -27,18 +27,18 @@ However, investigation reveals critical edge cases that make eager cleanup **uns
 
 ## Decision Drivers
 
-* Git branches persist independently of worktrees (worktrees are just working directories)
-* Parallel development patterns (multiple WPs depend on same base)
-* Diamond dependency patterns (WP needs same base as sibling)
-* Review rework scenarios (WP back to "planned" after dependent created)
-* Current validation expects worktrees to exist
-* Legacy file filtering kept worktrees small enough that disk pressure was not the primary risk
+- Git branches persist independently of worktrees (worktrees are just working directories)
+- Parallel development patterns (multiple WPs depend on same base)
+- Diamond dependency patterns (WP needs same base as sibling)
+- Review rework scenarios (WP back to "planned" after dependent created)
+- Current validation expects worktrees to exist
+- Legacy file filtering kept worktrees small enough that disk pressure was not the primary risk
 
 ## Considered Options
 
-* **Option 1:** Keep current behavior (cleanup at merge) - CHOSEN
-* **Option 2:** Eager cleanup with safety checks (when dependent created)
-* **Option 3:** Manual cleanup command (user-triggered)
+- **Option 1:** Keep current behavior (cleanup at merge) - CHOSEN
+- **Option 2:** Eager cleanup with safety checks (when dependent created)
+- **Option 3:** Manual cleanup command (user-triggered)
 
 ## Decision Outcome
 
@@ -54,25 +54,25 @@ However, investigation reveals critical edge cases that make eager cleanup **uns
 
 #### Positive
 
-* **Parallel development is safe**: WP02 and WP03 can both use WP01 as base simultaneously
-* **Diamond patterns work**: All dependencies available when WP04 needs WP02+WP03
-* **Review rework resilient**: If WP01 reopened after WP02 created, worktree still exists
-* **Validation logic correct**: `implement.py:640` checks worktrees exist (not just branches)
-* **No race conditions**: Multiple agents can create dependencies concurrently
-* **Automatic cleanup**: `spec-kitty merge` handles cleanup by default
-* **Deterministic behavior**: Same deps → same results regardless of timing
+- **Parallel development is safe**: WP02 and WP03 can both use WP01 as base simultaneously
+- **Diamond patterns work**: All dependencies available when WP04 needs WP02+WP03
+- **Review rework resilient**: If WP01 reopened after WP02 created, worktree still exists
+- **Validation logic correct**: `implement.py:640` checks worktrees exist (not just branches)
+- **No race conditions**: Multiple agents can create dependencies concurrently
+- **Automatic cleanup**: `spec-kitty merge` handles cleanup by default
+- **Deterministic behavior**: Same deps → same results regardless of timing
 
 #### Negative
 
-* **Disk usage**: Worktrees accumulate until merge (historically mitigated by filtered worktrees)
-* **Mental model mismatch**: Users may think worktree unnecessary after dependent created
-* **No explicit feedback**: Users don't see "worktree cleaned" during implement
+- **Disk usage**: Worktrees accumulate until merge (historically mitigated by filtered worktrees)
+- **Mental model mismatch**: Users may think worktree unnecessary after dependent created
+- **No explicit feedback**: Users don't see "worktree cleaned" during implement
 
 #### Neutral
 
-* Worktrees were small in the legacy model because not every file surface was present in every workspace
-* Merge cleanup happens automatically unless `--no-cleanup` specified
-* Branches persist independently (worktree deletion doesn't affect git history)
+- Worktrees were small in the legacy model because not every file surface was present in every workspace
+- Merge cleanup happens automatically unless `--no-cleanup` specified
+- Branches persist independently (worktree deletion doesn't affect git history)
 
 ### Confirmation
 
@@ -88,41 +88,41 @@ We'll validate this decision by:
 ### Option 1: Keep Current (Cleanup at Merge)
 
 **Pros:**
-* Parallel workflows safe (WP02, WP03 both use WP01 simultaneously)
-* Diamond deps work (all bases available at WP04 creation)
-* Review rework resilient (WP01 worktree exists if reopened)
-* Current validation correct (checks worktree not just branch)
-* No race conditions (concurrent dependency creation safe)
-* Automatic cleanup (merge handles by default)
-* Simple implementation (no additional logic needed)
+- Parallel workflows safe (WP02, WP03 both use WP01 simultaneously)
+- Diamond deps work (all bases available at WP04 creation)
+- Review rework resilient (WP01 worktree exists if reopened)
+- Current validation correct (checks worktree not just branch)
+- No race conditions (concurrent dependency creation safe)
+- Automatic cleanup (merge handles by default)
+- Simple implementation (no additional logic needed)
 
 **Cons:**
-* Worktrees accumulate until merge (disk usage)
-* Mental model mismatch (seems wasteful to keep WP01)
-* No explicit feedback during implement
+- Worktrees accumulate until merge (disk usage)
+- Mental model mismatch (seems wasteful to keep WP01)
+- No explicit feedback during implement
 
 ### Option 2: Eager Cleanup with Safety Checks
 
 Delete worktree when dependent created, with extensive validation.
 
 **Pros:**
-* Immediate disk reclamation
-* Matches mental model ("WP01 done → delete")
-* Cleanup happens at natural boundary (dependent creation)
+- Immediate disk reclamation
+- Matches mental model ("WP01 done → delete")
+- Cleanup happens at natural boundary (dependent creation)
 
 **Cons:**
-* **BREAKS PARALLEL WORKFLOWS**: If WP02 deletes WP01, WP03 creation fails
-* **BREAKS DIAMOND DEPS**: WP04 can't validate WP01 exists (deleted by WP02)
-* **BREAKS REVIEW REWORK**: WP01 back to "planned" but worktree gone
-* Requires extensive safety checks:
+- **BREAKS PARALLEL WORKFLOWS**: If WP02 deletes WP01, WP03 creation fails
+- **BREAKS DIAMOND DEPS**: WP04 can't validate WP01 exists (deleted by WP02)
+- **BREAKS REVIEW REWORK**: WP01 back to "planned" but worktree gone
+- Requires extensive safety checks:
   - Lock mechanism for concurrent access
   - Dependency graph traversal (check for other dependents)
   - Inverse dependency tracking (who else needs this base?)
   - Worktree recreation logic (if WP reopened)
-* Changes validation semantics (`implement.py:640` must check branches not worktrees)
-* Race conditions (WP02, WP03 both check "no other deps" then delete)
-* 20+ new tests for edge cases
-* Complex implementation vs minimal benefit
+- Changes validation semantics (`implement.py:640` must check branches not worktrees)
+- Race conditions (WP02, WP03 both check "no other deps" then delete)
+- 20+ new tests for edge cases
+- Complex implementation vs minimal benefit
 
 **Critical edge cases:**
 
@@ -159,17 +159,17 @@ Timeline:
 Provide `spec-kitty cleanup-worktrees` for user-triggered cleanup.
 
 **Pros:**
-* User control over disk usage
-* Can cleanup specific worktrees or all
-* No automatic behavior (explicit intent)
-* Safe (user decides when ready)
+- User control over disk usage
+- Can cleanup specific worktrees or all
+- No automatic behavior (explicit intent)
+- Safe (user decides when ready)
 
 **Cons:**
-* Extra command to learn and remember
-* No automatic cleanup (relies on user discipline)
-* Still accumulates worktrees (most users won't use)
-* Doesn't solve disk usage problem (users forget)
-* Additional implementation complexity
+- Extra command to learn and remember
+- No automatic cleanup (relies on user discipline)
+- Still accumulates worktrees (most users won't use)
+- Doesn't solve disk usage problem (users forget)
+- Additional implementation complexity
 
 ## More Information
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
 import functools
 import json
-import os
 import re
 import subprocess
 from collections.abc import Iterable
@@ -27,7 +26,11 @@ from specify_cli.core.vcs import VCSBackend
 from specify_cli.mission_metadata import resolve_mission_identity, set_vcs_lock
 from specify_cli.frontmatter import FrontmatterError, update_fields
 from specify_cli.git import safe_commit
-from specify_cli.git.commit_helpers import protected_branches
+from specify_cli.git.commit_helpers import (
+    _operator_protected_branch_hatch_active,
+    protected_branches,
+)
+from mission_runtime import CommitTarget, CommitTargetKind
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
 from specify_cli.coordination.status_transition import emit_status_transition_transactional
@@ -47,7 +50,9 @@ _WP_ID_RE = re.compile(r"^WP\d{2}$", re.IGNORECASE)
 
 
 def _protected_branch_status_commit_error(branch: str, repo_root: Path) -> str | None:
-    if os.environ.get("SPEC_KITTY_TEST_MODE", "").lower() in {"1", "true", "yes"}:
+    # The ONE documented ambient waiver is the operator escape hatch
+    # (solo-fork operators who own ``main``) — never the test-mode env.
+    if _operator_protected_branch_hatch_active():
         return None
     if branch not in protected_branches(repo_root):
         return None
@@ -162,8 +167,23 @@ def detect_feature_context(
 
 
 def find_wp_file(repo_root: Path, mission_slug: str, wp_id: str) -> Path:
-    """Find the markdown file for a work package."""
-    tasks_dir = resolve_feature_dir_for_mission(repo_root, mission_slug) / "tasks"
+    """Find the markdown file for a work package.
+
+    WP05 / FR-003 (coord-topology regression fix): WP prompt files under
+    ``tasks/`` are authored on the PRIMARY checkout (``mission_creation`` writes
+    the mission dir there and the ``tasks`` step appends beside it). On a
+    coordination-topology mission finalize-tasks commits a COPY of those files
+    onto the coordination branch, but a freshly-resolved ``find_wp_file`` runs
+    before the lane worktree is allocated and must locate the authored prompt on
+    the surface that always carries it. The topology-aware
+    ``resolve_feature_dir_for_mission`` selects the coordination worktree once
+    one exists, which need not carry every authored prompt — so anchor the
+    WP-file read on the primary surface, consistent with finalize-tasks and
+    ``mission_runtime.resolve_placement_only``.
+    """
+    from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+
+    tasks_dir = primary_feature_dir_for_mission(repo_root, mission_slug) / "tasks"
     if not tasks_dir.exists():
         raise FileNotFoundError(f"Tasks directory not found: {tasks_dir}")
 
@@ -322,14 +342,37 @@ def _print_planning_artifact_commit_instructions(
 def _resolve_bookkeeping_transaction_identifiers(
     feature_dir: Path,
     mission_slug: str,
+    repo_root: Path | None = None,
 ) -> tuple[str | None, str | None, str | None, str, str]:
     from specify_cli.mission_metadata import load_meta as _load_meta
 
-    mission_meta: dict[str, Any] | None
-    try:
-        mission_meta = _load_meta(feature_dir)
-    except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
-        mission_meta = None
+    # FR-003 cascade layer 1: ``coordination_branch`` / ``mission_id`` / ``mid8``
+    # live ONLY in the PRIMARY-checkout meta.json; the coord worktree's mission
+    # dir has none. ``feature_dir`` is topology-aware and prefers the coord
+    # worktree once materialized — reading meta there returns empty, so every
+    # identifier silently fell back to the slug (``mid8`` -> ``<slug>0000``),
+    # which then names a non-existent coord branch/worktree at claim time
+    # ("Failed to resolve coordination worktree for <slug>-<slug-fallback>").
+    # Anchor the config read on the canonical primary dir first (the caller
+    # threads the true main ``repo_root``), before falling back to the passed
+    # dir, so config is read before topology is resolved.
+    mission_meta: dict[str, Any] | None = None
+    if repo_root is not None:
+        from specify_cli.missions._read_path_resolver import (
+            primary_feature_dir_for_mission,
+        )
+
+        try:
+            mission_meta = _load_meta(
+                primary_feature_dir_for_mission(repo_root, mission_slug)
+            )
+        except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
+            mission_meta = None
+    if mission_meta is None:
+        try:
+            mission_meta = _load_meta(feature_dir)
+        except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
+            mission_meta = None
 
     coord_branch: str | None = None
     mission_id: str | None = None
@@ -432,6 +475,56 @@ def _status_paths_for_commit(
     return _exclude_coord_owned((e.path for e in entries), coord_branch_for_filter)
 
 
+def _resolve_placement_ref(
+    repo_root: Path, *, mission_slug: str, wp_id: str
+) -> CommitTarget | None:
+    """Resolve the context's artifact-placement ref (C-PLACE-1 / IC-05).
+
+    Routes through the single canonical resolver (``resolve_action_context``,
+    C-CTX-1) and returns ``context.artifact_placement.placement_ref`` — the ONE
+    :class:`CommitTarget` that planning artifacts AND status events resolve to.
+    On any resolution failure it returns ``None`` so the caller keeps the legacy
+    meta-derived placement path (C-004 strangler: never break the implement
+    lifecycle on a context-resolution edge case).
+    """
+    from mission_runtime import (
+        ActionContextError,
+        resolve_action_context,
+    )
+
+    try:
+        context = resolve_action_context(
+            repo_root,
+            action="implement",
+            feature=mission_slug,
+            wp_id=wp_id,
+        )
+    except ActionContextError:
+        return None
+    placement = context.artifact_placement
+    return placement.placement_ref if placement is not None else None
+
+
+def _placement_coord_filter(placement_ref: CommitTarget | None) -> str | None:
+    """Return the coord-owned-exclusion ref implied by the context placement.
+
+    WP06 / T019 / C-PLACE-1: the coord/flattened/primary decision is read from
+    the context's single ``placement_ref`` (the SAME CommitTarget status events
+    resolve to) instead of independent meta.json/git logic (C-005). Only a
+    genuine *coordination* topology owns the status files on a separate branch
+    and therefore excludes them from the primary-checkout commit; under
+    flattened topology (``kind == FLATTENED``) there is no primary↔coord split,
+    so the primary status files are NOT filtered out — fixing the #1816
+    implement-claim deadlock that arose from treating a flattened mission as
+    coord-split. Returns ``None`` for flattened/primary topologies.
+    """
+    if placement_ref is None:
+        return None
+    if placement_ref.kind is CommitTargetKind.COORDINATION:
+        return placement_ref.ref
+    return None
+
+
 def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestration helper; unrelated to issue #1386
     repo_root: Path,
     feature_dir: Path,
@@ -440,8 +533,17 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     planning_branch: str,
     *,
     auto_commit: bool,
+    placement_ref: CommitTarget | None = None,
 ) -> None:
-    """Ensure planning artifacts are committed on the feature planning branch."""
+    """Ensure planning artifacts are committed on the feature planning branch.
+
+    ``placement_ref`` (WP06 / T019) is the context's resolved
+    :class:`CommitTarget` — the ONE ref planning artifacts AND status events
+    resolve to (C-PLACE-1). When supplied it drives the coord/flattened/primary
+    placement decision so implement-claim never reconciles a primary↔coord
+    split (#1816). When ``None`` (callers not yet threading the context, C-004
+    strangler) the legacy meta-derived path is used unchanged.
+    """
     current_branch = _git_stdout(repo_root, ["rev-parse", "--abbrev-ref", "HEAD"])
     entries = _feature_dir_status_entries(repo_root, feature_dir)
 
@@ -467,9 +569,16 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
         )
         raise typer.Exit(1)
 
-    coord_branch_for_filter = _resolve_bookkeeping_transaction_identifiers(
-        feature_dir, mission_slug
-    )[0]
+    # WP06 / T019 / C-PLACE-1: when the context supplies a placement ref, the
+    # coord/flattened/primary decision comes from that single CommitTarget — no
+    # independent meta-derived coord logic (C-005). Otherwise fall back to the
+    # legacy meta-derived coord branch (C-004 strangler).
+    if placement_ref is not None:
+        coord_branch_for_filter = _placement_coord_filter(placement_ref)
+    else:
+        coord_branch_for_filter = _resolve_bookkeeping_transaction_identifiers(
+            feature_dir, mission_slug, repo_root
+        )[0]
 
     status_paths = _status_paths_for_commit(entries, coord_branch_for_filter)
     files_to_commit = list(status_paths)
@@ -522,7 +631,19 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
         mid8,
         effective_mission_id,
         effective_mid8,
-    ) = _resolve_bookkeeping_transaction_identifiers(feature_dir, mission_slug)
+    ) = _resolve_bookkeeping_transaction_identifiers(
+        feature_dir, mission_slug, repo_root
+    )
+
+    # WP06 / T019 / C-PLACE-1: the placement destination is the context's single
+    # ``placement_ref`` when threaded — one ref for planning artifacts AND status
+    # events. Under flattened topology its ``kind`` is FLATTENED (no coord
+    # branch), so ``coord_branch`` collapses to ``None`` and the commit lands on
+    # ``planning_branch`` (== target == coordination); under coordination
+    # topology it is the coord ref. Identity (``mission_id`` / ``mid8``) is
+    # unaffected — only the placement decision moves to the context (C-005).
+    if placement_ref is not None:
+        coord_branch = _placement_coord_filter(placement_ref)
 
     # Route ALL planning-artifact commits through BookkeepingTransaction.
     # The transaction has a built-in legacy fallback (see
@@ -784,6 +905,23 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
         if not (feature_dir / "meta.json").exists():
             feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+        # FR-003 cascade layer 1: meta.json lives ONLY on the PRIMARY checkout —
+        # the coord worktree's mission dir never carries it. Both resolvers above
+        # are topology-aware and prefer the coord worktree once materialized, so
+        # ``feature_dir`` lands on a meta-less coord dir and every downstream
+        # meta read (``_ensure_vcs_in_meta``, identity resolution) fails with
+        # "meta.json not found". When the resolved dir lacks meta, anchor on the
+        # canonical primary dir so config is readable before topology is
+        # resolved. (The coord surface stays authoritative for STATUS reads,
+        # which route through the canonical surface authority, not this dir.)
+        if not (feature_dir / "meta.json").exists():
+            from specify_cli.missions._read_path_resolver import (
+                primary_feature_dir_for_mission,
+            )
+
+            primary_candidate = primary_feature_dir_for_mission(repo_root, mission_slug)
+            if (primary_candidate / "meta.json").exists():
+                feature_dir = primary_candidate
         wp_file = find_wp_file(repo_root, mission_slug, wp_id)
         declared_deps = parse_wp_dependencies(wp_file)
         tracker.complete("detect", f"Feature: {mission_slug}")
@@ -806,12 +944,20 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
 
         from specify_cli.status import reduce as _reduce_events
         from specify_cli.status import read_events as _read_events
-        from specify_cli.missions._read_path_resolver import resolve_mission_read_path as _resolve_read_path
-        from specify_cli.lanes.branch_naming import mid8_from_slug as _mid8_from_slug
+        from specify_cli.coordination.surface_resolver import (
+            resolve_status_surface_with_anchor as _resolve_status_surface,
+        )
 
-        _mid8 = _mid8_from_slug(mission_slug)
-
-        _status_feature_dir = _resolve_read_path(repo_root, mission_slug, _mid8)
+        # FR-003 layer 4: read WP-lane status through the SAME canonical,
+        # config-determined surface authority the status WRITE path
+        # (coordination/status_transition) uses, never a second ad-hoc
+        # resolution. resolve_mission_read_path derived its own coord
+        # preference from a slug-derived mid8 (empty for bare slugs), so in the
+        # planning→implement window the read landed on a different surface than
+        # the write and saw genesis ("WP not finalized"). The anchor authority
+        # derives mid8 from meta and carries the fail-closed coord semantics
+        # (StatusReadPathNotFound) — one authority, C-STAT-1.
+        _status_feature_dir = _resolve_status_surface(repo_root, mission_slug).read_dir
 
         _wp_lanes = {
             _wp_id: _state.get("lane", Lane.GENESIS)
@@ -836,6 +982,16 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                 "all dependencies must be approved or done before implementation can start"
             )
 
+        # WP06 / T019 / C-PLACE-1: resolve the single artifact-placement ref from
+        # the canonical context so implement-claim never reconciles a
+        # primary↔coord planning-artifact split (#1816). The placement ref is the
+        # SAME CommitTarget status events resolve to. Resolution is best-effort:
+        # on a context-resolution error we pass ``None`` and the helper keeps the
+        # legacy meta-derived path (C-004 strangler — never break the lifecycle).
+        _placement_ref = _resolve_placement_ref(
+            repo_root, mission_slug=mission_slug, wp_id=wp_id
+        )
+
         _ensure_planning_artifacts_committed_git(
             repo_root=repo_root,
             feature_dir=feature_dir,
@@ -843,6 +999,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
             wp_id=wp_id,
             planning_branch=planning_branch,
             auto_commit=bool(auto_commit),
+            placement_ref=_placement_ref,
         )
 
         # Bulk edit occurrence classification gate (FR-006)
@@ -1048,7 +1205,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                     safe_commit(
                         repo_root=repo_root,
                         worktree_root=repo_root,
-                        destination_ref=_cur_branch,
+                        target=CommitTarget(ref=_cur_branch, kind=CommitTargetKind.PRIMARY),
                         message=commit_msg,
                         paths=tuple(files_to_commit),
                     )

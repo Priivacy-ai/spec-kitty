@@ -14,9 +14,11 @@ Terminology note:
 - The `agent feature` command group remains a legacy compatibility alias; tracked-mission selectors are documented canonically as `--mission`
 
 ## Getting Started
+
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## Practical Usage
+
 - [Use the Dashboard](../how-to/use-dashboard.md)
 - [Non-Interactive Init](../how-to/non-interactive-init.md)
 

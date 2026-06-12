@@ -179,11 +179,6 @@ def read_event_log(contract: EventLogReadContract) -> list[StatusEvent]:
     raise StatusContractError(f"unsupported status read source: {contract.source}")
 
 
-def read_wp_lane_actor(contract: EventLogReadContract, wp_id: str) -> tuple[Lane, str | None]:
-    """Read a WP lane/actor snapshot from an explicit read contract."""
-    return wp_lane_actor_from_events(read_event_log(contract), wp_id)
-
-
 def wp_lane_actor_from_events(
     events: list[StatusEvent],
     wp_id: str,
@@ -219,19 +214,6 @@ def append_event_log(contract: EventLogWriteContract, event: StatusEvent) -> Non
         raise StatusContractError("append_event_log requires EventLogWriteContract")
     _validate_write_contract(contract)
     _store.append_event_verified(contract.feature_dir, event)
-
-
-def append_event_log_batch(
-    contract: EventLogWriteContract,
-    events: list[StatusEvent],
-) -> None:
-    """Append event batch using an explicit mutating contract."""
-    from specify_cli.status import store as _store
-
-    if not isinstance(contract, EventLogWriteContract):
-        raise StatusContractError("append_event_log_batch requires EventLogWriteContract")
-    _validate_write_contract(contract)
-    _store.append_events_atomic_verified(contract.feature_dir, events)
 
 
 def _validate_write_contract(contract: EventLogWriteContract) -> None:
@@ -295,13 +277,8 @@ def merge_append_preserving_coordination_event_log_bytes(
 __all__ = [
     "EventLogReadContract",
     "EventLogWriteContract",
-    "EventLogWriteTarget",
-    "StatusContractError",
-    "StatusReadSource",
     "append_event_log",
-    "append_event_log_batch",
     "merge_append_preserving_coordination_event_log_bytes",
     "read_event_log",
-    "read_wp_lane_actor",
     "wp_lane_actor_from_events",
 ]

@@ -34,17 +34,17 @@ The still-open #391 children are **structural module-extraction refactors**, not
 
 ## Decision Drivers
 
-* **Release-scope discipline.** #822 anti-scope is explicit: stabilization missions must not absorb structural work without a current release-blocking repro tying the refactor to a symptom on the blocker list.
-* **Regression-confidence isolation.** Co-resident P1 bug fixes and large module moves inflate the diff surface and weaken bisection / review confidence for the bug fixes specifically.
-* **Precedent.** The shared-package-boundary cutover mission (`shared-package-boundary-cutover-01KQ22DS`, 2026-04-25) established the pattern of doing module-boundary work as a discrete mission with its own architectural-enforcement tests — not as a side WP of a bug-fix mission.
-* **Partial supersession.** The shared-package-boundary cutover already enforces the runtime/events/tracker boundary architecturally (see `tests/architectural/test_shared_package_boundary.py`), which means #612 is at minimum partially superseded; its remaining scope needs re-evaluation before it can be planned, not bundled.
-* **No current repro on the bug queue.** None of #612 / #613 / #614 appears on any current open `bug` issue's repro chain as a contributing cause.
+- **Release-scope discipline.** #822 anti-scope is explicit: stabilization missions must not absorb structural work without a current release-blocking repro tying the refactor to a symptom on the blocker list.
+- **Regression-confidence isolation.** Co-resident P1 bug fixes and large module moves inflate the diff surface and weaken bisection / review confidence for the bug fixes specifically.
+- **Precedent.** The shared-package-boundary cutover mission (`shared-package-boundary-cutover-01KQ22DS`, 2026-04-25) established the pattern of doing module-boundary work as a discrete mission with its own architectural-enforcement tests — not as a side WP of a bug-fix mission.
+- **Partial supersession.** The shared-package-boundary cutover already enforces the runtime/events/tracker boundary architecturally (see `tests/architectural/test_shared_package_boundary.py`), which means #612 is at minimum partially superseded; its remaining scope needs re-evaluation before it can be planned, not bundled.
+- **No current repro on the bug queue.** None of #612 / #613 / #614 appears on any current open `bug` issue's repro chain as a contributing cause.
 
 ## Considered Options
 
-* **(A) Defer all three** to a post-3.2 boundary-cleanup mission.
-* **(B) Accept a narrowed subset** with a current repro tying it to a release blocker — that subset would still need its own mission, not co-resident WPs.
-* **(C) Fold all three into the 3.2.x review/merge gate-hardening mission as additional WPs.**
+- **(A) Defer all three** to a post-3.2 boundary-cleanup mission.
+- **(B) Accept a narrowed subset** with a current repro tying it to a release blocker — that subset would still need its own mission, not co-resident WPs.
+- **(C) Fold all three into the 3.2.x review/merge gate-hardening mission as additional WPs.**
 
 ## Decision Outcome
 
@@ -54,28 +54,28 @@ The still-open #391 children are **structural module-extraction refactors**, not
 
 #### Positive
 
-* The 3.2.x mission keeps a tight bug-fix surface (WP01–WP06) with clean per-WP regression isolation.
-* Mission review can attest to release-blocker closure without entangled module-move review.
-* #612 in particular gets re-scoped *after* the shared-package-boundary cutover's enforcement tests, which is a cleaner planning input than the original 2026-04 framing.
-* Future operators reading #391 see an explicit deferral record rather than silent omission.
+- The 3.2.x mission keeps a tight bug-fix surface (WP01–WP06) with clean per-WP regression isolation.
+- Mission review can attest to release-blocker closure without entangled module-move review.
+- #612 in particular gets re-scoped *after* the shared-package-boundary cutover's enforcement tests, which is a cleaner planning input than the original 2026-04 framing.
+- Future operators reading #391 see an explicit deferral record rather than silent omission.
 
 #### Negative
 
-* The #391 epic remains formally open and continues to accrue staleness signal until the post-3.2 boundary-cleanup mission is scheduled.
-* Operators expecting "just one more cleanup pass" will see the deferral and may push to revisit — owner needs a short answer ready ("post-3.2, separate mission, see ADR 2026-05-11-1").
+- The #391 epic remains formally open and continues to accrue staleness signal until the post-3.2 boundary-cleanup mission is scheduled.
+- Operators expecting "just one more cleanup pass" will see the deferral and may push to revisit — owner needs a short answer ready ("post-3.2, separate mission, see ADR 2026-05-11-1").
 
 #### Neutral
 
-* No code is modified by this decision.
-* The deferred tickets remain in the GitHub backlog with their existing labels.
+- No code is modified by this decision.
+- The deferred tickets remain in the GitHub backlog with their existing labels.
 
 ### Confirmation
 
 This decision is correct if, after the 3.2.x review/merge gate-hardening mission lands:
 
-* No P1 bug closed by the mission relies on logic the deferred refactors would have moved.
-* The 3.2.x mission's review report (per WP03's new contract) does not record any structural-extraction findings as deferred risk.
-* A follow-up planning pass against #391 can re-scope #612/#613/#614 on top of the now-enforced shared-package boundary without rework against this mission's diff.
+- No P1 bug closed by the mission relies on logic the deferred refactors would have moved.
+- The 3.2.x mission's review report (per WP03's new contract) does not record any structural-extraction findings as deferred risk.
+- A follow-up planning pass against #391 can re-scope #612/#613/#614 on top of the now-enforced shared-package boundary without rework against this mission's diff.
 
 If those signals hold, the deferral preserved release velocity without losing the underlying debt.
 
@@ -87,13 +87,13 @@ Push #612, #613, #614 to a post-3.2 boundary-cleanup mission with its own decomp
 
 **Pros:**
 
-* Aligns with #822 anti-scope literally.
-* Preserves bisection confidence on the P1 bug fixes.
-* Allows #612 to be re-framed after the already-enforced shared-package boundary.
+- Aligns with #822 anti-scope literally.
+- Preserves bisection confidence on the P1 bug fixes.
+- Allows #612 to be re-framed after the already-enforced shared-package boundary.
 
 **Cons:**
 
-* Leaves #391 open for at least one more release cycle.
+- Leaves #391 open for at least one more release cycle.
 
 ### (B) Accept narrowed subset
 
@@ -101,12 +101,12 @@ Pull only the sub-ticket(s) with a current release-blocking repro into a *separa
 
 **Pros:**
 
-* Honors the "if it blocks the release, ship the cleanup" principle.
+- Honors the "if it blocks the release, ship the cleanup" principle.
 
 **Cons:**
 
-* No current repro qualifies any of #612/#613/#614 today; the option is hypothetical at best.
-* Running two missions in parallel adds coordination cost (worktree contention, merge ordering) for no observed benefit.
+- No current repro qualifies any of #612/#613/#614 today; the option is hypothetical at best.
+- Running two missions in parallel adds coordination cost (worktree contention, merge ordering) for no observed benefit.
 
 ### (C) Fold all three into the 3.2.x mission
 
@@ -114,17 +114,17 @@ Add #612/#613/#614 as additional WPs on the current branch.
 
 **Pros:**
 
-* One mission closes one more epic.
+- One mission closes one more epic.
 
 **Cons:**
 
-* Directly violates #822 anti-scope.
-* Inflates diff surface; weakens regression confidence on WP01–WP06.
-* Mixes two reviewer skill sets (bug-fix review vs. structural-extraction review) in one approval gate.
-* Increases merge-conflict risk in `src/specify_cli/`.
+- Directly violates #822 anti-scope.
+- Inflates diff surface; weakens regression confidence on WP01–WP06.
+- Mixes two reviewer skill sets (bug-fix review vs. structural-extraction review) in one approval gate.
+- Increases merge-conflict risk in `src/specify_cli/`.
 
 ## More Information
 
-* Canonical mission this ADR is attached to: [`kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md`](../../kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md)
-* Precedent for discrete module-boundary missions: [`architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md`](../2.x/adr/2026-04-25-1-shared-package-boundary.md)
-* Architectural enforcement tests that partially supersede #612: `tests/architectural/test_shared_package_boundary.py`
+- Canonical mission this ADR is attached to: [`kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md`](../../kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md)
+- Precedent for discrete module-boundary missions: [`architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md`](../2.x/adr/2026-04-25-1-shared-package-boundary.md)
+- Architectural enforcement tests that partially supersede #612: `tests/architectural/test_shared_package_boundary.py`

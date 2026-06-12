@@ -31,6 +31,7 @@ from specify_cli.sync.daemon import (
     DAEMON_PORT_MAX_ATTEMPTS,
     DAEMON_PORT_START,
     DAEMON_STATE_FILE,
+    _fetch_health_payload,
     _parse_daemon_file,
 )
 
@@ -106,22 +107,19 @@ def _port_is_listening(port: int, *, timeout_s: float = _CONNECT_PROBE_TIMEOUT_S
 
 
 def _probe_health(port: int) -> dict[str, Any] | None:
-    """Issue ``GET /api/health`` and return the parsed JSON dict, or ``None`` on any failure."""
-    url = f"http://127.0.0.1:{port}/api/health"
-    try:
-        with urllib.request.urlopen(url, timeout=_HEALTH_PROBE_TIMEOUT_S) as response:  # nosec B310 - URL is always 127.0.0.1 in the reserved daemon range.
-            if response.status != 200:
-                return None
-            payload = response.read()
-    except OSError:
-        return None
+    """Issue ``GET /api/health`` and return the parsed JSON dict, or ``None`` on any failure.
 
-    try:
-        data = json.loads(payload.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        return None
-
-    return data if isinstance(data, dict) else None
+    Delegates the localhost GET + JSON decode to the canonical
+    ``specify_cli.sync.daemon._fetch_health_payload`` (FR-015 / SC-7: one
+    localhost health-probe across ``sync/`` + ``dashboard/``).
+    """
+    payload = _fetch_health_payload(
+        f"http://127.0.0.1:{port}/api/health",
+        timeout=_HEALTH_PROBE_TIMEOUT_S,
+    )
+    # Narrow the canonical helper's `Any` (daemon.py is partially typed via a
+    # pre-existing Popen issue) back to this function's declared contract.
+    return payload if isinstance(payload, dict) else None
 
 
 def _is_spec_kitty_daemon(payload: dict[str, Any]) -> bool:
@@ -235,13 +233,6 @@ def _http_shutdown_no_token(port: int) -> None:
         return
 
 
-def _port_closed_after_process_disappeared(port: int) -> tuple[bool, str | None]:
-    """Handle races where the process exits between discovery and escalation."""
-    if _wait_for_port_close(port, timeout_s=_TERMINATE_WAIT_S):
-        return True, None
-    return False, "process_gone_but_port_still_listening"
-
-
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -308,59 +299,52 @@ def enumerate_orphans() -> list[OrphanDaemon]:
 
 
 def _sweep_one(orphan: OrphanDaemon) -> tuple[bool, str | None]:
-    """Try to terminate a single orphan. Returns ``(swept, failure_reason)``.
+    """Try to terminate a single port-discovered orphan. Returns ``(swept, reason)``.
 
-    Escalation order:
+    This is the *port-scan* sweep surface (the auth-doctor ``--reset`` path).
+    Its success criterion is **port close** (the daemon stops listening), which
+    differs from the process-exit criterion of the canonical
+    ``owner._sweep_daemon_process``. Escalation order:
 
     1. HTTP shutdown (POST /api/shutdown, no token). Pre-token daemons may
-       comply; modern daemons return 403 and we fall through.
-    2. ``psutil.Process(pid).terminate()`` — wait up to 1 s for the port to free.
-    3. ``psutil.Process(pid).kill()``      — wait up to 1 s for the port to free.
+       comply; modern daemons return 403 and we fall through. (Port-scan only;
+       the canonical reaper has no HTTP step.)
+    2. Signal escalation (terminate → kill) delegated to the single canonical
+       kill path ``owner._sweep_daemon_process`` (FR-015 / SC-7), then confirm
+       the port has actually closed.
 
-    If ``orphan.pid`` is ``None``, only step 1 is attempted; failure reason
+    If ``orphan.pid`` is ``None``, only step 1 is attempted; a failure reason
     is recorded if the port survives.
     """
-    # Step 1: HTTP shutdown (best-effort, no token).
+    from specify_cli.sync.owner import _sweep_daemon_process
+
+    # Step 1: HTTP shutdown (best-effort, no token) — port-scan-specific.
     _http_shutdown_no_token(orphan.port)
     if _wait_for_port_close(orphan.port, timeout_s=_TERMINATE_WAIT_S):
         return True, None
 
-    # Steps 2 & 3 require a PID.
+    # Step 2 requires a PID.
     if orphan.pid is None:
         return False, "no_pid_after_http_shutdown_failed"
 
-    try:
-        proc = psutil.Process(orphan.pid)
-    except psutil.NoSuchProcess:
-        # Process vanished between health-probe and now; the port may already
-        # be free (race with self-retirement tick).
-        return _port_closed_after_process_disappeared(orphan.port)
-    except psutil.AccessDenied:
-        return False, "access_denied_opening_process"
+    # Signal escalation via the canonical single kill path.
+    reaped, reason = _sweep_daemon_process(
+        orphan.pid,
+        terminate_wait_s=_TERMINATE_WAIT_S,
+        kill_wait_s=_KILL_WAIT_S,
+    )
+    if not reaped:
+        # Confirm against the port too: the process may have exited even though
+        # the kill path could not prove it (or vice-versa).
+        if _wait_for_port_close(orphan.port, timeout_s=_PORT_POLL_INTERVAL_S):
+            return True, None
+        return False, reason or "port_still_listening_after_kill"
 
-    # Step 2: SIGTERM via psutil.
-    try:
-        proc.terminate()
-    except psutil.NoSuchProcess:
-        return _port_closed_after_process_disappeared(orphan.port)
-    except psutil.AccessDenied:
-        return False, "access_denied_on_terminate"
-
-    if _wait_for_port_close(orphan.port, timeout_s=_TERMINATE_WAIT_S):
-        return True, None
-
-    # Step 3: SIGKILL via psutil.
-    try:
-        proc.kill()
-    except psutil.NoSuchProcess:
-        return _port_closed_after_process_disappeared(orphan.port)
-    except psutil.AccessDenied:
-        return False, "access_denied_on_kill"
-
+    # Process is gone per the canonical sweep; confirm the listening socket
+    # has been released (preserves the port-close success contract).
     if _wait_for_port_close(orphan.port, timeout_s=_KILL_WAIT_S):
         return True, None
-
-    return False, "port_still_listening_after_kill"
+    return False, "process_gone_but_port_still_listening"
 
 
 def sweep_orphans(

@@ -114,6 +114,7 @@ class TestWrapWithDecisionGitLogCoordRouting:
             *,
             inner: Any,
             mission_id: str = "",
+            target: Any = None,
         ) -> Any:
             captured["worktree_root"] = worktree_root
             return inner  # return inner unchanged for simplicity
@@ -154,6 +155,7 @@ class TestWrapWithDecisionGitLogCoordRouting:
             *,
             inner: Any,
             mission_id: str = "",
+            target: Any = None,
         ) -> Any:
             captured["worktree_root"] = worktree_root
             return inner
@@ -211,6 +213,7 @@ class TestWrapWithDecisionGitLogCoordRouting:
             *,
             inner: Any,
             mission_id: str = "",
+            target: Any = None,
         ) -> Any:
             captured["worktree_root"] = worktree_root
             return inner

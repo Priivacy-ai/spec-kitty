@@ -47,7 +47,6 @@ This resolves the correct lane workspace for WP02 with WP01's changes already pr
 
 Task finalization folds multi-dependency work into a lane plan before implementation starts. Agents do not choose a primary dependency or manually merge sibling lane outputs to reconstruct the plan.
 
-
 ## Keeping Dependencies Updated
 
 When a dependency changes after you've started work, use `spec-kitty sync workspace` to update your workspace:

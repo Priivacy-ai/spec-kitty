@@ -17,17 +17,22 @@ Spec source: FR-019, FR-020, FR-021, C-012, C-016, NFR-007, NFR-008.
 
 from __future__ import annotations
 
-import os
 import subprocess
 from pathlib import Path
 
+from mission_runtime import CommitTarget, CommitTargetKind
 from specify_cli.coordination.types import (
     Allowed,
     GitChangeSet,
     PolicyVerdict,
     Refused,
 )
-from specify_cli.git.commit_helpers import protected_branches
+from specify_cli.core.commit_guard import ProtectionState
+from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
+from specify_cli.git.commit_helpers import (
+    _operator_protected_branch_hatch_active,
+    protected_branches,
+)
 
 
 def _normalize_ref(raw: str) -> str:
@@ -195,17 +200,25 @@ class WorkflowMutationPolicy:
                 ),
             )
 
-        # 4. Protected-branch check. Delegate to the existing helper so
-        # there is exactly one source of truth for which branches are
-        # protected.
+        # 4. Protected-branch check. The protection DECISION is the SK policy
+        # module's one decision (C-GUARD-1): delegate to ``commit_guard.evaluate``
+        # over the asserted-at-the-surface ``capability`` so the pre-flight gate
+        # and ``safe_commit`` agree on a single authority. The privilege is
+        # NEVER derived from env or message — the caller's capability carries it.
+        # The ONE retained operator escape hatch acts on the ProtectionState
+        # INPUT (the operator declares the branch unprotected for this repo),
+        # mirroring safe_commit's computation so the gate and the mechanism
+        # cannot disagree; ``evaluate`` itself stays environment-free.
         protected = protected_branches(repo_root)
-        if (
-            ref in protected
-            and not (
-                change_set.allow_protected_branch_in_test_mode
-                and os.environ.get("SPEC_KITTY_TEST_MODE", "").lower() in {"1", "true", "yes"}
-            )
-        ):
+        is_protected = (
+            not _operator_protected_branch_hatch_active() and ref in protected
+        )
+        guard_verdict = evaluate_commit_guard(
+            CommitTarget(ref=ref, kind=CommitTargetKind.COORDINATION),
+            ProtectionState(is_protected=is_protected),
+            change_set.capability,
+        )
+        if not guard_verdict.allowed:
             return Refused(
                 error_code="PROTECTED_BRANCH_REFUSED",
                 message=(

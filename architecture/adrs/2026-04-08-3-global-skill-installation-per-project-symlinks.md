@@ -147,5 +147,5 @@ Skills are always symlinks to the global installation. Copy fallback is not impl
 * **Related ADR:** ADR-F (2026-04-08-6) — Global agent commands supersede per-project copies (migration that resolves the double-prompt problem caused by the current per-project gap)
 * **Related ADR:** ADR-6 (2026-01-23-6) — Config-driven agent management
 * **Code locations:**
-  - `src/specify_cli/init.py` — skill installation logic
-  - `src/specify_cli/shims/generator.py` — shim/command file generation (distinct from skill installation)
+  * `src/specify_cli/init.py` — skill installation logic
+  * `src/specify_cli/shims/generator.py` — shim/command file generation (distinct from skill installation)

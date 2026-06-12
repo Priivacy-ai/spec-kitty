@@ -24,25 +24,25 @@
 
 Spec Kitty has 18 charter-content read sites across 8 modules under `src/charter/`. All of them use explicit `read_text(encoding="utf-8")` (1 site uses `errors="replace"`). There is **no centralized loader, no encoding-detection utility, and no `chardet`/`charset_normalizer` dependency in the project**. When content arrives in a non-UTF-8 encoding (Windows `cp1252` is the documented field case in #644), the system either decodes it incorrectly or fails with a `UnicodeDecodeError` — and corrupted text can then propagate through downstream artifacts before any check catches it.
 
-#822 imposes a hard constraint: this fix ships only if narrowed to **one** lifecycle chokepoint and **one** regression case. Mission spec NFR-004 hard-codes that constraint: WP06 may not modify >5 unrelated modules; if implementation reveals broader retrofit is needed, escalate — do not silently broaden scope.
+Issue 822 imposes a hard constraint: this fix ships only if narrowed to **one** lifecycle chokepoint and **one** regression case. Mission spec NFR-004 hard-codes that constraint: WP06 may not modify >5 unrelated modules; if implementation reveals broader retrofit is needed, escalate — do not silently broaden scope.
 
 The architectural question is: **where is the natural single chokepoint, and which subset of the 18 read sites does it cover without exceeding the NFR-004 budget?**
 
 ## Decision Drivers
 
-* **Ingest vs re-read distinction.** Encoding decisions belong at the **boundary where content first enters the charter subsystem** from an untrusted source (user keyboard, SaaS payload, user-supplied file). Re-reads of already-normalized files do not need encoding detection — they need to trust the prior normalization.
-* **NFR-004 (5-module budget).** A blanket `_io.py` wrapping all 18 read sites touches 8 modules and overruns the budget. The chokepoint must be at a higher abstraction layer.
-* **Provenance, not silent normalization.** When detection succeeds, the decision must be **recorded as metadata** (alongside the file or in a provenance log) so future readers can verify the contract. Silent re-encoding is a worse failure mode than the bug being fixed.
-* **Fail loud on ambiguity.** Mixed cp1252/UTF-8 content (a real field case where a single charter file contains both because of a copy/paste path) must fail with a diagnostic naming the file and the encodings observed. Silent "best guess" decoding is the bug.
-* **Reuse, not re-invention.** Python ecosystem already has `charset-normalizer` (pure-Python, no compiled deps) for this; adding it as a dependency is acceptable if HiC approves. Alternative: hand-roll a BOM + ASCII-vs-cp1252 detector, which is narrower but more code to maintain.
-* **Stable for the regression fixture.** The chokepoint must be reachable from a unit/integration test that hands it a `cp1252`-encoded payload and asserts either correct provenance + UTF-8 output, or a fail-loud diagnostic.
+- **Ingest vs re-read distinction.** Encoding decisions belong at the **boundary where content first enters the charter subsystem** from an untrusted source (user keyboard, SaaS payload, user-supplied file). Re-reads of already-normalized files do not need encoding detection — they need to trust the prior normalization.
+- **NFR-004 (5-module budget).** A blanket `_io.py` wrapping all 18 read sites touches 8 modules and overruns the budget. The chokepoint must be at a higher abstraction layer.
+- **Provenance, not silent normalization.** When detection succeeds, the decision must be **recorded as metadata** (alongside the file or in a provenance log) so future readers can verify the contract. Silent re-encoding is a worse failure mode than the bug being fixed.
+- **Fail loud on ambiguity.** Mixed cp1252/UTF-8 content (a real field case where a single charter file contains both because of a copy/paste path) must fail with a diagnostic naming the file and the encodings observed. Silent "best guess" decoding is the bug.
+- **Reuse, not re-invention.** Python ecosystem already has `charset-normalizer` (pure-Python, no compiled deps) for this; adding it as a dependency is acceptable if HiC approves. Alternative: hand-roll a BOM + ASCII-vs-cp1252 detector, which is narrower but more code to maintain.
+- **Stable for the regression fixture.** The chokepoint must be reachable from a unit/integration test that hands it a `cp1252`-encoded payload and asserts either correct provenance + UTF-8 output, or a fail-loud diagnostic.
 
 ## Considered Options
 
-* **(A) Centralize at the existing orchestrator `ensure_charter_bundle_fresh()` in `src/charter/sync.py:66`.** Add encoding detection there; other read sites stay as-is.
-* **(B) New `src/charter/_io.py :: load_charter_file()` wrapping all 18 read sites across 8 modules.** Full retrofit.
-* **(C) NARROWED — new `src/charter/_io.py :: load_charter_file()` applied only at the three ingest boundaries: interview save, sync ingest, and compile-from-user-input.** Re-read sites stay as-is. **(Architect Alphonso recommendation.)**
-* **(D) Single chokepoint at `ensure_charter_bundle_fresh()` only; defer interview-save and compile-input.** Smallest possible diff.
+- **(A) Centralize at the existing orchestrator `ensure_charter_bundle_fresh()` in `src/charter/sync.py:66`.** Add encoding detection there; other read sites stay as-is.
+- **(B) New `src/charter/_io.py :: load_charter_file()` wrapping all 18 read sites across 8 modules.** Full retrofit.
+- **(C) NARROWED — new `src/charter/_io.py :: load_charter_file()` applied only at the three ingest boundaries: interview save, sync ingest, and compile-from-user-input.** Re-read sites stay as-is. **(Architect Alphonso recommendation.)**
+- **(D) Single chokepoint at `ensure_charter_bundle_fresh()` only; defer interview-save and compile-input.** Smallest possible diff.
 
 ## Proposed Decision Outcome
 
@@ -80,25 +80,28 @@ The architectural question is: **where is the natural single chokepoint, and whi
 ### Consequences if approved
 
 #### Positive
-* The three external-trust boundaries of the charter subsystem now have an explicit, tested encoding contract.
-* `cp1252`-originated Windows charter content stops silently corrupting downstream artifacts (the documented #644 failure mode).
-* A `.encoding-provenance.jsonl` artifact gives operators an audit trail that proves what encoding was detected and when.
-* The re-read sites remain unchanged — *intentionally* — so the diff stays inside the NFR-004 budget and the broader audit can be re-scoped after 3.2.0 ships.
-* `CharterContent` becomes a reusable type for any future broader-audit work; this WP lays the type without forcing the audit.
+
+- The three external-trust boundaries of the charter subsystem now have an explicit, tested encoding contract.
+- `cp1252`-originated Windows charter content stops silently corrupting downstream artifacts (the documented #644 failure mode).
+- A `.encoding-provenance.jsonl` artifact gives operators an audit trail that proves what encoding was detected and when.
+- The re-read sites remain unchanged — *intentionally* — so the diff stays inside the NFR-004 budget and the broader audit can be re-scoped after 3.2.0 ships.
+- `CharterContent` becomes a reusable type for any future broader-audit work; this WP lays the type without forcing the audit.
 
 #### Negative
-* New dependency (`charset-normalizer`) — pure-Python, no compiled deps, MIT licensed; small additional install surface. **HiC must approve dependency addition** (see open sub-question).
-* `.encoding-provenance.jsonl` is a new artifact that nothing reads yet. It exists for the audit trail #644 requires; treating it as a current-consumer obligation would inflate scope.
+
+- New dependency (`charset-normalizer`) — pure-Python, no compiled deps, MIT licensed; small additional install surface. **HiC must approve dependency addition** (see open sub-question).
+- `.encoding-provenance.jsonl` is a new artifact that nothing reads yet. It exists for the audit trail #644 requires; treating it as a current-consumer obligation would inflate scope.
 
 #### Neutral
-* Re-read sites are intentionally left UTF-8-only; this is documented in the chokepoint's docstring and in the deferral comment on #644.
+
+- Re-read sites are intentionally left UTF-8-only; this is documented in the chokepoint's docstring and in the deferral comment on #644.
 
 ### Confirmation
 
-* Regression `test_encoding_chokepoint.py::test_cp1252_charter_compiles_cleanly` passes.
-* Regression `test_encoding_chokepoint.py::test_mixed_encoding_fails_loudly` raises `CHARTER_ENCODING_AMBIGUOUS`.
-* Manual smoke (one-off, documented in mission quickstart): a real Windows-authored charter with cp1252 smart quotes round-trips through `spec-kitty.charter` without character mangling, and `.encoding-provenance.jsonl` records the detection.
-* `grep -r "read_text" src/charter/` shows ≤5 modules touched by this WP's diff (NFR-004 check).
+- Regression `test_encoding_chokepoint.py::test_cp1252_charter_compiles_cleanly` passes.
+- Regression `test_encoding_chokepoint.py::test_mixed_encoding_fails_loudly` raises `CHARTER_ENCODING_AMBIGUOUS`.
+- Manual smoke (one-off, documented in mission quickstart): a real Windows-authored charter with cp1252 smart quotes round-trips through `spec-kitty.charter` without character mangling, and `.encoding-provenance.jsonl` records the detection.
+- `grep -r "read_text" src/charter/` shows ≤5 modules touched by this WP's diff (NFR-004 check).
 
 ## Pros and Cons of the Options
 
@@ -107,24 +110,24 @@ The architectural question is: **where is the natural single chokepoint, and whi
 Add encoding detection in the existing orchestrator only.
 
 **Pros:**
-* Truly single-site change.
-* Reuses existing orchestration boundary.
+- Truly single-site change.
+- Reuses existing orchestration boundary.
 
 **Cons:**
-* The orchestrator does **not** see interview-save content (the first persistence of user-typed input) nor user-supplied compile input. Two of the three documented #644 failure modes go uncovered.
-* The exploration found that `ensure_charter_bundle_fresh` "does NOT consolidate encoding" — adding it there would not even cover all reads the orchestrator currently triggers, because downstream modules re-read independently. Net effect: 1 site changed, several failure modes still possible.
+- The orchestrator does **not** see interview-save content (the first persistence of user-typed input) nor user-supplied compile input. Two of the three documented #644 failure modes go uncovered.
+- The exploration found that `ensure_charter_bundle_fresh` "does NOT consolidate encoding" — adding it there would not even cover all reads the orchestrator currently triggers, because downstream modules re-read independently. Net effect: 1 site changed, several failure modes still possible.
 
 ### (B) Full retrofit across all 18 read sites in 8 modules
 
 Wrap every `read_text` in the charter subsystem.
 
 **Pros:**
-* Uniform behavior; no "trusted internal re-read" exception to remember.
+- Uniform behavior; no "trusted internal re-read" exception to remember.
 
 **Cons:**
-* **Violates NFR-004** (8 modules > 5-module budget).
-* This is the broader audit #822 explicitly told us not to do here.
-* The 14 internal re-read sites do not need encoding detection — they need to trust the normalization contract. Wrapping them is busywork that inflates diff and review surface.
+- **Violates NFR-004** (8 modules > 5-module budget).
+- This is the broader audit #822 explicitly told us not to do here.
+- The 14 internal re-read sites do not need encoding detection — they need to trust the normalization contract. Wrapping them is busywork that inflates diff and review surface.
 
 ### (C) Narrowed three-ingest-site retrofit + new `_io.py`
 
@@ -139,12 +142,12 @@ Recommended above.
 Smallest possible diff.
 
 **Pros:**
-* Smallest review surface.
-* Only 2 modules touched.
+- Smallest review surface.
+- Only 2 modules touched.
 
 **Cons:**
-* Leaves interview-save (user-typed content on a `cp1252` console) and compile-from-user-input (the original #644 reproduction) uncovered.
-* The bug ships unfixed in its primary documented form.
+- Leaves interview-save (user-typed content on a `cp1252` console) and compile-from-user-input (the original #644 reproduction) uncovered.
+- The bug ships unfixed in its primary documented form.
 
 ## Resolved sub-questions (HiC, 2026-05-12)
 
@@ -251,8 +254,8 @@ This reframes the security/SBOM question significantly:
 
 ## More Information
 
-* Source bug body: [#644](https://github.com/Priivacy-ai/spec-kitty/issues/644)
-* Code references (read sites, all explicit `read_text(encoding="utf-8")` except one `errors="replace"` in `lint.py:258`):
+- Source bug body: [#644](https://github.com/Priivacy-ai/spec-kitty/issues/644)
+- Code references (read sites, all explicit `read_text(encoding="utf-8")` except one `errors="replace"` in `lint.py:258`):
   - `src/charter/compiler.py:594` (ingest — proposed retrofit)
   - `src/charter/sync.py:151` (ingest — proposed retrofit)
   - `src/charter/interview.py:283, 398` (ingest — proposed retrofit)
@@ -261,5 +264,5 @@ This reframes the security/SBOM question significantly:
   - `src/charter/language_scope.py:46` (re-read — deferred)
   - `src/charter/compact.py:135` (re-read — deferred)
   - `src/charter/neutrality/lint.py:258` (special — `errors="replace"`, deferred)
-* Mission spec FR-016 through FR-019 and NFR-004 in [`kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md`](../../kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md).
-* `charset-normalizer` package: [`https://pypi.org/project/charset-normalizer/`](https://pypi.org/project/charset-normalizer/)
+- Mission spec FR-016 through FR-019 and NFR-004 in [`kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md`](../../kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md).
+- `charset-normalizer` package: [`https://pypi.org/project/charset-normalizer/`](https://pypi.org/project/charset-normalizer/)

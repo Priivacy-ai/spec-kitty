@@ -11,6 +11,7 @@ import pytest
 
 from specify_cli.coordination.status_transition import (
     emit_status_transition_transactional,
+    read_current_wp_state_transactional,
     read_events_transactional,
 )
 from specify_cli.coordination.status_service import (
@@ -378,3 +379,76 @@ def test_transactional_read_falls_back_to_primary_when_coord_branch_deleted(repo
         repo_root=repo,
     )
     assert [e.event_id for e in events] == [seed.event_id]
+
+
+# ---------------------------------------------------------------------------
+# M6 error contract (PR #1850): the fail-closed surface refusal
+# (StatusReadPathNotFound — coord worktree root materialized, mission dir
+# absent) must never escape the transactional paths as a raw traceback. The
+# transaction identity anchors on the canonical primary dir the structured
+# refusal already carries; failures stay structured (Bookkeeping* errors).
+# ---------------------------------------------------------------------------
+
+
+def _materialize_coord_root_without_mission_dir(repo: Path) -> Path:
+    """The fail-closed window: coord worktree root exists, mission dir absent."""
+    coord_root = repo / ".worktrees" / f"{MISSION_DIRNAME}-coord"
+    coord_root.mkdir(parents=True)
+    return coord_root
+
+
+def _canonical_slug_request(repo: Path) -> TransitionRequest:
+    """Request carrying the canonical mission-dir name (what resolvers hand over)."""
+    return TransitionRequest(
+        feature_dir=repo / "kitty-specs" / MISSION_DIRNAME,
+        mission_slug=MISSION_DIRNAME,
+        wp_id="WP01",
+        to_lane="planned",
+        actor="m6-error-contract-test",
+        repo_root=repo,
+    )
+
+
+def test_transactional_read_survives_fail_closed_surface_refusal(repo: Path) -> None:
+    _materialize_coord_root_without_mission_dir(repo)
+
+    events = read_events_transactional(
+        feature_dir=repo / "kitty-specs" / MISSION_DIRNAME,
+        mission_slug=MISSION_DIRNAME,
+        repo_root=repo,
+    )
+
+    assert events == []
+
+
+def test_transactional_wp_state_read_survives_fail_closed_surface_refusal(
+    repo: Path,
+) -> None:
+    _materialize_coord_root_without_mission_dir(repo)
+
+    lane, actor = read_current_wp_state_transactional(
+        feature_dir=repo / "kitty-specs" / MISSION_DIRNAME,
+        mission_slug=MISSION_DIRNAME,
+        wp_id="WP01",
+        repo_root=repo,
+    )
+
+    assert lane == Lane.GENESIS
+    assert actor is None
+
+
+def test_transactional_emit_fail_closed_surface_refusal_stays_structured(
+    repo: Path,
+) -> None:
+    """The emit path refuses with a structured Bookkeeping error, not a raw leak.
+
+    The mkdir'd coord root is not a valid git worktree, so after identity
+    resolution succeeds the transaction refuses with its own structured
+    BOOKKEEPING_WORKTREE_MISSING error — never a raw StatusReadPathNotFound.
+    """
+    _materialize_coord_root_without_mission_dir(repo)
+
+    with pytest.raises(BookkeepingWorktreeMissing):
+        emit_status_transition_transactional(
+            _canonical_slug_request(repo), sync_dossier=False
+        )

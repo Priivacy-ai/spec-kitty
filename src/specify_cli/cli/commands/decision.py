@@ -57,11 +57,17 @@ _SAFE_SLUG_RE = _re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$")
 def _resolve_repo_root_and_slug(mission_handle: str) -> tuple[Path, str]:
     """Return ``(repo_root, mission_slug)`` for a mission handle.
 
-    The mission handle is treated as a mission_slug directly.  repo_root is
-    resolved by walking up from the current working directory looking for a
-    ``kitty-specs/`` directory.  If none is found, the current working directory
-    is returned as repo_root (allowing test fixtures to pass tmp_path directly
-    via environment).
+    The mission handle may be a full slug, a bare ``mid8``, a full ULID, or a
+    numeric prefix; it is canonicalized to the resolved mission directory's
+    name when that directory exists (F-001 — the same boundary pattern as the
+    agent ``_find_mission_slug`` helpers), so the slug persisted downstream
+    (decisions/index.json, the DM artifact, the DecisionPointOpened event) is
+    identical across handle forms. Handles that resolve to no existing mission
+    keep their raw form, preserving the historical MISSION_NOT_FOUND path.
+    repo_root is resolved by walking up from the current working directory
+    looking for a ``kitty-specs/`` directory.  If none is found, the current
+    working directory is returned as repo_root (allowing test fixtures to pass
+    tmp_path directly via environment).
 
     This keeps the CLI decoupled from the heavier context resolver while still
     supporting the standard project layout used by spec-kitty.
@@ -102,6 +108,14 @@ def _resolve_repo_root_and_slug(mission_handle: str) -> tuple[Path, str]:
             param_hint="'--mission'",
         )
 
+    # F-001: the resolver above canonicalizes mid8/ULID/numeric handles, so
+    # the resolved directory's NAME — not the raw operator handle — is the
+    # canonical mission slug persisted into decisions/index.json, the DM
+    # artifact, and the DecisionPointOpened event. For handles that do not
+    # resolve, the candidate path does not exist and the raw handle is kept
+    # so the service's MISSION_NOT_FOUND behaviour is unchanged.
+    if resolved.is_dir():
+        return repo_root, resolved.name
     return repo_root, mission_handle
 
 

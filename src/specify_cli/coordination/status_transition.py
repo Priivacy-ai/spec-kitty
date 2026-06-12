@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import cast
 
 from specify_cli.coordination.outbound import queue_saas_emission
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.coordination.status_service import (
     EventLogReadContract,
     read_event_log,
@@ -103,8 +104,124 @@ def _transaction_topology_available(identity: _TransactionIdentity, mission_slug
     )
 
 
+_WORKTREES_DIR_NAME = ".worktrees"
+
+
 def _is_coordination_feature_dir(feature_dir: Path) -> bool:
-    return ".worktrees" in feature_dir.parts
+    return _WORKTREES_DIR_NAME in feature_dir.parts
+
+
+def _is_coord_worktree_feature_dir(feature_dir: Path) -> bool:
+    """Return True only for paths inside a coordination (``-coord``) worktree.
+
+    Distinguishes a coordination worktree (authoritative status surface) from a
+    lane worktree (sparse-excluded, never a valid status anchor).
+    """
+    return any(
+        part == _WORKTREES_DIR_NAME for part in feature_dir.parts
+    ) and any(
+        ancestor.parent.name == _WORKTREES_DIR_NAME and ancestor.name.endswith("-coord")
+        for ancestor in (feature_dir, *feature_dir.parents)
+    )
+
+
+def _canonical_repo_root(feature_dir: Path, repo_root: Path) -> Path:
+    """Return the canonical (main-checkout) repo root for the status anchor.
+
+    The CWD-invariant primary feature-dir anchor must be composed from the
+    *main-checkout* repo root; deriving it from a lane-worktree root would
+    anchor status on a lane-local (sparse-excluded) surface. We therefore
+    canonicalize the root via the single worktree-pointer resolver. Coordination
+    worktree roots are returned as-is (they already are the authoritative
+    surface for their mission). Falls back to the supplied root when no
+    enclosing git repo is found (ad-hoc test fixtures built outside a worktree).
+    """
+    if _is_coordination_feature_dir(feature_dir):
+        return repo_root
+
+    from specify_cli.workspace.root_resolver import (  # noqa: PLC0415
+        WorkspaceRootNotFound,
+        resolve_canonical_root,
+    )
+
+    try:
+        canonical: Path = resolve_canonical_root(feature_dir)
+    except WorkspaceRootNotFound:
+        return repo_root
+    return canonical
+
+
+def _canonical_primary_feature_dir(
+    repo_root: Path, mission_slug: str, fallback: Path
+) -> Path:
+    """Resolve the CWD-invariant primary feature-dir anchor via the facade.
+
+    Consumes the single canonical authority (``candidate_feature_dir_for_mission``
+    — the coord-aware resolver that ``resolve_status_surface`` / ``MissionStatus``
+    are built on) so the primary anchor is identical whether the request
+    originates from a sparse lane worktree or the primary checkout. This is the
+    #1737 / F-007 root fix: the transaction-identity anchor no longer re-derives
+    where status lives from a CWD-dependent path, so an in-progress WP can no
+    longer be misread as ``genesis`` from a lane worktree.
+
+    Coordination topology resolution downstream
+    (``_read_contract_from_transaction_target``) still derives the coord path
+    from this anchor + ``meta.json``; we keep the anchor on the canonical primary
+    dir so that meta loading and coord-ref derivation remain intact (C-004).
+
+    Returns ``fallback`` (the canonicalized request dir) when no canonical
+    surface can be resolved — e.g. ad-hoc test fixtures or bootstrap windows
+    where ``meta.json`` is not yet present.
+    """
+    from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415
+        resolve_status_surface_with_anchor,
+    )
+    from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
+        StatusReadPathNotFound,
+    )
+    from specify_cli.missions.feature_dir_resolver import (  # noqa: PLC0415
+        candidate_feature_dir_for_mission,
+    )
+
+    def _fallback() -> Path:
+        # The request-derived fallback is only safe when it is the canonical
+        # coord surface or a non-worktree primary path. A *lane* ``.worktrees``
+        # path is a sparse-excluded surface that would both misread status and
+        # trip the primary-checkout read contract, so anchor on the canonical
+        # primary candidate instead (fail to the authority, never to the lane).
+        if _is_coord_worktree_feature_dir(fallback):
+            return fallback
+        if _WORKTREES_DIR_NAME in fallback.parts:
+            anchor: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
+            return anchor
+        return fallback
+
+    # FR-005 / #1821: resolve the canonical surface ONCE and consume the carried
+    # primary anchor. The previous code resolved the surface for validation,
+    # discarded it, then re-invoked candidate_feature_dir_for_mission — a second
+    # composition of the same path. Now both halves come from one resolution.
+    try:
+        resolved = resolve_status_surface_with_anchor(repo_root, mission_slug)
+    except FileNotFoundError:
+        # No meta.json at the canonical location: degrade to the request dir so
+        # ad-hoc fixtures and the create→first-write window keep working.
+        return _fallback()
+    except ValueError:
+        # Malformed meta — surface the canonical anchor anyway; downstream meta
+        # loading will report the same condition consistently.
+        malformed_anchor: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
+        return malformed_anchor
+    except StatusReadPathNotFound as exc:
+        # Fail-closed surface refusal (PR #1850 M6): the coord worktree root is
+        # materialized without the mission dir (#1589/#1821). The refusal
+        # protects status READERS from a stale primary surface; the transaction
+        # identity needs only the canonical primary anchor — which the
+        # structured error already carries (re-resolving via the candidate
+        # resolver would just re-raise). Coordination topology is still
+        # honoured downstream by ``_read_contract_from_transaction_target``.
+        refusal_anchor: Path = exc.primary_candidate
+        return refusal_anchor
+    return resolved.primary_anchor
 
 
 def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
@@ -112,11 +229,20 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
     if raw_feature_dir is None:
         raise TypeError("transactional status emit requires feature_dir/mission_dir")
 
-    feature_dir = canonicalize_feature_dir(raw_feature_dir)
-    repo_root = _repo_root_for_feature(feature_dir, request.repo_root)
     mission_slug = request.mission_slug or request._legacy_mission_slug
     if mission_slug is None:
         raise TypeError("transactional status emit requires mission_slug")
+
+    # #1737 / F-007: anchor the transaction identity on the CWD-invariant
+    # canonical primary feature dir resolved through the facade, instead of
+    # trusting the (CWD-dependent, existence-gated) canonicalize redirect alone.
+    canonical_feature_dir = canonicalize_feature_dir(raw_feature_dir)
+    interim_repo_root = _repo_root_for_feature(canonical_feature_dir, request.repo_root)
+    canonical_repo_root = _canonical_repo_root(canonical_feature_dir, interim_repo_root)
+    feature_dir = _canonical_primary_feature_dir(
+        canonical_repo_root, mission_slug, fallback=canonical_feature_dir
+    )
+    repo_root = request.repo_root or canonical_repo_root
 
     meta = load_meta(feature_dir)
 
@@ -368,7 +494,7 @@ def emit_status_transition_transactional(
     ensure_sync_daemon: bool = True,
     sync_dossier: bool = True,
     operation: str | None = None,
-    allow_protected_branch_in_test_mode: bool = False,
+    capability: GuardCapability = GuardCapability.STANDARD,
 ) -> StatusEvent:
     """Validate, append, commit, then fan out one status transition."""
     feature_dir = request.feature_dir or request.mission_dir
@@ -391,7 +517,7 @@ def emit_status_transition_transactional(
         mid8=identity.mid8,
         destination_ref=identity.destination_ref,
         operation=operation or f"status transition {request.wp_id}",
-        allow_protected_branch_in_test_mode=allow_protected_branch_in_test_mode,
+        capability=capability,
     ) as txn:
         mission_id_for_event = None if identity.mission_id.startswith("legacy-") else identity.mission_id
         from_lane = str(_emit._derive_from_lane(txn.feature_dir, request.wp_id))
@@ -440,7 +566,7 @@ def emit_status_transition_batch_transactional(
     ensure_sync_daemon: bool = True,
     sync_dossier: bool = True,
     operation: str | None = None,
-    allow_protected_branch_in_test_mode: bool = False,
+    capability: GuardCapability = GuardCapability.STANDARD,
 ) -> list[StatusEvent]:
     """Validate, append, commit, then fan out a same-WP transition batch."""
     if not requests:
@@ -469,7 +595,7 @@ def emit_status_transition_batch_transactional(
         mid8=identity.mid8,
         destination_ref=identity.destination_ref,
         operation=operation or f"status transition batch {first.wp_id}",
-        allow_protected_branch_in_test_mode=allow_protected_branch_in_test_mode,
+        capability=capability,
     ) as txn:
         mission_id_for_event = None if identity.mission_id.startswith("legacy-") else identity.mission_id
         from_lane = str(_emit._derive_from_lane(txn.feature_dir, first.wp_id))

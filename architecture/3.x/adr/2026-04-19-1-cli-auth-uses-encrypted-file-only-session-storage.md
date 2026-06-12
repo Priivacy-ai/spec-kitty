@@ -48,27 +48,27 @@ migrate or preserve keychain-backed local state. Developers can re-authenticate.
 
 ## Decision Drivers
 
-* **Keep the browser-auth product model** — the CLI continues to authenticate
+- **Keep the browser-auth product model** — the CLI continues to authenticate
   through the SaaS, not by collecting passwords locally.
-* **One durable local storage model on every OS** — macOS, Linux, and Windows
+- **One durable local storage model on every OS** — macOS, Linux, and Windows
   should all persist sessions the same way.
-* **No dependency on desktop credential infrastructure** — runtime auth must
+- **No dependency on desktop credential infrastructure** — runtime auth must
   work in terminals, SSH, CI-like shells, and long-lived background flows
   without keychain/credential-manager integration.
-* **Centralized token management remains mandatory** — callers still do not
+- **Centralized token management remains mandatory** — callers still do not
   read raw tokens directly.
-* **No backend-selection knob** — storage mode is a product decision, not a
+- **No backend-selection knob** — storage mode is a product decision, not a
   runtime preference.
-* **No migration layer** — stale local auth state may be discarded.
-* **Cross-platform predictability** — Linux and Windows are first-class targets,
+- **No migration layer** — stale local auth state may be discarded.
+- **Cross-platform predictability** — Linux and Windows are first-class targets,
   not macOS exceptions.
 
 ## Considered Options
 
-* **Option 1:** Keep browser-mediated OAuth but continue OS-keychain-first local storage
-* **Option 2:** Keep browser-mediated OAuth and move all persisted session storage to one encrypted file-backed store (chosen)
-* **Option 3:** Keep browser-mediated OAuth but store tokens in plaintext local files
-* **Option 4:** Introduce a signed native helper/app solely to stabilize keychain identity
+- **Option 1:** Keep browser-mediated OAuth but continue OS-keychain-first local storage
+- **Option 2:** Keep browser-mediated OAuth and move all persisted session storage to one encrypted file-backed store (chosen)
+- **Option 3:** Keep browser-mediated OAuth but store tokens in plaintext local files
+- **Option 4:** Introduce a signed native helper/app solely to stabilize keychain identity
 
 ## Decision Outcome
 
@@ -91,13 +91,13 @@ and one cross-platform behavior profile.
    file-backed store rooted at `Path.home() / ".spec-kitty" / "auth"` on all
    supported platforms.
 6. The canonical persisted files are:
-   * `~/.spec-kitty/auth/session.json`
-   * `~/.spec-kitty/auth/session.salt`
-   * `~/.spec-kitty/auth/session.lock`
+   - `~/.spec-kitty/auth/session.json`
+   - `~/.spec-kitty/auth/session.salt`
+   - `~/.spec-kitty/auth/session.lock`
 7. OS secret stores are not supported runtime backends for CLI auth:
-   * no macOS Keychain
-   * no Windows Credential Manager
-   * no Linux Secret Service / GNOME Keyring / KWallet
+   - no macOS Keychain
+   - no Windows Credential Manager
+   - no Linux Secret Service / GNOME Keyring / KWallet
 8. The encrypted file format continues to use AES-256-GCM with a scrypt-derived
    key and a random per-store salt.
 9. The scrypt passphrase remains bound to `f"{hostname}:{uid}"`; on platforms
@@ -112,28 +112,28 @@ and one cross-platform behavior profile.
 
 ### Positive
 
-* Browser auth remains the sole human login surface.
-* Password handling remains out of the CLI.
-* All supported platforms use the same persistence behavior.
-* Runtime and background paths no longer depend on OS credential daemons.
-* Support and troubleshooting simplify to one local-state model.
-* Test coverage can focus on one persistence mechanism instead of a backend
+- Browser auth remains the sole human login surface.
+- Password handling remains out of the CLI.
+- All supported platforms use the same persistence behavior.
+- Runtime and background paths no longer depend on OS credential daemons.
+- Support and troubleshooting simplify to one local-state model.
+- Test coverage can focus on one persistence mechanism instead of a backend
   matrix.
 
 ### Negative
 
-* The CLI no longer benefits from OS-native secret-store UX where those stores
+- The CLI no longer benefits from OS-native secret-store UX where those stores
   are well-behaved.
-* File-permission enforcement differs by platform; Windows cannot rely on the
+- File-permission enforcement differs by platform; Windows cannot rely on the
   same POSIX-mode checks used on Unix.
-* Existing mission-080 docs/tests that described keychain-backed behavior must
+- Existing mission-080 docs/tests that described keychain-backed behavior must
   be rewritten or removed.
 
 ### Neutral
 
-* This does not change the SaaS OAuth contract.
-* This does not introduce a machine/service-account auth model.
-* Host-owned persistence remains the rule; only the storage substrate changes.
+- This does not change the SaaS OAuth contract.
+- This does not introduce a machine/service-account auth model.
+- Host-owned persistence remains the rule; only the storage substrate changes.
 
 ## Confirmation
 
@@ -158,16 +158,16 @@ keystore when possible.
 
 **Pros:**
 
-* Reuses native OS facilities.
-* Avoids on-disk bearer-token ciphertext files on machines with a usable
+- Reuses native OS facilities.
+- Avoids on-disk bearer-token ciphertext files on machines with a usable
   keychain.
 
 **Cons:**
 
-* Reintroduces backend-specific behavior and support burden.
-* Performs badly for Python-launched CLI processes on macOS.
-* Keeps Linux and Windows tied to desktop credential services.
-* Leaves runtime behavior dependent on infrastructure the user may not expect.
+- Reintroduces backend-specific behavior and support burden.
+- Performs badly for Python-launched CLI processes on macOS.
+- Keeps Linux and Windows tied to desktop credential services.
+- Leaves runtime behavior dependent on infrastructure the user may not expect.
 
 ### Option 2: Encrypted file-only storage
 
@@ -176,14 +176,14 @@ the encrypted file-backed store under `~/.spec-kitty/auth/`.
 
 **Pros:**
 
-* One storage model across macOS, Linux, and Windows.
-* Predictable runtime behavior for background and non-interactive flows.
-* Simpler docs, tests, and recovery guidance.
+- One storage model across macOS, Linux, and Windows.
+- Predictable runtime behavior for background and non-interactive flows.
+- Simpler docs, tests, and recovery guidance.
 
 **Cons:**
 
-* Requires careful file-locking and permission handling.
-* Gives up OS-keychain integration entirely.
+- Requires careful file-locking and permission handling.
+- Gives up OS-keychain integration entirely.
 
 ### Option 3: Plaintext files
 
@@ -191,12 +191,12 @@ Persist renewable sessions in an unencrypted local file.
 
 **Pros:**
 
-* Simplest possible implementation.
+- Simplest possible implementation.
 
 **Cons:**
 
-* Unacceptable security posture for bearer and refresh credentials.
-* Rejected.
+- Unacceptable security posture for bearer and refresh credentials.
+- Rejected.
 
 ### Option 4: Signed helper for keychain stabilization
 
@@ -205,35 +205,35 @@ identity.
 
 **Pros:**
 
-* Could reduce macOS prompt friction.
+- Could reduce macOS prompt friction.
 
 **Cons:**
 
-* Solves only one platform symptom, not the broader product mismatch.
-* Adds packaging, signing, and distribution complexity.
-* Still leaves a multi-backend persistence model.
+- Solves only one platform symptom, not the broader product mismatch.
+- Adds packaging, signing, and distribution complexity.
+- Still leaves a multi-backend persistence model.
 
 ## More Information
 
 **This ADR supersedes and replaces:**
 
-* `2026-04-09-2-cli-saas-auth-is-browser-mediated-oauth-not-password.md`
+- `2026-04-09-2-cli-saas-auth-is-browser-mediated-oauth-not-password.md`
 
 **Issue lineage:**
 
-* [Priivacy-ai/spec-kitty#559](https://github.com/Priivacy-ai/spec-kitty/issues/559)
-* [Priivacy-ai/spec-kitty#562](https://github.com/Priivacy-ai/spec-kitty/issues/562)
-* [Priivacy-ai/spec-kitty#603](https://github.com/Priivacy-ai/spec-kitty/issues/603)
+- [Priivacy-ai/spec-kitty#559](https://github.com/Priivacy-ai/spec-kitty/issues/559)
+- [Priivacy-ai/spec-kitty#562](https://github.com/Priivacy-ai/spec-kitty/issues/562)
+- [Priivacy-ai/spec-kitty#603](https://github.com/Priivacy-ai/spec-kitty/issues/603)
 
 **Implementation seams this ADR governs:**
 
-* `src/specify_cli/auth/secure_storage/`
-* `src/specify_cli/auth/token_manager.py`
-* `src/specify_cli/auth/flows/authorization_code.py`
-* `src/specify_cli/auth/flows/device_code.py`
-* `src/specify_cli/cli/commands/_auth_status.py`
-* `src/specify_cli/tracker/saas_client.py`
-* `src/specify_cli/sync/client.py`
-* `src/specify_cli/sync/body_transport.py`
-* `src/specify_cli/sync/background.py`
-* `src/specify_cli/auth/websocket/token_provisioning.py`
+- `src/specify_cli/auth/secure_storage/`
+- `src/specify_cli/auth/token_manager.py`
+- `src/specify_cli/auth/flows/authorization_code.py`
+- `src/specify_cli/auth/flows/device_code.py`
+- `src/specify_cli/cli/commands/_auth_status.py`
+- `src/specify_cli/tracker/saas_client.py`
+- `src/specify_cli/sync/client.py`
+- `src/specify_cli/sync/body_transport.py`
+- `src/specify_cli/sync/background.py`
+- `src/specify_cli/auth/websocket/token_provisioning.py`

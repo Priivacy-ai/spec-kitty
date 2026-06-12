@@ -1,0 +1,91 @@
+{
+  "event_count": 70,
+  "last_event_id": "01KTT96N1QN78B6KYNY4N9YZQS",
+  "materialized_at": "2026-06-11T02:46:54.775767+00:00",
+  "mission_number": "130",
+  "mission_slug": "tooling-stability-guard-coherence-01KTRC04",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 10,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KTT96H579402S6HYSM796RZP",
+      "last_transition_at": "2026-06-11T02:46:50.791939+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KTT96KBJECKRZ91Z63D3J3W4",
+      "last_transition_at": "2026-06-11T02:46:53.042144+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KTT96KSAWMXB1DPYSGBFREH4",
+      "last_transition_at": "2026-06-11T02:46:53.482193+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KTT96M6YCSQT16XMZ8CVC3X6",
+      "last_transition_at": "2026-06-11T02:46:53.919014+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KTT96MMHTKSW00RSFYFNGS4R",
+      "last_transition_at": "2026-06-11T02:46:54.353892+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KTT96HN0WJXC9608GTJ5ESKW",
+      "last_transition_at": "2026-06-11T02:46:51.296729+00:00"
+    },
+    "WP07": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KTT96J2S3WQS7NHXQQZMP89P",
+      "last_transition_at": "2026-06-11T02:46:51.737746+00:00"
+    },
+    "WP08": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KTT96JG8S8HY1JW43K7YZ5R3",
+      "last_transition_at": "2026-06-11T02:46:52.168242+00:00"
+    },
+    "WP09": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KTT96JXNPCXYCB4MQ0QCE35Z",
+      "last_transition_at": "2026-06-11T02:46:52.597609+00:00"
+    },
+    "WP10": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KTT96N1QN78B6KYNY4N9YZQS",
+      "last_transition_at": "2026-06-11T02:46:54.775767+00:00"
+    }
+  }
+}

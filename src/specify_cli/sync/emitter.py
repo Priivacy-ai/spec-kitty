@@ -259,119 +259,118 @@ def _is_proof_subject(value: Any) -> bool:
     return subject_type in {"review", "pull_request"}
 
 
+_PROOF_ARTIFACT_REF_KINDS: frozenset[str] = frozenset(
+    {
+        "file",
+        "log",
+        "junit",
+        "coverage",
+        "report",
+        "url",
+        "commit",
+        "pull_request",
+        "benchmark",
+        "security_scan",
+        "other",
+    }
+)
+
+
+def _is_proof_artifact_ref(ref: Any) -> bool:
+    """Validate a single artifact-ref mapping."""
+    if not isinstance(ref, dict):
+        return False
+    if not isinstance(ref.get("uri"), str) or not ref.get("uri"):
+        return False
+    if ref.get("kind") not in _PROOF_ARTIFACT_REF_KINDS:
+        return False
+    sha256 = ref.get("sha256")
+    if sha256 is not None and not _is_sha256_hex(sha256):
+        return False
+    size_bytes = ref.get("size_bytes")
+    return not (size_bytes is not None and (not isinstance(size_bytes, int) or size_bytes < 0))
+
+
 def _is_proof_artifact_refs(value: Any) -> bool:
     if not isinstance(value, list) or len(value) > 20:
         return False
-    for ref in value:
-        if not isinstance(ref, dict):
-            return False
-        if not isinstance(ref.get("uri"), str) or not ref.get("uri"):
-            return False
-        if ref.get("kind") not in {
-            "file",
-            "log",
-            "junit",
-            "coverage",
-            "report",
-            "url",
-            "commit",
-            "pull_request",
-            "benchmark",
-            "security_scan",
-            "other",
-        }:
-            return False
-        sha256 = ref.get("sha256")
-        if sha256 is not None and not _is_sha256_hex(sha256):
-            return False
-        size_bytes = ref.get("size_bytes")
-        if size_bytes is not None and (not isinstance(size_bytes, int) or size_bytes < 0):
-            return False
-    return True
+    return all(_is_proof_artifact_ref(ref) for ref in value)
 
 
 def _is_hex_digest(value: Any) -> bool:
     return isinstance(value, str) and bool(_SHA256_HEX_RE.match(value))
 
 
+#: Validators shared by every proof event type.
+_BASE_PROOF_VALIDATORS: dict[str, Any] = {
+    "proof_schema_version": lambda v: v == PROOF_SCHEMA_VERSION,
+    "subject": _is_proof_subject,
+    "source": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
+    "actor": _is_proof_actor,
+    "confidence": _is_probability,
+    "occurred_at": _is_datetime_string,
+    "observed_at": _is_datetime_string,
+    "artifact_refs": _is_proof_artifact_refs,
+    "summary": lambda v: isinstance(v, dict),
+    "idempotency_key": _is_hex_digest,
+}
+
+#: Per-event-type extra validators merged on top of :data:`_BASE_PROOF_VALIDATORS`.
+_PROOF_EVENT_VALIDATORS: dict[str, dict[str, Any]] = {
+    "ProofItemRecorded": {
+        "proof_kind": lambda v: v in {"artifact", "claim", "observation", "note", "other"},
+    },
+    "ReviewProofRecorded": {
+        "review_kind": lambda v: v in {"code_review", "qa", "mission_review", "security_review", "other"},
+        "verdict": lambda v: v in {"approved", "changes_requested", "commented", "rejected", "unknown"},
+        "review_ref": _is_nullable_string,
+    },
+    "TestEvidenceCaptured": {
+        "test_command": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
+        "exit_code": lambda v: isinstance(v, int) and v >= 0,
+        "status": lambda v: v in {"passed", "failed", "error", "skipped"},
+        "runner": _is_nullable_string,
+        "cwd": _is_nullable_string,
+        "duration_ms": lambda v: isinstance(v, int) and v >= 0,
+        "total_tests": lambda v: isinstance(v, int) and v >= 0,
+        "passed_tests": lambda v: isinstance(v, int) and v >= 0,
+        "failed_tests": lambda v: isinstance(v, int) and v >= 0,
+        "skipped_tests": lambda v: isinstance(v, int) and v >= 0,
+        "failure_summary": _is_nullable_string,
+        "branch": _is_nullable_string,
+        "commit": _is_nullable_string,
+        "build_id": _is_nullable_string,
+    },
+    "BenchmarkEvidenceAttached": {
+        "benchmark_name": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
+        "benchmark_suite": _is_nullable_string,
+        "baseline_ref": _is_nullable_string,
+        "comparison_ref": _is_nullable_string,
+    },
+    "SecurityScanCompleted": {
+        "scanner": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
+        "status": lambda v: v in {"passed", "failed", "completed", "error"},
+        "findings_summary": lambda v: isinstance(v, dict),
+    },
+    "PullRequestLineageRecorded": {
+        "provider": lambda v: v in {"github", "gitlab", "bitbucket", "other"},
+        "repository": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
+        "pull_request_url": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
+        "pull_request_number": lambda v: isinstance(v, int) and v >= 1,
+        "base_ref": _is_nullable_string,
+        "head_ref": _is_nullable_string,
+    },
+    "HumanApprovalRecorded": {
+        "approver": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
+        "approval_status": lambda v: v in {"approved", "rejected", "requested_changes", "acknowledged"},
+        "approval_ref": _is_nullable_string,
+    },
+}
+
+
 def _proof_validators_for(event_type: str) -> dict[str, Any]:
-    validators: dict[str, Any] = {
-        "proof_schema_version": lambda v: v == PROOF_SCHEMA_VERSION,
-        "subject": _is_proof_subject,
-        "source": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
-        "actor": _is_proof_actor,
-        "confidence": _is_probability,
-        "occurred_at": _is_datetime_string,
-        "observed_at": _is_datetime_string,
-        "artifact_refs": _is_proof_artifact_refs,
-        "summary": lambda v: isinstance(v, dict),
-        "idempotency_key": _is_hex_digest,
-    }
-    if event_type == "ProofItemRecorded":
-        validators["proof_kind"] = lambda v: v in {"artifact", "claim", "observation", "note", "other"}
-    elif event_type == "ReviewProofRecorded":
-        validators.update(
-            {
-                "review_kind": lambda v: v in {"code_review", "qa", "mission_review", "security_review", "other"},
-                "verdict": lambda v: v in {"approved", "changes_requested", "commented", "rejected", "unknown"},
-                "review_ref": _is_nullable_string,
-            }
-        )
-    elif event_type == "TestEvidenceCaptured":
-        validators.update(
-            {
-                "test_command": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
-                "exit_code": lambda v: isinstance(v, int) and v >= 0,
-                "status": lambda v: v in {"passed", "failed", "error", "skipped"},
-                "runner": _is_nullable_string,
-                "cwd": _is_nullable_string,
-                "duration_ms": lambda v: isinstance(v, int) and v >= 0,
-                "total_tests": lambda v: isinstance(v, int) and v >= 0,
-                "passed_tests": lambda v: isinstance(v, int) and v >= 0,
-                "failed_tests": lambda v: isinstance(v, int) and v >= 0,
-                "skipped_tests": lambda v: isinstance(v, int) and v >= 0,
-                "failure_summary": _is_nullable_string,
-                "branch": _is_nullable_string,
-                "commit": _is_nullable_string,
-                "build_id": _is_nullable_string,
-            }
-        )
-    elif event_type == "BenchmarkEvidenceAttached":
-        validators.update(
-            {
-                "benchmark_name": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
-                "benchmark_suite": _is_nullable_string,
-                "baseline_ref": _is_nullable_string,
-                "comparison_ref": _is_nullable_string,
-            }
-        )
-    elif event_type == "SecurityScanCompleted":
-        validators.update(
-            {
-                "scanner": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
-                "status": lambda v: v in {"passed", "failed", "completed", "error"},
-                "findings_summary": lambda v: isinstance(v, dict),
-            }
-        )
-    elif event_type == "PullRequestLineageRecorded":
-        validators.update(
-            {
-                "provider": lambda v: v in {"github", "gitlab", "bitbucket", "other"},
-                "repository": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
-                "pull_request_url": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
-                "pull_request_number": lambda v: isinstance(v, int) and v >= 1,
-                "base_ref": _is_nullable_string,
-                "head_ref": _is_nullable_string,
-            }
-        )
-    elif event_type == "HumanApprovalRecorded":
-        validators.update(
-            {
-                "approver": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
-                "approval_status": lambda v: v in {"approved", "rejected", "requested_changes", "acknowledged"},
-                "approval_ref": _is_nullable_string,
-            }
-        )
+    validators: dict[str, Any] = dict(_BASE_PROOF_VALIDATORS)
+    validators.update(_PROOF_EVENT_VALIDATORS.get(event_type, {}))
     return validators
 
 

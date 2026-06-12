@@ -206,14 +206,14 @@ All work for a mission happens in one branch/worktree, even if disjoint.
 ## More Information
 
 **Supersedes:**
-- `architecture/1.x/adr/2026-01-26-9-worktree-cleanup-at-merge-not-eager.md`
-- `2026-01-29-15-merge-first-suggestion-for-completed-dependencies.md`
-- `2026-01-30-18-auto-detect-merged-single-parent-dependencies.md`
+* `architecture/1.x/adr/2026-01-26-9-worktree-cleanup-at-merge-not-eager.md`
+* `2026-01-29-15-merge-first-suggestion-for-completed-dependencies.md`
+* `2026-01-30-18-auto-detect-merged-single-parent-dependencies.md`
 
 **Related ADRs:**
-- `2026-02-17-1-canonical-next-command-runtime-loop.md`
-- `2026-04-03-2-review-approval-and-integration-completion-are-distinct.md`
-- `2026-04-03-3-feature-acceptance-runs-on-the-integrated-mission-branch.md`
+* `2026-02-17-1-canonical-next-command-runtime-loop.md`
+* `2026-04-03-2-review-approval-and-integration-completion-are-distinct.md`
+* `2026-04-03-3-feature-acceptance-runs-on-the-integrated-mission-branch.md`
 
 **Related Product Document:**
-- Companion planning artifact: `prd-lane-based-execution-and-feature-acceptance-gates-v1.md` in the planning repo
+* Companion planning artifact: `prd-lane-based-execution-and-feature-acceptance-gates-v1.md` in the planning repo

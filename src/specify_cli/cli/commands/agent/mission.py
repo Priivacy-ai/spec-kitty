@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
+from specify_cli.core.commit_guard import GuardCapability
+from mission_runtime import ActionContextError, CommitTarget, CommitTargetKind
 import contextlib
 import json
 import logging
@@ -140,7 +141,7 @@ def _emit_console_or_json_error(*, json_output: bool, message: str) -> None:
 def _emit_check_prerequisites_detection_error(
     *,
     repo_root: Path,
-    detection_error: ValueError,
+    detection_error: ValueError | ActionContextError,
     feature: str | None,
     json_output: bool,
     paths_only: bool,
@@ -489,12 +490,156 @@ def _git_dirty_paths(repo_root: Path) -> list[str]:
     return dirty
 
 
-def _enforce_analysis_report_write_preflight(repo_root: Path, *, json_output: bool) -> None:
-    """Fail before `record-analysis` mutates a mission artifact in unsafe git state."""
+def _resolve_record_analysis_placement_ref(
+    repo_root: Path, feature_dir: Path
+) -> CommitTarget | None:
+    """Resolve the context's artifact-placement ref for ``record-analysis``.
+
+    Routes through the single canonical resolver (``resolve_action_context``,
+    C-CTX-1) using the planning-phase ``tasks`` action — ``record-analysis``
+    persists a planning artifact whose placement is the same single
+    :class:`CommitTarget` (C-PLACE-1). The mission slug is the resolved
+    mission directory name (already CWD-invariant via the read primitive).
+    Returns ``None`` on any resolution failure so the dirty-tree preflight
+    keeps its original (conservative) behaviour (C-004 — never break the
+    lifecycle on a context-resolution edge case).
+    """
+    from mission_runtime import ActionContextError, resolve_action_context
+
+    try:
+        context = resolve_action_context(
+            repo_root,
+            action="tasks",
+            feature=feature_dir.name,
+        )
+    except ActionContextError:
+        return None
+    placement = context.artifact_placement
+    return placement.placement_ref if placement is not None else None
+
+
+def _resolve_planning_placement(repo_root: Path, mission_slug: str) -> CommitTarget:
+    """Resolve the single planning-phase :class:`CommitTarget` for ``mission_slug``.
+
+    WP05 / FR-003 / C-GUARD-3a (#1784): the ONE destination authority for every
+    planning-phase commit (spec / plan / tasks / finalize-tasks / doc-mission
+    bookkeeping). Routes through ``mission_runtime.resolve_placement_only`` — the
+    WP-less projection over the SAME resolution authority the full resolver uses
+    — so no planning commit path re-derives a destination from ``meta.json`` or
+    the current git checkout (the catch-22 root). The placement is CWD-invariant
+    and topology-correct (coordination / flattened / primary).
+    """
+    from mission_runtime import resolve_placement_only
+
+    return resolve_placement_only(repo_root, mission_slug)
+
+
+def _planning_commit_worktree(
+    repo_root: Path,
+    mission_slug: str,
+    placement: CommitTarget,
+    paths: tuple[Path, ...],
+) -> tuple[Path, tuple[Path, ...]]:
+    """Resolve the worktree a planning commit lands in for ``placement``.
+
+    WP05: ``safe_commit`` requires ``worktree_root`` HEAD to equal the
+    destination ref. For a :attr:`CommitTargetKind.COORDINATION` placement the
+    destination is the coordination branch, which is checked out in the
+    per-mission coordination worktree — so the commit must run there (and the
+    artifacts, written to the main checkout, are copied across for staging,
+    skipping coord-owned status files, #1589). For a flattened/primary placement
+    the destination is already HEAD of the main checkout, so it is used directly.
+
+    Returns ``(worktree_root, paths_to_commit)``.
+    """
+    if placement.kind is not CommitTargetKind.COORDINATION:
+        return repo_root, paths
+
+    meta = _safe_load_meta(repo_root, mission_slug)
+    raw_mid = meta.get("mission_id") if meta else None
+    mid8 = raw_mid[:8] if isinstance(raw_mid, str) and len(raw_mid) >= 8 else None
+    if not mid8:
+        return repo_root, paths
+
+    from specify_cli.coordination.workspace import CoordinationWorkspace as _CW
+
+    # Materialize the coordination worktree on demand (the coord branch already
+    # exists from ``mission create``). This is the catch-22 killer: the planning
+    # commit ALWAYS reaches its resolved coordination placement instead of
+    # falling back to the protected main checkout and tripping the guard.
+    try:
+        coord_wt = _CW.resolve(repo_root, mission_slug, mid8)
+    except Exception:
+        # Resolution failed (e.g. branch mismatch under a divergent worktree);
+        # fall back to the main checkout so the existing diagnostics surface
+        # rather than crashing the lifecycle (C-004 strangler safety).
+        return repo_root, paths
+
+    coord_paths = _stage_finalize_artifacts_in_coord_worktree(
+        list(paths), coord_wt, repo_root
+    )
+    return coord_wt, tuple(coord_paths)
+
+
+def _safe_load_meta(repo_root: Path, mission_slug: str) -> dict[str, object] | None:
+    """Load a mission's ``meta.json`` for worktree resolution, or ``None``.
+
+    Used only to derive the ``mid8`` worktree disambiguator — NEVER as a commit
+    destination authority (that is ``resolve_placement_only``, FR-003).
+
+    FR-003 / C-GUARD-3a (coord-topology placement regression fix): ``meta.json``
+    only ever lives on the PRIMARY checkout, so the read is anchored on the
+    topology-blind primary constructor. The coord-aware
+    ``candidate_feature_dir_for_mission`` returns the coordination worktree once
+    one exists — and that worktree carries no ``meta.json`` — so ``mid8`` read
+    back as ``None`` and ``_planning_commit_worktree`` silently fell back to the
+    main checkout, making ``safe_commit`` reject the (correctly COORDINATION)
+    placement because the main checkout HEAD is the target branch, not the coord
+    branch.
+    """
+    from specify_cli.mission_metadata import load_meta
+    from specify_cli.missions._read_path_resolver import (
+        primary_feature_dir_for_mission,
+    )
+
+    feature_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
+    try:
+        meta = load_meta(feature_dir)
+    except ValueError:
+        return None
+    return meta or None
+
+
+def _enforce_analysis_report_write_preflight(
+    repo_root: Path,
+    *,
+    json_output: bool,
+    placement_ref: CommitTarget | None = None,
+) -> None:
+    """Fail before `record-analysis` mutates a mission artifact in unsafe git state.
+
+    WP06 / T020 / C-PLACE-1 (#1814): the dirty-tree check is **context-aware**.
+    Under coordination topology the canonical status log/snapshot
+    (``COORD_OWNED_STATUS_FILES``) is owned by the transactional emitter on the
+    coordination branch; the primary checkout legitimately carries stale copies
+    of those files. Counting that coord-residue as a "dirty working tree" was the
+    #1814 deadlock — ``record-analysis`` could never run from the primary
+    checkout of a coord mission. When ``placement_ref`` resolves to a
+    coordination target we drop the coord-owned files from the dirty set so the
+    preflight gates only on *genuine* uncommitted edits. Under flattened/primary
+    topology there is no coord owner, so nothing is excluded (the primary status
+    files are canonical there).
+    """
     if not is_git_repo(repo_root):
         return
 
     dirty_paths = _git_dirty_paths(repo_root)
+    if placement_ref is not None and placement_ref.kind is CommitTargetKind.COORDINATION:
+        dirty_paths = [
+            path
+            for path in dirty_paths
+            if Path(path).name not in COORD_OWNED_STATUS_FILES
+        ]
     if dirty_paths:
         payload = {
             "success": False,
@@ -531,15 +676,29 @@ def _enforce_analysis_report_write_preflight(repo_root: Path, *, json_output: bo
     try:
         assert_not_protected_branch(cwd_toplevel, operation="record analysis report")
     except ProtectedBranchCommitError as exc:
+        # WP05 / FR-003 / T021 / C-GUARD-3: name the RESOLVED destination, never
+        # the pre-lanes "switch to the lane branch" advice (#1777/#1631). When a
+        # placement is known we tell the operator exactly where the analysis
+        # report commits to.
+        if placement_ref is not None:
+            error_text = (
+                f"Refusing to record analysis report from a protected branch. "
+                f"Planning artifacts for this mission commit to "
+                f"'{placement_ref.ref}'; run record-analysis so the commit lands "
+                f"there (the resolved placement), not on the protected checkout."
+            )
+        else:
+            error_text = str(exc)
         payload = {
             "success": False,
             "error_code": "PROTECTED_BRANCH_REFUSED",
-            "error": str(exc),
+            "error": error_text,
+            "resolved_destination": placement_ref.ref if placement_ref else None,
         }
         if json_output:
             _emit_json(payload)
         else:
-            console.print(f"[red]Error:[/red] {exc}")
+            console.print(f"[red]Error:[/red] {error_text}")
         raise typer.Exit(1) from None
 
 
@@ -694,34 +853,50 @@ def _commit_to_branch(
     _target_branch: str,
     json_output: bool = False,
 ) -> None:
-    """Commit planning artifact to current branch (respects user context).
+    """Commit a planning artifact to its single resolved placement.
+
+    WP05 / FR-003 / C-GUARD-3a (#1784 catch-22 fix): the commit destination is
+    the resolved placement :class:`CommitTarget` (``_resolve_planning_placement``
+    → the SAME authority the full resolver computes), NOT ``git HEAD`` /
+    ``current_branch``. Using HEAD was the root cause: on a protected-main repo
+    HEAD is ``main`` (protected) so the guard refused with a pre-lanes
+    "switch to the lane branch" instruction. The resolved placement is the
+    NON-protected coordination ref (or the flattened target), so a
+    ``GuardCapability.STANDARD`` commit lands cleanly with no relaxation.
 
     Args:
         file_path: Path to file being committed
         mission_slug: Feature slug (e.g., "001-my-feature")
         artifact_type: Type of artifact ("spec", "plan", "tasks")
         repo_root: Repository root path (ensures commits go to planning repo, not worktree)
-        target_branch: Branch the mission targets (for informational messages only)
+        _target_branch: Branch the mission targets (informational only; the
+            commit destination is the resolved placement, not this value)
         json_output: If True, suppress Rich console output
 
     Raises:
         subprocess.CalledProcessError: If commit fails unexpectedly
         RuntimeError: If safe_commit fails for anything other than an unchanged artifact
     """
-    current_branch = get_current_branch(repo_root)
-    if current_branch is None:
+    if get_current_branch(repo_root) is None:
         raise RuntimeError("Not in a git repository")
+
+    placement = _resolve_planning_placement(repo_root, mission_slug)
+    # Resolve the worktree the placement lands in. For a coordination placement
+    # the commit must run against the coord worktree (HEAD == coord ref); for a
+    # flattened/primary placement the main checkout is the worktree.
+    worktree_root, commit_paths = _planning_commit_worktree(
+        repo_root, mission_slug, placement, (file_path,)
+    )
 
     # Commit only this file (preserves staging area)
     commit_msg = f"Add {artifact_type} for feature {mission_slug}"
     try:
         safe_commit(
             repo_root=repo_root,
-            worktree_root=repo_root,
-            destination_ref=current_branch,
+            worktree_root=worktree_root,
+            target=placement,
             message=commit_msg,
-            paths=(file_path,),
-            allow_protected_branch_in_test_mode=True,
+            paths=commit_paths,
         )
 
     except subprocess.CalledProcessError as e:
@@ -736,7 +911,9 @@ def _commit_to_branch(
             _warn_commit_failed(artifact_type, file_path, e, json_output)
             raise
     except RuntimeError as e:
-        if _safe_commit_empty_changeset_error(e) and _artifact_has_no_git_changes(repo_root, file_path):
+        if _safe_commit_empty_changeset_error(e) and _artifact_has_no_git_changes(
+            worktree_root, commit_paths[0]
+        ):
             _print_artifact_unchanged(artifact_type, json_output)
             return
 
@@ -744,7 +921,9 @@ def _commit_to_branch(
         raise
 
     if not json_output:
-        console.print(f"[green]✓[/green] {artifact_type.capitalize()} committed to {current_branch}")
+        console.print(
+            f"[green]✓[/green] {artifact_type.capitalize()} committed to {placement.ref}"
+        )
 
 
 def _find_feature_directory(
@@ -752,10 +931,16 @@ def _find_feature_directory(
     _cwd: Path,
     explicit_feature: str | None = None,
 ) -> Path:
-    """Find the mission directory from an explicit mission slug.
+    """Find the mission directory from an explicit mission handle.
 
-    Uses the canonical mission resolver which handles ambiguous numeric-prefix
-    handles, mid8 prefixes, and full ULID forms.
+    WP06 / T020 / C-CTX-4: routes through the single read primitive
+    (:func:`specify_cli.missions._read_path_resolver.resolve_mission_read_path`),
+    so a ``--mission <mid8>`` handle resolves to the same directory as the full
+    slug (F-001/F-003/F-004). There is **no silent fallback** to a
+    wrong-but-plausible primary-checkout path: an unresolvable handle raises a
+    structured :class:`ActionContextError` (``FEATURE_CONTEXT_UNRESOLVED``) and
+    an ambiguous handle raises ``MISSION_AMBIGUOUS_SELECTOR`` (C-CTX-4 / C-009).
+    WP04 deliberately left this caller for WP06, which owns ``mission.py``.
 
     Args:
         repo_root: Repository root path
@@ -766,18 +951,36 @@ def _find_feature_directory(
         Path to mission directory
 
     Raises:
-        ValueError: If no handle is provided.
+        ActionContextError: If no handle is provided, the handle is ambiguous, or
+            it resolves to no existing mission directory (structured error).
     """
+    from specify_cli.lanes.branch_naming import mid8_from_slug
+    from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
+        StatusReadPathNotFound,
+        resolve_mission_read_path,
+    )
+
     if not explicit_feature:
-        raise ValueError("--mission <slug> is required")
+        raise ActionContextError(
+            "FEATURE_CONTEXT_UNRESOLVED", "--mission <slug> is required"
+        )
     try:
-        resolved = resolve_mission_handle(explicit_feature, repo_root)
-        return cast(Path, resolved.feature_dir)
-    except (SystemExit, typer.Exit):
-        candidate = candidate_feature_dir_for_mission(repo_root, explicit_feature)
-        if candidate.exists():
-            return cast(Path, candidate)
-        raise ValueError(f"Mission directory not found: {explicit_feature}") from None
+        feature_dir = resolve_mission_read_path(
+            repo_root,
+            explicit_feature,
+            mid8_from_slug(explicit_feature),
+            require_exists=True,
+        )
+    except MissionSelectorAmbiguous as exc:
+        raise ActionContextError(exc.error_code, str(exc)) from exc
+    except StatusReadPathNotFound as exc:
+        raise ActionContextError(
+            "FEATURE_CONTEXT_UNRESOLVED",
+            f"Mission not found for handle {explicit_feature!r}; checked the "
+            f"coordination worktree and the primary checkout. {exc}",
+        ) from exc
+    return cast(Path, feature_dir)
 
 
 def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
@@ -1218,7 +1421,7 @@ def check_prerequisites(
                 cwd,
                 explicit_feature=feature,
             )
-        except ValueError as detection_error:
+        except (ValueError, ActionContextError) as detection_error:
             _emit_check_prerequisites_detection_error(
                 repo_root=repo_root,
                 detection_error=detection_error,
@@ -1276,15 +1479,18 @@ def record_analysis(
             raise typer.Exit(1)
         cwd_repo_root = repo_root  # preserve CWD root for branch-protection check
         repo_root = get_main_repo_root(repo_root)
-        _enforce_analysis_report_write_preflight(cwd_repo_root, json_output=json_output)
 
+        # WP06 / T020 (#1814): resolve the mission read/write surface FIRST (via
+        # the consolidated read primitive — no silent fallback) so the dirty-tree
+        # preflight can key off the context's placement ref and not deadlock on
+        # coord-residue in the primary checkout.
         try:
             feature_dir = _find_feature_directory(
                 repo_root,
                 Path.cwd().resolve(),
                 explicit_feature=feature,
             )
-        except ValueError as detection_error:
+        except (ValueError, ActionContextError) as detection_error:
             payload = _build_setup_plan_detection_error(
                 repo_root,
                 str(detection_error),
@@ -1298,6 +1504,18 @@ def record_analysis(
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
             raise typer.Exit(1) from None
+
+        # C-PLACE-1: the placement ref is the ONE CommitTarget that planning
+        # artifacts (incl. analysis-report) AND status events resolve to. The
+        # dirty-tree preflight uses it to ignore coord-owned residue (#1814).
+        placement_ref = _resolve_record_analysis_placement_ref(
+            repo_root, feature_dir
+        )
+        _enforce_analysis_report_write_preflight(
+            cwd_repo_root,
+            json_output=json_output,
+            placement_ref=placement_ref,
+        )
 
         body = sys.stdin.read() if input_file == "-" else Path(input_file).read_text(encoding="utf-8")
         if not body.strip():
@@ -1506,7 +1724,7 @@ def setup_plan(
                 cwd,
                 explicit_feature=feature,
             )
-        except ValueError as detection_error:
+        except (ValueError, ActionContextError) as detection_error:
             payload = _build_setup_plan_detection_error(repo_root, str(detection_error), feature)
             if json_output:
                 _emit_json(payload)
@@ -1693,14 +1911,23 @@ def setup_plan(
                                 last_audit_date=analysis.analysis_date,
                                 coverage_percentage=analysis.coverage_matrix.get_coverage_percentage(),
                             )
-                            # Commit gap analysis and updated meta.json
+                            # Commit gap analysis and updated meta.json to the
+                            # single resolved placement (WP05 / FR-003), not the
+                            # raw meta.json target_branch.
                             with contextlib.suppress(Exception):  # Non-fatal: agent can commit separately
+                                _gap_placement = _resolve_planning_placement(repo_root, mission_slug)
+                                _gap_wt, _gap_paths = _planning_commit_worktree(
+                                    repo_root,
+                                    mission_slug,
+                                    _gap_placement,
+                                    (gap_analysis_output, meta_file),
+                                )
                                 safe_commit(
                                     repo_root=repo_root,
-                                    worktree_root=repo_root,
-                                    destination_ref=target_branch,
+                                    worktree_root=_gap_wt,
+                                    target=_gap_placement,
                                     message=f"Add gap analysis for feature {mission_slug}",
-                                    paths=(gap_analysis_output, meta_file),
+                                    paths=_gap_paths,
                                 )
                             if not json_output:
                                 coverage_pct = analysis.coverage_matrix.get_coverage_percentage() * 100
@@ -1732,12 +1959,16 @@ def setup_plan(
                 try:
                     set_generators_configured(meta_file, generators_detected)
                     with contextlib.suppress(Exception):  # Non-fatal
+                        _gen_placement = _resolve_planning_placement(repo_root, mission_slug)
+                        _gen_wt, _gen_paths = _planning_commit_worktree(
+                            repo_root, mission_slug, _gen_placement, (meta_file,)
+                        )
                         safe_commit(
                             repo_root=repo_root,
-                            worktree_root=repo_root,
-                            destination_ref=target_branch,
+                            worktree_root=_gen_wt,
+                            target=_gen_placement,
                             message=f"Update generator config for feature {mission_slug}",
-                            paths=(meta_file,),
+                            paths=_gen_paths,
                         )
                 except Exception as gen_err:
                     if not json_output:
@@ -2153,7 +2384,7 @@ def finalize_tasks(
                 cwd,
                 explicit_feature=feature,
             )
-        except ValueError as detection_error:
+        except (ValueError, ActionContextError) as detection_error:
             payload = _build_setup_plan_detection_error(
                 repo_root,
                 str(detection_error),
@@ -2173,13 +2404,45 @@ def finalize_tasks(
             raise typer.Exit(1) from None
 
         mission_slug = feature_dir.name
-        # WP07 / FR-012 / SC-04: read the canonical target from meta.json.
+        # WP07 / FR-012 / SC-04: read the canonical merge target from meta.json.
         # The current checkout is NEVER consulted, so running finalize-tasks
         # from a prep/ branch no longer leaks that branch into WP frontmatter.
+        #
+        # WP05 / FR-003 / T020 (F-001 idempotency): anchor the meta read on the
+        # PRIMARY feature dir, not the topology-resolved ``feature_dir``. Once a
+        # coordination worktree exists (after the first finalize), the read-path
+        # resolver selects that worktree — but ``meta.json`` lives on the primary
+        # checkout (committed by ``mission create``), so a coord-anchored read
+        # raised PLANNING_BRANCH_NOT_PERSISTED on the SECOND finalize. Anchoring
+        # on the primary makes the merge-target read CWD/topology-invariant —
+        # the SAME anchoring ``resolve_placement_only`` uses — so finalize-tasks
+        # is idempotent across re-runs.
+        # Use the PRIMARY-checkout constructor. We deliberately do NOT route
+        # through the topology-aware ``candidate_feature_dir_for_mission``
+        # here: that resolver selects the coordination worktree once one exists,
+        # which is exactly the surface that lacks ``meta.json`` (it lives on the
+        # primary checkout). ``primary_feature_dir_for_mission`` is the sanctioned
+        # topology-blind constructor (see its docstring) — CWD/topology-invariant.
+        from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+
+        _primary_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
+        # WP05 / FR-003 (coord-topology regression fix): the planning INPUT
+        # artifacts (``tasks/``, ``spec.md``, ``tasks.md``, ``meta.json``) are
+        # authored on the PRIMARY checkout — ``mission_creation`` writes the
+        # mission dir there and the ``tasks`` step appends beside it. The
+        # topology-aware ``feature_dir`` selects the coordination worktree once
+        # one exists (the canonical status reader + the COORDINATION commit
+        # destination), but the input artifacts are NOT staged there until commit
+        # time (``_planning_commit_worktree`` copies them across AFTER these
+        # reads). So read the inputs from the primary surface — the SAME anchoring
+        # as the merge-target read above and ``resolve_placement_only`` — while
+        # the commit + status emission still route to the resolved (coord)
+        # placement. This keeps ONE placement authority and one status surface.
+        planning_dir = _primary_dir
         try:
             target_branch = _resolve_planning_branch(
                 repo_root,
-                feature_dir,
+                _primary_dir,
                 target_branch_override=target_branch_override,
             )
         except PlanningBranchResolutionFailed as exc:
@@ -2200,7 +2463,7 @@ def finalize_tasks(
         if not json_output:
             console.print(f"[bold cyan]Branch:[/bold cyan] {target_branch} (target for this mission)")
 
-        tasks_dir = feature_dir / "tasks"
+        tasks_dir = planning_dir / "tasks"
         if not tasks_dir.exists():
             error_msg = f"Tasks directory not found: {tasks_dir}"
             if json_output:
@@ -2211,7 +2474,7 @@ def finalize_tasks(
         wp_files = list(tasks_dir.glob("WP*.md"))
         expected_wp_ids = _extract_wp_ids_from_task_files(wp_files)
 
-        spec_md = feature_dir / "spec.md"
+        spec_md = planning_dir / "spec.md"
         if not spec_md.exists():
             error_msg = f"spec.md not found: {spec_md}"
             if json_output:
@@ -2234,7 +2497,7 @@ def finalize_tasks(
             try:
                 from specify_cli.tasks.issue_matrix import scaffold_issue_matrix
 
-                issue_matrix_path = scaffold_issue_matrix(feature_dir, spec_md)
+                issue_matrix_path = scaffold_issue_matrix(planning_dir, spec_md)
             except Exception as _issue_matrix_exc:
                 # Never block finalize-tasks on a scaffold failure — this is a
                 # convenience artifact, not a correctness gate.
@@ -2253,7 +2516,7 @@ def finalize_tasks(
 
         # ─── TIER 0: wps.yaml manifest ────────────────────────────────────────
         try:
-            wps_manifest = load_wps_manifest(feature_dir)
+            wps_manifest = load_wps_manifest(planning_dir)
         except Exception as exc:
             error_msg = f"wps.yaml is present but could not be loaded: {exc}"
             if json_output:
@@ -2275,7 +2538,7 @@ def finalize_tasks(
         # 2. explicit WP frontmatter dependencies (including explicit [])
         # 3. tasks.md text parsing as a legacy fallback only when frontmatter
         #    lacks the dependencies field entirely
-        tasks_md = feature_dir / TASKS_MD_FILENAME
+        tasks_md = planning_dir / TASKS_MD_FILENAME
         wp_dependencies: dict[str, list[str]] = {}
         tasks_md_dependencies: dict[str, list[str]] = {}
         wp_requirement_refs: dict[str, list[str]] = {}
@@ -2726,8 +2989,8 @@ def finalize_tasks(
                     console.print(f"[yellow]Audit coverage warning:[/yellow] {warning}")
 
         # Prepare metadata for event emission
-        mission_slug = feature_dir.name
-        meta_path = feature_dir / "meta.json"
+        mission_slug = planning_dir.name
+        meta_path = planning_dir / "meta.json"
         meta = None
         if meta_path.exists():
             try:
@@ -2748,7 +3011,7 @@ def finalize_tasks(
                 )
 
                 emit_artifact_phase(
-                    feature_dir,
+                    planning_dir,
                     event_type=TASKS_STARTED,
                     mission_slug=mission_slug,
                     actor=FINALIZE_TASKS_COMMAND_NAME,
@@ -2765,7 +3028,7 @@ def finalize_tasks(
         if validate_only:
             # Bootstrap dry-run: report what would be seeded (no mutation)
             bootstrap_result = bootstrap_canonical_state(
-                feature_dir,
+                planning_dir,
                 mission_slug,
                 dry_run=True,
             )
@@ -2852,7 +3115,7 @@ def finalize_tasks(
                 _wp_path: str | None = None
                 try:
                     _candidate = next(
-                        iter(sorted((feature_dir / "tasks").glob(f"{_wp_id}*.md"))),
+                        iter(sorted((planning_dir / "tasks").glob(f"{_wp_id}*.md"))),
                         None,
                     )
                     if _candidate is not None:
@@ -2860,7 +3123,7 @@ def finalize_tasks(
                 except Exception:  # noqa: BLE001
                     _wp_path = None
                 emit_wp_created_local(
-                    feature_dir,
+                    planning_dir,
                     mission_slug=mission_slug,
                     wp_id=_wp_id,
                     wp_title=_wp_title,
@@ -2869,7 +3132,7 @@ def finalize_tasks(
                     actor=FINALIZE_TASKS_COMMAND_NAME,
                 )
 
-            _tasks_artifact = feature_dir / TASKS_MD_FILENAME
+            _tasks_artifact = planning_dir / TASKS_MD_FILENAME
             _tasks_artifact_rel: str | None = None
             if _tasks_artifact.exists():
                 try:
@@ -2877,7 +3140,7 @@ def finalize_tasks(
                 except ValueError:
                     _tasks_artifact_rel = str(_tasks_artifact)
             emit_artifact_phase(
-                feature_dir,
+                planning_dir,
                 event_type=TASKS_COMPLETED,
                 mission_slug=mission_slug,
                 actor=FINALIZE_TASKS_COMMAND_NAME,
@@ -2892,10 +3155,13 @@ def finalize_tasks(
 
         # Bootstrap canonical status state for all WPs
         bootstrap_result = bootstrap_canonical_state(
-            feature_dir,
+            planning_dir,
             mission_slug,
             dry_run=False,
-            allow_protected_branch_in_test_mode=True,
+            # Seed commits land on the coordination branch (transactional
+            # topology) or fall back to the non-committing emit (legacy);
+            # STANDARD asserts no protected-branch flow (FR-008).
+            capability=GuardCapability.STANDARD,
         )
         if not json_output and bootstrap_result.newly_seeded:
             console.print(f"[green]✓[/green] Bootstrapped canonical status: {bootstrap_result.newly_seeded} WPs seeded")
@@ -2917,7 +3183,7 @@ def finalize_tasks(
                 wp_bodies=wp_bodies,
                 mission_id=mission_id,
             )
-            lanes_path = write_lanes_json(feature_dir, lanes_manifest)
+            lanes_path = write_lanes_json(planning_dir, lanes_manifest)
             if not json_output:
                 console.print(f"[green]✓[/green] Computed {len(lanes_manifest.lanes)} execution lane(s)")
                 if lanes_manifest.collapse_report and lanes_manifest.collapse_report.independent_wps_collapsed > 0:
@@ -2975,7 +3241,7 @@ def finalize_tasks(
                 from specify_cli.acceptance.matrix import scaffold_acceptance_matrix
 
                 acceptance_matrix_path = scaffold_acceptance_matrix(
-                    feature_dir,
+                    planning_dir,
                     mission_slug,
                     requirement_ids=sorted(functional_spec_requirement_ids),
                 )
@@ -3009,14 +3275,14 @@ def finalize_tasks(
             )
 
             trigger_feature_dossier_sync_if_enabled(
-                feature_dir,
+                planning_dir,
                 mission_slug,
                 repo_root,
             )
 
         try:
             files_to_commit = _collect_finalize_artifacts(
-                feature_dir,
+                planning_dir,
                 tasks_dir,
                 mission_slug,
                 lanes_path=lanes_path,
@@ -3044,40 +3310,30 @@ def finalize_tasks(
                 if not json_output:
                     console.print("[dim]Tasks unchanged, no commit needed[/dim]")
             else:
-                # Commit with descriptive message (safe_commit preserves staging area)
-                # Planning artifacts must land on the coordination branch, not on the
-                # final merge target (e.g. "main"), which is protected.
-                # locate_project_root() always returns the MAIN checkout (by design),
-                # but safe_commit requires worktree_root HEAD == destination_ref.
-                # When a coord worktree exists, use it as worktree_root.
-                coord_branch_for_commit = (
-                    meta.get("coordination_branch") if meta else None
-                ) or target_branch
-                _commit_worktree_root = repo_root
-                _commit_files = files_to_commit
-                if coord_branch_for_commit != target_branch and meta:
-                    _raw_mid = meta.get("mission_id")
-                    _mid8 = _raw_mid[:8] if isinstance(_raw_mid, str) and len(_raw_mid) >= 8 else None
-                    if _mid8:
-                        from specify_cli.coordination.workspace import CoordinationWorkspace as _CW
-                        _coord_wt = _CW.worktree_path(repo_root, mission_slug, _mid8)
-                        if _coord_wt.exists():
-                            _commit_worktree_root = _coord_wt
-                            # Files were written to the main checkout; copy to the
-                            # coord worktree before staging so safe_commit can find them.
-                            # The canonical status log/snapshot are skipped to preserve
-                            # the bootstrap's seeded lane state (#1589) — see the helper.
-                            _commit_files = _stage_finalize_artifacts_in_coord_worktree(
-                                files_to_commit, _coord_wt, repo_root
-                            )
+                # Commit with descriptive message (safe_commit preserves staging area).
+                # WP05 / FR-003 / C-GUARD-3a (#1784 catch-22 fix): the commit
+                # destination is the SINGLE resolved placement CommitTarget
+                # (``resolve_placement_only`` — the same authority the full
+                # resolver computes), NOT a hand-rolled meta.json read. On a
+                # protected-target repo ``mission create`` materialized a
+                # coordination branch, so the placement resolves to that
+                # NON-protected ref and a STANDARD commit lands cleanly — no
+                # catch-22, no refusal-to-nowhere.
+                placement = _resolve_planning_placement(repo_root, mission_slug)
+                # safe_commit requires worktree_root HEAD == destination ref; the
+                # shared resolver routes a coordination placement to the coord
+                # worktree (copying artifacts across, skipping #1589 status files)
+                # and a flattened/primary placement to the main checkout.
+                _commit_worktree_root, _commit_files = _planning_commit_worktree(
+                    repo_root, mission_slug, placement, tuple(files_to_commit)
+                )
                 commit_msg = f"Add tasks for feature {mission_slug}"
                 commit_success = safe_commit(
                     repo_root=repo_root,
                     worktree_root=_commit_worktree_root,
-                    destination_ref=coord_branch_for_commit,
+                    target=placement,
                     message=commit_msg,
-                    paths=tuple(_commit_files),
-                    allow_protected_branch_in_test_mode=True,
+                    paths=_commit_files,
                 )
 
                 if commit_success:
@@ -3087,7 +3343,7 @@ def finalize_tasks(
                     commit_created = True
 
                     if not json_output:
-                        console.print(f"[green]✓[/green] Tasks committed to {target_branch}")
+                        console.print(f"[green]✓[/green] Tasks committed to {placement.ref}")
                         console.print(f"[dim]Commit: {commit_hash[:7]}[/dim]")
                         console.print(f"[dim]Updated {updated_count} WP files with dependencies[/dim]")
                 else:

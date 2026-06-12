@@ -32,21 +32,21 @@ catch-all dumping grounds. This compounds over time.
 
 ## Decision Drivers
 
-* **Readability**: the test tree should be a readable description of system capabilities,
+- **Readability**: the test tree should be a readable description of system capabilities,
   not a reflection of internal module boundaries or test-runner mechanics.
-* **Navigability**: a new contributor should be able to locate tests for a feature by
+- **Navigability**: a new contributor should be able to locate tests for a feature by
   finding the feature's slice directory, without knowing the source package layout.
-* **Clear placement**: when adding a test, there should be one obvious place for it.
-* **Testing pyramid**: the pyramid (many unit, fewer integration, few e2e) should be
+- **Clear placement**: when adding a test, there should be one obvious place for it.
+- **Testing pyramid**: the pyramid (many unit, fewer integration, few e2e) should be
   visible from markers and filename conventions, not directory depth.
-* **Consistency**: the organising principle must be applied uniformly — no directories
+- **Consistency**: the organising principle must be applied uniformly — no directories
   that mix axes.
 
 ## Considered Options
 
-* **Option A — Vertical slices as top level, test type via markers + filename suffix**
-* **Option B — Source package mirror as top level, each module gets `unit/` + `integration/` subdirs**
-* **Option C — Keep `unit/` and `integration/` top level, reorganise their internals to mirror the source package tree**
+- **Option A — Vertical slices as top level, test type via markers + filename suffix**
+- **Option B — Source package mirror as top level, each module gets `unit/` + `integration/` subdirs**
+- **Option C — Keep `unit/` and `integration/` top level, reorganise their internals to mirror the source package tree**
 
 ## Decision Outcome
 
@@ -61,26 +61,26 @@ type/slice inversion remains at the top level.
 
 #### Positive
 
-* The test tree reads as a capability map of the system.
-* `pytest tests/<slice>/` runs all tests for one vertical of the product.
-* `pytest -m fast` or `pytest -m git_repo` give fast-feedback and mid-tier runs
+- The test tree reads as a capability map of the system.
+- `pytest tests/<slice>/` runs all tests for one vertical of the product.
+- `pytest -m fast` or `pytest -m git_repo` give fast-feedback and mid-tier runs
   orthogonally — test-type selection is via markers, not path.
-* New tests have one unambiguous home.
-* The migration is incremental: each slice can be reorganised independently without
+- New tests have one unambiguous home.
+- The migration is incremental: each slice can be reorganised independently without
   breaking others.
 
 #### Negative
 
-* A one-time migration effort is required to move files from the current layout.
-* Some tests genuinely span multiple slices (e.g. a migration that touches both
+- A one-time migration effort is required to move files from the current layout.
+- Some tests genuinely span multiple slices (e.g. a migration that touches both
   `upgrade` and `missions`); these go into the most responsible slice with a comment
   noting the cross-cutting concern.
 
 #### Neutral
 
-* `legacy/` is unchanged for now; it will be addressed as a follow-up (audit valuable
+- `legacy/` is unchanged for now; it will be addressed as a follow-up (audit valuable
   knowledge, extract 2.x-relevant tests, then delete).
-* Cross-cutting concerns without a natural slice home (encoding validation, packaging,
+- Cross-cutting concerns without a natural slice home (encoding validation, packaging,
   doctrine schema compliance) keep their existing `cross_cutting/` and `doctrine/`
   directories — those are already organised by concern, not by test type.
 
@@ -108,13 +108,13 @@ Test type is expressed by:
   distinction is not meaningful)
 
 **Pros:**
-* Capability-first — matches how developers and product owners think about the system.
-* Markers + suffixes give orthogonal test-type filtering without directory nesting.
-* Scales well: adding a new capability means adding a new slice, not editing a shared bucket.
+- Capability-first — matches how developers and product owners think about the system.
+- Markers + suffixes give orthogonal test-type filtering without directory nesting.
+- Scales well: adding a new capability means adding a new slice, not editing a shared bucket.
 
 **Cons:**
-* Requires migrating existing `unit/` and `integration/` directories.
-* Some tests are harder to classify (cross-cutting or multi-concern).
+- Requires migrating existing `unit/` and `integration/` directories.
+- Some tests are harder to classify (cross-cutting or multi-concern).
 
 ### Option B — Source package mirror
 
@@ -123,16 +123,16 @@ Top-level directories mirror `src/specify_cli/`: `charter/`, `glossary/`,
 subdirs.
 
 **Pros:**
-* Strong coupling between source module and its tests — easy to find tests for a
+- Strong coupling between source module and its tests — easy to find tests for a
   given module.
-* `specify_cli/` already partially follows this pattern.
+- `specify_cli/` already partially follows this pattern.
 
 **Cons:**
-* Internal module boundaries leak into the test tree. Refactoring the source
+- Internal module boundaries leak into the test tree. Refactoring the source
   package (e.g. splitting or merging modules) forces test directory renames.
-* Module boundaries do not align with user-facing capabilities — `glossary/` and
+- Module boundaries do not align with user-facing capabilities — `glossary/` and
   `charter/` are implementation details, not product features.
-* The `unit/` + `integration/` nesting restores the type-first problem one level deeper.
+- The `unit/` + `integration/` nesting restores the type-first problem one level deeper.
 
 ### Option C — Type-first top level, internals mirror source
 
@@ -141,13 +141,13 @@ internals to mirror the source package tree (e.g. `unit/agent/`, `unit/merge/`,
 `integration/merge/`).
 
 **Pros:**
-* No change to the top-level shape that CI scripts and contributor docs reference.
-* Internal structure becomes navigable.
+- No change to the top-level shape that CI scripts and contributor docs reference.
+- Internal structure becomes navigable.
 
 **Cons:**
-* The fundamental inversion remains: test type is the primary axis, capability is
+- The fundamental inversion remains: test type is the primary axis, capability is
   secondary. This is the opposite of what communicates system behaviour.
-* Related tests for one feature are split across two top-level directories, requiring
+- Related tests for one feature are split across two top-level directories, requiring
   navigation between them.
 
 ## More Information

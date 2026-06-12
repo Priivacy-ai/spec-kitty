@@ -389,7 +389,23 @@ def test_setup_plan_commits_substantive_plan(tmp_path: Path) -> None:
     assert payload.get("phase_complete") is True
     assert payload.get("result") == "success"
     plan_rel = str((feature_dir / "plan.md").relative_to(tmp_path))
-    assert _file_in_head(tmp_path, plan_rel) is True
+    # Placement is config-determined (FR-003, operator decision 2026-06-11):
+    # ``mission create`` declares a coordination_branch in meta.json, so the
+    # substantive-plan auto-commit lands on the COORDINATION ref — not the
+    # primary HEAD. Assert the commit on whichever surface the config names.
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    coord_branch = meta.get("coordination_branch")
+    if coord_branch:
+        shown = subprocess.run(
+            ["git", "-C", str(tmp_path), "cat-file", "-e", f"{coord_branch}:{plan_rel}"],
+            capture_output=True,
+        )
+        assert shown.returncode == 0, (
+            f"plan.md not committed on the config-declared coordination "
+            f"branch {coord_branch!r}"
+        )
+    else:
+        assert _file_in_head(tmp_path, plan_rel) is True
 
 
 def test_setup_plan_scaffolds_from_doctrine_package_default(

@@ -145,7 +145,10 @@ class TestWriteGenRecordModeError:
 
         assert canonical.exists()
         assert canonical.name == "retrospective.yaml"
-        assert MISSION_ID in str(canonical)
+        # FR-006 (#1771): record lands in the tracked feature_dir, not .kittify/missions/.
+        assert MISSION_SLUG in str(canonical)
+        assert "kitty-specs" in str(canonical)
+        assert ".kittify" not in str(canonical)
 
     def test_mode_error_raises_when_exists(self, tmp_path: Path) -> None:
         """mode='error' raises RecordExistsError when canonical path already exists."""
@@ -155,7 +158,7 @@ class TestWriteGenRecordModeError:
         with pytest.raises(RecordExistsError) as exc_info:
             write_gen_record(record, mode="error", repo_root=tmp_path)
 
-        assert MISSION_ID in str(exc_info.value.path)
+        assert MISSION_SLUG in str(exc_info.value.path)
         assert "overwrite" in str(exc_info.value).lower() or "--overwrite" in str(exc_info.value)
 
     def test_mode_error_record_exists_error_is_writer_error(self, tmp_path: Path) -> None:
@@ -363,7 +366,7 @@ class TestWriteGenRecordAtomicity:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Simulated crash on first write: canonical must not exist."""
-        canonical = tmp_path / ".kittify" / "missions" / MISSION_ID / "retrospective.yaml"
+        canonical = tmp_path / "kitty-specs" / MISSION_SLUG / "retrospective.yaml"
 
         def crashing_replace(src: str, dst: str) -> None:
             raise OSError("Simulated crash mid-replace")
@@ -458,7 +461,7 @@ class TestSynthesizeFabricateInvariant:
         assert "ran_no_findings" in str(exc_info.value)
 
         # Canonical must not be written.
-        canonical = tmp_path / ".kittify" / "missions" / MISSION_ID / "retrospective.yaml"
+        canonical = tmp_path / "kitty-specs" / MISSION_SLUG / "retrospective.yaml"
         assert not canonical.exists()
 
 
@@ -470,10 +473,14 @@ class TestSynthesizeFabricateInvariant:
 class TestWriteGenRecordEdgeCases:
     """Edge-case tests for write_gen_record branch coverage."""
 
-    def test_empty_mission_id_raises_writer_error(self, tmp_path: Path) -> None:
-        """Empty mission_id must raise WriterError before any IO."""
-        record = make_record(mission_id="")
-        with pytest.raises(WriterError, match="mission_id must be non-empty"):
+    def test_empty_mission_slug_raises_writer_error(self, tmp_path: Path) -> None:
+        """Empty mission_slug must raise WriterError before any IO.
+
+        FR-006 (#1771): the record path is derived from the mission_slug
+        (tracked feature_dir), so an empty slug cannot resolve a canonical path.
+        """
+        record = make_record(mission_slug="")
+        with pytest.raises(WriterError, match="mission_slug must be non-empty"):
             write_gen_record(record, mode="error", repo_root=tmp_path)
 
     def test_unknown_mode_raises_writer_error(self, tmp_path: Path) -> None:
@@ -486,7 +493,7 @@ class TestWriteGenRecordEdgeCases:
         self, tmp_path: Path
     ) -> None:
         """mode='update' with a non-mapping existing YAML raises WriterError."""
-        canonical = tmp_path / ".kittify" / "missions" / MISSION_ID / "retrospective.yaml"
+        canonical = tmp_path / "kitty-specs" / MISSION_SLUG / "retrospective.yaml"
         canonical.parent.mkdir(parents=True)
         # Write a scalar (not a mapping) to the canonical path.
         canonical.write_text("just a string\n", encoding="utf-8")
@@ -557,7 +564,7 @@ class TestWriteGenRecordEdgeCases:
         original_mkdir = Path.mkdir
 
         def failing_mkdir(self: Path, **kwargs: object) -> None:
-            if "missions" in str(self):
+            if MISSION_SLUG in str(self):
                 raise OSError("Simulated mkdir failure")
             original_mkdir(self, **kwargs)
 
@@ -595,7 +602,7 @@ class TestWriteGenRecordEdgeCases:
         """mode='update' with an existing record that fails validation raises WriterError."""
         # Write a YAML dict that is missing required fields so _dict_to_gen_record
         # produces something that fails validate_record.
-        canonical = tmp_path / ".kittify" / "missions" / MISSION_ID / "retrospective.yaml"
+        canonical = tmp_path / "kitty-specs" / MISSION_SLUG / "retrospective.yaml"
         canonical.parent.mkdir(parents=True)
         # Write a minimal dict that won't fail _dict_to_gen_record (defaults fill in)
         # but sets synthesize_fabricate + has_findings to fail validation.

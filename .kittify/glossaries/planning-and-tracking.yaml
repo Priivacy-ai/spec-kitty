@@ -1,0 +1,65 @@
+# Spec Kitty — Planning & Tracking vocabulary
+# Subset glossary for issue-tracker organization concepts (epics, labels, triage,
+# priority, and the Op execution tier). Companion to spec_kitty_core.yaml.
+
+terms:
+
+  - surface: functional epic
+    definition: >
+      An epic that represents a real domain of work — a subsystem, capability, or bug-class —
+      and owns its tickets as native sub-issues. Contrasted with a meta-tracker. Functional
+      epics, not meta-trackers, are the canonical parents of work.
+    confidence: 0.9
+    status: active
+
+  - surface: issue type
+    definition: >
+      The GitHub issue-type classification (Task, Bug, or Feature) applied to every ticket,
+      orthogonal to priority. Epics are typed Feature. The invariant `bug label <-> type Bug`
+      holds. Type captures the kind of work; the legacy Px-description labels that conflated
+      priority with type are retired.
+    confidence: 0.85
+    status: active
+
+  - surface: meta-tracker
+    definition: >
+      A tracking or convenience issue — release gate, go/no-go, or program rollup — that
+      references work via checklist but must NOT own functional tickets as their canonical
+      parent. Titles are prefixed `META-TRACKER:`. Release gating belongs in milestones or
+      labels, not in issues-as-parents.
+    confidence: 0.9
+    status: active
+
+  - surface: op
+    definition: >
+      A bounded, doctrine-governed agent action dispatched immediately without mission
+      ceremony (the `ask` / `advise` / `do` commands) that still produces a durable,
+      git-tracked record. The execution tier between a full Mission and untracked ad-hoc
+      invocation. An Op is to ask/advise/do what a Mission is to the full planning loop.
+    confidence: 0.8
+    status: draft
+
+  - surface: priority scheme
+    definition: >
+      The canonical issue-priority labels `priority:P0` .. `priority:P3`. The legacy
+      `Px-description` labels (P0-critical, P1-bug, P2-enhancement, P3-future, P4-wontfix)
+      are retired in favour of `priority:Px` plus the orthogonal issue-type field.
+    confidence: 0.9
+    status: active
+
+  - surface: triage status
+    definition: >
+      A cross-priority label namespace marking a ticket's disposition pending triage:
+      `triage:stale` (reproduce and close if no longer valid), `triage:needs-revision`
+      (scope/spec needs rework), and `triage:maybe-duplicate` (suspected duplicate pending
+      confirmation — distinct from the confirmed `duplicate` label).
+    confidence: 0.85
+    status: active
+
+  - surface: usability (label)
+    definition: >
+      The `usability` label, marking operator/user-experience and ergonomics concerns
+      (CLI surface, status display, command clarity). Narrows the UX overlap previously
+      folded into the `workflow` label.
+    confidence: 0.8
+    status: active

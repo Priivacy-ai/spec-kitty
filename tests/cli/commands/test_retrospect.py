@@ -2234,9 +2234,13 @@ class TestSynthesizeFabricateProvenance:
         # The command should succeed (exit 0)
         assert result.exit_code == 0, result.output
 
-        # The YAML file must exist on disk
-        retro_path = missions_dir / MISSION_ID_COMPLETED / "retrospective.yaml"
+        # FR-006 (#1771): the record lands in the tracked feature_dir, not the
+        # gitignored .kittify/missions/ tree.
+        retro_path = feature_dir / "retrospective.yaml"
         assert retro_path.exists(), "retrospective.yaml must be written to disk by --fabricate-empty"
+        assert not (missions_dir / MISSION_ID_COMPLETED / "retrospective.yaml").exists(), (
+            "record must NOT be written to the gitignored .kittify/missions/ tree"
+        )
 
         # Read back the YAML and verify provenance.kind
         raw = _yaml.safe_load(retro_path.read_text(encoding="utf-8"))

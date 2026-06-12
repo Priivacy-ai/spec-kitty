@@ -164,7 +164,7 @@ def test_autonomous_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert requested_event["actor"]["id"] == "next"
 
     # Record must be persisted.
-    canonical = tmp_path / ".kittify" / "missions" / _MISSION_ID / "retrospective.yaml"
+    canonical = feature_dir / "retrospective.yaml"
     assert canonical.exists(), "Record was not persisted to canonical path"
 
 
@@ -249,7 +249,7 @@ def test_hic_operator_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     assert requested_event["actor"]["id"] == _HUMAN_ACTOR.id
 
     # Record persisted.
-    canonical = tmp_path / ".kittify" / "missions" / _MISSION_ID / "retrospective.yaml"
+    canonical = feature_dir / "retrospective.yaml"
     assert canonical.exists(), "Record was not persisted"
 
 
@@ -291,7 +291,7 @@ def test_hic_operator_skips(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert skipped_event["payload"]["skip_reason"] == skip_reason
 
     # Persisted record must have status=skipped with skip_reason.
-    canonical = tmp_path / ".kittify" / "missions" / _MISSION_ID / "retrospective.yaml"
+    canonical = feature_dir / "retrospective.yaml"
     assert canonical.exists(), "Skipped record was not persisted"
     from specify_cli.retrospective.reader import read_record  # noqa: PLC0415
     persisted = read_record(canonical)
@@ -362,7 +362,7 @@ def test_hic_skip_empty_reason_loops(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert events[1]["payload"]["skip_reason"] == "low-value fix"
 
     # Persisted record has non-empty skip_reason.
-    canonical = tmp_path / ".kittify" / "missions" / _MISSION_ID / "retrospective.yaml"
+    canonical = feature_dir / "retrospective.yaml"
     from specify_cli.retrospective.reader import read_record  # noqa: PLC0415
     persisted = read_record(canonical)
     assert persisted.skip_reason == "low-value fix"

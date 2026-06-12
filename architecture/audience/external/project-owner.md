@@ -93,4 +93,3 @@ architecture artifacts depends on explicit boundaries, visible decisions, and pr
 handoffs across human and agent actors.
 
 ---
-

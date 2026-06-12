@@ -28,19 +28,19 @@ Spec-kitty 1.x is nearing production readiness as a local-only CLI tool. Meanwhi
 
 ## Decision Drivers
 
-* **User stability** - 1.x users need a stable, supported version without forced upgrades
-* **Development velocity** - 2.x needs greenfield freedom without 1.x compatibility constraints
-* **Migration complexity** - Deferred migration is simpler than progressive migration
-* **Resource constraints** - Solo developer cannot maintain two active feature branches
-* **Release pressure** - Need to ship 1.x soon, but 2.x will take months to complete
-* **Dependency management** - 2.x has private dependencies (spec-kitty-events) that 1.x doesn't need
+- **User stability** - 1.x users need a stable, supported version without forced upgrades
+- **Development velocity** - 2.x needs greenfield freedom without 1.x compatibility constraints
+- **Migration complexity** - Deferred migration is simpler than progressive migration
+- **Resource constraints** - Solo developer cannot maintain two active feature branches
+- **Release pressure** - Need to ship 1.x soon, but 2.x will take months to complete
+- **Dependency management** - 2.x has private dependencies (spec-kitty-events) that 1.x doesn't need
 
 ## Considered Options
 
-* **Option 1:** Two-branch strategy with deferred migration
-* **Option 2:** Progressive migration (dual state systems in single branch)
-* **Option 3:** Postpone 1.x release until 2.x is complete
-* **Option 4:** Feature flags for SaaS features (gradual rollout)
+- **Option 1:** Two-branch strategy with deferred migration
+- **Option 2:** Progressive migration (dual state systems in single branch)
+- **Option 3:** Postpone 1.x release until 2.x is complete
+- **Option 4:** Feature flags for SaaS features (gradual rollout)
 
 ## Decision Outcome
 
@@ -55,26 +55,26 @@ Spec-kitty 1.x is nearing production readiness as a local-only CLI tool. Meanwhi
 
 #### Positive
 
-* **Stable 1.x release** - Ship production-ready local-only tool without SaaS dependencies
-* **Greenfield 2.x** - No backward compatibility constraints during fundamental architecture changes
-* **Deferred migration** - Build migration tools when 2.x is proven and stable
-* **Clear user expectations** - 1.x users know they're on maintenance-only track
-* **No dual state systems** - Avoid complexity of maintaining YAML + events simultaneously
-* **Resource focus** - Solo developer concentrates fully on 2.x without 1.x feature requests
+- **Stable 1.x release** - Ship production-ready local-only tool without SaaS dependencies
+- **Greenfield 2.x** - No backward compatibility constraints during fundamental architecture changes
+- **Deferred migration** - Build migration tools when 2.x is proven and stable
+- **Clear user expectations** - 1.x users know they're on maintenance-only track
+- **No dual state systems** - Avoid complexity of maintaining YAML + events simultaneously
+- **Resource focus** - Solo developer concentrates fully on 2.x without 1.x feature requests
 
 #### Negative
 
-* **Branch divergence** - 1.x and 2.x will accumulate differences (harder to cherry-pick fixes)
-* **Duplicate bug fixes** - Critical bugs may need fixing in both branches during transition
-* **User fragmentation** - Some users stay on 1.x, others adopt 2.x (split community)
-* **Migration effort** - Must build migration tools later (deferred cost, not avoided)
-* **Documentation split** - Need separate docs for 1.x and 2.x
+- **Branch divergence** - 1.x and 2.x will accumulate differences (harder to cherry-pick fixes)
+- **Duplicate bug fixes** - Critical bugs may need fixing in both branches during transition
+- **User fragmentation** - Some users stay on 1.x, others adopt 2.x (split community)
+- **Migration effort** - Must build migration tools later (deferred cost, not avoided)
+- **Documentation split** - Need separate docs for 1.x and 2.x
 
 #### Neutral
 
-* **1.x maintenance** - Security/critical fixes only, no new features
-* **No forced migration** - Users can stay on 1.x indefinitely if they don't need SaaS
-* **2.x release timeline** - Months away (Event Log → Sync Protocol → Connector Hub → Beta)
+- **1.x maintenance** - Security/critical fixes only, no new features
+- **No forced migration** - Users can stay on 1.x indefinitely if they don't need SaaS
+- **2.x release timeline** - Months away (Event Log → Sync Protocol → Connector Hub → Beta)
 
 ### Confirmation
 
@@ -112,18 +112,18 @@ Spec-kitty 1.x is nearing production readiness as a local-only CLI tool. Meanwhi
 
 **Pros:**
 
-* Clean separation of concerns (local vs. distributed)
-* Greenfield freedom for 2.x (no compatibility constraints)
-* Stable 1.x immediately available
-* Simpler than dual state systems
-* Clear user expectations (maintenance vs. active development)
+- Clean separation of concerns (local vs. distributed)
+- Greenfield freedom for 2.x (no compatibility constraints)
+- Stable 1.x immediately available
+- Simpler than dual state systems
+- Clear user expectations (maintenance vs. active development)
 
 **Cons:**
 
-* Branch divergence accumulates over time
-* Bug fixes may need applying to both branches
-* Migration effort deferred (cost paid later)
-* Community fragmentation during transition
+- Branch divergence accumulates over time
+- Bug fixes may need applying to both branches
+- Migration effort deferred (cost paid later)
+- Community fragmentation during transition
 
 ### Option 2: Progressive Migration (Dual State Systems)
 
@@ -131,17 +131,17 @@ Single `main` branch with both YAML and event log systems active. Feature flags 
 
 **Pros:**
 
-* No branch divergence
-* Users can opt-in to event log incrementally
-* Single codebase to maintain
+- No branch divergence
+- Users can opt-in to event log incrementally
+- Single codebase to maintain
 
 **Cons:**
 
-* ❌ **Complexity explosion** - Maintaining two state systems simultaneously (YAML + events)
-* ❌ **Testing burden** - Must test all combinations (YAML-only, events-only, hybrid)
-* ❌ **Performance overhead** - Dual writes to both systems during transition
-* ❌ **Migration never completes** - Technical debt accumulates (when can we remove YAML?)
-* ❌ **Confusing for users** - Unclear which mode they're in, hybrid state bugs
+- ❌ **Complexity explosion** - Maintaining two state systems simultaneously (YAML + events)
+- ❌ **Testing burden** - Must test all combinations (YAML-only, events-only, hybrid)
+- ❌ **Performance overhead** - Dual writes to both systems during transition
+- ❌ **Migration never completes** - Technical debt accumulates (when can we remove YAML?)
+- ❌ **Confusing for users** - Unclear which mode they're in, hybrid state bugs
 
 ### Option 3: Postpone 1.x Release Until 2.x Complete
 
@@ -149,16 +149,16 @@ Delay 1.x release until SaaS features are complete, ship only 2.x.
 
 **Pros:**
 
-* No branch management complexity
-* Users get best-in-class SaaS experience immediately
-* No migration needed (never shipped 1.x)
+- No branch management complexity
+- Users get best-in-class SaaS experience immediately
+- No migration needed (never shipped 1.x)
 
 **Cons:**
 
-* ❌ **Delays stable release by months** - Users waiting for production-ready tool
-* ❌ **Higher risk** - First release includes complex SaaS features (more bugs)
-* ❌ **Lost feedback** - Cannot learn from 1.x users before building SaaS
-* ❌ **All-or-nothing** - Forces SaaS on users who only need local tool
+- ❌ **Delays stable release by months** - Users waiting for production-ready tool
+- ❌ **Higher risk** - First release includes complex SaaS features (more bugs)
+- ❌ **Lost feedback** - Cannot learn from 1.x users before building SaaS
+- ❌ **All-or-nothing** - Forces SaaS on users who only need local tool
 
 ### Option 4: Feature Flags for SaaS Features
 
@@ -166,17 +166,17 @@ Single branch with feature flags: `--enable-events`, `--enable-sync`.
 
 **Pros:**
 
-* Gradual rollout possible
-* Users control adoption pace
-* Single codebase
+- Gradual rollout possible
+- Users control adoption pace
+- Single codebase
 
 **Cons:**
 
-* ❌ **Combinatorial explosion** - Testing matrix: events ON/OFF × sync ON/OFF × ...
-* ❌ **Default dilemma** - What should be default? (Forces decision prematurely)
-* ❌ **Incomplete features** - Half-working SaaS features confuse users
-* ❌ **Technical debt** - When can flags be removed? (Never clear)
-* ❌ **Still requires dual state** - Same complexity as Option 2
+- ❌ **Combinatorial explosion** - Testing matrix: events ON/OFF × sync ON/OFF × ...
+- ❌ **Default dilemma** - What should be default? (Forces decision prematurely)
+- ❌ **Incomplete features** - Half-working SaaS features confuse users
+- ❌ **Technical debt** - When can flags be removed? (Never clear)
+- ❌ **Still requires dual state** - Same complexity as Option 2
 
 ## More Information
 

@@ -148,7 +148,7 @@ does **not** lock the schema for `freshness.*` sub-states beyond the value vocab
 that schema is finalised in WP02 and lives in the data model and JSON contract files. It
 does **not** mandate when `charter preflight` runs (every command vs session-start only);
 that decision is recorded in WP03 against the matching research question (open question
-#3 in `spec.md`).
+3 in `spec.md`).
 
 This ADR is the foundation contract for WP01 .. WP04. Subsequent WPs in this mission build
 on it; they do not amend it.

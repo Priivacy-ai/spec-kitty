@@ -64,17 +64,17 @@ The CLI then finalises the mission-origin link once the mission exists.
 
 ## Decision Drivers
 
-* **LLM specification quality** — free-form reasoning over raw ticket content
+- **LLM specification quality** — free-form reasoning over raw ticket content
   produces better specs than template substitution.
-* **Principle of least knowledge** — the CLI should not know how to interpret
+- **Principle of least knowledge** — the CLI should not know how to interpret
   ticket requirements; the LLM should not know how to call SaaS APIs.
-* **Consistency with established ADRs** — this decision follows directly from
+- **Consistency with established ADRs** — this decision follows directly from
   `2026-03-09-1` (commands do context, prompts do not) and
   `2026-04-04-1` (binding context is discovered, not user-supplied).
-* **Provider neutrality** — the ticket normalisation layer in the CLI means the
+- **Provider neutrality** — the ticket normalisation layer in the CLI means the
   LLM sees the same context shape regardless of whether the ticket came from
   Linear, Jira, GitHub Issues, or GitLab.
-* **Backlink correctness** — the SaaS backlink comment should only be posted after
+- **Backlink correctness** — the SaaS backlink comment should only be posted after
   a mission actually exists. Posting it before `specify` runs creates phantom links
   if the user abandons the session.
 

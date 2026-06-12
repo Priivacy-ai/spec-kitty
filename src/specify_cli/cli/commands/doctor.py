@@ -14,7 +14,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Annotated
+from collections.abc import Generator
+from typing import TYPE_CHECKING, Annotated, cast
 
 import typer
 from rich.console import Console
@@ -46,6 +47,10 @@ _CI_ENV_VARS = (
     "CIRCLECI",
 )
 
+#: Column header for the invocation/op start timestamp, reused across the
+#: orphan/open/closed invocation tables rendered by ``spec-kitty doctor``.
+_STARTED_AT_COLUMN = "Started At"
+
 
 def _is_interactive_environment() -> bool:
     """Return True iff stdin is a TTY AND no common CI env var is set.
@@ -65,12 +70,36 @@ if TYPE_CHECKING:
     from specify_cli.status import IdentityState
 
 app = typer.Typer(name="doctor", help="Project health diagnostics")
-console = Console()
+# WP08 (#1623): the doctrine/profile health *render* helpers — and the shared
+# ``console`` singleton they emit through — were extracted to
+# ``_profile_health_render``.  ``doctor.py`` re-imports them so the command
+# surface and the renderers write through one Console instance and the public
+# (test-facing) names remain importable from ``doctor``.
+from ._profile_health_render import (  # noqa: E402 — must follow `app`/imports above
+    _SELECTION_KIND_PLURALS,
+    _emit_doctrine_human,
+    _emit_doctrine_json,
+    _emit_doctrine_no_packs,
+    console,
+)
+
+# Re-export the render-only helpers so the existing test surface
+# (``from specify_cli.cli.commands.doctor import _render_doctrine_pack`` etc.)
+# keeps resolving after the WP08 extraction.  The redundant-alias form marks
+# these as intentional re-exports (they are consumed by the moved emit helpers,
+# not by ``doctor.py`` directly).
+from ._profile_health_render import (  # noqa: E402
+    _render_doctrine_pack as _render_doctrine_pack,
+    _render_org_layer_section as _render_org_layer_section,
+    _render_pack_invalid_profiles as _render_pack_invalid_profiles,
+    _render_selection_block_lines as _render_selection_block_lines,
+)
+
 logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def _json_output_guard(enabled: bool):
+def _json_output_guard(enabled: bool) -> Generator[None, None, None]:
     """Keep ``--json`` stdout/stderr machine-clean."""
     if not enabled:
         yield
@@ -114,7 +143,7 @@ def _vibe_skill_path_configured(project_path: Path) -> bool:
 
     skill_paths = data.get("skill_paths")
     if isinstance(skill_paths, str):
-        return skill_paths == VIBE_SKILL_PATH
+        return bool(skill_paths == VIBE_SKILL_PATH)
     if isinstance(skill_paths, list):
         return VIBE_SKILL_PATH in [str(path) for path in skill_paths]
     return False
@@ -292,11 +321,11 @@ def _print_slash_command_payload(
     """Render human output for slash-command audit payload."""
     if slash_payload.get("errors"):
         console.print("\n[bold red]Slash-command audit failed[/bold red]")
-        for error in list(slash_payload["errors"]):
+        for error in cast(list[object], slash_payload["errors"]):
             console.print(f"  [red]![/red] {error}")
         return
 
-    configured_slash = list(slash_payload["configured_agents"])
+    configured_slash = cast(list[str], slash_payload["configured_agents"])
     slash_gaps = [
         SlashCommandGap(
             str(gap["agent_key"]),
@@ -304,13 +333,13 @@ def _print_slash_command_payload(
             Path(str(gap["expected_path"])),
             str(gap["status"]),
         )
-        for gap in list(slash_payload["gaps"])
+        for gap in cast(list[dict[str, object]], slash_payload["gaps"])
         if isinstance(gap, dict)
     ]
     _print_slash_command_report(configured_slash, slash_gaps, fix)
     if fix and slash_payload["repaired"]:
         console.print(
-            f"\n[green]Repaired:[/green] {len(slash_payload['repaired'])} slash command file(s)"
+            f"\n[green]Repaired:[/green] {len(cast(list[object], slash_payload['repaired']))} slash command file(s)"
         )
 
 
@@ -469,14 +498,14 @@ def _print_command_skill_report(payload: dict[str, object], fix: bool) -> None:
         )
         return
 
-    drift = list(payload["drift"])
-    gaps = list(payload["gaps"])
-    orphans = list(payload["orphans"])
-    stale = list(payload["stale"])
-    unsafe = list(payload["unsafe"])
-    uninstalled_agents = list(payload["uninstalled_agents"])
-    repaired = list(payload["repaired_agents"])
-    repair_errors = list(payload["repair_errors"])
+    drift = cast(list[str], payload["drift"])
+    gaps = cast(list[str], payload["gaps"])
+    orphans = cast(list[str], payload["orphans"])
+    stale = cast(list[str], payload["stale"])
+    unsafe = cast(list[str], payload["unsafe"])
+    uninstalled_agents = cast(list[str], payload["uninstalled_agents"])
+    repaired = cast(list[str], payload["repaired_agents"])
+    repair_errors = cast(list[str], payload["repair_errors"])
 
     console.print("\n[bold]Command Skills[/bold] - issue(s) found\n")
     summary = Table(box=None, padding=(0, 2), show_edge=False)
@@ -505,7 +534,7 @@ def _print_command_skill_report(payload: dict[str, object], fix: bool) -> None:
     if repaired:
         console.print(f"\n[green]Repaired:[/green] {', '.join(repaired)}")
     if payload["pruned"]:
-        console.print(f"\n[green]Pruned stale entries:[/green] {len(payload['pruned'])}")
+        console.print(f"\n[green]Pruned stale entries:[/green] {len(cast(list[object], payload['pruned']))}")
     if payload["repaired_vibe_config"]:
         console.print("\n[green]Repaired:[/green] Vibe skill path config")
     if repair_errors:
@@ -688,10 +717,13 @@ def skills(
     _print_command_skill_report(payload, fix)
 
     # --- Slash Commands audit ---
-    slash_payload = payload["slash_commands"]
-    if not isinstance(slash_payload, dict):
-        slash_payload = {"ok": False, "errors": ["invalid slash-command payload"]}
-    _print_slash_command_payload(slash_payload, fix)
+    slash_payload_raw = payload["slash_commands"]
+    slash_payload_for_print: dict[str, object] = (
+        {"ok": False, "errors": ["invalid slash-command payload"]}
+        if not isinstance(slash_payload_raw, dict)
+        else slash_payload_raw
+    )
+    _print_slash_command_payload(slash_payload_for_print, fix)
 
     raise typer.Exit(0 if payload["ok"] else 1)
 
@@ -1405,7 +1437,7 @@ def invocation_pairing(
     table.add_column("Agent", min_width=10)
     table.add_column("Mission ID", min_width=10)
     table.add_column("WP", min_width=6)
-    table.add_column("Started At", min_width=20)
+    table.add_column(_STARTED_AT_COLUMN, min_width=20)
     for entry in orphans_list:
         table.add_row(
             str(entry.get("canonical_action_id", "")),
@@ -1450,7 +1482,7 @@ def _run_ops_sweep(repo_root: Path, *, threshold_hours: float, json_output: bool
         table = Table(box=None, padding=(0, 2), show_edge=False)
         table.add_column("Invocation ID", style="cyan", min_width=26)
         table.add_column("Profile", min_width=10)
-        table.add_column("Started At", min_width=20)
+        table.add_column(_STARTED_AT_COLUMN, min_width=20)
         table.add_column("Age (h)", justify="right", min_width=8)
         table.add_column("Action", min_width=16)
         for entry in report.open_ops:
@@ -1917,7 +1949,7 @@ def orphan_daemons(
     table.add_column("Port", justify="right", min_width=6)
     table.add_column("Version", min_width=10)
     table.add_column("Executable", overflow="fold")
-    table.add_column("Started At", min_width=20)
+    table.add_column(_STARTED_AT_COLUMN, min_width=20)
     for record in orphans:
         table.add_row(
             str(record.pid),
@@ -2153,87 +2185,6 @@ def _summarize_org_charter(snapshot_path: Path) -> dict[str, object]:
     }
 
 
-def _render_pack_invalid_profiles(pack_health: object) -> None:
-    """Render per-layer invalid-profile diagnostics for a pack (FR-008/009)."""
-    if not isinstance(pack_health, dict):
-        return
-    invalid = pack_health.get("invalid_profiles") or []
-    if not (isinstance(invalid, list) and invalid):
-        return
-    console.print(f"  [yellow]invalid profiles:[/yellow] {len(invalid)} skipped")
-    for entry in invalid:
-        if not isinstance(entry, dict):
-            continue
-        layer = entry.get("layer", "?")
-        path = entry.get("path", "?")
-        error = entry.get("error_summary", "")
-        # Render dynamic values without Rich markup so a path/error containing
-        # square brackets is never mis-parsed as a style tag.
-        console.print(
-            f"    • ({layer}) {path}: {error}",
-            markup=False,
-        )
-
-
-def _render_doctrine_pack(pack_entry: dict[str, object], pack_index: int) -> None:
-    """Render one pack entry to the Rich console (human output for ``doctor doctrine``).
-
-    FR-010: the pack header is colored from derived profile health
-    (``pack_health.healthy``), not from snapshot presence.  A snapshot that is
-    present but whose agent profiles failed to load renders *degraded* (yellow),
-    and the per-layer invalid profiles are listed.
-    """
-    name = pack_entry.get("name") or f"pack#{pack_index}"
-    local_path = pack_entry.get("local_path")
-    if not pack_entry.get("snapshot_present"):
-        console.print(
-            f"[yellow]Pack:[/yellow] {name}  (snapshot missing at {local_path})"
-        )
-        return
-
-    version = pack_entry.get("pack_version", "unknown")
-    is_git = pack_entry.get("is_git_pack", False)
-    counts = pack_entry.get("artifact_counts") or {}
-    summary_parts = [f"git {version}" if is_git else f"v{version}"]
-    if isinstance(counts, dict):
-        for artifact_type, count in counts.items():
-            summary_parts.append(f"{count} {artifact_type}")
-
-    # FR-010: derive the header color from profile health, never snapshot
-    # presence.  ``pack_health`` is the report's PackHealth.to_dict() for the
-    # matching layer (attached by the report builder), or ``None`` if no
-    # agent-profile surface was discovered for this pack.
-    pack_health = pack_entry.get("pack_health")
-    # WP01: default to degraded, not green. A present pack with no/partial
-    # ``pack_health`` must render degraded (loud-over-hidden) rather than
-    # silently green — only an explicit ``healthy: true`` greens the header.
-    healthy = False
-    if isinstance(pack_health, dict):
-        healthy = bool(pack_health.get("healthy", False))
-    color = "green" if healthy else "yellow"
-    status_suffix = "" if healthy else "  [yellow](degraded)[/yellow]"
-    console.print(
-        f"[{color}]Pack:[/{color}] {name}  ({', '.join(summary_parts)}){status_suffix}"
-    )
-    _render_pack_invalid_profiles(pack_health)
-
-    charter = pack_entry.get("org_charter") or {}
-    if isinstance(charter, dict) and charter.get("present"):
-        if charter.get("module_available", True):
-            counts_msg = (
-                f"{charter.get('interview_defaults_count', 0)} interview defaults, "
-                f"{charter.get('required_directives_count', 0)} required directives, "
-                f"{charter.get('governance_policies_count', 0)} governance policies"
-            )
-            console.print(f"  org-charter.yaml: {counts_msg}")
-        else:
-            console.print(
-                "  org-charter.yaml: present (policy module not yet shipped)"
-            )
-    else:
-        console.print("  org-charter.yaml: [dim]not present[/dim]")
-
-
 def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     """Build the agent-profile + org-DRG health report once (WP08, NFR-001).
 
@@ -2314,110 +2265,6 @@ def _attach_pack_health(
     for entry in pack_entries:
         if entry.get("snapshot_present"):
             entry["pack_health"] = health_dict
-
-
-def _emit_doctrine_human(
-    pack_entries: list[dict[str, object]],
-    collision_summaries: list[dict[str, object]],
-    selection_block: dict[str, list[dict[str, str]]],
-    repo_root: Path,
-) -> None:
-    """Render the human-readable ``doctor doctrine`` report.
-
-    The report is the single source: pack health was attached to
-    ``pack_entries`` by :func:`_attach_pack_health`, and the org-DRG section is
-    re-rendered from the same data path.  No parallel assembly (R-011-C).
-    """
-    console.print(
-        f"\n[bold]Org Doctrine[/bold] — {len(pack_entries)} pack(s) configured\n"
-    )
-    for idx, entry in enumerate(pack_entries):
-        _render_doctrine_pack(entry, idx)
-
-    if collision_summaries:
-        console.print(
-            f"\n[bold]Collisions[/bold] — {len(collision_summaries)} override(s) detected\n"
-        )
-        for collision in collision_summaries:
-            console.print(
-                f"  • [yellow]{collision['kind']}[/yellow] "
-                f"{collision['item_id']}: "
-                f"{collision['higher_layer']} shadowed {collision['lower_layer']} "
-                f"({collision['replaced']} replaced, {collision['inherited']} inherited)"
-            )
-    else:
-        console.print(
-            "\n[dim]Collisions:[/dim] none — every artifact resolves from a single layer."
-        )
-
-    # WP07 T037 (FR-007): surface org-layer DRG state in human-readable output.
-    _render_org_layer_section(repo_root, console)
-
-    # FR-018 / WP09 T050: render the Selections section verbatim so the
-    # snapshot test in tests/cli/test_doctor_doctrine_selections_snapshot.py
-    # can pin the operator-facing format byte-for-byte.
-    console.print()
-    for line in _render_selection_block_lines(selection_block):
-        console.print(line)
-    console.print()
-
-
-def _emit_doctrine_json(
-    report: DoctrineHealthReport,
-    *,
-    org_configured: bool,
-    pack_entries: list[dict[str, object]],
-    collision_summaries: list[dict[str, object]],
-    selection_block: dict[str, list[dict[str, str]]],
-) -> None:
-    """Emit the ``doctor doctrine --json`` payload as a passthrough of the report.
-
-    ``profile_health`` is a verbatim ``report.to_dict()`` so the invalid-profile
-    fields (layer/path/profile_id/error_summary) and the derived ``healthy``
-    flag are a single source of truth shared with the human surface (FR-010).
-    """
-    report_dict = report.to_dict()
-    payload: dict[str, object] = {
-        "org_configured": org_configured,
-        "packs": pack_entries,
-        "selections": selection_block,
-        # WP07 FR-007: always include org_drg key so callers can rely on it.
-        "org_drg": report_dict["org_drg"],
-        # WP08 FR-008/009/010: derived profile health + invalid-profile diagnostics.
-        "profile_health": report_dict,
-    }
-    if org_configured:
-        payload["collisions"] = collision_summaries
-    console.print_json(json.dumps(payload, indent=2, default=str))
-
-
-def _emit_doctrine_no_packs(
-    report: DoctrineHealthReport,
-    selection_block: dict[str, list[dict[str, str]]],
-    *,
-    json_output: bool,
-) -> None:
-    """Emit the ``doctor doctrine`` output when no org packs are configured.
-
-    A project with built-in + project-only doctrine still has selections (and
-    profile health) to audit, so both are emitted before the command exits.
-    """
-    if json_output:
-        _emit_doctrine_json(
-            report,
-            org_configured=False,
-            pack_entries=[],
-            collision_summaries=[],
-            selection_block=selection_block,
-        )
-        return
-    console.print("[yellow]No org doctrine configured.[/yellow]")
-    console.print(
-        "Add a 'doctrine.org' block to .kittify/config.yaml to register a pack."
-    )
-    console.print()
-    for line in _render_selection_block_lines(selection_block):
-        console.print(line)
 
 
 def _build_pack_entries(registry: object) -> list[dict[str, object]]:
@@ -2599,70 +2446,6 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
 # ---------------------------------------------------------------------------
 
 
-def _render_org_layer_section(repo_root: Path, console: Console) -> None:
-    """Surface organisation-tier DRG state in ``doctor doctrine`` (FR-007).
-
-    Lists each configured pack with its fetched/missing status, node/edge
-    counts, and any collision warnings from ``merge_three_layers``.
-
-    Diagnostic commands are READ-ONLY and must never crash on operator
-    misconfiguration.  All exceptions are caught and rendered as findings
-    so ``doctor doctrine`` always returns a usable report.
-    """
-    from charter.drg import (  # noqa: PLC0415
-        OrgDRGConflictError,
-        OrgPackMissingError,
-        load_org_drg,
-        merge_three_layers,
-    )
-    from charter.catalog import resolve_doctrine_root  # noqa: PLC0415
-    from doctrine.drg.loader import load_graph_or_dir  # noqa: PLC0415
-
-    console.print("\n[bold]Organisation Layer[/bold] (WP07 / FR-007)")
-
-    try:
-        fragments = load_org_drg(repo_root)
-    except OrgPackMissingError as exc:
-        console.print(f"  [red]org pack missing:[/red] {exc}")
-        return
-    except Exception as exc:  # noqa: BLE001
-        console.print(f"  [red]org-DRG load error:[/red] {exc}")
-        return
-
-    if not fragments:
-        console.print("  (no organisation packs configured)")
-        return
-
-    for frag in fragments:
-        node_count = len(frag.nodes)
-        edge_count = len(frag.edges)
-        console.print(
-            f"  - [green]{frag.pack_name}[/green] "
-            f"[{frag.source_kind}: {frag.source_ref}] "
-            f"✓ loaded ({node_count} nodes, {edge_count} edges)"
-        )
-
-    # Merge with built-in layer to surface collision warnings.
-    # Truncate to ≤3 lines per the WP07 risk table (risk 4: verbosity mitigation).
-    try:
-        built_in = load_graph_or_dir(resolve_doctrine_root())
-        merge_three_layers(built_in=built_in, org_fragments=fragments, project=None)
-        console.print("  collisions: none")
-    except OrgDRGConflictError as exc:
-        shown = exc.conflicts[:3]
-        console.print(f"  collisions: {len(exc.conflicts)} built-in invariant override(s)")
-        for conflict in shown:
-            console.print(
-                f"    [yellow]•[/yellow] {conflict.kind} "
-                f"target={conflict.target_id} "
-                f"resolution={conflict.resolution_applied}"
-            )
-        if len(exc.conflicts) > 3:
-            console.print(f"    … and {len(exc.conflicts) - 3} more (run charter lint for details)")
-    except Exception as exc:  # noqa: BLE001 — doctor must not crash
-        console.print(f"  [yellow]collision check skipped:[/yellow] {exc}")
-
-
 def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
     """Return structured org-layer data for ``doctor doctrine --json`` (FR-007).
 
@@ -2688,10 +2471,10 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
     try:
         fragments = load_org_drg(repo_root)
     except OrgPackMissingError as exc:
-        result["errors"] = [str(exc)]  # type: ignore[assignment]
+        result["errors"] = [str(exc)]
         return result
     except Exception as exc:  # noqa: BLE001
-        result["errors"] = [f"org-DRG load error: {exc}"]  # type: ignore[assignment]
+        result["errors"] = [f"org-DRG load error: {exc}"]
         return result
 
     packs = []
@@ -2707,7 +2490,7 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
                 "fetched": True,
             }
         )
-    result["configured_packs"] = packs  # type: ignore[assignment]
+    result["configured_packs"] = packs
 
     if not fragments:
         return result
@@ -2716,7 +2499,7 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
         built_in = load_graph_or_dir(resolve_doctrine_root())
         merge_three_layers(built_in=built_in, org_fragments=fragments, project=None)
     except OrgDRGConflictError as exc:
-        result["collision_warnings"] = [  # type: ignore[assignment]
+        result["collision_warnings"] = [
             {
                 "kind": c.kind,
                 "target_id": c.target_id,
@@ -2734,21 +2517,8 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
 # ---------------------------------------------------------------------------
 # WP09 T050 — Selections section (FR-018)
 # ---------------------------------------------------------------------------
-
-#: Canonical artifact-kind plurals as surfaced by ``doctor doctrine`` in the
-#: Selections section.  Ordering is the operator-facing reading order from
-#: the WP09 plan (directives first, agent_profiles last so the audit ends
-#: on the "who can drive" surface).
-_SELECTION_KIND_PLURALS: tuple[str, ...] = (
-    "directives",
-    "tactics",
-    "paradigms",
-    "styleguides",
-    "toolguides",
-    "procedures",
-    "mission_step_contracts",
-    "agent_profiles",
-)
+# ``_SELECTION_KIND_PLURALS`` and ``_render_selection_block_lines`` were moved to
+# ``_profile_health_render`` (WP08, #1623) and are re-imported at module top.
 
 
 def _resolve_artifact_source(
@@ -2777,7 +2547,7 @@ def _resolve_artifact_source(
     repo = getattr(service, plural, None)
     if repo is not None:
         try:
-            provenance = repo.get_provenance(item_id)  # type: ignore[attr-defined]
+            provenance = repo.get_provenance(item_id)
         except (AttributeError, KeyError):
             provenance = None
         if provenance == "builtin":
@@ -2898,28 +2668,6 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
             })
         result[kind] = entries
     return result
-
-
-def _render_selection_block_lines(
-    selections: dict[str, list[dict[str, str]]],
-) -> list[str]:
-    """Render the Selections block as a list of pinned-format lines.
-
-    The exact layout is pinned by the snapshot test
-    ``tests/cli/test_doctor_doctrine_selections_snapshot.py``.  Every
-    change to spacing, punctuation, or per-kind ordering MUST update the
-    snapshot fixture in the same commit.
-    """
-    lines: list[str] = ["Selections (active globally-selected artifacts):"]
-    for kind in _SELECTION_KIND_PLURALS:
-        entries = selections.get(kind, [])
-        if not entries:
-            lines.append(f"  {kind}: (none)")
-            continue
-        lines.append(f"  {kind}:")
-        for entry in entries:
-            lines.append(f"    - {entry['id']:<24}(source: {entry['source']})")
-    return lines
 
 
 # ---------------------------------------------------------------------------

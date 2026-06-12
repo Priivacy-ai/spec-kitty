@@ -1,0 +1,29 @@
+{
+  "accept_commit": "facafa12610732301cdc718b12a311aa02fad5d4",
+  "acceptance_history": [
+    {
+      "accept_commit": "facafa12610732301cdc718b12a311aa02fad5d4",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-11T02:26:28.696656+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "16fd6ea6f89487f8a57fce55a19386fbf8334e3d"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-11T02:26:28.696656+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "16fd6ea6f89487f8a57fce55a19386fbf8334e3d",
+  "baseline_merge_commit": "c377331383ada37f1f0bd035b70bf26a82f2d521",
+  "created_at": "2026-06-10T08:57:17.724759+00:00",
+  "friendly_name": "Tooling Stability & Guard Coherence",
+  "mission_id": "01KTRC044W67V3KC9H7TBFSY7B",
+  "mission_number": 130,
+  "mission_slug": "tooling-stability-guard-coherence-01KTRC04",
+  "mission_type": "software-dev",
+  "purpose_context": "Mission 01KTPKST's closeout + dogfood surfaced tooling-stability papercuts (record-analysis verdict miscount #1819, safe-commit/protected-branch friction #1820/#1796, not-fully-threaded status surface #1821) plus deferred code-health debt (#1623 doctor.py god-module, #1624 merge.py typing). This follow-up slice of #1619 consolidates the safe-commit/protected-branch guard surface and fixes the findings + debt so the tooling is stable enough to PR the accumulated work.",
+  "purpose_tldr": "Harden spec-kitty's commit/guard/analysis/health surfaces into coherent, stable mechanisms — the stability bar before the execution-context PR.",
+  "slug": "tooling-stability-guard-coherence-01KTRC04",
+  "target_branch": "fixups/code-engine-stabilization",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-10T14:48:56.588482+00:00"
+}

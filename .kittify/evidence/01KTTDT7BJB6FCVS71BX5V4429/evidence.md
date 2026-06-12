@@ -1,0 +1,1 @@
+Root mechanism: per-package --cov produces multiple <source> + bare filenames; Sonar ambiguity drops coverage. Fix 81535b16e: [tool.coverage.run] relative_files + CI normalization step rewriting <sources> to single src root with package-prefixed filenames (734 prefixed in sample, zero dupes). Final proof = next CI run sonar log

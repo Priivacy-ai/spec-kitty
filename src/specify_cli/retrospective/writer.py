@@ -16,7 +16,7 @@ import dataclasses
 import io
 import os
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from ruamel.yaml import YAML
 
@@ -31,6 +31,56 @@ from specify_cli.retrospective.schema import (
     RetrospectiveRecord,
     validate_record,
 )
+
+
+def canonical_record_path(repo_root: Path, mission_slug: str) -> Path:
+    """Return the canonical (tracked) retrospective.yaml path for a mission.
+
+    FR-006 (#1771): the retrospective *record* lives in the mission's tracked
+    feature_dir (``kitty-specs/<slug>/retrospective.yaml``), alongside
+    spec/plan/tasks — NOT under the gitignored ``.kittify/missions/`` tree. The
+    feature_dir is resolved through the single coord-topology-aware read
+    primitive (``resolve_feature_dir_for_slug`` → ``resolve_mission_read_path``),
+    so the record sits beside the same surface the status events use (C-005).
+    """
+    from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug
+
+    feature_dir: Path = resolve_feature_dir_for_slug(repo_root, mission_slug)
+    return feature_dir / "retrospective.yaml"
+
+
+def _legacy_record_path(repo_root: Path, mission_id: str) -> Path:
+    """Return the pre-#1771 (gitignored) record path for back-compat reads only.
+
+    Records authored before the FR-006 relocation live at
+    ``.kittify/missions/<mission_id>/retrospective.yaml`` (gitignored). New
+    writes never target this path; readers fall back to it so archived/legacy
+    records remain visible.
+    """
+    return repo_root / ".kittify" / "missions" / mission_id / "retrospective.yaml"
+
+
+def resolve_existing_record_path(
+    repo_root: Path,
+    mission_slug: str,
+    mission_id: str,
+) -> Path:
+    """Return the record path to READ for a mission, preferring the tracked home.
+
+    Resolution order (FR-006 #1771):
+    1. Tracked ``kitty-specs/<slug>/retrospective.yaml`` if it exists.
+    2. Legacy gitignored ``.kittify/missions/<id>/retrospective.yaml`` if it
+       exists (back-compat for records authored before relocation).
+    3. The tracked path (so callers report the canonical location when neither
+       exists — e.g. RETROSPECTIVE_RECORD_MISSING).
+    """
+    tracked = canonical_record_path(repo_root, mission_slug)
+    if tracked.exists():
+        return tracked
+    legacy = _legacy_record_path(repo_root, mission_id)
+    if legacy.exists():
+        return legacy
+    return tracked
 
 
 class WriterError(Exception):
@@ -59,7 +109,8 @@ def write_record(record: RetrospectiveRecord, *, repo_root: Path) -> Path:
 
     Steps:
     1. Validate the record via a Pydantic round-trip.
-    2. Compute canonical path: <repo_root>/.kittify/missions/<mission_id>/retrospective.yaml
+    2. Compute the canonical tracked path: <feature_dir>/retrospective.yaml
+       (FR-006 #1771 — kitty-specs/<slug>/, never the gitignored .kittify tree).
     3. Create the target directory if needed.
     4. Serialize via ruamel.yaml round-trip dumper to a tempfile in the same directory.
     5. fsync() the tempfile, close.
@@ -84,10 +135,9 @@ def write_record(record: RetrospectiveRecord, *, repo_root: Path) -> Path:
     except Exception as exc:
         raise WriterError(f"Schema validation failed: {exc}") from exc
 
-    # Canonical path.
-    mission_id = validated.mission.mission_id
-    target_dir = repo_root / ".kittify" / "missions" / mission_id
-    canonical = target_dir / "retrospective.yaml"
+    # Canonical (tracked) path: kitty-specs/<slug>/retrospective.yaml (FR-006 #1771).
+    canonical = canonical_record_path(repo_root, validated.mission.mission_slug)
+    target_dir = canonical.parent
 
     try:
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -156,16 +206,16 @@ def write_record(record: RetrospectiveRecord, *, repo_root: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def _gen_record_to_dict(record: GenRetrospectiveRecord) -> dict:
+def _gen_record_to_dict(record: GenRetrospectiveRecord) -> dict[str, Any]:
     """Serialize a GenRetrospectiveRecord to a plain Python dict for YAML."""
-    def _actor_to_dict(a: GenActor) -> dict:
-        d: dict = {"kind": a.kind, "id": a.id}
+    def _actor_to_dict(a: GenActor) -> dict[str, Any]:
+        d: dict[str, Any] = {"kind": a.kind, "id": a.id}
         if a.display is not None:
             d["display"] = a.display
         return d
 
-    def _provenance_to_dict(p: GenProvenance) -> dict:
-        d: dict = {
+    def _provenance_to_dict(p: GenProvenance) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "kind": p.kind,
             "invoked_at": p.invoked_at,
             "policy_resolved_from": dict(p.policy_resolved_from),
@@ -174,8 +224,8 @@ def _gen_record_to_dict(record: GenRetrospectiveRecord) -> dict:
             d["command"] = p.command
         return d
 
-    def _evidence_ref_to_dict(e: GenEvidenceRef) -> dict:
-        d: dict = {"id": e.id, "kind": e.kind}
+    def _evidence_ref_to_dict(e: GenEvidenceRef) -> dict[str, Any]:
+        d: dict[str, Any] = {"id": e.id, "kind": e.kind}
         if e.path is not None:
             d["path"] = e.path
         if e.range is not None:
@@ -184,8 +234,8 @@ def _gen_record_to_dict(record: GenRetrospectiveRecord) -> dict:
             d["url"] = e.url
         return d
 
-    def _finding_to_dict(f: GenFinding) -> dict:
-        d: dict = {
+    def _finding_to_dict(f: GenFinding) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "id": f.id,
             "category": f.category,
             "summary": f.summary,
@@ -195,8 +245,8 @@ def _gen_record_to_dict(record: GenRetrospectiveRecord) -> dict:
             d["details"] = f.details
         return d
 
-    def _proposal_to_dict(p: GenProposal) -> dict:
-        d: dict = {
+    def _proposal_to_dict(p: GenProposal) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "id": p.id,
             "category": p.category,
             "risk_class": p.risk_class,
@@ -232,12 +282,12 @@ def _gen_record_to_dict(record: GenRetrospectiveRecord) -> dict:
     }
 
 
-def _dict_to_gen_record(data: dict) -> GenRetrospectiveRecord:
+def _dict_to_gen_record(data: dict[str, Any]) -> GenRetrospectiveRecord:
     """Deserialize a plain dict (from YAML) into a GenRetrospectiveRecord."""
-    def _dict_to_actor(d: dict) -> GenActor:
+    def _dict_to_actor(d: dict[str, Any]) -> GenActor:
         return GenActor(kind=d["kind"], id=d["id"], display=d.get("display"))
 
-    def _dict_to_provenance(d: dict) -> GenProvenance:
+    def _dict_to_provenance(d: dict[str, Any]) -> GenProvenance:
         return GenProvenance(
             kind=d["kind"],
             invoked_at=d["invoked_at"],
@@ -245,7 +295,7 @@ def _dict_to_gen_record(data: dict) -> GenRetrospectiveRecord:
             command=d.get("command"),
         )
 
-    def _dict_to_evidence_ref(d: dict) -> GenEvidenceRef:
+    def _dict_to_evidence_ref(d: dict[str, Any]) -> GenEvidenceRef:
         return GenEvidenceRef(
             id=d["id"],
             kind=d["kind"],
@@ -254,7 +304,7 @@ def _dict_to_gen_record(data: dict) -> GenRetrospectiveRecord:
             url=d.get("url"),
         )
 
-    def _dict_to_finding(d: dict) -> GenFinding:
+    def _dict_to_finding(d: dict[str, Any]) -> GenFinding:
         return GenFinding(
             id=d["id"],
             category=d["category"],
@@ -263,7 +313,7 @@ def _dict_to_gen_record(data: dict) -> GenRetrospectiveRecord:
             details=d.get("details"),
         )
 
-    def _dict_to_proposal(d: dict) -> GenProposal:
+    def _dict_to_proposal(d: dict[str, Any]) -> GenProposal:
         return GenProposal(
             id=d["id"],
             category=d["category"],
@@ -332,10 +382,10 @@ def _merge_gen_records(existing: GenRetrospectiveRecord, new: GenRetrospectiveRe
         return merged
 
     # Deduplicate evidence_refs by (kind, path, range, url)
-    def _evidence_key(e: GenEvidenceRef) -> tuple:
+    def _evidence_key(e: GenEvidenceRef) -> tuple[str, str | None, str | None, str | None]:
         return (e.kind, e.path, e.range, e.url)
 
-    existing_ev_keys: set[tuple] = {_evidence_key(e) for e in existing.evidence_refs}
+    existing_ev_keys: set[tuple[str, str | None, str | None, str | None]] = {_evidence_key(e) for e in existing.evidence_refs}
     merged_evidence = list(existing.evidence_refs)
     for e in new.evidence_refs:
         if _evidence_key(e) not in existing_ev_keys:
@@ -366,7 +416,7 @@ def _merge_gen_records(existing: GenRetrospectiveRecord, new: GenRetrospectiveRe
     )
 
 
-def _atomic_write_gen(data: dict, canonical: Path, target_dir: Path) -> None:
+def _atomic_write_gen(data: dict[str, Any], canonical: Path, target_dir: Path) -> None:
     """Atomically write a dict as YAML to canonical path.
 
     Write to <canonical>.tmp.<pid>.<random>, fsync, os.replace.
@@ -427,7 +477,9 @@ def write_gen_record(
 ) -> Path:
     """Atomically write a generator record to its canonical path with three modes.
 
-    Canonical path: <repo_root>/.kittify/missions/<mission_id>/retrospective.yaml
+    Canonical tracked path: <feature_dir>/retrospective.yaml — i.e.
+    ``kitty-specs/<mission_slug>/retrospective.yaml`` (FR-006 #1771). Never the
+    gitignored ``.kittify/missions/`` tree.
 
     Args:
         record: The generator record to persist.
@@ -467,12 +519,17 @@ def write_gen_record(
             ),
         )
 
-    mission_id = record.mission_id
-    if not mission_id:
-        raise WriterError("record.mission_id must be non-empty to determine canonical path")
+    if not record.mission_slug:
+        raise WriterError("record.mission_slug must be non-empty to determine canonical path")
 
-    target_dir = repo_root / ".kittify" / "missions" / mission_id
-    canonical = target_dir / "retrospective.yaml"
+    # Canonical (tracked) path: kitty-specs/<slug>/retrospective.yaml (FR-006 #1771).
+    canonical = canonical_record_path(repo_root, record.mission_slug)
+    target_dir = canonical.parent
+    # Back-compat: a record authored before relocation lives at the legacy
+    # gitignored path. error/update modes must treat it as the prior record.
+    legacy = _legacy_record_path(repo_root, record.mission_id) if record.mission_id else None
+    legacy_prior = legacy if legacy and legacy.exists() else None
+    prior = canonical if canonical.exists() else legacy_prior
 
     try:
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -480,28 +537,28 @@ def write_gen_record(
         raise WriterError(f"Cannot create target directory {target_dir}: {exc}") from exc
 
     if mode == "error":
-        if canonical.exists():
-            raise RecordExistsError(canonical)
+        if prior is not None:
+            raise RecordExistsError(prior)
         final_record = record
 
     elif mode == "overwrite":
         final_record = record
 
     elif mode == "update":
-        if canonical.exists():
-            # Load and validate the existing record.
+        if prior is not None:
+            # Load and validate the existing record (tracked or legacy path).
             yaml_safe = YAML(typ="safe")
             try:
-                raw_text = canonical.read_text(encoding="utf-8")
+                raw_text = prior.read_text(encoding="utf-8")
                 existing_data = yaml_safe.load(raw_text)
             except Exception as exc:
                 raise WriterError(
-                    f"Cannot load existing record at {canonical} for merge: {exc}"
+                    f"Cannot load existing record at {prior} for merge: {exc}"
                 ) from exc
 
             if not isinstance(existing_data, dict):
                 raise WriterError(
-                    f"Existing record at {canonical} is not a YAML mapping"
+                    f"Existing record at {prior} is not a YAML mapping"
                 )
 
             try:
@@ -509,7 +566,7 @@ def write_gen_record(
                 validate_record(existing)
             except RecordValidationError as exc:
                 raise WriterError(
-                    f"Existing record at {canonical} fails validation: {exc}"
+                    f"Existing record at {prior} fails validation: {exc}"
                 ) from exc
 
             final_record = _merge_gen_records(existing, record)

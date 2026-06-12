@@ -16,10 +16,12 @@ Spec source: FR-019, FR-020, FR-021, FR-026, FR-033, C-013, C-016.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from specify_cli.core.commit_guard import GuardCapability
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -42,8 +44,16 @@ class GitChangeSet:
         message: The would-be commit message (diagnostic only).
         operation: A short diagnostic label naming the caller's intent
             (e.g. ``"emit_status_transition"``).
-        allow_protected_branch_in_test_mode: Explicit, env-gated test-only
-            escape hatch for legacy no-worktree fixtures.
+        capability: Asserted-at-the-surface authorization (FR-008). Defaults to
+            ``GuardCapability.STANDARD`` because the coordination bookkeeping
+            commit lands on the per-mission coordination branch (or, in legacy
+            mode, the lane branch) — neither is protected, so the
+            placement-matched STANDARD commit is correct and a protected
+            destination (e.g. ``main``) is refused. Test fixtures that
+            deliberately land bookkeeping on a protected branch pass
+            ``GuardCapability.TEST_MODE``. The protected-branch decision in the
+            policy gate is delegated to ``commit_guard.evaluate`` over this
+            capability — never derived from message text, file content, or env.
     """
 
     destination_ref: str
@@ -52,7 +62,7 @@ class GitChangeSet:
     paths: tuple[Path, ...]
     message: str
     operation: str
-    allow_protected_branch_in_test_mode: bool = False
+    capability: GuardCapability = field(default=GuardCapability.STANDARD)
 
 
 @dataclass(frozen=True)

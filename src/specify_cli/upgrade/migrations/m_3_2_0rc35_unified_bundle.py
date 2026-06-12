@@ -42,7 +42,6 @@ TARGET_VERSION = "3.2.0rc35"
 
 
 def _build_report(
-    canonical_root: Path,
     charter_present: bool,
     applied: bool,
     chokepoint_refreshed: bool,
@@ -130,11 +129,9 @@ class UnifiedBundleMigration(BaseMigration):
             a file).
         """
         git_marker = project_path / ".git"
-        if git_marker.is_file():
-            return False
-        return True
+        return not git_marker.is_file()
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, _project_path: Path) -> tuple[bool, str]:
         """Always applicable; the migration itself is a no-op when nothing to do."""
         return True, ""
 
@@ -168,7 +165,6 @@ class UnifiedBundleMigration(BaseMigration):
         # ------------------------------------------------------------------
         if not charter_present:
             report = _build_report(
-                canonical_root=canonical_root,
                 charter_present=False,
                 applied=False,
                 chokepoint_refreshed=False,
@@ -261,7 +257,6 @@ class UnifiedBundleMigration(BaseMigration):
         del derived_before_missing
 
         report = _build_report(
-            canonical_root=canonical_root,
             charter_present=True,
             applied=applied,
             chokepoint_refreshed=chokepoint_refreshed,

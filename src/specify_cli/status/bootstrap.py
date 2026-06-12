@@ -17,6 +17,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.frontmatter import FrontmatterError
 from specify_cli.status.models import TransitionRequest
 from specify_cli.status.reducer import materialize
@@ -89,7 +90,7 @@ def bootstrap_canonical_state(
     mission_slug: str,
     *,
     dry_run: bool = False,
-    allow_protected_branch_in_test_mode: bool = False,
+    capability: GuardCapability = GuardCapability.STANDARD,
 ) -> BootstrapResult:
     """Ensure every WP in a feature has canonical status state.
 
@@ -106,8 +107,12 @@ def bootstrap_canonical_state(
         mission_slug: Feature identifier (e.g. ``"060-feature-name"``).
         dry_run: If ``True``, report what would happen without mutating
             any files.
-        allow_protected_branch_in_test_mode: Explicit, env-gated test-only
-            escape hatch for legacy no-worktree fixtures.
+        capability: Asserted-at-the-surface authorization for the seed
+            commit (FR-008). Defaults to ``GuardCapability.STANDARD``: the
+            transactional seed commit lands on the (unprotected) coordination
+            branch, so no protected-flow capability is required, and a
+            protected destination is refused. Test fixtures that seed on a
+            protected branch may pass ``GuardCapability.TEST_MODE``.
 
     Returns:
         A :class:`BootstrapResult` with counts and per-WP detail strings.
@@ -164,7 +169,7 @@ def bootstrap_canonical_state(
                 actor="finalize-tasks",
                 reason="canonical bootstrap",
             ),
-            allow_protected_branch_in_test_mode=allow_protected_branch_in_test_mode,
+            capability=capability,
         )
         result.newly_seeded += 1
         result.wp_details[wp_id] = _INITIALIZED

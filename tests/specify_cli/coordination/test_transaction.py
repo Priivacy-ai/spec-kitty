@@ -33,6 +33,7 @@ from specify_cli.coordination.transaction import (
     BookkeepingTransaction,
 )
 from specify_cli.coordination.workspace import CoordinationWorkspace
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
 from specify_cli.status.emit import build_status_event
 from specify_cli.status import store as _store
@@ -214,7 +215,7 @@ def test_legacy_transaction_appends_to_primary_checkout(
         mid8=MID8,
         destination_ref=COORD_BRANCH,
         operation="legacy_emit",
-        allow_protected_branch_in_test_mode=True,
+        capability=GuardCapability.TEST_MODE,
     ) as txn:
         assert txn.worktree_root == repo
         assert txn.destination_ref == "main"

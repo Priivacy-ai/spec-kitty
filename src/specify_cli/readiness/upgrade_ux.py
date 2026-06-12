@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol, cast
 
 if TYPE_CHECKING:
     import typer
@@ -42,13 +42,19 @@ if TYPE_CHECKING:
 
 
 class _CliStatusLike(Protocol):
-    installed_version: str
-    latest_version: str | None
-    latest_source: str
+    @property
+    def installed_version(self) -> str: ...
+
+    @property
+    def latest_version(self) -> str | None: ...
+
+    @property
+    def latest_source(self) -> str: ...
 
 
 class _PlanResultLike(Protocol):
-    cli_status: _CliStatusLike
+    @property
+    def cli_status(self) -> _CliStatusLike: ...
 
 
 class _NagCacheLike(Protocol):
@@ -707,8 +713,38 @@ def _persist(cache: _NagCacheLike, kwargs: dict[str, object]) -> None:
     try:
         from specify_cli.compat import NagCacheRecord  # noqa: PLC0415
 
-        # Defensive copy: ensure literal type for snooze_step.
-        record = NagCacheRecord(**kwargs)
+        cli_version_key = kwargs["cli_version_key"]
+        latest_source = kwargs["latest_source"]
+        fetched_at = kwargs["fetched_at"]
+        if (
+            not isinstance(cli_version_key, str)
+            or not isinstance(latest_source, str)
+            or latest_source not in ("pypi", "none")
+            or not isinstance(fetched_at, datetime)
+        ):
+            return
+        canonical_source = cast(Literal["pypi", "none"], latest_source)
+        snooze_raw = kwargs.get("snooze_step")
+        if snooze_raw == "24h":
+            snooze_step: Literal["24h", "48h", "7d"] | None = "24h"
+        elif snooze_raw == "48h":
+            snooze_step = "48h"
+        elif snooze_raw == "7d":
+            snooze_step = "7d"
+        else:
+            snooze_step = None
+        record = NagCacheRecord(
+            cli_version_key=cli_version_key,
+            latest_version=_optional_str_value(kwargs.get("latest_version")),
+            latest_source=canonical_source,
+            fetched_at=fetched_at,
+            last_shown_at=_optional_datetime_value(kwargs.get("last_shown_at")),
+            remote_version_seen=_optional_str_value(kwargs.get("remote_version_seen")),
+            snooze_step=snooze_step,
+            snoozed_until=_optional_datetime_value(kwargs.get("snoozed_until")),
+            always_upgrade=bool(kwargs.get("always_upgrade", False)),
+            never_ask=bool(kwargs.get("never_ask", False)),
+        )
         cache.write(record)
     except Exception:  # noqa: BLE001
         pass

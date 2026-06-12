@@ -138,3 +138,13 @@ The migration sequence:
 4. (Optional follow-up) Remove the `doctrine.shared.schema_utils` re-export, leaving `kernel/` as the canonical home.
 
 Step 4 is **not in scope** for this mission; step 1-3 are sufficient to drop the file from the allowlist.
+
+---
+
+## Addendum (2026-06-11, append-only)
+
+`MissionStep` is retired from the `charter/mission_steps.py` facade `__all__` contract: the last `src/`
+consumer (`mission_step_contracts/executor.py`) was correctly retyped to `MissionStepContractStep` during
+the typing debt pass, leaving the facade entry unimported (dead-symbol gate). The symbol remains available
+as an explicit PEP 484 re-export (`import ... as ...`) for direct importers (one test consumer). The live
+symbol table is `tests/architectural/test_charter_facades_reexport_doctrine.py::_FACADE_TABLE`.

@@ -1,0 +1,1 @@
+11/11 new-code smells fixed behavior-preserving (commits 091a7eac9, c56a37a46, 59f298fda): 6x S3776 via extraction/dispatch-table, 3x S1192 constants (KITTIFY_DIR reused not minted), S3358, S8495 uniform tuple; 334 architectural + ~300 focused tests green; ruff clean; zero new mypy

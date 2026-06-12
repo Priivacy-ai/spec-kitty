@@ -178,18 +178,18 @@ Use a distinct lane for reviewer approval before final integrated completion.
 ## More Information
 
 **Supersedes:**
-- `2026-02-09-2-wp-lifecycle-state-machine.md`
-- `2026-02-09-4-cross-repo-evidence-completion.md`
+* `2026-02-09-2-wp-lifecycle-state-machine.md`
+* `2026-02-09-4-cross-repo-evidence-completion.md`
 
 **Partially superseded by:**
-- `2026-04-06-1-wp-state-pattern-for-lane-behavior.md` — supersedes the `in_review`-as-alias approach; `in_review` is now a first-class lane
+* `2026-04-06-1-wp-state-pattern-for-lane-behavior.md` — supersedes the `in_review`-as-alias approach; `in_review` is now a first-class lane
 
 **Interprets alongside:**
-- `2026-02-09-3-event-log-merge-semantics.md` — rollback-aware merge semantics
+* `2026-02-09-3-event-log-merge-semantics.md` — rollback-aware merge semantics
   remain in force, but reviewer-forward progress is now `for_review -> approved`
   rather than `for_review -> done`.
-- `architecture/adrs/2026-03-09-1-prompts-do-not-discover-context-commands-do.md`
+* `architecture/adrs/2026-03-09-1-prompts-do-not-discover-context-commands-do.md`
 
 **Related ADRs:**
-- `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`
-- `2026-04-03-3-feature-acceptance-runs-on-the-integrated-mission-branch.md`
+* `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`
+* `2026-04-03-3-feature-acceptance-runs-on-the-integrated-mission-branch.md`

@@ -107,7 +107,7 @@ PLACEHOLDER_TERMS: frozenset[str] = frozenset(
 MIN_ADMISSIBLE_CATEGORIES: int = 3
 
 _KNOWN_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
-    {"target", "categories", "exceptions", "status"}
+    {"target", "categories", "exceptions", "moves", "status"}
 )
 
 # ---------------------------------------------------------------------------
@@ -125,6 +125,20 @@ class ValidationResult:
 
 
 @dataclass(frozen=True)
+class MoveEntry:
+    """A single multi-path structural move (IC-10, #1815).
+
+    Maps one or more ``from`` source paths to a single ``to`` destination
+    path. Expresses a structural relocation that the eight single-term-rename
+    categories cannot capture.
+    """
+
+    sources: list[str]
+    destination: str
+    reason: str | None = None
+
+
+@dataclass(frozen=True)
 class OccurrenceMap:
     """Parsed representation of an ``occurrence_map.yaml`` file."""
 
@@ -135,6 +149,7 @@ class OccurrenceMap:
     exceptions: list[dict[str, str]]
     status: dict[str, Any] | None
     raw: dict[str, Any]
+    moves: list[MoveEntry] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -162,6 +177,7 @@ def load_occurrence_map(feature_dir: Path) -> OccurrenceMap | None:
     categories = data.get("categories", {})
     exceptions = data.get("exceptions", [])
     status = data.get("status")
+    moves = _parse_moves(data.get("moves"))
 
     return OccurrenceMap(
         target_term=target.get("term", ""),
@@ -171,7 +187,37 @@ def load_occurrence_map(feature_dir: Path) -> OccurrenceMap | None:
         exceptions=exceptions if exceptions is not None else [],
         status=status,
         raw=data,
+        moves=moves,
     )
+
+
+def _parse_moves(raw_moves: Any) -> list[MoveEntry]:
+    """Parse the optional ``moves:`` block into :class:`MoveEntry` objects.
+
+    Tolerant by design: malformed entries are skipped here and surfaced by
+    :func:`validate_occurrence_map`, which reports human-readable errors. A
+    missing or null block yields an empty list so legacy single-term maps are
+    unaffected (C-OMAP-1).
+    """
+    if not isinstance(raw_moves, list):
+        return []
+
+    parsed: list[MoveEntry] = []
+    for entry in raw_moves:
+        if not isinstance(entry, dict):
+            continue
+        sources_raw = entry.get("from")
+        sources = (
+            [str(s) for s in sources_raw] if isinstance(sources_raw, list) else []
+        )
+        destination_raw = entry.get("to")
+        destination = destination_raw if isinstance(destination_raw, str) else ""
+        reason_raw = entry.get("reason")
+        reason = reason_raw if isinstance(reason_raw, str) else None
+        parsed.append(
+            MoveEntry(sources=sources, destination=destination, reason=reason)
+        )
+    return parsed
 
 
 # ---------------------------------------------------------------------------
@@ -193,53 +239,10 @@ def validate_occurrence_map(omap: OccurrenceMap) -> ValidationResult:
     errors: list[str] = []
     warnings: list[str] = []
 
-    # --- target section ---
-    if "target" not in omap.raw:
-        errors.append("Missing required 'target' section")
-    else:
-        target = omap.raw["target"]
-        if not isinstance(target, dict):
-            errors.append("'target' must be a mapping")
-        else:
-            term = target.get("term")
-            if term is None:
-                errors.append("Missing required 'target.term'")
-            elif not isinstance(term, str) or term.strip() == "":
-                errors.append("'target.term' must be a non-empty string")
+    errors.extend(_validate_target(omap.raw.get("target", _MISSING)))
+    errors.extend(_validate_categories(omap.raw.get("categories", _MISSING)))
+    errors.extend(_validate_moves(omap.raw.get("moves")))
 
-            operation = target.get("operation")
-            if operation is not None and operation not in VALID_OPERATIONS:
-                errors.append(
-                    f"Invalid target.operation '{operation}'; "
-                    f"must be one of {sorted(VALID_OPERATIONS)}"
-                )
-
-    # --- categories section ---
-    if "categories" not in omap.raw:
-        errors.append("Missing required 'categories' section")
-    else:
-        cats = omap.raw["categories"]
-        if not isinstance(cats, dict) or len(cats) == 0:
-            errors.append("'categories' must be a non-empty mapping")
-        else:
-            for cat_name, cat_value in cats.items():
-                if not isinstance(cat_value, dict):
-                    errors.append(
-                        f"Category '{cat_name}' must be a mapping"
-                    )
-                    continue
-                action = cat_value.get("action")
-                if action is None:
-                    errors.append(
-                        f"Category '{cat_name}' missing required 'action' key"
-                    )
-                elif action not in VALID_ACTIONS:
-                    errors.append(
-                        f"Category '{cat_name}' has invalid action '{action}'; "
-                        f"must be one of {sorted(VALID_ACTIONS)}"
-                    )
-
-    # --- unknown top-level keys ---
     for key in omap.raw:
         if key not in _KNOWN_TOP_LEVEL_KEYS:
             warnings.append(f"Unknown top-level key '{key}'")
@@ -249,6 +252,100 @@ def validate_occurrence_map(omap: OccurrenceMap) -> ValidationResult:
         errors=errors,
         warnings=warnings,
     )
+
+
+# Sentinel distinguishing an absent section from an explicit ``None`` value.
+_MISSING: Any = object()
+
+
+def _validate_target(target: Any) -> list[str]:
+    """Validate the required ``target`` section."""
+    if target is _MISSING:
+        return ["Missing required 'target' section"]
+    if not isinstance(target, dict):
+        return ["'target' must be a mapping"]
+
+    errors: list[str] = []
+    term = target.get("term")
+    if term is None:
+        errors.append("Missing required 'target.term'")
+    elif not isinstance(term, str) or term.strip() == "":
+        errors.append("'target.term' must be a non-empty string")
+
+    operation = target.get("operation")
+    if operation is not None and operation not in VALID_OPERATIONS:
+        errors.append(
+            f"Invalid target.operation '{operation}'; "
+            f"must be one of {sorted(VALID_OPERATIONS)}"
+        )
+    return errors
+
+
+def _validate_categories(cats: Any) -> list[str]:
+    """Validate the required ``categories`` section."""
+    if cats is _MISSING:
+        return ["Missing required 'categories' section"]
+    if not isinstance(cats, dict) or len(cats) == 0:
+        return ["'categories' must be a non-empty mapping"]
+
+    errors: list[str] = []
+    for cat_name, cat_value in cats.items():
+        if not isinstance(cat_value, dict):
+            errors.append(f"Category '{cat_name}' must be a mapping")
+            continue
+        action = cat_value.get("action")
+        if action is None:
+            errors.append(f"Category '{cat_name}' missing required 'action' key")
+        elif action not in VALID_ACTIONS:
+            errors.append(
+                f"Category '{cat_name}' has invalid action '{action}'; "
+                f"must be one of {sorted(VALID_ACTIONS)}"
+            )
+    return errors
+
+
+def _validate_moves(moves_raw: Any) -> list[str]:
+    """Validate the optional ``moves`` section (IC-10 / C-OMAP-1).
+
+    A missing or ``None`` block produces no errors so legacy single-term maps
+    are unaffected.
+    """
+    if moves_raw is None:
+        return []
+    if not isinstance(moves_raw, list):
+        return ["'moves' must be a list when present"]
+
+    errors: list[str] = []
+    for index, entry in enumerate(moves_raw):
+        errors.extend(_validate_move_entry(index, entry))
+    return errors
+
+
+def _validate_move_entry(index: int, entry: Any) -> list[str]:
+    """Validate a single ``moves[]`` entry; return human-readable errors."""
+    errors: list[str] = []
+    label = f"moves[{index}]"
+    if not isinstance(entry, dict):
+        return [f"{label} must be a mapping with 'from' and 'to'"]
+
+    sources = entry.get("from")
+    if sources is None:
+        errors.append(f"{label} missing required 'from' key")
+    elif not isinstance(sources, list) or len(sources) == 0:
+        errors.append(f"{label}.from must be a non-empty list of paths")
+    else:
+        for src in sources:
+            if not isinstance(src, str) or src.strip() == "":
+                errors.append(f"{label}.from entries must be non-empty strings")
+                break
+
+    destination = entry.get("to")
+    if destination is None:
+        errors.append(f"{label} missing required 'to' key")
+    elif not isinstance(destination, str) or destination.strip() == "":
+        errors.append(f"{label}.to must be a non-empty string")
+
+    return errors
 
 
 # ---------------------------------------------------------------------------

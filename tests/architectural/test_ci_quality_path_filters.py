@@ -61,6 +61,39 @@ def test_lanes_filter_and_jobs_include_lanes_package_tests() -> None:
     assert "tests/specify_cli/lanes/" in integration_run
 
 
+def test_next_filter_includes_canonical_runtime_packages() -> None:
+    """The next trigger must watch the canonical runtime, not just the shim.
+
+    src/specify_cli/next/ is a deprecation shim (removed in 3.3.0); the
+    canonical runtime lives in src/runtime/next/ and depends on
+    src/mission_runtime/. Both must trigger the next test suites.
+    """
+    next_filter = set(_path_filters()["next"])
+    assert "src/runtime/next/**" in next_filter
+    assert "src/mission_runtime/**" in next_filter
+
+
+def test_next_jobs_measure_canonical_runtime_coverage() -> None:
+    """Both next suites must measure src/runtime/next, not only the shim."""
+    fast_run = _job_run_script("fast-tests-next", "Run fast tests — next")
+    integration_run = _job_run_script(
+        "integration-tests-next",
+        "Run integration tests — next",
+    )
+    assert "--cov=src/runtime/next" in fast_run
+    assert "--cov=src/runtime/next" in integration_run
+
+
+def test_diff_coverage_critical_paths_include_canonical_runtime() -> None:
+    """The enforced diff-coverage gate must include the canonical runtime."""
+    run_script = _job_run_script(
+        "diff-coverage",
+        "diff-coverage (critical-path, enforced)",
+    )
+    assert "'src/runtime/next/*'" in run_script
+    assert "'src/mission_runtime/*'" in run_script
+
+
 def test_execution_context_only_core_misc_runs_focused_parity_gate() -> None:
     """Execution-context-only changes must still run the CWD parity ratchet."""
     run_script = _job_run_script(

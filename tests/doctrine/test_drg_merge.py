@@ -397,3 +397,50 @@ class TestInvariantsPreserved:
         assert any(
             c.kind == "layer_rule_violation" for c in exc_info.value.conflicts
         )
+
+
+class TestProvenanceDeclaredField:
+    """FR-013 (D2-revised): ``provenance`` is a declared optional field on the
+    DRG models, set via :func:`_tag_source`'s ``model_copy`` — not the former
+    ``object.__setattr__`` sidecar."""
+
+    def test_provenance_defaults_to_none(self) -> None:
+        node = DRGNode(urn="directive:x", kind=NodeKind.DIRECTIVE)
+        edge = DRGEdge(
+            source="directive:x",
+            target="directive:y",
+            relation=Relation.REQUIRES,
+        )
+        assert node.provenance is None
+        assert edge.provenance is None
+
+    def test_tag_source_sets_declared_field_typed_roundtrip(self) -> None:
+        from doctrine.drg.merge import _tag_source
+
+        node = DRGNode(urn="directive:x", kind=NodeKind.DIRECTIVE)
+        tagged = _tag_source(node, "built-in")
+        # Read the declared field directly (no getattr fallback needed).
+        assert tagged.provenance == "built-in"
+        # model_copy returns a fresh instance; the original is untouched.
+        assert node.provenance is None
+        assert tagged is not node
+        # Provenance round-trips through model identity (same URN/kind).
+        assert tagged.urn == node.urn
+        assert tagged.kind == node.kind
+
+    def test_merged_nodes_and_edges_expose_typed_field(self) -> None:
+        built_in = _graph(
+            nodes=[DRGNode(urn="directive:base", kind=NodeKind.DIRECTIVE)],
+            edges=[
+                DRGEdge(
+                    source="directive:base",
+                    target="tactic:t",
+                    relation=Relation.SUGGESTS,
+                )
+            ],
+        )
+        merged = merge_three_layers(
+            built_in=built_in, org_fragments=[], project=None
+        )
+        assert all(n.provenance == "built-in" for n in merged.nodes)
+        assert all(e.provenance == "built-in" for e in merged.edges)

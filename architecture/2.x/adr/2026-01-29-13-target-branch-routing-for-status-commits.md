@@ -53,11 +53,11 @@ t=7: More status commits to main (race repeats)
 ## Decision Outcome
 
 **Chosen option:** "Option 1: Metadata-driven routing with target_branch field", because:
-- Explicit and visible in meta.json (debugging-friendly)
-- Deterministic (same feature → same target)
-- Flexible (can change per feature, not per number)
-- Self-documenting (grep for "target_branch": "2.x")
-- Supports future multi-branch scenarios (3.x, dev, staging)
+* Explicit and visible in meta.json (debugging-friendly)
+* Deterministic (same feature → same target)
+* Flexible (can change per feature, not per number)
+* Self-documenting (grep for "target_branch": "2.x")
+* Supports future multi-branch scenarios (3.x, dev, staging)
 
 ### Consequences
 
@@ -86,11 +86,11 @@ t=7: More status commits to main (race repeats)
 ### Confirmation
 
 We validated this decision by:
-- ✅ 12 integration tests for dual-branch routing (all passing)
-- ✅ Feature 025 successfully developing on 2.x
-- ✅ Main branch completely isolated (zero 2.x commits)
-- ✅ git merge-base --is-ancestor checks passing
-- ✅ Migration adds target_branch to all existing features
+* ✅ 12 integration tests for dual-branch routing (all passing)
+* ✅ Feature 025 successfully developing on 2.x
+* ✅ Main branch completely isolated (zero 2.x commits)
+* ✅ git merge-base --is-ancestor checks passing
+* ✅ Migration adds target_branch to all existing features
 
 ## Pros and Cons of the Options
 
@@ -159,19 +159,19 @@ Features 025+ automatically route to 2.x.
 ## More Information
 
 **Implementation:**
-- `src/specify_cli/core/feature_detection.py::get_feature_target_branch()`
-- `src/specify_cli/cli/commands/agent/tasks.py` (lines 669-728: move_task routing)
-- `src/specify_cli/cli/commands/agent/tasks.py` (lines 839-887: mark_status routing)
-- `src/specify_cli/upgrade/migrations/m_0_13_8_target_branch.py`
+* `src/specify_cli/core/feature_detection.py::get_feature_target_branch()`
+* `src/specify_cli/cli/commands/agent/tasks.py` (lines 669-728: move_task routing)
+* `src/specify_cli/cli/commands/agent/tasks.py` (lines 839-887: mark_status routing)
+* `src/specify_cli/upgrade/migrations/m_0_13_8_target_branch.py`
 
 **Tests:**
-- `tests/integration/test_dual_branch_status_routing.py` (9 tests)
-- `tests/integration/test_feature_025_workflow.py` (3 tests)
-- `tests/specify_cli/core/test_feature_detection.py::test_get_feature_target_branch_*` (6 tests)
-- `tests/specify_cli/upgrade/test_m_0_13_8_target_branch.py` (11 tests)
+* `tests/integration/test_dual_branch_status_routing.py` (9 tests)
+* `tests/integration/test_feature_025_workflow.py` (3 tests)
+* `tests/specify_cli/core/test_feature_detection.py::test_get_feature_target_branch_*` (6 tests)
+* `tests/specify_cli/upgrade/test_m_0_13_8_target_branch.py` (11 tests)
 
 **Related ADRs:**
-- ADR-12: Two-Branch Strategy for SaaS Transformation (establishes need for dual-branch support)
+* ADR-12: Two-Branch Strategy for SaaS Transformation (establishes need for dual-branch support)
 
 **Version:** 0.13.8 (hotfix enabling 2.x development)
 

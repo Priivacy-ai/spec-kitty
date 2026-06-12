@@ -38,6 +38,16 @@ def _init_committed_git_project(repo_root: Path, *, branch: str = "feature") -> 
     subprocess.run(["git", "commit", "-m", "initial"], cwd=repo_root, check=True, capture_output=True)
 
 
+_CARRIER_READY = (
+    "---\n"
+    "schema: analysis-findings/v1\n"
+    "findings: []\n"
+    "counts: {critical: 0, high: 0, medium: 0, low: 0, info: 0}\n"
+    "---\n\n"
+    "# Specification Analysis Report\n\nNo blocking findings.\n"
+)
+
+
 def test_write_analysis_report_records_input_hashes(tmp_path):
     repo_root = tmp_path
     feature_dir = repo_root / "kitty-specs" / "sample-01KS"
@@ -46,7 +56,7 @@ def test_write_analysis_report_records_input_hashes(tmp_path):
     result = write_analysis_report(
         feature_dir=feature_dir,
         repo_root=repo_root,
-        body="# Specification Analysis Report\n\nCritical Issues Count: 0\nHigh Issues Count: 0\nPASS\n",
+        body=_CARRIER_READY,
         analyzer_agent="codex",
     )
 
@@ -57,7 +67,10 @@ def test_write_analysis_report_records_input_hashes(tmp_path):
     assert frontmatter["analyzer_agent"] == "codex"
     assert frontmatter["input_artifacts"]["spec.md"]["sha256"]
     assert frontmatter["verdict"] == "ready"
+    # The carrier frontmatter is consumed by the recorder; the persisted body is
+    # the human-readable report only.
     assert "# Specification Analysis Report" in body
+    assert "schema: analysis-findings/v1" not in body
 
 
 def test_analysis_report_freshness_detects_stale_inputs(tmp_path):
@@ -312,3 +325,137 @@ def test_record_analysis_refuses_protected_branch_before_write(tmp_path, monkeyp
     assert result.exit_code == 1
     assert emitted["error_code"] == "PROTECTED_BRANCH_REFUSED"
     assert not (feature_dir / ANALYSIS_REPORT_FILENAME).exists()
+
+
+# --- analysis-findings/v1 structured carrier (FR-004 / #1819) ----------------
+
+
+def _carrier(findings_yaml: str, counts_yaml: str, *, hint: str | None = None) -> str:
+    hint_line = f"verdict_hint: {hint}\n" if hint else ""
+    return (
+        "---\n"
+        "schema: analysis-findings/v1\n"
+        f"findings:\n{findings_yaml}"
+        f"counts: {counts_yaml}\n"
+        f"{hint_line}"
+        "---\n\n"
+    )
+
+
+def test_find1_verdict_ignores_scary_prose_when_no_blocking_findings(tmp_path):
+    """C-FIND-1: clean frontmatter + scary prose ("CRITICAL"/"HIGH"/"BLOCK") → ready."""
+    from specify_cli.analysis_report import VERDICT_READY
+
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "sample-01KS"
+    _write_required_artifacts(feature_dir)
+
+    body = _carrier(
+        "  - {id: A1, severity: low, category: style, summary: nit}\n"
+        "  - {id: A2, severity: medium, category: coverage, summary: gap}\n",
+        "{critical: 0, high: 0, medium: 1, low: 1, info: 0}",
+    ) + "We found CRITICAL HIGH issues that BLOCK everything (prose only).\n"
+
+    result = write_analysis_report(feature_dir=feature_dir, repo_root=repo_root, body=body)
+    assert result.verdict == VERDICT_READY
+    frontmatter, _ = FrontmatterManager().read(result.path)
+    assert frontmatter["verdict"] == "ready"
+    assert frontmatter["issue_counts"]["medium"] == 1
+
+
+def test_find1_verdict_blocked_despite_reassuring_prose(tmp_path):
+    """C-FIND-1: one critical finding + "ready for implementation" prose → blocked."""
+    from specify_cli.analysis_report import VERDICT_BLOCKED
+
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "sample-01KS"
+    _write_required_artifacts(feature_dir)
+
+    body = _carrier(
+        "  - {id: C1, severity: critical, category: charter, summary: violation}\n",
+        "{critical: 1, high: 0, medium: 0, low: 0, info: 0}",
+    ) + "No issues at all. PASS. READY FOR IMPLEMENTATION.\n"
+
+    result = write_analysis_report(feature_dir=feature_dir, repo_root=repo_root, body=body)
+    assert result.verdict == VERDICT_BLOCKED
+    frontmatter, _ = FrontmatterManager().read(result.path)
+    assert frontmatter["verdict"] == "blocked"
+
+
+def test_find2_unknown_severity_fails_loudly_on_write(tmp_path):
+    """C-FIND-2: unknown severity value → structured validation error on write."""
+    from specify_cli.analysis_report import FindingsCarrierError
+
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "sample-01KS"
+    _write_required_artifacts(feature_dir)
+
+    body = _carrier(
+        "  - {id: X1, severity: catastrophic, category: x, summary: y}\n",
+        "{critical: 0, high: 0, medium: 0, low: 0, info: 0}",
+    )
+    with pytest.raises(FindingsCarrierError, match="severity"):
+        write_analysis_report(feature_dir=feature_dir, repo_root=repo_root, body=body)
+    assert not (feature_dir / ANALYSIS_REPORT_FILENAME).exists()
+
+
+def test_find2_counts_mismatch_fails_loudly_on_write(tmp_path):
+    """C-FIND-2: counts not equal to findings[] tally → loud error."""
+    from specify_cli.analysis_report import FindingsCarrierError
+
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "sample-01KS"
+    _write_required_artifacts(feature_dir)
+
+    body = _carrier(
+        "  - {id: H1, severity: high, category: x, summary: y}\n",
+        "{critical: 0, high: 0, medium: 0, low: 0, info: 0}",  # claims 0 high, but 1 present
+    )
+    with pytest.raises(FindingsCarrierError, match="tally"):
+        write_analysis_report(feature_dir=feature_dir, repo_root=repo_root, body=body)
+    assert not (feature_dir / ANALYSIS_REPORT_FILENAME).exists()
+
+
+def test_find2_verdict_hint_disagreement_fails_loudly(tmp_path):
+    """C-FIND-2: verdict_hint disagreeing with computed verdict → loud error."""
+    from specify_cli.analysis_report import FindingsCarrierError
+
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "sample-01KS"
+    _write_required_artifacts(feature_dir)
+
+    body = _carrier(
+        "  - {id: H1, severity: high, category: x, summary: y}\n",
+        "{critical: 0, high: 1, medium: 0, low: 0, info: 0}",
+        hint="ready",  # computed verdict is blocked
+    )
+    with pytest.raises(FindingsCarrierError, match="verdict_hint"):
+        write_analysis_report(feature_dir=feature_dir, repo_root=repo_root, body=body)
+    assert not (feature_dir / ANALYSIS_REPORT_FILENAME).exists()
+
+
+def test_find3_legacy_report_records_unknown_without_exception(tmp_path):
+    """C-FIND-3: a pre-v1 report (no carrier) records verdict unknown, never raises."""
+    from specify_cli.analysis_report import VERDICT_UNKNOWN
+
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "sample-01KS"
+    _write_required_artifacts(feature_dir)
+
+    # No carrier; prose says scary things — must NOT be substring-inferred.
+    body = "# Report\n\nCRITICAL issues, BLOCK, no go.\n"
+    result = write_analysis_report(feature_dir=feature_dir, repo_root=repo_root, body=body)
+    assert result.verdict == VERDICT_UNKNOWN
+    assert all(v is None for v in result.issue_counts.values())
+    # Read/freshness path tolerates the legacy report (no exception, stays current).
+    assert check_analysis_report_current(feature_dir, repo_root).ok is True
+
+
+def test_no_substring_inference_symbols_remain():
+    """T025: the prose substring inference is deleted — no magic strings remain."""
+    import specify_cli.analysis_report as module
+
+    assert not hasattr(module, "infer_verdict")
+    assert not hasattr(module, "infer_issue_counts")
+    source = Path(module.__file__).read_text(encoding="utf-8")
+    assert "READY FOR IMPLEMENTATION" not in source

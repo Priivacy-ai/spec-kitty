@@ -9,7 +9,7 @@ from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import append_event
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 def _set_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
@@ -225,10 +225,11 @@ def test_build_event_log_kanban_stats_tolerates_weighted_progress_failure(tmp_pa
     def fail_materialize(_feature_dir):
         raise RuntimeError("progress unavailable")
 
-    # scanner resolves materialize through the status facade
-    # (`from specify_cli.status import materialize`), so patch the facade name it
-    # actually looks up — patching the reducer submodule would not be seen.
-    monkeypatch.setattr(status_facade, "materialize", fail_materialize)
+    # WP11: the dashboard read path resolves the *read-only* snapshot through
+    # the status facade (`from specify_cli.status import materialize_snapshot`),
+    # so patch the facade name it actually looks up — patching the reducer
+    # submodule would not be seen.
+    monkeypatch.setattr(status_facade, "materialize_snapshot", fail_materialize)
 
     stats = scanner._build_event_log_kanban_stats(feature_dir, feature_dir / "tasks")
 
@@ -505,3 +506,164 @@ def test_kanban_column_map_covers_all_lanes():
         assert member in _KANBAN_COLUMN_FOR_LANE, (
             f"Lane.{member.name} missing from _KANBAN_COLUMN_FOR_LANE"
         )
+
+
+# ---------------------------------------------------------------------------
+# WP11 / FR-014(a) / SC-6a — dashboard reads are write-free, even during a git
+# op. The dashboard MUST NOT clobber tracked status.json when serving a kanban
+# request while a long-running git operation (e.g. rebase) is in progress.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.fast
+def test_dashboard_read_does_not_write_status_json(tmp_path):
+    """The dashboard read path never writes tracked status.json (FR-014a).
+
+    Seed an event log but no status.json, then exercise the dashboard kanban
+    read. The read-only snapshot must compute progress without materializing
+    the tracked status.json artifact.
+    """
+    feature_dir = _create_feature(tmp_path, "001-readonly-no-write")
+    status_json = feature_dir / "status.json"
+    # _create_feature seeds via materialize(); remove the artifact so we can
+    # prove the dashboard read path does NOT recreate it.
+    if status_json.exists():
+        status_json.unlink()
+
+    stats = scanner._build_event_log_kanban_stats(feature_dir, feature_dir / "tasks")
+
+    assert "weighted_percentage" in stats, "payload unchanged: progress still computed"
+    assert not status_json.exists(), (
+        "dashboard read wrote tracked status.json (FR-014a clobber)"
+    )
+
+
+@pytest.mark.fast
+def test_read_only_weighted_percentage_matches_materialize_payload(tmp_path):
+    """The read-only snapshot yields the same weighted % the writer would (C-004).
+
+    Switching from materialize() to materialize_snapshot() must not change the
+    rendered kanban payload — only remove the write side-effect.
+    """
+    from specify_cli.status import compute_weighted_progress
+
+    feature_dir = _create_feature(tmp_path, "001-payload-parity")
+
+    writer_snapshot = materialize(feature_dir)
+    writer_pct = round(compute_weighted_progress(writer_snapshot).percentage, 1)
+
+    read_only_pct = scanner.read_only_weighted_percentage(feature_dir)
+
+    assert read_only_pct == writer_pct, (
+        "read-only snapshot diverged from the writing materialize() payload"
+    )
+
+
+def _git(args, cwd) -> None:
+    import subprocess
+
+    subprocess.run(
+        ["git", *args],
+        cwd=str(cwd),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+@pytest.mark.fast
+def test_sc6a_dashboard_no_status_clobber_during_real_rebase(tmp_path):
+    """SC-6a: a real ``git rebase`` with the dashboard serving kanban does not
+    clobber tracked status.json.
+
+    Mirrors WP07's SC-5 style with a genuine (non-mocked) conflicted rebase.
+    While the rebase is paused mid-operation, the dashboard kanban read path
+    must NOT write tracked status — sharing WP07's single git-op detection
+    (``git_operation_in_progress``) rather than duplicating it (C-005).
+    """
+    import subprocess
+
+    from specify_cli.status import git_operation_in_progress
+
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir(parents=True)
+    _git(["init", "--initial-branch=main"], repo_root)
+    _git(["config", "user.email", "wp11@example.com"], repo_root)
+    _git(["config", "user.name", "WP11 Test"], repo_root)
+    _git(["config", "commit.gpgsign", "false"], repo_root)
+
+    slug = "001-dashboard-rebase"
+    feature_dir = repo_root / "kitty-specs" / slug
+    (feature_dir / "tasks").mkdir(parents=True)
+    (feature_dir / "tasks" / "WP01-demo.md").write_text(
+        "---\nwork_package_id: WP01\nsubtasks: [\"T1\"]\n---\n# Work Package Prompt: Demo\n",
+        encoding="utf-8",
+    )
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id="TESTWP01PLANNED00000000000"[:26],
+            mission_slug=slug,
+            wp_id="WP01",
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.PLANNED,
+            at="2026-03-31T09:00:00+00:00",
+            actor="test",
+            force=True,
+            execution_mode="direct_repo",
+        ),
+    )
+
+    status_json = feature_dir / "status.json"
+    # status.json is a tracked artifact; the dashboard must never write it.
+    # .gitignore keeps the rebase replay clean of any derived noise.
+    (repo_root / ".gitignore").write_text("", encoding="utf-8")
+
+    _git(["add", "."], repo_root)
+    _git(["commit", "-m", "chore: baseline"], repo_root)
+    # Remove status.json so we can prove the dashboard read does not recreate it.
+    if status_json.exists():
+        status_json.unlink()
+        _git(["add", "-A"], repo_root)
+        _git(["commit", "-m", "chore: drop status.json"], repo_root)
+
+    # Diverge main vs mission branch on the same file to force a conflicted,
+    # paused rebase (the long-op window).
+    conflict = repo_root / "conflict.txt"
+    _git(["checkout", "-b", f"kitty/mission-{slug}"], repo_root)
+    conflict.write_text("mission-line\n", encoding="utf-8")
+    _git(["add", "conflict.txt"], repo_root)
+    _git(["commit", "-m", "feat: mission change"], repo_root)
+
+    _git(["checkout", "main"], repo_root)
+    conflict.write_text("main-line\n", encoding="utf-8")
+    _git(["add", "conflict.txt"], repo_root)
+    _git(["commit", "-m", "feat: main change"], repo_root)
+
+    _git(["checkout", f"kitty/mission-{slug}"], repo_root)
+
+    rebase = subprocess.run(
+        ["git", "rebase", "main"],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+    )
+    assert rebase.returncode != 0, "rebase should pause on conflict"
+    assert git_operation_in_progress(repo_root) is True
+
+    # The dashboard serves a kanban request mid-rebase.
+    stats = scanner._build_event_log_kanban_stats(feature_dir, feature_dir / "tasks")
+
+    assert "weighted_percentage" in stats, "payload unchanged: progress still served"
+    assert not status_json.exists(), (
+        "dashboard clobbered tracked status.json during an active rebase "
+        "(FR-014a / SC-6a violation)"
+    )
+
+    # Clean up the rebase so the worktree is not left mid-operation.
+    subprocess.run(
+        ["git", "rebase", "--abort"],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+    )

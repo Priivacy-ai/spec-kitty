@@ -37,13 +37,19 @@ import logging
 import os
 import sys
 import tempfile
-from dataclasses import asdict, dataclass
+from collections.abc import Sequence
+from dataclasses import asdict, dataclass, field as dataclass_field
 from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
+import psutil  # type: ignore[import-untyped]
+
 from specify_cli.sync.daemon import (
+    DAEMON_EXEC_ARG_PREFIX,
+    DAEMON_SCOPE_ARG_PREFIX,
     _daemon_root,
+    _daemon_scope_root,
     _get_package_version,
     _is_process_alive,
     _sync_root,
@@ -458,6 +464,299 @@ def list_orphan_records() -> list[DaemonOwnerRecord]:
 
 
 # ---------------------------------------------------------------------------
+# Canonical orphan reaper (FR-014b / FR-015 / #1071)
+# ---------------------------------------------------------------------------
+#
+# Before this consolidation there were THREE orphan-reaping surfaces, each
+# with its own detection + kill logic:
+#
+#   1. ``owner.is_orphan`` / ``list_orphan_records`` — record-based predicate
+#      (recorded PID dead OR recorded executable gone). No kill.
+#   2. ``orphan_sweep.enumerate_orphans`` / ``sweep_orphans`` — port-scan
+#      (9400..9450, ``/api/health`` fingerprint) + HTTP-shutdown→terminate→kill
+#      escalation.
+#   3. ``daemon.scan_sync_daemons`` / ``cleanup_orphan_sync_daemons`` —
+#      host-wide ``run_sync_daemon`` cmdline-scan + terminate→kill.
+#
+# FR-015 (C-005 net-subtraction) collapses these into ONE canonical reaper,
+# keyed on the candidate's interpreter identity plus the daemon-root scope
+# marker embedded in its cmdline at spawn. The single kill escalation lives in
+# :func:`_sweep_daemon_process` below; the old surfaces now delegate their
+# kill logic to it, and :func:`reap_orphan_daemons` is the single reaper wired
+# into the daemon spawn hot path (``ensure_sync_daemon_running``).
+#
+# Scope safety (reaper-over-kill risk, #1071): reaping is scoped on THREE
+# dimensions — a host-wide ``run_sync_daemon`` process is only reaped when
+# (a) its cmdline carries the daemon-root scope marker
+# (``daemon.DAEMON_SCOPE_ARG_PREFIX``, embedded at spawn) for THIS process's
+# daemon state root, AND (b) its cmdline has the production spawn shape (a
+# ``-c`` flag whose script payload references ``run_sync_daemon``), AND
+# (c) its interpreter identity resolves to the SAME canonical executable as
+# the foreground that is spawning — where identity is taken from
+# ``Process.exe()``, ``argv[0]``, or the spawn-recorded exec marker
+# (``daemon.DAEMON_EXEC_ARG_PREFIX``). The exec marker is load-bearing on
+# macOS framework Python, whose re-exec rewrites BOTH ``exe()`` AND
+# ``argv[0]`` to the ``Python.app`` stub. A daemon belonging to a different
+# daemon root (different ``$HOME`` / container) — or one carrying no
+# recognizable marker at all (spawned before the marker existed) — is left
+# untouched: never kill what cannot be positively attributed to this scope.
+
+
+# Per-step escalation waits (seconds). Mirror the previous ``orphan_sweep``
+# budgets so existing timing characteristics are preserved.
+_TERMINATE_WAIT_S: float = 1.0
+_KILL_WAIT_S: float = 1.0
+
+
+@dataclass(frozen=True)
+class ReapResult:
+    """Outcome of a canonical reap pass over scoped orphan daemons.
+
+    ``reaped`` lists the PIDs that were terminated (or were already gone).
+    ``failed`` lists ``(pid, reason)`` pairs for orphans that survived every
+    escalation step. ``skipped_out_of_scope`` lists PIDs of live
+    ``run_sync_daemon`` processes that were left alone because their
+    interpreter does not match the foreground executable identity, or their
+    cmdline daemon-root scope marker is missing or names a different daemon
+    state root.
+    """
+
+    reaped: list[int] = dataclass_field(default_factory=list)
+    failed: list[tuple[int, str]] = dataclass_field(default_factory=list)
+    skipped_out_of_scope: list[int] = dataclass_field(default_factory=list)
+
+
+def canonical_executable_scope() -> str:
+    """Return the canonical (symlink-resolved) interpreter path of this process.
+
+    This is the *interpreter* dimension of the reap scope. It is necessary
+    but NOT sufficient for reaping: :func:`reap_orphan_daemons` additionally
+    requires a matching daemon-root scope marker in the candidate's cmdline —
+    the ``$HOME`` / state-root dimension of the #1071 reaper-over-kill guard.
+    """
+    return _canonical_executable_path(sys.executable)
+
+
+def _process_executable_scopes(
+    proc: psutil.Process,
+    cmdline: Sequence[str] = (),
+) -> set[str]:
+    """Return every canonical interpreter identity attributable to *proc*.
+
+    Collects three identity sources, each symlink-resolved via
+    :func:`_canonical_executable_path`:
+
+    * ``Process.exe()`` — the executable image the kernel reports;
+    * the first *cmdline* token — the interpreter path argv carries;
+    * the spawn-recorded exec marker (``daemon.DAEMON_EXEC_ARG_PREFIX``),
+      an inert argv token embedded by ``_spawn_sync_daemon_process``.
+
+    The spawn-recorded marker is what keeps the reaper effective on macOS
+    framework Python (empirically: Homebrew builds): the spawned interpreter
+    re-execs the ``Resources/Python.app/Contents/MacOS/Python`` stub, so the
+    running daemon's ``exe()`` AND ``argv[0]`` BOTH report the stub path and
+    can never equal the foreground's ``canonical_executable_scope()``. Only
+    the argv tail — preserved verbatim across the re-exec — still names the
+    interpreter the spawn actually used. An empty set means nothing was
+    resolvable; callers must treat the process as out-of-scope rather than
+    risk killing a stranger.
+    """
+    scopes: set[str] = set()
+    with contextlib.suppress(psutil.Error, OSError):
+        exe = proc.exe()
+        if exe:
+            scopes.add(_canonical_executable_path(exe))
+    if cmdline:
+        scopes.add(_canonical_executable_path(str(cmdline[0])))
+        for part in cmdline:
+            text = str(part)
+            if text.startswith(DAEMON_EXEC_ARG_PREFIX):
+                scopes.add(
+                    _canonical_executable_path(text[len(DAEMON_EXEC_ARG_PREFIX):])
+                )
+    return scopes
+
+
+def _cmdline_daemon_root_marker(cmdline: Sequence[str]) -> str | None:
+    """Extract the daemon-root scope marker from a daemon's cmdline, if any.
+
+    Returns the marker payload (the spawning process's resolved daemon state
+    root) or ``None`` when no marker is present. Daemons spawned before the
+    marker existed carry none and are conservatively treated as out-of-scope.
+    """
+    for part in cmdline:
+        text = str(part)
+        if text.startswith(DAEMON_SCOPE_ARG_PREFIX):
+            return text[len(DAEMON_SCOPE_ARG_PREFIX):]
+    return None
+
+
+def _cmdline_has_daemon_spawn_signature(cmdline: Sequence[str]) -> bool:
+    """Return True when *cmdline* has the production daemon spawn shape.
+
+    The production spawn (``daemon._spawn_sync_daemon_process``) always runs
+    ``<interpreter> -c <script> …`` where the script imports and calls
+    ``run_sync_daemon``. Requiring the ``-c``-adjacent script token — not
+    merely *any* token mentioning ``run_sync_daemon`` — keeps a stray
+    marker-bearing process (e.g. a tool invoked with a
+    ``…run_sync_daemon….py`` script path) out of the kill set.
+    """
+    parts = [str(part) for part in cmdline]
+    return any(
+        part == "-c" and "run_sync_daemon" in parts[index + 1]
+        for index, part in enumerate(parts[:-1])
+    )
+
+
+def _sweep_daemon_process(
+    pid: int,
+    *,
+    terminate_wait_s: float = _TERMINATE_WAIT_S,
+    kill_wait_s: float = _KILL_WAIT_S,
+) -> tuple[bool, str | None]:
+    """Canonical kill escalation for a single daemon PID.
+
+    Escalation: ``terminate()`` (wait up to ``terminate_wait_s``) → ``kill()``
+    (wait up to ``kill_wait_s``). Returns ``(reaped, failure_reason)``.
+    ``reaped`` is True when the process is gone after escalation (including the
+    race where it vanished before we acted). This is the SINGLE kill path
+    consumed by the canonical reaper and by the legacy ``orphan_sweep`` /
+    ``daemon`` sweep shims.
+    """
+    try:
+        proc = psutil.Process(pid)
+    except psutil.NoSuchProcess:
+        return True, None
+    except psutil.AccessDenied:
+        return False, "access_denied_opening_process"
+
+    try:
+        proc.terminate()
+    except psutil.NoSuchProcess:
+        return True, None
+    except psutil.AccessDenied:
+        return False, "access_denied_on_terminate"
+
+    if _wait_for_exit(proc, terminate_wait_s):
+        return True, None
+
+    try:
+        proc.kill()
+    except psutil.NoSuchProcess:
+        return True, None
+    except psutil.AccessDenied:
+        return False, "access_denied_on_kill"
+
+    if _wait_for_exit(proc, kill_wait_s):
+        return True, None
+    return False, "still_alive_after_kill"
+
+
+def _wait_for_exit(proc: psutil.Process, timeout_s: float) -> bool:
+    """Wait up to ``timeout_s`` for *proc* to exit; return True once it is gone."""
+    wait_fn = getattr(proc, "wait", None)
+    if callable(wait_fn):
+        try:
+            wait_fn(timeout=timeout_s)
+            return True
+        except psutil.TimeoutExpired:
+            pass
+        except psutil.NoSuchProcess:
+            return True
+        except TypeError:
+            # Test doubles may stub ``wait()`` without a ``timeout`` kwarg.
+            with contextlib.suppress(Exception):
+                wait_fn(timeout_s)
+                return True
+    return not _is_process_alive(proc.pid)
+
+
+def reap_orphan_daemons(
+    *,
+    executable_scope: str | None = None,
+    dry_run: bool = False,
+) -> ReapResult:
+    """Canonical reaper: terminate stale ``run_sync_daemon`` orphans in scope.
+
+    This is the ONE reaper (FR-015) wired into the ``ensure_sync_daemon_running``
+    spawn hot path so every spawn reaps stale orphans belonging to THIS daemon
+    scope first (FR-014b / #1071).
+
+    Discovery reuses the host-wide cmdline-scan (``scan_sync_daemons``); the
+    recorded-singleton PID is already excluded by it. A candidate orphan is in
+    scope ONLY when ALL THREE hold:
+
+    * its cmdline carries the daemon-root scope marker
+      (``daemon.DAEMON_SCOPE_ARG_PREFIX``, embedded at spawn by
+      ``_spawn_sync_daemon_process``) naming THIS process's resolved daemon
+      state root, and
+    * its cmdline has the production spawn shape — a ``-c`` flag whose script
+      payload references ``run_sync_daemon`` — so a process that merely
+      mentions the daemon elsewhere in its argv is never a kill candidate,
+      and
+    * its interpreter identity matches *executable_scope* (defaults to this
+      process's canonical interpreter); ``Process.exe()``, the first cmdline
+      token, and the spawn-recorded exec marker
+      (``daemon.DAEMON_EXEC_ARG_PREFIX``) are each accepted after symlink
+      resolution. The exec marker is the only identity that survives macOS
+      framework Python's re-exec, which rewrites BOTH ``exe()`` AND
+      ``argv[0]`` to the ``Python.app`` stub.
+
+    Anything else — different daemon root, missing/unrecognized marker
+    (daemons spawned before the marker existed), non-spawn-shaped cmdline,
+    unresolvable identity — is conservatively skipped: never kill what cannot
+    be positively attributed to this scope. Pre-marker orphans are therefore
+    no longer auto-reaped; ``sync status`` / ``sync doctor`` surface them to
+    the operator (via ``scan_sync_daemons``), and clearing them is a manual
+    step — no production surface invokes ``cleanup_orphan_sync_daemons``
+    automatically.
+
+    With ``dry_run=True`` no signals are sent; the report still classifies each
+    orphan as in-scope (would-reap) or out-of-scope (skipped).
+    """
+    from specify_cli.sync.daemon import scan_sync_daemons
+
+    scope = executable_scope or canonical_executable_scope()
+    root_scope = _daemon_scope_root()
+    result = ReapResult()
+
+    report = scan_sync_daemons()
+    for orphan in report.orphan_processes:
+        marker = _cmdline_daemon_root_marker(orphan.cmdline)
+        if marker is None or marker != root_scope:
+            result.skipped_out_of_scope.append(orphan.pid)
+            continue
+
+        if not _cmdline_has_daemon_spawn_signature(orphan.cmdline):
+            result.skipped_out_of_scope.append(orphan.pid)
+            continue
+
+        try:
+            proc = psutil.Process(orphan.pid)
+        except psutil.NoSuchProcess:
+            continue
+        except psutil.AccessDenied:
+            result.skipped_out_of_scope.append(orphan.pid)
+            continue
+
+        if scope not in _process_executable_scopes(proc, orphan.cmdline):
+            result.skipped_out_of_scope.append(orphan.pid)
+            continue
+
+        if dry_run:
+            result.reaped.append(orphan.pid)
+            continue
+
+        reaped, reason = _sweep_daemon_process(orphan.pid)
+        if reaped:
+            result.reaped.append(orphan.pid)
+        else:
+            result.failed.append((orphan.pid, reason or "unknown_failure"))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Convenience: build a record from current process state
 # ---------------------------------------------------------------------------
 
@@ -504,7 +803,9 @@ def build_record_for_current_process(
 __all__ = [
     "DaemonOwnerRecord",
     "MISMATCH_FIELDS",
+    "ReapResult",
     "build_record_for_current_process",
+    "canonical_executable_scope",
     "check_daemon_owner_match",
     "compute_foreground_identity",
     "is_orphan",
@@ -512,6 +813,7 @@ __all__ = [
     "mismatched_fields",
     "owner_record_path",
     "read_owner_record",
+    "reap_orphan_daemons",
     "redact_token",
     "remove_owner_record",
     "write_owner_record",

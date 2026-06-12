@@ -49,10 +49,12 @@ import typer
 from rich.panel import Panel
 from rich.table import Table
 
+from mission_runtime import CommitTarget, CommitTargetKind
 from specify_cli.cli.helpers import console, show_banner
 from specify_cli.cli.commands._teamspace_mission_state_gate import (
     offer_teamspace_mission_state_migration,
 )
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import safe_commit
 
 
@@ -197,13 +199,23 @@ def _auto_commit_upgrade_changes(
     except Exception:
         destination_ref = "main"
 
+    # The upgrade flow runs outside any mission, so there is no coordination
+    # split to reconcile: the current branch is landing == coordination ==
+    # target. Construct a FLATTENED CommitTarget for it and assert the upgrade
+    # bookkeeping capability explicitly (T009 / FR-008). The old reliance on the
+    # "chore: apply spec-kitty upgrade changes" message-prefix exception is now
+    # irrelevant — the message is just a message; the capability carries the
+    # authorization to land on a protected branch (e.g. the operator's main).
+    upgrade_target = CommitTarget(ref=destination_ref, kind=CommitTargetKind.FLATTENED)
+
     try:
         safe_commit(
             repo_root=project_path,
             worktree_root=project_path,
-            destination_ref=destination_ref,
+            target=upgrade_target,
             message=commit_message,
             paths=tuple(files_to_commit),
+            capability=GuardCapability.UPGRADE_BOOKKEEPING,
         )
     except Exception:
         return (

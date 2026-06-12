@@ -127,7 +127,10 @@ def resolve_context(
 
     Args:
         wp_code: Work package display alias (e.g., "WP01").
-        mission_slug: Feature slug (e.g., "057-canonical-context-architecture-cleanup").
+        mission_slug: Mission handle (full slug such as
+            "057-canonical-context-architecture-cleanup", bare mid8, or
+            numeric prefix). Canonicalized to the resolved mission
+            directory name before anything is composed or persisted (F-001).
         agent: Name of the agent creating this context.
         repo_root: Absolute path to the repository root.
 
@@ -167,6 +170,16 @@ def resolve_context(
     if not feature_dir.exists():
         msg = f"Feature directory not found: {feature_dir}. Check that '{mission_slug}' is the correct feature slug."
         raise FeatureNotFoundError(msg)
+
+    # F-001 boundary canonicalization (the finalize-tasks pattern): the
+    # caller-supplied ``mission_slug`` is an operator HANDLE (full slug, bare
+    # mid8, numeric prefix). The directory resolution above already
+    # canonicalized it, so key everything composed and persisted downstream —
+    # the lane-branch ``authoritative_ref`` (``lane_branch_name``) and the
+    # MissionContext token fields — by the resolved directory name, never the
+    # raw handle. A raw mid8 here composes a wrong-but-plausible
+    # ``kitty/mission-<mid8>-…`` ref and persists a raw ``mission_slug``.
+    mission_slug = feature_dir.name
 
     # 3. Read meta.json
     meta = _read_meta_json(feature_dir)

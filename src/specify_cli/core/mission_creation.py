@@ -20,6 +20,8 @@ from typing import Any
 
 from ulid import ULID
 
+from mission_runtime import CommitTarget, CommitTargetKind
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.git_ops import get_current_branch, is_git_repo
 from specify_cli.core.paths import is_worktree_context, locate_project_root
 from specify_cli.git import safe_commit
@@ -174,13 +176,20 @@ def _commit_feature_file(
     if current_branch is None:
         raise MissionCreationError("Not in a git repository")
 
+    # Mission creation runs pre-spec: the destination is the branch ``create``
+    # reports (the planning destination), which is a non-protected planning
+    # branch. Capability is STANDARD — the placement-matched commit needs no
+    # protected-branch bookkeeping authorization. If a project legitimately
+    # plans on a protected branch, WP05's placement projection routes the
+    # commit; this caller does not duplicate that decision (T010).
     commit_msg = f"Add {artifact_type} for feature {mission_slug}"
     safe_commit(
         repo_root=repo_root,
         worktree_root=repo_root,
-        destination_ref=current_branch,
+        target=CommitTarget(ref=current_branch, kind=CommitTargetKind.PRIMARY),
         message=commit_msg,
         paths=(file_path,),
+        capability=GuardCapability.STANDARD,
     )
 
 

@@ -209,9 +209,9 @@ Session presence is a retro-fit for all existing spec-kitty projects. Two migrat
 **File:** `src/specify_cli/upgrade/migrations/m_<version>_session_presence_claude_code.py` (created as part of #1760)
 
 **`detect(project_path)`:** returns `True` when ALL of:
-- `.kittify/` exists (it is a spec-kitty project)
-- `claude` is in `get_configured_agents(project_path)`
-- `.claude/CLAUDE.md` does not contain `<!-- spec-kitty:orientation -->` **OR** `.claude/settings.json` does not contain `"spec-kitty session-start"` in its `SessionStart` hooks list
+* `.kittify/` exists (it is a spec-kitty project)
+* `claude` is in `get_configured_agents(project_path)`
+* `.claude/CLAUDE.md` does not contain `<!-- spec-kitty:orientation -->` **OR** `.claude/settings.json` does not contain `"spec-kitty session-start"` in its `SessionStart` hooks list
 
 **`apply(project_path, dry_run)`:**
 1. Construct `SessionPresenceContent` from installed version + `.kittify/metadata.yaml` health
@@ -256,9 +256,9 @@ Migration 2 imports `WRITER_REGISTRY`, which is populated incrementally as Patte
 
 ### What upgrades do NOT do
 
-- They do not overwrite user-authored content in the target files. Section markers (`<!-- spec-kitty:orientation -->` ... `<!-- /spec-kitty:orientation -->`) delimit spec-kitty's region; content outside those markers is never touched.
-- They do not create agent directories for agents not in `get_configured_agents()`. Session presence follows the same "respect deletions, never mkdir" rule as all other migrations.
-- They do not run on worktrees — presence is installed once on the main checkout.
+* They do not overwrite user-authored content in the target files. Section markers (`<!-- spec-kitty:orientation -->` ... `<!-- /spec-kitty:orientation -->`) delimit spec-kitty's region; content outside those markers is never touched.
+* They do not create agent directories for agents not in `get_configured_agents()`. Session presence follows the same "respect deletions, never mkdir" rule as all other migrations.
+* They do not run on worktrees — presence is installed once on the main checkout.
 
 ## Pros and Cons of the Options
 

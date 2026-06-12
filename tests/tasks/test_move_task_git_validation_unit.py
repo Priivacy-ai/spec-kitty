@@ -27,14 +27,14 @@ runner = CliRunner()
 def _disable_move_task_sync_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep command unit tests hermetic even when global SaaS test flag is on.
 
-    Also sets ``SPEC_KITTY_TEST_MODE=1`` for command paths that call
-    ``assert_not_protected_branch`` directly. Tests that need to observe a
-    ``safe_commit`` result use non-protected fixture branches instead of relying
-    on test mode to bypass safe-commit protected-branch policy.
+    Also sets the documented operator escape hatch for fixtures that run the
+    command on a protected ``main`` fixture branch — the ONE sanctioned
+    ambient waiver (``SPEC_KITTY_TEST_MODE`` no longer waives the
+    protected-branch pre-check; PR #1850 guard-bypass fix).
     """
     import specify_cli.status.emit as status_emit
 
-    monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
+    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
     monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
     monkeypatch.setattr(

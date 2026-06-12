@@ -262,15 +262,19 @@ pip install authlib
 ```
 
 ### Step 2: Configure Provider
+
 ...
 
 ### Step 3: Implement Login Flow
+
 ...
 
 ## Verification
+
 Test your OAuth flow by...
 
 ## Troubleshooting
+
 - **Error: Invalid redirect URI** - Check your...
 ```
 
@@ -936,14 +940,17 @@ The mission phases (discover → audit → design → generate → validate → 
 for step ordering and profile assignments.
 
 ## Try It
+
 - [Tutorial: Governed Charter Workflow End-to-End](../tutorials/charter-governed-workflow.md)
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## How-To Guides
+
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 - [How to Run a Governed Mission](../how-to/run-governed-mission.md)
 - [Upgrade to 0.11.0](../how-to/install-and-upgrade.md)
 
 ## Reference
+
 - [Missions](../reference/missions.md)
 - [Configuration](../reference/configuration.md)

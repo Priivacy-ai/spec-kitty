@@ -140,5 +140,5 @@ Global `~/.kittify/` provides read-only base templates; each project has a writa
 * **Related ADR:** ADR-D (2026-04-08-4) — Charter and doctrine are not init-time concerns
 * **Related ADR:** ADR-6 (2026-01-23-6) — Config-driven agent management
 * **Code locations:**
-  - `src/specify_cli/init.py` — init command entry point
-  - `src/specify_cli/core/runtime.py` — `ensure_runtime()` implementation
+  * `src/specify_cli/init.py` — init command entry point
+  * `src/specify_cli/core/runtime.py` — `ensure_runtime()` implementation

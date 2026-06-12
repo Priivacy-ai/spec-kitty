@@ -30,7 +30,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import ulid as _ulid_mod
 
@@ -94,7 +94,7 @@ class RetrospectiveCaptured:
     proposal_count: int = 0
     evidence_ref_count: int = 0
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to a plain dict for JSONL output."""
         return {
             "type": "RetrospectiveCaptured",
@@ -154,7 +154,7 @@ class RetrospectiveCaptureFailed:
     attempted_provenance_kind: ProvenanceKind = "runtime_post_completion"
     missing_artifacts: list[str] | None = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to a plain dict for JSONL output."""
         return {
             "type": "RetrospectiveCaptureFailed",
@@ -211,7 +211,7 @@ class RetrospectiveSkipped:
     bypassed_provenance_kind: Literal["runtime_strict_gate"] = "runtime_strict_gate"
     would_have_attempted: bool = True
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to a plain dict for JSONL output."""
         return {
             "type": "RetrospectiveSkipped",
@@ -250,7 +250,7 @@ def _now_utc() -> str:
     return datetime.now(UTC).isoformat()
 
 
-def _append_retro_lifecycle_event(feature_dir: Path, event_dict: dict) -> None:
+def _append_retro_lifecycle_event(feature_dir: Path, event_dict: dict[str, Any]) -> None:
     """Append a retrospective lifecycle event line to status.events.jsonl."""
     events_path = feature_dir / "status.events.jsonl"
     events_path.parent.mkdir(parents=True, exist_ok=True)
@@ -338,9 +338,10 @@ def emit_captured(
     event_id = _generate_ulid()
     at = _now_utc()
 
-    canonical_path = (
-        repo_root / ".kittify" / "missions" / record.mission_id / "retrospective.yaml"
-    )
+    # FR-006 (#1771): the record lives in the tracked feature_dir, not the
+    # gitignored .kittify/missions/ tree. feature_dir is already resolved above
+    # through the canonical coord-topology-aware read primitive.
+    canonical_path = feature_dir / "retrospective.yaml"
 
     event = RetrospectiveCaptured(
         schema_version=1,
