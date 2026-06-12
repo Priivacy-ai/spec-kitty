@@ -13,7 +13,8 @@ subtasks:
 - T002
 - T003
 - T004
-agent: claude
+agent: "claude:fable-5:curator-carla:curator"
+shell_pid: "83127"
 history:
 - '2026-06-12: created by /spec-kitty.tasks'
 agent_profile: curator-carla
@@ -112,3 +113,7 @@ spec-kitty safe-commit --to-branch kitty/mission-coordination-merge-stabilizatio
 - **Wrong citation = future triage confusion.** Reviewer: spot-check 3 closures against `git log` for the cited SHAs.
 - Do NOT close #1826 or modify its scope — it is fixed by WP03 of this mission, not by hygiene.
 - Reviewer: verify the umbrella issue does not duplicate an existing open architecture issue under #1666 before approving.
+
+## Activity Log
+
+- 2026-06-12T11:57:31Z – claude:fable-5:curator-carla:curator – shell_pid=83127 – Started implementation via action command
