@@ -32,6 +32,7 @@ from .reducer import (
     reduce,
 )
 from .store import (
+    is_retrospective_lifecycle_event,
     EVENTS_FILENAME,
     EventPersistenceError,
     StoreError,
@@ -221,6 +222,7 @@ __all__ = [
     "emit_reviewer_self_approval",
     "emit_wp_created_local",
     "has_non_bootstrap_status_history",
+    "is_retrospective_lifecycle_event",
     "materialize_snapshot",
     "repo_root_for_lifecycle_log",
     "run_doctor",
