@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KTXB6BNH40ASR4WFEWHA4AYW", "profile_id": "debugger-debbie", "action": "advise", "request_text": "Review PR #1857 (skip no-op worktree metadata rewrites) and report findings", "actor": "claude", "mode_of_work": "advisory", "governance_context_hash": "e904e9583d171fe0", "governance_context_available": true, "started_at": "2026-06-12T07:19:26.620693+00:00"}
+{"event": "completed", "invocation_id": "01KTXB6BNH40ASR4WFEWHA4AYW", "completed_at": "2026-06-12T07:24:03.673390+00:00", "outcome": "done", "closed_by": "agent"}
