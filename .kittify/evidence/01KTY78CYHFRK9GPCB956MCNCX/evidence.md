@@ -1,0 +1,1 @@
+surface_resolver fabricated-mid8 -> StatusReadPathNotFound raise (+ source-level anti-fabrication test); workflow.py:781 substring -> isinstance(CanonicalStatusNotFoundError) with unwrapped-path verification; prompt paths mission-scoped (refs #1831, code+SKILL.md). Commits 87290d724 + 0c8db2337; 128 focused tests, ruff/mypy clean

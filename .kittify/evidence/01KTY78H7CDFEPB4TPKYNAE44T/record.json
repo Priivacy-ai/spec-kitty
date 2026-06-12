@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KTY78H7CDFEPB4TPKYNAE44T",
+  "completed_at": "2026-06-12T16:02:57.735071+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "42 literal sites swept across 5 clusters; DecisionKind -> StrEnum with 4-test serialization proof; own circular-import self-resolved via function-body imports; commit b33eace72; 2429+485+205 tests green; architectural now fully green after facade boy-scout"
+}

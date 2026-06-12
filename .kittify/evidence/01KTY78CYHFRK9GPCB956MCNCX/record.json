@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KTY78CYHFRK9GPCB956MCNCX",
+  "completed_at": "2026-06-12T15:37:45.715703+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "surface_resolver fabricated-mid8 -> StatusReadPathNotFound raise (+ source-level anti-fabrication test); workflow.py:781 substring -> isinstance(CanonicalStatusNotFoundError) with unwrapped-path verification; prompt paths mission-scoped (refs #1831, code+SKILL.md). Commits 87290d724 + 0c8db2337; 128 focused tests, ruff/mypy clean"
+}
