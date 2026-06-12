@@ -100,6 +100,7 @@ def test_ci_quality_consumer_compatibility_reuses_ci_wheel_with_trusted_scripts(
     assert "candidate/.kittify/release/shared-package-compatibility.json" in job_dump
     assert "CROSS_REPO_TOKEN" not in repr(job.get("env", {}))
     assert "IS_FORK_PR" in job["env"]
+    assert job["env"]["IS_CANONICAL_REPO"] == "${{ github.repository == 'Priivacy-ai/spec-kitty' }}"
     assert "check_candidate_consumer_compat.py" in job_dump
     assert "check_candidate_consumer_compat.py --help" in job_dump
     assert "MANIFEST_ARGS" in job_dump
@@ -107,6 +108,7 @@ def test_ci_quality_consumer_compatibility_reuses_ci_wheel_with_trusted_scripts(
     fetch_step = next(step for step in job["steps"] if step.get("id") == "fetch_contract")
     assert "CROSS_REPO_TOKEN" in fetch_step["env"]
     assert "saas_fetched=false" in fetch_step["run"]
+    assert '[ "${IS_FORK_PR}" = "true" ] || [ "${IS_CANONICAL_REPO}" != "true" ]' in fetch_step["run"]
     assert "SPEC_KITTY_SAAS_READ_TOKEN is required" in fetch_step["run"]
 
     validate_step = next(

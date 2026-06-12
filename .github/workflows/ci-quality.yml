@@ -2617,6 +2617,13 @@ jobs:
       REPO_OWNER: ${{ github.repository_owner }}
       HAS_SAAS_READ_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' }}
       IS_FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+      # Private SaaS evidence is only reachable from the canonical repo. Token
+      # presence alone is not enough of a signal: the canonical repo must fail
+      # loud when the secret is misconfigured, while fork PRs and fork-owned
+      # runs (which can never have the secret) degrade to a skip-with-warning.
+      # The repo name is hardcoded (not vars.*) for in-file auditability and
+      # must track any rename/transfer. See issue #1849.
+      IS_CANONICAL_REPO: ${{ github.repository == 'Priivacy-ai/spec-kitty' }}
     steps:
       - name: Check out trusted validation scripts
         uses: actions/checkout@v6
@@ -2654,9 +2661,9 @@ jobs:
           mkdir -p /tmp/spec-kitty-release-contracts
 
           if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
-            if [ "${IS_FORK_PR}" = "true" ]; then
+            if [ "${IS_FORK_PR}" = "true" ] || [ "${IS_CANONICAL_REPO}" != "true" ]; then
               echo "saas_fetched=false" >> "$GITHUB_OUTPUT"
-              echo "::warning::SPEC_KITTY_SAAS_READ_TOKEN is unavailable for fork PRs; skipping private SaaS consumer compatibility evidence."
+              echo "::warning::SPEC_KITTY_SAAS_READ_TOKEN is unavailable for fork PRs or non-canonical repository runs; skipping private SaaS consumer compatibility evidence."
               exit 0
             fi
 
