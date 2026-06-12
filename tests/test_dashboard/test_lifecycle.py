@@ -18,6 +18,115 @@ def test_parse_and_write_dashboard_file_roundtrip(tmp_path):
     assert pid == 12345
 
 
+class _EnsureTime:
+    value = 0.0
+
+    @classmethod
+    def monotonic(cls):
+        current = cls.value
+        cls.value += 0.05
+        return current
+
+    @staticmethod
+    def sleep(_value):
+        return None
+
+
+def test_port_exhaustion_retry_routes_by_typed_exception(monkeypatch, tmp_path):
+    """#1880: port-exhaustion retry keys on PortUnavailableError (NFR-007).
+
+    The exception message is reworded so the legacy ``"Could not find free
+    port"`` substring is absent — routing must still trigger the cleanup-and-
+    retry path by exception TYPE.
+    """
+    from specify_cli.dashboard.server import PortUnavailableError
+
+    project_dir = tmp_path
+    (project_dir / ".kittify").mkdir()
+
+    check_calls = {"count": 0}
+
+    def fake_check(port, proj_dir, token):
+        check_calls["count"] += 1
+        return check_calls["count"] > 1
+
+    monkeypatch.setattr(lifecycle, "_check_dashboard_health", fake_check)
+    monkeypatch.setattr(lifecycle, "time", _EnsureTime)
+    _EnsureTime.value = 0.0
+
+    # First start_dashboard call raises typed port exhaustion (mutated message);
+    # after cleanup the retry succeeds.
+    start_calls = {"count": 0}
+
+    def fake_start(*_args, **_kwargs):
+        start_calls["count"] += 1
+        if start_calls["count"] == 1:
+            raise PortUnavailableError("no sockets available whatsoever")
+        return (40404, None)
+
+    monkeypatch.setattr(lifecycle, "start_dashboard", fake_start)
+    cleanup_mock = MagicMock(return_value=2)
+    monkeypatch.setattr(lifecycle, "_cleanup_orphaned_dashboards_in_range", cleanup_mock)
+
+    url, port, started = lifecycle.ensure_dashboard_running(
+        project_dir, preferred_port=40404, background_process=False
+    )
+
+    assert started
+    assert port == 40404
+    assert start_calls["count"] == 2  # initial failure + successful retry
+    cleanup_mock.assert_called_once()
+
+
+def test_port_exhaustion_no_orphans_reraises(monkeypatch, tmp_path):
+    """When cleanup finds no orphans, the typed error propagates unchanged."""
+    from specify_cli.dashboard.server import PortUnavailableError
+
+    project_dir = tmp_path
+    (project_dir / ".kittify").mkdir()
+
+    monkeypatch.setattr(lifecycle, "_check_dashboard_health", lambda *a, **k: False)
+    monkeypatch.setattr(lifecycle, "time", _EnsureTime)
+    _EnsureTime.value = 0.0
+
+    def fake_start(*_args, **_kwargs):
+        raise PortUnavailableError("no sockets available whatsoever")
+
+    monkeypatch.setattr(lifecycle, "start_dashboard", fake_start)
+    monkeypatch.setattr(
+        lifecycle, "_cleanup_orphaned_dashboards_in_range", lambda *a, **k: 0
+    )
+
+    with pytest.raises(PortUnavailableError):
+        lifecycle.ensure_dashboard_running(
+            project_dir, preferred_port=40404, background_process=False
+        )
+
+
+def test_non_port_runtime_error_propagates(monkeypatch, tmp_path):
+    """A non-port RuntimeError is not captured by the port-retry branch."""
+    project_dir = tmp_path
+    (project_dir / ".kittify").mkdir()
+
+    monkeypatch.setattr(lifecycle, "_check_dashboard_health", lambda *a, **k: False)
+    monkeypatch.setattr(lifecycle, "time", _EnsureTime)
+    _EnsureTime.value = 0.0
+
+    cleanup_mock = MagicMock(return_value=5)
+    monkeypatch.setattr(lifecycle, "_cleanup_orphaned_dashboards_in_range", cleanup_mock)
+
+    def fake_start(*_args, **_kwargs):
+        raise RuntimeError("totally unrelated failure")
+
+    monkeypatch.setattr(lifecycle, "start_dashboard", fake_start)
+
+    with pytest.raises(RuntimeError, match="totally unrelated failure"):
+        lifecycle.ensure_dashboard_running(
+            project_dir, preferred_port=40404, background_process=False
+        )
+    cleanup_mock.assert_not_called()
+
+
 def test_ensure_dashboard_running_writes_state(monkeypatch, tmp_path):
     project_dir = tmp_path
     dashboard_meta = project_dir / ".kittify" / ".dashboard"

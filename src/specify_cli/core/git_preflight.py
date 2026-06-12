@@ -10,9 +10,43 @@ import subprocess
 __all__ = [
     "GitPreflightIssue",
     "GitPreflightResult",
+    "GitPreflightError",
+    "DETERMINISTIC_PREFLIGHT_CODES",
     "run_git_preflight",
     "build_git_preflight_failure_payload",
 ]
+
+
+# Preflight issue codes whose failures are *deterministic*: the legacy
+# direct-git fallback cannot recover from them (untrusted repository, missing
+# repository, or worktree-enumeration failure), so callers must surface them
+# rather than retry. Previously identified at consumers by substring-matching
+# the issue message (NFR-007 violation); now carried as a stable code.
+DETERMINISTIC_PREFLIGHT_CODES: frozenset[str] = frozenset(
+    {
+        "NOT_A_GIT_REPOSITORY",
+        "UNTRUSTED_REPOSITORY",
+        "WORKTREE_LIST_FAILED",
+    }
+)
+
+
+class GitPreflightError(RuntimeError):
+    """Raised when workspace creation fails a deterministic git preflight check.
+
+    Carries a stable ``error_code`` (NFR-007) drawn from the originating
+    :class:`GitPreflightIssue` code so consumers branch on the typed value /
+    ``error_code`` rather than substring-matching the human-readable message.
+    """
+
+    def __init__(self, message: str, *, error_code: str) -> None:
+        super().__init__(message)
+        self.error_code = error_code
+
+    @property
+    def is_deterministic(self) -> bool:
+        """True when the failure cannot be recovered by a direct-git fallback."""
+        return self.error_code in DETERMINISTIC_PREFLIGHT_CODES
 
 
 @dataclass

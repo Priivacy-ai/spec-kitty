@@ -109,6 +109,7 @@ class GitVCS:
                     success=False,
                     workspace=None,
                     error=detail,
+                    error_code=issue.code if issue else "GIT_PREFLIGHT_FAILED",
                 )
 
             # Build the git worktree add command

@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from .constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
+from .git_preflight import DETERMINISTIC_PREFLIGHT_CODES, GitPreflightError
 from .vcs import get_vcs
 from specify_cli.ownership.models import ExecutionMode
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
@@ -326,17 +327,23 @@ def create_feature_worktree(
         )
 
         if not result.success:
+            # Deterministic git preflight failures (untrusted repo, missing
+            # repo, worktree-enumeration failure) cannot be recovered by the
+            # legacy direct-git fallback, so raise a typed error carrying the
+            # stable preflight code (NFR-007). The catch block below re-raises
+            # these by ``isinstance``/``error_code`` rather than message text.
+            if result.error_code in DETERMINISTIC_PREFLIGHT_CODES:
+                raise GitPreflightError(
+                    f"Failed to create workspace: {result.error}",
+                    error_code=result.error_code,
+                )
             raise RuntimeError(f"Failed to create workspace: {result.error}")
 
+    except GitPreflightError:
+        # Deterministic preflight failure — re-raise without attempting the
+        # legacy direct-git fallback (it would hit the same blocking condition).
+        raise
     except Exception as e:
-        deterministic_preflight_markers = (
-            "Git repository check failed:",
-            "Git rejected repository ownership trust",
-            "Git worktree discovery failed:",
-        )
-        if any(marker in str(e) for marker in deterministic_preflight_markers):
-            raise
-
         # If VCS abstraction fails, fall back to direct git command with warning
         warnings.warn(
             f"VCS abstraction failed ({type(e).__name__}: {e}); falling back to direct git commands. See: VCS abstraction layer documentation",

@@ -26,7 +26,7 @@ from specify_cli.sync.daemon import (
     _is_process_alive as _canonical_is_process_alive,
 )
 
-from .server import find_free_port, start_dashboard
+from .server import PortUnavailableError, find_free_port, start_dashboard
 
 logger = logging.getLogger(__name__)
 
@@ -426,23 +426,20 @@ def ensure_dashboard_running(
             background_process=background_process,
             project_token=token,
         )
-    except RuntimeError as e:
-        # If port exhaustion, try cleaning up orphaned dashboards and retry once
-        if "Could not find free port" in str(e):
-            killed = _cleanup_orphaned_dashboards_in_range()
-            if killed > 0:
-                # Cleanup succeeded, retry starting dashboard
-                port, pid = start_dashboard(
-                    project_dir_resolved,
-                    port=port_to_use,
-                    background_process=background_process,
-                    project_token=token,
-                )
-            else:
-                # No orphans found or couldn't clean up - re-raise original error
-                raise
+    except PortUnavailableError:
+        # Port exhaustion (typed via error_code, not message text): try cleaning
+        # up orphaned dashboards and retry once.
+        killed = _cleanup_orphaned_dashboards_in_range()
+        if killed > 0:
+            # Cleanup succeeded, retry starting dashboard
+            port, pid = start_dashboard(
+                project_dir_resolved,
+                port=port_to_use,
+                background_process=background_process,
+                project_token=token,
+            )
         else:
-            # Different error - re-raise
+            # No orphans found or couldn't clean up - re-raise original error
             raise
 
     url = f"http://127.0.0.1:{port}"

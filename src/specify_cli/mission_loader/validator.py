@@ -49,6 +49,7 @@ from runtime.next._internal_runtime.discovery import (
 from runtime.next._internal_runtime.schema import (
     DiscoveredMission,
     MissionRuntimeError,
+    MissionTemplateHasNoStepsError,
     load_mission_template_file,
 )
 
@@ -162,13 +163,13 @@ def validate_custom_mission(
             ],
             warnings=warnings,
         )
+    except MissionTemplateHasNoStepsError:
+        return ValidationReport(
+            discovered=selected,
+            errors=[_missing_steps_error(selected.path, mission_key)],
+            warnings=warnings,
+        )
     except MissionRuntimeError as exc:
-        if "has no steps" in str(exc):
-            return ValidationReport(
-                discovered=selected,
-                errors=[_missing_steps_error(selected.path, mission_key)],
-                warnings=warnings,
-            )
         return ValidationReport(
             discovered=selected,
             errors=[
@@ -413,11 +414,13 @@ def _classify_load_failure(
                 "parse_error": str(exc),
             },
         )
+    except MissionTemplateHasNoStepsError:
+        # Typed subclass (NFR-007): distinguished from generic malformed-template
+        # MissionRuntimeError by exception type / error_code, not message text.
+        return _missing_steps_error(str(path), mission_key)
     except MissionRuntimeError as exc:
         # MissionRuntimeError covers shape errors that bypass Pydantic
-        # (e.g. "must be a mapping", "no steps").
-        if "has no steps" in str(exc):
-            return _missing_steps_error(str(path), mission_key)
+        # (e.g. "must be a mapping").
         return LoaderError(
             code=LoaderErrorCode.MISSION_YAML_MALFORMED,
             message=str(exc),
