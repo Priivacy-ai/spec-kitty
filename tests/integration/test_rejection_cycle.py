@@ -526,7 +526,7 @@ class TestImplementReviewFeedbackHandoff:
 
         assert result.exit_code == 0, result.stdout
         assert "Fix mode" in result.stdout
-        prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md"
+        prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-001-test-feature-WP01.md"
         prompt_content = prompt_file.read_text(encoding="utf-8")
         assert "## Review Findings" in prompt_content
         assert "Use the canonical review artifact instead of the claim token." in prompt_content

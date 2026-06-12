@@ -600,13 +600,19 @@ def _print_commit_summary(*, command_name: str, json_output: bool = False) -> No
 
 def _write_prompt_to_file(
     command_type: str,
+    mission_slug: str,
     wp_id: str,
     content: str,
 ) -> Path:
     """Write full prompt content to a temp file for agents with output limits.
 
+    The filename is scoped by ``mission_slug`` so that concurrent missions
+    sharing a WP id (e.g. two missions both with ``WP01``) do not collide on the
+    same ``/tmp`` path and overwrite each other's prompt (#1831).
+
     Args:
         command_type: "implement" or "review"
+        mission_slug: Mission slug used to scope the temp filename
         wp_id: Work package ID (e.g., "WP01")
         content: Full prompt content to write
 
@@ -614,7 +620,10 @@ def _write_prompt_to_file(
         Path to the written file
     """
     # Use system temp directory (gets cleaned up automatically)
-    prompt_file = Path(tempfile.gettempdir()) / f"spec-kitty-{command_type}-{wp_id}.md"
+    prompt_file = (
+        Path(tempfile.gettempdir())
+        / f"spec-kitty-{command_type}-{mission_slug}-{wp_id}.md"
+    )
     prompt_file.write_text(content, encoding="utf-8")
     return prompt_file
 
@@ -777,12 +786,19 @@ def _shared_artifact_guidance(workspace, repo_root: Path, mission_slug: str) -> 
 
 app = typer.Typer(name="action", help="Mission action commands that display prompts and instructions for agents", no_args_is_help=True)
 
-_CANONICAL_STATUS_NOT_FOUND = "canonical status not found"
-
-
 def _is_missing_canonical_status_error(exc: BaseException) -> bool:
-    """Return True when *exc* indicates missing canonical status bootstrap."""
-    return _CANONICAL_STATUS_NOT_FOUND in str(exc).lower()
+    """Return True when *exc* indicates missing canonical status bootstrap.
+
+    Uses a structured ``isinstance`` check against the typed
+    :class:`CanonicalStatusNotFoundError` (exported from the status facade)
+    rather than matching prose in the exception message. ``locate_work_package``
+    raises this type unwrapped (via ``get_wp_lane`` → ``get_lane_from_frontmatter``),
+    so the type is visible at the call sites; a substring gate on the message
+    would silently break the moment the wording is reworded (Cluster D).
+    """
+    from specify_cli.status import CanonicalStatusNotFoundError
+
+    return isinstance(exc, CanonicalStatusNotFoundError)
 
 
 def _missing_canonical_status_message(
@@ -1447,7 +1463,7 @@ def implement(
                         mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
                     )
-                    _fix_prompt_file = _write_prompt_to_file("implement", normalized_wp_id, _fix_prompt_text)
+                    _fix_prompt_file = _write_prompt_to_file("implement", mission_slug, normalized_wp_id, _fix_prompt_text)
                     print()
                     print(f"📍 Workspace: cd {workspace_path}")
                     print(f"🔧 Fix mode — Cycle {_latest_artifact.cycle_number}: focused prompt from review artifact")
@@ -1677,7 +1693,7 @@ def implement(
 
         # Write full prompt to file
         full_content = "\n".join(lines)
-        prompt_file = _write_prompt_to_file("implement", normalized_wp_id, full_content)
+        prompt_file = _write_prompt_to_file("implement", mission_slug, normalized_wp_id, full_content)
 
         # Output concise summary with directive to read the prompt
         print()
