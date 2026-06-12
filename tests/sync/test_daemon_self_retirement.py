@@ -282,7 +282,7 @@ class TestRunSyncDaemonWiring:
             servers.append(self)
 
         FakeServer.__init__ = init_capture  # type: ignore[assignment]
-        monkeypatch.setattr(daemon, "HTTPServer", FakeServer)
+        monkeypatch.setattr(daemon, "create_loopback_server", lambda *_args, **_kwargs: FakeServer(None, None))
 
         # Stub get_runtime so the import does not pull the real sync layer.
         fake_runtime_module = MagicMock()

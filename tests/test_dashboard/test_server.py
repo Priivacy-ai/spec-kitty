@@ -53,7 +53,7 @@ def test_start_dashboard_foreground_starts_thread(monkeypatch, tmp_path):
             self.started = True
             self._target()
 
-    monkeypatch.setattr(server, "HTTPServer", FakeServer)
+    monkeypatch.setattr(server, "create_loopback_server", lambda *_args, **_kwargs: FakeServer())
     monkeypatch.setattr(server.threading, "Thread", FakeThread)
 
     port, pid = server.start_dashboard(tmp_path, port=12346, background_process=False)
@@ -65,23 +65,21 @@ def test_start_dashboard_foreground_starts_thread(monkeypatch, tmp_path):
 def test_run_dashboard_server_bootstraps_global_sync_daemon(monkeypatch, tmp_path):
     calls = {}
 
-    class FakeServer:
-        def __init__(self, *_args, **_kwargs):
-            calls["created"] = True
-
-        def serve_forever(self):
-            calls["served"] = True
-
     def fake_ensure_sync_daemon_running(*, intent):
         calls["daemon"] = True
         calls["intent"] = intent
         return SimpleNamespace(skipped_reason="intent_local_only")
 
-    monkeypatch.setattr(server, "HTTPServer", FakeServer)
+    def fake_serve_loopback_server(port, handler_class, **_kwargs):
+        calls["served_port"] = port
+        calls["handler_class"] = handler_class
+
+    monkeypatch.setattr(server, "serve_loopback_server", fake_serve_loopback_server)
     monkeypatch.setattr("specify_cli.sync.daemon.ensure_sync_daemon_running", fake_ensure_sync_daemon_running)
 
     server.run_dashboard_server(tmp_path, 12347, None)
 
     assert calls["daemon"] is True
     assert calls["intent"].value == "local_only"
-    assert calls["served"] is True
+    assert calls["served_port"] == 12347
+    assert calls["handler_class"] is not None

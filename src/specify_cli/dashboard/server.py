@@ -8,9 +8,10 @@ import subprocess
 import sys
 import textwrap
 import threading
-from http.server import HTTPServer
 from pathlib import Path
 from typing import Optional, Tuple
+
+from specify_cli.core.loopback_http import create_loopback_server, serve_loopback_server
 
 from .handlers.router import DashboardRouter
 
@@ -71,8 +72,7 @@ def run_dashboard_server(project_dir: Path, port: int, project_token: str | None
         logger.warning("Global sync daemon check failed: %s", exc)
 
     handler_class = _build_handler_class(project_dir, project_token)
-    server = HTTPServer(('127.0.0.1', port), handler_class)  # NOSONAR -- dashboard control plane binds to localhost only
-    server.serve_forever()
+    serve_loopback_server(port, handler_class)
 
 
 def _background_script(project_dir: Path, port: int, project_token: str | None) -> str:
@@ -129,7 +129,7 @@ def start_dashboard(
         return port, proc.pid
 
     handler_class = _build_handler_class(project_dir_abs, project_token)
-    server = HTTPServer(('127.0.0.1', port), handler_class)  # NOSONAR -- dashboard control plane binds to localhost only
+    server = create_loopback_server(port, handler_class)
 
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()

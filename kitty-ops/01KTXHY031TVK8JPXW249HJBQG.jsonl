@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KTXHY031TVK8JPXW249HJBQG", "profile_id": "reviewer-renata", "action": "audit", "request_text": "Re-review GitHub PR #1870 after review-fix commit 43e13f0f2", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "6fc8a5b10f051169", "governance_context_available": true, "started_at": "2026-06-12T09:17:12.666569+00:00"}
+{"event": "completed", "invocation_id": "01KTXHY031TVK8JPXW249HJBQG", "completed_at": "2026-06-12T09:17:54.623764+00:00", "outcome": "done", "closed_by": "agent"}

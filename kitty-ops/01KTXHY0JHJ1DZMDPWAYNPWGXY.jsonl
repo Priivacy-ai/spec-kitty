@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KTXHY0JHJ1DZMDPWAYNPWGXY", "profile_id": "architect-alphonso", "action": "audit", "request_text": "Re-review GitHub PR #1870 after review-fix commit 43e13f0f2", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "07efa4b800c77a5b", "governance_context_available": true, "started_at": "2026-06-12T09:17:13.170957+00:00"}
+{"event": "completed", "invocation_id": "01KTXHY0JHJ1DZMDPWAYNPWGXY", "completed_at": "2026-06-12T09:17:47.743029+00:00", "outcome": "done", "closed_by": "agent"}

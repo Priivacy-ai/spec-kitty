@@ -47,9 +47,14 @@ else:  # pragma: no cover - platform-specific
 if TYPE_CHECKING:
     from specify_cli.sync.config import SyncConfig
 
-import psutil  # type: ignore[import-untyped]
+import psutil
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.core.loopback_http import (
+    build_loopback_base_url,
+    build_loopback_url,
+    create_loopback_server,
+)
 from specify_cli.sync.diagnostics import SyncDiagnosticCode, emit_sync_diagnostic
 
 logger = logging.getLogger(__name__)
@@ -274,13 +279,8 @@ def _fetch_health_payload(health_url: str, timeout: float = 0.5) -> dict[str, An
     return data if isinstance(data, dict) else None
 
 
-def _loopback_health_url(port: int) -> str:
-    """Return the localhost-only daemon health endpoint."""
-    return f"http://127.0.0.1:{port}/api/health"  # NOSONAR -- loopback-only control-plane URL, never exposed off-host
-
-
 def _check_sync_daemon_health(port: int, expected_token: str | None, timeout: float = 0.5) -> bool:
-    data = _fetch_health_payload(_loopback_health_url(port), timeout=timeout)
+    data = _fetch_health_payload(build_loopback_url(port, "/api/health"), timeout=timeout)
     if not data:
         return False
     if data.get("status") != "ok":
@@ -293,7 +293,7 @@ def _check_sync_daemon_health(port: int, expected_token: str | None, timeout: fl
 
 def _daemon_version_matches(port: int, expected_token: str | None, timeout: float = 0.5) -> bool:
     """Return True if the running daemon reports the current protocol + package version."""
-    data = _fetch_health_payload(_loopback_health_url(port), timeout=timeout)
+    data = _fetch_health_payload(build_loopback_url(port, "/api/health"), timeout=timeout)
     if not data:
         return False
     if data.get("status") != "ok":
@@ -683,7 +683,7 @@ def run_sync_daemon(port: int, daemon_token: str | None) -> None:
         (SyncDaemonHandler,),
         {"daemon_token": daemon_token},
     )
-    server = HTTPServer(("127.0.0.1", port), handler_class)  # NOSONAR -- sync daemon control plane binds to localhost only
+    server = create_loopback_server(port, handler_class)
 
     # Bind succeeded — record ownership BEFORE accepting traffic so any
     # health probe that arrives in the first scheduling slice already sees
@@ -789,11 +789,11 @@ def get_sync_daemon_status(timeout: float = 0.5) -> SyncDaemonStatus:
     if port is None:
         return SyncDaemonStatus(healthy=False, url=url, token=token, pid=pid)
 
-    data = _fetch_health_payload(_loopback_health_url(port), timeout=timeout)
+    data = _fetch_health_payload(build_loopback_url(port, "/api/health"), timeout=timeout)
     if not data:
         return SyncDaemonStatus(
             healthy=False,
-            url=url or f"http://127.0.0.1:{port}",
+            url=url or build_loopback_base_url(port),
             port=port,
             token=token,
             pid=pid,
@@ -809,7 +809,7 @@ def get_sync_daemon_status(timeout: float = 0.5) -> SyncDaemonStatus:
     websocket_status = str(data.get("websocket_status") or "Offline")
     return SyncDaemonStatus(
         healthy=healthy,
-        url=url or f"http://127.0.0.1:{port}",
+        url=url or build_loopback_base_url(port),
         port=port,
         token=token,
         pid=pid,
@@ -1033,7 +1033,7 @@ def _ensure_sync_daemon_running_locked(
     token = secrets.token_hex(16)
 
     proc = _spawn_sync_daemon_process(port, token)
-    url = f"http://127.0.0.1:{port}"
+    url = build_loopback_base_url(port)
 
     # Wait up to ~20s for the daemon to become healthy (matching dashboard pattern)
     retry_delays = _bounded_retry_delays(
@@ -1095,11 +1095,11 @@ def _reuse_or_cleanup_existing_daemon() -> tuple[str, int, bool] | None:
             existing_token,
             timeout=_STARTUP_HEALTH_TIMEOUT_SECONDS,
         ):
-            return existing_url or f"http://127.0.0.1:{existing_port}", existing_port, False
+            return existing_url or build_loopback_base_url(existing_port), existing_port, False
 
         logger.info("Recycling sync daemon (version mismatch)")
         _stop_daemon_by_http(
-            existing_url or f"http://127.0.0.1:{existing_port}", existing_token
+            existing_url or build_loopback_base_url(existing_port), existing_token
         )
         _kill_and_cleanup(existing_pid)
         return None
@@ -1134,6 +1134,7 @@ def _spawn_sync_daemon_process(port: int, token: str) -> subprocess.Popen[str]:
         stderr=log_fh,
         stdin=subprocess.DEVNULL,
         start_new_session=True,
+        text=True,
         env={**os.environ, "SPEC_KITTY_CLI_VERSION": _get_package_version()},
     )
     log_fh.close()
@@ -1171,7 +1172,7 @@ def stop_sync_daemon(timeout: float = 5.0) -> tuple[bool, str]:
             return True, "Unhealthy sync daemon metadata has been cleared."
         return True, "Unhealthy sync daemon process stopped. Metadata has been cleared."
 
-    _stop_daemon_by_http(url or f"http://127.0.0.1:{port}", token)
+    _stop_daemon_by_http(url or build_loopback_base_url(port), token)
 
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
