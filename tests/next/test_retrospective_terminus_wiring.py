@@ -387,9 +387,9 @@ def test_failure_emit_swallows_emit_failure(tmp_path: Path) -> None:
 
 
 def test_status_reader_skips_retrospective_lifecycle_type_event() -> None:
-    from specify_cli.status.store import _should_skip_status_event
+    from specify_cli.status.store import is_non_lane_event
 
-    assert _should_skip_status_event({"type": "RetrospectiveCaptured"}) is True
+    assert is_non_lane_event({"type": "RetrospectiveCaptured"}) is True
 
 
 # ---------------------------------------------------------------------------

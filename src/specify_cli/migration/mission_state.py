@@ -40,6 +40,7 @@ from specify_cli.migration.canonicalization import (
 )
 from specify_cli.status import ULID_PATTERN, Lane, StatusEvent
 from specify_cli.status import materialize_snapshot, materialize_to_json
+from specify_cli.status.store import is_retrospective_lifecycle_event
 
 MIGRATION_SCHEMA_VERSION = "1.0.0"
 CANONICAL_ENVELOPE_SCHEMA_VERSION = "3.0.0"
@@ -1232,8 +1233,33 @@ _Row = dict[str, Any]
 def _rule_reject_non_status_event(
     row: _Row, _ctx: MigrationContext
 ) -> CanonicalStepResult[_Row]:
-    """Rule 1: quarantine rows that carry event_type or event_name (not status events)."""
-    if "event_type" in row or "event_name" in row:
+    """Rule 1: route non-lane rows that share status.events.jsonl.
+
+    Two dispositions, each mirroring how the other surfaces treat the row:
+
+    - Retrospective lifecycle rows (``type`` envelope, see
+      :func:`specify_cli.status.store.is_retrospective_lifecycle_event`)
+      are PRESERVED in place: the runtime reader skips them during
+      deserialization but retrospective consumers (``retrospect``,
+      ``retrospective.summary``, the runtime bridge) read them back from
+      status.events.jsonl, so quarantining them would destroy contracted
+      provenance. ``_scan_raw_status_rows`` tolerates them for the same
+      reason.
+    - Rows carrying ``event_type`` or ``event_name`` are QUARANTINED —
+      the same presence check ``_scan_raw_status_rows`` uses to flag
+      typed side-log rows, so repair removes exactly what the dry-run
+      scan reports. The ``event_name`` clause is deliberately broader
+      than the reader's skip set (which only skips ``event_name`` values
+      starting with ``retrospective.``): repair quarantines what the
+      reader would reject loudly.
+    """
+    if is_retrospective_lifecycle_event(row):
+        return CanonicalStepResult(
+            state=row,
+            actions=(),
+            error="preserved_non_lane_event",
+        )
+    if "event_name" in row or "event_type" in row:
         return CanonicalStepResult(
             state=row,
             actions=("quarantined_non_status_event",),
@@ -1476,10 +1502,12 @@ def _canonicalize_status_row(
     optionally transforms the state, and returns a :class:`CanonicalStepResult`.
     Short-circuits on the first error.
 
-    The special quarantine case (non-status events) is handled by
-    ``_rule_reject_non_status_event`` which returns an error; the caller in
-    ``_canonicalize_status_rows`` already treats ``error is not None`` as a
-    quarantine signal for that specific error message.
+    Non-lane rows are handled by ``_rule_reject_non_status_event`` via two
+    sentinel errors translated here: ``quarantined_non_status_event`` becomes
+    ``row=None`` (the caller routes the original line to the quarantine file),
+    and ``preserved_non_lane_event`` returns the original row untouched (the
+    caller keeps it in status.events.jsonl exactly as the runtime reader
+    expects to find it).
     """
     ctx = MigrationContext(
         mission_slug=mission_slug,
@@ -1492,6 +1520,11 @@ def _canonicalize_status_row(
     # (the caller _canonicalize_status_rows checks result.row is None, not result.error)
     if result.error == "quarantined_non_status_event":
         return _CanonicalRowResult(row=None, actions=result.actions, error=None)
+    # Special case: preserved_non_lane_event keeps the original row in the
+    # event log untouched — these rows are contracted data other subsystems
+    # read back, not corruption (see _rule_reject_non_status_event).
+    if result.error == "preserved_non_lane_event":
+        return _CanonicalRowResult(row=dict(data), actions=(), error=None)
     return _CanonicalRowResult.from_pipeline(result)
 
 

@@ -90,6 +90,10 @@ def _base_row(**overrides: Any) -> _Row:
         ({"event_type": "some_event", "wp_id": "WP01"}, "quarantined_non_status_event"),
         # happy case — event_name present → quarantine error
         ({"event_name": "custom_event"}, "quarantined_non_status_event"),
+        # retrospective lifecycle type events → preserved in place, never quarantined
+        ({"type": "RetrospectiveCaptured", "wp_id": "WP01"}, "preserved_non_lane_event"),
+        ({"type": "RetrospectiveCaptureFailed"}, "preserved_non_lane_event"),
+        ({"type": "RetrospectiveSkipped"}, "preserved_non_lane_event"),
         # no-op — neither key present → pass-through
         ({"wp_id": "WP01", "to_lane": "done"}, None),
     ],
@@ -99,9 +103,13 @@ def test_rule_reject_non_status_event(
 ) -> None:
     result = _rule_reject_non_status_event(row, _ctx())
     assert isinstance(result, CanonicalStepResult)
-    if expect_error is not None:
+    if expect_error == "quarantined_non_status_event":
         assert result.error == expect_error
         assert result.actions == ("quarantined_non_status_event",)
+    elif expect_error == "preserved_non_lane_event":
+        assert result.error == expect_error
+        assert result.actions == ()
+        assert result.state is row  # preserved untouched
     else:
         assert result.error is None
         assert result.state is row  # exact passthrough

@@ -338,6 +338,10 @@ def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:
     return results
 
 
+# Registration point: any new non-lane lifecycle event that uses the "type"
+# envelope shape MUST be added here, or both read_events and
+# `doctor mission-state --fix` will fail loudly on that mission with
+# "missing required to_lane" (the SNAPSHOT_DRIFT symptom from issue #1782).
 _RETROSPECTIVE_LIFECYCLE_EVENT_TYPES: frozenset[str] = frozenset({
     "RetrospectiveCaptured",
     "RetrospectiveCaptureFailed",
@@ -345,7 +349,19 @@ _RETROSPECTIVE_LIFECYCLE_EVENT_TYPES: frozenset[str] = frozenset({
 })
 
 
-def _should_skip_status_event(obj: dict[str, Any]) -> bool:
+def is_retrospective_lifecycle_event(obj: dict[str, Any]) -> bool:
+    """Return True for retrospective lifecycle rows using the ``type`` envelope.
+
+    These rows are written to status.events.jsonl by design (see
+    contracts/retrospective-events.contract.md) and read back by
+    retrospective consumers; they are descriptive lifecycle events, not
+    lane transitions, and must be skipped in place — never removed.
+    """
+    event_type = obj.get("type")
+    return isinstance(event_type, str) and event_type in _RETROSPECTIVE_LIFECYCLE_EVENT_TYPES
+
+
+def is_non_lane_event(obj: dict[str, Any]) -> bool:
     """Return True for non-lane events that intentionally share the JSONL file."""
     event_name = obj.get("event_name")
     if isinstance(event_name, str) and event_name.startswith("retrospective."):
@@ -354,8 +370,7 @@ def _should_skip_status_event(obj: dict[str, Any]) -> bool:
     # WP03: Skip the three new canonical retrospective lifecycle events which use
     # a "type" field (not "event_name") per contracts/retrospective-events.contract.md.
     # These are descriptive lifecycle events, not lane transitions.
-    event_type = obj.get("type")
-    if isinstance(event_type, str) and event_type in _RETROSPECTIVE_LIFECYCLE_EVENT_TYPES:
+    if is_retrospective_lifecycle_event(obj):
         return True
 
     # Why: Skip mission-level events (DecisionPointOpened,
@@ -402,7 +417,7 @@ def read_events_from_text(feature_dir: Path, content: str) -> list[StatusEvent]:
             raise StoreError(
                 f"Invalid event structure on line {line_number}: expected JSON object"
             )
-        if _should_skip_status_event(obj):
+        if is_non_lane_event(obj):
             continue
 
         try:
