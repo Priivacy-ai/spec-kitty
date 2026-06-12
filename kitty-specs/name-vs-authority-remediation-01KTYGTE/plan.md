@@ -8,10 +8,10 @@ Bind worktree/branch/identity resolution to declared authorities (two seams + a 
 
 ## Technical Context
 
-- **Language/Version**: Python 3.11+
-- **Primary Dependencies**: stdlib + existing in-tree surfaces only — `coordination/surface_resolver.py`, `lanes/branch_naming.py`, `mission_runtime` (resolve_placement_only), `acceptance/` gate, `runtime/next/runtime_bridge.py`, DRG extractor (`doctrine/drg/migration/extractor.py`), doctrine YAML schemas; typer (CLI), pydantic (models), pytest/ruff/mypy (gates). No new third-party dependencies.
-- **Testing**: pytest (focused suites per surface + the new architectural ratchet); rogue-injection strictness proofs for the ratchet; pinning regression fixtures for all four P0s.
-- **Architecture anchors (binding)**: C4 diagrams (`architecture/diagrams/`), ADR 2026-06-07-1 (mission_runtime canonical surface), ADR 2026-06-03-2 + addendum (CommitTarget/guard), ADR 2026-06-11-1 (Op tier + the authority-path flip procedure executed by IC-10). Research under `research/` — **alphonso's `research-authority-seams.md` is normative** for seam APIs, site lists, and the §Decision-Table.
+**Language/Version**: Python 3.11+
+**Primary Dependencies**: stdlib + existing in-tree surfaces only — `coordination/surface_resolver.py`, `lanes/branch_naming.py`, `mission_runtime` (resolve_placement_only), `acceptance/` gate, `runtime/next/runtime_bridge.py`, DRG extractor (`doctrine/drg/migration/extractor.py`), doctrine YAML schemas; typer (CLI), pydantic (models), pytest/ruff/mypy (gates). No new third-party dependencies.
+**Testing**: pytest (focused suites per surface + the new architectural ratchet); rogue-injection strictness proofs for the ratchet; pinning regression fixtures for all four P0s.
+**Architecture anchors (binding)**: C4 diagrams (`architecture/diagrams/`), ADR 2026-06-07-1 (mission_runtime canonical surface), ADR 2026-06-03-2 + addendum (CommitTarget/guard), ADR 2026-06-11-1 (Op tier + the authority-path flip procedure executed by IC-10). Research under `research/` — **alphonso's `research-authority-seams.md` is normative** for seam APIs, site lists, and the §Decision-Table.
 
 ## Plan-time decisions (all resolved — no open clarifications)
 
