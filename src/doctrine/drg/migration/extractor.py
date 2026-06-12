@@ -18,6 +18,8 @@ from doctrine.drg.migration.id_normalizer import artifact_to_urn
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.validator import assert_valid
 
+SPECIFICATION_BY_EXAMPLE = "paradigm:specification-by-example"
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -66,17 +68,17 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         Relation.SPECIALIZES_FROM,
     ),
     (
-        "paradigm:specification-by-example",
+        SPECIFICATION_BY_EXAMPLE,
         "tactic:acceptance-test-first",
         Relation.REQUIRES,
     ),
     (
-        "paradigm:specification-by-example",
+        SPECIFICATION_BY_EXAMPLE,
         "tactic:atdd-adversarial-acceptance",
         Relation.REQUIRES,
     ),
     (
-        "paradigm:specification-by-example",
+        SPECIFICATION_BY_EXAMPLE,
         "tactic:usage-examples-sync",
         Relation.REQUIRES,
     ),

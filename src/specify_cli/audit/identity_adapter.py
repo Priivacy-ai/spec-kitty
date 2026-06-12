@@ -35,6 +35,8 @@ from specify_cli.status import IdentityState
 
 from .models import MissionFinding, Severity
 
+_META_JSON = "meta.json"
+
 
 # ---------------------------------------------------------------------------
 # Single-state adapter
@@ -43,7 +45,7 @@ from .models import MissionFinding, Severity
 
 def identity_state_to_findings(
     state: IdentityState,
-    mission_dir: Path,  # noqa: ARG001  (kept for call-site symmetry)
+    mission_dir: Path,
 ) -> list[MissionFinding]:
     """Convert a single ``IdentityState`` to audit findings.
 
@@ -75,12 +77,13 @@ def identity_state_to_findings(
         A list of :class:`~specify_cli.audit.models.MissionFinding` objects.
         Empty list for ``legacy``, ``pending``, and ``assigned`` states.
     """
+    del mission_dir  # Kept for public keyword compatibility and call-site symmetry.
     if state.state == "orphan":
         return [
             MissionFinding(
                 code="IDENTITY_MISSING",
                 severity=Severity.ERROR,
-                artifact_path="meta.json",
+                artifact_path=_META_JSON,
                 detail="meta.json absent",
             )
         ]
@@ -96,7 +99,7 @@ def identity_state_to_findings(
 
 def prefix_groups_to_findings(
     groups: dict[str, list[IdentityState]],
-    slug_to_dir: dict[str, Path],  # noqa: ARG001
+    slug_to_dir: dict[str, Path],
 ) -> list[MissionFinding]:
     """Convert ``find_duplicate_prefixes()`` output to ``DUPLICATE_PREFIX`` findings.
 
@@ -115,6 +118,7 @@ def prefix_groups_to_findings(
         A flat list of ``DUPLICATE_PREFIX`` findings (one per mission per
         duplicated prefix).
     """
+    del slug_to_dir  # Kept for public keyword compatibility.
     findings: list[MissionFinding] = []
     for prefix, states in groups.items():
         if len(states) < 2:
@@ -126,7 +130,7 @@ def prefix_groups_to_findings(
                 MissionFinding(
                     code="DUPLICATE_PREFIX",
                     severity=Severity.WARNING,
-                    artifact_path="meta.json",
+                    artifact_path=_META_JSON,
                     detail=f"prefix {prefix!r} shared with: {other_slugs}",
                 )
             )
@@ -135,7 +139,7 @@ def prefix_groups_to_findings(
 
 def selector_groups_to_findings(
     groups: dict[str, list[IdentityState]],
-    slug_to_dir: dict[str, Path],  # noqa: ARG001
+    slug_to_dir: dict[str, Path],
 ) -> list[MissionFinding]:
     """Convert ``find_ambiguous_selectors()`` output to ``AMBIGUOUS_SELECTOR`` findings.
 
@@ -151,6 +155,7 @@ def selector_groups_to_findings(
     Returns:
         A flat list of ``AMBIGUOUS_SELECTOR`` findings.
     """
+    del slug_to_dir  # Kept for public keyword compatibility.
     findings: list[MissionFinding] = []
     for handle, states in groups.items():
         if len(states) < 2:
@@ -162,7 +167,7 @@ def selector_groups_to_findings(
                 MissionFinding(
                     code="AMBIGUOUS_SELECTOR",
                     severity=Severity.WARNING,
-                    artifact_path="meta.json",
+                    artifact_path=_META_JSON,
                     detail=f"handle {handle!r} also matches: {other_slugs}",
                 )
             )
@@ -171,7 +176,7 @@ def selector_groups_to_findings(
 
 def duplicate_ids_to_findings(
     states: list[IdentityState],
-    slug_to_dir: dict[str, Path],  # noqa: ARG001
+    slug_to_dir: dict[str, Path],
 ) -> list[MissionFinding]:
     """Detect missions with identical ``mission_id`` values and emit findings.
 
@@ -188,6 +193,7 @@ def duplicate_ids_to_findings(
         A flat list of ``DUPLICATE_MISSION_ID`` findings (one per mission in
         each group).
     """
+    del slug_to_dir  # Kept for public keyword compatibility.
     # Group by mission_id, skipping None values (orphan / legacy states).
     by_id: dict[str, list[IdentityState]] = defaultdict(list)
     for state in states:
@@ -205,7 +211,7 @@ def duplicate_ids_to_findings(
                 MissionFinding(
                     code="DUPLICATE_MISSION_ID",
                     severity=Severity.ERROR,
-                    artifact_path="meta.json",
+                    artifact_path=_META_JSON,
                     detail=f"mission_id {mission_id!r} also used by: {other_slugs}",
                 )
             )

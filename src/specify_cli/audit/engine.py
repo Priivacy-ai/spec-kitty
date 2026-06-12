@@ -50,6 +50,8 @@ from .models import (
     is_teamspace_blocker,
 )
 
+_META_JSON = "meta.json"
+
 
 # ---------------------------------------------------------------------------
 # Private: mission filter resolution
@@ -229,7 +231,7 @@ def _compute_repo_findings_by_slug(
             finding = MissionFinding(
                 code="DUPLICATE_PREFIX",
                 severity=_slug_to_finding_severity("DUPLICATE_PREFIX"),
-                artifact_path="meta.json",
+                artifact_path=_META_JSON,
                 detail=f"prefix {prefix!r} shared with: {other_slugs}",
             )
             if state.slug in slug_to_dir:
@@ -245,7 +247,7 @@ def _compute_repo_findings_by_slug(
             finding = MissionFinding(
                 code="AMBIGUOUS_SELECTOR",
                 severity=_slug_to_finding_severity("AMBIGUOUS_SELECTOR"),
-                artifact_path="meta.json",
+                artifact_path=_META_JSON,
                 detail=f"handle {handle!r} also matches: {other_slugs}",
             )
             if state.slug in slug_to_dir:
@@ -268,7 +270,7 @@ def _compute_repo_findings_by_slug(
             finding = MissionFinding(
                 code="DUPLICATE_MISSION_ID",
                 severity=_slug_to_finding_severity("DUPLICATE_MISSION_ID"),
-                artifact_path="meta.json",
+                artifact_path=_META_JSON,
                 detail=f"mission_id {mission_id!r} also used by: {other_slugs}",
             )
             if state.slug in slug_to_dir:
