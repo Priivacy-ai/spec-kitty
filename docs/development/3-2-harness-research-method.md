@@ -41,7 +41,7 @@ The set is the union of (a) directories present in the repo, (b) entries in `CLA
 
 For each candidate harness, the research process records:
 
-1. **Installed surface directory** — the conventional path Spec Kitty deploys command/skill/prompt files to (e.g., `.claude/commands/`, `.agents/skills/spec-kitty.advise`, `.amazonq/prompts/`); legacy `.codex/` roots may still appear on older hosts.
+1. **Installed surface directory** — the conventional path Spec Kitty deploys command/skill/prompt files to (e.g., `.claude/commands/`, `.agents/skills/spec-kitty.<command>/`, `.amazonq/prompts/`); legacy `.codex/` roots may still appear on older hosts.
 2. **Presence check** — `ls -d <dir>` against the active host; record present/absent and file count.
 3. **Cross-reference** — every present surface must match an entry in `CLAUDE.md` §"Supported AI Agents".
 
@@ -50,6 +50,7 @@ For each candidate harness, the research process records:
 Run from repo root (or this lane worktree):
 
 ```bash
+# .codex/ is probed as a legacy root only — current Codex support lives in .agents/skills/
 ls -d .claude/ .codex/ .opencode/ .cursor/ .gemini/ .qwen/ .amazonq/ \
        .augment/ .kiro/ .kilocode/ .roo/ .windsurf/ .agent/ .agents/ \
        .vibe/ .github/prompts 2>/dev/null
@@ -68,7 +69,7 @@ done
 | Harness | Expected directory | On-disk? | Files observed |
 |---------|--------------------|----------|----------------|
 | Claude Code | `.claude/commands/` | partial (dir exists, no `commands/` subdir in this lane) | — |
-| Codex CLI | `.agents/skills/spec-kitty.advise` | yes (skills) | `.agents/skills/spec-kitty.advise`; legacy `.codex/` only on pre-3.2 hosts |
+| Codex CLI | `.agents/skills/spec-kitty.*` | yes (skills) | `.agents/skills/spec-kitty.advise` |
 | OpenCode | `.opencode/command/` | yes | `spec-kitty-standalone.md` |
 | Cursor | `.cursor/commands/` | yes | `spec-kitty-standalone.md` |
 | Gemini CLI | `.gemini/commands/` | yes | `spec-kitty-standalone.md` |
@@ -88,6 +89,7 @@ done
 **Notes:**
 - `spec-kitty-standalone.md` is the lane-bootstrap surface; the full `/spec-kitty.*` command set lives at the source under `src/specify_cli/missions/*/command-templates/` and is materialized by `spec-kitty agent config sync` (see `CLAUDE.md` §"Adding/Removing Agents").
 - `.agents/skills/spec-kitty.advise/` is the Agent Skills package shared between Codex CLI, Mistral Vibe, Pi, and Letta Code (per `CLAUDE.md` §"Agent Skills Agents").
+- Current Codex CLI support uses the shared Agent Skills packages under `.agents/skills/spec-kitty.<command>/SKILL.md`. Legacy `.codex/` roots were not observed in this lane; they may still exist on hosts initialized by older CLI versions and are documented as legacy-only (see `docs/reference/environment-variables.md` §CODEX_HOME).
 - Google Antigravity (`.agent/workflows/`) is present in the current CLI agent registry and is included in the matrix.
 
 ---
