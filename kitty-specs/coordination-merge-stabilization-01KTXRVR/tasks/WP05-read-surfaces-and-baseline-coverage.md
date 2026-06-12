@@ -15,7 +15,8 @@ subtasks:
 - T025
 - T026
 - T027
-agent: claude
+agent: "claude:fable-5:python-pedro:implementer"
+shell_pid: "83268"
 history:
 - '2026-06-12: created by /spec-kitty.tasks'
 agent_profile: python-pedro
@@ -89,3 +90,7 @@ Planning base and merge target are both `main`. Execution worktree/branch come f
 - **Ratchet false positives** are the main risk: reviewer, run AC10 against the whole tree and confirm zero hits outside the two fixed sites before approving.
 - T027's unmocking may slow the suite — keep the real-merge fixture minimal (1 lane is enough for baseline recording).
 - Reviewer: confirm neither file touched by T024/T025 re-derives coord paths inline (that would be a new Class A instance — route, don't re-derive).
+
+## Activity Log
+
+- 2026-06-12T11:58:16Z – claude:fable-5:python-pedro:implementer – shell_pid=83268 – Assigned agent via action command
