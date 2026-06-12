@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KTXBBCHP9EH08GA9WE6DJ9A7", "profile_id": "reviewer-renata", "action": "audit", "request_text": "Review GitHub PR #1870 (harden loopback control-plane helpers) and report findings", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "6fc8a5b10f051169", "governance_context_available": true, "started_at": "2026-06-12T07:22:11.533094+00:00"}
+{"event": "completed", "invocation_id": "01KTXBBCHP9EH08GA9WE6DJ9A7", "completed_at": "2026-06-12T07:25:14.179973+00:00", "outcome": "done", "closed_by": "agent"}
