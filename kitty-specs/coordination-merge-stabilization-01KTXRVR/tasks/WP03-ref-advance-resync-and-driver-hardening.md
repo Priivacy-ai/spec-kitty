@@ -19,7 +19,8 @@ subtasks:
 - T015
 - T016
 - T017
-agent: claude
+agent: "claude:fable-5:python-pedro:implementer"
+shell_pid: "83268"
 history:
 - '2026-06-12: created by /spec-kitty.tasks'
 agent_profile: python-pedro
@@ -134,3 +135,7 @@ Planning base and merge target are both `main`. Execution worktree/branch come f
 - Lock ordering: the helper must not acquire a lock the call sites already hold in a different order — reviewer, trace the lock stack at all three sites.
 - T015 is refactor-only: reviewer, diff the constructed env byte-for-byte in a test.
 - Newly-propagating exceptions from T016 may surface in unrelated suites — run the full `tests/` once locally before review handoff.
+
+## Activity Log
+
+- 2026-06-12T11:57:59Z – claude:fable-5:python-pedro:implementer – shell_pid=83268 – Assigned agent via action command
