@@ -29,7 +29,12 @@ agent_profile: ''
 authoritative_surface: src/specify_cli/missions/_substantive.py
 execution_mode: code_change
 model: ''
-owned_files: []
+owned_files:
+- src/specify_cli/missions/_substantive.py
+- src/specify_cli/cli/commands/agent/mission.py
+- src/runtime/next/runtime_bridge.py
+- tests/integration/test_p0_pinning_regressions.py
+- tests/specify_cli/missions/test_substantive_gate_formats.py
 role: ''
 tags: []
 task_type: implement

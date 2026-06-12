@@ -24,10 +24,11 @@ history:
   actor: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: ''
-authoritative_surface: tests/architectural/test_topology_resolution_boundary.py
+authoritative_surface: tests/architectural/
 execution_mode: code_change
 model: ''
-owned_files: []
+owned_files:
+- tests/architectural/test_topology_resolution_boundary.py
 role: ''
 tags: []
 task_type: implement

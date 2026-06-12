@@ -24,7 +24,11 @@ agent_profile: ''
 authoritative_surface: src/doctrine/styleguides/built-in/
 execution_mode: code_change
 model: ''
-owned_files: []
+owned_files:
+- src/doctrine/styleguides/built-in/planning-and-tracking.styleguide.yaml
+- src/doctrine/procedures/built-in/tracker-organisation-workflow.procedure.yaml
+- src/doctrine/toolguides/built-in/github-tracker.toolguide.yaml
+- src/doctrine/toolguides/built-in/GITHUB_TRACKER.md
 role: ''
 tags: []
 task_type: implement

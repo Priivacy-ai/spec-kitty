@@ -24,7 +24,15 @@ agent_profile: ''
 authoritative_surface: src/specify_cli/lanes/branch_naming.py
 execution_mode: code_change
 model: ''
-owned_files: []
+owned_files:
+- src/specify_cli/lanes/branch_naming.py
+- src/specify_cli/lanes/compute.py
+- src/specify_cli/lanes/recovery.py
+- src/specify_cli/core/vcs/detection.py
+- src/specify_cli/cli/commands/sync.py
+- src/specify_cli/manifest.py
+- src/specify_cli/orchestrator_api/commands.py
+- tests/specify_cli/lanes/test_branch_naming*.py
 role: ''
 tags: []
 task_type: implement
@@ -39,7 +47,7 @@ Load the assigned profile via `spec-kitty agent profile show <profile-id> --all`
 ## Objectives & Success Criteria
 Per `research-authority-seams.md` (NORMATIVE — seam 2; no new module):
 - **T013 (ATDD FIRST):** extend `lanes/branch_naming.py` with fail-closed `mission_branch_name_required(...)` + `BranchIdentityUnresolved` (StructuredError subclass, `error_code="BRANCH_IDENTITY_UNRESOLVED"`, next_step), fed `mission_id` from meta. **Dual-era rule (binding):** legacy `\d{3}-` and mid8-era names both RESOLVE; only unresolvable-modern rejects. Unit tests: both eras, the `mid8=''` bare-slug case, the unresolvable case.
-- **T014:** migrate the owned consumer sites per the normative site list — legacy-shape-only parsers `core/vcs/detection.py:143-176` (currently silently drops ALL mid8 missions!), `sync.py:823` regex, `lanes/manifest.py:156`, `orchestrator_api/commands.py:771` workspace compose, `lanes/compute.py` ×3 composes, `lanes/recovery.py` ×2. Each: name proposes, grammar+meta dispose. Verify exact paths against the research doc (e.g. which sync module hosts :823) before editing.
+- **T014:** migrate the owned consumer sites per the normative site list — legacy-shape-only parsers `core/vcs/detection.py:143-176` (currently silently drops ALL mid8 missions!), `sync.py:823` regex, `src/specify_cli/manifest.py:156 (feature-branch name-shape scan; NOT lanes/)`, `orchestrator_api/commands.py:771` workspace compose, `lanes/compute.py` ×3 composes, `lanes/recovery.py` ×2. Each: name proposes, grammar+meta dispose. Verify exact paths against the research doc (e.g. which sync module hosts :823) before editing.
 - **T015:** #1860 regression test (mid8 HANDLE through the resolution path → works or structured error, never raw-path 'no canonical status') + dual-era integration tests.
 
 ## Context & Constraints (read before coding)

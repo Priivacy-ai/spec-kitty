@@ -22,10 +22,31 @@ history:
   actor: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: ''
-authoritative_surface: src/charter/context_renderers/authority_paths.py
+authoritative_surface: src/charter/context_renderers/
 execution_mode: code_change
 model: ''
-owned_files: []
+owned_files:
+- src/charter/context_renderers/authority_paths.py
+- src/doctrine/missions/mission-steps/software-dev/implement/prompt.md
+- src/doctrine/missions/mission-steps/software-dev/review/prompt.md
+- tests/charter/**
+- tests/specify_cli/regression/**
+- .kittify/charter/charter.md
+- architecture/3.x/adr/2026-06-11-1-*.md
+- .claude/commands/**
+- .github/prompts/**
+- .gemini/commands/**
+- .cursor/commands/**
+- .qwen/commands/**
+- .opencode/command/**
+- .windsurf/workflows/**
+- .kilocode/workflows/**
+- .augment/commands/**
+- .roo/commands/**
+- .amazonq/prompts/**
+- .kiro/prompts/**
+- .agent/workflows/**
+- .agents/skills/**
 role: ''
 tags: []
 task_type: implement

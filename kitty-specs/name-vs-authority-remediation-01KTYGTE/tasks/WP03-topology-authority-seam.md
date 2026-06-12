@@ -26,7 +26,14 @@ agent_profile: ''
 authoritative_surface: src/specify_cli/coordination/surface_resolver.py
 execution_mode: code_change
 model: ''
-owned_files: []
+owned_files:
+- src/specify_cli/coordination/surface_resolver.py
+- src/specify_cli/coordination/status_service.py
+- src/specify_cli/dashboard/scanner.py
+- src/specify_cli/workspace/root_resolver.py
+- src/specify_cli/status/emit.py
+- src/specify_cli/status/work_package_lifecycle.py
+- tests/specify_cli/coordination/test_worktree_topology*.py
 role: ''
 tags: []
 task_type: implement

@@ -27,7 +27,11 @@ agent_profile: ''
 authoritative_surface: src/specify_cli/status/aggregate.py
 execution_mode: code_change
 model: ''
-owned_files: []
+owned_files:
+- src/specify_cli/status/aggregate.py
+- src/specify_cli/coordination/status_transition.py
+- src/specify_cli/cli/commands/implement.py
+- tests/integration/test_cross_seam_consumers.py
 role: ''
 tags: []
 task_type: implement

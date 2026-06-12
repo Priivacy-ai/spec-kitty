@@ -24,7 +24,10 @@ agent_profile: ''
 authoritative_surface: src/specify_cli/acceptance/
 execution_mode: code_change
 model: ''
-owned_files: []
+owned_files:
+- src/specify_cli/acceptance/**
+- src/specify_cli/cli/commands/accept.py
+- tests/specify_cli/acceptance/**
 role: ''
 tags: []
 task_type: implement

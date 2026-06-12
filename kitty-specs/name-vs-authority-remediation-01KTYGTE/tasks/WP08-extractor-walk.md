@@ -21,10 +21,14 @@ history:
   actor: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: ''
-authoritative_surface: src/doctrine/drg/migration/extractor.py
+authoritative_surface: src/doctrine/drg/
 execution_mode: code_change
 model: ''
-owned_files: []
+owned_files:
+- src/doctrine/drg/migration/extractor.py
+- src/doctrine/schemas/toolguide.schema.yaml
+- src/doctrine/graph.yaml
+- tests/doctrine/**
 role: ''
 tags: []
 task_type: implement
