@@ -45,10 +45,10 @@ plan.md §Phase 2 hinted 6 WPs. Ownership analysis (no two WPs may own the same 
 **Goal**: Tracker reflects code reality — 7 fixed issues closed citing landed commits, 4 issues re-scoped to residuals, one #1666 umbrella filed for deferred non-goals. (FR-011)
 **Priority**: P1 — do first (unblocks triage; C-004). **Independent test**: every cluster issue's GitHub state matches the disposition table in the hygiene log.
 
-- [ ] T001 Close #1770 #1789 #1816 #1771 #1571 #1784 #1735 citing 8544012fa / 9c8bff06f / c5a10ce56 / PR #1719 (WP01)
-- [ ] T002 Re-scope #1814 #1736 #1833 #1861 titles/bodies to residual scope (WP01)
-- [ ] T003 File follow-up umbrella under epic #1666 with C-001 non-goals and explicit non-goal list (WP01)
-- [ ] T004 Write kitty-specs/coordination-merge-stabilization-01KTXRVR/issue-hygiene-log.md recording every action + URL (WP01)
+- [x] T001 Close #1770 #1789 #1816 #1771 #1571 #1784 #1735 citing 8544012fa / 9c8bff06f / c5a10ce56 / PR #1719 (WP01)
+- [x] T002 Re-scope #1814 #1736 #1833 #1861 titles/bodies to residual scope (WP01)
+- [x] T003 File follow-up umbrella under epic #1666 with C-001 non-goals and explicit non-goal list (WP01)
+- [x] T004 Write kitty-specs/coordination-merge-stabilization-01KTXRVR/issue-hygiene-log.md recording every action + URL (WP01)
 
 **Dependencies**: none. **Risks**: wrong commit citations — copy from validation comments posted 2026-06-12.
 

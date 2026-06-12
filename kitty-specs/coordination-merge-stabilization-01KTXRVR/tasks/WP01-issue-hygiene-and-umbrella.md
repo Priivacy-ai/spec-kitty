@@ -13,8 +13,8 @@ subtasks:
 - T002
 - T003
 - T004
-agent: "claude:fable-5:curator-carla:curator"
-shell_pid: "83127"
+agent: "claude:fable-5:reviewer-renata:reviewer"
+shell_pid: "85716"
 history:
 - '2026-06-12: created by /spec-kitty.tasks'
 agent_profile: curator-carla
@@ -117,3 +117,5 @@ spec-kitty safe-commit --to-branch kitty/mission-coordination-merge-stabilizatio
 ## Activity Log
 
 - 2026-06-12T11:57:31Z – claude:fable-5:curator-carla:curator – shell_pid=83127 – Started implementation via action command
+- 2026-06-12T12:03:03Z – claude:fable-5:curator-carla:curator – shell_pid=83127 – Hygiene complete: 7 closed, 4 re-scoped, umbrella #1878 filed, log committed (7714776)
+- 2026-06-12T12:03:41Z – claude:fable-5:reviewer-renata:reviewer – shell_pid=85716 – Started review via action command
