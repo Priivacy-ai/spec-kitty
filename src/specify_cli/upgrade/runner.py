@@ -359,10 +359,15 @@ class MigrationRunner:
                             "failed",
                             "; ".join(migration_result.errors) if migration_result.errors else None,
                         )
+                        # Intentionally not marking worktree_metadata_dirty: a
+                        # failed migration is not an upgrade, so it must not
+                        # bump last_upgraded_at. The failure record itself is
+                        # already persisted by _record_migration_result.
                     result["errors"].extend([f"Worktree {worktree.name}: {e}" for e in migration_result.errors])
 
-            # Save worktree metadata only when at least one migration in this
-            # upgrade target is allowed to touch worktrees.
+            # Save worktree metadata only when something material changed
+            # (a migration record was written or the version advanced); a
+            # no-op upgrade must not rewrite last_upgraded_at (issue #1838).
             if not dry_run:
                 if wt_metadata.version != target_version:
                     wt_metadata.version = target_version

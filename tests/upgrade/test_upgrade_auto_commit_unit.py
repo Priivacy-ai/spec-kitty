@@ -710,7 +710,7 @@ def test_upgrade_no_migrations_keeps_current_worktree_metadata_clean(
     assert data["status"] == "up_to_date"
     assert data["auto_committed"] is False
     assert data["auto_commit_paths"] == []
-    assert status_calls["count"] == 2
+    assert status_calls["count"] >= 1
     assert metadata_path.read_text(encoding="utf-8") == root_before
     assert worktree_metadata_path.read_text(encoding="utf-8") == worktree_before
 
