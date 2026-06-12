@@ -39,7 +39,7 @@ def test_lint_non_python_file(runner: CliRunner, app: typer.Typer, tmp_path: Pat
     test_file.write_text("hello")
     result = runner.invoke(app, ["lint", str(test_file)])
     assert result.exit_code == 0
-    assert "is not a Python file" in result.output
+    assert "is not a Python file" in " ".join(result.output.split())
 
 @patch("subprocess.run")
 def test_lint_success_mock(mock_run: MagicMock, runner: CliRunner, app: typer.Typer, tmp_path: Path) -> None:
@@ -51,7 +51,7 @@ def test_lint_success_mock(mock_run: MagicMock, runner: CliRunner, app: typer.Ty
 
     result = runner.invoke(app, ["lint", str(test_file)])
     assert result.exit_code == 0
-    assert "passed all checks" in result.output
+    assert "passed all checks" in " ".join(result.output.split())
 
 @patch("subprocess.run")
 def test_lint_json_failure_mock(mock_run: MagicMock, runner: CliRunner, app: typer.Typer, tmp_path: Path) -> None:
