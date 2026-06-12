@@ -189,14 +189,32 @@ class ProjectMetadata:
         """
         return any(m.id == migration_id and m.result == "success" for m in self.applied_migrations)
 
-    def record_migration(self, migration_id: str, result: str, notes: str | None = None) -> None:
+    def record_migration(self, migration_id: str, result: str, notes: str | None = None) -> bool:
         """Record a migration application.
+
+        Recording is idempotent: if an identical ``(migration_id, result)``
+        record already exists, this is a no-op. Without this, a migration whose
+        ``detect()`` is ``False`` is re-recorded as ``skipped`` / "Not
+        applicable" on *every* upgrade run over the same version range, growing
+        ``applied_migrations`` without bound and churning timestamps (issue
+        #1872). A genuine result transition (e.g. a previously ``failed``
+        migration that now succeeds) carries a different ``result`` and is
+        still appended.
 
         Args:
             migration_id: The ID of the migration
             result: The result ("success", "skipped", "failed")
             notes: Optional notes about the migration
+
+        Returns:
+            ``True`` if a new record was appended; ``False`` if an identical
+            record already existed and the call was a no-op.
         """
+        if any(
+            m.id == migration_id and m.result == result
+            for m in self.applied_migrations
+        ):
+            return False
         self.applied_migrations.append(
             MigrationRecord(
                 id=migration_id,
@@ -205,3 +223,4 @@ class ProjectMetadata:
                 notes=notes,
             )
         )
+        return True
