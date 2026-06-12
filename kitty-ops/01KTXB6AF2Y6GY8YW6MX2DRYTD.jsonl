@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KTXB6AF2Y6GY8YW6MX2DRYTD", "profile_id": "architect-alphonso", "action": "audit", "request_text": "Review PR #1857 (skip no-op worktree metadata rewrites) and report findings", "actor": "claude", "mode_of_work": "advisory", "governance_context_hash": "eaab362749fe9968", "governance_context_available": true, "started_at": "2026-06-12T07:19:25.664634+00:00"}
+{"event": "completed", "invocation_id": "01KTXB6AF2Y6GY8YW6MX2DRYTD", "completed_at": "2026-06-12T07:22:58.449397+00:00", "outcome": "done", "closed_by": "agent"}
