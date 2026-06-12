@@ -92,6 +92,16 @@ class TestIdentityStateToFindings:
         assert findings[0].artifact_path == "meta.json"
         assert findings[0].detail == "meta.json absent"
 
+    def test_public_keyword_mission_dir_is_supported(self, tmp_path: Path) -> None:
+        """Public adapter signature keeps the mission_dir keyword stable."""
+        mission_dir = tmp_path / "orphan-mission"
+        mission_dir.mkdir()
+
+        state = classify_mission(mission_dir)
+
+        findings = identity_state_to_findings(state, mission_dir=mission_dir)
+        assert [finding.code for finding in findings] == ["IDENTITY_MISSING"]
+
     def test_legacy_state_emits_no_findings(self, tmp_path: Path) -> None:
         """Legacy state (meta.json exists, mission_number set, mission_id absent) → [].
 
@@ -176,6 +186,20 @@ class TestPrefixGroupsToFindings:
         assert alpha_finding is not None
         assert beta_finding is not None
 
+    def test_public_keyword_slug_to_dir_is_supported(self, tmp_path: Path) -> None:
+        """Public adapter signature keeps the slug_to_dir keyword stable."""
+        specs = _make_kitty_specs(tmp_path)
+        dir_a = _make_mission_dir(specs, "042-alpha", mission_number=1)
+        dir_b = _make_mission_dir(specs, "042-beta", mission_number=2)
+
+        groups = find_duplicate_prefixes(tmp_path)
+
+        findings = prefix_groups_to_findings(
+            groups,
+            slug_to_dir={"042-alpha": dir_a, "042-beta": dir_b},
+        )
+        assert {finding.code for finding in findings} == {"DUPLICATE_PREFIX"}
+
     def test_no_duplicates_returns_empty(self, tmp_path: Path) -> None:
         """No duplicate prefixes → empty findings list."""
         specs = _make_kitty_specs(tmp_path)
@@ -225,6 +249,20 @@ class TestDuplicateIdsToFindings:
         second_finding = next(f for f in findings if "001-first" in (f.detail or ""))
         assert first_finding is not None
         assert second_finding is not None
+
+    def test_public_keyword_slug_to_dir_is_supported(self, tmp_path: Path) -> None:
+        """Public adapter signature keeps the slug_to_dir keyword stable."""
+        shared_id = "01ABCDEFGHJKMNPQRSTVWXYZ01"
+        dir_a = _make_mission_dir(tmp_path, "001-first", mission_id=shared_id, mission_number=1)
+        dir_b = _make_mission_dir(tmp_path, "002-second", mission_id=shared_id, mission_number=2)
+
+        from specify_cli.status.identity_audit import classify_mission as cm
+
+        findings = duplicate_ids_to_findings(
+            [cm(dir_a), cm(dir_b)],
+            slug_to_dir={"001-first": dir_a, "002-second": dir_b},
+        )
+        assert {finding.code for finding in findings} == {"DUPLICATE_MISSION_ID"}
 
     def test_unique_mission_ids_returns_empty(self, tmp_path: Path) -> None:
         """Missions with distinct mission_ids → empty findings."""
@@ -292,6 +330,22 @@ class TestSelectorGroupsToFindings:
         assert len(ambiguous) >= 2  # at least one finding per mission
         severities = {f.severity for f in ambiguous}
         assert severities == {Severity.WARNING}
+
+    def test_public_keyword_slug_to_dir_is_supported(self, tmp_path: Path) -> None:
+        """Public adapter signature keeps the slug_to_dir keyword stable."""
+        specs = _make_kitty_specs(tmp_path)
+        dir_a = _make_mission_dir(specs, "042-foo", mission_number=42)
+        dir_b = _make_mission_dir(specs, "042-bar", mission_number=43)
+
+        from specify_cli.status.identity_audit import audit_repo
+
+        groups = find_ambiguous_selectors(audit_repo(tmp_path))
+
+        findings = selector_groups_to_findings(
+            groups,
+            slug_to_dir={"042-foo": dir_a, "042-bar": dir_b},
+        )
+        assert any(finding.code == "AMBIGUOUS_SELECTOR" for finding in findings)
 
     def test_unambiguous_selectors_returns_empty(self, tmp_path: Path) -> None:
         """Missions with distinct selectors → empty findings."""
