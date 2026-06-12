@@ -72,14 +72,14 @@ plan.md §Phase 2 hinted 6 WPs. Ownership analysis (no two WPs may own the same 
 **Goal**: Coordination worktree never left behind its own branch (FR-001 — #1826, the release blocker); backstop names the divergence (FR-012); merge-driver env/except/sort hardened with ratchets (FR-008b/c/d — #1736 residuals). Contracts: [class-b](contracts/class-b-ref-advance-resync.md), [class-f](contracts/class-f-merge-driver-hardening.md).
 **Priority**: P0 — the only fully-live blocker. **Independent test**: AC-B1 unattended 2-lane coord merge, zero `SafeCommitBackstopError`.
 
-- [ ] T010 Red test test_merge_coord_worktree_resync_1826.py (pattern: test_merge_coord_topology_1772.py): 2 lanes + baking; assert AC-B1/AC-B2 (WP03)
-- [ ] T011 Shared ref-advance helper (research R1): update-ref + resync any worktree checking out the ref; one mechanism, no transaction self-heal (WP03)
-- [ ] T012 Migrate lanes/merge.py:440,:474 and cli/commands/merge.py:993-998 to the helper (C-002: only these three) (WP03)
-- [ ] T013 Dirty-worktree refusal: structured error naming worktree/ref/SHAs/dirty entries; merge stays resumable (AC-B4, NFR-002) (WP03)
-- [ ] T014 commit_helpers.py:321-339 backstop message names which worktree/ref diverged and likely cause (FR-012) (WP03)
-- [ ] T015 Extract `_make_merge_env()` in lanes/merge.py; route every subprocess call (AC-F1) (WP03)
-- [ ] T016 status_transition.py:399-400 catches only (ValueError, FileNotFoundError); fallback documented; propagation + fallback tests (AC-F3; lands after T011-T013 per C-004) (WP03)
-- [ ] T017 Ratchet tests: no raw `git update-ref` in src/specify_cli outside helper (AC-B3); mixed at/timestamp/neither deterministic sort in tests/status/test_event_log_merge.py (AC-F2) (WP03)
+- [x] T010 Red test test_merge_coord_worktree_resync_1826.py (pattern: test_merge_coord_topology_1772.py): 2 lanes + baking; assert AC-B1/AC-B2 (WP03)
+- [x] T011 Shared ref-advance helper (research R1): update-ref + resync any worktree checking out the ref; one mechanism, no transaction self-heal (WP03)
+- [x] T012 Migrate lanes/merge.py:440,:474 and cli/commands/merge.py:993-998 to the helper (C-002: only these three) (WP03)
+- [x] T013 Dirty-worktree refusal: structured error naming worktree/ref/SHAs/dirty entries; merge stays resumable (AC-B4, NFR-002) (WP03)
+- [x] T014 commit_helpers.py:321-339 backstop message names which worktree/ref diverged and likely cause (FR-012) (WP03)
+- [x] T015 Extract `_make_merge_env()` in lanes/merge.py; route every subprocess call (AC-F1) (WP03)
+- [x] T016 status_transition.py:399-400 catches only (ValueError, FileNotFoundError); fallback documented; propagation + fallback tests (AC-F3; lands after T011-T013 per C-004) (WP03)
+- [x] T017 Ratchet tests: no raw `git update-ref` in src/specify_cli outside helper (AC-B3); mixed at/timestamp/neither deterministic sort in tests/status/test_event_log_merge.py (AC-F2) (WP03)
 
 **Dependencies**: none (C-004 ordering is internal: T016 after T011-T013). **Risks**: `reset --hard` safety — T013's guard is mandatory before T012 ships.
 
@@ -89,12 +89,12 @@ plan.md §Phase 2 hinted 6 WPs. Ownership analysis (no two WPs may own the same 
 **Goal**: Husk directories can never be silently used as workspaces (FR-003/004/005); doctor lists/removes husks (FR-007). Closes #1833 residuals. Contract: [class-d](contracts/class-d-workspace-resolution.md).
 **Priority**: P1. **Independent test**: AC-D1 planted husk → structured resolution error, zero git calls against primary repo.
 
-- [ ] T018 Red test test_workspace_husk_resolution_1833.py: husk `.worktrees/<slug>-lane-a` (no .git) → move-task fails with named resolution error, NOT "No implementation commits"/primary-dirty verdicts (WP04)
-- [ ] T019 workspace/context.py:148-150 — `ResolvedWorkspace.exists` requires `.git` entry (file OR dir) (WP04)
-- [ ] T020 workflow.py:2237/2243/2265 — acquire ReviewLock only after workspace exists; `git worktree add` failure → hard error (WP04)
-- [ ] T021 tasks.py:1346 — assert `git -C <path> rev-parse --show-toplevel` == path before any git call; structured failure otherwise (WP04)
-- [ ] T022 Doctor husk check: report `.worktrees/*` lacking `.git`; `--fix` removes only entries NOT in `git worktree list` (research R5) (WP04)
-- [ ] T023 AC-D2/D3 assertions + short recovery note in the doctor check's output text (WP04)
+- [x] T018 Red test test_workspace_husk_resolution_1833.py: husk `.worktrees/<slug>-lane-a` (no .git) → move-task fails with named resolution error, NOT "No implementation commits"/primary-dirty verdicts (WP04)
+- [x] T019 workspace/context.py:148-150 — `ResolvedWorkspace.exists` requires `.git` entry (file OR dir) (WP04)
+- [x] T020 workflow.py:2237/2243/2265 — acquire ReviewLock only after workspace exists; `git worktree add` failure → hard error (WP04)
+- [x] T021 tasks.py:1346 — assert `git -C <path> rev-parse --show-toplevel` == path before any git call; structured failure otherwise (WP04)
+- [x] T022 Doctor husk check: report `.worktrees/*` lacking `.git`; `--fix` removes only entries NOT in `git worktree list` (research R5) (WP04)
+- [x] T023 AC-D2/D3 assertions + short recovery note in the doctor check's output text (WP04)
 
 **Dependencies**: none. **Risks**: pre-existing husks start erroring — T022 ships in the same WP (spec edge case).
 

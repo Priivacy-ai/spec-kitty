@@ -19,8 +19,8 @@ subtasks:
 - T015
 - T016
 - T017
-agent: "claude:fable-5:python-pedro:implementer"
-shell_pid: "83268"
+agent: "claude:fable-5:reviewer-renata:reviewer"
+shell_pid: "85711"
 history:
 - '2026-06-12: created by /spec-kitty.tasks'
 agent_profile: python-pedro
@@ -139,3 +139,5 @@ Planning base and merge target are both `main`. Execution worktree/branch come f
 ## Activity Log
 
 - 2026-06-12T11:57:59Z – claude:fable-5:python-pedro:implementer – shell_pid=83268 – Assigned agent via action command
+- 2026-06-12T12:40:12Z – claude:fable-5:python-pedro:implementer – shell_pid=83268 – WP03 complete. advance_branch_ref helper + 3-site migration + dirty refusal + FR-012 backstop diagnostics + _make_merge_env + except-narrowing + ratchets. Verification: pytest 1826-suite+tests/status+tests/architectural (1 pre-existing unrelated failure test_status_module_boundary on branch base, deselected; rest exit 0), cli/commands -k merge 50 passed exit 0, lanes/git/unit 763 passed exit 0, coordination+status 410 passed exit 0, terminology guard exit 0; ruff diff-scoped exit 0; mypy clean (mypy --strict on new module + ratchets exit 0); ref_advance coverage 93%.
+- 2026-06-12T12:40:52Z – claude:fable-5:reviewer-renata:reviewer – shell_pid=85711 – Started review via action command
