@@ -11,6 +11,7 @@ import threading
 from pathlib import Path
 from typing import Optional, Tuple
 
+from specify_cli.core.errors import StructuredError
 from specify_cli.core.loopback_http import create_loopback_server, serve_loopback_server
 
 from .handlers.router import DashboardRouter
@@ -25,11 +26,11 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-class PortUnavailableError(RuntimeError):
+class PortUnavailableError(StructuredError):
     """Raised when no free port can be found in the scanned range.
 
-    Carries a stable ``error_code`` (NFR-007) so callers branch on the typed
-    value rather than substring-matching the human-readable message.
+    Carries a stable ``error_code`` (NFR-007, #1893) so callers branch on the
+    typed value rather than substring-matching the human-readable message.
     """
 
     error_code: str = "DASHBOARD_PORT_UNAVAILABLE"

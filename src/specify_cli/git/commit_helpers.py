@@ -91,6 +91,10 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+# Adopt-on-next-touch: this family predates the shared
+# ``specify_cli.core.errors.StructuredError`` base (#1893). Reparent onto it
+# (overriding ``to_dict`` for the extra contextual fields) the next time this
+# class is materially edited.
 class SafeCommitError(RuntimeError):
     """Base class for structured safe_commit errors.
 

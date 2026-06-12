@@ -7,6 +7,8 @@ from pathlib import Path
 import shlex
 import subprocess
 
+from specify_cli.core.errors import StructuredError
+
 __all__ = [
     "GitPreflightIssue",
     "GitPreflightResult",
@@ -31,12 +33,14 @@ _DETERMINISTIC_PREFLIGHT_CODES: frozenset[str] = frozenset(
 )
 
 
-class GitPreflightError(RuntimeError):
+class GitPreflightError(StructuredError):
     """Raised when workspace creation fails a deterministic git preflight check.
 
-    Carries a stable ``error_code`` (NFR-007) drawn from the originating
+    Carries a stable ``error_code`` (NFR-007, #1893) drawn from the originating
     :class:`GitPreflightIssue` code so consumers branch on the typed value /
     ``error_code`` rather than substring-matching the human-readable message.
+    The code is threaded through ``__init__`` (per-instance, not a class
+    constant) so a single class spans the deterministic code set.
     """
 
     def __init__(self, message: str, *, error_code: str) -> None:
