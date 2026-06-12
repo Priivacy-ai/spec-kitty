@@ -1,7 +1,7 @@
 {
-  "event_count": 26,
-  "last_event_id": "01KTXXHJ8NV5WK6FKV5KVMR29D",
-  "materialized_at": "2026-06-12T12:40:07.189462+00:00",
+  "event_count": 27,
+  "last_event_id": "01KTXXHQ927Q118B13RPN3KMD4",
+  "materialized_at": "2026-06-12T12:40:12.322427+00:00",
   "mission_number": "",
   "mission_slug": "coordination-merge-stabilization-01KTXRVR",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
-    "in_progress": 1,
+    "for_review": 2,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -34,9 +34,9 @@
     "WP03": {
       "actor": "claude:fable-5:python-pedro:implementer",
       "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01KTXV4CF1WHEFDV4Y3D503QJ9",
-      "last_transition_at": "2026-06-12T11:57:58.113154+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KTXXHQ927Q118B13RPN3KMD4",
+      "last_transition_at": "2026-06-12T12:40:12.322427+00:00"
     },
     "WP04": {
       "actor": "user",
