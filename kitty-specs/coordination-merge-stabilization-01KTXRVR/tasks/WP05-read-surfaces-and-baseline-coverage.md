@@ -15,8 +15,8 @@ subtasks:
 - T025
 - T026
 - T027
-agent: "claude:fable-5:python-pedro:implementer"
-shell_pid: "83268"
+agent: "claude:fable-5:reviewer-renata:reviewer"
+shell_pid: "16773"
 history:
 - '2026-06-12: created by /spec-kitty.tasks'
 agent_profile: python-pedro
@@ -93,4 +93,5 @@ Planning base and merge target are both `main`. Execution worktree/branch come f
 
 ## Activity Log
 
-- 2026-06-12T11:58:16Z – claude:fable-5:python-pedro:implementer – shell_pid=83268 – Assigned agent via action command
+- 2026-06-12T12:21:04Z – claude – T024/T025: gate.py + agent_retrospect.py event reads routed through resolve_status_surface with legacy fallback; divergence-fixture tests prove coord-surface reads (new tests/retrospective/test_canonical_read_surface_1735.py — rationale: T024/T025 mandate retrospective-suite tests; new file avoids unowned files). T026: AC10 AST ratchet in test_execution_context_parity.py, scoped to the two read families + seam anti-vacuity; verified RED under revert. T027: real (unmocked) baseline recording regression test in test_merge_coord_topology_1772.py asserting git show main:meta.json carries baseline_merge_commit; crash-window re-run edge documented. ruff exit 0; mypy --strict gate.py clean (agent_retrospect.py has 2 PRE-EXISTING exc errors at HEAD, unchanged); pytest parity+merge-coord+retrospective+integration+retrospect-cli+terminology: 592 passed exit 0.
+- 2026-06-12T12:21:58Z – claude:fable-5:reviewer-renata:reviewer – shell_pid=16773 – Started review via action command

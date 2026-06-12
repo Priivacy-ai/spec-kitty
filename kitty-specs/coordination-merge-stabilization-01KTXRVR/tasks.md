@@ -45,10 +45,10 @@ plan.md §Phase 2 hinted 6 WPs. Ownership analysis (no two WPs may own the same 
 **Goal**: Tracker reflects code reality — 7 fixed issues closed citing landed commits, 4 issues re-scoped to residuals, one #1666 umbrella filed for deferred non-goals. (FR-011)
 **Priority**: P1 — do first (unblocks triage; C-004). **Independent test**: every cluster issue's GitHub state matches the disposition table in the hygiene log.
 
-- [x] T001 Close #1770 #1789 #1816 #1771 #1571 #1784 #1735 citing 8544012fa / 9c8bff06f / c5a10ce56 / PR #1719 (WP01)
-- [x] T002 Re-scope #1814 #1736 #1833 #1861 titles/bodies to residual scope (WP01)
-- [x] T003 File follow-up umbrella under epic #1666 with C-001 non-goals and explicit non-goal list (WP01)
-- [x] T004 Write kitty-specs/coordination-merge-stabilization-01KTXRVR/issue-hygiene-log.md recording every action + URL (WP01)
+- [ ] T001 Close #1770 #1789 #1816 #1771 #1571 #1784 #1735 citing 8544012fa / 9c8bff06f / c5a10ce56 / PR #1719 (WP01)
+- [ ] T002 Re-scope #1814 #1736 #1833 #1861 titles/bodies to residual scope (WP01)
+- [ ] T003 File follow-up umbrella under epic #1666 with C-001 non-goals and explicit non-goal list (WP01)
+- [ ] T004 Write kitty-specs/coordination-merge-stabilization-01KTXRVR/issue-hygiene-log.md recording every action + URL (WP01)
 
 **Dependencies**: none. **Risks**: wrong commit citations — copy from validation comments posted 2026-06-12.
 
@@ -104,10 +104,10 @@ plan.md §Phase 2 hinted 6 WPs. Ownership analysis (no two WPs may own the same 
 **Goal**: Last two coord-unaware status reads route through `resolve_status_surface` (FR-009 — #1735 residuals); AC10 architectural ratchet forbids regression (FR-008e); #1827's fix gets its regression test (FR-010). Contract: [class-a](contracts/class-a-residual-cleanups.md).
 **Priority**: P2. **Independent test**: AC-A2 ratchet green only because the two sites are routed; AC-A3 baseline present in merged target.
 
-- [ ] T024 retrospective/gate.py:597 — events via resolve_status_surface, never resolved.feature_dir direct read (WP05)
-- [ ] T025 cli/commands/agent_retrospect.py:432 — same routing (WP05)
-- [ ] T026 Extend tests/architectural/test_execution_context_parity.py: forbid feature_dir-anchored read_events()/status.events.jsonl outside the surface resolver (AC10; lands after T024/T025) (WP05)
-- [ ] T027 Baseline regression test: unmock _record_baseline_merge_commit path (test_merge_coord_topology_1772.py:224-225 or sibling); assert `git show <target>:.../meta.json` has baseline_merge_commit; document crash-edge (WP05)
+- [x] T024 retrospective/gate.py:597 — events via resolve_status_surface, never resolved.feature_dir direct read (WP05)
+- [x] T025 cli/commands/agent_retrospect.py:432 — same routing (WP05)
+- [x] T026 Extend tests/architectural/test_execution_context_parity.py: forbid feature_dir-anchored read_events()/status.events.jsonl outside the surface resolver (AC10; lands after T024/T025) (WP05)
+- [x] T027 Baseline regression test: unmock _record_baseline_merge_commit path (test_merge_coord_topology_1772.py:224-225 or sibling); assert `git show <target>:.../meta.json` has baseline_merge_commit; document crash-edge (WP05)
 
 **Dependencies**: none. **Risks**: AC10 ratchet ordering (T026 last); keep ratchet scope to the two known read families to avoid false positives.
 
