@@ -311,6 +311,8 @@ class MigrationRunner:
                 wt_version = wt_detector.detect_version()
                 wt_metadata = self._create_initial_metadata(wt_version)
 
+            worktree_metadata_dirty = False
+
             # Apply migrations to worktree
             for migration in worktree_migrations:
                 if wt_metadata.has_migration(migration.migration_id):
@@ -325,6 +327,7 @@ class MigrationRunner:
                             "skipped",
                             "Not applicable",
                         )
+                        worktree_metadata_dirty = True
                     continue
 
                 can_apply, reason = migration.can_apply(worktree)
@@ -345,6 +348,7 @@ class MigrationRunner:
                             "success",
                             "; ".join(migration_result.changes_made) if migration_result.changes_made else None,
                         )
+                        worktree_metadata_dirty = True
                     result["warnings"].extend([f"Worktree {worktree.name}: {w}" for w in migration_result.warnings])
                 else:
                     if not dry_run:
@@ -355,14 +359,23 @@ class MigrationRunner:
                             "failed",
                             "; ".join(migration_result.errors) if migration_result.errors else None,
                         )
+                        # Intentionally not marking worktree_metadata_dirty: a
+                        # failed migration is not an upgrade, so it must not
+                        # bump last_upgraded_at. The failure record itself is
+                        # already persisted by _record_migration_result.
                     result["errors"].extend([f"Worktree {worktree.name}: {e}" for e in migration_result.errors])
 
-            # Save worktree metadata only when at least one migration in this
-            # upgrade target is allowed to touch worktrees.
+            # Save worktree metadata only when something material changed
+            # (a migration record was written or the version advanced); a
+            # no-op upgrade must not rewrite last_upgraded_at (issue #1838).
             if not dry_run:
-                wt_metadata.version = target_version
-                wt_metadata.last_upgraded_at = datetime.now()
-                wt_metadata.save(wt_kittify)
+                if wt_metadata.version != target_version:
+                    wt_metadata.version = target_version
+                    worktree_metadata_dirty = True
+
+                if worktree_metadata_dirty:
+                    wt_metadata.last_upgraded_at = datetime.now()
+                    wt_metadata.save(wt_kittify)
                 # ProjectMetadata.save() rewrites metadata.yaml from its fixed
                 # model, so stamp after save just like the main project path.
                 if REQUIRED_SCHEMA_VERSION is not None:
