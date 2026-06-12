@@ -70,9 +70,9 @@ def test_run_dashboard_server_bootstraps_global_sync_daemon(monkeypatch, tmp_pat
         calls["intent"] = intent
         return SimpleNamespace(skipped_reason="intent_local_only")
 
-    def fake_serve_loopback_server(*_args, **_kwargs):
-        calls["created"] = True
-        calls["served"] = True
+    def fake_serve_loopback_server(port, handler_class, **_kwargs):
+        calls["served_port"] = port
+        calls["handler_class"] = handler_class
 
     monkeypatch.setattr(server, "serve_loopback_server", fake_serve_loopback_server)
     monkeypatch.setattr("specify_cli.sync.daemon.ensure_sync_daemon_running", fake_ensure_sync_daemon_running)
@@ -81,4 +81,5 @@ def test_run_dashboard_server_bootstraps_global_sync_daemon(monkeypatch, tmp_pat
 
     assert calls["daemon"] is True
     assert calls["intent"].value == "local_only"
-    assert calls["served"] is True
+    assert calls["served_port"] == 12347
+    assert calls["handler_class"] is not None

@@ -11,7 +11,7 @@ import threading
 from pathlib import Path
 from typing import Optional, Tuple
 
-from specify_cli.loopback_http import create_loopback_server, serve_loopback_server
+from specify_cli.core.loopback_http import create_loopback_server, serve_loopback_server
 
 from .handlers.router import DashboardRouter
 
