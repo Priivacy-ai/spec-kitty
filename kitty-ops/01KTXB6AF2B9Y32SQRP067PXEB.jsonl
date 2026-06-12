@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KTXB6AF2B9Y32SQRP067PXEB", "profile_id": "reviewer-renata", "action": "audit", "request_text": "Review PR #1857 (skip no-op worktree metadata rewrites) and report findings", "actor": "claude", "mode_of_work": "advisory", "governance_context_hash": "1f4a792dff0ed784", "governance_context_available": true, "started_at": "2026-06-12T07:19:25.666090+00:00"}
+{"event": "completed", "invocation_id": "01KTXB6AF2B9Y32SQRP067PXEB", "completed_at": "2026-06-12T07:21:19.104921+00:00", "outcome": "done", "closed_by": "agent"}
