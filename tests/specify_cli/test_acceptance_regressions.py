@@ -315,6 +315,50 @@ def test_collect_feature_summary_checks_required_artifacts_in_coord_worktree(tmp
     assert summary.needs_clarification == [str(coord_feature_dir / "spec.md")]
 
 
+def test_collect_feature_summary_anchors_feature_dir_on_primary_for_mid8_handle(tmp_path: Path) -> None:
+    """Regression: a mid8 handle must resolve, with the summary identity anchor
+    on the primary-checkout mission dir while WP/status reads stay coord-aware."""
+    repo_root, feature_dir = _create_test_feature(tmp_path)
+    mid8 = "01ABCDEF"
+    coord_feature_dir = (
+        repo_root
+        / ".worktrees"
+        / f"{_FEATURE_SLUG}-{mid8}-coord"
+        / "kitty-specs"
+        / f"{_FEATURE_SLUG}-{mid8}"
+    )
+    coord_feature_dir.mkdir(parents=True)
+
+    for path in feature_dir.rglob("*"):
+        if path.is_file():
+            target = coord_feature_dir / path.relative_to(feature_dir)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(path.read_bytes())
+
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["mission_id"] = "01ABCDEF0123456789ABCDEFGH"
+    meta["mid8"] = mid8
+    meta["coordination_branch"] = f"kitty/mission-{_FEATURE_SLUG}-{mid8}"
+    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    (coord_feature_dir / "meta.json").write_text(
+        json.dumps(meta, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    (repo_root / ".gitignore").write_text(".worktrees/\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo_root), "add", "-A"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "commit", "-m", "Backfill identity + coord topology"],
+        check=True,
+        capture_output=True,
+    )
+
+    summary = collect_feature_summary(repo_root, mid8)
+
+    assert summary.feature_dir == feature_dir
+    assert summary.lanes["done"] == ["WP01"]
+
+
 def test_collect_feature_summary_blocks_workflow_changes_without_runner_evidence(tmp_path: Path) -> None:
     repo_root, _feature_dir = _create_test_feature(tmp_path)
     subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
