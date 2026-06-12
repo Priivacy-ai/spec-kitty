@@ -523,7 +523,7 @@ class StepContextBundle(BaseModel):
 class NextDecision(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    kind: Literal["step", "decision_required", "blocked", "terminal"]
+    kind: str  # one of DecisionKind.* values ("step", "decision_required", "blocked", "terminal")
     run_id: str
     mission_key: str
     step_id: str | None = None

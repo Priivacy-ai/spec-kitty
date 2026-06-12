@@ -14,7 +14,6 @@ WORKTREES_DIR = ".worktrees"
 MISSION_TYPE_SOFTWARE_DEV = "software-dev"
 MISSION_TYPE_DOCUMENTATION = "documentation"
 MISSION_TYPE_RESEARCH = "research"
-MISSION_TYPE_PLAN = "plan"
 
 __all__ = [
     "KITTY_SPECS_DIR",
@@ -23,6 +22,4 @@ __all__ = [
     "MISSION_TYPE_SOFTWARE_DEV",
     "MISSION_TYPE_DOCUMENTATION",
     "MISSION_TYPE_RESEARCH",
-    # MISSION_TYPE_PLAN is defined for completeness but has no CLI comparison
-    # site yet; it is NOT exported until a caller imports it.
 ]

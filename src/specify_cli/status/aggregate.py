@@ -32,6 +32,12 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 
+# Legacy sentinel emitted by older transactional readers; not a Lane enum value.
+# Canonical definition lives in lane_reader (the canonical read surface); imported
+# as a private alias to preserve existing usage patterns throughout this module.
+# See LEGACY_UNINITIALIZED_SENTINEL in status/lane_reader.py for documentation.
+from .lane_reader import LEGACY_UNINITIALIZED_SENTINEL as _LEGACY_UNINITIALIZED_SENTINEL
+
 if TYPE_CHECKING:
     from mission_runtime import StatusSurfaceFragment
     from specify_cli.coordination.types import CommitReceipt
@@ -47,10 +53,6 @@ _logger = logging.getLogger(__name__)
 # already explicit, so the flag is belt-and-suspenders alongside the
 # ``.isascii()`` guard.
 _MISSION_SLUG_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$", re.ASCII)
-
-# Legacy sentinel emitted by older transactional readers; not a Lane enum value.
-# A plain string compare (no str() coercion) is the correct pattern here.
-_LEGACY_UNINITIALIZED_SENTINEL = "uninitialized"
 
 # A resolved status dir nested under a worktree root is the coordination
 # surface; the primary checkout has no ``.worktrees`` segment. This mirrors the

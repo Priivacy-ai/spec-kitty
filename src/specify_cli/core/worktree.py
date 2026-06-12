@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from .constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
-from .git_preflight import DETERMINISTIC_PREFLIGHT_CODES, GitPreflightError
+from .git_preflight import GitPreflightError
 from .vcs import get_vcs
 from specify_cli.ownership.models import ExecutionMode
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
@@ -327,16 +327,17 @@ def create_feature_worktree(
         )
 
         if not result.success:
-            # Deterministic git preflight failures (untrusted repo, missing
-            # repo, worktree-enumeration failure) cannot be recovered by the
-            # legacy direct-git fallback, so raise a typed error carrying the
-            # stable preflight code (NFR-007). The catch block below re-raises
-            # these by ``isinstance``/``error_code`` rather than message text.
-            if result.error_code in DETERMINISTIC_PREFLIGHT_CODES:
-                raise GitPreflightError(
-                    f"Failed to create workspace: {result.error}",
-                    error_code=result.error_code,
-                )
+            # Always construct the typed error first so we can branch on
+            # ``exc.is_deterministic`` — the canonical API (NFR-007).
+            # Deterministic failures (untrusted repo, missing repo,
+            # worktree-enumeration) cannot be recovered by the legacy
+            # direct-git fallback; non-deterministic ones raise RuntimeError.
+            exc = GitPreflightError(
+                f"Failed to create workspace: {result.error}",
+                error_code=result.error_code or "",
+            )
+            if exc.is_deterministic:
+                raise exc
             raise RuntimeError(f"Failed to create workspace: {result.error}")
 
     except GitPreflightError:

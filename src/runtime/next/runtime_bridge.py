@@ -1808,7 +1808,7 @@ def _advance_run_state_after_composition(
     #     just completed (avoid duplicate emit on re-poll).
     issued_step_id = snapshot.issued_step_id
     pending_decisions = dict(snapshot.pending_decisions)
-    if decision.kind == "step" and decision.step_id:
+    if decision.kind == DecisionKind.step and decision.step_id:
         issued_step_id = decision.step_id
         si_actor = RuntimeActorIdentity(actor_id=agent, actor_type="llm")
         si_payload = NextStepIssuedPayload(
@@ -1819,7 +1819,7 @@ def _advance_run_state_after_composition(
         )
         _append_event(run_dir, NEXT_STEP_ISSUED, si_payload.model_dump(mode="json"))
         sync_emitter.emit_next_step_issued(si_payload)
-    elif decision.kind == "decision_required" and decision.decision_id:
+    elif decision.kind == DecisionKind.decision_required and decision.decision_id:
         # Persist input-keyed decisions in pending_decisions so they're
         # answerable; only emit + persist on first occurrence to avoid
         # duplicates on re-poll. Mirrors engine.next_step's branch verbatim
@@ -1849,7 +1849,7 @@ def _advance_run_state_after_composition(
                 run_dir, DECISION_INPUT_REQUESTED, dr_payload.model_dump(mode="json")
             )
             sync_emitter.emit_decision_input_requested(dr_payload)
-    elif decision.kind == "terminal" and did_complete_step:
+    elif decision.kind == DecisionKind.terminal and did_complete_step:
         policy, _source_map, policy_error = _resolve_retrospective_policy_for_runtime(repo_root)
         retrospective_enabled = bool(getattr(policy, "enabled", False))
         block_on_retrospective = _retrospective_blocks_completion(policy)
@@ -2830,7 +2830,7 @@ def decide_next_via_runtime(  # noqa: C901
             origin=origin,
         )
 
-    if block_on_retrospective and runtime_decision.kind == "terminal":
+    if block_on_retrospective and runtime_decision.kind == DecisionKind.terminal:
         mission_id = _resolve_mission_id_for_terminus(feature_dir)
         try:
             if policy_error is not None:
@@ -2889,7 +2889,7 @@ def decide_next_via_runtime(  # noqa: C901
     if (
         retrospective_enabled
         and not block_on_retrospective
-        and runtime_decision.kind == "terminal"
+        and runtime_decision.kind == DecisionKind.terminal
     ):
         mission_id = _resolve_mission_id_for_terminus(feature_dir)
         _run_retrospective_learning_capture(
@@ -3027,9 +3027,9 @@ def _build_runtime_query_decision(
 ) -> Decision:
     mission_state = runtime_decision.step_id or "unknown"
     blocked_reason: str | None = None
-    if runtime_decision.kind == "terminal":
+    if runtime_decision.kind == DecisionKind.terminal:
         mission_state = "done"
-    elif runtime_decision.kind == "blocked":
+    elif runtime_decision.kind == DecisionKind.blocked:
         mission_state = snapshot.issued_step_id or runtime_decision.step_id or "blocked"
         blocked_reason = snapshot.blocked_reason or getattr(runtime_decision, "reason", None)
     return Decision(
@@ -3160,7 +3160,7 @@ def query_current_state(  # noqa: C901
             )
 
         if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
-            if runtime_decision.kind in {"step", "decision_required"} and runtime_decision.step_id:
+            if runtime_decision.kind in {DecisionKind.step, DecisionKind.decision_required} and runtime_decision.step_id:
                 return _build_initial_query_decision(
                     runtime_decision=runtime_decision,
                     agent=agent,
@@ -3419,7 +3419,7 @@ def _map_runtime_decision(
     step_id = decision.step_id
     run_id = decision.run_id
 
-    if decision.kind == "terminal":
+    if decision.kind == DecisionKind.terminal:
         return Decision(
             kind=DecisionKind.terminal,
             agent=agent,
@@ -3434,7 +3434,7 @@ def _map_runtime_decision(
             step_id=step_id,
         )
 
-    if decision.kind == "blocked":
+    if decision.kind == DecisionKind.blocked:
         return Decision(
             kind=DecisionKind.blocked,
             agent=agent,
@@ -3449,7 +3449,7 @@ def _map_runtime_decision(
             step_id=step_id,
         )
 
-    if decision.kind == "decision_required":
+    if decision.kind == DecisionKind.decision_required:
         prompt_file = None
         if decision.question:
             from runtime.next.prompt_builder import build_decision_prompt

@@ -33,6 +33,13 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Iterator
 
+from glossary.semantic_events import (
+    EVT_GLOSSARY_CLARIFICATION_REQUESTED,
+    EVT_GLOSSARY_CLARIFICATION_RESOLVED,
+    EVT_GLOSSARY_SENSE_UPDATED,
+    EVT_SEMANTIC_CHECK_EVALUATED,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -313,7 +320,7 @@ def build_semantic_check_evaluated(
     """
     # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
     return {
-        "event_type": "SemanticCheckEvaluated",
+        "event_type": EVT_SEMANTIC_CHECK_EVALUATED,
         "step_id": step_id,
         "mission_id": mission_id,
         "run_id": run_id,
@@ -392,7 +399,7 @@ def build_clarification_requested(
     """
     # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
     return {
-        "event_type": "GlossaryClarificationRequested",
+        "event_type": EVT_GLOSSARY_CLARIFICATION_REQUESTED,
         "question": question,
         "term": term,
         "options": options,
@@ -430,7 +437,7 @@ def build_clarification_resolved(
     """
     # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
     return {
-        "event_type": "GlossaryClarificationResolved",
+        "event_type": EVT_GLOSSARY_CLARIFICATION_RESOLVED,
         "conflict_id": conflict_id,
         "term_surface": term_surface,
         "selected_sense": selected_sense,
@@ -466,7 +473,7 @@ def build_sense_updated(
     """
     # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
     return {
-        "event_type": "GlossarySenseUpdated",
+        "event_type": EVT_GLOSSARY_SENSE_UPDATED,
         "term_surface": term_surface,
         "scope": scope,
         "new_sense": new_sense,

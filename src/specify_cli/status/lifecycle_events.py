@@ -45,6 +45,8 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Iterable, Mapping
 
+from .models import Lane as _Lane
+
 logger = logging.getLogger(__name__)
 
 
@@ -774,7 +776,6 @@ def _is_bootstrap_status_event(obj: Mapping[str, Any]) -> bool:
     longer forces it). The legacy forced ``planned -> planned`` seed is still
     recognised so historical event logs keep classifying correctly.
     """
-    from specify_cli.status import Lane as _Lane  # local: avoids circular import at module level
     to_lane = obj.get("to_lane")
     if to_lane != "planned":
         return False

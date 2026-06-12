@@ -75,6 +75,7 @@ from .wp_metadata import (
 )
 from .lane_reader import (
     CanonicalStatusNotFoundError,
+    LEGACY_UNINITIALIZED_SENTINEL,
     get_all_wp_lanes,
     get_wp_lane,
     has_event_log,
@@ -229,6 +230,7 @@ __all__ = [
     "start_implementation_status",
     "start_review_status",
     "CanonicalStatusNotFoundError",
+    "LEGACY_UNINITIALIZED_SENTINEL",
     "DEFAULT_LANE_WEIGHTS",
     "DERIVED_LIFECYCLE_FILENAME",
     "InvalidTransitionError",

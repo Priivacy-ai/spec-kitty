@@ -54,6 +54,7 @@ from runtime.next._internal_runtime.workflow_registry import (
     list_available_workflows,
 )
 from runtime.next._internal_runtime.workflow_schema import ActionStep, WorkflowSequence
+from runtime.next.decision import DecisionKind
 
 # No __all__ declaration here: the workflow-resolver additions (PlanResult,
 # _resolve_workflow_for_mission, resolve_next_workflow_action) are intentionally
@@ -347,7 +348,7 @@ def plan_next(
     # Blocked reason takes priority over everything.
     if snapshot.blocked_reason:
         return NextDecision(
-            kind="blocked",
+            kind=DecisionKind.blocked,
             run_id=snapshot.run_id,
             mission_key=snapshot.mission_key,
             reason=snapshot.blocked_reason,
@@ -358,7 +359,7 @@ def plan_next(
         drift_reason = _check_template_drift(snapshot, live_template_path)
         if drift_reason:
             return NextDecision(
-                kind="blocked",
+                kind=DecisionKind.blocked,
                 run_id=snapshot.run_id,
                 mission_key=snapshot.mission_key,
                 reason=drift_reason,
@@ -373,7 +374,7 @@ def plan_next(
         if req.decision_id.startswith("input:"):
             input_key = req.decision_id[len("input:"):]
         return NextDecision(
-            kind="decision_required",
+            kind=DecisionKind.decision_required,
             run_id=snapshot.run_id,
             mission_key=snapshot.mission_key,
             step_id=req.step_id,
@@ -391,13 +392,13 @@ def plan_next(
         # Distinguish true completion from unschedulable DAG.
         if _has_remaining_steps(mission_template, snapshot):
             return NextDecision(
-                kind="blocked",
+                kind=DecisionKind.blocked,
                 run_id=snapshot.run_id,
                 mission_key=snapshot.mission_key,
                 reason="No eligible steps: remaining steps have unmet dependencies.",
             )
         return NextDecision(
-            kind="terminal",
+            kind=DecisionKind.terminal,
             run_id=snapshot.run_id,
             mission_key=snapshot.mission_key,
             reason="All mission steps completed",
@@ -408,7 +409,7 @@ def plan_next(
         if step.audit.enforcement == "blocking":
             # Blocking audit → decision_required; input_key is None for audit decisions.
             return NextDecision(
-                kind="decision_required",
+                kind=DecisionKind.decision_required,
                 run_id=snapshot.run_id,
                 mission_key=snapshot.mission_key,
                 step_id=step.id,
@@ -431,7 +432,7 @@ def plan_next(
                 actor_context=actor_context,
             )
             return NextDecision(
-                kind="step",
+                kind=DecisionKind.step,
                 run_id=snapshot.run_id,
                 mission_key=snapshot.mission_key,
                 step_id=step.id,
@@ -451,7 +452,7 @@ def plan_next(
         missing = missing_inputs[0]
         decision_id = f"input:{missing}"
         return NextDecision(
-            kind="decision_required",
+            kind=DecisionKind.decision_required,
             run_id=snapshot.run_id,
             mission_key=snapshot.mission_key,
             step_id=step.id,
@@ -475,7 +476,7 @@ def plan_next(
     prompt = step.prompt or f"Execute step '{step.id}': {step.title}"
 
     return NextDecision(
-        kind="step",
+        kind=DecisionKind.step,
         run_id=snapshot.run_id,
         mission_key=snapshot.mission_key,
         step_id=step.id,

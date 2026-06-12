@@ -11,7 +11,6 @@ __all__ = [
     "GitPreflightIssue",
     "GitPreflightResult",
     "GitPreflightError",
-    "DETERMINISTIC_PREFLIGHT_CODES",
     "run_git_preflight",
     "build_git_preflight_failure_payload",
 ]
@@ -20,9 +19,10 @@ __all__ = [
 # Preflight issue codes whose failures are *deterministic*: the legacy
 # direct-git fallback cannot recover from them (untrusted repository, missing
 # repository, or worktree-enumeration failure), so callers must surface them
-# rather than retry. Previously identified at consumers by substring-matching
-# the issue message (NFR-007 violation); now carried as a stable code.
-DETERMINISTIC_PREFLIGHT_CODES: frozenset[str] = frozenset(
+# rather than retry. Module-private: external callers branch on
+# ``GitPreflightError.is_deterministic`` (the canonical API) rather than
+# testing membership in this set directly (NFR-007).
+_DETERMINISTIC_PREFLIGHT_CODES: frozenset[str] = frozenset(
     {
         "NOT_A_GIT_REPOSITORY",
         "UNTRUSTED_REPOSITORY",
@@ -46,7 +46,7 @@ class GitPreflightError(RuntimeError):
     @property
     def is_deterministic(self) -> bool:
         """True when the failure cannot be recovered by a direct-git fallback."""
-        return self.error_code in DETERMINISTIC_PREFLIGHT_CODES
+        return self.error_code in _DETERMINISTIC_PREFLIGHT_CODES
 
 
 @dataclass
