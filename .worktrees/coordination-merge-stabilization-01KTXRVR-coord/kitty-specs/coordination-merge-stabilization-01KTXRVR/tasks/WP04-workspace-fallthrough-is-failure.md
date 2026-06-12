@@ -18,7 +18,8 @@ subtasks:
 - T021
 - T022
 - T023
-agent: claude
+agent: "claude:fable-5:python-pedro:implementer"
+shell_pid: "83268"
 history:
 - '2026-06-12: created by /spec-kitty.tasks'
 agent_profile: python-pedro
@@ -112,3 +113,7 @@ Planning base and merge target are both `main`. Execution worktree/branch come f
 - T019 may change behavior for legitimate-but-odd states (e.g. mid-creation races) — reviewer: check the #1357 lock in `CoordinationWorkspace.resolve` patterns for how creation races are serialized; the lane-workspace path should fail loudly, not auto-heal.
 - Pre-existing husks on real machines start erroring after this lands — release notes line required (hand to reviewer for CHANGELOG).
 - If doctor-check registration forces edits outside `owned_files`, record the one-line rationale in the PR (no-overlap rule is the hard constraint — verify WP05/WP02 don't own the touched file).
+
+## Activity Log
+
+- 2026-06-12T11:58:07Z – claude:fable-5:python-pedro:implementer – shell_pid=83268 – Assigned agent via action command
