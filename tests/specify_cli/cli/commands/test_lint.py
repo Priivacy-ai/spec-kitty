@@ -8,6 +8,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from pytest import MonkeyPatch
+
+pytestmark = [pytest.mark.integration]
+
 from typer.testing import CliRunner
 
 import typer
