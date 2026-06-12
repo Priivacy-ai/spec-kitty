@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 import typer
@@ -47,8 +46,7 @@ def _make_plan_file(tmp_path: Path, rel: str = "plan.md", content: str = "# Plan
 
 def test_auto_no_matches_exits_1(intake_app: typer.Typer, tmp_path: Path) -> None:
     """--auto with no plan files found exits 1 and leaves .kittify/ untouched."""
-    mock_sources: list = []
-    with patched_intake_command_environment(tmp_path, mock_sources):
+    with patched_intake_command_environment(tmp_path, mock_sources=[]):
         result = runner.invoke(intake_app, ["--auto"], catch_exceptions=False)
 
     assert result.exit_code == 1
@@ -149,10 +147,7 @@ def test_auto_multiple_matches_non_tty_exits_1(intake_app: typer.Typer, tmp_path
         ("harness-b", "agent-b", ["plan-b.md"]),
     ]
 
-    with (
-        patched_intake_command_environment(tmp_path, mock_sources),
-        patch("sys.stdin.isatty", return_value=False),
-    ):
+    with patched_intake_command_environment(tmp_path, mock_sources, tty=False):
         result = runner.invoke(intake_app, ["--auto"], catch_exceptions=False)
 
     assert result.exit_code == 1
@@ -190,7 +185,7 @@ def test_manual_intake_no_source_agent(intake_app: typer.Typer, tmp_path: Path) 
     """Manual intake writes brief-source.yaml without a source_agent key."""
     plan = _make_plan_file(tmp_path, content="# Manual Plan")
 
-    with patched_intake_command_environment(tmp_path):
+    with patched_intake_command_environment(tmp_path, patch_cwd=False):
         result = runner.invoke(intake_app, [str(plan)], catch_exceptions=False)
 
     assert result.exit_code == 0, f"output: {result.output}"
