@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 import typer
@@ -11,6 +10,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.intake import intake
 from specify_cli.mission_brief import BRIEF_SOURCE_FILENAME, MISSION_BRIEF_FILENAME
+from tests.specify_cli.intake_test_helpers import patched_intake_command_environment
 
 pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]
 
@@ -46,12 +46,7 @@ def _make_plan_file(tmp_path: Path, rel: str = "plan.md", content: str = "# Plan
 
 def test_auto_no_matches_exits_1(intake_app: typer.Typer, tmp_path: Path) -> None:
     """--auto with no plan files found exits 1 and leaves .kittify/ untouched."""
-    mock_sources: list = []
-    with (
-        patch("specify_cli.cli.commands.intake.Path.cwd", return_value=tmp_path),
-        patch("specify_cli.cli.commands.intake._resolve_repo_root", return_value=tmp_path),
-        patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources),
-    ):
+    with patched_intake_command_environment(tmp_path, mock_sources=[]):
         result = runner.invoke(intake_app, ["--auto"], catch_exceptions=False)
 
     assert result.exit_code == 1
@@ -68,11 +63,7 @@ def test_auto_single_match_writes_brief(intake_app: typer.Typer, tmp_path: Path)
     plan = _make_plan_file(tmp_path, "opencode-plan.md")
     mock_sources = [("opencode", "opencode", ["opencode-plan.md"])]
 
-    with (
-        patch("specify_cli.cli.commands.intake.Path.cwd", return_value=tmp_path),
-        patch("specify_cli.cli.commands.intake._resolve_repo_root", return_value=tmp_path),
-        patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources),
-    ):
+    with patched_intake_command_environment(tmp_path, mock_sources):
         result = runner.invoke(intake_app, ["--auto"], catch_exceptions=False)
 
     assert result.exit_code == 0, f"output: {result.output}"
@@ -111,11 +102,7 @@ def test_auto_single_match_existing_brief_no_force(intake_app: typer.Typer, tmp_
     existing_brief.write_text("# Old Brief", encoding="utf-8")
     (kittify / BRIEF_SOURCE_FILENAME).write_text("source", encoding="utf-8")
 
-    with (
-        patch("specify_cli.cli.commands.intake.Path.cwd", return_value=tmp_path),
-        patch("specify_cli.cli.commands.intake._resolve_repo_root", return_value=tmp_path),
-        patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources),
-    ):
+    with patched_intake_command_environment(tmp_path, mock_sources):
         result = runner.invoke(intake_app, ["--auto"], catch_exceptions=False)
 
     assert result.exit_code == 1
@@ -138,11 +125,7 @@ def test_auto_single_match_force_overwrites(intake_app: typer.Typer, tmp_path: P
     existing_brief = kittify / MISSION_BRIEF_FILENAME
     existing_brief.write_text("# Old Brief", encoding="utf-8")
 
-    with (
-        patch("specify_cli.cli.commands.intake.Path.cwd", return_value=tmp_path),
-        patch("specify_cli.cli.commands.intake._resolve_repo_root", return_value=tmp_path),
-        patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources),
-    ):
+    with patched_intake_command_environment(tmp_path, mock_sources):
         result = runner.invoke(intake_app, ["--auto", "--force"], catch_exceptions=False)
 
     assert result.exit_code == 0, f"output: {result.output}"
@@ -164,12 +147,7 @@ def test_auto_multiple_matches_non_tty_exits_1(intake_app: typer.Typer, tmp_path
         ("harness-b", "agent-b", ["plan-b.md"]),
     ]
 
-    with (
-        patch("specify_cli.cli.commands.intake.Path.cwd", return_value=tmp_path),
-        patch("specify_cli.cli.commands.intake._resolve_repo_root", return_value=tmp_path),
-        patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources),
-        patch("sys.stdin.isatty", return_value=False),
-    ):
+    with patched_intake_command_environment(tmp_path, mock_sources, tty=False):
         result = runner.invoke(intake_app, ["--auto"], catch_exceptions=False)
 
     assert result.exit_code == 1
@@ -188,11 +166,7 @@ def test_auto_with_path_arg_exits_1(intake_app: typer.Typer, tmp_path: Path) -> 
     plan = _make_plan_file(tmp_path)
     mock_sources = [("opencode", "opencode", ["opencode-plan.md"])]
 
-    with (
-        patch("specify_cli.cli.commands.intake.Path.cwd", return_value=tmp_path),
-        patch("specify_cli.cli.commands.intake._resolve_repo_root", return_value=tmp_path),
-        patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources),
-    ):
+    with patched_intake_command_environment(tmp_path, mock_sources):
         result = runner.invoke(
             intake_app, [str(plan), "--auto"], catch_exceptions=False
         )
@@ -211,9 +185,7 @@ def test_manual_intake_no_source_agent(intake_app: typer.Typer, tmp_path: Path) 
     """Manual intake writes brief-source.yaml without a source_agent key."""
     plan = _make_plan_file(tmp_path, content="# Manual Plan")
 
-    with (
-        patch("specify_cli.cli.commands.intake._resolve_repo_root", return_value=tmp_path),
-    ):
+    with patched_intake_command_environment(tmp_path, patch_cwd=False):
         result = runner.invoke(intake_app, [str(plan)], catch_exceptions=False)
 
     assert result.exit_code == 0, f"output: {result.output}"
@@ -241,10 +213,7 @@ def test_show_works_after_auto_changes(intake_app: typer.Typer, tmp_path: Path) 
         encoding="utf-8",
     )
 
-    with (
-        patch("specify_cli.cli.commands.intake.Path.cwd", return_value=tmp_path),
-        patch("specify_cli.cli.commands.intake._resolve_repo_root", return_value=tmp_path),
-    ):
+    with patched_intake_command_environment(tmp_path):
         result = runner.invoke(intake_app, ["--show"], catch_exceptions=False)
 
     assert result.exit_code == 0, f"output: {result.output}"
@@ -268,16 +237,7 @@ def test_auto_tty_valid_selection_ingests_correct_file(
         ("harness-b", "agent-b", ["plan-b.md"]),
     ]
 
-    with (
-        patch("specify_cli.cli.commands.intake.Path.cwd", return_value=tmp_path),
-        patch("specify_cli.cli.commands.intake._resolve_repo_root", return_value=tmp_path),
-        patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources),
-        # Patch sys as seen by the intake module so isatty() returns True.
-        # CliRunner replaces sys.stdin during invoke, so we must patch the
-        # module-level sys reference, not sys.stdin directly.
-        patch("specify_cli.cli.commands.intake.sys") as mock_sys,
-    ):
-        mock_sys.stdin.isatty.return_value = True
+    with patched_intake_command_environment(tmp_path, mock_sources, tty=True):
         # CliRunner feeds "2\n" through its own input mechanism (not sys.stdin),
         # so typer.prompt still receives the selection correctly.
         result = runner.invoke(intake_app, ["--auto"], input="2\n", catch_exceptions=False)
@@ -304,13 +264,7 @@ def test_auto_tty_non_numeric_input_exits_1(
         ("harness-b", "agent-b", ["plan-b.md"]),
     ]
 
-    with (
-        patch("specify_cli.cli.commands.intake.Path.cwd", return_value=tmp_path),
-        patch("specify_cli.cli.commands.intake._resolve_repo_root", return_value=tmp_path),
-        patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources),
-        patch("specify_cli.cli.commands.intake.sys") as mock_sys,
-    ):
-        mock_sys.stdin.isatty.return_value = True
+    with patched_intake_command_environment(tmp_path, mock_sources, tty=True):
         result = runner.invoke(intake_app, ["--auto"], input="abc\n", catch_exceptions=False)
 
     assert result.exit_code == 1
@@ -328,13 +282,7 @@ def test_auto_tty_out_of_range_number_exits_1(
         ("harness-b", "agent-b", ["plan-b.md"]),
     ]
 
-    with (
-        patch("specify_cli.cli.commands.intake.Path.cwd", return_value=tmp_path),
-        patch("specify_cli.cli.commands.intake._resolve_repo_root", return_value=tmp_path),
-        patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources),
-        patch("specify_cli.cli.commands.intake.sys") as mock_sys,
-    ):
-        mock_sys.stdin.isatty.return_value = True
+    with patched_intake_command_environment(tmp_path, mock_sources, tty=True):
         result = runner.invoke(intake_app, ["--auto"], input="99\n", catch_exceptions=False)
 
     assert result.exit_code == 1
@@ -352,13 +300,7 @@ def test_auto_tty_zero_input_exits_1(
         ("harness-b", "agent-b", ["plan-b.md"]),
     ]
 
-    with (
-        patch("specify_cli.cli.commands.intake.Path.cwd", return_value=tmp_path),
-        patch("specify_cli.cli.commands.intake._resolve_repo_root", return_value=tmp_path),
-        patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources),
-        patch("specify_cli.cli.commands.intake.sys") as mock_sys,
-    ):
-        mock_sys.stdin.isatty.return_value = True
+    with patched_intake_command_environment(tmp_path, mock_sources, tty=True):
         result = runner.invoke(intake_app, ["--auto"], input="0\n", catch_exceptions=False)
 
     assert result.exit_code == 1
