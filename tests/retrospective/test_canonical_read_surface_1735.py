@@ -84,6 +84,7 @@ def _build_coord_topology_repo(tmp_path: Path) -> tuple[Path, Path, Path]:
 
 
 def _retro_completed_envelope() -> dict[str, object]:
+    # canonical-producer-exempt: #1735 -- legacy retrospective envelope fixture targets read-surface routing.
     return {
         "actor": {"id": "test-operator", "kind": "human", "profile_id": None},
         "at": "2026-06-12T10:00:00+00:00",

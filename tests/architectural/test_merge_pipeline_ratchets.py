@@ -28,6 +28,8 @@ import pytest
 import specify_cli
 from specify_cli.status import Lane
 
+pytestmark = [pytest.mark.architectural]
+
 SRC_ROOT = Path(specify_cli.__file__).resolve().parent
 LANES_MERGE = SRC_ROOT / "lanes" / "merge.py"
 REF_ADVANCE_RELPATH = Path("git") / "ref_advance.py"

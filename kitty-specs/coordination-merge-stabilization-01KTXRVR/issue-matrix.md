@@ -15,11 +15,11 @@ Verdicts recorded at WP01 review (2026-06-12) from the cluster-validation dispos
 | #1784 | finalize-tasks branch-model catch-22 (dup of #1777) | verified-already-fixed | PR #1850 `resolve_placement_only`; P3 crumbs → WP02/WP03; closed 2026-06-12 |
 | #1777 | finalize-tasks catch-22 (canonical of #1784) | verified-already-fixed | PR #1850 `resolve_placement_only` (`8544012fa`) |
 | #1735 | retrospect completion gate reads primary checkout event log | verified-already-fixed | PR #1850 WP08 (`8544012fa`); residuals → WP05 + umbrella #1878; closed 2026-06-12 |
-| #1814 | residual: finalize staging leaves lanes.json/tasks/* residue on primary | in-mission | WP02/T008; re-scoped 2026-06-12 |
-| #1736 | residual: merge pipeline cleanup (_make_merge_env, narrow except, ratchet) | in-mission | WP03/T015–T017; Bugs A/B/C fixed `a5f30616e`/`c5a10ce56`/`8544012fa`; re-scoped 2026-06-12 |
-| #1833 | residual: husk fall-through guards + doctor check | in-mission | WP04; F-001 naming trigger fixed in #1850; re-scoped 2026-06-12 |
-| #1861 | residual: finalize-tasks --validate-only must not switch checkout | in-mission | WP02/T006; Part 2 resolved by `SafeCommitHeadMismatch` (`8e79b3f6d`); re-scoped 2026-06-12 |
-| #1826 | coord worktree falls behind its branch mid-merge (safe_commit backstop) | in-mission | WP03 ref-advance-with-resync contract (class-b-ref-advance-resync.md) |
+| #1814 | residual: finalize staging leaves lanes.json/tasks/* residue on primary | fixed | Merge commit `61d4cdb64`; `tests/specify_cli/cli/commands/test_wp06_sc2_paused_mission_blockers.py` |
+| #1736 | residual: merge pipeline cleanup (_make_merge_env, narrow except, ratchet) | fixed | Merge commit `61d4cdb64`; `tests/architectural/test_merge_pipeline_ratchets.py` + `tests/status/test_event_log_merge.py` |
+| #1833 | residual: husk fall-through guards + doctor check | fixed | Merge commit `61d4cdb64`; `tests/specify_cli/cli/commands/test_workspace_husk_resolution_1833.py` |
+| #1861 | residual: finalize-tasks --validate-only must not switch checkout | fixed | Merge commit `61d4cdb64`; `tests/specify_cli/cli/commands/test_finalize_tasks_validate_only_readonly.py` |
+| #1826 | coord worktree falls behind its branch mid-merge (safe_commit backstop) | fixed | Merge commit `61d4cdb64`; `tests/specify_cli/cli/commands/test_merge_coord_worktree_resync_1826.py` |
 | #1827 | crash between event-record and commit strands state | deferred-with-followup | Umbrella #1878 item 7 (filed 2026-06-12 under epic #1666) |
 | #1850 | landed stabilization PR (context reference, not a defect) | verified-already-fixed | Merged PR #1850 (`8544012fa`) on main |
 | #1666 | epic: execution-state & context domain-boundary redesign | deferred-with-followup | Remains open as parent epic; post-3.2.0 remainder carried by umbrella #1878 |

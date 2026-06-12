@@ -16,6 +16,13 @@ import pytest
 
 pytestmark = [pytest.mark.unit]
 
+
+def _mark_fake_worktree(path: Path) -> None:
+    """Create the minimal marker required by workspace-resolution guards."""
+    path.mkdir(parents=True, exist_ok=True)
+    (path / ".git").write_text("gitdir: ../fake\n", encoding="utf-8")
+
+
 class TestValidateReadyForReview:
     """Tests for _validate_ready_for_review helper."""
 
@@ -116,7 +123,7 @@ class TestValidateReadyForReview:
         feature_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("review",))
         worktree_path = lane_worktree_path(tmp_path, "008-feature")
-        worktree_path.mkdir(parents=True)
+        _mark_fake_worktree(worktree_path)
 
         # Simulate: main clean, worktree has uncommitted changes
         def subprocess_side_effect(*args, **kwargs):
@@ -131,6 +138,8 @@ class TestValidateReadyForReview:
             elif "rev-parse" in cmd and "--abbrev-ref" in cmd:
                 # Return a branch name so we don't trigger detached HEAD
                 return Mock(returncode=0, stdout=f"{lane_branch_name('008-feature')}\n")
+            elif "rev-parse" in cmd and "--show-toplevel" in cmd:
+                return Mock(returncode=0, stdout=f"{worktree_path}\n")
             elif "rev-parse" in cmd and "--verify" in cmd:
                 # No in-progress operations (MERGE_HEAD, REBASE_HEAD, etc. don't exist)
                 return Mock(returncode=1, stdout="")
@@ -182,7 +191,7 @@ class TestValidateReadyForReview:
         feature_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("review",))
         worktree_path = lane_worktree_path(tmp_path, "008-feature")
-        worktree_path.mkdir(parents=True)
+        _mark_fake_worktree(worktree_path)
 
         # Simulate: main clean, worktree clean, but no commits beyond main
         def subprocess_side_effect(*args, **kwargs):
@@ -193,6 +202,8 @@ class TestValidateReadyForReview:
                 return Mock(returncode=0, stdout="")  # Both clean
             elif "rev-parse" in cmd and "--abbrev-ref" in cmd:
                 return Mock(returncode=0, stdout=f"{lane_branch_name('008-feature')}\n")
+            elif "rev-parse" in cmd and "--show-toplevel" in cmd:
+                return Mock(returncode=0, stdout=f"{worktree_path}\n")
             elif "rev-parse" in cmd and "--verify" in cmd:
                 # No in-progress operations
                 return Mock(returncode=1, stdout="")
@@ -253,7 +264,7 @@ class TestMoveTaskPreflightCheck:
         (feature_dir / "meta.json").write_text('{"mission": "software-dev", "target_branch": "main"}')
 
         worktree_path = lane_worktree_path(tmp_path, mission_slug)
-        worktree_path.mkdir(parents=True)
+        _mark_fake_worktree(worktree_path)
 
         with patch("subprocess.run") as mock_run:
 
@@ -264,6 +275,8 @@ class TestMoveTaskPreflightCheck:
                     return MagicMock(returncode=0, stdout="", stderr="")
                 elif "rev-parse" in args and "--abbrev-ref" in args:
                     return MagicMock(returncode=0, stdout=f"{lane_branch_name(mission_slug)}\n", stderr="")
+                elif "rev-parse" in args and "--show-toplevel" in args:
+                    return MagicMock(returncode=0, stdout=f"{worktree_path}\n", stderr="")
                 elif "rev-parse" in args and "--verify" in args:
                     return MagicMock(returncode=1, stdout="", stderr="")
                 elif "rev-list" in args and "HEAD..main" in args:
@@ -301,7 +314,7 @@ class TestMoveTaskPreflightCheck:
         (feature_dir / "meta.json").write_text('{"mission": "software-dev", "target_branch": "main"}')
 
         worktree_path = lane_worktree_path(tmp_path, mission_slug)
-        worktree_path.mkdir(parents=True)
+        _mark_fake_worktree(worktree_path)
 
         with patch("subprocess.run") as mock_run:
 
@@ -312,6 +325,8 @@ class TestMoveTaskPreflightCheck:
                     return MagicMock(returncode=0, stdout="", stderr="")
                 elif "rev-parse" in args and "--abbrev-ref" in args:
                     return MagicMock(returncode=0, stdout=f"{lane_branch_name(mission_slug)}\n", stderr="")
+                elif "rev-parse" in args and "--show-toplevel" in args:
+                    return MagicMock(returncode=0, stdout=f"{worktree_path}\n", stderr="")
                 elif "rev-parse" in args and "--verify" in args:
                     return MagicMock(returncode=1, stdout="", stderr="")
                 elif "rev-list" in args and "HEAD..main" in args:

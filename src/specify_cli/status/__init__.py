@@ -171,6 +171,11 @@ from .work_package_lifecycle import (
 from .doctor import (
     run_doctor,
 )
+from .doctor_husks import (
+    WorkspaceHuskRegistrationError,
+    fix_workspace_husks,
+    scan_workspace_husks,
+)
 
 
 def uninitialized_status_error(mission_slug: str, wp_id: str, feature_dir: Path) -> str:
@@ -260,6 +265,7 @@ __all__ = [
     "ULID_PATTERN",
     "ValidationResult",
     "VerificationResult",
+    "WorkspaceHuskRegistrationError",
     "WPMetadata",
     "audit_repo",
     "append_event",
@@ -268,6 +274,7 @@ __all__ = [
     "feature_status_lock",
     "find_ambiguous_selectors",
     "find_duplicate_prefixes",
+    "fix_workspace_husks",
     "is_dossier_snapshot",
     "merge_event_log_files",
     "register_dossier_sync_handler",
@@ -302,5 +309,6 @@ __all__ = [
     "validate_transition",
     "validate_transition_legality",
     "wp_state_for",
+    "scan_workspace_husks",
     "write_derived_views",
 ]

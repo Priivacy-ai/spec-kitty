@@ -121,25 +121,69 @@ def _list_worktrees(repo_root: Path, env: dict[str, str] | None) -> list[_Worktr
     return entries
 
 
-def _dirty_entries(worktree: Path, env: dict[str, str] | None) -> list[str]:
+def _target_tree_paths(repo_root: Path, new_sha: str, env: dict[str, str] | None) -> set[str]:
+    """Return tracked paths present at ``new_sha``."""
+    result = _run_git(repo_root, ["ls-tree", "-r", "--name-only", new_sha], env=env)
+    if result.returncode != 0:
+        raise RefAdvanceError(
+            f"Could not inspect target tree {new_sha}: "
+            f"{result.stderr.strip() or result.stdout.strip()}"
+        )
+    return {line for line in result.stdout.splitlines() if line}
+
+
+def _porcelain_path(line: str) -> str:
+    """Extract the path field from a porcelain v1 status line."""
+    path = line[3:]
+    if " -> " in path:
+        path = path.rsplit(" -> ", 1)[1]
+    return path.rstrip("/")
+
+
+def _path_obstructs_target_tree(path: str, target_paths: set[str]) -> bool:
+    """Return True when an untracked/ignored path may be clobbered by reset."""
+    if not path:
+        return False
+    prefix = f"{path}/"
+    return any(target == path or target.startswith(prefix) for target in target_paths)
+
+
+def _dirty_entries(
+    worktree: Path,
+    env: dict[str, str] | None,
+    *,
+    new_sha: str,
+    target_paths: set[str],
+) -> list[str]:
     """Return porcelain entries that a ``reset --hard`` would destroy.
 
-    Untracked (``??``) and ignored (``!!``) files are NOT at risk —
-    ``git reset --hard`` leaves them alone — so they neither block the
-    advance nor count as dirt. Everything else (staged or unstaged changes
-    to tracked paths) is unique local state and blocks the resync (NFR-002).
+    Most untracked/ignored files survive ``git reset --hard``, but an
+    untracked or ignored path that obstructs a tracked path in ``new_sha`` is
+    overwritten by git during the reset. Treat those obstructions as local
+    state and refuse before moving the ref (NFR-002).
+
+    Everything staged or unstaged against tracked paths is also unique local
+    state and blocks the resync.
     """
-    result = _run_git(worktree, ["status", "--porcelain"], env=env)
+    result = _run_git(worktree, ["status", "--porcelain", "--ignored"], env=env)
     if result.returncode != 0:
         raise RefAdvanceError(
             f"Could not inspect worktree state at {worktree}: "
             f"{result.stderr.strip() or result.stdout.strip()}"
         )
-    return [
-        line
-        for line in result.stdout.splitlines()
-        if line.strip() and not line.startswith(("??", "!!"))
-    ]
+    dirty: list[str] = []
+    for line in result.stdout.splitlines():
+        if not line.strip():
+            continue
+        if line.startswith(("??", "!!")):
+            path = _porcelain_path(line)
+            if _path_obstructs_target_tree(path, target_paths):
+                dirty.append(
+                    f"{line} (would be overwritten by reset --hard to {new_sha[:12]})"
+                )
+            continue
+        dirty.append(line)
+    return dirty
 
 
 def advance_branch_ref(
@@ -185,11 +229,12 @@ def advance_branch_ref(
         for entry in _list_worktrees(repo_root, env)
         if not entry.detached and entry.branch == ref
     ]
+    target_paths = _target_tree_paths(repo_root, new_sha, env)
 
     # Dirty check strictly BEFORE the ref mutation and BEFORE any reset path:
     # a refusal must be atomic (nothing advanced, nothing reset).
     for worktree in checkouts:
-        dirty = _dirty_entries(worktree, env)
+        dirty = _dirty_entries(worktree, env, new_sha=new_sha, target_paths=target_paths)
         if dirty:
             raise RefAdvanceDirtyWorktreeError(
                 worktree_path=worktree.resolve(),

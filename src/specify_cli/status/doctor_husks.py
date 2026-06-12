@@ -23,9 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 __all__ = [
-    "HuskEntry",
-    "HuskFixResult",
-    "HuskReport",
+    "WorkspaceHuskRegistrationError",
     "fix_workspace_husks",
     "scan_workspace_husks",
 ]
@@ -38,7 +36,9 @@ class HuskEntry:
     """One ``.worktrees/`` entry that lacks a ``.git`` entry."""
 
     path: str  # relative to repo root
-    registered: bool  # True when `git worktree list` still registers the path
+    # True when `git worktree list` still registers the path; None when
+    # registration state could not be read safely.
+    registered: bool | None
 
 
 @dataclass(frozen=True)
@@ -47,15 +47,17 @@ class HuskReport:
 
     worktrees_dir: str
     husks: list[HuskEntry] = field(default_factory=list)
+    registration_error: str | None = None
 
     @property
     def healthy(self) -> bool:
-        return not self.husks
+        return not self.husks and self.registration_error is None
 
     def to_dict(self) -> dict[str, object]:
         return {
             "worktrees_dir": self.worktrees_dir,
             "healthy": self.healthy,
+            "registration_error": self.registration_error,
             "husks": [
                 {"path": entry.path, "registered": entry.registered}
                 for entry in self.husks
@@ -69,15 +71,27 @@ class HuskFixResult:
 
     removed: list[str] = field(default_factory=list)
     skipped_registered: list[str] = field(default_factory=list)
+    skipped_appeared_valid: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, object]:
         return {
             "removed": list(self.removed),
             "skipped_registered": list(self.skipped_registered),
+            "skipped_appeared_valid": list(self.skipped_appeared_valid),
         }
 
 
-def _registered_worktree_paths(repo_root: Path) -> set[Path]:
+@dataclass(frozen=True)
+class _RegisteredWorktreePaths:
+    paths: set[Path] = field(default_factory=set)
+    error: str | None = None
+
+
+class WorkspaceHuskRegistrationError(RuntimeError):
+    """Raised when husk registration state cannot be read safely."""
+
+
+def _registered_worktree_paths(repo_root: Path) -> _RegisteredWorktreePaths:
     """Return resolved paths registered in ``git worktree list --porcelain``."""
     result = subprocess.run(
         ["git", "worktree", "list", "--porcelain"],
@@ -90,7 +104,14 @@ def _registered_worktree_paths(repo_root: Path) -> set[Path]:
     )
     registered: set[Path] = set()
     if result.returncode != 0:
-        return registered
+        detail = (
+            result.stderr.strip()
+            or result.stdout.strip()
+            or f"exit {result.returncode}"
+        )
+        return _RegisteredWorktreePaths(
+            error=f"git worktree list --porcelain failed: {detail}"
+        )
     for line in result.stdout.splitlines():
         if line.startswith("worktree "):
             raw = line[len("worktree "):].strip()
@@ -98,7 +119,7 @@ def _registered_worktree_paths(repo_root: Path) -> set[Path]:
                 registered.add(Path(raw).resolve())
             except OSError:
                 continue
-    return registered
+    return _RegisteredWorktreePaths(paths=registered)
 
 
 def scan_workspace_husks(repo_root: Path) -> HuskReport:
@@ -122,10 +143,16 @@ def scan_workspace_husks(repo_root: Path) -> HuskReport:
         husks.append(
             HuskEntry(
                 path=str(entry.relative_to(repo_root)),
-                registered=entry.resolve() in registered,
+                registered=None
+                if registered.error is not None
+                else entry.resolve() in registered.paths,
             )
         )
-    return HuskReport(worktrees_dir=str(worktrees_dir), husks=husks)
+    return HuskReport(
+        worktrees_dir=str(worktrees_dir),
+        husks=husks,
+        registration_error=registered.error,
+    )
 
 
 def fix_workspace_husks(repo_root: Path) -> tuple[HuskReport, HuskFixResult]:
@@ -134,12 +161,23 @@ def fix_workspace_husks(repo_root: Path) -> tuple[HuskReport, HuskFixResult]:
     Returns the pre-fix report plus the fix outcome.
     """
     report = scan_workspace_husks(repo_root)
+    if report.registration_error is not None:
+        raise WorkspaceHuskRegistrationError(report.registration_error)
     removed: list[str] = []
     skipped_registered: list[str] = []
+    skipped_appeared_valid: list[str] = []
     for entry in report.husks:
         if entry.registered:
             skipped_registered.append(entry.path)
             continue
-        shutil.rmtree(repo_root / entry.path)
+        husk_path = repo_root / entry.path
+        if (husk_path / ".git").exists():
+            skipped_appeared_valid.append(entry.path)
+            continue
+        shutil.rmtree(husk_path)
         removed.append(entry.path)
-    return report, HuskFixResult(removed=removed, skipped_registered=skipped_registered)
+    return report, HuskFixResult(
+        removed=removed,
+        skipped_registered=skipped_registered,
+        skipped_appeared_valid=skipped_appeared_valid,
+    )

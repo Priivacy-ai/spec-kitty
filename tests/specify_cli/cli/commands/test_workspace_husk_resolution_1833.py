@@ -462,6 +462,70 @@ class TestDoctorHuskCheck:
         assert rel in fix_result.skipped_registered
         assert rel not in fix_result.removed
 
+    def test_fix_refuses_when_registered_worktree_scan_fails(
+        self, husk_repo: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import specify_cli.cli.commands.doctor as doctor_module
+        import specify_cli.status.doctor_husks as doctor_husks
+
+        repo, husk = husk_repo
+        rel = str(husk.relative_to(repo))
+
+        def fail_worktree_list(cmd: Any, *args: Any, **kwargs: Any) -> SimpleNamespace:
+            assert cmd == ["git", "worktree", "list", "--porcelain"]
+            return SimpleNamespace(
+                returncode=128,
+                stdout="",
+                stderr="fatal: unable to read worktree registrations\n",
+            )
+
+        monkeypatch.setattr(doctor_husks.subprocess, "run", fail_worktree_list)
+        monkeypatch.setattr(doctor_module, "locate_project_root", lambda *a, **k: repo)
+
+        report = doctor_husks.scan_workspace_husks(repo)
+        assert report.registration_error is not None
+        assert "git worktree list --porcelain failed" in report.registration_error
+        assert {entry.path: entry.registered for entry in report.husks}[rel] is None
+
+        result = runner.invoke(doctor_module.app, ["workspaces", "--fix"])
+
+        assert result.exit_code == 1
+        assert "git worktree list --porcelain failed" in result.stdout
+        assert "Workspace husks were not modified" in result.stdout
+        assert husk.exists()
+        assert (husk / "stray.txt").exists()
+
+    def test_fix_rechecks_git_entry_before_removal(
+        self, husk_repo: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import specify_cli.status.doctor_husks as doctor_husks
+
+        repo, husk = husk_repo
+        rel = str(husk.relative_to(repo))
+        real_scan = doctor_husks.scan_workspace_husks
+
+        def scan_then_git_entry_appears(repo_root: Path) -> doctor_husks.HuskReport:
+            report = real_scan(repo_root)
+            (husk / ".git").write_text("gitdir: ../now-valid\n")
+            return report
+
+        def fail_if_removed(path: Path) -> None:
+            raise AssertionError(f"rmtree must not run after .git appeared: {path}")
+
+        monkeypatch.setattr(
+            doctor_husks,
+            "scan_workspace_husks",
+            scan_then_git_entry_appears,
+        )
+        monkeypatch.setattr(doctor_husks.shutil, "rmtree", fail_if_removed)
+
+        report, fix_result = doctor_husks.fix_workspace_husks(repo)
+
+        assert rel in {entry.path for entry in report.husks}
+        assert rel in fix_result.skipped_appeared_valid
+        assert rel not in fix_result.removed
+        assert husk.exists()
+
     def test_doctor_workspaces_cli_json_and_fix(
         self, husk_repo: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
     ) -> None:

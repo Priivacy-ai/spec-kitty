@@ -894,6 +894,8 @@ _Project health diagnostics_
 │                     and Letta.                                               │
 │ state-roots         Show state roots, surface classification, and safety     │
 │                     warnings.                                                │
+│ workspaces          Report .worktrees/ husk directories (entries lacking a   │
+│                     .git entry).                                             │
 │ identity            Report mission-identity health across kitty-specs/.      │
 │ sparse-checkout     Detect and optionally remediate legacy sparse-checkout   │
 │                     state.                                                   │
@@ -1225,6 +1227,30 @@ _Project health diagnostics_
      spec-kitty doctor state-roots --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Machine-readable JSON output                                 │
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor workspaces
+
+```
+ Usage: spec-kitty doctor workspaces [OPTIONS]
+
+ Report .worktrees/ husk directories (entries lacking a .git entry).
+
+ A husk is not a usable git worktree: git commands run inside it fall
+ through to the primary repository (#1833). Workspace resolution refuses
+ husks with a structured error; this check is the recovery path.
+
+ Examples:
+     spec-kitty doctor workspaces
+     spec-kitty doctor workspaces --fix
+     spec-kitty doctor workspaces --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --fix           Remove husks that are NOT registered in `git worktree list`  │
+│                 (registered worktrees are never removed)                     │
 │ --json          Machine-readable JSON output                                 │
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -3058,12 +3084,12 @@ _Emit spec-kitty orientation for the Claude Code SessionStart hook._
 
 ## spec-kitty session-stop
 
-_Print an open-Ops reminder for the Claude Code Stop hook._
+_Emit the open-Ops reminder for the Claude Code Stop hook._
 
 ```
  Usage: spec-kitty session-stop [OPTIONS]
 
- Print an open-Ops reminder for the Claude Code Stop hook.
+ Emit the open-Ops reminder for the Claude Code Stop hook.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help          Show this message and exit.                                  │

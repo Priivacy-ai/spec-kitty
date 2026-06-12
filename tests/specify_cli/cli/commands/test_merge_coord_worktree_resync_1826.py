@@ -522,8 +522,7 @@ def test_advance_branch_ref_dirty_worktree_refuses_with_structured_error(
 def test_advance_branch_ref_untracked_files_do_not_block_or_vanish(
     tmp_path: Path,
 ) -> None:
-    """Untracked files are not at risk from ``reset --hard`` (git leaves them
-    alone), so they neither block the advance nor get discarded (NFR-002)."""
+    """Non-obstructing untracked files survive ``reset --hard`` and do not block."""
     _init_git_repo(tmp_path)
     branch, wt, new_sha = _setup_branch_with_worktree(tmp_path)
     untracked = wt / "scratch.txt"
@@ -535,6 +534,30 @@ def test_advance_branch_ref_untracked_files_do_not_block_or_vanish(
     assert untracked.read_text(encoding="utf-8") == "scratch\n", (
         "untracked content must survive the resync"
     )
+
+
+def test_advance_branch_ref_obstructing_untracked_file_refuses_before_reset(
+    tmp_path: Path,
+) -> None:
+    """NFR-002: ``reset --hard`` overwrites untracked paths that obstruct the
+    target tree, so the helper must refuse before advancing the ref."""
+    _init_git_repo(tmp_path)
+    branch, wt, new_sha = _setup_branch_with_worktree(tmp_path)
+    old_sha = _rev_parse(tmp_path, branch)
+    obstruction = wt / "advanced.txt"
+    obstruction.write_text("operator evidence must survive\n", encoding="utf-8")
+
+    with pytest.raises(RefAdvanceDirtyWorktreeError) as excinfo:
+        advance_branch_ref(tmp_path, branch, new_sha)
+
+    assert _rev_parse(tmp_path, branch) == old_sha, (
+        "refusal must leave the ref un-advanced"
+    )
+    assert obstruction.read_text(encoding="utf-8") == (
+        "operator evidence must survive\n"
+    )
+    assert any("advanced.txt" in entry for entry in excinfo.value.dirty_entries)
+    assert "would be overwritten" in str(excinfo.value)
 
 
 def test_backstop_message_names_diverged_worktree_and_ref(tmp_path: Path) -> None:

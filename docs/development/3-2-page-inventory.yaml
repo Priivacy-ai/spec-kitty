@@ -1947,6 +1947,13 @@
   current_target: true
   citation_refs: []
   notes: Top-level docs page (contextive-glossaries.md); provisional current.
+- path: docs/development/3-2-coord-merge-issue-hygiene-log.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Coordination and merge stabilization issue hygiene audit log.
 - path: docs/development/3-2-version-taxonomy.md
   tag: internal
   divio_type: none
@@ -2010,6 +2017,13 @@
   current_target: false
   citation_refs: []
   notes: null
+- path: docs/development/identity-boundary-ci-gate.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Identity-boundary drift detector required-check operator note.
 - path: docs/development/issue-1040-scope-assessment.md
   tag: internal
   divio_type: none

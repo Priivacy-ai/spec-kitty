@@ -96,6 +96,12 @@ def _prompt_path_from_output(output: str) -> Path:
     raise AssertionError(f"Prompt path not found in output: {output}")
 
 
+def _mark_fake_worktree(path: Path) -> None:
+    """Create the minimal marker required by workspace-resolution guards."""
+    path.mkdir(parents=True, exist_ok=True)
+    (path / ".git").write_text("gitdir: ../fake\n", encoding="utf-8")
+
+
 @pytest.fixture()
 def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     repo_root = tmp_path
@@ -166,6 +172,7 @@ def test_workflow_review_accepts_for_review_lane(workflow_repo: Path) -> None:
     _write_wp_file(wp_path, "WP01", lane="for_review")
     # Seed event log with for_review lane so review command finds canonical state
     _seed_wp_lane(feature_dir, "WP01", "for_review")
+    _mark_fake_worktree(lane_worktree_path(workflow_repo, mission_slug))
 
     result = CliRunner().invoke(
         workflow.app,
@@ -201,7 +208,7 @@ def test_workflow_implement_moves_planned_to_doing(workflow_repo: Path) -> None:
 
     # Pre-create workspace so implement skips worktree creation (which needs real git)
     workspace = lane_worktree_path(workflow_repo, mission_slug)
-    workspace.mkdir(parents=True)
+    _mark_fake_worktree(workspace)
 
     # Assumption check
     frontmatter_before, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
@@ -238,6 +245,7 @@ def test_workflow_implement_reads_canonical_status_from_main_when_run_in_sparse_
     _seed_wp_lane(feature_dir, "WP01", "planned")
 
     workspace = lane_worktree_path(workflow_repo, mission_slug)
+    _mark_fake_worktree(workspace)
     workspace_tasks_dir = workspace / "kitty-specs" / mission_slug / "tasks"
     workspace_tasks_dir.mkdir(parents=True)
     workspace_wp_path = workspace_tasks_dir / "WP01-test.md"
@@ -279,6 +287,7 @@ def test_workflow_implement_uses_main_current_lane_for_rework_from_sparse_lane(
     _seed_wp_lane(feature_dir, "WP01", "for_review")
 
     workspace = lane_worktree_path(workflow_repo, mission_slug)
+    _mark_fake_worktree(workspace)
     workspace_tasks_dir = workspace / "kitty-specs" / mission_slug / "tasks"
     workspace_tasks_dir.mkdir(parents=True)
     workspace_wp_path = workspace_tasks_dir / "WP01-test.md"
@@ -343,6 +352,7 @@ def test_workflow_implement_emits_rework_to_coord_status_path(
     _seed_wp_lane(feature_dir, "WP01", "planned")
     _seed_wp_lane(coord_feature_dir, "WP01", "for_review")
     workspace = lane_worktree_path(workflow_repo, mission_slug)
+    _mark_fake_worktree(workspace)
     (workspace / "kitty-specs" / mission_slug / "tasks").mkdir(parents=True)
 
     monkeypatch.setattr(workflow, "locate_project_root", lambda: workspace)
@@ -533,6 +543,7 @@ def test_workflow_review_tracks_reviewer_agent_name(workflow_repo: Path) -> None
     _write_wp_file(wp_path, "WP01", lane="for_review")
     # Seed event log with for_review lane so review command finds canonical state
     _seed_wp_lane(feature_dir, "WP01", "for_review")
+    _mark_fake_worktree(lane_worktree_path(workflow_repo, mission_slug))
 
     # Assumption check
     frontmatter_before, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
@@ -560,6 +571,7 @@ def test_workflow_review_uses_existing_canonical_event_lane(workflow_repo: Path)
     _write_current_analysis_report(feature_dir, workflow_repo)
     wp_path = tasks_dir / "WP01-test.md"
     _write_wp_file(wp_path, "WP01", lane="for_review")
+    _mark_fake_worktree(lane_worktree_path(workflow_repo, mission_slug))
 
     emit_status_transition(TransitionRequest(
         feature_dir=feature_dir,
@@ -604,7 +616,7 @@ def _setup_implement_fixture(workflow_repo: Path, *, lane: str = "planned") -> t
     _seed_wp_lane(feature_dir, "WP01", lane)
     # Pre-create workspace so implement skips real git worktree creation
     workspace = lane_worktree_path(workflow_repo, mission_slug)
-    workspace.mkdir(parents=True, exist_ok=True)
+    _mark_fake_worktree(workspace)
     return wp_path, mission_slug
 
 
@@ -623,7 +635,7 @@ def _setup_review_fixture(workflow_repo: Path, *, lane: str = "for_review") -> t
     _write_wp_file(wp_path, "WP01", lane=lane)
     _seed_wp_lane(feature_dir, "WP01", lane)
     workspace = lane_worktree_path(workflow_repo, feature_slug)
-    workspace.mkdir(parents=True, exist_ok=True)
+    _mark_fake_worktree(workspace)
     return wp_path, feature_slug
 
 
