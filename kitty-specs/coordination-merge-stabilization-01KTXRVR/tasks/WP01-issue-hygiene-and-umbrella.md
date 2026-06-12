@@ -61,7 +61,7 @@ For each, post a short closing comment citing the landed fix (the validation com
 | #1771 | PR #1850 WP08 (FR-006 canonical tracked path; `test_record_committable_1771.py`) |
 | #1571 | PR #1719 push-gated sync preflight; superseded by #1706 |
 | #1784 | duplicate of #1777; core fixed by PR #1850 `resolve_placement_only`; P3 crumbs carried in mission 01KTXRVR WP02/WP03 |
-| #1735 | core fixed by PR #1850 WP08; residuals carried in mission 01KTXRVR WP05 |
+| #1735 | core fixed by PR #1850 WP08; residuals carried in mission 01KTXRVR WP05 **and** listed in the T003 umbrella — cite BOTH in the closing comment so tracking survives if WP05 is ever deferred (analysis finding U2) |
 
 Closing comment shape: one sentence "Fixed at HEAD by <citation>; validation evidence in the 2026-06-12 cluster-validation comment above. Residuals (if any) tracked in mission coordination-merge-stabilization-01KTXRVR <WP>." Use `gh issue close <n> --comment "..."`.
 
@@ -79,6 +79,14 @@ Use `gh issue edit <n> --title ... --body ...` (fetch current body first; prepen
 ### T003 — File the follow-up umbrella under epic #1666
 
 One new issue titled approximately "Umbrella: complete the coordination placement/identity strangler (post-3.2.0)". Body lists the C-001 deferred non-goals from spec.md / paula-analysis.md follow-up section: resolver strangler completion (`gate.py`, `agent_retrospect.py`, implement.py C-004 fallback — note WP05 of this mission resolves the first two; scope accordingly), single ref-advance helper rollout beyond the merge pipeline, worktree-naming allocator unification, is-a-worktree type invariant, AC10 lint expansion, `_ensure_branch_checked_out` shim retirement, #1827 crash-between-record-and-commit edge, #1784 P3 polish not carried by WP02. Include explicit **Non-goals** (no topology redesign, no safe-commit semantics change) and link epic #1666 + this mission. Label per repo conventions; assign nobody.
+
+**Additionally (analysis finding I2)** — include a "Fresh evidence, 2026-06-12 planning session" section recording three further live instances of the #1784/Class A family observed first-hand while planning this very mission:
+
+1. **Coord-unaware setup-plan entry gate**: `is_committed()` (`src/specify_cli/missions/_substantive.py:214-239`) checks only the primary checkout's HEAD; a spec.md committed on the coordination branch is reported uncommitted, blocking `setup-plan` until the operator manually fast-forwards local main.
+2. **setup-plan auto-commit fallback divergence**: the plan auto-commit path inside `setup-plan` refused with the protected-main error even though direct invocation of `_planning_commit_worktree` + `_resolve_planning_placement` routes correctly to the coordination worktree — some call path inside setup-plan bypasses or falls back around the #1784 catch-22 fix.
+3. **Lifecycle event emission targets protected main**: the phase-event emission during `setup-plan` attempted a safe_commit against the primary main checkout and only succeeded under `SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1`.
+
+Also observed (same session, adjacent classes): `record-analysis` refuses on ANY untracked primary-checkout file (the #1814 mechanism, confirmed live), and `mission create` leaves a `tasks/.gitkeep` scaffold that later trips dirty-tree gates. Cite `kitty-specs/coordination-merge-stabilization-01KTXRVR/analysis-report.md` finding I2.
 
 ### T004 — Hygiene log artifact
 

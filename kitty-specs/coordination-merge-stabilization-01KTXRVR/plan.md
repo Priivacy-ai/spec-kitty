@@ -152,3 +152,5 @@ No charter violations. The only complexity decision is helper-vs-inline for the 
 ## Phase 2 Approach (executed by /spec-kitty.tasks — not here)
 
 The IC map translates to the 6-WP shape hinted in the brief: WP01=IC-01, WP02=IC-02 (+IC-07 ride-along), WP03=IC-03, WP04=IC-04, WP05=IC-05, WP06=IC-06. WP02..WP05 are mutually independent; WP06 soft-depends on WP03 (C-004). Each WP is regression-test-first.
+
+> **Errata (2026-06-12, post-tasks; analysis finding I1):** /spec-kitty.tasks collapsed this to **5 WPs** — the owned-files no-overlap rule forced IC-06 (Class F) into WP03 (both edit `src/specify_cli/lanes/merge.py`, which also satisfies C-004's ordering internally) and the #1814 residue fix (IC-05 part) into WP02 (shares `src/specify_cli/cli/commands/agent/mission.py` with the validate-only guard). tasks.md §WP Shaping Note is authoritative for execution.
