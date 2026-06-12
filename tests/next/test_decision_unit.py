@@ -11,10 +11,12 @@ import json
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from tests.lane_test_utils import write_single_lane_manifest
 from specify_cli.status.store import append_event
 from specify_cli.status.models import StatusEvent, Lane
+from runtime.next._internal_runtime.schema import NextDecision
 
 from specify_cli.next.decision import (
     Decision,
@@ -849,3 +851,18 @@ class TestDecisionKindSerialisation:
         # Verify JSON round-trip is byte-identical to the pre-enum form
         json_str = json.dumps(d)
         assert '"kind": "step"' in json_str
+
+    def test_next_decision_rejects_invalid_kind(self) -> None:
+        """Runtime planning envelopes must keep the pre-enum closed kind set."""
+        with pytest.raises(ValidationError):
+            NextDecision(kind="nonsense", run_id="run", mission_key="mission")
+
+    def test_next_decision_accepts_decision_kind_member(self) -> None:
+        """StrEnum inputs validate without widening the accepted kind set."""
+        decision = NextDecision(
+            kind=DecisionKind.step,
+            run_id="run",
+            mission_key="mission",
+        )
+
+        assert decision.kind == "step"
