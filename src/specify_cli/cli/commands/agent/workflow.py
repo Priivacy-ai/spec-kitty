@@ -34,7 +34,10 @@ contract.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.constants import (
+    KITTY_SPECS_DIR,
+    MISSION_TYPE_RESEARCH,
+)
 from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
 import json
 import logging
@@ -1478,7 +1481,7 @@ def implement(
         # Detect mission type and get deliverables_path for research missions
         mission_type = get_mission_type(feature_dir)
         deliverables_path = None
-        if mission_type == "research":
+        if mission_type == MISSION_TYPE_RESEARCH:
             deliverables_path = get_deliverables_path(feature_dir, mission_slug)
 
         # Capture baseline test results (one-time, cached) before the agent starts coding
@@ -1634,7 +1637,7 @@ def implement(
             lines.append("")
 
         # Research mission: Show deliverables path prominently
-        if mission_type == "research" and deliverables_path:
+        if mission_type == MISSION_TYPE_RESEARCH and deliverables_path:
             lines.append("╔" + "=" * 78 + "╗")
             lines.append("║  🔬 RESEARCH MISSION - TWO ARTIFACT TYPES                                 ║")
             lines.append("╠" + "=" * 78 + "╣")
@@ -1710,7 +1713,7 @@ def implement(
                     print("   Warning: legacy feedback:// reference detected; readable but deprecated.")
             else:
                 print("⚠️  Has review feedback - but no review_feedback reference is set")
-        if mission_type == "research" and deliverables_path:
+        if mission_type == MISSION_TYPE_RESEARCH and deliverables_path:
             print(f"🔬 Research deliverables: {deliverables_path}")
             print("   (NOT in kitty-specs/ - those are planning artifacts)")
         print()

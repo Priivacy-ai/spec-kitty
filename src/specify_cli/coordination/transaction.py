@@ -47,8 +47,10 @@ from specify_cli.coordination.status_service import (
 from specify_cli.coordination.types import (
     Allowed,
     CommitReceipt,
+    DESTINATION_REF_NOT_FOUND,
     GitChangeSet,
     PendingEventHandle,
+    PROTECTED_BRANCH_REFUSED,
     Refused,
 )
 from specify_cli.coordination.workspace import CoordinationWorkspace
@@ -728,11 +730,11 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                     repo_root, safe_mission_slug, safe_mid8,
                 )
                 can_recover_to_coord_branch = (
-                    caller_verdict.error_code == "PROTECTED_BRANCH_REFUSED"
+                    caller_verdict.error_code == PROTECTED_BRANCH_REFUSED
                     and explicit_coord_branch == coord_branch
                 )
                 allow_coord_resolution_to_report_missing_branch = (
-                    caller_verdict.error_code == "DESTINATION_REF_NOT_FOUND"
+                    caller_verdict.error_code == DESTINATION_REF_NOT_FOUND
                     and effective_destination_ref == coord_branch
                 )
                 if not (

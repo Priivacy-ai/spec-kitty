@@ -48,6 +48,10 @@ _logger = logging.getLogger(__name__)
 # ``.isascii()`` guard.
 _MISSION_SLUG_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$", re.ASCII)
 
+# Legacy sentinel emitted by older transactional readers; not a Lane enum value.
+# A plain string compare (no str() coercion) is the correct pattern here.
+_LEGACY_UNINITIALIZED_SENTINEL = "uninitialized"
+
 # A resolved status dir nested under a worktree root is the coordination
 # surface; the primary checkout has no ``.worktrees`` segment. This mirrors the
 # topology test the canonical ``resolve_status_surface`` applies (single source
@@ -604,7 +608,7 @@ class MissionStatus:
             wp_id=request.wp_id or "",
             repo_root=self.repo_root,
         )
-        if str(from_lane_enum) == "uninitialized":
+        if str(from_lane_enum) == _LEGACY_UNINITIALIZED_SENTINEL:
             from_lane_enum = lane_unseeded
         return str(from_lane_enum), current_actor
 

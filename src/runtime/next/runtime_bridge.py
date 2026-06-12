@@ -46,6 +46,7 @@ from runtime.next._internal_runtime import (
 from runtime.next._internal_runtime.schema import ActorIdentity, MissionRuntimeError, load_mission_template_file
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.mission import get_mission_type
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import Lane
@@ -2040,7 +2041,7 @@ def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
     builtin_tier = list(context.builtin_roots)
     tiers = (
         project_tiers + [builtin_tier, global_tier]
-        if mission_type == "software-dev"
+        if mission_type == MISSION_TYPE_SOFTWARE_DEV
         else project_tiers + [global_tier, builtin_tier]
     )
 

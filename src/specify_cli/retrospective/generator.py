@@ -402,6 +402,7 @@ def _detect_implementation_cycles(events: list[dict[str, Any]]) -> dict[str, int
     surface as a documented review rejection.  Bootstrap and synthetic
     transitions are excluded.
     """
+    from specify_cli.status import Lane as _Lane  # local: avoids circular import at module level
     counts: dict[str, int] = {}
     for event in events:
         wp_id = event.get("wp_id", "")
@@ -412,7 +413,7 @@ def _detect_implementation_cycles(events: list[dict[str, Any]]) -> dict[str, int
             continue
         from_lane = event.get("from_lane", "")
         to_lane = event.get("to_lane", "")
-        if from_lane in ("planned", "claimed") and to_lane == "in_progress":
+        if from_lane in (_Lane.PLANNED, _Lane.CLAIMED) and to_lane == _Lane.IN_PROGRESS:
             counts[wp_id] = counts.get(wp_id, 0) + 1
     # Only WPs with MORE THAN ONE cycle are interesting (the first cycle is normal).
     return {wp: n for wp, n in counts.items() if n > 1}

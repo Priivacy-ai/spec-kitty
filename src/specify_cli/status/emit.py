@@ -525,9 +525,9 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
         if workspace_context is None:
             context_root = repo_root if repo_root is not None else feature_dir
             workspace_context = f"{execution_mode}:{context_root}"
-        if subtasks_complete is None and from_lane == "in_progress" and resolved_lane == "for_review":
+        if subtasks_complete is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
             subtasks_complete = _infer_subtasks_complete(feature_dir, wp_id)
-        if implementation_evidence_present is None and from_lane == "in_progress" and resolved_lane == "for_review":
+        if implementation_evidence_present is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
             implementation_evidence_present = _infer_implementation_evidence(feature_dir, wp_id)
 
         if _legacy_alias_collapses_to_current_lane(raw_to_lane, resolved_lane, from_lane):

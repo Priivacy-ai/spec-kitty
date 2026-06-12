@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.constants import (
+    KITTY_SPECS_DIR,
+    MISSION_TYPE_RESEARCH,
+    MISSION_TYPE_SOFTWARE_DEV,
+)
 from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
 import contextlib
 from dataclasses import dataclass
@@ -1315,7 +1319,7 @@ def _validate_ready_for_review(
             guidance.append(f"Commit these files before moving to {target_lane}.")
             guidance.append(f"  cd {main_repo_root}")
             guidance.append(f"  git add kitty-specs/{mission_slug}/")
-            if mission_type == "research":
+            if mission_type == MISSION_TYPE_RESEARCH:
                 guidance.append(f'  git commit -m "research({wp_id}): <describe your research outputs>"')
             else:
                 guidance.append(f'  git commit -m "docs({wp_id}): <describe your changes>"')
@@ -1324,7 +1328,7 @@ def _validate_ready_for_review(
             return False, guidance
 
     # Check 2: For software-dev missions, check worktree for implementation commits
-    if mission_type == "software-dev":
+    if mission_type == MISSION_TYPE_SOFTWARE_DEV:
         # Planning-artifact WPs run in the repo root and have no separate worktree
         # to validate. We only short-circuit on planning-artifact mode when the
         # canonical resolver succeeds; if the WP has no on-disk markdown file (e.g.

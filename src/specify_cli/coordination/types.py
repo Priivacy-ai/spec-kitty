@@ -72,6 +72,22 @@ class Allowed:
     pass
 
 
+# ---------------------------------------------------------------------------
+# Stable ``Refused.error_code`` constants (NFR-007)
+#
+# These values are the machine-readable codes emitted by WorkflowMutationPolicy
+# and matched by callers. Declare here so every comparison site imports the
+# constant rather than embedding inline literals.  The string VALUES are part
+# of the public API contract and MUST NOT change.
+# ---------------------------------------------------------------------------
+
+#: Destination ref exists but is on the project's protected-branch list.
+PROTECTED_BRANCH_REFUSED = "PROTECTED_BRANCH_REFUSED"
+
+#: Destination ref does not exist locally.
+DESTINATION_REF_NOT_FOUND = "DESTINATION_REF_NOT_FOUND"
+
+
 @dataclass(frozen=True, kw_only=True)
 class Refused:
     """The policy refused the would-be commit.
@@ -82,7 +98,7 @@ class Refused:
 
     Attributes:
         error_code: Stable, machine-readable code (e.g.
-            ``"PROTECTED_BRANCH_REFUSED"``).
+            ``PROTECTED_BRANCH_REFUSED``).
         message: Operator-facing description of what was rejected and
             why. Names the rejected commit's intent and the destination ref.
         destination_ref: The destination ref that was rejected.

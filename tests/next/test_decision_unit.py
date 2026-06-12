@@ -788,3 +788,64 @@ class TestInReviewLaneDecision:
 
         # No WP assigned — in_review WPs are not available for pickup
         assert wp_id is None
+
+
+# ---------------------------------------------------------------------------
+# DecisionKind StrEnum serialisation compatibility (refs #1881)
+# ---------------------------------------------------------------------------
+
+
+class TestDecisionKindSerialisation:
+    """Prove that converting DecisionKind to StrEnum is JSON-round-trip identical
+    to the previous plain-class form (every member serialises as its bare string
+    value, not as 'DecisionKind.<member>').
+    """
+
+    def test_decision_kind_members_equal_string_literals(self) -> None:
+        """Each DecisionKind member compares equal to its string literal."""
+        assert DecisionKind.step == "step"
+        assert DecisionKind.decision_required == "decision_required"
+        assert DecisionKind.blocked == "blocked"
+        assert DecisionKind.terminal == "terminal"
+        assert DecisionKind.query == "query"
+
+    def test_decision_kind_is_str_subclass(self) -> None:
+        """DecisionKind members are str instances (StrEnum invariant)."""
+        for member in DecisionKind:
+            assert isinstance(member, str), f"{member!r} is not a str"
+
+    def test_decision_kind_json_serialisation_byte_identical(self) -> None:
+        """json.dumps of a dict containing a DecisionKind value produces the
+        same bytes as when using the raw string literal — the pre-enum contract
+        is preserved exactly.
+        """
+        import json
+
+        for member in DecisionKind:
+            enum_output = json.dumps({"kind": member})
+            str_output = json.dumps({"kind": member.value})
+            assert enum_output == str_output, (
+                f"DecisionKind.{member.name} serialises to {enum_output!r}, "
+                f"expected {str_output!r}"
+            )
+
+    def test_to_dict_kind_field_is_bare_string(self, tmp_path: Path) -> None:
+        """Decision.to_dict() emits kind as a bare string, not an enum repr."""
+        import json
+
+        prompt = tmp_path / "p.md"
+        prompt.write_text("# p", encoding="utf-8")
+        decision = Decision(
+            kind=DecisionKind.step,
+            agent="test",
+            mission_slug="042-test",
+            mission="software-dev",
+            mission_state="specify",
+            timestamp="2026-02-17T00:00:00+00:00",
+            prompt_file=str(prompt),
+        )
+        d = decision.to_dict()
+        assert d["kind"] == "step"
+        # Verify JSON round-trip is byte-identical to the pre-enum form
+        json_str = json.dumps(d)
+        assert '"kind": "step"' in json_str
