@@ -18,8 +18,8 @@ subtasks:
 - T021
 - T022
 - T023
-agent: "claude:fable-5:python-pedro:implementer"
-shell_pid: "83268"
+agent: "claude:fable-5:reviewer-renata:reviewer"
+shell_pid: "85818"
 history:
 - '2026-06-12: created by /spec-kitty.tasks'
 agent_profile: python-pedro
@@ -117,3 +117,6 @@ Planning base and merge target are both `main`. Execution worktree/branch come f
 ## Activity Log
 
 - 2026-06-12T11:58:07Z – claude:fable-5:python-pedro:implementer – shell_pid=83268 – Assigned agent via action command
+- 2026-06-12T12:35:15Z – claude:fable-5:python-pedro:implementer – shell_pid=83268 – WP04 done: husk fall-through guards at 3 boundaries + doctor workspaces check. Red test committed first (58a361bc7, 13 failed), green at 0ace55423. Verification: husk suite 23 passed (exit 0); post-rebase sanity 73 passed (exit 0); broad sweep 9 failed/7059 passed — all 9 confirmed pre-existing at base (wrapper_delegation x2 cwd-dependent, readme_governance x4, upgrade dry-run contract, command_renderer snapshots x2). ruff exit 0; mypy --strict 5 files exit 0; terminology guard 2 passed. Changed-line coverage 92.2%. Out-of-scope edits: cli/commands/doctor.py (doctor checks register as typer subcommands there; no registry module; not owned by WP02/03/05) + 3 test fixture files (fabricated worktrees via bare mkdir now rejected by design). Release-notes line needed: pre-existing husks now error; recover with 'spec-kitty doctor workspaces --fix'.
+- 2026-06-12T12:40:08Z – user – shell_pid=83268 – WP04 complete at 7a1ac457f (lane-c, rebased on mission branch). Gates: husk suite test_workspace_husk_resolution_1833.py -x -q = 23 passed (exit 0); agent suites = 258 passed, 2 failed (env-only: test_wrapper_delegation implement tests fail only when pytest cwd is inside a worktree, pre-existing is_worktree_context guard; both pass from /tmp cwd, exit 0); doctor suites -k doctor = 75 passed (exit 0); diff-scoped ruff = exit 0; mypy --strict on 5 changed src files = no issues (exit 0), zero new suppressions; terminology guard = 2 passed (exit 0). doctor.py edit = minimal pre-authorized T022 registration (not owned by WP02/03/05).
+- 2026-06-12T12:41:06Z – claude:fable-5:reviewer-renata:reviewer – shell_pid=85818 – Started review via action command
