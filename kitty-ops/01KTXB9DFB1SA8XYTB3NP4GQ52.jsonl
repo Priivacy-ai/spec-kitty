@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KTXB9DFB1SA8XYTB3NP4GQ52", "profile_id": "architect-alphonso", "action": "audit", "request_text": "Review GitHub PR #1869 (suppress localhost-only Sonar HTTP hotspots) and report findings", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "07efa4b800c77a5b", "governance_context_available": true, "started_at": "2026-06-12T07:21:07.177675+00:00"}
+{"event": "completed", "invocation_id": "01KTXB9DFB1SA8XYTB3NP4GQ52", "completed_at": "2026-06-12T07:22:41.613462+00:00", "outcome": "done", "closed_by": "agent"}
