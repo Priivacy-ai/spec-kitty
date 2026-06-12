@@ -1,0 +1,139 @@
+{
+  "mission_slug": "coordination-merge-stabilization-01KTXRVR",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_merge_coord_worktree_resync_1826.py (7 passed): real coord worktree + 2 lanes + baking, unattended merge, AC-B2 index==HEAD; reviewed/approved by reviewer-renata (WP03 review, data-safety verified incl. empirical untracked-survival check)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable-5:reviewer-renata:reviewer (per-WP lane reviews, orchestrated 2026-06-12)",
+      "verified_at": "2026-06-12T12:52:01.767192+00:00",
+      "notes": "Verified during independent per-WP review cycle; see WP approval notes in status event log."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_finalize_tasks_validate_only_readonly.py (2 passed): byte-identical symbolic-ref HEAD + porcelain, empty staged diff, finding parity vs commit phase (WP02 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable-5:reviewer-renata:reviewer (per-WP lane reviews, orchestrated 2026-06-12)",
+      "verified_at": "2026-06-12T12:52:01.767192+00:00",
+      "notes": "Verified during independent per-WP review cycle; see WP approval notes in status event log."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_workspace_husk_resolution_1833.py (23 passed): .git-marker exists/is_husk, structured error naming path+check, zero git calls vs primary (WP04 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable-5:reviewer-renata:reviewer (per-WP lane reviews, orchestrated 2026-06-12)",
+      "verified_at": "2026-06-12T12:52:01.767192+00:00",
+      "notes": "Verified during independent per-WP review cycle; see WP approval notes in status event log."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_husk_claim_is_hard_error_and_leaves_no_lock + test_worktree_add_failure_is_hard_error_with_stderr_and_no_lock: lock-after-create, hard error on worktree-add failure (WP04 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable-5:reviewer-renata:reviewer (per-WP lane reviews, orchestrated 2026-06-12)",
+      "verified_at": "2026-06-12T12:52:01.767192+00:00",
+      "notes": "Verified during independent per-WP review cycle; see WP approval notes in status event log."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "verify_workspace_toplevel in move-task path: rev-parse --show-toplevel == path asserted before git calls; mismatch test incl. empty-.git walk-up case (WP04 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable-5:reviewer-renata:reviewer (per-WP lane reviews, orchestrated 2026-06-12)",
+      "verified_at": "2026-06-12T12:52:01.767192+00:00",
+      "notes": "Verified during independent per-WP review cycle; see WP approval notes in status event log."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_wp06_sc2_paused_mission_blockers.py (13 passed): porcelain residue-free post-finalize, record-analysis preflight unblocked, operator-file negative control, C-003 exact-members pin (WP02 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable-5:reviewer-renata:reviewer (per-WP lane reviews, orchestrated 2026-06-12)",
+      "verified_at": "2026-06-12T12:52:01.767192+00:00",
+      "notes": "Verified during independent per-WP review cycle; see WP approval notes in status event log."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "spec-kitty doctor workspaces live subcommand (executed by reviewer against real repo, found genuine husk); test_fix_never_removes_registered_broken_worktree; 75 doctor tests passed (WP04 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable-5:reviewer-renata:reviewer (per-WP lane reviews, orchestrated 2026-06-12)",
+      "verified_at": "2026-06-12T12:52:01.767192+00:00",
+      "notes": "Verified during independent per-WP review cycle; see WP approval notes in status event log."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_merge_pipeline_ratchets.py (AC-B3 no-raw-update-ref AST ratchet; AC-F1 env-helper ratchet); test_merge_event_payloads_mixed_at_timestamp_neither w/ documented ULID tie-break; AC-F3 propagation tests; AC10 read-surface ratchet in test_execution_context_parity.py verified RED under revert (WP03+WP05 reviews)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable-5:reviewer-renata:reviewer (per-WP lane reviews, orchestrated 2026-06-12)",
+      "verified_at": "2026-06-12T12:52:01.767192+00:00",
+      "notes": "Verified during independent per-WP review cycle; see WP approval notes in status event log."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "gate.py/_resolve_events_path + agent_retrospect.py/_canonical_events_dir route via resolve_status_surface; divergence tests in tests/retrospective/test_canonical_read_surface_1735.py (WP05 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable-5:reviewer-renata:reviewer (per-WP lane reviews, orchestrated 2026-06-12)",
+      "verified_at": "2026-06-12T12:52:01.767192+00:00",
+      "notes": "Verified during independent per-WP review cycle; see WP approval notes in status event log."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_merge_records_baseline_merge_commit_on_target: real 1-lane coord merge, git show <target>:meta.json carries baseline_merge_commit == pre-merge SHA, helpers genuinely unmocked (WP05 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable-5:reviewer-renata:reviewer (per-WP lane reviews, orchestrated 2026-06-12)",
+      "verified_at": "2026-06-12T12:52:01.767192+00:00",
+      "notes": "Verified during independent per-WP review cycle; see WP approval notes in status event log."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "7 issues closed w/ verified SHA citations, 4 re-scoped w/ preserved bodies, umbrella #1878 filed, hygiene log committed 77147767f; 5/5 SHA spot-checks by reviewer (WP01 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable-5:reviewer-renata:reviewer (per-WP lane reviews, orchestrated 2026-06-12)",
+      "verified_at": "2026-06-12T12:52:01.767192+00:00",
+      "notes": "Verified during independent per-WP review cycle; see WP approval notes in status event log."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "SafeCommitBackstopError message names worktree/ref/HEAD SHA/BEHIND-AHEAD + likely cause; same type/error_code, keyword-only structured fields (WP03 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable-5:reviewer-renata:reviewer (per-WP lane reviews, orchestrated 2026-06-12)",
+      "verified_at": "2026-06-12T12:52:01.767192+00:00",
+      "notes": "Verified during independent per-WP review cycle; see WP approval notes in status event log."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_upgrade_command.py: 'Upgrade complete!' absent on --dry-run, present on real run, exit 1 on failure both modes (WP02 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude:fable-5:reviewer-renata:reviewer (per-WP lane reviews, orchestrated 2026-06-12)",
+      "verified_at": "2026-06-12T12:52:01.767192+00:00",
+      "notes": "Verified during independent per-WP review cycle; see WP approval notes in status event log."
+    }
+  ],
+  "negative_invariants": []
+}

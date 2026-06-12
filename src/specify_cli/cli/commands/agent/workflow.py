@@ -91,7 +91,11 @@ from specify_cli.task_utils import (
     set_scalar,
     split_frontmatter,
 )
-from specify_cli.workspace.context import resolve_workspace_for_wp
+from specify_cli.workspace.context import (
+    ResolvedWorkspace,
+    husk_resolution_error,
+    resolve_workspace_for_wp,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1214,6 +1218,12 @@ def implement(
         workspace_path = workspace.worktree_path
         status_execution_mode = "direct_repo" if workspace.resolution_kind == "repo_root" else "worktree"
 
+        # #1833: a husk (directory without .git) is absent-but-blocked — fail
+        # with a structured error instead of silently recreating on top.
+        if workspace.is_husk:
+            print(f"Error: {husk_resolution_error(workspace_path)}")
+            raise typer.Exit(1)
+
         # Ensure workspace exists (delegate to top-level implement for creation)
         if not workspace.exists:
             cwd = Path.cwd().resolve()
@@ -1978,6 +1988,82 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> str | None:
     return None
 
 
+def _prepare_review_workspace(
+    workspace: ResolvedWorkspace,
+    main_repo_root: Path,
+    wp_id: str,
+    agent: str | None,
+) -> ResolvedWorkspace:
+    """Validate/create the review workspace, then acquire review isolation.
+
+    Order is load-bearing (#1833 AC-D2): ``ReviewLock`` persists its lock file
+    INSIDE the workspace (``.spec-kitty/review-lock.json``), so acquiring it
+    before the worktree exists used to mint a husk directory. The workspace
+    existence/creation block must succeed first; only then is the lock
+    acquired, and a failed ``git worktree add`` is a hard error (not a
+    warning), leaving no lock behind.
+    """
+    workspace_path = workspace.worktree_path
+
+    # A husk (directory without a .git entry) is absent-but-blocked: never
+    # silently recreate a worktree on top of it — that hides the anomaly.
+    if workspace.is_husk:
+        print(f"Error: {husk_resolution_error(workspace_path)}")
+        raise typer.Exit(1)
+
+    if not workspace.exists:
+        # Ensure .worktrees directory exists
+        worktrees_dir = main_repo_root / ".worktrees"
+        worktrees_dir.mkdir(parents=True, exist_ok=True)
+
+        branch_name = workspace.branch_name
+        if branch_name is None:
+            print(f"Error: cannot create review workspace {workspace_path} for {wp_id}: resolved workspace has no branch name.")
+            raise typer.Exit(1)
+        branch_exists = subprocess.run(
+            ["git", "rev-parse", "--verify", branch_name],
+            cwd=main_repo_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        if branch_exists.returncode == 0:
+            worktree_cmd = ["git", "worktree", "add", str(workspace_path), branch_name]
+        else:
+            worktree_cmd = ["git", "worktree", "add", str(workspace_path), "-b", branch_name]
+        result = subprocess.run(worktree_cmd, cwd=main_repo_root, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
+
+        if result.returncode != 0:
+            print(
+                f"Error: could not create review workspace {workspace_path} for {wp_id}: "
+                f"`{' '.join(worktree_cmd)}` failed: {result.stderr.strip()}"
+            )
+            raise typer.Exit(1)
+
+        print(f"✓ Created workspace: {workspace_path}")
+        if not workspace.exists:
+            print(f"Error: workspace creation reported success but {workspace_path} is not a git worktree.")
+            raise typer.Exit(1)
+
+    # Concurrent review isolation: acquire review lock or apply env-var
+    # isolation — only after the workspace is proven to exist.
+    from specify_cli.review.lock import ReviewLock, ReviewLockError, _get_isolation_config, _apply_env_var_isolation
+
+    isolation_config = _get_isolation_config(main_repo_root)
+    if isolation_config and isolation_config.get("strategy") == "env_var":
+        _apply_env_var_isolation(isolation_config, agent or "unknown", wp_id)
+    else:
+        try:
+            ReviewLock.acquire(Path(workspace.worktree_path), wp_id, agent or "unknown")
+        except ReviewLockError as e:
+            print(f"[red]{e}[/red]")
+            raise typer.Exit(1) from e
+
+    return workspace
+
+
 @app.command(name="review")
 def review(
     wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
@@ -2224,48 +2310,8 @@ def review(
             print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow review will not move it to in_review.")
 
         workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
+        workspace = _prepare_review_workspace(workspace, main_repo_root, normalized_wp_id, agent)
         workspace_path = workspace.worktree_path
-
-        # Concurrent review isolation: acquire review lock or apply env-var isolation
-        from specify_cli.review.lock import ReviewLock, ReviewLockError, _get_isolation_config, _apply_env_var_isolation
-
-        isolation_config = _get_isolation_config(main_repo_root)
-        if isolation_config and isolation_config.get("strategy") == "env_var":
-            _apply_env_var_isolation(isolation_config, agent or "unknown", normalized_wp_id)
-        else:
-            try:
-                ReviewLock.acquire(Path(workspace_path), normalized_wp_id, agent or "unknown")
-            except ReviewLockError as e:
-                print(f"[red]{e}[/red]")
-                raise typer.Exit(1)
-
-        # Ensure workspace exists (attach to the real branch if needed).
-        if not workspace.exists:
-            # Ensure .worktrees directory exists
-            worktrees_dir = main_repo_root / ".worktrees"
-            worktrees_dir.mkdir(parents=True, exist_ok=True)
-
-            branch_name = workspace.branch_name
-            branch_exists = subprocess.run(
-                ["git", "rev-parse", "--verify", branch_name],
-                cwd=main_repo_root,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                check=False,
-            )
-            if branch_exists.returncode == 0:
-                worktree_cmd = ["git", "worktree", "add", str(workspace_path), branch_name]
-            else:
-                worktree_cmd = ["git", "worktree", "add", str(workspace_path), "-b", branch_name]
-            result = subprocess.run(worktree_cmd, cwd=main_repo_root, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
-
-            if result.returncode != 0:
-                print(f"Warning: Could not create workspace: {result.stderr}")
-            else:
-                print(f"✓ Created workspace: {workspace_path}")
-                workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
 
         # Resolve git context (branch name, base branch, commit count)
         review_ctx = _resolve_review_context(workspace_path, main_repo_root, mission_slug, normalized_wp_id, wp.frontmatter)

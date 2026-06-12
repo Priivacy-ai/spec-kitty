@@ -48,6 +48,7 @@ from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
+from specify_cli.git.ref_advance import advance_branch_ref
 from specify_cli.git.sparse_checkout import (
     SparseCheckoutPreflightError,
     require_no_sparse_checkout,
@@ -990,12 +991,9 @@ def _write_mission_number_to_branch(
             text=True,
             check=True,
         ).stdout.strip()
-        _subprocess.run(
-            ["git", "update-ref", f"refs/heads/{mission_branch}", new_sha],
-            cwd=str(main_repo),
-            capture_output=True,
-            check=True,
-        )
+        # Fast-forward the mission branch ref, resyncing any worktree (e.g.
+        # the coordination worktree) that has it checked out (#1826 / AC-B2).
+        advance_branch_ref(main_repo, mission_branch, new_sha)
         return True
     finally:
         _subprocess.run(

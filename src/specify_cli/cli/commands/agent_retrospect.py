@@ -23,6 +23,7 @@ from rich.table import Table
 from typing_extensions import Annotated
 
 from specify_cli.context.mission_resolver import AmbiguousHandleError, MissionNotFoundError, ResolvedMission, resolve_mission
+from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.core.paths import locate_project_root
 from specify_cli.doctrine_synthesizer import (
     SynthesisResult,
@@ -205,8 +206,37 @@ def _empty_synthesis_result(*, dry_run: bool) -> SynthesisResult:
     )
 
 
-def _mission_artifacts_sufficient_for_empty_record(feature_dir: Path) -> bool:
-    """Return True when mission artifacts can support an empty retrospective."""
+def _canonical_events_dir(repo_root: Path, mission_slug: str, fallback_dir: Path) -> Path:
+    """Resolve the directory holding the canonical ``status.events.jsonl`` (FR-009 / #1735).
+
+    Under coordination topology the authoritative event log lives in the
+    coordination worktree, not the primary checkout's feature dir — reading
+    events through ``resolved.feature_dir`` directly is exactly the #1735
+    split-brain bug class. Route through the single canonical surface
+    resolver (:func:`resolve_status_surface`, C-005); fall back to
+    *fallback_dir* only when the surface cannot be resolved (e.g.
+    ``meta.json`` absent for a legacy mission).
+    """
+    try:
+        surface: Path = resolve_status_surface(repo_root, mission_slug)
+    except (FileNotFoundError, ValueError):
+        return fallback_dir
+    return surface.parent
+
+
+def _mission_artifacts_sufficient_for_empty_record(
+    feature_dir: Path,
+    *,
+    repo_root: Path,
+    mission_slug: str,
+) -> bool:
+    """Return True when mission artifacts can support an empty retrospective.
+
+    ``feature_dir`` anchors the *artifact* checks (spec/plan/tasks live in the
+    primary checkout); the *status events* are read through the canonical
+    status surface (FR-009 / #1735), which diverges from ``feature_dir`` under
+    coordination topology.
+    """
     for required in ("spec.md", "plan.md", "tasks.md"):
         if not (feature_dir / required).is_file():
             return False
@@ -214,7 +244,7 @@ def _mission_artifacts_sufficient_for_empty_record(feature_dir: Path) -> bool:
     if not tasks_dir.is_dir() or not list(tasks_dir.glob("WP*.md")):
         return False
     try:
-        events = read_events(feature_dir)
+        events = read_events(_canonical_events_dir(repo_root, mission_slug, feature_dir))
         if not events:
             return False
         snapshot = reduce_status_events(events)
@@ -430,7 +460,11 @@ def synthesize_cmd(
 
         # --fabricate-empty: legacy auto-fabrication path
         feature_dir = resolved.feature_dir
-        if feature_dir is not None and _mission_artifacts_sufficient_for_empty_record(feature_dir):
+        if feature_dir is not None and _mission_artifacts_sufficient_for_empty_record(
+            feature_dir,
+            repo_root=repo_root,
+            mission_slug=resolved.mission_slug,
+        ):
             try:
                 retro_file, _gen_record = _create_empty_retrospective_record(
                     repo_root=repo_root,

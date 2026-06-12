@@ -179,6 +179,13 @@ def _bootstrap_coord_mission(
     (feature_dir / "status.events.jsonl").write_text(
         json.dumps(done_event) + "\n", encoding="utf-8"
     )
+    # Derived status snapshot (tracked alongside the event log in real
+    # missions; the bookkeeping safe_commit stages it, so it must exist).
+    (feature_dir / "status.json").write_text(
+        json.dumps({"event_count": 1, "work_packages": {"WP01": {"lane": "done"}}})
+        + "\n",
+        encoding="utf-8",
+    )
 
     if with_tracked_worktrees_junk:
         # Tracked ``.worktrees/<m>-coord/…`` junk (the F-07 pollution).
@@ -208,53 +215,69 @@ def _bootstrap_coord_mission(
 
 
 @contextlib.contextmanager
-def _real_merge_external_mocks():
+def _real_merge_external_mocks(*, real_baseline_recording: bool = False):
     """Mock only the side effects that touch state OUTSIDE git.
 
     The real ``merge_lane_to_mission``, ``merge_mission_to_target``,
     ``_merge_branch_into`` and the real lane-skip decision are NOT mocked —
     they execute real ``git merge`` so the #1772 zero-diff squash bug
     reproduces (or is fixed).
+
+    With ``real_baseline_recording=True`` the #1827 baseline-recording flow is
+    ALSO left real (``_record_baseline_merge_commit``, the bookkeeping
+    ``safe_commit``, and ``_assert_baseline_merge_commit_on_target``) so the
+    FR-010 / AC-A3 regression test can assert the recorded
+    ``baseline_merge_commit`` lands in the target branch's committed
+    ``meta.json``.
     """
-    patches = [
-        patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),
-        patch("specify_cli.cli.commands.merge._record_merged_wps_done_for_merge"),
-        patch("specify_cli.cli.commands.merge._assert_merged_wps_reached_done"),
-        patch("specify_cli.cli.commands.merge._assert_merged_wps_done_on_target"),
-        patch("specify_cli.cli.commands.merge._record_baseline_merge_commit", return_value=None),
-        patch("specify_cli.cli.commands.merge._assert_baseline_merge_commit_on_target"),
-        patch("specify_cli.cli.commands.merge.safe_commit"),
-        patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"),
-        patch("specify_cli.cli.commands.merge.emit_mission_closed"),
-        patch("specify_cli.cli.commands.merge._emit_merge_diff_summary"),
-        patch("specify_cli.cli.commands.merge.run_check"),
-        patch("specify_cli.cli.commands.merge.require_no_sparse_checkout"),
-        patch("specify_cli.cli.commands.merge._enforce_git_preflight"),
-        patch("specify_cli.cli.commands.merge._enforce_review_artifact_consistency"),
-        patch("specify_cli.cli.commands.merge._enforce_canonical_status_history"),
-        patch("specify_cli.cli.commands.merge._warn_or_confirm_hollow_reviews"),
-        patch("specify_cli.cli.commands.merge._bake_mission_number_into_mission_branch", return_value=None),
-        patch("specify_cli.cli.commands.merge._refresh_primary_checkout_after_merge"),
+    baseline_recording_targets = {
+        "specify_cli.cli.commands.merge._record_baseline_merge_commit",
+        "specify_cli.cli.commands.merge._assert_baseline_merge_commit_on_target",
+        "specify_cli.cli.commands.merge.safe_commit",
+    }
+    patch_specs: list[tuple[str, dict[str, object]]] = [
+        ("specify_cli.cli.commands.merge._mark_wp_merged_done", {}),
+        ("specify_cli.cli.commands.merge._record_merged_wps_done_for_merge", {}),
+        ("specify_cli.cli.commands.merge._assert_merged_wps_reached_done", {}),
+        ("specify_cli.cli.commands.merge._assert_merged_wps_done_on_target", {}),
+        ("specify_cli.cli.commands.merge._record_baseline_merge_commit", {"return_value": None}),
+        ("specify_cli.cli.commands.merge._assert_baseline_merge_commit_on_target", {}),
+        ("specify_cli.cli.commands.merge.safe_commit", {}),
+        ("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled", {}),
+        ("specify_cli.cli.commands.merge.emit_mission_closed", {}),
+        ("specify_cli.cli.commands.merge._emit_merge_diff_summary", {}),
+        ("specify_cli.cli.commands.merge.run_check", {}),
+        ("specify_cli.cli.commands.merge.require_no_sparse_checkout", {}),
+        ("specify_cli.cli.commands.merge._enforce_git_preflight", {}),
+        ("specify_cli.cli.commands.merge._enforce_review_artifact_consistency", {}),
+        ("specify_cli.cli.commands.merge._enforce_canonical_status_history", {}),
+        ("specify_cli.cli.commands.merge._warn_or_confirm_hollow_reviews", {}),
+        ("specify_cli.cli.commands.merge._bake_mission_number_into_mission_branch", {"return_value": None}),
+        ("specify_cli.cli.commands.merge._refresh_primary_checkout_after_merge", {}),
         # Post-merge working-tree invariant fires on test-only files; the merge
         # has already run through real git by the time this would raise.
-        patch("specify_cli.cli.commands.merge._classify_porcelain_lines", return_value=([], 0)),
-        patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
-        patch("specify_cli.policy.config.load_policy_config"),
-        patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
+        ("specify_cli.cli.commands.merge._classify_porcelain_lines", {"return_value": ([], 0)}),
+        ("specify_cli.policy.merge_gates.evaluate_merge_gates", {}),
+        ("specify_cli.policy.config.load_policy_config", {}),
+        ("specify_cli.cli.commands.merge.has_remote", {"return_value": False}),
     ]
     with contextlib.ExitStack() as stack:
-        ms = [stack.enter_context(p) for p in patches]
+        mocks: dict[str, MagicMock] = {}
+        for target, kwargs in patch_specs:
+            if real_baseline_recording and target in baseline_recording_targets:
+                continue
+            mocks[target] = stack.enter_context(patch(target, **kwargs))
         gate_eval = MagicMock()
         gate_eval.overall_pass = True
         gate_eval.gates = []
-        ms[19].return_value = gate_eval
+        mocks["specify_cli.policy.merge_gates.evaluate_merge_gates"].return_value = gate_eval
         policy = MagicMock()
         policy.merge_gates = []
-        ms[20].return_value = policy
+        mocks["specify_cli.policy.config.load_policy_config"].return_value = policy
         stale_report = MagicMock()
         stale_report.findings = []
-        ms[10].return_value = stale_report
-        yield ms
+        mocks["specify_cli.cli.commands.merge.run_check"].return_value = stale_report
+        yield mocks
 
 
 # ---------------------------------------------------------------------------
@@ -343,6 +366,72 @@ def test_fresh_merge_integrates_lane_code(tmp_path: Path) -> None:
     assert _file_on_branch(tmp_path, "main", lane_code), (
         "healthy-merge regression: fresh merge did not integrate the lane code "
         "onto the target branch."
+    )
+
+
+# ---------------------------------------------------------------------------
+# T027 (WP05, coordination-merge-stabilization-01KTXRVR) — FR-010 / AC-A3:
+# baseline_merge_commit recording regression (#1827)
+# ---------------------------------------------------------------------------
+
+
+def test_merge_records_baseline_merge_commit_on_target(tmp_path: Path) -> None:
+    """#1827 / FR-010 / AC-A3: a coord-topology merge must land
+    ``baseline_merge_commit`` in the target branch's committed ``meta.json``.
+
+    The #1827 defect was post-merge baseline validation running before
+    ``_record_baseline_merge_commit`` had written the baseline; fixed in rc42
+    (``9c8bff06f``) but never pinned by a regression test. This test runs a
+    REAL coord-topology merge with the baseline-recording flow UNMOCKED
+    (``_record_baseline_merge_commit`` → bookkeeping ``safe_commit`` →
+    ``_assert_baseline_merge_commit_on_target``) and asserts via
+    ``git show <target>:kitty-specs/<slug>/meta.json`` that the committed
+    metadata carries ``baseline_merge_commit`` equal to the target-branch
+    baseline SHA captured before the mission landed.
+
+    Known bounded behavior (NOT fixed here — #1666 umbrella scope): if the
+    merge crashes BETWEEN ``_record_baseline_merge_commit`` writing the
+    working-tree ``meta.json`` and the bookkeeping ``safe_commit`` landing it
+    on the target branch, a re-run finds the baseline already recorded in the
+    working tree (the record step is a no-op on an existing value) while the
+    committed history still lacks it until the re-run's bookkeeping commit
+    succeeds. This test pins only the happy-path durability invariant; do not
+    widen it to the crash-window re-run edge in this WP.
+    """
+    _init_git_repo(tmp_path)
+    _bootstrap_coord_mission(tmp_path)
+
+    # The baseline the merge must record: the target branch tip BEFORE the
+    # mission lands (merge.py captures it via ``git rev-parse <target>``
+    # before the mission→target merge).
+    pre_merge_target_sha = _git(tmp_path, "rev-parse", "main").stdout.strip()
+
+    with _real_merge_external_mocks(real_baseline_recording=True):
+        _run_lane_based_merge(
+            repo_root=tmp_path,
+            mission_slug=MISSION_SLUG,
+            push=False,
+            delete_branch=False,
+            remove_worktree=False,
+            strategy=MergeStrategy.SQUASH,
+            allow_sparse_checkout=True,
+        )
+
+    committed = _git(
+        tmp_path, "show", f"main:kitty-specs/{MISSION_SLUG}/meta.json"
+    ).stdout
+    committed_meta = json.loads(committed)
+    recorded = committed_meta.get("baseline_merge_commit")
+    assert recorded, (
+        "#1827 regression: the committed meta.json on the target branch does "
+        "not carry baseline_merge_commit — post-merge review cannot anchor "
+        f"(MISSION_REVIEW_MODE_MISMATCH). Committed meta: {committed_meta!r}"
+    )
+    assert recorded == pre_merge_target_sha, (
+        "#1827 regression: baseline_merge_commit on the target branch is not "
+        "the pre-merge target baseline SHA.\n"
+        f"  recorded:  {recorded!r}\n"
+        f"  expected:  {pre_merge_target_sha!r}"
     )
 
 

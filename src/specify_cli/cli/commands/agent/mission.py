@@ -99,6 +99,8 @@ def _stage_finalize_artifacts_in_coord_worktree(
     files_to_commit: list[Path],
     coord_worktree: Path,
     repo_root: Path,
+    *,
+    primary_paths_created_this_invocation: frozenset[Path] | None = None,
 ) -> list[Path]:
     """Copy finalize artifacts from the primary checkout into the coordination
     worktree for staging, returning the coord-worktree paths to commit.
@@ -108,25 +110,63 @@ def _stage_finalize_artifacts_in_coord_worktree(
     by the transactional status emitter, which already committed the bootstrap's
     lane-state events into the coord worktree. Copying the primary checkout's
     stale copies over them would clobber the seeded lane state (#1589).
+
+    WP02 / FR-006 / A-r1 (#1814 residual): after successful staging the
+    primary-checkout copies of artifacts the calling invocation itself
+    materialized (``primary_paths_created_this_invocation``) are removed —
+    they only ever live on the coordination branch, so leaving them behind is
+    untracked residue that trips the DIRTY_WORKTREE gate. Scoping rules
+    (research R6):
+
+    * Only paths the caller proves were created this invocation are eligible;
+      pre-existing files (operator-authored or earlier planning steps') are
+      NEVER deleted.
+    * Defensive check: a primary copy whose bytes diverged from the staged
+      coord copy is skipped with a warning instead of deleted.
+    * ``COORD_OWNED_STATUS_FILES`` is untouched (C-003 — no widening).
     """
+    # FR-035: finalize must never copy/stage paths that are already under
+    # the repository's .worktrees/ tree. Otherwise a coord-resolved source
+    # path maps to coord_wt/.worktrees/<mission>-coord/... and re-pollutes
+    # the branch with nested worktree content.
+    from specify_cli.cli.commands.merge import path_is_under_worktrees
+
     coord_files: list[Path] = []
+    staged_sources: list[tuple[Path, Path]] = []
     for src in files_to_commit:
         if src.name in COORD_OWNED_STATUS_FILES:
             continue
         rel = src.relative_to(repo_root)
-        # FR-035: finalize must never copy/stage paths that are already under
-        # the repository's .worktrees/ tree. Otherwise a coord-resolved source
-        # path maps to coord_wt/.worktrees/<mission>-coord/... and re-pollutes
-        # the branch with nested worktree content.
-        from specify_cli.cli.commands.merge import path_is_under_worktrees
-
         if path_is_under_worktrees(rel):
             continue
         dst = coord_worktree / rel
         if src.exists():
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
+            staged_sources.append((src, dst))
         coord_files.append(dst)
+
+    if primary_paths_created_this_invocation:
+        for src, dst in staged_sources:
+            if src not in primary_paths_created_this_invocation:
+                continue  # R6: pre-existing path — never delete.
+            if not src.exists() or not dst.exists():
+                continue
+            try:
+                if src.read_bytes() != dst.read_bytes():
+                    logger.warning(
+                        "finalize residue cleanup skipped %s: primary copy "
+                        "diverged from the staged coordination copy",
+                        src.relative_to(repo_root),
+                    )
+                    continue
+                src.unlink()
+            except OSError as cleanup_exc:
+                logger.warning(
+                    "finalize residue cleanup failed for %s: %s",
+                    src.relative_to(repo_root),
+                    cleanup_exc,
+                )
     return coord_files
 
 
@@ -226,8 +266,9 @@ def _emit_check_prerequisites_result(
         for error in cast(list[str], validation_result["errors"]):
             console.print(f"   • {error}")
 
-    for warning in cast(list[str], validation_result["warnings"]):
-        if warning == validation_result["warnings"][0]:
+    warnings = cast(list[str], validation_result["warnings"])
+    for warning in warnings:
+        if warning == warnings[0]:
             console.print("\n[yellow]Warnings:[/yellow]")
         console.print(f"   • {warning}")
 
@@ -539,6 +580,8 @@ def _planning_commit_worktree(
     mission_slug: str,
     placement: CommitTarget,
     paths: tuple[Path, ...],
+    *,
+    primary_paths_created_this_invocation: frozenset[Path] | None = None,
 ) -> tuple[Path, tuple[Path, ...]]:
     """Resolve the worktree a planning commit lands in for ``placement``.
 
@@ -576,7 +619,10 @@ def _planning_commit_worktree(
         return repo_root, paths
 
     coord_paths = _stage_finalize_artifacts_in_coord_worktree(
-        list(paths), coord_wt, repo_root
+        list(paths),
+        coord_wt,
+        repo_root,
+        primary_paths_created_this_invocation=primary_paths_created_this_invocation,
     )
     return coord_wt, tuple(coord_paths)
 
@@ -2459,7 +2505,14 @@ def finalize_tasks(
                     "[bold]--target-branch <ref>[/bold] to override."
                 )
             raise typer.Exit(1) from exc
-        _ensure_branch_checked_out(repo_root, target_branch, json_output=json_output)
+        # WP02 / FR-002 / AC-C1 (#1861 Part 1): --validate-only is READ-ONLY.
+        # The eager checkout is a commit-phase positioning concern only; the
+        # validate path anchors every read on the primary feature dir (post
+        # WP07), so it has no dependency on the target branch being checked
+        # out. Gating (not deleting) the shim keeps commit-phase behavior
+        # byte-for-byte unchanged (C-001 non-goal: shim retirement is #1666).
+        if not validate_only:
+            _ensure_branch_checked_out(repo_root, target_branch, json_output=json_output)
         if not json_output:
             console.print(f"[bold cyan]Branch:[/bold cyan] {target_branch} (target for this mission)")
 
@@ -2487,6 +2540,18 @@ def finalize_tasks(
         spec_requirement_ids = _parse_requirement_ids_from_spec_md(spec_content)
         all_spec_requirement_ids = set(spec_requirement_ids["all"])
         functional_spec_requirement_ids = set(spec_requirement_ids["functional"])
+
+        # WP02 / FR-006 / A-r1 (#1814 residual): snapshot which primary-side
+        # files already exist BEFORE any finalize writer runs. Files finalize
+        # materializes during this invocation (lanes.json, scaffolded
+        # matrices, …) that the coordination stager then commits to the coord
+        # branch are pure residue on the primary checkout — the stager removes
+        # exactly this set after staging (research R6 scoping: NEVER a path
+        # that pre-existed this invocation, e.g. operator-authored files or
+        # the WP/task inputs authored by earlier planning steps).
+        _preexisting_primary_files: set[Path] = {
+            path for path in planning_dir.rglob("*") if path.is_file()
+        }
 
         # FR-009 / WP09 (closes #1163): scaffold ``issue-matrix.md`` whenever
         # ``spec.md`` references one or more GitHub issues (e.g. ``#1298``).
@@ -3324,8 +3389,21 @@ def finalize_tasks(
                 # shared resolver routes a coordination placement to the coord
                 # worktree (copying artifacts across, skipping #1589 status files)
                 # and a flattened/primary placement to the main checkout.
+                # WP02 / FR-006 / A-r1 (#1814 residual): the artifacts this
+                # finalize invocation materialized on the primary checkout are
+                # residue once staged on the coordination branch — the stager
+                # removes exactly those (and nothing pre-existing, R6).
+                _primary_created = frozenset(
+                    path
+                    for path in files_to_commit
+                    if path not in _preexisting_primary_files
+                )
                 _commit_worktree_root, _commit_files = _planning_commit_worktree(
-                    repo_root, mission_slug, placement, tuple(files_to_commit)
+                    repo_root,
+                    mission_slug,
+                    placement,
+                    tuple(files_to_commit),
+                    primary_paths_created_this_invocation=_primary_created,
                 )
                 commit_msg = f"Add tasks for feature {mission_slug}"
                 commit_success = safe_commit(

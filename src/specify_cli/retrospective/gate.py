@@ -183,6 +183,32 @@ def _charter_authorizes_autonomous_skip(repo_root: Path) -> str | None:
 # ---------------------------------------------------------------------------
 
 
+def _resolve_events_path(*, feature_dir: Path, repo_root: Path) -> Path:
+    """Resolve the canonical ``status.events.jsonl`` path (FR-009 / #1735).
+
+    Under coordination topology the authoritative event log lives in the
+    coordination worktree, NOT in the primary checkout's feature dir — the
+    passed ``feature_dir`` is identity-only. Reading events through it
+    directly is exactly the #1735 split-brain bug class, so the gate routes
+    the read through the single canonical surface resolver
+    (:func:`specify_cli.coordination.surface_resolver.resolve_status_surface`,
+    C-005). Falls back to the passed ``feature_dir`` only when the surface
+    cannot be resolved (e.g. ``meta.json`` absent for a legacy/test mission).
+    """
+    # Imported lazily to keep the retrospective package importable without
+    # dragging in the coordination package at module-import time (mirrors
+    # the lazy-import convention used by status.aggregate for this resolver).
+    from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415
+        resolve_status_surface,
+    )
+
+    try:
+        surface: Path = resolve_status_surface(repo_root, feature_dir.name)
+    except (FileNotFoundError, ValueError):
+        return feature_dir / "status.events.jsonl"
+    return surface
+
+
 def _read_retrospective_events(events_path: Path) -> list[dict[str, object]]:
     """Read status.events.jsonl and return only retrospective events.
 
@@ -564,8 +590,10 @@ def is_completion_allowed(
 
     Args:
         mission_id: Canonical ULID mission identity.  Used for logging.
-        feature_dir: Path to ``kitty-specs/<slug>/``.  Event log lives at
-            ``feature_dir/status.events.jsonl``.
+        feature_dir: Path to ``kitty-specs/<slug>/`` (identity anchor only).
+            The event log is resolved through the canonical status surface
+            (FR-009 / #1735) — under coordination topology it lives in the
+            coordination worktree, not at ``feature_dir/status.events.jsonl``.
         repo_root: Used to resolve the charter for mode detection and the
             autonomous-skip authorization check.
         mode_override: Test-only injection.  Pass ``None`` in production so
@@ -593,8 +621,10 @@ def is_completion_allowed(
         "gate.is_completion_allowed: mission=%s mode=%s", mission_id, mode.value
     )
 
-    # 2. Read event log (filtered to retrospective events only).
-    events_path = feature_dir / "status.events.jsonl"
+    # 2. Read event log (filtered to retrospective events only) through the
+    # canonical status surface (FR-009 / #1735): under coordination topology
+    # the authoritative log lives in the coord worktree, not feature_dir.
+    events_path = _resolve_events_path(feature_dir=feature_dir, repo_root=repo_root)
     events = _read_retrospective_events(events_path)
 
     # 3. Find the latest terminal event.

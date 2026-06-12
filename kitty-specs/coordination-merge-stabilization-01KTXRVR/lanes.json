@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "mission_slug": "coordination-merge-stabilization-01KTXRVR",
+  "mission_id": "01KTXRVR2HPMKGMH20K18JZ1SA",
+  "mission_branch": "kitty/mission-coordination-merge-stabilization-01KTXRVR",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission.py",
+        "src/specify_cli/cli/commands/upgrade.py",
+        "tests/specify_cli/cli/commands/test_finalize_tasks_validate_only_readonly.py",
+        "tests/specify_cli/test_wp06_sc2_paused_mission_blockers.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/merge.py",
+        "src/specify_cli/coordination/status_transition.py",
+        "src/specify_cli/git/commit_helpers.py",
+        "src/specify_cli/git/ref_advance.py",
+        "src/specify_cli/lanes/merge.py",
+        "tests/architectural/test_merge_pipeline_ratchets.py",
+        "tests/specify_cli/cli/commands/test_merge_coord_worktree_resync_1826.py",
+        "tests/status/test_event_log_merge.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/status/doctor_husks.py",
+        "src/specify_cli/workspace/context.py",
+        "tests/specify_cli/cli/commands/test_workspace_husk_resolution_1833.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent_retrospect.py",
+        "src/specify_cli/retrospective/gate.py",
+        "tests/architectural/test_execution_context_parity.py",
+        "tests/specify_cli/cli/commands/test_merge_coord_topology_1772.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/development/3-2-coord-merge-issue-hygiene-log.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-06-12T11:40:43.372976+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01"
+  ]
+}

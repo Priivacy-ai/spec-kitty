@@ -204,3 +204,345 @@ class TestImplementClaimNoPlanningArtifactSplit:
         )
         assert "kitty-specs/m/status.events.jsonl" in paths
         assert "kitty-specs/m/status.json" in paths
+
+
+# ---------------------------------------------------------------------------
+# WP02 / FR-006 / A-r1 (#1814 residual) — finalize leaves no primary residue
+# ---------------------------------------------------------------------------
+#
+# Mission coordination-merge-stabilization-01KTXRVR, AC-A1: a REAL
+# coordination-topology finalize-tasks run must leave `git status --porcelain`
+# on the primary checkout free of planning-artifact residue created by the
+# stager (lanes.json / matrices), so a subsequent record-analysis is not
+# refused with DIRTY_WORKTREE. Cleanup is scoped to paths finalize itself
+# materialized this invocation (research R6): an operator-authored untracked
+# file planted pre-finalize SURVIVES. Constraint C-003: the fix never widens
+# COORD_OWNED_STATUS_FILES (asserted via the frozen set's exact contents).
+
+_RESIDUE_MISSION_ID = "01T009RESIDUEFREE000000001"
+_RESIDUE_MID8 = _RESIDUE_MISSION_ID[:8]
+
+
+def _scaffold_residue_mission(repo: Path) -> str:
+    """SC6-shaped coordination-topology mission committed on ``main``."""
+    mission_dirname = f"residue-mission-{_RESIDUE_MID8}"
+    feature_dir = repo / "kitty-specs" / mission_dirname
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+
+    meta = {
+        "mission_slug": mission_dirname,
+        "mission_id": _RESIDUE_MISSION_ID,
+        "mid8": _RESIDUE_MID8,
+        "target_branch": "main",
+        "coordination_branch": f"kitty/mission-residue-mission-{_RESIDUE_MID8}",
+    }
+    import json as _json
+
+    (feature_dir / "meta.json").write_text(_json.dumps(meta) + "\n", encoding="utf-8")
+    # Real spec-kitty projects gitignore the worktree root and local sync
+    # state; without this, fixture-environment noise (not stager residue)
+    # would pollute the porcelain assertions.
+    (repo / ".gitignore").write_text(
+        ".worktrees/\n.kittify/sync-state.json\n", encoding="utf-8"
+    )
+    # The WP frontmatter is pre-enriched with the fields finalize-tasks
+    # records on first run (WP07 branch recording et al.) so the finalize
+    # under test performs no frontmatter write — the porcelain check then
+    # isolates exactly the stager-residue class (#1814 / FR-006).
+    branch_strategy = (
+        "Planning artifacts for this mission were generated on main. During "
+        "/spec-kitty.implement this WP may branch from a dependency-specific "
+        "base, but completed changes must merge back into main unless the "
+        "human explicitly redirects the landing branch."
+    )
+    (tasks_dir / "WP01-task.md").write_text(
+        "---\n"
+        "work_package_id: WP01\n"
+        "title: Test WP01\n"
+        "dependencies: []\n"
+        "requirement_refs:\n"
+        "- FR-001\n"
+        "tracker_refs: []\n"
+        "planning_base_branch: main\n"
+        "merge_target_branch: main\n"
+        f"branch_strategy: {branch_strategy}\n"
+        "subtasks: []\n"
+        "history: []\n"
+        "authoritative_surface: src/module_wp01/\n"
+        "execution_mode: code_change\n"
+        "owned_files:\n"
+        "- src/module_wp01/**\n"
+        "tags: []\n"
+        "---\n\n# WP01\n\n## Activity Log\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "spec.md").write_text(
+        "# Spec\n\n"
+        "## Functional Requirements\n"
+        "| ID | Requirement | Acceptance Criteria | Status |\n"
+        "| --- | --- | --- | --- |\n"
+        "| FR-001 | Test requirement | Test passes. | proposed |\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n## Work Package WP01\n\n**Dependencies**: None\n",
+        encoding="utf-8",
+    )
+
+    def git(*args: str) -> None:
+        subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
+
+    git("add", ".")
+    git("commit", "-q", "-m", "seed mission")
+    git("branch", f"kitty/mission-residue-mission-{_RESIDUE_MID8}")
+    return mission_dirname
+
+
+def _run_real_finalize(repo: Path, mission_slug: str):
+    from unittest.mock import patch
+
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.agent.mission import app
+
+    with (
+        patch(
+            "specify_cli.cli.commands.agent.mission.locate_project_root",
+            return_value=repo,
+        ),
+        patch(
+            "specify_cli.cli.commands.agent.mission.run_git_preflight",
+            return_value=type("P", (), {"passed": True})(),
+        ),
+        patch(
+            "specify_cli.cli.commands.agent.mission.is_saas_sync_enabled",
+            return_value=False,
+        ),
+        patch(
+            "specify_cli.cli.commands.agent.mission.get_emitter",
+            return_value=type(
+                "E", (), {"generate_causation_id": lambda self: "test-id"}
+            )(),
+        ),
+    ):
+        return CliRunner().invoke(
+            app,
+            ["finalize-tasks", "--mission", mission_slug, "--json"],
+            catch_exceptions=False,
+        )
+
+
+def _porcelain_lines(repo: Path) -> list[str]:
+    out = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return [line for line in out.splitlines() if line.strip()]
+
+
+@pytest.mark.integration
+class TestFinalizeLeavesNoPrimaryResidue:
+    """AC-A1: residue-free finalize on coordination topology (#1814)."""
+
+    @pytest.fixture(autouse=True)
+    def _disable_saas_fanout(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import specify_cli.status.emit as emit_module
+        import specify_cli.sync.feature_flags as feature_flags_module
+
+        monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *a, **k: None)
+        # Disable SaaS sync at the source module: late `from .feature_flags
+        # import is_saas_sync_enabled` imports inside the dossier pipeline must
+        # also see it disabled, or environment-dependent dossier writes leak
+        # into the porcelain assertions.
+        monkeypatch.setattr(
+            feature_flags_module, "is_saas_sync_enabled", lambda *a, **k: False
+        )
+
+    def test_finalize_leaves_porcelain_free_of_stager_residue(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from tests.git.protected_target_fixtures import build_protected_target_repo
+
+        repo = build_protected_target_repo(tmp_path).repo_root
+        mission_slug = _scaffold_residue_mission(repo)
+
+        result = _run_real_finalize(repo, mission_slug)
+        assert result.exit_code == 0, f"finalize failed:\n{result.output}"
+
+        # The stager's own outputs must not remain as primary residue. The
+        # coord-owned status log/snapshot are the emitter's (placement-aware
+        # gate already excludes them, WP06); everything else under the mission
+        # tree must be clean — in particular the AC-A1 trio: lanes.json,
+        # tasks/*, and the scaffolded matrices.
+        porcelain = _porcelain_lines(repo)
+        residue = [
+            line
+            for line in porcelain
+            if "kitty-specs/" in line
+            and line.split("/")[-1] not in COORD_OWNED_STATUS_FILES
+        ]
+        assert residue == [], (
+            "finalize left planning-artifact residue on the primary checkout "
+            f"(#1814 regression): {residue}"
+        )
+        for marker in ("lanes.json", "acceptance-matrix.json", "issue-matrix.md"):
+            assert not any(marker in line for line in porcelain), (
+                f"stager residue {marker!r} present in porcelain: {porcelain}"
+            )
+
+    def test_record_analysis_not_blocked_after_finalize(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mission_runtime import resolve_placement_only
+
+        from specify_cli.cli.commands.agent.mission import (
+            _enforce_analysis_report_write_preflight,
+        )
+        from tests.git.protected_target_fixtures import build_protected_target_repo
+
+        repo = build_protected_target_repo(tmp_path).repo_root
+        mission_slug = _scaffold_residue_mission(repo)
+
+        result = _run_real_finalize(repo, mission_slug)
+        assert result.exit_code == 0, f"finalize failed:\n{result.output}"
+
+        placement = resolve_placement_only(repo, mission_slug)
+        assert placement.kind is CommitTargetKind.COORDINATION
+
+        # Absorb fixture-environment noise OUTSIDE the mission tree (identity
+        # regeneration may rewrite .kittify/config.yaml in this hermetic
+        # fixture). This is unrelated to the stager-residue class under test —
+        # the kitty-specs/ tree is deliberately NOT committed here, so any
+        # stager residue still trips the preflight below.
+        subprocess.run(
+            ["git", "add", ".kittify"], cwd=repo, check=True, capture_output=True
+        )
+        subprocess.run(
+            ["git", "commit", "-q", "--allow-empty", "-m", "fixture: env noise"],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+        )
+
+        # record-analysis runs from a (non-protected) working branch; the
+        # dirty-tree preflight must not be tripped by stager residue.
+        subprocess.run(
+            ["git", "checkout", "-q", "-b", "analysis-work"],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+        )
+        monkeypatch.chdir(repo)
+        _enforce_analysis_report_write_preflight(
+            repo, json_output=True, placement_ref=placement
+        )
+
+    def test_operator_authored_untracked_file_survives(
+        self, tmp_path: Path
+    ) -> None:
+        """Negative control (R6 scoping): a pre-finalize operator file in the
+        staged set is NEVER deleted by the residue cleanup."""
+        from tests.git.protected_target_fixtures import build_protected_target_repo
+
+        repo = build_protected_target_repo(tmp_path).repo_root
+        mission_slug = _scaffold_residue_mission(repo)
+
+        operator_file = (
+            repo / "kitty-specs" / mission_slug / "tasks" / "operator-scratch.md"
+        )
+        operator_content = "# operator notes — do not delete\n"
+        operator_file.write_text(operator_content, encoding="utf-8")
+
+        result = _run_real_finalize(repo, mission_slug)
+        assert result.exit_code == 0, f"finalize failed:\n{result.output}"
+
+        assert operator_file.exists(), (
+            "R6 scoping violated: finalize residue cleanup deleted an "
+            "operator-authored pre-existing file"
+        )
+        assert operator_file.read_text(encoding="utf-8") == operator_content
+
+    def test_coord_owned_status_files_not_widened(self) -> None:
+        """C-003: the residue fix is cleanup-at-source; the coord-owned
+        exclusion list keeps exactly its two members."""
+        expected = frozenset({"status.events.jsonl", "status.json"})
+        assert expected == COORD_OWNED_STATUS_FILES
+
+
+class TestStagerResidueCleanupScoping:
+    """Unit pins for the stager's R6 defensive checks (WP02 / T008)."""
+
+    def test_created_path_is_removed_after_staging(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.agent.mission import (
+            _stage_finalize_artifacts_in_coord_worktree,
+        )
+
+        repo = tmp_path / "repo"
+        coord = tmp_path / "coord"
+        src = repo / "kitty-specs" / "m" / "lanes.json"
+        src.parent.mkdir(parents=True)
+        src.write_text('{"lanes": []}\n', encoding="utf-8")
+
+        coord_files = _stage_finalize_artifacts_in_coord_worktree(
+            [src],
+            coord,
+            repo,
+            primary_paths_created_this_invocation=frozenset({src}),
+        )
+
+        assert coord_files == [coord / "kitty-specs" / "m" / "lanes.json"]
+        assert coord_files[0].read_text(encoding="utf-8") == '{"lanes": []}\n'
+        assert not src.exists(), "created-this-invocation residue must be removed"
+
+    def test_preexisting_path_is_never_removed(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.agent.mission import (
+            _stage_finalize_artifacts_in_coord_worktree,
+        )
+
+        repo = tmp_path / "repo"
+        coord = tmp_path / "coord"
+        src = repo / "kitty-specs" / "m" / "tasks" / "WP01-task.md"
+        src.parent.mkdir(parents=True)
+        src.write_text("# WP01\n", encoding="utf-8")
+
+        _stage_finalize_artifacts_in_coord_worktree(
+            [src],
+            coord,
+            repo,
+            primary_paths_created_this_invocation=frozenset(),
+        )
+
+        assert src.exists(), "R6: a pre-existing path must never be deleted"
+
+    def test_diverged_primary_copy_is_skipped_with_warning(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """If the primary bytes do not match the staged coord copy (e.g. a
+        racing writer), cleanup skips the file instead of deleting it."""
+        import specify_cli.cli.commands.agent.mission as mission_module
+
+        repo = tmp_path / "repo"
+        coord = tmp_path / "coord"
+        src = repo / "kitty-specs" / "m" / "lanes.json"
+        src.parent.mkdir(parents=True)
+        src.write_text("original\n", encoding="utf-8")
+
+        def _copy_then_mutate_src(s: object, d: object) -> None:
+            Path(str(d)).write_text("original\n", encoding="utf-8")
+            Path(str(s)).write_text("mutated-after-staging\n", encoding="utf-8")
+
+        monkeypatch.setattr(mission_module.shutil, "copy2", _copy_then_mutate_src)
+
+        mission_module._stage_finalize_artifacts_in_coord_worktree(
+            [src],
+            coord,
+            repo,
+            primary_paths_created_this_invocation=frozenset({src}),
+        )
+
+        assert src.exists(), "diverged primary copy must be skipped, not deleted"
+        assert src.read_text(encoding="utf-8") == "mutated-after-staging\n"

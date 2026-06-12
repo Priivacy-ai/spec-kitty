@@ -21,6 +21,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from specify_cli.git.ref_advance import advance_branch_ref
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json
@@ -245,7 +246,7 @@ def merge_mission_to_target(
 def _branch_exists(repo_root: Path, branch: str) -> bool:
     result = subprocess.run(
         ["git", "rev-parse", "--verify", f"refs/heads/{branch}"],
-        cwd=str(repo_root), capture_output=True, text=True,
+        cwd=str(repo_root), capture_output=True, text=True, env=_make_merge_env(),
     )
     return result.returncode == 0
 
@@ -257,6 +258,7 @@ def _git_config_get(repo_root: Path, key: str) -> str | None:
         cwd=str(repo_root),
         capture_output=True,
         text=True,
+        env=_make_merge_env(),
     )
     if result.returncode != 0:
         return None
@@ -281,6 +283,7 @@ def _ensure_event_log_merge_driver_config(repo_root: Path) -> None:
             capture_output=True,
             text=True,
             check=True,
+            env=_make_merge_env(),
         )
     if _git_config_get(repo_root, "merge.spec-kitty-event-log.driver") != _EVENT_LOG_DRIVER_COMMAND:
         subprocess.run(
@@ -289,13 +292,32 @@ def _ensure_event_log_merge_driver_config(repo_root: Path) -> None:
             capture_output=True,
             text=True,
             check=True,
+            env=_make_merge_env(),
         )
+
+
+def _make_merge_env() -> dict[str, str]:
+    """Single environment authority for the lane-merge pipeline (AC-F1).
+
+    Prepends the current venv's bin directory to PATH so that git's merge
+    driver invocation of ``spec-kitty merge-driver-event-log`` resolves to the
+    same spec-kitty binary that is currently running, not a stale global one.
+
+    Every subprocess invocation in this module routes its ``env`` through
+    this helper — no inline ``os.environ`` copies with ad-hoc PATH/GIT_*
+    mutations (FR-008b; ratchet in
+    ``tests/architectural/test_merge_pipeline_ratchets.py``).
+    """
+    venv_bin = str(Path(sys.executable).parent)
+    env = os.environ.copy()
+    env["PATH"] = venv_bin + os.pathsep + env.get("PATH", "")
+    return env
 
 
 def _rev_parse(repo_root: Path, ref: str) -> str | None:
     result = subprocess.run(
         ["git", "rev-parse", ref],
-        cwd=str(repo_root), capture_output=True, text=True,
+        cwd=str(repo_root), capture_output=True, text=True, env=_make_merge_env(),
     )
     return result.stdout.strip() if result.returncode == 0 else None
 
@@ -329,12 +351,8 @@ def _merge_branch_into(
     tmp_dir = tempfile.mkdtemp(prefix="kitty-merge-")
     tmp_path = Path(tmp_dir)
 
-    # Prepend the current venv's bin directory to PATH so that git's merge
-    # driver invocation of `spec-kitty merge-driver-event-log` resolves to the
-    # same spec-kitty binary that is currently running, not a stale global one.
-    _venv_bin = str(Path(sys.executable).parent)
-    _env = os.environ.copy()
-    _env["PATH"] = _venv_bin + os.pathsep + _env.get("PATH", "")
+    # Single environment authority for the lane-merge pipeline (AC-F1).
+    _env = _make_merge_env()
 
     try:
         _ensure_event_log_merge_driver_config(repo_root)
@@ -435,16 +453,9 @@ def _merge_branch_into(
                 ["git", "rev-parse", "HEAD"],
                 cwd=str(tmp_path), capture_output=True, text=True, check=True, env=_env,
             ).stdout.strip()
-            # Fast-forward the target branch to the rebased tip.
-            result = subprocess.run(
-                ["git", "update-ref", f"refs/heads/{target_branch}", rebased_sha],
-                cwd=str(repo_root), capture_output=True, text=True, env=_env,
-            )
-            if result.returncode != 0:
-                raise RuntimeError(
-                    f"Failed to fast-forward {target_branch} after rebase: "
-                    f"{result.stderr.strip()}"
-                )
+            # Fast-forward the target branch to the rebased tip, resyncing any
+            # worktree that has target_branch checked out (#1826 / AC-B2).
+            advance_branch_ref(repo_root, target_branch, rebased_sha, env=_env)
             return True  # early return — ref already updated
         else:
             # MERGE strategy (default for lane→mission): no-ff merge commit.
@@ -469,15 +480,9 @@ def _merge_branch_into(
             cwd=str(tmp_path), capture_output=True, text=True, check=True, env=_env,
         ).stdout.strip()
 
-        # Update the target branch ref to point to the merge commit.
-        result = subprocess.run(
-            ["git", "update-ref", f"refs/heads/{target_branch}", merge_commit],
-            cwd=str(repo_root), capture_output=True, text=True, env=_env,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"Failed to update {target_branch} ref: {result.stderr.strip()}"
-            )
+        # Update the target branch ref to point to the merge commit, resyncing
+        # any worktree that has target_branch checked out (#1826 / AC-B2).
+        advance_branch_ref(repo_root, target_branch, merge_commit, env=_env)
         return True
     finally:
         subprocess.run(
