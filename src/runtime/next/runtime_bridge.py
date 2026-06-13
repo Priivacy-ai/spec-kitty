@@ -225,13 +225,21 @@ class MissionNotFoundError(Exception):
     """Raised when a mission handle cannot be resolved to an existing mission.
 
     Carries the attempted handle so callers can include it in structured
-    error output (FR-004 / WP03 — fail-closed next query mode).
+    error output (FR-004 / WP03 — fail-closed next query mode), plus an
+    actionable ``next_step`` remediation so operators are told concretely how
+    to recover (list available missions / verify the handle). The ``next_step``
+    affordance restores the operator guidance the superseded
+    ``QueryModeValidationError`` used to carry (#1911).
     """
 
     error_code: str = "MISSION_NOT_FOUND"
 
-    def __init__(self, handle: str) -> None:
+    def __init__(self, handle: str, next_step: str | None = None) -> None:
         self.handle = handle
+        self.next_step = next_step or (
+            "Run 'spec-kitty mission list' to see available missions, then "
+            f"re-run with a valid handle (attempted: '{handle}')."
+        )
         super().__init__(f"Mission not found: '{handle}'")
 
 

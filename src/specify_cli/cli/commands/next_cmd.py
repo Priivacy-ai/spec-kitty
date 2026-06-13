@@ -371,13 +371,22 @@ def _print_error(message: str, json_output: bool) -> None:
         print(message, file=sys.stderr)
 
 
-def _emit_mission_not_found_error(handle: str, json_output: bool) -> None:
+def _emit_mission_not_found_error(
+    handle: str, json_output: bool, next_step: str | None = None
+) -> None:
     """Emit a structured MISSION_NOT_FOUND error in the appropriate format.
 
     Human mode writes to stderr; JSON mode writes a structured envelope to
     stdout.  Both paths exit non-zero (FR-004 / WP03).
+
+    ``next_step`` carries the actionable operator remediation lifted from the
+    raised :class:`MissionNotFoundError`; it is surfaced in both the JSON
+    payload (alongside ``error_code``) and as a ``Next:`` line in human mode,
+    restoring the affordance the superseded ``QueryModeValidationError`` gave
+    (#1911). It also remains under the legacy ``remediation`` key for
+    backward compatibility.
     """
-    remediation = "Run 'spec-kitty mission list' to see available missions."
+    remediation = next_step or "Run 'spec-kitty mission list' to see available missions."
     if json_output:
         from specify_cli import __version__
 
@@ -385,6 +394,7 @@ def _emit_mission_not_found_error(handle: str, json_output: bool) -> None:
             "result": "error",
             "error_code": "MISSION_NOT_FOUND",
             "handle": handle,
+            "next_step": remediation,
             "remediation": remediation,
             "spec_kitty_version": __version__,
         }
@@ -392,10 +402,10 @@ def _emit_mission_not_found_error(handle: str, json_output: bool) -> None:
     else:
         print(
             f"Error: Mission not found: '{handle}'\n"
-            f"No mission matching '{handle}' exists in this repository.\n"
-            f"{remediation}",
+            f"No mission matching '{handle}' exists in this repository.",
             file=sys.stderr,
         )
+        print(f"  Next: {remediation}", file=sys.stderr)
 
 
 def _validate_result_and_answer(result: str | None, answer: str | None, json_output: bool) -> None:
@@ -457,7 +467,9 @@ def _run_query_mode(
     try:
         decision = runtime_bridge.query_current_state(agent, mission_slug, repo_root)
     except MissionNotFoundError as exc:
-        _emit_mission_not_found_error(exc.handle, json_output)
+        _emit_mission_not_found_error(
+            exc.handle, json_output, next_step=getattr(exc, "next_step", None)
+        )
         raise typer.Exit(1) from exc
     except QueryModeValidationError as exc:
         # C-ERR-1 / FR-003: emit a structured payload (error_code + next_step)
