@@ -36,6 +36,8 @@ from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
+from kernel.atomic import substantively_equal as _substantively_equal_core
+
 from .artifact_naming import artifact_filename, doctrine_kind_subdir
 from .errors import NeutralityGateViolation, StagingPromoteError
 from .evidence import EvidenceBundle
@@ -243,6 +245,11 @@ def _strip_volatile(text: str, volatile_keys: frozenset[str]) -> str:
     projection that two runs with identical inputs produce identically — the
     basis for the no-op skip. This is a textual comparison, never written back
     to disk, so it cannot corrupt the on-disk YAML.
+
+    This is charter's YAML-canonical-line projection — the *reference* ``strip``
+    handed to the shared, format-agnostic no-op-stability core
+    (:func:`kernel.atomic.substantively_equal`). The core itself bakes in no
+    YAML assumptions; charter supplies this projection.
     """
     prefixes = tuple(f"{key}:" for key in volatile_keys)
     kept = [
@@ -260,18 +267,24 @@ def _substantively_equal(
 ) -> bool:
     """Return True if ``new_bytes`` equals ``existing_path`` modulo volatile fields.
 
-    Returns False when the existing file is absent or unreadable so a genuine
-    write still happens. Only the volatile provenance/manifest fields are
-    excluded from the comparison; any substantive change (body, hashes, adapter
-    identity, artifact set) still triggers a rewrite.
+    Reads the existing file and delegates the pure, I/O-free comparison to the
+    shared no-op-stability core (:func:`kernel.atomic.substantively_equal`),
+    passing charter's YAML-canonical-line :func:`_strip_volatile` as the
+    ``strip`` projection. Returns False when the existing file is absent or
+    unreadable so a genuine write still happens. Only the volatile
+    provenance/manifest fields are excluded from the comparison; any substantive
+    change (body, hashes, adapter identity, artifact set) still triggers a
+    rewrite.
     """
     try:
         existing_text = existing_path.read_text(encoding="utf-8")
     except (FileNotFoundError, OSError):
         return False
-    new_text = new_bytes.decode("utf-8")
-    return _strip_volatile(new_text, volatile_keys) == _strip_volatile(
-        existing_text, volatile_keys
+    return _substantively_equal_core(
+        existing_text,
+        new_bytes,
+        volatile_keys=volatile_keys,
+        strip=_strip_volatile,
     )
 
 
