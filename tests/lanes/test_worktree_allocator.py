@@ -189,3 +189,106 @@ class TestAllocateLaneWorktree:
         )
 
         assert result1.stdout.strip() == result2.stdout.strip()
+
+
+class TestDefensiveHelpers:
+    """Direct coverage for the allocator's defensive/recovery helpers."""
+
+    def test_read_coordination_branch_none_when_meta_absent(self, tmp_path):
+        from specify_cli.lanes.worktree_allocator import _read_coordination_branch
+
+        assert _read_coordination_branch(tmp_path, "no-such-mission") is None
+
+    def test_read_coordination_branch_none_on_malformed_json(self, tmp_path):
+        """A meta.json that is not valid JSON must yield None, not crash."""
+        from specify_cli.lanes.worktree_allocator import _read_coordination_branch
+
+        feature_dir = tmp_path / "kitty-specs" / "010-feat"
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text("{ this is : not json ]")
+        assert _read_coordination_branch(tmp_path, "010-feat") is None
+
+    def test_read_coordination_branch_none_when_field_missing(self, tmp_path):
+        from specify_cli.lanes.worktree_allocator import _read_coordination_branch
+
+        feature_dir = tmp_path / "kitty-specs" / "010-feat"
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text('{"mission_id": "01ABC"}')
+        assert _read_coordination_branch(tmp_path, "010-feat") is None
+
+    def test_read_coordination_branch_returns_value(self, tmp_path):
+        from specify_cli.lanes.worktree_allocator import _read_coordination_branch
+
+        feature_dir = tmp_path / "kitty-specs" / "010-feat"
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text(
+            '{"coordination_branch": "kitty/mission-010-feat-coord"}'
+        )
+        assert (
+            _read_coordination_branch(tmp_path, "010-feat")
+            == "kitty/mission-010-feat-coord"
+        )
+
+    def test_ensure_branch_exists_creates_missing_branch(self, tmp_path):
+        """Legacy/upgrade-in-place recovery: a missing branch is recreated from
+        the fallback parent rather than crashing."""
+        from specify_cli.lanes.worktree_allocator import (
+            _branch_exists,
+            _ensure_branch_exists,
+        )
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _make_git_repo(repo)
+        subprocess.run(
+            ["git", "branch", "-M", "main"],
+            cwd=str(repo), capture_output=True, check=True,
+        )
+        assert not _branch_exists(repo, "kitty/mission-recovered")
+        _ensure_branch_exists(repo, "kitty/mission-recovered", "main")
+        assert _branch_exists(repo, "kitty/mission-recovered")
+
+    def test_ensure_branch_exists_noop_when_present(self, tmp_path):
+        from specify_cli.lanes.worktree_allocator import _ensure_branch_exists
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _make_git_repo(repo)
+        subprocess.run(
+            ["git", "branch", "-M", "main"],
+            cwd=str(repo), capture_output=True, check=True,
+        )
+        # main already exists — must be a no-op (no raise).
+        _ensure_branch_exists(repo, "main", "main")
+
+    def test_create_branch_from_raises_on_bad_parent(self, tmp_path):
+        """Creating a branch from a non-existent parent raises a RuntimeError."""
+        from specify_cli.lanes.worktree_allocator import _create_branch_from
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _make_git_repo(repo)
+        with pytest.raises(RuntimeError, match="Failed to create"):
+            _create_branch_from(repo, "kitty/mission-x", "no-such-parent-ref")
+
+    def test_validate_worktree_clean_raises_when_git_status_fails(self, tmp_path):
+        """A non-git path makes ``git status`` fail → RuntimeError (not silent)."""
+        from specify_cli.lanes.worktree_allocator import _validate_worktree_clean
+
+        not_a_repo = tmp_path / "not-a-repo"
+        not_a_repo.mkdir()
+        with pytest.raises(RuntimeError, match="git status failed"):
+            _validate_worktree_clean(not_a_repo, "lane-a")
+
+    def test_validate_worktree_clean_raises_on_dirty_tree(self, tmp_path):
+        from specify_cli.lanes.worktree_allocator import (
+            DirtyWorktreeError,
+            _validate_worktree_clean,
+        )
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _make_git_repo(repo)
+        (repo / "dirty.txt").write_text("uncommitted\n")
+        with pytest.raises(DirtyWorktreeError, match="uncommitted changes"):
+            _validate_worktree_clean(repo, "lane-a")

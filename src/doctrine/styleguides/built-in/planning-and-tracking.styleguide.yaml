@@ -14,7 +14,7 @@ principles:
   - "Read scope, flag overlaps. Read a ticket body before re-parenting it — do not keyword-match blindly. When one concern spans several epics, flag the overlap for an owner rather than silently picking one parent."
   - "Create a bucket when a coherent orphan cluster appears. Roughly four or more orphan tickets sharing a concern with no owning epic justify a new functional epic. Name it for the user value it delivers, not internal jargon."
   - "An epic body carries Purpose, Scope, and Out-of-scope — never a list of child ticket numbers. The native sub-issue graph is the single source of truth for parent/child membership; a hand-maintained checklist of numbers drifts and is invisible to tooling."
-  - "Hygiene invariants for every open ticket: it resolves to a functional epic (not an orphan, not meta-rooted, not under a closed epic); it carries an issue type; and it carries a priority label. Type is objective — derive it from the conventional-commit prefix and labels. Priority is triage — assign a provisional default and flag it rather than silently guessing."
+  - "Hygiene invariants for every open ticket: it resolves to a functional epic (not an orphan, not meta-rooted, not under a closed epic); it carries an issue type; and it carries a priority label. Type is objective — derive it from the conventional-commit prefix and labels. Priority is triage — assign `priority:P2` as the canonical provisional default and add `triage:needs-revision` as the flag, rather than silently guessing. Two operators applying this rule will converge on the same labels."
 
 patterns:
   - name: Single canonical priority label
@@ -53,6 +53,43 @@ patterns:
     good_example: |
       A suspected-but-unconfirmed dup: add `triage:maybe-duplicate`
       (NOT `duplicate`, which asserts a confirmed, closeable duplicate).
+
+  - name: Triage-snapshot label reconciliation
+    description: >
+      When a ticket carries a bespoke triage-snapshot label scheme from a
+      prior pass (e.g. `p1:verified`, `p1-decision:keep|split|defer|close-if-stale`),
+      reconcile it into the canonical namespaces or explicitly bless it as an
+      immutable audit snapshot. Migration map:
+      `p1-decision:close-if-stale` → `triage:stale`;
+      `p1-decision:defer` → `future`;
+      `p1:verified` → remove (disposition is captured by the canonical priority label).
+      If the snapshot predates the current canonical scheme and the owning team
+      treats it as an audit artefact, document the decision and leave it
+      untouched — but add the canonical `priority:Px` and `triage:*` labels
+      alongside so the quality-test can answer its question in one pass.
+    good_example: |
+      Ticket carrying `p1-decision:split` migrated: label removed, `triage:needs-revision`
+      added alongside existing `priority:P1`. Quality-test can answer in one pass.
+    bad_example: |
+      Ticket carries `p1:verified` + `p1-decision:keep` with no canonical
+      `priority:Px` label. The quality-test cannot answer its question and the
+      canonical triage namespace is bypassed.
+
+  - name: Secondary-label coexistence
+    description: >
+      Secondary labels (`usability`, `future`, `bug`, `epic`, `enhancement`)
+      coexist with the `priority:Px` primary label and with `triage:*` disposition
+      labels. They are orthogonal dimensions: `bug` expresses kind, `priority:P1`
+      expresses urgency, `triage:stale` expresses triage state. No label from one
+      dimension replaces a label from another. A ticket may carry at most one
+      `priority:Px` label (the single-canonical-priority invariant), any number of
+      kind labels, and at most one `triage:*` label per triage cycle.
+    good_example: |
+      Labels: priority:P1, bug, triage:needs-revision
+      (one priority, one kind, one triage state — all orthogonal)
+    bad_example: |
+      Labels: P1-bug, triage:stale
+      (conflated priority+kind; missing canonical priority:Px)
 
   - name: Value-named epic with a Purpose/Scope body
     description: >

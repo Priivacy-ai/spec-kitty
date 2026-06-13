@@ -91,7 +91,7 @@ WP frontmatter selects an `agent_profile`):
 
 - `glossary/contexts/` — canonical terminology. Consult when you encounter a
   domain term in the diff or are about to introduce a new one.
-- `architecture/2.x/adr/` — architectural intent. Consult when you change a
+- `architecture/3.x/adr/` — architectural intent. Consult when you change a
   structural boundary (package layout, public API surface, dependency edges).
 - Any additional paths declared in the charter's `authority_paths:` block are
   emitted alongside these defaults.

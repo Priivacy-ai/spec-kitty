@@ -1,0 +1,1 @@
+ruff: fixed 5 findings (ARG001x3, SIM103, ARG002x2 noqa); skipped 1 (C901 complexity refactor out of scope). mypy: 209 errors before and after, zero new. Sonar: 0 new-code issues on branch. Tests: workflow (3/3 pass), migrations (60/60 pass), architectural (301/301 pass). Commit: e74d76778b757a3b3ccdfc605d90867df7647e24

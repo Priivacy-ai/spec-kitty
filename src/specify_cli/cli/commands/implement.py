@@ -389,12 +389,17 @@ def _resolve_bookkeeping_transaction_identifiers(
     effective_mission_id = (
         str(mission_id) if mission_id else f"legacy-{mission_slug}"
     )
-    if mid8:
-        effective_mid8 = str(mid8)
-    elif mission_id and len(str(mission_id)) >= 8:
-        effective_mid8 = str(mission_id)[:8]
-    else:
-        effective_mid8 = (mission_slug.replace("-", "") + "00000000")[:8]
+    # FR-007: route the mid8 through the canonical fail-closed authority rather
+    # than fabricating a zero-padded mid8 from the slug — that idiom named a
+    # non-existent coord branch/worktree at claim time.
+    from specify_cli.lanes.branch_naming import resolve_transaction_mid8
+
+    effective_mid8 = resolve_transaction_mid8(
+        mission_slug,
+        mission_id=str(mission_id) if mission_id else None,
+        mid8=str(mid8) if mid8 else None,
+        coordination_branch=coord_branch,
+    )
     return coord_branch, mission_id, mid8, effective_mission_id, effective_mid8
 
 
@@ -1145,6 +1150,9 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         # When --base is provided, validate the ref and build a patched
         # LanesManifest that uses it as the mission_branch so the worktree
         # allocator branches from the explicit base instead of auto-detecting.
+        # #1684 composition: --base selects only the ROOT the lane branches from;
+        # the allocator still merges approved depends_on_lanes tips on top, so
+        # cross-lane code propagation is preserved regardless of the chosen root.
         active_lanes_manifest = lanes_manifest
         if base is not None and not is_planning_lane(resolved_workspace):
             _validate_base_ref(repo_root, base)

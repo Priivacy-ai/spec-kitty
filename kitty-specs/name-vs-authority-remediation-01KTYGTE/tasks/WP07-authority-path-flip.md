@@ -5,9 +5,9 @@ dependencies: []
 requirement_refs:
 - FR-011
 tracker_refs: []
-planning_base_branch: feat/doctrine-glossary-consolidation-01KTNWFC
-merge_target_branch: feat/doctrine-glossary-consolidation-01KTNWFC
-branch_strategy: Planning artifacts for this mission were generated on feat/doctrine-glossary-consolidation-01KTNWFC. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/doctrine-glossary-consolidation-01KTNWFC unless the human explicitly redirects the landing branch.
+planning_base_branch: feat/name-vs-authority-remediation-01KTYGTE
+merge_target_branch: feat/name-vs-authority-remediation-01KTYGTE
+branch_strategy: Planning artifacts for this mission were generated on feat/doctrine-glossary-consolidation-01KTNWFC (mission retargeted to feat/name-vs-authority-remediation-01KTYGTE on 2026-06-12 — PR #1895 branch frozen for review). During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/name-vs-authority-remediation-01KTYGTE unless the human explicitly redirects the landing branch.
 created_at: '2026-06-12T18:32:00Z'
 subtasks:
 - T023
@@ -16,7 +16,8 @@ subtasks:
 - T026
 phase: Phase 1 - Independent lanes
 assignee: ''
-agent: ''
+agent: "claude:sonnet:reviewer-renata:reviewer"
+shell_pid: "1551027"
 history:
 - at: '2026-06-12T18:32:00Z'
   actor: system
@@ -80,3 +81,7 @@ reviewer-renata. The review IS the chain-completeness check: grep for any surviv
 
 ## Activity Log
 - 2026-06-12T18:32:00Z – system – Prompt created.
+- 2026-06-12T19:23:17Z – claude:sonnet:python-pedro:implementer – shell_pid=1470114 – Assigned agent via action command
+- 2026-06-12T19:33:51Z – claude:sonnet:python-pedro:implementer – shell_pid=1470114 – WP07 complete — all 7 chain links flipped atomically. Chain-link checklist: [1-DONE] authority_paths.py DEFAULT flipped 2.x→3.x + docstrings updated. [2-DONE] implement/prompt.md + review/prompt.md updated. [3-DONE] parity baselines regenerated (26 files, 13 agents × implement+review, no unrelated churn). [4-DONE] 2 governance-contract tests updated (test_template_governance_payload_contract.py + test_wp_prompt_governance_contract.py incl. self-sufficiency regex). [5-DONE] 3 tests/charter/ assertions updated (test_context_authority_paths.py, test_sync_authority_paths.py, test_schemas_additive_fields.py). [6-DONE] .kittify/charter/charter.md:317 annotation updated to 3.x. [7-DONE] ADR deferral section append-only EXECUTED addendum added dated 2026-06-12. pytest tests/architectural/: 350 passed, 0 failed.
+- 2026-06-12T19:34:24Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=1551027 – Started review via action command
+- 2026-06-12T19:41:09Z – user – shell_pid=1551027 – Review passed: all 7 chain links verified present and correct; parity baselines contain only 2.x->3.x path change (no unrelated churn); no agent dirs hand-edited; ADR append-only (zero deleted lines); DEFAULT_AUTHORITY_PATHS live-imports as 3.x only; self-sufficiency regex [23].x acceptable while adr_path_present on line 663 pins the actual contract to 3.x specifically; 350 architectural + 1585 charter/regression tests pass; terminology guard clean; C-002 clean.

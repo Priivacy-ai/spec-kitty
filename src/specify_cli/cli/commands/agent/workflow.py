@@ -47,9 +47,15 @@ import tempfile
 import contextlib
 from datetime import UTC
 from pathlib import Path
-from typing import Annotated
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Annotated
 
 import typer
+
+if TYPE_CHECKING:
+    from rich.console import Console
+
+    from specify_cli.bulk_edit.gate import DiffCheckResult
 
 from charter.context import build_charter_context
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
@@ -121,6 +127,63 @@ _STATUS_FILENAME = "status.json"
 # Module-level accumulator of CommitReceipts for the T029 terminal
 # summary. Reset by each top-level invocation.
 _WORKFLOW_COMMIT_RECEIPTS: list[dict[str, object]] = []
+
+
+def _enforce_bulk_edit_diff_compliance(
+    *,
+    feature_dir: Path,
+    main_repo_root: Path,
+    target_branch: str,
+    review_workspace: ResolvedWorkspace,
+    check_review_diff_compliance: Callable[..., DiffCheckResult | None],
+    render_diff_check_failure: Callable[..., None],
+    rich_console: Console,
+) -> None:
+    """Enforce per-file bulk-edit diff compliance for a WP under review (FR-007/8).
+
+    Inspects the WP's diff against its lane base branch and rejects modifications
+    to forbidden or unclassified surfaces. Raises ``typer.Exit(1)`` on failure;
+    surfaces ``manual_review`` warnings without blocking.
+    """
+    # The mission branch is the canonical base for a WP lane diff. If the
+    # review is running from the main repo (not a lane worktree), this
+    # still resolves because the mission branch exists until merge
+    # cleanup. If the branch cannot be resolved, fall back to the
+    # target_branch captured earlier in this function.
+    try:
+        from specify_cli.lanes.persistence import read_lanes_json as _read_lanes_json
+
+        _lanes_manifest = _read_lanes_json(feature_dir)
+        _base_ref = _lanes_manifest.mission_branch if _lanes_manifest is not None else target_branch
+    except Exception:
+        _base_ref = target_branch
+    # The WP diff must be the lane branch's changes on top of the mission
+    # branch, NOT `HEAD`. When review runs from the main repo checkout,
+    # `HEAD` is the mission's *target* branch (e.g. feat/...), so diffing
+    # base..HEAD surfaces the entire target-branch delta (hundreds of
+    # unrelated files) and the bulk-edit gate false-blocks. Use the WP's
+    # resolved lane branch as head; fall back to HEAD only for repo_root
+    # (direct-to-target / planning) workspaces where the changes really
+    # are on the current HEAD.
+    _head_ref = review_workspace.branch_name or "HEAD"
+    _diff_result = check_review_diff_compliance(
+        feature_dir=feature_dir,
+        repo_root=main_repo_root,
+        base_ref=_base_ref,
+        head_ref=_head_ref,
+    )
+    if _diff_result is None:
+        # Non-bulk-edit mission — skip silently. check_review_diff_compliance
+        # returns None when change_mode is not bulk_edit, which shouldn't
+        # happen here given the outer guard, but belt-and-braces.
+        pass
+    elif not _diff_result.passed:
+        render_diff_check_failure(_diff_result, rich_console)
+        raise typer.Exit(1)
+    elif _diff_result.warnings:
+        # Surface manual_review notes but don't block.
+        for _w in _diff_result.warnings:
+            rich_console.print(f"[yellow]manual_review:[/] {_w}")
 
 
 def _reset_workflow_receipts() -> None:
@@ -2195,45 +2258,15 @@ def review(
         # When this is a bulk_edit mission, inspect the WP's diff against its lane
         # base branch and reject modifications to forbidden or unclassified surfaces.
         if _gate_result.change_mode == "bulk_edit":
-            # The mission branch is the canonical base for a WP lane diff. If the
-            # review is running from the main repo (not a lane worktree), this
-            # still resolves because the mission branch exists until merge
-            # cleanup. If the branch cannot be resolved, fall back to the
-            # target_branch captured earlier in this function.
-            try:
-                from specify_cli.lanes.persistence import read_lanes_json as _read_lanes_json
-
-                _lanes_manifest = _read_lanes_json(feature_dir)
-                _base_ref = _lanes_manifest.mission_branch if _lanes_manifest is not None else target_branch
-            except Exception:
-                _base_ref = target_branch
-            # The WP diff must be the lane branch's changes on top of the mission
-            # branch, NOT `HEAD`. When review runs from the main repo checkout,
-            # `HEAD` is the mission's *target* branch (e.g. feat/...), so diffing
-            # base..HEAD surfaces the entire target-branch delta (hundreds of
-            # unrelated files) and the bulk-edit gate false-blocks. Use the WP's
-            # resolved lane branch as head; fall back to HEAD only for repo_root
-            # (direct-to-target / planning) workspaces where the changes really
-            # are on the current HEAD.
-            _head_ref = review_workspace.branch_name or "HEAD"
-            _diff_result = check_review_diff_compliance(
+            _enforce_bulk_edit_diff_compliance(
                 feature_dir=feature_dir,
-                repo_root=main_repo_root,
-                base_ref=_base_ref,
-                head_ref=_head_ref,
+                main_repo_root=main_repo_root,
+                target_branch=target_branch,
+                review_workspace=review_workspace,
+                check_review_diff_compliance=check_review_diff_compliance,
+                render_diff_check_failure=render_diff_check_failure,
+                rich_console=_rich_console,
             )
-            if _diff_result is None:
-                # Non-bulk-edit mission — skip silently. check_review_diff_compliance
-                # returns None when change_mode is not bulk_edit, which shouldn't
-                # happen here given the outer guard, but belt-and-braces.
-                pass
-            elif not _diff_result.passed:
-                render_diff_check_failure(_diff_result, _rich_console)
-                raise typer.Exit(1)
-            elif _diff_result.warnings:
-                # Surface manual_review notes but don't block.
-                for _w in _diff_result.warnings:
-                    _rich_console.print(f"[yellow]manual_review:[/] {_w}")
 
         if current_lane == Lane.FOR_REVIEW or (current_lane == Lane.IN_REVIEW and agent):
             # Require --agent parameter to track who is reviewing

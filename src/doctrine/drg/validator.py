@@ -109,20 +109,10 @@ def validate_profile_edges(graph: DRGGraph) -> list[str]:
     return errors
 
 
-def validate_graph(graph: DRGGraph) -> list[str]:
-    """Return a list of error messages (empty means valid).
-
-    Checks performed:
-    1. Dangling references -- every edge source/target must exist in nodes.
-    2. Duplicate edges -- ``(source, target, relation)`` must be unique.
-    3. Cycles in ``requires`` edges -- the requires subgraph must be a DAG.
-    4. Symmetric profile-edge integrity -- lineage/delegation edges connect
-       agent_profile nodes in both directions and lineage is acyclic (#1755).
-    """
+def _validate_dangling_references(graph: DRGGraph) -> list[str]:
+    """Return errors for edges whose source/target is not a known node."""
     errors: list[str] = []
     urns = graph.node_urns()
-
-    # -- 1. Dangling references ---------------------------------------------
     for edge in graph.edges:
         if edge.source not in urns:
             errors.append(
@@ -134,8 +124,12 @@ def validate_graph(graph: DRGGraph) -> list[str]:
                 f"Dangling target: edge ({edge.source} --{edge.relation}--> "
                 f"{edge.target}) references non-existent node {edge.target!r}"
             )
+    return errors
 
-    # -- 2. Duplicate edges --------------------------------------------------
+
+def _validate_duplicate_edges(graph: DRGGraph) -> list[str]:
+    """Return errors for repeated ``(source, target, relation)`` triples."""
+    errors: list[str] = []
     seen_triples: set[tuple[str, str, str]] = set()
     for edge in graph.edges:
         triple = (edge.source, edge.target, edge.relation.value)
@@ -145,8 +139,12 @@ def validate_graph(graph: DRGGraph) -> list[str]:
                 f"{edge.target})"
             )
         seen_triples.add(triple)
+    return errors
 
-    # -- 3. Cycles in requires subgraph (DFS) --------------------------------
+
+def _validate_requires_cycles(graph: DRGGraph) -> list[str]:
+    """Return errors for cycles in the ``requires`` subgraph (DFS)."""
+    errors: list[str] = []
     adj: dict[str, list[str]] = defaultdict(list)
     for edge in graph.edges:
         if edge.relation == Relation.REQUIRES:
@@ -180,10 +178,25 @@ def validate_graph(graph: DRGGraph) -> list[str]:
     for node in sorted(all_requires_nodes):
         if color[node] == WHITE:
             _dfs(node, [])
+    return errors
 
+
+def validate_graph(graph: DRGGraph) -> list[str]:
+    """Return a list of error messages (empty means valid).
+
+    Checks performed:
+    1. Dangling references -- every edge source/target must exist in nodes.
+    2. Duplicate edges -- ``(source, target, relation)`` must be unique.
+    3. Cycles in ``requires`` edges -- the requires subgraph must be a DAG.
+    4. Symmetric profile-edge integrity -- lineage/delegation edges connect
+       agent_profile nodes in both directions and lineage is acyclic (#1755).
+    """
+    errors: list[str] = []
+    errors.extend(_validate_dangling_references(graph))
+    errors.extend(_validate_duplicate_edges(graph))
+    errors.extend(_validate_requires_cycles(graph))
     # -- 4. Symmetric profile-edge integrity (#1755) ------------------------
     errors.extend(validate_profile_edges(graph))
-
     return errors
 
 

@@ -314,7 +314,7 @@ template_set: software-dev-default
 available_tools: [git, spec-kitty, pytest, mypy, ruff]
 authority_paths:
   - glossary/contexts/        # canonical terminology
-  - architecture/2.x/adr/    # 2.x-era architectural decisions (historical)
+  - architecture/3.x/adr/    # canonical architectural decisions (3.x era)
   - architecture/adrs/        # active ADR directory (de-facto convention)
 ```
 

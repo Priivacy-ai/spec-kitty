@@ -47,11 +47,11 @@ class TestDefaultAuthorityPaths:
     def test_default_adr_path_surfaces_when_directory_present(
         self, tmp_path: Path
     ) -> None:
-        _make_dir(tmp_path, "architecture/2.x/adr")
+        _make_dir(tmp_path, "architecture/3.x/adr")
         result = render_authority_paths(tmp_path, DoctrineSelectionConfig())
         assert AUTHORITY_PATHS_HEADER in result
-        assert "architecture/2.x/adr/" in result
-        assert DEFAULT_AUTHORITY_PATHS["architecture/2.x/adr/"] in result
+        assert "architecture/3.x/adr/" in result
+        assert DEFAULT_AUTHORITY_PATHS["architecture/3.x/adr/"] in result
 
     def test_default_path_skipped_when_directory_missing(self, tmp_path: Path) -> None:
         # No glossary/contexts in tmp_path — render must not list it.

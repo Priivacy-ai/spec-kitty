@@ -473,9 +473,28 @@ agent:
 
 def test_dashboard_scans_prefer_coord_worktree_over_root_checkout(tmp_path):
     slug = "001-demo-feature"
+
+    # The coordination copy only outranks the primary checkout when it is a
+    # *registered* git worktree — name proposes coord-ness, the git registry
+    # disposes (C-SEAM-1). A bare ``-coord``-named directory is a husk and must
+    # NOT shadow the primary surface. Register the worktree on a clean seed
+    # commit so this exercises the real coord-preference path.
+    _git(["init", "--initial-branch=main"], tmp_path)
+    _git(["config", "user.email", "scanner@example.com"], tmp_path)
+    _git(["config", "user.name", "Scanner Test"], tmp_path)
+    _git(["config", "commit.gpgsign", "false"], tmp_path)
+    (tmp_path / "README.md").write_text("seed\n", encoding="utf-8")
+    _git(["add", "README.md"], tmp_path)
+    _git(["commit", "-q", "-m", "seed"], tmp_path)
+    coord_worktree = tmp_path / ".worktrees" / f"{slug}-coord"
+    _git(
+        ["worktree", "add", "-q", "-b", f"kitty/mission-{slug}", str(coord_worktree)],
+        tmp_path,
+    )
+
     _create_feature(tmp_path, slug, lane="planned")
 
-    coord_feature_dir = tmp_path / ".worktrees" / f"{slug}-coord" / "kitty-specs" / slug
+    coord_feature_dir = coord_worktree / "kitty-specs" / slug
     _create_feature_at(coord_feature_dir, lane="approved")
 
     features = scanner.scan_all_features(tmp_path)
@@ -494,6 +513,41 @@ def test_dashboard_scans_prefer_coord_worktree_over_root_checkout(tmp_path):
     assert len(lanes["approved"]) == 1
     assert len(lanes["planned"]) == 0
     assert lanes["approved"][0]["id"] == "WP01"
+
+
+@pytest.mark.fast
+def test_dashboard_husk_coord_dir_does_not_shadow_primary(tmp_path):
+    """F-005 adversarial: a ``-coord``-NAMED directory that git does NOT
+    register is a husk and must NOT outrank the primary checkout.
+
+    Name proposes coord-ness; the git registry disposes (C-SEAM-1). Before the
+    topology seam, the name-only ``endswith("-coord")`` predicate let this husk
+    silently shadow the live primary surface — the split-brain this WP kills.
+    """
+    slug = "001-demo-feature"
+
+    _git(["init", "--initial-branch=main"], tmp_path)
+    _git(["config", "user.email", "scanner@example.com"], tmp_path)
+    _git(["config", "user.name", "Scanner Test"], tmp_path)
+    _git(["config", "commit.gpgsign", "false"], tmp_path)
+    (tmp_path / "README.md").write_text("seed\n", encoding="utf-8")
+    _git(["add", "README.md"], tmp_path)
+    _git(["commit", "-q", "-m", "seed"], tmp_path)
+
+    # Primary checkout: the authoritative, current state.
+    _create_feature(tmp_path, slug, lane="planned")
+
+    # A husk: a ``-coord``-named plain dir that was NEVER `git worktree add`-ed.
+    husk_feature_dir = tmp_path / ".worktrees" / f"{slug}-coord" / "kitty-specs" / slug
+    _create_feature_at(husk_feature_dir, lane="approved")
+
+    features = scanner.scan_all_features(tmp_path)
+    assert len(features) == 1
+    feature = features[0]
+    # The husk's stale "approved" must NOT win; the primary "planned" stands.
+    assert feature["path"] == f"kitty-specs/{slug}"
+    assert feature["kanban_stats"]["planned"] == 1
+    assert feature["kanban_stats"]["approved"] == 0
 
 
 # ── NFR-006: Dashboard kanban bucketing identity ───────────────────────────

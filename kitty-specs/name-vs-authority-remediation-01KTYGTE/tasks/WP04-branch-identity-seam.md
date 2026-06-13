@@ -5,9 +5,9 @@ dependencies: []
 requirement_refs:
 - FR-006
 tracker_refs: []
-planning_base_branch: feat/doctrine-glossary-consolidation-01KTNWFC
-merge_target_branch: feat/doctrine-glossary-consolidation-01KTNWFC
-branch_strategy: Planning artifacts for this mission were generated on feat/doctrine-glossary-consolidation-01KTNWFC. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/doctrine-glossary-consolidation-01KTNWFC unless the human explicitly redirects the landing branch.
+planning_base_branch: feat/name-vs-authority-remediation-01KTYGTE
+merge_target_branch: feat/name-vs-authority-remediation-01KTYGTE
+branch_strategy: Planning artifacts for this mission were generated on feat/doctrine-glossary-consolidation-01KTNWFC (mission retargeted to feat/name-vs-authority-remediation-01KTYGTE on 2026-06-12 — PR #1895 branch frozen for review). During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/name-vs-authority-remediation-01KTYGTE unless the human explicitly redirects the landing branch.
 created_at: '2026-06-12T18:32:00Z'
 subtasks:
 - T013
@@ -15,7 +15,8 @@ subtasks:
 - T015
 phase: Phase 1 - Independent lanes
 assignee: ''
-agent: ''
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "1640931"
 history:
 - at: '2026-06-12T18:32:00Z'
   actor: system
@@ -65,3 +66,7 @@ reviewer-renata. Adversarial: feed a legacy `042-foo` AND a modern `<slug>-<mid8
 
 ## Activity Log
 - 2026-06-12T18:32:00Z – system – Prompt created.
+- 2026-06-12T19:23:09Z – claude:opus:python-pedro:implementer – shell_pid=1470114 – Assigned agent via action command
+- 2026-06-12T19:45:04Z – claude:opus:python-pedro:implementer – shell_pid=1470114 – FR-006 branch-identity seam: added BranchIdentityUnresolved (StructuredError, BRANCH_IDENTITY_UNRESOLVED) + mission_branch_name_required() in lanes/branch_naming.py (dual-era: legacy NNN- and mid8 resolve, unresolvable-modern raises). Migrated cluster-B sites: detection.py worktree parse, sync.py lane parse, manifest.py branch discovery (all via parse_mission_slug_from_branch, was \d{3}- only), compute.py x3 (mission_branch_name mission_id=...), recovery.py x2 (mission_branch_name_required from meta, fail-closed). orchestrator_api:771 left as-is (legacy workspace-path, not branch-identity; STOP-hatch recorded). ATDD grammar tests + #1860 dual-era regression suite (21 new tests). ruff clean, mypy 0 new errors (87 pre-existing tree-wide), architectural suite 350 passed, dead-symbol gate green. Commit 71e8705e4.
+- 2026-06-12T19:45:51Z – claude:opus:reviewer-renata:reviewer – shell_pid=1640931 – Started review via action command
+- 2026-06-12T19:52:43Z – user – shell_pid=1640931 – Review PASSED (reviewer-renata). FR-006 branch-identity seam sound. (a) STOP-hatch orchestrator_api/commands.py:771 EXEMPTION SOUND: it composes f'{mission}-{wp}' for a .worktrees/ workspace-path label, contains NO 'kitty/mission-' literal and interpolates {mission}/{wp} not {slug}; WP09 ratchet (§4.2 scans JoinedStr with 'kitty/mission-' + {mission_slug}/{slug}) will NOT match it. Not a branch-identity site; correctly left untouched. (b) DUAL-ERA over-rejection PROBE PASSED: legacy NNN- slugs and mid8-era slugs both RESOLVE at every migrated seam (parser, composer, compute_lanes B5, recovery _resolve_mission_branch, manifest discovery), only modern-bare-slug-no-mission_id raises BranchIdentityUnresolved; verified in code AND 11-test regression suite feeding 042-foo + foo-01KNXQS9 through each seam. (c) manifest.py legacy bare-NNN fallback is era-correct: kitty/mission- branches route through dual-era parse_mission_slug_from_branch FIRST; the branch[0].isdigit() fallback only fires for bare non-kitty NNN- branches (legacy), never re-deriving names for modern missions (NFR-003 honored). C-002: zero edits to status_transition.py/merge.py/aggregate.py. compute.py threads raw mission_id (None->legacy) + _empty_manifest converts slug-sentinel back to None. mypy 87==base (the 2 isolated-file StructuredError->Any errors are a follow_imports=skip artifact, absent in whole-package check). ruff clean. 21 new tests + architectural 350 + 139 dependent + 352 manifest/skills + 32 vcs all green. NFR-001: no existing test modified. Test placement tests/lanes/ + tests/regression/ matches canonical convention (owned-glob tests/specify_cli/lanes/ is a planning-artifact typo; canonical test_branch_naming.py lives in tests/lanes/). NON-BLOCKING note for record: deprecated legacy .worktrees/<feature>-WP## dir shape no longer resolves VCS via detection.py (pre-lanes.json layout, outside dual-era slug rule, no live user) - acceptable. recovery.py:134 git-branch glob is pre-existing, not a B-site.

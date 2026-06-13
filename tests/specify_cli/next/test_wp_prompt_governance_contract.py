@@ -109,7 +109,7 @@ and MUST flag any unconverted occurrence as a defect.
 - Terminology in code and docs aligns with the project glossary
   (DIRECTIVE_032 — Conceptual Alignment).
 - No new code path violates an architectural ADR in
-  ``architecture/2.x/adr/``.
+  ``architecture/3.x/adr/``.
 
 ## Charter Resolution Hints
 
@@ -660,7 +660,7 @@ class TestPromptReferencesAuthorityPaths:
             repo_root=repo_root,
             mission_type="software-dev",
         )
-        adr_path_present = "architecture/2.x/adr/" in prompt or "architecture/adr" in prompt
+        adr_path_present = "architecture/3.x/adr/" in prompt or "architecture/adr" in prompt
         adr_fetch_with_conditional = bool(
             re.search(r"adr", prompt, re.IGNORECASE) and _WHEN_DOING_RE.search(prompt)
         )
@@ -895,7 +895,7 @@ class TestPromptSelfSufficiency:
         required_surfaces = {
             "profile_directive_id": re.compile(r"\bDIRECTIVE_\d{3}\b"),
             "glossary_pointer": re.compile(r"glossary/?", re.IGNORECASE),
-            "adr_pointer": re.compile(r"architecture/(2\.x/)?adr", re.IGNORECASE),
+            "adr_pointer": re.compile(r"architecture/([23]\.x/)?adr", re.IGNORECASE),
             "terminology_canon_body_or_fetch": re.compile(
                 r"canonical term|spec-kitty\s+charter\s+context", re.IGNORECASE
             ),

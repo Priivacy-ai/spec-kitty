@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KTYW56FW34KY6FM6J0C90GHT",
+  "completed_at": "2026-06-12T21:39:19.361521+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "#1898 fixed: legacy NNN- carve-out in resolve_transaction_mid8 before coord raise; pinning test RED pre-fix GREEN post (7 passed); gates green (262 pass, ruff clean, mypy 82==82 baseline, zero new); commit 4852015d; #1898 closed."
+}

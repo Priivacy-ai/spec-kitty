@@ -133,6 +133,24 @@ graph. Body checklists are invisible to tooling — backfill native links.
 - **Do not trust an empty loop result** — verify with a single call before
   concluding "0" or "not linked".
 
+### --paginate applies to all gh list surfaces
+
+`--paginate` is not specific to sub-issue reads. Any `gh` command that returns a
+paginated list (issues, labels, search results, API list endpoints) silently
+truncates at the default page size (30 for most; 100 for `gh search issues`).
+Always add `--paginate` when the full result set matters:
+
+```bash
+# All forms that need --paginate:
+gh api repos/{owner}/{repo}/issues/{n}/sub_issues --paginate --jq '.[].number'
+gh issue list --repo {owner}/{repo} --state open --paginate --json number,title,labels
+gh label list --repo {owner}/{repo} --paginate --json name,description
+gh api repos/{owner}/{repo}/labels --paginate --jq '.[].name'
+```
+
+Exception: `gh search issues` returns up to 100 items per call with `--limit` but
+has a separate cap; verify with `--jq 'length'` when a known large set is expected.
+
 ---
 
 ## Handy one-call queries

@@ -1,5 +1,8 @@
 # Tasks — name-vs-authority-remediation-01KTYGTE
 
+> **Branch retarget (2026-06-12):** PR #1895's branch (`feat/doctrine-glossary-consolidation-01KTNWFC`) entered review/merge; this mission now lands on `feat/name-vs-authority-remediation-01KTYGTE` (branched from that head). All branch-contract references to the old branch resolve to the new one.
+
+
 **Plan**: [plan.md](./plan.md) | **Decisions**: plan §Plan-time decisions (D1–D4, all resolved) | **change_mode**: standard
 **Branch**: planning base = merge target = `feat/doctrine-glossary-consolidation-01KTNWFC`
 
@@ -44,11 +47,11 @@
 
 ### WP01 — P0 quick fixes + verification pins (FRs 001/003/004/013) · prompt: [tasks/WP01-p0-quickfixes-and-pins.md](tasks/WP01-p0-quickfixes-and-pins.md)
 Goal: kill the small live roots, pin the already-fixed P0s, fix the gate parser. Independent; dispatch first (release-critical).
-- [ ] T001 Pinning regressions #1889 + #1885 symptom (WP01)
-- [ ] T002 FR-001 placement-authority gate (WP01)
-- [ ] T003 FR-003 structured error (WP01)
-- [ ] T004 FR-013 parser alignment (WP01)
-- [ ] T005 Evidence pack (WP01)
+- [x] T001 Pinning regressions #1889 + #1885 symptom (WP01)
+- [x] T002 FR-001 placement-authority gate (WP01)
+- [x] T003 FR-003 structured error (WP01)
+- [x] T004 FR-013 parser alignment (WP01)
+- [x] T005 Evidence pack (WP01)
 
 ### WP02 — Accept idempotency (FR-002) · prompt: [tasks/WP02-accept-idempotency.md](tasks/WP02-accept-idempotency.md)
 Goal: ROOT-β — accept ∘ accept converges in every mode. Independent; release-critical.
@@ -58,23 +61,23 @@ Goal: ROOT-β — accept ∘ accept converges in every mode. Independent; releas
 
 ### WP03 — Topology authority seam + R3 (FR-005, FR-008) · prompt: [tasks/WP03-topology-authority-seam.md](tasks/WP03-topology-authority-seam.md)
 Goal: the registry disposes. Parallel with WP04.
-- [ ] T009 Seam API + classifier (WP03)
-- [ ] T010 Decision table + R3 (WP03)
-- [ ] T011 Migrate 5 sites (WP03)
-- [ ] T012 Suites green (WP03)
+- [x] T009 Seam API + classifier (WP03)
+- [x] T010 Decision table + R3 (WP03)
+- [x] T011 Migrate 5 sites (WP03)
+- [x] T012 Suites green (WP03)
 
 ### WP04 — Branch-identity authority seam (FR-006) · prompt: [tasks/WP04-branch-identity-seam.md](tasks/WP04-branch-identity-seam.md)
 Goal: grammar + meta dispose; dual-era resolution; closes the #1860 class. Parallel with WP03.
-- [ ] T013 Grammar helper + structured error (WP04)
-- [ ] T014 Migrate 6 sites (WP04)
-- [ ] T015 #1860 regression + dual-era tests (WP04)
+- [x] T013 Grammar helper + structured error (WP04)
+- [x] T014 Migrate 6 sites (WP04)
+- [x] T015 #1860 regression + dual-era tests (WP04)
 
 ### WP05 — Cross-seam consumers + fabrication eradication (FR-007) · prompt: [tasks/WP05-cross-seam-consumers.md](tasks/WP05-cross-seam-consumers.md)
 Depends on: WP03, WP04.
-- [ ] T016 aggregate.py both-seam migration (WP05)
-- [ ] T017 status_transition.py fabrication + predicate (WP05)
-- [ ] T018 implement.py fabrication (WP05)
-- [ ] T019 Integration tests (WP05)
+- [x] T016 aggregate.py both-seam migration (WP05)
+- [x] T017 status_transition.py fabrication + predicate (WP05)
+- [x] T018 implement.py fabrication (WP05)
+- [x] T019 Integration tests (WP05)
 
 ### WP06 — Doctrine deltas #1865/66/67 (FR-010) · prompt: [tasks/WP06-doctrine-deltas.md](tasks/WP06-doctrine-deltas.md)
 Independent lane; deltas pre-drafted in research.
@@ -91,15 +94,15 @@ Independent lane; the WHOLE 7-link chain in one WP, parity baselines included.
 
 ### WP08 — DRG extractor walk (FR-012) · prompt: [tasks/WP08-extractor-walk.md](tasks/WP08-extractor-walk.md)
 Independent lane.
-- [ ] T027 Path-ref resolver + styleguide walk (WP08)
-- [ ] T028 Toolguide schema field + walk (WP08)
-- [ ] T029 Regen + tests (WP08)
+- [x] T027 Path-ref resolver + styleguide walk (WP08)
+- [x] T028 Toolguide schema field + walk (WP08)
+- [x] T029 Regen + tests (WP08)
 
 ### WP09 — Topology ratchet (FR-009) · prompt: [tasks/WP09-topology-ratchet.md](tasks/WP09-topology-ratchet.md)
 Depends on: WP03, WP04, WP05. Lands LAST; strictness proofs mandatory.
-- [ ] T030 Three assertions (WP09)
-- [ ] T031 Strictness proofs (WP09)
-- [ ] T032 Full suite + markers (WP09)
+- [x] T030 Three assertions (WP09)
+- [x] T031 Strictness proofs (WP09)
+- [x] T032 Full suite + markers (WP09)
 
 ## Parallelization
 

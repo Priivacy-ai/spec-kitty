@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KTYXF27M5X8AG57BBN1QDJZ5",
+  "completed_at": "2026-06-12T22:00:34.044368+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "CONFIRMED #1684: allocate_lane_worktree (worktree_allocator.py:82-115) never reads lane.depends_on_lanes; cross-lane dependent worktree rooted at bare mission/coord branch; repro test fails as expected"
+}

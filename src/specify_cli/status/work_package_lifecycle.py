@@ -53,11 +53,40 @@ class WorkPackageStartResult:
 
 
 def _repo_root_for_lock(feature_dir: Path, repo_root: Path | None) -> Path:
+    """Resolve the repo root used for per-feature status locking.
+
+    Same concurrency-correctness rationale as
+    :func:`specify_cli.status.emit._feature_status_lock_root`: a coord/lane
+    worktree feature dir must lock against the *canonical* main-repo root (the
+    seam's single worktree-pointer parser), not the worktree-local
+    ``parent.parent``, so processes anchored via different worktrees of one
+    mission share a lock. Primary / ad-hoc dirs keep the historical shape.
+    """
+    from specify_cli.coordination.surface_resolver import (
+        WorktreeRegistryUnavailable,
+        WorktreeTopology,
+        classify_worktree_topology,
+    )
+    from specify_cli.workspace.root_resolver import (
+        WorkspaceRootNotFound,
+        resolve_canonical_root,
+    )
+
     if repo_root is not None:
         return repo_root
-    if feature_dir.parent.name == KITTY_SPECS_DIR:
+    if feature_dir.parent.name != KITTY_SPECS_DIR:
+        return feature_dir
+    try:
+        topology = classify_worktree_topology(feature_dir)
+    except WorktreeRegistryUnavailable:
         return feature_dir.parent.parent
-    return feature_dir
+    if topology in (WorktreeTopology.COORD_WORKTREE, WorktreeTopology.LANE_WORKTREE):
+        try:
+            canonical_root: Path = resolve_canonical_root(feature_dir)
+        except WorkspaceRootNotFound:
+            return feature_dir.parent.parent
+        return canonical_root
+    return feature_dir.parent.parent
 
 
 def _actor_key(actor: object | None) -> str | None:

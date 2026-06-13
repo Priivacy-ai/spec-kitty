@@ -63,14 +63,33 @@ def canonicalize_feature_dir(feature_dir: Path) -> Path:
         The canonical-root-rooted feature directory, or ``feature_dir``
         when canonicalization does not apply.
     """
+    from specify_cli.coordination.surface_resolver import (
+        WorktreeRegistryUnavailable,
+        is_registered_coord_worktree,
+    )
+
     feature_dir = Path(feature_dir)
     parent = feature_dir.parent
     if parent.name != KITTY_SPECS_DIR:
         return feature_dir
 
-    for candidate in (feature_dir, *feature_dir.parents):
-        if candidate.parent.name == ".worktrees" and candidate.name.endswith("-coord"):
+    # A *registered* coordination worktree's feature dir is already canonical —
+    # never rewrite it back to the primary checkout (that is the #1589/#1821
+    # split-brain). Name proposes (the ``-coord`` suffix); the git registry
+    # disposes — a husk ``-coord`` dir (suffix present, NOT registered) falls
+    # through to canonicalization below, killing the husk-write split-brain.
+    # When the registry is unreadable (ad-hoc test dirs outside a git repo), we
+    # cannot canonicalize anyway, so degrade to the path-shape proposal to keep
+    # those callers working.
+    try:
+        if is_registered_coord_worktree(feature_dir):
             return feature_dir
+    except WorktreeRegistryUnavailable:
+        for candidate in (feature_dir, *feature_dir.parents):
+            if candidate.parent.name == ".worktrees" and candidate.name.endswith(
+                "-coord"
+            ):
+                return feature_dir
 
     try:
         canonical_root = resolve_canonical_root(feature_dir)

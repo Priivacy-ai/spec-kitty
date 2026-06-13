@@ -1,0 +1,1 @@
+CONFIRMED #1684: allocate_lane_worktree (worktree_allocator.py:82-115) never reads lane.depends_on_lanes; cross-lane dependent worktree rooted at bare mission/coord branch; repro test fails as expected

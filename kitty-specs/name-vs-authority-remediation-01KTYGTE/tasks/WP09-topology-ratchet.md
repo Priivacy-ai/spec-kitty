@@ -8,9 +8,9 @@ dependencies:
 requirement_refs:
 - FR-009
 tracker_refs: []
-planning_base_branch: feat/doctrine-glossary-consolidation-01KTNWFC
-merge_target_branch: feat/doctrine-glossary-consolidation-01KTNWFC
-branch_strategy: Planning artifacts for this mission were generated on feat/doctrine-glossary-consolidation-01KTNWFC. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/doctrine-glossary-consolidation-01KTNWFC unless the human explicitly redirects the landing branch.
+planning_base_branch: feat/name-vs-authority-remediation-01KTYGTE
+merge_target_branch: feat/name-vs-authority-remediation-01KTYGTE
+branch_strategy: Planning artifacts for this mission were generated on feat/doctrine-glossary-consolidation-01KTNWFC (mission retargeted to feat/name-vs-authority-remediation-01KTYGTE on 2026-06-12 — PR #1895 branch frozen for review). During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/name-vs-authority-remediation-01KTYGTE unless the human explicitly redirects the landing branch.
 created_at: '2026-06-12T18:32:00Z'
 subtasks:
 - T030
@@ -18,7 +18,8 @@ subtasks:
 - T032
 phase: Phase 3 - Closure
 assignee: ''
-agent: ''
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "1754679"
 history:
 - at: '2026-06-12T18:32:00Z'
   actor: system
@@ -61,3 +62,7 @@ reviewer-renata; she runs her OWN rogue-injection proof (the WP10-01KTRC04 revie
 
 ## Activity Log
 - 2026-06-12T18:32:00Z – system – Prompt created.
+- 2026-06-12T20:41:31Z – claude:opus:python-pedro:implementer – shell_pid=1743026 – Assigned agent via action command
+- 2026-06-12T20:52:47Z – claude:opus:python-pedro:implementer – shell_pid=1743026 – Ratchet landed; 3 strictness proofs RED-verified
+- 2026-06-12T20:53:43Z – claude:opus:reviewer-renata:reviewer – shell_pid=1754679 – Started review via action command
+- 2026-06-12T20:58:39Z – user – shell_pid=1754679 – Review passed: ratchet strictness self-verified (3 RED proofs + anti-FP + staleness)

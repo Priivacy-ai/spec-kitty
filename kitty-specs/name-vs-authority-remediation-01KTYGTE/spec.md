@@ -1,5 +1,8 @@
 # Mission Specification — name-vs-authority-remediation-01KTYGTE
 
+> **Branch retarget (2026-06-12):** PR #1895's branch (`feat/doctrine-glossary-consolidation-01KTNWFC`) entered review/merge; this mission now lands on `feat/name-vs-authority-remediation-01KTYGTE` (branched from that head). All branch-contract references to the old branch resolve to the new one.
+
+
 **Mission type:** software-dev · **Planning base / merge target:** `feat/doctrine-glossary-consolidation-01KTNWFC` (the PR #1895 draft branch; PR grows, stays draft until this lands) · **Topology:** flattened (coordination branch removed per F-001 precedent)
 
 ## Intent

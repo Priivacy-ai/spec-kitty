@@ -149,21 +149,30 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
                 break
 
         if worktree_root:
-            # Extract feature number from worktree name
-            # Pattern: ###-feature-name-lane-x
+            # Resolve the mission slug from the worktree dir name via the
+            # canonical dual-era grammar. The dir name is the body of the lane
+            # branch (``kitty/mission-<name>``), so it carries either legacy
+            # ``NNN-slug-lane-x`` or mid8-era ``<slug>-<mid8>-lane-x``. The old
+            # ``re.match(r"(\d{3})-", ...)`` returned None for EVERY mid8
+            # mission — silent signal loss (#1860 class).
+            from specify_cli.lanes.branch_naming import parse_mission_slug_from_branch
+
             worktree_name = worktree_root.name
-            match = re.match(r"(\d{3})-", worktree_name)
-            if match:
-                feature_num = match.group(1)
-                # Find main repo (parent of .worktrees)
+            parsed = parse_mission_slug_from_branch(f"kitty/mission-{worktree_name}")
+            if parsed is not None:
+                # Match the kitty-specs feature dir for the resolved slug.
+                # Legacy worktrees embed the full ``NNN-slug`` (dir name matches
+                # exactly); mid8 worktrees carry the human-slug (the dir name is
+                # the slug, optionally still NNN-prefixed in kitty-specs).
                 main_repo = worktree_root.parent.parent
                 mission_specs = main_repo / KITTY_SPECS_DIR
                 if mission_specs.is_dir():
-                    # Find the specific feature directory matching feature_num
+                    slug = parsed.slug
                     for feature_dir in mission_specs.iterdir():
-                        if feature_dir.is_dir() and feature_dir.name.startswith(
-                            f"{feature_num}-"
-                        ):
+                        if not feature_dir.is_dir():
+                            continue
+                        name = feature_dir.name
+                        if name == slug or name.endswith(f"-{slug}") or name == f"{slug}":
                             meta_path = feature_dir / "meta.json"
                             if meta_path.is_file():
                                 try:

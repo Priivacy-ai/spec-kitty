@@ -52,8 +52,20 @@ class StatusContractError(TypeError):
 
 
 def _is_coordination_worktree_path(path: Path) -> bool:
-    """Return True for paths rooted under the in-repo coordination worktree dir."""
-    return ".worktrees" in path.parts
+    """Return True for contract paths rooted under the in-repo worktrees dir.
+
+    This is a contract-label *consistency* guard (does the caller's labelled
+    contract — primary vs coordination — match the path's worktree shape), not
+    a topology-routing decision. The shape *proposal* is delegated to the
+    blessed seam primitive :func:`is_under_worktrees_segment` so the
+    ``".worktrees" in parts`` idiom lives only inside the topology authority
+    module (C-SEAM-1). Routing/canonical-surface decisions go through
+    :func:`is_registered_coord_worktree`, which additionally consults the git
+    registry (name proposes, registry disposes).
+    """
+    from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
+
+    return is_under_worktrees_segment(path)
 
 
 @dataclass(frozen=True)
