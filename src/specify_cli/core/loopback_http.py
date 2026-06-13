@@ -13,17 +13,23 @@ __all__ = [
 ]
 
 LOOPBACK_HOST = "127.0.0.1"
+LOOPBACK_URL_HOST = "localhost"
 
 
 def build_loopback_base_url(port: int) -> str:
     """Return the loopback origin (no trailing slash) for path concatenation."""
-    return f"http://{LOOPBACK_HOST}:{port}"
+    return f"http://{LOOPBACK_URL_HOST}:{port}"
 
 
 def build_loopback_url(port: int, path: str) -> str:
-    """Return an HTTP URL scoped to the IPv4 loopback interface."""
+    """Return an HTTP URL scoped to the local machine only.
+
+    URLs use ``localhost`` so browsers, proxies, and security scanners can
+    recognize the loopback-only transport, while the server still binds
+    strictly to ``127.0.0.1``.
+    """
     normalized_path = path if path.startswith("/") else f"/{path}"
-    return urlunsplit(("http", f"{LOOPBACK_HOST}:{port}", normalized_path, "", ""))
+    return urlunsplit(("http", f"{LOOPBACK_URL_HOST}:{port}", normalized_path, "", ""))
 
 
 def create_loopback_server(

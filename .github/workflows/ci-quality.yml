@@ -103,6 +103,7 @@ jobs:
           filters: |
             sync:
               - 'src/specify_cli/sync/**'
+              - 'src/specify_cli/core/loopback_http.py'
               - 'tests/sync/**'
             merge:
               - 'src/specify_cli/merge/**'
