@@ -471,15 +471,26 @@ def run(
     # ------------------------------------------------------------------
     new_manifest = _rewrite_manifest(existing_manifest, all_new_results, run_id)
 
-    # Write the updated manifest to disk
+    # Write the updated manifest to disk — no-op-stable (#1912): skip the
+    # rewrite when the merged manifest is unchanged modulo volatile fields
+    # (created_at, run_id, synthesizer_version, manifest_hash), so a resynthesis
+    # that regenerates identical content leaves the tracked manifest untouched.
     from .path_guard import PathGuard as _PathGuard  # noqa: PLC0415
     from .manifest import dump_yaml as _dump_manifest  # noqa: PLC0415
+    from .write_pipeline import (  # noqa: PLC0415
+        _VOLATILE_MANIFEST_FIELDS,
+        _substantively_equal,
+    )
 
     guard = _PathGuard(
         repo_root=_repo_root,
         extra_allowed_prefixes=(_repo_root / _KITTIFY_DIRNAME,),
     )
-    _dump_manifest(new_manifest, manifest_path, guard)
+    new_manifest_bytes = canonical_yaml(new_manifest.model_dump(mode="python"))
+    if not _substantively_equal(
+        new_manifest_bytes, manifest_path, _VOLATILE_MANIFEST_FIELDS
+    ):
+        _dump_manifest(new_manifest, manifest_path, guard)
 
     # ------------------------------------------------------------------
     # Step 8: Return result

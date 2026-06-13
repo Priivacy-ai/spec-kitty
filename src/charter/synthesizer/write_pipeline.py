@@ -46,6 +46,7 @@ from .manifest import (
     compute_manifest_hash,
     dump_yaml as dump_manifest,
 )
+from .manifest import load_yaml as load_manifest
 from .provenance import dump_yaml as dump_provenance, provenance_path_for
 from .request import SynthesisRequest
 from .staging import StagingDir
@@ -206,6 +207,72 @@ def _doctrine_kind_subdir(kind: str) -> str:
 def _compute_content_hash(yaml_bytes: bytes) -> str:
     """SHA-256 hex digest of artifact YAML bytes (matches synthesize_pipeline)."""
     return hashlib.sha256(yaml_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
+
+
+# ---------------------------------------------------------------------------
+# No-op-stable promotion helpers (#1912)
+# ---------------------------------------------------------------------------
+#
+# Every governed run re-synthesizes the charter pack with a fresh ``run_id``,
+# ``produced_at`` timestamp, and current ``synthesizer_version``. Writing those
+# volatile fields unconditionally dirtied the tracked provenance/manifest files
+# on every op even when no substantive content changed. The helpers below let
+# ``promote()`` skip the live-tree write when the regenerated payload is
+# byte-identical *modulo* those volatile provenance fields, so a no-op run
+# leaves the committed bytes (and their prior timestamps/version) untouched.
+
+# Provenance sidecar fields that change on every run regardless of content.
+_VOLATILE_PROVENANCE_FIELDS: frozenset[str] = frozenset(
+    {"produced_at", "synthesizer_version", "synthesis_run_id", "generated_at"}
+)
+
+# Synthesis manifest fields that change on every run regardless of content.
+# ``manifest_hash`` is derived from the others, so it is volatile too.
+_VOLATILE_MANIFEST_FIELDS: frozenset[str] = frozenset(
+    {"created_at", "run_id", "synthesizer_version", "manifest_hash"}
+)
+
+
+def _strip_volatile(text: str, volatile_keys: frozenset[str]) -> str:
+    """Drop top-level ``key: value`` lines for volatile fields from canonical YAML.
+
+    The synthesizer serializes provenance and manifests via ``canonical_yaml``,
+    which emits one top-level mapping with alphabetically sorted keys in block
+    style. Each volatile field is therefore a single ``"<key>: ..."`` line at
+    column zero. Removing those lines yields a stable "substantive content"
+    projection that two runs with identical inputs produce identically — the
+    basis for the no-op skip. This is a textual comparison, never written back
+    to disk, so it cannot corrupt the on-disk YAML.
+    """
+    prefixes = tuple(f"{key}:" for key in volatile_keys)
+    kept = [
+        line
+        for line in text.splitlines()
+        if not (line[:1] not in (" ", "\t", "-") and line.startswith(prefixes))
+    ]
+    return "\n".join(kept)
+
+
+def _substantively_equal(
+    new_bytes: bytes,
+    existing_path: Path,
+    volatile_keys: frozenset[str],
+) -> bool:
+    """Return True if ``new_bytes`` equals ``existing_path`` modulo volatile fields.
+
+    Returns False when the existing file is absent or unreadable so a genuine
+    write still happens. Only the volatile provenance/manifest fields are
+    excluded from the comparison; any substantive change (body, hashes, adapter
+    identity, artifact set) still triggers a rewrite.
+    """
+    try:
+        existing_text = existing_path.read_text(encoding="utf-8")
+    except (FileNotFoundError, OSError):
+        return False
+    new_text = new_bytes.decode("utf-8")
+    return _strip_volatile(new_text, volatile_keys) == _strip_volatile(
+        existing_text, volatile_keys
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -480,6 +547,10 @@ def promote(
             content_hash = _compute_content_hash(yaml_bytes)
 
             # Content: staging → .kittify/doctrine/<kind-subdir>/<filename>
+            #
+            # The doctrine body YAML carries no volatile fields, so a no-op run
+            # produces byte-identical content. Skip the replace when unchanged
+            # so the tracked file (and its mtime) is left alone (#1912).
             staged_content = staging_dir.path_for_content(kind, filename)
             live_content = (
                 repo_root
@@ -488,9 +559,18 @@ def promote(
                 / _doctrine_kind_subdir(kind)
                 / filename
             )
-            guard.replace(staged_content, live_content, caller="write_pipeline.promote[content-replace]")
+            if not _substantively_equal(yaml_bytes, live_content, frozenset()):
+                guard.replace(
+                    staged_content, live_content, caller="write_pipeline.promote[content-replace]"
+                )
+            # else: unchanged — staged copy is discarded by staging_dir.wipe().
 
             # Provenance: staging → .kittify/charter/provenance/<kind>-<slug>.yaml
+            #
+            # Provenance sidecars stamp volatile fields (produced_at,
+            # synthesizer_version, synthesis_run_id, generated_at) every run.
+            # Skip the replace when the sidecar is unchanged modulo those
+            # fields so the prior committed timestamp/version survives (#1912).
             staged_prov = staging_dir.path_for_provenance(kind, slug)
             live_prov = (
                 repo_root
@@ -499,7 +579,14 @@ def promote(
                 / _PROVENANCE_DIRNAME
                 / f"{kind}-{slug}.yaml"
             )
-            guard.replace(staged_prov, live_prov, caller="write_pipeline.promote[prov-replace]")
+            staged_prov_bytes = staged_prov.read_bytes()
+            if not _substantively_equal(
+                staged_prov_bytes, live_prov, _VOLATILE_PROVENANCE_FIELDS
+            ):
+                guard.replace(
+                    staged_prov, live_prov, caller="write_pipeline.promote[prov-replace]"
+                )
+            # else: unchanged — staged copy is discarded by staging_dir.wipe().
 
             rel_content = str(live_content.relative_to(repo_root))
             rel_prov = provenance_path_for(kind, slug)
@@ -514,11 +601,18 @@ def promote(
                 )
             )
 
-        # Check for a staged DRG overlay graph and promote it
+        # Check for a staged DRG overlay graph and promote it. The graph
+        # overlay carries no volatile fields, so skip the replace when the
+        # regenerated bytes match the live graph (#1912 — avoid graph.yaml churn).
         staged_graph = staging_dir.root / "doctrine" / _GRAPH_FILENAME
         if staged_graph.exists():
             live_graph = repo_root / _KITTIFY_DIRNAME / _DOCTRINE_DIRNAME / _GRAPH_FILENAME
-            guard.replace(staged_graph, live_graph, caller="write_pipeline.promote[graph-replace]")
+            if not _substantively_equal(
+                staged_graph.read_bytes(), live_graph, frozenset()
+            ):
+                guard.replace(
+                    staged_graph, live_graph, caller="write_pipeline.promote[graph-replace]"
+                )
 
     except Exception as exc:
         # Do NOT wipe staging — let the caller (StagingDir context manager) route
@@ -568,7 +662,23 @@ def promote(
     try:
         manifest_path = repo_root / MANIFEST_PATH
         guard.mkdir(manifest_path.parent, caller="write_pipeline.promote[mkdir-manifest]")
-        dump_manifest(manifest, manifest_path, guard)
+        # No-op-stable manifest write (#1912): the manifest stamps volatile
+        # fields (created_at, run_id, synthesizer_version, manifest_hash) on
+        # every run. Skip the rewrite when the manifest is unchanged modulo
+        # those fields. A substantive change (artifact set, hashes, adapter
+        # identity) still alters the comparison and triggers a rewrite, so the
+        # on-disk manifest can never go stale relative to the artifacts.
+        new_manifest_bytes = canonical_yaml(manifest.model_dump(mode="python"))
+        if not _substantively_equal(
+            new_manifest_bytes, manifest_path, _VOLATILE_MANIFEST_FIELDS
+        ):
+            dump_manifest(manifest, manifest_path, guard)
+            written_manifest = manifest
+        else:
+            # Preserve the prior committed manifest (and its timestamps) so the
+            # tree stays clean. Return the on-disk manifest so callers observe
+            # the persisted state rather than the discarded fresh one.
+            written_manifest = load_manifest(manifest_path)
     except Exception as exc:
         # Manifest write failed — staging NOT wiped; partial state preserved.
         raise StagingPromoteError(
@@ -585,7 +695,7 @@ def promote(
     # ------------------------------------------------------------------
     # Step 6: return manifest
     # ------------------------------------------------------------------
-    return manifest
+    return written_manifest
 
 
 __all__ = [
