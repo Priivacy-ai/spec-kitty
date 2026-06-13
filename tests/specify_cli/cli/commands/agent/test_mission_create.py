@@ -427,3 +427,93 @@ def test_pr_bound_create_json_already_confirmed_preserves_success_path(tmp_path:
     assert payload["result"] == "success"
     meta = json.loads(Path(str(payload["meta_file"])).read_text(encoding="utf-8"))
     assert meta["pr_bound"] is True
+
+
+def test_pr_bound_create_start_branch_switches_before_scaffold_writes(tmp_path: Path) -> None:
+    """Issue #765: recommended PR-bound path must not write mission artifacts on main."""
+    _init_repo(tmp_path)
+
+    runner = CliRunner()
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
+        patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+    ):
+        result = runner.invoke(
+            mission_app,
+            [
+                "create",
+                "json-pr-bound-branch",
+                "--pr-bound",
+                "--branch-strategy",
+                "already-confirmed",
+                "--start-branch",
+                "feat/json-pr-bound-branch",
+                "--json",
+                "--friendly-name",
+                "JSON PR Bound Branch",
+                "--purpose-tldr",
+                "Validate PR-bound feature-branch creation.",
+                "--purpose-context",
+                "Automation starts a feature branch before writing mission artifacts.",
+            ],
+            input="",
+        )
+
+    assert result.exit_code == 0, result.output
+    assert _git(tmp_path, "branch", "--show-current").stdout.strip() == "feat/json-pr-bound-branch"
+    payload = _json_payload_from_output(result.output)
+    assert payload["result"] == "success"
+    assert payload["current_branch"] == "feat/json-pr-bound-branch"
+    assert payload["target_branch"] == "feat/json-pr-bound-branch"
+    meta_path = Path(str(payload["meta_file"]))
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    assert meta["pr_bound"] is True
+    assert meta["target_branch"] == "feat/json-pr-bound-branch"
+
+    rel_meta = meta_path.relative_to(tmp_path).as_posix()
+    assert subprocess.run(
+        ["git", "-C", str(tmp_path), "cat-file", "-e", f"main:{rel_meta}"],
+        capture_output=True,
+        check=False,
+    ).returncode != 0
+    assert subprocess.run(
+        ["git", "-C", str(tmp_path), "cat-file", "-e", f"feat/json-pr-bound-branch:{rel_meta}"],
+        capture_output=True,
+        check=False,
+    ).returncode == 0
+
+
+def test_start_branch_target_branch_mismatch_refuses_before_switch(tmp_path: Path) -> None:
+    """Avoid recording a planning target that differs from the checkout branch."""
+    _init_repo(tmp_path)
+
+    runner = CliRunner()
+    with patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path):
+        result = runner.invoke(
+            mission_app,
+            [
+                "create",
+                "json-pr-bound-mismatch",
+                "--json",
+                "--target-branch",
+                "main",
+                "--start-branch",
+                "feat/json-pr-bound-mismatch",
+                "--friendly-name",
+                "JSON PR Bound Mismatch",
+                "--purpose-tldr",
+                "Validate mismatch refusal.",
+                "--purpose-context",
+                "The CLI must refuse before switching branches or writing artifacts.",
+            ],
+            input="",
+        )
+
+    assert result.exit_code == 1
+    payload = _json_payload_from_output(result.output)
+    assert payload["error_code"] == "START_BRANCH_TARGET_MISMATCH"
+    assert _git(tmp_path, "branch", "--show-current").stdout.strip() == "main"
+    assert not _branch_exists(tmp_path, "feat/json-pr-bound-mismatch")
+    assert list((tmp_path / "kitty-specs").iterdir()) == []

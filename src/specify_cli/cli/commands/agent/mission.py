@@ -530,6 +530,106 @@ def _inject_branch_contract(
     return enriched
 
 
+def _git_local_or_remote_branch_exists(repo_root: Path, branch_name: str) -> bool:
+    """Return true when a local or origin branch ref exists."""
+    for ref in (f"refs/heads/{branch_name}", f"refs/remotes/origin/{branch_name}"):
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", ref],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            return True
+    return False
+
+
+def _resolve_primary_branch_for_recommendation(
+    repo_root: Path,
+    current_branch: str | None,
+) -> str:
+    """Resolve primary branch for recommendations without feature-branch bias."""
+    try:
+        result = subprocess.run(
+            ["git", "symbolic-ref", "refs/remotes/origin/HEAD"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            ref = result.stdout.strip()
+            branch = ref.split("/")[-1]
+            if branch:
+                return branch
+    except subprocess.TimeoutExpired:
+        pass
+
+    common_primary_branches = ("main", "master", "develop")
+    if current_branch in common_primary_branches:
+        return current_branch
+    for branch in common_primary_branches:
+        try:
+            if _git_local_or_remote_branch_exists(repo_root, branch):
+                return branch
+        except subprocess.TimeoutExpired:
+            continue
+
+    from specify_cli.core.git_ops import resolve_primary_branch
+
+    return str(resolve_primary_branch(repo_root))
+
+
+def _switch_to_start_branch(repo_root: Path | None, start_branch: str) -> str:
+    """Create or switch to a mission start branch before scaffold writes."""
+    branch = start_branch.strip()
+    if not branch:
+        raise ValueError("--start-branch requires a non-empty branch name.")
+    if repo_root is None:
+        raise ValueError("Could not locate project root. Run from within spec-kitty repository.")
+
+    check_ref = subprocess.run(
+        ["git", "check-ref-format", "--branch", branch],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+        timeout=5,
+    )
+    if check_ref.returncode != 0:
+        detail = check_ref.stderr.strip() or check_ref.stdout.strip() or "invalid branch name"
+        raise ValueError(f"Invalid --start-branch '{branch}': {detail}")
+
+    current_branch = get_current_branch(repo_root)
+    if current_branch == branch:
+        return branch
+
+    branch_exists = _git_local_or_remote_branch_exists(repo_root, branch)
+    switch_cmd = ["git", "switch", branch] if branch_exists else ["git", "switch", "-c", branch]
+    switch = subprocess.run(
+        switch_cmd,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if switch.returncode != 0:
+        detail = switch.stderr.strip() or switch.stdout.strip() or "unknown git error"
+        raise RuntimeError(f"Failed to switch to --start-branch '{branch}': {detail}")
+    return branch
+
+
 def _enforce_git_preflight(
     repo_root: Path,
     *,
@@ -1185,9 +1285,7 @@ def branch_context(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        from specify_cli.core.git_ops import resolve_primary_branch
-
-        primary_branch = resolve_primary_branch(repo_root)
+        primary_branch = _resolve_primary_branch_for_recommendation(repo_root, current_branch)
         resolved_target_branch = str(target_branch).strip() if target_branch and str(target_branch).strip() else current_branch
         payload: dict[str, object] = {
             "result": "success",
@@ -1248,6 +1346,13 @@ def create_mission(
             help="Branch-strategy gate control (e.g., 'already-confirmed' to bypass the prompt)",
         ),
     ] = None,
+    start_branch: Annotated[
+        str | None,
+        typer.Option(
+            "--start-branch",
+            help="Create or switch to this branch before mission files are written",
+        ),
+    ] = None,
     force_recreate_coordination_branch: Annotated[
         bool,
         typer.Option(
@@ -1277,6 +1382,42 @@ def create_mission(
     repo_root = locate_project_root()
     resolved_mission_type = mission_type
 
+    if start_branch is not None:
+        normalized_start_branch = start_branch.strip()
+        normalized_target_branch = target_branch.strip() if target_branch else None
+        if normalized_target_branch and normalized_target_branch != normalized_start_branch:
+            message = (
+                "--start-branch and --target-branch must match because mission "
+                "creation stores one planning branch. Omit --target-branch for "
+                "the recommended PR-bound feature-branch flow."
+            )
+            if json_output:
+                _emit_json(
+                    {
+                        "error_code": "START_BRANCH_TARGET_MISMATCH",
+                        "error": message,
+                        "start_branch": start_branch,
+                        "target_branch": target_branch,
+                    }
+                )
+            else:
+                console.print(f"[bold red]Error:[/bold red] {message}")
+            raise typer.Exit(1)
+        try:
+            _switch_to_start_branch(repo_root, start_branch)
+        except Exception as exc:
+            if json_output:
+                _emit_json(
+                    {
+                        "error_code": "START_BRANCH_FAILED",
+                        "error": str(exc),
+                        "start_branch": start_branch,
+                    }
+                )
+            else:
+                console.print(f"[bold red]Error:[/bold red] {exc}")
+            raise typer.Exit(1) from exc
+
     if mission_type is not None or mission is not None:
         try:
             resolved = resolve_selector(
@@ -1299,18 +1440,20 @@ def create_mission(
     # and the operator is on the merge target branch, prompt for confirmation
     # unless `--branch-strategy already-confirmed` is supplied.
     from specify_cli.cli.commands._branch_strategy_gate import (
+        ALREADY_CONFIRMED,
         BranchStrategyGateError,
         evaluate_branch_strategy,
     )
 
     current_branch = get_current_branch(repo_root)
     effective_merge_target = target_branch or current_branch
+    gate_branch_strategy = branch_strategy or (ALREADY_CONFIRMED if start_branch is not None else None)
     try:
         gate_outcome = evaluate_branch_strategy(
             pr_bound=pr_bound,
             current_branch=current_branch,
             merge_target_branch=effective_merge_target,
-            branch_strategy=branch_strategy,
+            branch_strategy=gate_branch_strategy,
             prompt=None if json_output else lambda message: typer.confirm(message, default=False),
         )
     except BranchStrategyGateError as exc:
