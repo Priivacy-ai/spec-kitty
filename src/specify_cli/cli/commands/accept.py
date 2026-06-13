@@ -194,8 +194,8 @@ def _print_acceptance_diagnosis(summary: AcceptanceSummary) -> None:
 
     if summary.recommended_fix_order:
         console.print("\n[bold]Recommended fix order[/bold]")
-        for idx, item in enumerate(summary.recommended_fix_order, start=1):
-            console.print(f"  {idx}. {item}")
+        for idx, fix in enumerate(summary.recommended_fix_order, start=1):
+            console.print(f"  {idx}. {fix}")
 
 
 def _summary_payload(summary: AcceptanceSummary) -> dict[str, object]:
@@ -349,6 +349,7 @@ def accept(
 
     result: AcceptanceResult | None = None
     _accept_exc: AcceptanceError | None = None
+    _residue_exc: Exception | None = None
     try:
         if commit_required and not json_output:
             tracker.start("commit")
@@ -392,10 +393,19 @@ def accept(
             try:
                 _commit_residual_acceptance_artifacts(repo_root, mission_slug)
             except Exception as residue_exc:
-                # Non-fatal: log the residue-commit failure but do not swallow
-                # the original acceptance exception if one occurred.
+                _residue_exc = residue_exc
                 _safe_emit_error_logged(f"Residual artifact commit failed: {residue_exc}")
     if _accept_exc is not None:
+        raise typer.Exit(1)
+    if _residue_exc is not None:
+        error_msg = f"Residual artifact commit failed: {_residue_exc}"
+        if json_output:
+            print(json.dumps({"error": error_msg}))
+        else:
+            if commit_required:
+                tracker.error("commit", error_msg)
+                console.print(tracker.render())
+            console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
 
     assert result is not None  # guaranteed: _accept_exc is None means perform_acceptance succeeded

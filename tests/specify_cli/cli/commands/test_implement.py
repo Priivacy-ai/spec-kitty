@@ -411,3 +411,79 @@ class TestPlanningArtifactAutoCommit:
             check=False,
         )
         assert main_tasks.returncode != 0
+
+    def test_auto_commit_with_coord_feature_dir_uses_primary_artifact_source(
+        self, tmp_path: Path
+    ) -> None:
+        from specify_cli.cli.commands.implement import (
+            _ensure_planning_artifacts_committed_git,
+        )
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+
+        def git(*args: str) -> str:
+            return subprocess.run(
+                ["git", *args],
+                cwd=repo,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+
+        mission_slug = "demo-feature"
+        mission_id = "01J6XW9K00000000000000000P"
+        mid8 = mission_id[:8]
+        coord_branch = f"kitty/mission-{mission_slug}-{mid8}"
+
+        git("init", "-q", "-b", "main")
+        git("config", "user.email", "t@example.com")
+        git("config", "user.name", "Test")
+        git("config", "commit.gpgsign", "false")
+        (repo / "seed.txt").write_text("seed\n", encoding="utf-8")
+        git("add", "seed.txt")
+        git("commit", "-q", "-m", "initial")
+        git("branch", coord_branch)
+
+        primary_feature_dir = repo / "kitty-specs" / mission_slug
+        _make_meta(
+            primary_feature_dir,
+            with_coord=True,
+            mission_id=mission_id,
+            mission_slug=mission_slug,
+        )
+        tasks = primary_feature_dir / "tasks.md"
+        tasks.write_text("# tasks\n", encoding="utf-8")
+
+        _ensure_planning_artifacts_committed_git(
+            repo_root=repo,
+            feature_dir=primary_feature_dir,
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            planning_branch="main",
+            auto_commit=True,
+        )
+        coord_feature_dir = (
+            repo
+            / ".worktrees"
+            / f"{mission_slug}-{mid8}-coord"
+            / "kitty-specs"
+            / mission_slug
+        )
+        assert (coord_feature_dir / "meta.json").exists()
+
+        tasks.write_text("# tasks\n\nupdated\n", encoding="utf-8")
+
+        _ensure_planning_artifacts_committed_git(
+            repo_root=repo,
+            feature_dir=coord_feature_dir,
+            mission_slug=mission_slug,
+            wp_id="WP02",
+            planning_branch="main",
+            auto_commit=True,
+        )
+
+        assert (
+            git("show", f"{coord_branch}:kitty-specs/{mission_slug}/tasks.md").strip()
+            == "# tasks\n\nupdated"
+        )

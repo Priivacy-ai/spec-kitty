@@ -476,6 +476,24 @@ def _feature_dir_file_paths(repo_root: Path, feature_dir: Path) -> list[str]:
     return paths
 
 
+def _planning_artifact_source_dir(repo_root: Path, feature_dir: Path, mission_slug: str) -> Path:
+    """Return the primary-checkout mission dir for planning-artifact discovery."""
+    repo_root_resolved = repo_root.resolve()
+    try:
+        rel = feature_dir.resolve().relative_to(repo_root_resolved)
+    except ValueError:
+        return feature_dir
+    if rel.parts and rel.parts[0] == WORKTREES_DIR:
+        from specify_cli.missions._read_path_resolver import (
+            primary_feature_dir_for_mission,
+        )
+
+        primary_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
+        if primary_dir.exists():
+            return primary_dir
+    return feature_dir
+
+
 def _exclude_coord_owned(paths: Iterable[str], coord_branch_for_filter: str | None) -> list[str]:
     """Drop the canonical status log/snapshot (``COORD_OWNED_STATUS_FILES``) from
     *paths* on coordination-topology missions only.
@@ -570,7 +588,10 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     strangler) the legacy meta-derived path is used unchanged.
     """
     current_branch = _git_stdout(repo_root, ["rev-parse", "--abbrev-ref", "HEAD"])
-    entries = _feature_dir_status_entries(repo_root, feature_dir)
+    artifact_source_dir = _planning_artifact_source_dir(
+        repo_root, feature_dir, mission_slug
+    )
+    entries = _feature_dir_status_entries(repo_root, artifact_source_dir)
 
     # Fail closed on structural changes (deletions, renames, copies). The
     # planning-artifact commit goes through ``BookkeepingTransaction.write_artifact``,
@@ -610,7 +631,8 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     if coord_branch_for_filter:
         files_to_commit.extend(
             _exclude_coord_owned(
-                _feature_dir_file_paths(repo_root, feature_dir), coord_branch_for_filter
+                _feature_dir_file_paths(repo_root, artifact_source_dir),
+                coord_branch_for_filter,
             )
         )
     files_to_commit = list(dict.fromkeys(files_to_commit))
@@ -633,7 +655,7 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
             current_branch,
             planning_branch,
             auto_commit,
-            feature_dir,
+            artifact_source_dir,
             mission_slug,
         )
 

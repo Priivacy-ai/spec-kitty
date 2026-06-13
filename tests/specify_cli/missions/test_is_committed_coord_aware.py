@@ -138,7 +138,7 @@ def test_coord_placement_file_on_coord_branch_returns_true(tmp_path: Path) -> No
     )
     # Confirm the file is absent from HEAD.
     result = subprocess.run(
-        ["git", "-C", str(tmp_path), "cat-file", "-e", f"HEAD:spec.md"],
+        ["git", "-C", str(tmp_path), "cat-file", "-e", "HEAD:spec.md"],
         capture_output=True,
     )
     assert result.returncode != 0, "Precondition: spec.md must NOT be on HEAD"

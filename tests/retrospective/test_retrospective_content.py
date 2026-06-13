@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import inspect
 import json
-import dataclasses
 from pathlib import Path
 
 import pytest
@@ -384,7 +383,6 @@ class TestHelpedByContrastRelaxation:
             actor=_ACTOR,
         )
 
-        summaries = _ingestor_finding_summaries(record)
         # WP01 completed without rejection → should appear as helped even without
         # other rejections, because analysis-report.md is present
         helped_summaries = [f.summary for f in record.helped]
@@ -515,8 +513,6 @@ class TestGoldenIngestorFixture:
         # Record must have non-empty findings
         all_findings = record.helped + record.not_helpful + record.gaps
         assert len(all_findings) > 0, "Expected non-empty findings from ingestor fixture"
-
-        summaries = {f.summary for f in all_findings}
 
         # workflow failures should appear as not_helpful
         wf_summaries = [f.summary for f in record.not_helpful if f.category == "process"]

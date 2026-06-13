@@ -81,6 +81,27 @@ _ACTIONABLE_LANE_BLOCKER_HINTS = {
 }
 
 
+def _porcelain_dirty_path(line: str) -> str:
+    """Return the path component from a git porcelain v1 status line."""
+    path = line[3:].strip()
+    if " -> " in path:
+        path = path.split(" -> ", 1)[1].strip()
+    return path
+
+
+def _accept_owned_dirty_paths(repo_root: Path, *feature_dirs: Path) -> set[str]:
+    """Return repo-relative accept-owned paths for the current mission only."""
+    owned: set[str] = set()
+    for feature_dir in feature_dirs:
+        try:
+            feature_rel = feature_dir.resolve().relative_to(repo_root.resolve()).as_posix()
+        except ValueError:
+            continue
+        for filename in ACCEPT_OWNED_PATHS:
+            owned.add(f"{feature_rel}/{filename}")
+    return owned
+
+
 class AcceptanceError(TaskCliError):
     """Raised when acceptance cannot complete due to outstanding issues."""
 
@@ -951,10 +972,15 @@ def collect_feature_summary(
     # such as acceptance-matrix.json and status.json are written by the
     # accept pipeline itself and must not count as "unexpected" working-tree
     # dirt on the second run.
+    accept_owned_dirty_paths = _accept_owned_dirty_paths(
+        repo_root,
+        feature_dir,
+        read_feature_dir,
+    )
     git_dirty = [
         line
         for line in git_dirty_raw
-        if not any(line.endswith(owned) for owned in ACCEPT_OWNED_PATHS)
+        if _porcelain_dirty_path(line) not in accept_owned_dirty_paths
     ]
 
     lanes: dict[str, list[str]] = {lane: [] for lane in LANES}

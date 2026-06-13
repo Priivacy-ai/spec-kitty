@@ -26,6 +26,7 @@ import pytest
 from specify_cli.git.ref_advance import (
     advance_branch_ref,
     RefAdvanceDirtyWorktreeError,
+    RefAdvanceNonFastForwardError,
 )
 from specify_cli.status import COORD_OWNED_STATUS_FILES
 
@@ -171,6 +172,62 @@ def test_coord_owned_residue_does_not_abort_advance(tmp_path: Path) -> None:
     assert primary_sha == coord_sha, (
         "Primary should be at coord HEAD even when coord-owned residue is present"
     )
+
+
+def test_tracked_coord_owned_status_change_still_blocks_advance(tmp_path: Path) -> None:
+    """Tracked status-file edits are user state, not disposable residue."""
+    primary_branch = "main"
+    coord_branch = "kitty/mission-myslug-01ABCDEF"
+    repo, coord_wt = _init_repo(tmp_path, primary_branch, coord_branch)
+
+    status_file = repo / "kitty-specs" / "my-mission" / "status.json"
+    status_file.parent.mkdir(parents=True)
+    status_file.write_text('{"lane": "planned"}\n', encoding="utf-8")
+    _git(repo, "add", "kitty-specs/my-mission/status.json")
+    _git(repo, "commit", "-q", "-m", "Seed status snapshot")
+
+    _git(coord_wt, "reset", "--hard", primary_branch)
+    artifact = coord_wt / "plan.md"
+    artifact.write_text("# Plan\n", encoding="utf-8")
+    _git(coord_wt, "add", "plan.md")
+    _git(coord_wt, "commit", "-q", "-m", "Add plan")
+    coord_sha = _sha(coord_wt)
+
+    status_file.write_text('{"lane": "locally-edited"}\n', encoding="utf-8")
+
+    with pytest.raises(RefAdvanceDirtyWorktreeError) as exc_info:
+        advance_branch_ref(
+            repo,
+            primary_branch,
+            coord_sha,
+            coord_owned_filenames=COORD_OWNED_STATUS_FILES,
+        )
+
+    assert "status.json" in "\n".join(exc_info.value.dirty_entries)
+
+
+def test_diverged_primary_ref_is_not_rewound(tmp_path: Path) -> None:
+    """Clean divergence still refuses: auto-advance must never rewind primary."""
+    primary_branch = "main"
+    coord_branch = "kitty/mission-myslug-01ABCDEF"
+    repo, coord_wt = _init_repo(tmp_path, primary_branch, coord_branch)
+
+    primary_only = repo / "primary-only.txt"
+    primary_only.write_text("primary\n", encoding="utf-8")
+    _git(repo, "add", "primary-only.txt")
+    _git(repo, "commit", "-q", "-m", "Primary-only commit")
+    primary_sha = _sha(repo, primary_branch)
+
+    coord_only = coord_wt / "coord-only.txt"
+    coord_only.write_text("coord\n", encoding="utf-8")
+    _git(coord_wt, "add", "coord-only.txt")
+    _git(coord_wt, "commit", "-q", "-m", "Coord-only commit")
+    coord_sha = _sha(coord_wt)
+
+    with pytest.raises(RefAdvanceNonFastForwardError):
+        advance_branch_ref(repo, primary_branch, coord_sha)
+
+    assert _sha(repo, primary_branch) == primary_sha
 
 
 # ---------------------------------------------------------------------------

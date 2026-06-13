@@ -196,3 +196,26 @@ def test_accept_gate_second_run_no_unexpected_dirty_files(tmp_path: Path) -> Non
     assert unexpected_dirty == [], (
         f"Unexpected dirty files after two accept runs: {unexpected_dirty}"
     )
+
+
+def test_accept_dirty_gate_keeps_unrelated_status_json_dirty(tmp_path: Path) -> None:
+    """Only the current mission's accept-owned status files are filtered."""
+    repo_root, _feature_dir = _create_minimal_feature(tmp_path)
+
+    other_status = repo_root / "kitty-specs" / "other-mission" / "status.json"
+    other_status.parent.mkdir(parents=True)
+    other_status.write_text('{"lane": "planned"}\n', encoding="utf-8")
+    _git(repo_root, "add", "kitty-specs/other-mission/status.json")
+    _git(repo_root, "commit", "-m", "seed unrelated status")
+
+    other_status.write_text('{"lane": "locally-edited"}\n', encoding="utf-8")
+
+    summary = collect_feature_summary(
+        repo_root,
+        _FEATURE_SLUG,
+        strict_metadata=False,
+        mutate_matrix=True,
+    )
+
+    assert any("kitty-specs/other-mission/status.json" in line for line in summary.git_dirty)
+    assert summary.ok is False

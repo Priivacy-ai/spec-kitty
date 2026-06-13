@@ -18,8 +18,17 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Literal
 
 logger = logging.getLogger(__name__)
+
+FailureCategory = Literal[
+    "missing_artifacts",
+    "generator_exception",
+    "schema_validation_error",
+    "io_error",
+    "other",
+]
 
 # ---------------------------------------------------------------------------
 # Public entry point
@@ -188,7 +197,7 @@ def _emit_capture_failed(
         )
 
 
-def _classify_exc(exc: Exception) -> str:
+def _classify_exc(exc: Exception) -> FailureCategory:
     """Map an exception to a failure_category string."""
     if isinstance(exc, (FileNotFoundError, IsADirectoryError)):
         return "missing_artifacts"

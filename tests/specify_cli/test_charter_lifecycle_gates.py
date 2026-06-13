@@ -114,9 +114,6 @@ def _finalize_tasks_context(
             return_value=(None, "main"),
         ),
         patch(
-            "specify_cli.cli.commands.agent.mission._ensure_branch_checked_out",
-        ),
-        patch(
             "specify_cli.cli.commands.agent.mission.safe_commit",
             return_value=True,
         ),

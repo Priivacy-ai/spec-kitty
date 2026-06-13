@@ -37,6 +37,22 @@ class RefAdvanceError(RuntimeError):
     error_code = "REF_ADVANCE_FAILED"
 
 
+class RefAdvanceNonFastForwardError(RefAdvanceError):
+    """The requested ref advance would move a branch backwards or sideways."""
+
+    error_code = "REF_ADVANCE_NON_FAST_FORWARD"
+
+    def __init__(self, *, branch: str, old_sha: str, new_sha: str) -> None:
+        self.branch = branch
+        self.old_sha = old_sha
+        self.new_sha = new_sha
+        super().__init__(
+            f"Refusing to advance branch {branch!r} "
+            f"({old_sha[:12]} -> {new_sha[:12]}): target is not a "
+            "fast-forward descendant of the current branch tip."
+        )
+
+
 @dataclass
 class _WorktreeEntry:
     """One ``git worktree list --porcelain`` block."""
@@ -183,9 +199,9 @@ def _dirty_entries(
         if not line.strip():
             continue
         path = _porcelain_path(line)
-        if excluded_filenames and Path(path).name in excluded_filenames:
-            continue
         if line.startswith(("??", "!!")):
+            if excluded_filenames and Path(path).name in excluded_filenames:
+                continue
             if _path_obstructs_target_tree(path, target_paths):
                 dirty.append(
                     f"{line} (would be overwritten by reset --hard to {new_sha[:12]})"
@@ -239,6 +255,24 @@ def advance_branch_ref(
 
     old_sha_result = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", ref], env=env)
     old_sha = old_sha_result.stdout.strip() if old_sha_result.returncode == 0 else "<unborn>"
+
+    if old_sha != "<unborn>":
+        ff_check = _run_git(
+            repo_root,
+            ["merge-base", "--is-ancestor", old_sha, new_sha],
+            env=env,
+        )
+        if ff_check.returncode == 1:
+            raise RefAdvanceNonFastForwardError(
+                branch=branch,
+                old_sha=old_sha,
+                new_sha=new_sha,
+            )
+        if ff_check.returncode != 0:
+            raise RefAdvanceError(
+                f"Could not verify fast-forward ancestry for {branch}: "
+                f"{ff_check.stderr.strip() or ff_check.stdout.strip()}"
+            )
 
     checkouts = [
         entry.path
