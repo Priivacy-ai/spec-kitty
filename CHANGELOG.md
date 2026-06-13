@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the mapping succeeded but agents got an unparseable error instead of the result. `committed` is now a bool
   and the resulting `commit_sha` (or `null`) is exposed alongside it. (Findings 2 and 3 — `agent action
   implement --json` and `setup-plan`/`finalize-tasks` JSON preamble — are tracked separately.)
+- **`accept --lenient` now relaxes mission path conventions (issue #1892):** `spec-kitty accept` / `agent
+  mission accept` validated a mission's declared `paths` (`src/`, `tests/`, `contracts/` for software-dev)
+  unconditionally, so repos with a non-default layout (e.g. a Go service using `internal/` with no top-level
+  `tests/`) failed acceptance even with `--lenient` — the only workaround was creating throwaway empty
+  directories. Path conventions now block only in strict mode; under `--lenient` an unmet convention is
+  surfaced as a non-blocking warning. (A per-project `paths` override remains a possible follow-up.)
 - **Name-vs-authority remediation (mission #133; closes #1889, #1860, #1865, #1866, #1867, #1863, #1896, #1898, #1904, #1684, #1906):** (#1884/#1883/#1885 were independently fixed by PR #1910 and are verified-already-fixed here, not re-closed)
   binds the two remaining "a name/string shape is trusted as authority without cross-checking the declared authority"
   seams and ratchets them closed, and clears the live 3.2.0 release-blocker P0s rooted in that class. Topology

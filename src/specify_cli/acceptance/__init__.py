@@ -26,7 +26,7 @@ from specify_cli.mission_metadata import load_meta, record_acceptance, resolve_m
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import Lane
 from specify_cli.status import EVENTS_FILENAME, StoreError
-from specify_cli.validators.paths import PathValidationError, validate_mission_paths
+from specify_cli.validators.paths import validate_mission_paths
 
 from specify_cli.task_utils import (
     LANES,
@@ -1135,27 +1135,44 @@ def collect_feature_summary(
     missing_required, missing_optional = _missing_artifacts(status_feature_dir)
 
     path_violations: list[str] = []
+    path_convention_warning: str | None = None
     try:
         mission = get_mission_for_feature(feature_dir)
     except MissionError:
         mission = None
 
     if mission and mission.config.paths:
-        try:
-            validate_mission_paths(
-                mission,
-                repo_root,
-                strict=True,
-                path_prefix=_path_prefix_for_mission(mission, feature_dir),
-            )
-        except PathValidationError as exc:
-            path_violations.append(exc.result.format_errors() or str(exc))
+        # Mission path conventions block acceptance by default, but under
+        # ``--lenient`` (``strict_metadata=False``) they are advisory: surface
+        # them as a non-blocking warning instead of a hard ``path_violations``
+        # so repos with a non-default layout (e.g. a Go service using
+        # ``internal/`` with no top-level ``tests/``) can be accepted with
+        # ``accept --lenient`` rather than the empty-directory workaround
+        # (issue #1892). ``validate_mission_paths`` is invoked non-strict here so
+        # we own the blocking decision rather than catching a raise.
+        path_result = validate_mission_paths(
+            mission,
+            repo_root,
+            strict=False,
+            path_prefix=_path_prefix_for_mission(mission, feature_dir),
+        )
+        if path_result.missing_paths:
+            if strict_metadata:
+                path_violations.append(
+                    path_result.format_errors() or "Path conventions not satisfied."
+                )
+            else:
+                path_convention_warning = (
+                    path_result.format_warnings() or "Path conventions not satisfied."
+                )
 
     warnings: list[str] = []
     if missing_optional:
         warnings.append("Optional artifacts missing: " + ", ".join(missing_optional))
     if path_violations:
         warnings.append("Path conventions not satisfied.")
+    elif path_convention_warning:
+        warnings.append(path_convention_warning)
 
     # T028: use coord-resolved read_feature_dir for lane-gate checks so that
     # lanes.json and acceptance-matrix.json are read from the coordination
