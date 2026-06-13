@@ -32,8 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the `(slug.replace('-','')+"00000000")[:8]` mid8-fabrication idiom is eradicated (routed through
   `resolve_transaction_mid8`, fail-closed). **P0s fixed:** `setup-plan`'s committed-spec gate verifies against the
   placement authority's ref not primary HEAD (#1884); the accept gate is idempotent across all modes via
-  accept-owned-path exclusion (#1883); unresolvable mission handles raise a structured `QueryModeValidationError`
-  (code + next_step) instead of a silent `mission=unknown` stub (#1885 residual). #1889's coordination-branch-deleted
+  accept-owned-path exclusion (#1883); unresolvable mission handles raise a structured `MissionNotFoundError`
+  (code + next_step, #1911) instead of a silent `mission=unknown` stub (#1885 residual). #1889's coordination-branch-deleted
   case becomes a distinct loud `CoordinationBranchDeleted` (decision-table row R3). An architectural ratchet
   (`test_topology_resolution_boundary.py`) keeps coord predicates, unbackstopped `kitty/mission-{slug}` composes, and
   the fabrication idiom from regrowing outside the blessed seam modules. Doctrine refinements (#1865/#1866/#1867) and

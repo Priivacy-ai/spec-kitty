@@ -60,20 +60,6 @@ PRIMARY_ARTIFACT_FILES = (
     DATA_MODEL_FILE,
 )
 
-# FR-002 / C-GATE-2: the artifact set the accept gate itself writes during a
-# readiness run. ``acceptance-matrix.json`` is rewritten by
-# ``enforce_negative_invariants`` (re-resolving each invariant every run) and
-# ``status.json`` is materialized by the status reducer during readiness reads.
-# In ``--no-commit``/diagnose modes these writes are never folded into a commit,
-# so they remain dirty for the next accept run to trip over (#1883 ROOT-β: "a
-# gate fails on state the tool itself wrote in the same workflow"). The
-# ``git_dirty`` snapshot excludes these — and ONLY these — basenames *within the
-# mission feature dir*, so the convergence property accept ∘ accept ≡ accept
-# holds in every mode. The exclusion is keyed on artifact identity scoped to the
-# mission dir; it never weakens the dirty-tree protection for any
-# non-accept-owned path (NFR-003 fail-closed).
-ACCEPT_OWNED_BASENAMES = frozenset({"acceptance-matrix.json", "status.json"})
-
 # FR-002 / C-GATE-2 (#1883 ROOT-β, boy-scout extension): the accept readiness
 # run also materializes the *project* identity into ``.kittify/config.yaml`` via
 # the sync event emitter (``identity.project.ensure_identity`` →
@@ -591,53 +577,6 @@ def _resolve_git_context(repo_root: Path) -> tuple[str | None, Path, Path, list[
     return branch, worktree_root, primary_repo_root, git_dirty
 
 
-def _accept_owned_relpaths(repo_root: Path, *feature_dirs: Path) -> frozenset[str]:
-    """Return repo-relative paths of accept-owned artifacts for the mission.
-
-    Scoped to the supplied mission directories so an ``acceptance-matrix.json``
-    or ``status.json`` living anywhere else in the tree is never treated as
-    accept-owned (NFR-003 fail-closed). Paths are normalized to POSIX
-    separators to match ``git status --porcelain`` output.
-    """
-    owned: set[str] = set()
-    seen: set[Path] = set()
-    for feature_dir in feature_dirs:
-        resolved = feature_dir.resolve()
-        if resolved in seen:
-            continue
-        seen.add(resolved)
-        for basename in ACCEPT_OWNED_BASENAMES:
-            try:
-                rel = (resolved / basename).relative_to(repo_root.resolve())
-            except ValueError:
-                # Artifact lives outside the repo root (e.g. coord worktree on a
-                # different path); cannot collide with porcelain output, skip.
-                continue
-            owned.add(rel.as_posix())
-    return frozenset(owned)
-
-
-def _porcelain_path(line: str) -> str:
-    """Extract the (destination) path from a ``git status --porcelain`` line."""
-    path = line[3:].strip() if len(line) > 3 else ""
-    if " -> " in path:  # rename entries: "old -> new"
-        path = path.split(" -> ", 1)[1].strip()
-    return path
-
-
-def _filter_accept_owned_dirty(git_dirty: list[str], owned_relpaths: frozenset[str]) -> list[str]:
-    """Drop accept-owned artifact paths from a ``git_dirty`` snapshot.
-
-    Implements the C-GATE-2 invariant: accept-owned writes (matrix + status
-    view, scoped to the mission dir) never trip the gate's own dirty check.
-    Every other dirty path is preserved verbatim so the protection stays
-    fail-closed for non-accept-owned changes.
-    """
-    if not owned_relpaths:
-        return git_dirty
-    return [line for line in git_dirty if _porcelain_path(line) not in owned_relpaths]
-
-
 def _filter_accept_owned_project_config(repo_root: Path, git_dirty: list[str]) -> list[str]:
     """Drop the gate's own project-root ``.kittify/config.yaml`` write.
 
@@ -656,7 +595,7 @@ def _filter_accept_owned_project_config(repo_root: Path, git_dirty: list[str]) -
     """
     kept: list[str] = []
     for line in git_dirty:
-        path = _porcelain_path(line)
+        path = _porcelain_dirty_path(line)
         status_xy = line[:2]
         # Exact gate-own config write (explicit-file porcelain form).
         if path == _PROJECT_CONFIG_RELPATH:
@@ -667,7 +606,7 @@ def _filter_accept_owned_project_config(repo_root: Path, git_dirty: list[str]) -
             kept.extend(
                 expanded_line
                 for expanded_line in expanded
-                if _porcelain_path(expanded_line) != _PROJECT_CONFIG_RELPATH
+                if _porcelain_dirty_path(expanded_line) != _PROJECT_CONFIG_RELPATH
             )
             continue
         kept.append(line)
@@ -1104,10 +1043,18 @@ def collect_feature_summary(
     # such as acceptance-matrix.json and status.json are written by the
     # accept pipeline itself and must not count as "unexpected" working-tree
     # dirt on the second run.
+    # The accept gate's own writes (acceptance-matrix.json + status.json) are
+    # scoped to this mission's primary anchor dir, the coord-aware read dir, and
+    # the canonical status-read dir. Excluding all three absorbs accept-owned
+    # residue left dirty by a prior --no-commit/diagnose run, so accept ∘ accept
+    # converges in every mode. Non-accept-owned dirt is preserved verbatim
+    # (fail-closed, NFR-003).
+    status_feature_dir = _status_read_feature_dir(repo_root, feature, feature_dir)
     accept_owned_dirty_paths = _accept_owned_dirty_paths(
         repo_root,
         feature_dir,
         read_feature_dir,
+        status_feature_dir,
     )
     git_dirty = [
         line
@@ -1122,20 +1069,7 @@ def collect_feature_summary(
     skipped_checks: list[AcceptanceCheckDiagnostic] = []
     blocked_checks: list[AcceptanceCheckDiagnostic] = []
 
-    status_feature_dir = _status_read_feature_dir(repo_root, feature, feature_dir)
     snapshot_wps = _collect_snapshot_wps(feature, status_feature_dir, activity_issues)
-
-    # C-GATE-2 (FR-002, #1883 ROOT-β): exclude the accept gate's own writes
-    # (acceptance-matrix.json + status.json, scoped to this mission's primary
-    # and status-read dirs) from the dirty-tree snapshot. The snapshot above is
-    # taken before the current run's accept-owned writes; this exclusion also
-    # absorbs accept-owned residue left dirty by a prior --no-commit/diagnose
-    # run, so accept ∘ accept converges in every mode. Non-accept-owned dirt is
-    # preserved verbatim (fail-closed, NFR-003).
-    git_dirty = _filter_accept_owned_dirty(
-        git_dirty,
-        _accept_owned_relpaths(repo_root, feature_dir, status_feature_dir),
-    )
 
     # C-GATE-2 boy-scout extension (#1883): also absorb the gate's own
     # project-identity write to ``.kittify/config.yaml`` so accept ∘ accept
