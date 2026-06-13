@@ -1,0 +1,1 @@
+Post-#1910 audit: NO (1 BLOCKING phantom test file test_p0_pinning_regressions.py — authority_ref= + QueryModeValidationError.error_code/next_step, 4 failed/4 mypy); architecture sound (single topology authority, ratchet green, no split-brain). Findings: research/postreconcile-alphonso-splitbrain.md
