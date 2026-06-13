@@ -151,8 +151,8 @@ tooling:
 quality_test: "Can a new contributor read one test method and understand what behavior it validates, what preconditions it requires, and what a failure means — without reading the production code?"
 
 references:
-  - "src/doctrine/agent_profiles/built-in/java-implementer.agent.yaml"
+  - "src/doctrine/agent_profiles/built-in/java-jenny.agent.yaml"
   - "src/doctrine/toolguides/built-in/maven-review-checks.toolguide.yaml"
-  - "src/doctrine/tactics/built-in/tdd-red-green-refactor.tactic.yaml"
+  - "src/doctrine/tactics/built-in/testing/tdd-red-green-refactor.tactic.yaml"
   - "src/doctrine/directives/built-in/030-test-and-typecheck-quality-gate.directive.yaml"
   - "src/doctrine/directives/built-in/034-test-first-development.directive.yaml"

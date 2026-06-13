@@ -86,8 +86,6 @@ nodes:
 - urn: agent_profile:implementer-ivan
   kind: agent_profile
   label: Implementer Ivan
-- urn: agent_profile:java-implementer
-  kind: agent_profile
 - urn: agent_profile:java-jenny
   kind: agent_profile
   label: Java Jenny
@@ -1762,6 +1760,33 @@ edges:
 - source: procedure:refactoring
   target: tactic:change-apply-smallest-viable-diff
   relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-change-function-declaration
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-combine-functions-into-transform
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-consolidate-conditional-expression
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-extract-class-by-responsibility-split
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-inline-temp
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-introduce-null-object
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-replace-magic-number-with-symbolic-constant
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-replace-temp-with-query
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-retry-pattern
+  relation: requires
 - source: procedure:situational-assessment
   target: directive:DIRECTIVE_001
   relation: requires
@@ -1832,7 +1857,7 @@ edges:
   target: tactic:domain-event-capture
   relation: suggests
 - source: styleguide:java-conventions
-  target: agent_profile:java-implementer
+  target: agent_profile:java-jenny
   relation: suggests
 - source: styleguide:java-conventions
   target: directive:DIRECTIVE_030
@@ -2362,6 +2387,12 @@ edges:
   target: procedure:tracker-organisation-workflow
   relation: suggests
   when: Scoping which slices a functional epic or bucket commits to in a cut, alongside the per-ticket priority labels that workflow enforces.
+- source: tactic:mutation-testing-workflow
+  target: toolguide:python-mutation-tools
+  relation: suggests
+- source: tactic:mutation-testing-workflow
+  target: toolguide:typescript-mutation-tools
+  relation: suggests
 - source: tactic:paula-patterns-architecture-scout-review
   target: directive:DIRECTIVE_001
   relation: suggests

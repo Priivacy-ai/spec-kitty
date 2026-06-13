@@ -58,3 +58,11 @@ notes: >
   moderate — many improvements possible; 80–90% good; > 90% strong — watch for
   equivalent mutant inflation. Use # pragma: no mutate to suppress specific lines
   where mutations are semantically equivalent (e.g. version strings, log messages).
+references:
+  # This workflow drives the language-specific mutation toolchains; cite the
+  # toolguides it operationalizes so the tools are reachable from the workflow
+  # that uses them (real "uses tool" relationship, per language).
+  - type: toolguide
+    id: python-mutation-tools
+  - type: toolguide
+    id: typescript-mutation-tools

@@ -17,6 +17,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.doctrine import app as doctrine_app
@@ -26,6 +27,32 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 runner = CliRunner()
 
 DOCTRINE_ROOT = Path(__file__).resolve().parents[4] / "src" / "doctrine"
+
+#: WP05 / FR-009 / C-003 — orphan-count regression ceiling.
+#:
+#: After repairing the phantom ``java-implementer`` reference and wiring the
+#: refactoring-procedure → Fowler-catalog and mutation-workflow → mutation-tools
+#: inbound edges, the shipped DRG carries 14 orphaned-but-valid doctrine
+#: artifacts. Each is a deliberately-authored artifact with no single natural
+#: referent and is documented (with per-orphan rationale) in
+#: ``kitty-specs/mission-lifecycle-dispatch-drg-closeout-01KV0S99/drg-orphan-residual.md``.
+#:
+#: D-C2 / C-003 forbid deleting valid orphans to shrink this metric. This ceiling
+#: is a regression guard against the count silently *growing* — a new orphan must
+#: either be wired or added to the documented residual (and this ceiling raised
+#: with a rationale). It is NOT a mandate to prune to reach a lower number.
+DOCUMENTED_ORPHAN_RESIDUAL = 14
+
+
+def _count_orphans(graph_path: Path) -> int:
+    """Return the number of nodes with no inbound or outbound edge."""
+    data = YAML(typ="safe").load(graph_path)
+    urns = {node["urn"] for node in data["nodes"]}
+    incident: set[str] = set()
+    for edge in data["edges"]:
+        incident.add(edge["source"])
+        incident.add(edge["target"])
+    return len(urns - incident)
 
 
 def test_check_reports_committed_graph_fresh() -> None:
@@ -85,3 +112,26 @@ def test_check_detects_stale_graph(
     assert result.exit_code == 1, result.output
     payload = json.loads(result.output)
     assert payload["status"] == "stale"
+
+
+def test_shipped_graph_orphan_count_within_documented_residual() -> None:
+    """Orphan count must not exceed the documented residual (WP05 / C-003).
+
+    Guards against orphan growth without forcing valid-artifact deletion: a new
+    orphan must be wired or added to the documented residual (raising the
+    ceiling with rationale), per the no-bulk-delete correction (D-C2).
+    """
+    orphans = _count_orphans(DOCTRINE_ROOT / "graph.yaml")
+    assert orphans <= DOCUMENTED_ORPHAN_RESIDUAL, (
+        f"DRG orphan count {orphans} exceeds documented residual "
+        f"{DOCUMENTED_ORPHAN_RESIDUAL}; wire a real inbound edge or update "
+        f"drg-orphan-residual.md and raise the ceiling with rationale."
+    )
+
+
+def test_phantom_java_implementer_node_is_absent() -> None:
+    """The repaired java-implementer reference must not mint a phantom node."""
+    data = YAML(typ="safe").load(DOCTRINE_ROOT / "graph.yaml")
+    urns = {node["urn"] for node in data["nodes"]}
+    assert "agent_profile:java-implementer" not in urns
+    assert "agent_profile:java-jenny" in urns

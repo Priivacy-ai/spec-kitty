@@ -73,6 +73,6 @@ anti_patterns:
 quality_test: "Can each aggregate be loaded, modified, and persisted in a single transaction without touching any other aggregate's state?"
 
 references:
-  - "src/doctrine/tactics/built-in/aggregate-boundary-design.tactic.yaml"
-  - "src/doctrine/tactics/built-in/domain-event-capture.tactic.yaml"
+  - "src/doctrine/tactics/built-in/architecture/aggregate-boundary-design.tactic.yaml"
+  - "src/doctrine/tactics/built-in/architecture/domain-event-capture.tactic.yaml"
   - "src/doctrine/paradigms/built-in/domain-driven-design.paradigm.yaml"
