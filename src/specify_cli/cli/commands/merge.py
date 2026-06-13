@@ -20,7 +20,10 @@ Recovery semantics (WP01 / 067):
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
-from specify_cli.coordination.surface_resolver import resolve_status_surface
+from specify_cli.coordination.surface_resolver import (
+    is_under_worktrees_segment,
+    resolve_status_surface,
+)
 from specify_cli.missions.feature_dir_resolver import (
     candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
@@ -161,8 +164,14 @@ def path_is_under_worktrees(path: Path) -> bool:
     one guard, not per-call-site copies). It is path-shape based — it does not
     touch the filesystem — so it works for both real paths and committed-tree
     relative paths.
+
+    Delegates to the blessed seam primitive
+    :func:`coordination.surface_resolver.is_under_worktrees_segment` (C-SEAM-1):
+    one shape-proposal predicate, not a per-module copy. The constants
+    ``WORKTREES_DIR`` and the seam's ``_WORKTREES_SEGMENT`` are both
+    ``".worktrees"``, so the membership check is identical.
     """
-    return WORKTREES_DIR in path.parts
+    return is_under_worktrees_segment(path)
 
 
 class BaselineMergeCommitError(RuntimeError):
@@ -2113,7 +2122,7 @@ def _run_lane_based_merge_locked(
         _baseline_mission_id = None
 
     status_surface_path = resolve_status_surface(main_repo, mission_slug)
-    done_marked_before_target = ".worktrees" in status_surface_path.parts and not planning_artifact_only
+    done_marked_before_target = is_under_worktrees_segment(status_surface_path) and not planning_artifact_only
     mission_number_meta_path: Path | None = None
     mission_already_applied = False
     if planning_artifact_only:

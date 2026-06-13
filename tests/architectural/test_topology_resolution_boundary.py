@@ -103,10 +103,6 @@ _ALLOWLISTED_COORD_PREDICATE_SITES: frozenset[str] = frozenset(
         # worktree dirs; it is a teardown filter, not a status-surface routing
         # decision — the registry authority would be the wrong tool here.
         "src/specify_cli/cli/commands/mission_type.py",
-        # Path-shape merge helper (does NOT touch the filesystem so it works on
-        # committed-tree relative paths); used for merge bookkeeping, not for
-        # coord-vs-lane status-surface routing.
-        "src/specify_cli/cli/commands/merge.py",
         # Operator navigation hint: extracts the main-repo prefix from a
         # ``.worktrees`` cwd to print a "cd <repo>" suggestion. Pure UX string
         # building, no coord routing.
