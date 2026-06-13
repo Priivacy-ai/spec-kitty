@@ -84,24 +84,31 @@ class TestQueryModeDoesNotReturnUnknownForValidMission:
     def test_query_decision_for_missing_feature_dir_is_structured(
         self, tmp_path: Path
     ) -> None:
-        """A missing feature dir is still a query, but the kind is structured.
+        """A missing feature dir raises MissionNotFoundError (FR-004 / WP03).
 
-        We do not require ``mission_state != "unknown"`` for a feature
-        directory that does not exist on disk — that is a user error, not
-        a "valid run". But we do require: no placeholder in the body.
+        After WP03, ``query_current_state`` raises ``MissionNotFoundError``
+        (fail-closed) instead of returning a silent ``Decision`` with
+        ``mission_state="unknown"``. The exception must carry the attempted
+        handle so callers can emit structured JSON errors.
         """
-        from specify_cli.next.runtime_bridge import query_current_state
+        from specify_cli.next.runtime_bridge import (
+            MissionNotFoundError,
+            query_current_state,
+        )
 
         repo_root = tmp_path
         # No kitty-specs/<slug> dir created, so feature_dir is missing.
-        decision = query_current_state(
-            agent="claude",
-            mission_slug="nonexistent-mission",
-            repo_root=repo_root,
-        )
+        with pytest.raises(MissionNotFoundError) as exc_info:
+            query_current_state(
+                agent="claude",
+                mission_slug="nonexistent-mission",
+                repo_root=repo_root,
+            )
 
-        payload = decision.to_dict()
-        assert _PLACEHOLDER not in repr(payload)
+        err = exc_info.value
+        assert err.handle == "nonexistent-mission"
+        assert err.error_code == "MISSION_NOT_FOUND"
+        assert _PLACEHOLDER not in str(err)
 
 
 class TestRuntimeBridgeBlockedReasonIsConcrete:

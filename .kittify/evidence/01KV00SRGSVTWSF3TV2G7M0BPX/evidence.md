@@ -1,0 +1,1 @@
+Expanded #1907 body from a brief 4-bullet summary to a full pick-up-ready spec: operator framing verbatim, 4 observed symptoms with SHA detail, 2 root-cause hypotheses with where-to-look pointers, impact table, 5-item mitigation checklist, layer-ownership determination question for the picking-up agent, and cross-refs. Labels/type/parent unchanged.

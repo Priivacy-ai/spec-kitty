@@ -648,6 +648,101 @@ def _resolve_mission_number(raw: object) -> int | None:
 
 
 # ---------------------------------------------------------------------------
+# Mission-local ingestor findings (T036, T037) — extracted for complexity budget
+# ---------------------------------------------------------------------------
+
+
+def _build_ingestor_findings(
+    *,
+    workflow_failures_text: str | None,
+    analysis_report_text: str | None,
+    review_report_text: str | None,
+    workflow_failures_rel: str,
+    analysis_report_rel: str,
+    review_report_rel: str,
+    finding_id_counters: dict[str, list[int]],
+    ev_reg: _EvidenceRegistry,
+) -> tuple[list[GenFinding], list[GenFinding]]:
+    """Build helped/not_helpful findings from mission-local ingestor artifacts.
+
+    Returns (helped_additions, not_helpful_additions).
+    All ingestors are optional: if the file is absent (text is None) the ingestor
+    is a no-op and the generator continues without raising.
+    """
+    helped: list[GenFinding] = []
+    not_helpful: list[GenFinding] = []
+
+    # workflow-failures-log.md ingestor (T036)
+    if workflow_failures_text is not None:
+        failure_lines = [
+            line.strip()
+            for line in workflow_failures_text.splitlines()
+            if line.strip().startswith(("- [ ] FAIL:", "### FAIL:"))
+        ]
+        if failure_lines:
+            for failure_line in failure_lines:
+                not_helpful.append(
+                    GenFinding(
+                        id=_next_finding_id("n", finding_id_counters),
+                        category="process",
+                        summary=failure_line[:200],
+                        details=(
+                            "Workflow failure recorded in workflow-failures-log.md. "
+                            f"Entry: {failure_line}"
+                        ),
+                        evidence_refs=[ev_reg.add_file(workflow_failures_rel)],
+                    )
+                )
+        else:
+            # File present but no structured failure entries
+            helped.append(
+                GenFinding(
+                    id=_next_finding_id("h", finding_id_counters),
+                    category="process",
+                    summary="workflow-failures-log.md present with no recorded failures",
+                    details=(
+                        "A workflow-failures-log.md file is present but contains no "
+                        "structured failure entries (lines starting with '- [ ] FAIL:' "
+                        "or '### FAIL:'). This may indicate all workflows completed cleanly."
+                    ),
+                    evidence_refs=[ev_reg.add_file(workflow_failures_rel)],
+                )
+            )
+
+    # analysis-report.md ingestor (T037)
+    if analysis_report_text is not None:
+        not_helpful.append(
+            GenFinding(
+                id=_next_finding_id("n", finding_id_counters),
+                category="doc",
+                summary="analysis-report.md present with findings",
+                details=(
+                    "An analysis-report.md artifact is present for this mission. "
+                    "Review its findings to understand documented issues and decisions."
+                ),
+                evidence_refs=[ev_reg.add_file(analysis_report_rel)],
+            )
+        )
+
+    # mission-review-report.md ingestor (T037)
+    if review_report_text is not None:
+        not_helpful.append(
+            GenFinding(
+                id=_next_finding_id("n", finding_id_counters),
+                category="review_loop",
+                summary="mission-review-report.md present with findings",
+                details=(
+                    "A mission-review-report.md artifact is present for this mission. "
+                    "Review its findings to understand documented review outcomes."
+                ),
+                evidence_refs=[ev_reg.add_file(review_report_rel)],
+            )
+        )
+
+    return helped, not_helpful
+
+
+# ---------------------------------------------------------------------------
 # Findings classification (T009) — extracted to keep generate_retrospective simple
 # ---------------------------------------------------------------------------
 
@@ -659,10 +754,16 @@ def _build_findings(
     plan_text: str,
     research_text: str | None,
     data_model_text: str | None,
+    workflow_failures_text: str | None,
+    analysis_report_text: str | None,
+    review_report_text: str | None,
     wp_files: list[tuple[str, str]],
     wp_evidence_ids: dict[str, str],
     events_rel: str,
     spec_rel: str,
+    workflow_failures_rel: str,
+    analysis_report_rel: str,
+    review_report_rel: str,
     generate_proposals: bool,
     ev_reg: _EvidenceRegistry,
 ) -> tuple[list[GenFinding], list[GenFinding], list[GenFinding], list[GenProposal]]:
@@ -681,13 +782,20 @@ def _build_findings(
     lane_friction_counts = _detect_lane_friction(events)
     done_wps = _detect_done_wps(events)
 
-    # --- Helped: WPs completed without rejection cycles (only notable by contrast)
+    # --- Helped: WPs completed without rejection cycles.
+    # Notable by contrast when rejection/friction exists; always notable when
+    # ingestor artifacts (workflow-failures-log, analysis-report, mission-review-report)
+    # are present, because those records document concrete failures that the
+    # clean WPs avoided.
+    has_ingestor_content = bool(
+        workflow_failures_text or analysis_report_text or review_report_text
+    )
     clean_wps = [
         wp
         for wp in sorted(done_wps)
         if rejection_counts.get(wp, 0) == 0 and lane_friction_counts.get(wp, 0) == 0
     ]
-    if rejection_counts or lane_friction_counts:
+    if rejection_counts or lane_friction_counts or has_ingestor_content:
         for wp_id in clean_wps:
             wp_file_name = f"{wp_id}.md"
             if wp_file_name in wp_evidence_ids:
@@ -819,6 +927,20 @@ def _build_findings(
                 )
             )
 
+    # --- Mission-local ingestor findings (T036, T037)
+    ingestor_helped, ingestor_not_helpful = _build_ingestor_findings(
+        workflow_failures_text=workflow_failures_text,
+        analysis_report_text=analysis_report_text,
+        review_report_text=review_report_text,
+        workflow_failures_rel=workflow_failures_rel,
+        analysis_report_rel=analysis_report_rel,
+        review_report_rel=review_report_rel,
+        finding_id_counters=finding_id_counters,
+        ev_reg=ev_reg,
+    )
+    helped.extend(ingestor_helped)
+    not_helpful.extend(ingestor_not_helpful)
+
     # Stable sort: byte-deterministic output
     helped.sort(key=lambda f: (f.category, f.summary))
     not_helpful.sort(key=lambda f: (f.category, f.summary))
@@ -846,10 +968,10 @@ def generate_retrospective(
 ) -> GenRetrospectiveRecord:
     """Generate a deterministic retrospective record for the given mission.
 
-    Reads mission artifacts in the order specified by the WP02 prompt:
-    meta.json → spec.md → plan.md → research.md → data-model.md → contracts/
-    → quickstart.md → tasks.md → tasks/WP*.md → status.events.jsonl
-    → mission-review-report.md → charter context.
+    Reads mission artifacts in canonical order:
+    meta.json → spec.md → plan.md → research.md → data-model.md
+    → tasks.md → tasks/WP*.md → status.events.jsonl
+    → workflow-failures-log.md → analysis-report.md → mission-review-report.md.
 
     Missing optional artifacts become 'gaps' entries, NOT exceptions.
 
@@ -901,6 +1023,11 @@ def generate_retrospective(
     research_text = _read_optional_text(feature_dir / "research.md")
     data_model_text = _read_optional_text(feature_dir / "data-model.md")
 
+    # Mission-local ingestor artifacts (T036, T037)
+    workflow_failures_text = _read_optional_text(feature_dir / "workflow-failures-log.md")
+    analysis_report_text = _read_optional_text(feature_dir / "analysis-report.md")
+    review_report_text = _read_optional_text(feature_dir / "mission-review-report.md")
+
     wp_files = _load_wp_files(feature_dir)
     events = _load_events(feature_dir)
 
@@ -913,6 +1040,9 @@ def generate_retrospective(
     tasks_rel = f"kitty-specs/{feature_dir.name}/tasks.md"
     events_rel = f"kitty-specs/{feature_dir.name}/status.events.jsonl"
     meta_rel = f"kitty-specs/{feature_dir.name}/meta.json"
+    workflow_failures_rel = f"kitty-specs/{feature_dir.name}/workflow-failures-log.md"
+    analysis_report_rel = f"kitty-specs/{feature_dir.name}/analysis-report.md"
+    review_report_rel = f"kitty-specs/{feature_dir.name}/mission-review-report.md"
 
     if meta:
         ev_reg.add_file(meta_rel)
@@ -941,10 +1071,16 @@ def generate_retrospective(
         plan_text=plan_text,
         research_text=research_text,
         data_model_text=data_model_text,
+        workflow_failures_text=workflow_failures_text,
+        analysis_report_text=analysis_report_text,
+        review_report_text=review_report_text,
         wp_files=wp_files,
         wp_evidence_ids=wp_evidence_ids,
         events_rel=events_rel,
         spec_rel=spec_rel,
+        workflow_failures_rel=workflow_failures_rel,
+        analysis_report_rel=analysis_report_rel,
+        review_report_rel=review_report_rel,
         generate_proposals=policy.generate_proposals,
         ev_reg=ev_reg,
     )

@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KTZZJAHP3MYRDXRW6PM5CZQQ",
+  "completed_at": "2026-06-13T07:57:05.228126+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "VERDICT local-env-artifact-no-change. Clean worktree (eb39b65ab, rc41): all 24 snapshot tests + full 251-test skills suite PASS; committed analyze template and snapshots mutually consistent (neither has analysis-findings/v1 carrier). Root cause: editable install resolves specify_cli/doctrine to sibling worktree agent-a5f9e93e16187bf28 (HEAD 583fb0b2d, newer commit) whose advanced analyze/implement/review templates carry analysis-findings/v1 but whose snapshots were never regenerated; that staleness is inherited from upstream/main (confirmed: upstream template has carrier, upstream codex/analyze snapshot does not). PR #1897 'stale on main' is TRUE for upstream/main but NOT for this rc41 branch. No commit made; remediation NOT apt on this branch."
+}

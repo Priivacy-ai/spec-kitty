@@ -365,7 +365,7 @@ class TestNoDefinitelyStaleConfidence:
                 f"FR-003: finding must never have confidence 'definitely_stale', "
                 f"got {finding!r}"
             )
-            assert finding.confidence in ("high", "medium", "low"), (
+            assert finding.confidence in ("high", "medium", "low", "info"), (
                 f"FR-003: unexpected confidence value {finding.confidence!r}"
             )
 

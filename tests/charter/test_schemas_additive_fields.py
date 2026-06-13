@@ -142,20 +142,20 @@ class TestDoctrineSelectionAuthorityPathsField:
             "template_set: null\n"
             "authority_paths:\n"
             "  - glossary/contexts/\n"
-            "  - architecture/2.x/adr/\n"
+            "  - architecture/3.x/adr/\n"
         )
         data = _load_yaml_str(yaml_text)
         config = DoctrineSelectionConfig(**data)
 
         assert config.authority_paths == [
             "glossary/contexts/",
-            "architecture/2.x/adr/",
+            "architecture/3.x/adr/",
         ]
 
         dumped = config.model_dump(exclude_defaults=True)
         assert dumped["authority_paths"] == [
             "glossary/contexts/",
-            "architecture/2.x/adr/",
+            "architecture/3.x/adr/",
         ]
 
 

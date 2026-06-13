@@ -429,8 +429,17 @@ def _inject_branch_contract(
     *,
     target_branch: str,
     current_branch: str | None = None,
+    primary_branch: str | None = None,
 ) -> dict[str, object]:
-    """Attach deterministic branch/runtime aliases for templates and agents."""
+    """Attach deterministic branch/runtime aliases for templates and agents.
+
+    When ``primary_branch`` is supplied the contract is additionally enriched
+    with a primary-branch recommendation payload (issue #765):
+    ``primary_branch``, ``current_is_primary``, ``recommended_strategy`` and a
+    human-readable ``reason``. Callers that do not resolve the primary branch
+    omit it, and the emitted payload is byte-identical to the legacy contract
+    so existing snapshots and consumers are unaffected.
+    """
     enriched = dict(payload)
     raw_runtime_vars = enriched.get("runtime_vars", {})
     runtime_vars = dict(raw_runtime_vars) if isinstance(raw_runtime_vars, dict) else {}
@@ -482,7 +491,143 @@ def _inject_branch_contract(
     enriched["runtime_vars"] = runtime_vars
     enriched["NOW_UTC_ISO"] = now_utc_iso
     enriched["branch_context"] = branch_context
+
+    # Primary-branch recommendation (issue #765). Only emitted when the caller
+    # resolved the repo's primary branch, so payloads from callers that do not
+    # pass ``primary_branch`` remain byte-identical to the legacy contract.
+    if primary_branch:
+        current_is_primary = resolved_current_branch == primary_branch
+        if current_is_primary:
+            recommended_strategy = "feature-branch"
+            recommendation_reason = (
+                f"You are on the primary branch '{primary_branch}'. PR-bound "
+                "missions should start on a dedicated feature branch so planning "
+                f"artifacts are not committed to '{primary_branch}'."
+            )
+        else:
+            recommended_strategy = "stay"
+            recommendation_reason = (
+                f"You are on '{resolved_current_branch}', which is not the primary "
+                f"branch '{primary_branch}'; staying on it is fine."
+            )
+        # ``branch_context`` is the same object stored in ``enriched`` above, so
+        # updating it here also updates ``enriched['branch_context']``.
+        branch_context["primary_branch"] = primary_branch
+        branch_context["current_is_primary"] = current_is_primary
+        branch_context["recommended_strategy"] = recommended_strategy
+        branch_context["reason"] = recommendation_reason
+        runtime_vars["primary_branch"] = primary_branch
+        runtime_vars["current_is_primary"] = current_is_primary
+        runtime_vars["recommended_strategy"] = recommended_strategy
+        enriched["primary_branch"] = primary_branch
+        enriched["PRIMARY_BRANCH"] = primary_branch
+        enriched["current_is_primary"] = current_is_primary
+        enriched["CURRENT_IS_PRIMARY"] = current_is_primary
+        enriched["recommended_strategy"] = recommended_strategy
+        enriched["RECOMMENDED_STRATEGY"] = recommended_strategy
+        enriched["branch_recommendation_reason"] = recommendation_reason
+
     return enriched
+
+
+def _git_local_or_remote_branch_exists(repo_root: Path, branch_name: str) -> bool:
+    """Return true when a local or origin branch ref exists."""
+    for ref in (f"refs/heads/{branch_name}", f"refs/remotes/origin/{branch_name}"):
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", ref],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            return True
+    return False
+
+
+def _resolve_primary_branch_for_recommendation(
+    repo_root: Path,
+    current_branch: str | None,
+) -> str:
+    """Resolve primary branch for recommendations without feature-branch bias."""
+    try:
+        result = subprocess.run(
+            ["git", "symbolic-ref", "refs/remotes/origin/HEAD"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            ref = result.stdout.strip()
+            branch = ref.split("/")[-1]
+            if branch:
+                return branch
+    except subprocess.TimeoutExpired:
+        pass
+
+    common_primary_branches = ("main", "master", "develop")
+    if current_branch in common_primary_branches:
+        return current_branch
+    for branch in common_primary_branches:
+        try:
+            if _git_local_or_remote_branch_exists(repo_root, branch):
+                return branch
+        except subprocess.TimeoutExpired:
+            continue
+
+    from specify_cli.core.git_ops import resolve_primary_branch
+
+    return str(resolve_primary_branch(repo_root))
+
+
+def _switch_to_start_branch(repo_root: Path | None, start_branch: str) -> str:
+    """Create or switch to a mission start branch before scaffold writes."""
+    branch = start_branch.strip()
+    if not branch:
+        raise ValueError("--start-branch requires a non-empty branch name.")
+    if repo_root is None:
+        raise ValueError("Could not locate project root. Run from within spec-kitty repository.")
+
+    check_ref = subprocess.run(
+        ["git", "check-ref-format", "--branch", branch],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+        timeout=5,
+    )
+    if check_ref.returncode != 0:
+        detail = check_ref.stderr.strip() or check_ref.stdout.strip() or "invalid branch name"
+        raise ValueError(f"Invalid --start-branch '{branch}': {detail}")
+
+    current_branch = get_current_branch(repo_root)
+    if current_branch == branch:
+        return branch
+
+    branch_exists = _git_local_or_remote_branch_exists(repo_root, branch)
+    switch_cmd = ["git", "switch", branch] if branch_exists else ["git", "switch", "-c", branch]
+    switch = subprocess.run(
+        switch_cmd,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if switch.returncode != 0:
+        detail = switch.stderr.strip() or switch.stdout.strip() or "unknown git error"
+        raise RuntimeError(f"Failed to switch to --start-branch '{branch}': {detail}")
+    return branch
 
 
 def _enforce_git_preflight(
@@ -828,40 +973,6 @@ def _resolve_planning_branch(
     return cast(str, load_mission_target_branch(feature_dir))
 
 
-def _ensure_branch_checked_out(
-    repo_root: Path,
-    target_branch: str,
-    *,
-    json_output: bool = False,
-) -> None:
-    """Ensure target branch is checked out in the main planning repo.
-
-    Compatibility shim used by finalize-tasks call path and tests.
-    """
-    from specify_cli.core.paths import get_main_repo_root
-
-    main_repo_root = get_main_repo_root(repo_root)
-    current_branch = get_current_branch(main_repo_root)
-    if current_branch is None:
-        # Detached/non-git contexts are handled downstream during commit operations.
-        return
-
-    if current_branch == target_branch:
-        return
-
-    rc, _stdout, stderr = run_command(
-        ["git", "checkout", target_branch],
-        check_return=False,
-        capture=True,
-        cwd=main_repo_root,
-    )
-    if rc != 0:
-        raise RuntimeError(f"Failed to checkout target branch '{target_branch}': {stderr.strip() or 'unknown error'}")
-
-    if not json_output:
-        console.print(f"[green]✓[/green] Switched to branch [bold]{target_branch}[/bold]")
-
-
 def _artifact_has_no_git_changes(repo_root: Path, file_path: Path) -> bool:
     candidate = file_path
     if candidate.is_absolute():
@@ -893,6 +1004,86 @@ def _warn_commit_failed(artifact_type: str, file_path: Path, exc: BaseException,
     if not json_output:
         console.print(f"[yellow]Warning:[/yellow] Failed to commit {artifact_type}: {exc}")
         console.print(f"[yellow]You may need to commit manually:[/yellow] git add {file_path} && git commit")
+
+
+def _try_advance_primary_ref(
+    repo_root: Path,
+    primary_branch: str,
+    coord_worktree: Path,
+    *,
+    json_output: bool = False,
+) -> None:
+    """Best-effort fast-forward of *primary_branch* to match the coord branch HEAD.
+
+    Called immediately after a coordination-branch write so that the primary
+    checkout never falls behind the coord branch without requiring a manual
+    ``git merge --ff-only`` (ff-merge treadmill elimination, #1878 / WP09).
+
+    The advance is **best-effort**: if the primary branch has diverged (e.g.
+    the operator has local commits) or the worktree scan fails, a warning is
+    emitted but the parent write operation is NOT aborted. The coord write
+    itself is complete; only the convenience sync is skipped.
+
+    Args:
+        repo_root:       Primary checkout root (where the ref lives).
+        primary_branch:  Short name of the primary branch to advance (e.g.
+                         ``"main"`` or ``"kitty/mission-…"``).
+        coord_worktree:  Coordination worktree whose HEAD is the new SHA to
+                         advance the primary ref to.
+        json_output:     Suppress Rich console output when True.
+    """
+    import logging
+
+    from specify_cli.git.ref_advance import (
+        RefAdvanceDirtyWorktreeError,
+        RefAdvanceError,
+        advance_branch_ref,
+    )
+    from specify_cli.status import COORD_OWNED_STATUS_FILES
+
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(coord_worktree),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            if not json_output:
+                console.print(
+                    f"[yellow]Warning:[/yellow] Could not resolve coord HEAD "
+                    f"for primary-ref advance of '{primary_branch}': "
+                    f"{result.stderr.strip() or 'non-zero exit'}"
+                )
+            return
+        new_sha = result.stdout.strip()
+        if not new_sha:
+            return
+
+        advance_branch_ref(
+            repo_root,
+            primary_branch,
+            new_sha,
+            coord_owned_filenames=COORD_OWNED_STATUS_FILES,
+        )
+        if not json_output:
+            console.print(
+                f"[dim]→ Primary branch '{primary_branch}' "
+                f"fast-forwarded to {new_sha[:7]}[/dim]"
+            )
+    except (RefAdvanceDirtyWorktreeError, RefAdvanceError) as exc:
+        if not json_output:
+            console.print(
+                f"[yellow]Warning:[/yellow] Could not auto-advance "
+                f"'{primary_branch}' after coord write — run "
+                f"'git merge --ff-only' in the primary checkout if needed. "
+                f"({exc})"
+            )
+    except Exception as exc:  # noqa: BLE001  # broad catch: best-effort only
+        logging.getLogger(__name__).debug(
+            "Unexpected error in _try_advance_primary_ref: %s", exc
+        )
 
 
 def _commit_to_branch(
@@ -973,6 +1164,17 @@ def _commit_to_branch(
     if not json_output:
         console.print(
             f"[green]✓[/green] {artifact_type.capitalize()} committed to {placement.ref}"
+        )
+
+    # WP09 / FR-010 (#1878): ff-merge treadmill elimination.  After a
+    # coordination-branch write, auto-advance the primary branch ref so the
+    # operator never needs a manual ``git merge --ff-only``.  Best-effort only.
+    if placement.kind is CommitTargetKind.COORDINATION:
+        _try_advance_primary_ref(
+            repo_root,
+            _target_branch,
+            worktree_root,
+            json_output=json_output,
         )
 
 
@@ -1140,6 +1342,7 @@ def branch_context(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
+        primary_branch = _resolve_primary_branch_for_recommendation(repo_root, current_branch)
         resolved_target_branch = str(target_branch).strip() if target_branch and str(target_branch).strip() else current_branch
         payload: dict[str, object] = {
             "result": "success",
@@ -1151,6 +1354,7 @@ def branch_context(
             payload,
             target_branch=resolved_target_branch,
             current_branch=current_branch,
+            primary_branch=primary_branch,
         )
 
         if json_output:
@@ -1160,6 +1364,10 @@ def branch_context(
             console.print(f"[bold cyan]Planning/base branch:[/bold cyan] {enriched['planning_base_branch']}")
             console.print(f"[bold cyan]Merge target:[/bold cyan] {enriched['merge_target_branch']}")
             console.print(f"[bold cyan]Matches target:[/bold cyan] {enriched['branch_matches_target']}")
+            console.print(f"[bold cyan]Primary branch:[/bold cyan] {enriched['primary_branch']}")
+            console.print(f"[bold cyan]On primary branch:[/bold cyan] {enriched['current_is_primary']}")
+            console.print(f"[bold cyan]Recommended strategy:[/bold cyan] {enriched['recommended_strategy']}")
+            console.print(f"[dim]{enriched['branch_recommendation_reason']}[/dim]")
 
     except typer.Exit:
         raise
@@ -1195,6 +1403,13 @@ def create_mission(
             help="Branch-strategy gate control (e.g., 'already-confirmed' to bypass the prompt)",
         ),
     ] = None,
+    start_branch: Annotated[
+        str | None,
+        typer.Option(
+            "--start-branch",
+            help="Create or switch to this branch before mission files are written",
+        ),
+    ] = None,
     force_recreate_coordination_branch: Annotated[
         bool,
         typer.Option(
@@ -1224,6 +1439,42 @@ def create_mission(
     repo_root = locate_project_root()
     resolved_mission_type = mission_type
 
+    if start_branch is not None:
+        normalized_start_branch = start_branch.strip()
+        normalized_target_branch = target_branch.strip() if target_branch else None
+        if normalized_target_branch and normalized_target_branch != normalized_start_branch:
+            message = (
+                "--start-branch and --target-branch must match because mission "
+                "creation stores one planning branch. Omit --target-branch for "
+                "the recommended PR-bound feature-branch flow."
+            )
+            if json_output:
+                _emit_json(
+                    {
+                        "error_code": "START_BRANCH_TARGET_MISMATCH",
+                        "error": message,
+                        "start_branch": start_branch,
+                        "target_branch": target_branch,
+                    }
+                )
+            else:
+                console.print(f"[bold red]Error:[/bold red] {message}")
+            raise typer.Exit(1)
+        try:
+            _switch_to_start_branch(repo_root, start_branch)
+        except Exception as exc:
+            if json_output:
+                _emit_json(
+                    {
+                        "error_code": "START_BRANCH_FAILED",
+                        "error": str(exc),
+                        "start_branch": start_branch,
+                    }
+                )
+            else:
+                console.print(f"[bold red]Error:[/bold red] {exc}")
+            raise typer.Exit(1) from exc
+
     if mission_type is not None or mission is not None:
         try:
             resolved = resolve_selector(
@@ -1246,18 +1497,20 @@ def create_mission(
     # and the operator is on the merge target branch, prompt for confirmation
     # unless `--branch-strategy already-confirmed` is supplied.
     from specify_cli.cli.commands._branch_strategy_gate import (
+        ALREADY_CONFIRMED,
         BranchStrategyGateError,
         evaluate_branch_strategy,
     )
 
     current_branch = get_current_branch(repo_root)
     effective_merge_target = target_branch or current_branch
+    gate_branch_strategy = branch_strategy or (ALREADY_CONFIRMED if start_branch is not None else None)
     try:
         gate_outcome = evaluate_branch_strategy(
             pr_bound=pr_bound,
             current_branch=current_branch,
             merge_target_branch=effective_merge_target,
-            branch_strategy=branch_strategy,
+            branch_strategy=gate_branch_strategy,
             prompt=None if json_output else lambda message: typer.confirm(message, default=False),
         )
     except BranchStrategyGateError as exc:
@@ -1816,9 +2069,23 @@ def setup_plan(
         # Issue #846 entry gate: spec.md must be committed AND substantive
         # before plan.md can be scaffolded or committed. Section-presence only;
         # scaffold + arbitrary prose without an FR row is NOT substantive.
+        #
+        # FR-003 / Issue #1884: use the coord-aware overload so that a spec
+        # committed only to the coordination branch (not yet on primary HEAD)
+        # satisfies the gate.  ``_resolve_planning_placement`` is CWD-invariant
+        # and topology-correct; if resolution fails (e.g. flat topology with no
+        # coord branch) we fall back to ``placement=None`` which preserves the
+        # original HEAD-only behaviour.
         from specify_cli.missions._substantive import is_committed, is_substantive
 
-        spec_is_committed = is_committed(spec_file, repo_root)
+        try:
+            _spec_placement: CommitTarget | None = _resolve_planning_placement(
+                repo_root, mission_slug
+            )
+        except Exception:  # noqa: BLE001 — broad catch intentional (C-004 strangler safety)
+            _spec_placement = None
+
+        spec_is_committed = is_committed(spec_file, repo_root, placement=_spec_placement)
         spec_is_substantive = is_substantive(spec_file, "spec")
         if not spec_is_committed or not spec_is_substantive:
             blocked_reason = (
@@ -1914,11 +2181,19 @@ def setup_plan(
             except Exception as _plan_exc:  # noqa: BLE001
                 logger.debug("PlanCompleted emission skipped: %s", _plan_exc)
         else:
+            # FR-013 (#1896): name the offending Technical Context format in the
+            # blocked_reason (e.g. bulleted fields that parsed as placeholders)
+            # rather than emitting a generic verdict.
+            from specify_cli.missions._substantive import describe_technical_context_gap
+
+            _plan_gap = describe_technical_context_gap(plan_file.read_text(encoding="utf-8"))
             plan_blocked_reason = (
                 "plan.md content is not substantive yet; populate Technical Context with real "
                 "values (Language/Version plus at least one peer field, such as Primary "
                 "Dependencies) — not template placeholders — and re-run setup-plan to commit."
             )
+            if _plan_gap is not None:
+                plan_blocked_reason = f"{plan_blocked_reason} Detail: {_plan_gap}"
             if not json_output:
                 console.print(f"[yellow]Plan not committed:[/yellow] {plan_blocked_reason}")
 
@@ -1964,6 +2239,8 @@ def setup_plan(
                             # Commit gap analysis and updated meta.json to the
                             # single resolved placement (WP05 / FR-003), not the
                             # raw meta.json target_branch.
+                            _gap_advance_wt: Path | None = None
+                            _gap_advance_branch: str | None = None
                             with contextlib.suppress(Exception):  # Non-fatal: agent can commit separately
                                 _gap_placement = _resolve_planning_placement(repo_root, mission_slug)
                                 _gap_wt, _gap_paths = _planning_commit_worktree(
@@ -1978,6 +2255,18 @@ def setup_plan(
                                     target=_gap_placement,
                                     message=f"Add gap analysis for feature {mission_slug}",
                                     paths=_gap_paths,
+                                )
+                                # WP09 / FR-010: record worktree for post-commit advance.
+                                if _gap_placement.kind is CommitTargetKind.COORDINATION:
+                                    _gap_advance_wt = _gap_wt
+                                    _gap_advance_branch = target_branch
+                            # Best-effort ff-advance of the primary ref (#1878).
+                            if _gap_advance_wt is not None and _gap_advance_branch is not None:
+                                _try_advance_primary_ref(
+                                    repo_root,
+                                    _gap_advance_branch,
+                                    _gap_advance_wt,
+                                    json_output=json_output,
                                 )
                             if not json_output:
                                 coverage_pct = analysis.coverage_matrix.get_coverage_percentage() * 100
@@ -2008,6 +2297,7 @@ def setup_plan(
             if generators_detected and meta_file.exists():
                 try:
                     set_generators_configured(meta_file, generators_detected)
+                    _gen_advance_wt: Path | None = None
                     with contextlib.suppress(Exception):  # Non-fatal
                         _gen_placement = _resolve_planning_placement(repo_root, mission_slug)
                         _gen_wt, _gen_paths = _planning_commit_worktree(
@@ -2019,6 +2309,17 @@ def setup_plan(
                             target=_gen_placement,
                             message=f"Update generator config for feature {mission_slug}",
                             paths=_gen_paths,
+                        )
+                        # WP09 / FR-010: record worktree for post-commit advance.
+                        if _gen_placement.kind is CommitTargetKind.COORDINATION:
+                            _gen_advance_wt = _gen_wt
+                    # Best-effort ff-advance of the primary ref (#1878).
+                    if _gen_advance_wt is not None:
+                        _try_advance_primary_ref(
+                            repo_root,
+                            target_branch,
+                            _gen_advance_wt,
+                            json_output=json_output,
                         )
                 except Exception as gen_err:
                     if not json_output:
@@ -2509,14 +2810,10 @@ def finalize_tasks(
                     "[bold]--target-branch <ref>[/bold] to override."
                 )
             raise typer.Exit(1) from exc
-        # WP02 / FR-002 / AC-C1 (#1861 Part 1): --validate-only is READ-ONLY.
-        # The eager checkout is a commit-phase positioning concern only; the
-        # validate path anchors every read on the primary feature dir (post
-        # WP07), so it has no dependency on the target branch being checked
-        # out. Gating (not deleting) the shim keeps commit-phase behavior
-        # byte-for-byte unchanged (C-001 non-goal: shim retirement is #1666).
-        if not validate_only:
-            _ensure_branch_checked_out(repo_root, target_branch, json_output=json_output)
+        # WP09 / FR-010 (#1878): `_ensure_branch_checked_out` shim retired.
+        # The primary-ref sync is now handled by `advance_branch_ref` after
+        # each coord-branch write, eliminating the manual ff-merge treadmill.
+        # validate-only path is read-only and never needed the checkout.
         if not json_output:
             console.print(f"[bold cyan]Branch:[/bold cyan] {target_branch} (target for this mission)")
 
@@ -3042,12 +3339,44 @@ def finalize_tasks(
                         console.print(f"  - {err}")
                 raise typer.Exit(1) from None
 
-            # Soft check: warn when owned_files globs match zero files (T013)
-            glob_warnings = validate_glob_matches(wp_manifests, repo_root)
-            all_ownership_warnings.extend(glob_warnings)
-            if not json_output:
-                for warning in glob_warnings:
-                    console.print(f"[yellow]Ownership warning:[/yellow] {warning}")
+            # Classify literal vs glob entries; literal zero-match is a hard
+            # error; glob zero-match is a soft warning. create_intent from WP
+            # frontmatter suppresses the hard error for planned-new-file paths.
+            # (T015/T016/T017/T018 — FR-006, issue #1886)
+            _wp_create_intent: dict[str, list[str]] = {
+                wp_id: list(fm.create_intent)
+                for wp_id, fm in wp_frontmatters.items()
+                if fm.create_intent
+            }
+            glob_result = validate_glob_matches(
+                wp_manifests, repo_root, create_intent=_wp_create_intent
+            )
+            stderr_console = Console(stderr=True)
+            # Route info notes (create_intent suppression) to stderr
+            for note in glob_result.info:
+                stderr_console.print(f"[blue]INFO:[/blue] {note}")
+            # Route glob-pattern warnings to stderr (soft — command still succeeds)
+            for warning in glob_result.warnings:
+                stderr_console.print(f"[yellow]WARNING:[/yellow] Ownership: {warning}")
+                all_ownership_warnings.append(warning)
+            # Route literal-path hard errors to stderr and abort
+            if not glob_result.passed:
+                for err in glob_result.errors:
+                    stderr_console.print(f"[red]ERROR:[/red] Ownership: {err}")
+                error_msg = (
+                    "Ownership validation failed: literal-path owned_files entries "
+                    "match zero files. Fix the paths or add them to 'create_intent'."
+                )
+                if json_output:
+                    _emit_json(
+                        {
+                            "error": error_msg,
+                            "ownership_literal_path_errors": glob_result.errors,
+                        }
+                    )
+                else:
+                    console.print(f"[red]Error:[/red] {error_msg}")
+                raise typer.Exit(1) from None
 
             # Soft check: warn when codebase-wide WPs miss audit targets
             codebase_wide_owned_files = [list(manifest.owned_files) for manifest in wp_manifests.values() if manifest.is_codebase_wide]
@@ -3242,6 +3571,39 @@ def finalize_tasks(
             from specify_cli.lanes.compute import compute_lanes
             from specify_cli.lanes.persistence import write_lanes_json
 
+            # T019 — Re-validate glob matches at lane-compute time (downstream
+            # boundary guard).  If any literal-path hard errors are present here,
+            # the ownership check earlier should have caught them; but if the
+            # initial check was somehow bypassed (e.g. direct call), we refuse to
+            # write lanes.json with a phantom path rather than silently propagating
+            # the error.
+            _lane_create_intent: dict[str, list[str]] = {
+                wp_id: list(fm.create_intent)
+                for wp_id, fm in wp_frontmatters.items()
+                if fm.create_intent
+            }
+            _lane_glob_result = validate_glob_matches(
+                wp_manifests, repo_root, create_intent=_lane_create_intent
+            )
+            if not _lane_glob_result.passed:
+                _lane_stderr = Console(stderr=True)
+                for err in _lane_glob_result.errors:
+                    _lane_stderr.print(f"[red]ERROR:[/red] Lane-compute re-validation: {err}")
+                _lane_error_msg = (
+                    "Lane computation aborted: literal-path owned_files entries "
+                    "match zero files. Fix the paths before lanes.json is written."
+                )
+                if json_output:
+                    _emit_json(
+                        {
+                            "error": _lane_error_msg,
+                            "ownership_literal_path_errors": _lane_glob_result.errors,
+                        }
+                    )
+                else:
+                    console.print(f"[red]Error:[/red] {_lane_error_msg}")
+                raise typer.Exit(1) from None
+
             raw_mission_id = meta.get("mission_id") if meta else None
             mission_id = raw_mission_id if isinstance(raw_mission_id, str) else None
             lanes_manifest = compute_lanes(
@@ -3428,6 +3790,15 @@ def finalize_tasks(
                         console.print(f"[green]✓[/green] Tasks committed to {placement.ref}")
                         console.print(f"[dim]Commit: {commit_hash[:7]}[/dim]")
                         console.print(f"[dim]Updated {updated_count} WP files with dependencies[/dim]")
+
+                    # WP09 / FR-010 (#1878): ff-merge treadmill elimination.
+                    if placement.kind is CommitTargetKind.COORDINATION:
+                        _try_advance_primary_ref(
+                            repo_root,
+                            target_branch,
+                            _commit_worktree_root,
+                            json_output=json_output,
+                        )
                 else:
                     error_output = "Failed to commit tasks updates"
                     if json_output:

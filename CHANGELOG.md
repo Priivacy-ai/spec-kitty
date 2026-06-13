@@ -9,8 +9,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Added
+
+- **Branch-strategy recommendation in `/specify` (issue #765):** `spec-kitty agent mission branch-context`
+  now resolves the repository's primary branch and emits a recommendation payload (`primary_branch`,
+  `current_is_primary`, `recommended_strategy`, `reason`). The software-dev specify prompt consumes it to
+  **proactively** recommend starting on a dedicated feature branch; `mission create --start-branch` now
+  creates/switches before any mission artifacts are written when the operator is on the primary branch and
+  expects a later PR; staying on the current branch remains an explicit, supported choice (wiring `--pr-bound`
+  branch-strategy gate into the operator flow). The recommendation fields are additive and opt-in: callers
+  that do not resolve a primary branch receive the byte-identical legacy branch contract.
+
 ### 🐛 Fixed
 
+- **`spec-kitty upgrade` no longer churns `metadata.yaml` on a no-op (issue #1871):** the "stamp
+  `last_upgraded_at` only on material change" rule lived in three divergent idioms, and the migrations-applied
+  root path plus `_stamp_schema_version` rewrote `metadata.yaml` (and advanced the timestamp / mtime) even when
+  every migration was already recorded. `ProjectMetadata.save()` now does a **masked compare-before-write**
+  (skipping the write when only the volatile `last_upgraded_at`/`schema_version` would change) and
+  `_stamp_schema_version` skips its re-dump when the rendered bytes already match disk. A genuine
+  version/migration/environment change still writes with a fresh timestamp; a no-op upgrade — including across a
+  fully-recorded version range, on both the root and worktree paths — is now zero writes. This closes the class
+  at the write boundary for upgrade/doctor/regeneration instead of adding a fourth per-path guard.
+- **`agent tasks map-requirements --json` no longer crashes on auto-commit (issue #1891, Finding 1):** the
+  command stored the `CommitResult` returned by `safe_commit()` directly in the `--json` payload, so on the
+  auto-commit success path `json.dumps` failed with *"Object of type CommitResult is not JSON serializable"* —
+  the mapping succeeded but agents got an unparseable error instead of the result. `committed` is now a bool
+  and the resulting `commit_sha` (or `null`) is exposed alongside it. (Findings 2 and 3 — `agent action
+  implement --json` and `setup-plan`/`finalize-tasks` JSON preamble — are tracked separately.)
+- **`accept --lenient` now relaxes mission path conventions (issue #1892):** `spec-kitty accept` / `agent
+  mission accept` validated a mission's declared `paths` (`src/`, `tests/`, `contracts/` for software-dev)
+  unconditionally, so repos with a non-default layout (e.g. a Go service using `internal/` with no top-level
+  `tests/`) failed acceptance even with `--lenient` — the only workaround was creating throwaway empty
+  directories. Path conventions now block only in strict mode; under `--lenient` an unmet convention is
+  surfaced as a non-blocking warning. (A per-project `paths` override remains a possible follow-up.)
+- **Name-vs-authority remediation (mission #133; closes #1889, #1860, #1865, #1866, #1867, #1863, #1896, #1898, #1904, #1684, #1906):** (#1884/#1883/#1885 were independently fixed by PR #1910 and are verified-already-fixed here, not re-closed)
+  binds the two remaining "a name/string shape is trusted as authority without cross-checking the declared authority"
+  seams and ratchets them closed, and clears the live 3.2.0 release-blocker P0s rooted in that class. Topology
+  authority seam (`WorktreeTopology` + `classify_worktree_topology` + `is_registered_coord_worktree` in
+  `coordination/surface_resolver.py`, wrapping the `git worktree list --porcelain` registry) and branch-identity
+  authority seam (`mission_branch_name_required` + structured `BranchIdentityUnresolved` in `lanes/branch_naming.py`,
+  dual-era: legacy `\d{3}-` AND mid8 names both resolve) replace the convention predicates at their consumer sites;
+  the `(slug.replace('-','')+"00000000")[:8]` mid8-fabrication idiom is eradicated (routed through
+  `resolve_transaction_mid8`, fail-closed). **P0s fixed:** `setup-plan`'s committed-spec gate verifies against the
+  placement authority's ref not primary HEAD (#1884); the accept gate is idempotent across all modes via
+  accept-owned-path exclusion (#1883); unresolvable mission handles raise a structured `MissionNotFoundError`
+  (code + next_step, #1911) instead of a silent `mission=unknown` stub (#1885 residual). #1889's coordination-branch-deleted
+  case becomes a distinct loud `CoordinationBranchDeleted` (decision-table row R3). An architectural ratchet
+  (`test_topology_resolution_boundary.py`) keeps coord predicates, unbackstopped `kitty/mission-{slug}` composes, and
+  the fabrication idiom from regrowing outside the blessed seam modules. Doctrine refinements (#1865/#1866/#1867) and
+  the DRG extractor styleguide/toolguide `references` walk (#1863) ride along; the authority-path default flips
+  `architecture/2.x/adr` → `3.x/adr`. **Cross-lane dependency code propagation (#1684):** `allocate_lane_worktree`
+  now merges approved dependency-lane tips (fresh creation + lane re-entry) so a dependent WP in a sibling lane sees
+  its approved dependency's code, instead of branching from the bare mission branch.
+- **`_branch_exists`/`ref_exists` consolidation (#1904):** the duplicated `git rev-parse --verify` branch/ref
+  existence idiom across `coordination/status_transition.py`, `missions/_create.py`, `lanes/worktree_allocator.py`,
+  and `lanes/merge.py` is unified into `lanes/_git.py` (env-parameterized so the merge path's environment composes).
+
+### 🧹 Maintenance
+
+- **SonarCloud hygiene on mission #133 surfaces:** raised new-code coverage on the authored seam/allocator/query
+  files; reduced cognitive-complexity (extract-method) and duplicate-literal smells across `doctrine.py`,
+  `sync/daemon.py`, `sync/owner.py`, `drg/validator.py`, `org_charter.py`, `_read_path_resolver.py`, `core/worktree.py`,
+  `agent/workflow.py`, and `upgrade.py` (all behavior-preserving); regenerated stale codex/vibe command-skill
+  snapshots to match the advanced templates (PR #1897 finding).
+
+- **Upgrade no longer re-records not-applicable migrations (issue #1872):** a migration whose `detect()`
+  is `False` was re-appended as a `skipped` / "Not applicable" `MigrationRecord` on every `spec-kitty upgrade`
+  run over the same version range, growing `applied_migrations` without bound and — for worktrees, after
+  #1857 — bumping `last_upgraded_at` on no-op runs. `ProjectMetadata.record_migration()` is now idempotent
+  (an identical `(id, result)` record is not re-appended) and the worktree upgrade path only marks metadata
+  dirty when a new record was actually written, restoring stable `last_upgraded_at` for no-op re-runs. A
+  genuine `failed → success` transition still records the new result.
 - **Coordination & Merge stabilization (mission 131; closes #1826, #1861 Part 1, residuals of #1833/#1814/#1736/#1735):**
   merge-pipeline ref advances now resync any worktree checked out on the advanced branch (shared
   `git/ref_advance.py` helper with a no-raw-`update-ref` architectural ratchet), refusing loudly — never

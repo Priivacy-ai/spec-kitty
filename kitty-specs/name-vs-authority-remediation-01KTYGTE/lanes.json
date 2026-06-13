@@ -3,7 +3,7 @@
   "mission_slug": "name-vs-authority-remediation-01KTYGTE",
   "mission_id": "01KTYGTE9JV0212WFJ2K82BQ8J",
   "mission_branch": "kitty/mission-name-vs-authority-remediation-01KTYGTE",
-  "target_branch": "feat/doctrine-glossary-consolidation-01KTNWFC",
+  "target_branch": "feat/name-vs-authority-remediation-01KTYGTE",
   "lanes": [
     {
       "lane_id": "lane-a",

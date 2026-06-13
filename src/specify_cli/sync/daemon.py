@@ -122,6 +122,9 @@ DAEMON_PORT_MAX_ATTEMPTS = 50
 # compares this against the running daemon and restarts it on mismatch.
 DAEMON_PROTOCOL_VERSION = 1
 
+# Loopback health-check endpoint path served by the sync daemon.
+_HEALTH_ENDPOINT_PATH = "/api/health"
+
 # Keep shutdown latency tight for restart-daemon NFR-002. The default
 # ``serve_forever`` poll interval is 0.5s, which is user-visible on restart.
 DAEMON_SERVE_FOREVER_POLL_SECONDS: float = 0.05
@@ -280,7 +283,7 @@ def _fetch_health_payload(health_url: str, timeout: float = 0.5) -> dict[str, An
 
 
 def _check_sync_daemon_health(port: int, expected_token: str | None, timeout: float = 0.5) -> bool:
-    data = _fetch_health_payload(build_loopback_url(port, "/api/health"), timeout=timeout)
+    data = _fetch_health_payload(build_loopback_url(port, _HEALTH_ENDPOINT_PATH), timeout=timeout)
     if not data:
         return False
     if data.get("status") != "ok":
@@ -293,7 +296,7 @@ def _check_sync_daemon_health(port: int, expected_token: str | None, timeout: fl
 
 def _daemon_version_matches(port: int, expected_token: str | None, timeout: float = 0.5) -> bool:
     """Return True if the running daemon reports the current protocol + package version."""
-    data = _fetch_health_payload(build_loopback_url(port, "/api/health"), timeout=timeout)
+    data = _fetch_health_payload(build_loopback_url(port, _HEALTH_ENDPOINT_PATH), timeout=timeout)
     if not data:
         return False
     if data.get("status") != "ok":
@@ -377,7 +380,7 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         parsed_path = urllib.parse.urlparse(self.path)
-        if parsed_path.path == "/api/health":
+        if parsed_path.path == _HEALTH_ENDPOINT_PATH:
             self.handle_health()
             return
         if parsed_path.path == "/api/sync/trigger":
@@ -789,7 +792,7 @@ def get_sync_daemon_status(timeout: float = 0.5) -> SyncDaemonStatus:
     if port is None:
         return SyncDaemonStatus(healthy=False, url=url, token=token, pid=pid)
 
-    data = _fetch_health_payload(build_loopback_url(port, "/api/health"), timeout=timeout)
+    data = _fetch_health_payload(build_loopback_url(port, _HEALTH_ENDPOINT_PATH), timeout=timeout)
     if not data:
         return SyncDaemonStatus(
             healthy=False,

@@ -20,6 +20,33 @@ _LEGACY_MIGRATION_ID_MAP: dict[str, str] = {
 }
 
 
+def _mask_volatile_metadata(text: str) -> str:
+    """Return ``text`` with volatile metadata lines neutralized for
+    compare-before-write (issue #1871).
+
+    Two fields must not, by themselves, force a rewrite of ``metadata.yaml``:
+
+    - ``last_upgraded_at`` — the migrations-applied upgrade path bumps it on
+      every successful run, even a no-op; masking its value lets a no-op save
+      compare equal and skip, keeping the on-disk timestamp stable.
+    - ``schema_version`` — ``ProjectMetadata.save`` does not emit it (it is
+      written separately by ``_stamp_schema_version``), so the on-disk file
+      carries it while freshly-rendered content does not; dropping the line
+      keeps the comparison apples-to-apples.
+    """
+    masked: list[str] = []
+    for line in text.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith("schema_version:"):
+            continue
+        if stripped.startswith("last_upgraded_at:"):
+            indent = line[: len(line) - len(stripped)]
+            masked.append(f"{indent}last_upgraded_at: <masked>")
+            continue
+        masked.append(line)
+    return "\n".join(masked)
+
+
 @dataclass
 class MigrationRecord:
     """Record of a single migration application."""
@@ -136,11 +163,25 @@ class ProjectMetadata:
                 changed = True
         return changed
 
-    def save(self, kittify_dir: Path) -> None:
+    def save(self, kittify_dir: Path) -> bool:
         """Save metadata to .kittify/metadata.yaml.
+
+        Performs a masked compare-before-write (issue #1871): if the only
+        differences between the rendered content and the file already on disk
+        are the volatile ``last_upgraded_at`` timestamp (which the migrations-
+        applied upgrade path bumps unconditionally) and ``schema_version``
+        (written separately by ``_stamp_schema_version`` and intentionally
+        omitted here), the write is skipped. This stops no-op upgrades from
+        churning the file/mtime or advancing ``last_upgraded_at``, and closes
+        the class for every ``save()`` caller (upgrade/doctor/regeneration)
+        rather than adding per-path guards.
 
         Args:
             kittify_dir: Path to the .kittify directory
+
+        Returns:
+            ``True`` if the file was written; ``False`` if the write was
+            skipped because nothing material changed.
         """
         metadata_path = kittify_dir / "metadata.yaml"
 
@@ -176,7 +217,18 @@ class ProjectMetadata:
         buf = io.StringIO()
         buf.write(header)
         yaml.dump(data, buf, default_flow_style=False, sort_keys=False)
-        atomic_write(metadata_path, buf.getvalue(), mkdir=True)
+        new_content = buf.getvalue()
+
+        if metadata_path.exists():
+            try:
+                existing = metadata_path.read_text(encoding="utf-8-sig")
+            except OSError:
+                existing = None
+            if existing is not None and _mask_volatile_metadata(existing) == _mask_volatile_metadata(new_content):
+                return False
+
+        atomic_write(metadata_path, new_content, mkdir=True)
+        return True
 
     def has_migration(self, migration_id: str) -> bool:
         """Check if a migration has been successfully applied.
@@ -189,14 +241,32 @@ class ProjectMetadata:
         """
         return any(m.id == migration_id and m.result == "success" for m in self.applied_migrations)
 
-    def record_migration(self, migration_id: str, result: str, notes: str | None = None) -> None:
+    def record_migration(self, migration_id: str, result: str, notes: str | None = None) -> bool:
         """Record a migration application.
+
+        Recording is idempotent: if an identical ``(migration_id, result)``
+        record already exists, this is a no-op. Without this, a migration whose
+        ``detect()`` is ``False`` is re-recorded as ``skipped`` / "Not
+        applicable" on *every* upgrade run over the same version range, growing
+        ``applied_migrations`` without bound and churning timestamps (issue
+        #1872). A genuine result transition (e.g. a previously ``failed``
+        migration that now succeeds) carries a different ``result`` and is
+        still appended.
 
         Args:
             migration_id: The ID of the migration
             result: The result ("success", "skipped", "failed")
             notes: Optional notes about the migration
+
+        Returns:
+            ``True`` if a new record was appended; ``False`` if an identical
+            record already existed and the call was a no-op.
         """
+        if any(
+            m.id == migration_id and m.result == result
+            for m in self.applied_migrations
+        ):
+            return False
         self.applied_migrations.append(
             MigrationRecord(
                 id=migration_id,
@@ -205,3 +275,4 @@ class ProjectMetadata:
                 notes=notes,
             )
         )
+        return True

@@ -1,0 +1,1 @@
+Triaged 18 smells: 2 MISSION-AUTHORED fixed (S5713 redundant-except at recovery.py:240; S6019 reluctant-quantifier at _substantive.py:210); 16 BASELINE skipped. 2 security hotspots assessed as safe false positives (loopback-only HTTP pattern at loopback_http.py:20). Commit 88429110f on feat/name-vs-authority-remediation-01KTYGTE.

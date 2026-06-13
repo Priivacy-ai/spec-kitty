@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KV07VEY31YEQTCR22JQ3GHEM",
+  "completed_at": "2026-06-13T10:22:32.961925+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "GO/LOW-MOD risk rebase. 3 EQUIVALENT overlaps (runtime_bridge, acceptance, is_committed) resolve take-theirs; #1910 won on main+tests. NO topology-abstraction collision: #1910's 'coord-aware read primitive' is the is_committed placement overload, NOT a competing surface_resolver seam \u2014 ours survives whole. COMPLEMENTARY keep-both: implement.py mid8, scanner gather_feature_paths, #1896 technical-context regex+describe_gap, no_dead_symbols allowlist. DROP #1883/#1884/#1885 from Closes, reframe FR-001/002/003 as verify-already-fixed. Escalate: FR reframe + dual mission-#132 identity."
+}

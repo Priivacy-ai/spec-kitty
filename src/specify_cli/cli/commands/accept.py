@@ -108,6 +108,21 @@ def _commit_residual_acceptance_artifacts(repo_root: Path, feature_slug: str) ->
     return True
 
 
+def _print_acceptance_warnings(summary: AcceptanceSummary) -> None:
+    """Render non-blocking ``summary.warnings`` in the human console.
+
+    The ``--json`` output already carries ``warnings``, but the human-readable
+    paths did not surface them, so a ``--lenient`` operator (issue #1892) got no
+    signal about what was downgraded from blocking to advisory. Shown only when
+    non-empty so a clean summary prints no spurious section.
+    """
+    if not summary.warnings:
+        return
+    console.print("\n[bold yellow]Warnings[/bold yellow]")
+    for warning in summary.warnings:
+        console.print(f"[yellow]- {warning}[/yellow]")
+
+
 def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
     table = Table(title="Work Packages by Lane", header_style="cyan")
     table.add_column("Lane")
@@ -128,6 +143,8 @@ def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
                 console.print(f"    • {value}")
     else:
         console.print("\n[green]No outstanding acceptance issues detected.[/green]")
+
+    _print_acceptance_warnings(summary)
 
     if summary.optional_missing:
         console.print(
@@ -192,14 +209,16 @@ def _print_acceptance_diagnosis(summary: AcceptanceSummary) -> None:
         for item in summary.blocked_checks:
             console.print(f"[yellow]- {item.check}[/yellow]: {item.detail}")
 
+    _print_acceptance_warnings(summary)
+
     if summary.recommended_fix_order:
         console.print("\n[bold]Recommended fix order[/bold]")
-        for idx, item in enumerate(summary.recommended_fix_order, start=1):
-            console.print(f"  {idx}. {item}")
+        for idx, fix in enumerate(summary.recommended_fix_order, start=1):
+            console.print(f"  {idx}. {fix}")
 
 
 def _summary_payload(summary: AcceptanceSummary) -> dict[str, object]:
-    payload = summary.to_dict()
+    payload: dict[str, object] = summary.to_dict()
     payload.update(acceptance_lane_derivations(summary))
     return payload
 
@@ -281,6 +300,12 @@ def accept(
             repo_root,
             mission_slug,
             strict_metadata=not lenient,
+            # --no-commit must still resolve the acceptance matrix (run negative
+            # invariants, refresh verdict); otherwise the verdict stays 'pending'
+            # and the gate can never pass in --no-commit mode. The matrix write
+            # is accept-owned and excluded from the dirty-tree gate (#1883), so
+            # mutating without committing is safe and converges. Only diagnose
+            # (read-only) leaves the matrix untouched.
             mutate_matrix=not diagnose,
         )
     except AcceptanceError as exc:
@@ -347,6 +372,9 @@ def accept(
                 console.print(f"[red]Error:[/red] {exc}")
             raise typer.Exit(1)
 
+    result: AcceptanceResult | None = None
+    _accept_exc: AcceptanceError | None = None
+    _residue_exc: Exception | None = None
     try:
         if commit_required and not json_output:
             tracker.start("commit")
@@ -366,18 +394,11 @@ def accept(
                 tests=acceptance_tests,
                 auto_commit=commit_required,
             )
-        if commit_required:
-            # The acceptance commit (inside perform_acceptance) only captures
-            # meta.json. Derived artifacts materialized during readiness checks
-            # (e.g. acceptance-matrix.json, status views) are written after the
-            # git-cleanliness snapshot and would otherwise be left dirty. Fold
-            # them into a follow-up commit so a successful accept leaves a clean
-            # working tree on every path (including accept_commit == None).
-            _commit_residual_acceptance_artifacts(repo_root, mission_slug)
         if commit_required and not json_output:
             detail = "commit created" if result.commit_created else "no changes"
             tracker.complete("commit", detail)
     except AcceptanceError as exc:
+        _accept_exc = exc
         _safe_emit_error_logged(str(exc))
         if json_output:
             print(json.dumps({"error": str(exc)}))
@@ -386,7 +407,33 @@ def accept(
                 tracker.error("commit", str(exc))
                 console.print(tracker.render())
             console.print(f"[red]Error:[/red] {exc}")
+    finally:
+        if commit_required:
+            # The acceptance commit (inside perform_acceptance) only captures
+            # meta.json. Derived artifacts materialized during readiness checks
+            # (e.g. acceptance-matrix.json, status views) are written after the
+            # git-cleanliness snapshot and would otherwise be left dirty. Fold
+            # them into a follow-up commit so all writing exit paths (including
+            # error paths and accept_commit == None) leave a clean working tree.
+            try:
+                _commit_residual_acceptance_artifacts(repo_root, mission_slug)
+            except Exception as residue_exc:
+                _residue_exc = residue_exc
+                _safe_emit_error_logged(f"Residual artifact commit failed: {residue_exc}")
+    if _accept_exc is not None:
         raise typer.Exit(1)
+    if _residue_exc is not None:
+        error_msg = f"Residual artifact commit failed: {_residue_exc}"
+        if json_output:
+            print(json.dumps({"error": error_msg}))
+        else:
+            if commit_required:
+                tracker.error("commit", error_msg)
+                console.print(tracker.render())
+            console.print(f"[red]Error:[/red] {error_msg}")
+        raise typer.Exit(1)
+
+    assert result is not None  # guaranteed: _accept_exc is None means perform_acceptance succeeded
 
     if json_output:
         print(json.dumps(result.to_dict(), indent=2))

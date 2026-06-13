@@ -22,6 +22,8 @@ from specify_cli.coordination.status_service import (
     wp_lane_actor_from_events,
 )
 from specify_cli.coordination.transaction import BookkeepingTransaction
+from specify_cli.lanes._git import branch_exists as _branch_exists
+from specify_cli.lanes.branch_naming import resolve_transaction_mid8
 from specify_cli.mission_metadata import load_meta
 from specify_cli.status import emit as _emit
 from specify_cli.status.adapters import fire_dossier_sync
@@ -69,16 +71,6 @@ def _repo_supports_transactions(repo_root: Path) -> bool:
         text=True,
     )
     return result.returncode == 0 and result.stdout.strip() == "true"
-
-
-def _branch_exists(repo_root: Path, branch: str) -> bool:
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    return result.returncode == 0
 
 
 def _transaction_dir_name(mission_slug: str, mid8: str) -> str:
@@ -261,8 +253,15 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
             mid8 = mission_id[:8]
 
     effective_mission_id = mission_id or f"legacy-{mission_slug}"
-    effective_mid8 = mid8 or (
-        mission_id[:8] if mission_id and len(mission_id) >= 8 else (mission_slug.replace("-", "") + "00000000")[:8]
+    # FR-007: the mid8 names the ON-DISK transaction dir. Route through the
+    # canonical fail-closed authority instead of fabricating a zero-padded mid8
+    # from the slug — that idiom invented a wrong-but-plausible dir name and
+    # mis-routed the transaction/lock target.
+    effective_mid8 = resolve_transaction_mid8(
+        mission_slug,
+        mission_id=mission_id,
+        mid8=mid8,
+        coordination_branch=coord_branch,
     )
     transaction_dir_name = _transaction_dir_name(mission_slug, effective_mid8)
     return _TransactionIdentity(

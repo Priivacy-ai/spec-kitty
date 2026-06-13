@@ -606,6 +606,9 @@ _Mission lifecycle commands for AI agents_
 │                                                    control (e.g.,            │
 │                                                    'already-confirmed' to    │
 │                                                    bypass the prompt)        │
+│ --start-branch                               TEXT  Create or switch to this  │
+│                                                    branch before mission     │
+│                                                    files are written         │
 │ --force-recreate-coordi…                           Delete and recreate the   │
 │                                                    per-mission coordination  │
 │                                                    branch if it already      │

@@ -319,14 +319,16 @@ class MigrationRunner:
                     continue
 
                 if not migration.detect(worktree):
-                    if not dry_run:
-                        self._record_migration_result(
-                            wt_metadata,
-                            wt_kittify,
-                            migration.migration_id,
-                            "skipped",
-                            "Not applicable",
-                        )
+                    # Only mark dirty when a NEW record was written; an
+                    # already-recorded "skipped" migration is a no-op and must
+                    # not bump last_upgraded_at on every re-run (issue #1872).
+                    if not dry_run and self._record_migration_result(
+                        wt_metadata,
+                        wt_kittify,
+                        migration.migration_id,
+                        "skipped",
+                        "Not applicable",
+                    ):
                         worktree_metadata_dirty = True
                     continue
 
@@ -340,14 +342,13 @@ class MigrationRunner:
                 migration_result = migration.apply(worktree, dry_run=dry_run)
 
                 if migration_result.success:
-                    if not dry_run:
-                        self._record_migration_result(
-                            wt_metadata,
-                            wt_kittify,
-                            migration.migration_id,
-                            "success",
-                            "; ".join(migration_result.changes_made) if migration_result.changes_made else None,
-                        )
+                    if not dry_run and self._record_migration_result(
+                        wt_metadata,
+                        wt_kittify,
+                        migration.migration_id,
+                        "success",
+                        "; ".join(migration_result.changes_made) if migration_result.changes_made else None,
+                    ):
                         worktree_metadata_dirty = True
                     result["warnings"].extend([f"Worktree {worktree.name}: {w}" for w in migration_result.warnings])
                 else:
@@ -407,10 +408,18 @@ class MigrationRunner:
         migration_id: str,
         result: str,
         notes: str | None = None,
-    ) -> None:
-        """Persist each migration record immediately for crash/failure recovery."""
-        metadata.record_migration(migration_id, result, notes)
-        metadata.save(metadata_dir)
+    ) -> bool:
+        """Persist each migration record immediately for crash/failure recovery.
+
+        Returns ``True`` when a new record was written. An idempotent no-op
+        (the record already existed) returns ``False`` and skips the save, so
+        callers can avoid bumping ``last_upgraded_at`` on a re-run that recorded
+        nothing new (issue #1872 / #1838).
+        """
+        recorded = metadata.record_migration(migration_id, result, notes)
+        if recorded:
+            metadata.save(metadata_dir)
+        return recorded
 
     @staticmethod
     def _stamp_schema_version(kittify_dir: Path, schema_version: int) -> None:
@@ -472,4 +481,16 @@ class MigrationRunner:
         buf = io.StringIO()
         buf.write(header)
         yaml.dump(data, buf, default_flow_style=False, sort_keys=False)
-        atomic_write(metadata_path, buf.getvalue(), mkdir=True)
+        rendered = buf.getvalue()
+
+        # Compare-before-write (issue #1871): skip the re-dump when the rendered
+        # bytes already match the file on disk, so a no-op upgrade does not
+        # reformat or mtime-churn an already-stamped metadata.yaml.
+        try:
+            current = metadata_path.read_text(encoding="utf-8-sig")
+        except OSError:
+            current = None
+        if current == rendered:
+            return
+
+        atomic_write(metadata_path, rendered, mkdir=True)

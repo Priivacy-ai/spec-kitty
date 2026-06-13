@@ -119,7 +119,37 @@ Parse the JSON and, in your next reply, explicitly tell the user:
 - Whether `branch_matches_target` is true or false
 - If that is not the intended landing branch, stop and ask which branch should receive this feature before you run `create`
 
-Never talk generically about `main` or "the default branch". Name the actual branch values from the helper JSON. Do not shell out to git for this prompt.
+Never talk generically about `main` or "the default branch". Name the actual branch values from the helper JSON. Do not shell out to git to *resolve* branch state for this prompt — the helper is the source of truth.
+
+### Primary-branch recommendation (issue #765)
+
+The helper JSON also returns a primary-branch recommendation payload:
+
+- `primary_branch` — the repository's primary branch (e.g. `main`)
+- `current_is_primary` — `true` when you are standing on that primary branch
+- `recommended_strategy` — `feature-branch` (start a dedicated branch) or `stay`
+- `reason` — a human-readable explanation you should relay to the user
+
+When `current_is_primary` is `true`, you **must** have an explicit branching-strategy conversation **before** calling `create`:
+
+1. Relay the `reason` to the user and ask whether they expect to open a pull request for this work later (the default assumption for mission work is yes).
+2. **If they expect a PR (recommended path):** recommend starting on a dedicated feature branch now, and propose a name derived from the confirmed slug — e.g. `feat/<slug>` (use `fix/<slug>` for a bug-fix mission). Pass that branch to `create` with `--start-branch` so the CLI creates/switches to it before writing any mission artifacts:
+
+   ```bash
+   spec-kitty agent mission create "<slug>" \
+     --friendly-name "<title>" \
+     --purpose-tldr "<purpose_tldr>" \
+     --purpose-context "<purpose_context>" \
+     --json \
+     --pr-bound \
+     --branch-strategy already-confirmed \
+     --start-branch feat/<slug>
+   ```
+
+   Use the full `create` command in the Outline section below; the example here only shows the required branch flags. Do not run a separate raw `git switch` for this flow.
+3. **If they explicitly choose to stay on `primary_branch`:** honor it, but treat it as a deliberate choice. Run `create` with both `--pr-bound --branch-strategy already-confirmed` so the gate records the confirmed decision instead of refusing in non-interactive mode.
+
+When `current_is_primary` is `false`, you are already on a feature branch — no branch switch is needed; proceed normally.
 
 ## Commit Boundary (issue #846)
 
@@ -418,6 +448,8 @@ Given that feature description, do this:
    ```
 
    Where `<slug>` is a kebab-case version of the friendly title (e.g., "Checkout Upsell Flow" → "checkout-upsell-flow").
+
+   If the user expects a pull request for this work, add `--pr-bound --branch-strategy already-confirmed`. When `current_is_primary` is true and they accept the recommended feature-branch path, also add `--start-branch <branch>` so no mission artifacts are written on the primary branch.
 
    The command returns JSON with:
    - `result`: "success" or error message

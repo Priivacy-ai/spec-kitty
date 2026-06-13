@@ -28,7 +28,18 @@ Both forms are accepted at read time so existing worktrees keep working (FR-052)
 from __future__ import annotations
 
 import re
-from typing import NamedTuple
+from typing import Any, NamedTuple
+
+from specify_cli.core.errors import StructuredError
+
+# Public surface for the fail-closed branch-identity seam introduced by FR-006
+# (WP04). Scoped to the NEW symbols this slice adds (C-007 convention); the
+# module's long-standing helpers retain their existing implicit public surface.
+__all__ = [
+    "BranchIdentityUnresolved",
+    "mission_branch_name_required",
+    "resolve_transaction_mid8",
+]
 
 _MISSION_PREFIX = "kitty/mission-"
 
@@ -146,6 +157,175 @@ def mission_branch_name(mission_slug: str, *, mission_id: str | None = None) -> 
         return f"{_MISSION_PREFIX}{human_slug}-{mid8(mission_id)}"
     # Legacy form: no mission_id supplied (pre-WP02 callers, must still work)
     return f"{_MISSION_PREFIX}{mission_slug}"
+
+
+class BranchIdentityUnresolved(StructuredError):
+    """Raised when a mission branch cannot be composed without inventing identity.
+
+    Fail-closed signal for seam 2 (FR-006): a *modern* mission whose ``mission_id``
+    is absent AND whose slug carries neither a legacy ``NNN-`` prefix nor a mid8
+    tail has no recoverable disambiguator. Emitting ``kitty/mission-<slug>`` here
+    would name a branch that does not exist on disk (the #1860 class). The error
+    carries the offending ``mission_handle`` and an actionable ``next_step`` so
+    callers surface a typed, recoverable failure rather than a silent wrong-compose.
+
+    Dual-era contract: legacy ``\\d{3}-`` slugs and mid8-era slugs both RESOLVE;
+    only the genuinely-unresolvable modern case raises.
+    """
+
+    error_code: str = "BRANCH_IDENTITY_UNRESOLVED"
+
+    def __init__(self, mission_handle: str, *, next_step: str | None = None) -> None:
+        self.mission_handle = mission_handle
+        self.next_step = next_step or (
+            f"mission {mission_handle!r} has no mission_id and its slug carries no "
+            "mid8 disambiguator; pass mission_id from meta.json, or run "
+            "`spec-kitty migrate backfill-identity` to mint a mission_id for a "
+            "legacy mission missing one."
+        )
+        super().__init__(
+            f"cannot compose a canonical mission branch for {mission_handle!r}: "
+            f"mission_id is absent and the slug carries no mid8 disambiguator. "
+            f"{self.next_step}"
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = super().to_dict()
+        payload["mission_handle"] = self.mission_handle
+        payload["next_step"] = self.next_step
+        return payload
+
+
+def mission_branch_name_required(mission_slug: str, mission_id: str | None) -> str:
+    """Compose the canonical mission integration branch, fail-closed.
+
+    Thin wrapper over :func:`mission_branch_name` that refuses to emit a
+    wrong-but-plausible legacy ``kitty/mission-<slug>`` for a *modern* mission
+    whose identity is lost. Dual-era rule (research-authority-seams.md §2.3):
+
+    - ``mission_id`` present → mid8-era branch (``<human-slug>-<mid8>``).
+    - ``mission_id`` absent, slug is legacy ``NNN-`` → legacy branch (correct;
+      pre-083 missions never had a mid8).
+    - ``mission_id`` absent, slug already carries a mid8 tail → legacy compose
+      preserves the embedded disambiguator (resolvable).
+    - ``mission_id`` absent, slug is modern (no ``NNN-`` prefix, no mid8 tail)
+      → :class:`BranchIdentityUnresolved` (the only genuinely-wrong case).
+
+    Args:
+        mission_slug: Feature slug (e.g. ``"083-my-feature"`` or
+            ``"my-feature-01KNXQS9"``).
+        mission_id: Optional ULID read from ``meta.json``.
+
+    Returns:
+        The canonical mission branch name.
+
+    Raises:
+        BranchIdentityUnresolved: For an unresolvable modern identity.
+    """
+    if mission_id is not None:
+        return mission_branch_name(mission_slug, mission_id=mission_id)
+    # No mission_id: legacy form is only correct when the slug itself carries
+    # identity — an NNN- numeric prefix (pre-083 mission) or an embedded mid8
+    # tail. Otherwise the disambiguator is genuinely lost: fail closed.
+    if _NUMERIC_PREFIX_RE.match(mission_slug) or mid8_from_slug(mission_slug):
+        return mission_branch_name(mission_slug, mission_id=None)
+    raise BranchIdentityUnresolved(mission_slug)
+
+
+def resolve_transaction_mid8(
+    mission_slug: str,
+    *,
+    mission_id: str | None,
+    mid8: str | None,
+    coordination_branch: str | None = None,
+) -> str:
+    """Resolve the mid8 that names a mission's on-disk transaction dir, or fail.
+
+    The fail-closed authority for FR-007: the two transaction-identity sites
+    (``coordination/status_transition.py`` and ``cli/commands/implement.py``)
+    historically fabricated a zero-padded mid8 from the slug when no declared
+    mid8 was available. That idiom invented a wrong-but-plausible on-disk
+    transaction-dir name, mis-routing the lock/transaction target — the
+    claim-time "Failed to resolve coordination worktree" defect.
+
+    Cascade of declared sources (post-083 ``meta.json`` is authoritative):
+    ``meta.mid8`` → ``mission_id[:8]`` → the mid8 embedded in the canonical
+    ``<slug>-<mid8>`` slug tail.
+
+    Dual-era + topology contract (research-authority-seams.md §2.3 / §3): both
+    eras *resolve*; the fail-closed raise is reserved for the one case where a
+    fabricated mid8 would actively mis-route a **coordination-topology** write:
+
+    - explicit ``mid8`` → that mid8;
+    - ``mission_id`` (>= 8 chars) → ``mission_id[:8]`` (single-derivation);
+    - slug carrying a mid8 tail → the tail;
+    - cascade exhausted AND a legacy ``\\d{3}-`` slug → ``""`` (the bare-slug
+      surface). A pre-083 legacy mission never had a mid8; it is RESOLVABLE
+      under the dual-era rule exactly as ``mission_branch_name_required``
+      composes its legacy branch. It routes to the primary checkout / legacy
+      bridge — there is no real mid8 to name a coord worktree, so the legacy
+      carve-out applies even when a ``coordination_branch`` is declared;
+    - cascade exhausted AND no ``coordination_branch`` (flattened / meta-less
+      mission — no coord topology in play) → ``""`` (the bare-slug surface).
+      This preserves the pre-fix routing for these missions, which fell through
+      to the primary checkout / legacy bridge regardless of the fabricated mid8
+      — there is no coord target to mis-route;
+    - cascade exhausted AND a *modern* slug (no ``\\d{3}-`` prefix, no mid8 tail)
+      AND a ``coordination_branch`` IS declared → :class:`BranchIdentityUnresolved`.
+      This is the genuinely-wrong case: coordination topology requires a real
+      mid8 to name its worktree/branch, and fabricating one would route the
+      write to a coord surface that never existed. Run
+      ``spec-kitty migrate backfill-identity``.
+
+    The empty-string return is deliberate and load-bearing: it preserves the
+    pre-fix behaviour for missions with no coordination topology (legacy,
+    flattened, or orphaned-event post-merge recording) WITHOUT inventing a
+    wrong-but-plausible coord dir name.
+
+    Args:
+        mission_slug: Feature slug (e.g. ``"my-feature-01KT3YBD"``).
+        mission_id: Optional ULID read from ``meta.json``.
+        mid8: Optional explicit ``mid8`` read from ``meta.json``.
+        coordination_branch: The declared ``coordination_branch`` from
+            ``meta.json`` (``None`` for legacy/flattened/meta-less missions).
+            Gates the fail-closed: only a coord-topology mission with a lost
+            mid8 raises.
+
+    Returns:
+        The resolved 8-character mid8 disambiguator, or ``""`` when no
+        coordination topology is in play and the cascade is exhausted.
+
+    Raises:
+        BranchIdentityUnresolved: when a *modern* coordination-topology
+            mission's mid8 cascade is exhausted (no ``\\d{3}-`` prefix, no mid8
+            tail, no declared mid8/mission_id). Legacy ``\\d{3}-`` slugs resolve.
+    """
+    if mid8:
+        return mid8
+    if mission_id is not None and len(mission_id) >= 8:
+        return mission_id[:8]
+    slug_mid8 = mid8_from_slug(mission_slug)
+    if slug_mid8:
+        return slug_mid8
+    # Cascade of declared/embedded mid8 sources is exhausted. A legacy ``NNN-``
+    # slug is still RESOLVABLE (dual-era rule, FR-006): pre-083 missions never
+    # had a mid8, and the sibling ``mission_branch_name_required`` composes a
+    # valid legacy ``kitty/mission-<NNN-slug>`` branch for the same handle. It
+    # routes to the bare-slug surface (empty mid8) — there is no real mid8 to
+    # name a coord worktree, and the legacy mission falls through to the primary
+    # checkout / legacy bridge exactly as it did pre-fix. This carve-out must
+    # precede the coord-branch raise so a legacy coord-topology mission resolves
+    # rather than wedging its status transition (#1898 F-1).
+    if _NUMERIC_PREFIX_RE.match(mission_slug):
+        return ""
+    # Only a genuinely-unresolvable MODERN mission (no NNN- prefix, no mid8 tail)
+    # with coordination topology declared fails closed — fabricating a mid8 would
+    # mis-route its coord write (NFR-003: no new silent fallback for modern
+    # slugs). Without coord topology there is no target to mis-route, so route to
+    # the bare-slug surface (empty mid8) as the pre-fix code did.
+    if coordination_branch:
+        raise BranchIdentityUnresolved(mission_slug)
+    return ""
 
 
 def lane_branch_name(

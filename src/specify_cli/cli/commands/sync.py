@@ -820,10 +820,15 @@ def _detect_workspace_context() -> tuple[Path, str | None]:
         )
         if result.returncode == 0:
             branch_name = result.stdout.strip()
-            # Check if branch matches lane pattern (kitty/mission-###-feature-lane-x)
-            match = re.match(r"^kitty/mission-(\d{3}-[a-zA-Z0-9-]+)-lane-[a-z]+$", branch_name)
-            if match:
-                return cwd, match.group(1)
+            # Route through the canonical dual-era parser: the old legacy-only
+            # regex missed every mid8-era lane branch (#1860 class), silently
+            # returning no slug. ``parse_mission_slug_from_branch`` accepts both
+            # legacy ``NNN-slug`` and ``<human-slug>-<mid8>`` lane branches.
+            from specify_cli.lanes.branch_naming import parse_mission_slug_from_branch
+
+            parsed = parse_mission_slug_from_branch(branch_name)
+            if parsed is not None and parsed.lane_id is not None:
+                return cwd, parsed.slug
     except (FileNotFoundError, OSError):
         pass
 

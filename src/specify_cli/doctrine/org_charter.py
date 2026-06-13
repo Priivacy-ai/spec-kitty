@@ -428,29 +428,15 @@ def _fold_policies(
     if not policies:
         return OrgCharterPolicy()
 
+    resolved_schema_version = _resolve_fold_schema_version(
+        policies, strict_schema_version=strict_schema_version
+    )
+
     merged_interview_defaults: dict[str, str | bool] = {}
     merged_required: dict[str, list[str]] = {kind: [] for kind in REQUIRED_KIND_FIELDS}
     merged_governance: list[GovernancePolicy] = []
     activation_dedup: dict[tuple[str, str, str, str], ActivationEntry] = {}
     org_name: str | None = None
-
-    if strict_schema_version:
-        # --- T059: schema_version must match across the chain -------------
-        versions = {p.schema_version for p in policies}
-        if len(versions) > 1:
-            raise ValueError(
-                "schema_version mismatch in extends: chain. "
-                f"Versions found: {sorted(versions)}. All packs in a chain "
-                "must share the same schema_version."
-            )
-        resolved_schema_version: int = next(iter(versions))
-    else:
-        # Lenient: last truthy schema_version wins; 1 fallback (see NOTE).
-        last_truthy: int | None = None
-        for policy in policies:
-            if policy.schema_version:
-                last_truthy = policy.schema_version
-        resolved_schema_version = last_truthy if last_truthy is not None else 1
 
     for policy in policies:
         if policy.org_name:
@@ -458,20 +444,10 @@ def _fold_policies(
         # Per-key replacement: later key wins; earlier keys not overridden
         # remain in place.
         merged_interview_defaults.update(policy.interview_defaults)
-        # Union semantics for every required_<kind>.
-        for kind in REQUIRED_KIND_FIELDS:
-            for item in getattr(policy, f"required_{kind}"):
-                if item not in merged_required[kind]:
-                    merged_required[kind].append(item)
+        _accumulate_required(merged_required, policy)
         merged_governance.extend(policy.governance_policies)
         for entry in policy.activations:
             activation_dedup[_activation_identity_key(entry)] = entry
-
-    # Dedupe governance policies by (field, value), keeping the LAST entry.
-    seen: dict[tuple[str, str | bool], GovernancePolicy] = {}
-    for gp in merged_governance:
-        seen[(gp.field, gp.value)] = gp
-    deduped_governance = list(seen.values())
 
     return OrgCharterPolicy(
         schema_version=resolved_schema_version,
@@ -486,9 +462,51 @@ def _fold_policies(
         required_procedures=merged_required["procedures"],
         required_agent_profiles=merged_required["agent_profiles"],
         required_mission_step_contracts=merged_required["mission_step_contracts"],
-        governance_policies=deduped_governance,
+        governance_policies=_dedupe_governance(merged_governance),
         activations=list(activation_dedup.values()),
     )
+
+
+def _resolve_fold_schema_version(
+    policies: list[OrgCharterPolicy], *, strict_schema_version: bool
+) -> int:
+    """Resolve the merged ``schema_version`` for a fold (see :func:`_fold_policies`)."""
+    if strict_schema_version:
+        # --- T059: schema_version must match across the chain -------------
+        versions = {p.schema_version for p in policies}
+        if len(versions) > 1:
+            raise ValueError(
+                "schema_version mismatch in extends: chain. "
+                f"Versions found: {sorted(versions)}. All packs in a chain "
+                "must share the same schema_version."
+            )
+        return next(iter(versions))
+    # Lenient: last truthy schema_version wins; 1 fallback (see NOTE).
+    last_truthy: int | None = None
+    for policy in policies:
+        if policy.schema_version:
+            last_truthy = policy.schema_version
+    return last_truthy if last_truthy is not None else 1
+
+
+def _accumulate_required(
+    merged_required: dict[str, list[str]], policy: OrgCharterPolicy
+) -> None:
+    """Union ``required_<kind>`` from *policy* into *merged_required* (first-seen order)."""
+    for kind in REQUIRED_KIND_FIELDS:
+        for item in getattr(policy, f"required_{kind}"):
+            if item not in merged_required[kind]:
+                merged_required[kind].append(item)
+
+
+def _dedupe_governance(
+    merged_governance: list[GovernancePolicy],
+) -> list[GovernancePolicy]:
+    """Dedupe governance policies by ``(field, value)``, keeping the LAST entry."""
+    seen: dict[tuple[str, str | bool], GovernancePolicy] = {}
+    for gp in merged_governance:
+        seen[(gp.field, gp.value)] = gp
+    return list(seen.values())
 
 
 def _merge_chain(chain: list[OrgCharterPolicy]) -> OrgCharterPolicy:

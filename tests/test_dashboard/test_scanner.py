@@ -258,6 +258,46 @@ work_package_id: WP01
     assert stats["planned"] == 0
 
 
+@pytest.mark.fast
+def test_process_wp_file_uses_frontmatter_title_without_prompt_header(tmp_path):
+    feature_dir = tmp_path / "kitty-specs" / "001-frontmatter-title"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    prompt_file = tasks_dir / "WP01-demo.md"
+    prompt_file.write_text(
+        "---\n"
+        "work_package_id: WP01\n"
+        "title: Frontmatter Demo Title\n"
+        "---\n\n"
+        "Body without a Work Package Prompt header.\n",
+        encoding="utf-8",
+    )
+    _set_wp_lane(feature_dir, "WP01", "planned")
+
+    task = scanner._process_wp_file(prompt_file, tmp_path, "planned")
+
+    assert task is not None
+    assert task["title"] == "Frontmatter Demo Title"
+
+
+@pytest.mark.fast
+def test_process_wp_file_falls_back_to_stem_without_title_or_prompt_header(tmp_path):
+    feature_dir = tmp_path / "kitty-specs" / "001-stem-title"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    prompt_file = tasks_dir / "WP01-demo.md"
+    prompt_file.write_text(
+        "---\nwork_package_id: WP01\n---\n\nBody without a Work Package Prompt header.\n",
+        encoding="utf-8",
+    )
+    _set_wp_lane(feature_dir, "WP01", "planned")
+
+    task = scanner._process_wp_file(prompt_file, tmp_path, "planned")
+
+    assert task is not None
+    assert task["title"] == "WP01-demo"
+
+
 def test_process_wp_file_raises_without_canonical_log_for_nonlegacy(tmp_path, monkeypatch):
     """A non-legacy WP with no canonical event log surfaces CanonicalStatusNotFoundError."""
     from specify_cli.status import CanonicalStatusNotFoundError
@@ -433,9 +473,28 @@ agent:
 
 def test_dashboard_scans_prefer_coord_worktree_over_root_checkout(tmp_path):
     slug = "001-demo-feature"
+
+    # The coordination copy only outranks the primary checkout when it is a
+    # *registered* git worktree — name proposes coord-ness, the git registry
+    # disposes (C-SEAM-1). A bare ``-coord``-named directory is a husk and must
+    # NOT shadow the primary surface. Register the worktree on a clean seed
+    # commit so this exercises the real coord-preference path.
+    _git(["init", "--initial-branch=main"], tmp_path)
+    _git(["config", "user.email", "scanner@example.com"], tmp_path)
+    _git(["config", "user.name", "Scanner Test"], tmp_path)
+    _git(["config", "commit.gpgsign", "false"], tmp_path)
+    (tmp_path / "README.md").write_text("seed\n", encoding="utf-8")
+    _git(["add", "README.md"], tmp_path)
+    _git(["commit", "-q", "-m", "seed"], tmp_path)
+    coord_worktree = tmp_path / ".worktrees" / f"{slug}-coord"
+    _git(
+        ["worktree", "add", "-q", "-b", f"kitty/mission-{slug}", str(coord_worktree)],
+        tmp_path,
+    )
+
     _create_feature(tmp_path, slug, lane="planned")
 
-    coord_feature_dir = tmp_path / ".worktrees" / f"{slug}-coord" / "kitty-specs" / slug
+    coord_feature_dir = coord_worktree / "kitty-specs" / slug
     _create_feature_at(coord_feature_dir, lane="approved")
 
     features = scanner.scan_all_features(tmp_path)
@@ -454,6 +513,88 @@ def test_dashboard_scans_prefer_coord_worktree_over_root_checkout(tmp_path):
     assert len(lanes["approved"]) == 1
     assert len(lanes["planned"]) == 0
     assert lanes["approved"][0]["id"] == "WP01"
+
+
+@pytest.mark.fast
+def test_dashboard_husk_coord_dir_does_not_shadow_primary(tmp_path):
+    """F-005 adversarial: a ``-coord``-NAMED directory that git does NOT
+    register is a husk and must NOT outrank the primary checkout.
+
+    Name proposes coord-ness; the git registry disposes (C-SEAM-1). Before the
+    topology seam, the name-only ``endswith("-coord")`` predicate let this husk
+    silently shadow the live primary surface — the split-brain this WP kills.
+    """
+    slug = "001-demo-feature"
+
+    _git(["init", "--initial-branch=main"], tmp_path)
+    _git(["config", "user.email", "scanner@example.com"], tmp_path)
+    _git(["config", "user.name", "Scanner Test"], tmp_path)
+    _git(["config", "commit.gpgsign", "false"], tmp_path)
+    (tmp_path / "README.md").write_text("seed\n", encoding="utf-8")
+    _git(["add", "README.md"], tmp_path)
+    _git(["commit", "-q", "-m", "seed"], tmp_path)
+
+    # Primary checkout: the authoritative, current state.
+    _create_feature(tmp_path, slug, lane="planned")
+
+    # A husk: a ``-coord``-named plain dir that was NEVER `git worktree add`-ed.
+    husk_feature_dir = tmp_path / ".worktrees" / f"{slug}-coord" / "kitty-specs" / slug
+    _create_feature_at(husk_feature_dir, lane="approved")
+
+    features = scanner.scan_all_features(tmp_path)
+    assert len(features) == 1
+    feature = features[0]
+    # The husk's stale "approved" must NOT win; the primary "planned" stands.
+    assert feature["path"] == f"kitty-specs/{slug}"
+    assert feature["kanban_stats"]["planned"] == 1
+    assert feature["kanban_stats"]["approved"] == 0
+
+
+@pytest.mark.no_git_tmp_path
+def test_dashboard_scan_degrades_when_registry_unreadable_in_non_git_project(
+    tmp_path: Path,
+) -> None:
+    """WP03 seam degradation: when ``.worktrees/`` exists but the project is NOT
+    a git repo, ``read_worktree_registry`` fails closed with
+    ``WorktreeRegistryUnavailable``. The scanner must degrade gracefully —
+    treat every worktree dir as non-coord rather than crashing the whole
+    dashboard scan (covers ``scanner.py`` lines 332/336).
+
+    Behavioural contract: a ``-coord``-named directory has no readable registry
+    to consult, so it cannot be classified as a coord worktree and therefore
+    must NOT outrank/shadow the primary ``kitty-specs/`` surface. The scan
+    succeeds and the primary copy wins.
+    """
+    slug = "001-demo-feature"
+
+    # Deliberately NO `git init`: the project dir is not a git repo, so the
+    # `git worktree list --porcelain` read inside `gather_feature_paths` raises
+    # WorktreeRegistryUnavailable. This is the real trigger, not a mock.
+    assert not (tmp_path / ".git").exists()
+
+    # Primary checkout surface (authoritative when the registry is unreadable).
+    _create_feature(tmp_path, slug, lane="planned")
+
+    # A ``-coord``-named directory sitting under .worktrees/. With no registry
+    # it cannot be promoted to coord topology.
+    husk_feature_dir = tmp_path / ".worktrees" / f"{slug}-coord" / "kitty-specs" / slug
+    _create_feature_at(husk_feature_dir, lane="approved")
+
+    # The scan completes (no crash) despite the unreadable registry.
+    paths = scanner.gather_feature_paths(tmp_path)
+
+    # The husk did NOT win: the resolved path is the primary surface, not the
+    # ``.worktrees/...-coord`` copy.
+    assert paths[slug] == tmp_path / "kitty-specs" / slug
+    assert paths[slug] != husk_feature_dir
+
+    features = scanner.scan_all_features(tmp_path)
+    assert len(features) == 1
+    feature = features[0]
+    assert feature["path"] == f"kitty-specs/{slug}"
+    # Primary "planned" stands; the degraded coord dir's "approved" is ignored.
+    assert feature["kanban_stats"]["planned"] == 1
+    assert feature["kanban_stats"]["approved"] == 0
 
 
 # ── NFR-006: Dashboard kanban bucketing identity ───────────────────────────

@@ -41,3 +41,11 @@ properties:
   last_updated:
     type: string
     description: ISO 8601 date the guide was last reviewed or updated (e.g. 2026-04-05).
+  references:
+    type: array
+    description: >
+      Optional list of related doctrine artifact paths (plain file-path strings).
+      Walked by the DRG extractor to emit ``suggests`` edges (DIRECTIVE_018 —
+      additive schema change; existing toolguides without this field remain valid).
+    items:
+      type: string

@@ -211,6 +211,35 @@ def write_owner_record(record: DaemonOwnerRecord) -> Path:
     return target
 
 
+def _optional_str(data: dict[str, Any], key: str) -> str | None:
+    """Coerce an optional mapping value to ``str`` while preserving ``None``."""
+    value = data.get(key)
+    return None if value is None else str(value)
+
+
+def _record_from_mapping(data: dict[str, Any]) -> DaemonOwnerRecord:
+    """Construct a :class:`DaemonOwnerRecord` from a parsed JSON mapping.
+
+    Raises ``KeyError`` / ``TypeError`` / ``ValueError`` on missing or
+    malformed fields; callers treat any such failure as "no recorded owner".
+    """
+    return DaemonOwnerRecord(
+        pid=int(data["pid"]),
+        port=int(data["port"]),
+        token=str(data["token"]),
+        package_version=str(data["package_version"]),
+        # ``executable_path`` is canonicalized in ``DaemonOwnerRecord.__post_init__``.
+        executable_path=str(data["executable_path"]),
+        source_checkout_path=str(data["source_checkout_path"]),
+        server_url=str(data["server_url"]),
+        auth_principal=_optional_str(data, "auth_principal"),
+        auth_team=_optional_str(data, "auth_team"),
+        auth_scope=_optional_str(data, "auth_scope"),
+        queue_db_path=str(data["queue_db_path"]),
+        started_at=str(data["started_at"]),
+    )
+
+
 def read_owner_record() -> DaemonOwnerRecord | None:
     """Read the canonical owner record, returning ``None`` if absent or invalid.
 
@@ -231,23 +260,7 @@ def read_owner_record() -> DaemonOwnerRecord | None:
     if not isinstance(data, dict):
         return None
     try:
-        return DaemonOwnerRecord(
-            pid=int(data["pid"]),
-            port=int(data["port"]),
-            token=str(data["token"]),
-            package_version=str(data["package_version"]),
-            # ``executable_path`` is canonicalized in ``DaemonOwnerRecord.__post_init__``.
-            executable_path=str(data["executable_path"]),
-            source_checkout_path=str(data["source_checkout_path"]),
-            server_url=str(data["server_url"]),
-            auth_principal=(
-                None if data.get("auth_principal") is None else str(data["auth_principal"])
-            ),
-            auth_team=(None if data.get("auth_team") is None else str(data["auth_team"])),
-            auth_scope=(None if data.get("auth_scope") is None else str(data["auth_scope"])),
-            queue_db_path=str(data["queue_db_path"]),
-            started_at=str(data["started_at"]),
-        )
+        return _record_from_mapping(data)
     except (KeyError, TypeError, ValueError):
         return None
 

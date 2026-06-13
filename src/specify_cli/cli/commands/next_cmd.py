@@ -107,7 +107,13 @@ def next_step(
 
     _run_charter_preflight_for_next(_Path(str(repo_root)), advancing=result is not None, json_output=json_output)
 
-    mission_slug = _resolve_mission_slug(mission, feature, repo_root)
+    from runtime.next.runtime_bridge import MissionNotFoundError as _MissionNotFoundError
+
+    try:
+        mission_slug = _resolve_mission_slug(mission, feature, repo_root)
+    except _MissionNotFoundError as _exc:
+        _emit_mission_not_found_error(_exc.handle, json_output)
+        raise typer.Exit(1) from _exc
     _validate_result_and_answer(result, answer, json_output)
     answered_id = _maybe_handle_answer(agent, mission_slug, answer, decision_id, repo_root, json_output)
 
@@ -346,12 +352,13 @@ def _resolve_mission_slug(mission: str | None, feature: str | None, repo_root: P
         candidate = candidate_feature_dir_for_mission(
             get_main_repo_root(repo_root), raw_handle
         )
-    except StatusReadPathNotFound:
-        # Fail-closed coordination window (coord worktree root materialized,
-        # mission dir absent): fall back to the raw handle so slug resolution
-        # stays non-raising at this boundary — the runtime surfaces its own
-        # diagnostic downstream.
-        return raw_handle
+    except StatusReadPathNotFound as exc:
+        # Fail-closed: coord worktree root is materialised but the mission
+        # directory is absent — the handle is definitely bad (FR-004 / WP03).
+        # Do NOT fall through; raise so the caller can emit a structured error.
+        from runtime.next.runtime_bridge import MissionNotFoundError
+
+        raise MissionNotFoundError(raw_handle) from exc
     if candidate.exists():
         return candidate.name
     return raw_handle
@@ -362,6 +369,43 @@ def _print_error(message: str, json_output: bool) -> None:
         print(json.dumps({"error": message}))
     else:
         print(message, file=sys.stderr)
+
+
+def _emit_mission_not_found_error(
+    handle: str, json_output: bool, next_step: str | None = None
+) -> None:
+    """Emit a structured MISSION_NOT_FOUND error in the appropriate format.
+
+    Human mode writes to stderr; JSON mode writes a structured envelope to
+    stdout.  Both paths exit non-zero (FR-004 / WP03).
+
+    ``next_step`` carries the actionable operator remediation lifted from the
+    raised :class:`MissionNotFoundError`; it is surfaced in both the JSON
+    payload (alongside ``error_code``) and as a ``Next:`` line in human mode,
+    restoring the affordance the superseded ``QueryModeValidationError`` gave
+    (#1911). It also remains under the legacy ``remediation`` key for
+    backward compatibility.
+    """
+    remediation = next_step or "Run 'spec-kitty mission list' to see available missions."
+    if json_output:
+        from specify_cli import __version__
+
+        payload = {
+            "result": "error",
+            "error_code": "MISSION_NOT_FOUND",
+            "handle": handle,
+            "next_step": remediation,
+            "remediation": remediation,
+            "spec_kitty_version": __version__,
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        print(
+            f"Error: Mission not found: '{handle}'\n"
+            f"No mission matching '{handle}' exists in this repository.",
+            file=sys.stderr,
+        )
+        print(f"  Next: {remediation}", file=sys.stderr)
 
 
 def _validate_result_and_answer(result: str | None, answer: str | None, json_output: bool) -> None:
@@ -416,11 +460,34 @@ def _run_query_mode(
 ) -> None:
     runtime_bridge = _runtime_bridge_module()
     QueryModeValidationError = runtime_bridge.QueryModeValidationError
+    # Import MissionNotFoundError from the canonical module so tests that
+    # install a fake ``specify_cli.next.runtime_bridge`` shim still work.
+    from runtime.next.runtime_bridge import MissionNotFoundError
 
     try:
         decision = runtime_bridge.query_current_state(agent, mission_slug, repo_root)
+    except MissionNotFoundError as exc:
+        _emit_mission_not_found_error(
+            exc.handle, json_output, next_step=getattr(exc, "next_step", None)
+        )
+        raise typer.Exit(1) from exc
     except QueryModeValidationError as exc:
-        _print_error(f"Error: {exc}" if not json_output else str(exc), json_output)
+        # C-ERR-1 / FR-003: emit a structured payload (error_code + next_step)
+        # rather than a silent unknown stub when a handle is unresolvable.
+        if json_output:
+            payload = {
+                "error": str(exc),
+                "error_code": getattr(exc, "error_code", "QUERY_MODE_VALIDATION_FAILED"),
+            }
+            next_step = getattr(exc, "next_step", None)
+            if next_step is not None:
+                payload["next_step"] = next_step
+            print(json.dumps(payload, indent=2))
+        else:
+            print(f"Error: {exc}", file=sys.stderr)
+            next_step = getattr(exc, "next_step", None)
+            if next_step:
+                print(f"  Next: {next_step}", file=sys.stderr)
         raise typer.Exit(1) from exc
     _print_decision(decision, json_output, answered_id, answer)
 

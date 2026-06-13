@@ -27,9 +27,11 @@ from specify_cli.mission_metadata import resolve_mission_identity, set_vcs_lock
 from specify_cli.frontmatter import FrontmatterError, update_fields
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import (
+    SafeCommitPathPolicyError,
     _operator_protected_branch_hatch_active,
     protected_branches,
 )
+from specify_cli.core.constants import WORKTREES_DIR
 from mission_runtime import CommitTarget, CommitTargetKind
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
@@ -387,12 +389,17 @@ def _resolve_bookkeeping_transaction_identifiers(
     effective_mission_id = (
         str(mission_id) if mission_id else f"legacy-{mission_slug}"
     )
-    if mid8:
-        effective_mid8 = str(mid8)
-    elif mission_id and len(str(mission_id)) >= 8:
-        effective_mid8 = str(mission_id)[:8]
-    else:
-        effective_mid8 = (mission_slug.replace("-", "") + "00000000")[:8]
+    # FR-007: route the mid8 through the canonical fail-closed authority rather
+    # than fabricating a zero-padded mid8 from the slug — that idiom named a
+    # non-existent coord branch/worktree at claim time.
+    from specify_cli.lanes.branch_naming import resolve_transaction_mid8
+
+    effective_mid8 = resolve_transaction_mid8(
+        mission_slug,
+        mission_id=str(mission_id) if mission_id else None,
+        mid8=str(mid8) if mid8 else None,
+        coordination_branch=coord_branch,
+    )
     return coord_branch, mission_id, mid8, effective_mission_id, effective_mid8
 
 
@@ -439,16 +446,57 @@ def _files_changed_vs_ref(
 
 
 def _feature_dir_file_paths(repo_root: Path, feature_dir: Path) -> list[str]:
+    # FR-005 / Issue #1887: reject calls where feature_dir resolves under
+    # .worktrees/.  Relativizing a coord-worktree path against the primary repo
+    # root produces paths like ".worktrees/<slug>/..." which safe_commit then
+    # stages into the primary index, leaking coord internals into origin/main.
+    # The caller must pass the correct coordination-branch-relative path instead.
+    feature_dir_resolved = feature_dir.resolve()
     repo_root_resolved = repo_root.resolve()
+    try:
+        rel = feature_dir_resolved.relative_to(repo_root_resolved)
+    except ValueError:
+        rel = None
+    if rel is not None and rel.parts and rel.parts[0] == WORKTREES_DIR:
+        raise SafeCommitPathPolicyError(
+            offending_path=rel.as_posix(),
+            worktree_root=repo_root_resolved,
+        )
+
     paths: list[str] = []
     for path in sorted(feature_dir.rglob("*")):
         if not path.is_file():
             continue
         try:
-            paths.append(path.resolve().relative_to(repo_root_resolved).as_posix())
+            rel_path = path.resolve().relative_to(repo_root_resolved).as_posix()
         except ValueError:
             continue
+        # Secondary guard: individual files must not land under .worktrees/.
+        if Path(rel_path).parts and Path(rel_path).parts[0] == WORKTREES_DIR:
+            raise SafeCommitPathPolicyError(
+                offending_path=rel_path,
+                worktree_root=repo_root_resolved,
+            )
+        paths.append(rel_path)
     return paths
+
+
+def _planning_artifact_source_dir(repo_root: Path, feature_dir: Path, mission_slug: str) -> Path:
+    """Return the primary-checkout mission dir for planning-artifact discovery."""
+    repo_root_resolved = repo_root.resolve()
+    try:
+        rel = feature_dir.resolve().relative_to(repo_root_resolved)
+    except ValueError:
+        return feature_dir
+    if rel.parts and rel.parts[0] == WORKTREES_DIR:
+        from specify_cli.missions._read_path_resolver import (
+            primary_feature_dir_for_mission,
+        )
+
+        primary_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
+        if primary_dir.exists():
+            return primary_dir
+    return feature_dir
 
 
 def _exclude_coord_owned(paths: Iterable[str], coord_branch_for_filter: str | None) -> list[str]:
@@ -545,7 +593,10 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     strangler) the legacy meta-derived path is used unchanged.
     """
     current_branch = _git_stdout(repo_root, ["rev-parse", "--abbrev-ref", "HEAD"])
-    entries = _feature_dir_status_entries(repo_root, feature_dir)
+    artifact_source_dir = _planning_artifact_source_dir(
+        repo_root, feature_dir, mission_slug
+    )
+    entries = _feature_dir_status_entries(repo_root, artifact_source_dir)
 
     # Fail closed on structural changes (deletions, renames, copies). The
     # planning-artifact commit goes through ``BookkeepingTransaction.write_artifact``,
@@ -585,7 +636,8 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     if coord_branch_for_filter:
         files_to_commit.extend(
             _exclude_coord_owned(
-                _feature_dir_file_paths(repo_root, feature_dir), coord_branch_for_filter
+                _feature_dir_file_paths(repo_root, artifact_source_dir),
+                coord_branch_for_filter,
             )
         )
     files_to_commit = list(dict.fromkeys(files_to_commit))
@@ -608,7 +660,7 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
             current_branch,
             planning_branch,
             auto_commit,
-            feature_dir,
+            artifact_source_dir,
             mission_slug,
         )
 
@@ -1098,6 +1150,9 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         # When --base is provided, validate the ref and build a patched
         # LanesManifest that uses it as the mission_branch so the worktree
         # allocator branches from the explicit base instead of auto-detecting.
+        # #1684 composition: --base selects only the ROOT the lane branches from;
+        # the allocator still merges approved depends_on_lanes tips on top, so
+        # cross-lane code propagation is preserved regardless of the chosen root.
         active_lanes_manifest = lanes_manifest
         if base is not None and not is_planning_lane(resolved_workspace):
             _validate_base_ref(repo_root, base)

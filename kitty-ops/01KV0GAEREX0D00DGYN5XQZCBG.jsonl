@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KV0GAEREX0D00DGYN5XQZCBG", "profile_id": "planner-priti", "action": "plan", "request_text": "File MEDIUM/LOW adversarial-review findings as tickets (#1908)", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "b1d80e23116414c0", "governance_context_available": true, "started_at": "2026-06-13T12:46:46.785397+00:00"}
+{"event": "completed", "invocation_id": "01KV0GAEREX0D00DGYN5XQZCBG", "completed_at": "2026-06-13T12:49:49.254390+00:00", "outcome": "done", "closed_by": "agent"}

@@ -613,3 +613,57 @@ class TestFinalizeTasksWithFrontmatterRefs:
         payload = json.loads(result.stdout.strip().splitlines()[-1])
         wp01_refs = payload["requirement_refs_parsed"]["WP01"]
         assert wp01_refs == ["FR-001", "FR-002", "FR-003", "NFR-001"]
+
+
+class TestMapRequirementsAutoCommitJson:
+    """Issue #1891 Finding 1: ``--json`` must serialize the commit result.
+
+    ``safe_commit`` returns a ``CommitResult`` (not a bool). Previously that
+    object was placed directly into the ``--json`` payload, so on the
+    auto-commit success path ``json.dumps`` failed with "Object of type
+    CommitResult is not JSON serializable" and the mutation's result was
+    unparseable by an orchestrating agent.
+    """
+
+    @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    def test_auto_commit_json_payload_is_serializable(
+        self,
+        mock_branch: Mock,
+        mock_slug: Mock,
+        mock_locate: Mock,
+        mock_safe_commit: Mock,
+        tmp_path: Path,
+    ) -> None:
+        from specify_cli.git.commit_helpers import CommitResult
+
+        mock_locate.return_value = tmp_path
+        mock_slug.return_value = "001-test"
+        mock_branch.return_value = (tmp_path, "main")
+        mock_safe_commit.return_value = CommitResult(
+            sha="abc1234def", destination_ref="main", worktree_root=tmp_path
+        )
+        _setup_feature(tmp_path)
+
+        result = runner.invoke(
+            tasks_app,
+            [
+                "map-requirements",
+                "--wp",
+                "WP01",
+                "--refs",
+                "FR-001",
+                "--auto-commit",
+                "--json",
+            ],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        # Pre-fix this raised / produced an {"error": ...} payload.
+        payload = json.loads(result.stdout.strip())
+        assert payload["result"] == "success"
+        assert payload["committed"] is True
+        assert payload["commit_sha"] == "abc1234def"
+        mock_safe_commit.assert_called_once()

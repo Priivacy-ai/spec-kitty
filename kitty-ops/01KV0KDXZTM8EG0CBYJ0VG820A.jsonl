@@ -1,0 +1,3 @@
+{"event": "started", "invocation_id": "01KV0KDXZTM8EG0CBYJ0VG820A", "profile_id": "python-pedro", "action": "generate", "request_text": "Cover WP03 seam degradation branches for the critical-path diff-coverage gate (#1908)", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "3200a46c535a9701", "governance_context_available": true, "started_at": "2026-06-13T13:41:06.629711+00:00"}
+{"event": "completed", "invocation_id": "01KV0KDXZTM8EG0CBYJ0VG820A", "completed_at": "2026-06-13T13:53:38.536390+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "commit_link", "invocation_id": "01KV0KDXZTM8EG0CBYJ0VG820A", "at": "2026-06-13T13:53:38.536525+00:00", "sha": "556823538"}

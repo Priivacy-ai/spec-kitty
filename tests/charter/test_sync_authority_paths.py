@@ -41,7 +41,7 @@ available_tools:
   - pytest
 authority_paths:
   - glossary/contexts/
-  - architecture/2.x/adr/
+  - architecture/3.x/adr/
 governance_references:
   - spec/constitution.md
 ```
@@ -60,7 +60,7 @@ def test_fenced_yaml_authority_paths_extracted(tmp_path: Path) -> None:
     assert isinstance(doctrine, dict)
     assert doctrine.get("authority_paths") == [
         "glossary/contexts/",
-        "architecture/2.x/adr/",
+        "architecture/3.x/adr/",
     ]
     assert doctrine.get("governance_references") == ["spec/constitution.md"]
 

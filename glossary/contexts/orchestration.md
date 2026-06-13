@@ -355,6 +355,18 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 ---
 
+### Branch Strategy Gate
+
+| | |
+|---|---|
+| **Definition** | The mission-create guard for PR-bound missions that requires an explicit operator or agent decision before planning artifacts are written on a primary branch. Interactive callers may confirm at the prompt; non-interactive callers record the already-made decision with `--branch-strategy already-confirmed`. When the recommended feature-branch path is chosen, pass `--start-branch` so the CLI switches before scaffold writes. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [PR-Bound Mission](#pr-bound-mission), [Primary Branch](#primary-branch), [Feature Branch](#feature-branch), [Start Branch](#start-branch) |
+
+---
+
 ### Current Branch
 
 | | |
@@ -364,6 +376,18 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Related terms** | [Target Branch](#target-branch), [Base Branch](#base-branch) |
+
+---
+
+### Feature Branch
+
+| | |
+|---|---|
+| **Definition** | A dedicated git branch for PR-bound mission planning and implementation work, typically named `feat/<slug>` for feature work or `fix/<slug>` for bug-fix work. It is distinct from the primary branch and is the recommended start point when a mission is expected to become a pull request. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [PR-Bound Mission](#pr-bound-mission), [Primary Branch](#primary-branch), [Start Branch](#start-branch), [Target Branch](#target-branch) |
 
 ---
 
@@ -388,6 +412,42 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Related terms** | [Target Branch](#target-branch), [Merge Target Branch](#merge-target-branch), [Lane](#lane), [Work Package](#work-package) |
+
+---
+
+### Primary Branch
+
+| | |
+|---|---|
+| **Definition** | The repository's default integration branch, normally resolved from `origin/HEAD` and commonly named `main`, `master`, or `develop`. The specify branch-context output exposes this value as `primary_branch` only for branch-strategy recommendation; it is not automatically the mission's `target_branch` once `target_branch` has been persisted in `meta.json`. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [Current Branch](#current-branch), [Target Branch](#target-branch), [Feature Branch](#feature-branch), [Branch Strategy Gate](#branch-strategy-gate) |
+
+---
+
+### PR-Bound Mission
+
+| | |
+|---|---|
+| **Definition** | A mission expected to land through a pull request rather than direct work on the primary branch. During mission create, `--pr-bound` activates the branch strategy gate so the branch choice is explicit before planning artifacts are written. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [Branch Strategy Gate](#branch-strategy-gate), [Feature Branch](#feature-branch), [Primary Branch](#primary-branch) |
+
+---
+
+### Start Branch
+
+| | |
+|---|---|
+| **Definition** | The branch passed to mission create with `--start-branch`. The CLI creates or switches to this branch before writing mission scaffolding, and it must match `--target-branch` when both options are supplied so mission metadata and the checked-out branch describe the same planning branch. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [Feature Branch](#feature-branch), [Target Branch](#target-branch), [Branch Strategy Gate](#branch-strategy-gate) |
 
 ---
 

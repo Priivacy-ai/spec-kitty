@@ -584,7 +584,7 @@ def test_spawn_path_invokes_canonical_reaper(monkeypatch: pytest.MonkeyPatch) ->
     assert reap_calls == [True], "spawn path must invoke the canonical reaper exactly once"
     assert port == 9499
     assert started is True
-    assert url == "http://127.0.0.1:9499"
+    assert url == "http://localhost:9499"
 
 
 # ---------------------------------------------------------------------------

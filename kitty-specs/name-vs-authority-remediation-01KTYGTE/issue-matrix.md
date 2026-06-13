@@ -5,16 +5,16 @@ reach `fixed` / `verified-already-fixed` / `deferred-with-followup` before missi
 
 | Issue | Title | Verdict | Evidence ref |
 |-------|-------|---------|--------------|
-| #1884 | setup-plan blind to coord-branch commits (P0) | in-mission | FR-001 — verifier routed through resolve_placement_only's ref |
-| #1883 | accept never completes under coord topology (P0) | in-mission | FR-002 — accept-gate idempotency seam |
-| #1885 | next returns unusable stub for fully-planned missions (P0) | in-mission | FR-003 (residual hardening) + FR-004 (symptom verified fixed by PR #1850 — repro in research-p0-rootcauses) |
-| #1889 | agent decision crashes when coordination_branch declared, worktree missing (P0) | in-mission | FR-004 — verified fixed on tree (coord_worktree_materialized guard); pinning test + proof, then close |
-| #1860 | move-task mid8 handle fails 'no canonical status' | in-mission | FR-006 — branch-identity authority closes the handle-as-path class |
-| #1865 | Doctrine: triage-snapshot label reconciliation (+2 addenda) | in-mission | FR-010 — deltas ready (research-fold-cluster §1) |
-| #1866 | Doctrine: canonical-tree carve-out for hygiene mutations | in-mission | FR-010 |
-| #1867 | Doctrine: canonical provisional-priority default | in-mission | FR-010 |
-| #1863 | DRG extractor never walks styleguides/toolguides | in-mission | FR-012 — walk + toolguide schema field; ~20 orphans needing curation stay deferred on the ticket |
-| #1896 | substantive-plan gate rejects bulleted Technical Context fields | in-mission | FR-013 — regex alignment + actionable blocked_reason (quick-fix WP) |
+| #1884 | setup-plan blind to coord-branch commits (P0) | fixed | WP01 T002 (approved, lane-a 081a49ae8): is_committed verifies via resolve_placement_only ref (C-GATE-1); mutation-proofed pin RED-on-revert |
+| #1883 | accept never completes under coord topology (P0) | fixed | WP02 (approved, lane-b f37fb2b00): ACCEPT_OWNED exact-relpath exclusion, 3-mode convergence test RED→GREEN; adversarial over-exclusion probe passed |
+| #1885 | next returns unusable stub for fully-planned missions (P0) | fixed | Symptom verified fixed by PR #1850 (FR-004 pin, WP01); residual silent-stub hardened to structured QueryModeValidationError (FR-003, WP01 T003, mutation-proofed) |
+| #1889 | agent decision crashes when coordination_branch declared, worktree missing (P0) | verified-already-fixed | Fixed by PR #1850 coord_worktree_materialized guard; WP01 T001 real-git pinning regression added; R3 branch-deleted row added by WP03 (CoordinationBranchDeleted) |
+| #1860 | move-task mid8 handle fails 'no canonical status' | fixed | WP04 (approved, lane-d 71e8705e4): mission_branch_name_required + BranchIdentityUnresolved; 8 cluster-B sites dual-era migrated; #1860 regression suite (11 tests) |
+| #1865 | Doctrine: triage-snapshot label reconciliation (+2 addenda) | fixed | WP06 (approved): triage-snapshot reconciliation + secondary-label coexistence patterns + provisional default in planning-and-tracking styleguide; doctrine validate OK |
+| #1866 | Doctrine: canonical-tree carve-out for hygiene mutations | fixed | WP06 (approved): canonical-tree carve-out incl. label-only-mutation permission in tracker-organisation-workflow procedure |
+| #1867 | Doctrine: canonical provisional-priority default | fixed | WP06 (approved): pagination rule generalized to all gh list surfaces in github-tracker toolguide + GITHUB_TRACKER.md |
+| #1863 | DRG extractor never walks styleguides/toolguides | fixed | WP08 (approved, lane-h 8d4cca929): _resolve_path_ref walk + toolguide schema references field + graph regen (+24 suggests edges, byte-stable); ~20 curation orphans + java-implementer stale ref stay deferred on the ticket |
+| #1896 | substantive-plan gate rejects bulleted Technical Context fields | fixed | WP01 T004 (approved): peer-field regex tolerates bullets + describe_technical_context_gap blocked_reason; bulleted-but-real context pin RED-on-revert |
 | #1831 | implement prompt files collide across missions | verified-already-fixed | Fixed on this branch (Op-F, commit 0c8db2337); lands via PR #1895 |
 | #1880 | typed exceptions for substring control flow | verified-already-fixed | Fixed on this branch (Op-G, f512cb300); lands via PR #1895 |
 | #1881 | enum/constant sweep | verified-already-fixed | Fixed on this branch (Op-H b33eace72 + Op-I 358af429a); lands via PR #1895 |

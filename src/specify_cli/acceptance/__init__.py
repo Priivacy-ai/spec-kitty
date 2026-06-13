@@ -26,7 +26,7 @@ from specify_cli.mission_metadata import load_meta, record_acceptance, resolve_m
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import Lane
 from specify_cli.status import EVENTS_FILENAME, StoreError
-from specify_cli.validators.paths import PathValidationError, validate_mission_paths
+from specify_cli.validators.paths import validate_mission_paths
 
 from specify_cli.task_utils import (
     LANES,
@@ -59,14 +59,62 @@ PRIMARY_ARTIFACT_FILES = (
     RESEARCH_FILE,
     DATA_MODEL_FILE,
 )
+
+# FR-002 / C-GATE-2 (#1883 ROOT-β, boy-scout extension): the accept readiness
+# run also materializes the *project* identity into ``.kittify/config.yaml`` via
+# the sync event emitter (``identity.project.ensure_identity`` →
+# ``atomic_write_config``). On a project whose identity was not yet persisted,
+# the first accept run mints ``project.uuid/slug/node_id/build_id`` and writes
+# ``.kittify/config.yaml``; in ``--no-commit``/diagnose modes that write is never
+# folded into a commit, so the second-run ``git_dirty`` snapshot trips on a file
+# the gate itself wrote. ``ensure_identity`` is already no-op-stable once the
+# identity is complete (it never rewrites on the second run), so this is the
+# same accept-owned-residue class as the matrix/status writes. The exclusion is
+# scoped to EXACTLY the project-root ``.kittify/config.yaml`` — never an
+# arbitrary ``config.yaml`` elsewhere in the tree — and other dirty paths under
+# ``.kittify/`` are preserved verbatim (NFR-003 fail-closed).
+_PROJECT_CONFIG_RELPATH = ".kittify/config.yaml"
 _DECISION_ID_MARKER = "decision_id:"
 _ACCEPTED_READY_LANES = frozenset({"approved", "done"})
+
+# Paths written by the accept pipeline itself.  These must be excluded from the
+# git-dirty gate so that a second accept run on unchanged mission state produces
+# the same pass/fail verdict as the first (convergence / idempotency guarantee).
+# ``status.json`` is a daemon-materialized view; ``acceptance-matrix.json`` is
+# written by ``_check_lane_gates`` when ``mutate_matrix=True``.
+ACCEPT_OWNED_PATHS = frozenset(
+    {
+        "acceptance-matrix.json",
+        "status.json",
+    }
+)
 _LEGACY_NOT_DONE_LANES = ("planned", "claimed", "doing", "in_progress", "for_review")
 _ACTIONABLE_LANE_BLOCKER_HINTS = {
     "in_review": "review is still in progress; complete the review and move the work package to approved or done",
     "blocked": "work package is blocked; resolve the blocker and move the work package to approved or done",
     "canceled": "work package is canceled; reopen or replace it, then move the work package to approved or done",
 }
+
+
+def _porcelain_dirty_path(line: str) -> str:
+    """Return the path component from a git porcelain v1 status line."""
+    path = line[3:].strip()
+    if " -> " in path:
+        path = path.split(" -> ", 1)[1].strip()
+    return path
+
+
+def _accept_owned_dirty_paths(repo_root: Path, *feature_dirs: Path) -> set[str]:
+    """Return repo-relative accept-owned paths for the current mission only."""
+    owned: set[str] = set()
+    for feature_dir in feature_dirs:
+        try:
+            feature_rel = feature_dir.resolve().relative_to(repo_root.resolve()).as_posix()
+        except ValueError:
+            continue
+        for filename in ACCEPT_OWNED_PATHS:
+            owned.add(f"{feature_rel}/{filename}")
+    return owned
 
 
 class AcceptanceError(TaskCliError):
@@ -529,6 +577,62 @@ def _resolve_git_context(repo_root: Path) -> tuple[str | None, Path, Path, list[
     return branch, worktree_root, primary_repo_root, git_dirty
 
 
+def _filter_accept_owned_project_config(repo_root: Path, git_dirty: list[str]) -> list[str]:
+    """Drop the gate's own project-root ``.kittify/config.yaml`` write.
+
+    The accept readiness path materializes project identity into
+    ``.kittify/config.yaml`` (``identity.project.ensure_identity``). That write
+    is accept-owned residue in ``--no-commit``/diagnose modes (see
+    ``_PROJECT_CONFIG_RELPATH``). Exclude EXACTLY that path so accept converges.
+
+    ``git status --porcelain`` collapses a fully-untracked ``.kittify/`` tree to
+    a single ``?? .kittify/`` directory entry regardless of how many files it
+    holds, so a naive directory-prefix exclusion would over-exclude a
+    *user-created* untracked file under ``.kittify/`` (NFR-003 violation). To
+    stay fail-closed, a collapsed directory entry is expanded with
+    ``--untracked-files=all`` and only the literal ``config.yaml`` line is
+    dropped; every other ``.kittify/`` path is preserved verbatim.
+    """
+    kept: list[str] = []
+    for line in git_dirty:
+        path = _porcelain_dirty_path(line)
+        status_xy = line[:2]
+        # Exact gate-own config write (explicit-file porcelain form).
+        if path == _PROJECT_CONFIG_RELPATH:
+            continue
+        # Collapsed untracked-directory form: expand and re-classify.
+        if status_xy == "??" and path == ".kittify/":
+            expanded = _expand_untracked_kittify(repo_root)
+            kept.extend(
+                expanded_line
+                for expanded_line in expanded
+                if _porcelain_dirty_path(expanded_line) != _PROJECT_CONFIG_RELPATH
+            )
+            continue
+        kept.append(line)
+    return kept
+
+
+def _expand_untracked_kittify(repo_root: Path) -> list[str]:
+    """Return per-file porcelain lines for untracked content under ``.kittify/``.
+
+    Uses ``--untracked-files=all`` so a collapsed ``?? .kittify/`` entry is
+    expanded into one line per untracked file, restricted to the ``.kittify``
+    pathspec. Returns ``[]`` on any git failure (the caller then keeps the
+    original collapsed entry, which is the fail-closed default).
+    """
+    try:
+        result = run_git(
+            ["status", "--porcelain", "--untracked-files=all", "--", ".kittify"],
+            cwd=repo_root,
+            check=True,
+        )
+    except TaskCliError:
+        return ["?? .kittify/"]
+    expanded = [line for line in result.stdout.splitlines() if line.strip()]
+    return expanded or ["?? .kittify/"]
+
+
 def _collect_snapshot_wps(feature: str, feature_dir: Path, activity_issues: list[str]) -> dict[str, dict[str, Any]]:
     """Load canonical WP states from status.events.jsonl; append issues on failure."""
     events_path = feature_dir / EVENTS_FILENAME
@@ -931,7 +1035,32 @@ def collect_feature_summary(
     if not feature_dir.exists():
         raise AcceptanceError(f"Mission directory not found: {feature_dir}")
 
-    branch, worktree_root, primary_repo_root, git_dirty = _resolve_git_context(repo_root)
+    branch, worktree_root, primary_repo_root, git_dirty_raw = _resolve_git_context(repo_root)
+
+    # Exclude accept-owned derived paths from the dirty-tree gate so that
+    # repeated accept runs on unchanged mission state converge to the same
+    # verdict (idempotency / convergence guarantee — Issue #1883).  Paths
+    # such as acceptance-matrix.json and status.json are written by the
+    # accept pipeline itself and must not count as "unexpected" working-tree
+    # dirt on the second run.
+    # The accept gate's own writes (acceptance-matrix.json + status.json) are
+    # scoped to this mission's primary anchor dir, the coord-aware read dir, and
+    # the canonical status-read dir. Excluding all three absorbs accept-owned
+    # residue left dirty by a prior --no-commit/diagnose run, so accept ∘ accept
+    # converges in every mode. Non-accept-owned dirt is preserved verbatim
+    # (fail-closed, NFR-003).
+    status_feature_dir = _status_read_feature_dir(repo_root, feature, feature_dir)
+    accept_owned_dirty_paths = _accept_owned_dirty_paths(
+        repo_root,
+        feature_dir,
+        read_feature_dir,
+        status_feature_dir,
+    )
+    git_dirty = [
+        line
+        for line in git_dirty_raw
+        if _porcelain_dirty_path(line) not in accept_owned_dirty_paths
+    ]
 
     lanes: dict[str, list[str]] = {lane: [] for lane in LANES}
     work_packages: list[WorkPackageState] = []
@@ -940,8 +1069,14 @@ def collect_feature_summary(
     skipped_checks: list[AcceptanceCheckDiagnostic] = []
     blocked_checks: list[AcceptanceCheckDiagnostic] = []
 
-    status_feature_dir = _status_read_feature_dir(repo_root, feature, feature_dir)
     snapshot_wps = _collect_snapshot_wps(feature, status_feature_dir, activity_issues)
+
+    # C-GATE-2 boy-scout extension (#1883): also absorb the gate's own
+    # project-identity write to ``.kittify/config.yaml`` so accept ∘ accept
+    # converges in --no-commit/diagnose modes. Scoped to that exact project-root
+    # path; other dirty paths (including other untracked ``.kittify/`` files) are
+    # preserved verbatim (NFR-003 fail-closed).
+    git_dirty = _filter_accept_owned_project_config(repo_root, git_dirty)
 
     expected_wp_ids: list[str] = []
     for wp in _iter_work_packages(repo_root, feature):
@@ -1000,38 +1135,58 @@ def collect_feature_summary(
     missing_required, missing_optional = _missing_artifacts(status_feature_dir)
 
     path_violations: list[str] = []
+    path_convention_warning: str | None = None
     try:
         mission = get_mission_for_feature(feature_dir)
     except MissionError:
         mission = None
 
     if mission and mission.config.paths:
-        try:
-            validate_mission_paths(
-                mission,
-                repo_root,
-                strict=True,
-                path_prefix=_path_prefix_for_mission(mission, feature_dir),
-            )
-        except PathValidationError as exc:
-            path_violations.append(exc.result.format_errors() or str(exc))
+        # Mission path conventions block acceptance by default, but under
+        # ``--lenient`` (``strict_metadata=False``) they are advisory: surface
+        # them as a non-blocking warning instead of a hard ``path_violations``
+        # so repos with a non-default layout (e.g. a Go service using
+        # ``internal/`` with no top-level ``tests/``) can be accepted with
+        # ``accept --lenient`` rather than the empty-directory workaround
+        # (issue #1892). ``validate_mission_paths`` is invoked non-strict here so
+        # we own the blocking decision rather than catching a raise.
+        path_result = validate_mission_paths(
+            mission,
+            repo_root,
+            strict=False,
+            path_prefix=_path_prefix_for_mission(mission, feature_dir),
+        )
+        if path_result.missing_paths:
+            if strict_metadata:
+                path_violations.append(
+                    path_result.format_errors() or "Path conventions not satisfied."
+                )
+            else:
+                path_convention_warning = (
+                    path_result.format_warnings() or "Path conventions not satisfied."
+                )
 
     warnings: list[str] = []
     if missing_optional:
         warnings.append("Optional artifacts missing: " + ", ".join(missing_optional))
     if path_violations:
         warnings.append("Path conventions not satisfied.")
+    elif path_convention_warning:
+        warnings.append(path_convention_warning)
 
+    # T028: use coord-resolved read_feature_dir for lane-gate checks so that
+    # lanes.json and acceptance-matrix.json are read from the coordination
+    # worktree rather than the primary checkout when coord topology is active.
     _check_lane_gates(
         repo_root,
-        feature_dir,
+        read_feature_dir,
         branch,
         activity_issues,
         skipped_checks,
         blocked_checks,
         mutate_matrix=mutate_matrix,
     )
-    _check_workflow_run_evidence(repo_root, feature_dir, branch, activity_issues)
+    _check_workflow_run_evidence(repo_root, read_feature_dir, branch, activity_issues)
 
     normalized_unchecked_tasks = unchecked_tasks if unchecked_tasks != [f"{TASKS_FILE} missing"] else []
     recommended_fix_order = _build_recommended_fix_order(
