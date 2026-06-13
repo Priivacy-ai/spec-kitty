@@ -1,0 +1,6 @@
+{"event": "started", "invocation_id": "01KV0G9W0H2GTN7AWJ3JQYE5MT", "profile_id": "python-pedro", "action": "generate", "request_text": "Remediate H-1 duplicate accept filter + record mutate_matrix override via CLI test + changelog fix (#1908 adversarial review)", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "3200a46c535a9701", "governance_context_available": true, "started_at": "2026-06-13T12:46:27.827707+00:00"}
+{"event": "completed", "invocation_id": "01KV0G9W0H2GTN7AWJ3JQYE5MT", "completed_at": "2026-06-13T12:53:12.827025+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "artifact_link", "invocation_id": "01KV0G9W0H2GTN7AWJ3JQYE5MT", "at": "2026-06-13T12:53:12.827241+00:00", "kind": "artifact", "ref": "src/specify_cli/acceptance/__init__.py"}
+{"event": "artifact_link", "invocation_id": "01KV0G9W0H2GTN7AWJ3JQYE5MT", "at": "2026-06-13T12:53:12.827349+00:00", "kind": "artifact", "ref": "tests/specify_cli/test_accept_no_commit_readonly.py"}
+{"event": "artifact_link", "invocation_id": "01KV0G9W0H2GTN7AWJ3JQYE5MT", "at": "2026-06-13T12:53:12.827442+00:00", "kind": "artifact", "ref": "CHANGELOG.md"}
+{"event": "commit_link", "invocation_id": "01KV0G9W0H2GTN7AWJ3JQYE5MT", "at": "2026-06-13T12:53:12.827472+00:00", "sha": "73bead4a3848696eb9229c457bd72f301baca226"}
