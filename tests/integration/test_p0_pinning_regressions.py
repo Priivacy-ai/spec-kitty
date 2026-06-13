@@ -17,13 +17,17 @@ These tests pin the behaviour of four P0 defects against the current tree:
   mid8 handle returns the REAL mission type (``software-dev``), not the legacy
   ``unknown`` stub. Also fixed upstream; pinned here.
 
-* **#1885 residual** (FR-003) — a *genuinely unresolvable* handle no longer
-  returns a silent ``mission="unknown", reason=None`` stub: it raises a
-  structured ``QueryModeValidationError`` carrying ``error_code`` + ``next_step``.
-
 * **#1884** (FR-001 / C-GATE-1) — ``is_committed`` verifies a spec against the
-  placement-authority ref (the coordination ref the writer uses) when the
-  primary-HEAD check misses; a coord-only-committed spec reads as committed.
+  placement authority (the coordination ref the writer uses, threaded as a
+  ``placement: CommitTarget``) when the primary-HEAD check misses; a
+  coord-only-committed spec reads as committed.
+
+Reconciled with PR #1910 (now on main), which independently fixed #1884 and the
+#1885 residual via ``is_committed(placement=…)`` and ``MissionNotFoundError``.
+#1884/#1885's full structured-error verification now lives in #1910's own tests
+(``test_is_committed_coord_aware.py``, ``tests/contract/test_next_no_unknown_state.py``,
+``tests/next/test_query_mode_unit.py``); this file retains the #1889 R3/flatten
+pins, the #1885 *symptom* pin, and a coord-placement ``is_committed`` pin.
 
 The fixtures use the real git surface (no monkey-patching) because the
 contracts under test are on-disk topology behaviours. Repro recipes are
@@ -214,66 +218,14 @@ def test_1885_symptom_query_returns_real_mission_type(
     assert decision.mission_state != "unknown"
 
 
-def test_1885_residual_unresolvable_handle_raises_structured_error(
-    flattened_mission: dict[str, object],
-) -> None:
-    """#1885 residual (FR-003): unresolvable handle → structured error, no stub.
-
-    Mutating ``query_current_state`` back to returning a silent
-    ``mission="unknown", reason=None`` Decision flips this test red.
-    """
-    from runtime.next.runtime_bridge import (
-        QueryModeValidationError,
-        query_current_state,
-    )
-
-    repo_root = flattened_mission["repo_root"]
-    assert isinstance(repo_root, Path)
-
-    with pytest.raises(QueryModeValidationError) as excinfo:
-        query_current_state("orchestrator", "totally-bogus-handle-xyz", repo_root)
-
-    err = excinfo.value
-    assert err.error_code  # stable, non-empty code
-    assert err.next_step  # actionable remediation
-    assert "unknown" not in str(err).lower() or "could not resolve" in str(err).lower()
-
-
-def test_1885_resolved_dir_not_materialized_raises_structured_error(
-    flattened_mission: dict[str, object],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """#1885 residual (C-ERR-1): when the resolver returns a path that is NOT a
-    materialized directory on disk, ``query_current_state`` raises a structured
-    ``QueryModeValidationError`` with the ``MISSION_DIR_NOT_MATERIALIZED`` code —
-    never a silent ``mission=unknown`` stub.
-    """
-    import mission_runtime
-
-    from runtime.next.runtime_bridge import (
-        QueryModeValidationError,
-        query_current_state,
-    )
-
-    repo_root = flattened_mission["repo_root"]
-    assert isinstance(repo_root, Path)
-
-    ghost_dir = repo_root / "kitty-specs" / "does-not-exist-on-disk"
-
-    class _GhostCtx:
-        feature_dir = str(ghost_dir)
-
-    def _fake_resolve(*_a: object, **_k: object) -> _GhostCtx:
-        return _GhostCtx()
-
-    monkeypatch.setattr(mission_runtime, "resolve_action_context", _fake_resolve)
-
-    with pytest.raises(QueryModeValidationError) as excinfo:
-        query_current_state("orchestrator", "ghost-handle", repo_root)
-
-    err = excinfo.value
-    assert err.error_code == "MISSION_DIR_NOT_MATERIALIZED"
-    assert err.next_step
+# NOTE (#1910 reconcile): the #1885 residual / not-materialized structured-error
+# pins formerly here asserted our superseded ``QueryModeValidationError`` (+
+# ``MISSION_DIR_NOT_MATERIALIZED``) contract. PR #1910 (now on main) replaced that
+# surface with ``MissionNotFoundError`` and ships its own verification in
+# ``tests/contract/test_next_no_unknown_state.py`` + ``tests/next/test_query_mode_unit.py``.
+# Those pins were removed (not converted) to avoid duplicating #1910's contract
+# tests; the no-silent-stub behavior remains covered there. The #1885 *symptom*
+# pin (real mission type for a resolvable handle) is retained above.
 
 
 # ---------------------------------------------------------------------------
@@ -347,7 +299,9 @@ def test_1884_is_committed_true_via_placement_authority(
 ) -> None:
     """FR-001 / C-GATE-1: with the placement ref threaded in, the gate passes.
 
-    Reverting ``is_committed`` to ignore ``authority_ref`` flips this red.
+    Reconciled with PR #1910 (now on main): the coord-aware overload takes a
+    ``placement: CommitTarget`` (not ``authority_ref: str``). Reverting
+    ``is_committed`` to ignore ``placement`` flips this red.
     """
     from mission_runtime import resolve_placement_only
     from specify_cli.missions._substantive import is_committed
@@ -361,7 +315,7 @@ def test_1884_is_committed_true_via_placement_authority(
     # Sanity: the writer routes to the coordination ref, not primary HEAD.
     assert placement.ref == coord_only_committed_spec["coord_branch"]
 
-    assert is_committed(spec, repo_root, authority_ref=placement.ref) is True
+    assert is_committed(spec, repo_root, placement=placement) is True
 
 
 def test_1884_is_committed_no_false_positive_for_absent_spec(
@@ -377,4 +331,4 @@ def test_1884_is_committed_no_false_positive_for_absent_spec(
 
     placement = resolve_placement_only(repo_root, slug)
     ghost = repo_root / "kitty-specs" / slug / "does-not-exist.md"
-    assert is_committed(ghost, repo_root, authority_ref=placement.ref) is False
+    assert is_committed(ghost, repo_root, placement=placement) is False
