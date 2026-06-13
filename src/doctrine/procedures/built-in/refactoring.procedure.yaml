@@ -56,3 +56,25 @@ steps:
 references:
   - type: tactic
     id: change-apply-smallest-viable-diff
+  # Step 2 ("Select the relevant refactoring tactics") orchestrates selection
+  # across the built-in Fowler refactoring catalog. Cite the catalog entries the
+  # procedure can select so the catalog is reachable from the procedure that
+  # governs it (DRG inbound wiring, not metric-gaming — these are real choices).
+  - type: tactic
+    id: refactoring-change-function-declaration
+  - type: tactic
+    id: refactoring-combine-functions-into-transform
+  - type: tactic
+    id: refactoring-consolidate-conditional-expression
+  - type: tactic
+    id: refactoring-extract-class-by-responsibility-split
+  - type: tactic
+    id: refactoring-inline-temp
+  - type: tactic
+    id: refactoring-introduce-null-object
+  - type: tactic
+    id: refactoring-replace-magic-number-with-symbolic-constant
+  - type: tactic
+    id: refactoring-replace-temp-with-query
+  - type: tactic
+    id: refactoring-retry-pattern

@@ -166,5 +166,5 @@ quality_test: "Can a new contributor read one test and understand what behavior 
 
 references:
   - "src/doctrine/agent_profiles/_proposed/python-implementer.agent.yaml"
-  - "src/doctrine/tactics/built-in/tdd-red-green-refactor.tactic.yaml"
+  - "src/doctrine/tactics/built-in/testing/tdd-red-green-refactor.tactic.yaml"
   - "src/doctrine/directives/built-in/030-test-and-typecheck-quality-gate.directive.yaml"
