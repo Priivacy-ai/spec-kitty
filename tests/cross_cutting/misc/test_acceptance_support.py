@@ -660,3 +660,42 @@ def test_required_fields_still_enforced(feature_repo: Path, mission_slug: str) -
     wp_path.write_text(th.build_document("\n".join(lines_no_pid), body, padding), encoding="utf-8")
     summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
     assert any("missing shell_pid" in issue for issue in summary.metadata_issues), "Shell_pid should still be required"
+
+
+def test_lenient_downgrades_path_conventions_to_warning(
+    feature_repo: Path, mission_slug: str
+) -> None:
+    """``--lenient`` makes missing mission path conventions advisory (issue #1892).
+
+    Without ``--lenient`` (``strict_metadata=True``) a mission that declares
+    ``paths`` it cannot find still blocks acceptance via ``path_violations``;
+    with ``--lenient`` the same shortfall is surfaced as a non-blocking warning,
+    so repos with a non-default layout can be accepted.
+    """
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    # feature_repo has no src/ tests/ contracts/ directories, so a software-dev
+    # mission's declared path conventions are unmet.
+    fake_mission = SimpleNamespace(
+        name="Software Dev Kitty",
+        config=SimpleNamespace(
+            paths={"workspace": "src", "tests": "tests", "deliverables": "contracts"}
+        ),
+    )
+
+    with patch("specify_cli.acceptance.get_mission_for_feature", return_value=fake_mission):
+        strict = acc.collect_feature_summary(
+            feature_repo, mission_slug, strict_metadata=True, mutate_matrix=False
+        )
+        lenient = acc.collect_feature_summary(
+            feature_repo, mission_slug, strict_metadata=False, mutate_matrix=False
+        )
+
+    # Strict: missing conventions block acceptance as path_violations.
+    assert strict.path_violations
+    assert any("expects" in violation for violation in strict.path_violations)
+
+    # Lenient: not blocking; surfaced as a warning instead.
+    assert lenient.path_violations == []
+    assert any("expects" in warning for warning in lenient.warnings)
