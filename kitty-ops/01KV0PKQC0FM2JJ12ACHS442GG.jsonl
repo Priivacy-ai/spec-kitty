@@ -1,0 +1,3 @@
+{"event": "started", "invocation_id": "01KV0PKQC0FM2JJ12ACHS442GG", "profile_id": "architect-alphonso", "action": "audit", "request_text": "Scope the no-op-stability umbrella (#1914) for the #1912/#1913 finalization", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "0028cf69d19fd3b6", "governance_context_available": true, "started_at": "2026-06-13T14:36:42.207500+00:00"}
+{"event": "completed", "invocation_id": "01KV0PKQC0FM2JJ12ACHS442GG", "completed_at": "2026-06-13T14:38:56.567203+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "artifact_link", "invocation_id": "01KV0PKQC0FM2JJ12ACHS442GG", "at": "2026-06-13T14:38:56.567390+00:00", "kind": "artifact", "ref": "/tmp/charter-noopstable-research/alphonso-scope.md"}
