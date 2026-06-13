@@ -3731,6 +3731,7 @@ def map_requirements(
 
         # Auto-commit written WP files (consistent with move-task / update-subtasks)
         committed = False
+        commit_sha: str | None = None
         if auto_commit:
             written_files: list[Path] = []
             for wp_id in new_mappings:
@@ -3741,7 +3742,10 @@ def map_requirements(
                 spec_number = mission_slug.split("-")[0] if "-" in mission_slug else mission_slug
                 commit_msg = f"chore: Map requirements for {', '.join(sorted(new_mappings))} on spec {spec_number}"
                 try:
-                    committed = safe_commit(
+                    # ``safe_commit`` returns a ``CommitResult`` (not a bool); keep
+                    # the JSON payload serializable by recording a bool plus the
+                    # resulting SHA rather than the raw object (issue #1891).
+                    commit_result = safe_commit(
                         repo_root=main_repo_root,
                         worktree_root=main_repo_root,
                         target=CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY),
@@ -3749,6 +3753,8 @@ def map_requirements(
                         paths=tuple(written_files),
                         capability=GuardCapability.STANDARD,
                     )
+                    committed = True
+                    commit_sha = commit_result.sha
                 except Exception as exc_commit:
                     if not json_output:
                         console.print(f"[yellow]Warning:[/yellow] Auto-commit skipped: {exc_commit}")
@@ -3760,6 +3766,7 @@ def map_requirements(
             "total_mappings": {wp_id: sorted(refs) for wp_id, refs in all_wp_refs.items() if refs},
             "coverage": coverage,
             "committed": committed,
+            "commit_sha": commit_sha,
         }
         if json_output:
             print(json.dumps(payload))
