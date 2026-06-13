@@ -64,12 +64,13 @@ class SessionPresenceContent:
             '  trigger: "spec out", "create a mission", "write a spec", "plan this"\n'
             "  → run `/spec-kitty.specify`\n"
             "- **Lightweight dispatch** (ad-hoc fix, question, or advice — no mission created):\n"
-            '  trigger: "hey spec kitty", "use spec kitty to", "spec kitty, fix/do/ask/advise"\n'
-            '  → **ALWAYS run `spec-kitty do "<request verbatim>"` — do NOT answer directly.**\n'
+            '  trigger: "hey spec kitty", "use spec kitty to", "spec kitty, fix/do/ask/advise/dispatch"\n'
+            '  → **ALWAYS run `spec-kitty dispatch "<request verbatim>"` — do NOT answer directly.**\n'
+            "  `spec-kitty do`, `ask`, and `advise` are retained first-class aliases — use whichever fits.\n"
             "  If you know the right profile, pass it to skip routing:\n"
-            '  `spec-kitty do --profile <profile-id> "<request verbatim>"`\n'
-            "  Reason: `spec-kitty do` loads governance context, routes to the correct agent\n"
-            "  profile, and opens the Op. Skipping it produces ungoverned, untracked responses.\n"
+            '  `spec-kitty dispatch --profile <profile-id> "<request verbatim>"`\n'
+            "  Reason: `spec-kitty dispatch` (and its aliases) loads governance context, routes to the\n"
+            "  correct agent profile, and opens the Op. Skipping it produces ungoverned, untracked responses.\n"
             "  After finishing the work, close the Op with the command printed in the capsule\n"
             "  (`spec-kitty profile-invocation complete --invocation-id <id> "
             "--outcome <done|failed|abandoned>`).\n"
