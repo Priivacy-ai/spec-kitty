@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- **`agent tasks map-requirements --json` no longer crashes on auto-commit (issue #1891, Finding 1):** the
+  command stored the `CommitResult` returned by `safe_commit()` directly in the `--json` payload, so on the
+  auto-commit success path `json.dumps` failed with *"Object of type CommitResult is not JSON serializable"* —
+  the mapping succeeded but agents got an unparseable error instead of the result. `committed` is now a bool
+  and the resulting `commit_sha` (or `null`) is exposed alongside it. (Findings 2 and 3 — `agent action
+  implement --json` and `setup-plan`/`finalize-tasks` JSON preamble — are tracked separately.)
 - **Name-vs-authority remediation (mission #133; closes #1889, #1860, #1865, #1866, #1867, #1863, #1896, #1898, #1904, #1684, #1906):** (#1884/#1883/#1885 were independently fixed by PR #1910 and are verified-already-fixed here, not re-closed)
   binds the two remaining "a name/string shape is trusted as authority without cross-checking the declared authority"
   seams and ratchets them closed, and clears the live 3.2.0 release-blocker P0s rooted in that class. Topology
