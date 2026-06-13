@@ -1,0 +1,1 @@
+{"event": "started", "invocation_id": "01KV0ZWBSTJ1514GVA9AQ6Z7JX", "profile_id": "reviewer-renata", "action": "audit", "request_text": "review this snippet", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "ac2dcc792adceb75", "governance_context_available": true, "started_at": "2026-06-13T17:18:42.458704+00:00"}

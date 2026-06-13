@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KV0F0DZYFDWYVSJFCEP2FZQ1",
+  "completed_at": "2026-06-13T12:26:53.346466+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "#1907\u2192#1914, #1912\u2192#1914 (known members); #1883 from #1666, #1838 from #391, #1871 from #391, #524 from #391 (found via search); 6 total re-parented; 3 adjacent candidates listed for operator decision (#1062, #1063, #1755)"
+}

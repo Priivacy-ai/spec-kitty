@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KV0WNV6HB55SWQ2BBHB56TFG", "profile_id": "architect-alphonso", "action": "audit", "request_text": "Adversarial architecture review of mission 01KV0S99 spec+plan before tasks", "actor": "claude", "mode_of_work": "advisory", "governance_context_hash": "0028cf69d19fd3b6", "governance_context_available": true, "started_at": "2026-06-13T16:22:43.126056+00:00"}
+{"event": "completed", "invocation_id": "01KV0WNV6HB55SWQ2BBHB56TFG", "completed_at": "2026-06-13T16:23:48.099991+00:00", "outcome": "done", "closed_by": "agent"}

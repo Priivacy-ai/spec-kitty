@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KV0Z34GF0P5RBHY5Q1ER170N", "profile_id": "planner-priti", "action": "plan", "request_text": "Triage #1921: tag, type, parent, prioritize", "actor": "claude", "mode_of_work": "advisory", "governance_context_hash": "b1d80e23116414c0", "governance_context_available": true, "started_at": "2026-06-13T17:04:55.558044+00:00"}
+{"event": "completed", "invocation_id": "01KV0Z34GF0P5RBHY5Q1ER170N", "completed_at": "2026-06-13T17:06:07.773815+00:00", "outcome": "done", "closed_by": "agent"}

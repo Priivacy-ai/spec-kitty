@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KV0T72ETKNZ990ZKCNZ947W7",
+  "completed_at": "2026-06-13T15:42:01.027868+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "/tmp/1920-review/debby.md"
+}

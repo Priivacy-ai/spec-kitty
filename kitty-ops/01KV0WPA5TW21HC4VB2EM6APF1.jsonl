@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KV0WPA5TW21HC4VB2EM6APF1", "profile_id": "debugger-debbie", "action": "advise", "request_text": "Adversarial defect/risk review of mission 01KV0S99 spec+plan before tasks", "actor": "claude", "mode_of_work": "advisory", "governance_context_hash": "4fcdb36690b54955", "governance_context_available": true, "started_at": "2026-06-13T16:22:58.416086+00:00"}
+{"event": "completed", "invocation_id": "01KV0WPA5TW21HC4VB2EM6APF1", "completed_at": "2026-06-13T16:24:01.862526+00:00", "outcome": "done", "closed_by": "agent"}

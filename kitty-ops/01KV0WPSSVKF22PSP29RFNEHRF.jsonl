@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KV0WPSSVKF22PSP29RFNEHRF", "profile_id": "planner-priti", "action": "plan", "request_text": "Coverage + consistency review of mission 01KV0S99 spec+plan before tasks", "actor": "claude", "mode_of_work": "advisory", "governance_context_hash": "b1d80e23116414c0", "governance_context_available": true, "started_at": "2026-06-13T16:23:14.224540+00:00"}
+{"event": "completed", "invocation_id": "01KV0WPSSVKF22PSP29RFNEHRF", "completed_at": "2026-06-13T16:25:55.108295+00:00", "outcome": "done", "closed_by": "agent"}

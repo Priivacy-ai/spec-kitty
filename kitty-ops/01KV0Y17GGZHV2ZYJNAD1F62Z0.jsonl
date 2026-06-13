@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KV0Y17GGZHV2ZYJNAD1F62Z0", "profile_id": "planner-priti", "action": "plan", "request_text": "Tracker hygiene: identify high-confidence closeable issues from recent PR merges", "actor": "claude", "mode_of_work": "advisory", "governance_context_hash": "b1d80e23116414c0", "governance_context_available": true, "started_at": "2026-06-13T16:46:24.493529+00:00"}
+{"event": "completed", "invocation_id": "01KV0Y17GGZHV2ZYJNAD1F62Z0", "completed_at": "2026-06-13T16:47:42.526183+00:00", "outcome": "done", "closed_by": "agent"}
