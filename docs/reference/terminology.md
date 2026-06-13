@@ -52,7 +52,7 @@ See the [mission identity migration runbook](../migration/mission-id-canonical-i
 6. `repo_slug` means `owner/repo` from the Git provider -- do not repurpose it for display names.
 7. `repository_uuid` is the required namespace key for local operations -- not `project_uuid`.
 8. `repository root checkout` is a location, not a branch name.
-9. Use `current branch`, `target branch`, `planning_base_branch`, and `merge_target_branch` when you mean branch intent.
+9. Use `current branch`, `primary branch`, `feature branch`, `start branch`, `target branch`, `base_branch`, `planning_base_branch`, and `merge_target_branch` when you mean branch intent.
 10. Do not use `main repository`, `main repo`, or `main repository root` in new docs or prompts.
 
 ---
@@ -63,7 +63,11 @@ See the [mission identity migration runbook](../migration/mission-id-canonical-i
 |------|---------|------------------------|
 | **repository root checkout** | The non-worktree checkout where planning commands run | The branch name |
 | **current branch** | The branch checked out when planning starts | The mission's intended landing branch if it was explicitly overridden |
+| **primary branch** | The repository's default integration branch, usually resolved from `origin/HEAD` | The mission's intended landing branch after `target_branch` is persisted |
+| **feature branch** | A dedicated branch for PR-bound mission planning and implementation work | The protected/default branch or every lane worktree branch |
+| **start branch** | The branch `mission create --start-branch` creates or switches to before writing mission scaffolding | A later merge override or a separate branch from `--target-branch` |
 | **target branch** | The branch the mission records planning and merge intent against | "Whatever branch happens to be checked out later" |
+| **base_branch** | At mission level, alias for `target_branch`; at WP level, the immediate parent branch for a lane worktree | A universal synonym for `main` |
 | **planning_base_branch** | Canonical helper alias for the intended planning branch | A second repository or a worktree |
 | **merge_target_branch** | Canonical helper alias for the intended final merge branch | Proof that the branch must be `main` |
 

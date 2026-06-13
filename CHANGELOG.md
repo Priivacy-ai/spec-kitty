@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Added
+
+- **Branch-strategy recommendation in `/specify` (issue #765):** `spec-kitty agent mission branch-context`
+  now resolves the repository's primary branch and emits a recommendation payload (`primary_branch`,
+  `current_is_primary`, `recommended_strategy`, `reason`). The software-dev specify prompt consumes it to
+  **proactively** recommend starting on a dedicated feature branch; `mission create --start-branch` now
+  creates/switches before any mission artifacts are written when the operator is on the primary branch and
+  expects a later PR; staying on the current branch remains an explicit, supported choice (wiring `--pr-bound`
+  branch-strategy gate into the operator flow). The recommendation fields are additive and opt-in: callers
+  that do not resolve a primary branch receive the byte-identical legacy branch contract.
+
 ### 🐛 Fixed
 
 - **Upgrade no longer re-records not-applicable migrations (issue #1872):** a migration whose `detect()`

@@ -125,6 +125,120 @@ class TestBranchContextCommand:
         assert output["branch_matches_target"] is False
         assert output["target_branch_source"] == "cli_arg"
 
+    @patch("specify_cli.cli.commands.agent.mission._resolve_primary_branch_for_recommendation")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.is_git_repo")
+    @patch("specify_cli.cli.commands.agent.mission.get_current_branch")
+    def test_branch_context_recommends_feature_branch_on_primary(
+        self,
+        mock_branch: Mock,
+        mock_is_git: Mock,
+        mock_locate: Mock,
+        mock_primary: Mock,
+        tmp_path: Path,
+    ) -> None:
+        """On the primary branch, recommend starting a feature branch (issue #765)."""
+        mock_locate.return_value = tmp_path
+        mock_is_git.return_value = True
+        mock_branch.return_value = "main"
+        mock_primary.return_value = "main"
+
+        result = runner.invoke(app, ["branch-context", "--json"])
+
+        assert result.exit_code == 0
+        output = json.loads(result.stdout)
+        assert output["primary_branch"] == "main"
+        assert output["current_is_primary"] is True
+        assert output["recommended_strategy"] == "feature-branch"
+        assert "primary branch 'main'" in output["branch_recommendation_reason"]
+        # Mirrored into the structured branch_context payload the prompt reads.
+        assert output["branch_context"]["current_is_primary"] is True
+        assert output["branch_context"]["recommended_strategy"] == "feature-branch"
+        assert output["branch_context"]["primary_branch"] == "main"
+        assert "reason" in output["branch_context"]
+
+    @patch("specify_cli.cli.commands.agent.mission._resolve_primary_branch_for_recommendation")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.is_git_repo")
+    @patch("specify_cli.cli.commands.agent.mission.get_current_branch")
+    def test_branch_context_recommends_stay_off_primary(
+        self,
+        mock_branch: Mock,
+        mock_is_git: Mock,
+        mock_locate: Mock,
+        mock_primary: Mock,
+        tmp_path: Path,
+    ) -> None:
+        """Off the primary branch, no switch is recommended (issue #765)."""
+        mock_locate.return_value = tmp_path
+        mock_is_git.return_value = True
+        mock_branch.return_value = "feat/checkout-upsell"
+        mock_primary.return_value = "main"
+
+        result = runner.invoke(app, ["branch-context", "--json"])
+
+        assert result.exit_code == 0
+        output = json.loads(result.stdout)
+        assert output["primary_branch"] == "main"
+        assert output["current_is_primary"] is False
+        assert output["recommended_strategy"] == "stay"
+        assert "feat/checkout-upsell" in output["branch_recommendation_reason"]
+
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    def test_branch_context_uses_main_when_feature_branch_has_no_origin_head(
+        self,
+        mock_locate: Mock,
+        tmp_path: Path,
+    ) -> None:
+        """Do not treat a feature branch as primary just because origin/HEAD is absent."""
+        mock_locate.return_value = tmp_path
+        subprocess.run(
+            ["git", "init", "--initial-branch=main"],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(["git", "config", "user.email", "spec-kitty-tests@example.invalid"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "config", "user.name", "Spec Kitty Tests"], cwd=tmp_path, check=True)
+        (tmp_path / "README.md").write_text("init\n", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "commit", "-m", "Initial"], cwd=tmp_path, check=True, capture_output=True)
+        subprocess.run(["git", "switch", "-c", "feat/checkout-upsell"], cwd=tmp_path, check=True, capture_output=True)
+
+        result = runner.invoke(app, ["branch-context", "--json"])
+
+        assert result.exit_code == 0, result.output
+        output = json.loads(result.stdout)
+        assert output["primary_branch"] == "main"
+        assert output["current_branch"] == "feat/checkout-upsell"
+        assert output["current_is_primary"] is False
+        assert output["recommended_strategy"] == "stay"
+
+
+class TestInjectBranchContractRecommendation:
+    """The recommendation payload is opt-in (issue #765)."""
+
+    def test_legacy_contract_unchanged_without_primary_branch(self) -> None:
+        """Callers that omit primary_branch get the byte-identical legacy contract."""
+        from specify_cli.cli.commands.agent.mission import _inject_branch_contract
+
+        enriched = _inject_branch_contract(
+            {"result": "success"},
+            target_branch="main",
+            current_branch="main",
+        )
+
+        # No #765 recommendation keys leak into the legacy payload.
+        for key in (
+            "primary_branch",
+            "current_is_primary",
+            "recommended_strategy",
+            "branch_recommendation_reason",
+        ):
+            assert key not in enriched
+        assert "primary_branch" not in enriched["branch_context"]
+        assert "recommended_strategy" not in enriched["runtime_vars"]
+
 
 class TestCreateFeatureCommand:
     """Tests for create command."""
