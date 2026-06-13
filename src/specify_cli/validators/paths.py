@@ -9,7 +9,6 @@ from collections.abc import Iterable
 from specify_cli.mission import Mission
 
 __all__ = [
-    "PathValidationError",
     "PathValidationResult",
     "suggest_directory_creation",
     "validate_mission_paths",
