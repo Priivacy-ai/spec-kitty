@@ -28,7 +28,7 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 
@@ -291,7 +291,9 @@ class MissionStatus:
             is_registered_coord_worktree,
         )
 
-        return is_registered_coord_worktree(read_dir, repo_root=repo_root)
+        # cast: follow_imports=skip makes is_registered_coord_worktree return Any;
+        # the real signature returns bool.
+        return cast(bool, is_registered_coord_worktree(read_dir, repo_root=repo_root))
 
     @classmethod
     def _resolve_read_dir(
