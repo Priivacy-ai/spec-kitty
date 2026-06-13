@@ -321,6 +321,71 @@ def test_lifecycle_lock_root_for_coord_worktree_is_canonical_primary(
     assert worktree_lock_root == primary_lock_root
 
 
+def _non_git_kitty_specs_feature_dir(tmp_path: Path) -> Path:
+    """A ``kitty-specs/<mission>`` feature dir with a ``.worktrees`` ancestor in a
+    NON-git tree.
+
+    The ``.worktrees`` ancestor makes ``classify_worktree_topology`` proceed past
+    its PRIMARY short-circuit to read the git registry; the absence of any git
+    repo then makes ``read_worktree_registry`` fail closed with
+    ``WorktreeRegistryUnavailable``. This is the real trigger for the lock-root
+    helpers' first degradation branch (no mock).
+    """
+    feature_dir = (
+        tmp_path / ".worktrees" / "m-ABCD1234-coord" / "kitty-specs" / "m-ABCD1234"
+    )
+    feature_dir.mkdir(parents=True)
+    return feature_dir
+
+
+def test_emit_lock_root_degrades_to_parent_parent_when_registry_unavailable(
+    tmp_path: Path,
+) -> None:
+    """WP03 seam degradation (emit.py:412): when topology classification fails
+    closed with ``WorktreeRegistryUnavailable`` (feature dir under ``kitty-specs``
+    in a non-git tree), the lock-root resolver degrades to the documented
+    ``feature_dir.parent.parent`` fallback rather than crashing.
+    """
+    from specify_cli.coordination.surface_resolver import (
+        WorktreeRegistryUnavailable,
+        classify_worktree_topology,
+    )
+    from specify_cli.status.emit import _feature_status_lock_root
+
+    feature_dir = _non_git_kitty_specs_feature_dir(tmp_path)
+
+    # Prove the real trigger fires before asserting the degraded behaviour.
+    with pytest.raises(WorktreeRegistryUnavailable):
+        classify_worktree_topology(feature_dir)
+
+    lock_root = _feature_status_lock_root(feature_dir, repo_root=None)
+
+    assert lock_root == feature_dir.parent.parent
+
+
+def test_lifecycle_lock_root_degrades_to_parent_parent_when_registry_unavailable(
+    tmp_path: Path,
+) -> None:
+    """WP03 seam degradation (work_package_lifecycle.py:81): same fail-closed
+    degradation for the lifecycle lock-root helper — a non-git ``kitty-specs``
+    feature dir resolves to the ``feature_dir.parent.parent`` fallback.
+    """
+    from specify_cli.coordination.surface_resolver import (
+        WorktreeRegistryUnavailable,
+        classify_worktree_topology,
+    )
+    from specify_cli.status.work_package_lifecycle import _repo_root_for_lock
+
+    feature_dir = _non_git_kitty_specs_feature_dir(tmp_path)
+
+    with pytest.raises(WorktreeRegistryUnavailable):
+        classify_worktree_topology(feature_dir)
+
+    lock_root = _repo_root_for_lock(feature_dir, repo_root=None)
+
+    assert lock_root == feature_dir.parent.parent
+
+
 # Imported lazily so the module import above already proves the public symbol
 # exists; this keeps the failure mode explicit if the error class is dropped.
 from specify_cli.coordination.surface_resolver import (  # noqa: E402

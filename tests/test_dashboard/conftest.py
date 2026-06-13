@@ -12,13 +12,20 @@ between tests.
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 
 
 @pytest.fixture(autouse=True)
-def _git_init_tmp_path(request: pytest.FixtureRequest) -> None:
+def _git_init_tmp_path(request: pytest.FixtureRequest) -> Iterator[None]:
+    # Opt-out for tests that deliberately exercise the non-git degradation
+    # branches of the WP03 topology seam (where the registry read must fail
+    # closed). Mark such tests with ``@pytest.mark.no_git_tmp_path``.
+    if request.node.get_closest_marker("no_git_tmp_path"):
+        yield
+        return
     if "tmp_path" in request.fixturenames:
         tmp_path: Path = request.getfixturevalue("tmp_path")
         try:
