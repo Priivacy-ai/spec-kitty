@@ -16,7 +16,7 @@ Use it to build a governed software factory around Claude Code, Codex, Cursor, G
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow?style=flat-square)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue?style=flat-square)](https://www.python.org/downloads/)
 
-## Software Factory, Not a Black Box
+## Bright Software Factory, Not a Black Box
 
 Spec Kitty is for teams building software factories: repeatable inputs, clear work-package boundaries, isolated execution, visible progress, and review gates. It can support dark software factories and autonomous coding experiments, but it is deliberately not a lights-out black box by default. Humans define intent, architecture, and acceptance criteria; agents implement inside traceable worktrees; reviewers accept, reject, or merge with an audit trail.
 
