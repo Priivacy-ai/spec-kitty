@@ -572,6 +572,48 @@ def set_change_mode(
     return meta
 
 
+_MERGE_FIELDS: tuple[str, ...] = (
+    "merged_at",
+    "merged_by",
+    "merged_into",
+    "merged_strategy",
+    "merged_push",
+    "merged_commit",
+)
+
+
+def clear_merge_metadata(feature_dir: Path) -> dict[str, Any]:
+    """Remove the ``merged_*`` fields from ``meta.json`` and return a snapshot.
+
+    Used by ``spec-kitty mission reopen`` (WP02 / FR-002): a re-open clears the
+    top-level merge markers so a later ``spec-kitty merge`` can re-stamp them.
+    The returned dict is the snapshot of the cleared fields (empty when none were
+    present), retained by the caller for audit / reversibility in the
+    ``MissionReopened`` event's ``cleared_merge`` payload.
+
+    ``merge_history`` is intentionally preserved — re-open is reversible and the
+    bounded history remains a durable audit trail. The write is tolerant
+    (``validate=False``) so it never fails on legacy missions whose ``meta.json``
+    predates a required field; clearing optional merge markers must not be gated
+    on full required-field validation.
+
+    Raises:
+        FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
+    """
+    meta = load_meta(feature_dir)
+    if meta is None:
+        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+
+    cleared: dict[str, Any] = {}
+    for field in _MERGE_FIELDS:
+        if field in meta:
+            cleared[field] = meta.pop(field)
+
+    if cleared:
+        write_meta(feature_dir, meta, validate=False)
+    return cleared
+
+
 def get_change_mode(feature_dir: Path) -> str | None:
     """Read ``change_mode`` from meta.json.
 

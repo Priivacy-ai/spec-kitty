@@ -1,0 +1,297 @@
+"""ATDD coverage for ``spec-kitty mission reopen`` (WP02 / FR-002, NFR-004).
+
+These tests pin the binding contract in
+``kitty-specs/.../contracts/mission-lifecycle-commands.md``:
+
+* re-open clears ``merged_*`` from ``meta.json`` AND appends a ``MissionReopened``
+  lifecycle event (WP01 helper) so ``derive_mission_lifecycle`` reports the
+  ``reopened``/actionable surface_state — the load-bearing assertion, since
+  clearing ``merged_*`` alone is a no-op for the classifier (D-A2);
+* fail-closed on an unrecoverable mission (meta.json absent/corrupt OR the
+  mission branch resolves in neither the local repo nor any configured remote):
+  exit non-zero, no event, no metadata change (NFR-004);
+* a missing worktree directory ALONE is recoverable — NOT fail-closed;
+* an ambiguous handle surfaces ``MISSION_AMBIGUOUS_SELECTOR`` (no silent slug guess).
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+from datetime import UTC, datetime
+from pathlib import Path
+
+import pytest
+from typer.testing import CliRunner
+
+from specify_cli.cli.commands import mission_type
+from specify_cli.status.lifecycle import derive_mission_lifecycle
+from specify_cli.status.lifecycle_events import (
+    MISSION_REOPENED,
+    mission_event_log_path,
+    read_lifecycle_events,
+)
+
+pytestmark = [pytest.mark.unit]
+
+runner = CliRunner()
+
+_ULID = "01KV0S99ABCDEFGHJKMNPQRSTV"
+_MID8 = _ULID[:8]
+
+
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(
+        ["git", "-C", str(repo), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _init_repo(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / ".kittify").mkdir()
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.email", "t@example.com")
+    _git(repo, "config", "user.name", "Test")
+    (repo / "README.md").write_text("seed\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "seed")
+    return repo
+
+
+def _make_merged_mission(
+    repo: Path,
+    *,
+    slug: str = "demo-mission",
+    mission_id: str = _ULID,
+    create_branch: bool = True,
+) -> Path:
+    feature_dir = repo / "kitty-specs" / f"{slug}-{_MID8}"
+    feature_dir.mkdir(parents=True)
+    branch = f"kitty/mission-{slug}-{_MID8}-{_MID8}"
+    meta = {
+        "slug": f"{slug}-{_MID8}",
+        "mission_slug": f"{slug}-{_MID8}",
+        "friendly_name": "Demo Mission",
+        "mission_type": "software-dev",
+        "target_branch": "main",
+        "created_at": "2026-01-01T00:00:00+00:00",
+        "mission_id": mission_id,
+        "mid8": _MID8,
+        "mission_branch": branch,
+        "merged_at": "2026-02-01T00:00:00+00:00",
+        "merged_by": "operator",
+        "merged_into": "main",
+        "merged_strategy": "merge",
+        "merged_commit": "deadbeef",
+    }
+    (feature_dir / "meta.json").write_text(
+        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    # A terminal WP chain in the event log so the classifier sees a completed
+    # mission (no active WPs) — re-open actionability must come from the event,
+    # not from clearing merged_* (D-A2). Each line is a reducer-valid StatusEvent.
+    log = feature_dir / "status.events.jsonl"
+    chain = [
+        ("genesis", "planned"),
+        ("planned", "claimed"),
+        ("claimed", "in_progress"),
+        ("in_progress", "for_review"),
+        ("for_review", "in_review"),
+        ("in_review", "approved"),
+        ("approved", "done"),
+    ]
+    lines = []
+    for idx, (frm, to) in enumerate(chain):
+        lines.append(
+            json.dumps(
+                {
+                    "event_id": f"01HXYZDONEEVENT{idx:010d}",
+                    "mission_slug": f"{slug}-{_MID8}",
+                    "mission_id": mission_id,
+                    "wp_id": "WP01",
+                    "from_lane": frm,
+                    "to_lane": to,
+                    "at": f"2026-01-1{idx}T00:00:00+00:00",
+                    "actor": "claude",
+                    "force": frm == "genesis",
+                    "execution_mode": "worktree",
+                    "reason": None,
+                    "review_ref": None,
+                    "evidence": None,
+                }
+            )
+        )
+    log.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if create_branch:
+        _git(repo, "branch", branch)
+    return feature_dir
+
+
+def _invoke(repo: Path, *args: str):
+    return runner.invoke(mission_type.app, list(args), env={"PWD": str(repo)})
+
+
+def test_reopen_clears_merged_and_emits_event_and_is_actionable(
+    tmp_path: Path, monkeypatch
+) -> None:
+    repo = _init_repo(tmp_path)
+    feature_dir = _make_merged_mission(repo)
+    monkeypatch.chdir(repo)
+
+    result = _invoke(repo, "reopen", _MID8, "--reason", "residual fix")
+
+    assert result.exit_code == 0, result.output
+
+    # merged_* cleared
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    for key in ("merged_at", "merged_by", "merged_into", "merged_strategy", "merged_commit"):
+        assert key not in meta, f"{key} should be cleared on re-open"
+
+    # MissionReopened event appended (the authority for actionability)
+    events = read_lifecycle_events(mission_event_log_path(feature_dir))
+    reopened = [e for e in events if e.get("event_type") == MISSION_REOPENED]
+    assert len(reopened) == 1
+    payload = reopened[0]["payload"]
+    assert payload["reason"] == "residual fix"
+    assert payload["mission_id"] == _ULID
+
+    # derive_mission_lifecycle now reports the reopened/actionable surface_state
+    lifecycle = derive_mission_lifecycle(feature_dir, now=datetime(2026, 3, 1, tzinfo=UTC))
+    assert lifecycle.state == "reopened"
+    assert lifecycle.surface_state == "reopened"
+
+
+def test_reopen_requires_reason(tmp_path: Path, monkeypatch) -> None:
+    repo = _init_repo(tmp_path)
+    _make_merged_mission(repo)
+    monkeypatch.chdir(repo)
+
+    result = _invoke(repo, "reopen", _MID8)
+    assert result.exit_code != 0
+
+
+def test_reopen_does_not_mutate_wp_lanes(tmp_path: Path, monkeypatch) -> None:
+    repo = _init_repo(tmp_path)
+    feature_dir = _make_merged_mission(repo)
+    monkeypatch.chdir(repo)
+
+    before = (feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
+    before_status = [line for line in before if "to_lane" in line]
+
+    result = _invoke(repo, "reopen", _MID8, "--reason", "x")
+    assert result.exit_code == 0
+
+    after = (feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
+    after_status = [line for line in after if "to_lane" in line]
+    assert before_status == after_status, "re-open must NOT append WP-lane events"
+
+
+def test_reopen_fail_closed_when_meta_missing(tmp_path: Path, monkeypatch) -> None:
+    repo = _init_repo(tmp_path)
+    feature_dir = _make_merged_mission(repo)
+    (feature_dir / "meta.json").unlink()
+    monkeypatch.chdir(repo)
+
+    result = _invoke(repo, "reopen", f"{feature_dir.name}", "--reason", "x")
+    assert result.exit_code != 0
+    # No event written.
+    events = read_lifecycle_events(mission_event_log_path(feature_dir))
+    assert not [e for e in events if e.get("event_type") == MISSION_REOPENED]
+
+
+def test_reopen_fail_closed_when_branch_in_neither_local_nor_remote(
+    tmp_path: Path, monkeypatch
+) -> None:
+    repo = _init_repo(tmp_path)
+    feature_dir = _make_merged_mission(repo, create_branch=False)
+    # No branch exists locally, and there is no configured remote.
+    monkeypatch.chdir(repo)
+
+    result = _invoke(repo, "reopen", _MID8, "--reason", "x")
+    assert result.exit_code != 0, result.output
+
+    # No event written, merged_* unchanged.
+    events = read_lifecycle_events(mission_event_log_path(feature_dir))
+    assert not [e for e in events if e.get("event_type") == MISSION_REOPENED]
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    assert meta.get("merged_at") == "2026-02-01T00:00:00+00:00"
+
+
+def test_reopen_recoverable_when_only_worktree_missing(
+    tmp_path: Path, monkeypatch
+) -> None:
+    # Missing worktree dir ALONE is recoverable (branch present) — NOT fail-closed.
+    repo = _init_repo(tmp_path)
+    feature_dir = _make_merged_mission(repo, create_branch=True)
+    monkeypatch.chdir(repo)
+
+    result = _invoke(repo, "reopen", _MID8, "--reason", "x")
+    assert result.exit_code == 0, result.output
+    events = read_lifecycle_events(mission_event_log_path(feature_dir))
+    assert len([e for e in events if e.get("event_type") == MISSION_REOPENED]) == 1
+
+
+def test_format_post_mission_events_renders_reopen_and_follow_up() -> None:
+    # T009: the views.py renderer produces human-readable history lines.
+    from specify_cli.status.lifecycle_events import (
+        FOLLOW_UP_RECORDED as _FUR,
+    )
+    from specify_cli.status.views import format_post_mission_events
+
+    events = [
+        {
+            "event_type": MISSION_REOPENED,
+            "timestamp": "2026-03-01T00:00:00+00:00",
+            "payload": {
+                "reopened_by": "operator",
+                "reason": "residual fix",
+                "reopened_at": "2026-03-01T00:00:00+00:00",
+            },
+        },
+        {
+            "event_type": _FUR,
+            "timestamp": "2026-03-02T00:00:00+00:00",
+            "payload": {
+                "follow_up_type": "pr",
+                "pr_number": 42,
+                "recorded_by": "claude",
+                "recorded_at": "2026-03-02T00:00:00+00:00",
+            },
+        },
+    ]
+    lines = format_post_mission_events(events)
+    assert any("re-opened by operator" in line and "residual fix" in line for line in lines)
+    assert any("follow-up PR #42 by claude" in line for line in lines)
+    assert format_post_mission_events([]) == []
+
+
+def test_reopen_ambiguous_handle_emits_structured_error(
+    tmp_path: Path, monkeypatch
+) -> None:
+    repo = _init_repo(tmp_path)
+    # Two missions whose mission_id shares the same mid8 prefix → ambiguous handle.
+    _make_merged_mission(repo, slug="alpha", mission_id=_MID8 + "AAAAAAAAAAAAAAAAAA")
+    second = repo / "kitty-specs" / f"beta-{_MID8}b"
+    second.mkdir(parents=True)
+    meta = {
+        "slug": f"beta-{_MID8}b",
+        "mission_slug": f"beta-{_MID8}b",
+        "friendly_name": "Beta",
+        "mission_type": "software-dev",
+        "target_branch": "main",
+        "created_at": "2026-01-01T00:00:00+00:00",
+        "mission_id": _MID8 + "BBBBBBBBBBBBBBBBBB",
+        "mid8": _MID8,
+    }
+    (second / "meta.json").write_text(
+        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(repo)
+
+    result = _invoke(repo, "reopen", _MID8, "--reason", "x")
+    assert result.exit_code != 0
+    assert "MISSION_AMBIGUOUS_SELECTOR" in result.output

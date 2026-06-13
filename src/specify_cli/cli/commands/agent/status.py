@@ -680,6 +680,16 @@ def lifecycle(
     console.print()
     console.print(f"[bold]Mission Lifecycle: {mission_slug}[/bold]")
     console.print(table)
+
+    # WP02 / T009: render post-mission lifecycle history (re-opens + follow-ups).
+    from specify_cli.status.views import format_post_mission_events
+
+    history_lines = format_post_mission_events(result.post_mission_events)
+    if history_lines:
+        console.print()
+        console.print("[bold]Post-mission History[/bold]")
+        for line in history_lines:
+            console.print(f"  • {line}")
     raise typer.Exit(0)
 
 

@@ -18,9 +18,11 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import get_main_repo_root
 from specify_cli.missions.feature_dir_resolver import (
     candidate_feature_dir_for_mission,
+    primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
 )
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from collections.abc import Iterable
 from typing import Annotated, Any
@@ -798,6 +800,356 @@ def _remove_lane_worktrees(
         removed += 1
     if removed:
         console.print(f"  Removed {removed} lane worktree(s)")
+
+
+# ---------------------------------------------------------------------------
+# WP02 / FR-001/FR-002 — post-mission lifecycle commands
+# (``spec-kitty mission reopen`` + ``spec-kitty mission follow-up``)
+# ---------------------------------------------------------------------------
+
+def _detect_actor() -> str:
+    """Detect caller identity from environment variables.
+
+    Mirrors the ``do``/``advise`` actor-detection chokepoint so re-open and
+    follow-up attribution is consistent across the governed-Op surfaces.
+    """
+    import os  # noqa: PLC0415
+
+    if os.environ.get("CLAUDE_CODE_ENTRYPOINT"):
+        return "claude"
+    if os.environ.get("CODEX_CLI"):
+        return "codex"
+    return "operator"
+
+
+@dataclass(frozen=True, slots=True)
+class _ResolvedMissionHandle:
+    """Resolution of an operator ``<handle>`` to a concrete mission (T008)."""
+
+    mission_id: str | None
+    mission_slug: str
+    feature_dir: Path
+    mission_branch: str | None
+
+
+def _resolve_mission_handle(repo_root: Path, handle: str) -> _ResolvedMissionHandle:
+    """Resolve a ``mission_id`` / ``mid8`` / slug handle to a mission (T008).
+
+    Disambiguates by ``mission_id`` via the canonical identity resolver
+    (``context.mission_resolver.resolve_mission``). An ambiguous handle raises
+    ``MissionSelectorAmbiguous`` (stable error code ``MISSION_AMBIGUOUS_SELECTOR``)
+    — never a silent slug guess (NFR-004). When the handle resolves to a single
+    identity-bearing mission, the canonical ``feature_dir`` is used. Handles that
+    match no identity-bearing mission fall back to the literal slug directory
+    (legacy missions without ``mission_id`` and direct directory names).
+    """
+    from specify_cli.context.mission_resolver import (  # noqa: PLC0415
+        AmbiguousHandleError,
+        MissionNotFoundError,
+        resolve_mission,
+    )
+    from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
+        MissionSelectorAmbiguous,
+    )
+
+    try:
+        resolved = resolve_mission(handle, repo_root)
+    except AmbiguousHandleError as exc:
+        # Re-raise as the canonical structured selector error (no silent fallback).
+        raise MissionSelectorAmbiguous(
+            handle=handle,
+            candidates=[c.mission_slug for c in exc.candidates],
+        ) from exc
+    except MissionNotFoundError:
+        # Legacy / no-mission_id handle: fall back to the literal slug directory.
+        feature_dir = primary_feature_dir_for_mission(repo_root, handle)
+        meta = _safe_load_meta(feature_dir)
+        return _ResolvedMissionHandle(
+            mission_id=(meta or {}).get("mission_id") if meta else None,
+            mission_slug=feature_dir.name,
+            feature_dir=feature_dir,
+            mission_branch=(meta or {}).get("mission_branch") if meta else None,
+        )
+
+    meta = _safe_load_meta(resolved.feature_dir)
+    return _ResolvedMissionHandle(
+        mission_id=resolved.mission_id,
+        mission_slug=resolved.mission_slug,
+        feature_dir=resolved.feature_dir,
+        mission_branch=(meta or {}).get("mission_branch") if meta else None,
+    )
+
+
+def _safe_load_meta(feature_dir: Path) -> dict[str, Any] | None:
+    """Load ``meta.json`` tolerating absence/corruption (returns ``None``)."""
+    from specify_cli.mission_metadata import load_meta  # noqa: PLC0415
+
+    try:
+        result: dict[str, Any] | None = load_meta(feature_dir)
+        return result
+    except (ValueError, OSError):
+        return None
+
+
+def _branch_resolvable(repo_root: Path, branch: str) -> bool:
+    """Return ``True`` when *branch* resolves in the local repo OR any remote.
+
+    Fail-closed predicate (per contract): the mission branch must exist either
+    as a local ref (``git rev-parse --verify refs/heads/<branch>``) or on any
+    configured remote (``git ls-remote --heads <remote> <branch>``). A missing
+    worktree directory alone does NOT make a mission unrecoverable — the branch
+    is re-materializable — so this check is intentionally branch-only.
+    """
+    from specify_cli.core import git_ops  # noqa: PLC0415
+
+    code, _out, _err = git_ops.run_command(
+        ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+        check_return=False,
+        capture=True,
+        cwd=repo_root,
+    )
+    if code == 0:
+        return True
+
+    code, remotes, _err = git_ops.run_command(
+        ["git", "remote"],
+        check_return=False,
+        capture=True,
+        cwd=repo_root,
+    )
+    if code != 0 or not remotes:
+        return False
+    for remote in remotes.splitlines():
+        remote = remote.strip()
+        if not remote:
+            continue
+        ls_code, ls_out, _ls_err = git_ops.run_command(
+            ["git", "ls-remote", "--heads", remote, branch],
+            check_return=False,
+            capture=True,
+            cwd=repo_root,
+        )
+        if ls_code == 0 and ls_out.strip():
+            return True
+    return False
+
+
+def _emit_selector_error(exc: Exception) -> None:
+    """Render a structured ``MISSION_AMBIGUOUS_SELECTOR`` error and exit non-zero."""
+    console.print(f"[red]MISSION_AMBIGUOUS_SELECTOR[/red]\n{exc}")
+
+
+@app.command("reopen")
+def reopen_cmd(
+    handle: Annotated[
+        str,
+        typer.Argument(help="Mission handle: mission_id (ULID), mid8, or slug."),
+    ],
+    reason: Annotated[
+        str,
+        typer.Option("--reason", help="Why the mission is being re-opened (required, audited)."),
+    ],
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit a JSON envelope instead of a rich panel."),
+    ] = False,
+) -> None:
+    """Re-open a merged/closed mission, returning it to an actionable state (FR-002).
+
+    Appends a ``MissionReopened`` lifecycle event (the authority for
+    actionability — ``derive_mission_lifecycle`` reports the ``reopened``
+    surface_state) and clears the ``merged_*`` markers from ``meta.json``. Does
+    NOT mutate WP lanes — the operator repositions WPs explicitly afterwards.
+
+    Fail-closed (NFR-004): the mission is unrecoverable when ``meta.json`` is
+    absent/corrupt OR the mission branch resolves in neither the local repo nor
+    any configured remote. A missing worktree directory alone is recoverable. On
+    unrecoverable input the command exits non-zero with a remediation hint and
+    writes no event / no metadata change.
+    """
+    from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
+        MissionSelectorAmbiguous,
+    )
+    from specify_cli.mission_metadata import clear_merge_metadata
+    from specify_cli.status.lifecycle_events import emit_mission_reopened
+
+    project_root = get_project_root_or_exit()
+    repo_root = _resolve_primary_repo_root(project_root)
+
+    try:
+        resolved = _resolve_mission_handle(repo_root, handle)
+    except MissionSelectorAmbiguous as exc:
+        _emit_selector_error(exc)
+        raise typer.Exit(1) from exc
+
+    # Fail-closed predicate (a): meta.json absent / corrupt (no resolvable mission_id).
+    meta = _safe_load_meta(resolved.feature_dir)
+    if meta is None or not resolved.mission_id:
+        console.print(
+            "[red]Error:[/red] mission is unrecoverable — "
+            f"meta.json is missing or corrupt for handle [bold]{handle}[/bold].\n"
+            "[dim]Remediation: restore meta.json (or run "
+            "`spec-kitty migrate backfill-identity`) before re-opening.[/dim]"
+        )
+        raise typer.Exit(1)
+
+    # Fail-closed predicate (b): branch in neither local repo nor any remote.
+    mission_branch = resolved.mission_branch or meta.get("mission_branch")
+    if mission_branch and not _branch_resolvable(repo_root, str(mission_branch)):
+        console.print(
+            "[red]Error:[/red] mission is unrecoverable — branch "
+            f"[bold]{mission_branch}[/bold] resolves in neither the local repo "
+            "nor any configured remote.\n"
+            "[dim]Remediation: fetch the branch (`git fetch <remote> "
+            f"{mission_branch}`) or restore it before re-opening.[/dim]"
+        )
+        raise typer.Exit(1)
+
+    # Recoverable: clear merge markers, then emit the authority event.
+    cleared = clear_merge_metadata(resolved.feature_dir)
+    event = emit_mission_reopened(
+        resolved.feature_dir,
+        mission_id=resolved.mission_id,
+        mission_slug=resolved.mission_slug,
+        reason=reason,
+        reopened_by=_detect_actor(),
+        cleared_merge=cleared or None,
+    )
+
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "result": "reopened",
+                    "mission_id": resolved.mission_id,
+                    "mission_slug": resolved.mission_slug,
+                    "reason": reason,
+                    "cleared_merge": cleared,
+                    "event_id": (event or {}).get("event_id"),
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        raise typer.Exit(0)
+
+    console.print(
+        f"[green]✓[/green] Mission [bold]{resolved.mission_slug}[/bold] re-opened "
+        "and is actionable again."
+    )
+    if cleared:
+        console.print(f"  [dim]Cleared merge markers: {', '.join(sorted(cleared))}[/dim]")
+    raise typer.Exit(0)
+
+
+@app.command("follow-up")
+def follow_up_cmd(
+    handle: Annotated[
+        str,
+        typer.Argument(help="Mission handle: mission_id (ULID), mid8, or slug."),
+    ],
+    commit: Annotated[
+        str | None,
+        typer.Option("--commit", help="40-hex commit SHA of the follow-up."),
+    ] = None,
+    pr: Annotated[
+        int | None,
+        typer.Option("--pr", help="Pull-request number of the follow-up."),
+    ] = None,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit a JSON envelope instead of a rich panel."),
+    ] = False,
+) -> None:
+    """Record a follow-up commit or PR against a mission (FR-001).
+
+    Exactly one of ``--commit <40-hex>`` / ``--pr <int>`` must be supplied.
+    Appends a ``FollowUpRecorded`` lifecycle event attributed to ``mission_id``.
+    Allowed in ANY mission state (passive post-merge follow-ups are valid) and
+    idempotent on its dedup key ``(mission_id, commit_sha | pr_number)`` —
+    re-recording the same reference is a successful no-op.
+    """
+    import re  # noqa: PLC0415
+
+    from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
+        MissionSelectorAmbiguous,
+    )
+    from specify_cli.status.lifecycle_events import emit_follow_up_recorded
+
+    # Validate: exactly one of --commit / --pr.
+    if (commit is None) == (pr is None):
+        console.print(
+            "[red]Error:[/red] supply exactly one of [cyan]--commit <40-hex>[/cyan] "
+            "or [cyan]--pr <int>[/cyan]."
+        )
+        raise typer.Exit(1)
+
+    if commit is not None and not re.fullmatch(r"[0-9a-fA-F]{40}", commit):
+        console.print(
+            f"[red]Error:[/red] --commit must be a 40-character hex SHA, got {commit!r}."
+        )
+        raise typer.Exit(1)
+
+    project_root = get_project_root_or_exit()
+    repo_root = _resolve_primary_repo_root(project_root)
+
+    try:
+        resolved = _resolve_mission_handle(repo_root, handle)
+    except MissionSelectorAmbiguous as exc:
+        _emit_selector_error(exc)
+        raise typer.Exit(1) from exc
+
+    if not resolved.mission_id:
+        console.print(
+            "[red]Error:[/red] mission has no resolvable mission_id for handle "
+            f"[bold]{handle}[/bold].\n"
+            "[dim]Remediation: run `spec-kitty migrate backfill-identity`.[/dim]"
+        )
+        raise typer.Exit(1)
+
+    follow_up_type = "commit" if commit is not None else "pr"
+    event = emit_follow_up_recorded(
+        resolved.feature_dir,
+        mission_id=resolved.mission_id,
+        mission_slug=resolved.mission_slug,
+        follow_up_type=follow_up_type,
+        commit_sha=commit,
+        pr_number=pr,
+        recorded_by=_detect_actor(),
+    )
+
+    deduped = event is None  # idempotent no-op when already recorded.
+
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "result": "recorded" if not deduped else "duplicate",
+                    "mission_id": resolved.mission_id,
+                    "mission_slug": resolved.mission_slug,
+                    "follow_up_type": follow_up_type,
+                    "commit_sha": commit,
+                    "pr_number": pr,
+                    "event_id": (event or {}).get("event_id"),
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        raise typer.Exit(0)
+
+    ref = commit if commit is not None else f"#{pr}"
+    if deduped:
+        console.print(
+            f"[dim]Follow-up {follow_up_type} {ref} already recorded for "
+            f"{resolved.mission_slug} (no-op).[/dim]"
+        )
+    else:
+        console.print(
+            f"[green]✓[/green] Recorded follow-up {follow_up_type} [bold]{ref}[/bold] "
+            f"for {resolved.mission_slug}."
+        )
+    raise typer.Exit(0)
 
 
 @app.command("switch", deprecated=True)
