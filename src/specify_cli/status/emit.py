@@ -28,7 +28,7 @@ import logging
 import re
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import ulid as _ulid_mod
 from pydantic import ValidationError
@@ -223,19 +223,23 @@ def _derive_from_lane(feature_dir: Path, wp_id: str) -> str:
     explicit ``genesis -> planned`` transition rather than a dropped
     ``planned -> planned`` self-transition.
     """
+    # cast: follow_imports=skip makes _store.read_events/_reducer.reduce return Any
+    # (specify_cli.* boundary); the real signatures return list[StatusEvent] and
+    # StatusSnapshot respectively. Lane(…).value is str but Lane itself is not str —
+    # all casts below are type-only with no behaviour change.
     events = _store.read_events(feature_dir)
     if not events:
-        return Lane.GENESIS
+        return cast(str, Lane.GENESIS)
 
     snapshot = _reducer.reduce(events)
     wp_state = snapshot.work_packages.get(wp_id)
     if wp_state is None:
-        return Lane.GENESIS
+        return cast(str, Lane.GENESIS)
 
-    lane = wp_state.get("lane")
-    if lane is not None:
-        return Lane(lane)
-    return Lane.GENESIS
+    lane_raw: str | None = cast("str | None", wp_state.get("lane"))
+    if lane_raw is not None:
+        return cast(str, Lane(lane_raw))
+    return cast(str, Lane.GENESIS)
 
 
 def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:

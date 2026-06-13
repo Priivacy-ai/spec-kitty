@@ -65,6 +65,17 @@ TASKS_COMPLETED = "TasksCompleted"
 WP_CREATED = "WPCreated"
 REVIEWER_SELF_APPROVAL = "ReviewerSelfApproval"
 
+# Post-mission lifecycle events (WP01 / FR-001). These record facts about a
+# mission *after* it has merged/closed: a re-open returning it to an actionable
+# state, and a follow-up commit/PR attributed to it. They are LOCAL-ONLY this
+# mission — intentionally kept off the SaaS strict-validation path
+# (``_validate_lifecycle_payload(strict=True)``): the external ``spec_kitty_events``
+# package does not yet know these types, and propagating them to SaaS requires an
+# external contract bump (follow-up, out of scope). The local event log remains
+# authoritative. See research.md C-SAAS.
+MISSION_REOPENED = "MissionReopened"
+FOLLOW_UP_RECORDED = "FollowUpRecorded"
+
 LIFECYCLE_EVENT_TYPES = frozenset({
     PROJECT_INITIALIZED,
     MISSION_CREATED,
@@ -76,6 +87,8 @@ LIFECYCLE_EVENT_TYPES = frozenset({
     TASKS_COMPLETED,
     WP_CREATED,
     REVIEWER_SELF_APPROVAL,
+    MISSION_REOPENED,
+    FOLLOW_UP_RECORDED,
 })
 
 PROJECT_EVENTS_FILENAME = "canonical-events.jsonl"
@@ -106,9 +119,22 @@ def _now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _iso_str_to_datetime(iso: str | None) -> datetime | None:
+    """Parse an ISO-8601 string to a timezone-aware datetime, or return None.
+
+    Used at payload-construction boundaries where callers pass ``str | None``
+    but the ``spec_kitty_events`` 6.0.0 Pydantic models expect ``datetime | None``.
+    ``datetime.fromisoformat`` handles the full RFC 3339 / ISO 8601 subset that
+    Python's own ``datetime.isoformat()`` produces, so round-trips are lossless.
+    """
+    if iso is None:
+        return None
+    return datetime.fromisoformat(iso)
+
+
 def _generate_event_id() -> str:
     try:
-        from ulid import ULID  # type: ignore[import-not-found]
+        from ulid import ULID
 
         return str(ULID())
     except Exception:  # pragma: no cover — fallback for stripped envs
@@ -470,7 +496,7 @@ def emit_project_initialized(
         project_slug=project_slug,
         actor=actor,
         runtime_version=runtime_version,
-        initialized_at=initialized_at or _now_iso(),
+        initialized_at=_iso_str_to_datetime(initialized_at) or datetime.now(UTC),
     ).model_dump(mode="json", exclude_none=False)
     return append_lifecycle_event(
         log_path,
@@ -683,7 +709,7 @@ def emit_wp_created_local(
         wp_path=wp_path,
         depends_on=list(depends_on or []),
         actor=actor,
-        created_at=created_at or _now_iso(),
+        created_at=_iso_str_to_datetime(created_at) or datetime.now(UTC),
     )
     payload: dict[str, Any] = payload_model.model_dump(
         mode="json", exclude_none=False
@@ -741,6 +767,116 @@ def emit_reviewer_self_approval(
             "intended_reviewer": intended_reviewer,
             "failure_reason": failure_reason,
         },
+    )
+
+
+def emit_mission_reopened(
+    feature_dir: Path,
+    *,
+    mission_id: str,
+    mission_slug: str,
+    reason: str,
+    reopened_by: str,
+    cleared_merge: Mapping[str, Any] | None = None,
+    reopened_at: str | None = None,
+    project_uuid: str | None = None,
+    project_slug: str | None = None,
+) -> dict[str, Any] | None:
+    """Record that a merged/closed mission was returned to an actionable state.
+
+    Appended *each* time (every re-open is a distinct fact — NOT deduped, per
+    research.md R-A2). ``derive_mission_lifecycle`` treats a ``MissionReopened``
+    that postdates the last merge/completion marker as the authority that makes
+    the mission actionable again (FR-002). Attribution is via ``mission_id``
+    (ULID, NFR-004) — never a slug-derived guess.
+
+    ``cleared_merge`` is an optional snapshot of the ``merged_*`` fields removed
+    from ``meta.json`` by the IC-02 re-open command, retained for audit /
+    reversibility.
+
+    This is a LOCAL-ONLY event (see ``MISSION_REOPENED`` registration note): it
+    is intentionally kept off the SaaS strict-validation model map.
+    """
+    payload: dict[str, Any] = {
+        "mission_id": mission_id,
+        "mission_slug": mission_slug,
+        "reason": reason,
+        "reopened_by": reopened_by,
+        "reopened_at": reopened_at or _now_iso(),
+        "cleared_merge": dict(cleared_merge) if cleared_merge is not None else None,
+    }
+    log_path = mission_event_log_path(feature_dir)
+    return append_lifecycle_event(
+        log_path,
+        MISSION_REOPENED,
+        payload,
+        aggregate_id=mission_id,
+        aggregate_type="Mission",
+        project_uuid=project_uuid,
+        project_slug=project_slug,
+        # No dedup_keys: append-each.
+    )
+
+
+def emit_follow_up_recorded(
+    feature_dir: Path,
+    *,
+    mission_id: str,
+    mission_slug: str,
+    follow_up_type: str,
+    commit_sha: str | None = None,
+    pr_number: int | None = None,
+    recorded_by: str,
+    recorded_at: str | None = None,
+    project_uuid: str | None = None,
+    project_slug: str | None = None,
+) -> dict[str, Any] | None:
+    """Record a follow-up commit or PR against an already-merged (or any-state) mission.
+
+    Allowed in **any** mission state (passive post-merge follow-ups are valid).
+    **Idempotent** on its dedup key ``(mission_id, commit_sha | pr_number)`` —
+    re-recording the identical ``--commit``/``--pr`` reference is a no-op,
+    consistent with the existing ``has_lifecycle_event()`` dedup pattern. A
+    commit and the PR that contains it are recorded as distinct facts (no
+    resolved-commit-of-PR lookup — research.md / data-model.md).
+
+    ``follow_up_type`` is ``"commit"`` (requires ``commit_sha``) or ``"pr"``
+    (requires ``pr_number``). Attribution is via ``mission_id`` (NFR-004).
+
+    This is a LOCAL-ONLY event (see ``FOLLOW_UP_RECORDED`` registration note).
+    """
+    if follow_up_type == "commit":
+        if not commit_sha:
+            raise ValueError("commit_sha is required when follow_up_type == 'commit'")
+        dedup_keys: dict[str, Any] = {"mission_id": mission_id, "commit_sha": commit_sha}
+    elif follow_up_type == "pr":
+        if pr_number is None:
+            raise ValueError("pr_number is required when follow_up_type == 'pr'")
+        dedup_keys = {"mission_id": mission_id, "pr_number": pr_number}
+    else:
+        raise ValueError(
+            f"follow_up_type must be 'commit' or 'pr', got {follow_up_type!r}"
+        )
+
+    payload: dict[str, Any] = {
+        "mission_id": mission_id,
+        "mission_slug": mission_slug,
+        "follow_up_type": follow_up_type,
+        "commit_sha": commit_sha,
+        "pr_number": pr_number,
+        "recorded_by": recorded_by,
+        "recorded_at": recorded_at or _now_iso(),
+    }
+    log_path = mission_event_log_path(feature_dir)
+    return append_lifecycle_event(
+        log_path,
+        FOLLOW_UP_RECORDED,
+        payload,
+        aggregate_id=mission_id,
+        aggregate_type="Mission",
+        project_uuid=project_uuid,
+        project_slug=project_slug,
+        dedup_keys=dedup_keys,
     )
 
 
@@ -829,6 +965,8 @@ __all__ = [
     "TASKS_COMPLETED",
     "WP_CREATED",
     "REVIEWER_SELF_APPROVAL",
+    "MISSION_REOPENED",
+    "FOLLOW_UP_RECORDED",
     "LIFECYCLE_EVENT_TYPES",
     "PROJECT_EVENTS_FILENAME",
     "MISSION_EVENTS_FILENAME",
@@ -841,6 +979,8 @@ __all__ = [
     "emit_artifact_phase",
     "emit_wp_created_local",
     "emit_reviewer_self_approval",
+    "emit_mission_reopened",
+    "emit_follow_up_recorded",
     "read_lifecycle_events",
     "has_non_bootstrap_status_history",
     "repo_root_for_lifecycle_log",

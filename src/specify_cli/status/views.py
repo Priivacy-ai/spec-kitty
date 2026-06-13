@@ -307,6 +307,49 @@ def materialize_if_stale(feature_dir: Path, repo_root: Path) -> StatusSnapshot:
     return snapshot
 
 
+def format_post_mission_events(
+    post_mission_events: list[dict[str, Any]] | tuple[dict[str, Any], ...],
+) -> list[str]:
+    """Render post-mission lifecycle events as human-readable history lines (WP02 / T009).
+
+    Consumes the ``post_mission_events`` list carried on the
+    :class:`~specify_cli.status.lifecycle.MissionLifecycleResult` (already sorted
+    ``(timestamp, event_id)`` for stable order) and produces one line per event in
+    the mission lifecycle/history surface:
+
+    * ``MissionReopened`` → ``re-opened by <actor> — <reason> (<when>)``
+    * ``FollowUpRecorded`` → ``follow-up <commit <sha> | PR #<n>> by <actor> (<when>)``
+
+    Returns an empty list when there are no post-mission events, so callers can
+    skip the section entirely.
+    """
+    from .lifecycle_events import FOLLOW_UP_RECORDED, MISSION_REOPENED
+
+    lines: list[str] = []
+    for event in post_mission_events:
+        if not isinstance(event, dict):
+            continue
+        event_type = event.get("event_type")
+        payload = event.get("payload")
+        payload = payload if isinstance(payload, dict) else {}
+        if event_type == MISSION_REOPENED:
+            actor = payload.get("reopened_by") or "unknown"
+            reason = payload.get("reason") or ""
+            when = payload.get("reopened_at") or event.get("timestamp") or ""
+            suffix = f" — {reason}" if reason else ""
+            lines.append(f"re-opened by {actor}{suffix} ({when})")
+        elif event_type == FOLLOW_UP_RECORDED:
+            actor = payload.get("recorded_by") or "unknown"
+            when = payload.get("recorded_at") or event.get("timestamp") or ""
+            ref = (
+                f"PR #{payload.get('pr_number')}"
+                if payload.get("follow_up_type") == "pr"
+                else f"commit {payload.get('commit_sha')}"
+            )
+            lines.append(f"follow-up {ref} by {actor} ({when})")
+    return lines
+
+
 def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
     """Write a JSON file atomically using a temp-file + os.replace."""
     json_str = json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False) + "\n"

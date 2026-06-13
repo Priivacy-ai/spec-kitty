@@ -15,6 +15,12 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.mission_metadata import load_meta, resolve_mission_identity
+from specify_cli.status.lifecycle_events import (
+    FOLLOW_UP_RECORDED,
+    MISSION_REOPENED,
+    mission_event_log_path,
+    read_lifecycle_events,
+)
 from specify_cli.status.models import Lane, StatusSnapshot
 from specify_cli.status.progress import compute_weighted_progress
 from specify_cli.status.store import EVENTS_FILENAME, read_events
@@ -59,6 +65,13 @@ class MissionLifecycleResult:
     review_wp_count: int
     terminal_wp_count: int
     has_event_log: bool
+    # Post-mission lifecycle facts (WP01 / FR-002). ``post_mission_events`` holds
+    # the ``MissionReopened`` + ``FollowUpRecorded`` envelopes sorted by
+    # ``(timestamp, event_id)`` so ``lifecycle.json`` stays byte-stable; rendered
+    # by ``status/views.py`` (WP02). ``last_follow_up_at`` is the timestamp of the
+    # most recent ``FollowUpRecorded`` event (None when there are none).
+    post_mission_events: tuple[dict[str, Any], ...] = ()
+    last_follow_up_at: datetime | None = None
     stale_after_days: int = MISSION_STALE_THRESHOLD_DAYS
     abandoned_after_days: int = MISSION_ABANDONED_THRESHOLD_DAYS
 
@@ -81,6 +94,10 @@ class MissionLifecycleResult:
             "review_wp_count": self.review_wp_count,
             "terminal_wp_count": self.terminal_wp_count,
             "has_event_log": self.has_event_log,
+            "post_mission_events": list(self.post_mission_events),
+            "last_follow_up_at": self.last_follow_up_at.isoformat()
+            if self.last_follow_up_at
+            else None,
             "stale_after_days": self.stale_after_days,
             "abandoned_after_days": self.abandoned_after_days,
         }
@@ -135,13 +152,115 @@ def _derive_last_transition_at(snapshot: StatusSnapshot) -> datetime | None:
     return _parse_dt(snapshot.materialized_at)
 
 
+_POST_MISSION_EVENT_TYPES = frozenset({MISSION_REOPENED, FOLLOW_UP_RECORDED})
+
+
+def _event_sort_key(event: dict[str, Any]) -> tuple[str, str]:
+    """Stable ordering key ``(timestamp, event_id)`` for post-mission events.
+
+    Sorting on these fields (rather than file order) keeps ``lifecycle.json``
+    byte-stable regardless of read order (research.md R-A2).
+    """
+    timestamp = event.get("timestamp")
+    event_id = event.get("event_id")
+    return (
+        timestamp if isinstance(timestamp, str) else "",
+        event_id if isinstance(event_id, str) else "",
+    )
+
+
+def _collect_post_mission_events(feature_dir: Path) -> tuple[dict[str, Any], ...]:
+    """Return ``MissionReopened`` + ``FollowUpRecorded`` events, deterministically sorted."""
+    log_path = mission_event_log_path(feature_dir)
+    if not log_path.exists():
+        return ()
+    relevant = [
+        event
+        for event in read_lifecycle_events(log_path)
+        if event.get("event_type") in _POST_MISSION_EVENT_TYPES
+    ]
+    relevant.sort(key=_event_sort_key)
+    return tuple(relevant)
+
+
+def _latest_event_time(event: dict[str, Any]) -> datetime | None:
+    """Best-effort event timestamp.
+
+    Prefers the typed payload timestamp (``reopened_at`` / ``recorded_at``) and
+    falls back to the envelope ``timestamp`` so historical events without a
+    payload time still order correctly.
+    """
+    payload = event.get("payload")
+    if isinstance(payload, dict):
+        for key in ("reopened_at", "recorded_at"):
+            parsed = _parse_dt(payload.get(key))
+            if parsed is not None:
+                return parsed
+    return _parse_dt(event.get("timestamp"))
+
+
+def _last_reopen_at(events: tuple[dict[str, Any], ...]) -> datetime | None:
+    times = [
+        _latest_event_time(event)
+        for event in events
+        if event.get("event_type") == MISSION_REOPENED
+    ]
+    filtered = [t for t in times if t is not None]
+    return max(filtered) if filtered else None
+
+
+def _last_follow_up_at(events: tuple[dict[str, Any], ...]) -> datetime | None:
+    times = [
+        _latest_event_time(event)
+        for event in events
+        if event.get("event_type") == FOLLOW_UP_RECORDED
+    ]
+    filtered = [t for t in times if t is not None]
+    return max(filtered) if filtered else None
+
+
+def _last_merge_marker_at(feature_dir: Path) -> datetime | None:
+    """Timestamp of the last merge/completion marker from ``meta.json``.
+
+    ``MissionReopened`` clears ``merged_*`` (IC-02), so after a re-open this is
+    typically ``None``. A subsequent re-merge re-stamps ``merged_at``; when that
+    postdates the latest re-open the mission is no longer ``reopened``.
+    """
+    meta = load_meta(feature_dir) or {}
+    return _parse_dt(meta.get("merged_at"))
+
+
+def _is_reopened(
+    *,
+    last_reopen_at: datetime | None,
+    last_merge_at: datetime | None,
+) -> bool:
+    """True when the latest re-open postdates the last merge marker (FR-002)."""
+    if last_reopen_at is None:
+        return False
+    if last_merge_at is None:
+        return True
+    return last_reopen_at > last_merge_at
+
+
 def _classify_state(
     *,
     total_wps: int,
     active_wp_count: int,
     terminal_wp_count: int,
     age_days: int | None,
+    is_reopened: bool = False,
 ) -> tuple[str, str | None, str]:
+    # FR-002 crux: a re-open event postdating the last merge marker makes the
+    # mission actionable again regardless of WP terminality. The event is the
+    # single authority here — WP lanes are NOT mutated by a re-open (D-A2).
+    if is_reopened:
+        return (
+            "reopened",
+            "reopened",
+            "Mission was re-opened after merge and is actionable again.",
+        )
+
     if active_wp_count > 0:
         if age_days is not None and age_days >= MISSION_ABANDONED_THRESHOLD_DAYS:
             return ("abandoned", None, "Active work appears abandoned and should stay off primary surfaces.")
@@ -219,11 +338,21 @@ def derive_mission_lifecycle(
         age_delta = now - last_activity_at
         age_days = max(0, int(age_delta / timedelta(days=1)))
 
+    post_mission_events = _collect_post_mission_events(feature_dir)
+    last_reopen_at = _last_reopen_at(post_mission_events)
+    last_follow_up_at = _last_follow_up_at(post_mission_events)
+    last_merge_at = _last_merge_marker_at(feature_dir)
+    is_reopened = _is_reopened(
+        last_reopen_at=last_reopen_at,
+        last_merge_at=last_merge_at,
+    )
+
     mission_state, surface_state, reason = _classify_state(
         total_wps=total_wps,
         active_wp_count=active_wp_count,
         terminal_wp_count=terminal_wp_count,
         age_days=age_days,
+        is_reopened=is_reopened,
     )
 
     return MissionLifecycleResult(
@@ -244,6 +373,8 @@ def derive_mission_lifecycle(
         review_wp_count=review_wp_count,
         terminal_wp_count=terminal_wp_count,
         has_event_log=has_event_log,
+        post_mission_events=post_mission_events,
+        last_follow_up_at=last_follow_up_at,
     )
 
 
