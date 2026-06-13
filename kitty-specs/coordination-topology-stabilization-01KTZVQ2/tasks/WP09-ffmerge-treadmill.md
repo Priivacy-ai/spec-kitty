@@ -10,12 +10,16 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-coordination-topology-stabilization-01KTZVQ2
+base_commit: 94f63978b5334f055f97fa027470b57b9db65365
+created_at: '2026-06-13T08:26:20.552621+00:00'
 subtasks:
 - T041
 - T042
 - T043
 - T044
 agent: claude
+shell_pid: '55911'
 history:
 - date: '2026-06-12'
   author: spec-kitty.tasks
