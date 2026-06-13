@@ -550,6 +550,53 @@ def test_dashboard_husk_coord_dir_does_not_shadow_primary(tmp_path):
     assert feature["kanban_stats"]["approved"] == 0
 
 
+@pytest.mark.no_git_tmp_path
+def test_dashboard_scan_degrades_when_registry_unreadable_in_non_git_project(
+    tmp_path: Path,
+) -> None:
+    """WP03 seam degradation: when ``.worktrees/`` exists but the project is NOT
+    a git repo, ``read_worktree_registry`` fails closed with
+    ``WorktreeRegistryUnavailable``. The scanner must degrade gracefully —
+    treat every worktree dir as non-coord rather than crashing the whole
+    dashboard scan (covers ``scanner.py`` lines 332/336).
+
+    Behavioural contract: a ``-coord``-named directory has no readable registry
+    to consult, so it cannot be classified as a coord worktree and therefore
+    must NOT outrank/shadow the primary ``kitty-specs/`` surface. The scan
+    succeeds and the primary copy wins.
+    """
+    slug = "001-demo-feature"
+
+    # Deliberately NO `git init`: the project dir is not a git repo, so the
+    # `git worktree list --porcelain` read inside `gather_feature_paths` raises
+    # WorktreeRegistryUnavailable. This is the real trigger, not a mock.
+    assert not (tmp_path / ".git").exists()
+
+    # Primary checkout surface (authoritative when the registry is unreadable).
+    _create_feature(tmp_path, slug, lane="planned")
+
+    # A ``-coord``-named directory sitting under .worktrees/. With no registry
+    # it cannot be promoted to coord topology.
+    husk_feature_dir = tmp_path / ".worktrees" / f"{slug}-coord" / "kitty-specs" / slug
+    _create_feature_at(husk_feature_dir, lane="approved")
+
+    # The scan completes (no crash) despite the unreadable registry.
+    paths = scanner.gather_feature_paths(tmp_path)
+
+    # The husk did NOT win: the resolved path is the primary surface, not the
+    # ``.worktrees/...-coord`` copy.
+    assert paths[slug] == tmp_path / "kitty-specs" / slug
+    assert paths[slug] != husk_feature_dir
+
+    features = scanner.scan_all_features(tmp_path)
+    assert len(features) == 1
+    feature = features[0]
+    assert feature["path"] == f"kitty-specs/{slug}"
+    # Primary "planned" stands; the degraded coord dir's "approved" is ignored.
+    assert feature["kanban_stats"]["planned"] == 1
+    assert feature["kanban_stats"]["approved"] == 0
+
+
 # ── NFR-006: Dashboard kanban bucketing identity ───────────────────────────
 
 
