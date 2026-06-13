@@ -1,0 +1,3 @@
+{"event": "started", "invocation_id": "01KV0FSN56AEV3G4V32QH2VX52", "profile_id": "reviewer-renata", "action": "audit", "request_text": "Security-lens adversarial review of #1908", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "ac2dcc792adceb75", "governance_context_available": true, "started_at": "2026-06-13T12:37:36.532001+00:00"}
+{"event": "completed", "invocation_id": "01KV0FSN56AEV3G4V32QH2VX52", "completed_at": "2026-06-13T12:39:48.396650+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "artifact_link", "invocation_id": "01KV0FSN56AEV3G4V32QH2VX52", "at": "2026-06-13T12:39:48.396854+00:00", "kind": "artifact", "ref": "kitty-specs/name-vs-authority-remediation-01KTYGTE/research/postpr-security.md"}
