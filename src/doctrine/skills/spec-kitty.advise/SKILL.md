@@ -3,9 +3,12 @@ name: spec-kitty.advise
 description: >-
   Standalone profile-governed invocations: get governance context for an
   action, open an Op, do the work under that context, and close the Op with
-  the real outcome. Documents the advise, ask, do, profiles list,
-  invocations list, and profile-invocation complete command surfaces.
-  Triggers: "use spec kitty to", "hey spec kitty", "spec kitty, fix/do/ask/advise",
+  the real outcome. Documents the dispatch (canonical), advise, ask, do,
+  profiles list, invocations list, and profile-invocation complete command
+  surfaces. `dispatch` is the canonical mechanism; `do`, `ask`, and `advise`
+  are retained first-class aliases with identical Op lifecycle.
+  Triggers: "use spec kitty to", "hey spec kitty",
+  "spec kitty, fix/do/ask/advise/dispatch",
   ad-hoc requests that are not part of a running mission workflow.
 ---
 
@@ -13,8 +16,11 @@ description: >-
 
 Get governance context for an action and open an Op (invocation record).
 
-This skill documents the `advise`, `ask`, `do`, `profiles list`,
-`invocations list`, and `profile-invocation complete` command surfaces.
+This skill documents the `dispatch` (canonical), `advise`, `ask`, `do`,
+`profiles list`, `invocations list`, and `profile-invocation complete` command
+surfaces. `dispatch` is the canonical mechanism; `do`, `ask`, and `advise` are
+retained first-class aliases that delegate to the same single mechanism and
+record identical Op identity and lifecycle.
 
 ## The open→work→close contract
 
@@ -44,10 +50,20 @@ spec-kitty profiles list --json
 ```
 
 ### Get governance context (opens an Op)
+
+`spec-kitty dispatch` is the canonical command. `do`, `ask`, and `advise` are
+retained first-class aliases — they share the same single invocation mechanism,
+record identical Op identity, and are **not** deprecated.
+
 ```bash
-spec-kitty advise "implement WP03" --json
-spec-kitty ask pedro "review WP05" --json
+# Canonical command (recommended for new scripts and documentation)
+spec-kitty dispatch "implement WP03" --json
+spec-kitty dispatch "implement WP03" --profile pedro --json
+
+# Retained aliases (identical Op lifecycle — use whichever fits your intent)
 spec-kitty do "implement the payment module" --json
+spec-kitty ask pedro "review WP05" --json
+spec-kitty advise "implement WP03" --json
 ```
 
 Response fields:
@@ -112,8 +128,10 @@ spec-kitty invocations list --limit 10 --json
 
 | Situation | Command |
 |-----------|---------|
-| Before implementing — profile known | `spec-kitty ask <profile> "implement <mission>"` |
-| Before implementing — profile unknown | `spec-kitty do "implement <mission>"` |
+| Before any governed work — canonical form | `spec-kitty dispatch "<request>" --json` |
+| Before implementing — profile known | `spec-kitty dispatch "<request>" --profile <profile>` or alias `spec-kitty ask <profile> "implement <mission>"` |
+| Before implementing — profile unknown | `spec-kitty dispatch "<request>"` or alias `spec-kitty do "implement <mission>"` |
+| Advisory context only (no implementation) | `spec-kitty dispatch "<request>" --mode advisory` or alias `spec-kitty advise "<request>"` |
 | After completing work | `spec-kitty profile-invocation complete --invocation-id <id> --outcome <done\|failed\|abandoned>` |
 | Audit what ran recently | `spec-kitty invocations list --json` |
 | Find orphaned (open) Ops | `spec-kitty doctor ops` |
@@ -131,9 +149,14 @@ and surfaced at Claude Code session start/stop.
 
 ## Invariants
 
-- `advise` / `ask` / `do` **never** spawn a separate LLM call.
-- `do` opens the Op and returns — it never closes the Op itself. The working
-  agent closes it with the real outcome.
+- `dispatch` / `advise` / `ask` / `do` **never** spawn a separate LLM call.
+- All four verbs route through the **same single mechanism** (`dispatch`); they
+  produce identical Op identity, JSONL record format, and lifecycle. Only the
+  default `mode_of_work` differs: `advise` defaults to `advisory`; the others
+  default to `task_execution`.
+- `dispatch` (and its aliases `do` / `ask` / `advise`) opens the Op and
+  returns — it never closes the Op itself. The working agent closes it with
+  the real outcome.
 - `governance_context_text` is assembled from the project DRG; no network
   calls are made if the charter has already been synthesised.
 - If `governance_context_available` is `false`, run

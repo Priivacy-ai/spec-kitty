@@ -534,18 +534,24 @@ Spec Kitty never spawns a parallel LLM call. You are the host; Spec Kitty routes
 
 ### When to use which command
 
+`spec-kitty dispatch` is the canonical command. `do`, `ask`, and `advise` are
+retained first-class aliases with identical Op lifecycle — use whichever fits
+your intent; they are not deprecated.
+
 | Situation | Command |
 |-----------|---------|
-| Request is clear, profile unknown | `spec-kitty do "<request>" --json` |
-| Request is clear, profile known | `spec-kitty ask <profile> "<request>" --json` |
+| Request is clear — canonical form | `spec-kitty dispatch "<request>" --json` |
+| Request is clear, profile unknown | `spec-kitty dispatch "<request>" --json` or alias `spec-kitty do "<request>" --json` |
+| Request is clear, profile known | `spec-kitty dispatch "<request>" --profile <profile> --json` or alias `spec-kitty ask <profile> "<request>" --json` |
 | Need routing decision only (no implementation) | `spec-kitty advise "<request>" --json` |
 
 ### The governance injection loop
 
 1. **Get context**:
    ```bash
+   spec-kitty dispatch "implement the login handler" --json
+   # or using retained aliases:
    spec-kitty do "implement the login handler" --json
-   # or:
    spec-kitty ask pedro "review WP05" --json
    ```
    Response includes `invocation_id`, `governance_context_text`, and `governance_context_available`.
@@ -557,7 +563,7 @@ Spec Kitty never spawns a parallel LLM call. You are the host; Spec Kitty routes
 3. **Execute**:
    Do the work. Generate the code, analysis, or plan.
 
-4. **Close the Op** (mandatory — `do`/`ask`/`advise` leave it open):
+4. **Close the Op** (mandatory — `dispatch`/`do`/`ask`/`advise` leave it open):
    ```bash
    spec-kitty profile-invocation complete \
      --invocation-id <invocation_id> \
