@@ -220,6 +220,20 @@ class QueryModeValidationError(ValueError):
     """Raised when query mode cannot produce a truthful read-only preview."""
 
 
+class MissionNotFoundError(Exception):
+    """Raised when a mission handle cannot be resolved to an existing mission.
+
+    Carries the attempted handle so callers can include it in structured
+    error output (FR-004 / WP03 — fail-closed next query mode).
+    """
+
+    error_code: str = "MISSION_NOT_FOUND"
+
+    def __init__(self, handle: str) -> None:
+        self.handle = handle
+        super().__init__(f"Mission not found: '{handle}'")
+
+
 # ---------------------------------------------------------------------------
 # Feature → Run index
 # ---------------------------------------------------------------------------
@@ -3071,30 +3085,13 @@ def query_current_state(  # noqa: C901
             feature=mission_slug,
         )
         feature_dir = Path(_ctx.feature_dir)
-    except ActionContextError:
-        # Mission directory not found — return not-found Decision immediately.
-        return Decision(
-            kind=DecisionKind.query,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission="unknown",
-            mission_state="unknown",
-            timestamp=now,
-            is_query=True,
-            reason=None,
-        )
+    except ActionContextError as exc:
+        # Mission directory not found — raise fail-closed (FR-004 / WP03).
+        raise MissionNotFoundError(mission_slug) from exc
 
     if not feature_dir.is_dir():
-        return Decision(
-            kind=DecisionKind.query,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission="unknown",
-            mission_state="unknown",
-            timestamp=now,
-            is_query=True,
-            reason=None,
-        )
+        # Resolved path does not exist on disk — treat as not found (FR-004 / WP03).
+        raise MissionNotFoundError(mission_slug)
 
     mission_type = get_mission_type(feature_dir)
     progress = _compute_wp_progress(feature_dir)

@@ -8,9 +8,6 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
-base_branch: kitty/mission-coordination-topology-stabilization-01KTZVQ2
-base_commit: 83c1a2dba96772086d490f1ca9283e007a6c745b
-created_at: '2026-06-13T07:58:41.148921+00:00'
 subtasks:
 - T001
 - T002
@@ -18,8 +15,8 @@ subtasks:
 - T004
 - T005
 - T048
-agent: claude
-shell_pid: '54198'
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "12342"
 history:
 - date: '2026-06-12'
   author: spec-kitty.tasks
@@ -222,3 +219,10 @@ Focus review on:
 1. The `git cat-file -e` OR-logic — confirm it cannot produce false-positives.
 2. The `placement=None` default — confirm it is truly backward-compatible at every existing call site.
 3. The architectural ratchet test — confirm it would catch a regressing 2-arg call.
+
+## Activity Log
+
+- 2026-06-13T07:58:42Z – claude:sonnet-4-6:implementer:implementer – shell_pid=54198 – Assigned agent via action command
+- 2026-06-13T08:10:25Z – claude:sonnet-4-6:implementer:implementer – shell_pid=54198 – Ready for review: coord-aware is_committed() implemented
+- 2026-06-13T08:11:09Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=12342 – Started review via action command
+- 2026-06-13T08:14:47Z – user – shell_pid=12342 – Review passed: coord-aware is_committed() correct, flat topology preserved, architectural ratchet in place. --force used: kitty-specs/ commits on lane branch are administrative no-op restore commits; file state identical to mission branch.

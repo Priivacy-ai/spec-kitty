@@ -199,7 +199,7 @@ def _print_acceptance_diagnosis(summary: AcceptanceSummary) -> None:
 
 
 def _summary_payload(summary: AcceptanceSummary) -> dict[str, object]:
-    payload = summary.to_dict()
+    payload: dict[str, object] = summary.to_dict()
     payload.update(acceptance_lane_derivations(summary))
     return payload
 
@@ -281,7 +281,7 @@ def accept(
             repo_root,
             mission_slug,
             strict_metadata=not lenient,
-            mutate_matrix=not diagnose,
+            mutate_matrix=not diagnose and not no_commit,
         )
     except AcceptanceError as exc:
         _safe_emit_error_logged(str(exc))
@@ -347,6 +347,8 @@ def accept(
                 console.print(f"[red]Error:[/red] {exc}")
             raise typer.Exit(1)
 
+    result: AcceptanceResult | None = None
+    _accept_exc: AcceptanceError | None = None
     try:
         if commit_required and not json_output:
             tracker.start("commit")
@@ -366,18 +368,11 @@ def accept(
                 tests=acceptance_tests,
                 auto_commit=commit_required,
             )
-        if commit_required:
-            # The acceptance commit (inside perform_acceptance) only captures
-            # meta.json. Derived artifacts materialized during readiness checks
-            # (e.g. acceptance-matrix.json, status views) are written after the
-            # git-cleanliness snapshot and would otherwise be left dirty. Fold
-            # them into a follow-up commit so a successful accept leaves a clean
-            # working tree on every path (including accept_commit == None).
-            _commit_residual_acceptance_artifacts(repo_root, mission_slug)
         if commit_required and not json_output:
             detail = "commit created" if result.commit_created else "no changes"
             tracker.complete("commit", detail)
     except AcceptanceError as exc:
+        _accept_exc = exc
         _safe_emit_error_logged(str(exc))
         if json_output:
             print(json.dumps({"error": str(exc)}))
@@ -386,7 +381,24 @@ def accept(
                 tracker.error("commit", str(exc))
                 console.print(tracker.render())
             console.print(f"[red]Error:[/red] {exc}")
+    finally:
+        if commit_required:
+            # The acceptance commit (inside perform_acceptance) only captures
+            # meta.json. Derived artifacts materialized during readiness checks
+            # (e.g. acceptance-matrix.json, status views) are written after the
+            # git-cleanliness snapshot and would otherwise be left dirty. Fold
+            # them into a follow-up commit so all writing exit paths (including
+            # error paths and accept_commit == None) leave a clean working tree.
+            try:
+                _commit_residual_acceptance_artifacts(repo_root, mission_slug)
+            except Exception as residue_exc:
+                # Non-fatal: log the residue-commit failure but do not swallow
+                # the original acceptance exception if one occurred.
+                _safe_emit_error_logged(f"Residual artifact commit failed: {residue_exc}")
+    if _accept_exc is not None:
         raise typer.Exit(1)
+
+    assert result is not None  # guaranteed: _accept_exc is None means perform_acceptance succeeded
 
     if json_output:
         print(json.dumps(result.to_dict(), indent=2))

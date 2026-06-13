@@ -154,6 +154,7 @@ def _dirty_entries(
     *,
     new_sha: str,
     target_paths: set[str],
+    excluded_filenames: frozenset[str] | None = None,
 ) -> list[str]:
     """Return porcelain entries that a ``reset --hard`` would destroy.
 
@@ -164,6 +165,12 @@ def _dirty_entries(
 
     Everything staged or unstaged against tracked paths is also unique local
     state and blocks the resync.
+
+    Args:
+        excluded_filenames: Basenames to exclude from the dirty check.  Used
+            to suppress coord-owned residue (e.g. ``status.events.jsonl``,
+            ``status.json``) that is legitimately present on the primary
+            checkout after a coordination-branch write (#1878 / T041).
     """
     result = _run_git(worktree, ["status", "--porcelain", "--ignored"], env=env)
     if result.returncode != 0:
@@ -175,8 +182,10 @@ def _dirty_entries(
     for line in result.stdout.splitlines():
         if not line.strip():
             continue
+        path = _porcelain_path(line)
+        if excluded_filenames and Path(path).name in excluded_filenames:
+            continue
         if line.startswith(("??", "!!")):
-            path = _porcelain_path(line)
             if _path_obstructs_target_tree(path, target_paths):
                 dirty.append(
                     f"{line} (would be overwritten by reset --hard to {new_sha[:12]})"
@@ -192,6 +201,7 @@ def advance_branch_ref(
     new_sha: str,
     *,
     env: dict[str, str] | None = None,
+    coord_owned_filenames: frozenset[str] | None = None,
 ) -> None:
     """Advance ``refs/heads/<branch>`` to ``new_sha`` and resync checkouts.
 
@@ -211,6 +221,12 @@ def advance_branch_ref(
         new_sha: Commit SHA the branch ref advances to.
         env: Optional subprocess environment (merge pipeline passes its
             ``_make_merge_env()`` result through).
+        coord_owned_filenames: Basenames that are legitimately present as
+            residue on the primary checkout after a coordination-branch write
+            (e.g. ``status.events.jsonl``, ``status.json``).  These are
+            excluded from the dirty-file check so they do not abort a
+            post-write ff-advance (#1878 / T041).  Pass
+            ``COORD_OWNED_STATUS_FILES`` from ``specify_cli.status`` here.
 
     Raises:
         RefAdvanceDirtyWorktreeError: a worktree with ``branch`` checked out
@@ -234,7 +250,13 @@ def advance_branch_ref(
     # Dirty check strictly BEFORE the ref mutation and BEFORE any reset path:
     # a refusal must be atomic (nothing advanced, nothing reset).
     for worktree in checkouts:
-        dirty = _dirty_entries(worktree, env, new_sha=new_sha, target_paths=target_paths)
+        dirty = _dirty_entries(
+            worktree,
+            env,
+            new_sha=new_sha,
+            target_paths=target_paths,
+            excluded_filenames=coord_owned_filenames,
+        )
         if dirty:
             raise RefAdvanceDirtyWorktreeError(
                 worktree_path=worktree.resolve(),

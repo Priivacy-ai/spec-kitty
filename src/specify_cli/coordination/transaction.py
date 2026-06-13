@@ -18,7 +18,7 @@ C-013, NFR-001, NFR-008, NFR-010.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
 import errno
 import json as _json
 import logging
@@ -54,7 +54,11 @@ from specify_cli.coordination.types import (
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from mission_runtime import CommitTarget, CommitTargetKind
 from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed, safe_commit
+from specify_cli.git.commit_helpers import (
+    SafeCommitPathPolicyError,
+    SafeCommitRecoveryFailed,
+    safe_commit,
+)
 from specify_cli.status import reducer as _reducer
 from specify_cli.status.locking import (
     FeatureStatusLockTimeoutError,
@@ -930,6 +934,24 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         previously exist). C-009: no ``git checkout --`` in the
         rollback path.
         """
+        # FR-005 / Issue #1887: guard against callers that accidentally
+        # resolve a path relative to the primary repo root (which would make
+        # the output path land under .worktrees/) rather than relative to the
+        # coordination worktree. This is the write-side backstop — if the
+        # output path resolves under .worktrees/ from the primary repo's
+        # perspective, reject it immediately before touching the filesystem.
+        resolved_candidate = (path if path.is_absolute() else self.worktree_root / path).resolve(
+            strict=False
+        )
+        try:
+            rel_from_worktree = resolved_candidate.relative_to(self.worktree_root.resolve())
+        except ValueError:
+            rel_from_worktree = None
+        if rel_from_worktree is not None and rel_from_worktree.parts and rel_from_worktree.parts[0] == WORKTREES_DIR:
+            raise SafeCommitPathPolicyError(
+                offending_path=rel_from_worktree.as_posix(),
+                worktree_root=self.worktree_root,
+            )
         try:
             resolved_path = _resolve_confined_artifact_path(self.worktree_root, path)
         except ValueError as exc:

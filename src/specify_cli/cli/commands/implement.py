@@ -27,9 +27,11 @@ from specify_cli.mission_metadata import resolve_mission_identity, set_vcs_lock
 from specify_cli.frontmatter import FrontmatterError, update_fields
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import (
+    SafeCommitPathPolicyError,
     _operator_protected_branch_hatch_active,
     protected_branches,
 )
+from specify_cli.core.constants import WORKTREES_DIR
 from mission_runtime import CommitTarget, CommitTargetKind
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
@@ -439,15 +441,38 @@ def _files_changed_vs_ref(
 
 
 def _feature_dir_file_paths(repo_root: Path, feature_dir: Path) -> list[str]:
+    # FR-005 / Issue #1887: reject calls where feature_dir resolves under
+    # .worktrees/.  Relativizing a coord-worktree path against the primary repo
+    # root produces paths like ".worktrees/<slug>/..." which safe_commit then
+    # stages into the primary index, leaking coord internals into origin/main.
+    # The caller must pass the correct coordination-branch-relative path instead.
+    feature_dir_resolved = feature_dir.resolve()
     repo_root_resolved = repo_root.resolve()
+    try:
+        rel = feature_dir_resolved.relative_to(repo_root_resolved)
+    except ValueError:
+        rel = None
+    if rel is not None and rel.parts and rel.parts[0] == WORKTREES_DIR:
+        raise SafeCommitPathPolicyError(
+            offending_path=rel.as_posix(),
+            worktree_root=repo_root_resolved,
+        )
+
     paths: list[str] = []
     for path in sorted(feature_dir.rglob("*")):
         if not path.is_file():
             continue
         try:
-            paths.append(path.resolve().relative_to(repo_root_resolved).as_posix())
+            rel_path = path.resolve().relative_to(repo_root_resolved).as_posix()
         except ValueError:
             continue
+        # Secondary guard: individual files must not land under .worktrees/.
+        if Path(rel_path).parts and Path(rel_path).parts[0] == WORKTREES_DIR:
+            raise SafeCommitPathPolicyError(
+                offending_path=rel_path,
+                worktree_root=repo_root_resolved,
+            )
+        paths.append(rel_path)
     return paths
 
 

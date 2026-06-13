@@ -77,12 +77,12 @@
 **Goal**: Add a placement-aware `is_committed()` that consults the coordination branch before primary HEAD, so all gate checks see coord-branch commits as valid. This is the foundational fix that WP06 and WP09 depend on.
 
 **Subtasks**:
-- [ ] T001 Add placement-aware is_committed() overload in _substantive.py (WP01)
-- [ ] T002 Migrate setup-plan entry gate caller to use coord-aware is_committed() (WP01)
-- [ ] T003 Convert _planning_commit_worktree silent fallbacks to structured errors (WP01)
-- [ ] T004 Regression test: setup-plan passes with spec on coord branch only (WP01)
-- [ ] T005 Architectural lint: no new callers of the old 2-arg is_committed form (WP01)
-- [ ] T048 Pre-flight: verify PR #1895 scope before starting implementation (WP01)
+- [x] T001 Add placement-aware is_committed() overload in _substantive.py (WP01)
+- [x] T002 Migrate setup-plan entry gate caller to use coord-aware is_committed() (WP01)
+- [x] T003 Convert _planning_commit_worktree silent fallbacks to structured errors (WP01)
+- [x] T004 Regression test: setup-plan passes with spec on coord branch only (WP01)
+- [x] T005 Architectural lint: no new callers of the old 2-arg is_committed form (WP01)
+- [x] T048 Pre-flight: verify PR #1895 scope before starting implementation (WP01)
 
 **Dependencies**: none
 **Unblocks**: WP06, WP09 (partially WP07)
@@ -98,11 +98,11 @@
 **Goal**: Stop `.worktrees/<coord>/` paths entering the git index at the writer level. Add fail-closed guards at `_feature_dir_file_paths`, `safe_commit`, and `BookkeepingTransaction.write_artifact`. Add architectural ratchet test. (Cleanup PR is WP10 after ratchet lands.)
 
 **Subtasks**:
-- [ ] T006 Fix _feature_dir_file_paths root anchor in implement.py (WP02)
-- [ ] T007 Add path_is_under_worktrees() rejection gate in safe_commit (WP02)
-- [ ] T008 Add path_is_under_worktrees() guard in BookkeepingTransaction.write_artifact (WP02)
-- [ ] T009 Architectural ratchet test: git ls-files .worktrees/ must return empty (WP02)
-- [ ] T010 Regression test for writer fix (WP02)
+- [x] T006 Fix _feature_dir_file_paths root anchor in implement.py (WP02)
+- [x] T007 Add path_is_under_worktrees() rejection gate in safe_commit (WP02)
+- [x] T008 Add path_is_under_worktrees() guard in BookkeepingTransaction.write_artifact (WP02)
+- [x] T009 Architectural ratchet test: git ls-files .worktrees/ must return empty (WP02)
+- [x] T010 Regression test for writer fix (WP02)
 
 **Dependencies**: none
 **Unblocks**: WP10
@@ -118,10 +118,10 @@
 **Goal**: Replace the silent exit-0 "unknown" stub in `query_current_state` with a structured `MISSION_NOT_FOUND` error that exits non-zero in both human and JSON modes.
 
 **Subtasks**:
-- [ ] T011 Replace "unknown" branches in query_current_state with MISSION_NOT_FOUND (WP03)
-- [ ] T012 Fix StatusReadPathNotFound swallow in _resolve_mission_slug (WP03)
-- [ ] T013 Fix advancing-mode --result not-found path (WP03)
-- [ ] T014 CLI tests: non-zero exit + named error in both modes (WP03)
+- [x] T011 Replace "unknown" branches in query_current_state with MISSION_NOT_FOUND (WP03)
+- [x] T012 Fix StatusReadPathNotFound swallow in _resolve_mission_slug (WP03)
+- [x] T013 Fix advancing-mode --result not-found path (WP03)
+- [x] T014 CLI tests: non-zero exit + named error in both modes (WP03)
 
 **Dependencies**: none (coordinate with PR #1895 before starting)
 
@@ -136,12 +136,12 @@
 **Goal**: Promote literal-path zero-match from warning to hard error; route all ownership warnings to stderr; add planned-new-file escape hatch; re-validate at lane-compute time; update source prompt.
 
 **Subtasks**:
-- [ ] T015 Classify literal vs glob entries in validate_glob_matches (WP04)
-- [ ] T016 Promote literal-path zero-match to hard error with nearest-match suggestion (WP04)
-- [ ] T017 Add create_intent: true annotation support for planned-new-file (WP04)
-- [ ] T018 Route ownership_warnings to stderr in JSON mode and human-readable output (WP04)
-- [ ] T019 Re-validate ownership at lane-compute time (WP04)
-- [ ] T020 Update tasks-finalize source prompt to require acting on warnings (WP04)
+- [x] T015 Classify literal vs glob entries in validate_glob_matches (WP04)
+- [x] T016 Promote literal-path zero-match to hard error with nearest-match suggestion (WP04)
+- [x] T017 Add create_intent: true annotation support for planned-new-file (WP04)
+- [x] T018 Route ownership_warnings to stderr in JSON mode and human-readable output (WP04)
+- [x] T019 Re-validate ownership at lane-compute time (WP04)
+- [x] T020 Update tasks-finalize source prompt to require acting on warnings (WP04)
 
 **Dependencies**: none
 
@@ -156,10 +156,10 @@
 **Goal**: Classify message-capture expressions in `_literal_findings_for_assertion`; suppress or demote findings where the literal is inside `str(exc)`, `.message`, `.stderr`, etc. Fix the `changed_literals` last-wins dict and add confidence grouping.
 
 **Subtasks**:
-- [ ] T021 Add message-capture expression classifier in _literal_findings_for_assertion (WP05)
-- [ ] T022 Fix changed_literals last-wins dict (WP05)
-- [ ] T023 Add confidence threshold/grouping in merge summary (WP05)
-- [ ] T024 Regression tests for message-content FP suppression (WP05)
+- [x] T021 Add message-capture expression classifier in _literal_findings_for_assertion (WP05)
+- [x] T022 Fix changed_literals last-wins dict (WP05)
+- [x] T023 Add confidence threshold/grouping in merge summary (WP05)
+- [x] T024 Regression tests for message-content FP suppression (WP05)
 
 **Dependencies**: none
 
@@ -178,12 +178,12 @@
 **Goal**: Make `--no-commit` truly read-only; implement write-aware dirty baseline; commit residue on all writing exit paths; fix write-target split.
 
 **Subtasks**:
-- [ ] T025 Fix mutate_matrix in --no-commit mode (WP06)
-- [ ] T026 Implement write-aware dirty baseline with accept-owned exclusions (WP06)
-- [ ] T027 Call _commit_residual_acceptance_artifacts on ALL writing exit paths (WP06)
-- [ ] T028 Fix write-target split in _check_lane_gates (WP06)
-- [ ] T029 Convergence regression test (WP06)
-- [ ] T030 --no-commit read-only regression test (WP06)
+- [x] T025 Fix mutate_matrix in --no-commit mode (WP06)
+- [x] T026 Implement write-aware dirty baseline with accept-owned exclusions (WP06)
+- [x] T027 Call _commit_residual_acceptance_artifacts on ALL writing exit paths (WP06)
+- [x] T028 Fix write-target split in _check_lane_gates (WP06)
+- [x] T029 Convergence regression test (WP06)
+- [x] T030 --no-commit read-only regression test (WP06)
 
 **Dependencies**: WP01
 
@@ -198,11 +198,11 @@
 **Goal**: Add merge-completion postcondition; consolidate dead `run_terminus` with live capture path; emit `RetrospectiveSkipped` event on failure; fix `_record_path_str` stale path.
 
 **Subtasks**:
-- [ ] T031 Add merge-completion postcondition check for retrospective.yaml (WP07)
-- [ ] T032 Consolidate run_terminus dead code with _run_retrospective_learning_capture (WP07)
-- [ ] T033 Emit RetrospectiveSkipped/CaptureFailed event on failure/skip (WP07)
-- [ ] T034 Fix _record_path_str to use correct canon path (WP07)
-- [ ] T035 Regression test: merge path → retrospective.yaml or skip event (WP07)
+- [x] T031 Add merge-completion postcondition check for retrospective.yaml (WP07)
+- [x] T032 Consolidate run_terminus dead code with _run_retrospective_learning_capture (WP07)
+- [x] T033 Emit RetrospectiveSkipped/CaptureFailed event on failure/skip (WP07)
+- [x] T034 Fix _record_path_str to use correct canon path (WP07)
+- [x] T035 Regression test: merge path → retrospective.yaml or skip event (WP07)
 
 **Dependencies**: none (triggering half; content in WP08 is independent)
 
@@ -217,11 +217,11 @@
 **Goal**: Add mission-local artifact ingestors (workflow-failures-log.md, analysis-report.md, mission-review-report.md) to the retrospective generator; revisit "helped only by contrast" rule; fix stale docstring.
 
 **Subtasks**:
-- [ ] T036 Add workflow-failures-log.md ingestor (WP08)
-- [ ] T037 Add analysis-report.md and mission-review-report.md ingestors (WP08)
-- [ ] T038 Revisit "helped only by contrast" rule in generator.py (WP08)
-- [ ] T039 Fix stale docstring in generator.py:844-846 (WP08)
-- [ ] T040 Golden test: mission-131 fixture → non-empty findings (WP08)
+- [x] T036 Add workflow-failures-log.md ingestor (WP08)
+- [x] T037 Add analysis-report.md and mission-review-report.md ingestors (WP08)
+- [x] T038 Revisit "helped only by contrast" rule in generator.py (WP08)
+- [x] T039 Fix stale docstring in generator.py:844-846 (WP08)
+- [x] T040 Golden test: mission-131 fixture → non-empty findings (WP08)
 
 **Dependencies**: none (content half; independent of WP07)
 
@@ -240,10 +240,10 @@
 **Goal**: Add coord-owned-residue exclusion to `advance_branch_ref`; roll it out as standard post-write primary-ref sync; retire `_ensure_branch_checked_out` shim.
 
 **Subtasks**:
-- [ ] T041 Add coord-owned-residue exclusion to advance_branch_ref (WP09)
-- [ ] T042 Roll out advance_branch_ref as standard post-write sync (WP09)
-- [ ] T043 Retire _ensure_branch_checked_out shim (WP09)
-- [ ] T044 End-to-end test: zero manual ff-merges through full lifecycle (WP09)
+- [x] T041 Add coord-owned-residue exclusion to advance_branch_ref (WP09)
+- [x] T042 Roll out advance_branch_ref as standard post-write sync (WP09)
+- [x] T043 Retire _ensure_branch_checked_out shim (WP09)
+- [x] T044 End-to-end test: zero manual ff-merges through full lifecycle (WP09)
 
 **Dependencies**: WP01, WP06
 
@@ -258,10 +258,10 @@
 **Goal**: Remove the 26 currently tracked `.worktrees/` paths from `origin/main`. Verify doctor passes. Test the IC-01/IC-02 interaction defect in both pre- and post-cleanup states.
 
 **Subtasks**:
-- [ ] T045 Remove 26 tracked .worktrees/ paths via git rm -r --cached (WP10)
-- [ ] T046 Verify spec-kitty doctor passes after cleanup (WP10)
-- [ ] T047 Verify is_committed interaction defect tested in both states (WP10)
-- [ ] T049 Remove xfail from test_worktrees_index_clean.py after WP02 ratchet lands (WP10)
+- [x] T045 Remove 26 tracked .worktrees/ paths via git rm -r --cached (WP10)
+- [x] T046 Verify spec-kitty doctor passes after cleanup (WP10)
+- [x] T047 Verify is_committed interaction defect tested in both states (WP10)
+- [x] T049 Remove xfail from test_worktrees_index_clean.py after WP02 ratchet lands (WP10)
 
 **Dependencies**: WP01, WP02
 

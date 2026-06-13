@@ -219,6 +219,15 @@ class WPMetadata(BaseModel):
     # ── Optional: execution context ────────────────────────────
     execution_mode: str | None = None
     owned_files: list[str] = Field(default_factory=list)
+    create_intent: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Paths in owned_files that are planned-new-file entries "
+            "(not yet created). A zero-match for these paths is expected "
+            "and suppresses the hard-error that literal-path zero-match "
+            "would otherwise raise. See FR-006 (issue #1886)."
+        ),
+    )
     authoritative_surface: str | None = None
     scope: str | None = Field(
         default=None,

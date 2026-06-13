@@ -78,6 +78,7 @@ from specify_cli.post_merge.review_artifact_consistency import (
     review_artifact_finding_diagnostic,
     run_review_artifact_consistency_preflight,
 )
+from specify_cli.post_merge.retrospective_terminus import run_retrospective_postcondition
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
 from specify_cli.sync import emit_diff_summary_recorded, emit_mission_closed
 from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
@@ -2567,8 +2568,24 @@ def _run_lane_based_merge_locked(
     elif not stale_report.findings:
         console.print("  No likely-stale assertions detected.")
     else:
-        for finding in stale_report.findings:
-            console.print(f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} — {finding.hint}")
+        # Group by grade: actionable findings first, info-grade last (T023).
+        actionable = [f for f in stale_report.findings if f.confidence in ("high", "medium")]
+        low_grade = [f for f in stale_report.findings if f.confidence == "low"]
+        info_grade = [f for f in stale_report.findings if f.confidence == "info"]
+
+        for finding in actionable:
+            console.print(
+                f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} — {finding.hint}"
+            )
+        for finding in low_grade:
+            console.print(
+                f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} — {finding.hint}"
+            )
+        if info_grade:
+            console.print(
+                f"  Note: {len(info_grade)} message-content assertion(s) skipped "
+                "(info grade) — review manually if diagnostic text changed."
+            )
 
 
 @require_main_repo
@@ -2890,12 +2907,19 @@ def merge(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
+    # -- Post-merge: WP07/FR-007 retrospective postcondition --
+    # Fire the retrospective learning capture if retrospective.yaml was not
+    # already written by the runtime terminus (HiC or autonomous path).
+    # Fail-open: failure appends a capture_failed event but does NOT abort.
+    run_retrospective_postcondition(
+        mission_slug=resolved_feature,
+        repo_root=repo_root,
+    )
+
     # -- Post-merge: Suggest mission review and retrospective review/synthesis --
-    # The mission's retrospective.yaml is captured earlier at the runtime
-    # terminus (HiC prompt or autonomous facilitator), not by merge. The two
-    # commands below operate on an already-authored record: `summary` is a
-    # cross-mission view; `synthesize` applies any staged proposals (dry-run
-    # by default — pass `--apply` to mutate). They do not create content.
+    # The two commands below operate on an already-authored record: `summary`
+    # is a cross-mission view; `synthesize` applies any staged proposals
+    # (dry-run by default — pass `--apply` to mutate). They do not create content.
     console.print(
         "\n[cyan]Next:[/cyan] Run [bold]/spec-kitty-mission-review[/bold] "
         "to audit the merged mission for spec→code fidelity, drift, risks, and security."

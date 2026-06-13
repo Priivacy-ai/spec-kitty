@@ -12,6 +12,7 @@ authoritative-surface, and execution-mode consistency checks.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+import difflib
 import fnmatch
 import logging
 from collections.abc import Mapping
@@ -26,8 +27,10 @@ if TYPE_CHECKING:
     from specify_cli.status import WPMetadata
 
 __all__ = [
+    "GlobValidationResult",
     "ValidationResult",
     "build_wp_manifests",
+    "is_glob_pattern",
     "validate_no_overlap",
     "validate_authoritative_surface",
     "validate_execution_mode_consistency",
@@ -37,6 +40,38 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+
+
+def is_glob_pattern(path: str) -> bool:
+    """Return True when *path* contains glob metacharacters.
+
+    A path with any of ``*``, ``?``, ``[``, or ``{`` is treated as a glob
+    pattern.  A plain literal path (e.g. ``src/foo/bar.py``) has none of
+    these characters.
+    """
+    return any(c in path for c in ("*", "?", "[", "{"))
+
+
+@dataclass
+class GlobValidationResult:
+    """Result of :func:`validate_glob_matches`.
+
+    Separates hard errors (literal-path zero-match) from soft warnings
+    (glob-pattern zero-match) so the call site can route them independently.
+    """
+
+    errors: list[str] = field(default_factory=list)
+    """Literal-path entries that matched zero files — hard error."""
+    warnings: list[str] = field(default_factory=list)
+    """Glob-pattern entries that matched zero files — soft warning."""
+    info: list[str] = field(default_factory=list)
+    """Informational notes (e.g. create_intent suppression notices)."""
+
+    @property
+    def passed(self) -> bool:
+        """True when there are no hard errors."""
+        return len(self.errors) == 0
+
 
 # Paths considered "planning only" for execution_mode consistency checks.
 _PLANNING_PREFIXES = (f"{KITTY_SPECS_DIR}/", "docs/")
@@ -264,32 +299,90 @@ def build_wp_manifests(
 validate_ownership = validate_all
 
 
+def _nearest_match_suggestion(pattern: str, repo_root: Path) -> str | None:
+    """Return a nearest-match suggestion for a literal path that exists nowhere.
+
+    Collects all files under the pattern's parent directory (if the parent
+    exists) and uses :func:`difflib.get_close_matches` to find the closest
+    name.  Returns a formatted hint string or ``None`` when no candidates
+    are available.
+    """
+    path = Path(pattern)
+    parent = repo_root / path.parent
+    if not parent.is_dir():
+        return None
+    siblings = [str(p.relative_to(repo_root)) for p in parent.iterdir() if p.is_file()]
+    matches = difflib.get_close_matches(pattern, siblings, n=1, cutoff=0.5)
+    if matches:
+        return f"Did you mean '{matches[0]}'?"
+    return None
+
+
 def validate_glob_matches(
     manifests: dict[str, OwnershipManifest],
     repo_root: Path,
-) -> list[str]:
-    """Warn when owned_files globs match zero files in the repository.
+    create_intent: dict[str, list[str]] | None = None,
+) -> GlobValidationResult:
+    """Check owned_files entries against the repository for zero-match conditions.
 
-    This is a soft check — it returns warnings, not errors.  A zero-match
-    glob is not a hard failure because WPs may legitimately target files
-    that do not yet exist (new file creation), but it is suspicious enough
-    to warrant a warning so operators can verify the pattern is correct.
+    Classifies each entry as a literal path or a glob pattern, then applies
+    different severity rules:
+
+    - **Literal path + zero matches** → hard error (exit 1), with a
+      nearest-match suggestion when one can be found.  Suppressed (becomes an
+      info note) when the path appears in *create_intent* for that WP.
+    - **Glob pattern + zero matches** → soft warning (may be in-flight work).
 
     Args:
         manifests: Mapping of WP ID to OwnershipManifest.
         repo_root: Root directory of the repository for glob resolution.
+        create_intent: Optional mapping of WP ID → list of paths that are
+            planned-new-file entries.  A literal-path zero-match whose path
+            appears in this list is suppressed (no hard error).
 
     Returns:
-        List of warning messages.  Empty list means all globs matched at
-        least one file.
+        :class:`GlobValidationResult` with separate ``errors``, ``warnings``,
+        and ``info`` lists.  Call sites should emit ``errors`` to stderr and
+        exit 1 if ``result.passed`` is False.
     """
-    warnings: list[str] = []
+    _create_intent: dict[str, list[str]] = create_intent or {}
+    result = GlobValidationResult()
+
     for wp_id in sorted(manifests):
         manifest = manifests[wp_id]
+        wp_intent_paths = set(_create_intent.get(wp_id, []))
+
         for pattern in manifest.owned_files:
-            if not any(repo_root.glob(pattern)):
-                warnings.append(
+            matched = any(repo_root.glob(pattern))
+            if matched:
+                continue
+
+            if is_glob_pattern(pattern):
+                # Glob zero-match → soft warning only
+                result.warnings.append(
                     f"{wp_id}: owned_files glob '{pattern}' matches "
                     f"zero files in the repository"
                 )
-    return warnings
+            elif pattern in wp_intent_paths:
+                # Literal path suppressed by create_intent
+                result.info.append(
+                    f"{wp_id}: owned_files path '{pattern}' has no match "
+                    f"— suppressed by create_intent (planned-new-file)."
+                )
+            else:
+                # Literal path zero-match → hard error
+                suggestion = _nearest_match_suggestion(pattern, repo_root)
+                msg = (
+                    f"{wp_id}: owned_files path '{pattern}' is a literal "
+                    f"file path that matches zero files in the repository."
+                )
+                if suggestion:
+                    msg += f" {suggestion}"
+                else:
+                    msg += (
+                        " If this file will be created by this WP, add it to "
+                        "'create_intent' in the WP frontmatter."
+                    )
+                result.errors.append(msg)
+
+    return result

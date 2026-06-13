@@ -1,5 +1,5 @@
 {
-  "mission_slug": "do-dispatch-open-op-lifecycle-01KTSJ2H",
+  "mission_slug": "coordination-topology-stabilization-01KTZVQ2",
   "mission_number": "",
   "mission_type": "software-dev",
   "overall_verdict": "pending",
@@ -97,26 +97,6 @@
     {
       "criterion_id": "FR-010",
       "description": "Verify FR-010 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
-    },
-    {
-      "criterion_id": "FR-011",
-      "description": "Verify FR-011 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
-    },
-    {
-      "criterion_id": "FR-012",
-      "description": "Verify FR-012 is satisfied",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",

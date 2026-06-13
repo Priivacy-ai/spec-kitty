@@ -61,6 +61,18 @@ PRIMARY_ARTIFACT_FILES = (
 )
 _DECISION_ID_MARKER = "decision_id:"
 _ACCEPTED_READY_LANES = frozenset({"approved", "done"})
+
+# Paths written by the accept pipeline itself.  These must be excluded from the
+# git-dirty gate so that a second accept run on unchanged mission state produces
+# the same pass/fail verdict as the first (convergence / idempotency guarantee).
+# ``status.json`` is a daemon-materialized view; ``acceptance-matrix.json`` is
+# written by ``_check_lane_gates`` when ``mutate_matrix=True``.
+ACCEPT_OWNED_PATHS = frozenset(
+    {
+        "acceptance-matrix.json",
+        "status.json",
+    }
+)
 _LEGACY_NOT_DONE_LANES = ("planned", "claimed", "doing", "in_progress", "for_review")
 _ACTIONABLE_LANE_BLOCKER_HINTS = {
     "in_review": "review is still in progress; complete the review and move the work package to approved or done",
@@ -931,7 +943,19 @@ def collect_feature_summary(
     if not feature_dir.exists():
         raise AcceptanceError(f"Mission directory not found: {feature_dir}")
 
-    branch, worktree_root, primary_repo_root, git_dirty = _resolve_git_context(repo_root)
+    branch, worktree_root, primary_repo_root, git_dirty_raw = _resolve_git_context(repo_root)
+
+    # Exclude accept-owned derived paths from the dirty-tree gate so that
+    # repeated accept runs on unchanged mission state converge to the same
+    # verdict (idempotency / convergence guarantee — Issue #1883).  Paths
+    # such as acceptance-matrix.json and status.json are written by the
+    # accept pipeline itself and must not count as "unexpected" working-tree
+    # dirt on the second run.
+    git_dirty = [
+        line
+        for line in git_dirty_raw
+        if not any(line.endswith(owned) for owned in ACCEPT_OWNED_PATHS)
+    ]
 
     lanes: dict[str, list[str]] = {lane: [] for lane in LANES}
     work_packages: list[WorkPackageState] = []
@@ -1022,16 +1046,19 @@ def collect_feature_summary(
     if path_violations:
         warnings.append("Path conventions not satisfied.")
 
+    # T028: use coord-resolved read_feature_dir for lane-gate checks so that
+    # lanes.json and acceptance-matrix.json are read from the coordination
+    # worktree rather than the primary checkout when coord topology is active.
     _check_lane_gates(
         repo_root,
-        feature_dir,
+        read_feature_dir,
         branch,
         activity_issues,
         skipped_checks,
         blocked_checks,
         mutate_matrix=mutate_matrix,
     )
-    _check_workflow_run_evidence(repo_root, feature_dir, branch, activity_issues)
+    _check_workflow_run_evidence(repo_root, read_feature_dir, branch, activity_issues)
 
     normalized_unchecked_tasks = unchecked_tasks if unchecked_tasks != [f"{TASKS_FILE} missing"] else []
     recommended_fix_order = _build_recommended_fix_order(

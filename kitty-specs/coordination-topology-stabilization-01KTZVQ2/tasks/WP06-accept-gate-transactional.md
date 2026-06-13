@@ -10,9 +10,6 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
-base_branch: kitty/mission-coordination-topology-stabilization-01KTZVQ2
-base_commit: 9e5c262140e253f68f1db4514e5606bb7f4aa3f0
-created_at: '2026-06-13T08:15:33.224936+00:00'
 subtasks:
 - T025
 - T026
@@ -20,8 +17,8 @@ subtasks:
 - T028
 - T029
 - T030
-agent: claude
-shell_pid: '17617'
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "45161"
 history:
 - date: '2026-06-12'
   author: spec-kitty.tasks
@@ -196,3 +193,10 @@ spec-kitty agent action implement WP06 --agent <name>
 - **`try/finally` in accept**: If `_commit_residual_acceptance_artifacts` itself fails, the `finally` block must not swallow the original exception. Log the residue-commit failure; re-raise the original.
 - **Daemon materialization race**: `status.json` may be re-written by a concurrent daemon after the baseline snapshot. The exclusion list handles this, but confirm `status.json` is in `ACCEPT_OWNED_PATHS`.
 - **Encoding-normalization retry path** (`scripts/tasks/tasks_cli.py:157-191`): May cause a same-run self-defeat that this fix doesn't address. Explicitly defer to a follow-up if it's not in scope.
+
+## Activity Log
+
+- 2026-06-13T08:15:34Z – claude:sonnet-4-6:implementer:implementer – shell_pid=17617 – Assigned agent via action command
+- 2026-06-13T08:22:49Z – claude:sonnet-4-6:implementer:implementer – shell_pid=17617 – Ready for review: accept gate made transactional and convergent
+- 2026-06-13T08:23:19Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=45161 – Started review via action command
+- 2026-06-13T08:25:56Z – user – shell_pid=45161 – Review passed: accept gate convergent, no-commit read-only, residual commit in finally, coord-resolved feature_dir

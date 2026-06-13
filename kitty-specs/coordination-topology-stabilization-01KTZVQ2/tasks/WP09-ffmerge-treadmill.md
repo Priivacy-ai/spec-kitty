@@ -10,16 +10,13 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
-base_branch: kitty/mission-coordination-topology-stabilization-01KTZVQ2
-base_commit: 94f63978b5334f055f97fa027470b57b9db65365
-created_at: '2026-06-13T08:26:20.552621+00:00'
 subtasks:
 - T041
 - T042
 - T043
 - T044
-agent: claude
-shell_pid: '55911'
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "68084"
 history:
 - date: '2026-06-12'
   author: spec-kitty.tasks
@@ -127,3 +124,10 @@ spec-kitty agent action implement WP09 --agent <name>
 - **`advance_branch_ref` failure tolerance**: If the primary checkout has local uncommitted changes, `advance_branch_ref` may fail. Use a graceful fallback (log warning, continue) rather than aborting the parent operation.
 - **Shim removal ordering**: Do not remove `_ensure_branch_checked_out` until ALL callers are migrated and confirmed working. Run the full test suite after removal before committing.
 - **Shared `ACCEPT_OWNED_PATHS` constant**: Define this in a shared location (`specify_cli/merge/constants.py` or `specify_cli/common.py`) so both WP06 and WP09 import the same constant without duplication.
+
+## Activity Log
+
+- 2026-06-13T08:26:22Z – claude:sonnet-4-6:implementer:implementer – shell_pid=55911 – Assigned agent via action command
+- 2026-06-13T08:35:56Z – claude:sonnet-4-6:implementer:implementer – shell_pid=55911 – Ready for review: advance_branch_ref wired, ff-merge treadmill eliminated
+- 2026-06-13T08:39:02Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=68084 – Started review via action command
+- 2026-06-13T08:41:11Z – user – shell_pid=68084 – Review passed: all 4 tests pass, mypy clean (0 issues), ruff clean (0 issues), advance_branch_ref excludes COORD_OWNED_STATUS_FILES from dirty-file check, _try_advance_primary_ref wired after every COORDINATION-kind write, _ensure_branch_checked_out shim fully removed, noqa:BLE001 is narrowly scoped with inline rationale.
