@@ -1,0 +1,3 @@
+{"event": "started", "invocation_id": "01KV0FS6RZFWN4W3XMNKKQSE29", "profile_id": "debugger-debbie", "action": "advise", "request_text": "Adversarial defect hunt on #1908 PR diff", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "4fcdb36690b54955", "governance_context_available": true, "started_at": "2026-06-13T12:37:21.779019+00:00"}
+{"event": "completed", "invocation_id": "01KV0FS6RZFWN4W3XMNKKQSE29", "completed_at": "2026-06-13T12:43:11.530051+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "artifact_link", "invocation_id": "01KV0FS6RZFWN4W3XMNKKQSE29", "at": "2026-06-13T12:43:11.530261+00:00", "kind": "artifact", "ref": "kitty-specs/name-vs-authority-remediation-01KTYGTE/research/postpr-debbie-defects.md"}
