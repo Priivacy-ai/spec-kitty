@@ -311,3 +311,54 @@ def test_terminal_lane_rejected_artifact_helper_ignores_non_rejected_latest(tmp_
 
     assert rejected_review_artifact_for_terminal_lane(tmp_path, "approved") is None
     assert rejected_review_artifact_for_terminal_lane(tmp_path, "for_review") is None
+
+
+def _write_rejected_with_override(
+    path: Path,
+    *,
+    actor: str | None = "operator",
+    reason: str | None = "cycle1 verified: blocker resolved, all gates green",
+) -> None:
+    """Write a rejected review-cycle artifact carrying an approval-override block.
+
+    Mirrors what the approval gate (``move-task --to approved`` over a rejected
+    latest) stamps onto the artifact via ``_persist_review_artifact_override``.
+    """
+    _sample_artifact(cycle_number=1, verdict="rejected").write(path)
+    text = path.read_text(encoding="utf-8")
+    lines = ["review_artifact_override_at: '2026-06-13T17:24:12Z'"]
+    if actor is not None:
+        lines.append(f"review_artifact_override_actor: '{actor}'")
+    if reason is not None:
+        lines.append(f"review_artifact_override_reason: '{reason}'")
+    block = "\n".join(lines) + "\n"
+    # Inject the override keys into the YAML frontmatter (before the closing ---).
+    closing = text.index("\n---", 3)
+    path.write_text(text[:closing] + "\n" + block.rstrip("\n") + text[closing:], encoding="utf-8")
+
+
+def test_complete_override_is_honored_for_terminal_lane(tmp_path: Path) -> None:
+    """#1924: a rejected latest with a complete override is NOT a merge conflict."""
+    _write_rejected_with_override(tmp_path / "review-cycle-1.md")
+
+    state = latest_review_artifact_verdict(tmp_path)
+    assert state is not None
+    assert state.verdict == "rejected"
+    assert state.has_override is True
+
+    # The approval gate honored the override; the terminal-lane gate must too.
+    assert rejected_review_artifact_for_terminal_lane(tmp_path, "approved") is None
+    assert rejected_review_artifact_for_terminal_lane(tmp_path, "done") is None
+
+
+def test_incomplete_override_still_flags_rejected_terminal_lane(tmp_path: Path) -> None:
+    """An override missing the reason is incomplete and must NOT suppress the flag."""
+    _write_rejected_with_override(tmp_path / "review-cycle-1.md", reason=None)
+
+    state = latest_review_artifact_verdict(tmp_path)
+    assert state is not None
+    assert state.has_override is False
+
+    flagged = rejected_review_artifact_for_terminal_lane(tmp_path, "approved")
+    assert flagged is not None
+    assert flagged.verdict == "rejected"

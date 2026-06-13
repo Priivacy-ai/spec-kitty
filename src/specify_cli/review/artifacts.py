@@ -77,6 +77,7 @@ class LatestReviewArtifactVerdict:
     path: Path
     cycle_number: int
     verdict: str
+    has_override: bool = False  # complete approval override stamped on the artifact
 
 
 @dataclass(frozen=True)
@@ -96,6 +97,22 @@ class ReviewCycleArtifact:
     affected_files: list[AffectedFile] = field(default_factory=list)
     reproduction_command: str | None = None
     body: str = ""  # markdown body (not in frontmatter)
+    # Operator/arbiter override stamped onto a rejected artifact by the approval
+    # gate (``agent tasks move-task --to approved`` over a rejected latest). When
+    # present and complete, the override IS the approval record — terminal-lane
+    # consistency gates must honor it just as the approval gate does (see #1924).
+    override_actor: str | None = None
+    override_reason: str | None = None
+
+    @property
+    def has_complete_override(self) -> bool:
+        """True iff a complete approval override (actor + reason) is stamped on."""
+        return bool(
+            self.override_actor
+            and self.override_actor.strip()
+            and self.override_reason
+            and self.override_reason.strip()
+        )
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize frontmatter fields to dict with sorted keys."""
@@ -115,7 +132,7 @@ class ReviewCycleArtifact:
     def from_dict(cls, data: dict[str, Any], body: str = "") -> ReviewCycleArtifact:
         """Deserialize from frontmatter dict and optional body string."""
         cycle_number = data.get("cycle_number")
-        if isinstance(cycle_number, bool):
+        if cycle_number is None or isinstance(cycle_number, bool):
             raise ValueError("cycle_number must be a positive integer")
         try:
             parsed_cycle_number = int(cycle_number)
@@ -150,6 +167,11 @@ class ReviewCycleArtifact:
             AffectedFile.from_dict(af)
             for af in affected_files_data
         ]
+        # Optional approval-override block (written by the approval gate onto a
+        # rejected artifact when move-task --to approved applies an arbiter/operator
+        # override). Tolerant parse: non-string values are treated as absent.
+        override_actor = data.get("review_artifact_override_actor")
+        override_reason = data.get("review_artifact_override_reason")
         return cls(
             cycle_number=parsed_cycle_number,
             wp_id=wp_id,
@@ -160,6 +182,8 @@ class ReviewCycleArtifact:
             affected_files=affected_files,
             reproduction_command=reproduction_command,
             body=body,
+            override_actor=override_actor if isinstance(override_actor, str) else None,
+            override_reason=override_reason if isinstance(override_reason, str) else None,
         )
 
     def write(self, path: Path) -> None:
@@ -283,6 +307,7 @@ def latest_review_artifact_verdict(sub_artifact_dir: Path) -> LatestReviewArtifa
         path=path,
         cycle_number=artifact.cycle_number,
         verdict=artifact.verdict,
+        has_override=artifact.has_complete_override,
     )
 
 
@@ -290,10 +315,19 @@ def rejected_review_artifact_for_terminal_lane(
     sub_artifact_dir: Path,
     lane: str,
 ) -> LatestReviewArtifactVerdict | None:
-    """Return the latest rejected artifact when a WP is approved or done."""
+    """Return the latest rejected artifact when a WP is approved or done.
+
+    A rejected artifact carrying a complete approval override (actor + reason) is
+    NOT a conflict: the override is the recorded approval that the approval gate
+    honored, so the terminal-lane consistency gate must honor it too (#1924).
+    """
     state = latest_review_artifact_verdict(sub_artifact_dir)
     if state is None:
         return None
-    if str(lane) in TERMINAL_REVIEW_LANES and state.verdict == "rejected":
+    if (
+        str(lane) in TERMINAL_REVIEW_LANES
+        and state.verdict == "rejected"
+        and not state.has_override
+    ):
         return state
     return None
