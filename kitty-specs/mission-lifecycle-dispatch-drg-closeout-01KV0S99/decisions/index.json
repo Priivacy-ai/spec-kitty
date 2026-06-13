@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-06-13T15:55:36.554944Z",
+      "decision_id": "01KV0V47QA5A4G2H4P2B0GC6Q3",
+      "final_answer": "Extend FSM + events: add MissionReopened/FollowUpRecorded events to the canonical status event log; mission reopen = recorded, reversible force-transition out of terminal done/merged to an actionable lane (force+evidence); mission follow-up links commit/PR to original mission_id. Reuses status FSM, reducer, meta.json identity.",
+      "input_key": "post_mission_lifecycle_surface",
+      "mission_id": "01KV0S99EAKC82W00WR5MMETPN",
+      "mission_slug": "mission-lifecycle-dispatch-drg-closeout-01KV0S99",
+      "opened_by": "cli",
+      "options": [
+        "Extend FSM + lifecycle events",
+        "Linked-artifact + new residual mission",
+        "Follow-up only; split re-open to child"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How should the #1802 post-mission lifecycle surface (follow-up recording + mission re-open) be modeled?",
+      "rationale": null,
+      "resolved_at": "2026-06-13T16:05:21.309990Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.post-mission-lifecycle-surface",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KV0S99EAKC82W00WR5MMETPN",
+  "version": 1
+}

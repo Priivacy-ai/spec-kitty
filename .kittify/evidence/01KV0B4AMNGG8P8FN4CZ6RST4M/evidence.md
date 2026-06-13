@@ -1,0 +1,1 @@
+Added actionable next_step to MissionNotFoundError (runtime_bridge.py) + surfaced it in next_cmd._emit_mission_not_found_error (JSON next_step key + human 'Next:' line). 3 new ATDD tests RED->GREEN. #1910 contract tests stay green (.handle/.error_code preserved). ruff clean, mypy zero-new on touched files, tests/next 500 pass, architectural 361 pass. Commit 866bb9303.

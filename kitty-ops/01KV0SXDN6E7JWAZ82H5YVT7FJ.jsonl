@@ -1,0 +1,3 @@
+{"event": "started", "invocation_id": "01KV0SXDN6E7JWAZ82H5YVT7FJ", "profile_id": "python-pedro", "action": "generate", "request_text": "Rebase Lynn's PR #1920 (--lenient accept path conventions) onto post-#1908 upstream/main", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "3200a46c535a9701", "governance_context_available": true, "started_at": "2026-06-13T15:34:25.655362+00:00"}
+{"event": "completed", "invocation_id": "01KV0SXDN6E7JWAZ82H5YVT7FJ", "completed_at": "2026-06-13T15:38:21.547668+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "commit_link", "invocation_id": "01KV0SXDN6E7JWAZ82H5YVT7FJ", "at": "2026-06-13T15:38:21.547802+00:00", "sha": "07aa0710b7898370d73a6373e5235d81a6df8678"}

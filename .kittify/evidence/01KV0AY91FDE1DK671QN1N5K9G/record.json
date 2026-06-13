@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KV0AY91FDE1DK671QN1N5K9G",
+  "completed_at": "2026-06-13T11:20:13.264948+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "Fixed #1912: write_pipeline.promote() and resynthesize_pipeline.run() now skip live-tree writes for provenance/manifest/graph when content is unchanged modulo volatile fields (produced_at/synthesizer_version/run_id/manifest_hash/synthesis_run_id/generated_at). Added _strip_volatile + _substantively_equal helpers. Regression test TestNoOpStableSynthesis RED->GREEN (8 files churned -> 0). ruff clean, mypy --strict zero new errors in touched files, 417 charter synth tests pass. Commit dccd50d4e on fix/charter-synthesis-determinism; PR #1913."
+}
