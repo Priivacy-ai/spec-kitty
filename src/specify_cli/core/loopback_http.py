@@ -13,11 +13,12 @@ __all__ = [
 ]
 
 LOOPBACK_HOST = "127.0.0.1"
+LOOPBACK_BASE_URL = f"http://{LOOPBACK_HOST}"
 
 
 def build_loopback_base_url(port: int) -> str:
     """Return the loopback origin (no trailing slash) for path concatenation."""
-    return f"http://{LOOPBACK_HOST}:{port}"
+    return f"{LOOPBACK_BASE_URL}:{port}"
 
 
 def build_loopback_url(port: int, path: str) -> str:
