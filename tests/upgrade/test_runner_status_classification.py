@@ -345,3 +345,62 @@ def test_worktree_skipped_migration_keeps_last_upgraded_at_stable_on_rerun(
     skipped = [m for m in after_second.applied_migrations if m.id == migration.migration_id]
     assert len(skipped) == 1
     assert after_second.last_upgraded_at == stamp_first
+
+
+# ---------------------------------------------------------------------------
+# Issue #1871: compare-before-write at the metadata boundary. A no-op upgrade
+# must not churn metadata.yaml (bytes/mtime) or advance last_upgraded_at.
+# ---------------------------------------------------------------------------
+
+
+def test_save_skips_write_when_only_timestamp_changes(tmp_path: Path) -> None:
+    """save() is a no-op when only last_upgraded_at would change (issue #1871)."""
+    kdir = tmp_path / ".kittify"
+    kdir.mkdir()
+    metadata = ProjectMetadata(version="1.0.0", initialized_at=datetime(2026, 1, 1))
+
+    assert metadata.save(kdir) is True  # first write
+    path = kdir / "metadata.yaml"
+    before = path.read_bytes()
+
+    # Only the volatile timestamp differs → masked-equal → skip the write.
+    metadata.last_upgraded_at = datetime(2026, 6, 13, 12, 0, 0)
+    assert metadata.save(kdir) is False
+    assert path.read_bytes() == before
+
+    # A material change (version) is written.
+    metadata.version = "2.0.0"
+    assert metadata.save(kdir) is True
+    assert path.read_bytes() != before
+
+
+def test_root_upgrade_no_op_keeps_metadata_stable(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    """Re-running a no-op upgrade does not rewrite root metadata.yaml (issue #1871)."""
+    project_path = _setup_project(tmp_path)
+    migration = _NotNeededMigration()
+
+    def _run() -> None:
+        runner = MigrationRunner(project_path)
+        monkeypatch.setattr(runner.detector, "detect_version", lambda: "1.0.0")
+        monkeypatch.setattr(
+            "specify_cli.upgrade.runner.MigrationRegistry.get_applicable",
+            lambda _from, _to, project_path=None: [migration],  # noqa: ARG005
+        )
+        runner.upgrade("9.9.9", include_worktrees=False)
+
+    _run()
+    path = project_path / ".kittify" / "metadata.yaml"
+    after_first = path.read_bytes()
+    meta_first = ProjectMetadata.load(project_path / ".kittify")
+    assert meta_first is not None
+    stamp_first = meta_first.last_upgraded_at
+
+    _run()
+    # Byte-identical: neither save() nor _stamp_schema_version rewrote it.
+    assert path.read_bytes() == after_first
+    meta_second = ProjectMetadata.load(project_path / ".kittify")
+    assert meta_second is not None
+    assert meta_second.last_upgraded_at == stamp_first
