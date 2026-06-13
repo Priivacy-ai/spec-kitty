@@ -17,7 +17,7 @@
   "created_at": "2026-06-12T18:17:00.979114+00:00",
   "friendly_name": "name vs authority remediation",
   "mission_id": "01KTYGTE9JV0212WFJ2K82BQ8J",
-  "mission_number": 132,
+  "mission_number": 133,
   "mission_slug": "name-vs-authority-remediation-01KTYGTE",
   "mission_type": "software-dev",
   "purpose_context": "This mission advances name vs authority remediation on feat/doctrine-glossary-consolidation-01KTNWFC so stakeholders can track the work from mission creation onward.",
