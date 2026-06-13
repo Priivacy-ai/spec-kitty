@@ -400,16 +400,26 @@ class TestQueryCurrentStateErrorPaths:
     unreachable via CLI-level tests.
     """
 
-    def test_missing_feature_dir_returns_unknown_state(self, tmp_path: Path) -> None:
-        """Line 575: feature_dir does not exist → Decision with mission_state='unknown'."""
-        from specify_cli.next.runtime_bridge import query_current_state
+    def test_missing_feature_dir_raises_mission_not_found(self, tmp_path: Path) -> None:
+        """Missing mission dirs fail closed instead of emitting synthetic unknown state."""
+        from specify_cli.next.runtime_bridge import MissionNotFoundError, query_current_state
 
         # tmp_path / "kitty-specs" / "069-missing" does NOT exist
-        decision = query_current_state("claude", "069-missing", tmp_path)
+        with pytest.raises(MissionNotFoundError, match="069-missing"):
+            query_current_state("claude", "069-missing", tmp_path)
 
-        assert decision.is_query is True
-        assert decision.mission_state == "unknown"
-        assert decision.kind == "query"
+    def test_resolved_missing_feature_dir_raises_mission_not_found(self, tmp_path: Path) -> None:
+        """Resolved-but-absent paths also fail closed."""
+        from specify_cli.next.runtime_bridge import MissionNotFoundError, query_current_state
+
+        missing = tmp_path / "kitty-specs" / "069-missing"
+
+        with patch(
+            "mission_runtime.resolve_action_context",
+            return_value=SimpleNamespace(feature_dir=str(missing)),
+        ):
+            with pytest.raises(MissionNotFoundError, match="069-missing"):
+                query_current_state("claude", "069-missing", tmp_path)
 
     def test_ephemeral_query_run_exception_raises_validation_error(self, tmp_path: Path) -> None:
         """Fresh-query bootstrap failures surface an actionable query error."""

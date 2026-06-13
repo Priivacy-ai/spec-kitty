@@ -1276,6 +1276,12 @@ class TestOwnershipOverlapAcceptance:
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """A codebase-wide WP overlapping a narrow WP passes (end-to-end #1753)."""
+        # Create the literal-path file so the glob-match validator doesn't
+        # raise a hard error for a non-existent path (FR-006 / WP04).
+        bar_py = tmp_path / "src" / "foo" / "bar.py"
+        bar_py.parent.mkdir(parents=True, exist_ok=True)
+        bar_py.write_text("# placeholder\n", encoding="utf-8")
+
         _write_overlap_feature(
             tmp_path,
             wps=[

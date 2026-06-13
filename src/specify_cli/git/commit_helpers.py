@@ -67,7 +67,7 @@ capability, not a message convention.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
 import contextlib
 import logging
 import os
@@ -291,6 +291,33 @@ class ProtectedBranchRefused(SafeCommitError):
             worktree_root=worktree_root,
         )
         self.commit_message = commit_message
+
+
+class SafeCommitPathPolicyError(SafeCommitError):
+    """A requested path violates the safe_commit path policy.
+
+    FR-005 / Issue #1887: paths under ``.worktrees/`` must never be staged via
+    ``git add`` from the primary repo root. They are coordination-worktree
+    artefacts; committing them from the primary checkout leaks internal paths
+    into ``origin/main``. This error fires BEFORE staging, so the index is
+    never mutated.
+    """
+
+    error_code = "SAFE_COMMIT_PATH_POLICY"
+
+    def __init__(self, *, offending_path: str, worktree_root: Path) -> None:
+        message = (
+            f"safe_commit: refusing to stage path under .worktrees/: {offending_path}. "
+            "Planning artifacts must be committed from the coordination worktree, "
+            "not the primary repo root."
+        )
+        super().__init__(message, worktree_root=worktree_root)
+        self.offending_path = offending_path
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = super().to_dict()
+        payload["offending_path"] = self.offending_path
+        return payload
 
 
 # ---------------------------------------------------------------------------
@@ -959,6 +986,16 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
             with contextlib.suppress(ValueError):
                 candidate = candidate.resolve().relative_to(resolved_worktree_root)
         normalized_files.append(str(candidate))
+
+    # 6a. Path policy: reject any path under .worktrees/ before staging.
+    # FR-005 / Issue #1887: .worktrees/ paths must never be staged from the
+    # primary repo root. Fires before any index mutation so the index is clean.
+    for _norm_path in normalized_files:
+        if Path(_norm_path).parts and Path(_norm_path).parts[0] == WORKTREES_DIR:
+            raise SafeCommitPathPolicyError(
+                offending_path=_norm_path,
+                worktree_root=worktree_root,
+            )
 
     # 6. Protected-branch check. The protection DECISION is made SOLELY by the
     #    SK policy module (``commit_guard.evaluate``) — the ONE decision

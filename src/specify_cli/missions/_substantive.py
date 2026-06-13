@@ -18,7 +18,10 @@ from __future__ import annotations
 import re
 import subprocess
 from pathlib import Path
-from typing import Final, Literal
+from typing import TYPE_CHECKING, Final, Literal
+
+if TYPE_CHECKING:
+    from mission_runtime import CommitTarget
 
 Kind = Literal["spec", "plan"]
 
@@ -211,18 +214,63 @@ def is_substantive(file_path: Path, kind: Kind) -> bool:
     raise ValueError(f"Unknown kind: {kind!r}")
 
 
-def is_committed(file_path: Path, repo_root: Path) -> bool:
+def is_committed(
+    file_path: Path,
+    repo_root: Path,
+    placement: CommitTarget | None = None,
+) -> bool:
     """Return True iff ``file_path`` is git-tracked AND present at HEAD.
 
     Both conditions must hold: a file freshly added to the index but not yet
     committed will return False. A previously-committed file that has since
     been deleted from the index also returns False.
+
+    Args:
+        file_path: The file to check for commit presence.
+        repo_root: The repository root used for git operations.
+        placement: Optional :class:`~mission_runtime.CommitTarget` that
+            carries coordination-topology information.  When provided and
+            the target's ``kind`` is ``COORDINATION``, the coordination
+            branch ref is checked first (``git cat-file -e <ref>:<rel>``).
+            If the file is found there, ``True`` is returned immediately
+            without falling back to HEAD.  Flat-topology callers that pass
+            no ``placement`` receive the original HEAD-only behaviour.
+
+    Returns:
+        ``True`` iff the file is committed to the coordination branch (when
+        applicable) or to ``HEAD``.
     """
     try:
         rel = file_path.resolve().relative_to(repo_root.resolve())
     except ValueError:
         return False
     rel_str = str(rel)
+
+    # Coord-topology fast path: check the coordination branch before HEAD.
+    # OR logic: committed to *either* branch counts as committed.
+    if placement is not None:
+        # Avoid importing CommitTargetKind at module-level (circular-import
+        # risk); the attribute read is safe because CommitTarget is a frozen
+        # dataclass with a guaranteed ``kind`` field.
+        from mission_runtime import CommitTargetKind
+
+        try:
+            coord_ref = placement.ref if placement.kind is CommitTargetKind.COORDINATION else None
+        except AttributeError:
+            coord_ref = None
+
+        if coord_ref is not None:
+            try:
+                subprocess.run(
+                    ["git", "-C", str(repo_root), "cat-file", "-e", f"{coord_ref}:{rel_str}"],
+                    check=True,
+                    capture_output=True,
+                )
+                return True
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                pass  # fall through to HEAD check
+
+    # Primary HEAD check (flat topology or coord-branch miss).
     try:
         subprocess.run(
             ["git", "-C", str(repo_root), "ls-files", "--error-unmatch", rel_str],

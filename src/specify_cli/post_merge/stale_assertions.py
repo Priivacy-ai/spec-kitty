@@ -30,7 +30,7 @@ from typing import Literal
 # Public types (re-exported from __init__.py)
 # ---------------------------------------------------------------------------
 
-Confidence = Literal["high", "medium", "low"]
+Confidence = Literal["high", "medium", "low", "info"]
 
 # FR-003: never produce this value — it is listed here only to document what
 # the analyzer MUST NOT emit.
@@ -51,9 +51,11 @@ class StaleAssertionFinding:
     confidence: Confidence  # "high" | "medium" | "low"
     hint: str             # one-line human-readable explanation (no newlines)
 
+    label: str = ""       # optional classifier label (e.g. "message-content-check")
+
     def __post_init__(self) -> None:
-        assert self.confidence in ("high", "medium", "low"), (
-            f"confidence must be 'high', 'medium', or 'low', got {self.confidence!r}"
+        assert self.confidence in ("high", "medium", "low", "info"), (
+            f"confidence must be 'high', 'medium', 'low', or 'info', got {self.confidence!r}"
         )
         assert "\n" not in self.hint, "hint must be a single line"
 
@@ -347,19 +349,68 @@ def _node_contains_literal(node: ast.AST, literal: str) -> bool:
     )
 
 
+def _is_message_capture_expr(node: ast.expr) -> bool:
+    """Return True if *node* is a message-capture expression.
+
+    A message-capture expression is one whose value is the text of an
+    exception message, output stream, or similar diagnostic channel.
+    When a removed literal appears as the *right-hand* operand of an ``in``
+    comparison whose *left-hand* operand is a message-capture expression,
+    the assertion is checking diagnostic text — not a stale constant — so
+    the finding should be downgraded to ``info`` grade.
+
+    Recognised patterns:
+    - ``str(<expr>)`` / ``repr(<expr>)``
+    - ``<expr>.message`` / ``.stderr`` / ``.stdout`` / ``.output`` / ``.value``
+    - ``capsys.readouterr().out`` / ``capsys.readouterr().err``
+    """
+    # str(...) or repr(...)
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in ("str", "repr"):
+        return True
+
+    # <expr>.message / .stderr / .stdout / .output / .value
+    if isinstance(node, ast.Attribute) and node.attr in ("message", "stderr", "stdout", "output", "value"):
+        return True
+
+    # capsys.readouterr().out or capsys.readouterr().err
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Call):
+        call = node.value
+        if isinstance(call.func, ast.Attribute) and call.func.attr == "readouterr":
+            return True
+
+    return False
+
+
 def _literal_findings_for_assertion(
     assertion: ast.AST,
     line: int,
-    changed_literals: dict[str, _SourceSymbol],
+    changed_literals: dict[str, list[_SourceSymbol]],
     test_path: Path,
 ) -> list[StaleAssertionFinding]:
-    """Return low-confidence findings for changed literals in one assertion."""
+    """Return findings for changed literals in one assertion.
+
+    Most findings are emitted at ``low`` confidence.  When the removed literal
+    is the right-hand operand of an ``in``/``not in`` comparison whose
+    left-hand operand is a message-capture expression (FR-009), the finding is
+    downgraded to ``info`` grade with label ``message-content-check`` so it
+    does not trigger CI noise while still being auditable.
+    """
     findings: list[StaleAssertionFinding] = []
     constants_in_assertion = _constants_in_subtree(assertion)
-    for lit_val, sym in changed_literals.items():
+    for lit_val, syms in changed_literals.items():
         if _assertion_negatively_checks_literal_absence(assertion, lit_val):
             continue
-        if lit_val in constants_in_assertion:
+        if lit_val not in constants_in_assertion:
+            continue
+
+        # Determine whether this is a message-content check (FR-009).
+        grade: Confidence = "low"
+        label = ""
+        if _assertion_checks_literal_in_message_expr(assertion, lit_val):
+            grade = "info"
+            label = "message-content-check"
+
+        for sym in syms:
             findings.append(
                 StaleAssertionFinding(
                     test_file=test_path,
@@ -367,14 +418,46 @@ def _literal_findings_for_assertion(
                     source_file=sym.source_file,
                     source_line=sym.source_line,
                     changed_symbol=lit_val,
-                    confidence="low",
+                    confidence=grade,
                     hint=(
                         f"Assertion contains string literal {lit_val!r} which was "
                         f"removed from {sym.source_file.name}:{sym.source_line}"
                     ),
+                    label=label,
                 )
             )
     return findings
+
+
+def _assertion_checks_literal_in_message_expr(
+    assertion: ast.AST, literal: str
+) -> bool:
+    """Return True when the assertion checks *literal* membership in a message-capture expression.
+
+    Handles both orientations of the ``in`` operator:
+
+    - ``assert "literal" in str(exc)``   → left=literal, comparator=message-capture
+    - ``assert "literal" in result.stderr`` → same pattern
+
+    Walks all ``ast.Compare`` nodes inside *assertion* and checks whether any
+    ``in``/``not in`` comparison involves *literal* on one side and a
+    message-capture expression on the other.
+    """
+    for node in ast.walk(assertion):
+        if not isinstance(node, ast.Compare):
+            continue
+        for op, comparator in zip(node.ops, node.comparators, strict=False):
+            if not isinstance(op, (ast.In, ast.NotIn)):
+                continue
+            # Pattern: "literal" in <message-capture>
+            # AST: left="literal", comparator=message-capture
+            if _node_contains_literal(node.left, literal) and _is_message_capture_expr(comparator):
+                return True
+            # Pattern: <message-capture> in "literal"  (unusual but possible)
+            # AST: left=message-capture, comparator="literal"
+            if _node_contains_literal(comparator, literal) and _is_message_capture_expr(node.left):
+                return True
+    return False
 
 
 def _get_node_line(node: ast.AST) -> int:
@@ -427,12 +510,17 @@ def _scan_test_file(
     assertion_nodes = _collect_assertion_nodes(tree)
 
     # Build lookup sets for efficiency.
+    # changed_identifiers: last-wins is acceptable because identifiers are
+    # deduplicated by name (a renamed function has a single canonical removal).
     changed_identifiers = {
         sym.name: sym for sym in changed_symbols if sym.kind == "identifier"
     }
-    changed_literals = {
-        sym.name: sym for sym in changed_symbols if sym.kind == "literal"
-    }
+    # changed_literals: collect ALL removal sites so multi-file removals are
+    # fully reported (fixes last-wins dict bug — T022).
+    changed_literals: dict[str, list[_SourceSymbol]] = {}
+    for sym in changed_symbols:
+        if sym.kind == "literal":
+            changed_literals.setdefault(sym.name, []).append(sym)
 
     for assertion in assertion_nodes:
         line = _get_node_line(assertion)

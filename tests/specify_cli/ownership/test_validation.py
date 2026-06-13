@@ -247,17 +247,19 @@ class TestValidateAll:
 
 class TestValidateGlobMatches:
     def test_nonexistent_glob_emits_warning(self, tmp_path: Path) -> None:
-        """A glob that matches no files must produce a warning."""
+        """A zero-match glob pattern must produce a warning (not a hard error)."""
         manifests = {
             "WP01": _manifest(
                 owned=("nonexistent_dir/**",),
                 surface="nonexistent_dir/",
             ),
         }
-        warnings = validate_glob_matches(manifests, tmp_path)
-        assert len(warnings) == 1
-        assert "WP01" in warnings[0]
-        assert "nonexistent_dir/**" in warnings[0]
+        result = validate_glob_matches(manifests, tmp_path)
+        # Glob patterns are soft warnings — command still passes
+        assert result.passed, f"Glob zero-match should not be a hard error: {result.errors}"
+        assert len(result.warnings) == 1
+        assert "WP01" in result.warnings[0]
+        assert "nonexistent_dir/**" in result.warnings[0]
 
     def test_existing_glob_no_warning(self, tmp_path: Path) -> None:
         """A glob that matches at least one file must produce no warning."""
@@ -269,8 +271,10 @@ class TestValidateGlobMatches:
         manifests = {
             "WP01": _manifest(owned=("src/**",), surface="src/"),
         }
-        warnings = validate_glob_matches(manifests, tmp_path)
-        assert warnings == []
+        result = validate_glob_matches(manifests, tmp_path)
+        assert result.passed
+        assert result.warnings == []
+        assert result.errors == []
 
     def test_multiple_globs_one_missing_warns(self, tmp_path: Path) -> None:
         """Only the missing glob gets a warning; existing one is fine."""
@@ -285,13 +289,16 @@ class TestValidateGlobMatches:
                 authoritative_surface="src/",
             ),
         }
-        warnings = validate_glob_matches(manifests, tmp_path)
-        assert len(warnings) == 1
-        assert "missing_path/**" in warnings[0]
+        result = validate_glob_matches(manifests, tmp_path)
+        assert result.passed  # glob warnings don't fail passed
+        assert len(result.warnings) == 1
+        assert "missing_path/**" in result.warnings[0]
 
     def test_empty_manifests_no_warnings(self, tmp_path: Path) -> None:
-        warnings = validate_glob_matches({}, tmp_path)
-        assert warnings == []
+        result = validate_glob_matches({}, tmp_path)
+        assert result.passed
+        assert result.warnings == []
+        assert result.errors == []
 
     def test_warnings_sorted_by_wp_id(self, tmp_path: Path) -> None:
         """Warnings are emitted in sorted WP ID order."""
@@ -299,10 +306,11 @@ class TestValidateGlobMatches:
             "WP02": _manifest(owned=("miss_b/**",), surface="miss_b/"),
             "WP01": _manifest(owned=("miss_a/**",), surface="miss_a/"),
         }
-        warnings = validate_glob_matches(manifests, tmp_path)
-        assert len(warnings) == 2
-        assert warnings[0].startswith("WP01")
-        assert warnings[1].startswith("WP02")
+        result = validate_glob_matches(manifests, tmp_path)
+        assert result.passed
+        assert len(result.warnings) == 2
+        assert result.warnings[0].startswith("WP01")
+        assert result.warnings[1].startswith("WP02")
 
 
 # ---------------------------------------------------------------------------

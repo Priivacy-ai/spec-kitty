@@ -21,6 +21,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+import typer
 
 from specify_cli.acceptance.matrix import (
     AcceptanceCriterion,
@@ -265,6 +266,41 @@ def test_accept_clean_tree_without_negative_invariant(
 
     porcelain = _porcelain(repo_root)
     assert porcelain == "", f"accept left a dirty working tree:\n{porcelain}"
+
+
+def test_accept_fails_when_residual_commit_fails_after_success(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A successful accept must not hide residual commit failure."""
+    repo_root = (tmp_path / "repo").resolve()
+    repo_root.mkdir()
+    _create_lane_feature(repo_root, with_negative_invariant=True)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
+    monkeypatch.chdir(repo_root)
+
+    def fail_residual_commit(_repo_root: Path, _mission_slug: str) -> bool:
+        raise RuntimeError("forced residual failure")
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.accept._commit_residual_acceptance_artifacts",
+        fail_residual_commit,
+    )
+
+    with pytest.raises(typer.Exit) as exc_info:
+        accept(
+            mission=_SLUG,
+            feature=None,
+            mode="auto",
+            actor="tester",
+            test=[],
+            json_output=True,
+            lenient=False,
+            no_commit=False,
+            diagnose=False,
+            allow_fail=False,
+        )
+
+    assert exc_info.value.exit_code == 1
 
 
 def test_residual_acceptance_commit_is_scoped_to_mission_paths(

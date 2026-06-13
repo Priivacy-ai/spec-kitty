@@ -258,6 +258,46 @@ work_package_id: WP01
     assert stats["planned"] == 0
 
 
+@pytest.mark.fast
+def test_process_wp_file_uses_frontmatter_title_without_prompt_header(tmp_path):
+    feature_dir = tmp_path / "kitty-specs" / "001-frontmatter-title"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    prompt_file = tasks_dir / "WP01-demo.md"
+    prompt_file.write_text(
+        "---\n"
+        "work_package_id: WP01\n"
+        "title: Frontmatter Demo Title\n"
+        "---\n\n"
+        "Body without a Work Package Prompt header.\n",
+        encoding="utf-8",
+    )
+    _set_wp_lane(feature_dir, "WP01", "planned")
+
+    task = scanner._process_wp_file(prompt_file, tmp_path, "planned")
+
+    assert task is not None
+    assert task["title"] == "Frontmatter Demo Title"
+
+
+@pytest.mark.fast
+def test_process_wp_file_falls_back_to_stem_without_title_or_prompt_header(tmp_path):
+    feature_dir = tmp_path / "kitty-specs" / "001-stem-title"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    prompt_file = tasks_dir / "WP01-demo.md"
+    prompt_file.write_text(
+        "---\nwork_package_id: WP01\n---\n\nBody without a Work Package Prompt header.\n",
+        encoding="utf-8",
+    )
+    _set_wp_lane(feature_dir, "WP01", "planned")
+
+    task = scanner._process_wp_file(prompt_file, tmp_path, "planned")
+
+    assert task is not None
+    assert task["title"] == "WP01-demo"
+
+
 def test_process_wp_file_raises_without_canonical_log_for_nonlegacy(tmp_path, monkeypatch):
     """A non-legacy WP with no canonical event log surfaces CanonicalStatusNotFoundError."""
     from specify_cli.status import CanonicalStatusNotFoundError

@@ -1,0 +1,16 @@
+{
+  "baseline_merge_commit": "b81e9eae94514833adba9960ac3a33a04c18ab2c",
+  "coordination_branch": "kitty/mission-coordination-topology-stabilization-01KTZVQ2",
+  "created_at": "2026-06-13T06:46:39.469648+00:00",
+  "friendly_name": "Coordination Topology Stabilization",
+  "mission_id": "01KTZVQ2KB742M37VB5V2380CN",
+  "mission_number": 132,
+  "mission_slug": "coordination-topology-stabilization-01KTZVQ2",
+  "mission_type": "software-dev",
+  "purpose_context": "The coordination branch topology (introduced in 3.x) separates write paths onto a coordination branch while read paths and gates still anchor on the primary checkout. This mismatch has produced eight confirmed defects (issues #1164, #1878, #1883–#1888) that together prevent operators from completing a mission lifecycle without manual workarounds: a non-convergent accept gate, a coordination-blind setup-plan gate, 26 leaked .worktrees/ paths tracked on origin/main, a silent exit-0 stub for mission-not-found, stale-assertion false positives, unconsumed ownership warnings, and a retrospective that never fires on the dominant merge path. Fixing these restores the invariant that the spec-kitty toolchain is self-consistent and operator-trustworthy across the coordination topology.",
+  "purpose_tldr": "Fix eight confirmed defects blocking reliable use of the coordination topology, including self-defeating accept gates, index leakage, silent failure modes, and a missing retrospective trigger.",
+  "slug": "coordination-topology-stabilization-01KTZVQ2",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-13T07:58:38.056208+00:00"
+}

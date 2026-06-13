@@ -741,7 +741,12 @@ def _process_wp_file(
         return None
 
     title_match = re.search(r"^#\s+Work Package Prompt:\s+(.+)$", content, re.MULTILINE)
-    title = title_match.group(1) if title_match else prompt_file.stem
+    if title_match:
+        title = title_match.group(1)
+    elif wp_meta_dict.title is not None:
+        title = wp_meta_dict.title.strip()
+    else:
+        title = prompt_file.stem
 
     wp_id = wp_meta_dict.work_package_id
     from specify_cli.status import has_event_log, get_wp_lane
