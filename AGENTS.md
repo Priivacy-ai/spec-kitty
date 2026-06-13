@@ -39,7 +39,7 @@ src/doctrine/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURCE)
 **All changes to origin/main MUST go through pull requests. Direct pushes are prohibited.**
 
 - `spec-kitty merge` merges to **local main** only. It does NOT push to origin/main.
-- After `spec-kitty merge`, create a PR branch and open a pull request.
+- After `spec-kitty merge`, if the user explicitly asks to share or publish: create a PR branch (`git checkout -b pr/<slug>`) and open a pull request (`gh pr create`). Do NOT do this automatically — wait for explicit user instruction.
 - Never run `git push origin main` or equivalent. Use a PR branch and `gh pr create`.
 - Always distinguish: **local main** (your checkout) vs **origin/main** (the remote). Never say just "main" — always qualify.
 
