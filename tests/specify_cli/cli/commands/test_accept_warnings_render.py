@@ -25,8 +25,6 @@ import specify_cli.cli.commands.accept as accept_cmd
 from specify_cli.acceptance import AcceptanceSummary
 from specify_cli.task_utils import LANES
 
-pytestmark = [pytest.mark.unit]
-
 
 def _summary(*, warnings: list[str]) -> AcceptanceSummary:
     """Build a minimal accept-ready summary carrying the given warnings."""
