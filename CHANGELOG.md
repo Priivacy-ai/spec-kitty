@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
-- **Name-vs-authority remediation (mission #132; closes #1884, #1883, #1885, #1889, #1860, #1865, #1866, #1867, #1863, #1896, #1898, #1904):**
+- **Name-vs-authority remediation (mission #133; closes #1889, #1860, #1865, #1866, #1867, #1863, #1896, #1898, #1904, #1684, #1906):** (#1884/#1883/#1885 were independently fixed by PR #1910 and are verified-already-fixed here, not re-closed)
   binds the two remaining "a name/string shape is trusted as authority without cross-checking the declared authority"
   seams and ratchets them closed, and clears the live 3.2.0 release-blocker P0s rooted in that class. Topology
   authority seam (`WorktreeTopology` + `classify_worktree_topology` + `is_registered_coord_worktree` in
@@ -47,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🧹 Maintenance
 
-- **SonarCloud hygiene on mission #132 surfaces:** raised new-code coverage on the authored seam/allocator/query
+- **SonarCloud hygiene on mission #133 surfaces:** raised new-code coverage on the authored seam/allocator/query
   files; reduced cognitive-complexity (extract-method) and duplicate-literal smells across `doctrine.py`,
   `sync/daemon.py`, `sync/owner.py`, `drg/validator.py`, `org_charter.py`, `_read_path_resolver.py`, `core/worktree.py`,
   `agent/workflow.py`, and `upgrade.py` (all behavior-preserving); regenerated stale codex/vibe command-skill
