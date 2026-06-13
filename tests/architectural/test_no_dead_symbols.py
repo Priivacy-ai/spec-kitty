@@ -143,7 +143,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.cli.commands._auth_doctor::compute_exit_code",
         "specify_cli.cli.commands._auth_doctor::render_report",
         "specify_cli.cli.commands._auth_doctor::render_report_json",
-        "specify_cli.cli.commands._branch_strategy_gate::ALREADY_CONFIRMED",
         "specify_cli.cli.commands._branch_strategy_gate::GateDecision",
         "specify_cli.cli.commands._branch_strategy_gate::GateOutcome",
         "specify_cli.cli.commands.agent.config::app",

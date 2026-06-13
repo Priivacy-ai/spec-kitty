@@ -163,11 +163,13 @@ jobs:
             orchestrator_api:
               - 'src/specify_cli/orchestrator_api/**'
             core_misc:
+              - '.github/workflows/ci-quality.yml'
               - 'src/kernel/**'
               - 'src/doctrine/**'
               - 'src/specify_cli/core/**'
               - 'src/specify_cli/doctrine_synthesizer/**'
               - 'src/specify_cli/saas/**'
+              - 'tests/architectural/**'
               - 'tests/kernel/**'
               - 'tests/doctrine/**'
               - 'tests/doctrine_synthesizer/**'
@@ -175,12 +177,12 @@ jobs:
               - 'tests/core/**'
               - 'tests/contract/**'
               - 'tests/init/**'
-              - 'tests/e2e/**'
               - 'tests/integration/**'
               - 'tests/dossier/**'
               - 'tests/git_ops/**'
               - 'tests/tasks/**'
             e2e:
+              - '.github/workflows/ci-quality.yml'
               - 'tests/e2e/**'
               - 'tests/cross_cutting/**'
             charter:
@@ -1172,7 +1174,11 @@ jobs:
             --ignore=tests/runtime \
             --ignore=tests/charter \
             --ignore=tests/agent \
+            --ignore=tests/e2e \
+            --ignore=tests/cross_cutting \
             -m "fast and not windows_ci" -q --tb=short \
+            -n auto --dist loadfile \
+            --durations=50 \
             --cov=src/specify_cli \
             --cov-report=xml:out/reports/coverage/coverage-fast-core-misc.xml
       - name: "Upload fast-core-misc coverage"
@@ -1183,19 +1189,90 @@ jobs:
           path: out/reports/
 
   # ---------------------------------------------------------------------------
-  # integration-tests-core-misc: architectural + git_repo tests for execution
-  # context parity. Runs after fast-tests-core-misc passes.
+  # integration-tests-core-misc: catch-all architectural/git_repo/integration
+  # tests split by directory family so one slow bucket cannot dominate PR CI.
   # Triggered by core_misc or execution_context path filters. Execution-context
   # only changes run the parity gate instead of the full catch-all integration
   # suite so status/runtime edits do not inherit unrelated core-misc debt.
   # ---------------------------------------------------------------------------
   integration-tests-core-misc:
+    name: integration-tests-core-misc (${{ matrix.shard }})
     runs-on: ubuntu-latest
     needs: [changes, fast-tests-core-misc]
     if: >-
       always() &&
       (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true') &&
-      needs.fast-tests-core-misc.result != 'failure'
+      needs.fast-tests-core-misc.result != 'failure' &&
+      (
+        github.event_name != 'pull_request' ||
+        (
+          github.event.pull_request.draft == false &&
+          !startsWith(github.event.pull_request.title, 'WIP') &&
+          !startsWith(github.event.pull_request.title, '[WIP]')
+        ) ||
+        contains(github.event.pull_request.labels.*.name, 'ci:full') ||
+        contains(github.event.pull_request.labels.*.name, 'ready-for-ci')
+      )
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: architectural
+            paths: >-
+              tests/adversarial
+              tests/architectural
+              tests/architecture
+              tests/lint
+            ignore_args: ''
+          - shard: integration
+            paths: tests/integration
+            ignore_args: ''
+          - shard: specify-cli-heavy
+            paths: >-
+              tests/specify_cli/migration
+              tests/specify_cli/invocation
+              tests/specify_cli/test_charter_activate_cli.py
+            ignore_args: ''
+          - shard: specify-cli-rest
+            paths: tests/specify_cli
+            ignore_args: >-
+              --ignore=tests/specify_cli/migration
+              --ignore=tests/specify_cli/invocation
+              --ignore=tests/specify_cli/test_charter_activate_cli.py
+              --ignore=tests/specify_cli/status
+              --ignore=tests/specify_cli/next
+          - shard: auth-audit-git
+            paths: >-
+              tests/auth
+              tests/audit
+              tests/git_ops
+              tests/git
+              tests/cli_gate
+            ignore_args: ''
+          - shard: misc
+            paths: >-
+              tests/calibration
+              tests/concurrency
+              tests/contract
+              tests/core
+              tests/cross_branch
+              tests/docs
+              tests/doctor
+              tests/init
+              tests/migration
+              tests/mission_runtime
+              tests/packaging
+              tests/policy
+              tests/readiness
+              tests/regression
+              tests/regressions
+              tests/research
+              tests/retrospective
+              tests/saas
+              tests/stress
+              tests/tasks
+              tests/unit
+            ignore_args: ''
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -1206,44 +1283,37 @@ jobs:
       - name: "Run integration tests — core misc"
         run: |
           if [ "${{ needs.changes.outputs.core_misc }}" != "true" ] && [ "${{ needs.changes.outputs.execution_context }}" = "true" ]; then
+            if [ "${{ matrix.shard }}" != "architectural" ]; then
+              echo "Skipping ${{ matrix.shard }} for execution-context-only change."
+              exit 0
+            fi
+
             uv run python -m pytest \
               tests/architectural/test_execution_context_parity.py \
               -q --tb=short \
+              -n auto --dist loadfile \
+              --durations=50 \
               --cov=src/specify_cli \
-              --cov-report=xml:out/reports/coverage/coverage-integration-core-misc.xml
+              --cov-report=xml:out/reports/coverage/coverage-integration-core-misc-${{ matrix.shard }}.xml
             exit $?
           fi
 
           uv run python -m pytest \
-            --ignore=tests/doctrine \
-            --ignore=tests/kernel \
-            --ignore=tests/status \
-            --ignore=tests/specify_cli/status \
-            --ignore=tests/sync \
-            --ignore=tests/merge \
-            --ignore=tests/missions \
-            --ignore=tests/post_merge \
-            --ignore=tests/release \
-            --ignore=tests/review \
-            --ignore=tests/next \
-            --ignore=tests/specify_cli/next \
-            --ignore=tests/lanes \
-            --ignore=tests/test_dashboard \
-            --ignore=tests/upgrade \
-            --ignore=tests/cli \
-            --ignore=tests/runtime \
-            --ignore=tests/charter \
-            --ignore=tests/agent \
+            ${{ matrix.paths }} \
+            ${{ matrix.ignore_args }} \
             -m 'not windows_ci and (git_repo or integration or architectural)' \
             -q --tb=short \
+            -n auto --dist loadfile \
+            --durations=50 \
             --cov=src/specify_cli \
-            --cov-report=xml:out/reports/coverage/coverage-integration-core-misc.xml
+            --cov-report=xml:out/reports/coverage/coverage-integration-core-misc-${{ matrix.shard }}.xml
       - name: "Upload integration-core-misc coverage"
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: integration-test-core-misc-reports
+          name: integration-test-core-misc-${{ matrix.shard }}-reports
           path: out/reports/
+          if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
   # fast-tests-charter: charter package, depends on doctrine.
@@ -1832,6 +1902,7 @@ jobs:
             -m "slow and not windows_ci" \
             --ignore=tests/e2e \
             --ignore=tests/cross_cutting \
+            --durations=50 \
             --cov=src/specify_cli --cov=src/charter --cov=src/doctrine \
             --cov-report=xml:out/reports/coverage/coverage-slow.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-slow-${{ github.run_id }}.xml \
@@ -1892,28 +1963,27 @@ jobs:
   # ---------------------------------------------------------------------------
   e2e-cross-cutting:
     runs-on: ubuntu-latest
-    needs:
-      - changes
-      - fast-tests-doctrine
-      - fast-tests-sync
-      - fast-tests-merge
-      - fast-tests-missions
-      - fast-tests-post-merge
-      - fast-tests-release
-      - fast-tests-status
-      - fast-tests-review
-      - fast-tests-next
-      - fast-tests-lanes
-      - fast-tests-dashboard
-      - fast-tests-upgrade
-      - fast-tests-cli
-      - fast-tests-core-misc
-      - fast-tests-charter
-      - fast-tests-agent
+    needs: [changes]
     if: |
       always() && (
         github.event_name == 'push' ||
-        (github.event_name == 'pull_request' && needs.changes.outputs.e2e == 'true') ||
+        (
+          github.event_name == 'pull_request' &&
+          (
+            needs.changes.outputs.e2e == 'true' ||
+            needs.changes.outputs.core_misc == 'true' ||
+            needs.changes.outputs.execution_context == 'true'
+          ) &&
+          (
+            (
+              github.event.pull_request.draft == false &&
+              !startsWith(github.event.pull_request.title, 'WIP') &&
+              !startsWith(github.event.pull_request.title, '[WIP]')
+            ) ||
+            contains(github.event.pull_request.labels.*.name, 'ci:full') ||
+            contains(github.event.pull_request.labels.*.name, 'ready-for-ci')
+          )
+        ) ||
         (github.event_name == 'workflow_dispatch' && (inputs.run_extended || inputs.run_all))
       )
     timeout-minutes: 40
@@ -1941,6 +2011,7 @@ jobs:
             -v \
             tests/e2e/ tests/cross_cutting/ \
             -m "not distribution and not windows_ci" \
+            --durations=50 \
             --cov=src/specify_cli --cov=src/charter --cov=src/doctrine \
             --cov-report=xml:out/reports/coverage/coverage-e2e.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-e2e-${{ github.run_id }}.xml
@@ -2730,6 +2801,7 @@ jobs:
       - fast-tests-charter
       - fast-tests-agent
       - integration-tests-doctrine
+      - integration-tests-charter
       - integration-tests-sync
       - integration-tests-merge
       - integration-tests-missions
@@ -2744,6 +2816,7 @@ jobs:
       - integration-tests-cli
       - integration-tests-agent
       - integration-tests-core-misc
+      - e2e-cross-cutting
       - restart-daemon-nfr-timing
       - build-wheel
       - clean-install-verification
@@ -2793,6 +2866,7 @@ jobs:
             "${{ needs.integration-tests-cli.result }}" \
             "${{ needs.integration-tests-agent.result }}" \
             "${{ needs.integration-tests-core-misc.result }}" \
+            "${{ needs.e2e-cross-cutting.result }}" \
             "${{ needs.restart-daemon-nfr-timing.result }}" \
             "${{ needs.build-wheel.result }}" \
             "${{ needs.clean-install-verification.result }}" \
