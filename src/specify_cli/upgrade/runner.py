@@ -481,4 +481,16 @@ class MigrationRunner:
         buf = io.StringIO()
         buf.write(header)
         yaml.dump(data, buf, default_flow_style=False, sort_keys=False)
-        atomic_write(metadata_path, buf.getvalue(), mkdir=True)
+        rendered = buf.getvalue()
+
+        # Compare-before-write (issue #1871): skip the re-dump when the rendered
+        # bytes already match the file on disk, so a no-op upgrade does not
+        # reformat or mtime-churn an already-stamped metadata.yaml.
+        try:
+            current = metadata_path.read_text(encoding="utf-8-sig")
+        except OSError:
+            current = None
+        if current == rendered:
+            return
+
+        atomic_write(metadata_path, rendered, mkdir=True)

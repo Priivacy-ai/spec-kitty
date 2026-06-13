@@ -22,6 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- **`spec-kitty upgrade` no longer churns `metadata.yaml` on a no-op (issue #1871):** the "stamp
+  `last_upgraded_at` only on material change" rule lived in three divergent idioms, and the migrations-applied
+  root path plus `_stamp_schema_version` rewrote `metadata.yaml` (and advanced the timestamp / mtime) even when
+  every migration was already recorded. `ProjectMetadata.save()` now does a **masked compare-before-write**
+  (skipping the write when only the volatile `last_upgraded_at`/`schema_version` would change) and
+  `_stamp_schema_version` skips its re-dump when the rendered bytes already match disk. A genuine
+  version/migration/environment change still writes with a fresh timestamp; a no-op upgrade — including across a
+  fully-recorded version range, on both the root and worktree paths — is now zero writes. This closes the class
+  at the write boundary for upgrade/doctor/regeneration instead of adding a fourth per-path guard.
 - **`agent tasks map-requirements --json` no longer crashes on auto-commit (issue #1891, Finding 1):** the
   command stored the `CommitResult` returned by `safe_commit()` directly in the `--json` payload, so on the
   auto-commit success path `json.dumps` failed with *"Object of type CommitResult is not JSON serializable"* —
