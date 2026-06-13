@@ -27,10 +27,8 @@ if TYPE_CHECKING:
     from specify_cli.status import WPMetadata
 
 __all__ = [
-    "GlobValidationResult",
     "ValidationResult",
     "build_wp_manifests",
-    "is_glob_pattern",
     "validate_no_overlap",
     "validate_authoritative_surface",
     "validate_execution_mode_consistency",

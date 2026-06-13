@@ -19,7 +19,7 @@ import pytest
 
 from specify_cli.missions._substantive import is_committed
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------

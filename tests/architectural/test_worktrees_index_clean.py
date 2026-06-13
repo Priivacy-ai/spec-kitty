@@ -13,6 +13,10 @@ from __future__ import annotations
 
 import subprocess
 
+import pytest
+
+pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
+
 
 def test_no_worktrees_paths_in_git_index() -> None:
     """No .worktrees/ paths may appear in the git index (``git ls-files``)."""

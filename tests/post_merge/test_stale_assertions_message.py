@@ -14,6 +14,10 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.unit
+
 from specify_cli.post_merge.stale_assertions import (
     _SourceSymbol,
     _is_message_capture_expr,

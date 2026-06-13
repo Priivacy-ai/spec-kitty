@@ -24,7 +24,7 @@ from specify_cli.cli.commands.implement import _feature_dir_file_paths
 from specify_cli.git.commit_helpers import SafeCommitPathPolicyError, safe_commit
 from mission_runtime import CommitTarget, CommitTargetKind
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------
