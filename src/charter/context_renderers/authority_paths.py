@@ -12,9 +12,11 @@ Design notes
 
 * **Default authority paths** are hard-coded here so every project gets the
   same convention without having to declare them in the charter
-  (``glossary/contexts/`` for terminology canon, ``architecture/2.x/adr/``
-  for architectural intent).  Each default carries a project-agnostic
-  "When you ..., ..." conditional.
+  (``glossary/contexts/`` for terminology canon, ``architecture/3.x/adr/``
+  for architectural intent — the canonical track since the 3.x era; the
+  back-compat symlinks at ``architecture/2.x/adr/`` resolve into this
+  directory).  Each default carries a project-agnostic "When you ..., ..."
+  conditional.
 * **Charter-declared paths** come from
   :attr:`charter.schemas.DoctrineSelectionConfig.authority_paths` and are
   appended in declaration order, deduped against the defaults.  Their
@@ -50,7 +52,7 @@ DEFAULT_AUTHORITY_PATHS: dict[str, str] = {
         "canonical terminology — when you encounter a domain term in the "
         "diff, grep this directory"
     ),
-    "architecture/2.x/adr/": (
+    "architecture/3.x/adr/": (
         "architectural intent — when you change a structural boundary, "
         "read the relevant ADR"
     ),
@@ -59,6 +61,12 @@ DEFAULT_AUTHORITY_PATHS: dict[str, str] = {
 
 Both defaults are rendered with a trailing slash so callers that grep for
 ``glossary/contexts/`` (the ATDD assertion form) match unambiguously.
+
+The ADR default was updated from ``architecture/2.x/adr/`` to
+``architecture/3.x/adr/`` (FR-011 / WP07 — authority-path flip).
+Back-compat symlinks at ``architecture/2.x/adr/`` continue to resolve into
+the 3.x directory, so existing projects with the old path in their charter
+are unaffected by the renderer change.
 """
 
 

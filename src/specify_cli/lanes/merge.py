@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from specify_cli.git.ref_advance import advance_branch_ref
+from specify_cli.lanes._git import branch_exists as _shared_branch_exists
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json
@@ -244,11 +245,10 @@ def merge_mission_to_target(
 
 
 def _branch_exists(repo_root: Path, branch: str) -> bool:
-    result = subprocess.run(
-        ["git", "rev-parse", "--verify", f"refs/heads/{branch}"],
-        cwd=str(repo_root), capture_output=True, text=True, env=_make_merge_env(),
-    )
-    return result.returncode == 0
+    # Routes the existence check through the shared lanes/_git helper while
+    # preserving the merge pipeline's single env authority (_make_merge_env);
+    # the env composes through rather than forking the helper (#1904).
+    return _shared_branch_exists(repo_root, branch, env=_make_merge_env())
 
 
 def _git_config_get(repo_root: Path, key: str) -> str | None:

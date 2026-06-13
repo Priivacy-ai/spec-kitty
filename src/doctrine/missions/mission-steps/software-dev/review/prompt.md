@@ -69,7 +69,7 @@ via the paired fetch command and apply.
 
 - `glossary/contexts/` — canonical terminology. Consult when the diff
   introduces or renames a domain term.
-- `architecture/2.x/adr/` — architectural intent. Consult when the diff
+- `architecture/3.x/adr/` — architectural intent. Consult when the diff
   changes a structural boundary (package layout, public API surface,
   dependency edges).
 - Any additional paths declared in the charter's `authority_paths:` block are

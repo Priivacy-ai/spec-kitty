@@ -6,9 +6,9 @@ requirement_refs:
 - FR-005
 - FR-008
 tracker_refs: []
-planning_base_branch: feat/doctrine-glossary-consolidation-01KTNWFC
-merge_target_branch: feat/doctrine-glossary-consolidation-01KTNWFC
-branch_strategy: Planning artifacts for this mission were generated on feat/doctrine-glossary-consolidation-01KTNWFC. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/doctrine-glossary-consolidation-01KTNWFC unless the human explicitly redirects the landing branch.
+planning_base_branch: feat/name-vs-authority-remediation-01KTYGTE
+merge_target_branch: feat/name-vs-authority-remediation-01KTYGTE
+branch_strategy: Planning artifacts for this mission were generated on feat/doctrine-glossary-consolidation-01KTNWFC (mission retargeted to feat/name-vs-authority-remediation-01KTYGTE on 2026-06-12 — PR #1895 branch frozen for review). During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/name-vs-authority-remediation-01KTYGTE unless the human explicitly redirects the landing branch.
 created_at: '2026-06-12T18:32:00Z'
 subtasks:
 - T009
@@ -17,7 +17,8 @@ subtasks:
 - T012
 phase: Phase 1 - Independent lanes
 assignee: ''
-agent: ''
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "1685939"
 history:
 - at: '2026-06-12T18:32:00Z'
   actor: system
@@ -67,3 +68,11 @@ reviewer-renata (+architect-alphonso spot-check on the seam API vs his normative
 
 ## Activity Log
 - 2026-06-12T18:32:00Z – system – Prompt created.
+- 2026-06-12T19:23:05Z – claude:opus:python-pedro:implementer – shell_pid=1470114 – Assigned agent via action command
+- 2026-06-12T19:52:03Z – claude:opus:python-pedro:implementer – shell_pid=1470114 – Topology authority seam complete (FR-005/FR-008). Added WorktreeTopology enum + classify_worktree_topology/is_registered_coord_worktree/is_under_worktrees_segment/read_worktree_registry in surface_resolver.py (porcelain-registry backed, fail-closed via WorktreeRegistryUnavailable, injectable cached registry). Implemented #1889 R3: declared+branch-DELETED+worktree-absent raises distinct CoordinationBranchDeleted (subclass of StatusReadPathNotFound, error_code COORDINATION_BRANCH_DELETED, actionable next_step), one git rev-parse --verify disambiguates R2 vs R3; never silent primary fallback. Migrated all 5 A-sites + 2 G-lock sites: status_service (label guard->is_under_worktrees_segment), dashboard/scanner (classify, husk no longer shadows primary), root_resolver (is_registered_coord), emit/work_package_lifecycle (lock root->canonical root for registered worktrees). ATDD: 18 new classifier+R3 tests + scanner husk-rejection pin. Fixtures that declared coord branch without creating it updated to model real ensure_coordination_branch R2 state. Scope fence respected (status_transition/aggregate/merge.py untouched=WP05/C-002). ruff clean, zero NEW mypy errors, 687 owned-area tests + 350 architectural green. Commit 4788a4583. Pre-existing failures (NOT mine): tests/unit/workspace/test_root_resolver.py::test_non_git_directory_raises and ~28 env/ordering failures (charter/README/skills/acceptance) confirmed failing on clean baseline.
+- 2026-06-12T19:52:45Z – claude:opus:reviewer-renata:reviewer – shell_pid=1667625 – Started review via action command
+- 2026-06-12T20:00:16Z – user – shell_pid=1667625 – Moved to planned
+- 2026-06-12T20:01:14Z – claude:opus:python-pedro:implementer – shell_pid=1679127 – Started implementation via action command
+- 2026-06-12T20:04:33Z – claude:opus:python-pedro:implementer – shell_pid=1679127 – Cycle 2: unused-ignore fixed; lock-root regression test added (RED-on-mutation proven)
+- 2026-06-12T20:05:06Z – claude:opus:reviewer-renata:reviewer – shell_pid=1685939 – Started review via action command
+- 2026-06-12T20:07:50Z – user – shell_pid=1685939 – Review passed (cycle 2 re-review, supersedes prior rejected review-cycle-2.md artifact). Both cycle-1 blockers fixed & independently verified. (1) unused-ignore: surface_resolver.py:104 now type:ignore[misc,unused-ignore] w/ expanded dual-invocation rationale; full-package CI mypy (src/specify_cli src/charter src/doctrine) = exactly 82 errors (pre-existing baseline), zero in surface_resolver; single-file run clean. (2) Lock-root flip: two new REAL-worktree regression tests (emit._feature_status_lock_root + lifecycle._repo_root_for_lock) assert canonical-primary lock root + cross-context agreement; mutation check (disabled canonical-root branch via 'if False and' in BOTH emit.py AND work_package_lifecycle.py) turned both tests RED w/ correct failure (lock root = worktree-local instead of canonical), git checkout restored GREEN. Cycle-2 diff 4788a4583..HEAD touches ONLY surface_resolver.py + test_worktree_topology.py; C-002 fence intact (status_transition/aggregate/merge.py = 0 commits whole lane); ruff clean; 20 seam+decision-table tests green. Cycle-1 non-blocking adjudications (fixtures, dead-symbol allowlist, shape idiom, R3) stand.

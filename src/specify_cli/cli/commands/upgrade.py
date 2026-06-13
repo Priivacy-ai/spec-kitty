@@ -959,6 +959,15 @@ def upgrade(  # noqa: C901
     )
 
 
+def _print_upgrade_section(header: str, items: list[str], item_prefix: str) -> None:
+    """Print a titled list section, emitting nothing when *items* is empty."""
+    if not items:
+        return
+    console.print(header)
+    for item in items:
+        console.print(f"{item_prefix}{item}")
+
+
 def _display_upgrade_results(
     result: UpgradeResult,
     *,
@@ -986,30 +995,19 @@ def _display_upgrade_results(
             )
         )
 
-    if result.migrations_applied:
-        console.print("[green]Migrations applied:[/green]")
-        for m in result.migrations_applied:
-            console.print(f"  [green]✓[/green] {m}")
-
-    if result.migrations_skipped:
-        console.print("[dim]Migrations skipped (already applied or not needed):[/dim]")
-        for m in result.migrations_skipped:
-            console.print(f"  [dim]○[/dim] {m}")
-
-    if result.warnings:
-        console.print("[yellow]Warnings:[/yellow]")
-        for w in result.warnings:
-            console.print(f"  [yellow]![/yellow] {w}")
-
-    if result.errors:
-        console.print("[red]Errors:[/red]")
-        for e in result.errors:
-            console.print(f"  [red]✗[/red] {e}")
-
-    if manual_review_paths:
-        console.print("[yellow]Manual review required:[/yellow]")
-        for path in manual_review_paths:
-            console.print(f"  [yellow]![/yellow] {path}")
+    _print_upgrade_section(
+        "[green]Migrations applied:[/green]", result.migrations_applied, "  [green]✓[/green] "
+    )
+    _print_upgrade_section(
+        "[dim]Migrations skipped (already applied or not needed):[/dim]",
+        result.migrations_skipped,
+        "  [dim]○[/dim] ",
+    )
+    _print_upgrade_section("[yellow]Warnings:[/yellow]", result.warnings, "  [yellow]![/yellow] ")
+    _print_upgrade_section("[red]Errors:[/red]", result.errors, "  [red]✗[/red] ")
+    _print_upgrade_section(
+        "[yellow]Manual review required:[/yellow]", manual_review_paths, "  [yellow]![/yellow] "
+    )
 
     console.print()
     if not result.success:

@@ -145,3 +145,145 @@ def test_fabricated_mid8_idiom_is_gone_from_source() -> None:
     invariant that unresolvable context raises rather than falling back."""
     source = inspect.getsource(surface_resolver)
     assert "00000000" not in source
+
+
+# ---------------------------------------------------------------------------
+# ResolvedStatusSurface.read_dir + meta-None fallback surfaces
+# ---------------------------------------------------------------------------
+
+
+def test_resolved_surface_read_dir_is_parent_of_surface_path(tmp_path: Path) -> None:
+    """``read_dir`` returns the directory containing the resolved events file."""
+    from specify_cli.coordination.surface_resolver import (
+        resolve_status_surface_with_anchor,
+    )
+
+    feature_dir = tmp_path / "kitty-specs" / "my-mission"
+    _write_meta(feature_dir, mission_id="01KTDVHZKGCHCW6HQ4V577PNES")
+    resolved = resolve_status_surface_with_anchor(tmp_path, "my-mission")
+    assert resolved.read_dir == feature_dir
+    assert resolved.surface_path.parent == resolved.read_dir
+
+
+def test_meta_absent_but_primary_dir_exists_returns_primary_surface(
+    tmp_path: Path,
+) -> None:
+    """When ``meta.json`` is absent but the primary mission dir exists, the
+    resolver returns the primary status surface (the create→first-write window
+    authority) rather than raising."""
+    # Directory exists with NO meta.json so ``load_meta`` returns None on both
+    # the coord-aware candidate and the re-anchored primary dir.
+    primary = tmp_path / "kitty-specs" / "my-mission"
+    primary.mkdir(parents=True, exist_ok=True)
+    result = resolve_status_surface(tmp_path, "my-mission")
+    assert result == primary / "status.events.jsonl"
+
+
+# ---------------------------------------------------------------------------
+# read_worktree_registry / _coord_branch_exists fail-closed (OSError) branches
+# ---------------------------------------------------------------------------
+
+
+def test_read_worktree_registry_raises_when_git_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A missing/unexecutable git raises :class:`WorktreeRegistryUnavailable`
+    (fail closed — never guess topology from path shape)."""
+    from specify_cli.coordination.surface_resolver import (
+        WorktreeRegistryUnavailable,
+        read_worktree_registry,
+    )
+
+    def _boom(*_a: object, **_k: object) -> None:
+        raise OSError("git not found")
+
+    monkeypatch.setattr(surface_resolver.subprocess, "run", _boom)
+    with pytest.raises(WorktreeRegistryUnavailable) as excinfo:
+        read_worktree_registry(tmp_path)
+    assert excinfo.value.error_code == "WORKTREE_REGISTRY_UNAVAILABLE"
+    assert excinfo.value.repo_root == tmp_path
+
+
+def test_read_worktree_registry_raises_on_nonzero_exit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A non-zero git exit surfaces the stderr detail in the fail-closed error."""
+    import subprocess as _sp
+
+    from specify_cli.coordination.surface_resolver import (
+        WorktreeRegistryUnavailable,
+        read_worktree_registry,
+    )
+
+    def _fail(*_a: object, **_k: object) -> _sp.CompletedProcess[str]:
+        return _sp.CompletedProcess(
+            args=["git"], returncode=128, stdout="", stderr="fatal: not a git repo"
+        )
+
+    monkeypatch.setattr(surface_resolver.subprocess, "run", _fail)
+    with pytest.raises(WorktreeRegistryUnavailable) as excinfo:
+        read_worktree_registry(tmp_path)
+    assert "not a git repo" in str(excinfo.value)
+
+
+def test_coord_branch_exists_treats_non_repo_as_present(tmp_path: Path) -> None:
+    """In a non-git directory the deleted-branch probe must NOT fire R3: it
+    returns ``True`` (branch treated as present) so the resolver never invents a
+    :class:`CoordinationBranchDeleted` from a non-repo context."""
+    from specify_cli.coordination.surface_resolver import _coord_branch_exists
+
+    # tmp_path is not a git repository → rev-parse --git-dir returns non-zero.
+    assert _coord_branch_exists(tmp_path, "kitty/mission-anything") is True
+
+
+def test_coord_branch_exists_returns_true_when_git_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An OSError invoking git is treated fail-open for the branch probe (R2)."""
+    from specify_cli.coordination.surface_resolver import _coord_branch_exists
+
+    def _boom(*_a: object, **_k: object) -> None:
+        raise OSError("git exploded")
+
+    monkeypatch.setattr(surface_resolver.subprocess, "run", _boom)
+    assert _coord_branch_exists(tmp_path, "kitty/mission-x") is True
+
+
+def test_coordination_branch_deleted_raised_when_branch_gone(tmp_path: Path) -> None:
+    """#1889 R3: coord branch declared in meta but DELETED from git (and no coord
+    worktree) raises :class:`CoordinationBranchDeleted` with the distinct code."""
+    import subprocess as _sp
+
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+
+    # Real git repo so the rev-parse probe runs and reports the branch absent.
+    _sp.run(["git", "init", "-q", str(tmp_path)], check=True)
+    _sp.run(
+        ["git", "-C", str(tmp_path), "config", "user.email", "t@t.invalid"],
+        check=True,
+    )
+    _sp.run(["git", "-C", str(tmp_path), "config", "user.name", "t"], check=True)
+    _write_meta(
+        tmp_path / "kitty-specs" / "my-mission",
+        mission_id="01KTDVHZKGCHCW6HQ4V577PNES",
+        coordination_branch="kitty/mission-my-mission-01KTDVHZ-coord",
+    )
+    with pytest.raises(CoordinationBranchDeleted) as excinfo:
+        resolve_status_surface(tmp_path, "my-mission")
+    err = excinfo.value
+    assert err.error_code == "COORDINATION_BRANCH_DELETED"
+    assert err.coordination_branch == "kitty/mission-my-mission-01KTDVHZ-coord"
+    assert "spec-kitty agent worktree repair" in err.next_step
+
+
+def test_coord_mid8_derived_from_slug_when_meta_lacks_id(tmp_path: Path) -> None:
+    """``_coord_mid8`` cascade layer 3: when meta declares neither ``mid8`` nor a
+    >=8-char ``mission_id`` but the slug embeds one, the slug-derived mid8 is used
+    to compose the coord path (rather than failing closed)."""
+    slug = "my-mission-01KTDVHZ"  # the canonical <slug>-<mid8> form
+    _write_meta(
+        tmp_path / "kitty-specs" / slug,
+        coordination_branch=f"kitty/mission-{slug}-coord",
+    )
+    result = resolve_status_surface(tmp_path, slug)
+    assert f"{slug}-coord" in str(result)

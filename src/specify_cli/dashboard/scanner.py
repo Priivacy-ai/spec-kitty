@@ -310,6 +310,13 @@ def gather_feature_paths(project_dir: Path) -> dict[str, Path]:
       3. Lane worktree copies, which may be stale and should never outrank the
          coordination worktree or main checkout.
     """
+    from specify_cli.coordination.surface_resolver import (
+        WorktreeRegistryUnavailable,
+        WorktreeTopology,
+        classify_worktree_topology,
+        read_worktree_registry,
+    )
+
     feature_paths: dict[str, Path] = {}
     coord_paths: dict[str, Path] = {}
 
@@ -317,16 +324,32 @@ def gather_feature_paths(project_dir: Path) -> dict[str, Path]:
     # coordination worktree for a mission is remembered and applied last.
     worktrees_root = project_dir / ".worktrees"
     if worktrees_root.exists():
+        # Read the git worktree registry once for the whole scan pass (name
+        # proposes coord-ness; the registry disposes). A husk ``-coord`` dir
+        # (suffix present, not registered) must NOT shadow the primary surface.
+        try:
+            registry = read_worktree_registry(project_dir)
+        except WorktreeRegistryUnavailable:
+            # No readable registry (e.g. project_dir is not a git repo in tests):
+            # degrade to scanning all dirs as non-coord rather than failing the
+            # whole dashboard scan. Coord copies simply do not outrank here.
+            registry = None
         for worktree_dir in worktrees_root.iterdir():
             if not worktree_dir.is_dir():
                 continue
             wt_specs = worktree_dir / KITTY_SPECS_DIR
             if not wt_specs.exists():
                 continue
+            is_coord_worktree = (
+                registry is not None
+                and classify_worktree_topology(
+                    worktree_dir, repo_root=project_dir, registry=registry
+                )
+                is WorktreeTopology.COORD_WORKTREE
+            )
             for feature_dir in wt_specs.iterdir():
                 if feature_dir.is_dir():
-                    is_coord_worktree = worktree_dir.name.endswith("-coord")
-                    if is_coord_worktree and feature_dir.name == worktree_dir.name.removesuffix("-coord"):
+                    if is_coord_worktree:
                         coord_paths[feature_dir.name] = feature_dir
                         continue
                     feature_paths[feature_dir.name] = feature_dir

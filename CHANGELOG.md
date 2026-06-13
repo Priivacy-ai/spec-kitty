@@ -22,6 +22,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- **Name-vs-authority remediation (mission #132; closes #1884, #1883, #1885, #1889, #1860, #1865, #1866, #1867, #1863, #1896, #1898, #1904):**
+  binds the two remaining "a name/string shape is trusted as authority without cross-checking the declared authority"
+  seams and ratchets them closed, and clears the live 3.2.0 release-blocker P0s rooted in that class. Topology
+  authority seam (`WorktreeTopology` + `classify_worktree_topology` + `is_registered_coord_worktree` in
+  `coordination/surface_resolver.py`, wrapping the `git worktree list --porcelain` registry) and branch-identity
+  authority seam (`mission_branch_name_required` + structured `BranchIdentityUnresolved` in `lanes/branch_naming.py`,
+  dual-era: legacy `\d{3}-` AND mid8 names both resolve) replace the convention predicates at their consumer sites;
+  the `(slug.replace('-','')+"00000000")[:8]` mid8-fabrication idiom is eradicated (routed through
+  `resolve_transaction_mid8`, fail-closed). **P0s fixed:** `setup-plan`'s committed-spec gate verifies against the
+  placement authority's ref not primary HEAD (#1884); the accept gate is idempotent across all modes via
+  accept-owned-path exclusion (#1883); unresolvable mission handles raise a structured `QueryModeValidationError`
+  (code + next_step) instead of a silent `mission=unknown` stub (#1885 residual). #1889's coordination-branch-deleted
+  case becomes a distinct loud `CoordinationBranchDeleted` (decision-table row R3). An architectural ratchet
+  (`test_topology_resolution_boundary.py`) keeps coord predicates, unbackstopped `kitty/mission-{slug}` composes, and
+  the fabrication idiom from regrowing outside the blessed seam modules. Doctrine refinements (#1865/#1866/#1867) and
+  the DRG extractor styleguide/toolguide `references` walk (#1863) ride along; the authority-path default flips
+  `architecture/2.x/adr` → `3.x/adr`. **Cross-lane dependency code propagation (#1684):** `allocate_lane_worktree`
+  now merges approved dependency-lane tips (fresh creation + lane re-entry) so a dependent WP in a sibling lane sees
+  its approved dependency's code, instead of branching from the bare mission branch.
+- **`_branch_exists`/`ref_exists` consolidation (#1904):** the duplicated `git rev-parse --verify` branch/ref
+  existence idiom across `coordination/status_transition.py`, `missions/_create.py`, `lanes/worktree_allocator.py`,
+  and `lanes/merge.py` is unified into `lanes/_git.py` (env-parameterized so the merge path's environment composes).
+
+### 🧹 Maintenance
+
+- **SonarCloud hygiene on mission #132 surfaces:** raised new-code coverage on the authored seam/allocator/query
+  files; reduced cognitive-complexity (extract-method) and duplicate-literal smells across `doctrine.py`,
+  `sync/daemon.py`, `sync/owner.py`, `drg/validator.py`, `org_charter.py`, `_read_path_resolver.py`, `core/worktree.py`,
+  `agent/workflow.py`, and `upgrade.py` (all behavior-preserving); regenerated stale codex/vibe command-skill
+  snapshots to match the advanced templates (PR #1897 finding).
+
 - **Upgrade no longer re-records not-applicable migrations (issue #1872):** a migration whose `detect()`
   is `False` was re-appended as a `skipped` / "Not applicable" `MigrationRecord` on every `spec-kitty upgrade`
   run over the same version range, growing `applied_migrations` without bound and — for worktrees, after

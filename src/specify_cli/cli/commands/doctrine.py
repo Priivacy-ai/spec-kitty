@@ -48,6 +48,8 @@ from rich.table import Table
 
 __all__ = ["app"]
 
+_JSON_OPTION_HELP = "Emit machine-readable JSON instead of rich text."
+
 app = typer.Typer(
     name="doctrine",
     help="Manage org-layer doctrine packs (fetch, validate, assemble).",
@@ -199,7 +201,7 @@ def regenerate_graph(
     json_output: bool = typer.Option(
         False,
         "--json",
-        help="Emit machine-readable JSON instead of rich text.",
+        help=_JSON_OPTION_HELP,
     ),
 ) -> None:
     """Regenerate the shipped DRG ``graph.yaml`` deterministically (FR-009).
@@ -298,7 +300,7 @@ def pack_validate(
     json_output: bool = typer.Option(
         False,
         "--json",
-        help="Emit machine-readable JSON instead of rich text.",
+        help=_JSON_OPTION_HELP,
     ),
 ) -> None:
     """Validate a doctrine pack against schema and DRG constraints.
@@ -345,7 +347,7 @@ def pack_assemble(
     json_output: bool = typer.Option(
         False,
         "--json",
-        help="Emit machine-readable JSON instead of rich text.",
+        help=_JSON_OPTION_HELP,
     ),
 ) -> None:
     """Assemble multiple doctrine packs into a single distributable.

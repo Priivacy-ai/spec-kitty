@@ -1,0 +1,1 @@
+#1898 fixed: legacy NNN- carve-out in resolve_transaction_mid8 before coord raise; pinning test RED pre-fix GREEN post (7 passed); gates green (262 pass, ruff clean, mypy 82==82 baseline, zero new); commit 4852015d; #1898 closed.

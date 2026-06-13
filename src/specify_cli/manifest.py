@@ -151,10 +151,25 @@ class WorktreeStatus:
             )
         except subprocess.CalledProcessError:
             return set()
+        from specify_cli.lanes.branch_naming import parse_mission_slug_from_branch
+
         features = set()
         for line in result.stdout.split("\n"):
-            branch = line.strip().replace("* ", "").split("/")[-1]
-            if branch and not line.strip().startswith("remotes/") and branch[0].isdigit() and "-" in branch:
+            stripped = line.strip().replace("* ", "")
+            if not stripped or stripped.startswith("remotes/"):
+                continue
+            # Canonical mission/lane branches (``kitty/mission-…``) carry the
+            # slug in either legacy ``NNN-slug`` or mid8-era ``<slug>-<mid8>``
+            # form. Route through the dual-era parser so mid8 missions are
+            # discovered too — the old ``branch[0].isdigit()`` test silently
+            # excluded every mid8 branch (#1860 class).
+            parsed = parse_mission_slug_from_branch(stripped)
+            if parsed is not None:
+                features.add(parsed.slug)
+                continue
+            # Legacy bare feature branch (``NNN-slug``, no ``kitty/mission-``).
+            branch = stripped.split("/")[-1]
+            if branch and branch[0].isdigit() and "-" in branch:
                 features.add(branch)
         return features
 

@@ -469,6 +469,33 @@ _CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH: frozenset[str] = frozenset(
 )
 
 
+# ---------- C. WP-in-flight topology authority seam (mission 01KTYGTE) ----------
+# Mission ``name-vs-authority-remediation-01KTYGTE`` WP03 adds the topology
+# authority seam in ``coordination.surface_resolver``. The two structured types
+# below are genuinely public API but are reached transitively rather than by
+# name:
+#   * ``ResolvedStatusSurface`` is the return type of the already-wired
+#     ``resolve_status_surface_with_anchor`` (callers consume the value, not the
+#     name); it predates this WP and was opted into the gate by adding ``__all__``
+#     per C-007.
+#   * ``CoordinationBranchDeleted`` subclasses ``StatusReadPathNotFound``, so the
+#     ~10 existing ``except StatusReadPathNotFound`` handlers already catch it and
+#     route on its distinct ``error_code``; a redundant by-name ``except`` would be
+#     worse design. WP05 (read-path migration, commit 77ba2b2d9) has now LANDED;
+#     per the adjudicated WP05 review it kept the transitive-via-superclass
+#     consumption rather than adding a by-name ``except``, so this is a *permanent*
+#     transitive-consumption allowlist, not a temporary in-flight one. Both symbols
+#     still have zero cross-module by-name importers (WP09 verified by removal-probe:
+#     dropping either re-fails this gate), so both entries STAY.
+# Follow-up tracker: none — transitive consumption is the intended steady state.
+_CATEGORY_C_WP_IN_FLIGHT_TOPOLOGY_AUTHORITY: frozenset[str] = frozenset(
+    {
+        "specify_cli.coordination.surface_resolver::ResolvedStatusSurface",
+        "specify_cli.coordination.surface_resolver::CoordinationBranchDeleted",
+    }
+)
+
+
 # ---------- C. WP-in-flight unified MissionStep model (mission 01KSWJVX) ----------
 # Mission ``charter-doctrine-mission-type-configuration-01KSWJVX`` WP01
 # unified the previously-fragmented ``MissionStep`` classes into
@@ -602,6 +629,7 @@ _SYMBOL_ALLOWLIST: frozenset[str] = (
     | _CATEGORY_C_WP_IN_FLIGHT_WORKFLOW_REGISTRY
     | _CATEGORY_C_CHARTER_SPLIT_LEGACY_PATCH_SURFACE
     | _CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH
+    | _CATEGORY_C_WP_IN_FLIGHT_TOPOLOGY_AUTHORITY
     | _CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP
     | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION
     | _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT

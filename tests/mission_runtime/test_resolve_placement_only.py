@@ -114,6 +114,12 @@ def test_coordination_topology_parity(repo: Path) -> None:
         coordination_branch=coord,
     )
     _commit_fixture(repo)
+    # WP03 R3 authority: a declared coordination branch must actually EXIST in
+    # git for the COORDINATION (R2) path to resolve; a declared-but-absent
+    # branch now correctly raises CoordinationBranchDeleted (R3). Materialize
+    # the real coordination ref so the registry-based topology authority
+    # ("name proposes, authority disposes") resolves COORDINATION.
+    _git(repo, "branch", coord)
 
     placement = resolve_placement_only(repo, _MISSION_SLUG)
 
@@ -132,6 +138,10 @@ def test_protected_main_with_coordination_branch_parity(repo: Path) -> None:
     coord = "kitty/mission-wp05-placement-mission-01WP05PLA"
     _build_mission(repo, target_branch="main", coordination_branch=coord)
     _commit_fixture(repo)
+    # WP03 R3 authority: materialize the real coordination branch so the
+    # protected-main + coordination shape resolves COORDINATION (R2) rather
+    # than raising CoordinationBranchDeleted (R3) on an absent ref.
+    _git(repo, "branch", coord)
 
     placement = resolve_placement_only(repo, _MISSION_SLUG)
 

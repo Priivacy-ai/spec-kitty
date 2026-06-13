@@ -86,6 +86,8 @@ nodes:
 - urn: agent_profile:implementer-ivan
   kind: agent_profile
   label: Implementer Ivan
+- urn: agent_profile:java-implementer
+  kind: agent_profile
 - urn: agent_profile:java-jenny
   kind: agent_profile
   label: Java Jenny
@@ -357,6 +359,9 @@ nodes:
 - urn: tactic:change-apply-smallest-viable-diff
   kind: tactic
   label: Change Apply Smallest Viable Diff
+- urn: tactic:clean-linear-commit-history
+  kind: tactic
+  label: Clean Linear Commit History via Snapshot Chain
 - urn: tactic:code-documentation-analysis
   kind: tactic
   label: Code and Documentation Analysis for Boundary Discovery
@@ -675,6 +680,9 @@ nodes:
 - urn: toolguide:python-review-checks
   kind: toolguide
   label: Python Review Checks
+- urn: toolguide:rtk-search-tooling
+  kind: toolguide
+  label: RTK Interception and Search Tooling
 - urn: toolguide:typescript-mutation-tools
   kind: toolguide
   label: TypeScript Mutation Testing with Stryker
@@ -1813,6 +1821,78 @@ edges:
   relation: requires
 - source: procedure:tracker-organisation-workflow
   target: toolguide:github-tracker
+  relation: suggests
+- source: styleguide:aggregate-design-rules
+  target: paradigm:domain-driven-design
+  relation: suggests
+- source: styleguide:aggregate-design-rules
+  target: tactic:aggregate-boundary-design
+  relation: suggests
+- source: styleguide:aggregate-design-rules
+  target: tactic:domain-event-capture
+  relation: suggests
+- source: styleguide:java-conventions
+  target: agent_profile:java-implementer
+  relation: suggests
+- source: styleguide:java-conventions
+  target: directive:DIRECTIVE_030
+  relation: suggests
+- source: styleguide:java-conventions
+  target: directive:DIRECTIVE_034
+  relation: suggests
+- source: styleguide:java-conventions
+  target: tactic:tdd-red-green-refactor
+  relation: suggests
+- source: styleguide:java-conventions
+  target: toolguide:maven-review-checks
+  relation: suggests
+- source: styleguide:planning-and-tracking
+  target: toolguide:github-tracker
+  relation: suggests
+- source: styleguide:python-conventions
+  target: directive:DIRECTIVE_030
+  relation: suggests
+- source: styleguide:python-conventions
+  target: tactic:tdd-red-green-refactor
+  relation: suggests
+- source: styleguide:test-desiderata-and-boundaries
+  target: directive:DIRECTIVE_030
+  relation: suggests
+- source: styleguide:test-desiderata-and-boundaries
+  target: directive:DIRECTIVE_034
+  relation: suggests
+- source: styleguide:test-desiderata-and-boundaries
+  target: styleguide:mutation-aware-test-design
+  relation: suggests
+- source: styleguide:test-desiderata-and-boundaries
+  target: styleguide:testing-principles
+  relation: suggests
+- source: styleguide:test-desiderata-and-boundaries
+  target: tactic:function-over-form-testing
+  relation: suggests
+- source: styleguide:test-desiderata-and-boundaries
+  target: tactic:test-boundaries-by-responsibility
+  relation: suggests
+- source: styleguide:testing-principles
+  target: directive:DIRECTIVE_030
+  relation: suggests
+- source: styleguide:testing-principles
+  target: directive:DIRECTIVE_034
+  relation: suggests
+- source: styleguide:testing-principles
+  target: tactic:acceptance-test-first
+  relation: suggests
+- source: styleguide:testing-principles
+  target: tactic:tdd-red-green-refactor
+  relation: suggests
+- source: styleguide:testing-principles
+  target: tactic:test-boundaries-by-responsibility
+  relation: suggests
+- source: styleguide:testing-principles
+  target: tactic:test-minimisation
+  relation: suggests
+- source: styleguide:testing-principles
+  target: tactic:test-pyramid-progression
   relation: suggests
 - source: tactic:acceptance-test-first
   target: tactic:tdd-red-green-refactor

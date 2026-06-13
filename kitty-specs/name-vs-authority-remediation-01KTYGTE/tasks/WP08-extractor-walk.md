@@ -5,9 +5,9 @@ dependencies: []
 requirement_refs:
 - FR-012
 tracker_refs: []
-planning_base_branch: feat/doctrine-glossary-consolidation-01KTNWFC
-merge_target_branch: feat/doctrine-glossary-consolidation-01KTNWFC
-branch_strategy: Planning artifacts for this mission were generated on feat/doctrine-glossary-consolidation-01KTNWFC. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/doctrine-glossary-consolidation-01KTNWFC unless the human explicitly redirects the landing branch.
+planning_base_branch: feat/name-vs-authority-remediation-01KTYGTE
+merge_target_branch: feat/name-vs-authority-remediation-01KTYGTE
+branch_strategy: Planning artifacts for this mission were generated on feat/doctrine-glossary-consolidation-01KTNWFC (mission retargeted to feat/name-vs-authority-remediation-01KTYGTE on 2026-06-12 — PR #1895 branch frozen for review). During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/name-vs-authority-remediation-01KTYGTE unless the human explicitly redirects the landing branch.
 created_at: '2026-06-12T18:32:00Z'
 subtasks:
 - T027
@@ -15,7 +15,8 @@ subtasks:
 - T029
 phase: Phase 1 - Independent lanes
 assignee: ''
-agent: ''
+agent: "claude:sonnet:reviewer-renata:reviewer"
+shell_pid: "1591242"
 history:
 - at: '2026-06-12T18:32:00Z'
   actor: system
@@ -61,3 +62,7 @@ reviewer-renata. Verify determinism (regen twice byte-identical) and that the sc
 
 ## Activity Log
 - 2026-06-12T18:32:00Z – system – Prompt created.
+- 2026-06-12T19:23:21Z – claude:sonnet:python-pedro:implementer – shell_pid=1470114 – Assigned agent via action command
+- 2026-06-12T19:39:10Z – claude:sonnet:python-pedro:implementer – shell_pid=1470114 – T027/T028/T029 complete. _resolve_path_ref() 7-pattern helper + styleguide walk + toolguide schema. Graph delta: +24 suggests edges, +2 nodes (agent_profile:java-implementer stub from stale java-conventions ref + toolguide:rtk-search-tooling from rglob fix in _discover_built_in_artifact_nodes). Idempotency verified (SHA-256). 33 new unit tests. 2195 doctrine tests green. ruff+mypy zero issues.
+- 2026-06-12T19:39:52Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=1591242 – Started review via action command
+- 2026-06-12T19:46:56Z – user – shell_pid=1591242 – Review passed: FR-012 DRG extractor walk implemented correctly. _resolve_path_ref 7-pattern helper (6 doc kinds + agent_profile): clean fail-closed design, returns None for URLs/glossary/_proposed/ADRs. Styleguide and toolguide rglob walks emit suggests edges. Schema change to toolguide.schema.yaml is additive (DIRECTIVE_018 compliant; 219 artifacts pass validation). Graph delta: +24 suggests edges / +2 nodes (234 nodes / 585 edges). Deviation adjudications: (a) agent_profile:java-implementer stub — ACCEPTED: file-existence is not checked by _ensure_node for ANY artifact kind; stub-creation for referenced but missing targets is established extractor behavior (pre-existing in _add_ref_edge for directives/tactics/etc.); the phantom node faithfully surfaces the stale reference in java-conventions.styleguide.yaml rather than hiding it — curation fix (remove/add the profile file) is a separate task, not a WP08 defect; consistent with NFR-003 which governs pattern resolution not file-existence checking. (b) toolguide:rtk-search-tooling — ACCEPTED: file exists at src/doctrine/toolguides/built-in/system_tools/rtk-search-tooling.toolguide.yaml; discovered by rglob fix; genuine pre-existing discovery gap fixed. (c) +24 vs ~27 edges — ACCEPTED: shortfall explained by unresolvable refs correctly dropped (URLs, non-built-in paths, stale refs with no matching node after _resolve_path_ref); no silent loss. Determinism: double-regen byte-identical (SHA 5d1bf42b confirmed). Freshness test passes. 33 new tests all pass. Full doctrine suite 2195/2195 pass. ruff clean. mypy --strict clean on extractor.py. C-002 fence respected (no status_transition.py/merge.py touches). Orphan scope respected (only styleguide reference-walks, no curation orphan edits).

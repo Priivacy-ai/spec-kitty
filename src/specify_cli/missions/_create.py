@@ -43,6 +43,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from specify_cli.lanes._git import branch_exists as _branch_exists
+from specify_cli.lanes._git import ref_exists as _ref_resolves
 from specify_cli.lanes.branch_naming import mid8 as _mid8
 from specify_cli.lanes.branch_naming import strip_numeric_prefix
 
@@ -227,36 +229,6 @@ def ensure_coordination_branch(
 # ---------------------------------------------------------------------------
 # Git plumbing
 # ---------------------------------------------------------------------------
-
-
-def _branch_exists(repo_root: Path, branch: str) -> bool:
-    """Return True if a local branch with this name exists."""
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return result.returncode == 0
-
-
-def _ref_resolves(repo_root: Path, ref: str) -> bool:
-    """Return True if ``ref`` resolves to a commit in the repo.
-
-    Distinct from :func:`_branch_exists` — this accepts any revspec
-    (``main``, ``origin/main``, ``HEAD``, ``2.x``…) and only confirms that
-    git can resolve it to a real object.  Used by
-    :func:`ensure_coordination_branch` to detect synthetic ``target_branch``
-    values that should skip branch creation rather than crash mission
-    creation.
-    """
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return result.returncode == 0
 
 
 def _is_ancestor(repo_root: Path, candidate: str, descendant: str) -> bool:

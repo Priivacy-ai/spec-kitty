@@ -87,9 +87,18 @@ steps:
       Confirm each open ticket resolves to a functional epic, carries an issue
       type (Task, Bug, or Feature; epics are typed Feature), and carries exactly
       one priority label. Derive type objectively from the conventional-commit
-      prefix and existing labels. Priority is triage judgement — assign a
-      provisional default and flag it rather than silently guessing — and audit
-      for conflicting multi-value priority after any migration.
+      prefix and existing labels. Priority is triage judgement — assign
+      `priority:P2` + `triage:needs-revision` as the canonical provisional default
+      and flag it rather than silently guessing — and audit for conflicting
+      multi-value priority after any migration.
+
+      Canonical-tree carve-out: some roots or buckets may be under change-control
+      (e.g. a governed canonical-tree node whose type or parent relationship must
+      not change without a tree-owner decision). For such nodes, additive
+      label-only mutations (adding a canonical `priority:Px` or `triage:*` label)
+      are permitted. Type changes, reparenting, and closure require a recorded
+      proposal to the tree owner rather than execution. Record the prescribed fix
+      as a named proposal with an owner reference.
   - title: Verify with a clean-bill re-walk and keep an auditable trace
     actor: agent
     description: >
@@ -123,6 +132,13 @@ notes: >
   vocabulary (functional epic, meta-tracker, issue type, priority scheme, triage
   status) is defined in the planning-and-tracking glossary subset. DRG wiring of
   the references below is performed by the consolidation mission's graph step.
+
+  Label-only mutations (adding a `priority:Px` or `triage:*` label) on a
+  canonical-tree node are permitted — they are additive. Type changes,
+  reparenting, and closure of governed nodes require a proposal recorded for the
+  tree owner. When a node is off-limits to type/parent mutations, record the
+  prescribed fix as a named deferred proposal rather than executing it (see Step 8
+  carve-out). This preserves the audit trail while respecting tree governance.
 references:
   - type: tactic
     id: iterative-deepening-review

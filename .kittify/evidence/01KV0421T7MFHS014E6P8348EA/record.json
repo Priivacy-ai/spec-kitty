@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KV0421T7MFHS014E6P8348EA",
+  "completed_at": "2026-06-13T09:17:36.489503+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "Fixed all 5 CI integration-tests-core-misc failures by materializing real git coordination topology in stale fixtures (WP03 R3 authority). #1,#2: create real coord branch -> R2 COORDINATION resolve. #3: real git repo + registered worktree -> registry disposes COORDINATION. #4,#5: flattened_mission fixture reconciled to genuine flatten (no coordination_branch key) per #1889 pin intent + R3 remediation. No production code changed; no assertion weakened (NFR-001). Gates green: tests/mission_runtime + tests/unit/status + test_p0_pinning_regressions + tests/specify_cli/coordination + tests/architectural = 571 passed; ruff clean on touched files. Committed 8a0fe22b8 on feat/name-vs-authority-remediation-01KTYGTE."
+}

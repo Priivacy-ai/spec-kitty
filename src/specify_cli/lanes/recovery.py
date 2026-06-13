@@ -11,13 +11,18 @@ All recovery transitions use actor="recovery" for auditability.
 from __future__ import annotations
 
 from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
+import json
 import logging
 import subprocess
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from specify_cli.lanes.branch_naming import parse_lane_id_from_branch
+from specify_cli.lanes.branch_naming import (
+    BranchIdentityUnresolved,
+    mission_branch_name_required,
+    parse_lane_id_from_branch,
+)
 from specify_cli.status import Lane
 from specify_cli.workspace.context import (
     WorkspaceContext,
@@ -223,6 +228,48 @@ def _find_mission_branch(feature_dir: Path) -> str:
     return ""
 
 
+def _mission_id_from_meta(feature_dir: Path) -> str | None:
+    """Return ``mission_id`` declared in ``meta.json``, or ``None`` if absent.
+
+    Feeds the fail-closed branch composer (FR-006): a modern mission carries its
+    ULID here; a legacy mission has none and is resolved by slug shape instead.
+    """
+    meta_path = feature_dir / "meta.json"
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):  # FileNotFoundError ⊂ OSError; json.JSONDecodeError ⊂ ValueError
+        return None
+    raw = meta.get("mission_id") if isinstance(meta, dict) else None
+    return str(raw) if raw else None
+
+
+def _resolve_mission_branch(feature_dir: Path, mission_slug: str) -> str:
+    """Resolve the mission branch from lanes.json, else compose fail-closed.
+
+    Replaces the legacy ``f"kitty/mission-{slug}"`` fallback (the live
+    wrong-compose path for mid8-era missions): when lanes.json has no branch,
+    compose via :func:`mission_branch_name_required`, fed ``mission_id`` from
+    ``meta.json``. Dual-era: legacy/mid8-tail slugs resolve; an unresolvable
+    modern identity raises :class:`BranchIdentityUnresolved`.
+    """
+    mission_branch = _find_mission_branch(feature_dir)
+    if mission_branch:
+        return mission_branch
+    try:
+        return mission_branch_name_required(
+            mission_slug, _mission_id_from_meta(feature_dir)
+        )
+    except BranchIdentityUnresolved as exc:
+        # Re-raise with the feature directory in the next_step so a recovery
+        # caller can locate the meta.json whose mission_id is missing.
+        raise BranchIdentityUnresolved(
+            mission_slug,
+            next_step=(
+                f"{exc.next_step} (meta.json expected at {feature_dir / 'meta.json'})"
+            ),
+        ) from exc
+
+
 def _read_all_wp_ids_from_tasks(feature_dir: Path) -> list[str]:
     """Return all WP IDs found in the tasks/ directory."""
     tasks_dir = feature_dir / "tasks"
@@ -316,10 +363,7 @@ def scan_recovery_state(  # noqa: C901
         if parse_lane_id_from_branch(b) is not None
     ]
 
-    mission_branch = _find_mission_branch(feature_dir)
-    if not mission_branch:
-        # Fall back to convention
-        mission_branch = f"kitty/mission-{mission_slug}"
+    mission_branch = _resolve_mission_branch(feature_dir, mission_slug)
 
     # Build a map of existing contexts by lane_id
     contexts_by_lane: dict[str, WorkspaceContext] = {}
@@ -566,9 +610,7 @@ def recover_context(
 
     # Get base info from lanes.json
     wp_ids = _find_wp_ids_for_lane(feature_dir, state.lane_id)
-    mission_branch = _find_mission_branch(feature_dir)
-    if not mission_branch:
-        mission_branch = f"kitty/mission-{mission_slug}"
+    mission_branch = _resolve_mission_branch(feature_dir, mission_slug)
 
     # Get base commit
     result = subprocess.run(

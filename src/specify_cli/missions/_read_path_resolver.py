@@ -301,12 +301,26 @@ def resolve_mission_read_path(
     # Neither the literal slug nor a canonical handle resolved to an existing
     # directory. Fall through to the diagnostic / not-found path below using the
     # best-known (possibly canonicalised) slug + mid8.
-    # Not-found / fail-closed / diagnostic path. ``_resolve_existing_for_slug``
-    # has already returned any *safely-existing* directory; reaching here means
-    # either (a) nothing exists for the (possibly canonicalised) slug, or (b) the
-    # fail-closed condition held (coord worktree materialised + primary declares
-    # ``coordination_branch`` but the coord dir is absent — #1718). Recompute the
-    # candidate paths for an actionable diagnostic.
+    return _resolve_not_found(
+        repo_root, mission_slug, mid8, require_exists=require_exists
+    )
+
+
+def _resolve_not_found(
+    repo_root: Path,
+    mission_slug: str,
+    mid8: str,
+    *,
+    require_exists: bool,
+) -> Path:
+    """Handle the not-found / fail-closed / diagnostic tail of resolution.
+
+    ``_resolve_existing_for_slug`` has already returned any *safely-existing*
+    directory; reaching here means either (a) nothing exists for the (possibly
+    canonicalised) slug, or (b) the fail-closed condition held (coord worktree
+    materialised + primary declares ``coordination_branch`` but the coord dir is
+    absent — #1718). Recompute the candidate paths for an actionable diagnostic.
+    """
     mission_dir_name = _compose_mission_dir(mission_slug, mid8)
     primary_candidate: Path = repo_root / KITTY_SPECS_DIR / mission_dir_name
     coord_candidate: Path = primary_candidate
@@ -326,21 +340,13 @@ def resolve_mission_read_path(
 
     # Fail-closed: primary exists but declares a coord branch whose materialised
     # worktree lacks the mission dir — reading primary would expose stale status.
-    if (
+    fail_closed = (
         primary_candidate.exists()
-        and mid8
+        and bool(mid8)
         and coord_worktree_materialized
         and _declares_coordination_branch(primary_candidate)
-    ):
-        raise StatusReadPathNotFound(
-            repo_root=repo_root,
-            mission_slug=mission_slug,
-            mid8=mid8 or "",
-            coord_candidate=coord_candidate,
-            primary_candidate=primary_candidate,
-        )
-
-    if require_exists:
+    )
+    if fail_closed or require_exists:
         raise StatusReadPathNotFound(
             repo_root=repo_root,
             mission_slug=mission_slug,

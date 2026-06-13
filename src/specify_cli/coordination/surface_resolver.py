@@ -20,6 +20,8 @@ bug); building the path directly avoids that.
 """
 from __future__ import annotations
 
+import enum
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -34,8 +36,303 @@ from specify_cli.missions._read_path_resolver import (
 )
 from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
 
+__all__ = [
+    "CoordinationBranchDeleted",
+    "ResolvedStatusSurface",
+    "WorktreeRegistryUnavailable",
+    "WorktreeTopology",
+    "classify_worktree_topology",
+    "is_registered_coord_worktree",
+    "is_under_worktrees_segment",
+    "read_worktree_registry",
+    "resolve_status_surface",
+    "resolve_status_surface_with_anchor",
+]
+
 _WORKTREES_SEGMENT = ".worktrees"
+_COORD_SUFFIX = "-coord"
 _STATUS_EVENTS_FILENAME = "status.events.jsonl"
+
+
+class WorktreeTopology(enum.Enum):
+    """How a worktree path relates to a mission's commit destination.
+
+    Produced ONLY by :func:`classify_worktree_topology`. No consumer may derive
+    topology from path shape directly (C-SEAM-1): the ``-coord`` suffix and the
+    ``.worktrees`` segment merely *propose*; the ``git worktree list
+    --porcelain`` registry *disposes*.
+    """
+
+    PRIMARY = "primary"
+    """The main checkout (not under a registered ``.worktrees`` entry)."""
+    COORD_WORKTREE = "coord_worktree"
+    """A registered ``<slug>-<mid8>-coord`` worktree."""
+    LANE_WORKTREE = "lane_worktree"
+    """A registered lane worktree (registered, but NOT coord)."""
+    UNREGISTERED = "unregistered"
+    """Under ``.worktrees`` but absent from the git registry (husk, F-005)."""
+
+
+class WorktreeRegistryUnavailable(RuntimeError):
+    """Raised when the git worktree registry cannot be read.
+
+    Name proposes coord/lane topology; without the registry to dispose, the
+    seam fails closed rather than guessing from path shape (NFR-003). Carries a
+    stable ``error_code`` so callers route without string parsing.
+    """
+
+    error_code: str = "WORKTREE_REGISTRY_UNAVAILABLE"
+
+    def __init__(self, *, repo_root: Path, detail: str) -> None:
+        self.repo_root = repo_root
+        self.detail = detail
+        super().__init__(
+            f"Could not read the git worktree registry at {repo_root}: {detail}. "
+            "Topology cannot be determined from path shape alone; fail closed."
+        )
+
+
+# ``StatusReadPathNotFound`` resolves to ``Any`` under this project's mypy
+# config because ``src/specify_cli/missions/`` is in the mypy ``exclude`` list
+# (pyproject ``[tool.mypy] exclude``), so mypy cannot see the real base class
+# and reports ``cannot subclass "Any"``. The subclass is correct and intended:
+# every existing ``except StatusReadPathNotFound`` handler must keep catching
+# R3 (fail-closed), while the distinct ``error_code`` lets callers route on the
+# deleted-branch recovery. The mypy error is a config artifact, not a code
+# defect — narrowly suppressed here with rationale per the project's
+# suppression policy. The CI-authoritative invocation
+# (``mypy --strict src/specify_cli src/charter src/doctrine``) resolves the base
+# class normally, so ``[misc]`` does not fire there and would be reported as
+# ``unused-ignore``; pairing both codes keeps the suppression silent under BOTH
+# the single-file run (``[misc]``) and the full-package CI run (``[unused-ignore]``).
+class CoordinationBranchDeleted(StatusReadPathNotFound):  # type: ignore[misc, unused-ignore]
+    """#1889 row R3: ``coordination_branch`` is declared in ``meta.json`` but the
+    branch no longer exists in git (deleted), and the coord worktree is absent.
+
+    A deleted coord branch carrying unmerged status is *data loss*, not a
+    degraded read — surfaced loudly with an actionable ``next_step`` and a
+    distinct ``error_code`` so the resolver NEVER silently falls back to the
+    primary checkout (composes with the #1848 status-transition carve-out).
+
+    Subclasses :class:`StatusReadPathNotFound` so existing fail-closed handlers
+    still catch it, while the distinct ``error_code`` / type lets callers that
+    care surface the deleted-branch recovery path.
+    """
+
+    error_code: str = "COORDINATION_BRANCH_DELETED"
+
+    def __init__(
+        self,
+        *,
+        repo_root: Path,
+        mission_slug: str,
+        mid8: str,
+        coordination_branch: str,
+        coord_candidate: Path,
+        primary_candidate: Path,
+    ) -> None:
+        self.coordination_branch = coordination_branch
+        self.next_step = (
+            f"The coordination branch {coordination_branch!r} declared in "
+            f"meta.json no longer exists in git. Run `spec-kitty agent worktree "
+            f"repair --mission {mission_slug}`, or flatten the mission by "
+            f"removing the `coordination_branch` key from meta.json if the "
+            f"coordination topology was intentionally torn down."
+        )
+        super().__init__(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            mid8=mid8,
+            coord_candidate=coord_candidate,
+            primary_candidate=primary_candidate,
+        )
+
+    def __str__(self) -> str:  # pragma: no cover - trivial formatting
+        return (
+            f"Coordination branch {self.coordination_branch!r} for mission "
+            f"{self.mission_slug!r} is declared in meta.json but deleted from "
+            f"git. {self.next_step}"
+        )
+
+
+def read_worktree_registry(repo_root: Path) -> frozenset[Path]:
+    """Return resolved paths registered in ``git worktree list --porcelain``.
+
+    The single authority for "is this path a registered worktree". Fails closed
+    via :class:`WorktreeRegistryUnavailable` when git cannot be consulted —
+    name-derived guessing is never substituted (NFR-003). Exemplar:
+    ``cli/commands/doctor.py:~3063`` (the cache-once-per-pass pattern).
+
+    Batch callers (dashboard scanner, status_service contract routing) read this
+    once and pass the result as ``registry=`` to :func:`classify_worktree_topology`
+    rather than re-shelling per path.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "worktree", "list", "--porcelain"],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except OSError as exc:  # git missing / not executable
+        raise WorktreeRegistryUnavailable(repo_root=repo_root, detail=str(exc)) from exc
+    if result.returncode != 0:
+        detail = (
+            result.stderr.strip()
+            or result.stdout.strip()
+            or f"exit {result.returncode}"
+        )
+        raise WorktreeRegistryUnavailable(repo_root=repo_root, detail=detail)
+    registered: set[Path] = set()
+    for line in result.stdout.splitlines():
+        if line.startswith("worktree "):
+            raw = line[len("worktree ") :].strip()
+            try:
+                registered.add(Path(raw).resolve())
+            except OSError:
+                continue
+    return frozenset(registered)
+
+
+def is_under_worktrees_segment(path: Path) -> bool:
+    """Return whether *path* lives under a ``.worktrees`` segment (shape only).
+
+    The blessed home for the ``".worktrees" in parts`` idiom (C-SEAM-1). This is
+    a pure *shape proposal* — it answers "does this path's layout look like a
+    worktree path", NOT "is it a registered coord worktree". Contract-label
+    consistency guards (status_service) use this; topology *routing* decisions
+    must use :func:`is_registered_coord_worktree` / :func:`classify_worktree_topology`,
+    which additionally consult the git registry so a husk cannot spoof the
+    authority.
+    """
+    return _WORKTREES_SEGMENT in path.parts
+
+
+def _enclosing_worktree_root(path: Path) -> Path | None:
+    """Return the ``.worktrees/<name>`` ancestor of *path*, or ``None``.
+
+    Walks the resolved path's parents looking for the first directory whose
+    parent is the ``.worktrees`` segment. ``path`` itself is included so a
+    worktree-root argument resolves to itself.
+    """
+    resolved = path.resolve(strict=False)
+    for candidate in (resolved, *resolved.parents):
+        if candidate.parent.name == _WORKTREES_SEGMENT:
+            return candidate
+    return None
+
+
+def classify_worktree_topology(
+    path: Path,
+    *,
+    repo_root: Path | None = None,
+    registry: frozenset[Path] | None = None,
+) -> WorktreeTopology:
+    """Classify *path* against the git worktree registry (C-SEAM-1).
+
+    The ``-coord`` suffix and ``.worktrees`` segment only *propose* topology;
+    the registry *disposes*:
+
+    * a path with no ``.worktrees`` ancestor → :attr:`WorktreeTopology.PRIMARY`;
+    * a ``.worktrees/<name>`` ancestor that git registers and whose name ends in
+      ``-coord`` → :attr:`WorktreeTopology.COORD_WORKTREE`;
+    * a registered ``.worktrees`` ancestor that is NOT coord →
+      :attr:`WorktreeTopology.LANE_WORKTREE`;
+    * a ``.worktrees`` ancestor absent from the registry (husk, F-005) →
+      :attr:`WorktreeTopology.UNREGISTERED`.
+
+    Single git-registry read per call (or none when *registry* is injected).
+    Callers that route many paths in one pass (status_service) MUST pass the
+    cached *registry* set rather than re-shelling per path.
+
+    Args:
+        path: The path whose topology is classified.
+        repo_root: Repo root for the registry read. Defaults to the first git
+            checkout enclosing *path* — but injecting it (and *registry*) is
+            preferred for batch callers.
+        registry: An already-parsed porcelain set. When provided, NO git is
+            consulted (the path is matched against it directly).
+
+    Raises:
+        WorktreeRegistryUnavailable: when *registry* is omitted and the git
+            registry cannot be read — fail closed, never guess.
+    """
+    worktree_root = _enclosing_worktree_root(path)
+    if worktree_root is None:
+        return WorktreeTopology.PRIMARY
+
+    if registry is None:
+        root_for_registry = repo_root if repo_root is not None else path
+        registry = read_worktree_registry(root_for_registry)
+
+    if worktree_root not in registry:
+        # Name proposes a worktree; the registry disposes: a husk (F-005).
+        return WorktreeTopology.UNREGISTERED
+    if worktree_root.name.endswith(_COORD_SUFFIX):
+        return WorktreeTopology.COORD_WORKTREE
+    return WorktreeTopology.LANE_WORKTREE
+
+
+def is_registered_coord_worktree(
+    path: Path,
+    *,
+    repo_root: Path | None = None,
+    registry: frozenset[Path] | None = None,
+) -> bool:
+    """True iff *path* is inside a worktree that BOTH ends in ``-coord`` AND is
+    registered in ``git worktree list --porcelain``.
+
+    The ``-coord`` suffix only *proposes* coord topology; the porcelain registry
+    *disposes*. A lane worktree, the primary checkout, or a husk (suffix
+    present, not registered) returns ``False`` — killing the split-brain where a
+    lane/husk path silently receives coord write-contract routing (#1589/#1821,
+    F-005 husks).
+
+    Convenience predicate over :func:`classify_worktree_topology`; see it for
+    the ``repo_root`` / ``registry`` semantics and the fail-closed posture.
+    """
+    return (
+        classify_worktree_topology(path, repo_root=repo_root, registry=registry)
+        is WorktreeTopology.COORD_WORKTREE
+    )
+
+
+def _coord_branch_exists(repo_root: Path, coord_branch: str) -> bool:
+    """Return whether *coord_branch* still exists in git (one rev-parse).
+
+    Used to split #1889 row R2 (branch exists, worktree not yet materialized)
+    from row R3 (branch DELETED). A registry read cannot tell these apart — only
+    the ref existence does. Fails closed: when git is unreadable OR ``repo_root``
+    is not a git repository at all, the branch is treated as present (R2/R2′
+    path), because the materialization guard one level up still fail-closes; we
+    never *invent* a deleted-branch error from a non-repo context.
+    """
+    try:
+        inside = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--git-dir"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return True
+    if inside.returncode != 0:
+        # Not a git repository (e.g. an ad-hoc tmp dir): we cannot assert the
+        # branch was deleted, so do not fire R3. Treat as present.
+        return True
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet",
+             f"refs/heads/{coord_branch}"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return True
+    return result.returncode == 0
 
 
 @dataclass(frozen=True)
@@ -218,6 +515,22 @@ def resolve_status_surface_with_anchor(
     dir_name: str = _compose_mission_dir(mission_slug, mid8)
     coord_root: Path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
     coord_feature_dir: Path = coord_root / KITTY_SPECS_DIR / dir_name
+    # #1889 row R3 (NEW): the coord worktree is absent AND the declared
+    # coordination branch has been DELETED from git. This is the #1848 carve-out
+    # — a deleted coord branch with unmerged status is data loss, not a degraded
+    # read. Fail closed LOUDLY with a distinct, actionable error rather than
+    # silently composing a coord path (R2) or falling back to primary (FR-005 /
+    # FR-008). One `git rev-parse --verify` disambiguates R2 (branch exists) from
+    # R3 (branch gone); skipped once the worktree is materialized (R1/R2′).
+    if not coord_root.exists() and not _coord_branch_exists(repo_root, coord_branch):
+        raise CoordinationBranchDeleted(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            mid8=mid8,
+            coordination_branch=coord_branch,
+            coord_candidate=coord_feature_dir,
+            primary_candidate=feature_dir,
+        )
     # Fail closed: the coord worktree root is materialized but its mission dir is
     # absent → reading the primary checkout would expose a stale, split-brain
     # status surface (#1589/#1821). Before materialization the composed coord

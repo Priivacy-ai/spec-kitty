@@ -159,7 +159,7 @@ def _is_real_technical_context_value(raw: str) -> bool:
 def _has_substantive_technical_context(body: str) -> bool:
     """Return True iff Technical Context has Language/Version plus a peer field."""
     section = re.search(
-        r"##\s+Technical Context\s*\n(?P<body>.*?)(?=\n##\s+|\Z)",
+        r"##\s+Technical Context\s*\n(?P<body>(?:[^\n]|\n(?!##))*)",
         body,
         flags=re.DOTALL,
     )
@@ -178,8 +178,13 @@ def _has_substantive_technical_context(body: str) -> bool:
     if not _is_real_technical_context_value(lang_match.group("val")):
         return False
 
+    # FR-013 (#1896): Technical Context fields may be written as Markdown
+    # bullets (``- **Field**: value`` / ``* **Field**: value``). The peer-field
+    # scan must tolerate an optional leading bullet marker before the bolded
+    # label; a bullet-intolerant ``^\s*\*\*`` anchor rejected a fully-populated
+    # bulleted section as non-substantive.
     peer_fields = re.finditer(
-        r"^\s*\*\*(?P<label>[^*\n]+)\*\*[ \t]*:[ \t]*(?P<val>[^\n]*)",
+        r"^[ \t]*(?:[-*][ \t]+)?\*\*(?P<label>[^*\n]+)\*\*[ \t]*:[ \t]*(?P<val>[^\n]*)",
         sec_body,
         flags=re.MULTILINE,
     )
@@ -189,6 +194,47 @@ def _has_substantive_technical_context(body: str) -> bool:
         if _is_real_technical_context_value(field.group("val")):
             return True
     return False
+
+
+def describe_technical_context_gap(body: str) -> str | None:
+    """Return a human reason when Technical Context fails the substantive gate.
+
+    FR-013 (#1896): when ``_has_substantive_technical_context`` returns False
+    the caller's ``blocked_reason`` should *name the offending format* rather
+    than emit a generic verdict. This returns ``None`` when the section is
+    substantive (no gap), or a specific diagnostic string otherwise:
+
+    * the section is absent;
+    * ``Language/Version`` is missing or placeholder-only;
+    * peer fields exist (incl. bulleted ``- **Field**: value``) but every
+      value parsed as a template placeholder.
+    """
+    section = re.search(
+        r"##\s+Technical Context\s*\n(?P<body>(?:[^\n]|\n(?!##))*)",
+        body,
+        flags=re.DOTALL,
+    )
+    if section is None:
+        return "Technical Context section is missing from plan.md."
+    sec_body = _strip_placeholders(section.group("body"))
+    lang_match = re.search(
+        r"\*\*Language/Version\*\*[ \t]*:[ \t]*(?P<val>[^\n]*)",
+        sec_body,
+    )
+    if lang_match is None or not _is_real_technical_context_value(
+        lang_match.group("val")
+    ):
+        return (
+            "Technical Context **Language/Version** is missing or carries only "
+            "placeholder content."
+        )
+    if _has_substantive_technical_context(body):
+        return None
+    return (
+        "Technical Context has **Language/Version** but no peer field with "
+        "non-placeholder content (bulleted '- **Field**: value' fields are "
+        "accepted — populate at least one peer field)."
+    )
 
 
 def is_substantive(file_path: Path, kind: Kind) -> bool:
@@ -287,4 +333,4 @@ def is_committed(
     return True
 
 
-__all__ = ["Kind", "is_committed", "is_substantive"]
+__all__ = ["Kind", "describe_technical_context_gap", "is_committed", "is_substantive"]

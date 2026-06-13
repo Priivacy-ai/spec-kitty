@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KTYXNMGTJXSP9B7R3YKP07S2",
+  "completed_at": "2026-06-12T22:08:06.194158+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "Fixed #1684: allocate_lane_worktree now merges approved depends_on_lanes tips into both fresh and reuse paths via canonical lane_branch_name grammar; missing-dep warn+skip, conflict fail-closed (DependencyLaneMergeConflictError), --base composes. ATDD: debby repro RED->GREEN + 4 extension cases (reuse-catchup, two-deps-ordered, missing-dep-fallback, conflict-fail-closed) all GREEN. Gates: ruff clean, zero NEW mypy in touched files, tests/lanes+regression+architectural 614 passed (topology ratchet green). Committed to feat/name-vs-authority-remediation-01KTYGTE; not pushed."
+}

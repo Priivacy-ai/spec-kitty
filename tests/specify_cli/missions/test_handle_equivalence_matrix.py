@@ -124,6 +124,13 @@ def repo(tmp_path: Path) -> Path:
     _seed_mission(r, slug=_BACKFILLED_SLUG, mission_id=_BACKFILLED_MISSION_ID)
     _git(r, "add", ".")
     _git(r, "commit", "-q", "-m", "fixture")
+    # Mission B declares a coordination_branch. Real mission creation runs the
+    # structural ``ensure_coordination_branch`` step (missions/_create.py) BEFORE
+    # the first status write, so a declared coord branch always exists in git
+    # during the create→first-write window (#1889 row R2). The branch is created
+    # here to model that contract; otherwise the resolver correctly classifies a
+    # declared-but-absent branch as R3 (deleted, #1848 carve-out).
+    _git(r, "branch", _COORD_BRANCH)
     return r
 
 

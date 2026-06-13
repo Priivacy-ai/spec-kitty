@@ -8,6 +8,7 @@ Public API:
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,97 @@ SPECIFICATION_BY_EXAMPLE = "paradigm:specification-by-example"
 # ---------------------------------------------------------------------------
 
 _yaml = YAML(typ="safe")
+
+# ---------------------------------------------------------------------------
+# T027: Path-string reference resolver for styleguide / toolguide ``references``
+# ---------------------------------------------------------------------------
+
+#: Ordered list of (compiled-pattern, kind) pairs.  Each pattern captures the
+#: filename stem (without kind extension and without any subdirectory prefix) in
+#: group 1.  The ``(?:.+/)?`` non-capturing optional subdir fragment ensures that
+#: both flat paths (``built-in/foo.tactic.yaml``) and paths rooted under a
+#: subdirectory (``built-in/testing/foo.tactic.yaml``) resolve to the same stem.
+#:
+#: Only **built-in** artifact directories are covered; ``_proposed`` profiles and
+#: non-artifact files (README, glossary YAML, URLs) will not match any pattern
+#: and therefore return ``None`` from :func:`_resolve_path_ref`.
+_PATH_KIND_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (
+        re.compile(
+            r"src/doctrine/tactics/built-in/(?:.+/)?([^/]+)\.tactic\.yaml$"
+        ),
+        "tactic",
+    ),
+    (
+        re.compile(
+            r"src/doctrine/paradigms/built-in/(?:.+/)?([^/]+)\.paradigm\.yaml$"
+        ),
+        "paradigm",
+    ),
+    (
+        re.compile(
+            r"src/doctrine/directives/built-in/(?:.+/)?([^/]+)\.directive\.yaml$"
+        ),
+        "directive",
+    ),
+    (
+        re.compile(
+            r"src/doctrine/styleguides/built-in/(?:.+/)?([^/]+)\.styleguide\.yaml$"
+        ),
+        "styleguide",
+    ),
+    (
+        re.compile(
+            r"src/doctrine/toolguides/built-in/(?:.+/)?([^/]+)\.toolguide\.yaml$"
+        ),
+        "toolguide",
+    ),
+    (
+        re.compile(
+            r"src/doctrine/procedures/built-in/(?:.+/)?([^/]+)\.procedure\.yaml$"
+        ),
+        "procedure",
+    ),
+    (
+        re.compile(
+            r"src/doctrine/agent_profiles/built-in/(?:.+/)?([^/]+)\.agent\.yaml$"
+        ),
+        "agent_profile",
+    ),
+]
+
+
+def _resolve_path_ref(path_str: str) -> tuple[str, str] | None:
+    """Return ``(kind, raw_id)`` for a raw path-string reference, or ``None``.
+
+    Styleguide and toolguide ``references`` fields carry plain file paths such as
+    ``src/doctrine/tactics/built-in/tdd-red-green-refactor.tactic.yaml``.  This
+    helper maps such a path to the canonical ``(kind, raw_id)`` pair that
+    :func:`doctrine.drg.migration.id_normalizer.artifact_to_urn` can resolve into
+    a full URN.
+
+    Only **built-in** artifact paths under ``src/doctrine/`` are matched; URLs,
+    glossary files, ADR documents, ``_proposed`` profiles, and any other path that
+    does not match one of the recognised patterns return ``None`` (fail-closed per
+    NFR-003 — never silently infer identity from an unrecognised path).
+
+    Args:
+        path_str: A raw path string from a styleguide or toolguide ``references``
+            list entry.
+
+    Returns:
+        ``(kind, raw_id)`` where *raw_id* is the filename stem (stripped of any
+        subdirectory prefix and kind extension).  For directives the caller must
+        pass *raw_id* through
+        :func:`doctrine.drg.migration.id_normalizer.artifact_to_urn` for
+        ``DIRECTIVE_NNN`` normalisation.  Returns ``None`` if the path does not
+        match any known pattern.
+    """
+    for pattern, kind in _PATH_KIND_PATTERNS:
+        m = pattern.search(path_str)
+        if m:
+            return kind, m.group(1)
+    return None
 
 _KIND_MAP: dict[str, NodeKind] = {
     "directive": NodeKind.DIRECTIVE,
@@ -462,6 +554,80 @@ def extract_artifact_edges(  # noqa: C901
                     reason=ref.get("rationale"),
                 )
 
+    # --- Styleguides (T027) ---
+    # Styleguide ``references`` is a plain ``list[str]`` of file paths — NOT the
+    # structured ``{type, id}`` form used by tactics/directives.  Use
+    # :func:`_resolve_path_ref` to map each path to a (kind, raw_id) pair.
+    styleguides_dir = doctrine_root / "styleguides" / "built-in"
+    if styleguides_dir.is_dir():
+        for path in sorted(styleguides_dir.rglob("*.styleguide.yaml")):
+            data = _load_yaml(path)
+            if data is None:
+                continue
+            sg_id: str = data.get("id", "")
+            sg_title: str = data.get("title", "")
+            if not sg_id:
+                continue
+            src_urn = artifact_to_urn("styleguide", sg_id)
+            _ensure_node(nodes_by_urn, src_urn, NodeKind.STYLEGUIDE, sg_title or None)
+
+            for ref_raw in data.get("references", []) or []:
+                if not isinstance(ref_raw, str):
+                    continue
+                resolved = _resolve_path_ref(ref_raw)
+                if resolved is None:
+                    continue  # URL, glossary path, or unrecognised pattern — skip
+                ref_kind, ref_id = resolved
+                tgt_kind = _KIND_MAP.get(ref_kind)
+                if tgt_kind is None:
+                    continue
+                tgt_urn = artifact_to_urn(ref_kind, ref_id)
+                _ensure_node(nodes_by_urn, tgt_urn, tgt_kind)
+                _add_edge(
+                    DRGEdge(
+                        source=src_urn,
+                        target=tgt_urn,
+                        relation=Relation.SUGGESTS,
+                    )
+                )
+
+    # --- Toolguides (T028) ---
+    # Toolguides may now carry a ``references`` field (additive schema change per
+    # DIRECTIVE_018 — see toolguide.schema.yaml).  Like styleguides, the field is
+    # a ``list[str]`` of file paths resolved via :func:`_resolve_path_ref`.
+    toolguides_dir = doctrine_root / "toolguides" / "built-in"
+    if toolguides_dir.is_dir():
+        for path in sorted(toolguides_dir.rglob("*.toolguide.yaml")):
+            data = _load_yaml(path)
+            if data is None:
+                continue
+            tg_id: str = data.get("id", "")
+            tg_title: str = data.get("title", "")
+            if not tg_id:
+                continue
+            src_urn = artifact_to_urn("toolguide", tg_id)
+            _ensure_node(nodes_by_urn, src_urn, NodeKind.TOOLGUIDE, tg_title or None)
+
+            for ref_raw in data.get("references", []) or []:
+                if not isinstance(ref_raw, str):
+                    continue
+                resolved = _resolve_path_ref(ref_raw)
+                if resolved is None:
+                    continue
+                ref_kind, ref_id = resolved
+                tgt_kind = _KIND_MAP.get(ref_kind)
+                if tgt_kind is None:
+                    continue
+                tgt_urn = artifact_to_urn(ref_kind, ref_id)
+                _ensure_node(nodes_by_urn, tgt_urn, tgt_kind)
+                _add_edge(
+                    DRGEdge(
+                        source=src_urn,
+                        target=tgt_urn,
+                        relation=Relation.SUGGESTS,
+                    )
+                )
+
     for source, target, relation in _CURATED_ARTIFACT_EDGES:
         source_kind = source.split(":", 1)[0]
         target_kind = target.split(":", 1)[0]
@@ -551,6 +717,10 @@ def _discover_built_in_artifact_nodes(
     are referenced in edges but were not walked as part of the primary
     extraction passes.
     """
+    # ``rglob`` is used so that artifacts in subdirectories (e.g. toolguides under
+    # ``system_tools/``, styleguides under ``writing/``) are always discovered.
+    # Each (subdir, kind, node_kind) triple maps to a ``rglob`` pattern; the
+    # previous ``glob`` form missed files in second-level subdirectories.
     scan_dirs: list[tuple[str, str, NodeKind]] = [
         ("styleguides/built-in", "styleguide", NodeKind.STYLEGUIDE),
         ("toolguides/built-in", "toolguide", NodeKind.TOOLGUIDE),
@@ -561,31 +731,18 @@ def _discover_built_in_artifact_nodes(
         built_in_dir = doctrine_root / subdir
         if not built_in_dir.is_dir():
             continue
-        glob = "*.agent.yaml" if kind == "agent_profile" else f"*.{kind}.yaml"
-        for path in sorted(built_in_dir.glob(glob)):
+        glob_pattern = "*.agent.yaml" if kind == "agent_profile" else f"*.{kind}.yaml"
+        id_key = "profile-id" if kind == "agent_profile" else "id"
+        for path in sorted(built_in_dir.rglob(glob_pattern)):
             data = _load_yaml(path)
             if data is None:
                 continue
-            artifact_id: str = data.get("profile-id" if kind == "agent_profile" else "id", "")
+            artifact_id: str = data.get(id_key, "")
             label: str = data.get("name", data.get("title", ""))
             if not artifact_id:
                 continue
             urn = artifact_to_urn(kind, artifact_id)
             _ensure_node(nodes_by_urn, urn, node_kind, label or None)
-
-    # Also scan writing subdirectory for styleguides
-    writing_dir = doctrine_root / "styleguides" / "built-in" / "writing"
-    if writing_dir.is_dir():
-        for path in sorted(writing_dir.glob("*.styleguide.yaml")):
-            data = _load_yaml(path)
-            if data is None:
-                continue
-            artifact_id = data.get("id", "")
-            label = data.get("name", data.get("title", ""))
-            if not artifact_id:
-                continue
-            urn = artifact_to_urn("styleguide", artifact_id)
-            _ensure_node(nodes_by_urn, urn, NodeKind.STYLEGUIDE, label or None)
 
 
 def generate_graph(

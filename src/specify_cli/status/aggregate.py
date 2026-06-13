@@ -54,13 +54,6 @@ _logger = logging.getLogger(__name__)
 # ``.isascii()`` guard.
 _MISSION_SLUG_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$", re.ASCII)
 
-# A resolved status dir nested under a worktree root is the coordination
-# surface; the primary checkout has no ``.worktrees`` segment. This mirrors the
-# topology test the canonical ``resolve_status_surface`` applies (single source
-# of the coord/primary distinction — FR-005).
-_WORKTREES_SEGMENT = ".worktrees"
-
-
 def _enrich_transition_request(
     request: TransitionRequest,  # noqa: F821
     *,
@@ -268,7 +261,9 @@ class MissionStatus:
         )
 
         topology: Literal["legacy", "coordination"] = (
-            "coordination" if cls._is_coord_dir(read_dir) else "legacy"
+            "coordination"
+            if cls._is_coord_dir(read_dir, repo_root=repo_root)
+            else "legacy"
         )
         return cls(
             mission_slug=mission_slug,
@@ -281,9 +276,22 @@ class MissionStatus:
         )
 
     @staticmethod
-    def _is_coord_dir(read_dir: Path) -> bool:
-        """Return True when the resolved read dir lives in a coord worktree."""
-        return any(part == _WORKTREES_SEGMENT for part in read_dir.parts)
+    def _is_coord_dir(read_dir: Path, *, repo_root: Path) -> bool:
+        """Return True when the resolved read dir lives in a coord worktree.
+
+        Delegates to the WP03 topology authority
+        (:func:`is_registered_coord_worktree`): the git worktree registry
+        *disposes* coord-ness, not the path shape. A husk (under ``.worktrees``
+        but unregistered) or a lane worktree therefore classifies as ``legacy``,
+        killing the split-brain where a lane/husk path silently received coord
+        routing (#1589/#1821, F-005). Fails closed via
+        :class:`WorktreeRegistryUnavailable` if the registry cannot be read.
+        """
+        from specify_cli.coordination.surface_resolver import (
+            is_registered_coord_worktree,
+        )
+
+        return is_registered_coord_worktree(read_dir, repo_root=repo_root)
 
     @classmethod
     def _resolve_read_dir(
@@ -332,11 +340,18 @@ class MissionStatus:
             # No meta.json at the canonical location yet (create→first-write
             # window): the primary checkout remains authoritative.
             return primary_candidate
+        from specify_cli.coordination.surface_resolver import (
+            is_under_worktrees_segment,
+        )
+
         resolved_dir: Path = Path(events_path.parent)
         # A composed-but-unmaterialized coord dir is not yet authoritative; the
         # primary checkout owns the create→first-write window (the historical
-        # ``coord_candidate.exists()`` semantics).
-        if cls._is_coord_dir(resolved_dir) and not resolved_dir.exists():
+        # ``coord_candidate.exists()`` semantics). This is a *shape* gate on a
+        # not-yet-existing path (the registry cannot dispose a path that is not
+        # materialized), so it consumes the blessed shape-proposal predicate
+        # ``is_under_worktrees_segment`` rather than the registry authority.
+        if is_under_worktrees_segment(resolved_dir) and not resolved_dir.exists():
             return primary_candidate
         return resolved_dir
 
@@ -666,7 +681,16 @@ class MissionStatus:
                 primary_candidate=self.repo_root / KITTY_SPECS_DIR / self.mission_slug,
                 reason="mission_id is required to persist via BookkeepingTransaction",
             )
-        destination_ref = self.coordination_branch or f"kitty/mission-{self.mission_slug}"
+        # FR-006 fold-in (cluster-B): compose the destination ref through the
+        # canonical branch-identity authority instead of the legacy
+        # ``f"kitty/mission-{slug}"`` f-string (which named a branch that never
+        # existed for mid8-era missions). ``mission_id`` is guaranteed present
+        # by the guard above, so this always resolves the mid8-era branch.
+        from specify_cli.lanes.branch_naming import mission_branch_name_required
+
+        destination_ref = self.coordination_branch or mission_branch_name_required(
+            self.mission_slug, self.mission_id
+        )
 
         with BookkeepingTransaction.acquire(
             repo_root=self.repo_root,

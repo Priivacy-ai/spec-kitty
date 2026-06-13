@@ -292,6 +292,27 @@ and commit the baselines *with* the template change → confirm
 `pytest tests/architectural/` green. This is a coherent follow-up Op/mission, not
 a WP06 side effect.
 
+**Addendum — 2026-06-12 — EXECUTED** (WP07, mission `name-vs-authority-remediation-01KTYGTE`):
+The deferred flip was executed in full. All seven chain links landed atomically:
+
+1. `src/charter/context_renderers/authority_paths.py` `DEFAULT_AUTHORITY_PATHS` flipped
+   `architecture/2.x/adr/` → `architecture/3.x/adr/`; module docstring and dict docstring updated.
+2. Both source prompts updated: `src/doctrine/missions/mission-steps/software-dev/implement/prompt.md`
+   and `review/prompt.md`.
+3. Two governance-contract tests updated: `tests/architectural/test_template_governance_payload_contract.py`
+   (fixture directory + two path assertions) and `tests/specify_cli/next/test_wp_prompt_governance_contract.py`
+   (inline charter string, `adr_path_present` check, self-sufficiency regex extended to `[23]\.x`).
+4. Three `tests/charter/` assertions updated: `test_context_authority_paths.py`,
+   `test_sync_authority_paths.py`, `test_schemas_additive_fields.py`.
+5. `.kittify/charter/charter.md` line 317 annotation updated
+   (`architecture/3.x/adr/ # canonical architectural decisions (3.x era)`).
+6. Twelve-agent parity baselines regenerated via
+   `PYTEST_UPDATE_SNAPSHOTS=1 pytest tests/specify_cli/regression/` — 26 baseline files
+   updated (13 agents × implement + review); no other baseline churn observed.
+7. `pytest tests/architectural/ -q` fully green post-flip.
+
+No 2.x-pointing authority default remains in any active code path.
+
 ### Adjudication 2 — Duplicate `doctrine-layer-merge-semantics` ADR: **3.x is canonical (already resolved by WP02)**
 
 **Finding.** `2026-05-16-1-doctrine-layer-merge-semantics.md` existed in both

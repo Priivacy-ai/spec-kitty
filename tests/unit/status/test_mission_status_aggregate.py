@@ -147,25 +147,49 @@ class TestLoadLegacyMission:
 
 class TestLoadCoordMission:
     def test_topology_is_coordination_when_coord_worktree_exists(self, tmp_path: Path) -> None:
-        """When the coord worktree exists on disk, topology should be 'coordination'."""
+        """When the coord worktree exists on disk, topology should be 'coordination'.
+
+        WP03 R3 authority ("name proposes, authority disposes"): topology is
+        disposed by the git worktree REGISTRY, not by path shape. A coord
+        feature dir created with a bare ``mkdir`` is an unregistered husk that
+        now classifies as ``legacy`` (and a declared-but-absent coord branch
+        raises ``CoordinationBranchDeleted``). To exercise the genuine
+        COORDINATION (R1) path the fixture must materialize a REAL registered
+        coord worktree on a REAL coordination branch — mirroring the canonical
+        R1 fixture in ``tests/specify_cli/coordination/
+        test_worktree_topology_decision_table.py::test_r1_*``.
+        """
+        repo = _make_git_repo(tmp_path)
         slug = "test-feature"
         mission_id = "01TESTKITTY12345678901234"
         mid8 = mission_id[:8]
+        coord_branch = f"kitty/mission-{slug}-{mid8}"
 
         # Create primary mission dir with coord-branch declaration
-        primary_mission_dir = _make_mission_dir(tmp_path, slug)
-        _write_meta(primary_mission_dir, mission_id=mission_id, coordination_branch=f"kitty/mission-{slug}-{mid8}")
+        primary_mission_dir = _make_mission_dir(repo, slug)
+        _write_meta(primary_mission_dir, mission_id=mission_id, coordination_branch=coord_branch)
 
-        # Create the coord worktree directory (simulates worktree materialisation)
-        # The coord worktree path is: .worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>-<mid8>/
+        # Materialize a REAL, registered coord worktree on the coord branch so
+        # the registry-based topology authority disposes COORDINATION.
+        # Path: .worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>-<mid8>/
         coord_dir_name = f"{slug}-{mid8}"
-        coord_worktree_root = tmp_path / ".worktrees" / f"{coord_dir_name}-coord"
+        coord_worktree_root = repo / ".worktrees" / f"{coord_dir_name}-coord"
+        subprocess.run(
+            [
+                "git", "-C", str(repo), "worktree", "add", "-q",
+                "-b", coord_branch, str(coord_worktree_root),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
         coord_mission_dir = coord_worktree_root / "kitty-specs" / coord_dir_name
         coord_mission_dir.mkdir(parents=True)
+        _write_meta(coord_mission_dir, mission_id=mission_id, coordination_branch=coord_branch)
 
         from specify_cli.status.aggregate import MissionStatus
 
-        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+        ms = MissionStatus.load(repo_root=repo, mission_slug=slug)
 
         assert ms.topology == "coordination"
         assert ms.read_dir == coord_mission_dir

@@ -2181,11 +2181,19 @@ def setup_plan(
             except Exception as _plan_exc:  # noqa: BLE001
                 logger.debug("PlanCompleted emission skipped: %s", _plan_exc)
         else:
+            # FR-013 (#1896): name the offending Technical Context format in the
+            # blocked_reason (e.g. bulleted fields that parsed as placeholders)
+            # rather than emitting a generic verdict.
+            from specify_cli.missions._substantive import describe_technical_context_gap
+
+            _plan_gap = describe_technical_context_gap(plan_file.read_text(encoding="utf-8"))
             plan_blocked_reason = (
                 "plan.md content is not substantive yet; populate Technical Context with real "
                 "values (Language/Version plus at least one peer field, such as Primary "
                 "Dependencies) — not template placeholders — and re-run setup-plan to commit."
             )
+            if _plan_gap is not None:
+                plan_blocked_reason = f"{plan_blocked_reason} Detail: {_plan_gap}"
             if not json_output:
                 console.print(f"[yellow]Plan not committed:[/yellow] {plan_blocked_reason}")
 

@@ -59,6 +59,20 @@ PRIMARY_ARTIFACT_FILES = (
     RESEARCH_FILE,
     DATA_MODEL_FILE,
 )
+
+# FR-002 / C-GATE-2: the artifact set the accept gate itself writes during a
+# readiness run. ``acceptance-matrix.json`` is rewritten by
+# ``enforce_negative_invariants`` (re-resolving each invariant every run) and
+# ``status.json`` is materialized by the status reducer during readiness reads.
+# In ``--no-commit``/diagnose modes these writes are never folded into a commit,
+# so they remain dirty for the next accept run to trip over (#1883 ROOT-β: "a
+# gate fails on state the tool itself wrote in the same workflow"). The
+# ``git_dirty`` snapshot excludes these — and ONLY these — basenames *within the
+# mission feature dir*, so the convergence property accept ∘ accept ≡ accept
+# holds in every mode. The exclusion is keyed on artifact identity scoped to the
+# mission dir; it never weakens the dirty-tree protection for any
+# non-accept-owned path (NFR-003 fail-closed).
+ACCEPT_OWNED_BASENAMES = frozenset({"acceptance-matrix.json", "status.json"})
 _DECISION_ID_MARKER = "decision_id:"
 _ACCEPTED_READY_LANES = frozenset({"approved", "done"})
 
@@ -562,6 +576,53 @@ def _resolve_git_context(repo_root: Path) -> tuple[str | None, Path, Path, list[
     return branch, worktree_root, primary_repo_root, git_dirty
 
 
+def _accept_owned_relpaths(repo_root: Path, *feature_dirs: Path) -> frozenset[str]:
+    """Return repo-relative paths of accept-owned artifacts for the mission.
+
+    Scoped to the supplied mission directories so an ``acceptance-matrix.json``
+    or ``status.json`` living anywhere else in the tree is never treated as
+    accept-owned (NFR-003 fail-closed). Paths are normalized to POSIX
+    separators to match ``git status --porcelain`` output.
+    """
+    owned: set[str] = set()
+    seen: set[Path] = set()
+    for feature_dir in feature_dirs:
+        resolved = feature_dir.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        for basename in ACCEPT_OWNED_BASENAMES:
+            try:
+                rel = (resolved / basename).relative_to(repo_root.resolve())
+            except ValueError:
+                # Artifact lives outside the repo root (e.g. coord worktree on a
+                # different path); cannot collide with porcelain output, skip.
+                continue
+            owned.add(rel.as_posix())
+    return frozenset(owned)
+
+
+def _porcelain_path(line: str) -> str:
+    """Extract the (destination) path from a ``git status --porcelain`` line."""
+    path = line[3:].strip() if len(line) > 3 else ""
+    if " -> " in path:  # rename entries: "old -> new"
+        path = path.split(" -> ", 1)[1].strip()
+    return path
+
+
+def _filter_accept_owned_dirty(git_dirty: list[str], owned_relpaths: frozenset[str]) -> list[str]:
+    """Drop accept-owned artifact paths from a ``git_dirty`` snapshot.
+
+    Implements the C-GATE-2 invariant: accept-owned writes (matrix + status
+    view, scoped to the mission dir) never trip the gate's own dirty check.
+    Every other dirty path is preserved verbatim so the protection stays
+    fail-closed for non-accept-owned changes.
+    """
+    if not owned_relpaths:
+        return git_dirty
+    return [line for line in git_dirty if _porcelain_path(line) not in owned_relpaths]
+
+
 def _collect_snapshot_wps(feature: str, feature_dir: Path, activity_issues: list[str]) -> dict[str, dict[str, Any]]:
     """Load canonical WP states from status.events.jsonl; append issues on failure."""
     events_path = feature_dir / EVENTS_FILENAME
@@ -992,6 +1053,18 @@ def collect_feature_summary(
 
     status_feature_dir = _status_read_feature_dir(repo_root, feature, feature_dir)
     snapshot_wps = _collect_snapshot_wps(feature, status_feature_dir, activity_issues)
+
+    # C-GATE-2 (FR-002, #1883 ROOT-β): exclude the accept gate's own writes
+    # (acceptance-matrix.json + status.json, scoped to this mission's primary
+    # and status-read dirs) from the dirty-tree snapshot. The snapshot above is
+    # taken before the current run's accept-owned writes; this exclusion also
+    # absorbs accept-owned residue left dirty by a prior --no-commit/diagnose
+    # run, so accept ∘ accept converges in every mode. Non-accept-owned dirt is
+    # preserved verbatim (fail-closed, NFR-003).
+    git_dirty = _filter_accept_owned_dirty(
+        git_dirty,
+        _accept_owned_relpaths(repo_root, feature_dir, status_feature_dir),
+    )
 
     expected_wp_ids: list[str] = []
     for wp in _iter_work_packages(repo_root, feature):

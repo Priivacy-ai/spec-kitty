@@ -240,6 +240,84 @@ def create_wp_workspace(
     return workspace_path
 
 
+def _existing_worktree_is_valid(worktree_path: Path) -> bool:
+    """Return True when an existing path is a usable git worktree.
+
+    Prefers the VCS abstraction's ``is_repo`` check and falls back to a simple
+    ``.git`` marker probe when the abstraction is unavailable or errors. A valid
+    git worktree has ``.git`` as a file (pointing to the main repo) or directory
+    (standalone repo).
+    """
+    is_valid_workspace = False
+    try:
+        vcs = get_vcs(worktree_path)
+        is_valid_workspace = vcs.is_repo(worktree_path)
+    except Exception:
+        logger.debug("VCS check failed for %s, falling back to .git marker", worktree_path, exc_info=True)
+
+    if not is_valid_workspace:
+        git_marker = worktree_path / ".git"
+        is_valid_workspace = git_marker.exists()
+    return is_valid_workspace
+
+
+def _create_workspace_with_fallback(
+    repo_root: Path, worktree_path: Path, branch_name: str
+) -> None:
+    """Create the worktree via the VCS abstraction, falling back to direct git.
+
+    Get VCS implementation and create the workspace (full checkout, no sparse
+    exclusions). Deterministic preflight failures re-raise without attempting
+    the legacy direct-git fallback (it would hit the same blocking condition);
+    non-deterministic ones raise ``RuntimeError`` or trigger the git fallback.
+    """
+    try:
+        vcs = get_vcs(repo_root)
+        result = vcs.create_workspace(
+            workspace_path=worktree_path,
+            workspace_name=branch_name,
+            repo_root=repo_root,
+        )
+
+        if not result.success:
+            # Always construct the typed error first so we can branch on
+            # ``exc.is_deterministic`` — the canonical API (NFR-007).
+            # Deterministic failures (untrusted repo, missing repo,
+            # worktree-enumeration) cannot be recovered by the legacy
+            # direct-git fallback; non-deterministic ones raise RuntimeError.
+            exc = GitPreflightError(
+                f"Failed to create workspace: {result.error}",
+                error_code=result.error_code or "",
+            )
+            if exc.is_deterministic:
+                raise exc
+            raise RuntimeError(f"Failed to create workspace: {result.error}")
+
+    except GitPreflightError:
+        # Deterministic preflight failure — re-raise without attempting the
+        # legacy direct-git fallback (it would hit the same blocking condition).
+        raise
+    except Exception as e:
+        # If VCS abstraction fails, fall back to direct git command with warning
+        warnings.warn(
+            f"VCS abstraction failed ({type(e).__name__}: {e}); falling back to direct git commands. See: VCS abstraction layer documentation",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        try:
+            subprocess.run(
+                ["git", "worktree", "add", str(worktree_path), "-b", branch_name],
+                cwd=repo_root,
+                check=True,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+        except subprocess.CalledProcessError as git_error:
+            raise RuntimeError(f"Failed to create workspace: {git_error.stderr}") from git_error
+
+
 def create_feature_worktree(
     repo_root: Path,
     mission_slug: str,
@@ -296,73 +374,12 @@ def create_feature_worktree(
 
     # Check if worktree already exists
     if worktree_path.exists():
-        # Check if it's a valid workspace using VCS abstraction
-        is_valid_workspace = False
-        try:
-            vcs = get_vcs(worktree_path)
-            is_valid_workspace = vcs.is_repo(worktree_path)
-        except Exception:
-            logger.debug("VCS check failed for %s, falling back to .git marker", worktree_path, exc_info=True)
-
-        # If VCS says no (or failed), fall back to simple git check
-        # A valid git worktree has .git as a file (pointing to main repo)
-        # or as a directory (standalone repo)
-        if not is_valid_workspace:
-            git_marker = worktree_path / ".git"
-            is_valid_workspace = git_marker.exists()
-
-        if is_valid_workspace:
+        if _existing_worktree_is_valid(worktree_path):
             feature_dir = worktree_path / KITTY_SPECS_DIR / branch_name
             return (worktree_path, feature_dir)
-
         raise FileExistsError(f"Worktree path already exists: {worktree_path}")
 
-    # Get VCS implementation and create workspace (full checkout, no sparse exclusions)
-    try:
-        vcs = get_vcs(repo_root)
-        result = vcs.create_workspace(
-            workspace_path=worktree_path,
-            workspace_name=branch_name,
-            repo_root=repo_root,
-        )
-
-        if not result.success:
-            # Always construct the typed error first so we can branch on
-            # ``exc.is_deterministic`` — the canonical API (NFR-007).
-            # Deterministic failures (untrusted repo, missing repo,
-            # worktree-enumeration) cannot be recovered by the legacy
-            # direct-git fallback; non-deterministic ones raise RuntimeError.
-            exc = GitPreflightError(
-                f"Failed to create workspace: {result.error}",
-                error_code=result.error_code or "",
-            )
-            if exc.is_deterministic:
-                raise exc
-            raise RuntimeError(f"Failed to create workspace: {result.error}")
-
-    except GitPreflightError:
-        # Deterministic preflight failure — re-raise without attempting the
-        # legacy direct-git fallback (it would hit the same blocking condition).
-        raise
-    except Exception as e:
-        # If VCS abstraction fails, fall back to direct git command with warning
-        warnings.warn(
-            f"VCS abstraction failed ({type(e).__name__}: {e}); falling back to direct git commands. See: VCS abstraction layer documentation",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        try:
-            subprocess.run(
-                ["git", "worktree", "add", str(worktree_path), "-b", branch_name],
-                cwd=repo_root,
-                check=True,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-            )
-        except subprocess.CalledProcessError as git_error:
-            raise RuntimeError(f"Failed to create workspace: {git_error.stderr}") from git_error
+    _create_workspace_with_fallback(repo_root, worktree_path, branch_name)
 
     # FR-016 (WP07): write ``.spec-kitty/`` to the per-worktree exclude file so
     # git never surfaces spec-kitty's own runtime-state directory as drift in

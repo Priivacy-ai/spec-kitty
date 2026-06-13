@@ -460,7 +460,22 @@ def _run_query_mode(
         _emit_mission_not_found_error(exc.handle, json_output)
         raise typer.Exit(1) from exc
     except QueryModeValidationError as exc:
-        _print_error(f"Error: {exc}" if not json_output else str(exc), json_output)
+        # C-ERR-1 / FR-003: emit a structured payload (error_code + next_step)
+        # rather than a silent unknown stub when a handle is unresolvable.
+        if json_output:
+            payload = {
+                "error": str(exc),
+                "error_code": getattr(exc, "error_code", "QUERY_MODE_VALIDATION_FAILED"),
+            }
+            next_step = getattr(exc, "next_step", None)
+            if next_step is not None:
+                payload["next_step"] = next_step
+            print(json.dumps(payload, indent=2))
+        else:
+            print(f"Error: {exc}", file=sys.stderr)
+            next_step = getattr(exc, "next_step", None)
+            if next_step:
+                print(f"  Next: {next_step}", file=sys.stderr)
         raise typer.Exit(1) from exc
     _print_decision(decision, json_output, answered_id, answer)
 
