@@ -15,27 +15,24 @@ as "profile-invocation".
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Literal
 
 import typer
 from rich.console import Console
-from rich.panel import Panel
 
+from specify_cli.cli.commands.dispatch import (
+    _build_executor,
+    _dispatch_impl,
+    profile_not_found_advisory,
+    render_open_hint_advisory,
+)
 from specify_cli.invocation.errors import (
     AlreadyClosedError,
     ContextUnavailableError,  # noqa: F401 — re-exported for callers/tests
     InvalidModeForEvidenceError,
-    InvocationWriteError,
-    ProfileNotFoundError,
-    RouterAmbiguityError,
 )
-from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
 from specify_cli.invocation.modes import derive_mode
-from specify_cli.invocation.propagator import InvocationSaaSPropagator
-from specify_cli.invocation.registry import ProfileRegistry
-from specify_cli.invocation.router import ActionRouter
 from specify_cli.invocation.writer import normalise_ref
 from specify_cli.task_utils import find_repo_root
 
@@ -47,61 +44,13 @@ console = Console()
 
 
 def _get_repo_root() -> Path:
-    """Resolve the repository root using the project's canonical utility."""
+    """Resolve the repository root using the project's canonical utility.
+
+    Kept module-local so existing tests that patch
+    ``specify_cli.cli.commands.advise.find_repo_root`` continue to take effect.
+    """
     result: Path = find_repo_root()
     return result
-
-
-def _build_executor(repo_root: Path) -> ProfileInvocationExecutor:
-    registry = ProfileRegistry(repo_root)
-    router = ActionRouter(registry)
-    propagator = InvocationSaaSPropagator(repo_root)
-    return ProfileInvocationExecutor(repo_root, router=router, propagator=propagator)
-
-
-def _detect_actor() -> str:
-    """Detect caller identity from environment variables."""
-    if os.environ.get("CLAUDE_CODE_ENTRYPOINT"):
-        return "claude"
-    if os.environ.get("CODEX_CLI"):
-        return "codex"
-    return "operator"
-
-
-def _render_rich_payload(payload: InvocationPayload) -> None:
-    """Rich console output for human-readable advise/ask response."""
-    console.print(f"[bold green]Profile:[/bold green] {payload.profile_friendly_name} ({payload.profile_id})")
-    console.print(f"[bold]Action:[/bold] {payload.action}")
-    if payload.router_confidence:
-        console.print(f"[dim]Router confidence:[/dim] {payload.router_confidence}")
-    console.print(f"[dim]Invocation ID:[/dim] {payload.invocation_id}")
-    observations = payload.glossary_observations
-    if observations is not None and observations.high_severity:
-        warning_lines = [
-            "High-severity terminology conflicts detected before this invocation.",
-        ]
-        for conflict in observations.high_severity:
-            scopes = ", ".join(sorted({sense.scope for sense in conflict.candidate_senses}))
-            detail = f"{conflict.term.surface_text} ({conflict.conflict_type.value})"
-            if scopes:
-                detail += f" — candidate scopes: {scopes}"
-            warning_lines.append(f"- {detail}")
-        console.print(
-            Panel(
-                "\n".join(warning_lines),
-                title="Glossary Warning",
-                border_style="yellow",
-                expand=False,
-            )
-        )
-    if payload.governance_context_available and payload.governance_context_text:
-        console.print(Panel(payload.governance_context_text, title="Governance Context", expand=False))
-    else:
-        console.print("[yellow]Governance context unavailable.[/yellow] Run 'spec-kitty charter synthesize'.")
-    console.print(
-        f"\n[dim]Close this record:[/dim] spec-kitty profile-invocation complete --invocation-id {payload.invocation_id} --outcome <done|failed|abandoned>"
-    )
-    console.print(f"[dim]Commit the op record:[/dim] git add kitty-ops/{payload.invocation_id}.jsonl")
 
 
 def _run_invoke(
@@ -110,44 +59,27 @@ def _run_invoke(
     json_output: bool,
     entry_command: str = "advise",
 ) -> None:
-    """Shared implementation for advise and ask commands."""
+    """Shared entry for advise and ask — a thin wrapper over the canonical
+    ``_dispatch_impl``.
+
+    The mode differs (advise -> advisory, ask -> task_execution, via
+    ``_ENTRY_COMMAND_MODE``), but both verbs keep the advisory-style open-Op
+    rich hint they emitted before WP03 (byte-identical observable output —
+    NFR-001). The mode difference is reflected in the Op record's
+    ``mode_of_work`` and in the ``--json`` close contract."""
     repo_root = _get_repo_root()
     executor = _build_executor(repo_root)
     mode = derive_mode(entry_command)
-    try:
-        payload = executor.invoke(request, profile_hint=profile, actor=_detect_actor(), mode_of_work=mode)
-    except RouterAmbiguityError as e:
-        error_obj = {
-            "error": "routing_failed",
-            "error_code": e.error_code,
-            "message": str(e),
-            "candidates": e.candidates,
-            "suggestion": e.suggestion,
-        }
-        typer.echo(json.dumps(error_obj), err=True)
-        raise typer.Exit(1) from e
-    except ProfileNotFoundError as e:
-        typer.echo(json.dumps({"error": "profile_not_found", "message": str(e)}), err=True)
-        raise typer.Exit(1) from e
-    except InvocationWriteError as e:
-        typer.echo(json.dumps({"error": "write_failed", "message": str(e)}), err=True)
-        raise typer.Exit(1) from e
-
-    if json_output:
-        typer.echo(json.dumps(payload.to_dict(), indent=2))
-    else:
-        _render_rich_payload(payload)
-
-    if json_output:
-        return
-
-    # Inline drift observation — reads glossary events written by the chokepoint
-    # (WP5.2). Returns [] silently on any error; never blocks or crashes the CLI.
-    from glossary.observation import ObservationSurface  # lazy import
-
-    _surface = ObservationSurface()
-    _notices = _surface.collect_notices(repo_root, invocation_id=payload.invocation_id)
-    _surface.render_notices(_notices, console)
+    _dispatch_impl(
+        request,
+        profile,
+        mode,
+        json_output,
+        repo_root=repo_root,
+        executor=executor,
+        render_open_hint=render_open_hint_advisory,
+        on_profile_not_found=profile_not_found_advisory,
+    )
 
 
 # ---------------------------------------------------------------------------

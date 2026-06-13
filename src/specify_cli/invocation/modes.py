@@ -19,6 +19,7 @@ _ENTRY_COMMAND_MODE: dict[str, ModeOfWork] = {
     "advise": ModeOfWork.ADVISORY,
     "ask": ModeOfWork.TASK_EXECUTION,
     "do": ModeOfWork.TASK_EXECUTION,
+    "dispatch": ModeOfWork.TASK_EXECUTION,
     # Mission-step drivers (invoked via `spec-kitty next --agent ...`)
     "next.specify": ModeOfWork.MISSION_STEP,
     "next.plan": ModeOfWork.MISSION_STEP,

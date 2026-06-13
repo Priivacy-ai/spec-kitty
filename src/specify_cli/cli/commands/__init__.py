@@ -157,6 +157,7 @@ def register_commands(app: typer.Typer) -> None:
     from . import config_cmd as config_cmd_module
     from . import context as context_module
     from . import dashboard as dashboard_module
+    from . import dispatch as dispatch_module
     from . import do_cmd as do_cmd_module
     from . import doctor as doctor_module
     from . import doctrine as doctrine_module
@@ -234,6 +235,7 @@ def register_commands(app: typer.Typer) -> None:
     app.command()(verify_module.verify_setup)
     app.add_typer(workflow_module.app, name="workflow", help="Manage mission workflow definitions")
     app.add_typer(profiles_cmd_module.app, name="profiles")
+    app.command(name="dispatch", help="Dispatch a request to a profile-governed Op (canonical surface).")(dispatch_module.dispatch)
     app.command(name="advise", help="Get governance context for a request (opens an invocation record).")(advise_module.advise)
     app.command(name="ask", help="Invoke a named profile directly.")(advise_module.ask)
     app.add_typer(advise_module.profile_invocation_app, name="profile-invocation")
