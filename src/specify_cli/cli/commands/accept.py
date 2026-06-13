@@ -108,6 +108,21 @@ def _commit_residual_acceptance_artifacts(repo_root: Path, feature_slug: str) ->
     return True
 
 
+def _print_acceptance_warnings(summary: AcceptanceSummary) -> None:
+    """Render non-blocking ``summary.warnings`` in the human console.
+
+    The ``--json`` output already carries ``warnings``, but the human-readable
+    paths did not surface them, so a ``--lenient`` operator (issue #1892) got no
+    signal about what was downgraded from blocking to advisory. Shown only when
+    non-empty so a clean summary prints no spurious section.
+    """
+    if not summary.warnings:
+        return
+    console.print("\n[bold yellow]Warnings[/bold yellow]")
+    for warning in summary.warnings:
+        console.print(f"[yellow]- {warning}[/yellow]")
+
+
 def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
     table = Table(title="Work Packages by Lane", header_style="cyan")
     table.add_column("Lane")
@@ -128,6 +143,8 @@ def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
                 console.print(f"    • {value}")
     else:
         console.print("\n[green]No outstanding acceptance issues detected.[/green]")
+
+    _print_acceptance_warnings(summary)
 
     if summary.optional_missing:
         console.print(
@@ -191,6 +208,8 @@ def _print_acceptance_diagnosis(summary: AcceptanceSummary) -> None:
         console.print("\n[bold yellow]Blocked checks[/bold yellow]")
         for item in summary.blocked_checks:
             console.print(f"[yellow]- {item.check}[/yellow]: {item.detail}")
+
+    _print_acceptance_warnings(summary)
 
     if summary.recommended_fix_order:
         console.print("\n[bold]Recommended fix order[/bold]")
