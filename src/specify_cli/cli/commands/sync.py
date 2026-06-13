@@ -52,7 +52,6 @@ _UNAUTHENTICATED_SYNC_NOW_MESSAGE = (
     "not authenticated: no valid access token. Run `spec-kitty auth login`."
 )
 _WARNING_HEADER_STYLE = "bold yellow"
-_UNAVAILABLE_VALUE = "[dim]Unavailable[/dim]"
 _ABSENT_VALUE = "<absent>"
 _UNSET_VALUE = "<unset>"
 _ZERO_STATUS = "[green]0[/green]"
@@ -463,10 +462,10 @@ def routes() -> None:
     table = Table(show_header=False, box=None)
     table.add_column("Key", style="dim")
     table.add_column("Value")
-    table.add_row("Repository", routing.repo_slug or _UNAVAILABLE_VALUE)
-    table.add_row("Project UUID", routing.project_uuid or _UNAVAILABLE_VALUE)
-    table.add_row("Project Slug", routing.project_slug or _UNAVAILABLE_VALUE)
-    table.add_row("Build ID", routing.build_id or _UNAVAILABLE_VALUE)
+    table.add_row("Repository", routing.repo_slug or "[dim]Unavailable[/dim]")
+    table.add_row("Project UUID", routing.project_uuid or "[dim]Unavailable[/dim]")
+    table.add_row("Project Slug", routing.project_slug or "[dim]Unavailable[/dim]")
+    table.add_row("Build ID", routing.build_id or "[dim]Unavailable[/dim]")
     table.add_row(
         "Checkout Sync",
         "[green]Enabled[/green]" if routing.effective_sync_enabled else "[yellow]Disabled[/yellow]",
