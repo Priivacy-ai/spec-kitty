@@ -14,6 +14,7 @@ subtasks:
 - T003
 - T004
 - T005
+- T048
 agent: claude
 history:
 - date: '2026-06-12'
@@ -149,6 +150,23 @@ Write a pytest test that:
 
 Use `subprocess.run(["git", ...])` to set up the fixture git state — do not use `GitPython` for the fixture if it adds a dependency not already in test scope.
 
+### T048 — Pre-flight: verify PR #1895 scope before starting implementation
+
+Run this before writing any code:
+
+1. Query PR #1895: `gh pr view 1895 --json state,title,files | jq '{state,title,files:[.files[].path]}'`
+2. Scan the file list for changes to `_substantive.py`, `is_committed`, or `_planning_commit_worktree`.
+3. If PR #1895 is open and overlaps this WP's scope:
+   - Read its diff: `gh pr diff 1895 | head -200`
+   - Scope your implementation to extend/harden rather than re-implement.
+   - Note the overlap explicitly in your PR description.
+4. If PR #1895 is closed/merged: confirm its changes are incorporated in `main` before beginning, then proceed normally.
+5. Also check WP03 — PR #1895 is cited there too. Share findings with WP03 implementer if working in parallel.
+
+**This subtask gates T001 — do not write code until the PR disposition is known.**
+
+Also applies to WP03 (see WP03 risk section): WP01 implementer should relay the PR #1895 status to the WP03 implementer if both WPs are dispatched simultaneously.
+
 ### T005 — Architectural lint: no new callers of the 2-arg `is_committed` form
 
 File: `tests/architectural/test_no_primary_anchored_gates.py` (new file)
@@ -176,6 +194,7 @@ to enter the correct lane worktree. Do NOT manually create a branch or worktree.
 
 ## Definition of Done
 
+- [ ] PR #1895 disposition verified before any code is written (T048)
 - [ ] `is_committed()` accepts `placement: PlacementResult | None = None`
 - [ ] Coord-branch lookup uses `git cat-file -e <coord_ref>:<rel>`
 - [ ] Flat-topology callers (no `placement`) behave identically to before

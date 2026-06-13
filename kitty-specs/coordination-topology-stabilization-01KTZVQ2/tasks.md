@@ -57,6 +57,8 @@
 | T045 | Remove 26 tracked .worktrees/ paths via git rm -r --cached | WP10 | N |
 | T046 | Verify spec-kitty doctor passes after cleanup | WP10 | N |
 | T047 | Verify is_committed interaction defect: test both pre- and post-cleanup states | WP10 | N |
+| T048 | Pre-flight: verify PR #1895 scope before starting WP01/WP03 implementation | WP01 | N |
+| T049 | Remove xfail marker from test_worktrees_index_clean.py once WP02 ratchet lands | WP10 | N |
 
 ---
 
@@ -80,6 +82,7 @@
 - [ ] T003 Convert _planning_commit_worktree silent fallbacks to structured errors (WP01)
 - [ ] T004 Regression test: setup-plan passes with spec on coord branch only (WP01)
 - [ ] T005 Architectural lint: no new callers of the old 2-arg is_committed form (WP01)
+- [ ] T048 Pre-flight: verify PR #1895 scope before starting implementation (WP01)
 
 **Dependencies**: none
 **Unblocks**: WP06, WP09 (partially WP07)
@@ -258,6 +261,7 @@
 - [ ] T045 Remove 26 tracked .worktrees/ paths via git rm -r --cached (WP10)
 - [ ] T046 Verify spec-kitty doctor passes after cleanup (WP10)
 - [ ] T047 Verify is_committed interaction defect tested in both states (WP10)
+- [ ] T049 Remove xfail from test_worktrees_index_clean.py after WP02 ratchet lands (WP10)
 
 **Dependencies**: WP01, WP02
 

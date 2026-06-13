@@ -14,6 +14,7 @@ subtasks:
 - T045
 - T046
 - T047
+- T049
 agent: claude
 history:
 - date: '2026-06-12'
@@ -102,6 +103,22 @@ This is the live demo of bug #1884 — WP10 flips the old behavior from "acciden
 4. Assert all missions have valid identity (the cleanup should not invalidate any mission IDs).
 5. If doctor reports errors, investigate and fix before merging this WP.
 
+### T049 — Remove xfail marker from `test_worktrees_index_clean.py` after WP02 ratchet lands
+
+This subtask makes the architectural ratchet test active once the WP02 writer fix is in place.
+
+1. Confirm WP02 has merged and `path_is_under_worktrees()` gates are active in `safe_commit`.
+2. Open `tests/architectural/test_worktrees_index_clean.py` (created in WP02 T009).
+3. Remove the `@pytest.mark.xfail(reason="WP10 cleanup pending")` decorator (or equivalent `pytest.skip` call).
+4. Run the test: `pytest tests/architectural/test_worktrees_index_clean.py -v`
+5. If it fails, the T045 cleanup has not landed yet — coordinate with the user before removing the marker.
+6. Once the test passes without the xfail marker, commit:
+   ```
+   test: activate test_worktrees_index_clean ratchet — WP02+WP10 complete
+   ```
+
+**Note**: This subtask intentionally comes after T045 (index cleanup) and T046 (doctor verification). Do not remove the xfail marker until T045 has been committed and verified.
+
 ### T047 — Verify `is_committed` interaction defect in both states
 
 Extend `tests/specify_cli/test_worktrees_index.py` (from WP02) with:
@@ -135,7 +152,7 @@ spec-kitty agent action implement WP10 --agent <name>
 - [ ] Files on disk in `.worktrees/` are NOT deleted (only removed from index)
 - [ ] `spec-kitty doctor --json` passes (no new errors)
 - [ ] `spec-kitty doctor identity --json` passes
-- [ ] `test_worktrees_index_clean.py` ratchet test now passes (previously xfail)
+- [ ] `test_worktrees_index_clean.py` ratchet test now passes (xfail marker removed, T049)
 - [ ] `test_worktrees_index.py` has both pre- and post-cleanup state tests
 - [ ] `mypy --strict` zero issues
 - [ ] `ruff check .` zero issues
