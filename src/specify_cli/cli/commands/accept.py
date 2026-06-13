@@ -281,7 +281,13 @@ def accept(
             repo_root,
             mission_slug,
             strict_metadata=not lenient,
-            mutate_matrix=not diagnose and not no_commit,
+            # --no-commit must still resolve the acceptance matrix (run negative
+            # invariants, refresh verdict); otherwise the verdict stays 'pending'
+            # and the gate can never pass in --no-commit mode. The matrix write
+            # is accept-owned and excluded from the dirty-tree gate (#1883), so
+            # mutating without committing is safe and converges. Only diagnose
+            # (read-only) leaves the matrix untouched.
+            mutate_matrix=not diagnose,
         )
     except AcceptanceError as exc:
         _safe_emit_error_logged(str(exc))

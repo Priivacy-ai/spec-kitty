@@ -212,28 +212,7 @@ def _run_accept(*, no_commit: bool, diagnose: bool) -> None:
     ("no_commit", "diagnose"),
     [
         (False, False),  # committing mode
-        pytest.param(
-            True,
-            False,
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason=(
-                    "Pre-existing accept-gate gap (NOT introduced by this mission): in "
-                    "--no-commit mode the readiness run materializes project-level "
-                    "'.kittify/config.yaml' (charter/phase resolution) which is left "
-                    "uncommitted, so the second-run git_dirty snapshot trips on a write "
-                    "the gate itself made. _filter_accept_owned_dirty only excludes "
-                    "mission-dir artifacts (acceptance-matrix.json, status.json) per "
-                    "NFR-003 fail-closed scoping; project-level config is deliberately "
-                    "out of that scope. Reproduces identically against upstream/main's "
-                    "accept.py (accept.py:284 sets mutate_matrix=False for no_commit, so "
-                    "the negative invariant never resolves and the first run exits 1). "
-                    "Fixing requires making the gate's config.yaml write idempotent at "
-                    "source, which is out of scope for the name-vs-authority remediation. "
-                    "strict=True so this flips RED the moment the gate is fixed."
-                ),
-            ),
-        ),  # --no-commit
+        (True, False),  # --no-commit
         (False, True),  # diagnose
     ],
     ids=["commit", "no_commit", "diagnose"],
@@ -339,4 +318,42 @@ def test_accept_excludes_dirty_mission_spec_artifacts_only_when_accept_owned(
     assert any("spec.md" in line for line in summary.git_dirty), (
         f"dirty non-owned mission artifact was wrongly excluded: {summary.git_dirty}"
     )
+    assert not summary.ok
+
+
+def test_accept_still_trips_on_non_owned_kittify_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Adversarial (NFR-003): a non-owned untracked ``.kittify/`` file still trips.
+
+    The gate's own ``.kittify/config.yaml`` write is excluded, but git collapses
+    a fully-untracked ``.kittify/`` tree to a single ``?? .kittify/`` directory
+    entry regardless of contents. The exclusion must expand that entry and drop
+    *only* ``config.yaml`` — a USER-created untracked file under ``.kittify/``
+    (e.g. ``.kittify/operator-note.txt``) must STILL surface in ``git_dirty``.
+    """
+    repo_root = (tmp_path / "repo").resolve()
+    repo_root.mkdir()
+    _create_lane_feature(repo_root, with_negative_invariant=True)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
+    monkeypatch.chdir(repo_root)
+
+    # Prime the gate's own config.yaml write, then drop a NON-owned file beside
+    # it. Both live under an otherwise-untracked ``.kittify/`` that git collapses.
+    (repo_root / ".kittify" / "config.yaml").write_text("project:\n  uuid: x\n")
+    (repo_root / ".kittify" / "operator-note.txt").write_text("operator edit\n")
+
+    summary = collect_feature_summary(
+        repo_root,
+        _SLUG,
+        strict_metadata=True,
+        mutate_matrix=True,
+    )
+    assert any("operator-note.txt" in line for line in summary.git_dirty), (
+        f"non-owned .kittify file was wrongly excluded: {summary.git_dirty}"
+    )
+    assert not any(
+        line.strip().endswith(".kittify/config.yaml") for line in summary.git_dirty
+    ), f"gate-own config.yaml should be excluded: {summary.git_dirty}"
     assert not summary.ok
