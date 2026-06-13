@@ -29,6 +29,16 @@ terms:
     confidence: 0.9
     status: active
 
+  - surface: branch strategy gate
+    definition: >
+      The mission-create guard for PR-bound missions that requires an explicit operator or agent
+      decision before planning artifacts are written on a primary branch. Interactive callers may
+      confirm at the prompt; non-interactive callers record the already-made decision with
+      --branch-strategy already-confirmed. When the recommended feature-branch path is chosen,
+      pass --start-branch so the CLI switches before scaffold writes.
+    confidence: 0.95
+    status: active
+
   - surface: build
     definition: One checkout or worktree of one repository with its own execution context.
     confidence: 1.0
@@ -163,6 +173,14 @@ terms:
 
   - surface: feature slug
     definition: Human-readable, kebab-cased identifier for a feature, used in branch names, directory paths, and artifact keys. Derived from mission_slug in feature missions.
+    confidence: 0.95
+    status: active
+
+  - surface: feature branch
+    definition: >
+      A dedicated git branch for PR-bound mission planning and implementation work, typically named
+      feat/<slug> for feature work or fix/<slug> for bug-fix work. It is distinct from the primary
+      branch and is the recommended start point when a mission is expected to become a pull request.
     confidence: 0.95
     status: active
 
@@ -380,6 +398,15 @@ terms:
     confidence: 0.75
     status: draft
 
+  - surface: primary branch
+    definition: >
+      The repository's default integration branch, normally resolved from origin/HEAD and commonly
+      named main, master, or develop. The specify branch-context output exposes this value as
+      primary_branch only for branch-strategy recommendation; it is not automatically the mission's
+      target_branch once target_branch has been persisted in meta.json.
+    confidence: 0.95
+    status: active
+
   - surface: primitive
     definition: Custom mission-defined executable operation or step unit
     confidence: 1.0
@@ -398,6 +425,14 @@ terms:
   - surface: project_uuid
     definition: Optional SaaS-assigned collaboration identity. Absent until a repository is bound to a SaaS project. Never locally minted.
     confidence: 1.0
+    status: active
+
+  - surface: pr-bound mission
+    definition: >
+      A mission expected to land through a pull request rather than direct work on the primary
+      branch. During mission create, --pr-bound activates the branch strategy gate so the branch
+      choice is explicit before planning artifacts are written.
+    confidence: 0.95
     status: active
 
   - surface: provenance
@@ -501,6 +536,14 @@ terms:
   - surface: strictness
     definition: Glossary enforcement mode (off, medium, max)
     confidence: 1.0
+    status: active
+
+  - surface: start branch
+    definition: >
+      The branch passed to mission create with --start-branch. The CLI creates or switches to this
+      branch before writing mission scaffolding, and it must match --target-branch when both options
+      are supplied so mission metadata and the checked-out branch describe the same planning branch.
+    confidence: 0.95
     status: active
 
   - surface: structural debt
