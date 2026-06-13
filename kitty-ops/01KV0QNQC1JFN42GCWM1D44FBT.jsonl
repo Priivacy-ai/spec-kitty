@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KV0QNQC1JFN42GCWM1D44FBT", "profile_id": "debugger-debbie", "action": "advise", "request_text": "Adversarially verify borderline closeable tickets against merged main", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "4fcdb36690b54955", "governance_context_available": true, "started_at": "2026-06-13T14:55:16.319164+00:00"}
+{"event": "completed", "invocation_id": "01KV0QNQC1JFN42GCWM1D44FBT", "completed_at": "2026-06-13T15:02:27.596394+00:00", "outcome": "done", "closed_by": "agent"}
