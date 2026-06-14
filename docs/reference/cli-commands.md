@@ -1911,18 +1911,19 @@ _Search tracker issues via the hosted read path_
 
 ## spec-kitty lint
 
-_Run ruff and mypy on a file and report errors._
-
 ```
- Usage: spec-kitty lint [OPTIONS] FILE_PATH
+ Usage: spec-kitty lint [OPTIONS] [FILE_PATH]
 
  Run ruff and mypy on a file and report errors.
 
  This command is designed to be used as a post-edit hook for AI agents,
  providing immediate feedback on linting and type-checking violations.
+ When invoked without a path (the wired hook form), the target file is read
+ from the harness JSON payload on stdin.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    file_path      PATH  File path to lint and type-check [required]         │
+│   file_path      [FILE_PATH]  File to lint/type-check; omit to read the path │
+│                               from a hook stdin payload                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json          Output in JSON format for AI agents                          │

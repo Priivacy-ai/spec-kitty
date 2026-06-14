@@ -226,10 +226,11 @@ _Manage project AI agent configuration (add, remove, list agents)_
 
  Currently supported keys:
      auto_commit  - Enable/disable automatic commits by agents (true/false)
+     lint_on_edit - Enable/disable auto-linting feedback loop (true/false)
 
  Examples:
      spec-kitty agent config set auto_commit false
-     spec-kitty agent config set auto_commit true
+     spec-kitty agent config set lint_on_edit true
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    key        TEXT  Configuration key (e.g., auto_commit) [required]       │
@@ -266,6 +267,7 @@ _Manage project AI agent configuration (add, remove, list agents)_
 
  By default, removes orphaned directories (present but not configured).
  Use --create-missing to also create directories for configured agents.
+ Use --sync-hooks to update harness-specific post-edit hooks.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --create-missing                          Create directories for configured  │
@@ -273,6 +275,9 @@ _Manage project AI agent configuration (add, remove, list agents)_
 │ --remove-orphaned    --keep-orphaned      Remove directories for agents not  │
 │                                           in config                          │
 │                                           [default: remove-orphaned]         │
+│ --sync-hooks                              Update AI harness hook             │
+│                                           configurations (Claude, Cursor,    │
+│                                           etc.)                              │
 │ --help                                    Show this message and exit.        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
