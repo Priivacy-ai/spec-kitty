@@ -145,5 +145,15 @@ The mission's **functional delivery is sound** — all 18 FRs are adequately cov
 6. (Pre-existing, not this mission) `test_runtime_charter_doctrine_boundary` failure — track separately.
 7. (Already documented LOW debts) retire the duplicate `model.SurfaceFinding`; tighten WP09 plugin-bundle staging scope; consider surfacing the `managed_skills` unreadable-file edge.
 
+## Remediation Addendum (2026-06-14, post-review)
+
+All four mission-caused Gate-2 findings were remediated on `feat/tool-surface-contract` immediately after this review:
+- **DRIFT-1** — deleted the orphaned `tool_surface/builtins.py` and `providers/base.py`; consolidated onto the single canonical `providers/protocol.ReportingSurfaceProvider` (repointed the 4 provider tests). (`463496de3`)
+- **DRIFT-2 / RISK-1** — dropped `ToolSurfacePresence`/`GlobalCommandDirResolver` from `surface_presence.__all__`; removed the 4 now-wired entries from `_SYMBOL_ALLOWLIST`. (`1aa2ea949`)
+- **RISK-2** — added the project-standard `pytestmark` to the 24 flagged `tool_surface` test files. (`1aa2ea949`)
+- **DRIFT-3** — regenerated `docs/reference/cli-commands.md` via `scripts/docs/build_cli_reference.py`; `doctor tool-surfaces` now present. (`4dec7b375`)
+
+**Post-remediation gate state**: the 4 targeted architectural tests PASS (7 tests); full `tests/architectural/` = **360 passed, 1 failed** (only the PRE-EXISTING `test_runtime_charter_doctrine_boundary`, unrelated to this mission); `tests/specify_cli/tool_surface/` = **220 passed** (−2 = the deleted dead-stub tests); ruff + mypy clean. **The mission is now CI-clean for everything it introduced.** The original verdict above is retained as the as-reviewed record; the effective post-remediation status is PASS (the one remaining architectural failure is pre-existing and tracked separately).
+
 ## Retrospective Reminder
 The retrospective record exists at `.kittify/missions/01KV2K2P989VGC1TZF43ATGCPC/`-equivalent coord path (`kitty-specs/tool-surface-contract-01KV2K2P/retrospective.yaml`), authored via `retrospect create` (helped=8, not_helpful=11, gaps=5 after enrichment). Surface findings with `spec-kitty retrospect summary` and `spec-kitty agent retrospect synthesize --mission tool-surface-contract-01KV2K2P` (dry-run). The five architectural-gate findings above are strong candidates to add as retrospective gaps / a follow-up issue.
