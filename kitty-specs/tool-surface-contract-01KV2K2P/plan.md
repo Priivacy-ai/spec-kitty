@@ -65,7 +65,7 @@ src/specify_cli/tool_surface/           # NEW bounded context
     plan.py                             # SurfacePlanBuilder -- computes plan from config + registry
     status.py                           # SurfaceStatusService -- probes current state vs plan
     findings.py                         # FindingCode constants + finding factory
-    repair.py                           # SurfaceRepairService -- executes repair for a finding
+    repair.py                           # SurfaceRepairService -- repairs provider-owned SurfaceStatus objects
     docs.py                             # DocsLinter -- validates doc paths against registry
 
     providers/
@@ -165,7 +165,7 @@ The nine implementation concerns correspond exactly to the nine child issues, in
 
 - **Purpose**: Add a provider for session presence and context/hook surfaces, making the distinction between session presence and command-skill install state explicit in doctor output.
 - **Relevant requirements**: FR-003, FR-006, FR-010, FR-018, NFR-001
-- **Affected surfaces**: `providers/session_presence.py`; `providers/native_config.py` (partial -- hooks and tool-specific glue); `status.py` (extend for session-presence kind); finding codes for session-presence gaps
+- **Affected surfaces**: `providers/session_presence.py`; `providers/native_config.py` (partial -- hooks and tool-specific glue); `status.py` (extend for `context_file`, `hook`, and `rule` kinds emitted by the session-presence provider); finding codes for session-presence gaps
 - **Sequencing/depends-on**: IC-01, IC-02, IC-03
 - **Risks**: Session presence paths differ per harness (CLAUDE.md vs. AGENTS.md vs. rules files). Provider must not assume a fixed path.
 

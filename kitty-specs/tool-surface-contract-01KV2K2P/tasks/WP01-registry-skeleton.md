@@ -267,6 +267,7 @@ The registry holds `dict[str, list[SurfaceDefinition]]` internally. No provider 
 **Purpose**: Define the `AbstractSurfaceProvider` protocol that all providers must satisfy.
 
 ```python
+from collections.abc import Sequence
 from typing import Protocol, runtime_checkable
 
 @runtime_checkable
@@ -366,7 +367,8 @@ An empty builtins.py that doesn't register ToolHarness entries for all AI_CHOICE
 
 **Test file**: `tests/specify_cli/tool_surface/test_model.py`
 - `SurfaceDefinition` is hashable (frozen dataclass)
-- `SurfaceInstance` with `exists=False` has `file_hash=None`
+- `SurfaceInstance` with `expected_hash=None` is valid for untracked/generated surfaces
+- `SurfaceStatus` wraps a `SurfaceInstance`, a state string, and a findings tuple
 - `SurfacePlan` with an empty `instances` tuple is valid
 - `SurfaceFinding` with `path=None` and `repair_command=None` is valid
 

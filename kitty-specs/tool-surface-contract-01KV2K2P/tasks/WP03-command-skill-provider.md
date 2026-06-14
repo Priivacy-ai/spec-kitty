@@ -106,8 +106,8 @@ The `doctor tool-surfaces` command with `--kind command-skill` must produce outp
 - Import `CommandInstaller` (or equivalent) from `specify_cli.skills.command_installer`
 - Do NOT copy its logic -- delegate to it
 - Implement `expand()` by asking the installer what skills would be installed for a given tool key
-- Implement `probe()` by checking existence and hash of each skill file
-- Implement `repair()` by calling the installer's install/repair method
+- Implement `probe()` by checking existence and hash of each skill file, returning `SurfaceStatus`
+- Implement `repair()` by calling the installer's install/repair method for the supplied `SurfaceStatus` objects
 - Implement `remove()` by calling the installer's remove/uninstall method
 
 ```python
@@ -125,12 +125,18 @@ class CommandSkillsProvider:
         # Return SurfaceInstance for each
         ...
 
-    def probe(self, instance: SurfaceInstance) -> SurfaceInstance:
-        # Re-check exists + hash
+    def probe(self, instance: SurfaceInstance) -> SurfaceStatus:
+        # Re-check on-disk state and return SurfaceStatus(state=..., findings=...)
         ...
 
-    def repair(self, instance: SurfaceInstance) -> bool:
-        # Delegate to installer
+    def repair(
+        self,
+        project_root: Path,
+        statuses: Sequence[SurfaceStatus],
+        *,
+        dry_run: bool = False,
+    ) -> RepairResult:
+        # Delegate to installer using provider-owned status/manifest context
         ...
 
     def remove(self, instance: SurfaceInstance) -> bool:
@@ -180,30 +186,36 @@ The builder:
 
 ### T014 -- Implement `status.py` `SurfaceStatusService`
 
-**Purpose**: Given a `SurfacePlan`, probe each instance and compute findings.
+**Purpose**: Given one or more `SurfacePlan` objects, probe each instance and return a `SurfaceReport` containing both per-surface statuses and flattened findings.
 
 ```python
 class SurfaceStatusService:
     def __init__(self, providers: list[AbstractSurfaceProvider]) -> None: ...
 
-    def compute_findings(self, plan: SurfacePlan) -> list[SurfaceFinding]:
-        """Probe each instance in the plan and return findings for gaps."""
+    def collect(
+        self,
+        project_root: Path,
+        plans: Sequence[SurfacePlan],
+    ) -> SurfaceReport:
+        """Probe every instance and return statuses + flattened findings."""
         ...
 ```
 
 For each instance in the plan:
-1. Call `provider.probe(instance)` to get current state
-2. If `instance.exists` is False and `required_policy` is `REPAIRABLE_REQUIRED`: emit `TOOL_SURFACE_COMMAND_SKILL_MISSING`
-3. If `instance.exists` is True but hash mismatches: emit `TOOL_SURFACE_COMMAND_SKILL_HASH_MISMATCH`
-4. If `required_policy` is `RESEARCH_GAP`: emit `TOOL_SURFACE_AGENT_PROFILE_RESEARCH_GAP` (for future kinds)
+1. Call `provider.probe(instance)` to get a `SurfaceStatus`
+2. If the status is `missing` and `required == REPAIRABLE_REQUIRED`: include a `SurfaceFinding` with code `"generated-surface-missing"`
+3. If the status is `drifted`: include a `SurfaceFinding` with code `"managed-file-drift"`
+4. If `required == RESEARCH_GAP`: include a `SurfaceFinding` with code `"research-gap-surface"` and severity `"info"`
+5. Return a `SurfaceReport` with `surfaces[]`, flattened `findings[]`, summary counts, and top-level `ok`
 
 **Note**: `status.py` is owned by this WP. WP04-WP09 extend it (as out-of-map edits) to handle new surface kinds.
 
 **Files**: `src/specify_cli/tool_surface/status.py` (new, ~80 lines)
 
 **Validation**:
-- [ ] `compute_findings` returns empty list when all instances exist and hashes match
-- [ ] Missing instance emits correct finding with `repair_command` populated
+- [ ] `collect` returns `SurfaceReport.ok == true` when all instances are present and hashes match
+- [ ] Missing instance emits `"generated-surface-missing"` with `repair_command` populated
+- [ ] Report includes both `surfaces[]` and flattened `findings[]`
 - [ ] `mypy --strict` passes
 
 ---
@@ -369,12 +381,12 @@ def test_doctor_tool_surfaces_kind_filter():
     """--kind command-skill returns only command-skill findings."""
     ...
 
-def test_doctor_tool_surfaces_clean_when_installed():
-    """Reports clean=true when all command skills are installed."""
+def test_doctor_tool_surfaces_ok_when_installed():
+    """Reports ok=true when all command skills are installed."""
     ...
 
 def test_doctor_tool_surfaces_finding_when_missing():
-    """Reports TOOL_SURFACE_COMMAND_SKILL_MISSING when skills absent."""
+    """Reports generated-surface-missing when skills are absent."""
     ...
 
 def test_migration_compat_still_passes():
@@ -444,6 +456,6 @@ def test_migration_compat_still_passes():
 ## Reviewer Guidance (Codex)
 
 - Verify `doctor skills --json` schema is unchanged (migration compat)
-- Verify finding codes use stable `TOOL_SURFACE_*` prefix
+- Verify finding codes use stable kebab-case JSON values; Python constants may be SCREAMING_SNAKE but must map to kebab-case strings
 - Verify `CommandSkillsProvider` delegates to the installer and does not reimplement hash logic
 - Verify CLI output validates against `doctor-tool-surfaces-output.schema.json`

@@ -236,7 +236,7 @@ The VS Code projector (`VsCodeBundleProjector`) uses the same layout as Copilot 
 - [ ] `CopilotBundleProjector.project()` creates the correct directory structure
 - [ ] `validate()` returns `passed=False` if skills or agent profiles are missing
 - [ ] `plugin.json` is created at output root (not in a subdirectory)
-- [ ] Stub files exist and are importable
+- [ ] Copilot and VS Code projector files exist, are importable, and implement projection rather than stubs
 
 ---
 
@@ -261,12 +261,18 @@ class PluginBundleProvider:
         # Returns instances for the bundle's entry points (manifest files)
         ...
 
-    def probe(self, instance: SurfaceInstance) -> SurfaceInstance:
-        # Check if the bundle output dir and manifest exist
+    def probe(self, instance: SurfaceInstance) -> SurfaceStatus:
+        # Check if the bundle output dir and manifest exist; return SurfaceStatus
         ...
 
-    def repair(self, instance: SurfaceInstance) -> bool:
-        # Re-project the bundle
+    def repair(
+        self,
+        project_root: Path,
+        statuses: Sequence[SurfaceStatus],
+        *,
+        dry_run: bool = False,
+    ) -> RepairResult:
+        # Re-project bundles for the supplied statuses
         ...
 ```
 
@@ -350,7 +356,6 @@ def test_plugin_bundle_provider_probe_detects_missing_bundle():
 ## Risks
 
 - **Claude Code plugin manifest format**: The `plugin.json` format may change. Keep the manifest generation isolated and versioned in the projector.
-- **Bundle output dir**: The bundle output directory is a staging artifact (e.g., `dist/claude-plugin/`). It must not be placed in `.kittify/` or any project-managed directory.
 - **Bundle output dir**: The bundle output directory is a staging artifact (e.g., `dist/claude-plugin/`). It must not be placed in `.kittify/` or any project-managed directory.
 
 ## Reviewer Guidance (Codex)

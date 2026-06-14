@@ -89,7 +89,7 @@ spec-kitty doctor tool-surfaces --kind command-skill --fix
 | `src/specify_cli/tool_surface/plan.py` | Computes SurfacePlan for configured tools |
 | `src/specify_cli/tool_surface/status.py` | Probes actual state vs. plan |
 | `src/specify_cli/tool_surface/findings.py` | Stable finding codes |
-| `src/specify_cli/tool_surface/repair.py` | Executes repair for a finding |
+| `src/specify_cli/tool_surface/repair.py` | Repairs provider-owned `SurfaceStatus` objects |
 | `.kittify/command-skills-manifest.json` | Command-skill install state (not policy) |
 | `.kittify/skills-manifest.json` | Doctrine-skill install state (not policy) |
 | `.kittify/agent-profiles-manifest.json` | Native agent profile install state (new, WP06) |

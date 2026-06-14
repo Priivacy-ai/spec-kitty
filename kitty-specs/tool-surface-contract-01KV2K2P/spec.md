@@ -27,7 +27,7 @@ The structural root cause: tool-surface policy is recomputed by multiple subsyst
 
 ### Scenario 1: Fresh-clone repair (primary scenario)
 
-A new contributor clones the repo with Codex listed in `.kittify/config.yaml`. They run `spec-kitty doctor tool-surfaces --json` and receive a complete report: which surface kinds are missing, the stable finding code for each gap, and the exact repair command to run. After running repair, all surfaces are present and a second `doctor tool-surfaces` run reports clean.
+A new contributor clones the repo with Codex listed in `.kittify/config.yaml`. They run `spec-kitty doctor tool-surfaces --json` and receive a complete report: which surface kinds are missing, the stable finding code for each gap, and the exact repair command to run. After running repair, all surfaces are present and a second `doctor tool-surfaces` run reports `ok: true`.
 
 **Edge case:** The repo has multiple tools configured. The report covers all configured tools and all surface kinds in one pass.
 

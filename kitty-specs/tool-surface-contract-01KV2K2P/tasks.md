@@ -29,7 +29,7 @@
 | T018 | Write integration tests for `doctor tool-surfaces --kind command-skill` | WP03 | [P] |
 | T019 | Implement `providers/session_presence.py` wrapping `session_presence.writers.registry` | WP04 | |
 | T020 | Implement `providers/native_config.py` for hooks and tool-specific glue | WP04 | [P] |
-| T021 | Extend `status.py` and `findings.py` for session-presence kind | WP04 | |
+| T021 | Extend `status.py` and `findings.py` for session-presence provider outputs | WP04 | |
 | T022 | Extend repair service for session-presence findings | WP04 | |
 | T023 | Write tests for session-presence provider | WP04 | [P] |
 | T024 | Implement `providers/managed_skills.py` wrapping `skills.registry/installer/verifier` | WP05 | |
@@ -135,7 +135,7 @@
 
 - [ ] T019 Implement `providers/session_presence.py` (WP04)
 - [ ] T020 Implement `providers/native_config.py` (WP04)
-- [ ] T021 Extend `status.py` and `findings.py` for session-presence kind (WP04)
+- [ ] T021 Extend `status.py` and `findings.py` for session-presence provider outputs (WP04)
 - [ ] T022 Extend repair service for session-presence findings (WP04)
 - [ ] T023 Write tests for session-presence provider (WP04)
 

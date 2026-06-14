@@ -151,19 +151,19 @@ This provider is narrower than session presence -- it handles config entries tha
 
 ---
 
-### T021 -- Extend `status.py` and `findings.py` for session-presence kind
+### T021 -- Extend `status.py` and `findings.py` for session-presence provider outputs
 
-**Purpose**: Add session-presence finding generation to the status service.
+**Purpose**: Add session-presence provider output handling to the status service.
 
 **Out-of-map edit to `status.py`** (owned by WP03):
-- Extend `compute_findings` to handle `SurfaceKind.CONTEXT_FILE`, `SurfaceKind.HOOK`, and `SurfaceKind.RULE`
+- Extend the `SurfaceStatusService.collect()` status/finding mapping to handle `SurfaceKind.CONTEXT_FILE`, `SurfaceKind.HOOK`, and `SurfaceKind.RULE`
 - Use finding codes `context-file-missing`, `session-presence-incomplete` from the stable code table
 
 **Out-of-map edit to `findings.py`** (owned by WP03):
 - Confirm `context-file-missing` and `session-presence-incomplete` constants are present; document that this WP activates them
 - Do NOT use SCREAMING_SNAKE codes (`TOOL_SURFACE_SESSION_PRESENCE_MISSING`) — use the kebab-case codes from the stable table in data-model.md
 
-**Rationale for out-of-map**: WP04 is sequential after WP03; no parallel conflict. Session-presence kinds must be handled alongside command-skill kind in the same `compute_findings` dispatch.
+**Rationale for out-of-map**: WP04 is sequential after WP03; no parallel conflict. Session-presence kinds must be handled alongside command-skill kind in the same status collection dispatch.
 
 **Validation**:
 - [ ] `spec-kitty doctor tool-surfaces --kind context_file --json` returns context-file findings (not `--kind session-presence` — no such kind)

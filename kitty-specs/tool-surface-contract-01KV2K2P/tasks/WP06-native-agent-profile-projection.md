@@ -247,12 +247,18 @@ class AgentProfilesProvider:
         # Convert NativeAgentProfile -> SurfaceInstance
         ...
 
-    def probe(self, instance: SurfaceInstance) -> SurfaceInstance:
-        # Check if the native file exists and hash matches manifest
+    def probe(self, instance: SurfaceInstance) -> SurfaceStatus:
+        # Check if the native file exists and hash matches manifest; return SurfaceStatus
         ...
 
-    def repair(self, instance: SurfaceInstance) -> bool:
-        # Re-project and write the file; update manifest
+    def repair(
+        self,
+        project_root: Path,
+        statuses: Sequence[SurfaceStatus],
+        *,
+        dry_run: bool = False,
+    ) -> RepairResult:
+        # Re-project and write files for the supplied statuses; update manifest
         ...
 ```
 
@@ -346,7 +352,7 @@ def test_agent_profiles_provider_repair_writes_file():
 
 - [ ] Built-in profiles are projected into `.claude/agents/` for configured Claude Code users
 - [ ] `spec-kitty doctor tool-surfaces --kind agent-profile --json` reports gaps and repairs them
-- [ ] Tools without native agent support show `TOOL_SURFACE_AGENT_PROFILE_RESEARCH_GAP` at `research_gap` severity
+- [ ] Tools without native agent support show code `"research-gap-surface"` or `"profile-projection-unsupported"` at severity `"info"`; top-level `ok` remains `true`
 - [ ] Profile manifest is written to `.kittify/agent-profiles-manifest.json` (NOT `tool-surface-profile-manifest.json`)
 - [ ] `.kittify/agent-profiles-manifest.json` is the manifest used (NOT `tool-surface-profile-manifest.json`)
 - [ ] `pytest tests/specify_cli/tool_surface/profiles/` passes
@@ -360,7 +366,7 @@ def test_agent_profiles_provider_repair_writes_file():
 
 ## Reviewer Guidance (Codex)
 
-- Verify `RESEARCH_GAP` severity (not `error`) for tools without native agent support
-- Verify `clean: true` when only research-gap findings
+- Verify research-gap/profile-unsupported findings use severity `"info"` (not `"error"` and not a fictional `"research_gap"` severity)
+- Verify `ok: true` when only research-gap/profile-unsupported findings are present
 - Verify `AgentProfileRepository` is not modified
 - Verify glossary compliance: profiles are "agent profiles" (logical identities), not "tool surfaces" (but they have a tool surface representation)

@@ -78,9 +78,9 @@ After this WP, `agent config status` consults the `SurfacePlan` for configured t
    builder = SurfacePlanBuilder(registry=get_registry(), providers=get_providers())
    plans = builder.build(configured_tool_keys=get_configured_tools(), project_root=project_root)
    status_svc = SurfaceStatusService(providers=get_providers())
-   findings = [f for plan in plans for f in status_svc.compute_findings(plan)]
+   report = status_svc.collect(project_root=project_root, plans=plans)
    ```
-4. Map the findings back to the existing output format (`agent config status` JSON schema).
+4. Map `report.surfaces` and `report.findings` back to the existing output format (`agent config status` JSON schema).
 
 **Critical**: The output schema of `agent config list --json` and `agent config status --json` must not change. Add any new fields only additively; do not remove or rename existing fields.
 

@@ -95,12 +95,18 @@ class ManagedSkillsProvider:
         # Ask registry what doctrine skills should exist for this tool
         ...
 
-    def probe(self, instance: SurfaceInstance) -> SurfaceInstance:
-        # Use verifier to check current state
+    def probe(self, instance: SurfaceInstance) -> SurfaceStatus:
+        # Use verifier to check current state and return SurfaceStatus
         ...
 
-    def repair(self, instance: SurfaceInstance) -> bool:
-        # Delegate to installer
+    def repair(
+        self,
+        project_root: Path,
+        statuses: Sequence[SurfaceStatus],
+        *,
+        dry_run: bool = False,
+    ) -> RepairResult:
+        # Delegate to installer using provider-owned status/manifest context
         ...
 ```
 
@@ -118,7 +124,7 @@ class ManagedSkillsProvider:
 ### T025 -- Extend `status.py` and `findings.py` for doctrine-skill kind
 
 **Out-of-map edit to `status.py`** (owned by WP03):
-- Extend `compute_findings` to handle `SurfaceKind.DOCTRINE_SKILL`
+- Extend the `SurfaceStatusService.collect()` status/finding mapping to handle `SurfaceKind.DOCTRINE_SKILL`
 - Use finding code `"generated-surface-missing"` (kebab-case JSON wire value) for missing doctrine skills; Python constant `GENERATED_SURFACE_MISSING` maps to this string
 
 **Out-of-map edit to `findings.py`** (owned by WP03):
