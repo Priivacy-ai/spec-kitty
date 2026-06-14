@@ -198,7 +198,7 @@ After writing, emit install instructions to stdout (JSON does not support commen
 ## Branch Strategy
 
 - **Planning base branch**: `feat/agent-profile-projection-plugin-production`
-- **Final merge target**: `main` (local only)
+- **Final merge target**: `feat/agent-profile-projection-plugin-production`
 - **Depends on**: WP04 (plugin build command and shared `_builder.py`)
 
 WP06 can run in parallel with WP05 (independent targets, different output dirs).

@@ -125,7 +125,7 @@
 **Execution mode:** code_change  
 **Dependencies:** [WP01]  
 
-**Goal:** Complete the harness capability matrix: implement Amazon Q and Augment Code renderers where confirmed; mark all remaining harnesses (Windsurf, Cursor, Kiro, etc.) as `not_applicable` with machine-readable reasons; ensure `doctor tool-surfaces --kind agent-profile --json` reports exactly the five valid statuses.
+**Goal:** Complete the harness capability matrix: implement Amazon Q and Augment Code renderers where confirmed; mark all remaining harnesses (Windsurf, Cursor, Kiro, etc.) as `not_applicable` with machine-readable reasons; ensure `doctor tool-surfaces --kind agent-profile --json` reports only the six valid statuses.
 
 **Included subtasks:**
 - [ ] T010 Confirm Amazon Q CLI agent format; implement `AmazonQProfileRenderer` targeting `~/.aws/amazonq/cli-agents/` (WP03)

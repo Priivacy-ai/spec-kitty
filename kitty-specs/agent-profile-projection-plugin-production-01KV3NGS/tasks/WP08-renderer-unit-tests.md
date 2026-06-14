@@ -343,7 +343,7 @@ def test_not_applicable_harnesses_have_reasons():
 ## Branch Strategy
 
 - **Planning base branch**: `feat/agent-profile-projection-plugin-production`
-- **Final merge target**: `main` (local only)
+- **Final merge target**: `feat/agent-profile-projection-plugin-production`
 - **Depends on**: WP01, WP02, WP03 (all renderers and capability matrix must exist)
 
 To start work: `spec-kitty agent action implement WP08 --agent claude`

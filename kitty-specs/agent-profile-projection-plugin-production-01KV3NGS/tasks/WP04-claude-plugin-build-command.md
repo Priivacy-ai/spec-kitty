@@ -138,59 +138,67 @@ Per the plugin-manifest-claude.md contract: the `components` key must use the ex
 Skills are rendered by the existing `command_installer` infrastructure — use it, do NOT copy raw doctrine `prompt.md` files directly.
 
 ```python
-import importlib.metadata
-from specify_cli.skills.command_installer import CANONICAL_COMMANDS, install_skills
+import shutil
+from specify_cli.skills import command_installer
 
 def _copy_skills(self, bundle_dir: Path) -> int:
     """Render and install command skills into bundle using the canonical installer. Returns skill count."""
     skills_dst = bundle_dir / "skills"
+    if skills_dst.exists():
+        shutil.rmtree(skills_dst)
     skills_dst.mkdir(parents=True, exist_ok=True)
-    version = importlib.metadata.version("spec-kitty-cli")
-    # install_skills renders each command via command_renderer.render(template_path, agent_key, version)
-    # and writes SKILL.md into the target directory — use it rather than calling render() directly.
-    # command_renderer.render() requires (template_path: Path, agent_key: str, spec_kitty_version: str)
-    # and returns a RenderedSkill object (not a string); calling it directly requires locating each
-    # template_path, which install_skills already handles.
-    install_skills(
-        target_root=skills_dst,
-        agent_key="claude",  # use claude as the render key for the plugin bundle
-        spec_kitty_version=version,
-    )
+
+    # command_installer.install() writes project command skills under
+    # <repo_root>/.agents/skills/spec-kitty.<cmd>/SKILL.md. Stage into bundle
+    # build output, then copy only the rendered skill dirs into plugin skills/.
+    staging_root = bundle_dir / ".command-skill-staging"
+    shutil.rmtree(staging_root, ignore_errors=True)
+    (staging_root / ".kittify").mkdir(parents=True, exist_ok=True)
+    try:
+        command_installer.install(staging_root, "codex")
+        staged_skills = staging_root / ".agents" / "skills"
+        for skill_dir in sorted(staged_skills.glob("spec-kitty.*")):
+            shutil.copytree(skill_dir, skills_dst / skill_dir.name)
+    finally:
+        shutil.rmtree(staging_root, ignore_errors=True)
+
     count = sum(1 for _ in skills_dst.glob("*/SKILL.md"))
-    if count < 15:
-        raise BuildError(f"Expected ≥15 skills, found {count}. Check CANONICAL_COMMANDS.")
+    expected = len(command_installer.CANONICAL_COMMANDS)
+    if count != expected:
+        raise BuildError(f"Expected {expected} skills, found {count}. Check CANONICAL_COMMANDS.")
     return count
 ```
 
-**Why not call `command_renderer.render()` directly?** Its signature is `render(template_path: Path, agent_key: str, spec_kitty_version: str) -> RenderedSkill` — it requires the template path (not the command name) and returns a `RenderedSkill` object (not a string). The installer already resolves template paths; use `install_skills` to avoid duplicating that resolution logic.
+**Why not call `command_renderer.render()` directly?** Its signature is `render(template_path: Path, agent_key: str, spec_kitty_version: str) -> RenderedSkill` — it requires the template path (not the command name) and returns a `RenderedSkill` object (not a string). The command installer already resolves template paths. Do not use `specify_cli.skills.installer.install_skills_for_agent`; that is the managed doctrine-skill installer, not the command-skill installer.
 
-### T018 — Copy built-in agent profile Markdown files to `agents/` in bundle
+### T018 — Render built-in agent profiles to `agents/` in bundle
 
-Built-in agent profiles ship with the package under a path resolvable via `get_package_asset_root()` or similar. Locate this function in `src/specify_cli/runtime/home.py`.
+Built-in agent profiles are loaded through `AgentProfileRepository`. Do not derive their path from `get_package_asset_root()`; that helper points at mission assets, not the doctrine agent-profile package data.
 
 ```python
 def _copy_agents(self, bundle_dir: Path) -> int:
     """Render built-in agent profiles to bundle agents/ dir. Returns agent count."""
-    from specify_cli.runtime.home import get_package_asset_root
-    from charter.profiles import AgentProfile
+    import shutil
+    from doctrine.agent_profiles.repository import AgentProfileRepository
     from specify_cli.tool_surface.profiles.renderers import ClaudeCodeProfileRenderer
 
-    # Built-in profiles are .agent.yaml files under the package asset root/agent_profiles/built-in/
-    # They are NOT pre-rendered .md files — they must be loaded and rendered via ClaudeCodeProfileRenderer.
-    profiles_src = get_package_asset_root() / "agent_profiles" / "built-in"
+    # Built-in profiles are .agent.yaml files. They are NOT pre-rendered .md
+    # files; load them through the repository and render via ClaudeCodeProfileRenderer.
+    profiles = AgentProfileRepository().list_all()
     agents_dst = bundle_dir / "agents"
+    if agents_dst.exists():
+        shutil.rmtree(agents_dst)
     agents_dst.mkdir(parents=True, exist_ok=True)
     renderer = ClaudeCodeProfileRenderer()
     count = 0
-    for yaml_file in sorted(profiles_src.glob("*.agent.yaml")):
-        profile = AgentProfile.from_yaml(yaml_file)
+    for profile in profiles:
         rendered = renderer.render(profile)  # returns str
         out_path = agents_dst / f"{profile.profile_id}.md"
         out_path.write_text(rendered, encoding="utf-8")
         count += 1
     if count == 0:
         raise BuildError(
-            f"No built-in agent profiles found under {profiles_src}. "
+            "No built-in agent profiles loaded. "
             "Bundle must include profiles per FR-020. Check package data configuration."
         )
     return count
@@ -233,7 +241,7 @@ The validate step is the LAST step in `build()`. If it fails, the build is consi
 ## Branch Strategy
 
 - **Planning base branch**: `feat/agent-profile-projection-plugin-production`
-- **Final merge target**: `main` (local only)
+- **Final merge target**: `feat/agent-profile-projection-plugin-production`
 - **No dependency on WP01-03** (parallel track)
 
 To start work: `spec-kitty agent action implement WP04 --agent claude`

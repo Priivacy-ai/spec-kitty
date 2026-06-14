@@ -35,7 +35,7 @@ spec-kitty doctor tool-surfaces --kind agent-profile --json
 # - Remove generated profiles
 rm -rf .claude/agents/ .codex/agents/ .github/agents/
 
-# - Truncate skills manifest to 11 entries (edit .kittify/skills-manifest.json)
+# - Truncate command-skill manifest to 11 entries (edit .kittify/command-skills-manifest.json)
 # - Do NOT create .roo/ (should not be needed)
 
 spec-kitty upgrade

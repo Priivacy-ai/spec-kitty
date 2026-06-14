@@ -45,7 +45,7 @@ Before reading any other section of this prompt, load your agent profile:
 
 ## Objective
 
-Implement `CodexProfileRenderer` that projects Spec Kitty agent profiles to `.codex/agents/<profile_id>.toml` files in valid TOML format. Register it alongside `ClaudeCodeProfileRenderer` and `CopilotProfileRenderer`. After this WP, `doctor tool-surfaces --kind agent_profile` must no longer report Codex as `research_gap`.
+Implement `CodexProfileRenderer` that projects Spec Kitty agent profiles to `.codex/agents/<profile_id>.toml` files in valid TOML format. Register it alongside `ClaudeCodeProfileRenderer` and `CopilotProfileRenderer`. After this WP, `doctor tool-surfaces --kind agent-profile` must no longer report Codex as `research_gap`.
 
 ---
 
@@ -175,7 +175,7 @@ If the doctor still shows `research_gap` for Codex, trace the capability matrix 
 ## Branch Strategy
 
 - **Planning base branch**: `feat/agent-profile-projection-plugin-production`
-- **Final merge target**: `main` (local only)
+- **Final merge target**: `feat/agent-profile-projection-plugin-production`
 - **Depends on**: WP01 must be merged first
 
 To start work: `spec-kitty agent action implement WP02 --agent claude`
@@ -190,7 +190,7 @@ To start work: `spec-kitty agent action implement WP02 --agent claude`
 - [ ] `output_path()` returns `<project_root>/.codex/agents/<profile_id>.toml`
 - [ ] `render()` produces valid TOML with at least `name`, `description`, `developer_instructions`
 - [ ] `FORMAT_CODEX_AGENT` exported from `renderers.py`
-- [ ] `doctor tool-surfaces --kind agent_profile --json` shows Codex as `missing` (not `research_gap`)
+- [ ] `doctor tool-surfaces --kind agent-profile --json` shows Codex as `missing` (not `research_gap`)
 - [ ] `ruff check` and `mypy --strict` pass on changed modules
 
 ---

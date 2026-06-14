@@ -154,11 +154,31 @@ def test_upgrade_with_repair_drift_overwrites_drifted(tmp_path):
 
 def test_second_upgrade_is_idempotent(tmp_path):
     """Running upgrade twice produces zero counts on the second run."""
-    from specify_cli.tool_surface.repair import run_surface_repair
-    run_surface_repair(tmp_path, interactive=False, repair_drift=False)
-    summary2 = run_surface_repair(tmp_path, interactive=False, repair_drift=False)
-    assert len(summary2.created) == 0
-    assert len(summary2.repaired) == 0
+    import subprocess, sys
+
+    _setup_project_for_rule(tmp_path, "rule1_missing_created")
+    first = subprocess.run(
+        [sys.executable, "-m", "specify_cli", "upgrade", "--yes"],
+        capture_output=True, text=True, cwd=tmp_path,
+    )
+    assert first.returncode == 0, first.stderr
+
+    before = {
+        path.relative_to(tmp_path): path.read_bytes()
+        for path in tmp_path.rglob("*")
+        if path.is_file()
+    }
+    second = subprocess.run(
+        [sys.executable, "-m", "specify_cli", "upgrade", "--yes"],
+        capture_output=True, text=True, cwd=tmp_path,
+    )
+    assert second.returncode == 0, second.stderr
+    after = {
+        path.relative_to(tmp_path): path.read_bytes()
+        for path in tmp_path.rglob("*")
+        if path.is_file()
+    }
+    assert after == before
 ```
 
 Write concrete implementations for all stubs above. Each test must be independently executable without shared state.
@@ -242,6 +262,7 @@ def test_upgrade_heals_rc44_project(rc44_project):
     assert codex_tomls, ".codex/agents/ must contain at least one .toml profile file"
 
     # Assert manifest repaired to canonical count (entries list, not commands list)
+    canonical_commands = _get_canonical_commands()
     manifest = json.loads((rc44_project / ".kittify" / "command-skills-manifest.json").read_text())
     assert "entries" in manifest, "Repaired manifest must use 'entries' key (schema_version: 1)"
     assert manifest.get("schema_version") == 1
@@ -301,7 +322,7 @@ def _setup_project_for_rule(tmp_path: Path, rule: str) -> None:
     """Set up appropriate project state for each rule."""
     kittify = tmp_path / ".kittify"
     kittify.mkdir(exist_ok=True)
-    (kittify / "config.yaml").write_text("agents:\n  - claude\n")
+    (kittify / "config.yaml").write_text("agents:\n  available:\n    - claude\n")
     if "missing" in rule:
         pass  # no .claude/agents/ — is missing
     elif "stale" in rule:
@@ -325,11 +346,14 @@ In `tests/specify_cli/test_migration_compat.py`, find the baseline `expected_sur
 ```python
 # Expected surface kinds in doctor --kind output (additive-only contract)
 EXPECTED_SURFACE_KINDS = frozenset({
-    "command_skills",
-    "doctrine_skills",
-    "session_presence",
+    "command_skill",
+    "command_file",
+    "doctrine_skill",
+    "context_file",
+    "hook",
+    "rule",
     "native_config",
-    "plugin_bundle",
+    "plugin_manifest",
     "agent_profile",  # added in this mission
 })
 
@@ -406,7 +430,7 @@ For mypy strictness issues in new modules, common fixes:
 ## Branch Strategy
 
 - **Planning base branch**: `feat/agent-profile-projection-plugin-production`
-- **Final merge target**: `main` (local only)
+- **Final merge target**: `feat/agent-profile-projection-plugin-production`
 - **Depends on**: ALL prior WPs (WP01-WP08) must be merged first
 
 To start work: `spec-kitty agent action implement WP09 --agent claude`

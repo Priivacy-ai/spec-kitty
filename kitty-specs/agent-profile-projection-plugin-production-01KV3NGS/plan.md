@@ -11,7 +11,7 @@ rc44 added the ToolSurfaceContract registry and staging plugin bundles but stopp
 
 **Language/Version**: Python 3.11+  
 **Primary Dependencies**: typer (CLI), rich (console output), ruamel.yaml (YAML/frontmatter), tomli/tomllib (TOML write for Codex profiles), pytest (testing), mypy (strict type checking), ruff (linting)  
-**Storage**: Files — JSONL event log, YAML config (`.kittify/config.yaml`), Markdown agent profiles (`.claude/agents/`, `.github/agents/`, `.augment/agents/`), TOML agent profiles (`.codex/agents/`), JSON agent config (`~/.aws/amazonq/cli-agents/`), JSON plugin manifests (`.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`), JSON skill manifests (`.kittify/skills-manifest.json`)  
+**Storage**: Files — JSONL event log, YAML config (`.kittify/config.yaml`), Markdown agent profiles (`.claude/agents/`, `.github/agents/`, `.augment/agents/`), TOML agent profiles (`.codex/agents/`), JSON agent config (`~/.aws/amazonq/cli-agents/`), JSON plugin manifests (`.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`), JSON command-skill manifests (`.kittify/command-skills-manifest.json`), JSON managed-doctrine skill manifests (`.kittify/skills-manifest.json`)  
 **Testing**: pytest with ≥90% branch coverage on new code; `mypy --strict` on changed modules; `ruff check`; integration tests for CLI commands; migration acceptance fixture for rc44-era upgrade scenario  
 **Target Platform**: Linux, macOS, Windows 10+ (cross-platform CLI tool)  
 **Project Type**: Single Python package (`src/specify_cli/`)  

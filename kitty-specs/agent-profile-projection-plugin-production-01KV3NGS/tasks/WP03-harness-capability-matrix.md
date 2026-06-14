@@ -52,7 +52,7 @@ Before reading any other section of this prompt, load your agent profile:
 
 ## Objective
 
-Complete the harness capability matrix: implement `AmazonQProfileRenderer` (user-global path) and `AugmentProfileRenderer` (project-local); build a `HarnessCapabilityRecord` registry that marks the remaining 14 harnesses as `not_applicable` with machine-readable reasons; update `AgentProfilesProvider` to emit per-harness `not_applicable` findings. After this WP, `doctor tool-surfaces --kind agent_profile --json` must report exactly five valid statuses for every configured harness.
+Complete the harness capability matrix: implement `AmazonQProfileRenderer` (user-global path) and `AugmentProfileRenderer` (project-local); build a `HarnessCapabilityRecord` registry that marks the remaining 14 harnesses as `not_applicable` with machine-readable reasons; update `AgentProfilesProvider` to emit per-harness `not_applicable` findings. After this WP, `doctor tool-surfaces --kind agent-profile --json` must report only valid profile statuses for every configured harness.
 
 ---
 
@@ -65,7 +65,7 @@ Research findings (from research.md):
 - **Augment Code**: subagent format is `.augment/agents/<id>.md` (YAML frontmatter + Markdown body), similar to Claude Code's `.claude/agents/` format. This IS project-local and manifest-tracked.
 - **Remaining harnesses** (Windsurf, Cursor, Kiro, Gemini, Qwen, OpenCode, Kilocode, Roo Code [deprecated], GitHub Copilot chat, etc.): no confirmed native agent profile primitive as of research date. All should be `not_applicable`.
 
-The five valid status values per FR-015 are: `present`, `missing`, `stale`, `drifted`, `not_applicable`. `research_gap` remains valid only for harnesses with genuinely unassessed native agent primitive support (i.e., not yet researched).
+The six valid status values per FR-015 are: `present`, `missing`, `stale`, `drifted`, `not_applicable`, and `research_gap`. `research_gap` remains valid only for harnesses with genuinely unassessed native agent primitive support (i.e., not yet researched), and this WP should drive every assessed configured harness to either supported or `not_applicable`.
 
 ---
 
@@ -149,7 +149,7 @@ HARNESS_CAPABILITY_MATRIX: dict[str, HarnessCapabilityRecord] = {
     "copilot": HarnessCapabilityRecord("copilot", True, "Native: .github/agents/<id>.agent.md"),
     "codex": HarnessCapabilityRecord("codex", True, "Native: .codex/agents/<id>.toml"),
     "auggie": HarnessCapabilityRecord("auggie", True, "Native: .augment/agents/<id>.md"),
-    "q": HarnessCapabilityRecord("q", True, "User-global: ~/.aws/amazonq/cli-agents/<id>.md"),
+    "q": HarnessCapabilityRecord("q", True, "User-global: ~/.aws/amazonq/cli-agents/<id>.json"),
     # Not-applicable harnesses — skills/workflows surface is the supported fallback
     "windsurf": HarnessCapabilityRecord("windsurf", False, "No native agent primitive; use workflow/rule surfaces"),
     "cursor": HarnessCapabilityRecord("cursor", False, "No native agent primitive; use rule surfaces"),
@@ -171,19 +171,36 @@ Populate all 19 configured harnesses from `AI_CHOICES` in `config.py`. Do not ha
 In `src/specify_cli/tool_surface/providers/agent_profiles.py`, update the findings builder:
 
 ```python
+from specify_cli.tool_surface.findings import (
+    PROFILE_PROJECTION_UNSUPPORTED,
+    RESEARCH_GAP_SURFACE,
+    SEVERITY_INFO,
+    make_finding,
+)
 from specify_cli.tool_surface.profiles.capability_matrix import HARNESS_CAPABILITY_MATRIX
 
 def _findings_for_harness(harness_key: str, project_root: Path, ...) -> SurfaceFinding:
     record = HARNESS_CAPABILITY_MATRIX.get(harness_key)
-    if record is None or not record.has_native_agent_primitive:
-        return SurfaceFinding(
-            harness=harness_key,
-            kind="agent_profile",
-            status="not_applicable",
-            reason=record.reason if record else "Not researched",
+    if record is None:
+        return make_finding(
+            RESEARCH_GAP_SURFACE,
+            SEVERITY_INFO,
+            f"{harness_key} native agent profile support has not been assessed.",
+            tool_key=harness_key,
+            details={"status": "research_gap"},
+        )
+    if not record.has_native_agent_primitive:
+        return make_finding(
+            PROFILE_PROJECTION_UNSUPPORTED,
+            SEVERITY_INFO,
+            f"{harness_key} does not support native agent profile projection.",
+            tool_key=harness_key,
+            details={"status": "not_applicable", "reason": record.reason},
         )
     # existing logic for present/missing/stale/drifted...
 ```
+
+Do not instantiate `SurfaceFinding(harness=..., kind=..., status=...)`; the current reporting model requires stable finding codes, severity, message, and optional `details`.
 
 Ensure the Amazon Q harness uses filesystem inspection (`output_path.exists()`) rather than manifest lookup when building its finding.
 
@@ -194,7 +211,7 @@ After implementing T010-T013, run:
 spec-kitty doctor tool-surfaces --kind agent-profile --json
 ```
 
-Inspect the `findings` array. Every finding's `status` must be one of: `present`, `missing`, `stale`, `drifted`, `not_applicable`. If any finding shows `research_gap`, that harness still needs to be assessed and added to the capability matrix (or added to the renderer registry if confirmed).
+Inspect the `findings` array. Every finding's profile status must be one of: `present`, `missing`, `stale`, `drifted`, `not_applicable`, `research_gap`. If any assessed configured harness still shows `research_gap`, that harness still needs to be added to the capability matrix (or added to the renderer registry if confirmed).
 
 Automated assertion: add a check in the unit tests (WP08 handles the full test suite, but add a smoke assertion here via CLI invocation in a tmp project).
 
@@ -203,7 +220,7 @@ Automated assertion: add a check in the unit tests (WP08 handles the full test s
 ## Branch Strategy
 
 - **Planning base branch**: `feat/agent-profile-projection-plugin-production`
-- **Final merge target**: `main` (local only)
+- **Final merge target**: `feat/agent-profile-projection-plugin-production`
 - **Depends on**: WP01 (surface repair wiring) AND WP02 (CodexProfileRenderer) must be merged first — T014 checks that `research_gap` no longer appears for Codex, which requires WP02's renderer to be registered
 
 To start work: `spec-kitty agent action implement WP03 --agent claude`
@@ -216,7 +233,7 @@ To start work: `spec-kitty agent action implement WP03 --agent claude`
 - [ ] `AugmentProfileRenderer` implemented; outputs to `.augment/agents/<id>.md`; manifest-tracked
 - [ ] `HarnessCapabilityRecord` and `HARNESS_CAPABILITY_MATRIX` covering all 19 configured harnesses
 - [ ] `AgentProfilesProvider` emits `not_applicable` findings for non-capable harnesses
-- [ ] `doctor tool-surfaces --kind agent_profile --json` shows only five valid status values
+- [ ] `doctor tool-surfaces --kind agent-profile --json` shows only six valid status values
 - [ ] `ruff check` and `mypy --strict` pass on all changed modules
 
 ---

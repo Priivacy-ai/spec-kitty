@@ -219,7 +219,7 @@ Keep the doc concise (under 100 lines). Reference `CONTRIBUTING.md` for build sy
 ## Branch Strategy
 
 - **Planning base branch**: `feat/agent-profile-projection-plugin-production`
-- **Final merge target**: `main` (local only)
+- **Final merge target**: `feat/agent-profile-projection-plugin-production`
 - **Depends on**: WP04 must be merged first
 
 To start work: `spec-kitty agent action implement WP05 --agent claude`

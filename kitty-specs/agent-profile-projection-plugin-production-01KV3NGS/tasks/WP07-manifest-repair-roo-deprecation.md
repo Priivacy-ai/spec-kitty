@@ -107,9 +107,9 @@ Do NOT call this from within a specific-version migration file — the manifest 
 
 Drifted SKILL.md files (files whose content hash differs from canonical) must route through the WP01 `run_surface_repair()` function — not through a separate code path.
 
-Verify that `SurfaceRepairService` (or its updated version from WP01) correctly identifies drifted SKILL.md files in `.agents/skills/spec-kitty.<cmd>/SKILL.md`. The `surface_kind` for these is `command_skills`.
+Verify that `SurfaceRepairService` (or its updated version from WP01) correctly identifies drifted SKILL.md files in `.agents/skills/spec-kitty.<cmd>/SKILL.md`. The `SurfaceKind` for these is `COMMAND_SKILL` with wire value `command_skill`.
 
-If the current `SurfaceRepairService` only handles `agent_profile` surfaces, extend it to also enumerate `command_skills` surfaces and apply the same drift detection + policy logic.
+If the current `SurfaceRepairService` only handles `SurfaceKind.AGENT_PROFILE` (`agent_profile`) surfaces, extend it to also enumerate `SurfaceKind.COMMAND_SKILL` (`command_skill`) surfaces and apply the same drift detection + policy logic.
 
 ### T030 — Detect and remove unsafe symlink artifacts
 
@@ -234,7 +234,7 @@ If the terminology guard does not cover Roo Code deprecation, that is fine — t
 ## Branch Strategy
 
 - **Planning base branch**: `feat/agent-profile-projection-plugin-production`
-- **Final merge target**: `main` (local only)
+- **Final merge target**: `feat/agent-profile-projection-plugin-production`
 - **Depends on**: WP01 (drift policy service must exist before T028-T030)
 
 To start work: `spec-kitty agent action implement WP07 --agent claude`
