@@ -86,11 +86,8 @@ Create `src/specify_cli/tool_surface/profiles/codex_renderer.py`:
 ```python
 from __future__ import annotations
 from pathlib import Path
-from typing import TYPE_CHECKING
 import tomli_w
-
-if TYPE_CHECKING:
-    from specify_cli.tool_surface.profiles.models import AgentProfile
+from charter.profiles import AgentProfile
 
 FORMAT_CODEX_AGENT = "codex-agent"
 
@@ -100,14 +97,17 @@ class CodexProfileRenderer:
     def can_render(self, tool_key: str) -> bool:
         return tool_key in {"codex", "codex-cli", FORMAT_CODEX_AGENT}
 
-    def output_path(self, project_root: Path, profile: AgentProfile) -> Path:
+    def output_path(self, tool_key: str, profile: AgentProfile, project_root: Path) -> Path:
+        # tool_key first, then profile, then project_root — matches ProfileRenderer Protocol
+        _ = tool_key
         return project_root / ".codex" / "agents" / f"{profile.profile_id}.toml"
 
-    def render(self, profile: AgentProfile) -> bytes:
+    def render(self, profile: AgentProfile) -> str:
+        # Returns str; tomli_w.dumps() returns str (TOML is UTF-8 text)
         doc: dict[str, object] = {
-            "name": profile.friendly_name or profile.profile_id,
-            "description": profile.description or "",
-            "developer_instructions": profile.system_prompt or "",
+            "name": profile.name or profile.profile_id,
+            "description": profile.description or profile.purpose or "",
+            "developer_instructions": profile.purpose or "",
         }
         if getattr(profile, "model", None):
             doc["model"] = profile.model
@@ -115,19 +115,22 @@ class CodexProfileRenderer:
             doc["model_reasoning_effort"] = profile.model_reasoning_effort
         if getattr(profile, "sandbox_mode", None) is not None:
             doc["sandbox_mode"] = profile.sandbox_mode
-        return tomli_w.dumps(doc).encode("utf-8")
+        return tomli_w.dumps(doc)
 ```
 
-Note: `render()` returns bytes. If the existing `ProfileRenderer` Protocol defines it as `str`, adjust to match — but prefer bytes for TOML output since TOML is UTF-8 by spec.
+**Protocol alignment (verified against `renderers.py`):**
+- `AgentProfile` is from `charter.profiles` — NOT from `specify_cli.tool_surface.profiles.models`
+- `output_path(self, tool_key: str, profile: AgentProfile, project_root: Path) -> Path` — `tool_key` is the FIRST param, `project_root` is LAST
+- `render(self, profile: AgentProfile) -> str` — returns `str`, NOT `bytes`
+- `AgentProfile` fields: `profile_id`, `name`, `description`, `purpose`, `roles`, `specialization` — NOT `friendly_name`, `system_prompt`, or `model_hint`
 
 ### T007 — Implement `can_render()`, `output_path()`, `format_key`; optional-field passthrough
 
-Verify that `CodexProfileRenderer` satisfies the `ProfileRenderer` protocol defined in `renderers.py`. Check the Protocol definition for:
-- Return type of `render()` (bytes or str)
-- Whether `output_path()` takes `(project_root, profile)` or just `(profile)`
-- Whether `format_key` is a class attribute or instance attribute
+The `ProfileRenderer` Protocol in `renderers.py` defines:
+- `output_path(self, tool_key: str, profile: AgentProfile, project_root: Path) -> Path`
+- `render(self, profile: AgentProfile) -> str`
 
-Adjust `CodexProfileRenderer` to exactly match the Protocol. Do not change the Protocol itself unless all existing renderers already satisfy the new signature.
+`CodexProfileRenderer` (above) already implements the correct signatures. Do not change the Protocol itself.
 
 Also implement optional-field passthrough: if `AgentProfile` carries fields not in the required three, silently skip them rather than raising. Use `getattr(profile, field, None)` pattern.
 
@@ -141,14 +144,20 @@ from specify_cli.tool_surface.profiles.codex_renderer import (
     CodexProfileRenderer,
 )
 
-PROFILE_RENDERERS: list[ProfileRenderer] = [
+from specify_cli.tool_surface.profiles.codex_renderer import (
+    FORMAT_CODEX_AGENT,
+    CodexProfileRenderer,
+)
+
+# Current name in renderers.py is _RENDERERS (private tuple) — extend it:
+_RENDERERS: tuple[ProfileRenderer, ...] = (
     ClaudeCodeProfileRenderer(),
     CopilotProfileRenderer(),
     CodexProfileRenderer(),  # add here
-]
+)
 ```
 
-Export `FORMAT_CODEX_AGENT` from `renderers.py` alongside `FORMAT_CLAUDE_AGENT` and `FORMAT_COPILOT_AGENT` so callers have a single import point.
+Export `FORMAT_CODEX_AGENT` from `renderers.py` alongside `FORMAT_CLAUDE_AGENT` and `FORMAT_COPILOT_AGENT` so callers have a single import point. The existing private `_RENDERERS` tuple drives `get_renderer()` — extend it in-place rather than renaming to `PROFILE_RENDERERS`.
 
 ### T009 — Verify `doctor tool-surfaces --kind agent_profile` no longer reports `research_gap` for Codex
 
@@ -190,4 +199,4 @@ To start work: `spec-kitty agent action implement WP02 --agent claude`
 
 - `tomli-w` version may conflict with existing dependencies — check `uv lock` after adding
 - `AgentProfile` model may not have all optional fields (`model`, `sandbox_mode`) — use `getattr` with defaults
-- `ProfileRenderer` Protocol may require `render()` to return `str`, not `bytes` — check before implementing
+- `AgentProfile` fields are `profile_id`, `name`, `description`, `purpose`, `roles`, `specialization` — verify against `charter.profiles.AgentProfile` before using any attribute not in this list

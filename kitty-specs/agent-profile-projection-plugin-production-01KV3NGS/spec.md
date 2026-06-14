@@ -65,7 +65,7 @@ rc44 established the ToolSurfaceContract registry and added staging plugin bundl
 | FR-003 | Missing generated surfaces (absent from disk, present in canonical manifest) are auto-created during `init` and `upgrade` without user prompting | Proposed |
 | FR-004 | Stale generated surfaces (manifest-owned, bytes outdated but not user-modified) are auto-repaired during `init` and `upgrade` without user prompting | Proposed |
 | FR-005 | Drifted generated surfaces (manifest-owned, bytes changed outside of spec-kitty since last repair) trigger a per-file interactive prompt in interactive mode before any overwrite; the prompt names the file path | Proposed |
-| FR-006 | In non-interactive mode, drifted surfaces are reported with file paths and are not overwritten; overwrite requires the explicit flag `--repair-drift=overwrite`; `--yes` alone must not trigger overwrite of drifted files | Proposed |
+| FR-006 | In non-interactive mode, drifted surfaces are reported with file paths and are not overwritten; overwrite requires the explicit flag `--repair-drift=overwrite`; `--yes` alone must not trigger overwrite of drifted files; the command exits non-zero when drift is detected and `--repair-drift=overwrite` was not passed | Proposed |
 | FR-007 | `init` and `upgrade` emit a summary listing: surfaces created, surfaces repaired, drift found (with paths), and surfaces skipped as `not_applicable` | Proposed |
 | FR-008 | `init` and `upgrade` are idempotent: running either command twice on a project with no manual edits produces identical output and no reported drift on the second run | Proposed |
 

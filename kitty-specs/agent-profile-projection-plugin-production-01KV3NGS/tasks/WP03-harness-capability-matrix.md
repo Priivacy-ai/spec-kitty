@@ -3,6 +3,7 @@ work_package_id: WP03
 title: Harness Capability Matrix Completion
 dependencies:
 - WP01
+- WP02
 requirement_refs:
 - FR-012
 - FR-013
@@ -85,14 +86,21 @@ class AmazonQProfileRenderer:
     def can_render(self, tool_key: str) -> bool:
         return tool_key in {"q", "amazon-q", FORMAT_AMAZON_Q_AGENT}
 
-    def output_path(self, project_root: Path, profile: AgentProfile) -> Path:
-        # Note: project_root is ignored for user-global renderers.
-        # Output goes to ~/.aws/amazonq/cli-agents/<profile_id>.md
-        from pathlib import Path
-        return Path.home() / ".aws" / "amazonq" / "cli-agents" / f"{profile.profile_id}.md"
+    def output_path(self, tool_key: str, profile: AgentProfile, project_root: Path) -> Path:
+        # tool_key first, then profile, then project_root — matches ProfileRenderer Protocol.
+        # project_root is ignored for user-global renderers.
+        # Output goes to ~/.aws/amazonq/cli-agents/<profile_id>.json (JSON format per FR-012)
+        _ = tool_key, project_root
+        return Path.home() / ".aws" / "amazonq" / "cli-agents" / f"{profile.profile_id}.json"
 
     def render(self, profile: AgentProfile) -> str:
-        ...  # YAML frontmatter + Markdown body, similar to ClaudeCodeProfileRenderer
+        # Returns JSON string (spec.md FR-012 says .json format, not Markdown)
+        import json
+        return json.dumps({
+            "name": profile.name or profile.profile_id,
+            "description": profile.description or profile.purpose or "",
+            "instructions": profile.purpose or "",
+        }, indent=2)
 ```
 
 **Critical**: Because this is user-global, `AgentProfilesProvider` must NOT use the manifest to track Amazon Q profiles. Use filesystem inspection (`output_path.exists()`) directly in the provider when building findings for the `q` harness. Do NOT write `output_path` to the project manifest.
@@ -113,7 +121,9 @@ class AugmentProfileRenderer:
     def can_render(self, tool_key: str) -> bool:
         return tool_key in {"auggie", "augment", FORMAT_AUGMENT_AGENT}
 
-    def output_path(self, project_root: Path, profile: AgentProfile) -> Path:
+    def output_path(self, tool_key: str, profile: AgentProfile, project_root: Path) -> Path:
+        # tool_key first, then profile, then project_root — matches ProfileRenderer Protocol
+        _ = tool_key
         return project_root / ".augment" / "agents" / f"{profile.profile_id}.md"
 ```
 
@@ -194,7 +204,7 @@ Automated assertion: add a check in the unit tests (WP08 handles the full test s
 
 - **Planning base branch**: `feat/agent-profile-projection-plugin-production`
 - **Final merge target**: `main` (local only)
-- **Depends on**: WP01 (surface repair wiring) must be merged first
+- **Depends on**: WP01 (surface repair wiring) AND WP02 (CodexProfileRenderer) must be merged first — T014 checks that `research_gap` no longer appears for Codex, which requires WP02's renderer to be registered
 
 To start work: `spec-kitty agent action implement WP03 --agent claude`
 

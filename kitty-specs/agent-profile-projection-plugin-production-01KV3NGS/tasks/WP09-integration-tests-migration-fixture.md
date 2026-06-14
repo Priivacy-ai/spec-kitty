@@ -90,6 +90,7 @@ After `spec-kitty upgrade --yes` is run on this fixture, ALL of the following mu
 
 def test_init_creates_missing_profile_dirs(tmp_path, monkeypatch):
     """spec-kitty init creates missing agent profile dirs."""
+    import subprocess, sys
     # Setup: tmp project with config.yaml for claude only
     (tmp_path / ".kittify").mkdir()
     (tmp_path / ".kittify" / "config.yaml").write_text("agents: [claude]\n")
@@ -98,7 +99,13 @@ def test_init_creates_missing_profile_dirs(tmp_path, monkeypatch):
     # Run init surface repair in non-interactive mode
     from specify_cli.tool_surface.repair import run_surface_repair
     summary = run_surface_repair(tmp_path, interactive=False, repair_drift=False)
+    # Assert dirs created (function-level) and CLI exit code is 0
     assert len(summary.created) > 0 or (tmp_path / ".claude" / "agents").exists()
+    result = subprocess.run(
+        [sys.executable, "-m", "specify_cli", "doctor", "tool-surfaces", "--json"],
+        capture_output=True, text=True, cwd=tmp_path,
+    )
+    assert result.returncode == 0, f"doctor exited non-zero: {result.stderr}"
 
 def test_upgrade_repairs_stale_manifest(tmp_path):
     """spec-kitty upgrade auto-repairs stale 11-entry manifests."""
@@ -142,14 +149,27 @@ import json
 import pytest
 from pathlib import Path
 
+# Simulate a stale rc36/rc43 manifest in the CURRENT SkillsManifest schema
+# (schema_version: 1, entries: [{path, content_hash, installed_at, agents}])
+# with only 11 entries — rc36/rc43 projects had fewer commands than the canonical set.
+_STALE_COMMANDS = [
+    "spec-kitty.specify", "spec-kitty.plan", "spec-kitty.tasks",
+    "spec-kitty.implement", "spec-kitty.review", "spec-kitty.accept",
+    "spec-kitty.merge", "spec-kitty.next", "spec-kitty.advise",
+    "spec-kitty.status", "spec-kitty.help",
+]
+
+def _make_stale_entry(cmd: str) -> dict:
+    return {
+        "path": f".agents/skills/{cmd}/SKILL.md",
+        "content_hash": "aabbcc0011223344" * 4,  # placeholder hash
+        "installed_at": "2024-01-01T00:00:00+00:00",
+        "agents": ["codex"],
+    }
+
 RC44_MANIFEST_11_ENTRIES = {
-    "version": "1",
-    "commands": [
-        "spec-kitty.specify", "spec-kitty.plan", "spec-kitty.tasks",
-        "spec-kitty.implement", "spec-kitty.review", "spec-kitty.accept",
-        "spec-kitty.merge", "spec-kitty.next", "spec-kitty.advise",
-        "spec-kitty.status", "spec-kitty.help",
-    ],
+    "schema_version": 1,
+    "entries": [_make_stale_entry(cmd) for cmd in _STALE_COMMANDS],
 }
 
 @pytest.fixture
@@ -170,32 +190,46 @@ def test_upgrade_heals_rc44_project(rc44_project):
     from specify_cli.tool_surface.repair import run_surface_repair
     from specify_cli.skills.manifest_store import repair_stale_manifest
 
+    canonical_commands = _get_canonical_commands()
+
     # Apply manifest repair
     repair_result = repair_stale_manifest(
         rc44_project,
-        canonical_commands=_get_canonical_commands(),
+        canonical_commands=list(canonical_commands),
     )
     # Apply surface repair
     summary = run_surface_repair(rc44_project, interactive=False, repair_drift=False)
 
-    # Assert profile dirs created
-    assert (rc44_project / ".claude" / "agents").exists() or len(summary.created) > 0
-    assert (rc44_project / ".codex" / "agents").exists() or len(summary.created) > 0
+    # Assert profile dirs created for configured agents
+    claude_agents = rc44_project / ".claude" / "agents"
+    codex_agents = rc44_project / ".codex" / "agents"
+    assert claude_agents.exists(), ".claude/agents/ must be created by surface repair"
+    assert codex_agents.exists(), ".codex/agents/ must be created by surface repair"
 
-    # Assert manifest repaired to canonical count
-    import json
+    # Assert profile files are present and non-empty
+    claude_mds = list(claude_agents.glob("*.md"))
+    assert claude_mds, ".claude/agents/ must contain at least one .md profile file"
+    # Check that each .md file has YAML frontmatter (starts with ---)
+    for md in claude_mds:
+        content = md.read_text(encoding="utf-8")
+        assert content.startswith("---"), f"{md.name} must have YAML frontmatter"
+
+    codex_tomls = list(codex_agents.glob("*.toml"))
+    assert codex_tomls, ".codex/agents/ must contain at least one .toml profile file"
+
+    # Assert manifest repaired to canonical count (entries list, not commands list)
     manifest = json.loads((rc44_project / ".kittify" / "command-skills-manifest.json").read_text())
-    canonical_commands = _get_canonical_commands()
-    assert len(manifest["commands"]) == len(canonical_commands), (
-        f"Manifest has {len(manifest['commands'])} entries, expected {len(canonical_commands)}"
+    assert "entries" in manifest, "Repaired manifest must use 'entries' key (schema_version: 1)"
+    assert manifest.get("schema_version") == 1
+    assert len(manifest["entries"]) == len(canonical_commands), (
+        f"Manifest has {len(manifest['entries'])} entries, expected {len(canonical_commands)}"
     )
 
 def _get_canonical_commands():
-    from specify_cli.skills.command_renderer import CANONICAL_COMMANDS
+    # CANONICAL_COMMANDS is defined in command_installer, not command_renderer
+    from specify_cli.skills.command_installer import CANONICAL_COMMANDS
     return CANONICAL_COMMANDS
 ```
-
-Adjust `CANONICAL_COMMANDS` import to match the actual module structure. If it doesn't exist as a constant, derive it from the canonical skill discovery path.
 
 ### T042 — Drift policy parametric test covering Rules 1-5
 
@@ -213,6 +247,7 @@ from pathlib import Path
 ])
 def test_drift_policy_rule(rule, interactive, repair_drift, expect_overwrite, expect_report, tmp_path, monkeypatch):
     """Verify each of the 6 drift policy rules."""
+    import subprocess, sys
     from specify_cli.tool_surface.repair import run_surface_repair
 
     # Setup: project state appropriate for the rule being tested
@@ -228,6 +263,15 @@ def test_drift_policy_rule(rule, interactive, repair_drift, expect_overwrite, ex
         assert len(summary.drifted_overwritten) > 0 or len(summary.created) > 0 or len(summary.repaired) > 0
     if expect_report:
         assert len(summary.drifted_reported) > 0
+
+    # Assert that `spec-kitty doctor tool-surfaces --json` exits 0 after repair
+    result = subprocess.run(
+        [sys.executable, "-m", "specify_cli", "doctor", "tool-surfaces", "--json"],
+        capture_output=True, text=True, cwd=tmp_path,
+    )
+    assert result.returncode == 0, (
+        f"doctor exited {result.returncode} after rule {rule!r}: {result.stderr}"
+    )
 
 def _setup_project_for_rule(tmp_path: Path, rule: str) -> None:
     """Set up appropriate project state for each rule."""

@@ -117,12 +117,15 @@ During upgrade, check for symlinks in `.agents/skills/`:
 
 ```python
 def _remove_unsafe_skill_symlinks(project_root: Path) -> list[Path]:
-    """Remove symlinks in .agents/skills/ that point outside the project or are broken."""
+    """Remove spec-kitty.* symlinks in .agents/skills/ that are broken or external."""
     skills_dir = project_root / ".agents" / "skills"
     removed = []
     if not skills_dir.exists():
         return removed
     for entry in skills_dir.iterdir():
+        # Only touch spec-kitty.* entries — never remove arbitrary user symlinks
+        if not entry.name.startswith("spec-kitty."):
+            continue
         if entry.is_symlink():
             target = entry.resolve() if entry.exists() else None
             if target is None or not str(target).startswith(str(project_root)):
@@ -133,7 +136,7 @@ def _remove_unsafe_skill_symlinks(project_root: Path) -> list[Path]:
 
 Include the count of removed symlinks in the `DriftPolicySummary` from WP01 (add a `removed_symlinks: list[Path]` field).
 
-This specifically targets the `.agents/skills/spec-kitty.advise` symlink artifact from a past migration bug. Do not assume other entries are symlinks — only act on actual `is_symlink()` entries.
+This specifically targets the `.agents/skills/spec-kitty.advise` symlink artifact from a past migration bug. The `entry.name.startswith("spec-kitty.")` guard ensures we never touch arbitrary user-owned symlinks in the same directory — only act on actual `is_symlink()` entries whose name matches the spec-kitty skill naming convention.
 
 ### T031 — Remove `roo` from `AI_CHOICES` in `config.py` and from `AGENT_DIRS`
 

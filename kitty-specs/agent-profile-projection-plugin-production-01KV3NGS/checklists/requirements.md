@@ -6,7 +6,7 @@
 
 ## Content Quality
 
-- [x] No implementation details (languages, frameworks, APIs)
+- [~] Contains necessary implementation details (file paths, CLI flags, harness-native formats) appropriate for a developer-tooling spec; pure business-language abstraction is not achievable here
 - [x] Focused on user value and business needs
 - [x] Written for non-technical stakeholders
 - [x] All mandatory sections completed
@@ -35,4 +35,4 @@
 
 ## Notes
 
-All items pass. Spec is ready for `/spec-kitty.plan`.
+Most items pass. The `[~]` on the first item reflects that this is a developer-tooling spec whose requirements necessarily reference file paths, harness-native formats (`.toml`, `.md`), and CLI flags — this is intentional and does not indicate under-specification. Spec is ready for `/spec-kitty.plan`.

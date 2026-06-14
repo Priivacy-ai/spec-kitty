@@ -106,17 +106,21 @@ import json
 
 def _generate_plugin_json(self, bundle_dir: Path) -> None:
     version = importlib.metadata.version("spec-kitty-cli")
-    manifest = {
+    # Top-level component keys per contracts/plugin-manifest-claude.md
+    # (NOT nested under "components" — claude-plugin format uses top-level skill/agents/hooks)
+    manifest: dict[str, object] = {
         "name": "spec-kitty",
         "displayName": "Spec Kitty",
         "version": version,
         "description": "Spec-Driven Development toolkit — spec, plan, implement, review, merge.",
         "author": {"name": "Priivacy AI", "url": "https://github.com/Priivacy-ai/spec-kitty"},
-        "components": {
-            "skills": "skills/",
-            "agents": "agents/",
-        },
+        "skills": "skills/",
+        "agents": "agents/",
     }
+    # Conditionally add hooks pointer only if hooks/hooks.json is non-empty
+    hooks_json = bundle_dir / "hooks" / "hooks.json"
+    if hooks_json.exists() and hooks_json.stat().st_size > 2:
+        manifest["hooks"] = "hooks/hooks.json"
     plugin_dir = bundle_dir / ".claude-plugin"
     plugin_dir.mkdir(parents=True, exist_ok=True)
     (plugin_dir / "plugin.json").write_text(
@@ -131,27 +135,30 @@ Per the plugin-manifest-claude.md contract: the `components` key must use the ex
 
 ### T017 — Copy canonical command-skill set (≥15 skills) to `skills/` in bundle
 
-The canonical skill set lives in `src/doctrine/missions/mission-steps/` (source) and `.agents/skills/spec-kitty.<cmd>/SKILL.md` (deployed copies). Use the doctrine source as the build input, not the deployed copies.
+Skills are rendered by the existing `command_installer` infrastructure — use it, do NOT copy raw doctrine `prompt.md` files directly.
 
 ```python
-def _copy_skills(self, bundle_dir: Path, package_root: Path) -> int:
-    """Copy command skills from doctrine source to bundle. Returns skill count."""
-    skills_src = package_root / "src" / "doctrine" / "missions" / "mission-steps"
+from specify_cli.skills.command_installer import CANONICAL_COMMANDS, install_skills_for_agent
+
+def _copy_skills(self, bundle_dir: Path, project_root: Path) -> int:
+    """Render and copy command skills to bundle using the canonical installer. Returns skill count."""
     skills_dst = bundle_dir / "skills"
+    skills_dst.mkdir(parents=True, exist_ok=True)
     count = 0
-    for step_dir in sorted(skills_src.iterdir()):
-        skill_md = step_dir / "prompt.md"  # or SKILL.md depending on source layout
-        if skill_md.exists():
-            dst = skills_dst / f"spec-kitty.{step_dir.name}" / "SKILL.md"
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(skill_md, dst)
-            count += 1
+    for command in CANONICAL_COMMANDS:
+        skill_dir = skills_dst / f"spec-kitty.{command}"
+        skill_dir.mkdir(parents=True, exist_ok=True)
+        # Use command_renderer to render the canonical SKILL.md content
+        from specify_cli.skills import command_renderer
+        content = command_renderer.render(command, agent_key="codex")  # neutral render
+        (skill_dir / "SKILL.md").write_text(content, encoding="utf-8")
+        count += 1
     if count < 15:
-        raise BuildError(f"Expected ≥15 skills, found {count}. Check doctrine source path.")
+        raise BuildError(f"Expected ≥15 skills, found {count} in CANONICAL_COMMANDS.")
     return count
 ```
 
-Verify the exact source path by reading `src/specify_cli/skills/command_renderer.py` to understand how skills are discovered. Mirror that exact discovery logic here so build and install use the same set.
+**Why not copy from doctrine source?** The doctrine source has `prompt.md` files that contain template placeholders. The installed `SKILL.md` files are rendered copies. Use `command_renderer.render()` to get the rendered output, not the raw source.
 
 ### T018 — Copy built-in agent profile Markdown files to `agents/` in bundle
 
@@ -171,7 +178,9 @@ def _copy_agents(self, bundle_dir: Path) -> int:
     return count
 ```
 
-If `profiles_src` does not exist (no built-in profiles shipped yet), log a warning and continue with `count=0`. The bundle is still valid without agent files — the `agents/` dir can be empty.
+If `profiles_src` does not exist (no built-in profiles shipped yet), log a warning and continue with `count=0`. Per FR-019, the bundle MUST include built-in profiles; if none are available at build time, this is a build warning that requires follow-up before shipping.
+
+Also create a minimal `hooks/hooks.json` file (empty JSON object `{}`) to establish the directory structure for potential future hooks, but do NOT add the `hooks` pointer to `plugin.json` unless hooks content is non-trivial.
 
 ### T019 — Run `claude plugin validate --strict`; surface errors clearly
 

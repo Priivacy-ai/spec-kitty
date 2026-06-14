@@ -99,17 +99,18 @@ class CodexBundleProjector:
 ```json
 {
   "name": "spec-kitty",
-  "displayName": "Spec Kitty",
   "version": "3.2.0",
   "description": "Spec-Driven Development toolkit.",
   "author": {"name": "Priivacy AI"},
-  "components": {
-    "skills": "skills/"
-  }
+  "interface": {
+    "displayName": "Spec Kitty",
+    "shortDescription": "Spec-Driven Development for teams."
+  },
+  "skills": "skills/"
 }
 ```
 
-The `components` dict must NOT include `"agents"` or `"hooks"`. Write to `.codex-plugin/plugin.json` inside `self.bundle_dir`.
+Top-level `"skills"` pointer (NOT nested under `"components"` — Codex does not use a `components` wrapper). The manifest must NOT include `"agents"` or `"hooks"` keys at any level. Write to `.codex-plugin/plugin.json` inside `self.bundle_dir`.
 
 ### T025 — Validate Codex plugin.json: no `hooks`, no `agents`, all required fields
 
@@ -118,20 +119,26 @@ Add a `_validate_manifest(manifest: dict) -> None` method:
 ```python
 def _validate_manifest(self, manifest: dict) -> None:
     FORBIDDEN_KEYS = {"hooks", "agents"}
-    REQUIRED_KEYS = {"name", "displayName", "version", "description"}
     found_forbidden = FORBIDDEN_KEYS & set(manifest)
     if found_forbidden:
         raise BuildError(
             f"Codex plugin.json must NOT contain: {sorted(found_forbidden)}"
         )
-    missing_required = REQUIRED_KEYS - set(manifest)
-    if missing_required:
-        raise BuildError(
-            f"Codex plugin.json missing required fields: {sorted(missing_required)}"
-        )
+    # Top-level scalar fields
+    for key in ("name", "version", "description"):
+        if not manifest.get(key):
+            raise BuildError(f"Codex plugin.json missing required field: {key!r}")
+    # author.name (nested)
+    if not manifest.get("author", {}).get("name"):
+        raise BuildError("Codex plugin.json missing required field: 'author.name'")
+    # interface.displayName and interface.shortDescription (nested)
+    iface = manifest.get("interface", {})
+    for sub in ("displayName", "shortDescription"):
+        if not iface.get(sub):
+            raise BuildError(f"Codex plugin.json missing required field: 'interface.{sub}'")
 ```
 
-Call this before writing the manifest to disk. Also verify that `manifest["components"]` does not include `"agents"` or `"hooks"` sub-keys.
+Call this before writing the manifest to disk.
 
 This validation must also run as a unit test assertion (see WP08/WP09 for test coverage).
 
@@ -177,14 +184,14 @@ Generate the repo-local format since it enables team-wide plugin install via the
 }
 ```
 
-Write to `dist/spec-kitty-plugins/codex/marketplace.json`. Also write a copy to `.agents/plugins/marketplace.json` in the project root so teams can git-commit it and have Codex auto-discover the plugin.
+Write to `dist/spec-kitty-plugins/codex/marketplace.json` (the canonical output location per C-006). Do NOT write a secondary copy to `.agents/plugins/marketplace.json` — that path violates the C-006 output-dir constraint and pollutes the project tree.
 
-Document this in a `# Codex Plugin Install` comment block at the top of the generated `marketplace.json`:
-```json
-// Install: codex plugin marketplace add .agents/plugins/marketplace.json
-// Or:      codex plugin install dist/spec-kitty-plugins/codex
+After writing, emit install instructions to stdout (JSON does not support comments):
 ```
-Note: JSON does not support comments — write the install instructions to stdout at end of build, not into the JSON file.
+✔  Codex marketplace.json written.
+   To install: codex plugin marketplace add dist/spec-kitty-plugins/codex/marketplace.json
+   Or:         codex plugin install dist/spec-kitty-plugins/codex
+```
 
 ---
 
@@ -205,7 +212,7 @@ To start work: `spec-kitty agent action implement WP06 --agent claude`
 - [ ] `spec-kitty plugin build --target codex` command exists and runs
 - [ ] `.codex-plugin/plugin.json` generated with valid schema
 - [ ] `"hooks"` and `"agents"` keys ABSENT from Codex `plugin.json`
-- [ ] All required fields (`name`, `displayName`, `version`, `description`) present
+- [ ] All required fields present: `name`, `version`, `description`, `author.name`, `interface.displayName`, `interface.shortDescription`
 - [ ] `skills/` populated from doctrine source (same as Claude bundle, same `copy_skills_to_bundle()` helper)
 - [ ] `marketplace.json` generated for repo-local install
 - [ ] `ruff check` and `mypy --strict` pass on `codex.py`

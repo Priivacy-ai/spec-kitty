@@ -54,7 +54,8 @@ kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/
 
 ```
 src/specify_cli/
-├── __init__.py                          # Remove roo from AI_CHOICES (IC-07)
+├── core/
+│   └── config.py                        # Remove roo from AI_CHOICES (IC-07)
 ├── cli/
 │   └── commands/
 │       ├── init.py                      # Wire repair service (IC-01)
@@ -147,7 +148,7 @@ dist/spec-kitty-plugins/                 # Build output (git-ignored)
 - **Purpose**: Implement `spec-kitty plugin build --target claude-code` as a real build command producing a production-ready Claude Code plugin bundle — replacing the `version: 0.0.0` placeholder, adding a `bin/` wrapper script with CLI-check + uvx fallback, and maintaining a `marketplace.json` for git-based distribution.
 - **Relevant requirements**: FR-017, FR-018, FR-019, FR-020, FR-021, FR-022, FR-023, FR-024, NFR-004
 - **Affected surfaces**: `src/specify_cli/cli/commands/plugin.py` (new), `src/specify_cli/tool_surface/bundles/claude.py`, `src/specify_cli/tool_surface/providers/plugin_bundle.py`, `dist/spec-kitty-plugins/claude-code/`
-- **Sequencing/depends-on**: IC-02 (agent profiles must exist to bundle); IC-06 (skill set must be current)
+- **Sequencing/depends-on**: IC-06 (skill set must be current before bundling)
 - **Risks**: Plugin version must be read from `pyproject.toml` at build time (not hardcoded). The `bin/` wrapper script must be shell-portable (bash/zsh/sh on macOS/Linux; a `.cmd` equivalent or PowerShell script for Windows). `claude plugin validate --strict` must be available in CI — plan must document how to install Claude CLI in CI. The `marketplace.json` source type is `git-subdir` or `local` depending on repo layout.
 
 ### IC-05 — Codex Plugin Bundle Projector
@@ -170,7 +171,7 @@ dist/spec-kitty-plugins/                 # Build output (git-ignored)
 
 - **Purpose**: Remove Roo Code from the supported agents list, add an upgrade migration that detects existing `.roo/` directories and emits a deprecation notice, remove `roo` from `config.yaml` when present, and update documentation.
 - **Relevant requirements**: FR-033, FR-034, FR-035, FR-036
-- **Affected surfaces**: `src/specify_cli/__init__.py`, `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py` (or new migration), `src/specify_cli/agent_utils/directories.py`, `src/specify_cli/cli/commands/init.py`, `README.md`
+- **Affected surfaces**: `src/specify_cli/core/config.py` (not `__init__.py` — `AI_CHOICES` lives in `config.py`), `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py` (or new migration), `src/specify_cli/agent_utils/directories.py`, `src/specify_cli/cli/commands/init.py`, `README.md`
 - **Sequencing/depends-on**: none; can be implemented first
 - **Risks**: Existing test fixtures that reference `roo` or `.roo/` must be updated. The deprecation notice must not error if `.roo/` does not exist. The migration must not delete `.roo/` content — only warn and update config.
 

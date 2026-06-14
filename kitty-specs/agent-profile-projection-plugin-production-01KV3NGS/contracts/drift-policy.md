@@ -75,20 +75,20 @@ IF surface_kind == "not_applicable":
 
 ## Machine-Readable Output (`doctor tool-surfaces --json`)
 
-The JSON output must include:
+The JSON output per surface uses `SurfaceStatus.to_json()` fields. The core fields are:
 
 ```json
 {
   "surfaces": [
     {
-      "tool_key": "claude",
+      "tool": "claude",
       "kind": "agent_profile",
-      "profile_id": "analyst",
+      "state": "present | missing | drifted | stale | not_applicable | research_gap",
+      "provider": "AgentProfilesProvider",
       "path": ".claude/agents/analyst.md",
-      "status": "present | missing | drifted | stale | not_applicable | research_gap",
-      "would_overwrite": false,
-      "kept": true,
-      "repaired": false
+      "source_kind": "built_in",
+      "manifest": "analyst",
+      "repair_command": null
     }
   ],
   "summary": {
@@ -102,7 +102,9 @@ The JSON output must include:
 }
 ```
 
-**Required fields**: `status`, `would_overwrite`, `kept`, `repaired`, and exact `path` for each surface.
+**Required fields per surface**: `tool`, `kind`, `state`, `path`. The `repair_command` field is non-null when a specific CLI command can fix the finding. Additional additive fields (e.g., `provider`, `source_kind`, `manifest`) may be present — callers MUST tolerate unknown fields.
+
+Note: `file_hash` in `ProfileManifest` stores the SHA-256 of content at install time (the "installed-at hash"). Stale detection: `disk_hash == file_hash && disk_hash != canonical_hash`. Drift detection: `disk_hash != file_hash && disk_hash != canonical_hash`.
 
 ## Regression Protection
 
