@@ -24,6 +24,10 @@ from specify_cli.tool_surface.service import (
     lint_docs_directory,
 )
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 _REPO_ROOT = Path(__file__).resolve()
 while not (_REPO_ROOT / "pyproject.toml").exists():
     _REPO_ROOT = _REPO_ROOT.parent

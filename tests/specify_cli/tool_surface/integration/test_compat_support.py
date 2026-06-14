@@ -12,6 +12,10 @@ from pathlib import Path
 
 from . import _compat_support as cs
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 
 def test_schema_shape_scalars() -> None:
     assert cs.schema_shape("hi") == "str"

@@ -12,6 +12,10 @@ from specify_cli.tool_surface.profiles.projection import (
 
 from .test_renderers import make_test_profile
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 def _builtin_repo() -> AgentProfileRepository:
     return AgentProfileRepository()

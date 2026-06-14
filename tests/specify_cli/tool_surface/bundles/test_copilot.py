@@ -10,6 +10,10 @@ from specify_cli.tool_surface.bundles.vscode import VsCodeBundleProjector
 
 from ._support import full_plans, skills_only_plans
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 def test_copilot_bundle_plugin_json_at_root(tmp_path: Path) -> None:
     project = tmp_path / "proj"

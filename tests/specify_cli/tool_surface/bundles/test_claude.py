@@ -10,6 +10,10 @@ from specify_cli.tool_surface.bundles.claude import ClaudeCodeBundleProjector
 
 from ._support import full_plans, skills_only_plans
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 def test_claude_code_bundle_layout_is_correct(tmp_path: Path) -> None:
     project = tmp_path / "proj"

@@ -19,6 +19,10 @@ from specify_cli.tool_surface.model import (
     SurfacePlan,
 )
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 def _definition() -> SurfaceDefinition:
     return SurfaceDefinition(

@@ -7,6 +7,10 @@ from pathlib import Path
 from specify_cli.tool_surface import findings
 from specify_cli.tool_surface.findings import SurfaceFinding, make_finding
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 # Every published code constant -> its expected kebab-case wire value.
 _EXPECTED_CODES = {
     "GENERATED_SURFACE_MISSING": "generated-surface-missing",

@@ -18,6 +18,10 @@ from specify_cli.tool_surface.registry import ToolSurfaceRegistry
 from specify_cli.tool_surface.repair import RepairResult
 from specify_cli.tool_surface.status import SurfaceStatus
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 def _definition(kind: SurfaceKind, provider_key: str) -> SurfaceDefinition:
     return SurfaceDefinition(

@@ -14,6 +14,10 @@ from specify_cli.tool_surface.profiles.manifest import (
     manifest_path_for,
 )
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 def _entry(slug: str, file_hash: str | None = "deadbeef") -> NativeAgentProfile:
     return NativeAgentProfile(

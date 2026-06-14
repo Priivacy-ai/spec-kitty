@@ -27,6 +27,10 @@ from specify_cli.tool_surface.status import (
     _surface_id,
 )
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 def _provider(tmp_path: Path) -> AgentProfilesProvider:
     repo = AgentProfileRepository()

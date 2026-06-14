@@ -18,6 +18,10 @@ from pathlib import Path
 
 from ._compat_support import run_spec_kitty, write_controlled_project
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 _FIXTURES = Path(__file__).parent / "fixtures"
 _SCHEMA = _FIXTURES / "agent_config_list_schema.json"
 

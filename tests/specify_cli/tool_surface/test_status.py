@@ -33,6 +33,10 @@ from specify_cli.tool_surface.status import (
     SurfaceStatusService,
 )
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 _DEF = SurfaceDefinition(
     kind=SurfaceKind.COMMAND_SKILL,
     source_kind=SourceKind.GENERATED,

@@ -317,8 +317,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.shims::SkillRegistry",
         "specify_cli.shims::generate_shims",
         "specify_cli.skills.manifest_store::SCHEMA_VERSION",
-        "specify_cli.skills.manifest_store::fingerprint",
-        "specify_cli.skills.manifest_store::fingerprint_file",
         "specify_cli.skills.manifest_store::load",
         "specify_cli.skills.manifest_store::save",
         "specify_cli.status.lifecycle_events::LIFECYCLE_EVENT_TYPES",
@@ -606,15 +604,6 @@ _CATEGORY_C_UPSTREAM_SESSION_PRESENCE: frozenset[str] = frozenset(
         # by UpgradeChecker but have no import-site callers in src/ yet.
         "specify_cli.session_presence.upgrade_check::CACHE_PATH",
         "specify_cli.session_presence.upgrade_check::TTL_SECONDS",
-        # SESSION_START_CMD is a config-string constant referenced only within
-        # ClaudeCodeWriter; no other src/ module imports it directly.
-        "specify_cli.session_presence.writers.claude_code::SESSION_START_CMD",
-        # SESSION_STOP_CMD (do-dispatch-open-op-lifecycle-01KTSJ2H FR-009)
-        # mirrors SESSION_START_CMD exactly: a config-string constant consumed
-        # only within ClaudeCodeWriter (register/unregister/is_registered of
-        # the Stop hook); kept in __all__ for parity with SESSION_START_CMD
-        # and for test imports (test_claude_code_writer.py).
-        "specify_cli.session_presence.writers.claude_code::SESSION_STOP_CMD",
     }
 )
 

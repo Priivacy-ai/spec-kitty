@@ -12,6 +12,10 @@ from specify_cli.tool_surface.profiles.renderers import (
     get_renderer,
 )
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 def make_test_profile(slug: str = "architect-alphonso") -> AgentProfile:
     """Build a minimal valid :class:`AgentProfile` for renderer tests."""

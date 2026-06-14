@@ -38,6 +38,8 @@ import specify_cli.tool_surface.providers.plugin_bundle as provider_mod
 
 from ..bundles._support import full_plans, skills_only_plans
 
+pytestmark = [pytest.mark.unit]
+
 
 def test_provider_satisfies_reporting_protocol() -> None:
     assert isinstance(PluginBundleProvider(), ReportingSurfaceProvider)

@@ -17,6 +17,10 @@ from ._compat_support import (
     write_controlled_project,
 )
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 _REPO_ROOT = Path(__file__).resolve()
 while not (_REPO_ROOT / "pyproject.toml").exists():
     _REPO_ROOT = _REPO_ROOT.parent

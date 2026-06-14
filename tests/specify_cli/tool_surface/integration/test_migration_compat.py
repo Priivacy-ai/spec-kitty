@@ -22,6 +22,10 @@ from ._compat_support import (
     write_controlled_project,
 )
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 _FIXTURES = Path(__file__).parent / "fixtures"
 _BASELINE = _FIXTURES / "doctor_skills_baseline.json"
 

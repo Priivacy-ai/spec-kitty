@@ -14,6 +14,10 @@ from specify_cli.tool_surface.enums import (
     SurfaceKind,
 )
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 ALL_ENUMS = [
     SurfaceKind,
     SourceKind,

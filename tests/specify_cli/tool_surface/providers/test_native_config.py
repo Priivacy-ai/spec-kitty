@@ -19,6 +19,10 @@ from specify_cli.tool_surface.status import (
     STATE_PRESENT,
 )
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 def test_provider_satisfies_reporting_protocol() -> None:
     provider = NativeConfigProvider()

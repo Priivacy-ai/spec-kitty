@@ -16,6 +16,10 @@ from specify_cli.tool_surface.model import SurfaceDefinition, SurfaceInstance
 from specify_cli.tool_surface.repair import RepairResult, SurfaceRepairService
 from specify_cli.tool_surface.status import STATE_MISSING, SurfaceStatus, _surface_id
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 def _definition(kind: SurfaceKind) -> SurfaceDefinition:
     return SurfaceDefinition(
