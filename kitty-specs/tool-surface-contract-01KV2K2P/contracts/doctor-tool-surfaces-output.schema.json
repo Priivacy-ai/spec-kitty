@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "doctor-tool-surfaces-output.schema.json",
+  "title": "doctor tool-surfaces --json output",
+  "description": "Machine-readable output of spec-kitty doctor tool-surfaces --json. Finding codes are stable across releases.",
+  "type": "object",
+  "required": ["result", "tool_key_filter", "surface_kind_filter", "findings", "clean"],
+  "properties": {
+    "result": {
+      "type": "string",
+      "enum": ["success", "error"],
+      "description": "Whether the doctor command itself ran successfully (independent of findings)."
+    },
+    "tool_key_filter": {
+      "type": ["string", "null"],
+      "description": "The --tool filter value if provided, or null for all configured tools."
+    },
+    "surface_kind_filter": {
+      "type": ["string", "null"],
+      "description": "The --kind filter value if provided, or null for all surface kinds."
+    },
+    "clean": {
+      "type": "boolean",
+      "description": "True when there are no findings at severity error or warning."
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/SurfaceFinding"
+      }
+    },
+    "spec_kitty_version": {
+      "type": "string",
+      "description": "The spec-kitty version that produced this output."
+    }
+  },
+  "definitions": {
+    "SurfaceFinding": {
+      "type": "object",
+      "required": ["code", "tool_key", "surface_kind", "severity", "detail"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Stable finding code. Never renamed or removed without deprecation cycle.",
+          "examples": [
+            "TOOL_SURFACE_COMMAND_SKILL_MISSING",
+            "TOOL_SURFACE_COMMAND_SKILL_HASH_MISMATCH",
+            "TOOL_SURFACE_DOCTRINE_SKILL_MISSING",
+            "TOOL_SURFACE_SESSION_PRESENCE_MISSING",
+            "TOOL_SURFACE_AGENT_PROFILE_MISSING",
+            "TOOL_SURFACE_AGENT_PROFILE_RESEARCH_GAP",
+            "TOOL_SURFACE_PLUGIN_BUNDLE_INCOMPLETE",
+            "TOOL_SURFACE_DOCS_PATH_DRIFT"
+          ]
+        },
+        "tool_key": {
+          "type": "string",
+          "description": "The configured tool this finding relates to (e.g., 'codex', 'claude', 'copilot')."
+        },
+        "surface_kind": {
+          "type": "string",
+          "enum": [
+            "command_skill",
+            "doctrine_skill",
+            "session_presence",
+            "agent_profile",
+            "plugin_manifest",
+            "native_config",
+            "command_file"
+          ]
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["error", "warning", "info", "research_gap"],
+          "description": "Severity of the finding. 'research_gap' indicates a known area not yet fully supported."
+        },
+        "path": {
+          "type": ["string", "null"],
+          "description": "Absolute path to the affected file or directory, if applicable."
+        },
+        "repair_command": {
+          "type": ["string", "null"],
+          "description": "The CLI command that resolves this finding. Null if no automated repair is available."
+        },
+        "detail": {
+          "type": "string",
+          "description": "Human-readable explanation of the finding."
+        }
+      }
+    }
+  }
+}
