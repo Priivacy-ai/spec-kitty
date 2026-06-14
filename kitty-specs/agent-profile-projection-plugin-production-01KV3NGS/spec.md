@@ -166,7 +166,7 @@ rc44 established the ToolSurfaceContract registry and added staging plugin bundl
 3. A developer following the README can install the Spec Kitty Claude Code plugin from the git-based marketplace in under 3 minutes
 4. Running `spec-kitty upgrade` twice consecutively on an unedited project produces identical output — zero new surfaces, zero drift detected on the second run
 5. Editing a generated profile file then running `spec-kitty upgrade` in interactive mode produces a per-file prompt; running with `--yes` reports drift and exits non-zero without modifying the file
-6. All new and changed code passes static type checking and linting with zero errors, and the full automated test suite with ≥90% branch coverage on new paths
+6. All new and changed code passes `mypy --strict` (on changed modules), `ruff check`, and the full pytest suite with ≥90% coverage on new paths
 
 ## Key Entities
 
