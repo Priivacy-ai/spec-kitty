@@ -365,7 +365,7 @@ def test_doctor_surface_kinds_are_additive(tmp_path):
         capture_output=True, text=True, cwd=tmp_path,
     )
     data = json.loads(result.stdout)
-    actual_kinds = {f["kind"] for f in data.get("findings", [])}
+    actual_kinds = {surface["kind"] for surface in data.get("surfaces", [])}
     missing = EXPECTED_SURFACE_KINDS - actual_kinds
     assert not missing, f"doctor output missing expected surface kinds: {missing}"
 ```
