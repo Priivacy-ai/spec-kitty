@@ -99,6 +99,18 @@ def _extract_wp_ids_from_task_files(wp_files: list[Path]) -> list[str]:
     return sorted(wp_ids)
 
 
+def _branch_tree_relative_path(file_path: Path, repo_root: Path) -> str:
+    """Return the path as it appears in the current branch tree."""
+    repo_abs = repo_root.resolve()
+    rel = file_path.resolve().relative_to(repo_abs)
+    parts = rel.parts
+    if len(parts) > 2 and parts[0] == ".worktrees":
+        worktree_root = repo_abs / parts[0] / parts[1]
+        if worktree_root.is_dir():
+            return Path(*parts[2:]).as_posix()
+    return rel.as_posix()
+
+
 def _stage_finalize_artifacts_in_coord_worktree(
     files_to_commit: list[Path],
     coord_worktree: Path,
@@ -129,10 +141,9 @@ def _stage_finalize_artifacts_in_coord_worktree(
       coord copy is skipped with a warning instead of deleted.
     * ``COORD_OWNED_STATUS_FILES`` is untouched (C-003 — no widening).
     """
-    # FR-035: finalize must never copy/stage paths that are already under
-    # the repository's .worktrees/ tree. Otherwise a coord-resolved source
-    # path maps to coord_wt/.worktrees/<mission>-coord/... and re-pollutes
-    # the branch with nested worktree content.
+    # FR-035: finalize must never copy/stage foreign or nested .worktrees/
+    # paths. A source that is already inside the target coordination worktree is
+    # different: it is already at the branch-tree path and can be staged as-is.
     from specify_cli.cli.commands.merge import path_is_under_worktrees
 
     coord_files: list[Path] = []
@@ -142,6 +153,13 @@ def _stage_finalize_artifacts_in_coord_worktree(
             continue
         rel = src.relative_to(repo_root)
         if path_is_under_worktrees(rel):
+            try:
+                coord_rel = src.resolve().relative_to(coord_worktree.resolve())
+            except ValueError:
+                continue
+            if path_is_under_worktrees(coord_rel):
+                continue
+            coord_files.append(src)
             continue
         dst = coord_worktree / rel
         if src.exists():
@@ -1113,6 +1131,14 @@ def _commit_to_branch(
     # the commit must run against the coord worktree (HEAD == coord ref); for a
     # flattened/primary placement the main checkout is the worktree.
     worktree_root, commit_paths = _planning_commit_worktree(repo_root, mission_slug, placement, (file_path,))
+
+    # Defensive no-op: if path normalization/filtering produces no committable
+    # paths and the artifact is already clean in the target worktree, there is
+    # nothing left to commit. Dirty artifacts still fall through to safe_commit's
+    # empty-path error instead of being silently ignored.
+    if not commit_paths and _artifact_has_no_git_changes(worktree_root, file_path):
+        _print_artifact_unchanged(artifact_type, json_output)
+        return
 
     # Commit only this file (preserves staging area)
     commit_msg = f"Add {artifact_type} for feature {mission_slug}"
@@ -2103,7 +2129,7 @@ def setup_plan(
                 event_type=SPECIFY_COMPLETED,
                 mission_slug=mission_slug,
                 actor=SETUP_PLAN_COMMAND_NAME,
-                artifact_path=str(spec_file.relative_to(repo_root)),
+                artifact_path=_branch_tree_relative_path(spec_file, repo_root),
             )
             emit_artifact_phase(
                 feature_dir,
@@ -2133,7 +2159,7 @@ def setup_plan(
                     event_type=PLAN_COMPLETED,
                     mission_slug=mission_slug,
                     actor=SETUP_PLAN_COMMAND_NAME,
-                    artifact_path=str(plan_file.relative_to(repo_root)),
+                    artifact_path=_branch_tree_relative_path(plan_file, repo_root),
                 )
             except Exception as _plan_exc:  # noqa: BLE001
                 logger.debug("PlanCompleted emission skipped: %s", _plan_exc)

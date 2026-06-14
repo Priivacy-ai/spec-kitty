@@ -52,6 +52,31 @@ def test_commit_to_branch_treats_empty_safe_commit_as_benign(tmp_path: Path) -> 
     assert _run_git(tmp_path, "rev-parse", "HEAD") == head_before
 
 
+def test_commit_to_branch_empty_resolved_paths_clean_artifact_noops(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _init_repo(tmp_path)
+    plan_file = tmp_path / "plan.md"
+    head_before = _run_git(tmp_path, "rev-parse", "HEAD")
+
+    def no_commit_paths(*_args: object, **_kwargs: object) -> tuple[Path, tuple[Path, ...]]:
+        return tmp_path, ()
+
+    monkeypatch.setattr(mission_module, "_planning_commit_worktree", no_commit_paths)
+
+    _commit_to_branch(
+        plan_file,
+        "001-demo",
+        "plan",
+        tmp_path,
+        "mission/work",
+        json_output=True,
+    )
+
+    assert _run_git(tmp_path, "rev-parse", "HEAD") == head_before
+
+
 def test_commit_to_branch_legacy_called_process_empty_commit_does_not_print_success(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
