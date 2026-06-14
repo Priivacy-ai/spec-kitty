@@ -1,0 +1,366 @@
+---
+work_package_id: WP09
+title: Integration Tests, Migration Acceptance Fixture, and CI Gate
+dependencies:
+- WP01
+- WP02
+- WP03
+- WP07
+- WP08
+requirement_refs:
+- FR-040
+- FR-041
+- FR-042
+tracker_refs: []
+planning_base_branch: feat/agent-profile-projection-plugin-production
+merge_target_branch: feat/agent-profile-projection-plugin-production
+branch_strategy: Planning artifacts for this mission were generated on feat/agent-profile-projection-plugin-production. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/agent-profile-projection-plugin-production unless the human explicitly redirects the landing branch.
+subtasks:
+- T040
+- T041
+- T042
+- T043
+- T044
+agent: claude
+history:
+- at: '2026-06-14T00:00:00Z'
+  event: created
+  actor: claude
+agent_profile: engineer
+authoritative_surface: tests/specify_cli/
+create_intent:
+- tests/specify_cli/tool_surface/test_surface_repair_wiring.py
+- tests/specify_cli/tool_surface/test_drift_policy.py
+- tests/specify_cli/integration/test_rc44_migration_fixture.py
+- tests/specify_cli/test_migration_compat.py
+execution_mode: code_change
+owned_files:
+- tests/specify_cli/tool_surface/test_surface_repair_wiring.py
+- tests/specify_cli/tool_surface/test_drift_policy.py
+- tests/specify_cli/integration/test_rc44_migration_fixture.py
+- tests/specify_cli/test_migration_compat.py
+role: Senior Python Engineer
+tags: []
+---
+
+## ⚡ Do This First: Load Agent Profile
+
+Before reading any other section of this prompt, load your agent profile:
+
+```
+/ad-hoc-profile-load engineer
+```
+
+---
+
+## Objective
+
+Write integration tests for init/upgrade surface wiring and drift policy; implement the rc44-era migration acceptance fixture (a real project-state simulation that exercises the full upgrade path from rc36/rc43 to current); update the doctor JSON stability contract; run the full suite at ≥90% coverage on all new code to satisfy the definition of done for the entire mission.
+
+This is the final WP and is the certification gate (FR-040-042). It must pass before the mission can merge.
+
+---
+
+## Context
+
+Success Criterion 6 (Version A): all new and changed code passes `mypy --strict` (on changed modules), `ruff check`, and the full pytest suite with ≥90% coverage on new paths. This WP is where that criterion is verified and enforced.
+
+The rc44-era migration acceptance fixture simulates a project in the state that existed just before this mission's changes were applied:
+- `claude` and `codex` in `config.yaml`
+- 11-entry `command-skills-manifest.json` (not the canonical count)
+- No `.claude/agents/` directory
+- No `.codex/agents/` directory
+- No unsafe symlinks cleaned yet
+
+After `spec-kitty upgrade --yes` is run on this fixture, ALL of the following must hold:
+- `.claude/agents/` exists and contains profile files
+- `.codex/agents/` exists and contains TOML profile files
+- `command-skills-manifest.json` has canonical entry count (not 11)
+- `doctor tool-surfaces --kind agent_profile --json` shows zero `missing` / `stale` / `drifted` for claude and codex
+- `doctor tool-surfaces --kind command_skills --json` shows zero `missing` / `stale` / `drifted`
+
+---
+
+## Subtask Guidance
+
+### T040 — Integration tests for `init`/`upgrade` surface wiring
+
+```python
+# tests/specify_cli/tool_surface/test_surface_repair_wiring.py
+
+def test_init_creates_missing_profile_dirs(tmp_path, monkeypatch):
+    """spec-kitty init creates missing agent profile dirs."""
+    # Setup: tmp project with config.yaml for claude only
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text("agents: [claude]\n")
+    # Ensure .claude/agents/ does not exist
+    assert not (tmp_path / ".claude" / "agents").exists()
+    # Run init surface repair in non-interactive mode
+    from specify_cli.tool_surface.repair import run_surface_repair
+    summary = run_surface_repair(tmp_path, interactive=False, repair_drift=False)
+    assert len(summary.created) > 0 or (tmp_path / ".claude" / "agents").exists()
+
+def test_upgrade_repairs_stale_manifest(tmp_path):
+    """spec-kitty upgrade auto-repairs stale 11-entry manifests."""
+    ...
+
+def test_upgrade_with_yes_does_not_overwrite_drifted(tmp_path):
+    """--yes flag must NOT overwrite drifted files (Rule 4: report-only in non-interactive)."""
+    # Setup: project with a drifted .claude/agents/analyst-core.md (hand-modified)
+    agents_dir = tmp_path / ".claude" / "agents"
+    agents_dir.mkdir(parents=True)
+    (agents_dir / "analyst-core.md").write_text("# Hand-modified agent\n\nCustom content.\n")
+    # Run surface repair in non-interactive mode (simulating --yes)
+    from specify_cli.tool_surface.repair import run_surface_repair
+    summary = run_surface_repair(tmp_path, interactive=False, repair_drift=False)
+    # Assert the file was NOT overwritten
+    assert (agents_dir / "analyst-core.md").read_text() == "# Hand-modified agent\n\nCustom content.\n"
+    # Assert the file appears in drifted_reported (not drifted_overwritten)
+    drifted_paths = [str(p) for p in summary.drifted_reported]
+    assert any("analyst-core.md" in p for p in drifted_paths)
+
+def test_upgrade_with_repair_drift_overwrites_drifted(tmp_path):
+    """--repair-drift=overwrite overwrites drifted files (Rule 5)."""
+    ...
+
+def test_second_upgrade_is_idempotent(tmp_path):
+    """Running upgrade twice produces zero counts on the second run."""
+    from specify_cli.tool_surface.repair import run_surface_repair
+    run_surface_repair(tmp_path, interactive=False, repair_drift=False)
+    summary2 = run_surface_repair(tmp_path, interactive=False, repair_drift=False)
+    assert len(summary2.created) == 0
+    assert len(summary2.repaired) == 0
+```
+
+Write concrete implementations for all stubs above. Each test must be independently executable without shared state.
+
+### T041 — rc44-era migration acceptance fixture
+
+```python
+# tests/specify_cli/integration/test_rc44_migration_fixture.py
+import json
+import pytest
+from pathlib import Path
+
+RC44_MANIFEST_11_ENTRIES = {
+    "version": "1",
+    "commands": [
+        "spec-kitty.specify", "spec-kitty.plan", "spec-kitty.tasks",
+        "spec-kitty.implement", "spec-kitty.review", "spec-kitty.accept",
+        "spec-kitty.merge", "spec-kitty.next", "spec-kitty.advise",
+        "spec-kitty.status", "spec-kitty.help",
+    ],
+}
+
+@pytest.fixture
+def rc44_project(tmp_path):
+    """Simulate a project in rc44 state: claude+codex, 11-entry manifest, no agent profile dirs."""
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    (kittify / "config.yaml").write_text("agents:\n  - claude\n  - codex\n")
+    skills_dir = tmp_path / ".agents" / "skills"
+    skills_dir.mkdir(parents=True)
+    manifest_path = tmp_path / ".kittify" / "command-skills-manifest.json"
+    manifest_path.write_text(json.dumps(RC44_MANIFEST_11_ENTRIES, indent=2))
+    # No .claude/agents/ or .codex/agents/ — they haven't been created yet
+    return tmp_path
+
+def test_upgrade_heals_rc44_project(rc44_project):
+    """Full upgrade path from rc44 state heals all surfaces."""
+    from specify_cli.tool_surface.repair import run_surface_repair
+    from specify_cli.skills.manifest_store import repair_stale_manifest
+
+    # Apply manifest repair
+    repair_result = repair_stale_manifest(
+        rc44_project,
+        canonical_commands=_get_canonical_commands(),
+    )
+    # Apply surface repair
+    summary = run_surface_repair(rc44_project, interactive=False, repair_drift=False)
+
+    # Assert profile dirs created
+    assert (rc44_project / ".claude" / "agents").exists() or len(summary.created) > 0
+    assert (rc44_project / ".codex" / "agents").exists() or len(summary.created) > 0
+
+    # Assert manifest repaired to canonical count
+    import json
+    manifest = json.loads((rc44_project / ".kittify" / "command-skills-manifest.json").read_text())
+    canonical_commands = _get_canonical_commands()
+    assert len(manifest["commands"]) == len(canonical_commands), (
+        f"Manifest has {len(manifest['commands'])} entries, expected {len(canonical_commands)}"
+    )
+
+def _get_canonical_commands():
+    from specify_cli.skills.command_renderer import CANONICAL_COMMANDS
+    return CANONICAL_COMMANDS
+```
+
+Adjust `CANONICAL_COMMANDS` import to match the actual module structure. If it doesn't exist as a constant, derive it from the canonical skill discovery path.
+
+### T042 — Drift policy parametric test covering Rules 1-5
+
+```python
+# tests/specify_cli/tool_surface/test_drift_policy.py
+import pytest
+from pathlib import Path
+
+@pytest.mark.parametrize("rule,interactive,repair_drift,expect_overwrite,expect_report", [
+    ("rule1_missing_created",         False, False, True,  False),  # Rule 1: auto-create
+    ("rule2_stale_repaired",          False, False, True,  False),  # Rule 2: auto-repair
+    ("rule3_drifted_interactive_yes", True,  False, True,  False),  # Rule 3: interactive, user says y
+    ("rule4_drifted_noninteractive",  False, False, False, True),   # Rule 4: non-interactive report-only
+    ("rule5_drifted_overwrite_flag",  False, True,  True,  False),  # Rule 5: --repair-drift=overwrite
+])
+def test_drift_policy_rule(rule, interactive, repair_drift, expect_overwrite, expect_report, tmp_path, monkeypatch):
+    """Verify each of the 6 drift policy rules."""
+    from specify_cli.tool_surface.repair import run_surface_repair
+
+    # Setup: project state appropriate for the rule being tested
+    _setup_project_for_rule(tmp_path, rule)
+
+    if rule == "rule3_drifted_interactive_yes":
+        # Mock stdin to answer 'y' when prompted
+        monkeypatch.setattr("sys.stdin", _MockStdin("y\n"))
+
+    summary = run_surface_repair(tmp_path, interactive=interactive, repair_drift=repair_drift)
+
+    if expect_overwrite:
+        assert len(summary.drifted_overwritten) > 0 or len(summary.created) > 0 or len(summary.repaired) > 0
+    if expect_report:
+        assert len(summary.drifted_reported) > 0
+
+def _setup_project_for_rule(tmp_path: Path, rule: str) -> None:
+    """Set up appropriate project state for each rule."""
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(exist_ok=True)
+    (kittify / "config.yaml").write_text("agents:\n  - claude\n")
+    if "missing" in rule:
+        pass  # no .claude/agents/ — is missing
+    elif "stale" in rule:
+        # Create .claude/agents/ with an outdated file
+        agents = tmp_path / ".claude" / "agents"
+        agents.mkdir(parents=True)
+        (agents / "analyst-core.md").write_text("# Old version\n<!-- stale -->\n")
+    elif "drifted" in rule:
+        # Create .claude/agents/ with a user-modified file
+        agents = tmp_path / ".claude" / "agents"
+        agents.mkdir(parents=True)
+        (agents / "analyst-core.md").write_text("# Hand-modified by user\n\nCustom content.\n")
+```
+
+This test is the most critical in the suite — it is the machine-readable specification of the drift policy. If a rule fails here, it is a blocking regression.
+
+### T043 — Update doctor JSON stability contract
+
+In `tests/specify_cli/test_migration_compat.py`, find the baseline `expected_surface_kinds` list (or similar) and add `"agent_profile"`:
+
+```python
+# Expected surface kinds in doctor --kind output (additive-only contract)
+EXPECTED_SURFACE_KINDS = frozenset({
+    "command_skills",
+    "doctrine_skills",
+    "session_presence",
+    "native_config",
+    "plugin_bundle",
+    "agent_profile",  # added in this mission
+})
+
+def test_doctor_surface_kinds_are_additive(tmp_path):
+    """doctor tool-surfaces --json must include all expected surface kinds."""
+    import subprocess, json
+    result = subprocess.run(
+        ["spec-kitty", "doctor", "tool-surfaces", "--json"],
+        capture_output=True, text=True, cwd=tmp_path,
+    )
+    data = json.loads(result.stdout)
+    actual_kinds = {f["kind"] for f in data.get("findings", [])}
+    missing = EXPECTED_SURFACE_KINDS - actual_kinds
+    assert not missing, f"doctor output missing expected surface kinds: {missing}"
+```
+
+The contract is **additive-only** — new surface kinds are welcome; existing ones must not disappear.
+
+### T044 — Full test suite gate: `mypy --strict`, `ruff check`, pytest ≥90%
+
+Run in order:
+
+```bash
+# 1. Terminology guard (doctrine changes)
+.venv/bin/pytest tests/architectural/test_no_legacy_terminology.py -v
+
+# 2. Ruff check on all changed modules
+.venv/bin/ruff check \
+  src/specify_cli/tool_surface/ \
+  src/specify_cli/cli/commands/plugin.py \
+  src/specify_cli/cli/commands/init.py \
+  src/specify_cli/upgrade/ \
+  src/specify_cli/skills/ \
+  src/specify_cli/core/config.py
+
+# 3. mypy --strict on changed modules
+.venv/bin/mypy --strict \
+  src/specify_cli/tool_surface/ \
+  src/specify_cli/cli/commands/plugin.py \
+  src/specify_cli/upgrade/migrations/m_0_9_3_surface_repair_wiring.py \
+  src/specify_cli/upgrade/migrations/m_0_9_4_roo_deprecation.py \
+  src/specify_cli/skills/manifest_store.py \
+  src/specify_cli/core/config.py
+
+# 4. Full test suite with coverage
+.venv/bin/pytest tests/ \
+  --cov=specify_cli.tool_surface \
+  --cov=specify_cli.skills \
+  --cov-report=term-missing \
+  --cov-branch \
+  -x  # stop on first failure
+
+# 5. Coverage assertion: new paths must be ≥90%
+# Check the --cov-report output for the new modules:
+# - specify_cli/tool_surface/profiles/codex_renderer.py
+# - specify_cli/tool_surface/profiles/amazon_q_renderer.py
+# - specify_cli/tool_surface/profiles/augment_renderer.py
+# - specify_cli/tool_surface/profiles/capability_matrix.py
+# - specify_cli/tool_surface/repair.py (updated)
+# - specify_cli/tool_surface/bundles/claude.py
+# - specify_cli/tool_surface/bundles/codex.py
+```
+
+If any of these fail, fix the issue before claiming this WP done. Do NOT add `# noqa` or `# type: ignore` to silence checks. Fix the underlying code instead.
+
+For mypy strictness issues in new modules, common fixes:
+- Add `from __future__ import annotations` at top
+- Use `Optional[X]` or `X | None` instead of bare `None` defaults
+- Add `-> None` return type to all methods
+- Use `list[str]` not `List[str]` (Python 3.11+ preferred)
+
+---
+
+## Branch Strategy
+
+- **Planning base branch**: `feat/agent-profile-projection-plugin-production`
+- **Final merge target**: `main` (local only)
+- **Depends on**: ALL prior WPs (WP01-WP08) must be merged first
+
+To start work: `spec-kitty agent action implement WP09 --agent claude`
+
+---
+
+## Definition of Done
+
+- [ ] `test_surface_repair_wiring.py`: missing→created, stale→repaired, drifted+`--yes`→report-only, drifted+`--repair-drift=overwrite`→overwritten, second-run→zero counts
+- [ ] `test_rc44_migration_fixture.py`: full upgrade from rc44 state heals all surfaces and repairs manifest
+- [ ] `test_drift_policy.py`: parametric test covering Rules 1-5 all pass
+- [ ] `test_migration_compat.py`: `"agent_profile"` added to baseline; doctor JSON contract passes
+- [ ] `mypy --strict` passes on all changed modules (zero errors)
+- [ ] `ruff check` passes on all changed modules (zero issues)
+- [ ] `pytest tests/` passes with ≥90% branch coverage on new code paths
+- [ ] Terminology guard passes
+
+---
+
+## Risks
+
+- Integration tests using `tmp_path` may be slow if they invoke real CLI subprocesses — prefer calling Python functions directly where possible; use subprocess only when testing CLI output format
+- `spec-kitty upgrade` in tests requires a real or test-double migration framework — check if there is an existing test harness in `tests/specify_cli/` for triggering upgrade runs
+- `mypy --strict` on `tool_surface/` may surface pre-existing type issues not introduced by this mission — note and file issues for pre-existing errors; fix only this mission's new code
+- Coverage thresholds are measured on "new paths" not overall coverage — identify the new modules and check their individual coverage reports
