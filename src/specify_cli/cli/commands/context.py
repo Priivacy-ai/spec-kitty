@@ -106,7 +106,8 @@ def info_command(
         table.add_row("Work Package", f"[bold]{context.wp_id}[/bold]")
         table.add_row("Feature", context.mission_slug)
         table.add_row("Base Branch", f"[cyan]{context.base_branch}[/cyan]")
-        table.add_row("Base Commit", f"[dim]{context.base_commit[:12]}[/dim]")
+        base_commit = context.base_commit[:12] if context.base_commit else "unknown"
+        table.add_row("Base Commit", f"[dim]{base_commit}[/dim]")
         table.add_row("Dependencies", ", ".join(context.dependencies) if context.dependencies else "[dim]none[/dim]")
         table.add_row("Created", context.created_at)
         table.add_row("Worktree", context.worktree_path)

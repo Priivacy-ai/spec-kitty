@@ -162,7 +162,7 @@ class WorkspaceContext:
 
     # Base tracking
     base_branch: str  # Branch this was created from (e.g., "kitty/mission-010-feature-lane-a" or "main")
-    base_commit: str  # Git SHA this was created from
+    base_commit: str | None  # Git SHA this was created from; None when unavailable
 
     # Dependencies
     dependencies: list[str]  # List of WP IDs this depends on (e.g., ["WP01"])
@@ -198,6 +198,8 @@ class WorkspaceContext:
             raise ValueError("Workspace context is missing required lane_id")
         if not isinstance(filtered.get("lane_wp_ids"), list):
             raise ValueError("Workspace context is missing required lane_wp_ids")
+        if filtered.get("base_commit") == "unknown":
+            filtered["base_commit"] = None
         return cls(**filtered)
 
 

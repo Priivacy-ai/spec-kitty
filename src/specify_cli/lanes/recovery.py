@@ -17,6 +17,7 @@ import subprocess
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 from specify_cli.lanes.branch_naming import (
     BranchIdentityUnresolved,
@@ -256,9 +257,7 @@ def _resolve_mission_branch(feature_dir: Path, mission_slug: str) -> str:
     if mission_branch:
         return mission_branch
     try:
-        return mission_branch_name_required(
-            mission_slug, _mission_id_from_meta(feature_dir)
-        )
+        return cast(str, mission_branch_name_required(mission_slug, _mission_id_from_meta(feature_dir)))
     except BranchIdentityUnresolved as exc:
         # Re-raise with the feature directory in the next_step so a recovery
         # caller can locate the meta.json whose mission_id is missing.
@@ -620,7 +619,7 @@ def recover_context(
         text=True,
         check=False,
     )
-    base_commit = result.stdout.strip() if result.returncode == 0 else "unknown"
+    base_commit = result.stdout.strip() if result.returncode == 0 else None
 
     context = WorkspaceContext(
         wp_id=state.wp_id,

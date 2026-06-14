@@ -150,6 +150,34 @@ class TestCorruptedContext:
         assert loaded is None
         assert list_contexts(kittify_project) == []
 
+    def test_legacy_unknown_base_commit_normalized(self, kittify_project: Path) -> None:
+        context_file = kittify_project / ".kittify" / "workspaces" / "001-feature-lane-a.json"
+        context_file.write_text(
+            """
+{
+  "wp_id": "WP01",
+  "mission_slug": "001-feature",
+  "worktree_path": ".worktrees/001-feature-lane-a",
+  "branch_name": "kitty/mission-001-feature-lane-a",
+  "base_branch": "kitty/mission-001-feature",
+  "base_commit": "unknown",
+  "dependencies": [],
+  "created_at": "2026-01-25T12:00:00Z",
+  "created_by": "recovery",
+  "vcs_backend": "git",
+  "lane_id": "lane-a",
+  "lane_wp_ids": ["WP01"],
+  "current_wp": "WP01"
+}
+""".lstrip(),
+            encoding="utf-8",
+        )
+
+        loaded = load_context(kittify_project, "001-feature-lane-a")
+
+        assert loaded is not None
+        assert loaded.base_commit is None
+
 
 class TestContextIndexAndResolution:
     def test_active_wp_resolution_uses_canonical_status_after_shared_lane_advances(self, kittify_project: Path) -> None:
@@ -276,6 +304,29 @@ class TestContextIndexAndResolution:
         refreshed = build_normalized_wp_index(kittify_project, "001-feature")
 
         assert refreshed["WP03"].metadata.execution_mode == "planning_artifact"
+
+    def test_build_normalized_wp_index_accepts_unrelated_legacy_unknown_base_commit(
+        self, kittify_project: Path
+    ) -> None:
+        feature_dir = _seed_mission(kittify_project)
+        tasks_dir = feature_dir / "tasks"
+        (tasks_dir / "WP01-legacy-base.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: Legacy Base\nbase_commit: unknown\n---\n\nUpdate src/legacy.py.\n",
+            encoding="utf-8",
+        )
+        _write_wp(
+            tasks_dir,
+            "WP04",
+            "Current work",
+            "Update src/current.py.",
+            execution_mode="code_change",
+            owned_files=["src/current.py"],
+        )
+
+        index = build_normalized_wp_index(kittify_project, "001-feature")
+
+        assert index["WP01"].metadata.base_commit is None
+        assert index["WP04"].metadata.owned_files == ["src/current.py"]
 
     def test_save_context_does_not_drop_normalized_wp_cache(self, kittify_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         feature_dir = _seed_mission(kittify_project)
