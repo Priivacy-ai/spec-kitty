@@ -227,6 +227,40 @@ class TestExtractArtifactEdges:
         targets = {e.target for e in pd_suggests}
         assert "tactic:eisenhower-prioritisation" in targets
 
+    def test_duplicate_tactic_refs_preserve_metadata(self, tmp_path: Path) -> None:
+        """Duplicate triples merge metadata instead of keeping the bare edge."""
+        doctrine_root = tmp_path / "doctrine"
+        tactics_dir = doctrine_root / "tactics" / "built-in"
+        tactics_dir.mkdir(parents=True)
+        (tactics_dir / "metadata-merge.tactic.yaml").write_text(
+            "\n".join(
+                [
+                    "schema_version: '1.0'",
+                    "id: metadata-merge",
+                    "name: Metadata Merge",
+                    "purpose: test",
+                    "references:",
+                    "  - type: tactic",
+                    "    id: target-tactic",
+                    "  - type: tactic",
+                    "    id: target-tactic",
+                    "    when: Preserve this metadata.",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        _, edges = extract_artifact_edges(doctrine_root)
+
+        edge = next(
+            edge
+            for edge in edges
+            if edge.source == "tactic:metadata-merge"
+            and edge.target == "tactic:target-tactic"
+        )
+        assert edge.when == "Preserve this metadata."
+
     def test_procedure_template_references_produce_template_edges(self) -> None:
         """Procedure template references should be represented in the DRG."""
         _, edges = extract_artifact_edges(DOCTRINE_ROOT)

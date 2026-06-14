@@ -272,6 +272,18 @@ def _add_ref_edge(
     )
 
 
+def _merge_edge_metadata(existing: DRGEdge, incoming: DRGEdge) -> DRGEdge:
+    """Preserve deterministic edge metadata when duplicate triples are found."""
+    updates: dict[str, str] = {}
+    if existing.when is None and incoming.when is not None:
+        updates["when"] = incoming.when
+    if existing.reason is None and incoming.reason is not None:
+        updates["reason"] = incoming.reason
+    if not updates:
+        return existing
+    return existing.model_copy(update=updates)
+
+
 # ---------------------------------------------------------------------------
 # T012: Artifact walker (directives, tactics, paradigms, procedures)
 # ---------------------------------------------------------------------------
@@ -286,14 +298,16 @@ def extract_artifact_edges(  # noqa: C901
     Nodes are deduplicated by URN.
     """
     nodes_by_urn: dict[str, DRGNode] = {}
-    edges: list[DRGEdge] = []
-    seen_triples: set[tuple[str, str, str]] = set()
+    edges_by_triple: dict[tuple[str, str, str], DRGEdge] = {}
 
     def _add_edge(edge: DRGEdge) -> None:
         triple = (edge.source, edge.target, edge.relation.value)
-        if triple not in seen_triples:
-            seen_triples.add(triple)
-            edges.append(edge)
+        if triple in edges_by_triple:
+            edges_by_triple[triple] = _merge_edge_metadata(
+                edges_by_triple[triple], edge
+            )
+        else:
+            edges_by_triple[triple] = edge
 
     # --- Directives ---
     directives_dir = doctrine_root / "directives" / "built-in"
@@ -635,7 +649,7 @@ def extract_artifact_edges(  # noqa: C901
         _ensure_node(nodes_by_urn, target, _KIND_MAP[target_kind])
         _add_edge(DRGEdge(source=source, target=target, relation=relation))
 
-    return list(nodes_by_urn.values()), edges
+    return list(nodes_by_urn.values()), list(edges_by_triple.values())
 
 
 # ---------------------------------------------------------------------------

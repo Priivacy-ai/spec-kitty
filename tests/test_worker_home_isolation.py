@@ -20,27 +20,30 @@ flips from skip to active once this isolation fixture exists).
 from __future__ import annotations
 
 import os
-import pwd
 from pathlib import Path
 from typing import cast
 
 import pytest
 
 from tests.conftest import (
+    _REAL_HOME_ENV_VAR,
     _apply_home_env,
     _worker_home_base,
     _worker_id,
 )
+
+pytestmark = [pytest.mark.fast]
 
 
 def _real_home() -> Path:
     """Return the operator's *real* home, bypassing the patched ``Path.home``.
 
     ``Path.home()`` and ``os.path.expanduser('~')`` are both redirected by the
-    autouse isolation fixture, so we read the passwd database directly to learn
-    the true on-disk home and assert the real ``~/.spec-kitty`` stays untouched.
+    autouse isolation fixture. ``pytest_configure`` captures the original home
+    before redirecting env vars, so tests can assert the real ``~/.spec-kitty``
+    stays untouched.
     """
-    return Path(pwd.getpwuid(os.getuid()).pw_dir)
+    return Path(os.environ[_REAL_HOME_ENV_VAR])
 
 
 class _FakeWorkerInput(dict[str, str]):
@@ -94,6 +97,8 @@ def test_two_worker_ids_resolve_distinct_homes() -> None:
     for home, wid in ((home_gw0, "gw0"), (home_gw1, "gw1"), (home_master, "master")):
         assert home.is_dir()
         assert home.name == wid
+    assert home_master.parent.name.startswith("serial-")
+    assert home_master.parent.name != "serial"
 
 
 def test_same_worker_id_is_stable_within_process() -> None:

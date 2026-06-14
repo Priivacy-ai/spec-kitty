@@ -49,6 +49,7 @@ _XDG_ENV_SUBDIRS = {
     "XDG_STATE_HOME": ".local/state",
     "LOCALAPPDATA": "AppData/Local",
 }
+_REAL_HOME_ENV_VAR = "SPEC_KITTY_REAL_HOME_FOR_TESTS"
 # Stash the resolved per-worker home base on the pytest Config so the autouse
 # fixture reuses the *same* directory the import-time env setup pointed at.
 _WORKER_HOME_CONFIG_ATTR = "_spec_kitty_worker_home"
@@ -70,8 +71,10 @@ def _worker_home_base(config: pytest.Config) -> Path:
     """Resolve (and cache on *config*) this worker's isolated home base dir.
 
     The base is namespaced by the xdist ``testrunuid`` (shared across all
-    workers of one run, distinct between runs) and by the worker id, so:
+    workers of one run, distinct between runs) or, for non-xdist serial runs, a
+    process-scoped run id, and by the worker id, so:
       * two workers in the same run get *distinct* homes (no collision), and
+      * successive pytest invocations do not reuse stale serial-home state, and
       * the directory is stable for the lifetime of the process, which lets the
         import-time env setup and the autouse fixture agree on one location.
     """
@@ -80,7 +83,7 @@ def _worker_home_base(config: pytest.Config) -> Path:
         return Path(cached)
 
     workerinput = getattr(config, "workerinput", None)
-    run_uid = "serial"
+    run_uid = f"serial-{os.getpid()}"
     if workerinput is not None:
         run_uid = str(workerinput.get("testrunuid", "serial"))
     base = (
@@ -134,6 +137,8 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 def pytest_configure(config: pytest.Config) -> None:
+    os.environ.setdefault(_REAL_HOME_ENV_VAR, str(Path.home()))
+
     # WP04: isolate this worker's home BEFORE collection so modules that bind a
     # home-derived path at import time (e.g. ``daemon.SPEC_KITTY_DIR`` at
     # ``daemon.py:94``) resolve into the per-worker isolated home, never the

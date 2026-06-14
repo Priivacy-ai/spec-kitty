@@ -5,11 +5,15 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from tests._support.git_template import (
     _template_repo,
     clone_template,
     templated_repo,  # noqa: F401  (re-exported so consumers import it from here)
 )
+
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 def _git_out(*args: str, cwd: Path) -> str:

@@ -2157,6 +2157,13 @@
   current_target: false
   citation_refs: []
   notes: null
+- path: docs/development/testing-parallel.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Local and CI parallel test execution guide.
 - path: docs/development/tracking/next-mission-mappings/README.md
   tag: internal
   divio_type: none

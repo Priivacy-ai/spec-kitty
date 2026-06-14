@@ -38,6 +38,7 @@ ratchet idiom in ``tests/architectural/test_no_op_stable_writes.py``.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -46,6 +47,7 @@ from pathlib import Path
 import pytest
 
 from tests._support.coverage_safety import Mutation, assert_mutation_caught
+from tests.conftest import _REAL_HOME_ENV_VAR
 
 pytestmark = [pytest.mark.architectural]
 
@@ -115,11 +117,13 @@ def _run_probe(
 
     When *parallel* is True the run uses ``-n auto --dist loadfile`` so the probe
     executes on an xdist worker (where WP04's isolation applies); otherwise it
-    runs serially. The module is collected from a throwaway temp dir so the
-    repo's own conftest (and thus WP04's autouse fixture, once present) still
-    applies via ``rootdir`` discovery.
+    runs serially. The module is collected from a throwaway temp dir under the
+    repo root so the repo's own conftest (and thus WP04's autouse fixture, once
+    present) still applies via ``rootdir`` discovery.
     """
-    with tempfile.TemporaryDirectory() as tmp:
+    probe_parent = _REPO_ROOT / ".pytest_cache" / "home-isolation-probes"
+    probe_parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=probe_parent) as tmp:
         module = Path(tmp) / "test_home_probe.py"
         module.write_text(
             _probe_body(out_dir, write_sentinel=write_sentinel),
@@ -236,7 +240,7 @@ def test_no_real_home_mutation_under_xdist() -> None:
     it captures the real sentinel's state, runs a parallel selection that writes
     a sentinel via ``Path.home()``, and asserts the real path is unchanged.
     """
-    real_home = str(Path.home())
+    real_home = Path(os.environ[_REAL_HOME_ENV_VAR])
 
     with tempfile.TemporaryDirectory() as tmp:
         detect_dir = Path(tmp) / "homes"
@@ -249,7 +253,7 @@ def test_no_real_home_mutation_under_xdist() -> None:
         stdout=detect_result.stdout, stderr=detect_result.stderr
     )
 
-    if not _isolation_active_from_homes(worker_homes, real_home):
+    if not _isolation_active_from_homes(worker_homes, str(real_home)):
         # Detection worked (we observed homes) and they equal the real home →
         # WP04 isolation is genuinely not active yet. Clean, contingent skip.
         pytest.skip(_SKIP_PRE_WP04)
@@ -260,17 +264,17 @@ def test_no_real_home_mutation_under_xdist() -> None:
     # decision/compare logic is exercised pure-unit via _sentinel_unchanged and
     # _isolation_active_from_homes above; the proof it BITES under simulated
     # isolation is in the handoff note.
-    _assert_real_sentinel_untouched()  # pragma: no cover
+    _assert_real_sentinel_untouched(real_home)  # pragma: no cover
 
 
-def _assert_real_sentinel_untouched() -> None:  # pragma: no cover
+def _assert_real_sentinel_untouched(real_home: Path) -> None:  # pragma: no cover
     """Post-isolation body: drive a parallel sentinel write and assert no real-home churn.
 
     Extracted so the WP04-gated path is a single named, excluded unit; it cannot
     run pre-WP04 (the caller skips before reaching it). Covered for real once
     WP04's isolation fixture lands and the skip transitions to an assertion.
     """
-    real_sentinel = Path.home() / _SENTINEL_RELPATH
+    real_sentinel = real_home / _SENTINEL_RELPATH
 
     def _snapshot() -> tuple[bool, int, float] | None:
         if not real_sentinel.exists():
