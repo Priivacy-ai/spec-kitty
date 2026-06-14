@@ -1,13 +1,10 @@
 """Reporting-layer provider protocol for the tool surface contract.
 
-This protocol is the *reporting* counterpart to
-:class:`specify_cli.tool_surface.providers.base.AbstractSurfaceProvider`. Where
-``base`` describes the low-level expand/probe/repair/remove contract over single
-:class:`SurfaceInstance` objects, this protocol describes the richer surface a
-provider exposes to :class:`SurfaceStatusService` and
-:class:`SurfaceRepairService`: ``probe`` returns a :class:`SurfaceStatus`, and
-``repair`` operates on a sequence of provider-owned statuses and returns a
-:class:`RepairResult`.
+This protocol describes the surface a provider exposes to
+:class:`SurfaceStatusService` and :class:`SurfaceRepairService`: ``expand``
+turns a :class:`SurfaceDefinition` into concrete :class:`SurfaceInstance`
+objects, ``probe`` returns a :class:`SurfaceStatus`, and ``repair`` operates on
+a sequence of provider-owned statuses and returns a :class:`RepairResult`.
 
 Return types are imported only under ``TYPE_CHECKING`` to keep the status and
 repair modules free of import cycles.

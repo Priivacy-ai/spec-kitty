@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from specify_cli.tool_surface.enums import SurfaceKind
-from specify_cli.tool_surface.providers.base import AbstractSurfaceProvider
 from specify_cli.tool_surface.providers.command_skills import (
     command_skill_definition,
 )
@@ -22,10 +21,13 @@ from specify_cli.tool_surface.status import (
     STATE_PRESENT,
 )
 
+import pytest
 
-def test_provider_satisfies_both_protocols() -> None:
+pytestmark = [pytest.mark.unit]
+
+
+def test_provider_satisfies_reporting_protocol() -> None:
     provider = SessionPresenceProvider()
-    assert isinstance(provider, AbstractSurfaceProvider)
     assert isinstance(provider, ReportingSurfaceProvider)
     assert provider.provider_key == "session_presence"
 

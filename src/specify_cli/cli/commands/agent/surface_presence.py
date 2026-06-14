@@ -186,7 +186,5 @@ def _roots_for_plan(
 
 
 __all__ = [
-    "GlobalCommandDirResolver",
     "SurfacePresenceIndex",
-    "ToolSurfacePresence",
 ]

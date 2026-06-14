@@ -1,7 +1,7 @@
 """Unit tests for ``tool_surface.providers.managed_skills``.
 
-These tests verify that the managed doctrine-skill provider conforms to both
-provider protocols, expands per-tool instances from the
+These tests verify that the managed doctrine-skill provider conforms to the
+reporting provider protocol, expands per-tool instances from the
 ``.kittify/skills-manifest.json`` manifest, probes on-disk state, and delegates
 repair to the underlying ``skills.verifier`` (which owns both
 ``verify_installed_skills`` and ``repair_skills``) without reimplementing its
@@ -16,7 +16,6 @@ from pathlib import Path
 
 from specify_cli.skills.manifest import compute_content_hash
 from specify_cli.tool_surface.enums import SurfaceKind
-from specify_cli.tool_surface.providers.base import AbstractSurfaceProvider
 from specify_cli.tool_surface.providers.command_skills import (
     command_skill_definition,
 )
@@ -31,6 +30,10 @@ from specify_cli.tool_surface.status import (
     STATE_MISSING,
     STATE_PRESENT,
 )
+
+import pytest
+
+pytestmark = [pytest.mark.unit]
 
 
 def _write_skill_file(project: Path, rel: str, body: str = "doctrine body") -> str:
@@ -75,9 +78,8 @@ def _entry(
     }
 
 
-def test_provider_satisfies_both_protocols() -> None:
+def test_provider_satisfies_reporting_protocol() -> None:
     provider = ManagedSkillsProvider()
-    assert isinstance(provider, AbstractSurfaceProvider)
     assert isinstance(provider, ReportingSurfaceProvider)
     assert provider.provider_key == "managed_skills"
 

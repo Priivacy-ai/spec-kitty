@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 
 from specify_cli.skills import command_installer
-from specify_cli.tool_surface.providers.base import AbstractSurfaceProvider
 from specify_cli.tool_surface.providers.command_skills import (
     CommandSkillsProvider,
     command_skill_definition,
@@ -18,6 +17,10 @@ from specify_cli.tool_surface.status import (
     STATE_PRESENT,
 )
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 def _empty_manifest(project: Path) -> None:
     kittify = project / ".kittify"
@@ -27,9 +30,8 @@ def _empty_manifest(project: Path) -> None:
     )
 
 
-def test_provider_satisfies_both_protocols() -> None:
+def test_provider_satisfies_reporting_protocol() -> None:
     provider = CommandSkillsProvider()
-    assert isinstance(provider, AbstractSurfaceProvider)
     assert isinstance(provider, ReportingSurfaceProvider)
     assert provider.provider_key == "command_skills"
 

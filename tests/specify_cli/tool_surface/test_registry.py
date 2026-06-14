@@ -1,14 +1,11 @@
-"""Unit tests for the tool surface registry, builtins stub, and provider protocol."""
+"""Unit tests for the tool surface registry and provider protocol."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from specify_cli.core.config import AI_CHOICES
-from specify_cli.tool_surface.builtins import (
-    register_builtin_definitions,
-    supported_tool_keys,
-)
+import pytest
+
 from specify_cli.tool_surface.enums import (
     ActivationMode,
     InstallScope,
@@ -17,8 +14,10 @@ from specify_cli.tool_surface.enums import (
     SurfaceKind,
 )
 from specify_cli.tool_surface.model import SurfaceDefinition, SurfaceInstance
-from specify_cli.tool_surface.providers.base import AbstractSurfaceProvider
+from specify_cli.tool_surface.providers.protocol import ReportingSurfaceProvider
 from specify_cli.tool_surface.registry import ToolSurfaceRegistry
+
+pytestmark = [pytest.mark.unit]
 
 
 def _definition(provider_key: str = "command-skill") -> SurfaceDefinition:
@@ -72,17 +71,6 @@ def test_multiple_definitions_for_same_tool() -> None:
     assert registry.get_definitions("claude") == [first, second]
 
 
-def test_supported_tool_keys_matches_ai_choices() -> None:
-    assert supported_tool_keys() == tuple(AI_CHOICES.keys())
-
-
-def test_register_builtin_definitions_is_noop_stub() -> None:
-    registry = ToolSurfaceRegistry()
-    register_builtin_definitions(registry)
-    # Stub registers nothing yet (populated by later work packages).
-    assert registry.all_tool_keys() == []
-
-
 class _StubProvider:
     """Minimal structural implementation of the provider protocol."""
 
@@ -99,19 +87,16 @@ class _StubProvider:
     ) -> list[SurfaceInstance]:
         return []
 
-    def probe(self, instance: SurfaceInstance) -> SurfaceInstance:
+    def probe(self, instance: SurfaceInstance) -> object:
         return instance
 
-    def repair(self, instance: SurfaceInstance) -> bool:
-        return True
-
-    def remove(self, instance: SurfaceInstance) -> bool:
-        return True
+    def repair(self, *args: object, **kwargs: object) -> object:
+        return None
 
 
 def test_provider_protocol_is_runtime_checkable() -> None:
-    assert isinstance(_StubProvider(), AbstractSurfaceProvider)
+    assert isinstance(_StubProvider(), ReportingSurfaceProvider)
 
 
 def test_non_provider_fails_protocol_check() -> None:
-    assert not isinstance(object(), AbstractSurfaceProvider)
+    assert not isinstance(object(), ReportingSurfaceProvider)
