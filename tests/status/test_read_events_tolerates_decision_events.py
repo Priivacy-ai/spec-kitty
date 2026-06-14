@@ -55,6 +55,7 @@ def _make_lane_event(event_id: str, wp_id: str, to_lane: str = "claimed") -> dic
 
 
 def _make_decision_opened(event_id: str) -> dict[str, Any]:
+    # canonical-event-exempt(exception-flow): a Decision Moment Protocol wire shape from another subsystem that read_events must TOLERATE (skip); not a lane payload
     return {
         "event_id": event_id,
         "event_type": "DecisionPointOpened",
@@ -69,6 +70,7 @@ def _make_decision_opened(event_id: str) -> dict[str, Any]:
 
 
 def _make_decision_resolved(event_id: str) -> dict[str, Any]:
+    # canonical-event-exempt(exception-flow): a Decision Moment Protocol wire shape from another subsystem that read_events must TOLERATE (skip); not a lane payload
     return {
         "event_id": event_id,
         "event_type": "DecisionPointResolved",
