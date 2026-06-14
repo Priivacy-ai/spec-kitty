@@ -25,6 +25,21 @@ Terms describing who performs work and who owns semantic decisions.
 
 ---
 
+### Agent Profile
+
+| | |
+|---|---|
+| **Definition** | Structured logical collaborator identity and behavior guidance, identified by a stable profile ID, that can govern assignment, handoff, role-scoped behavior, and tool-native custom-agent/subagent projection. |
+| **Context** | Identity |
+| **Status** | candidate |
+| **Applicable to** | `3.x` |
+| **Examples** | `architect-alphonso`, `researcher-robbie`, `implementer-ivan`, `reviewer-renata` |
+| **Use when** | Describing who the collaborator is, what role boundaries it follows, and how it should be selected or handed off to. |
+| **Do NOT use when** | Describing the generated file or host configuration that exposes the profile to Claude Code, Codex, Copilot, Cursor, Windsurf, or another tool; use [Tool Surface](./execution.md#tool-surface) instead. |
+| **Related terms** | [Agent](#agent), [Role](#role), [Tool](./execution.md#tool) |
+
+---
+
 ### Audience Persona
 
 | | |
