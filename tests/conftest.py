@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import tomllib
 from pathlib import Path
 from collections.abc import Callable, Iterator
@@ -16,6 +17,97 @@ from tests.branch_contract import IS_2X_BRANCH
 from tests.mutmut_env import prepare_mutants_environment_from_cwd
 from tests.test_isolation_helpers import get_installed_version
 from tests.utils import REPO_ROOT, run, write_wp
+
+# ---------------------------------------------------------------------------
+# WP04 — Per-worker HOME and state isolation (master enabler, FR-002)
+#
+# Every pytest worker (and the serial "master" run) gets its OWN home / config
+# / state directory so that parallel workers never share or truncate the real
+# ``~/.spec-kitty/queue.db``. The existing intra-worker queue-wipe fixtures
+# (``reset_spec_kitty_queue_state`` / ``tests/agent/conftest.py``) keep working;
+# they simply operate against the isolated home once ``Path.home`` is patched.
+#
+# Two layers are required:
+#   1. ``pytest_configure`` sets the HOME/XDG env vars *before collection* so
+#      that modules which bind a home-derived path at import time (e.g.
+#      ``specify_cli.sync.daemon.SPEC_KITTY_DIR = Path.home() / ".spec-kitty"``
+#      at module top level, ``daemon.py:94``) resolve into the isolated home.
+#   2. An autouse, function-scoped fixture re-asserts the ``Path.home``
+#      monkeypatch + env for every test, keyed by worker id, so call-time
+#      ``Path.home()`` reads are isolated too. Never session-only: a single
+#      shared session home would re-collide every worker and re-introduce the
+#      exact hazard this WP removes.
+# ---------------------------------------------------------------------------
+
+# Cross-platform home/state env vars (C-005). ``Path.home()`` itself resolves
+# ``USERPROFILE`` on Windows and ``HOME`` on POSIX; the XDG vars cover helpers
+# that read the environment directly.
+_HOME_ENV_VARS = ("HOME", "USERPROFILE")
+_XDG_ENV_SUBDIRS = {
+    "XDG_CONFIG_HOME": ".config",
+    "XDG_DATA_HOME": ".local/share",
+    "XDG_STATE_HOME": ".local/state",
+    "LOCALAPPDATA": "AppData/Local",
+}
+# Stash the resolved per-worker home base on the pytest Config so the autouse
+# fixture reuses the *same* directory the import-time env setup pointed at.
+_WORKER_HOME_CONFIG_ATTR = "_spec_kitty_worker_home"
+
+
+def _worker_id(config: pytest.Config) -> str:
+    """Return the xdist worker id (e.g. ``gw0``), or ``"master"`` when serial.
+
+    ``config.workerinput`` is present only inside xdist worker subprocesses;
+    the controller / serial process has no such attribute.
+    """
+    workerinput = getattr(config, "workerinput", None)
+    if workerinput is None:
+        return "master"
+    return str(workerinput.get("workerid", "master"))
+
+
+def _worker_home_base(config: pytest.Config) -> Path:
+    """Resolve (and cache on *config*) this worker's isolated home base dir.
+
+    The base is namespaced by the xdist ``testrunuid`` (shared across all
+    workers of one run, distinct between runs) and by the worker id, so:
+      * two workers in the same run get *distinct* homes (no collision), and
+      * the directory is stable for the lifetime of the process, which lets the
+        import-time env setup and the autouse fixture agree on one location.
+    """
+    cached = getattr(config, _WORKER_HOME_CONFIG_ATTR, None)
+    if cached is not None:
+        return Path(cached)
+
+    workerinput = getattr(config, "workerinput", None)
+    run_uid = "serial"
+    if workerinput is not None:
+        run_uid = str(workerinput.get("testrunuid", "serial"))
+    base = (
+        Path(tempfile.gettempdir())
+        / "spec-kitty-test-homes"
+        / run_uid
+        / _worker_id(config)
+    )
+    base.mkdir(parents=True, exist_ok=True)
+    setattr(config, _WORKER_HOME_CONFIG_ATTR, str(base))
+    return base
+
+
+def _apply_home_env(home_base: Path) -> None:
+    """Point the HOME/XDG/AppData env vars at *home_base* (mutates os.environ).
+
+    Used by ``pytest_configure`` (process-wide, before collection) so import-
+    time home-derived reads land in the isolated home. The autouse fixture
+    re-applies the same mapping via ``monkeypatch`` for per-test safety.
+    """
+    home_base.mkdir(parents=True, exist_ok=True)
+    for var in _HOME_ENV_VARS:
+        os.environ[var] = str(home_base)
+    for var, subdir in _XDG_ENV_SUBDIRS.items():
+        target = home_base / subdir
+        target.mkdir(parents=True, exist_ok=True)
+        os.environ[var] = str(target)
 
 # ---------------------------------------------------------------------------
 # Concurrency-safe test-venv creation (FR-003, FR-004)
@@ -42,6 +134,13 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 def pytest_configure(config: pytest.Config) -> None:
+    # WP04: isolate this worker's home BEFORE collection so modules that bind a
+    # home-derived path at import time (e.g. ``daemon.SPEC_KITTY_DIR`` at
+    # ``daemon.py:94``) resolve into the per-worker isolated home, never the
+    # developer's real ``~/.spec-kitty``. The autouse fixture below re-applies
+    # the same mapping per test for call-time reads.
+    _apply_home_env(_worker_home_base(config))
+
     try:
         prepare_mutants_environment_from_cwd()
     except OSError as exc:
@@ -82,6 +181,54 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     for item in items:
         if item.get_closest_marker("windows_ci") and sys.platform != "win32":
             item.add_marker(skip_windows)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_worker_home(
+    request: pytest.FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Path:
+    """WP04: redirect the *default* home (HOME/XDG env) into a per-worker temp dir.
+
+    Autouse and function-scoped so it applies to *every* test and is keyed by
+    the xdist worker id (``master`` when serial) — never session-only, which
+    would let all workers re-collide on a single home and re-introduce the
+    real-``~/.spec-kitty`` hazard this WP exists to remove.
+
+    Defined in the ROOT ``tests/conftest.py`` so it is set up before the deeper
+    autouse queue-wipe fixture in ``tests/agent/conftest.py``; the queue-wipe
+    helpers therefore transitively operate against this isolated home.
+
+    The base directory matches the one ``pytest_configure`` already pointed the
+    env vars at, so import-time and call-time home reads agree.
+
+    Precedence (the cycle-1 regression fix): this fixture establishes the worker
+    home **only via the HOME/USERPROFILE/XDG env vars** and deliberately does NOT
+    hard-patch ``Path.home``. ``Path.home()`` natively resolves ``HOME`` (POSIX)
+    / ``USERPROFILE`` (Windows) via ``os.path.expanduser``, so a test that later
+    manages its own home — whether through ``monkeypatch.setenv("HOME", ...)`` or
+    ``monkeypatch.setattr(Path, "home", ...)`` — cleanly overrides this baseline
+    for BOTH ``Path.home()`` and the env vars that production code (e.g.
+    ``queue.default_queue_db_path`` → ``Path.home() / ".spec-kitty"``) reads.
+
+    A previously-used ``monkeypatch.setattr(Path, "home", lambda: home_base)``
+    pinned ``Path.home()`` to the worker home regardless of any later in-test
+    ``setenv("HOME", ...)``, silently winning over ~16 ``tests/sync`` cases that
+    set up and assert their own tmp home. Setting only the env source keeps the
+    real-``~/.spec-kitty``-untouched guarantee (the env vars are reset per test
+    and before collection) while yielding precedence to in-test overrides.
+    """
+    home_base = _worker_home_base(request.config)
+    home_base.mkdir(parents=True, exist_ok=True)
+
+    for var in _HOME_ENV_VARS:
+        monkeypatch.setenv(var, str(home_base))
+    for var, subdir in _XDG_ENV_SUBDIRS.items():
+        target = home_base / subdir
+        target.mkdir(parents=True, exist_ok=True)
+        monkeypatch.setenv(var, str(target))
+
+    return home_base
 
 
 @pytest.fixture(autouse=True)
@@ -496,11 +643,16 @@ def run_cli(isolated_env: dict[str, str]) -> Callable[..., subprocess.CompletedP
 
 @pytest.fixture()
 def temp_repo(tmp_path: Path) -> Iterator[Path]:
-    repo_dir = tmp_path / "repo"
-    repo_dir.mkdir()
-    run(["git", "init"], cwd=repo_dir)
-    run(["git", "config", "user.name", "Spec Kitty"], cwd=repo_dir)
-    run(["git", "config", "user.email", "spec@example.com"], cwd=repo_dir)
+    # WP06 (A3/PP-03): the common "needs a baseline repo" case is served by a
+    # build-once bare template cloned per test, which is materially cheaper than
+    # ``git init`` + config + commit. The clone is a clean working tree on
+    # ``main`` with one baseline commit and a configured commit identity, so
+    # downstream fixtures/tests that ``git commit`` on top behave unchanged.
+    # Bespoke setups that need unborn/detached/--bare/worktree state keep their
+    # own explicit ``git init`` below.
+    from tests._support.git_template import clone_template
+
+    repo_dir = clone_template(tmp_path / "repo")
     yield repo_dir
 
 

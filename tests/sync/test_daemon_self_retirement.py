@@ -297,8 +297,10 @@ class TestRunSyncDaemonWiring:
         threads_before = set(threading.enumerate())
 
         def harness_shutdown() -> None:
-            # Wait until the server is created, then shut it down.
-            for _ in range(20):
+            # Wait until the server is created, then shut it down. WP06 (R10
+            # part 2): wait budget trimmed 20 -> 10 iterations (~0.5s), ample
+            # for the server thread to instantiate ``FakeServer``.
+            for _ in range(10):
                 if servers:
                     break
                 time.sleep(0.05)

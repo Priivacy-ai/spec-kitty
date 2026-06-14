@@ -77,10 +77,10 @@ direct implementation.
 - **Profile**: randy-reducer (implement). **Est. prompt size**: ~230 lines.
 - **Requirements**: FR-006, FR-008, FR-013, NFR-003.
 
-- [ ] T001 Convert charter `<0.1` timing floors to `@pytest.mark.timeout` (WP01)
-- [ ] T002 Reduce ULID volume 100→25 + env-gate full volume (WP01)
-- [ ] T003 Sync swallow tests → module-scoped sleep no-op + retry assert (WP01)
-- [ ] T004 Remove `-v` from `pytest.ini` addopts (WP01)
+- [x] T001 Convert charter `<0.1` timing floors to `@pytest.mark.timeout` (WP01)
+- [x] T002 Reduce ULID volume 100→25 + env-gate full volume (WP01)
+- [x] T003 Sync swallow tests → module-scoped sleep no-op + retry assert (WP01)
+- [x] T004 Remove `-v` from `pytest.ini` addopts (WP01)
 
 ## WP02 — Coverage-safety harness
 
@@ -90,10 +90,10 @@ direct implementation.
 - **Profile**: implementer-ivan (implement); review: paula-patterns. **Est. prompt size**: ~260 lines.
 - **Requirements**: FR-004, FR-012, NFR-005, NFR-007.
 
-- [ ] T005 Collection-equivalence helper + tests (WP02)
-- [ ] T006 Stability ratchet helper + tests (WP02)
-- [ ] T007 Architectural guard: no real home mutation under xdist (WP02)
-- [ ] T008 Equivalence/mutation-check helper + recipe (WP02)
+- [x] T005 Collection-equivalence helper + tests (WP02)
+- [x] T006 Stability ratchet helper + tests (WP02)
+- [x] T007 Architectural guard: no real home mutation under xdist (WP02)
+- [x] T008 Equivalence/mutation-check helper + recipe (WP02)
 
 ## WP03 — Item-explosion & read-only de-duplication
 
@@ -103,10 +103,10 @@ direct implementation.
 - **Profile**: randy-reducer (implement). **Est. prompt size**: ~280 lines.
 - **Requirements**: FR-008, FR-009, NFR-007.
 
-- [ ] T009 Collapse FSM parity matrix + mutation proof (WP03)
-- [ ] T010 Shared read-only migrated-project fixture (WP03)
-- [ ] T011 Cache whole-tree AST behind fixture (WP03)
-- [ ] T012 Cache DRG graph behind fixture (WP03)
+- [x] T009 Collapse FSM parity matrix + mutation proof (WP03)
+- [x] T010 Shared read-only migrated-project fixture (WP03)
+- [x] T011 Cache whole-tree AST behind fixture (WP03)
+- [x] T012 Cache DRG graph behind fixture (WP03)
 
 ## WP04 — Per-worker HOME/state isolation (master enabler)
 
@@ -116,10 +116,10 @@ direct implementation.
 - **Profile**: python-pedro (implement); review: architect-alphonso. **Est. prompt size**: ~250 lines.
 - **Requirements**: FR-002.
 
-- [ ] T013 Per-worker HOME/XDG isolation autouse fixture (WP04)
-- [ ] T014 Compose existing queue-wipe fixtures under isolated home (WP04)
-- [ ] T015 Regression test: distinct homes, real home untouched (WP04)
-- [ ] T016 Audit import-time `SPEC_KITTY_DIR` reads (WP04)
+- [x] T013 Per-worker HOME/XDG isolation autouse fixture (WP04)
+- [x] T014 Compose existing queue-wipe fixtures under isolated home (WP04)
+- [x] T015 Regression test: distinct homes, real home untouched (WP04)
+- [x] T016 Audit import-time `SPEC_KITTY_DIR` reads (WP04)
 
 ## WP05 — CI fast-shard parallelization rollout
 
@@ -129,12 +129,12 @@ direct implementation.
 - **Profile**: implementer-ivan (implement); review: architect-alphonso. **Est. prompt size**: ~300 lines.
 - **Requirements**: FR-003, FR-004, FR-005, FR-007, FR-012, NFR-002.
 
-- [ ] T017 Slow-test de-dup on specify-cli-heavy shard (WP05)
-- [ ] T018 Flip charter shard to `-n auto --dist loadfile` (WP05)
-- [ ] T019 Flip doctrine/cli/sync shards; exclude `release` (WP05)
-- [ ] T020 Flip agent shard (WP05)
-- [ ] T021 Daemon/port serial pass for orphan-sweep (WP05)
-- [ ] T022 Status re-route + trigger widen (WP05)
+- [x] T017 Slow-test de-dup on specify-cli-heavy shard (WP05)
+- [x] T018 Flip charter shard to `-n auto --dist loadfile` (WP05)
+- [x] T019 Flip doctrine/cli/sync shards; exclude `release` (WP05)
+- [x] T020 Flip agent shard (WP05)
+- [x] T021 Daemon/port serial pass for orphan-sweep (WP05)
+- [x] T022 Status re-route + trigger widen (WP05)
 
 ## WP06 — Templated git-repo fixture & structural hygiene
 
@@ -144,11 +144,11 @@ direct implementation.
 - **Profile**: implementer-ivan (implement). **Est. prompt size**: ~290 lines.
 - **Requirements**: FR-010.
 
-- [ ] T023 Templated bare-repo fixture (WP06)
-- [ ] T024 Adopt via execution-allowlist; preserve bespoke repos (WP06)
-- [ ] T025 Trim sync concurrency loops + nightly variant (WP06)
-- [ ] T026 xfail strictness hygiene (WP06)
-- [ ] T027 Consolidate 8× subprocess `--collect-only` test (WP06)
+- [x] T023 Templated bare-repo fixture (WP06)
+- [x] T024 Adopt via execution-allowlist; preserve bespoke repos (WP06)
+- [x] T025 Trim sync concurrency loops + nightly variant (WP06)
+- [x] T026 xfail strictness hygiene (WP06)
+- [x] T027 Consolidate 8× subprocess `--collect-only` test (WP06)
 
 ## WP07 — Local parallel default & contributor docs
 
@@ -158,6 +158,6 @@ direct implementation.
 - **Profile**: curator-carla (implement/docs). **Est. prompt size**: ~180 lines.
 - **Requirements**: FR-001, FR-011, NFR-001.
 
-- [ ] T028 Document local parallel command + caveat (WP07)
-- [ ] T029 Testing-parallel docs page + config guidance (WP07)
-- [ ] T030 Wire quickstart validation helper (WP07)
+- [x] T028 Document local parallel command + caveat (WP07)
+- [x] T029 Testing-parallel docs page + config guidance (WP07)
+- [x] T030 Wire quickstart validation helper (WP07)

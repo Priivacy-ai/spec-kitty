@@ -11,14 +11,15 @@ requirement_refs:
 tracker_refs: []
 planning_base_branch: feat/test-suite-acceleration
 merge_target_branch: feat/test-suite-acceleration
+base_commit: 40335b25202f7d0a83d00503cc6b7e6eb1f9f6d9
 branch_strategy: Planning artifacts for this mission were generated on feat/test-suite-acceleration. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/test-suite-acceleration unless the human explicitly redirects the landing branch.
 subtasks:
 - T028
 - T029
 - T030
 phase: Phase 5 - Documentation
-agent: claude
-shell_pid: '72974'
+agent: "claude:sonnet:reviewer-renata:reviewer"
+shell_pid: "28102"
 history:
 - at: '2026-06-14T17:10:00Z'
   actor: system
@@ -121,3 +122,11 @@ Make safe local multi-process runs the documented default — but only after the
 ## Activity Log
 
 - 2026-06-14T17:10:00Z – system – Prompt created.
+- 2026-06-14T18:42:52Z – claude:sonnet:curator-carla:implementer – shell_pid=72974 – Assigned agent via action command
+- 2026-06-14T18:51:30Z – claude:sonnet:curator-carla:implementer – shell_pid=72974 – Documented local parallel command (PWHEADLESS=1 pytest -n auto --dist loadfile) + serial daemon pass in CLAUDE.md/AGENTS.md and docs/development/testing-parallel.md; cross-linked from CONTRIBUTING.md. Validated a parallel slice (tests/agent+tests/doctrine) runs with real ~/.spec-kitty untouched (queue.db mtime/inode/size unchanged); tests/agent timing 117.98s serial vs 40.91s parallel (~2.9x). One pre-existing FAILED tactic-schema test (mutation-testing-workflow.tactic.yaml, fails serially too, unrelated to docs). CI shard flips remain pending 3x-green confirmation. Terminology guard green.
+- 2026-06-14T18:52:13Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=12711 – Started review via action command
+- 2026-06-14T18:54:56Z – user – shell_pid=12711 – Moved to planned
+- 2026-06-14T18:55:32Z – claude:sonnet:curator-carla:implementer – shell_pid=23856 – Started implementation via action command
+- 2026-06-14T18:56:08Z – claude:sonnet:curator-carla:implementer – shell_pid=23856 – Cycle 1 fix: corrected testing-parallel.md HOME-isolation description to the env-var mechanism (no Path.home monkeypatch), matching WP04's actual fixed implementation. One-sentence doc fix per reviewer feedback.
+- 2026-06-14T18:56:30Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=28102 – Started review via action command
+- 2026-06-14T18:56:34Z – user – shell_pid=28102 – Approved (orchestrator): cycle-1 doc fix applies reviewer-renata's exact suggested wording — testing-parallel.md now correctly describes the env-var HOME isolation (no Path.home monkeypatch), matching WP04's fixed conftest. All other WP07 criteria passed in cycle-0 review.

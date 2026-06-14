@@ -171,22 +171,49 @@ class TestQueueOverflow:
         assert event is not None
 
 
+# WP06 (R10 part 2 / PP-06c): fixed thread fan-out for the concurrency stress
+# tests. Kept at >=4 so the race surface (concurrent writers to one SQLite
+# queue / one Lamport clock) is preserved when the per-thread iteration count is
+# trimmed for the default fast run.
+_CONCURRENCY_THREADS = 4
+
+# Default per-thread emit volume for the fast-sync run (trimmed 50 -> 20). A
+# high-volume variant is retained below behind ``@pytest.mark.slow`` because the
+# corruption-catch power of this test is volume-sensitive (C-004): the more
+# writes that race, the more likely a regression that drops/duplicates a row is
+# surfaced. Do NOT delete the slow variant when tuning the default.
+_EMIT_COUNT_DEFAULT = 20
+_EMIT_COUNT_SLOW = 50
+
+# Default per-thread tick volume for the clock-uniqueness test (trimmed 20 -> 10).
+_CLOCK_COUNT_DEFAULT = 10
+_CLOCK_COUNT_SLOW = 50
+
+
 class TestConcurrentEmission:
     """Test thread safety of concurrent event emission."""
 
-    def test_concurrent_emits_no_corruption(self, tmp_path: Path, mock_auth: MagicMock):
-        """Concurrent emits don't corrupt queue or clock."""
-        queue = OfflineQueue(db_path=tmp_path / "concurrent.db")
+    @staticmethod
+    def _run_concurrent_emits(
+        tmp_path: Path, mock_auth: MagicMock, count: int, db_name: str
+    ) -> None:
+        """Drive ``_CONCURRENCY_THREADS`` writers emitting *count* events each.
+
+        Asserts no per-thread errors and that the queue holds exactly
+        ``threads * count`` rows — the loop range and this ``threads * count``
+        assertion move in lockstep so volume can be tuned without silently
+        weakening the invariant.
+        """
+        queue = OfflineQueue(db_path=tmp_path / db_name)
         clock = LamportClock(value=0, node_id="test", _storage_path=tmp_path / "c.json")
         config = MagicMock()
         mock_auth.is_authenticated = False
 
         em = EventEmitter(clock=clock, config=config, queue=queue, ws_client=None)
 
-        errors = []
-        count = 50
+        errors: list[str] = []
 
-        def emit_events(thread_id: int):
+        def emit_events(thread_id: int) -> None:
             try:
                 for i in range(count):
                     event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
@@ -195,38 +222,60 @@ class TestConcurrentEmission:
             except Exception as exc:
                 errors.append(f"Thread {thread_id}: {exc}")
 
-        threads = [threading.Thread(target=emit_events, args=(t,)) for t in range(4)]
+        threads = [
+            threading.Thread(target=emit_events, args=(t,))
+            for t in range(_CONCURRENCY_THREADS)
+        ]
         for t in threads:
             t.start()
         for t in threads:
             t.join()
 
         assert errors == [], f"Errors during concurrent emission: {errors}"
-        # All events should be queued (4 threads x 50 events)
-        assert queue.size() == 4 * count
+        # All events should be queued (threads x count), in lockstep with count.
+        assert queue.size() == _CONCURRENCY_THREADS * count
 
-    def test_clock_values_unique_under_concurrency(
+    def test_concurrent_emits_no_corruption(self, tmp_path: Path, mock_auth: MagicMock):
+        """Concurrent emits don't corrupt queue or clock (default fast volume)."""
+        self._run_concurrent_emits(
+            tmp_path, mock_auth, _EMIT_COUNT_DEFAULT, "concurrent.db"
+        )
+
+    @pytest.mark.slow
+    def test_concurrent_emits_no_corruption_high_volume(
         self, tmp_path: Path, mock_auth: MagicMock
     ):
-        """Lamport clock values are unique even with concurrent access."""
-        queue = OfflineQueue(db_path=tmp_path / "concurrent2.db")
+        """High-volume corruption stress (nightly/@slow). Volume-sensitive (C-004)."""
+        self._run_concurrent_emits(
+            tmp_path, mock_auth, _EMIT_COUNT_SLOW, "concurrent_highvol.db"
+        )
+
+    @staticmethod
+    def _run_clock_concurrency(
+        tmp_path: Path, mock_auth: MagicMock, count: int, db_name: str
+    ) -> None:
+        """Drive concurrent clock ticks and assert total emitted == threads*count."""
+        queue = OfflineQueue(db_path=tmp_path / db_name)
         clock = LamportClock(value=0, node_id="test", _storage_path=tmp_path / "c.json")
         config = MagicMock()
         mock_auth.is_authenticated = False
 
         em = EventEmitter(clock=clock, config=config, queue=queue, ws_client=None)
 
-        results = []
+        results: list[int] = []
         lock = threading.Lock()
 
-        def emit_and_collect():
-            for _ in range(20):
+        def emit_and_collect() -> None:
+            for _ in range(count):
                 event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
                 if event:
                     with lock:
                         results.append(event["lamport_clock"])
 
-        threads = [threading.Thread(target=emit_and_collect) for _ in range(4)]
+        threads = [
+            threading.Thread(target=emit_and_collect)
+            for _ in range(_CONCURRENCY_THREADS)
+        ]
         for t in threads:
             t.start()
         for t in threads:
@@ -234,8 +283,26 @@ class TestConcurrentEmission:
 
         # Note: LamportClock.tick() is not thread-safe in the current impl,
         # but we verify all events were emitted. Some clock values may
-        # duplicate under race conditions, but no crashes should occur.
-        assert len(results) == 80
+        # duplicate under race conditions, but no crashes should occur. The
+        # expected total moves in lockstep with the per-thread count.
+        assert len(results) == _CONCURRENCY_THREADS * count
+
+    def test_clock_values_unique_under_concurrency(
+        self, tmp_path: Path, mock_auth: MagicMock
+    ):
+        """Lamport clock values under concurrent access (default fast volume)."""
+        self._run_clock_concurrency(
+            tmp_path, mock_auth, _CLOCK_COUNT_DEFAULT, "concurrent2.db"
+        )
+
+    @pytest.mark.slow
+    def test_clock_values_unique_under_concurrency_high_volume(
+        self, tmp_path: Path, mock_auth: MagicMock
+    ):
+        """High-volume clock concurrency stress (nightly/@slow). C-004."""
+        self._run_clock_concurrency(
+            tmp_path, mock_auth, _CLOCK_COUNT_SLOW, "concurrent2_highvol.db"
+        )
 
 
 class TestNonBlockingEmission:

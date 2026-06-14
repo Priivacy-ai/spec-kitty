@@ -12,6 +12,7 @@ Do NOT add ``# type: ignore`` to this file — it must pass ``mypy --strict`` cl
 from __future__ import annotations
 
 import json
+import os
 import re
 import socket
 import subprocess
@@ -33,6 +34,11 @@ pytestmark = [pytest.mark.contract, pytest.mark.git_repo]
 _ULID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 
 _CORE = "specify_cli.core.mission_creation"
+
+# ULID volume for the monotonicity contract. 25 proves the uniqueness/ordering
+# guarantee at a fraction of the cost; the full 100-mission run stays available
+# for the nightly slow path via SPEC_KITTY_ULID_VOLUME_FULL=1 (R4 / PP-06a).
+_VOLUME = 100 if os.environ.get("SPEC_KITTY_ULID_VOLUME_FULL") else 25
 
 # ---------------------------------------------------------------------------
 # Shared scaffolding helpers
@@ -224,15 +230,17 @@ def test_t003_mission_id_is_valid_ulid_and_immutable(tmp_path: Path) -> None:
 
 @pytest.mark.slow
 def test_t004_hundred_sequential_creations_all_distinct(tmp_path: Path) -> None:
-    """FR-005: ULID monotonicity — 100 missions in one process yield 100 unique IDs.
+    """FR-005: ULID monotonicity — N missions in one process yield N unique IDs.
 
+    N defaults to 25 (enough to prove the uniqueness/ordering contract) and
+    rises to the full 100 when SPEC_KITTY_ULID_VOLUME_FULL is set (nightly path).
     Also asserts non-decreasing lexicographic order, which holds because ULID
     timestamps are monotonically increasing within a single process (the
     python-ulid library guarantees this).
     """
     _init_git_repo(tmp_path)
 
-    n = 100
+    n = _VOLUME
     ids: list[str] = []
 
     for i in range(1, n + 1):

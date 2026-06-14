@@ -743,12 +743,18 @@ jobs:
           mkdir -p out/reports/xunit-reports
           mkdir -p out/reports/coverage
 
+      # PENDING-CI: T019 flip — collection-equivalence verified locally
+      # (serial == parallel nodeids); requires CI green x3 (run-twice/thrice
+      # ratchet) before trusting this flip. Safe after WP04 HOME isolation.
+      # See mission test-suite-acceleration.
       - name: "[ENFORCED] Run fast doctrine tests with coverage"
         run: |
           uv run python -m pytest \
             -v \
             tests/doctrine/ \
             -m "fast and not windows_ci" \
+            -n auto --dist loadfile \
+            --durations=50 \
             --cov=src/doctrine \
             --cov-report=term-missing \
             --cov-report=xml:out/reports/coverage/coverage-fast-doctrine.xml \
@@ -775,11 +781,35 @@ jobs:
           python-version: '3.12'
       - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
-      - name: "Run fast tests — sync"
+      # PENDING-CI: T019 flip — collection-equivalence verified locally
+      # (serial == parallel nodeids); requires CI green x3 (run-twice/thrice
+      # ratchet) before trusting this flip. Safe after WP04 HOME isolation.
+      # C-SERIAL (T021): the daemon/real-port orphan-sweep suite is excluded
+      # from this parallel pool and runs serially (-n0) in the step below —
+      # HOME isolation does not protect OS-global port binds (9400-9449).
+      # See mission test-suite-acceleration.
+      - name: "Run fast tests — sync (parallel, orphan-sweep excluded)"
         run: |
           uv run python -m pytest tests/sync/ -m "fast and not windows_ci" -q --tb=short \
+            --ignore=tests/sync/test_orphan_sweep.py \
+            -n auto --dist loadfile \
+            --durations=50 \
             --cov=src/specify_cli/sync \
             --cov-report=xml:out/reports/coverage/coverage-fast-sync.xml
+      # PENDING-CI (T021): daemon/real-port serial pass. orphan-sweep binds the
+      # reserved daemon port range (9400-9449); OS-global binds are not
+      # protected by per-worker HOME isolation, so this MUST run serial (-n0)
+      # and outside the parallel sync selector (C-SERIAL, FR-005). Requires CI
+      # green x3 before trusting. See mission test-suite-acceleration.
+      - name: "Run fast tests — sync orphan-sweep (serial, real ports)"
+        run: |
+          uv run python -m pytest tests/sync/test_orphan_sweep.py -q --tb=short \
+            -m "not windows_ci" \
+            -n0 \
+            --cov=src/specify_cli/sync \
+            --cov-append \
+            --cov-report=xml:out/reports/coverage/coverage-fast-sync-orphan-sweep.xml \
+            || test $? -eq 5
       - name: "Upload fast-sync coverage"
         if: always()
         uses: actions/upload-artifact@v7
@@ -913,12 +943,23 @@ jobs:
           mkdir -p out/reports/xunit-reports
           mkdir -p out/reports/coverage
 
+      # PENDING-CI (T022): status re-route via INVERSION. The naive `-m fast`
+      # selector pulled in 85 tests that are ALSO git_repo/integration (real
+      # handlers/adapter-registry/reset_handlers paths) which made the status
+      # shard *slower*, not faster. Inverting to `fast and not (git_repo or
+      # integration)` drops exactly those 85 (2536 -> 2451 locally) so the fast
+      # shard is genuinely fast; the dropped 85 are still covered by the
+      # integration-tests-status job (trigger widened to status OR sync below).
+      # NOT flipped to -n auto here on purpose — the reset_handlers adapter
+      # registry tests need a loadfile audit first (see T022 guidance).
+      # NEEDS CI CONFIRMATION: collection-count gate verified locally only.
+      # See mission test-suite-acceleration.
       - name: "[ENFORCED] Run fast status tests with coverage"
         run: |
           uv run python -m pytest \
             -v \
             tests/status/ tests/specify_cli/status/ \
-            -m "fast and not windows_ci" \
+            -m "fast and not windows_ci and not (git_repo or integration)" \
             --cov=src/specify_cli/status \
             --cov-report=term-missing \
             --cov-report=xml:out/reports/coverage/coverage-fast-status.xml \
@@ -1121,9 +1162,15 @@ jobs:
           python-version: '3.12'
       - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
+      # PENDING-CI: T019 flip — collection-equivalence verified locally
+      # (serial == parallel nodeids); requires CI green x3 (run-twice/thrice
+      # ratchet) before trusting this flip. Safe after WP04 HOME isolation.
+      # See mission test-suite-acceleration.
       - name: "Run fast tests — cli"
         run: |
           uv run python -m pytest tests/cli/ tests/specify_cli/cli/ -m "fast and not windows_ci" -q --tb=short \
+            -n auto --dist loadfile \
+            --durations=50 \
             --cov=src/specify_cli/cli \
             --cov-report=xml:out/reports/coverage/coverage-fast-cli.xml \
             || test $? -eq 5
@@ -1225,15 +1272,25 @@ jobs:
               tests/architecture
               tests/lint
             ignore_args: ''
+            marker_extra: ''
           - shard: integration
             paths: tests/integration
             ignore_args: ''
+            marker_extra: ''
+          # PENDING-CI: T017 slow-test de-dup — `and not slow` drops the single
+          # migration perf @slow test (test_migration_completes_in_under_10s...)
+          # from THIS heavy shard so it runs only in the dedicated `slow-tests`
+          # job (no double-run, ~28s/push saved). Scoped to specify-cli-heavy
+          # ONLY — NEVER --ignore=tests/specify_cli (that orphans 3 NFR guards).
+          # Collection-count gate verified locally. Requires CI green x3.
+          # See mission test-suite-acceleration.
           - shard: specify-cli-heavy
             paths: >-
               tests/specify_cli/migration
               tests/specify_cli/invocation
               tests/specify_cli/test_charter_activate_cli.py
             ignore_args: ''
+            marker_extra: ' and not slow'
           - shard: specify-cli-rest
             paths: tests/specify_cli
             ignore_args: >-
@@ -1242,6 +1299,7 @@ jobs:
               --ignore=tests/specify_cli/test_charter_activate_cli.py
               --ignore=tests/specify_cli/status
               --ignore=tests/specify_cli/next
+            marker_extra: ''
           - shard: auth-audit-git
             paths: >-
               tests/auth
@@ -1250,6 +1308,7 @@ jobs:
               tests/git
               tests/cli_gate
             ignore_args: ''
+            marker_extra: ''
           - shard: misc
             paths: >-
               tests/calibration
@@ -1274,6 +1333,7 @@ jobs:
               tests/tasks
               tests/unit
             ignore_args: ''
+            marker_extra: ''
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -1302,7 +1362,7 @@ jobs:
           uv run python -m pytest \
             ${{ matrix.paths }} \
             ${{ matrix.ignore_args }} \
-            -m 'not windows_ci and (git_repo or integration or architectural)' \
+            -m 'not windows_ci and (git_repo or integration or architectural)${{ matrix.marker_extra }}' \
             -q --tb=short \
             -n auto --dist loadfile \
             --durations=50 \
@@ -1334,6 +1394,10 @@ jobs:
           python-version: '3.12'
       - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
+      # PENDING-CI: T018 flip — collection-equivalence verified locally
+      # (serial == parallel nodeids); requires CI green x3 (run-twice/thrice
+      # ratchet) before trusting this flip. Safe because WP01 converted the
+      # charter timing floors. See mission test-suite-acceleration.
       - name: "Run fast tests — charter"
         run: |
           uv run python -m pytest \
@@ -1342,6 +1406,8 @@ jobs:
             tests/specify_cli/charter_lint \
             tests/specify_cli/charter_preflight \
             -m "fast and not windows_ci" -q --tb=short \
+            -n auto --dist loadfile \
+            --durations=50 \
             --cov=src/charter \
             --cov=src/specify_cli/charter_runtime \
             --cov=src/specify_cli/charter_freshness \
@@ -1373,10 +1439,16 @@ jobs:
           python-version: '3.12'
       - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
+      # PENDING-CI: T020 flip — collection-equivalence verified locally
+      # (serial == parallel nodeids); requires CI green x3 (run-twice/thrice
+      # ratchet) before trusting this flip. Safe because WP04 isolates the
+      # real-home queue per xdist worker. See mission test-suite-acceleration.
       - name: "Run fast tests — agent"
         run: |
           uv run python -m pytest tests/agent \
             -m "fast and not windows_ci" -q --tb=short \
+            -n auto --dist loadfile \
+            --durations=50 \
             --cov=src/specify_cli/agent_utils \
             --cov-fail-under=10 \
             --cov-report=xml:out/reports/coverage/coverage-fast-agent.xml
@@ -1639,12 +1711,17 @@ jobs:
           name: integration-test-release-reports
           path: out/reports/
 
+  # PENDING-CI (T022): trigger widened to (status OR sync) to match the
+  # fast-tests-status scope (which already triggers on status OR sync). This
+  # ensures the 85 fast+git_repo/integration tests dropped from the inverted
+  # fast shard are always run here. NEEDS CI CONFIRMATION.
+  # See mission test-suite-acceleration.
   integration-tests-status:
     runs-on: ubuntu-latest
     needs: [changes, fast-tests-status]
     if: >-
       always() &&
-      needs.changes.outputs.status == 'true' &&
+      (needs.changes.outputs.status == 'true' || needs.changes.outputs.sync == 'true') &&
       needs.fast-tests-status.result == 'success'
 
     steps:

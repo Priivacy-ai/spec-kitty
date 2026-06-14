@@ -1,0 +1,139 @@
+{
+  "mission_slug": "test-suite-acceleration-01KV3H59",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "FR-001 verified via WP review evidence",
+      "proof_type": "automated_test",
+      "evidence": "Local parallel run documented + validated: WP07 ran `tests/agent tests/doctrine -n auto --dist loadfile` green, ~2.9x faster (117.98s->40.91s on tests/agent), real ~/.spec-kitty untouched.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-14T19:45:00+00:00",
+      "notes": "Verified during work-package review; see evidence."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "FR-002 verified via WP review evidence",
+      "proof_type": "automated_test",
+      "evidence": "WP04 per-worker HOME/XDG isolation; architect review independently confirmed real ~/.spec-kitty md5-identical before/after `tests/agent -n auto` (1410 passed); 7/7 isolation regression tests green.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-14T19:45:00+00:00",
+      "notes": "Verified during work-package review; see evidence."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "FR-003 verified via WP review evidence",
+      "proof_type": "automated_test",
+      "evidence": "WP05 flipped charter/doctrine/cli/sync/agent fast-shards to `-n auto --dist loadfile`; per-shard collection-equivalence verified locally (serial==parallel nodeids). CI run-twice/thrice ratchet is the documented post-merge confirmation (marked PENDING-CI per operator decision).",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-14T19:45:00+00:00",
+      "notes": "Verified during work-package review; see evidence."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "FR-004 verified via WP review evidence",
+      "proof_type": "automated_test",
+      "evidence": "WP02 collection-equivalence helper (assert_equivalent over nodeid sets); WP05 used it to prove serial==parallel for each flipped shard.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-14T19:45:00+00:00",
+      "notes": "Verified during work-package review; see evidence."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "FR-005 verified via WP review evidence",
+      "proof_type": "automated_test",
+      "evidence": "WP05 runs daemon/real-port `tests/sync/test_orphan_sweep.py` in a dedicated `-n0` serial step, excluded from the parallel sync pool (C-SERIAL).",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-14T19:45:00+00:00",
+      "notes": "Verified during work-package review; see evidence."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "FR-006 verified via WP review evidence",
+      "proof_type": "automated_test",
+      "evidence": "WP01 converted the two charter `elapsed<0.1` timing floors to `@pytest.mark.timeout(2)`, keeping functional asserts verbatim; 44 tests pass.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-14T19:45:00+00:00",
+      "notes": "Verified during work-package review; see evidence."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "FR-007 verified via WP review evidence",
+      "proof_type": "automated_test",
+      "evidence": "WP05 added `and not slow` to specify-cli-heavy shard only; collection gate confirms the migration perf test collected in exactly one job (slow-tests), no orphan of the 3 NFR guards.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-14T19:45:00+00:00",
+      "notes": "Verified during work-package review; see evidence."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "FR-008 verified via WP review evidence",
+      "proof_type": "automated_test",
+      "evidence": "WP01 ULID volume 100->25 behind `SPEC_KITTY_ULID_VOLUME_FULL` env gate (both scales pass); WP03 FSM parity matrix collapsed 1814->116 items, mutation-proven non-vacuous.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-14T19:45:00+00:00",
+      "notes": "Verified during work-package review; see evidence."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "FR-009 verified via WP review evidence",
+      "proof_type": "automated_test",
+      "evidence": "WP03 shared read-only migration fixture (3 identical asserts) + session-cached AST (MappingProxyType, frozen) + DRG graph; integrity/idempotency/freshness/counter/rollback carve-outs verified excluded.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-14T19:45:00+00:00",
+      "notes": "Verified during work-package review; see evidence."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "FR-010 verified via WP review evidence",
+      "proof_type": "automated_test",
+      "evidence": "WP06 build-once bare git template + `clone_template`/`templated_repo`; common `temp_repo` migrated via execution-allowlist, bespoke worktree/branch fixtures kept; no NotInsideRepositoryError.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-14T19:45:00+00:00",
+      "notes": "Verified during work-package review; see evidence."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "FR-011 verified via WP review evidence",
+      "proof_type": "automated_test",
+      "evidence": "WP07 documented the local parallel command + serial daemon pass in AGENTS.md (CLAUDE.md symlink) and docs/development/testing-parallel.md; reviewer-verified accurate against the env-var HOME isolation.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-14T19:45:00+00:00",
+      "notes": "Verified during work-package review; see evidence."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "FR-012 verified via WP review evidence",
+      "proof_type": "automated_test",
+      "evidence": "WP02 run-twice/thrice stability ratchet helper (injectable runner, CLI entry); WP05 flips gated on it. CI ratchet x3 is the documented post-merge confirmation (PENDING-CI per operator decision).",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-14T19:45:00+00:00",
+      "notes": "Verified during work-package review; see evidence."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "FR-013 verified via WP review evidence",
+      "proof_type": "automated_test",
+      "evidence": "WP01 safe-now wave (timing->timeout, ULID gate, sync sleep no-op, -v removal) landed first with no parallelism dependency; ~60s+/push CI CPU and ~36s local removed, coverage-neutral.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-14T19:45:00+00:00",
+      "notes": "Verified during work-package review; see evidence."
+    }
+  ],
+  "negative_invariants": []
+}

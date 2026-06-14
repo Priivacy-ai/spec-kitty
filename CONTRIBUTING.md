@@ -108,6 +108,10 @@ pytest tests/unit/               # Unit tests
 pytest tests/integration/test_version_isolation.py  # Isolation tests
 ```
 
+To run the suite in parallel (typically ≥2× faster on a ≥4-core machine), plus
+the serial daemon pass and the coverage-neutrality gates, see
+[Running the test suite in parallel](development/testing-parallel.md).
+
 ### Test Isolation
 
 Tests use several mechanisms to ensure they run against source code:

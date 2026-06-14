@@ -23,7 +23,8 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from specify_cli.migration.runner import (    _create_backup,
+from specify_cli.migration.runner import (    MigrationReport,
+    _create_backup,
     _restore_backup,
     _update_gitignore,
     _update_schema_version,
@@ -132,6 +133,43 @@ def _make_legacy_project(
 
 
 # ---------------------------------------------------------------------------
+# Shared read-only migrated-project fixture (WP03/T010, FR-009, NFR-007)
+# ---------------------------------------------------------------------------
+#
+# The three read-only ``TestFullMigration`` checks below
+# (schema_version / .gitignore / backup-cleanup) each rebuilt the *same*
+# single-feature project and ran ``run_migration`` again — ~3x the cost for one
+# inspectable post-migration state. This module-scoped fixture runs that exact
+# migration ONCE and exposes the resulting (root, report) for read-only
+# inspection. ``report.success`` is asserted inside the fixture so a broken
+# migration fails fixture setup, not just the individual asserts.
+#
+# CARVE-OUTS (NOT routed through this fixture — they need pristine per-test
+# state and/or different inputs):
+#   * ``test_migration_succeeds_on_legacy_project`` — different (2-feature) input
+#     and asserts the ``features_migrated`` counter.
+#   * ``TestMigrationReportCounters`` — different inputs / counter assertions.
+#   * Rollback / dry-run tests — mutate or short-circuit the migration via
+#     patches and must observe their own fresh, un-migrated state.
+
+
+@pytest.fixture(scope="module")
+def migrated_project(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, MigrationReport]:
+    """Run the canonical single-feature migration once for read-only reuse.
+
+    Returns ``(root, report)``. The migrated tree is shared across the three
+    truly-identical read-only assertions; they must NOT mutate it.
+    """
+    root = _make_legacy_project(
+        tmp_path_factory.mktemp("migrated_project"),
+        features=[{"slug": "001-test", "wps": [{"name": "WP01", "lane": "planned"}]}],
+    )
+    report = run_migration(root)
+    assert report.success, f"shared migration fixture failed: {report.errors}"
+    return root, report
+
+
+# ---------------------------------------------------------------------------
 # T069-A: Full migration on clean legacy project
 # ---------------------------------------------------------------------------
 
@@ -164,42 +202,39 @@ class TestFullMigration:
         assert report.features_migrated == 2
         assert not report.failed_step
 
-    def test_schema_version_updated(self, tmp_path: Path) -> None:
-        """After migration, metadata.yaml has schema_version=3."""
-        root = _make_legacy_project(
-            tmp_path,
-            features=[{"slug": "001-test", "wps": [{"name": "WP01", "lane": "planned"}]}],
-        )
+    def test_schema_version_updated(
+        self, migrated_project: tuple[Path, MigrationReport]
+    ) -> None:
+        """After migration, metadata.yaml has schema_version=3.
 
-        run_migration(root)
-
+        Read-only inspection of the shared ``migrated_project`` (T010).
+        """
+        root, _report = migrated_project
         metadata_path = root / ".kittify" / "metadata.yaml"
         data = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
         assert data["spec_kitty"]["schema_version"] == 3
         assert "canonical_context" in data["spec_kitty"]["schema_capabilities"]
 
-    def test_gitignore_updated(self, tmp_path: Path) -> None:
-        """After migration, .gitignore contains the new entries."""
-        root = _make_legacy_project(
-            tmp_path,
-            features=[{"slug": "001-test", "wps": [{"name": "WP01", "lane": "planned"}]}],
-        )
+    def test_gitignore_updated(
+        self, migrated_project: tuple[Path, MigrationReport]
+    ) -> None:
+        """After migration, .gitignore contains the new entries.
 
-        run_migration(root)
-
+        Read-only inspection of the shared ``migrated_project`` (T010).
+        """
+        root, _report = migrated_project
         gitignore_content = (root / ".gitignore").read_text(encoding="utf-8")
         for entry in [".kittify/derived/", ".kittify/.migration-backup/"]:
             assert entry in gitignore_content, f"Expected {entry!r} in .gitignore"
 
-    def test_backup_cleaned_up_after_success(self, tmp_path: Path) -> None:
-        """Backup directory is removed after successful migration."""
-        root = _make_legacy_project(
-            tmp_path,
-            features=[{"slug": "001-test", "wps": [{"name": "WP01", "lane": "planned"}]}],
-        )
+    def test_backup_cleaned_up_after_success(
+        self, migrated_project: tuple[Path, MigrationReport]
+    ) -> None:
+        """Backup directory is removed after successful migration.
 
-        report = run_migration(root)
-
+        Read-only inspection of the shared ``migrated_project`` (T010).
+        """
+        root, report = migrated_project
         assert report.success
         backup_dir = root / ".kittify" / _BACKUP_DIR_NAME
         assert not backup_dir.exists(), "Backup should be cleaned up after success"
