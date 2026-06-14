@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KV283Z5KXJY5YE9DY2482Z8W", "profile_id": "planner-priti", "action": "plan", "request_text": "Strangle epic #391: re-evaluate, enhance, rehome its children to functional epics", "actor": "claude", "mode_of_work": "advisory", "governance_context_hash": "b1d80e23116414c0", "governance_context_available": true, "started_at": "2026-06-14T05:01:54.436380+00:00"}
+{"event": "completed", "invocation_id": "01KV283Z5KXJY5YE9DY2482Z8W", "completed_at": "2026-06-14T05:15:14.044282+00:00", "outcome": "done", "closed_by": "agent"}
