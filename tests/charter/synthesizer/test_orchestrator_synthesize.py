@@ -310,6 +310,89 @@ class TestIdempotency:
 
 
 # ---------------------------------------------------------------------------
+# #1912: No-op-stable synthesis — repeated synthesis of an unchanged pack
+# must not churn provenance/manifest bytes (no spurious timestamp/version
+# rewrites that dirty the tree on every governed run).
+# ---------------------------------------------------------------------------
+
+
+class TestNoOpStableSynthesis:
+    """#1912: re-synthesizing an unchanged pack leaves provenance/manifest bytes intact."""
+
+    def _request_with_run_id(
+        self,
+        run_id: str,
+        full_interview_snapshot: dict,
+        minimal_doctrine_snapshot: dict,
+        minimal_drg_snapshot: dict,
+    ) -> SynthesisRequest:
+        target = SynthesisTarget(
+            kind="directive",
+            slug="mission-type-scope-directive",
+            title="Mission Type Scope Directive",
+            artifact_id="PROJECT_001",
+            source_section="mission_type",
+        )
+        return SynthesisRequest(
+            target=target,
+            interview_snapshot=full_interview_snapshot,
+            doctrine_snapshot=minimal_doctrine_snapshot,
+            drg_snapshot=minimal_drg_snapshot,
+            run_id=run_id,
+            adapter_hints={"language": "python"},
+        )
+
+    def test_resynthesis_leaves_provenance_and_manifest_byte_identical(
+        self,
+        full_interview_snapshot: dict,
+        minimal_doctrine_snapshot: dict,
+        minimal_drg_snapshot: dict,
+        adapter: FixtureAdapter,
+        tmp_path: Path,
+    ) -> None:
+        """Synthesize, capture bytes, re-synthesize an unchanged pack → no churn.
+
+        A second governed run carries a different ``run_id`` (as every real
+        invocation does) but identical semantic inputs. The committed provenance
+        sidecars and synthesis manifest must remain byte-for-byte unchanged so
+        the working tree stays clean (#1912).
+        """
+        from charter.synthesizer.manifest import MANIFEST_PATH
+
+        req_a = self._request_with_run_id(
+            "01AAAAAAAAAAAAAAAAAAAAAAAAA",
+            full_interview_snapshot,
+            minimal_doctrine_snapshot,
+            minimal_drg_snapshot,
+        )
+        synthesize(req_a, adapter=adapter, repo_root=tmp_path)
+
+        prov_dir = tmp_path / ".kittify" / "charter" / "provenance"
+        manifest_file = tmp_path / MANIFEST_PATH
+
+        before = {p.name: p.read_bytes() for p in sorted(prov_dir.glob("*.yaml"))}
+        before["__manifest__"] = manifest_file.read_bytes()
+
+        req_b = self._request_with_run_id(
+            "01BBBBBBBBBBBBBBBBBBBBBBBBB",
+            full_interview_snapshot,
+            minimal_doctrine_snapshot,
+            minimal_drg_snapshot,
+        )
+        synthesize(req_b, adapter=adapter, repo_root=tmp_path)
+
+        after = {p.name: p.read_bytes() for p in sorted(prov_dir.glob("*.yaml"))}
+        after["__manifest__"] = manifest_file.read_bytes()
+
+        assert after.keys() == before.keys(), "artifact set changed on no-op re-synthesis"
+        churned = [name for name in before if before[name] != after[name]]
+        assert churned == [], (
+            f"No-op re-synthesis churned files (#1912): {churned}. "
+            "Provenance/manifest bytes must be stable when nothing changed."
+        )
+
+
+# ---------------------------------------------------------------------------
 # EC-7: Duplicate target detection
 # ---------------------------------------------------------------------------
 

@@ -1,0 +1,3 @@
+{"event": "started", "invocation_id": "01KV0PM6R24388H42RYAM3KTVJ", "profile_id": "python-pedro", "action": "generate", "request_text": "Audit self-write/non-idempotent surfaces for the no-op-stable finalization (#1912/#1913)", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "3200a46c535a9701", "governance_context_available": true, "started_at": "2026-06-13T14:36:57.954123+00:00"}
+{"event": "completed", "invocation_id": "01KV0PM6R24388H42RYAM3KTVJ", "completed_at": "2026-06-13T14:40:00.235187+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "artifact_link", "invocation_id": "01KV0PM6R24388H42RYAM3KTVJ", "at": "2026-06-13T14:40:00.235380+00:00", "kind": "artifact", "ref": "/tmp/charter-noopstable-research/pedro-surfaces.md"}

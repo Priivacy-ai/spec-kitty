@@ -12,6 +12,8 @@ Covers:
 from __future__ import annotations
 
 import hashlib
+import subprocess
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -40,7 +42,7 @@ from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 @pytest.fixture
 def fixture_root() -> Path:
@@ -148,6 +150,28 @@ def _artifact_hashes_from_manifest(
     }
 
 
+def _git(repo: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", *args],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+
+def _init_git_repo(repo: Path) -> None:
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "resynthesize@test.local")
+    _git(repo, "config", "user.name", "resynthesize")
+    _git(repo, "config", "commit.gpgsign", "false")
+
+
+def _commit_all(repo: Path, message: str) -> None:
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", message)
+
+
 # ---------------------------------------------------------------------------
 # Baseline test: prior synthesis produces a manifest
 # ---------------------------------------------------------------------------
@@ -213,16 +237,29 @@ class TestUs3KindSlug:
         assert len(result.resolved_topic.targets) == 1
         assert result.resolved_topic.targets[0].slug == "how-we-apply-directive-003"
 
-    def test_resynthesize_kind_slug_returns_new_manifest(
+    def test_resynthesize_kind_slug_is_no_op_stable_when_content_unchanged(
         self,
         base_request: SynthesisRequest,
         adapter: FixtureAdapter,
         repo_with_prior_synthesis: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """After resynthesis, manifest is rewritten with a new run_id."""
+        """Unchanged bounded resynthesis returns the persisted manifest and leaves git clean."""
         repo = repo_with_prior_synthesis
         prior_manifest = load_manifest(repo / MANIFEST_PATH)
         prior_run_id = prior_manifest.run_id
+        _init_git_repo(repo)
+        _commit_all(repo, "baseline synthesis")
+        assert _git(repo, "status", "--porcelain") == ""
+
+        from charter.synthesizer import project_drg
+
+        class _LaterDatetime:
+            @classmethod
+            def now(cls, tz: object = None) -> datetime:
+                return datetime(2026, 6, 15, 12, 0, 0, tzinfo=UTC)
+
+        monkeypatch.setattr(project_drg, "datetime", _LaterDatetime)
 
         result = resynthesize_run(
             request=base_request,
@@ -230,10 +267,12 @@ class TestUs3KindSlug:
             topic="tactic:how-we-apply-directive-003",
             repo_root=repo,
         )
+        disk_manifest = load_manifest(repo / MANIFEST_PATH)
 
-        # New run_id
-        assert result.manifest.run_id != prior_run_id
-        verify_manifest_hash(load_manifest(repo / MANIFEST_PATH))
+        assert disk_manifest.run_id == prior_run_id
+        assert result.manifest.model_dump(mode="python") == disk_manifest.model_dump(mode="python")
+        assert _git(repo, "status", "--porcelain") == ""
+        verify_manifest_hash(disk_manifest)
 
     def test_resynthesize_kind_slug_preserves_unrelated_hashes(
         self,

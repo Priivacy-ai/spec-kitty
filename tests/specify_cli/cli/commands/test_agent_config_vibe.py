@@ -22,13 +22,6 @@ from specify_cli.skills import command_installer, manifest_store
 pytestmark = [pytest.mark.integration, pytest.mark.non_sandbox]  # non_sandbox: subprocess CLI invocation
 runner = CliRunner()
 
-# ---------------------------------------------------------------------------
-# Root of the real spec-kitty repo (used to resolve command templates).
-# ---------------------------------------------------------------------------
-
-_REPO_ROOT = Path(__file__).parent.parent.parent.parent.parent
-
-
 def _write_config(tmp_path: Path, agents: list[str]) -> None:
     kittify = tmp_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
@@ -36,19 +29,11 @@ def _write_config(tmp_path: Path, agents: list[str]) -> None:
     save_agent_config(tmp_path, config)
 
 
-def _missions_available() -> bool:
-    """Return True when the real command templates exist (local dev environment)."""
-    return (_REPO_ROOT / "src" / "specify_cli" / "missions").is_dir()
-
-
-def _setup_missions_symlink(tmp_path: Path) -> None:
-    """Symlink src/specify_cli/missions into tmp_path so templates resolve."""
-    missions_src = _REPO_ROOT / "src" / "specify_cli" / "missions"
-    missions_dst = tmp_path / "src" / "specify_cli"
-    missions_dst.mkdir(parents=True, exist_ok=True)
-    missions_link = missions_dst / "missions"
-    if not missions_link.exists():
-        missions_link.symlink_to(missions_src)
+def _expected_command_skill_paths() -> set[str]:
+    return {
+        f".agents/skills/spec-kitty.{command}/SKILL.md"
+        for command in command_installer.CANONICAL_COMMANDS
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -106,19 +91,19 @@ def test_add_vibe_idempotent(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(not _missions_available(), reason="command templates not available")
 def test_remove_vibe_only(tmp_path: Path) -> None:
     """remove vibe from vibe-only project: manifest empty, skill dirs gone."""
     _write_config(tmp_path, ["vibe"])
-    _setup_missions_symlink(tmp_path)
 
-    # Install vibe skills
+    # Match init/config-add behavior for command-skill agents: command skills
+    # are rendered into the shared .agents/skills/ root.
+    expected_paths = _expected_command_skill_paths()
     report = command_installer.install(tmp_path, "vibe")
-    assert len(report.added) == 11
+    assert set(report.added) == expected_paths
 
     # Verify files exist before removal
     manifest = manifest_store.load(tmp_path)
-    assert len(manifest.entries) == 11
+    assert {entry.path for entry in manifest.entries} == expected_paths
     for entry in manifest.entries:
         assert (tmp_path / entry.path).exists()
 
@@ -149,19 +134,18 @@ def test_remove_vibe_only(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(not _missions_available(), reason="command templates not available")
 def test_remove_vibe_leaves_codex_entries(tmp_path: Path) -> None:
     """remove vibe when codex+vibe configured: codex manifest entries remain."""
     _write_config(tmp_path, ["codex", "vibe"])
-    _setup_missions_symlink(tmp_path)
 
     # Install codex first, then vibe (shared root — same files, two agents)
     command_installer.install(tmp_path, "codex")
     command_installer.install(tmp_path, "vibe")
 
     # After both installs, all entries should have agents == ("codex", "vibe")
+    expected_paths = _expected_command_skill_paths()
     manifest_before = manifest_store.load(tmp_path)
-    assert len(manifest_before.entries) == 11
+    assert {entry.path for entry in manifest_before.entries} == expected_paths
     for entry in manifest_before.entries:
         assert "codex" in entry.agents
         assert "vibe" in entry.agents
@@ -177,10 +161,11 @@ def test_remove_vibe_leaves_codex_entries(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.output
 
-    # Manifest must still have 12 entries — codex still owns them
+    # Manifest must still have all command-skill entries — codex still owns them
     manifest_after = manifest_store.load(tmp_path)
-    assert len(manifest_after.entries) == 11, (
-        f"Expected 12 entries (codex still present); got {len(manifest_after.entries)}"
+    assert {entry.path for entry in manifest_after.entries} == expected_paths, (
+        "Expected codex-owned command-skill entries to remain; got "
+        f"{[entry.path for entry in manifest_after.entries]}"
     )
 
     # All entries must be codex-only now
