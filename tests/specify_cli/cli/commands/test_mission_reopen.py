@@ -235,34 +235,43 @@ def test_reopen_recoverable_when_only_worktree_missing(
     assert len([e for e in events if e.get("event_type") == MISSION_REOPENED]) == 1
 
 
-def test_format_post_mission_events_renders_reopen_and_follow_up() -> None:
+def test_format_post_mission_events_renders_reopen_and_follow_up(
+    tmp_path: Path,
+) -> None:
     # T009: the views.py renderer produces human-readable history lines.
+    # Build the input via the CANONICAL emit path (emit_* → read back the
+    # persisted envelopes) rather than hand-rolling event dicts, so the test
+    # fixture stays in lock-step with the producer contract.
     from specify_cli.status.lifecycle_events import (
-        FOLLOW_UP_RECORDED as _FUR,
+        emit_follow_up_recorded,
+        emit_mission_reopened,
+        mission_event_log_path,
+        read_lifecycle_events,
     )
     from specify_cli.status.views import format_post_mission_events
 
-    events = [
-        {
-            "event_type": MISSION_REOPENED,
-            "timestamp": "2026-03-01T00:00:00+00:00",
-            "payload": {
-                "reopened_by": "operator",
-                "reason": "residual fix",
-                "reopened_at": "2026-03-01T00:00:00+00:00",
-            },
-        },
-        {
-            "event_type": _FUR,
-            "timestamp": "2026-03-02T00:00:00+00:00",
-            "payload": {
-                "follow_up_type": "pr",
-                "pr_number": 42,
-                "recorded_by": "claude",
-                "recorded_at": "2026-03-02T00:00:00+00:00",
-            },
-        },
-    ]
+    feature_dir = tmp_path / "kitty-specs" / f"demo-{_MID8}"
+    feature_dir.mkdir(parents=True)
+
+    emit_mission_reopened(
+        feature_dir,
+        mission_id=_ULID,
+        mission_slug=feature_dir.name,
+        reason="residual fix",
+        reopened_by="operator",
+        reopened_at="2026-03-01T00:00:00+00:00",
+    )
+    emit_follow_up_recorded(
+        feature_dir,
+        mission_id=_ULID,
+        mission_slug=feature_dir.name,
+        follow_up_type="pr",
+        pr_number=42,
+        recorded_by="claude",
+        recorded_at="2026-03-02T00:00:00+00:00",
+    )
+
+    events = read_lifecycle_events(mission_event_log_path(feature_dir))
     lines = format_post_mission_events(events)
     assert any("re-opened by operator" in line and "residual fix" in line for line in lines)
     assert any("follow-up PR #42 by claude" in line for line in lines)

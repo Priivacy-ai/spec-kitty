@@ -853,6 +853,28 @@ _Query workspace context information_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty dispatch
+
+_Dispatch a request to a profile-governed Op (canonical surface)._
+
+```
+ Usage: spec-kitty dispatch [OPTIONS] REQUEST
+
+ Dispatch a request to a profile-governed Op (canonical surface).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    request      TEXT  Natural language request. The router picks the best  │
+│                         profile.                                             │
+│                         [required]                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --profile        TEXT  Optional profile ID. Bypasses the router — use when   │
+│                        the request is ambiguous.                             │
+│ --json                 Output JSON payload                                   │
+│ --help                 Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty do
 
 _Route a request to the best-matching profile (anonymous dispatch)._
@@ -861,7 +883,6 @@ _Route a request to the best-matching profile (anonymous dispatch)._
  Usage: spec-kitty do [OPTIONS] REQUEST
 
  Route a request to the best-matching profile (anonymous dispatch).
- Pass --profile to bypass routing when the request verb is ambiguous.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    request      TEXT  Natural language request. The router picks the best  │
@@ -869,10 +890,10 @@ _Route a request to the best-matching profile (anonymous dispatch)._
 │                         [required]                                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --profile TEXT  Optional profile ID. Bypasses the router — use when the     │
-│                 request is ambiguous (e.g. multiple implementer profiles).   │
-│ --json          Output JSON payload                                          │
-│ --help          Show this message and exit.                                  │
+│ --profile        TEXT  Optional profile ID. Bypasses the router — use when   │
+│                        the request is ambiguous.                             │
+│ --json                 Output JSON payload                                   │
+│ --help                 Show this message and exit.                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -902,7 +923,8 @@ _Project health diagnostics_
 │ shim-registry       Check for overdue compatibility shims in the shim        │
 │                     registry.                                                │
 │ invocation-pairing  List orphan profile-invocation lifecycle records.        │
-│ ops                 List orphan Op records.                                  │
+│ ops                 List orphan Op records; --close-stale sweeps stale ones  │
+│                     closed as abandoned.                                     │
 │ orphan-daemons      List orphan daemon owner records and emit retirement     │
 │                     hints.                                                   │
 │ restart-daemon      Stop the registered sync daemon and respawn it at the    │
@@ -1079,11 +1101,15 @@ _Project health diagnostics_
 ```
  Usage: spec-kitty doctor ops [OPTIONS]
 
- List orphan Op records.
+ List orphan Op records; --close-stale sweeps stale ones closed as abandoned.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json          Machine-readable JSON output                                 │
-│ --help          Show this message and exit.                                  │
+│ --json                      Machine-readable JSON output                     │
+│ --close-stale               Close open Ops older than --threshold as         │
+│                             abandoned (closed_by=doctor_sweep)               │
+│ --threshold          FLOAT  Staleness threshold in hours (default 24; 0      │
+│                             closes all). Requires --close-stale.             │
+│ --help                      Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1269,34 +1295,16 @@ _Manage org-layer doctrine packs_
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ fetch         Fetch org doctrine pack(s) from their configured remote        │
-│               sources.                                                       │
-│ new           Scaffold a stub doctrine artifact YAML (FR-016).               │
-│ validate      Validate project-layer doctrine artifacts against their       │
-│               schemas (FR-017).                                              │
-│ pack          Validate or assemble doctrine packs.                           │
-│ org           Manage org-layer doctrine pack authoring (init, validate).     │
-│ mission-type  Mission type commands.                                         │
-│ regenerate-graph  Regenerate the shipped built-in DRG graph.yaml             │
-│               deterministically (FR-009); --check verifies freshness         │
-│               without writing (exit 1 when stale).                           │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine regenerate-graph
-
-```
- Usage: spec-kitty doctrine regenerate-graph [OPTIONS]
-
- Regenerate src/doctrine/graph.yaml from the built-in doctrine artifacts via
- the deterministic extractor (sorted iteration, no timestamps). The operator
- twin of the test_shipped_graph_yaml_is_fresh gate.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --check         Regenerate to a temp file and byte-compare against the      │
-│                 committed graph; exit 1 when stale or invalid.              │
-│ --json          Emit a machine-readable result.                             │
-│ --help          Show this message and exit.                                 │
+│ fetch             Fetch org doctrine pack(s) from their configured remote    │
+│                   sources.                                                   │
+│ regenerate-graph  Regenerate the shipped DRG ``graph.yaml``                  │
+│                   deterministically (FR-009).                                │
+│ new               Scaffold a stub doctrine artifact YAML (FR-016).           │
+│ validate          Validate project-layer doctrine artifacts against their    │
+│                   schemas (FR-017).                                          │
+│ pack              Validate or assemble doctrine packs.                       │
+│ org               Manage org-layer doctrine pack authoring (init, validate). │
+│ mission-type      Mission type commands.                                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1511,6 +1519,28 @@ _Validate or assemble doctrine packs._
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json          Emit machine-readable JSON instead of rich text.             │
 │ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine regenerate-graph
+
+```
+ Usage: spec-kitty doctrine regenerate-graph [OPTIONS]
+
+ Regenerate the shipped DRG ``graph.yaml`` deterministically (FR-009).
+
+ Composes the DRG extractor + calibrator into ``src/doctrine/graph.yaml``.
+ Running twice on unchanged inputs yields byte-identical output. With
+ ``--check`` the command never writes: it regenerates into a temp file and
+ compares against the committed graph, exiting non-zero when stale — the
+ operator-facing twin of the ``test_shipped_graph_yaml_is_fresh`` gate.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --check          Do not write; regenerate into a temp file and compare       │
+│                  against the committed graph.yaml. Exit 1 when stale         │
+│                  (operator-runnable freshness gate). Exit 0 when fresh.      │
+│ --json           Emit machine-readable JSON instead of rich text.            │
+│ --help           Show this message and exit.                                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2126,21 +2156,25 @@ _Inspect mission types for this project._
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ list     List activated mission types for the current project                │
-│          (FR-016).                                                           │
-│ current  Show currently active mission for a mission                         │
-│          (auto-detects mission from cwd).                                    │
-│ info     Show details for a specific mission without                         │
-│          switching.                                                          │
-│ create   Fetch a tracker ticket and prepare it as a mission                  │
-│          brief.                                                              │
-│ run      Start (or attach to) a runtime for a                                │
-│          project-authored custom mission definition.                         │
-│ close    Close a mission. Wraps FR-016 lifecycle teardown.                   │
-│ switch   [REMOVED] Switch active mission - this command was    (deprecated)  │
-│          removed in v0.8.0.                                                  │
-│ show     Show the fully resolved MissionType definition for                  │
-│          this project (FR-017).                                              │
+│ list       List activated mission types for the current                      │
+│            project (FR-016).                                                 │
+│ current    Show currently active mission for a mission                       │
+│            (auto-detects mission from cwd).                                  │
+│ info       Show details for a specific mission without                       │
+│            switching.                                                        │
+│ create     Fetch a tracker ticket and prepare it as a mission                │
+│            brief.                                                            │
+│ run        Start (or attach to) a runtime for a                              │
+│            project-authored custom mission definition.                       │
+│ close      Close a mission. Wraps FR-016 lifecycle teardown.                 │
+│ reopen     Re-open a merged/closed mission, returning it to                  │
+│            an actionable state (FR-002).                                     │
+│ follow-up  Record a follow-up commit or PR against a mission                 │
+│            (FR-001).                                                         │
+│ switch     [REMOVED] Switch active mission - this command was  (deprecated)  │
+│            removed in v0.8.0.                                                │
+│ show       Show the fully resolved MissionType definition for                │
+│            this project (FR-017).                                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2214,6 +2248,31 @@ _Inspect mission types for this project._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty mission follow-up
+
+```
+ Usage: spec-kitty mission follow-up [OPTIONS] HANDLE
+
+ Record a follow-up commit or PR against a mission (FR-001).
+
+ Exactly one of ``--commit <40-hex>`` / ``--pr <int>`` must be supplied.
+ Appends a ``FollowUpRecorded`` lifecycle event attributed to ``mission_id``.
+ Allowed in ANY mission state (passive post-merge follow-ups are valid) and
+ idempotent on its dedup key ``(mission_id, commit_sha | pr_number)`` —
+ re-recording the same reference is a successful no-op.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    handle      TEXT  Mission handle: mission_id (ULID), mid8, or slug.     │
+│                        [required]                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --commit        TEXT     40-hex commit SHA of the follow-up.                 │
+│ --pr            INTEGER  Pull-request number of the follow-up.               │
+│ --json                   Emit a JSON envelope instead of a rich panel.       │
+│ --help                   Show this message and exit.                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty mission info
 
 ```
@@ -2245,6 +2304,37 @@ _Inspect mission types for this project._
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json          Output as JSON.                                              │
 │ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty mission reopen
+
+```
+ Usage: spec-kitty mission reopen [OPTIONS] HANDLE
+
+ Re-open a merged/closed mission, returning it to an actionable state (FR-002).
+
+ Appends a ``MissionReopened`` lifecycle event (the authority for
+ actionability — ``derive_mission_lifecycle`` reports the ``reopened``
+ surface_state) and clears the ``merged_*`` markers from ``meta.json``. Does
+ NOT mutate WP lanes — the operator repositions WPs explicitly afterwards.
+
+ Fail-closed (NFR-004): the mission is unrecoverable when ``meta.json`` is
+ absent/corrupt OR the mission branch resolves in neither the local repo nor
+ any configured remote. A missing worktree directory alone is recoverable. On
+ unrecoverable input the command exits non-zero with a remediation hint and
+ writes no event / no metadata change.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    handle      TEXT  Mission handle: mission_id (ULID), mid8, or slug.     │
+│                        [required]                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --reason        TEXT  Why the mission is being re-opened (required,       │
+│                          audited).                                           │
+│                          [required]                                          │
+│    --json                Emit a JSON envelope instead of a rich panel.       │
+│    --help                Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2329,21 +2419,25 @@ _Inspect mission types for this project._
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ list     List activated mission types for the current project                │
-│          (FR-016).                                                           │
-│ current  Show currently active mission for a mission                         │
-│          (auto-detects mission from cwd).                                    │
-│ info     Show details for a specific mission without                         │
-│          switching.                                                          │
-│ create   Fetch a tracker ticket and prepare it as a mission                  │
-│          brief.                                                              │
-│ run      Start (or attach to) a runtime for a                                │
-│          project-authored custom mission definition.                         │
-│ close    Close a mission. Wraps FR-016 lifecycle teardown.                   │
-│ switch   [REMOVED] Switch active mission - this command was    (deprecated)  │
-│          removed in v0.8.0.                                                  │
-│ show     Show the fully resolved MissionType definition for                  │
-│          this project (FR-017).                                              │
+│ list       List activated mission types for the current                      │
+│            project (FR-016).                                                 │
+│ current    Show currently active mission for a mission                       │
+│            (auto-detects mission from cwd).                                  │
+│ info       Show details for a specific mission without                       │
+│            switching.                                                        │
+│ create     Fetch a tracker ticket and prepare it as a mission                │
+│            brief.                                                            │
+│ run        Start (or attach to) a runtime for a                              │
+│            project-authored custom mission definition.                       │
+│ close      Close a mission. Wraps FR-016 lifecycle teardown.                 │
+│ reopen     Re-open a merged/closed mission, returning it to                  │
+│            an actionable state (FR-002).                                     │
+│ follow-up  Record a follow-up commit or PR against a mission                 │
+│            (FR-001).                                                         │
+│ switch     [REMOVED] Switch active mission - this command was  (deprecated)  │
+│            removed in v0.8.0.                                                │
+│ show       Show the fully resolved MissionType definition for                │
+│            this project (FR-017).                                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2417,6 +2511,31 @@ _Inspect mission types for this project._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty mission-type follow-up
+
+```
+ Usage: spec-kitty mission-type follow-up [OPTIONS] HANDLE
+
+ Record a follow-up commit or PR against a mission (FR-001).
+
+ Exactly one of ``--commit <40-hex>`` / ``--pr <int>`` must be supplied.
+ Appends a ``FollowUpRecorded`` lifecycle event attributed to ``mission_id``.
+ Allowed in ANY mission state (passive post-merge follow-ups are valid) and
+ idempotent on its dedup key ``(mission_id, commit_sha | pr_number)`` —
+ re-recording the same reference is a successful no-op.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    handle      TEXT  Mission handle: mission_id (ULID), mid8, or slug.     │
+│                        [required]                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --commit        TEXT     40-hex commit SHA of the follow-up.                 │
+│ --pr            INTEGER  Pull-request number of the follow-up.               │
+│ --json                   Emit a JSON envelope instead of a rich panel.       │
+│ --help                   Show this message and exit.                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty mission-type info
 
 ```
@@ -2448,6 +2567,37 @@ _Inspect mission types for this project._
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json          Output as JSON.                                              │
 │ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty mission-type reopen
+
+```
+ Usage: spec-kitty mission-type reopen [OPTIONS] HANDLE
+
+ Re-open a merged/closed mission, returning it to an actionable state (FR-002).
+
+ Appends a ``MissionReopened`` lifecycle event (the authority for
+ actionability — ``derive_mission_lifecycle`` reports the ``reopened``
+ surface_state) and clears the ``merged_*`` markers from ``meta.json``. Does
+ NOT mutate WP lanes — the operator repositions WPs explicitly afterwards.
+
+ Fail-closed (NFR-004): the mission is unrecoverable when ``meta.json`` is
+ absent/corrupt OR the mission branch resolves in neither the local repo nor
+ any configured remote. A missing worktree directory alone is recoverable. On
+ unrecoverable input the command exits non-zero with a remediation hint and
+ writes no event / no metadata change.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    handle      TEXT  Mission handle: mission_id (ULID), mid8, or slug.     │
+│                        [required]                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --reason        TEXT  Why the mission is being re-opened (required,       │
+│                          audited).                                           │
+│                          [required]                                          │
+│    --json                Emit a JSON envelope instead of a rich panel.       │
+│    --help                Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2823,7 +2973,8 @@ _Manage invocation records._
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ complete  Close an open invocation record. Only --invocation-id is required. │
+│ complete  Close an open invocation record. --invocation-id and --outcome are │
+│           required.                                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2832,7 +2983,7 @@ _Manage invocation records._
 ```
  Usage: spec-kitty profile-invocation complete [OPTIONS]
 
- Close an open invocation record. Only --invocation-id is required.
+ Close an open invocation record. --invocation-id and --outcome are required.
 
  Use --artifact (repeatable) to link output artifacts to this invocation.
  Use --commit (singular) to link the primary git commit produced.
@@ -2841,7 +2992,7 @@ _Manage invocation records._
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --invocation-id  -i      TEXT  Invocation ULID to close [required]        │
-│    --outcome                TEXT  done | failed | abandoned                  │
+│ *  --outcome                TEXT  done | failed | abandoned [required]       │
 │    --evidence               TEXT  Path to evidence file (Tier 2 promotion)   │
 │    --artifact               TEXT  Path (repo-relative or absolute) of an     │
 │                                   artifact produced by this invocation.      │
@@ -3008,8 +3159,8 @@ _Cross-mission retrospective summary._
 
  Cross-mission retrospective summary.
 
- Reads .kittify/missions/*/retrospective.yaml and
- kitty-specs/*/status.events.jsonl to produce a cross-mission view.
+ Reads kitty-specs/*/retrospective.yaml and kitty-specs/*/status.events.jsonl
+ to produce a cross-mission view.
 
  Distinguishes four record states: has_findings / ran_no_findings / missing /
  failed.
@@ -3070,19 +3221,21 @@ _Cross-mission retrospective summary._
  Commit only the requested files via Spec Kitty's safe-commit path.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    files      FILES...  Files to commit, relative to the current worktree  │
-│                           root or absolute.                                  │
+│ *    files      FILES...  Files or directories to commit, relative to the    │
+│                           current worktree root or absolute. Directory       │
+│                           arguments expand to their contained                │
+│                           changed/untracked files with an explicit expansion │
+│                           report.                                            │
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --message    -m      TEXT  Commit message. [required]                     │
-│    --to-branch          TEXT  Short branch name the commit must land on      │
-│                               (required). The helper asserts HEAD matches    │
-│                               this branch before staging. For legacy         │
-│                               scripts, set                                   │
-│                               SPEC_KITTY_INFER_DESTINATION_REF=1 to fall     │
-│                               back to current-HEAD inference (deprecated;    │
-│                               removed in v3.3).                              │
+│    --to-branch          TEXT  Short branch name the commit must land on. The │
+│                               helper asserts HEAD matches this branch before │
+│                               staging. When omitted, the current HEAD branch │
+│                               is used (deprecated; --to-branch becomes       │
+│                               required in v3.3). This is the only            │
+│                               destination authority — no env-var inference.  │
 │    --json                     Output JSON                                    │
 │    --help                     Show this message and exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
