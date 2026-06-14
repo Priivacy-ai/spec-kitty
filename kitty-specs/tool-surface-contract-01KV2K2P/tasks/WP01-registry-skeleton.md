@@ -125,20 +125,30 @@ The ToolSurfaceContract registry is the central new concept of this epic. It ans
 
 ```python
 class SurfaceKind(StrEnum):
-    COMMAND_SKILL = "command_skill"
-    DOCTRINE_SKILL = "doctrine_skill"
-    SESSION_PRESENCE = "session_presence"
-    AGENT_PROFILE = "agent_profile"
-    PLUGIN_MANIFEST = "plugin_manifest"
-    NATIVE_CONFIG = "native_config"
-    COMMAND_FILE = "command_file"
+    # Full 13-value enum — do NOT add a SESSION_PRESENCE value;
+    # session_presence is a provider name, not a SurfaceKind.
+    CONTEXT_FILE = "context_file"       # always-on orientation/context file (CLAUDE.md, AGENTS.md)
+    RULE = "rule"                        # rules/steering file
+    COMMAND_FILE = "command_file"        # slash-command file in global command directory
+    COMMAND_SKILL = "command_skill"      # slash-command invocation skill
+    DOCTRINE_SKILL = "doctrine_skill"    # managed knowledge/mission-step skill
+    WORKFLOW = "workflow"                # workflow definition file
+    AGENT_PROFILE = "agent_profile"      # host-native agent/subagent file
+    PLUGIN_MANIFEST = "plugin_manifest"  # plugin bundle manifest
+    MCP_SERVER = "mcp_server"            # MCP server config entry
+    HOOK = "hook"                        # tool hook entry
+    NATIVE_CONFIG = "native_config"      # tool-specific config glue
+    MEMORY = "memory"                    # persistent memory file
+    SETTING = "setting"                  # tool settings entry
 
 class SourceKind(StrEnum):
     CHECKED_IN = "checked_in"
     GENERATED = "generated"
     USER_GLOBAL = "user_global"
+    TEAM_GLOBAL = "team_global"
     PACKAGE = "package"
     PLUGIN = "plugin"
+    EXTERNAL_REGISTRY = "external_registry"
 
 class InstallScope(StrEnum):
     PROJECT = "project"
@@ -174,10 +184,11 @@ class RequiredPolicy(StrEnum):
     RESEARCH_GAP = "research_gap"
 ```
 
-**Files**: `src/specify_cli/tool_surface/enums.py` (new, ~60 lines)
+**Files**: `src/specify_cli/tool_surface/enums.py` (new, ~90 lines)
 
 **Validation**:
 - [ ] All enums have `StrEnum` base (Python 3.11+)
+- [ ] `SurfaceKind` has exactly 13 values; `SESSION_PRESENCE` is NOT one of them
 - [ ] `mypy --strict` passes on this file
 - [ ] No imports from other `specify_cli` modules (this file has zero runtime dependencies)
 
@@ -187,57 +198,26 @@ class RequiredPolicy(StrEnum):
 
 **Purpose**: Define frozen dataclasses for the bounded context's core data structures.
 
-**Dataclasses to implement**:
+**Dataclasses to implement** (see `data-model.md` for the full canonical field lists):
 
-```python
-@dataclass(frozen=True)
-class SurfaceDefinition:
-    kind: SurfaceKind
-    source_kind: SourceKind
-    install_scope: InstallScope
-    path_pattern: str          # e.g. ".agents/skills/spec-kitty.{command}/SKILL.md"
-    required_policy: RequiredPolicy
-    activation_mode: ActivationMode
-    provider_key: str
-    repair_hint: str
+The authoritative field list is in `data-model.md`. Implement each of these:
 
-@dataclass(frozen=True)
-class SurfaceInstance:
-    definition: SurfaceDefinition
-    path: Path
-    exists: bool
-    file_hash: str | None      # SHA-256 of file content, or None if absent/unhashable
-    owner: str
+- `ManifestRef` (5 fields: id, path, owner, schema_version, manifest_kind)
+- `InvocationSpec` (4 fields: pattern, examples, command_surface, argument_delivery)
+- `ProfileProjectionSpec` (5 fields: source_layers, native_format, path_template, include_sentinel_profiles, name_template)
+- `SurfaceDefinition` (20+ fields — see data-model.md; key: id, tool_key, variant, kind, provider, source_kind, install_scope, activation, required, path_template, expected_set, manifest, invocation, profile_projection, mutability, package_id, projection_id, docs_refs, test_refs, depends_on, plugin_components)
+- `SurfaceInstance` (12 fields — see data-model.md)
+- `SurfaceStatus` (3 fields: instance, state, findings)
+- `SurfaceFinding` (9 fields — see data-model.md; finding codes are kebab-case)
+- `SurfacePlan` (3 fields: config, definitions, instances)
+- `SurfaceReport` (7 fields: ok, schema_version, project_root, configured_tools, summary, surfaces, findings)
+- `SurfaceSummary` (6 fields: surfaces, present, missing, drifted, warnings, errors)
+- `RepairResult` (5 fields: repaired, skipped, failed, dry_run, findings_after)
+- `ToolHarness` (7 fields: key, display_name, variants, supported, docs_url, requires_cli, product_family)
 
-@dataclass(frozen=True)
-class SurfacePlan:
-    tool_key: str
-    instances: tuple[SurfaceInstance, ...]   # tuple for hashability
-    computed_at: str                          # ISO timestamp
+**Files**: `src/specify_cli/tool_surface/model.py` (new, ~180 lines)
 
-@dataclass(frozen=True)
-class SurfaceFinding:
-    code: str
-    tool_key: str
-    surface_kind: SurfaceKind
-    severity: str              # "error" | "warning" | "info" | "research_gap"
-    path: Path | None
-    repair_command: str | None
-    detail: str
-
-@dataclass(frozen=True)
-class NativeAgentProfile:
-    profile_urn: str
-    source_layer: str          # "builtin" | "org" | "project"
-    tool_key: str
-    output_path: Path
-    format: str
-    file_hash: str | None
-```
-
-**Files**: `src/specify_cli/tool_surface/model.py` (new, ~80 lines)
-
-**Important**: Use `tuple` not `list` for sequence fields in frozen dataclasses. Use `Path` from `pathlib`. All fields must be type-annotated. `mypy --strict` must pass.
+**Important**: Use `tuple` not `list` for sequence fields in frozen dataclasses. Use `Path` from `pathlib`. All fields must be type-annotated. `mypy --strict` must pass. Do NOT use `SESSION_PRESENCE` as a SurfaceKind value anywhere in this file.
 
 **Validation**:
 - [ ] All dataclasses are `frozen=True`

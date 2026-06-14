@@ -77,7 +77,7 @@ Session presence surfaces are always-on context or orientation files loaded at t
 - Windsurf/Devin: rules files
 - Kiro: steering files
 
-These are categorically different from command skills (slash-command invocations) and must be reported as `session_presence` kind in doctor output.
+These are categorically different from command skills (slash-command invocations) and must be reported as `context_file`, `hook`, or `rule` kinds in doctor output — NOT as a fictional `session_presence` kind. See the Objective section for the correct SurfaceKind mapping.
 
 ## Branch Strategy
 
@@ -99,16 +99,25 @@ These are categorically different from command skills (slash-command invocations
 - Session presence paths are per-tool and differ significantly between harnesses
 
 ```python
+_SESSION_PRESENCE_KINDS = frozenset({
+    SurfaceKind.CONTEXT_FILE,
+    SurfaceKind.HOOK,
+    SurfaceKind.RULE,
+})
+
 class SessionPresenceProvider:
     provider_key = "session_presence"
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
-        return definition.kind == SurfaceKind.SESSION_PRESENCE
+        # session_presence is a PROVIDER NAME, not a SurfaceKind.
+        # This provider handles context_file, hook, and rule kinds.
+        return definition.kind in _SESSION_PRESENCE_KINDS
 
     def expand(self, definition: SurfaceDefinition, tool_key: str, project_root: Path) -> list[SurfaceInstance]:
         # Get the writer for this tool key
-        # Ask it for the list of paths it manages
-        # Return SurfaceInstance for each
+        # Ask it for the list of paths it manages, tagged with the correct SurfaceKind
+        # (CONTEXT_FILE for CLAUDE.md/AGENTS.md, HOOK for settings entries, RULE for rules/steering)
+        # Return SurfaceInstance for each — kind from the writer's metadata, not hardcoded
         ...
 ```
 
@@ -147,13 +156,14 @@ This provider is narrower than session presence -- it handles config entries tha
 **Purpose**: Add session-presence finding generation to the status service.
 
 **Out-of-map edit to `status.py`** (owned by WP03):
-- Extend `compute_findings` to handle `SurfaceKind.SESSION_PRESENCE`
-- Use `TOOL_SURFACE_SESSION_PRESENCE_MISSING` finding code
+- Extend `compute_findings` to handle `SurfaceKind.CONTEXT_FILE`, `SurfaceKind.HOOK`, and `SurfaceKind.RULE`
+- Use finding codes `context-file-missing`, `session-presence-incomplete` from the stable code table
 
 **Out-of-map edit to `findings.py`** (owned by WP03):
-- `TOOL_SURFACE_SESSION_PRESENCE_MISSING` is already defined as placeholder -- verify it is there, document that this WP activates it
+- Confirm `context-file-missing` and `session-presence-incomplete` constants are present; document that this WP activates them
+- Do NOT use SCREAMING_SNAKE codes (`TOOL_SURFACE_SESSION_PRESENCE_MISSING`) — use the kebab-case codes from the stable table in data-model.md
 
-**Rationale for out-of-map**: WP04 is sequential after WP03; no parallel conflict. Session-presence kind must be handled alongside command-skill kind in the same `compute_findings` dispatch.
+**Rationale for out-of-map**: WP04 is sequential after WP03; no parallel conflict. Session-presence kinds must be handled alongside command-skill kind in the same `compute_findings` dispatch.
 
 **Validation**:
 - [ ] `spec-kitty doctor tool-surfaces --kind session-presence --json` returns session-presence findings
@@ -166,10 +176,11 @@ This provider is narrower than session presence -- it handles config entries tha
 **Purpose**: Add session-presence repair dispatch to `repair.py`.
 
 **Out-of-map edit to `repair.py`** (owned by WP03):
-- Add a case for `SurfaceKind.SESSION_PRESENCE` that delegates to `SessionPresenceProvider.repair()`
+- Add cases for `SurfaceKind.CONTEXT_FILE`, `SurfaceKind.HOOK`, and `SurfaceKind.RULE` that delegate to `SessionPresenceProvider.repair()`
 
 **Validation**:
-- [ ] `spec-kitty doctor tool-surfaces --kind session-presence --fix` repairs missing session presence files
+- [ ] `spec-kitty doctor tool-surfaces --kind context_file --fix` repairs missing context files
+- [ ] `spec-kitty doctor tool-surfaces --kind hook --fix` repairs missing hook entries
 - [ ] Does not affect command-skill repair behavior
 
 ---
@@ -181,8 +192,16 @@ This provider is narrower than session presence -- it handles config entries tha
 **Tests**:
 ```python
 # test_session_presence.py
-def test_session_presence_provider_can_handle_correct_kind():
-    definition = SurfaceDefinition(kind=SurfaceKind.SESSION_PRESENCE, ...)
+def test_session_presence_provider_can_handle_context_file():
+    definition = SurfaceDefinition(kind=SurfaceKind.CONTEXT_FILE, ...)
+    assert provider.can_handle(definition) is True
+
+def test_session_presence_provider_can_handle_hook():
+    definition = SurfaceDefinition(kind=SurfaceKind.HOOK, ...)
+    assert provider.can_handle(definition) is True
+
+def test_session_presence_provider_can_handle_rule():
+    definition = SurfaceDefinition(kind=SurfaceKind.RULE, ...)
     assert provider.can_handle(definition) is True
 
 def test_session_presence_provider_cannot_handle_command_skill():
@@ -207,9 +226,11 @@ def test_session_presence_probe_detects_missing_file():
 
 ## Definition of Done
 
-- [ ] `spec-kitty doctor tool-surfaces --kind session-presence --json` returns valid output
-- [ ] Session presence surfaces appear as `surface_kind: "session_presence"` (not `"command_skill"`)
-- [ ] `spec-kitty doctor tool-surfaces --kind session-presence --fix` repairs missing files
+- [ ] `spec-kitty doctor tool-surfaces --kind context_file --json` returns valid output
+- [ ] `spec-kitty doctor tool-surfaces --kind hook --json` returns valid output
+- [ ] `spec-kitty doctor tool-surfaces --kind rule --json` returns valid output
+- [ ] Session presence surfaces appear as distinct `surface_kind` values (`"context_file"`, `"hook"`, `"rule"`) — NOT as `"session_presence"` (there is no such SurfaceKind)
+- [ ] `spec-kitty doctor tool-surfaces --kind context_file --fix` repairs missing context files
 - [ ] `pytest tests/specify_cli/tool_surface/providers/test_session_presence.py` passes
 - [ ] WP02 migration compat tests pass
 - [ ] `mypy --strict src/specify_cli/tool_surface/` passes
@@ -221,6 +242,6 @@ def test_session_presence_probe_detects_missing_file():
 
 ## Reviewer Guidance (Codex)
 
-- Verify session presence is distinct from command skills in output (`surface_kind: "session_presence"`)
+- Verify session presence surfaces appear as `context_file`, `hook`, or `rule` kinds — NOT `session_presence` (no such SurfaceKind exists)
 - Verify null writers produce `RESEARCH_GAP` (not `error`)
 - Verify provider delegates to writer registry, not hardcoded paths
