@@ -6,7 +6,7 @@ source profile URN / tool / format. It mirrors the command-skills manifest
 pattern: the manifest is the *state* record (what was installed) separate from
 the projection *policy* (what should exist).
 
-Stored at ``.kittify/agent-profiles-manifest.json`` (NOT
+Stored at ``.kittify/agent_profiles_manifest.json`` (NOT
 ``tool-surface-profile-manifest.json``). The on-disk format is JSON with
 ``schema_version: 1``, sorted keys, and a stable entry ordering so it round-trips
 losslessly.
@@ -21,7 +21,7 @@ from specify_cli.skills.manifest_store import fingerprint, fingerprint_file
 
 from ..model import NativeAgentProfile
 
-MANIFEST_FILENAME = "agent-profiles-manifest.json"
+MANIFEST_FILENAME = "agent_profiles_manifest.json"
 _KITTIFY_DIR = ".kittify"
 SCHEMA_VERSION = 1
 

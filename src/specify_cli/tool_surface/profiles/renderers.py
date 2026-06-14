@@ -1,6 +1,6 @@
 """Per-harness renderers for native agent profile projection.
 
-Each renderer converts a resolved :class:`~doctrine.agent_profiles.profile.AgentProfile`
+Each renderer converts a resolved :class:`~charter.profiles.AgentProfile`
 into the file format a specific tool expects for a *named agent* (a subagent
 the user can pick from the tool's agent picker). A renderer owns three things:
 
@@ -20,7 +20,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from doctrine.agent_profiles.profile import AgentProfile
+from charter.profiles import AgentProfile
 
 # Native format identifiers (stable strings recorded in the manifest).
 FORMAT_CLAUDE_AGENT = "claude-agent"

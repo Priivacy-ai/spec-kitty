@@ -1,7 +1,7 @@
 """Project Spec Kitty agent profiles into host-native agent files.
 
 :class:`ProfileProjector` reads resolved profiles from an
-:class:`~doctrine.agent_profiles.repository.AgentProfileRepository` and renders
+:class:`~charter.profiles.AgentProfileRepository` and renders
 each into a :class:`~specify_cli.tool_surface.model.NativeAgentProfile` for a
 given tool, using the per-harness renderer registry in :mod:`.renderers`.
 
@@ -16,8 +16,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from doctrine.agent_profiles.profile import AgentProfile
-from doctrine.agent_profiles.repository import AgentProfileRepository
+from charter.profiles import AgentProfile, AgentProfileRepository
 
 from ..model import NativeAgentProfile
 from .renderers import ProfileRenderer, get_renderer
@@ -27,7 +26,7 @@ LAYER_BUILTIN = "builtin"
 LAYER_ORG = "org"
 LAYER_PROJECT = "project"
 
-_PROJECT_PROFILE_SUBDIR = ".kittify/agent-profiles"
+_PROJECT_PROFILE_SUBDIR = ".kittify/agent_profiles"
 
 
 def _profile_urn(profile: AgentProfile) -> str:
@@ -39,7 +38,7 @@ def default_profile_repository(project_root: Path) -> AgentProfileRepository:
     """Build the standard repository for ``project_root``.
 
     Built-in profiles always load from package data. Project overlay profiles
-    load from ``.kittify/agent-profiles/`` when that directory exists; it is
+    load from ``.kittify/agent_profiles/`` when that directory exists; it is
     passed through unconditionally because the repository treats a missing
     ``project_dir`` gracefully (no overlay).
     """

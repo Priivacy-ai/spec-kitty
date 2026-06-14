@@ -31,12 +31,12 @@ def _entry(slug: str, file_hash: str | None = "deadbeef") -> NativeAgentProfile:
 
 
 def test_manifest_filename_is_agent_profiles_manifest() -> None:
-    assert MANIFEST_FILENAME == "agent-profiles-manifest.json"
+    assert MANIFEST_FILENAME == "agent_profiles_manifest.json"
 
 
 def test_manifest_path_is_under_kittify(tmp_path: Path) -> None:
     path = manifest_path_for(tmp_path)
-    assert path == tmp_path / ".kittify" / "agent-profiles-manifest.json"
+    assert path == tmp_path / ".kittify" / "agent_profiles_manifest.json"
 
 
 def test_hash_content_matches_canonical_fingerprint() -> None:

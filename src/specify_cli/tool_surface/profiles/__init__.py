@@ -1,10 +1,10 @@
 """Native agent profile projection for the tool surface contract.
 
 This subpackage projects Spec Kitty agent profiles (resolved by
-:class:`doctrine.agent_profiles.repository.AgentProfileRepository`) into
+:class:`charter.profiles.AgentProfileRepository`) into
 host-native agent/subagent files (e.g. ``.claude/agents/<id>.md``,
 ``.github/agents/<id>.agent.md``) and tracks the projected files in a manifest
-at ``.kittify/agent-profiles-manifest.json``.
+at ``.kittify/agent_profiles_manifest.json``.
 
 The projection layer sits *on top of* the profile loading/scoring model: it
 never mutates :class:`AgentProfileRepository` or the profile resolution graph,
