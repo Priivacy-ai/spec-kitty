@@ -34,7 +34,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from kernel.atomic import substantively_equal as _substantively_equal_core
 
@@ -134,7 +134,9 @@ def _artifact_id_from_provenance(prov: ProvenanceEntry) -> str | None:
         )
     if artifact_id == "PROJECT_000":
         raise ValueError("Directive provenance must not surface PROJECT_000")
-    return artifact_id
+    # cast: charter.* follow_imports=skip collapses prov.artifact_urn to Any,
+    # making partition() return Any; str is guaranteed by the guard above.
+    return cast("str | None", artifact_id)
 
 
 def compute_written_artifacts(
@@ -198,12 +200,16 @@ def _artifact_filename(kind: str, slug: str, artifact_id: str | None = None) -> 
     - tactic:    ``<slug>.tactic.yaml``
     - styleguide: ``<slug>.styleguide.yaml``
     """
-    return artifact_filename(kind, slug, artifact_id)
+    # cast: charter.* follow_imports=skip collapses the imported artifact_filename
+    # return to Any; the function is typed -> str in artifact_naming.py.
+    return cast(str, artifact_filename(kind, slug, artifact_id))
 
 
 def _doctrine_kind_subdir(kind: str) -> str:
     """Return the doctrine subdirectory name for a given artifact kind."""
-    return doctrine_kind_subdir(kind)
+    # cast: charter.* follow_imports=skip collapses the imported doctrine_kind_subdir
+    # return to Any; the function is typed -> str in artifact_naming.py.
+    return cast(str, doctrine_kind_subdir(kind))
 
 
 def _compute_content_hash(yaml_bytes: bytes) -> str:
