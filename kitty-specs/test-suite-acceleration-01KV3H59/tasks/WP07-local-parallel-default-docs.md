@@ -18,6 +18,7 @@ subtasks:
 - T030
 phase: Phase 5 - Documentation
 agent: claude
+shell_pid: '72974'
 history:
 - at: '2026-06-14T17:10:00Z'
   actor: system
