@@ -185,3 +185,55 @@ class TestWiredIntoValidateGraph:
         )
         errors = validate_graph(graph)
         assert any("must be an agent_profile" in e for e in errors)
+
+    def test_duplicate_edges_are_reported(self) -> None:
+        graph = _graph(
+            [_profile("child"), _profile("parent")],
+            [
+                DRGEdge(
+                    source="agent_profile:child",
+                    target="agent_profile:parent",
+                    relation=Relation.REQUIRES,
+                ),
+                DRGEdge(
+                    source="agent_profile:child",
+                    target="agent_profile:parent",
+                    relation=Relation.REQUIRES,
+                ),
+            ],
+        )
+        errors = validate_graph(graph)
+        assert any("Duplicate edge" in e for e in errors)
+
+    def test_requires_cycle_is_reported(self) -> None:
+        graph = _graph(
+            [_profile("a"), _profile("b")],
+            [
+                DRGEdge(
+                    source="agent_profile:a",
+                    target="agent_profile:b",
+                    relation=Relation.REQUIRES,
+                ),
+                DRGEdge(
+                    source="agent_profile:b",
+                    target="agent_profile:a",
+                    relation=Relation.REQUIRES,
+                ),
+            ],
+        )
+        errors = validate_graph(graph)
+        assert any("Cycle in requires" in e for e in errors)
+
+    def test_dangling_source_is_reported(self) -> None:
+        graph = _graph(
+            [_profile("parent")],
+            [
+                DRGEdge(
+                    source="agent_profile:ghost",
+                    target="agent_profile:parent",
+                    relation=Relation.REQUIRES,
+                )
+            ],
+        )
+        errors = validate_graph(graph)
+        assert any("Dangling source" in e for e in errors)

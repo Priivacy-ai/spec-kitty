@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.core.worktree import create_wp_workspace
+from specify_cli.core.worktree import _existing_worktree_is_valid, create_wp_workspace
 
 
 # ---------------------------------------------------------------------------
@@ -220,6 +220,38 @@ class TestCodeChangeWorkspace:
                 workspace_name="kitty/mission-test-feature-lane-a",
                 wp_frontmatter=_make_frontmatter(execution_mode="code_change"),
             )
+
+
+class TestExistingWorktreeValidity:
+    """Exercise the VCS/.git fallback matrix for existing worktree reuse."""
+
+    def test_returns_true_when_vcs_reports_repo(self, tmp_path: Path) -> None:
+        workspace_path = tmp_path / ".worktrees" / "lane-a"
+        workspace_path.mkdir(parents=True)
+
+        mock_vcs = MagicMock()
+        mock_vcs.is_repo.return_value = True
+
+        with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
+            assert _existing_worktree_is_valid(workspace_path) is True
+
+    def test_falls_back_to_git_marker_when_vcs_probe_errors(self, tmp_path: Path) -> None:
+        workspace_path = tmp_path / ".worktrees" / "lane-b"
+        workspace_path.mkdir(parents=True)
+        (workspace_path / ".git").write_text("gitdir: /tmp/example\n", encoding="utf-8")
+
+        with patch("specify_cli.core.worktree.get_vcs", side_effect=RuntimeError("boom")):
+            assert _existing_worktree_is_valid(workspace_path) is True
+
+    def test_returns_false_when_vcs_false_and_no_git_marker(self, tmp_path: Path) -> None:
+        workspace_path = tmp_path / ".worktrees" / "lane-c"
+        workspace_path.mkdir(parents=True)
+
+        mock_vcs = MagicMock()
+        mock_vcs.is_repo.return_value = False
+
+        with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
+            assert _existing_worktree_is_valid(workspace_path) is False
 
 
 # ---------------------------------------------------------------------------
