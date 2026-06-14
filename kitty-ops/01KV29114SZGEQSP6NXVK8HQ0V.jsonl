@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KV29114SZGEQSP6NXVK8HQ0V", "profile_id": "planner-priti", "action": "plan", "request_text": "Execute approved: rehome #1904 under #1928; create post-#1908 adversarial-panel grouping", "actor": "claude", "mode_of_work": "advisory", "governance_context_hash": "b1d80e23116414c0", "governance_context_available": true, "started_at": "2026-06-14T05:17:46.757752+00:00"}
+{"event": "completed", "invocation_id": "01KV29114SZGEQSP6NXVK8HQ0V", "completed_at": "2026-06-14T05:18:50.094701+00:00", "outcome": "done", "closed_by": "agent"}
