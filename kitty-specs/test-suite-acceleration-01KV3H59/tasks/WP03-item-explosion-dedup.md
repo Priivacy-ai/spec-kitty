@@ -18,6 +18,7 @@ subtasks:
 - T012
 phase: Phase 2 - Redundancy removal
 agent: claude
+shell_pid: '9322'
 history:
 - at: '2026-06-14T17:10:00Z'
   actor: system
