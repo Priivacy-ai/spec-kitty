@@ -809,6 +809,114 @@ def skills(
     raise typer.Exit(0 if payload["ok"] else 1)
 
 
+def _configured_tool_keys(project_path: Path) -> list[str]:
+    """Return configured tool keys from ``.kittify/config.yaml`` (sorted)."""
+    from specify_cli.core.agent_config import load_agent_config
+
+    return sorted(set(load_agent_config(project_path).available))
+
+
+def _print_tool_surface_human(outcome: object) -> None:
+    """Render a compact human summary of a tool-surface outcome."""
+    from specify_cli.tool_surface.service import ToolSurfaceOutcome
+
+    assert isinstance(outcome, ToolSurfaceOutcome)
+    report = outcome.report
+    if report.ok and not report.findings:
+        console.print(
+            "[green]Tool Surfaces[/green]: all surfaces healthy "
+            f"({report.summary.surfaces} checked)"
+        )
+        return
+    console.print("\n[bold]Tool Surfaces[/bold] - issue(s) found\n")
+    for finding in report.findings:
+        colour = "red" if finding.severity == "error" else "yellow"
+        console.print(f"  [{colour}]![/{colour}] [{finding.code}] {finding.message}")
+    if outcome.repair is not None and outcome.repair.repaired:
+        console.print(
+            f"\n[green]Repaired:[/green] {len(outcome.repair.repaired)} surface(s)"
+        )
+
+
+@app.command(name="tool-surfaces")
+def tool_surfaces(
+    kind: Annotated[
+        list[str] | None,
+        typer.Option("--kind", help="Filter to surface kind(s), e.g. command-skill"),
+    ] = None,
+    tool: Annotated[
+        str | None,
+        typer.Option("--tool", help="Filter to a single configured tool key"),
+    ] = None,
+    fix: Annotated[
+        bool,
+        typer.Option("--fix", help="Repair missing or stale surfaces"),
+    ] = False,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Machine-readable JSON output"),
+    ] = False,
+) -> None:
+    """Audit (and optionally repair) every configured tool surface.
+
+    Examples:
+        spec-kitty doctor tool-surfaces --json
+        spec-kitty doctor tool-surfaces --kind command-skill --json
+        spec-kitty doctor tool-surfaces --tool codex --fix
+    """
+    from specify_cli.tool_surface.service import (
+        UnknownSurfaceKind,
+        run_tool_surfaces,
+        surface_kind_from_token,
+    )
+
+    try:
+        project_path = locate_project_root()
+    except Exception as exc:
+        project_path = None
+        if not json_output:
+            console.print("[red]Error:[/red] Not in a spec-kitty project")
+        else:
+            console.print_json(
+                json.dumps(_json_error("not_in_project", str(exc)), indent=2)
+            )
+        raise typer.Exit(2) from exc
+    if project_path is None:
+        if json_output:
+            console.print_json(
+                json.dumps(
+                    _json_error("not_in_project", "Not in a spec-kitty project"),
+                    indent=2,
+                )
+            )
+        else:
+            console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(2)
+
+    try:
+        kinds = [surface_kind_from_token(token) for token in (kind or [])]
+    except UnknownSurfaceKind as exc:
+        if json_output:
+            console.print_json(json.dumps(_json_error("unknown_kind", str(exc)), indent=2))
+        else:
+            console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(2) from exc
+
+    outcome = run_tool_surfaces(
+        project_path,
+        _configured_tool_keys(project_path),
+        tool_filter=tool,
+        kinds=kinds or None,
+        fix=fix,
+    )
+
+    if json_output:
+        console.print_json(json.dumps(outcome.to_json(), indent=2))
+        raise typer.Exit(0 if outcome.report.ok else 1)
+    _print_tool_surface_human(outcome)
+    raise typer.Exit(0 if outcome.report.ok else 1)
+
+
 @app.command(name="state-roots")
 def state_roots(
     json_output: Annotated[

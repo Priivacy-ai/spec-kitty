@@ -1,0 +1,29 @@
+{
+  "canonical_commands": "int",
+  "configured_agents": [
+    "str"
+  ],
+  "drift": [],
+  "entries": "int",
+  "gaps": [],
+  "manifest_agents": [],
+  "ok": "bool",
+  "orphans": [],
+  "pruned": [],
+  "repair_errors": [],
+  "repaired_agents": [],
+  "repaired_vibe_config": "bool",
+  "slash_commands": {
+    "configured_agents": [],
+    "errors": [],
+    "gaps": [],
+    "ok": "bool",
+    "repaired": []
+  },
+  "stale": [],
+  "uninstalled_agents": [
+    "str"
+  ],
+  "unsafe": [],
+  "vibe_config_missing": "bool"
+}

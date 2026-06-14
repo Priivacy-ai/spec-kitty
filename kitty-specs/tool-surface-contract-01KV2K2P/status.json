@@ -1,0 +1,84 @@
+{
+  "event_count": 75,
+  "last_event_id": "01KV31DY4YHMQR7ZE9Q28A1STS",
+  "materialized_at": "2026-06-14T12:24:14.750606+00:00",
+  "mission_number": "135",
+  "mission_slug": "tool-surface-contract-01KV2K2P",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 9,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KV31DQ83WQ7XXN80DVP8QVDZ",
+      "last_transition_at": "2026-06-14T12:24:07.683450+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KV31DRRNZZK2DRQ99RVZ8YPJ",
+      "last_transition_at": "2026-06-14T12:24:09.237550+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KV31DSH12FRBC1F5M49JE32H",
+      "last_transition_at": "2026-06-14T12:24:10.017524+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KV31DT9HXPC5GMBP2PA7B96N",
+      "last_transition_at": "2026-06-14T12:24:10.801546+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KV31DV2PQSQGPATX84BD89JX",
+      "last_transition_at": "2026-06-14T12:24:11.606512+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KV31DVVB5RC41EMWRNAFZBY9",
+      "last_transition_at": "2026-06-14T12:24:12.395370+00:00"
+    },
+    "WP07": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KV31DWKS4HCT8X4CGZH835YH",
+      "last_transition_at": "2026-06-14T12:24:13.178009+00:00"
+    },
+    "WP08": {
+      "actor": "merge",
+      "force_count": 5,
+      "lane": "done",
+      "last_event_id": "01KV31DXCVKVDNXS60EESG4W7J",
+      "last_transition_at": "2026-06-14T12:24:13.979803+00:00"
+    },
+    "WP09": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KV31DY4YHMQR7ZE9Q28A1STS",
+      "last_transition_at": "2026-06-14T12:24:14.750606+00:00"
+    }
+  }
+}
