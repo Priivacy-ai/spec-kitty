@@ -149,7 +149,14 @@ class _Accumulator:
 
 def _surface_id(instance: SurfaceInstance) -> str:
     """Derive a stable surface id from the instance owner and kind/path."""
-    return f"{instance.owner}.{instance.definition.kind}.{instance.path.name}"
+    if instance.surface_id is not None:
+        return instance.surface_id
+    suffix = (
+        f"{instance.path.parent.name}.SKILL.md"
+        if instance.path.name == "SKILL.md" and instance.path.parent.name
+        else instance.path.name
+    )
+    return f"{instance.owner}.{instance.definition.kind}.{suffix}"
 
 
 class SurfaceStatusService:

@@ -30,15 +30,21 @@ or conflict with that output.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
+from specify_cli.core.config import AGENT_SKILL_CONFIG, SKILL_CLASS_WRAPPER
+from specify_cli.skills import installer as skill_installer
 from specify_cli.skills import verifier as skill_verifier
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
+    ManagedSkillManifest,
     compute_content_hash,
     load_manifest,
+    save_manifest,
 )
+from specify_cli.skills.paths import get_primary_project_skill_root
 from specify_cli.skills.registry import SkillRegistry
 
 from ..enums import (
@@ -102,7 +108,7 @@ class _RepairProto(Protocol):
 class _RegistryProto(Protocol):
     """Subset of ``SkillRegistry`` needed to decide if a registry is usable."""
 
-    def discover_skills(self) -> Sequence[object]:
+    def discover_skills(self) -> Sequence[Any]:
         ...
 
 
@@ -160,25 +166,33 @@ class ManagedSkillsProvider:
     ) -> list[SurfaceInstance]:
         """Expand into one instance per managed doctrine skill for ``tool_key``.
 
-        The managed-skill manifest (``.kittify/skills-manifest.json``) is the
-        authority for what should exist. Each manifest entry owned by
-        ``tool_key`` (``agent_key``) becomes a :class:`SurfaceInstance`.
+        The registry is policy and the manifest is state. Manifest entries for
+        ``tool_key`` carry installed hashes when present; otherwise the canonical
+        registry still supplies the expected project paths so fresh clones report
+        repairable missing doctrine skills instead of silently returning no
+        surfaces.
         """
         manifest = load_manifest(project_root)
-        if manifest is None:
-            return []
+        manifest_entries = (
+            [entry for entry in manifest.entries if entry.agent_key == tool_key]
+            if manifest is not None
+            else []
+        )
+        source_entries = (
+            manifest_entries if manifest_entries else self._expected_entries(tool_key)
+        )
+        entries_by_path = {entry.installed_path: entry for entry in source_entries}
         instances: list[SurfaceInstance] = []
-        for entry in manifest.entries:
-            if entry.agent_key != tool_key:
-                continue
-            abs_path = (project_root / entry.installed_path).resolve()
+        for entry in entries_by_path.values():
+            abs_path = project_root / entry.installed_path
             instances.append(
                 SurfaceInstance(
                     definition=definition,
                     path=abs_path,
                     exists=abs_path.exists(),
-                    file_hash=entry.content_hash,
+                    file_hash=entry.content_hash or None,
                     owner=tool_key,
+                    surface_id=_managed_surface_id(tool_key, entry),
                 )
             )
         return instances
@@ -274,12 +288,18 @@ class ManagedSkillsProvider:
         ids = tuple(_surface_id(s.instance) for s in actionable)
         if dry_run:
             return RepairResult(repaired=ids, dry_run=True)
-        return self._delegate_repair(project_root, ids)
+        tool_keys = tuple(sorted({s.instance.owner for s in actionable}))
+        unmanifested = any(
+            not _manifest_owns(project_root, s.instance) for s in actionable
+        )
+        return self._delegate_repair(project_root, ids, tool_keys, unmanifested)
 
     def _delegate_repair(
         self,
         project_root: Path,
         ids: tuple[str, ...],
+        tool_keys: tuple[str, ...],
+        unmanifested: bool,
     ) -> RepairResult:
         registry = self._resolve_registry()
         if registry is None:
@@ -287,6 +307,8 @@ class ManagedSkillsProvider:
                 failed=("managed_skills: no canonical skill registry",) + ids,
                 dry_run=False,
             )
+        if unmanifested:
+            return self._install_expected(project_root, registry, tool_keys, ids)
         verify_result = self._verifier.verify_installed_skills(project_root)
         if verify_result.ok:
             return RepairResult(dry_run=False)
@@ -300,6 +322,32 @@ class ManagedSkillsProvider:
                 dry_run=False,
             )
         return self._repair_outcome(ids, repaired, failed)
+
+    @staticmethod
+    def _install_expected(
+        project_root: Path,
+        registry: _RegistryProto,
+        tool_keys: tuple[str, ...],
+        ids: tuple[str, ...],
+    ) -> RepairResult:
+        try:
+            installed = skill_installer.install_all_skills(
+                project_root, list(tool_keys), registry
+            )
+        except (OSError, ValueError) as exc:
+            return RepairResult(
+                failed=(f"managed_skills: {exc}",) + ids,
+                dry_run=False,
+            )
+        manifest = load_manifest(project_root) or ManagedSkillManifest(
+            version=1,
+            created_at=datetime.now(UTC).isoformat(),
+            updated_at=datetime.now(UTC).isoformat(),
+        )
+        for entry in installed.entries:
+            manifest.add_entry(entry)
+        save_manifest(manifest, project_root)
+        return RepairResult(repaired=ids, dry_run=False)
 
     @staticmethod
     def _repair_outcome(
@@ -319,6 +367,38 @@ class ManagedSkillsProvider:
             return registry
         return None
 
+    def _expected_entries(self, tool_key: str) -> list[ManagedFileEntry]:
+        config = AGENT_SKILL_CONFIG.get(tool_key)
+        if config is None or config["class"] == SKILL_CLASS_WRAPPER:
+            return []
+        root = get_primary_project_skill_root(tool_key)
+        if root is None:
+            return []
+        registry = self._resolve_registry()
+        if registry is None:
+            return []
+        installation_class = str(config["class"])
+        entries: list[ManagedFileEntry] = []
+        for skill in registry.discover_skills():
+            for source_file in skill.all_files:
+                rel_within_skill = source_file.relative_to(skill.skill_dir)
+                installed_path = (
+                    Path(root) / skill.name / rel_within_skill
+                ).as_posix()
+                entries.append(
+                    ManagedFileEntry(
+                        skill_name=skill.name,
+                        source_file=rel_within_skill.as_posix(),
+                        installed_path=installed_path,
+                        installation_class=installation_class,
+                        agent_key=tool_key,
+                        content_hash="",
+                        installed_at="",
+                        delivery_mode="copy",
+                    )
+                )
+        return entries
+
 
 def doctrine_skill_entries(
     project_root: Path, tool_key: str
@@ -328,3 +408,25 @@ def doctrine_skill_entries(
     if manifest is None:
         return []
     return [e for e in manifest.entries if e.agent_key == tool_key]
+
+
+def _managed_surface_id(tool_key: str, entry: ManagedFileEntry) -> str:
+    safe_path = entry.source_file.replace("/", ".").replace("\\", ".")
+    return f"{tool_key}.{SurfaceKind.DOCTRINE_SKILL}.{entry.skill_name}.{safe_path}"
+
+
+def _manifest_owns(project_root: Path, instance: SurfaceInstance) -> bool:
+    manifest = load_manifest(project_root)
+    if manifest is None:
+        return False
+    try:
+        rel = instance.path.relative_to(project_root).as_posix()
+    except ValueError:
+        try:
+            rel = instance.path.resolve().relative_to(project_root.resolve()).as_posix()
+        except ValueError:
+            return False
+    return any(
+        entry.agent_key == instance.owner and entry.installed_path == rel
+        for entry in manifest.entries
+    )

@@ -66,6 +66,8 @@ def test_doctor_tool_surfaces_kind_filter(tmp_path: Path) -> None:
     jsonschema.validate(payload, _schema())
     kinds = {entry["kind"] for entry in payload["surfaces"]}
     assert kinds <= {"command_skill"}
+    ids = [entry["id"] for entry in payload["surfaces"]]
+    assert len(ids) == len(set(ids))
 
 
 def test_doctor_tool_surfaces_finding_when_missing(tmp_path: Path) -> None:
@@ -78,6 +80,61 @@ def test_doctor_tool_surfaces_finding_when_missing(tmp_path: Path) -> None:
     assert "generated-surface-missing" in codes
     assert payload["ok"] is False
     assert result.returncode == 1
+
+
+def test_doctor_tool_surfaces_reports_doctrine_when_manifest_absent(
+    tmp_path: Path,
+) -> None:
+    project = write_controlled_project(tmp_path)
+    result = run_spec_kitty(
+        "doctor",
+        "tool-surfaces",
+        "--kind",
+        "doctrine-skill",
+        "--json",
+        cwd=project,
+    )
+    payload = result.json()
+
+    assert result.returncode == 1
+    assert payload["ok"] is False
+    assert payload["summary"]["surfaces"] > 0
+    assert {entry["kind"] for entry in payload["surfaces"]} == {"doctrine_skill"}
+    assert {finding["code"] for finding in payload["findings"]} == {
+        "generated-surface-missing"
+    }
+
+
+def test_doctor_tool_surfaces_fix_rebuilds_plan_before_reporting(
+    tmp_path: Path,
+) -> None:
+    project = write_controlled_project(tmp_path)
+    old_entry = {
+        "path": ".agents/skills/spec-kitty.analyze/SKILL.md",
+        "content_hash": "0" * 64,
+        "agents": ["codex"],
+        "installed_at": "2026-06-14T00:00:00+00:00",
+        "spec_kitty_version": "old",
+    }
+    (project / ".kittify" / "command-skills-manifest.json").write_text(
+        json.dumps({"schema_version": 1, "entries": [old_entry]}),
+        encoding="utf-8",
+    )
+
+    result = run_spec_kitty(
+        "doctor",
+        "tool-surfaces",
+        "--kind",
+        "command-skill",
+        "--fix",
+        "--json",
+        cwd=project,
+    )
+    payload = result.json()
+
+    assert result.returncode == 0, result.stderr
+    assert payload["ok"] is True
+    assert payload["findings"] == []
 
 
 def test_doctor_tool_surfaces_tool_filter(tmp_path: Path) -> None:

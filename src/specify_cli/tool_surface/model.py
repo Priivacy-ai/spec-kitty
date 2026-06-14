@@ -46,6 +46,7 @@ class SurfaceInstance:
     exists: bool
     file_hash: str | None
     owner: str
+    surface_id: str | None = None
 
 
 @dataclass(frozen=True)

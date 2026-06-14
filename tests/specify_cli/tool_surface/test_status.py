@@ -31,6 +31,7 @@ from specify_cli.tool_surface.status import (
     STATE_UNSUPPORTED,
     SurfaceStatus,
     SurfaceStatusService,
+    _surface_id,
 )
 
 import pytest
@@ -167,3 +168,10 @@ def test_configured_tools_default_from_plans() -> None:
     provider = _StubProvider({"a": SurfaceStatus(instance=inst, state=STATE_PRESENT)})
     report = SurfaceStatusService([provider]).collect(Path("/proj"), [_plan([inst])])
     assert report.configured_tools == ("codex",)
+
+
+def test_surface_ids_are_unique_for_skill_md_siblings() -> None:
+    inst_a = _instance(".agents/skills/spec-kitty.plan/SKILL.md")
+    inst_b = _instance(".agents/skills/spec-kitty.review/SKILL.md")
+    ids = [_surface_id(inst_a), _surface_id(inst_b)]
+    assert len(ids) == len(set(ids))

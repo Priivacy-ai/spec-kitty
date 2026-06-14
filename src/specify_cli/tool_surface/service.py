@@ -221,6 +221,9 @@ def run_tool_surfaces(
     repair = SurfaceRepairService(providers).repair(
         project_root, report.surfaces, kinds=kind_set
     )
+    plans = builder.build(plan_tools, project_root)
+    if kind_set is not None:
+        plans = _filter_plans_by_kinds(plans, kind_set)
     refreshed = SurfaceStatusService(providers).collect(
         project_root, plans, configured_tools=tools
     )

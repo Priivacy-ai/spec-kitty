@@ -14,7 +14,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from specify_cli.skills.manifest import compute_content_hash
+from specify_cli.skills import installer as skill_installer
+from specify_cli.skills.manifest import (
+    ManagedFileEntry,
+    ManagedSkillManifest,
+    compute_content_hash,
+    load_manifest,
+)
+from specify_cli.skills.registry import CanonicalSkill
 from specify_cli.tool_surface.enums import SurfaceKind
 from specify_cli.tool_surface.providers.command_skills import (
     command_skill_definition,
@@ -98,9 +105,27 @@ def test_managed_skills_provider_cannot_handle_command_skill() -> None:
     assert provider.can_handle(other) is False
 
 
-def test_managed_skills_expand_no_manifest_returns_empty(tmp_path: Path) -> None:
-    provider = ManagedSkillsProvider()
-    assert provider.expand(managed_skill_definition(), "codex", tmp_path) == []
+def _canonical_skill(root: Path, name: str = "a") -> CanonicalSkill:
+    skill_dir = root / name
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    skill_md = skill_dir / "SKILL.md"
+    skill_md.write_text("canonical", encoding="utf-8")
+    return CanonicalSkill(name=name, skill_dir=skill_dir, skill_md=skill_md)
+
+
+def test_managed_skills_expand_no_manifest_uses_registry_policy(
+    tmp_path: Path,
+) -> None:
+    skill = _canonical_skill(tmp_path / "canonical")
+    provider = ManagedSkillsProvider(
+        registry_factory=lambda: _StubRegistry([skill]),
+    )
+
+    instances = provider.expand(managed_skill_definition(), "codex", tmp_path)
+
+    assert len(instances) == 1
+    assert instances[0].path == tmp_path / ".agents/skills/a/SKILL.md"
+    assert provider.probe(instances[0]).state == STATE_MISSING
 
 
 def test_managed_skills_expand_returns_per_tool_skills(tmp_path: Path) -> None:
@@ -205,6 +230,54 @@ def test_managed_skills_repair_dry_run_does_not_install(tmp_path: Path) -> None:
     assert result.dry_run is True
     assert result.repaired  # reported, but nothing installed
     assert not instance.path.exists()
+
+
+def test_managed_skills_repair_without_manifest_installs_expected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    skill = _canonical_skill(tmp_path / "canonical")
+    provider = ManagedSkillsProvider(
+        registry_factory=lambda: _StubRegistry([skill]),
+    )
+    instance = provider.expand(managed_skill_definition(), "codex", tmp_path)[0]
+    missing = provider.probe(instance)
+    calls: list[tuple[Path, list[str]]] = []
+
+    def fake_install_all_skills(
+        project_path: Path, agent_keys: list[str], registry: object
+    ) -> ManagedSkillManifest:
+        calls.append((project_path, agent_keys))
+        assert registry.discover_skills() == [skill]  # type: ignore[attr-defined]
+        return ManagedSkillManifest(
+            entries=[
+                ManagedFileEntry(
+                    skill_name="a",
+                    source_file="SKILL.md",
+                    installed_path=".agents/skills/a/SKILL.md",
+                    installation_class="shared-root-capable",
+                    agent_key="codex",
+                    content_hash="sha256:" + "1" * 64,
+                    installed_at="2026-06-14T00:00:00+00:00",
+                    delivery_mode="copy",
+                )
+            ]
+        )
+
+    monkeypatch.setattr(
+        skill_installer, "install_all_skills", fake_install_all_skills
+    )
+
+    result = provider.repair(tmp_path, [missing])
+
+    assert calls == [(tmp_path, ["codex"])]
+    assert result.failed == ()
+    assert result.repaired
+    manifest = load_manifest(tmp_path)
+    assert manifest is not None
+    assert [entry.installed_path for entry in manifest.entries] == [
+        ".agents/skills/a/SKILL.md"
+    ]
 
 
 class _StubVerifyResult:
