@@ -11,6 +11,9 @@ tracker_refs: []
 planning_base_branch: feat/agent-profile-projection-plugin-production
 merge_target_branch: feat/agent-profile-projection-plugin-production
 branch_strategy: Planning artifacts for this mission were generated on feat/agent-profile-projection-plugin-production. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/agent-profile-projection-plugin-production unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-agent-profile-projection-plugin-production-01KV3NGS-01KV3NGS
+base_commit: unknown
+created_at: '2026-06-14T20:02:18.526519+00:00'
 subtasks:
 - T015
 - T016
@@ -18,6 +21,7 @@ subtasks:
 - T018
 - T019
 agent: claude
+shell_pid: '66930'
 history:
 - at: '2026-06-14T00:00:00Z'
   event: created
