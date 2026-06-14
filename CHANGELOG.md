@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- **Docs: corrected the retired `spec-kitty agent workflow implement` command (issue #1874):** the
+  `agent workflow` command group no longer exists (the canonical form is `spec-kitty agent action
+  implement` / `… review`). Updated the user-facing `docs/how-to/implement-work-package.md` and the
+  `AGENTS.md` testing note. (The same stale command also appears in the PowerShell toolguide and the
+  documentation/research per-WP task-prompt templates; those are rendered into the twelve-agent command
+  snapshots, whose baselines are already drifted on `main`, so that replacement is left to the
+  cli-reference-audit sweep which can regenerate the baselines in one pass.)
 - **`spec-kitty upgrade` no longer churns `metadata.yaml` on a no-op (issue #1871):** the "stamp
   `last_upgraded_at` only on material change" rule lived in three divergent idioms, and the migrations-applied
   root path plus `_stamp_schema_version` rewrote `metadata.yaml` (and advanced the timestamp / mtime) even when
