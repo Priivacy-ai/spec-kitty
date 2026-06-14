@@ -18,7 +18,7 @@ from unittest.mock import patch
 
 import pytest
 
-from kernel.atomic import atomic_write
+from kernel.atomic import atomic_write, substantively_equal
 
 pytestmark = pytest.mark.fast
 
@@ -262,6 +262,110 @@ class TestAtomicWriteMkstempContract:
         assert kwargs["suffix"] is not None
         assert kwargs["suffix"] != ".TMP"
         assert "XX" not in kwargs["suffix"]
+
+
+# ---------------------------------------------------------------------------
+# substantively_equal — no-op stability comparison core
+# ---------------------------------------------------------------------------
+
+
+class TestSubstantivelyEqualNoStrip:
+    """Default (strip=None) path: plain byte/text comparison.
+
+    Covers lines 121 (_as_bytes called on both sides).
+    """
+
+    def test_equal_str_inputs_returns_true(self) -> None:
+        assert substantively_equal("hello", "hello") is True
+
+    def test_unequal_str_inputs_returns_false(self) -> None:
+        assert substantively_equal("hello", "world") is False
+
+    def test_equal_bytes_inputs_returns_true(self) -> None:
+        # hits _as_bytes for bytes — line 128 (identity branch)
+        assert substantively_equal(b"data", b"data") is True
+
+    def test_unequal_bytes_inputs_returns_false(self) -> None:
+        assert substantively_equal(b"old", b"new") is False
+
+    def test_str_and_bytes_equal_content_returns_true(self) -> None:
+        # str encodes to same bytes as bytes literal
+        assert substantively_equal("café", "café".encode()) is True
+
+    def test_str_and_bytes_unequal_content_returns_false(self) -> None:
+        assert substantively_equal("abc", b"xyz") is False
+
+
+class TestSubstantivelyEqualWithStrip:
+    """strip projection path: both sides decoded, stripped, then compared.
+
+    Covers lines 122-124 (_as_text on str inputs, strip applied).
+    """
+
+    @staticmethod
+    def _drop_volatile(text: str, volatile_keys: frozenset[str]) -> str:
+        """Minimal strip projection: drop lines whose key is in volatile_keys."""
+        lines = []
+        for line in text.splitlines(keepends=True):
+            key = line.split(":")[0].strip()
+            if key not in volatile_keys:
+                lines.append(line)
+        return "".join(lines)
+
+    def test_equal_after_stripping_volatile_fields(self) -> None:
+        """Two renders that differ ONLY in a volatile field compare as equal."""
+        existing = "name: my-charter\ngenerated_at: 2026-01-01\ncontent: stable\n"
+        candidate = "name: my-charter\ngenerated_at: 2026-06-14\ncontent: stable\n"
+        assert (
+            substantively_equal(
+                existing,
+                candidate,
+                volatile_keys=frozenset({"generated_at"}),
+                strip=self._drop_volatile,
+            )
+            is True
+        )
+
+    def test_unequal_substantive_field_returns_false(self) -> None:
+        """Renders that differ in a non-volatile field compare as unequal."""
+        existing = "name: my-charter\ngenerated_at: 2026-01-01\ncontent: stable\n"
+        candidate = "name: my-charter\ngenerated_at: 2026-06-14\ncontent: CHANGED\n"
+        assert (
+            substantively_equal(
+                existing,
+                candidate,
+                volatile_keys=frozenset({"generated_at"}),
+                strip=self._drop_volatile,
+            )
+            is False
+        )
+
+    def test_strip_path_with_bytes_inputs_decodes_before_strip(self) -> None:
+        """bytes inputs on the strip path are decoded via _as_text (line 132)."""
+        existing = b"name: charter\nts: 100\ndata: x\n"
+        candidate = b"name: charter\nts: 999\ndata: x\n"
+        assert (
+            substantively_equal(
+                existing,
+                candidate,
+                volatile_keys=frozenset({"ts"}),
+                strip=self._drop_volatile,
+            )
+            is True
+        )
+
+    def test_strip_path_bytes_unequal_substantive_field(self) -> None:
+        existing = b"name: charter\nts: 100\ndata: old\n"
+        candidate = b"name: charter\nts: 999\ndata: new\n"
+        assert (
+            substantively_equal(
+                existing,
+                candidate,
+                volatile_keys=frozenset({"ts"}),
+                strip=self._drop_volatile,
+            )
+            is False
+        )
 
 
 class TestAtomicWriteCleanupSuppressesOSError:

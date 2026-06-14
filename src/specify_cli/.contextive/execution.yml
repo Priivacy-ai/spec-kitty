@@ -43,3 +43,5 @@ contexts:
         definition: "User-facing command surface that triggers a lifecycle operation (for example specify, plan, tasks, review, merge)."
       - name: "Tool"
         definition: "Concrete runtime product used to execute commands (for example Claude Code, Codex, opencode)."
+      - name: "Tool Surface"
+        definition: "A tool-visible artifact or configuration entry that Spec Kitty installs, verifies, repairs, or packages for a concrete execution tool."
