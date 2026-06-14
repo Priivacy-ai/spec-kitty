@@ -113,6 +113,14 @@ class DriftPolicySummary:
 
 Wire Rule 1 (Missing → auto-create silently) and Rule 2 (Stale → auto-repair silently) in `run_surface_repair()`. These two rules are unconditional and should never prompt.
 
+**Stale detection requires computing the canonical hash** — the current `AgentProfilesProvider.probe()` only compares `disk_hash` to the manifest `file_hash` (installed-at hash), which distinguishes "drifted" (user-modified) from "present" (unchanged). To also detect "stale" (unchanged by user but outdated vs current template), the provider must:
+1. Render the current canonical output via `renderer.render(profile)` → get `canonical_hash`
+2. Compare: `disk_hash == file_hash AND disk_hash != canonical_hash` → `stale`
+3. Compare: `disk_hash != file_hash AND disk_hash != canonical_hash` → `drifted`
+4. Compare: `disk_hash == canonical_hash` → `present` (no update needed)
+
+Update `AgentProfilesProvider.probe()` in `src/specify_cli/tool_surface/providers/agent_profiles.py` to add this canonical-hash comparison. Without it, stale profiles will be reported as `present` and auto-repair will never trigger for templates that have been updated by spec-kitty itself.
+
 ### T003 — Implement drift-protection rules (Rules 3-5) with `--yes` guard
 
 Rules 3, 4, and 5 from the contract:

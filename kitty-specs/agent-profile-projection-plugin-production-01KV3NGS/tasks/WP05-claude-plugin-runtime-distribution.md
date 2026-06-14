@@ -166,24 +166,21 @@ The `paths:` filter ensures the job only runs when plugin-related files change, 
 
 `marketplace.json` lives at the repository root (not inside the bundle dir). Generate it as part of `spec-kitty plugin build --target claude-code` or as a separate `spec-kitty plugin publish-metadata` command. The simpler approach: generate alongside the bundle.
 
-Schema per `contracts/plugin-manifest-claude.md`:
+Schema per `research.md` (git-subdir marketplace format — NOT the `plugin-manifest-claude.md` which documents the plugin bundle manifest, not the marketplace catalog):
 ```json
 {
-  "name": "spec-kitty",
-  "displayName": "Spec Kitty",
-  "description": "Spec-Driven Development toolkit for AI-assisted coding.",
-  "version": "3.2.0",
-  "installCommand": "claude plugin install https://github.com/Priivacy-ai/spec-kitty",
+  "name": "spec-kitty-plugins",
+  "interface": { "displayName": "Spec Kitty Plugins" },
   "plugins": [
     {
       "name": "spec-kitty",
       "source": {
-        "source": "github",
-        "owner": "Priivacy-ai",
-        "repo": "spec-kitty",
-        "ref": "main"
+        "source": "git-subdir",
+        "url": "https://github.com/Priivacy-ai/spec-kitty.git",
+        "path": "dist/spec-kitty-plugins/claude-code"
       },
-      "pluginDir": "dist/spec-kitty-plugins/claude-code"
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Developer Tools"
     }
   ]
 }

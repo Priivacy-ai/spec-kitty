@@ -2,8 +2,8 @@
   "event_count": 0,
   "last_event_id": null,
   "materialized_at": "",
-  "mission_number": "",
-  "mission_slug": "",
+  "mission_number": null,
+  "mission_slug": "agent-profile-projection-plugin-production-01KV3NGS",
   "mission_type": "software-dev",
   "summary": {
     "approved": 0,

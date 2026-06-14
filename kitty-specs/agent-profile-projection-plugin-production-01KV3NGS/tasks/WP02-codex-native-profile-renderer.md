@@ -159,11 +159,11 @@ _RENDERERS: tuple[ProfileRenderer, ...] = (
 
 Export `FORMAT_CODEX_AGENT` from `renderers.py` alongside `FORMAT_CLAUDE_AGENT` and `FORMAT_COPILOT_AGENT` so callers have a single import point. The existing private `_RENDERERS` tuple drives `get_renderer()` — extend it in-place rather than renaming to `PROFILE_RENDERERS`.
 
-### T009 — Verify `doctor tool-surfaces --kind agent_profile` no longer reports `research_gap` for Codex
+### T009 — Verify `doctor tool-surfaces --kind agent-profile` no longer reports `research_gap` for Codex
 
 After implementing the renderer, run:
 ```bash
-spec-kitty doctor tool-surfaces --kind agent_profile --json
+spec-kitty doctor tool-surfaces --kind agent-profile --json
 ```
 
 The JSON findings for `codex` harness must now report `missing` (if `.codex/agents/` doesn't exist yet) or `present` (if it does) — NOT `research_gap`. `research_gap` should only appear for harnesses with genuinely unconfirmed native agent primitive support.

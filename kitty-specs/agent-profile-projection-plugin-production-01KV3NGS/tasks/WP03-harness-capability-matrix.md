@@ -187,11 +187,11 @@ def _findings_for_harness(harness_key: str, project_root: Path, ...) -> SurfaceF
 
 Ensure the Amazon Q harness uses filesystem inspection (`output_path.exists()`) rather than manifest lookup when building its finding.
 
-### T014 — Verify `doctor tool-surfaces --kind agent_profile --json` emits five valid statuses
+### T014 — Verify `doctor tool-surfaces --kind agent-profile --json` emits six valid statuses
 
 After implementing T010-T013, run:
 ```bash
-spec-kitty doctor tool-surfaces --kind agent_profile --json
+spec-kitty doctor tool-surfaces --kind agent-profile --json
 ```
 
 Inspect the `findings` array. Every finding's `status` must be one of: `present`, `missing`, `stale`, `drifted`, `not_applicable`. If any finding shows `research_gap`, that harness still needs to be assessed and added to the capability matrix (or added to the renderer registry if confirmed).

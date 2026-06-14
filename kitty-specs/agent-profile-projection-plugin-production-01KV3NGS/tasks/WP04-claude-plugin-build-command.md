@@ -138,27 +138,31 @@ Per the plugin-manifest-claude.md contract: the `components` key must use the ex
 Skills are rendered by the existing `command_installer` infrastructure — use it, do NOT copy raw doctrine `prompt.md` files directly.
 
 ```python
-from specify_cli.skills.command_installer import CANONICAL_COMMANDS, install_skills_for_agent
+import importlib.metadata
+from specify_cli.skills.command_installer import CANONICAL_COMMANDS, install_skills
 
-def _copy_skills(self, bundle_dir: Path, project_root: Path) -> int:
-    """Render and copy command skills to bundle using the canonical installer. Returns skill count."""
+def _copy_skills(self, bundle_dir: Path) -> int:
+    """Render and install command skills into bundle using the canonical installer. Returns skill count."""
     skills_dst = bundle_dir / "skills"
     skills_dst.mkdir(parents=True, exist_ok=True)
-    count = 0
-    for command in CANONICAL_COMMANDS:
-        skill_dir = skills_dst / f"spec-kitty.{command}"
-        skill_dir.mkdir(parents=True, exist_ok=True)
-        # Use command_renderer to render the canonical SKILL.md content
-        from specify_cli.skills import command_renderer
-        content = command_renderer.render(command, agent_key="codex")  # neutral render
-        (skill_dir / "SKILL.md").write_text(content, encoding="utf-8")
-        count += 1
+    version = importlib.metadata.version("spec-kitty-cli")
+    # install_skills renders each command via command_renderer.render(template_path, agent_key, version)
+    # and writes SKILL.md into the target directory — use it rather than calling render() directly.
+    # command_renderer.render() requires (template_path: Path, agent_key: str, spec_kitty_version: str)
+    # and returns a RenderedSkill object (not a string); calling it directly requires locating each
+    # template_path, which install_skills already handles.
+    install_skills(
+        target_root=skills_dst,
+        agent_key="claude",  # use claude as the render key for the plugin bundle
+        spec_kitty_version=version,
+    )
+    count = sum(1 for _ in skills_dst.glob("*/SKILL.md"))
     if count < 15:
-        raise BuildError(f"Expected ≥15 skills, found {count} in CANONICAL_COMMANDS.")
+        raise BuildError(f"Expected ≥15 skills, found {count}. Check CANONICAL_COMMANDS.")
     return count
 ```
 
-**Why not copy from doctrine source?** The doctrine source has `prompt.md` files that contain template placeholders. The installed `SKILL.md` files are rendered copies. Use `command_renderer.render()` to get the rendered output, not the raw source.
+**Why not call `command_renderer.render()` directly?** Its signature is `render(template_path: Path, agent_key: str, spec_kitty_version: str) -> RenderedSkill` — it requires the template path (not the command name) and returns a `RenderedSkill` object (not a string). The installer already resolves template paths; use `install_skills` to avoid duplicating that resolution logic.
 
 ### T018 — Copy built-in agent profile Markdown files to `agents/` in bundle
 
@@ -166,19 +170,36 @@ Built-in agent profiles ship with the package under a path resolvable via `get_p
 
 ```python
 def _copy_agents(self, bundle_dir: Path) -> int:
-    """Copy built-in agent profiles to bundle agents/ dir. Returns agent count."""
+    """Render built-in agent profiles to bundle agents/ dir. Returns agent count."""
     from specify_cli.runtime.home import get_package_asset_root
-    profiles_src = get_package_asset_root() / "agent_profiles"
+    from charter.profiles import AgentProfile
+    from specify_cli.tool_surface.profiles.renderers import ClaudeCodeProfileRenderer
+
+    # Built-in profiles are .agent.yaml files under the package asset root/agent_profiles/built-in/
+    # They are NOT pre-rendered .md files — they must be loaded and rendered via ClaudeCodeProfileRenderer.
+    profiles_src = get_package_asset_root() / "agent_profiles" / "built-in"
     agents_dst = bundle_dir / "agents"
     agents_dst.mkdir(parents=True, exist_ok=True)
+    renderer = ClaudeCodeProfileRenderer()
     count = 0
-    for profile_md in sorted(profiles_src.glob("*.md")):
-        shutil.copy2(profile_md, agents_dst / profile_md.name)
+    for yaml_file in sorted(profiles_src.glob("*.agent.yaml")):
+        profile = AgentProfile.from_yaml(yaml_file)
+        rendered = renderer.render(profile)  # returns str
+        out_path = agents_dst / f"{profile.profile_id}.md"
+        out_path.write_text(rendered, encoding="utf-8")
         count += 1
+    if count == 0:
+        raise BuildError(
+            f"No built-in agent profiles found under {profiles_src}. "
+            "Bundle must include profiles per FR-020. Check package data configuration."
+        )
     return count
 ```
 
-If `profiles_src` does not exist (no built-in profiles shipped yet), log a warning and continue with `count=0`. Per FR-019, the bundle MUST include built-in profiles; if none are available at build time, this is a build warning that requires follow-up before shipping.
+**Key corrections vs. earlier draft:**
+- Glob pattern is `*.agent.yaml` not `*.md` — built-in profiles are YAML source files, not pre-rendered Markdown
+- Must render via `ClaudeCodeProfileRenderer.render(profile)` to produce the `.md` format the Claude plugin bundle expects
+- `count=0` is a build error (FR-020), not a warning — the bundle cannot ship without profiles
 
 Also create a minimal `hooks/hooks.json` file (empty JSON object `{}`) to establish the directory structure for potential future hooks, but do NOT add the `hooks` pointer to `plugin.json` unless hooks content is non-trivial.
 

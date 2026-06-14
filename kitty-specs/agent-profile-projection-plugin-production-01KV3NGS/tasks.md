@@ -19,12 +19,12 @@
 | T006 | Add `tomli-w` to dependencies; implement `CodexProfileRenderer.render()` producing valid TOML | WP02 | [P] |
 | T007 | Implement `CodexProfileRenderer.can_render()`, `output_path()`, `format_key`; add optional-field passthrough | WP02 | [P] |
 | T008 | Register `CodexProfileRenderer` in renderer registry; update `FORMAT_CODEX_AGENT` constant | WP02 | [P] |
-| T009 | Verify `doctor tool-surfaces --kind agent_profile` no longer reports `research_gap` for `codex` | WP02 | [P] |
+| T009 | Verify `doctor tool-surfaces --kind agent-profile` no longer reports `research_gap` for `codex` | WP02 | [P] |
 | T010 | Confirm Amazon Q CLI agent format; implement `AmazonQProfileRenderer` targeting user-global path | WP03 | [P] |
 | T011 | Confirm Augment Code subagent format; implement `AugmentProfileRenderer` for `.augment/agents/<id>.md` | WP03 | [P] |
 | T012 | Build `HarnessCapabilityRecord`; register Windsurf/Cursor/Kiro/Gemini/Qwen/OpenCode/Kilocode as `not_applicable` with reasons | WP03 | [P] |
 | T013 | Update `AgentProfilesProvider` to emit per-harness `not_applicable` findings from capability registry | WP03 | [P] |
-| T014 | Verify `doctor tool-surfaces --kind agent_profile --json` emits exactly the six valid statuses | WP03 | [P] |
+| T014 | Verify `doctor tool-surfaces --kind agent-profile --json` emits exactly the six valid statuses | WP03 | [P] |
 | T015 | Scaffold `spec-kitty plugin build --target <target>` CLI command with build context and output dir logic | WP04 | |
 | T016 | Generate `.claude-plugin/plugin.json` with real version from `importlib.metadata`; validate semver | WP04 | |
 | T017 | Copy canonical command-skill set (≥15 skills) to `skills/` in bundle | WP04 | |
@@ -103,7 +103,7 @@
 - [ ] T006 Add `tomli-w` to dependencies; implement `CodexProfileRenderer.render()` producing valid TOML (WP02)
 - [ ] T007 Implement `can_render()`, `output_path()`, `format_key`; add optional-field passthrough (WP02)
 - [ ] T008 Register renderer and `FORMAT_CODEX_AGENT` constant in renderer registry (WP02)
-- [ ] T009 Verify `doctor tool-surfaces --kind agent_profile` no longer reports `research_gap` for `codex` (WP02)
+- [ ] T009 Verify `doctor tool-surfaces --kind agent-profile` no longer reports `research_gap` for `codex` (WP02)
 
 **Implementation sketch:**
 1. Add `tomli-w` to `pyproject.toml` dependencies
@@ -132,14 +132,14 @@
 - [ ] T011 Confirm Augment Code format; implement `AugmentProfileRenderer` for `.augment/agents/<id>.md` (WP03)
 - [ ] T012 Build `HarnessCapabilityRecord`; register not-applicable harnesses with reasons (WP03)
 - [ ] T013 Update `AgentProfilesProvider` to emit per-harness `not_applicable` findings from registry (WP03)
-- [ ] T014 Verify `doctor tool-surfaces --kind agent_profile --json` emits exactly the six valid statuses (WP03)
+- [ ] T014 Verify `doctor tool-surfaces --kind agent-profile --json` emits exactly the six valid statuses (WP03)
 
 **Implementation sketch:**
 1. Implement `AmazonQProfileRenderer` — user-global path, NOT manifest-tracked, suggestion-only output
 2. Implement `AugmentProfileRenderer` — YAML frontmatter + Markdown body + provenance footer, manifest-tracked
 3. Add `HarnessCapabilityRecord` dataclass; populate capability matrix for all 19 configured harnesses
 4. Update `AgentProfilesProvider` to consult capability matrix when building findings
-5. Verify with `--kind agent_profile --json`: every harness is `present`/`missing`/`stale`/`drifted`/`not_applicable` or `research_gap` only for truly unassessed ones
+5. Verify with `--kind agent-profile --json`: every harness is `present`/`missing`/`stale`/`drifted`/`not_applicable` or `research_gap` only for truly unassessed ones
 
 **Parallel opportunities:** T010 and T011 can execute in parallel (independent renderer files)  
 **Risks:** Amazon Q user-global path must not be added to project manifest; must use direct filesystem inspection in doctor

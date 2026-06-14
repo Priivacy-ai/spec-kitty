@@ -193,12 +193,17 @@ Register this migration in the migration registry with an appropriate version nu
 Extend `m_0_9_4_roo_deprecation.py` to also clean `roo` from the project's agent config:
 
 ```python
-from specify_cli.agent_utils.directories import load_agent_config, save_agent_config
+# load_agent_config / save_agent_config live in specify_cli.core.agent_config, NOT agent_utils.directories
+from specify_cli.core.agent_config import load_agent_config, save_agent_config, AgentConfig
 
 config = load_agent_config(project_path)
-if "roo" in config.get("agents", []):
-    config["agents"] = [a for a in config["agents"] if a != "roo"]
-    save_agent_config(project_path, config)
+# AgentConfig is a dataclass; access .available (list[str]), not config.get("agents", [])
+if "roo" in config.available:
+    updated = AgentConfig(
+        available=[a for a in config.available if a != "roo"],
+        auto_commit=config.auto_commit,
+    )
+    save_agent_config(project_path, updated)
     return MigrationResult(success=True, changed=True, notes="Removed roo from agent config.")
 ```
 

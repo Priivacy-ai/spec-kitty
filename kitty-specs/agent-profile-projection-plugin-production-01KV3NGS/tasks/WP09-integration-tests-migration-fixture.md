@@ -76,8 +76,8 @@ After `spec-kitty upgrade --yes` is run on this fixture, ALL of the following mu
 - `.claude/agents/` exists and contains profile files
 - `.codex/agents/` exists and contains TOML profile files
 - `command-skills-manifest.json` has canonical entry count (not 11)
-- `doctor tool-surfaces --kind agent_profile --json` shows zero `missing` / `stale` / `drifted` for claude and codex
-- `doctor tool-surfaces --kind command_skills --json` shows zero `missing` / `stale` / `drifted`
+- `doctor tool-surfaces --kind agent-profile --json` shows zero `missing` / `stale` / `drifted` for claude and codex
+- `doctor tool-surfaces --kind command-skill --json` shows zero `missing` / `stale` / `drifted`
 
 ---
 
@@ -88,24 +88,30 @@ After `spec-kitty upgrade --yes` is run on this fixture, ALL of the following mu
 ```python
 # tests/specify_cli/tool_surface/test_surface_repair_wiring.py
 
-def test_init_creates_missing_profile_dirs(tmp_path, monkeypatch):
-    """spec-kitty init creates missing agent profile dirs."""
-    import subprocess, sys
+def test_init_creates_missing_profile_dirs(tmp_path):
+    """spec-kitty init creates missing agent profile dirs via the CLI (not direct function call)."""
+    import subprocess, sys, json as _json
     # Setup: tmp project with config.yaml for claude only
+    # Config shape must use agents.available, not flat agents list
     (tmp_path / ".kittify").mkdir()
-    (tmp_path / ".kittify" / "config.yaml").write_text("agents: [claude]\n")
+    (tmp_path / ".kittify" / "config.yaml").write_text(
+        "agents:\n  available:\n    - claude\n"
+    )
     # Ensure .claude/agents/ does not exist
     assert not (tmp_path / ".claude" / "agents").exists()
-    # Run init surface repair in non-interactive mode
-    from specify_cli.tool_surface.repair import run_surface_repair
-    summary = run_surface_repair(tmp_path, interactive=False, repair_drift=False)
-    # Assert dirs created (function-level) and CLI exit code is 0
-    assert len(summary.created) > 0 or (tmp_path / ".claude" / "agents").exists()
+    # Run via CLI — NOT direct function call. This tests actual init/upgrade wiring (FR-001).
     result = subprocess.run(
-        [sys.executable, "-m", "specify_cli", "doctor", "tool-surfaces", "--json"],
+        [sys.executable, "-m", "specify_cli", "init", "--ai", "claude", "--yes"],
         capture_output=True, text=True, cwd=tmp_path,
     )
-    assert result.returncode == 0, f"doctor exited non-zero: {result.stderr}"
+    assert result.returncode == 0, f"init --yes failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+    assert (tmp_path / ".claude" / "agents").exists(), ".claude/agents/ must be created by init"
+    # Verify doctor is clean
+    dr = subprocess.run(
+        [sys.executable, "-m", "specify_cli", "doctor", "tool-surfaces", "--kind", "agent-profile", "--json"],
+        capture_output=True, text=True, cwd=tmp_path,
+    )
+    assert dr.returncode == 0, f"doctor exited non-zero: {dr.stderr}"
 
 def test_upgrade_repairs_stale_manifest(tmp_path):
     """spec-kitty upgrade auto-repairs stale 11-entry manifests."""
@@ -113,18 +119,34 @@ def test_upgrade_repairs_stale_manifest(tmp_path):
 
 def test_upgrade_with_yes_does_not_overwrite_drifted(tmp_path):
     """--yes flag must NOT overwrite drifted files (Rule 4: report-only in non-interactive)."""
-    # Setup: project with a drifted .claude/agents/analyst-core.md (hand-modified)
+    import subprocess, sys
+    # Setup: first run init to create the managed profile
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text(
+        "agents:\n  available:\n    - claude\n"
+    )
+    subprocess.run(
+        [sys.executable, "-m", "specify_cli", "init", "--ai", "claude", "--yes"],
+        capture_output=True, text=True, cwd=tmp_path, check=True,
+    )
+    # Drift: overwrite the managed profile with custom content
     agents_dir = tmp_path / ".claude" / "agents"
-    agents_dir.mkdir(parents=True)
-    (agents_dir / "analyst-core.md").write_text("# Hand-modified agent\n\nCustom content.\n")
-    # Run surface repair in non-interactive mode (simulating --yes)
-    from specify_cli.tool_surface.repair import run_surface_repair
-    summary = run_surface_repair(tmp_path, interactive=False, repair_drift=False)
-    # Assert the file was NOT overwritten
-    assert (agents_dir / "analyst-core.md").read_text() == "# Hand-modified agent\n\nCustom content.\n"
-    # Assert the file appears in drifted_reported (not drifted_overwritten)
-    drifted_paths = [str(p) for p in summary.drifted_reported]
-    assert any("analyst-core.md" in p for p in drifted_paths)
+    custom_content = "# Hand-modified agent\n\nCustom content.\n"
+    for md in agents_dir.glob("*.md"):
+        md.write_text(custom_content)
+        drifted_path = md
+        break
+    else:
+        pytest.skip("No managed profile files found after init")
+    # Run upgrade --yes (non-interactive; must NOT overwrite drifted files)
+    result = subprocess.run(
+        [sys.executable, "-m", "specify_cli", "upgrade", "--yes"],
+        capture_output=True, text=True, cwd=tmp_path,
+    )
+    # upgrade --yes must exit non-zero when drift is detected (FR-006)
+    assert result.returncode != 0, "--yes must exit non-zero on unresolved drift"
+    # The file must remain unchanged (not overwritten)
+    assert drifted_path.read_text() == custom_content, "Drifted file must not be overwritten by --yes"
 
 def test_upgrade_with_repair_drift_overwrites_drifted(tmp_path):
     """--repair-drift=overwrite overwrites drifted files (Rule 5)."""
@@ -177,7 +199,9 @@ def rc44_project(tmp_path):
     """Simulate a project in rc44 state: claude+codex, 11-entry manifest, no agent profile dirs."""
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
-    (kittify / "config.yaml").write_text("agents:\n  - claude\n  - codex\n")
+    (kittify / "config.yaml").write_text(
+        "agents:\n  available:\n    - claude\n    - codex\n"
+    )
     skills_dir = tmp_path / ".agents" / "skills"
     skills_dir.mkdir(parents=True)
     manifest_path = tmp_path / ".kittify" / "command-skills-manifest.json"
@@ -186,25 +210,25 @@ def rc44_project(tmp_path):
     return tmp_path
 
 def test_upgrade_heals_rc44_project(rc44_project):
-    """Full upgrade path from rc44 state heals all surfaces."""
-    from specify_cli.tool_surface.repair import run_surface_repair
-    from specify_cli.skills.manifest_store import repair_stale_manifest
+    """Full upgrade path from rc44 state heals all surfaces via actual spec-kitty upgrade CLI."""
+    import subprocess, sys, json as _json
 
-    canonical_commands = _get_canonical_commands()
-
-    # Apply manifest repair
-    repair_result = repair_stale_manifest(
-        rc44_project,
-        canonical_commands=list(canonical_commands),
+    # Invoke the real CLI — NOT repair_stale_manifest() or run_surface_repair() directly.
+    # Calling functions directly bypasses init/upgrade wiring and would pass even if
+    # the commands are never connected to the repair service (FR-001, FR-002).
+    result = subprocess.run(
+        [sys.executable, "-m", "specify_cli", "upgrade", "--yes"],
+        capture_output=True, text=True, cwd=rc44_project,
     )
-    # Apply surface repair
-    summary = run_surface_repair(rc44_project, interactive=False, repair_drift=False)
+    assert result.returncode == 0, (
+        f"upgrade --yes failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+    )
 
     # Assert profile dirs created for configured agents
     claude_agents = rc44_project / ".claude" / "agents"
     codex_agents = rc44_project / ".codex" / "agents"
-    assert claude_agents.exists(), ".claude/agents/ must be created by surface repair"
-    assert codex_agents.exists(), ".codex/agents/ must be created by surface repair"
+    assert claude_agents.exists(), ".claude/agents/ must be created by upgrade"
+    assert codex_agents.exists(), ".codex/agents/ must be created by upgrade"
 
     # Assert profile files are present and non-empty
     claude_mds = list(claude_agents.glob("*.md"))
