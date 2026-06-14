@@ -1,6 +1,6 @@
 ---
 name: spk-start-agent-surface
-description: "Choose the correct Spec Kitty workflow for Codex CLI/desktop/cloud, Claude Code, and supported slash-command or command-skill harnesses."
+description: "Choose the correct Spec Kitty workflow for Codex CLI, Claude Code, and supported slash-command or command-skill harnesses."
 ---
 
 # spk-start-agent-surface
@@ -23,4 +23,5 @@ or skills appear in a specific agent, or why behavior differs by surface.
 - Prefer local CLI workflows when the surface can read/write the repo.
 - Prefer command skills for slash-command execution.
 - Prefer `spk-*` skills for explanation, recovery, and orchestration.
-- Do not assume cloud-hosted agents can access local `.kitty/` or worktrees.
+- Do not assume cloud-hosted agents can access local `.kittify/`, `kitty-specs/`,
+  or `.worktrees/` paths.

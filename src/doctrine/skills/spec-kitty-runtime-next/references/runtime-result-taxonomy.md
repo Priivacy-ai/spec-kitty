@@ -1,10 +1,11 @@
 # Runtime Result Taxonomy
 
-Reference for interpreting `spec-kitty next --agent <name>` decision output.
+Reference for interpreting `spec-kitty next --mission <handle> --agent <name>`
+decision output.
 
 ## Decision Kinds
 
-The runtime returns decisions with exactly four `kind` values.
+The runtime returns exactly one `kind` value per call.
 
 ### step
 
@@ -17,6 +18,14 @@ A normal action step. The agent should read the prompt file and execute the acti
 - `prompt_file`: Path to the prompt file the agent should read and follow
 
 **Agent response:** Read `prompt_file`, execute the action described within it. For implementation actions, the workspace is already prepared at `workspace_path`.
+
+### query
+
+Read-only current-state preview. This is returned when no `--result` is supplied
+and the runtime is showing what would happen next.
+
+**Agent response:** Inspect the state. Do not execute a prompt, answer a
+decision, or mark a result from a query response.
 
 ### decision_required
 
@@ -31,7 +40,8 @@ The runtime needs input before it can determine the next step. The agent must an
 
 **Agent response:** Answer using:
 ```bash
-spec-kitty next --agent <agent> --answer "<choice>" --decision-id "<decision_id>"
+spec-kitty next --agent <agent> --mission <handle> --result success \
+  --answer "<choice>" --decision-id "<decision_id>"
 ```
 
 If the agent cannot determine the answer, escalate to the user with the question and options.

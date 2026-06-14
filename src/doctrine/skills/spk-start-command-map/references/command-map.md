@@ -10,9 +10,11 @@
 | Review a work package | `/spec-kitty.review` or review lane output | `spk-run-review-wp` |
 | Accept completed mission | `/spec-kitty.accept` | `spk-gate-accept` |
 | Merge mission work | `/spec-kitty.merge` | `spk-gate-merge` |
-| Inspect current state | `/spec-kitty.status` | `spk-run-next` or `spk-admin-dashboard` |
+| Inspect current state | `spec-kitty agent tasks status`, `spec-kitty agent status ...`, or dashboard | `spk-run-next` or `spk-admin-dashboard` |
 | Open mission dashboard | `/spec-kitty.dashboard` | `spk-admin-dashboard` |
 | Charter/governance work | `/spec-kitty.charter` | `spk-doctrine-charter` |
 
-Generated command skills are named `spec-kitty.<command>` for slash-command
-compatibility. Operating skills are named `spk-*` for user discovery.
+Generated slash-command files and generated Agent Skills are separate command
+surfaces. Slash-command files use `/spec-kitty.*`; Agent Skills are named
+`spec-kitty.<command>` under `.agents/skills/`. Operating skills are named
+`spk-*` for user discovery.

@@ -5,7 +5,7 @@ description: "How to start an ad-hoc specialist session with Spec Kitty 3.2: How
 
 # How to Start an Ad-Hoc Specialist Session
 
-Use `/spec-kitty.profile-context` to open an interactive session with a named specialist agent — without starting a full mission. This is the right tool for exploration, quick questions, small fixes, and experimentation.
+Use `spec-kitty ask <profile>` or `spec-kitty advise --profile <profile>` to open a profile-governed advisory session without starting a full mission. This is the right tool for exploration, quick questions, small fixes, and experimentation.
 
 ---
 
@@ -28,12 +28,12 @@ It is **not** appropriate when:
 
 ## Starting a session
 
-Invoke the command with a profile name:
+Invoke a profile-governed command with a profile name:
 
 ```
-/spec-kitty.profile-context architect
-/spec-kitty.profile-context reviewer
-/spec-kitty.profile-context researcher
+spec-kitty ask architect "How should I structure this API?"
+spec-kitty advise "Review this approach" --profile reviewer
+spec-kitty ask researcher "What prior art should I inspect?"
 ```
 
 The agent loads its profile — role, doctrine, specialization context, and initialization declaration — and introduces itself. From that point on, you are in a live advisory session.
@@ -57,10 +57,10 @@ The system writes a lightweight session record (memory-dump), but does not produ
 
 ## Switching agents mid-session
 
-To bring in a different perspective, simply invoke the command again with another profile:
+To bring in a different perspective, invoke the command again with another profile:
 
 ```
-/spec-kitty.profile-context reviewer
+spec-kitty ask reviewer "Review the architecture direction above."
 ```
 
 The previous agent's session context is checkpointed. The new specialist starts with the same conversation history available as background.
@@ -106,9 +106,7 @@ A session never escalates to Capture or Execute automatically. You decide if and
 ## Example: quick architecture question
 
 ```
-/spec-kitty.profile-context architect
-
-> I'm adding a new sync endpoint. Should it be synchronous or return a job ID?
+spec-kitty ask architect "I'm adding a new sync endpoint. Should it be synchronous or return a job ID?"
 
 [Architect Alphonso responds with trade-off analysis]
 

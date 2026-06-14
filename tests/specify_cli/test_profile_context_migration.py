@@ -1,10 +1,8 @@
-"""ATDD acceptance tests for the profile-context deployment migration (WP08).
+"""Tests for the retired profile-context migration.
 
-US-4 scenarios:
-- Migration deploys spec-kitty.profile-context.md to all configured agents
-- Migration skips unconfigured agents
-- Migration is idempotent (safe to run twice)
-- Migration skips missing agent directory (respects user deletion)
+The legacy /spec-kitty.profile-context command is no longer part of the
+consumer command registry. The migration now removes stale generated copies and
+must not recreate them.
 """
 
 from __future__ import annotations
@@ -43,21 +41,23 @@ def migration():
 
 
 # ---------------------------------------------------------------------------
-# T033 scenario 1 – deploys to all configured agents
+# scenario 1 – removes stale files from configured agents
 # ---------------------------------------------------------------------------
 
 
-def test_migration_deploys_to_configured_agents(tmp_path: Path, migration) -> None:
-    """Migration creates spec-kitty.profile-context.md in each configured agent dir."""
+def test_migration_removes_from_configured_agents(tmp_path: Path, migration) -> None:
+    """Migration removes spec-kitty.profile-context.md in each configured agent dir."""
     _write_config(tmp_path, ["claude", "opencode"])
-    _make_agent_dir(tmp_path, ".claude", "commands")
-    _make_agent_dir(tmp_path, ".opencode", "command")
+    claude_dir = _make_agent_dir(tmp_path, ".claude", "commands")
+    opencode_dir = _make_agent_dir(tmp_path, ".opencode", "command")
+    (claude_dir / "spec-kitty.profile-context.md").write_text("legacy", encoding="utf-8")
+    (opencode_dir / "spec-kitty.profile-context.md").write_text("legacy", encoding="utf-8")
 
     result = migration.apply(tmp_path)
 
     assert result.success
-    assert (tmp_path / ".claude" / "commands" / "spec-kitty.profile-context.md").exists()
-    assert (tmp_path / ".opencode" / "command" / "spec-kitty.profile-context.md").exists()
+    assert not (tmp_path / ".claude" / "commands" / "spec-kitty.profile-context.md").exists()
+    assert not (tmp_path / ".opencode" / "command" / "spec-kitty.profile-context.md").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -66,16 +66,18 @@ def test_migration_deploys_to_configured_agents(tmp_path: Path, migration) -> No
 
 
 def test_migration_skips_unconfigured_agents(tmp_path: Path, migration) -> None:
-    """Migration does NOT write to agent dirs that are not in config.yaml."""
+    """Migration does NOT remove agent dirs that are not in config.yaml."""
     _write_config(tmp_path, ["opencode"])
-    _make_agent_dir(tmp_path, ".claude", "commands")   # exists but NOT configured
-    _make_agent_dir(tmp_path, ".opencode", "command")  # configured
+    claude_dir = _make_agent_dir(tmp_path, ".claude", "commands")   # exists but NOT configured
+    opencode_dir = _make_agent_dir(tmp_path, ".opencode", "command")  # configured
+    (claude_dir / "spec-kitty.profile-context.md").write_text("legacy", encoding="utf-8")
+    (opencode_dir / "spec-kitty.profile-context.md").write_text("legacy", encoding="utf-8")
 
     result = migration.apply(tmp_path)
 
     assert result.success
-    assert not (tmp_path / ".claude" / "commands" / "spec-kitty.profile-context.md").exists()
-    assert (tmp_path / ".opencode" / "command" / "spec-kitty.profile-context.md").exists()
+    assert (tmp_path / ".claude" / "commands" / "spec-kitty.profile-context.md").exists()
+    assert not (tmp_path / ".opencode" / "command" / "spec-kitty.profile-context.md").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -84,9 +86,10 @@ def test_migration_skips_unconfigured_agents(tmp_path: Path, migration) -> None:
 
 
 def test_migration_idempotent(tmp_path: Path, migration) -> None:
-    """Running the migration twice produces no errors and no duplicate files."""
+    """Running the migration twice produces no errors and does not recreate files."""
     _write_config(tmp_path, ["claude"])
-    _make_agent_dir(tmp_path, ".claude", "commands")
+    claude_dir = _make_agent_dir(tmp_path, ".claude", "commands")
+    (claude_dir / "spec-kitty.profile-context.md").write_text("legacy", encoding="utf-8")
 
     result1 = migration.apply(tmp_path)
     result2 = migration.apply(tmp_path)
@@ -95,10 +98,8 @@ def test_migration_idempotent(tmp_path: Path, migration) -> None:
     assert result2.success
 
     dest = tmp_path / ".claude" / "commands" / "spec-kitty.profile-context.md"
-    assert dest.exists()
-    # No duplicate — only one file
-    siblings = list(dest.parent.glob("spec-kitty.profile-context*"))
-    assert len(siblings) == 1
+    assert not dest.exists()
+    assert list(dest.parent.glob("spec-kitty.profile-context*")) == []
 
 
 # ---------------------------------------------------------------------------

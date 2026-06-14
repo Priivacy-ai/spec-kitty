@@ -121,7 +121,7 @@ What this does today:
 **Best practices for existing projects:**
 1. Commit or stash your current work before adding Spec Kitty.
 2. Review `.gitignore` after init so agent directories remain untracked.
-3. Use `spec-kitty verify-setup --diagnostics` if you want a post-install health check.
+3. Use `spec-kitty doctor skills --json` if you want a post-install skill health check.
 4. Start the workflow with `/spec-kitty.specify`; mission selection happens there, not during `init`.
 
 ### Choose AI Agent
@@ -206,7 +206,7 @@ rm gcm-linux_amd64.2.6.1.deb
 
 - [`spec-kitty init`](../reference/cli-commands.md#spec-kitty-init)
 - [`spec-kitty upgrade`](../reference/cli-commands.md#spec-kitty-upgrade)
-- [`spec-kitty verify-setup`](../reference/cli-commands.md#spec-kitty-verify_setup)
+- [`spec-kitty doctor skills`](../reference/cli-commands.md)
 
 ## See Also
 

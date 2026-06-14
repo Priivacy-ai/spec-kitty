@@ -18,6 +18,8 @@ skills.
 
 ## Boundary
 
-`spec-kitty.<command>` skills are generated command wrappers for slash-command
-compatibility. `spk-*` skills are user-facing operating guides. Keep both names:
-commands stay dotted; public operating skills stay short and hierarchical.
+`/spec-kitty.*` files are generated slash-command or prompt-command surfaces.
+`spec-kitty.<command>` Agent Skills are generated under `.agents/skills/` for
+skill-native hosts. `spk-*` skills are user-facing operating guides. Keep the
+surfaces distinct: dotted names are executable command surfaces; hierarchical
+`spk-*` names are operating guidance.

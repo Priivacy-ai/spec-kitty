@@ -57,7 +57,7 @@ Check that skill roots, wrapper roots, manifest, and generated artifacts are pre
 **Commands:**
 
 ```bash
-spec-kitty verify-setup
+spec-kitty doctor skills --json
 ```
 
 If `spec-kitty` is not installed:
@@ -68,8 +68,8 @@ pipx ensurepath
 spec-kitty --version
 ```
 
-**Expected outcome:** `spec-kitty verify-setup` reports all checks passed, or lists
-specific missing/drifted files.
+**Expected outcome:** `spec-kitty doctor skills --json` reports a healthy command
+and skill surface, or lists specific missing/drifted files.
 
 ---
 
@@ -115,7 +115,7 @@ Common patterns include:
 **How to diagnose:**
 
 ```bash
-spec-kitty verify-setup
+spec-kitty doctor skills --json
 spec-kitty agent config status
 ```
 
@@ -135,29 +135,29 @@ Apply deterministic recovery steps for each identified issue.
 
 | Issue | Recovery Command |
 |-------|-----------------|
-| Missing skill files | `spec-kitty init --here` |
-| Missing wrapper root | `spec-kitty init --here` |
-| Missing skill root | `spec-kitty init --here` |
-| Manifest drift | `spec-kitty init --here` |
-| Runtime not found | `spec-kitty init --here` |
+| Missing skill files | `spec-kitty doctor skills --fix` |
+| Missing wrapper root | `spec-kitty doctor skills --fix` |
+| Missing skill root | `spec-kitty doctor skills --fix` |
+| Manifest drift | `spec-kitty doctor skills --fix` |
+| Runtime not found | `spec-kitty init . --ai <agent>` |
 | Dashboard not starting | `spec-kitty dashboard` |
-| Corrupted config | Remove `.kittify/config.yaml`, re-run `spec-kitty init --here` |
+| Corrupted config | Back up and remove `.kittify/config.yaml`, then run `spec-kitty init . --ai <agent>` |
 
 **Commands:**
 
 ```bash
 # Full re-initialization (fixes most issues)
-spec-kitty init --here
+spec-kitty init . --ai <agent>
 
 # Targeted skill repair (preserves existing config)
-spec-kitty init --here
+spec-kitty doctor skills --fix
 
 # Restart dashboard
 spec-kitty dashboard
 ```
 
-**Expected outcome:** After recovery, `spec-kitty verify-setup` reports no issues and
-`spec-kitty agent tasks status` shows a healthy installation.
+**Expected outcome:** After recovery, `spec-kitty doctor skills --json` reports no
+issues and `spec-kitty agent tasks status` shows a healthy installation.
 
 ---
 
@@ -167,11 +167,11 @@ After recovery is complete, point the user to the correct next step.
 
 **Decision tree:**
 
-1. If the user wanted to **start a new project**: `spec-kitty init --here`
+1. If the user wanted to **start a new project**: `spec-kitty init . --ai <agent>`
 2. If the user wanted to **specify a mission**: `/spec-kitty.specify`
 3. If the user wanted to **check status**: `spec-kitty agent tasks status`
 4. If the user wanted to **implement a work package**: `/spec-kitty.implement`
-5. If the problem was **skills missing**: confirm skills are now visible with `spec-kitty verify-setup`
+5. If the problem was **skills missing**: confirm skills are now visible with `spec-kitty doctor skills --json`
 
 **What to communicate:**
 
@@ -185,5 +185,5 @@ After recovery is complete, point the user to the correct next step.
 
 ## References
 
-- `references/agent-path-matrix.md` -- Agent skill roots and wrapper roots for all 13 agents
+- `references/agent-path-matrix.md` -- Agent skill roots and wrapper roots for supported agents; verify against `AI_CHOICES`, `AGENT_COMMAND_CONFIG`, and `AGENT_SKILL_CONFIG`
 - `references/common-failure-signatures.md` -- Known failure patterns with symptom/cause/recovery

@@ -30,9 +30,9 @@ conflict resolution.
 |---|---|---|
 | `git worktree add` | Python | `spec-kitty implement WP##` |
 | `git commit` (planning artifacts) | Python | Before worktree creation |
-| `git commit` (lane transitions) | Python | WP moves to doing/for_review |
+| `git commit` (lane transitions) | Python | WP moves through claimed/in_progress/for_review/in_review |
 | `git commit` (implementation code) | **Agent** | After writing code in worktree |
-| `git rebase` (stale lane sync) | **Agent** | When the mission branch advanced and the lane must resync |
+| `git merge`/auto-rebase (stale lane sync) | Python or **Agent** | When stale checks classify the lane as recoverable |
 | `git merge` (lane → mission → target) | Python | `spec-kitty merge` |
 | `git push` | Python (opt-in) | `spec-kitty merge --push` only |
 | `git push` | **Agent** | Any other push scenario |
@@ -49,7 +49,7 @@ conflict resolution.
 When you run `spec-kitty implement WP01`, Python:
 
 ```
-git worktree add -b kitty/mission-042-mission-lane-a .worktrees/042-mission-lane-a main
+git worktree add -b kitty/mission-042-mission-lane-a .worktrees/042-mission-lane-a kitty/mission-042-mission
 ```
 
 It also records the lane workspace context in
@@ -73,11 +73,11 @@ This reuses the lane worktree instead of creating a second workspace:
 ### 2. Planning Artifact Auto-Commits
 
 Before creating a worktree, Python checks if `kitty-specs/042-mission/` has
-uncommitted changes on the primary branch. If so, it auto-commits:
+uncommitted changes on the primary branch. If so, it commits through
+`BookkeepingTransaction` and `safe_commit`:
 
 ```
-git add -f kitty-specs/042-mission/
-git commit -m "chore: Planning artifacts for 042-mission"
+safe_commit(paths=["kitty-specs/042-mission/"], message="chore: Planning artifacts for 042-mission")
 ```
 
 **Controlled by:** `auto_commit: true` in `.kittify/config.yaml` (default: true).
@@ -116,17 +116,14 @@ the final mission-close transition.
 
 `spec-kitty merge --mission 042-mission` runs the full merge sequence:
 
-```
-git checkout main
-git pull --ff-only                    # sync with remote
-git merge --no-ff kitty/mission-042-mission
-git worktree remove .worktrees/042-mission-lane-a --force
-git branch -d kitty/mission-042-mission-lane-a
-```
+Python creates a detached merge worktree from the target branch, merges lane
+branches into the mission branch, merges the mission ref using the selected
+strategy, advances the target branch ref to the detached result, then removes
+merged lane worktrees and branches.
 
 Merge order follows the dependency graph (topological sort).
 
-Supports 3 strategies: `merge` (--no-ff, default), `squash`, `rebase`.
+Supports 3 strategies: `squash` (default), `merge` (--no-ff), `rebase`.
 
 `--push` is opt-in — without it, the merge is local only.
 
@@ -161,14 +158,18 @@ checks that the worktree has commits ahead of the base branch
 (`git rev-list --count <base>..HEAD`). If zero commits, the transition is
 rejected.
 
-### 2. Rebasing a Lane Workspace
+### 2. Refreshing a Stale Lane Workspace
 
 If a lane branch has advanced while you were away:
 
 ```bash
 cd .worktrees/042-mission-lane-a
-git rebase kitty/mission-042-mission-lane-a
+spec-kitty implement WP## --mission 042-mission
 ```
+
+Let the stale-check and auto-merge classifier decide whether the lane can be
+refreshed automatically from the mission branch. Only perform a manual rebase
+when the CLI reports a conflict that requires agent resolution.
 
 Python displays the lane workspace and branch, but the agent resolves conflicts
 and completes the rebase manually when needed.
@@ -213,7 +214,7 @@ Per-command override: `--no-auto-commit` flag on `spec-kitty implement`.
 ```
 1. CREATED
    spec-kitty implement WP01
-   → git worktree add -b kitty/mission-042-mission-lane-a .worktrees/042-mission-lane-a main
+   → git worktree add -b kitty/mission-042-mission-lane-a .worktrees/042-mission-lane-a kitty/mission-042-mission
    → .kittify/workspaces/042-mission-lane-a.json created
 
 2. ACTIVE (agent works here)
@@ -229,7 +230,7 @@ Per-command override: `--no-auto-commit` flag on `spec-kitty implement`.
 4. MERGED
    spec-kitty accept --mission 042-mission
    spec-kitty merge --mission 042-mission
-   → git merge --no-ff kitty/mission-042-mission-lane-a
+   → detached merge worktree validates and advances target branch
    → git worktree remove .worktrees/042-mission-lane-a --force
    → git branch -d kitty/mission-042-mission-lane-a
    → .kittify/workspaces/042-mission-lane-a.json removed
@@ -240,11 +241,10 @@ Per-command override: `--no-auto-commit` flag on `spec-kitty implement`.
 
 ---
 
-## No Git Hooks
+## Git Hooks
 
-Spec-kitty does NOT use git hooks. Feature 043 replaced the pre-commit hook
-(which handled UTF-8 encoding validation) with a Python codec layer
-(`src/specify_cli/codec/`). No `.git/hooks/` files are installed or managed.
+Spec Kitty installs a scoped commit-guard hook for managed workflows. Do not
+edit `.git/hooks/` by hand; use the CLI repair path when hook state is stale.
 
 ---
 

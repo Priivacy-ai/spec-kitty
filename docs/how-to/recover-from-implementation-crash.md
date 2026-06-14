@@ -50,8 +50,10 @@ If `--recover` alone is not enough (e.g., the worktree is corrupt or the branch 
 ### Option A: Force WP back to `planned` and restart
 
 ```bash
-# Reset status to planned (requires --force because in_progress is not a terminal lane)
-spec-kitty agent tasks move-task WP02 --to planned --force --note "Recovery after crash"
+# Reset status to planned with required feedback
+printf '%s\n' "Recovery after crash; redispatch required." > /tmp/wp02-crash-feedback.md
+spec-kitty agent tasks move-task WP02 --to planned \
+  --review-feedback-file /tmp/wp02-crash-feedback.md
 
 # Delete the broken worktree manually if needed
 git worktree remove .worktrees/034-my-feature-lane-a --force

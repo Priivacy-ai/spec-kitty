@@ -52,9 +52,13 @@ kill -0 "$PID" 2>/dev/null && echo "alive" || echo "stale"
 ```
 
 **Recovery:**
-1. Move the WP back to `planned`:
+1. Record review feedback, then move the WP back to `planned`:
    ```bash
-   spec-kitty agent tasks move-task WP## --to planned --force --note "Reclaimed from stale agent"
+   cat > /tmp/wp-feedback.md <<'EOF'
+   Stale implementation lease recovered; redispatch required.
+   EOF
+   spec-kitty agent tasks move-task WP## --to planned \
+     --review-feedback-file /tmp/wp-feedback.md
    ```
 2. Check the worktree for partial work worth keeping
 3. Re-dispatch implementation

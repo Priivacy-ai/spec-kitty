@@ -1,6 +1,6 @@
 ---
 name: spk-mission-plan
-description: "Operate the Spec Kitty plan phase: convert an approved spec into architecture, data flow, risks, and implementation strategy."
+description: "Operate the Spec Kitty plan phase: convert a completed spec into architecture, data flow, risks, and implementation strategy."
 ---
 
 # spk-mission-plan

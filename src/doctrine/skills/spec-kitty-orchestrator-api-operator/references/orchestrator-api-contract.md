@@ -182,13 +182,13 @@ spec-kitty orchestrator-api start-implementation \
 
 ## 5. start-review
 
-Reviewer rollback: transitions a WP from `for_review` back to `in_progress` so the
-implementing agent can address review feedback. Requires `--review-ref` to link
-the review feedback that triggered the rollback.
+Reviewer claim/start: transitions a WP from `for_review` to `in_review` so a
+reviewing actor owns the review lane. `--review-ref` is optional and links an
+external review artifact when one exists.
 
 ```bash
 spec-kitty orchestrator-api start-review \
-  --mission TEXT --wp TEXT --actor TEXT --review-ref TEXT --policy TEXT
+  --mission TEXT --wp TEXT --actor TEXT [--review-ref TEXT] --policy TEXT
 ```
 
 **Flags:**
@@ -198,7 +198,7 @@ spec-kitty orchestrator-api start-review \
 | `--mission` | TEXT | required | Mission slug |
 | `--wp` | TEXT | required | Work package ID |
 | `--actor` | TEXT | required | Identity of the reviewing actor |
-| `--review-ref` | TEXT | required | Reference to review feedback (PR comment URL, review ID) |
+| `--review-ref` | TEXT | none | Optional reference to review feedback (PR comment URL, review ID) |
 | `--policy` | TEXT | required | JSON string with policy metadata |
 
 **Data fields:**
@@ -206,7 +206,7 @@ spec-kitty orchestrator-api start-review \
 | Field | Type | Description |
 |-------|------|-------------|
 | `from_lane` | string | Lane the WP was in before (typically `for_review`) |
-| `to_lane` | string | Lane the WP is now in (`in_progress`) |
+| `to_lane` | string | Lane the WP is now in (`in_review`) |
 | `prompt_path` | string | Path to the WP task file |
 | `policy_metadata_recorded` | bool | Whether policy metadata was recorded |
 
@@ -215,7 +215,7 @@ spec-kitty orchestrator-api start-review \
 | Code | Cause |
 |------|-------|
 | `POLICY_METADATA_REQUIRED` | `--policy` missing or incomplete |
-| `TRANSITION_REJECTED` | WP is not in `for_review` lane, or `--review-ref` missing |
+| `TRANSITION_REJECTED` | WP is not in `for_review` lane or guard checks failed |
 
 ---
 
@@ -250,6 +250,7 @@ spec-kitty orchestrator-api transition \
 | `claimed` | yes | Mark WP as claimed by an actor |
 | `in_progress` | yes | Mark WP as actively being worked |
 | `for_review` | yes | Submit WP for review |
+| `in_review` | yes | Mark WP as actively being reviewed |
 | `approved` | no | Mark WP as approved |
 | `done` | no | Mark WP as complete |
 | `blocked` | no | Mark WP as blocked |
@@ -358,7 +359,7 @@ spec-kitty orchestrator-api merge-mission \
 |------|------|---------|-------------|
 | `--mission` | TEXT | required | Mission slug |
 | `--target` | TEXT | auto-detected from `meta.json` | Target branch to merge into |
-| `--strategy` | TEXT | `merge` | Merge strategy: `merge`, `squash`, or `rebase` |
+| `--strategy` | TEXT | `squash` | Merge strategy: `merge`, `squash`, or `rebase` |
 | `--push` | FLAG | off | Push to remote after merge |
 
 **Data fields:**
@@ -388,6 +389,9 @@ spec-kitty orchestrator-api merge-mission \
 | `MISSION_NOT_READY` | accept-mission | Not all WPs are approved or done |
 | `WORKFLOW_EVIDENCE_REQUIRED` | accept-mission | Workflow files changed without runner proof |
 | `POLICY_METADATA_REQUIRED` | start-implementation, start-review, transition | Missing or incomplete policy JSON |
+| `POLICY_VALIDATION_FAILED` | start-implementation, start-review, transition | Policy JSON invalid or contains secret-like values |
+| `USAGE_ERROR` | all commands | CLI usage error or missing required arguments |
+| `DEPENDENCIES_NOT_SATISFIED` | start-implementation, transition | WP dependencies do not permit the requested transition |
 | `HISTORY_COMMIT_FAILED` | append-history | Branch lookup or commit setup failed |
 | `SAFE_COMMIT_BACKSTOP` | append-history | Safe commit refused unexpected staged paths |
 | `SAFE_COMMIT_DESTINATION_NOT_FOUND` | append-history | Safe commit destination branch does not exist |

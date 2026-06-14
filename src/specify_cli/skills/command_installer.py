@@ -35,6 +35,8 @@ from typing import Any
 from specify_cli.skills import manifest_store
 from specify_cli.skills.manifest_store import ManifestEntry
 from specify_cli.skills import command_renderer
+from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
+from specify_cli.shims.registry import CONSUMER_SKILLS
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -42,11 +44,11 @@ from specify_cli.skills import command_renderer
 
 SUPPORTED_AGENTS: tuple[str, ...] = ("codex", "vibe", "pi", "letta")
 
-#: The canonical command templates that exist in the current codebase.
-#: Matches the step directories under
-#: ``src/doctrine/missions/mission-steps/software-dev/``.
+#: Commands installed as full prompt-backed Agent Skills.  These match the
+#: step directories under ``src/doctrine/missions/mission-steps/software-dev/``.
 #: ``checklist`` was retired in 3.2.0a5 (FR-003 / FR-004 / #815).
-CANONICAL_COMMANDS: tuple[str, ...] = (
+PROMPT_BACKED_COMMANDS: tuple[str, ...] = (
+    "accept",
     "analyze",
     "charter",
     "implement",
@@ -59,6 +61,34 @@ CANONICAL_COMMANDS: tuple[str, ...] = (
     "tasks-outline",
     "tasks-packages",
 )
+
+#: Commands installed as thin Agent Skills that delegate to the canonical CLI.
+CLI_WRAPPER_COMMANDS: tuple[str, ...] = (
+    "dashboard",
+    "merge",
+    "status",
+)
+
+#: The full consumer-facing command-skill set.
+CANONICAL_COMMANDS: tuple[str, ...] = tuple(
+    sorted((*PROMPT_BACKED_COMMANDS, *CLI_WRAPPER_COMMANDS))
+)
+
+assert set(CANONICAL_COMMANDS) == set(CONSUMER_SKILLS), (
+    "Command-skill installer must cover every consumer command"
+)
+
+_CLI_WRAPPER_DESCRIPTIONS: dict[str, str] = {
+    "dashboard": "Open the mission dashboard",
+    "merge": "Merge an accepted mission",
+    "status": "Show mission and work package status",
+}
+
+_CLI_WRAPPER_COMMANDS: dict[str, str] = {
+    "dashboard": "spec-kitty dashboard",
+    "merge": "spec-kitty merge",
+    "status": "spec-kitty agent tasks status",
+}
 
 def _package_templates_dir(mission_type: str = "software-dev") -> Path:
     """Return the directory containing canonical command step directories inside
@@ -220,6 +250,53 @@ def _resolve_template(repo_root: Path, command: str) -> Path:
     return _package_templates_dir() / command / "prompt.md"
 
 
+def _render_command_skill(repo_root: Path, command: str, agent_key: str, version: str) -> bytes:
+    """Return serialized SKILL.md bytes for a command skill."""
+    if command in PROMPT_BACKED_COMMANDS:
+        template = _resolve_template(repo_root, command)
+        rendered = command_renderer.render(
+            template, agent_key, version, repo_root=repo_root
+        )
+        return rendered.to_skill_md().encode("utf-8")
+
+    if command not in CLI_WRAPPER_COMMANDS:
+        raise InstallerError("unknown_command", command=command)
+
+    description = _CLI_WRAPPER_DESCRIPTIONS[command]
+    cli_command = _CLI_WRAPPER_COMMANDS[command]
+    body = (
+        f"# /spec-kitty.{command} - {description}\n\n"
+        "## Purpose\n\n"
+        "Run the canonical Spec Kitty CLI command for this workflow and treat "
+        "its output as authoritative.\n\n"
+        "Do not rediscover mission context from branches, files, prompt "
+        "contents, or separate charter loads. If mission selection is required, "
+        "pass `--mission <handle>` where `<handle>` is a mission_id, mid8, or "
+        "mission_slug.\n\n"
+        "## User Input\n\n"
+        "The content of the user's message that invoked this skill is the User "
+        "Input. Consider it before proceeding. If it contains CLI arguments, "
+        "append them to the command below.\n\n"
+        "## Steps\n\n"
+        "Run this command from the repository root:\n\n"
+        "```bash\n"
+        f"{cli_command} <user-provided-args-if-any>\n"
+        "```\n\n"
+        "Report the command output and follow any next-step instructions it "
+        "prints.\n"
+    )
+    body = prepend_agent_upgrade_check(body)
+    skill_md = (
+        "---\n"
+        f"name: spec-kitty.{command}\n"
+        f"description: {description}\n"
+        "user-invocable: true\n"
+        "---\n"
+        f"{body if body.startswith(chr(10)) else chr(10) + body}"
+    )
+    return skill_md.encode("utf-8")
+
+
 def _atomic_write(path: Path, content: bytes) -> None:
     """Write *content* to *path* atomically (temp-file + rename).
 
@@ -344,11 +421,7 @@ def install(repo_root: Path, agent_key: str) -> InstallReport:
     report = InstallReport()
 
     for command in CANONICAL_COMMANDS:
-        template = _resolve_template(repo_root, command)
-        rendered = command_renderer.render(
-            template, agent_key, version, repo_root=repo_root
-        )
-        skill_md_bytes = rendered.to_skill_md().encode("utf-8")
+        skill_md_bytes = _render_command_skill(repo_root, command, agent_key, version)
         rel_path = f".agents/skills/spec-kitty.{command}/SKILL.md"
         abs_path = repo_root / rel_path
         _ensure_project_confined(repo_root, rel_path, abs_path)

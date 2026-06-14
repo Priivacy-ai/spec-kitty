@@ -7,8 +7,8 @@ recovery steps.
 
 ## 1. Missing Skill Root
 
-**Symptom:** Agent cannot find skills; `spec-kitty verify-setup` reports missing skill
-files. Slash commands that reference skills fail with "skill not found" or
+**Symptom:** Agent cannot find skills; `spec-kitty doctor skills --json` reports
+missing skill files. Slash commands that reference skills fail with "skill not found" or
 similar errors.
 
 **Cause:** `spec-kitty init` was run before the skill pack was available, or the
@@ -17,13 +17,13 @@ skill root directory was manually deleted.
 **Recovery:**
 
 ```bash
-spec-kitty init --here
+spec-kitty doctor skills --fix
 ```
 
 If the skill root directory is entirely absent, re-initialize:
 
 ```bash
-spec-kitty init --here
+spec-kitty init . --ai <agent>
 ```
 
 ---
@@ -39,7 +39,7 @@ interrupted before wrapper files were written.
 **Recovery:**
 
 ```bash
-spec-kitty init --here
+spec-kitty doctor skills --fix
 ```
 
 This regenerates wrapper files for all configured agents.
@@ -48,8 +48,8 @@ This regenerates wrapper files for all configured agents.
 
 ## 3. Manifest Drift
 
-**Symptom:** `spec-kitty verify-setup` reports drifted skill files. The hash of one or
-more installed files does not match the manifest.
+**Symptom:** `spec-kitty doctor skills --json` reports drifted skill files. The
+hash of one or more installed files does not match the manifest.
 
 **Cause:** Managed skill files were manually edited after installation. This is
 expected if a user intentionally customized a skill file, but may also indicate
@@ -58,7 +58,7 @@ accidental edits or merge conflicts.
 **Recovery:**
 
 ```bash
-spec-kitty init --here
+spec-kitty doctor skills --fix
 ```
 
 This overwrites drifted files with canonical content from the skill registry and
@@ -68,8 +68,8 @@ updates manifest hashes. Any local edits will be lost.
 
 ## 4. Runtime Not Found
 
-**Symptom:** "next is blocked", "runtime can't find missions", or
-`spec-kitty status` reports that `.kittify/` is missing.
+**Symptom:** "next is blocked", "runtime can't find missions", or a status command
+reports that `.kittify/` is missing.
 
 **Cause:** The `.kittify/` directory was deleted, the repository was freshly
 cloned without running init, or the user is in a subdirectory.
@@ -83,7 +83,7 @@ cloned without running init, or the user is in a subdirectory.
 
 2. Re-initialize:
    ```bash
-   spec-kitty init --here
+   spec-kitty init . --ai <agent>
    ```
 
 ---
@@ -146,7 +146,7 @@ write was interrupted mid-operation.
 2. Remove and re-initialize:
    ```bash
    rm .kittify/config.yaml
-   spec-kitty init --here
+   spec-kitty init . --ai <agent>
    ```
 
 3. Restore any custom settings from the backup if needed.
@@ -230,7 +230,7 @@ After inspecting the printed `site-packages` paths, delete the stale
 `spec_kitty_events/` directory and `spec_kitty_events-*.dist-info`, then run:
 
 ```bash
-python -m pip install --force-reinstall spec-kitty-events==5.1.0
+python -m pip install --force-reinstall "spec-kitty-events>=6.0.0,<7.0.0"
 ```
 
 Do not bypass this by importing private submodules from Spec Kitty code. The

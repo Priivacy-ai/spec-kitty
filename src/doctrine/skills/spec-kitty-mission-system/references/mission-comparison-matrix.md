@@ -8,7 +8,7 @@ Side-by-side comparison of the 4 built-in Spec Kitty missions.
 |---|---|---|---|---|
 | **Domain** | software | research | planning | documentation |
 | **Steps** | 9 (DAG) | 6 (state machine) | 4 (linear) | 6 (phases) |
-| **Has WP iteration** | Yes (implement, review) | Yes (implement, review) | No | Yes (implement, review) |
+| **Has WP iteration** | Yes (implement, review) | No | No | No |
 | **Has loops** | No | Yes (gather_more) | No | No |
 | **Default** | Yes | No | No | No |
 
@@ -28,7 +28,7 @@ Side-by-side comparison of the 4 built-in Spec Kitty missions.
 
 ### software-dev
 ```
-discovery → specify → plan → tasks_outline → tasks_packages → tasks_finalize → implement → review → accept
+discovery → specify → plan → tasks → implement → review → accept
 ```
 
 ### research

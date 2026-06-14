@@ -123,7 +123,7 @@ Use `--abort` when:
 
 Conflicts in WP prompt files (`kitty-specs/*/tasks/*.md`) are automatically resolved:
 
-- **Lane field**: Takes the more advanced status (done > for_review > doing > planned)
+- **Lane field**: Takes the more advanced status (done > approved > in_review > for_review > in_progress > claimed > planned)
 - **Checkboxes**: Takes checked [x] over unchecked [ ]
 - **History array**: Merges both sides chronologically, removes duplicates
 

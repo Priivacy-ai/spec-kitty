@@ -12,6 +12,9 @@ organized, or which skill applies.
 
 Use `spk-<family>-<action-or-topic>`.
 
+Legacy family means the pre-3.2.0 `spec-kitty-*` compatibility skills that
+remain alongside the newer `spk-*` hierarchy.
+
 Families:
 
 - `spk-start-*`: onboarding and orientation.

@@ -96,13 +96,13 @@ next scheduling decision.
 Every WP MUST follow this state flow:
 
 ```
-planned --> [workflow implement] --> in_progress --> [agent works] --> for_review --> [review] --> approved or planned
+planned --> claimed --> [workflow implement] --> in_progress --> [agent works] --> for_review --> in_review --> approved or planned
 ```
 
 After review rejection (WP moves back to `planned` with `review_status: has_feedback`):
 
 ```
-planned --> [workflow implement] --> in_progress --> [agent fixes] --> for_review --> [review] --> approved or planned
+planned --> claimed --> [workflow implement] --> in_progress --> [agent fixes] --> for_review --> in_review --> approved or planned
 ```
 
 After ALL WPs are approved: run `spec-kitty accept --mission <slug>` first as
@@ -149,11 +149,9 @@ Examples:
 - `--agent codex:gpt-4o:python-pedro:implementer`
 
 Partial compact strings are accepted (missing fields default to `unknown`).
-You may also use explicit flags instead:
-- `--tool <tool>` — agent key (e.g. `opencode`, `claude`)
-- `--model <model>` — AI model identifier (e.g. `o3`, `gpt-4o`)
-- `--profile <profile-id>` — doctrine profile (e.g. `python-pedro`)
-- `--role <role>` — role label (e.g. `implementer`, `reviewer`)
+Pass the compact identity through `--agent <tool>:<model>:<profile>:<role>`.
+The `agent action implement` and `agent action review` command surfaces do not
+accept separate `--tool`, `--model`, `--profile`, or `--role` flags.
 
 This command:
 - Moves WP from `planned` to `in_progress`
@@ -297,7 +295,7 @@ spec-kitty agent tasks status
 ```
 
 This shows:
-- Kanban board with WPs in lanes: planned, in_progress, for_review, approved, done
+- Kanban board with WPs in lanes: planned, claimed, in_progress, for_review, in_review, approved, done
 - Progress bar showing completion percentage
 - Which WPs are ready for review, in progress, and planned
 
@@ -665,7 +663,7 @@ Dispatch in parallel. Each must complete its review cycle before feature merge.
 
 ```bash
 # 1. Determine what to do next
-spec-kitty next --agent <name> --mission <slug>
+spec-kitty next --mission <slug> --json
 
 # 2. Dispatch implementation (two steps)
 #    --agent compact form: <tool>:<model>:<profile>:<role>
@@ -878,7 +876,9 @@ files but still need manual commit from the repository root checkout:
 **Stale WP (in_progress but no agent activity)**: Force back to planned and
 re-dispatch:
 ```bash
-spec-kitty agent tasks move-task WP## --to planned --force --note "Stale agent recovery"
+printf '%s\n' "Stale implementation lease recovered; redispatch required." > /tmp/stale-agent-feedback.md
+spec-kitty agent tasks move-task WP## --to planned \
+  --review-feedback-file /tmp/stale-agent-feedback.md
 ```
 
 **Cross-worktree visibility**: Each agent only sees its own WP worktree.

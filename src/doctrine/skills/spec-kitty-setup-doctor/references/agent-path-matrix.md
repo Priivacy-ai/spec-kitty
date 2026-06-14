@@ -18,11 +18,15 @@ fresh per-repo snapshots of `spec-kitty-*` skills.
 | Qwen Code | `qwen` | native-root-required | `~/.qwen/skills/` | `.qwen/skills/` | `.qwen/commands/` |
 | opencode | `opencode` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.opencode/skills/` | `.opencode/command/` |
 | Windsurf | `windsurf` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.windsurf/skills/` | `.windsurf/workflows/` |
-| Codex CLI | `codex` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/` | `.codex/prompts/` |
+| Codex CLI | `codex` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/` | _(none; command skills)_ |
+| Mistral Vibe | `vibe` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/` | _(none; command skills)_ |
+| Pi | `pi` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.pi/skills/` | _(none; command skills)_ |
+| Letta Code | `letta` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/` | _(none; command skills)_ |
 | Kilo Code | `kilocode` | native-root-required | `~/.kilocode/skills/` | `.kilocode/skills/` | `.kilocode/workflows/` |
 | Auggie CLI | `auggie` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.augment/skills/` | `.augment/commands/` |
 | Roo Code | `roo` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.roo/skills/` | `.roo/commands/` |
 | Amazon Q Developer CLI | `q` | wrapper-only | _(none)_ | _(none)_ | `.amazonq/prompts/` |
+| Kiro CLI | `kiro` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.kiro/skills/` | `.kiro/prompts/` |
 | Google Antigravity | `antigravity` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.agent/skills/` | `.agent/workflows/` |
 
 ## Installation Classes
@@ -41,7 +45,7 @@ addition to their agent-specific skill root. When both exist, the agent-specific
 root takes precedence.
 
 **Agents:** GitHub Copilot, Gemini CLI, Cursor, opencode, Windsurf, Codex CLI,
-Auggie CLI, Roo Code, Google Antigravity
+Mistral Vibe, Pi, Letta Code, Auggie CLI, Roo Code, Kiro CLI, Google Antigravity
 
 ### wrapper-only
 
