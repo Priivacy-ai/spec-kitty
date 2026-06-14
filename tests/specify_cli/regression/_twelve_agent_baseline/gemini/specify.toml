@@ -126,7 +126,7 @@ Never talk generically about `main` or "the default branch". Name the actual bra
 
 The helper JSON also returns a primary-branch recommendation payload:
 
-- `primary_branch` — the repository's primary branch (e.g. `main`)
+- `primary_branch` — the repository's primary branch<!-- glossary:glossary:primary-branch --> (e.g. `main`)
 - `current_is_primary` — `true` when you are standing on that primary branch
 - `recommended_strategy` — `feature-branch` (start a dedicated branch) or `stay`
 - `reason` — a human-readable explanation you should relay to the user
@@ -134,7 +134,7 @@ The helper JSON also returns a primary-branch recommendation payload:
 When `current_is_primary` is `true`, you **must** have an explicit branching-strategy conversation **before** calling `create`:
 
 1. Relay the `reason` to the user and ask whether they expect to open a pull request for this work later (the default assumption for mission work is yes).
-2. **If they expect a PR (recommended path):** recommend starting on a dedicated feature branch now, and propose a name derived from the confirmed slug — e.g. `feat/<slug>` (use `fix/<slug>` for a bug-fix mission). Pass that branch to `create` with `--start-branch` so the CLI creates/switches to it before writing any mission artifacts:
+2. **If they expect a PR (recommended path):** recommend starting on a dedicated feature branch<!-- glossary:glossary:feature-branch --> now, and propose a name derived from the confirmed slug — e.g. `feat/<slug>` (use `fix/<slug>` for a bug-fix mission). Pass that branch to `create` with `--start-branch` so the CLI creates/switches to it before writing any mission artifacts:
 
    ```bash
    spec-kitty agent mission create "<slug>" \\

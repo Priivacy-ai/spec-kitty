@@ -62,11 +62,11 @@ references:
   # This workflow drives the language-specific mutation toolchains; cite the
   # toolguides it operationalizes so the tools are reachable from the workflow
   # that uses them (real "uses tool" relationship, per language).
-  - name: Python Mutation Testing Tools
+  - name: Python Mutation Tools
     type: toolguide
     id: python-mutation-tools
     when: Use when applying the mutation testing workflow to Python projects.
-  - name: TypeScript Mutation Testing Tools
+  - name: TypeScript Mutation Tools
     type: toolguide
     id: typescript-mutation-tools
     when: Use when applying the mutation testing workflow to TypeScript projects.

@@ -1,0 +1,3 @@
+{"event": "started", "invocation_id": "01KV3RYMN91SS0RPYAEZGZC4V4", "profile_id": "reviewer-renata", "action": "audit", "request_text": "Adversarially review local #1956 merge bookkeeping fix before PR", "actor": "operator", "mode_of_work": "advisory", "governance_context_hash": "6cbfb6802eefedf3", "governance_context_available": true, "started_at": "2026-06-14T19:15:20.745611+00:00"}
+{"event": "completed", "invocation_id": "01KV3RYMN91SS0RPYAEZGZC4V4", "completed_at": "2026-06-14T19:18:12.800731+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "artifact_link", "invocation_id": "01KV3RYMN91SS0RPYAEZGZC4V4", "at": "2026-06-14T19:18:12.801034+00:00", "kind": "artifact", "ref": "adversarial-review-safe-issue-1956-no-blockers-tests-ruff-mypy-touched-clean"}

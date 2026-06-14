@@ -21,6 +21,10 @@ These tests pin the behaviour of four P0 defects against the current tree:
   placement authority (the coordination ref the writer uses, threaded as a
   ``placement: CommitTarget``) when the primary-HEAD check misses; a
   coord-only-committed spec reads as committed.
+* **#1954** (FR-001 / C-GATE-1 sibling) — the same committedness check must
+  also pass when the caller's ``spec_file`` path already lives inside the
+  coordination worktree, where on-disk ``.worktrees/<name>/`` is not part of
+  the branch tree path.
 
 Reconciled with PR #1910 (now on main), which independently fixed #1884 and the
 #1885 residual via ``is_committed(placement=…)`` and ``MissionNotFoundError``.
@@ -273,6 +277,7 @@ def coord_only_committed_spec(tmp_path: Path) -> dict[str, object]:
         "repo_root": tmp_path,
         "slug": f"{slug}-{mid8}",
         "spec_primary": spec_primary,
+        "spec_coord": coord_feature / "spec.md",
         "coord_branch": coord_branch,
     }
 
@@ -313,6 +318,24 @@ def test_1884_is_committed_true_via_placement_authority(
 
     placement = resolve_placement_only(repo_root, slug)
     # Sanity: the writer routes to the coordination ref, not primary HEAD.
+    assert placement.ref == coord_only_committed_spec["coord_branch"]
+
+    assert is_committed(spec, repo_root, placement=placement) is True
+
+
+def test_1954_is_committed_true_for_coord_worktree_path(
+    coord_only_committed_spec: dict[str, object],
+) -> None:
+    """The gate passes when setup-plan resolves spec_file inside the coord worktree."""
+    from mission_runtime import resolve_placement_only
+    from specify_cli.missions._substantive import is_committed
+
+    repo_root = coord_only_committed_spec["repo_root"]
+    slug = coord_only_committed_spec["slug"]
+    spec = coord_only_committed_spec["spec_coord"]
+    assert isinstance(repo_root, Path) and isinstance(slug, str) and isinstance(spec, Path)
+
+    placement = resolve_placement_only(repo_root, slug)
     assert placement.ref == coord_only_committed_spec["coord_branch"]
 
     assert is_committed(spec, repo_root, placement=placement) is True

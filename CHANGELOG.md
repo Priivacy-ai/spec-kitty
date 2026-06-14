@@ -9,8 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc44] - 2026-06-14
+
 ### ✨ Added
 
+- **ToolSurfaceContract unified registry (mission `tool-surface-contract-01KV2K2P`, PR #1948):**
+  `src/specify_cli/tool_surface/` is now the bounded context for configured tool surface policy.
+  `spec-kitty doctor tool-surfaces --json` reports stable findings and repair commands across command
+  skills, doctrine skills, session/context surfaces, native agent profile projections, and plugin
+  bundle surfaces. `doctor skills --json` remains backward-compatible, legacy `agent config` flows
+  still work through the new contract, and fresh clones now get actionable generated-surface repair
+  plans instead of silent missing `.agents/skills/` drift.
 - **Branch-strategy recommendation in `/specify` (issue #765):** `spec-kitty agent mission branch-context`
   now resolves the repository's primary branch and emits a recommendation payload (`primary_branch`,
   `current_is_primary`, `recommended_strategy`, `reason`). The software-dev specify prompt consumes it to

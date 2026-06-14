@@ -99,6 +99,18 @@ def _extract_wp_ids_from_task_files(wp_files: list[Path]) -> list[str]:
     return sorted(wp_ids)
 
 
+def _branch_tree_relative_path(file_path: Path, repo_root: Path) -> str:
+    """Return the path as it appears in the current branch tree."""
+    repo_abs = repo_root.resolve()
+    rel = file_path.resolve().relative_to(repo_abs)
+    parts = rel.parts
+    if len(parts) > 2 and parts[0] == ".worktrees":
+        worktree_root = repo_abs / parts[0] / parts[1]
+        if worktree_root.is_dir():
+            return Path(*parts[2:]).as_posix()
+    return rel.as_posix()
+
+
 def _stage_finalize_artifacts_in_coord_worktree(
     files_to_commit: list[Path],
     coord_worktree: Path,
@@ -129,10 +141,9 @@ def _stage_finalize_artifacts_in_coord_worktree(
       coord copy is skipped with a warning instead of deleted.
     * ``COORD_OWNED_STATUS_FILES`` is untouched (C-003 — no widening).
     """
-    # FR-035: finalize must never copy/stage paths that are already under
-    # the repository's .worktrees/ tree. Otherwise a coord-resolved source
-    # path maps to coord_wt/.worktrees/<mission>-coord/... and re-pollutes
-    # the branch with nested worktree content.
+    # FR-035: finalize must never copy/stage foreign or nested .worktrees/
+    # paths. A source that is already inside the target coordination worktree is
+    # different: it is already at the branch-tree path and can be staged as-is.
     from specify_cli.cli.commands.merge import path_is_under_worktrees
 
     coord_files: list[Path] = []
@@ -142,6 +153,13 @@ def _stage_finalize_artifacts_in_coord_worktree(
             continue
         rel = src.relative_to(repo_root)
         if path_is_under_worktrees(rel):
+            try:
+                coord_rel = src.resolve().relative_to(coord_worktree.resolve())
+            except ValueError:
+                continue
+            if path_is_under_worktrees(coord_rel):
+                continue
+            coord_files.append(src)
             continue
         dst = coord_worktree / rel
         if src.exists():
@@ -159,8 +177,7 @@ def _stage_finalize_artifacts_in_coord_worktree(
             try:
                 if src.read_bytes() != dst.read_bytes():
                     logger.warning(
-                        "finalize residue cleanup skipped %s: primary copy "
-                        "diverged from the staged coordination copy",
+                        "finalize residue cleanup skipped %s: primary copy diverged from the staged coordination copy",
                         src.relative_to(repo_root),
                     )
                     continue
@@ -248,11 +265,7 @@ def _emit_check_prerequisites_result(
 ) -> None:
     """Emit prerequisite-check output in JSON or human form."""
     if json_output:
-        payload = (
-            _paths_only_payload(validation_result)
-            if paths_only
-            else dict(validation_result)
-        )
+        payload = _paths_only_payload(validation_result) if paths_only else dict(validation_result)
         _emit_json(
             _inject_branch_contract(
                 payload,
@@ -355,11 +368,14 @@ def _raw_frontmatter_has_field(wp_raw_content: str, field_name: str) -> bool:
     parts = wp_raw_content.split("---", 2)
     if len(parts) < 3:
         return False
-    return re.search(
-        rf"^\s*{re.escape(field_name)}\s*:",
-        parts[1],
-        re.MULTILINE,
-    ) is not None
+    return (
+        re.search(
+            rf"^\s*{re.escape(field_name)}\s*:",
+            parts[1],
+            re.MULTILINE,
+        )
+        is not None
+    )
 
 
 def _invalid_mission_specs_owned_files(
@@ -374,9 +390,7 @@ def _invalid_mission_specs_owned_files(
     return invalid
 
 
-globals()["_invalid_" + KITTY_SPECS_DIR.replace("-", "_") + "_owned_files"] = (
-    _invalid_mission_specs_owned_files
-)
+globals()["_invalid_" + KITTY_SPECS_DIR.replace("-", "_") + "_owned_files"] = _invalid_mission_specs_owned_files
 
 
 def _with_cli_version(payload: dict[str, object]) -> dict[str, object]:
@@ -396,6 +410,11 @@ def _with_mission_aliases(payload: dict[str, object]) -> dict[str, object]:
 def _emit_json(payload: dict[str, object]) -> None:
     """Emit a deterministic single JSON object."""
     print(json.dumps(_with_cli_version(_with_mission_aliases(payload))))
+
+
+def _ensure_branch_checked_out(*_args: object, **_kwargs: object) -> None:
+    """Compatibility shim for tests patching the retired checkout helper."""
+    return None
 
 
 def _utc_now_iso() -> str:
@@ -506,10 +525,7 @@ def _inject_branch_contract(
             )
         else:
             recommended_strategy = "stay"
-            recommendation_reason = (
-                f"You are on '{resolved_current_branch}', which is not the primary "
-                f"branch '{primary_branch}'; staying on it is fine."
-            )
+            recommendation_reason = f"You are on '{resolved_current_branch}', which is not the primary branch '{primary_branch}'; staying on it is fine."
         # ``branch_context`` is the same object stored in ``enriched`` above, so
         # updating it here also updates ``enriched['branch_context']``.
         branch_context["primary_branch"] = primary_branch
@@ -680,9 +696,7 @@ def _git_dirty_paths(repo_root: Path) -> list[str]:
     return dirty
 
 
-def _resolve_record_analysis_placement_ref(
-    repo_root: Path, feature_dir: Path
-) -> CommitTarget | None:
+def _resolve_record_analysis_placement_ref(repo_root: Path, feature_dir: Path) -> CommitTarget | None:
     """Resolve the context's artifact-placement ref for ``record-analysis``.
 
     Routes through the single canonical resolver (``resolve_action_context``,
@@ -830,11 +844,7 @@ def _enforce_analysis_report_write_preflight(
 
     dirty_paths = _git_dirty_paths(repo_root)
     if placement_ref is not None and placement_ref.kind is CommitTargetKind.COORDINATION:
-        dirty_paths = [
-            path
-            for path in dirty_paths
-            if Path(path).name not in COORD_OWNED_STATUS_FILES
-        ]
+        dirty_paths = [path for path in dirty_paths if Path(path).name not in COORD_OWNED_STATUS_FILES]
     if dirty_paths:
         payload = {
             "success": False,
@@ -1068,10 +1078,7 @@ def _try_advance_primary_ref(
             coord_owned_filenames=COORD_OWNED_STATUS_FILES,
         )
         if not json_output:
-            console.print(
-                f"[dim]→ Primary branch '{primary_branch}' "
-                f"fast-forwarded to {new_sha[:7]}[/dim]"
-            )
+            console.print(f"[dim]→ Primary branch '{primary_branch}' fast-forwarded to {new_sha[:7]}[/dim]")
     except (RefAdvanceDirtyWorktreeError, RefAdvanceError) as exc:
         if not json_output:
             console.print(
@@ -1081,9 +1088,7 @@ def _try_advance_primary_ref(
                 f"({exc})"
             )
     except Exception as exc:  # noqa: BLE001  # broad catch: best-effort only
-        logging.getLogger(__name__).debug(
-            "Unexpected error in _try_advance_primary_ref: %s", exc
-        )
+        logging.getLogger(__name__).debug("Unexpected error in _try_advance_primary_ref: %s", exc)
 
 
 def _commit_to_branch(
@@ -1125,9 +1130,15 @@ def _commit_to_branch(
     # Resolve the worktree the placement lands in. For a coordination placement
     # the commit must run against the coord worktree (HEAD == coord ref); for a
     # flattened/primary placement the main checkout is the worktree.
-    worktree_root, commit_paths = _planning_commit_worktree(
-        repo_root, mission_slug, placement, (file_path,)
-    )
+    worktree_root, commit_paths = _planning_commit_worktree(repo_root, mission_slug, placement, (file_path,))
+
+    # Defensive no-op: if path normalization/filtering produces no committable
+    # paths and the artifact is already clean in the target worktree, there is
+    # nothing left to commit. Dirty artifacts still fall through to safe_commit's
+    # empty-path error instead of being silently ignored.
+    if not commit_paths and _artifact_has_no_git_changes(worktree_root, file_path):
+        _print_artifact_unchanged(artifact_type, json_output)
+        return
 
     # Commit only this file (preserves staging area)
     commit_msg = f"Add {artifact_type} for feature {mission_slug}"
@@ -1152,9 +1163,7 @@ def _commit_to_branch(
             _warn_commit_failed(artifact_type, file_path, e, json_output)
             raise
     except RuntimeError as e:
-        if _safe_commit_empty_changeset_error(e) and _artifact_has_no_git_changes(
-            worktree_root, commit_paths[0]
-        ):
+        if _safe_commit_empty_changeset_error(e) and _artifact_has_no_git_changes(worktree_root, commit_paths[0]):
             _print_artifact_unchanged(artifact_type, json_output)
             return
 
@@ -1162,9 +1171,7 @@ def _commit_to_branch(
         raise
 
     if not json_output:
-        console.print(
-            f"[green]✓[/green] {artifact_type.capitalize()} committed to {placement.ref}"
-        )
+        console.print(f"[green]✓[/green] {artifact_type.capitalize()} committed to {placement.ref}")
 
     # WP09 / FR-010 (#1878): ff-merge treadmill elimination.  After a
     # coordination-branch write, auto-advance the primary branch ref so the
@@ -1214,9 +1221,7 @@ def _find_feature_directory(
     )
 
     if not explicit_feature:
-        raise ActionContextError(
-            "FEATURE_CONTEXT_UNRESOLVED", "--mission <slug> is required"
-        )
+        raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", "--mission <slug> is required")
     try:
         feature_dir = resolve_mission_read_path(
             repo_root,
@@ -1229,8 +1234,7 @@ def _find_feature_directory(
     except StatusReadPathNotFound as exc:
         raise ActionContextError(
             "FEATURE_CONTEXT_UNRESOLVED",
-            f"Mission not found for handle {explicit_feature!r}; checked the "
-            f"coordination worktree and the primary checkout. {exc}",
+            f"Mission not found for handle {explicit_feature!r}; checked the coordination worktree and the primary checkout. {exc}",
         ) from exc
     return cast(Path, feature_dir)
 
@@ -1518,10 +1522,7 @@ def create_mission(
             _emit_json(
                 {
                     "error_code": "BRANCH_STRATEGY_CONFIRMATION_REQUIRED",
-                    "error": (
-                        "PR-bound mission creation requires explicit branch-strategy "
-                        "confirmation in --json mode."
-                    ),
+                    "error": ("PR-bound mission creation requires explicit branch-strategy confirmation in --json mode."),
                     "branch_strategy_gate": "confirmation_required",
                     "current_branch": current_branch,
                     "merge_target_branch": effective_merge_target,
@@ -1533,10 +1534,7 @@ def create_mission(
         raise typer.Exit(1) from exc
 
     if gate_outcome.prompted and not gate_outcome.decision.proceed:
-        message = (
-            "Mission creation aborted by operator at branch-strategy gate. "
-            "Switch to a feature branch or pass `--branch-strategy already-confirmed`."
-        )
+        message = "Mission creation aborted by operator at branch-strategy gate. Switch to a feature branch or pass `--branch-strategy already-confirmed`."
         if json_output:
             _emit_json({"error": message, "branch_strategy_gate": "aborted"})
         else:
@@ -1634,10 +1632,7 @@ def create_mission(
             "scaffold_only": True,
             "requires_agent_authoring": True,
             "plan_guard": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
-            "next_step": (
-                "Created scaffold only. Run `/spec-kitty.specify <intent>` in your agent "
-                "or edit and commit spec_file before `spec-kitty plan`."
-            ),
+            "next_step": ("Created scaffold only. Run `/spec-kitty.specify <intent>` in your agent or edit and commit spec_file before `spec-kitty plan`."),
             "origin_binding": {
                 "attempted": result.origin_binding_attempted,
                 "succeeded": result.origin_binding_succeeded,
@@ -1671,10 +1666,7 @@ def create_mission(
         # Issue #846: spec.md is no longer auto-committed at create time.
         # The agent commits it from /spec-kitty.specify after writing substantive content.
         console.print(f"   Meta committed to {result.target_branch}; spec.md scaffold left untracked")
-        console.print(
-            "   [yellow]Scaffold only:[/yellow] run [cyan]/spec-kitty.specify <intent>[/cyan] "
-            "in your agent, or edit and commit spec.md before planning."
-        )
+        console.print("   [yellow]Scaffold only:[/yellow] run [cyan]/spec-kitty.specify <intent>[/cyan] in your agent, or edit and commit spec.md before planning.")
 
 
 @app.command(name="check-prerequisites")
@@ -1811,9 +1803,7 @@ def record_analysis(
         # C-PLACE-1: the placement ref is the ONE CommitTarget that planning
         # artifacts (incl. analysis-report) AND status events resolve to. The
         # dirty-tree preflight uses it to ignore coord-owned residue (#1814).
-        placement_ref = _resolve_record_analysis_placement_ref(
-            repo_root, feature_dir
-        )
+        placement_ref = _resolve_record_analysis_placement_ref(repo_root, feature_dir)
         _enforce_analysis_report_write_preflight(
             cwd_repo_root,
             json_output=json_output,
@@ -1952,13 +1942,8 @@ def setup_plan(
 
             _scope = read_queue_scope_from_session() or read_queue_scope_from_credentials()
             if not _scope:
-                error_msg = (
-                    "SaaS sync cannot be guaranteed: no authenticated session/credentials found."
-                )
-                remediation = (
-                    "Run `spec-kitty auth login` or unset SPEC_KITTY_ENABLE_SAAS_SYNC "
-                    "before running setup-plan."
-                )
+                error_msg = "SaaS sync cannot be guaranteed: no authenticated session/credentials found."
+                remediation = "Run `spec-kitty auth login` or unset SPEC_KITTY_ENABLE_SAAS_SYNC before running setup-plan."
                 if json_output:
                     _emit_json(
                         {
@@ -2079,9 +2064,7 @@ def setup_plan(
         from specify_cli.missions._substantive import is_committed, is_substantive
 
         try:
-            _spec_placement: CommitTarget | None = _resolve_planning_placement(
-                repo_root, mission_slug
-            )
+            _spec_placement: CommitTarget | None = _resolve_planning_placement(repo_root, mission_slug)
         except Exception:  # noqa: BLE001 — broad catch intentional (C-004 strangler safety)
             _spec_placement = None
 
@@ -2146,7 +2129,7 @@ def setup_plan(
                 event_type=SPECIFY_COMPLETED,
                 mission_slug=mission_slug,
                 actor=SETUP_PLAN_COMMAND_NAME,
-                artifact_path=str(spec_file.relative_to(repo_root)),
+                artifact_path=_branch_tree_relative_path(spec_file, repo_root),
             )
             emit_artifact_phase(
                 feature_dir,
@@ -2176,7 +2159,7 @@ def setup_plan(
                     event_type=PLAN_COMPLETED,
                     mission_slug=mission_slug,
                     actor=SETUP_PLAN_COMMAND_NAME,
-                    artifact_path=str(plan_file.relative_to(repo_root)),
+                    artifact_path=_branch_tree_relative_path(plan_file, repo_root),
                 )
             except Exception as _plan_exc:  # noqa: BLE001
                 logger.debug("PlanCompleted emission skipped: %s", _plan_exc)
@@ -2300,9 +2283,7 @@ def setup_plan(
                     _gen_advance_wt: Path | None = None
                     with contextlib.suppress(Exception):  # Non-fatal
                         _gen_placement = _resolve_planning_placement(repo_root, mission_slug)
-                        _gen_wt, _gen_paths = _planning_commit_worktree(
-                            repo_root, mission_slug, _gen_placement, (meta_file,)
-                        )
+                        _gen_wt, _gen_paths = _planning_commit_worktree(repo_root, mission_slug, _gen_placement, (meta_file,))
                         safe_commit(
                             repo_root=repo_root,
                             worktree_root=_gen_wt,
@@ -2711,17 +2692,12 @@ def finalize_tasks(
 
             _ft_preflight = run_preflight(repo_root=repo_root, require_auth=False)
             if not _ft_preflight.ok:
-                console.print(
-                    "[red]Refusing `spec-kitty agent mission finalize-tasks`.[/red]"
-                )
+                console.print("[red]Refusing `spec-kitty agent mission finalize-tasks`.[/red]")
                 _ft_preflight.render(console)
                 if json_output:
                     _emit_json(
                         {
-                            "error": (
-                                "Boundary preflight refused finalize-tasks "
-                                "(FR-002 / FR-009)."
-                            ),
+                            "error": ("Boundary preflight refused finalize-tasks (FR-002 / FR-009)."),
                             "preflight": _ft_preflight.to_dict(),
                         }
                     )
@@ -2799,16 +2775,15 @@ def finalize_tasks(
         except PlanningBranchResolutionFailed as exc:
             error_msg = str(exc)
             if json_output:
-                _emit_json({
-                    "error": error_msg,
-                    "error_code": exc.error_code,
-                })
+                _emit_json(
+                    {
+                        "error": error_msg,
+                        "error_code": exc.error_code,
+                    }
+                )
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
-                console.print(
-                    "[yellow]Hint:[/yellow] re-run with "
-                    "[bold]--target-branch <ref>[/bold] to override."
-                )
+                console.print("[yellow]Hint:[/yellow] re-run with [bold]--target-branch <ref>[/bold] to override.")
             raise typer.Exit(1) from exc
         # WP09 / FR-010 (#1878): `_ensure_branch_checked_out` shim retired.
         # The primary-ref sync is now handled by `advance_branch_ref` after
@@ -2850,9 +2825,7 @@ def finalize_tasks(
         # exactly this set after staging (research R6 scoping: NEVER a path
         # that pre-existed this invocation, e.g. operator-authored files or
         # the WP/task inputs authored by earlier planning steps).
-        _preexisting_primary_files: set[Path] = {
-            path for path in planning_dir.rglob("*") if path.is_file()
-        }
+        _preexisting_primary_files: set[Path] = {path for path in planning_dir.rglob("*") if path.is_file()}
 
         # FR-009 / WP09 (closes #1163): scaffold ``issue-matrix.md`` whenever
         # ``spec.md`` references one or more GitHub issues (e.g. ``#1298``).
@@ -2868,10 +2841,7 @@ def finalize_tasks(
                 # Never block finalize-tasks on a scaffold failure — this is a
                 # convenience artifact, not a correctness gate.
                 if not json_output:
-                    console.print(
-                        "[yellow]Warning:[/yellow] could not scaffold "
-                        f"issue-matrix.md: {_issue_matrix_exc}"
-                    )
+                    console.print(f"[yellow]Warning:[/yellow] could not scaffold issue-matrix.md: {_issue_matrix_exc}")
             else:
                 if issue_matrix_path is not None and not json_output:
                     try:
@@ -2892,11 +2862,7 @@ def finalize_tasks(
             raise typer.Exit(1)
 
         # ─── FR-013: concern-refs coverage warnings ───────────────────────────
-        concern_coverage_warnings = (
-            check_concern_refs_coverage(wps_manifest)
-            if wps_manifest is not None
-            else []
-        )
+        concern_coverage_warnings = check_concern_refs_coverage(wps_manifest) if wps_manifest is not None else []
 
         # ─── TIER 1+: existing dependency resolution ──────────────────────────
         # Parse dependencies and requirement refs using 3-tier priority:
@@ -3147,11 +3113,7 @@ def finalize_tasks(
                         f"  Currently activated: {activated_list}\n"
                         f"  Resolution: {_resolution_cmd}"
                     )
-                    raise CharterActivationError(
-                        f"artifact={profile!r}, "
-                        f"activated={activated_list!r}, "
-                        f"resolution={_resolution_cmd!r}"
-                    )
+                    raise CharterActivationError(f"artifact={profile!r}, activated={activated_list!r}, resolution={_resolution_cmd!r}")
 
             # --- Dependency resolution with preserve-existing (T004) ---
             parsed_deps = wp_dependencies.get(wp_id, [])
@@ -3218,13 +3180,9 @@ def finalize_tasks(
             # nothing in source/tests). Respect an explicit empty list by
             # peeking at the raw frontmatter before inference fires.
             wp_raw_content = wp_file.read_text(encoding="utf-8")
-            owned_files_explicitly_empty = _owned_files_yaml_is_explicit_empty_list(
-                wp_raw_content
-            )
+            owned_files_explicitly_empty = _owned_files_yaml_is_explicit_empty_list(wp_raw_content)
             need_execution_mode_inference = not wp_meta.execution_mode
-            need_owned_files_inference = (
-                not wp_meta.owned_files and not owned_files_explicitly_empty
-            )
+            need_owned_files_inference = not wp_meta.owned_files and not owned_files_explicitly_empty
             if need_execution_mode_inference or need_owned_files_inference:
                 ownership, infer_warnings = infer_ownership(wp_raw_content, mission_slug)
                 all_ownership_warnings.extend(infer_warnings)
@@ -3343,14 +3301,8 @@ def finalize_tasks(
             # error; glob zero-match is a soft warning. create_intent from WP
             # frontmatter suppresses the hard error for planned-new-file paths.
             # (T015/T016/T017/T018 — FR-006, issue #1886)
-            _wp_create_intent: dict[str, list[str]] = {
-                wp_id: list(fm.create_intent)
-                for wp_id, fm in wp_frontmatters.items()
-                if fm.create_intent
-            }
-            glob_result = validate_glob_matches(
-                wp_manifests, repo_root, create_intent=_wp_create_intent
-            )
+            _wp_create_intent: dict[str, list[str]] = {wp_id: list(fm.create_intent) for wp_id, fm in wp_frontmatters.items() if fm.create_intent}
+            glob_result = validate_glob_matches(wp_manifests, repo_root, create_intent=_wp_create_intent)
             stderr_console = Console(stderr=True)
             # Route info notes (create_intent suppression) to stderr
             for note in glob_result.info:
@@ -3363,10 +3315,7 @@ def finalize_tasks(
             if not glob_result.passed:
                 for err in glob_result.errors:
                     stderr_console.print(f"[red]ERROR:[/red] Ownership: {err}")
-                error_msg = (
-                    "Ownership validation failed: literal-path owned_files entries "
-                    "match zero files. Fix the paths or add them to 'create_intent'."
-                )
+                error_msg = "Ownership validation failed: literal-path owned_files entries match zero files. Fix the paths or add them to 'create_intent'."
                 if json_output:
                     _emit_json(
                         {
@@ -3546,10 +3495,7 @@ def finalize_tasks(
                 wp_count=len(work_packages),
             )
         except Exception as _local_wp_exc:  # noqa: BLE001
-            console.print(
-                f"[yellow]Warning:[/yellow] Local canonical WPCreated/TasksCompleted "
-                f"persistence failed: {_local_wp_exc}"
-            )
+            console.print(f"[yellow]Warning:[/yellow] Local canonical WPCreated/TasksCompleted persistence failed: {_local_wp_exc}")
 
         # Bootstrap canonical status state for all WPs
         bootstrap_result = bootstrap_canonical_state(
@@ -3577,22 +3523,13 @@ def finalize_tasks(
             # initial check was somehow bypassed (e.g. direct call), we refuse to
             # write lanes.json with a phantom path rather than silently propagating
             # the error.
-            _lane_create_intent: dict[str, list[str]] = {
-                wp_id: list(fm.create_intent)
-                for wp_id, fm in wp_frontmatters.items()
-                if fm.create_intent
-            }
-            _lane_glob_result = validate_glob_matches(
-                wp_manifests, repo_root, create_intent=_lane_create_intent
-            )
+            _lane_create_intent: dict[str, list[str]] = {wp_id: list(fm.create_intent) for wp_id, fm in wp_frontmatters.items() if fm.create_intent}
+            _lane_glob_result = validate_glob_matches(wp_manifests, repo_root, create_intent=_lane_create_intent)
             if not _lane_glob_result.passed:
                 _lane_stderr = Console(stderr=True)
                 for err in _lane_glob_result.errors:
                     _lane_stderr.print(f"[red]ERROR:[/red] Lane-compute re-validation: {err}")
-                _lane_error_msg = (
-                    "Lane computation aborted: literal-path owned_files entries "
-                    "match zero files. Fix the paths before lanes.json is written."
-                )
+                _lane_error_msg = "Lane computation aborted: literal-path owned_files entries match zero files. Fix the paths before lanes.json is written."
                 if json_output:
                     _emit_json(
                         {
@@ -3644,8 +3581,7 @@ def finalize_tasks(
                             console.print(f"    coupling: {c}")
             if risk_report.exceeds_threshold and _policy.risk.mode == "block":
                 error_msg = (
-                    f"Parallelization risk {risk_report.overall_score:.2f} exceeds threshold "
-                    f"{risk_report.threshold:.2f}. Adjust the risk policy to proceed."
+                    f"Parallelization risk {risk_report.overall_score:.2f} exceeds threshold {risk_report.threshold:.2f}. Adjust the risk policy to proceed."
                 )
                 if json_output:
                     _emit_json(
@@ -3681,14 +3617,9 @@ def finalize_tasks(
                 # convenience artifact, not a correctness gate. Emit a
                 # copy-pasteable remediation command so operators can recover.
                 if not json_output:
+                    console.print(f"[yellow]Warning:[/yellow] could not scaffold acceptance-matrix.json: {_acc_matrix_exc}")
                     console.print(
-                        "[yellow]Warning:[/yellow] could not scaffold "
-                        f"acceptance-matrix.json: {_acc_matrix_exc}"
-                    )
-                    console.print(
-                        "[yellow]Hint:[/yellow] create it manually before "
-                        "acceptance:\n  spec-kitty agent mission finalize-tasks "
-                        f"--feature {mission_slug}"
+                        f"[yellow]Hint:[/yellow] create it manually before acceptance:\n  spec-kitty agent mission finalize-tasks --feature {mission_slug}"
                     )
             else:
                 if acceptance_matrix_path is not None and not json_output:
@@ -3759,11 +3690,7 @@ def finalize_tasks(
                 # finalize invocation materialized on the primary checkout are
                 # residue once staged on the coordination branch — the stager
                 # removes exactly those (and nothing pre-existing, R6).
-                _primary_created = frozenset(
-                    path
-                    for path in files_to_commit
-                    if path not in _preexisting_primary_files
-                )
+                _primary_created = frozenset(path for path in files_to_commit if path not in _preexisting_primary_files)
                 _commit_worktree_root, _commit_files = _planning_commit_worktree(
                     repo_root,
                     mission_slug,
