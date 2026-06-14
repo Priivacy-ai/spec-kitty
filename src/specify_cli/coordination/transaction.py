@@ -524,6 +524,17 @@ def _unlink_confined_artifact_path(worktree_root: Path, path: Path) -> None:
 # callers that imported it through this module.
 from specify_cli.status.emit import build_status_event  # noqa: E402,F401
 
+__all__ = [
+    "BookkeepingCommitFailed",
+    "BookkeepingDoubleEventId",
+    "BookkeepingError",
+    "BookkeepingLockTimeout",
+    "BookkeepingPolicyRefused",
+    "BookkeepingTransaction",
+    "BookkeepingWorktreeMissing",
+    "build_status_event",
+]
+
 
 # ---------------------------------------------------------------------------
 # Transaction

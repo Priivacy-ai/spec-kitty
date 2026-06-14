@@ -23,7 +23,6 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import cast
 
 import typer
 from rich.console import Console
@@ -58,7 +57,7 @@ def _current_worktree_root() -> Path:
     )
     if result.returncode == 0 and result.stdout.strip():
         return Path(result.stdout.strip()).resolve()
-    return cast(Path, find_repo_root())
+    return find_repo_root()
 
 
 def _changed_paths_under(repo_root: Path, rel_dir: str) -> list[str]:

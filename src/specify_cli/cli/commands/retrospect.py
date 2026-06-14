@@ -21,7 +21,7 @@ import json
 import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import typer
 from rich.console import Console
@@ -48,7 +48,7 @@ from specify_cli.retrospective import (
     PolicyResolutionError,
 )
 from specify_cli.retrospective.writer import resolve_existing_record_path
-from specify_cli.retrospective.schema import GenActor, GenProvenance
+from specify_cli.retrospective.schema import GenActor, GenProvenance, ProvenanceKind
 from specify_cli.retrospective.summary import classify_mission_record
 from specify_cli.status import read_events
 from specify_cli.status import TERMINAL_LANES
@@ -332,8 +332,10 @@ def create_cmd(
         raise typer.Exit(1) from exc
 
     # Determine write mode
-    write_mode = "overwrite" if overwrite else ("update" if update else "error")
-    provenance_kind = "explicit_create"
+    write_mode: Literal["error", "overwrite", "update"] = (
+        "overwrite" if overwrite else ("update" if update else "error")
+    )
+    provenance_kind: ProvenanceKind = "explicit_create"
 
     # Generate the record
     try:

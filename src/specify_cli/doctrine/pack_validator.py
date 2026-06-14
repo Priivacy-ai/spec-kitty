@@ -75,6 +75,7 @@ __all__ = [
 from doctrine.drg.org_pack_loader import augmentation_plural_kinds
 
 _AUGMENTATION_PLURAL_KINDS: frozenset[str] = augmentation_plural_kinds()
+FragmentIntent = dict[str, dict[str, tuple[dict[str, str], Path]]]
 
 
 # ---------------------------------------------------------------------------
@@ -376,7 +377,7 @@ def validate_pack(pack_dir: Path) -> ValidationResult:
     # field-based pass can suppress same-ID advisories for artifacts whose
     # intent is declared via DRG edges instead of inline fields.
     built_in_ids_per_kind = _load_built_in_ids_per_kind()
-    fragment_intent: dict = {}
+    fragment_intent: FragmentIntent = {}
     if drg_dir.is_dir():
         fragment_intent = _collect_fragment_edge_intent(drg_dir)
     intent_errors, intent_advisories = _intent_aware_collision_messages(
@@ -624,7 +625,7 @@ def _load_built_in_ids_per_kind() -> dict[str, set[str]]:
 def _intent_aware_collision_messages(
     pack_artifacts: dict[str, dict[str, tuple[dict[str, Any], Path]]],
     built_in_ids_per_kind: dict[str, set[str]],
-    fragment_intent: dict | None = None,
+    fragment_intent: FragmentIntent | None = None,
 ) -> tuple[list[ValidationIssue], list[ValidationIssue]]:
     """Emit intent-aware errors and advisories for pack artifacts.
 
@@ -772,7 +773,7 @@ def _urn_to_plural(urn: str) -> tuple[str, str] | None:
 
 def _collect_fragment_edge_intent(
     drg_dir: Path,
-) -> dict[str, dict[str, tuple[dict[str, str], Path]]]:
+) -> FragmentIntent:
     """Read augmentation/lineage intent from DRG fragment edges.
 
     Returns ``{plural: {artifact_id: (intent, fragment_path)}}`` where
@@ -814,7 +815,7 @@ def _collect_fragment_edge_intent(
 
 
 def _intent_aware_collision_messages_from_edges(
-    fragment_intent: dict[str, dict[str, tuple[dict[str, str], Path]]],
+    fragment_intent: FragmentIntent,
     built_in_ids_per_kind: dict[str, set[str]],
     field_artifacts: dict[str, dict[str, tuple[dict[str, Any], Path]]],
 ) -> tuple[list[ValidationIssue], list[ValidationIssue]]:
@@ -943,7 +944,7 @@ def _validate_org_charter(
 
     # Lazy import — WP09 has not necessarily shipped yet.
     try:
-        from specify_cli.doctrine.org_charter import (  # type: ignore[attr-defined]
+        from specify_cli.doctrine.org_charter import (
             OrgCharterPolicy,
         )
     except ModuleNotFoundError:

@@ -6,8 +6,9 @@ serialises to JSON or renders to the console. Kept in their own module so
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from specify_cli.task_utils import TaskCliError
 
@@ -28,7 +29,11 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
     try:
         from charter.hasher import is_stale
 
-        sync_result = _charter_pkg.ensure_charter_bundle_fresh(repo_root)
+        ensure_fresh = cast(
+            Callable[[Path], Any],
+            _charter_pkg.__dict__["ensure_charter_bundle_fresh"],
+        )
+        sync_result = ensure_fresh(repo_root)
         # Generate glossary entity pages (non-blocking; silent on failure)
         try:
             from glossary.entity_pages import GlossaryEntityPageRenderer

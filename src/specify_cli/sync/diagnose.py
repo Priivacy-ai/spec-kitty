@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import ValidationError as PydanticValidationError
 
-from spec_kitty_events import Event  # type: ignore[import-not-found]
+from spec_kitty_events import Event
 # Canonical event-type registry (Priivacy-ai/spec-kitty#1222).
 #
 # Diagnose recognises ANY event type the canonical events package models —

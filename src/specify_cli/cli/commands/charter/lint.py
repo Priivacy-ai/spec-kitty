@@ -1,7 +1,7 @@
 """``spec-kitty charter lint`` command (WP06 per-subcommand split)."""
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import typer
 
@@ -12,6 +12,9 @@ from specify_cli.cli.commands.charter._common import _emit_error
 
 # Test-patch shim — see ``synthesize.py``.
 import specify_cli.cli.commands.charter as _charter_pkg
+
+if TYPE_CHECKING:
+    from charter.drg import OrgDRGFragment
 
 __all__ = ["charter_lint"]
 
@@ -121,7 +124,7 @@ def charter_lint(
     # — programmatic consumers read provenance from the merged DRG via
     # ``charter.drg.merge_three_layers`` directly.
     org_layer_summary: list[str] = []
-    org_fragments: list = []
+    org_fragments: list[OrgDRGFragment] = []
     try:
         from charter.drg import OrgDRGFragment, load_org_drg
 

@@ -22,6 +22,16 @@ from specify_cli.status_lanes import LANE_ALIASES, TERMINAL_LANES
 from .models import GuardContext, Lane
 from .wp_state import InvalidTransitionError, wp_state_for
 
+__all__ = [
+    "ALLOWED_TRANSITIONS",
+    "CANONICAL_LANES",
+    "LANE_ALIASES",
+    "TERMINAL_LANES",
+    "is_terminal",
+    "resolve_lane_alias",
+    "validate_transition",
+]
+
 
 def _derive_allowed_transitions() -> frozenset[tuple[str, str]]:
     """Derive the edge set from the FSM's per-state ``allowed_targets()``.

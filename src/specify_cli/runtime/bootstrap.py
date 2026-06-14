@@ -38,7 +38,7 @@ def _get_cli_version() -> str:
     """
     fallback = "0.0.0-dev"
     try:
-        from specify_cli import __version__ as _version  # type: ignore[attr-defined]
+        from specify_cli import __version__ as _version
     except Exception:  # noqa: BLE001
         logger.warning(
             "Could not import specify_cli.__version__ during runtime bootstrap; "

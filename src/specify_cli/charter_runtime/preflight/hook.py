@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
+from typing import Any, TextIO
 
 import typer
 
@@ -34,7 +35,7 @@ __all__ = [
 _logger = logging.getLogger(__name__)
 
 
-def run_charter_preflight(**kwargs) -> CharterPreflightResult:
+def run_charter_preflight(**kwargs: Any) -> CharterPreflightResult:
     """Patchable lazy wrapper for the framework-free preflight runner."""
     from specify_cli.charter_runtime.preflight.runner import run_charter_preflight as _run
 
@@ -45,7 +46,7 @@ def run_preflight_or_abort(
     repo_root: Path,
     *,
     consumer: str,
-    stderr=None,
+    stderr: TextIO | None = None,
 ) -> CharterPreflightResult:
     """Run charter preflight; abort the process if it fails.
 

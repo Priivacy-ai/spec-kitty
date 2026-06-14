@@ -179,13 +179,13 @@ def _emit_workspace_husk_fix(repo_root: Path, json_output: bool) -> None:
         *fix_result.skipped_registered,
         *fix_result.skipped_appeared_valid,
     ]
-    payload: dict[str, object] = {
+    fix_payload: dict[str, object] = {
         **report.to_dict(),
         **fix_result.to_dict(),
         "healthy": not remaining,
     }
     if json_output:
-        console.print_json(json.dumps(payload, indent=2))
+        console.print_json(json.dumps(fix_payload, indent=2))
         raise typer.Exit(0 if not remaining else 1)
 
     for removed in fix_result.removed:

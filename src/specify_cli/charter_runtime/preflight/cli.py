@@ -26,6 +26,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
 from specify_cli.charter_runtime.preflight.runner import run_charter_preflight
 from specify_cli.task_utils import TaskCliError, find_repo_root
 
@@ -100,7 +101,7 @@ def charter_preflight(
     raise typer.Exit(code=0)
 
 
-def _render_human(result) -> None:  # noqa: ANN001 — internal renderer, takes CharterPreflightResult.
+def _render_human(result: CharterPreflightResult) -> None:
     """Print a compact human summary."""
     headline_colour = "green" if result.passed else "red"
     headline = "PASSED" if result.passed else "BLOCKED"

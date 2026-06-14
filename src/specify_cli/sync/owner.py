@@ -43,7 +43,7 @@ from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
-import psutil  # type: ignore[import-untyped]
+import psutil
 
 from specify_cli.sync.daemon import (
     DAEMON_EXEC_ARG_PREFIX,

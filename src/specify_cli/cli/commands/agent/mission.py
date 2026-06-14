@@ -980,7 +980,7 @@ def _resolve_planning_branch(
     del repo_root  # No longer used; kept in signature for API stability.
     if target_branch_override is not None and target_branch_override.strip():
         return target_branch_override.strip()
-    return cast(str, load_mission_target_branch(feature_dir))
+    return load_mission_target_branch(feature_dir)
 
 
 def _artifact_has_no_git_changes(repo_root: Path, file_path: Path) -> bool:
@@ -1236,7 +1236,7 @@ def _find_feature_directory(
             "FEATURE_CONTEXT_UNRESOLVED",
             f"Mission not found for handle {explicit_feature!r}; checked the coordination worktree and the primary checkout. {exc}",
         ) from exc
-    return cast(Path, feature_dir)
+    return feature_dir
 
 
 def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
@@ -2388,7 +2388,7 @@ def _find_latest_feature_worktree(repo_root: Path) -> Path | None:
 
 def _find_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:
     """Find a deterministic worktree for a feature slug."""
-    return cast(Path | None, resolve_feature_worktree(repo_root, mission_slug))
+    return resolve_feature_worktree(repo_root, mission_slug)
 
 
 def _get_current_branch(repo_root: Path) -> str:
@@ -3894,4 +3894,4 @@ def _parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str
     """Parse requirement IDs from spec.md content."""
     from specify_cli.requirement_mapping import parse_requirement_ids_from_spec_md
 
-    return cast(dict[str, list[str]], parse_requirement_ids_from_spec_md(spec_content))
+    return parse_requirement_ids_from_spec_md(spec_content)

@@ -4,7 +4,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-import toml  # type: ignore[import-untyped]
+import toml
 
 from specify_cli.core.atomic import atomic_write
 

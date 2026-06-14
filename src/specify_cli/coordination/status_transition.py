@@ -12,7 +12,6 @@ import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import cast
 
 from specify_cli.coordination.outbound import queue_saas_emission
 from specify_cli.core.commit_guard import GuardCapability
@@ -242,7 +241,7 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
     mission_id: str | None = None
     mid8: str | None = None
     meta_exists = isinstance(meta, dict)
-    if meta_exists:
+    if isinstance(meta, dict):
         raw_coord = meta.get("coordination_branch")
         raw_mission_id = meta.get("mission_id")
         raw_mid8 = meta.get("mid8")
@@ -368,7 +367,7 @@ def _read_events_from_transaction_target(
     mission_slug: str,
 ) -> list[StatusEvent]:
     """Read target status events without creating worktrees or commits."""
-    return cast(list[StatusEvent], read_event_log(_read_contract_from_transaction_target(identity, mission_slug)))
+    return read_event_log(_read_contract_from_transaction_target(identity, mission_slug))
 
 
 def read_current_wp_state_transactional(
@@ -414,7 +413,7 @@ def read_current_wp_state_transactional(
             # converted genesis-corruption signals into "unseeded WP" (#1736
             # dormant mask 1).
             return Lane.GENESIS, None
-    return cast(tuple[Lane, str | None], wp_lane_actor_from_events(events, wp_id))
+    return wp_lane_actor_from_events(events, wp_id)
 
 
 def _read_contract_from_transaction_target(
@@ -592,13 +591,10 @@ def emit_status_transition_batch_transactional(
 
     identity = _identity_for_request(first)
     if not _transaction_topology_available(identity, mission_slug):
-        return cast(
-            list[StatusEvent],
-            _emit.emit_status_transition_batch(
-                requests,
-                ensure_sync_daemon=ensure_sync_daemon,
-                sync_dossier=sync_dossier,
-            ),
+        return _emit.emit_status_transition_batch(
+            requests,
+            ensure_sync_daemon=ensure_sync_daemon,
+            sync_dossier=sync_dossier,
         )
 
     with BookkeepingTransaction.acquire(

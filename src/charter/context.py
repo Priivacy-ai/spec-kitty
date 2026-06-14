@@ -12,9 +12,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
+    from charter.activations import ActivationEntry
     from charter.pack_context import PackContext
     from charter.scope import CharterScope
     from doctrine.drg.models import DRGGraph
+    import doctrine.service as _doctrine_service_module
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
@@ -41,7 +43,7 @@ from charter.governance_references import (
     render_governance_references,
 )
 from charter.language_scope import infer_repo_languages
-from charter.schemas import DoctrineSelectionConfig
+from charter.schemas import DirectivesConfig, DoctrineSelectionConfig
 from doctrine.agent_profiles import AgentProfile, AgentProfileRepository
 from doctrine.spdd_reasons import append_spdd_reasons_guidance, is_spdd_reasons_active
 from kernel.atomic import atomic_write
@@ -1255,7 +1257,11 @@ def _build_action_org_source_map(
     return source_map
 
 
-def _build_doctrine_service(repo_root: Path, *, org_roots: list[Path] | None = None) -> object:
+def _build_doctrine_service(
+    repo_root: Path,
+    *,
+    org_roots: list[Path] | None = None,
+) -> _doctrine_service_module.DoctrineService:
     """Build a DoctrineService for the given repo root.
 
     The project-root candidate list (in priority order):
@@ -2529,7 +2535,7 @@ def _render_selection_block(
     return "\n\n".join(blocks)
 
 
-def _load_governance_activations(repo_root: Path) -> list[object]:
+def _load_governance_activations(repo_root: Path) -> list[ActivationEntry]:
     """Best-effort load of ``GovernanceConfig.activations`` for *repo_root*.
 
     The activation registry is a top-level governance field (per
@@ -2925,7 +2931,7 @@ def _project_directive_entries(repo_root: Path) -> list[dict[str, object]]:
 
 def _load_project_directives(
     repo_root: Path,
-    load_directives_config: Callable[[Path], _DirectivesConfigLike],
+    load_directives_config: Callable[[Path], DirectivesConfig],
 ) -> tuple[dict[str, object], list[str]]:
     try:
         directives_cfg = load_directives_config(repo_root)

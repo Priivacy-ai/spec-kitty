@@ -14,7 +14,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from specify_cli.identity.aliases import with_tracked_mission_slug_aliases
 from specify_cli.mission_metadata import mission_identity_fields
@@ -91,27 +91,22 @@ class ProgressResult:
         return compute_done_percentage(self.done_count, self.total_count)
 
     def to_dict(self) -> dict[str, Any]:
-        # cast: follow_imports=skip makes with_tracked_mission_slug_aliases return Any;
-        # the real signature (identity.aliases) returns dict[str, Any].
-        return cast(
-            "dict[str, Any]",
-            with_tracked_mission_slug_aliases(
-                {
-                    **mission_identity_fields(
-                        self.mission_slug,
-                        self.mission_number,
-                        self.mission_type,
-                    ),
-                    "percentage": round(self.percentage, 4),
-                    "progress_semantics": PROGRESS_SEMANTICS,
-                    "weighted_percentage": round(self.percentage, 4),
-                    "done_percentage": round(self.done_percentage, 4),
-                    "done_count": self.done_count,
-                    "total_count": self.total_count,
-                    "per_lane_counts": self.per_lane_counts,
-                    "per_wp": [wp.to_dict() for wp in self.per_wp],
-                }
-            ),
+        return with_tracked_mission_slug_aliases(
+            {
+                **mission_identity_fields(
+                    self.mission_slug,
+                    self.mission_number,
+                    self.mission_type,
+                ),
+                "percentage": round(self.percentage, 4),
+                "progress_semantics": PROGRESS_SEMANTICS,
+                "weighted_percentage": round(self.percentage, 4),
+                "done_percentage": round(self.done_percentage, 4),
+                "done_count": self.done_count,
+                "total_count": self.total_count,
+                "per_lane_counts": self.per_lane_counts,
+                "per_wp": [wp.to_dict() for wp in self.per_wp],
+            }
         )
 
 

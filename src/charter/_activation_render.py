@@ -234,7 +234,7 @@ def _render_when_clause(
     # action.
     action_label = (
         _action_label_for(action)
-        if declared_action in (None, *_WILDCARD_TOKENS)
+        if declared_action is None or declared_action in _WILDCARD_TOKENS
         else _action_label_for(declared_action)
     )
 

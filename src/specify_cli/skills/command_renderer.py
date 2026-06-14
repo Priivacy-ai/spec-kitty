@@ -492,6 +492,6 @@ def render(
         body=prepend_agent_upgrade_check(body),
         source_template=template_path.resolve(),
         source_hash=source_hash,
-        agent_key=agent_key,  # type: ignore[arg-type]
+        agent_key=agent_key,
         spec_kitty_version=spec_kitty_version,
     )

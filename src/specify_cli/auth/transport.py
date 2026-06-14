@@ -143,7 +143,7 @@ def _emit_user_facing_failure_once(message: str) -> None:
             _user_facing_failure_emitted = True
     if first:
         # Lazy import to avoid a hard cycle at module load.
-        from specify_cli.sync import emit_diagnostic
+        from specify_cli.sync.diagnose import emit_diagnostic
 
         # Single user-facing line, routed through the canonical helper
         # so it CANNOT accidentally land on stdout.
