@@ -90,7 +90,7 @@ Full software development lifecycle with work packages and code review.
 
 **Steps:**
 ```
-discovery → specify → plan → tasks_outline → tasks_packages → tasks_finalize → implement → review → accept
+discovery → specify → plan → tasks → implement → review → accept
 ```
 
 **Required artifacts:** `spec.md`, `plan.md`, `tasks.md`
@@ -194,7 +194,7 @@ steps:
     prompt_template: plan.md
 
   - id: implement
-    depends_on: [tasks_finalize]
+    depends_on: [tasks]
     prompt_template: implement.md
 ```
 
@@ -248,14 +248,15 @@ guards:
     check: 'artifact_exists("spec.md")'
 ```
 
-### command-templates/ (Agent Prompts)
+### mission-steps/ (Agent Prompts)
 
 Markdown files shown to agents at each step:
-- `specify.md` — Instructions for writing the specification
-- `plan.md` — Instructions for creating the implementation plan
-- `implement.md` — Instructions for implementing a work package
-- `review.md` — Instructions for reviewing a work package
-- `accept.md` — Instructions for final acceptance validation
+- `mission-steps/software-dev/specify/prompt.md` — Instructions for writing the specification
+- `mission-steps/software-dev/plan/prompt.md` — Instructions for creating the implementation plan
+- `mission-steps/software-dev/tasks/prompt.md` — Instructions for creating tasks and work packages
+- `mission-steps/software-dev/implement/prompt.md` — Instructions for implementing a work package
+- `mission-steps/software-dev/review/prompt.md` — Instructions for reviewing a work package
+- `mission-steps/software-dev/accept/prompt.md` — Instructions for final acceptance validation
 
 ### templates/ (Content Templates)
 
@@ -326,11 +327,9 @@ package assignment. Each profile has 6 sections: context_sources, purpose,
 specialization (languages, frameworks, boundaries), collaboration (handoffs,
 outputs), mode_defaults, and initialization_declaration.
 
-Profiles form a hierarchy via `specializes_from` — a language-specific
-profile inherits from a general implementer profile, adding language-scoped
-capabilities. The DDR-011 algorithm resolves which profile best matches a
-given task context based on weighted signals (language, framework,
-file-pattern, keyword, exact-id).
+Profiles do not use relationship fields such as `specializes_from`. Lineage and
+specialization relationships belong in the doctrine DRG; profile matching uses
+weighted signals (language, framework, file path, keyword, exact-id).
 
 The `mission.yaml` `task_types` section maps WP actions to agent roles:
 
@@ -349,13 +348,13 @@ task_types:
 spec-kitty agent profile list
 
 # Inspect a profile's boundaries and initialization context (resolved
-# through the DRG chain, including specializes_from lineage)
+# through DRG lineage and context sources)
 spec-kitty agent profile show <profile-id>
 ```
 
-There is no separate hierarchy command: specialization lineage is declared as
-`specializes_from` edges in the doctrine DRG (see the org-pack DRG YAML /
-generated `graph.yaml`); `profile show` displays the resolved result.
+There is no separate hierarchy command: specialization lineage is declared in
+the doctrine DRG (see the org-pack DRG YAML / generated `graph.yaml`); `profile
+show` displays the resolved result.
 
 ### Action Indices (Doctrine Scoping)
 
@@ -398,21 +397,17 @@ list must pass for the transition to fire.
 
 ## Template Resolution (5-Tier Chain)
 
-When a command template is needed, spec-kitty searches 5 locations in order:
+When a command prompt is needed, spec-kitty resolves the current doctrine
+mission-step prompt:
 
-| Tier | Path | Purpose |
+| Scope | Path | Purpose |
 |---|---|---|
-| 1. Override | `.kittify/overrides/command-templates/` | Project customization |
-| 2. Legacy | `.kittify/command-templates/` | Deprecated pre-migration |
-| 3. Global Mission | `~/.kittify/missions/{mission}/command-templates/` | User global |
-| 4. Global | `~/.kittify/command-templates/` | User global fallback |
-| 5. Package | `src/doctrine/missions/{mission}/command-templates/` | Built-in default |
+| Package | `src/doctrine/missions/mission-steps/<mission>/<step>/prompt.md` | Built-in default |
+| Project doctrine | `.kittify/doctrine/...` | Project-local doctrine overrides where supported |
+| Org doctrine | org doctrine pack | Shared organization doctrine where installed |
 
-First match wins. Override a template by placing your version in
-`.kittify/overrides/command-templates/`. The package default is always the
-fallback.
-
-Content templates (`templates/`) follow the same 5-tier resolution.
+The package default is always the fallback. Legacy `command-templates` paths are
+pre-migration artifacts, not the current package layout.
 
 ---
 
@@ -425,10 +420,11 @@ It's recorded in `meta.json` and cannot be changed after creation.
 
 ```bash
 # List available mission types
-spec-kitty list-missions
+spec-kitty mission-type list
+spec-kitty doctrine mission-type list
 
 # Specify a mission with a specific mission type
-spec-kitty specify --mission research "What are the best auth patterns?"
+spec-kitty specify --mission-type research "What are the best auth patterns?"
 
 # Check which mission type a mission uses
 cat kitty-specs/<mission-slug>/meta.json | jq .mission

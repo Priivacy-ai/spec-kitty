@@ -141,7 +141,7 @@ spec-kitty orchestrator-api transition --mission 017-mission --wp WP01 \
 ```
 
 **Why it breaks:** Returns `POLICY_METADATA_REQUIRED`. Run-affecting lanes
-(`claimed`, `in_progress`, `for_review`) require policy metadata for audit
+(`claimed`, `in_progress`, `for_review`, `in_review`) require policy metadata for audit
 and safety enforcement.
 
 **Correct approach:** Include `--policy` with all required fields.

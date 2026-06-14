@@ -20,4 +20,5 @@ Use this skill when creating or revising a mission specification.
 ## Output Standard
 
 The spec should be good enough for `/spec-kitty.plan` to derive architecture
-and work packages without inventing the product intent.
+and implementation strategy without inventing product intent. Work packages are
+authored by `/spec-kitty.tasks`.

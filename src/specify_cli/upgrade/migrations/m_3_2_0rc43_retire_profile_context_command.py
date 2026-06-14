@@ -1,10 +1,8 @@
-"""Migration: retire the legacy profile-context command template.
+"""Migration: remove legacy profile-context command files.
 
-The old ``/spec-kitty.profile-context`` surface is no longer part of the
-consumer command registry or root CLI.  Standalone profile work now routes
-through ``spec-kitty advise``, ``spec-kitty ask``, and ``profiles`` commands.
-This migration no longer deploys the legacy command; when it sees stale
-generated copies in configured agent command directories, it removes them.
+Projects may have already applied the old 2.2.0 migration that deployed
+``spec-kitty.profile-context.md``.  The command is no longer part of the
+consumer registry, so this forward migration removes stale generated copies.
 """
 
 from __future__ import annotations
@@ -19,20 +17,16 @@ _DEST_FILENAME = "spec-kitty.profile-context.md"
 
 
 @MigrationRegistry.register
-class ProfileContextDeploymentMigration(BaseMigration):
+class RetireProfileContextCommandMigration(BaseMigration):
     """Remove stale /spec-kitty.profile-context command templates."""
 
-    migration_id = "2.2.0_profile_context_deployment"
-    description = "Retire /spec-kitty.profile-context slash command from configured agents"
-    target_version = "2.2.0"
+    migration_id = "3.2.0rc43_retire_profile_context_command"
+    description = "Remove retired /spec-kitty.profile-context command files"
+    target_version = "3.2.0rc43"
 
     def detect(self, project_path: Path) -> bool:
-        """Return True if any configured agent dir still has the legacy template."""
-        for agent_root, subdir in get_agent_dirs_for_project(project_path):
-            agent_dir = project_path / agent_root / subdir
-            if agent_dir.exists() and (agent_dir / _DEST_FILENAME).exists():
-                return True
-        return False
+        """Return True if any configured agent dir still has the legacy file."""
+        return any(_iter_existing_profile_context_files(project_path))
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         """Always safe to apply; missing dirs are silently skipped."""
@@ -43,15 +37,7 @@ class ProfileContextDeploymentMigration(BaseMigration):
         changes: list[str] = []
         errors: list[str] = []
 
-        for agent_root, subdir in get_agent_dirs_for_project(project_path):
-            agent_dir = project_path / agent_root / subdir
-            if not agent_dir.exists():
-                continue
-
-            dest = agent_dir / _DEST_FILENAME
-            if not dest.exists():
-                continue
-
+        for dest in _iter_existing_profile_context_files(project_path):
             rel = str(dest.relative_to(project_path))
             if dry_run:
                 changes.append(f"Would remove retired {rel}")
@@ -71,3 +57,13 @@ class ProfileContextDeploymentMigration(BaseMigration):
             changes_made=changes,
             errors=errors,
         )
+
+
+def _iter_existing_profile_context_files(project_path: Path):
+    for agent_root, subdir in get_agent_dirs_for_project(project_path):
+        agent_dir = project_path / agent_root / subdir
+        if not agent_dir.exists():
+            continue
+        dest = agent_dir / _DEST_FILENAME
+        if dest.exists():
+            yield dest

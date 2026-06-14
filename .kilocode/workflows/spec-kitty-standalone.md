@@ -2,7 +2,7 @@
 
 This host should read Spec Kitty's canonical standalone-invocation skill pack at:
 
-**`.agents/skills/spec-kitty.advise/SKILL.md`**
+**`src/doctrine/skills/spec-kitty.advise/SKILL.md`**
 
 That file teaches:
 - When to call `spec-kitty advise`, `spec-kitty ask <profile>`, or `spec-kitty do <request>`.

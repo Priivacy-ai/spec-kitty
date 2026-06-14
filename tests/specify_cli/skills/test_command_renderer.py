@@ -584,15 +584,15 @@ def test_nfr004_all_canonical_steps_render() -> None:
     """NFR-004: All canonical steps under software-dev render without error.
 
     This exercises the full deployment pipeline contract: every step that
-    command_installer.CANONICAL_COMMANDS references must be renderable from
+    command_installer.PROMPT_BACKED_COMMANDS references must be renderable from
     the new doctrine path.
     """
-    from specify_cli.skills.command_installer import CANONICAL_COMMANDS
+    from specify_cli.skills.command_installer import PROMPT_BACKED_COMMANDS
 
     missing: list[str] = []
     render_errors: list[str] = []
 
-    for command in CANONICAL_COMMANDS:
+    for command in PROMPT_BACKED_COMMANDS:
         prompt_path = TEMPLATES_DIR / command / "prompt.md"
         if not prompt_path.is_file():
             missing.append(command)

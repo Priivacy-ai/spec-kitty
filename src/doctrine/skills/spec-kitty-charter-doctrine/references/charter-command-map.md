@@ -9,14 +9,14 @@ Complete CLI reference for `spec-kitty charter` subcommands.
 Capture charter interview answers for later generation.
 
 ```bash
-spec-kitty charter interview --mission software-dev [--profile minimal|comprehensive] [--defaults] [--json]
+spec-kitty charter interview --mission-type software-dev [--profile minimal|comprehensive] [--defaults] [--json]
 ```
 
 **Flags:**
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--mission` | TEXT | `software-dev` | Mission key for charter defaults |
+| `--mission-type` | TEXT | `software-dev` | Mission key for charter defaults |
 | `--profile` | TEXT | `minimal` | Interview profile: `minimal` or `comprehensive` |
 | `--defaults` | FLAG | off | Use deterministic defaults without prompts |
 | `--selected-paradigms` | TEXT | none | Comma-separated paradigm ID overrides |
@@ -50,14 +50,14 @@ spec-kitty charter interview --mission software-dev [--profile minimal|comprehen
 Generate the charter bundle from interview answers and doctrine references.
 
 ```bash
-spec-kitty charter generate [--mission TEXT] [--force] [--from-interview] [--json]
+spec-kitty charter generate [--mission-type TEXT] [--force] [--from-interview] [--json]
 ```
 
 **Flags:**
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--mission` | TEXT | from interview | Override mission key |
+| `--mission-type` | TEXT | from interview | Override mission key |
 | `--force` | FLAG | off | Overwrite existing charter |
 | `--from-interview / --no-from-interview` | FLAG | on | Load interview answers if present |
 | `--profile` | TEXT | `minimal` | Default profile when no interview is available |

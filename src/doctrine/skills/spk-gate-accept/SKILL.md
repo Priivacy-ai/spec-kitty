@@ -11,7 +11,7 @@ mission, or all WPs appear complete.
 ## Flow
 
 1. Run `/spec-kitty.accept` or the equivalent CLI command.
-2. Confirm all required WPs are approved or terminal.
+2. Confirm all required WPs are approved or done.
 3. Verify required tests, artifacts, and mission invariants.
 4. If accept fails, route to `spk-run-blocked-recovery`.
 5. If accept passes, route to `spk-gate-merge`.

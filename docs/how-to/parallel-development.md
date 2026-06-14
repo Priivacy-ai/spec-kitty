@@ -83,7 +83,7 @@ spec-kitty agent tasks status
 Or in your agent:
 
 ```text
-/spec-kitty.status
+spec-kitty agent tasks status
 ```
 
 Use the dashboard to monitor lane movement and agent activity in real time.

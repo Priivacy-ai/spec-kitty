@@ -10,42 +10,26 @@ the runtime reports errors -- use this guide to identify the problem and recover
 
 ## Run the diagnostic command
 
-Start every investigation with `verify-setup`:
+Start every investigation with `doctor skills`:
 
 ```bash
-spec-kitty verify-setup
+spec-kitty doctor skills --json
 ```
 
-The output is divided into three sections:
-
-1. **Installed tools** -- lists every supported AI agent CLI and marks each as
-   found or missing.  A missing tool is only a problem if you intend to use
-   that agent.
-
-2. **Project health** -- checks `.kittify/config.yaml`, the skills manifest,
-   and agent directories.  Errors here block normal operation.
-
-3. **Feature context** -- if a feature is active, verifies that its
-   `kitty-specs/` artifacts are present and well-formed.
-
-### Reading the output
-
-| Symbol | Meaning |
-|--------|---------|
-| Green checkmark | Check passed |
-| Yellow warning | Non-blocking issue (e.g., optional tool not installed) |
-| Red cross | Blocking error that must be resolved |
+The JSON output reports command-skill coverage, drift, gaps, stale entries, and
+orphaned managed files. Treat `error` issues as blockers and `warning` issues
+as repair candidates.
 
 To get machine-readable output for scripting or agent consumption:
 
 ```bash
-spec-kitty verify-setup --json
+spec-kitty doctor skills --json
 ```
 
-For extended diagnostics including dashboard health:
+For general project status, use:
 
 ```bash
-spec-kitty verify-setup --diagnostics
+spec-kitty agent tasks status
 ```
 
 ---
@@ -59,7 +43,7 @@ root cause, and recovery steps.
 
 **Symptoms:**
 - Agent reports "skill not found" when running slash commands.
-- `spec-kitty verify-setup` lists missing skill files.
+- `spec-kitty doctor skills --json` lists missing skill files.
 
 **Cause:**  The skill root directory for your agent was deleted, or
 `spec-kitty init` ran before the current skill pack was available.
@@ -97,7 +81,7 @@ This regenerates wrapper files for every configured agent.
 ### 3. Manifest drift
 
 **Symptoms:**
-- `spec-kitty verify-setup` reports one or more "drifted" skill files.
+- `spec-kitty doctor skills --json` reports one or more drifted skill files.
 - Hash mismatches appear in the verification output.
 
 **Cause:**  Managed skill files under `.kittify/skills-manifest.json` were
@@ -119,7 +103,7 @@ back them up first.
 ### 4. Runtime not found
 
 **Symptoms:**
-- `spec-kitty verify-setup` reports `.kittify/` is missing.
+- A status or doctor command reports `.kittify/` is missing.
 - Errors like "next is blocked" or "runtime can't find missions" appear.
 
 **Cause:**  The `.kittify/` directory was deleted, the repo was freshly cloned
@@ -304,7 +288,7 @@ Inspect the printed paths. They should be under the affected interpreter's
 ```bash
 rm -rf /path/to/site-packages/spec_kitty_events \
        /path/to/site-packages/spec_kitty_events-*.dist-info
-python -m pip install --force-reinstall spec-kitty-events==5.1.0
+python -m pip install --force-reinstall "spec-kitty-events>=6.0.0,<7.0.0"
 ```
 
 Re-run the diagnostic check. Healthy output includes a real `__init__.py` path:

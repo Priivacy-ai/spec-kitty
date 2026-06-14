@@ -142,7 +142,35 @@ The JSON output includes:
 - `"wp_count"` — number of WP files processed
 - `"dependencies_parsed"` — dependency relationships found
 - `"requirement_refs_parsed"` — requirement reference mapping found
+- `"ownership_warnings"` — soft warnings (glob-pattern zero-match, audit coverage)
 - Validation details when checks fail (`missing_requirement_refs_wps`, `unknown_requirement_refs`, `unmapped_functional_requirements`)
+
+**CRITICAL — Ownership warnings require action before proceeding:**
+
+If `ownership_warnings` is non-empty, or if the command emits `ERROR: Ownership`
+lines to stderr, you MUST act on each issue before starting implementation:
+
+- **Hard error** (`ownership_literal_path_errors` present, exit 1): A
+  `owned_files` entry is a literal file path that does not exist in the
+  repository. Fix by:
+  1. Correcting the path (typo / wrong relative path), or
+  2. Adding the path to `create_intent` in the WP frontmatter if the file will
+     be created by this WP (planned-new-file).
+
+  **Do NOT proceed to implement while any hard error is present.**
+
+- **Soft warning** (`ownership_warnings` non-empty, exit 0): A `owned_files`
+  glob pattern matched zero files. This may indicate in-flight work. Verify the
+  pattern is correct and adjust if needed before starting implementation.
+
+Example `create_intent` frontmatter for a planned-new-file entry:
+
+```yaml
+owned_files:
+  - "src/specify_cli/new_module.py"
+create_intent:
+  - "src/specify_cli/new_module.py"  # will be created by this WP
+```
 
 ### 4. Verify
 

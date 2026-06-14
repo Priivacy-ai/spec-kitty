@@ -69,7 +69,7 @@ results. No command returns prose or mixed text/JSON.
 | `mission-state` | Query full mission state | No |
 | `list-ready` | List WPs ready to start | No |
 | `start-implementation` | Claim + begin WP (atomic) | Yes |
-| `start-review` | Reviewer rollback (for_review → in_progress) | Yes |
+| `start-review` | Claim a WP for review (for_review -> in_review) | Yes |
 | `transition` | Explicit single lane change | Yes |
 | `append-history` | Add note to WP activity log | Yes |
 | `accept-mission` | Mark mission as accepted without closing approved WPs | Yes |
@@ -77,7 +77,7 @@ results. No command returns prose or mixed text/JSON.
 
 ### Policy Metadata (Required for Run-Affecting Lanes)
 
-Transitions to `claimed`, `in_progress`, or `for_review` require `--policy`
+Transitions to `claimed`, `in_progress`, `for_review`, or `in_review` require `--policy`
 with a JSON object containing **7 required fields**:
 
 ```json
@@ -123,6 +123,8 @@ returns `POLICY_VALIDATION_FAILED`.
 | `WP_ALREADY_CLAIMED` | Another actor owns the WP |
 | `POLICY_METADATA_REQUIRED` | Policy missing on run-affecting lane |
 | `POLICY_VALIDATION_FAILED` | Policy JSON invalid or contains secrets |
+| `USAGE_ERROR` | CLI usage or missing required arguments |
+| `DEPENDENCIES_NOT_SATISFIED` | WP dependencies do not permit the requested transition |
 | `MISSION_NOT_READY` | Not all WPs approved or done |
 | `PREFLIGHT_FAILED` | Worktree dirty, target diverged, or missing WPs |
 | `UNSUPPORTED_STRATEGY` | Merge strategy not in {merge, squash, rebase} |
@@ -241,11 +243,12 @@ spec-kitty orchestrator-api transition \
 ```
 
 **Valid target lanes:** `planned`, `claimed`, `in_progress`, `for_review`,
+`in_review`,
 `approved`, `done`, `blocked`, `canceled`.
 
 **Rules:**
 
-- Run-affecting lanes (`claimed`, `in_progress`, `for_review`) require `--policy`
+- Run-affecting lanes (`claimed`, `in_progress`, `for_review`, `in_review`) require `--policy`
 - Use `--force` only when recovering from a known-bad state
 - Use `--note` to record transition reasoning in the audit trail
 - Use `--review-ref` when transitioning from `for_review` or `approved` back
@@ -255,17 +258,16 @@ spec-kitty orchestrator-api transition \
 
 ## Step 6: Start Review
 
-For reviewer rollback (not the same as `transition --to in_progress`):
+For reviewer claim/start (not an implementation rollback):
 
 ```bash
 spec-kitty orchestrator-api start-review \
   --mission <slug> --wp WP01 --actor "reviewer-bot" \
-  --review-ref "PR#42" \
   --policy '{"orchestrator_id":"my-orch",...}'
 ```
 
-`--review-ref` is **required** — it records the review feedback reference.
-This is the guard condition for the `for_review → in_progress` transition.
+This moves the WP from `for_review` to `in_review`. `--review-ref` is optional;
+use it when there is an external review artifact to record.
 
 ---
 
@@ -299,7 +301,7 @@ that transition.
 
 On preflight failure, returns `PREFLIGHT_FAILED` with detailed error list.
 
-Supports 3 merge strategies: `merge` (--no-ff, default), `squash`, `rebase`.
+Supports 3 merge strategies: `merge` (--no-ff), `squash` (default), `rebase`.
 Use `--push` to push the target branch after merge.
 
 ---

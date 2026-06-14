@@ -630,7 +630,7 @@ traceback that is not network-related). Operator exceptions are for
 environmental blockers, not for deferred bugs.
 
 Full operator runbook for the exception path:
-[`docs/migration/cross-repo-e2e-gate.md`](../../../docs/migration/cross-repo-e2e-gate.md).
+[`docs/migration/cross-repo-e2e-gate.md`](../../../../docs/migration/cross-repo-e2e-gate.md).
 
 ### Recording the gate results
 

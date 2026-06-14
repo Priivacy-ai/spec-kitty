@@ -1,5 +1,8 @@
 # Spec Kitty 3.2.0 Skill Map
 
+Legacy family: pre-3.2.0 `spec-kitty-*` compatibility skills. They remain for
+detailed workflows or aliases while new public operating skills use `spk-*`.
+
 ## Start
 
 - `spk-start-here`: first route for users and agents.
@@ -63,3 +66,14 @@
 
 - `spk-meta-skill-map`: discovery and naming convention.
 - `spk-meta-skill-authoring`: authoring future `spk-*` skills.
+
+## Legacy Compatibility
+
+- `spec-kitty-runtime-next` -> prefer `spk-run-next`
+- `spec-kitty-runtime-review` -> prefer `spk-run-review-wp`
+- `spec-kitty-implement-review` -> prefer `spk-run-implement-review`
+- `spec-kitty-mission-system` -> prefer `spk-mission-types`
+- `spec-kitty-charter-doctrine` -> prefer `spk-doctrine-charter`
+- `spec-kitty-setup-doctor` -> prefer `spk-admin-setup-doctor`
+- `spec-kitty-git-workflow` -> prefer `spk-admin-git-workflow`
+- `spec-kitty-orchestrator-api-operator` -> prefer `spk-integrate-orchestrator-api`

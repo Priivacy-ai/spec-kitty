@@ -10,8 +10,8 @@ types differ.
 
 ## Workflow
 
-1. Identify the requested work: software change, documentation, research, or
-   custom/team workflow.
+1. Identify the requested work: software change, standalone planning,
+   documentation, research, or custom/team workflow.
 2. Compare available mission types before creating new process.
 3. Use the legacy `spec-kitty-mission-system` skill for detailed step-contract,
    procedure, action-index, and template-resolution mechanics.
@@ -20,3 +20,10 @@ types differ.
 
 Mission types define workflow behavior. Skills explain how to operate that
 behavior; they do not redefine the mission DAG.
+
+## Built-In Types
+
+- `software-dev`: default feature/change workflow with tasks and WP iteration.
+- `research`: evidence-gathering workflow before or during product decisions.
+- `plan`: planning-only workflow.
+- `documentation`: documentation-oriented workflow.

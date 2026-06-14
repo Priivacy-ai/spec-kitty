@@ -10,14 +10,15 @@ Dashboard metadata lives at:
 .kittify/.dashboard
 ```
 
-The file has four lines:
+The file has two required lines and two optional lines:
 
 1. URL
 2. Port
-3. Token
-4. PID
+3. Token (optional)
+4. PID (optional)
 
-If the file exists and the PID is alive, show the URL directly.
+If the file exists, use the dashboard lifecycle command to validate health,
+project identity, token, and daemon state before showing the URL.
 
 ## Commands
 

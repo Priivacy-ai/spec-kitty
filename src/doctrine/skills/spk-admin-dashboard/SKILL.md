@@ -10,8 +10,10 @@ dashboard as a generic status abstraction.
 
 ## Flow
 
-1. If `.kittify/.dashboard` exists, read it and show the URL.
-2. If metadata is missing or stale, run `spec-kitty dashboard --open`.
+1. Prefer `spec-kitty dashboard --open` so lifecycle validation checks project,
+   token, health, and daemon state before showing a URL.
+2. If `.kittify/.dashboard` exists, treat it as diagnostic metadata only; do
+   not show the URL until validation succeeds.
 3. Use `spec-kitty dashboard --json` only for machine-readable mission rows.
 4. Use `spec-kitty dashboard --kill` only when the user asks to stop it.
 
@@ -22,5 +24,5 @@ ports, tokens, or stale PID behavior.
 
 ## Rule
 
-The dashboard is a localhost daemon, not a cloud page. Prefer the recorded URL
-or `spec-kitty dashboard --open`.
+The dashboard is a localhost daemon, not a cloud page. Prefer
+`spec-kitty dashboard --open` over manually trusting recorded metadata.

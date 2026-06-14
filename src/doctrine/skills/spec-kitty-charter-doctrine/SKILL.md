@@ -329,9 +329,8 @@ timestamp.
 ### Doctrine Artifact Kinds
 
 Doctrine organizes knowledge into 8 artifact kinds. Each kind has a
-dedicated repository in `DoctrineService`, follows two-source loading
-(shipped defaults + project overrides), and is accessible programmatically
-or via CLI.
+dedicated repository in `DoctrineService`, follows built-in -> org -> project
+loading, and is accessible programmatically or via CLI.
 
 **Directives** — Numbered project rules that constrain agent behavior.
 Each directive has a severity (`error`, `warn`, `info`), an `applies_to`
@@ -400,8 +399,9 @@ procedure = service.procedures.get("refactoring")
 
 **Agent Profiles** — Role definitions with 6 sections: context_sources,
 purpose, specialization, collaboration, mode_defaults, and
-initialization_declaration. Profiles form a hierarchy (`specializes_from`)
-and support weighted matching against task context (DDR-011 algorithm).
+initialization_declaration. Relationship fields such as `specializes_from` are
+not profile fields; lineage belongs in the doctrine DRG. Profiles support
+weighted matching against task context (DDR-011 algorithm).
 
 ```python
 profile = service.agent_profiles.get("implementer")
@@ -570,7 +570,7 @@ See `references/charter-command-map.md` for all flags.
 spec-kitty charter generate --from-interview --json
 ```
 
-Key flags: `--mission`, `--template-set`, `--force`, `--from-interview`, `--json`.
+Key flags: `--mission-type`, `--template-set`, `--force`, `--from-interview`, `--json`.
 
 Generation triggers an automatic sync, so governance.yaml and directives.yaml
 are written immediately.
@@ -666,10 +666,10 @@ needs to assign an agent to a task, it resolves the best profile:
 from doctrine.agent_profiles.profile import TaskContext
 
 context = TaskContext(
-    languages=["python"],
-    frameworks=["<project-test-runner>", "typer"],
-    file_patterns=["src/**/*.py"],
-    domain_keywords=["cli", "testing"],
+    language="python",
+    framework="typer",
+    file_paths=["src/specify_cli/cli.py"],
+    keywords=["cli", "testing"],
 )
 
 profile = service.agent_profiles.find_best_match(context)
@@ -678,9 +678,9 @@ profile = service.agent_profiles.find_best_match(context)
 # profile.initialization_declaration → startup context text
 ```
 
-Profiles support hierarchy (`specializes_from` field). Language-specific
-profiles can specialize from `implementer`, inheriting base capabilities and
-adding stack-specific ones.
+Profile lineage is represented by DRG edges, not a `specializes_from` field on
+profile YAML. Language-specific profiles can still be related to base roles in
+the DRG and resolved through profile matching.
 
 ### Action-Scoped Doctrine via Action Indices
 

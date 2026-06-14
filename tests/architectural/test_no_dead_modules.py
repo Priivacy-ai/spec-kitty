@@ -186,6 +186,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_2_0rc35_fix_prompt_file_workaround",
         "specify_cli.upgrade.migrations.m_3_2_0rc35_charter_bundle_v2",
         "specify_cli.upgrade.migrations.m_3_2_0rc35_charter_manifest_defaults_repair",
+        "specify_cli.upgrade.migrations.m_3_2_0rc43_retire_profile_context_command",
         # NOTE: WP01 (charter-pack-activation-layer-01KSYE4V) was expected to
         # add the three entries below.  They are added here as a WP01 gap fix
         # so the WP05 architectural gate passes before lanes are merged.

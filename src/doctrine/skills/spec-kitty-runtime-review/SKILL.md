@@ -40,7 +40,7 @@ from doctrine — do not restate those rules here.
 spec-kitty agent action review WP## --agent <your-name>
 ```
 
-This moves the WP from `for_review` to `doing` and prints the path to a
+This moves the WP from `for_review` to `in_review` and prints the path to a
 generated review prompt file. Read that path from the command output.
 
 ---
