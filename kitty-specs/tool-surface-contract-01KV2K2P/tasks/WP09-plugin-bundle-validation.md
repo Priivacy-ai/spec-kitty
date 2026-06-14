@@ -23,6 +23,7 @@ subtasks:
 - T047
 - T048
 agent: claude
+shell_pid: '48078'
 history:
 - date: '2026-06-14'
   action: created
