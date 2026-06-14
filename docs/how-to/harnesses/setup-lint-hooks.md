@@ -17,7 +17,20 @@ The `spec-kitty lint <file_path>` command:
 - Summarizes errors in an agent-friendly format.
 - Exits with `1` if errors are found, triggering the agent's auto-fix logic.
 
-## 2. Configuration by Harness
+**Two invocation forms.** When you pass a path explicitly (`spec-kitty lint path/to/file.py`) it lints that file. When you omit the path (`spec-kitty lint --json`, the form wired into harness hooks below) it reads the edited file from the harness's JSON payload on **stdin** — Claude Code delivers `tool_input.file_path`, Cursor delivers `file_path`. A hook that fires without a Python file to lint (for example after a non-edit tool call) is a harmless no-op, never an error that blocks the agent.
+
+## 2. Managed setup (recommended)
+
+Rather than hand-editing harness config, let Spec Kitty manage the hooks for the agents in your `.kittify/config.yaml`:
+
+```bash
+spec-kitty agent config set lint_on_edit true
+spec-kitty agent config sync --sync-hooks
+```
+
+This writes the Claude Code (`PostToolUse`) and Cursor (`afterFileEdit`) hook entries below for every configured agent, idempotently and without disturbing your other hooks/settings. Set `lint_on_edit false` and re-sync to remove them. Only agents listed in `config.yaml` are touched.
+
+## 3. Configuration by Harness (manual)
 
 ### Claude Code
 Claude Code supports `PostToolUse` hooks in `.claude/settings.json`.
@@ -64,14 +77,14 @@ Cursor (v1.7+) supports hooks in `.cursor/hooks.json`.
 ```
 
 ### Windsurf
-Add a natural language rule to your `.windsurfrules` file:
+Windsurf has no programmatic post-edit hook, so `--sync-hooks` does not manage it. Configure it manually by adding a natural-language rule to your `.windsurfrules` file:
 
 ```markdown
 # Linting Guardrail
 After every file edit, you MUST run `spec-kitty lint <file_path>` and fix any reported errors immediately.
 ```
 
-## 3. Advanced Usage
+## 4. Advanced Usage
 
 ### Auto-Fixing
 You can instruct `spec-kitty lint` to attempt to fix errors automatically (via `ruff --fix`) by adding the `--fix` flag:

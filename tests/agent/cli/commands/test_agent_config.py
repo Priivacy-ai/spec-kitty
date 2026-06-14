@@ -330,7 +330,7 @@ class TestSyncCommand:
             claude.mkdir(parents=True)
 
         with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=mock_project):
-            result = runner.invoke(app, ["sync", "--remove-orphaned"])
+            result = runner.invoke(app, ["sync"])
 
             assert result.exit_code == 0
             assert "Removed orphaned .claude/" in result.stdout
@@ -349,7 +349,7 @@ class TestSyncCommand:
         (prompts / "spec-kitty.example.prompt.md").write_text("# prompt\n")
 
         with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=tmp_path):
-            result = runner.invoke(app, ["sync", "--remove-orphaned"])
+            result = runner.invoke(app, ["sync"])
 
             assert result.exit_code == 0
             assert "Removed orphaned .github/prompts/" in result.stdout
@@ -401,7 +401,7 @@ class TestSyncCommand:
         opencode.mkdir(parents=True)
 
         with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=tmp_path):
-            result = runner.invoke(app, ["sync", "--remove-orphaned"])
+            result = runner.invoke(app, ["sync"])
 
             assert result.exit_code == 0
             assert "No changes needed" in result.stdout

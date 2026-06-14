@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import shutil
 from pathlib import Path
 
@@ -18,7 +17,9 @@ from specify_cli.core.agent_config import (
     AgentConfig,
     AgentConfigError,
 )
+from specify_cli.core.utils import write_text_within_directory
 from specify_cli.runtime.agent_commands import get_global_command_dir
+from specify_cli.session_presence.hooks.claude_code_hook import ClaudeCodeHookRegistrar
 from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
     AGENT_DIR_TO_KEY,
     CompleteLaneMigration,
@@ -27,10 +28,12 @@ from specify_cli.task_utils import find_repo_root
 
 from .surface_presence import SurfacePresenceIndex
 
-logger = logging.getLogger(__name__)
-
 #: Command wired into harness post-edit hooks when ``lint_on_edit`` is enabled.
+#: It takes no path argument — the edited file is delivered on stdin by the
+#: harness and resolved by ``spec-kitty lint`` (see lint.py).
 LINT_HOOK_COMMAND = "spec-kitty lint --json"
+#: Claude PostToolUse matcher scoping the hook to file-editing tools.
+LINT_HOOK_MATCHER = "Edit|Write"
 
 app = typer.Typer(
     name="config",
@@ -571,7 +574,7 @@ def sync_agents(
         help="Create directories for configured agents that are missing",
     ),
     remove_orphaned: bool = typer.Option(
-        False,
+        True,
         "--remove-orphaned/--keep-orphaned",
         help="Remove directories for agents not in config",
     ),
@@ -616,118 +619,108 @@ def sync_agents(
         console.print("\n[green]✓ Sync complete[/green]")
 
 
-def _load_hook_config(path: Path, default: dict) -> dict:
-    """Load a harness hook-config JSON file, falling back to *default*.
-
-    A missing file yields *default*. A present-but-unreadable/corrupt file is
-    logged and also yields *default* — we never abort the sync on a damaged
-    harness config, but we do not silently mask the problem either.
-    """
-    if not path.exists():
-        return default
-    try:
-        with path.open(encoding="utf-8") as fh:
-            loaded = json.load(fh)
-    except (json.JSONDecodeError, OSError) as exc:
-        logger.warning("Could not read hook config %s (%s); using defaults", path, exc)
-        return default
-    return loaded if isinstance(loaded, dict) else default
-
-
-def _write_hook_config(path: Path, data: dict) -> None:
-    with path.open("w", encoding="utf-8") as fh:
-        json.dump(data, fh, indent=2)
+def _parse_bool_value(value: str) -> bool | None:
+    """Parse a CLI boolean string; return None when it is not a valid bool."""
+    lowered = value.lower()
+    if lowered in ("true", "1", "yes", "on"):
+        return True
+    if lowered in ("false", "0", "no", "off"):
+        return False
+    return None
 
 
 def _sync_harness_hooks(repo_root: Path, config: AgentConfig) -> bool:
-    """Update harness hook configurations based on lint_on_edit setting."""
+    """Update harness hook configurations based on lint_on_edit setting.
+
+    config.yaml is the single source of truth: a harness is synced only when
+    its agent key is in ``config.available`` (a stray ``.claude``/``.cursor``
+    directory never triggers a write — see CLAUDE.md agent-config rules).
+    """
     console.print("\n[cyan]Syncing harness hooks...[/cyan]")
     changes = False
 
-    # Claude Code
-    claude_settings = repo_root / ".claude" / "settings.json"
-    if ("claude" in config.available or claude_settings.parent.exists()) and _sync_claude_hooks(
-        claude_settings, config.lint_on_edit
-    ):
+    if "claude" in config.available and _sync_claude_hooks(repo_root, config.lint_on_edit):
         changes = True
 
-    # Cursor
-    cursor_hooks = repo_root / ".cursor" / "hooks.json"
-    if ("cursor" in config.available or cursor_hooks.parent.exists()) and _sync_cursor_hooks(
-        cursor_hooks, config.lint_on_edit
-    ):
+    if "cursor" in config.available and _sync_cursor_hooks(repo_root, config.lint_on_edit):
         changes = True
 
     return changes
 
 
-def _sync_claude_hooks(path: Path, enabled: bool) -> bool:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    data = _load_hook_config(path, {})
+def _sync_claude_hooks(repo_root: Path, enabled: bool) -> bool:
+    """Register/unregister the lint PostToolUse hook in .claude/settings.json.
 
-    hooks = data.get("hooks", {})
-    post_tool_use = hooks.get("PostToolUse", [])
-
-    # Check if our lint hook already exists
-    existing_hook_idx = -1
-    for i, h_group in enumerate(post_tool_use):
-        if h_group.get("matcher") == "Edit|Write":
-            for hook in h_group.get("hooks", []):
-                if hook.get("command") == LINT_HOOK_COMMAND:
-                    existing_hook_idx = i
-                    break
+    Delegates to the canonical :class:`ClaudeCodeHookRegistrar`, which writes
+    atomically, preserves all unrelated keys/hooks, removes only the lint hook
+    (never sibling hooks), and backs up invalid JSON before rewriting.
+    """
+    registrar = ClaudeCodeHookRegistrar(event_key="PostToolUse")
+    already = registrar.is_registered(repo_root, LINT_HOOK_COMMAND)
 
     changed = False
-    if enabled and existing_hook_idx == -1:
-        post_tool_use.append({
-            "matcher": "Edit|Write",
-            "hooks": [{"type": "command", "command": LINT_HOOK_COMMAND}],
-        })
+    if enabled and not already:
+        registrar.register(repo_root, LINT_HOOK_COMMAND, matcher=LINT_HOOK_MATCHER)
         changed = True
-    elif not enabled and existing_hook_idx != -1:
-        post_tool_use.pop(existing_hook_idx)
+    elif not enabled and already:
+        registrar.unregister(repo_root, LINT_HOOK_COMMAND)
         changed = True
 
     if changed:
-        hooks["PostToolUse"] = post_tool_use
-        data["hooks"] = hooks
-        _write_hook_config(path, data)
         console.print(f"  [green]✓[/green] {'Updated' if enabled else 'Removed'} Claude Code lint hook")
     else:
         console.print("  [dim]• Claude Code hooks already in sync[/dim]")
-
     return changed
 
 
-def _sync_cursor_hooks(path: Path, enabled: bool) -> bool:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    data = _load_hook_config(path, {"version": 1, "hooks": {}})
+def _load_cursor_hooks(path: Path) -> dict | None:
+    """Load Cursor hooks.json, or ``None`` if it exists but is corrupt.
 
-    hooks = data.get("hooks", {})
+    A corrupt file returns ``None`` so the caller refuses to overwrite it
+    (no silent data loss); a missing file returns the empty default.
+    """
+    if not path.exists():
+        return {"version": 1, "hooks": {}}
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        console.print(
+            f"  [yellow]![/yellow] Cursor hooks file is unreadable ({exc}); "
+            "leaving it untouched. Fix or remove it, then re-run."
+        )
+        return None
+    return loaded if isinstance(loaded, dict) else {"version": 1, "hooks": {}}
+
+
+def _sync_cursor_hooks(repo_root: Path, enabled: bool) -> bool:
+    path = repo_root / ".cursor" / "hooks.json"
+    data = _load_cursor_hooks(path)
+    if data is None:
+        return False  # corrupt config: refuse to clobber
+
+    hooks = data.setdefault("hooks", {})
     after_file_edit = hooks.get("afterFileEdit", [])
-
-    existing_hook_idx = -1
-    for i, hook in enumerate(after_file_edit):
-        if hook.get("command") == LINT_HOOK_COMMAND:
-            existing_hook_idx = i
-            break
+    existing_idx = next(
+        (i for i, h in enumerate(after_file_edit) if h.get("command") == LINT_HOOK_COMMAND),
+        -1,
+    )
 
     changed = False
-    if enabled and existing_hook_idx == -1:
+    if enabled and existing_idx == -1:
         after_file_edit.append({"command": LINT_HOOK_COMMAND})
         changed = True
-    elif not enabled and existing_hook_idx != -1:
-        after_file_edit.pop(existing_hook_idx)
+    elif not enabled and existing_idx != -1:
+        after_file_edit.pop(existing_idx)
         changed = True
 
     if changed:
         hooks["afterFileEdit"] = after_file_edit
         data["hooks"] = hooks
-        _write_hook_config(path, data)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        write_text_within_directory(path, json.dumps(data, indent=2) + "\n", root=path.parent)
         console.print(f"  [green]✓[/green] {'Updated' if enabled else 'Removed'} Cursor lint hook")
     else:
         console.print("  [dim]• Cursor hooks already in sync[/dim]")
-
     return changed
 
 
@@ -755,27 +748,24 @@ def set_config(
     config = _load_config_or_exit(repo_root)
 
     if key == "auto_commit":
-        if value.lower() in ("true", "1", "yes", "on"):
-            config.auto_commit = True
-        elif value.lower() in ("false", "0", "no", "off"):
-            config.auto_commit = False
-        else:
+        parsed = _parse_bool_value(value)
+        if parsed is None:
             console.print(f"[red]Error:[/red] Invalid value for auto_commit: '{value}'. Use 'true' or 'false'.")
             raise typer.Exit(1)
-
+        config.auto_commit = parsed
         save_agent_config(repo_root, config)
 
         status_label = "[green]enabled[/green]" if config.auto_commit else "[yellow]disabled[/yellow]"
         console.print(f"[green]✓[/green] auto_commit set to {status_label}")
+        if not config.auto_commit:
+            console.print("[dim]Agents will stage changes but not create commits unless explicitly instructed.[/dim]")
+            console.print("[dim]Per-command flags (--auto-commit/--no-auto-commit) override this setting.[/dim]")
     elif key == "lint_on_edit":
-        if value.lower() in ("true", "1", "yes", "on"):
-            config.lint_on_edit = True
-        elif value.lower() in ("false", "0", "no", "off"):
-            config.lint_on_edit = False
-        else:
+        parsed = _parse_bool_value(value)
+        if parsed is None:
             console.print(f"[red]Error:[/red] Invalid value for lint_on_edit: '{value}'. Use 'true' or 'false'.")
             raise typer.Exit(1)
-
+        config.lint_on_edit = parsed
         save_agent_config(repo_root, config)
 
         status_label = "[green]enabled[/green]" if config.lint_on_edit else "[yellow]disabled[/yellow]"

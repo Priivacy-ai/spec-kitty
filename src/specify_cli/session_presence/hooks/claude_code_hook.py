@@ -143,11 +143,15 @@ class ClaudeCodeHookRegistrar:
             for hook in self._iter_command_hooks(entries)
         )
 
-    def register(self, project_root: Path, command: str) -> None:
+    def register(self, project_root: Path, command: str, matcher: str | None = None) -> None:
         """Add *command* as a hook entry for the configured event (idempotent).
 
         If the command is already registered, returns immediately without
         writing.  Otherwise appends a new entry and writes atomically.
+
+        ``matcher`` (e.g. ``"Edit|Write"``) is included on the entry when given,
+        as required by tool-scoped events such as ``PostToolUse``. Lifecycle
+        events (``SessionStart``/``Stop``) take no matcher and pass ``None``.
         """
         if self.is_registered(project_root, command):
             return
@@ -162,9 +166,10 @@ class ClaudeCodeHookRegistrar:
         if not isinstance(entries, list):
             entries = []
             hooks_section[self._event_key] = entries
-        entries.append(
-            {"hooks": [{"type": "command", "command": command}]}
-        )
+        entry: dict[str, object] = {"hooks": [{"type": "command", "command": command}]}
+        if matcher is not None:
+            entry = {"matcher": matcher, **entry}
+        entries.append(entry)
         self._save(path, data)
 
     def unregister(self, project_root: Path, command: str) -> None:
