@@ -33,6 +33,16 @@
 #
 # - scripts/benchmarks/bench_queue_enqueue.py — micro-bench harness;
 #   not a real producer. Tracked under #1200.
+#
+# - tests/specify_cli/status/test_post_mission_lifecycle_events.py —
+#   VIEW-renderer / classifier defensive-branch fixtures, NOT event
+#   producers. The hand-rolled dicts deliberately model shapes the
+#   canonical emit path can never produce: a payload missing
+#   reopened_at/recorded_at (forces the envelope-timestamp fallback in
+#   lifecycle._latest_event_time) and a non-dict payload (the views.py
+#   coerce-to-{} guard). A spec_kitty_events.*Payload model cannot
+#   represent these legacy/malformed shapes, so a raw fixture is the
+#   correct unit-under-test input. Tracked under #1200.
 scripts/benchmarks/bench_queue_enqueue.py::CP001
 tests/audit/test_audit_classifiers.py::CP001
 tests/contract/test_handoff_fixtures.py::CP001
@@ -48,6 +58,7 @@ tests/migration/test_teamspace_migration_rehearsal.py::CP001
 tests/retrospective/test_gate_decision.py::CP002
 tests/specify_cli/audit/test_detectors_row_family.py::CP001
 tests/specify_cli/core/test_contract_gate.py::CP002
+tests/specify_cli/status/test_post_mission_lifecycle_events.py::CP001
 tests/status/test_lifecycle_events.py::CP001
 tests/status/test_read_events_tolerates_decision_events.py::CP001
 tests/status/test_read_events_tolerates_decision_events.py::CP002

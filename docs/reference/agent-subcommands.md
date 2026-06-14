@@ -303,9 +303,9 @@ _Agent context management commands_
  Resolve canonical feature/work-package/action context for prompt execution.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --action         TEXT  Action to resolve context for (tasks,              │
-│                           tasks_outline, tasks_packages, tasks_finalize,     │
-│                           implement, review, accept)                         │
+│ *  --action         TEXT  Action to resolve context for (specify, plan,      │
+│                           analyze, tasks, tasks_outline, tasks_packages,     │
+│                           tasks_finalize, implement, review, accept, status) │
 │                           [required]                                         │
 │    --mission        TEXT  Mission slug (e.g., '020-my-mission')              │
 │    --wp-id          TEXT  Work package ID (e.g., WP01)                       │

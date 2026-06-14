@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -35,6 +36,7 @@ from specify_cli.status.lifecycle_events import (
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import reduce
 from specify_cli.status.store import append_event, read_events
+from specify_cli.status.views import format_post_mission_events
 
 pytestmark = pytest.mark.fast
 
@@ -389,3 +391,219 @@ def test_events_round_trip_as_reducer_skipped(tmp_path: Path) -> None:
 
     # read_events (the WP reducer reader) skips the two lifecycle events.
     assert len(read_events(feature_dir)) == wp_events_before
+
+
+# ---------------------------------------------------------------------------
+# T009: format_post_mission_events renderer (views.py)
+# ---------------------------------------------------------------------------
+
+
+def _canonical_post_mission_events(
+    tmp_path: Path,
+) -> tuple[list[dict[str, Any]], Path]:
+    """Emit one reopen + one commit follow-up via the canonical helpers and
+    return the persisted envelopes (renderer input) + the feature_dir."""
+    feature_dir = tmp_path / "kitty-specs" / "090-render"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    emit_mission_reopened(
+        feature_dir,
+        mission_id=MISSION_ID,
+        mission_slug=feature_dir.name,
+        reason="critical regression",
+        reopened_by="operator",
+        reopened_at="2026-05-01T10:00:00+00:00",
+    )
+    emit_follow_up_recorded(
+        feature_dir,
+        mission_id=MISSION_ID,
+        mission_slug=feature_dir.name,
+        follow_up_type="commit",
+        commit_sha="e" * 40,
+        recorded_by="claude",
+        recorded_at="2026-05-02T10:00:00+00:00",
+    )
+    events = read_lifecycle_events(mission_event_log_path(feature_dir))
+    return events, feature_dir
+
+
+def test_renderer_empty_list_returns_empty() -> None:
+    assert format_post_mission_events([]) == []
+    assert format_post_mission_events(()) == []
+
+
+def test_renderer_renders_reopen_line(tmp_path: Path) -> None:
+    events, _ = _canonical_post_mission_events(tmp_path)
+    reopen_events = [e for e in events if e["event_type"] == MISSION_REOPENED]
+    lines = format_post_mission_events(reopen_events)
+    assert len(lines) == 1
+    line = lines[0]
+    # actor + reason + when are all surfaced.
+    assert line.startswith("re-opened by operator")
+    assert "critical regression" in line
+    assert "2026-05-01T10:00:00+00:00" in line
+
+
+def test_renderer_renders_follow_up_commit_line(tmp_path: Path) -> None:
+    events, _ = _canonical_post_mission_events(tmp_path)
+    follow_events = [e for e in events if e["event_type"] == FOLLOW_UP_RECORDED]
+    lines = format_post_mission_events(follow_events)
+    assert len(lines) == 1
+    line = lines[0]
+    assert line.startswith("follow-up commit " + "e" * 40)
+    assert "by claude" in line
+    assert "2026-05-02T10:00:00+00:00" in line
+
+
+def test_renderer_renders_follow_up_pr_line(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "091-render-pr"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    emit_follow_up_recorded(
+        feature_dir,
+        mission_id=MISSION_ID,
+        mission_slug=feature_dir.name,
+        follow_up_type="pr",
+        pr_number=99,
+        recorded_by="renata",
+        recorded_at="2026-05-03T10:00:00+00:00",
+    )
+    events = read_lifecycle_events(mission_event_log_path(feature_dir))
+    lines = format_post_mission_events(events)
+    assert lines == ["follow-up PR #99 by renata (2026-05-03T10:00:00+00:00)"]
+
+
+def test_renderer_renders_reopen_and_follow_up_together(tmp_path: Path) -> None:
+    events, _ = _canonical_post_mission_events(tmp_path)
+    lines = format_post_mission_events(events)
+    assert len(lines) == 2
+    assert any(line.startswith("re-opened by operator") for line in lines)
+    assert any(line.startswith("follow-up commit") for line in lines)
+
+
+def test_renderer_reopen_without_reason_omits_suffix(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "092-no-reason"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    emit_mission_reopened(
+        feature_dir,
+        mission_id=MISSION_ID,
+        mission_slug=feature_dir.name,
+        reason="",
+        reopened_by="operator",
+        reopened_at="2026-05-04T10:00:00+00:00",
+    )
+    events = read_lifecycle_events(mission_event_log_path(feature_dir))
+    lines = format_post_mission_events(events)
+    assert lines == ["re-opened by operator (2026-05-04T10:00:00+00:00)"]
+    # No trailing " — " em-dash separator when reason is empty.
+    assert "—" not in lines[0]
+
+
+def test_renderer_skips_non_dict_and_non_dict_payload_entries() -> None:
+    # Defensive branches (views.py): a non-dict entry is skipped entirely; a
+    # dict entry whose payload is not a dict is treated as an empty payload
+    # (actor → "unknown"), never raising.
+    # Built as list[Any]: the renderer's runtime guards (isinstance checks)
+    # are the unit under test, so we deliberately feed off-contract shapes.
+    malformed: list[Any] = [
+        "not-a-dict",
+        {"event_type": "UnrelatedEvent", "payload": {}},
+        {
+            "event_type": MISSION_REOPENED,
+            "timestamp": "2026-05-05T10:00:00+00:00",
+            "payload": None,  # non-dict payload → coerced to {}
+        },
+    ]
+    rendered = format_post_mission_events(malformed)
+    assert rendered == ["re-opened by unknown (2026-05-05T10:00:00+00:00)"]
+
+
+# ---------------------------------------------------------------------------
+# Emit-helper branch coverage (lifecycle_events.py / lifecycle.py / emit.py)
+# ---------------------------------------------------------------------------
+
+
+def test_iso_str_to_datetime_parses_and_passes_through_none() -> None:
+    from specify_cli.status.lifecycle_events import _iso_str_to_datetime
+
+    assert _iso_str_to_datetime(None) is None
+    parsed = _iso_str_to_datetime("2026-05-06T10:00:00+00:00")
+    assert parsed is not None
+    assert parsed == datetime(2026, 5, 6, 10, 0, tzinfo=UTC)
+
+
+def test_follow_up_commit_without_sha_raises(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "093-bad-commit"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    with pytest.raises(ValueError, match="commit_sha is required"):
+        emit_follow_up_recorded(
+            feature_dir,
+            mission_id=MISSION_ID,
+            mission_slug=feature_dir.name,
+            follow_up_type="commit",
+            commit_sha=None,
+            recorded_by="claude",
+        )
+
+
+def test_follow_up_pr_without_number_raises(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "094-bad-pr"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    with pytest.raises(ValueError, match="pr_number is required"):
+        emit_follow_up_recorded(
+            feature_dir,
+            mission_id=MISSION_ID,
+            mission_slug=feature_dir.name,
+            follow_up_type="pr",
+            pr_number=None,
+            recorded_by="claude",
+        )
+
+
+def test_follow_up_unknown_type_raises(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "095-bad-type"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    with pytest.raises(ValueError, match="follow_up_type must be 'commit' or 'pr'"):
+        emit_follow_up_recorded(
+            feature_dir,
+            mission_id=MISSION_ID,
+            mission_slug=feature_dir.name,
+            follow_up_type="tag",
+            recorded_by="claude",
+        )
+
+
+def test_latest_event_time_falls_back_to_envelope_timestamp() -> None:
+    # lifecycle._latest_event_time: when the payload carries neither
+    # reopened_at nor recorded_at, the envelope ``timestamp`` is used.
+    from specify_cli.status.lifecycle import _latest_event_time
+
+    event = {
+        "event_type": MISSION_REOPENED,
+        "timestamp": "2026-05-07T10:00:00+00:00",
+        "payload": {"reopened_by": "operator"},  # no reopened_at
+    }
+    parsed = _latest_event_time(event)
+    assert parsed == datetime(2026, 5, 7, 10, 0, tzinfo=UTC)
+
+
+def test_derive_from_lane_returns_genesis_when_wp_state_lacks_lane(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # emit._derive_from_lane: a reduced WP state present but carrying no
+    # ``lane`` key falls back to GENESIS rather than raising.
+    from specify_cli.status import emit as emit_mod
+    from specify_cli.status.models import Lane as _Lane
+    from specify_cli.status.models import StatusSnapshot
+
+    feature_dir = _merged_mission(tmp_path, merged_at="2026-04-03T10:00:00+00:00")
+
+    lan_eless_snapshot = StatusSnapshot(
+        mission_slug=feature_dir.name,
+        materialized_at="2026-05-08T10:00:00+00:00",
+        event_count=1,
+        last_event_id="01TESTNOLANE0000000000001",
+        work_packages={"WP01": {"actor": "claude"}},  # no "lane" key
+        summary={},
+    )
+    monkeypatch.setattr(emit_mod._reducer, "reduce", lambda _events: lan_eless_snapshot)
+
+    assert emit_mod._derive_from_lane(feature_dir, "WP01") == str(_Lane.GENESIS)
