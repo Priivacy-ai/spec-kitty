@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KV263D0TQA8088EE0KKSRCS2", "profile_id": "architect-alphonso", "action": "audit", "request_text": "Audit hand-rolled event-emission paths (canonical-producer integrity)", "actor": "claude", "mode_of_work": "advisory", "governance_context_hash": "0028cf69d19fd3b6", "governance_context_available": true, "started_at": "2026-06-14T04:26:38.962038+00:00"}
+{"event": "completed", "invocation_id": "01KV263D0TQA8088EE0KKSRCS2", "completed_at": "2026-06-14T04:30:05.536304+00:00", "outcome": "done", "closed_by": "agent"}
