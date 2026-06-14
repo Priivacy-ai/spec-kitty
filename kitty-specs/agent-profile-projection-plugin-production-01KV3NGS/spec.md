@@ -79,8 +79,8 @@ rc44 established the ToolSurfaceContract registry and added staging plugin bundl
 | FR-012 | When Amazon Q Developer CLI agent format is confirmed stable during this mission, an `AmazonQProfileRenderer` projects profiles to `~/.aws/amazonq/cli-agents/<profile_id>.json`; if format or stability cannot be confirmed, the harness is marked `not_applicable` and a follow-up tracking issue is filed | Proposed |
 | FR-013 | When Augment Code subagent format is confirmed stable during this mission, an `AugmentProfileRenderer` projects profiles to `.augment/agents/<profile_id>.md` with YAML frontmatter and Markdown body; if not confirmed, the harness is marked `not_applicable` and a follow-up issue is filed | Proposed |
 | FR-014 | All harnesses without a verified stable native agent-profile primitive (Windsurf, Cursor, Kiro, and any others) are explicitly marked `not_applicable` for the `agent_profile` surface kind; this appears in `doctor tool-surfaces --json` output with a human-readable reason | Proposed |
-| FR-015 | `doctor tool-surfaces --kind agent-profile --json` reports per-harness status as exactly one of: `present`, `missing`, `drifted`, `not_applicable`, or `research_gap`; `research_gap` is only valid for harnesses not yet assessed | Proposed |
-| FR-016 | After `CodexProfileRenderer` lands, `doctor tool-surfaces --kind agent-profile` must no longer report `research_gap` for Codex; it reports `present`, `missing`, or `drifted` based on disk state | Proposed |
+| FR-015 | `doctor tool-surfaces --kind agent_profile --json` reports per-harness status as exactly one of: `present`, `missing`, `stale`, `drifted`, `not_applicable`, or `research_gap`; `research_gap` is only valid for harnesses not yet assessed | Proposed |
+| FR-016 | After `CodexProfileRenderer` lands, `doctor tool-surfaces --kind agent_profile` must no longer report `research_gap` for Codex; it reports `present`, `missing`, `stale`, or `drifted` based on disk state | Proposed |
 
 ### C. Claude Code Plugin Production
 
@@ -117,7 +117,7 @@ rc44 established the ToolSurfaceContract registry and added staging plugin bundl
 
 | ID | Requirement | Status |
 |---|---|---|
-| FR-033 | Roo Code is removed from `AI_CHOICES` in `src/specify_cli/__init__.py` and from `AGENT_DIRS` in the migration module; `spec-kitty init` can no longer target Roo Code | Proposed |
+| FR-033 | Roo Code is removed from `AI_CHOICES` in `src/specify_cli/core/config.py` and from `AGENT_DIRS` in the migration module; `spec-kitty init` can no longer target Roo Code | Proposed |
 | FR-034 | `spec-kitty upgrade` detects existing `.roo/` directories and emits a deprecation notice: Roo Code shut down 2026-05-15; the directory is preserved but is no longer managed by spec-kitty | Proposed |
 | FR-035 | The upgrade migration removes Roo Code from `.kittify/config.yaml` when present and reports the removal in the upgrade summary | Proposed |
 | FR-036 | User-facing documentation is updated to remove Roo Code from the Supported AI Agents list and note its shutdown date | Proposed |

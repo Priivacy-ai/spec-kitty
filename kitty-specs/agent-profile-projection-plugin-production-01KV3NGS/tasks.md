@@ -19,12 +19,12 @@
 | T006 | Add `tomli-w` to dependencies; implement `CodexProfileRenderer.render()` producing valid TOML | WP02 | [P] |
 | T007 | Implement `CodexProfileRenderer.can_render()`, `output_path()`, `format_key`; add optional-field passthrough | WP02 | [P] |
 | T008 | Register `CodexProfileRenderer` in renderer registry; update `FORMAT_CODEX_AGENT` constant | WP02 | [P] |
-| T009 | Verify `doctor tool-surfaces --kind agent-profile` no longer reports `research_gap` for `codex` | WP02 | [P] |
+| T009 | Verify `doctor tool-surfaces --kind agent_profile` no longer reports `research_gap` for `codex` | WP02 | [P] |
 | T010 | Confirm Amazon Q CLI agent format; implement `AmazonQProfileRenderer` targeting user-global path | WP03 | [P] |
 | T011 | Confirm Augment Code subagent format; implement `AugmentProfileRenderer` for `.augment/agents/<id>.md` | WP03 | [P] |
 | T012 | Build `HarnessCapabilityRecord`; register Windsurf/Cursor/Kiro/Gemini/Qwen/OpenCode/Kilocode as `not_applicable` with reasons | WP03 | [P] |
 | T013 | Update `AgentProfilesProvider` to emit per-harness `not_applicable` findings from capability registry | WP03 | [P] |
-| T014 | Verify `doctor tool-surfaces --kind agent-profile --json` emits exactly the five valid statuses | WP03 | [P] |
+| T014 | Verify `doctor tool-surfaces --kind agent_profile --json` emits exactly the six valid statuses | WP03 | [P] |
 | T015 | Scaffold `spec-kitty plugin build --target <target>` CLI command with build context and output dir logic | WP04 | |
 | T016 | Generate `.claude-plugin/plugin.json` with real version from `importlib.metadata`; validate semver | WP04 | |
 | T017 | Copy canonical command-skill set (≥15 skills) to `skills/` in bundle | WP04 | |
@@ -48,7 +48,8 @@
 | T035 | Unit tests for `ClaudeCodeProfileRenderer`: output path, YAML frontmatter fields, provenance footer, idempotent re-render | WP08 | [P] |
 | T036 | Unit tests for `CodexProfileRenderer`: TOML validity, all three required fields, output path, optional-field passthrough | WP08 | [P] |
 | T037 | Unit tests for `CopilotProfileRenderer`: file extension `.agent.md` (not `.chatmode.md`), output path | WP08 | [P] |
-| T038 | Parametric test covering all three renderers against a shared fixture profile | WP08 | [P] |
+| T037b | Unit tests for `AmazonQProfileRenderer` (user-global path, JSON) and `AugmentProfileRenderer` (project-local, Markdown+frontmatter) | WP08 | [P] |
+| T038 | Parametric test covering all five renderers against a shared fixture profile | WP08 | [P] |
 | T039 | Verify ≥90% branch coverage on `profiles/renderers.py` and each new renderer module | WP08 | [P] |
 | T040 | Integration tests for `init`/`upgrade` surface wiring: missing created, stale repaired, drifted reported-only in `--yes` | WP09 | |
 | T041 | rc44-era migration acceptance fixture: `claude`+`codex` project, 11-entry manifest, no profiles → `upgrade --yes` heals all | WP09 | |
@@ -102,7 +103,7 @@
 - [ ] T006 Add `tomli-w` to dependencies; implement `CodexProfileRenderer.render()` producing valid TOML (WP02)
 - [ ] T007 Implement `can_render()`, `output_path()`, `format_key`; add optional-field passthrough (WP02)
 - [ ] T008 Register renderer and `FORMAT_CODEX_AGENT` constant in renderer registry (WP02)
-- [ ] T009 Verify `doctor tool-surfaces --kind agent-profile` no longer reports `research_gap` for `codex` (WP02)
+- [ ] T009 Verify `doctor tool-surfaces --kind agent_profile` no longer reports `research_gap` for `codex` (WP02)
 
 **Implementation sketch:**
 1. Add `tomli-w` to `pyproject.toml` dependencies
@@ -131,14 +132,14 @@
 - [ ] T011 Confirm Augment Code format; implement `AugmentProfileRenderer` for `.augment/agents/<id>.md` (WP03)
 - [ ] T012 Build `HarnessCapabilityRecord`; register not-applicable harnesses with reasons (WP03)
 - [ ] T013 Update `AgentProfilesProvider` to emit per-harness `not_applicable` findings from registry (WP03)
-- [ ] T014 Verify `doctor tool-surfaces --kind agent-profile --json` emits exactly five valid statuses (WP03)
+- [ ] T014 Verify `doctor tool-surfaces --kind agent_profile --json` emits exactly the six valid statuses (WP03)
 
 **Implementation sketch:**
 1. Implement `AmazonQProfileRenderer` — user-global path, NOT manifest-tracked, suggestion-only output
 2. Implement `AugmentProfileRenderer` — YAML frontmatter + Markdown body + provenance footer, manifest-tracked
 3. Add `HarnessCapabilityRecord` dataclass; populate capability matrix for all 19 configured harnesses
 4. Update `AgentProfilesProvider` to consult capability matrix when building findings
-5. Verify with `--kind agent-profile --json`: every harness is `present`/`missing`/`drifted`/`not_applicable` or `research_gap` only for truly unassessed ones
+5. Verify with `--kind agent_profile --json`: every harness is `present`/`missing`/`stale`/`drifted`/`not_applicable` or `research_gap` only for truly unassessed ones
 
 **Parallel opportunities:** T010 and T011 can execute in parallel (independent renderer files)  
 **Risks:** Amazon Q user-global path must not be added to project manifest; must use direct filesystem inspection in doctor
@@ -265,13 +266,14 @@
 **Execution mode:** code_change  
 **Dependencies:** [WP01, WP02, WP03]  
 
-**Goal:** Write focused unit tests for all three profile renderers (ClaudeCode, Codex, Copilot) covering output path, required fields, idempotency, and format validity; achieve ≥90% branch coverage on renderer modules.
+**Goal:** Write focused unit tests for all five profile renderers (ClaudeCode, Codex, Copilot, AmazonQ, Augment) covering output path, required fields, idempotency, and format validity; achieve ≥90% branch coverage on renderer modules.
 
 **Included subtasks:**
 - [ ] T035 Unit tests for `ClaudeCodeProfileRenderer`: output path, YAML frontmatter fields, provenance footer, idempotent re-render (WP08)
 - [ ] T036 Unit tests for `CodexProfileRenderer`: TOML validity, all three required fields, output path, optional-field passthrough (WP08)
 - [ ] T037 Unit tests for `CopilotProfileRenderer`: file extension `.agent.md` (not `.chatmode.md`), output path under `.github/agents/` (WP08)
-- [ ] T038 Parametric test covering all three renderers against a shared fixture profile (WP08)
+- [ ] T037b Unit tests for `AmazonQProfileRenderer` and `AugmentProfileRenderer` (WP08)
+- [ ] T038 Parametric test covering all five renderers against a shared fixture profile (WP08)
 - [ ] T039 Verify ≥90% branch coverage on `profiles/renderers.py` and each new renderer module (WP08)
 
 **Implementation sketch:**
@@ -279,7 +281,7 @@
 2. For `ClaudeCodeProfileRenderer`: assert path ends in `.claude/agents/<id>.md`; YAML frontmatter contains `name` and `description`; body has provenance line; re-render produces identical bytes
 3. For `CodexProfileRenderer`: parse rendered output with `tomllib.loads()`; assert keys `name`, `description`, `developer_instructions`; optional keys present only when profile has them
 4. For `CopilotProfileRenderer`: assert path ends in `.github/agents/<id>.agent.md`; NOT `.chatmode.md`
-5. Parametric: `@pytest.mark.parametrize("renderer", [Claude, Codex, Copilot])` with shared `AgentProfile`; assert `can_render()` returns True for their respective tool_key
+5. Parametric: `@pytest.mark.parametrize("renderer", [Claude, Codex, Copilot, AmazonQ, Augment])` with shared `AgentProfile`; assert `can_render()` returns True for their respective tool_key
 
 **Parallel opportunities:** T035-T038 can execute in parallel (different renderer test files)  
 **Risks:** TOML validation in T036 requires `tomllib` (stdlib ≥3.11) — already available in Python 3.11+

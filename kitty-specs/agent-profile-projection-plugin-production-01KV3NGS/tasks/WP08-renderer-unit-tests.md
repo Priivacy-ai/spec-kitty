@@ -19,6 +19,7 @@ subtasks:
 - T035
 - T036
 - T037
+- T037b
 - T038
 - T039
 agent: claude
