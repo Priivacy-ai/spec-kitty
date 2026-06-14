@@ -1,0 +1,17 @@
+{
+  "baseline_merge_commit": "22d62164266872aab29d72ac556d082ec0f73a7a",
+  "coordination_branch": "kitty/mission-test-suite-acceleration-01KV3H59",
+  "created_at": "2026-06-14T16:59:08.185164+00:00",
+  "friendly_name": "Test Suite Acceleration",
+  "mission_id": "01KV3H590RHSQHF8XV843X5YHA",
+  "mission_number": 136,
+  "mission_slug": "test-suite-acceleration-01KV3H59",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The test suite (~1457 files) is the slowest gate on every change: CI fast-shards run single-process and developers cannot safely run pytest in parallel locally because tests share a real HOME-backed queue database. This mission executes a verified, adversarially-checked acceleration plan to parallelize execution and remove redundant work while guaranteeing no real assertion path or regression guard is weakened.",
+  "purpose_tldr": "Make the pytest suite much faster in CI and locally with zero loss of coverage quality.",
+  "slug": "test-suite-acceleration-01KV3H59",
+  "target_branch": "feat/test-suite-acceleration",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-14T17:28:29.269154+00:00"
+}

@@ -184,6 +184,32 @@ ruff check .
 PWHEADLESS=1 pytest tests/   # headless (prevents browser windows)
 ```
 
+### Local parallel test run (default)
+
+Run the suite in parallel locally — at least 2× faster on a ≥4-core machine:
+
+```bash
+PWHEADLESS=1 pytest tests/ -n auto --dist loadfile -p no:cacheprovider
+# daemon/real-port tests run serially:
+PWHEADLESS=1 pytest tests/sync/test_orphan_sweep.py -n0 -q
+```
+
+Rules:
+
+- **Always `--dist loadfile`, never bare `--dist load`.** `loadfile` keeps every
+  test in a file on a single worker, preserving file-scoped fixture and
+  collection semantics; `load` scatters a file's tests across workers and breaks
+  them.
+- **Per-worker HOME isolation (WP04)** means a parallel run never touches the
+  real `~/.spec-kitty` — each `pytest-xdist` worker (and the serial master) gets
+  its own isolated home / XDG / AppData directories.
+- **Real-port / daemon tests run serially.** OS-global resources (real ports,
+  daemons — e.g. `tests/sync/test_orphan_sweep.py`, ports 9400–9449) are not
+  protected by per-worker HOME isolation, so run them in their own `-n0` pass.
+
+Full rationale, the volume env gates, and the stability ratchet:
+[docs/development/testing-parallel.md](docs/development/testing-parallel.md).
+
 ## Code Style
 
 Python 3.11+. Follow standard conventions. Any changes to `__init__.py` require a version bump in `pyproject.toml` and a `CHANGELOG.md` entry.

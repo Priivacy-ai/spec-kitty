@@ -318,8 +318,10 @@ class TestOrphanSweep:
         assert isinstance(report, SweepReport)
         assert any(o.port == port for o in report.swept)
         assert _wait_until_port_free(port, timeout_s=5.0)
-        # Subprocess should be reaped or about to be.
-        for _ in range(50):
+        # Subprocess should be reaped or about to be. WP06 (R10 part 2): poll
+        # budget trimmed 50 -> 20 iterations (still ~1s at 0.05s/tick), which is
+        # ample once the port is confirmed free above.
+        for _ in range(20):
             if proc.poll() is not None:
                 break
             time.sleep(0.05)

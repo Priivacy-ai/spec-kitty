@@ -6,9 +6,10 @@ Covers FR-001 through FR-004:
 - FR-003: resolved scope surfaces the required FR-003 minimum URN kinds.
 - FR-004: (contract) the resolver is deterministic (same inputs -> same scope set).
 
-The test file is self-contained: it loads the shipped graph.yaml directly and
-exercises the resolve_context function from doctrine.drg.query. No external
-fixtures beyond the shipped graph are required.
+It exercises the resolve_context function from doctrine.drg.query against the
+shipped graph, which is served read-only from the session-scoped
+``shipped_drg_graph`` fixture in ``tests/doctrine/conftest.py`` (WP03/T012) so
+the shipped graph is built once per session rather than once per module.
 """
 
 from __future__ import annotations
@@ -18,10 +19,8 @@ from pathlib import Path
 import pytest
 
 from doctrine.agent_profiles.repository import AgentProfileRepository
-from doctrine.drg.loader import load_graph, merge_layers
 from doctrine.drg.models import DRGGraph, NodeKind
 from doctrine.drg.query import resolve_context
-from doctrine.drg.validator import assert_valid
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -29,7 +28,6 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 # Fixtures
 # ---------------------------------------------------------------------------
 
-SHIPPED_GRAPH = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "graph.yaml"
 BUILT_IN_DIR = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "agent_profiles" / "built-in"
 
 # All three built-in missions that own a retrospect action (FR-002)
@@ -63,13 +61,16 @@ _REQUIRED_URNS = frozenset({
 })
 
 
-@pytest.fixture(scope="module")
-def shipped_graph() -> DRGGraph:
-    """Load and validate the shipped graph.yaml once per module."""
-    graph = load_graph(SHIPPED_GRAPH)
-    merged = merge_layers(graph, None)
-    assert_valid(merged)
-    return merged
+@pytest.fixture
+def shipped_graph(shipped_drg_graph: DRGGraph) -> DRGGraph:
+    """Read-only shipped DRG, served from the session cache (WP03/T012).
+
+    Previously this module loaded + merged + validated ``graph.yaml`` itself
+    once per module. It now consumes the session-scoped ``shipped_drg_graph``
+    fixture (``tests/doctrine/conftest.py``) so the shipped graph is built once
+    per test session and shared read-only across modules.
+    """
+    return shipped_drg_graph
 
 
 # ---------------------------------------------------------------------------

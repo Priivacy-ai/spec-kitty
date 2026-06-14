@@ -109,7 +109,12 @@ _TOPOLOGIES = [
             coordination_branch=None,
             expected_kind=CommitTargetKind.FLATTENED,
         ),
-        marks=pytest.mark.xfail(reason=_FLATTENED_BOOTSTRAP_CWD_GAP, strict=False),
+        # WP06 (R9): this legacy-bootstrap CWD gap genuinely xfails today, so the
+        # guard is strict — if the underlying fix lands and the test starts
+        # passing, ``strict=True`` turns the unexpected XPASS into a failure that
+        # forces this marker to be retired rather than silently masking a fixed
+        # bug.
+        marks=pytest.mark.xfail(reason=_FLATTENED_BOOTSTRAP_CWD_GAP, strict=True),
     ),
 ]
 

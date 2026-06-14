@@ -22,8 +22,14 @@ from specify_cli.status.transitions import (
     resolve_lane_alias,
     validate_transition,
 )
+from tests._support.coverage_safety import Mutation, assert_mutation_caught
 
 pytestmark = pytest.mark.fast
+
+# A single golden-baseline parity row: (from_lane, to_lane, ctx_name,
+# expected_ok, expected_err). Used by the collapsed whole-matrix parity test
+# (WP03/T009) and its planted-mutation anti-vacuity proof.
+ParityRow = tuple[str, str, str, bool, "str | None"]
 
 
 class TestConstants:
@@ -510,6 +516,38 @@ def _load_parity_baseline() -> list[tuple[str, str, str, bool, str | None]]:
 _PARITY_ROWS = _load_parity_baseline()
 
 
+def _collect_parity_mismatches(
+    rows: list[ParityRow],
+) -> tuple[list[str], int]:
+    """Run the full parity matrix, accumulating **every** mismatch (T009).
+
+    Returns ``(mismatches, checked)`` where *checked* is the number of rows
+    evaluated (anti-vacuity counter) and *mismatches* names each offending
+    ``from->to[ctx]`` row with its expected/actual ``(ok, err)``. The loop never
+    breaks early: a single regression must not mask the others. Each row keeps
+    the original per-row comparison exactly — ``ok is expected_ok`` and the
+    exact-string ``err == expected_err``.
+    """
+    library = _parity_context_library()
+    mismatches: list[str] = []
+    checked = 0
+    for from_lane, to_lane, ctx_name, expected_ok, expected_err in rows:
+        checked += 1
+        ctx = library[ctx_name]
+        ok, err = validate_transition(from_lane, to_lane, ctx)
+        row_id = f"{from_lane}->{to_lane}[{ctx_name}]"
+        if ok is not expected_ok:
+            mismatches.append(
+                f"{row_id}: expected ok={expected_ok}, got ok={ok} (err={err!r})"
+            )
+            continue
+        if err != expected_err:
+            mismatches.append(
+                f"{row_id}: expected error={expected_err!r}, got {err!r}"
+            )
+    return mismatches, checked
+
+
 class TestBehaviorPreservationParity:
     """Full historical nine-lane (from, to, ctx) matrix parity (T007 / NFR-001 / I4)."""
 
@@ -522,23 +560,73 @@ class TestBehaviorPreservationParity:
         assert accepts > 0
         assert rejects > 0
 
-    @pytest.mark.parametrize(
-        "from_lane,to_lane,ctx_name,expected_ok,expected_err",
-        _PARITY_ROWS,
-        ids=[f"{f}->{t}[{c}]" for f, t, c, _ok, _err in _PARITY_ROWS],
-    )
-    def test_validate_transition_matches_baseline(
-        self,
-        from_lane: str,
-        to_lane: str,
-        ctx_name: str,
-        expected_ok: bool,
-        expected_err: str | None,
-    ) -> None:
-        ctx = _parity_context_library()[ctx_name]
-        ok, err = validate_transition(from_lane, to_lane, ctx)
-        assert ok is expected_ok, f"{from_lane}->{to_lane}[{ctx_name}]: expected ok={expected_ok}, got ok={ok} (err={err!r})"
-        assert err == expected_err, f"{from_lane}->{to_lane}[{ctx_name}]: expected error={expected_err!r}, got {err!r}"
+    def test_validate_transition_matches_baseline(self) -> None:
+        """Whole-matrix parity in ONE collected node (WP03/T009, FR-008, NFR-007).
+
+        Previously this was a ~1701-row ``parametrize`` (the dominant slice of
+        the module's collected nodes). Collapsing to a single accumulate-all
+        loop removes the collection explosion while preserving the *exact*
+        coverage: every ``(from, to, ctx)`` triple is still exercised against
+        the golden baseline with the identical ``ok is expected_ok`` and
+        exact-string ``err == expected_err`` comparisons.
+
+        Anti-vacuity (C-001): the loop accumulates **all** mismatches (no early
+        break/first-failure exit) and asserts both that every baseline row was
+        checked and that the mismatch list is empty — naming every offending
+        ``from->to[ctx]`` row so a regression is never silently swallowed. The
+        planted-mutation proof in ``test_collapsed_matrix_catches_planted_row``
+        guarantees this assertion still bites.
+        """
+        mismatches, checked = _collect_parity_mismatches(_PARITY_ROWS)
+        # Anti-vacuity: prove the loop actually ran over the whole baseline,
+        # so an empty/short fixture can never make this test trivially pass.
+        assert checked == len(_PARITY_ROWS), (
+            f"only checked {checked} of {len(_PARITY_ROWS)} parity rows — "
+            "the matrix loop did not cover the full baseline"
+        )
+        assert not mismatches, (
+            "validate_transition diverged from the golden baseline on "
+            f"{len(mismatches)} row(s):\n  " + "\n  ".join(mismatches)
+        )
+
+    def test_collapsed_matrix_catches_planted_row(self) -> None:
+        """T009 anti-vacuity proof (C-001): the collapsed loop is non-vacuous.
+
+        Uses the WP02 ``assert_mutation_caught`` helper to flip one baseline
+        row's expected ``ok`` value and prove the accumulate-all check FAILS and
+        **names** exactly that row. If the mutated baseline still passed, the
+        collapse would be hiding regressions; the helper raises
+        ``MutationNotCaughtError`` in that case.
+        """
+
+        def _check(rows: list[ParityRow]) -> None:
+            mismatches, checked = _collect_parity_mismatches(rows)
+            assert checked == len(rows)
+            assert not mismatches, "row(s): " + "; ".join(mismatches)
+
+        def _flip_first_row(rows: list[ParityRow]) -> list[ParityRow]:
+            # Corrupt exactly one row's expected outcome to simulate a baseline
+            # regression. ``apply`` receives a deep copy, so the real
+            # ``_PARITY_ROWS`` constant is never mutated.
+            f, t, c, ok, err = rows[0]
+            rows[0] = (f, t, c, not ok, err)
+            return rows
+
+        first = _PARITY_ROWS[0]
+        expected_row_id = f"{first[0]}->{first[1]}[{first[2]}]"
+        try:
+            assert_mutation_caught(
+                _check,
+                list(_PARITY_ROWS),
+                Mutation(name=f"flip-ok:{expected_row_id}", apply=_flip_first_row),
+            )
+        except AssertionError as exc:  # pragma: no cover - failure path is the bug signal
+            # Surface which row the mutation targeted so a vacuous collapse is
+            # diagnosable; re-raise so the test still fails.
+            raise AssertionError(
+                f"planted mutation on {expected_row_id} was not caught by the "
+                f"collapsed matrix loop: {exc}"
+            ) from exc
 
 
 class TestTerminalForceExitParity:

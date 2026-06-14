@@ -230,9 +230,15 @@ def test_final_sync_failure_after_local_success_keeps_stdout_strict_json(
 
     with (
         patch("specify_cli.sync.batch.time.sleep"),
-        patch.object(service, "_perform_sync", side_effect=RuntimeError("network down")),
+        patch.object(
+            service, "_perform_sync", side_effect=RuntimeError("network down")
+        ) as mock_perform,
     ):
         service.stop()
+
+    # The no-op sleep removes the real backoff wait; assert the retry loop still
+    # ran the full FINAL_SYNC_MAX_ATTEMPTS so the guard is not silently weakened.
+    assert mock_perform.call_count == 3
 
     captured = capsys.readouterr()
     parsed = json.loads(captured.out)

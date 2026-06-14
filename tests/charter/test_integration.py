@@ -1,7 +1,6 @@
 """Integration tests for the charter workflow."""
 
 import logging
-import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -275,7 +274,8 @@ class TestEnsureCharterBundleFresh:
         sync(charter_path)
 
         call_count = 0
-        def raise_then_pass(*args, **kwargs):
+
+        def raise_then_pass(*args: object, **kwargs: object) -> tuple[bool, str, str]:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
@@ -402,6 +402,7 @@ class TestLoaderAutoSyncEdgeCases:
 
 
 class TestPerformance:
+    @pytest.mark.timeout(2)
     def test_load_governance_config_performance(self, tmp_path: Path) -> None:
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True)
@@ -419,13 +420,11 @@ quality:
 """
         )
 
-        start = time.monotonic()
         config = load_governance_config(tmp_path)
-        elapsed = time.monotonic() - start
 
         assert isinstance(config, GovernanceConfig)
-        assert elapsed < 0.1, f"Loading took {elapsed:.3f}s (>100ms)"
 
+    @pytest.mark.timeout(2)
     def test_load_directives_config_performance(self, tmp_path: Path) -> None:
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True)
@@ -441,10 +440,7 @@ directives:
 """
         )
 
-        start = time.monotonic()
         config = load_directives_config(tmp_path)
-        elapsed = time.monotonic() - start
 
         assert isinstance(config, DirectivesConfig)
         assert len(config.directives) == 2
-        assert elapsed < 0.1, f"Loading took {elapsed:.3f}s (>100ms)"

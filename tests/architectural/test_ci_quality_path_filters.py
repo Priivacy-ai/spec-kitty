@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -161,34 +162,44 @@ def test_ci_quality_guards_trigger_core_misc_validation() -> None:
 
 
 def test_core_misc_shards_plus_e2e_owner_cover_legacy_selection() -> None:
-    """The shard split must not drop tests covered by the legacy catch-all job."""
+    """The shard split must not drop tests covered by the legacy catch-all job.
+
+    This compares the legacy catch-all node universe against the union of the
+    new shard universes; the invariant is ``legacy_nodes - new_nodes == {}``
+    over IDENTICAL path/marker universes. The 8 distinct ``--collect-only``
+    subprocesses are launched concurrently (each is I/O-bound, waiting on a
+    child pytest process) instead of serially. De-duplicating/parallelizing the
+    distinct collections this way leaves node→selector attribution unchanged:
+    every collection runs with the exact same args it ran with serially, and is
+    bucketed back to ``legacy`` vs ``new`` by an explicit key — concurrency only
+    overlaps the waits, it never merges or reattributes node sets.
+    """
     marker = "-m"
     marker_expr = "not windows_ci and (git_repo or integration or architectural)"
-    legacy_nodes = _collect_nodes(
-        [
-            "--ignore=tests/doctrine",
-            "--ignore=tests/kernel",
-            "--ignore=tests/status",
-            "--ignore=tests/specify_cli/status",
-            "--ignore=tests/sync",
-            "--ignore=tests/merge",
-            "--ignore=tests/missions",
-            "--ignore=tests/post_merge",
-            "--ignore=tests/release",
-            "--ignore=tests/review",
-            "--ignore=tests/next",
-            "--ignore=tests/specify_cli/next",
-            "--ignore=tests/lanes",
-            "--ignore=tests/test_dashboard",
-            "--ignore=tests/upgrade",
-            "--ignore=tests/cli",
-            "--ignore=tests/runtime",
-            "--ignore=tests/charter",
-            "--ignore=tests/agent",
-            marker,
-            marker_expr,
-        ]
-    )
+
+    legacy_args = [
+        "--ignore=tests/doctrine",
+        "--ignore=tests/kernel",
+        "--ignore=tests/status",
+        "--ignore=tests/specify_cli/status",
+        "--ignore=tests/sync",
+        "--ignore=tests/merge",
+        "--ignore=tests/missions",
+        "--ignore=tests/post_merge",
+        "--ignore=tests/release",
+        "--ignore=tests/review",
+        "--ignore=tests/next",
+        "--ignore=tests/specify_cli/next",
+        "--ignore=tests/lanes",
+        "--ignore=tests/test_dashboard",
+        "--ignore=tests/upgrade",
+        "--ignore=tests/cli",
+        "--ignore=tests/runtime",
+        "--ignore=tests/charter",
+        "--ignore=tests/agent",
+        marker,
+        marker_expr,
+    ]
 
     shard_commands = [
         ["tests/adversarial", "tests/architectural", "tests/architecture", "tests/lint"],
@@ -231,19 +242,32 @@ def test_core_misc_shards_plus_e2e_owner_cover_legacy_selection() -> None:
             "tests/unit",
         ],
     ]
-    new_nodes: set[str] = set()
-    for command in shard_commands:
-        new_nodes.update(_collect_nodes([*command, marker, marker_expr]))
-    new_nodes.update(
-        _collect_nodes(
-            [
-                "tests/e2e",
-                "tests/cross_cutting",
-                "-m",
-                "not distribution and not windows_ci",
-            ]
+    e2e_args = [
+        "tests/e2e",
+        "tests/cross_cutting",
+        "-m",
+        "not distribution and not windows_ci",
+    ]
+
+    # (bucket, args) for each distinct collection. "legacy" feeds the catch-all
+    # universe; "new" feeds the union of shard universes. Attribution is fixed
+    # here, before any concurrency, so parallel execution cannot change it.
+    collections: list[tuple[str, list[str]]] = [("legacy", legacy_args)]
+    collections.extend(("new", [*command, marker, marker_expr]) for command in shard_commands)
+    collections.append(("new", e2e_args))
+
+    # Each _collect_nodes call spawns a child pytest process and blocks on it;
+    # run the 8 of them concurrently so the wall-clock is bounded by the slowest
+    # single collection instead of their serial sum.
+    with ThreadPoolExecutor(max_workers=len(collections)) as executor:
+        results = list(
+            executor.map(lambda item: (item[0], _collect_nodes(item[1])), collections)
         )
-    )
+
+    legacy_nodes: set[str] = set()
+    new_nodes: set[str] = set()
+    for bucket, nodes in results:
+        (legacy_nodes if bucket == "legacy" else new_nodes).update(nodes)
 
     missing = sorted(legacy_nodes - new_nodes)
     assert not missing, "Shard split dropped legacy core-misc tests:\n" + "\n".join(
