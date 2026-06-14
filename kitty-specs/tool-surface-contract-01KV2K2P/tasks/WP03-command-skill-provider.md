@@ -27,6 +27,7 @@ subtasks:
 - T018
 - T049
 agent: claude
+shell_pid: '23520'
 history:
 - date: '2026-06-14'
   action: created
