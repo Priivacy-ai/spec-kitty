@@ -25,7 +25,7 @@ from specify_cli.status.lifecycle_events import (
     read_lifecycle_events,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 runner = CliRunner()
 
