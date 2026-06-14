@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import logging
 import shutil
 from pathlib import Path
 
@@ -24,6 +26,11 @@ from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
 from specify_cli.task_utils import find_repo_root
 
 from .surface_presence import SurfacePresenceIndex
+
+logger = logging.getLogger(__name__)
+
+#: Command wired into harness post-edit hooks when ``lint_on_edit`` is enabled.
+LINT_HOOK_COMMAND = "spec-kitty lint --json"
 
 app = typer.Typer(
     name="config",
@@ -609,6 +616,29 @@ def sync_agents(
         console.print("\n[green]✓ Sync complete[/green]")
 
 
+def _load_hook_config(path: Path, default: dict) -> dict:
+    """Load a harness hook-config JSON file, falling back to *default*.
+
+    A missing file yields *default*. A present-but-unreadable/corrupt file is
+    logged and also yields *default* — we never abort the sync on a damaged
+    harness config, but we do not silently mask the problem either.
+    """
+    if not path.exists():
+        return default
+    try:
+        with path.open(encoding="utf-8") as fh:
+            loaded = json.load(fh)
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Could not read hook config %s (%s); using defaults", path, exc)
+        return default
+    return loaded if isinstance(loaded, dict) else default
+
+
+def _write_hook_config(path: Path, data: dict) -> None:
+    with path.open("w", encoding="utf-8") as fh:
+        json.dump(data, fh, indent=2)
+
+
 def _sync_harness_hooks(repo_root: Path, config: AgentConfig) -> bool:
     """Update harness hook configurations based on lint_on_edit setting."""
     console.print("\n[cyan]Syncing harness hooks...[/cyan]")
@@ -616,110 +646,88 @@ def _sync_harness_hooks(repo_root: Path, config: AgentConfig) -> bool:
 
     # Claude Code
     claude_settings = repo_root / ".claude" / "settings.json"
-    if "claude" in config.available or claude_settings.parent.exists():
-        if _sync_claude_hooks(claude_settings, config.lint_on_edit):
-            changes = True
+    if ("claude" in config.available or claude_settings.parent.exists()) and _sync_claude_hooks(
+        claude_settings, config.lint_on_edit
+    ):
+        changes = True
 
     # Cursor
     cursor_hooks = repo_root / ".cursor" / "hooks.json"
-    if "cursor" in config.available or cursor_hooks.parent.exists():
-        if _sync_cursor_hooks(cursor_hooks, config.lint_on_edit):
-            changes = True
+    if ("cursor" in config.available or cursor_hooks.parent.exists()) and _sync_cursor_hooks(
+        cursor_hooks, config.lint_on_edit
+    ):
+        changes = True
 
     return changes
 
 
 def _sync_claude_hooks(path: Path, enabled: bool) -> bool:
-    import json
     path.parent.mkdir(parents=True, exist_ok=True)
-    
-    data = {}
-    if path.exists():
-        try:
-            with open(path) as f:
-                data = json.load(f)
-        except Exception:
-            pass
+    data = _load_hook_config(path, {})
 
     hooks = data.get("hooks", {})
     post_tool_use = hooks.get("PostToolUse", [])
-    
+
     # Check if our lint hook already exists
-    lint_hook_command = "spec-kitty lint --json"
     existing_hook_idx = -1
     for i, h_group in enumerate(post_tool_use):
         if h_group.get("matcher") == "Edit|Write":
             for hook in h_group.get("hooks", []):
-                if hook.get("command") == lint_hook_command:
+                if hook.get("command") == LINT_HOOK_COMMAND:
                     existing_hook_idx = i
                     break
-    
+
     changed = False
-    if enabled:
-        if existing_hook_idx == -1:
-            post_tool_use.append({
-                "matcher": "Edit|Write",
-                "hooks": [{"type": "command", "command": lint_hook_command}]
-            })
-            changed = True
-    else:
-        if existing_hook_idx != -1:
-            post_tool_use.pop(existing_hook_idx)
-            changed = True
-            
+    if enabled and existing_hook_idx == -1:
+        post_tool_use.append({
+            "matcher": "Edit|Write",
+            "hooks": [{"type": "command", "command": LINT_HOOK_COMMAND}],
+        })
+        changed = True
+    elif not enabled and existing_hook_idx != -1:
+        post_tool_use.pop(existing_hook_idx)
+        changed = True
+
     if changed:
         hooks["PostToolUse"] = post_tool_use
         data["hooks"] = hooks
-        with open(path, "w") as f:
-            json.dump(data, f, indent=2)
+        _write_hook_config(path, data)
         console.print(f"  [green]✓[/green] {'Updated' if enabled else 'Removed'} Claude Code lint hook")
     else:
         console.print("  [dim]• Claude Code hooks already in sync[/dim]")
-        
+
     return changed
 
 
 def _sync_cursor_hooks(path: Path, enabled: bool) -> bool:
-    import json
     path.parent.mkdir(parents=True, exist_ok=True)
-    
-    data = {"version": 1, "hooks": {}}
-    if path.exists():
-        try:
-            with open(path) as f:
-                data = json.load(f)
-        except Exception:
-            pass
+    data = _load_hook_config(path, {"version": 1, "hooks": {}})
 
     hooks = data.get("hooks", {})
     after_file_edit = hooks.get("afterFileEdit", [])
-    
-    lint_hook_command = "spec-kitty lint --json"
+
     existing_hook_idx = -1
     for i, hook in enumerate(after_file_edit):
-        if hook.get("command") == lint_hook_command:
+        if hook.get("command") == LINT_HOOK_COMMAND:
             existing_hook_idx = i
             break
-            
+
     changed = False
-    if enabled:
-        if existing_hook_idx == -1:
-            after_file_edit.append({"command": lint_hook_command})
-            changed = True
-    else:
-        if existing_hook_idx != -1:
-            after_file_edit.pop(existing_hook_idx)
-            changed = True
-            
+    if enabled and existing_hook_idx == -1:
+        after_file_edit.append({"command": LINT_HOOK_COMMAND})
+        changed = True
+    elif not enabled and existing_hook_idx != -1:
+        after_file_edit.pop(existing_hook_idx)
+        changed = True
+
     if changed:
         hooks["afterFileEdit"] = after_file_edit
         data["hooks"] = hooks
-        with open(path, "w") as f:
-            json.dump(data, f, indent=2)
+        _write_hook_config(path, data)
         console.print(f"  [green]✓[/green] {'Updated' if enabled else 'Removed'} Cursor lint hook")
     else:
         console.print("  [dim]• Cursor hooks already in sync[/dim]")
-        
+
     return changed
 
 
