@@ -18,3 +18,12 @@
 
 - Use "tool" for install/config/invocation concerns
 - Use "agent" for assignment/handoff/role concerns
+
+## Derived Terms
+
+- **Tool surface**: installable, verifiable, or packageable artifact/configuration exposed to a concrete tool (for example a slash command file, skill directory, hook config, MCP config, custom agent profile file, or plugin manifest)
+- **Agent profile**: logical collaborator identity/role guidance projected into a tool-native custom-agent/subagent format when supported
+
+## Compatibility Note
+
+Some existing CLI commands and config keys still use historical names such as `spec-kitty agent config` and `.kittify/config.yaml` `agents.available`. New architecture, docs, and schemas should treat those as compatibility aliases for configured tools, not as permission to use "agent" for install/config concepts.

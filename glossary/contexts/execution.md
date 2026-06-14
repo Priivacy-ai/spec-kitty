@@ -14,6 +14,21 @@ Terms describing tool invocation and semantic safety gates during generation.
 
 ---
 
+### Tool Surface
+
+| | |
+|---|---|
+| **Definition** | A tool-visible artifact or configuration entry that Spec Kitty installs, verifies, repairs, or packages for a concrete execution tool. |
+| **Context** | Execution |
+| **Status** | candidate |
+| **Applicable to** | `3.x` |
+| **Examples** | slash command file, skill directory, custom agent profile file, hook config, MCP config, plugin manifest |
+| **Use when** | Describing install/config/doctor/plugin ownership for Claude Code, Codex, Copilot, Cursor, Windsurf, Kiro, or another concrete tool. |
+| **Do NOT use when** | Describing logical collaborator identity, assignment, handoff, or role; use [Agent](./identity.md#agent) or [Agent Profile](./identity.md#agent-profile) instead. |
+| **Related terms** | [Tool](#tool), [Slash Command](#slash-command), [Agent](./identity.md#agent) |
+
+---
+
 ### Slash Command
 
 | | |
@@ -223,4 +238,3 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Applicable to** | `3.x` |
 | **Examples** | git commit, pull request, PR comment, CI run result |
 | **Related terms** | [Effector](#effector) |
-
