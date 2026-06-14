@@ -2390,9 +2390,11 @@ edges:
 - source: tactic:mutation-testing-workflow
   target: toolguide:python-mutation-tools
   relation: suggests
+  when: Use when applying the mutation testing workflow to Python projects.
 - source: tactic:mutation-testing-workflow
   target: toolguide:typescript-mutation-tools
   relation: suggests
+  when: Use when applying the mutation testing workflow to TypeScript projects.
 - source: tactic:paula-patterns-architecture-scout-review
   target: directive:DIRECTIVE_001
   relation: suggests
