@@ -127,11 +127,11 @@ A doc file references a generated skill path. A lint step validates that every d
 | Entity | Description |
 |--------|-------------|
 | ToolSurfaceContract | The authoritative registry entry for a configured tool -- defines what surface kinds should exist, their source classification, install scope, and repair policy. |
-| SurfaceKind | Classification of a surface: command skill, doctrine skill, session presence, native agent profile, plugin bundle artifact, or native config. |
+| SurfaceKind | Classification of a surface: `context_file`, `rule`, `command_file`, `command_skill`, `doctrine_skill`, `workflow`, `agent_profile`, `plugin_manifest`, `mcp_server`, `hook`, `native_config`, `memory`, `setting`. Note: `session_presence` is a provider name, not a SurfaceKind value. |
 | SurfaceProvider | An adapter that wraps an existing installer to expand, probe, repair, and remove one surface kind for a given tool. |
 | SurfaceInstance | One concrete artifact on disk (e.g., `.agents/skills/spec-kitty.plan/SKILL.md`), tracked in a manifest with hash and owner. |
 | SurfacePlan | The computed set of surface instances that should exist for the currently configured tools, derived from the registry. |
-| FindingCode | A stable, machine-readable identifier for a specific doctor finding (e.g., `TOOL_SURFACE_COMMAND_SKILL_MISSING`). |
+| FindingCode | A stable, machine-readable identifier for a specific doctor finding. JSON wire format is kebab-case (e.g., `"generated-surface-missing"`). Python constants may use SCREAMING_SNAKE names but must map to the kebab-case string values. |
 | NativeAgentProfile | A host-selectable named agent/subagent generated from a Spec Kitty profile (built-in, org overlay, or project overlay) and projected into a tool's native format. |
 | PluginBundle | A release/staging artifact that groups projected surfaces for distribution as a plugin package; not used for project-local installation. |
 | Manifest | An installation-state snapshot recording which surface instances are installed, their hashes, and their owners. The manifest is not policy. |

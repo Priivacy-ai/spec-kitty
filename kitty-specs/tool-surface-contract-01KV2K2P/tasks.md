@@ -126,7 +126,7 @@
 
 ### WP04 -- Session-Presence Provider
 
-**Goal**: Add a `SurfaceProvider` for session presence and context/hook surfaces, making session presence a distinct surface kind in doctor output.
+**Goal**: Add a `SurfaceProvider` for session presence surfaces, expanding them into distinct `context_file`, `hook`, and `rule` SurfaceKind instances in doctor output. (`session_presence` is a provider name, not a SurfaceKind.)
 **Priority**: High
 **Independent test**: `pytest tests/specify_cli/tool_surface/providers/test_session_presence.py` passes; migration compat tests still pass
 **Estimated prompt size**: ~300 lines

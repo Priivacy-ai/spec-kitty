@@ -26,7 +26,7 @@
 
 ## Decision 3: Finding Code Stability Contract
 
-**Decision**: All finding codes in `doctor tool-surfaces --json` output are stable machine-readable constants (e.g., `TOOL_SURFACE_COMMAND_SKILL_MISSING`). They are not renamed or removed without a documented deprecation cycle (minimum one minor version warning period).
+**Decision**: All finding codes in `doctor tool-surfaces --json` output are stable machine-readable kebab-case strings (e.g., `"generated-surface-missing"`, `"managed-file-drift"`). They are not renamed or removed without a documented deprecation cycle (minimum one minor version warning period). Python constants in `findings.py` may use SCREAMING_SNAKE names (e.g., `GENERATED_SURFACE_MISSING`) but the string VALUES must always be kebab-case; uppercase codes must never appear in JSON output.
 
 **Rationale**: CI pipelines gate on specific codes. Unstable codes silently break pipelines in ways that are hard to detect. The comparative analysis showed this is a common failure mode (BMAD #2442: stale manifest path breaks whole plugin load). Finding codes are a public API contract.
 

@@ -287,14 +287,20 @@ class AbstractSurfaceProvider(Protocol):
         project_root: Path,
     ) -> list[SurfaceInstance]: ...
 
-    def probe(self, instance: SurfaceInstance) -> SurfaceInstance: ...
+    def probe(self, instance: SurfaceInstance) -> SurfaceStatus: ...
 
-    def repair(self, instance: SurfaceInstance) -> bool: ...
+    def repair(
+        self,
+        project_root: Path,
+        statuses: Sequence[SurfaceStatus],
+        *,
+        dry_run: bool = False,
+    ) -> RepairResult: ...
 
     def remove(self, instance: SurfaceInstance) -> bool: ...
 ```
 
-`expand()` returns the concrete list of `SurfaceInstance` objects (with actual paths substituted into the `path_pattern`). `probe()` re-checks `exists` and `file_hash` for a known instance. `repair()` runs the underlying installer to create/restore the file. `remove()` removes it.
+`expand()` returns the concrete list of `SurfaceInstance` objects (with actual paths substituted into the `path_pattern`). `probe()` checks on-disk state for one instance and returns a `SurfaceStatus` (containing the instance + `state` string + zero-or-more `SurfaceFinding`). `repair()` takes `Sequence[SurfaceStatus]` — NOT raw paths or findings — so it preserves manifest/source/hash/refcount context; returns `RepairResult`. `remove()` removes one instance.
 
 **Files**: `src/specify_cli/tool_surface/providers/base.py` (new, ~50 lines)
 
@@ -326,11 +332,20 @@ def register_builtin_definitions(registry: ToolSurfaceRegistry) -> None:
 
 Use the tool keys from `specify_cli.core.config.AI_CHOICES` (or the equivalent canonical list) to understand what `tool_key` values are valid. Do not hardcode them; import from the existing config.
 
-**Builtins test requirement**: The test for builtins.py (T007) MUST assert:
-1. Every key in `AI_CHOICES` (from `specify_cli.core.config`) has a corresponding `ToolHarness` entry in the registry.
-2. Every supported tool (where `harness.supported == True`) exposes at least one `SurfaceDefinition` with `required=RequiredPolicy.REPAIRABLE_REQUIRED`.
-3. The registry raises a structured error (not a KeyError) when asked for an unknown tool key.
-An empty builtins.py stub that does not fail these assertions is not a passing WP01.
+**WP01 builtins scope**: `builtins.py` registers `ToolHarness` stubs for all `AI_CHOICES` keys. It does NOT register `SurfaceDefinition` objects — those are added by WP03-WP09 providers. The registry must support this two-level structure:
+- `registry.get_harness(key)` — looks up a `ToolHarness` by tool key
+- `registry.get_definitions(key)` — looks up `SurfaceDefinition` objects; returns `[]` if none registered yet (not an error)
+
+**Registry behavior for unknown keys**:
+- `get_definitions(unknown_key)` → returns `[]` (unknown key is valid here; providers simply haven't registered any definitions for it)
+- `get_harness(unknown_key)` → raises `UnknownToolKey` structured error (not `KeyError`)
+
+**Builtins test requirement** (T007): MUST assert:
+1. Every key in `AI_CHOICES` (from `specify_cli.core.config`) resolves to a `ToolHarness` via `registry.get_harness(key)`.
+2. `registry.get_harness(unknown_key)` raises `UnknownToolKey` (a structured exception, not a bare `KeyError`).
+3. `registry.get_definitions(any_key)` returns a `list` (empty is fine at WP01 — providers populate this in WP03-WP09).
+4. `registry.get_definitions(unknown_key)` returns `[]` (not raises).
+An empty builtins.py that doesn't register ToolHarness entries for all AI_CHOICES keys is not a passing WP01. Absent SurfaceDefinitions are expected at this stage.
 
 **Files**: `src/specify_cli/tool_surface/builtins.py` (new, ~30 lines)
 
@@ -356,10 +371,12 @@ An empty builtins.py stub that does not fail these assertions is not a passing W
 - `SurfaceFinding` with `path=None` and `repair_command=None` is valid
 
 **Test file**: `tests/specify_cli/tool_surface/test_registry.py`
-- `ToolSurfaceRegistry()` starts empty
+- `ToolSurfaceRegistry()` starts empty (no harnesses, no definitions)
+- `register_harness` + `get_harness` roundtrips correctly
 - `register_definition` + `get_definitions` roundtrips correctly
-- `get_definitions` for an unknown key returns empty list (not raises)
-- `all_tool_keys()` returns registered keys
+- `get_definitions` for an unknown key returns `[]` (not raises — unknown definitions are valid)
+- `get_harness` for an unknown key raises `UnknownToolKey` (not a bare `KeyError`)
+- `all_tool_keys()` returns registered harness keys
 
 **Files**:
 - `tests/specify_cli/tool_surface/__init__.py` (new, empty)
@@ -383,8 +400,9 @@ An empty builtins.py stub that does not fail these assertions is not a passing W
 - [ ] Naming convention verified: `ToolSurfaceContract`, `SurfaceKind`, not any `Agent*` variants
 - [ ] All file path operations use `pathlib.Path`; no hardcoded path separators (C-010 cross-platform gate)
 - [ ] `src/specify_cli/tool_surface/data/tool-surface-contract.schema.json` and `surface-status.schema.json` created with minimal but valid JSON Schema skeletons
-- [ ] `builtins.py` has at minimum stub harness entries for all keys in `AI_CHOICES`; tests assert all `AI_CHOICES` keys resolve to a `ToolHarness`
-- [ ] Registry raises a structured error for unknown tool keys (tested in T007)
+- [ ] `builtins.py` registers `ToolHarness` stubs for all keys in `AI_CHOICES`; tests assert `get_harness(key)` succeeds for every `AI_CHOICES` key
+- [ ] `registry.get_harness(unknown_key)` raises `UnknownToolKey` structured error (not bare `KeyError`); tested in T007
+- [ ] `registry.get_definitions(any_key)` returns `[]` for unknown keys (not raises); tested in T007
 
 ## Risks
 

@@ -119,10 +119,10 @@ class ManagedSkillsProvider:
 
 **Out-of-map edit to `status.py`** (owned by WP03):
 - Extend `compute_findings` to handle `SurfaceKind.DOCTRINE_SKILL`
-- Use `TOOL_SURFACE_DOCTRINE_SKILL_MISSING` finding code
+- Use finding code `"generated-surface-missing"` (kebab-case JSON wire value) for missing doctrine skills; Python constant `GENERATED_SURFACE_MISSING` maps to this string
 
 **Out-of-map edit to `findings.py`** (owned by WP03):
-- `TOOL_SURFACE_DOCTRINE_SKILL_MISSING` placeholder is already defined -- activate it
+- Confirm `GENERATED_SURFACE_MISSING = "generated-surface-missing"` constant exists; document that this WP activates it for `DOCTRINE_SKILL` kind
 
 **Rationale**: Sequential after WP03; no parallel conflict.
 

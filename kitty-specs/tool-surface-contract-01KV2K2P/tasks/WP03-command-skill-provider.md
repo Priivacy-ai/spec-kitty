@@ -77,7 +77,7 @@ Before reading anything else, run:
 
 Route command-skill status through the provider model and add the first functional umbrella doctor command: `spec-kitty doctor tool-surfaces`. This is the first user-visible output of the ToolSurfaceContract registry.
 
-**Critical**: Finding codes established in this WP are public API from day one. Use `TOOL_SURFACE_COMMAND_SKILL_*` prefix. They cannot be renamed without a deprecation cycle.
+**Critical**: Finding codes established in this WP are public API from day one. The **JSON wire format** uses kebab-case codes (e.g. `"generated-surface-missing"`, `"managed-file-drift"`) — these are immutable once published. Python constants in `findings.py` may use `SCREAMING_SNAKE` names but MUST map to the kebab-case string values. Do not emit uppercase codes in JSON output.
 
 **Child issue**: #1937
 **Parent epic**: #1945
@@ -244,23 +244,33 @@ PLUGIN_MANIFEST_STALE_PATH = "plugin-manifest-stale-path"
 DOCS_REF_STALE = "docs-ref-stale"
 
 def make_finding(
-    code: str,
-    tool_key: str,
-    surface_kind: SurfaceKind,
-    severity: str,
-    path: Path | None,
-    repair_command: str | None,
-    detail: str,
+    code: str,              # kebab-case JSON wire code, e.g. "generated-surface-missing"
+    severity: str,          # "error" | "warning" | "info"  (NOT "research_gap" — use "info" for gaps)
+    message: str,           # human-readable explanation
+    *,
+    tool_key: str | None = None,
+    surface_id: str | None = None,
+    path: Path | None = None,
+    repair_command: str | None = None,
+    docs_ref: str | None = None,
+    details: Mapping[str, object] | None = None,
 ) -> SurfaceFinding:
-    """Factory function for creating SurfaceFinding objects."""
+    """Factory function for creating SurfaceFinding objects.
+
+    IMPORTANT: `code` must be a kebab-case string from the stable code table in data-model.md.
+    Do NOT pass SCREAMING_SNAKE_CASE here — Python constants are fine as intermediates
+    but the string VALUE must be kebab-case.
+    """
     return SurfaceFinding(
         code=code,
-        tool_key=tool_key,
-        surface_kind=surface_kind,
         severity=severity,
+        message=message,
+        tool_key=tool_key,
+        surface_id=surface_id,
         path=path,
         repair_command=repair_command,
-        detail=detail,
+        docs_ref=docs_ref,
+        details=details or {},
     )
 ```
 
@@ -331,9 +341,9 @@ spec-kitty doctor tool-surfaces --kind command-skill --fix
 1. Load configured tool keys from `.kittify/config.yaml`
 2. Build registry with command-skill provider (the only one available at this WP)
 3. Build `SurfacePlan` via `SurfacePlanBuilder`
-4. Compute findings via `SurfaceStatusService`
-5. If `--fix`: run `SurfaceRepairService` for each finding
-6. Output JSON (or human-readable if `--json` not passed)
+4. Call `SurfaceStatusService.collect()` → `SurfaceReport` (containing `surfaces[]` and `findings[]`)
+5. If `--fix`: pass the `SurfaceReport.surfaces` list (not the findings) to `SurfaceRepairService.repair(project_root, statuses=report.surfaces, dry_run=False)` → `RepairResult`
+6. Output JSON (or human-readable if `--json` not passed); top-level key is `ok` (bool), not `clean`
 
 **Files**: `src/specify_cli/cli/commands/doctor.py` (MODIFIED -- add subcommand, do not remove existing logic)
 

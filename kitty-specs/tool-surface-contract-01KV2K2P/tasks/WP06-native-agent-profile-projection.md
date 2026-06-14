@@ -70,7 +70,7 @@ Project built-in Spec Kitty agent profiles and org/project overlay profiles into
 
 **Out-of-map edits required**: Extends `status.py`, `findings.py` (owned by WP03) for `SurfaceKind.AGENT_PROFILE`. Rationale: "WP06 sequential; no parallel conflict."
 
-**Key constraint (FR-014)**: Tools that do not support named agents natively must receive a `TOOL_SURFACE_AGENT_PROFILE_RESEARCH_GAP` finding code, not a hard failure.
+**Key constraint (FR-014)**: Tools that do not support named agents natively must receive a finding with code `"research-gap-surface"` (or `"profile-projection-unsupported"` when the tool is known but unverified), severity `"info"`, and the top-level `ok` field must remain `true`. These are NOT error or warning findings. Never use a fictional `"research_gap"` severity value — the schema only allows `error`, `warning`, `info`.
 
 **Child issue**: #1940
 **Parent epic**: #1945
@@ -267,18 +267,19 @@ class AgentProfilesProvider:
 ### T032 -- Extend `status.py` and `findings.py` for agent-profile kind
 
 **Out-of-map edit to `status.py`** (owned by WP03):
-- Handle `SurfaceKind.AGENT_PROFILE`: if file missing → `TOOL_SURFACE_AGENT_PROFILE_MISSING`
-- If `required_policy == RESEARCH_GAP` (tool has no native agent support) → `TOOL_SURFACE_AGENT_PROFILE_RESEARCH_GAP` at `severity: "research_gap"` (not `"error"`)
+- Handle `SurfaceKind.AGENT_PROFILE`: if file missing → code `"native-agent-profile-missing"`, severity `"error"`
+- If `required_policy == RESEARCH_GAP` (tool has no native agent support) → code `"research-gap-surface"` or `"profile-projection-unsupported"`, severity `"info"` (NOT `"error"`, NOT `"research_gap"`)
+- `ok` is `true` when the only findings have severity `"info"`; `ok` is `false` only when any finding has severity `"error"`
 
 **Out-of-map edit to `findings.py`** (owned by WP03):
-- Activate the placeholder constants `TOOL_SURFACE_AGENT_PROFILE_MISSING` and `TOOL_SURFACE_AGENT_PROFILE_RESEARCH_GAP`
-
-**Critical**: The `RESEARCH_GAP` finding must have `severity: "research_gap"`, not `"error"`. The `clean` flag in `doctor tool-surfaces --json` must still be `true` when the only findings are `research_gap` severity.
+- Activate constants: `NATIVE_AGENT_PROFILE_MISSING = "native-agent-profile-missing"`, `RESEARCH_GAP_SURFACE = "research-gap-surface"`, `PROFILE_PROJECTION_UNSUPPORTED = "profile-projection-unsupported"`
+- These are kebab-case string values; the Python constant names are SCREAMING_SNAKE for readability only
 
 **Validation**:
 - [ ] `spec-kitty doctor tool-surfaces --kind agent-profile --json` works
-- [ ] Tools without native agent support show `RESEARCH_GAP`, not `error`
-- [ ] `clean: true` when only research-gap findings present
+- [ ] Tools without native agent support: finding code is `"research-gap-surface"`, severity is `"info"`, `ok` is `true`
+- [ ] `ok: true` when the only findings are `severity: "info"` (research-gap) findings
+- [ ] `ok: false` only when at least one `severity: "error"` finding is present
 
 ---
 

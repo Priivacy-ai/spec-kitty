@@ -162,7 +162,9 @@ Claude Code plugin bundle layout (`.claude-plugin/`):
 ├── agents/               # Native agent profile projections
 │   ├── architect-alphonso.md
 │   └── ...
-└── settings.json         # Hook and MCP config
+├── hooks/
+│   └── hooks.json        # Hook config (NOT settings.json)
+└── .mcp.json             # MCP config (NOT settings.json)
 ```
 
 ```python
@@ -279,16 +281,16 @@ class PluginBundleProvider:
 ### T047 -- Extend `status.py` and `findings.py` for plugin-bundle kind
 
 **Out-of-map edit to `status.py`** (owned by WP03):
-- Handle `SurfaceKind.PLUGIN_MANIFEST`: incomplete bundle → `TOOL_SURFACE_PLUGIN_BUNDLE_INCOMPLETE`
+- Handle `SurfaceKind.PLUGIN_MANIFEST`: incomplete bundle → code `"bundle-component-missing"`, severity `"error"`; stale path → `"plugin-manifest-stale-path"`, severity `"warning"`
 
 **Out-of-map edit to `findings.py`** (owned by WP03):
-- Activate the placeholder constant `TOOL_SURFACE_PLUGIN_BUNDLE_INCOMPLETE`
+- Activate `BUNDLE_COMPONENT_MISSING = "bundle-component-missing"` and `PLUGIN_MANIFEST_STALE_PATH = "plugin-manifest-stale-path"` (kebab-case string values; Python constant names are SCREAMING_SNAKE)
 
 **Rationale**: Sequential after WP06; no parallel conflict.
 
 **Validation**:
 - [ ] `spec-kitty doctor tool-surfaces --kind plugin-manifest --json` works
-- [ ] Incomplete bundle produces `TOOL_SURFACE_PLUGIN_BUNDLE_INCOMPLETE` finding
+- [ ] Incomplete bundle produces finding with code `"bundle-component-missing"`, severity `"error"`
 
 ---
 
@@ -336,10 +338,11 @@ def test_plugin_bundle_provider_probe_detects_missing_bundle():
 
 ## Definition of Done
 
-- [ ] `ClaudeCodeBundleProjector.project()` produces a correct `.claude-plugin/` layout
-- [ ] `ClaudeCodeBundleProjector.validate()` catches incomplete bundles
+- [ ] `ClaudeCodeBundleProjector.project()` produces the correct `.claude-plugin/` layout (including `hooks/hooks.json` and `.mcp.json`, not `settings.json`)
+- [ ] `ClaudeCodeBundleProjector.validate()` catches incomplete bundles (missing command skills, doctrine skills, or agent profiles)
+- [ ] `CopilotBundleProjector.project()` produces the correct root-`plugin.json` layout with `hooks.json` and `.mcp.json`
+- [ ] `VSCodeBundleProjector.project()` produces a valid VS Code bundle layout
 - [ ] `spec-kitty doctor tool-surfaces --kind plugin-manifest --json` works
-- [ ] Copilot and VS Code stubs are `NotImplementedError` (not silent failures)
 - [ ] `pytest tests/specify_cli/tool_surface/bundles/` passes
 - [ ] `mypy --strict src/specify_cli/tool_surface/bundles/` passes
 - [ ] No auto-install, marketplace push, or project-local installation logic
@@ -348,11 +351,14 @@ def test_plugin_bundle_provider_probe_detects_missing_bundle():
 
 - **Claude Code plugin manifest format**: The `plugin.json` format may change. Keep the manifest generation isolated and versioned in the projector.
 - **Bundle output dir**: The bundle output directory is a staging artifact (e.g., `dist/claude-plugin/`). It must not be placed in `.kittify/` or any project-managed directory.
-- **Stub footguns**: Ensure `NotImplementedError` stubs don't silently succeed in CI. The test must explicitly verify the error is raised.
+- **Bundle output dir**: The bundle output directory is a staging artifact (e.g., `dist/claude-plugin/`). It must not be placed in `.kittify/` or any project-managed directory.
 
 ## Reviewer Guidance (Codex)
 
 - Verify no auto-install or marketplace push logic anywhere in this WP
-- Verify stub projectors raise `NotImplementedError` (not silent no-ops)
+- Verify Claude Code bundle layout: `hooks/hooks.json` for hooks, `.mcp.json` for MCP — NOT `settings.json`
+- Verify Copilot/VS Code bundle layout: root `plugin.json`, `hooks.json` at root, `.mcp.json` at root
+- Verify all three projectors (Claude, Copilot, VS Code) are implemented — no `NotImplementedError` stubs in this WP
 - Verify Claude Code bundle includes all required surface kinds (command skills, doctrine skills, agent profiles)
 - Verify `PluginBundleProvider` delegates to projectors (not reimplements projection)
+- Verify finding codes are kebab-case in JSON output (`"bundle-component-missing"`, not `TOOL_SURFACE_PLUGIN_BUNDLE_INCOMPLETE`)

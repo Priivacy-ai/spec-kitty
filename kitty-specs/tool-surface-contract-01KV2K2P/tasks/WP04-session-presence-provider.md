@@ -166,7 +166,7 @@ This provider is narrower than session presence -- it handles config entries tha
 **Rationale for out-of-map**: WP04 is sequential after WP03; no parallel conflict. Session-presence kinds must be handled alongside command-skill kind in the same `compute_findings` dispatch.
 
 **Validation**:
-- [ ] `spec-kitty doctor tool-surfaces --kind session-presence --json` returns session-presence findings
+- [ ] `spec-kitty doctor tool-surfaces --kind context_file --json` returns context-file findings (not `--kind session-presence` — no such kind)
 - [ ] Migration compat tests still pass
 
 ---
