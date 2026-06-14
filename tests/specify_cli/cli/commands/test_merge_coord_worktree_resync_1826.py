@@ -298,7 +298,6 @@ def _merge_external_mocks():
         "hollow": patch("specify_cli.cli.commands.merge._warn_or_confirm_hollow_reviews"),
         "baseline_record": patch(
             "specify_cli.cli.commands.merge._record_baseline_merge_commit",
-            return_value=None,
         ),
         "baseline_assert": patch(
             "specify_cli.cli.commands.merge._assert_baseline_merge_commit_on_target"
@@ -327,6 +326,38 @@ def _merge_external_mocks():
     }
     with contextlib.ExitStack() as stack:
         mocks = {name: stack.enter_context(p) for name, p in patches.items()}
+
+        def _record_baseline_merge_commit(
+            feature_dir: Path,
+            baseline_commit: str,
+            *,
+            mission_id: str | None = None,
+        ) -> Path:
+            meta_path = feature_dir / "meta.json"
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            meta["baseline_merge_commit"] = baseline_commit
+            if mission_id is not None:
+                meta["mission_id"] = mission_id
+            meta_path.write_text(
+                json.dumps(meta, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            return meta_path
+
+        def _safe_commit_no_worktrees_paths(**kwargs: object) -> MagicMock:
+            paths = kwargs.get("paths", ())
+            assert isinstance(paths, tuple)
+            offending = [str(path) for path in paths if ".worktrees" in Path(path).parts]
+            assert offending == [], (
+                "final target bookkeeping safe_commit must not stage "
+                f"coordination-worktree paths: {offending!r}"
+            )
+            result = MagicMock()
+            result.sha = "0" * 40
+            return result
+
+        mocks["baseline_record"].side_effect = _record_baseline_merge_commit
+        mocks["safe_commit"].side_effect = _safe_commit_no_worktrees_paths
         gate_eval = MagicMock()
         gate_eval.overall_pass = True
         gate_eval.gates = []

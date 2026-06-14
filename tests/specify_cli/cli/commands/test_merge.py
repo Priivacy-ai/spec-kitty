@@ -31,6 +31,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.merge import (
     _assert_merged_wps_reached_done,
     _mark_wp_merged_done,
+    _target_bookkeeping_status_paths,
     merge,
 )
 from specify_cli.status.models import Lane, StatusEvent
@@ -87,6 +88,51 @@ def _append_done_event(feature_dir: Path, wp_id: str) -> None:
         execution_mode="direct_repo",
     )
     append_event(feature_dir, event)
+
+
+# ---------------------------------------------------------------------------
+# #1956: final target bookkeeping must not stage coordination-worktree paths
+# ---------------------------------------------------------------------------
+
+
+def test_target_bookkeeping_paths_use_primary_checkout_for_coord_surface(
+    tmp_path: Path,
+) -> None:
+    """Regression: final target commit stages primary paths, never .worktrees paths."""
+    mission_slug = "coord-bookkeeping-01KV1956"
+    coord_feature_dir = (
+        tmp_path
+        / ".worktrees"
+        / f"{mission_slug}-coord"
+        / "kitty-specs"
+        / mission_slug
+    )
+
+    events_path, status_path = _target_bookkeeping_status_paths(
+        main_repo=tmp_path,
+        mission_slug=mission_slug,
+        status_feature_dir=coord_feature_dir,
+    )
+
+    assert events_path == tmp_path / "kitty-specs" / mission_slug / "status.events.jsonl"
+    assert status_path == tmp_path / "kitty-specs" / mission_slug / "status.json"
+    assert ".worktrees" not in events_path.parts
+    assert ".worktrees" not in status_path.parts
+
+
+def test_target_bookkeeping_paths_keep_primary_surface(tmp_path: Path) -> None:
+    """Primary status surfaces already match the target commit surface."""
+    mission_slug = "primary-bookkeeping"
+    primary_feature_dir = tmp_path / "kitty-specs" / mission_slug
+
+    events_path, status_path = _target_bookkeeping_status_paths(
+        main_repo=tmp_path,
+        mission_slug=mission_slug,
+        status_feature_dir=primary_feature_dir,
+    )
+
+    assert events_path == primary_feature_dir / "status.events.jsonl"
+    assert status_path == primary_feature_dir / "status.json"
 
 
 # ---------------------------------------------------------------------------

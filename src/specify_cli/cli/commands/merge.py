@@ -768,6 +768,29 @@ def _paths_have_status_changes(repo_root: Path, paths: list[Path]) -> bool:
     return bool((out_status or "").strip())
 
 
+def _target_bookkeeping_status_paths(
+    *,
+    main_repo: Path,
+    mission_slug: str,
+    status_feature_dir: Path,
+) -> tuple[Path, Path]:
+    """Return status paths that may be staged from the target checkout.
+
+    ``status_feature_dir`` is topology-aware and can point at the coordination
+    worktree. The final merge bookkeeping commit runs from ``main_repo`` onto
+    the target branch, so it must stage primary-checkout paths only.
+    """
+    target_feature_dir = (
+        primary_feature_dir_for_mission(main_repo, mission_slug)
+        if is_under_worktrees_segment(status_feature_dir)
+        else status_feature_dir
+    )
+    return (
+        target_feature_dir / _STATUS_EVENTS_FILENAME,
+        target_feature_dir / _STATUS_FILENAME,
+    )
+
+
 def _already_baked(merge_state: MergeState | None) -> bool:
     """Resume short-circuit predicate (T026 / FR-012).
 
@@ -2342,9 +2365,14 @@ def _run_lane_based_merge_locked(
         )
 
     # -- T012: FR-019 — Persist done events to git BEFORE any worktree removal --
+    target_events_path, target_status_path = _target_bookkeeping_status_paths(
+        main_repo=main_repo,
+        mission_slug=mission_slug,
+        status_feature_dir=feature_dir,
+    )
     files_to_commit = [
-        feature_dir / _STATUS_EVENTS_FILENAME,
-        feature_dir / _STATUS_FILENAME,
+        target_events_path,
+        target_status_path,
     ]
     if mission_number_meta_path is not None:
         files_to_commit.append(mission_number_meta_path)
