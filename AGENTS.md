@@ -239,7 +239,7 @@ Full docs: [CONTRIBUTING.md](CONTRIBUTING.md#release-process)
 2. Update agent wrappers to use the resolver.
 3. Update templates, skills, and docs together.
 
-**Testing:** Unit coverage for workspace resolution + integration coverage for `agent workflow implement/review`.
+**Testing:** Unit coverage for workspace resolution + integration coverage for `agent action implement/review`.
 
 **Status source of truth:** Feature metadata on main branch, not the open worktree.
 

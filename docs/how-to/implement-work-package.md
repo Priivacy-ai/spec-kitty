@@ -47,7 +47,7 @@ If the WP depends on another WP, task finalization will already have assigned it
 In your terminal:
 
 ```bash
-cd <path printed by spec-kitty agent workflow implement>
+cd <path printed by spec-kitty agent action implement>
 ```
 
 Implement the prompt, run required tests, and commit your changes in that workspace. Sequential WPs in the same lane reuse the same worktree, for example `.worktrees/###-feature-lane-a`.
