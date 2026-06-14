@@ -12,8 +12,8 @@ tracker_refs: []
 planning_base_branch: feat/tool-surface-contract
 merge_target_branch: feat/tool-surface-contract
 branch_strategy: Planning artifacts for this mission were generated on feat/tool-surface-contract. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/tool-surface-contract unless the human explicitly redirects the landing branch.
-base_branch: kitty/mission-tool-surface-contract-01KV2K2P-01KV2K2P
-base_commit: unknown
+base_branch: kitty/mission-tool-surface-contract-01KV2K2P
+base_commit: a91cb36344cf3ed055304f4161514db98d8e2c66
 created_at: '2026-06-14T09:49:26.582007+00:00'
 subtasks:
 - T001
