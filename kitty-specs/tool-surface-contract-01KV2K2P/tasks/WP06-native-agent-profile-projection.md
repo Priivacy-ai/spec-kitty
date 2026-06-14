@@ -66,6 +66,8 @@ Before reading anything else, run:
 
 Project built-in Spec Kitty agent profiles and org/project overlay profiles into host-native agent/subagent formats. Track projected files in a manifest. Add `agent_profile` kind to `doctor tool-surfaces` output.
 
+**Profile manifest file**: `.kittify/agent-profiles-manifest.json` (NOT `tool-surface-profile-manifest.json`)
+
 **Out-of-map edits required**: Extends `status.py`, `findings.py` (owned by WP03) for `SurfaceKind.AGENT_PROFILE`. Rationale: "WP06 sequential; no parallel conflict."
 
 **Key constraint (FR-014)**: Tools that do not support named agents natively must receive a `TOOL_SURFACE_AGENT_PROFILE_RESEARCH_GAP` finding code, not a hard failure.
@@ -143,23 +145,12 @@ class ProfileProjector:
 
 **Purpose**: Per-harness render functions that convert a Spec Kitty profile into the tool's native agent file format.
 
-**Renderers to implement** (start with Claude Code; stub others):
+**Renderers to implement** (confirmed active targets; Codex is the only research gap):
 
-**Claude Code**: `.claude/agents/<profile-name>.md`
-Format:
-```markdown
----
-name: Architect Alphonso
-description: <profile description>
-tools: [<tools from profile>]
----
-
-<profile system prompt or instructions>
-```
-
-**Codex/OpenCode/AGENTS.md-based tools**: Add a hint to the existing `AGENTS.md` orientation file (not a separate file per profile). This is a `RESEARCH_GAP` for now -- renderers return None for these tools.
-
-**Other tools without native named-agent support**: Return `None` (triggers `RESEARCH_GAP` finding).
+**Claude Code project/user**: `.claude/agents/<profile-id>.md` (`claude-agent` format — Markdown frontmatter + body)
+**Claude plugin bundle**: `agents/<profile-id>.md` (`claude-plugin-agent` format)
+**Copilot CLI / VS Code**: `.github/agents/<profile-id>.agent.md` (`copilot-agent` / `vscode-agent` format — `.agent.md` frontmatter + instructions)
+**Codex**: No verified native profile primitive → `research-gap-surface` finding. Do NOT model Codex AGENTS.md hints as native profiles — AGENTS.md is a `context_file` surface (session presence), not a profile projection.
 
 ```python
 class ProfileRenderer(Protocol):
@@ -170,7 +161,7 @@ class ProfileRenderer(Protocol):
     def render(self, profile: AgentProfile) -> str: ...
 
 class ClaudeCodeProfileRenderer:
-    format_key = "claude_code_agent_md"
+    format_key = "claude-agent"
 
     def can_render(self, tool_key: str) -> bool:
         return tool_key == "claude"
@@ -182,15 +173,30 @@ class ClaudeCodeProfileRenderer:
         # Generate the YAML frontmatter + content format
         ...
 
+class CopilotProfileRenderer:
+    format_key = "copilot-agent"
+
+    def can_render(self, tool_key: str) -> bool:
+        return tool_key in ("copilot", "vscode")
+
+    def output_path(self, tool_key: str, profile: AgentProfile, project_root: Path) -> Path:
+        return project_root / ".github" / "agents" / f"{profile.slug}.agent.md"
+
+    def render(self, profile: AgentProfile) -> str:
+        # Generate the .agent.md frontmatter + instructions format
+        ...
+
 def get_renderer(tool_key: str) -> ProfileRenderer | None:
-    """Return the renderer for a tool key, or None if unsupported."""
+    """Return the renderer for a tool key, or None if unsupported (yields research-gap-surface)."""
     ...
 ```
 
-**Files**: `src/specify_cli/tool_surface/profiles/renderers.py` (new, ~100 lines)
+**Files**: `src/specify_cli/tool_surface/profiles/renderers.py` (new, ~140 lines)
 
 **Validation**:
-- [ ] `ClaudeCodeProfileRenderer` produces valid `.md` with YAML frontmatter
+- [ ] `ClaudeCodeProfileRenderer` produces valid `.md` with YAML frontmatter (`claude-agent` format)
+- [ ] `CopilotProfileRenderer` produces valid `.agent.md` files (`copilot-agent` format)
+- [ ] `get_renderer("codex")` returns `None` (yields research-gap-surface)
 - [ ] `get_renderer("unknown")` returns `None` (no error)
 - [ ] `mypy --strict` passes
 
@@ -204,7 +210,7 @@ def get_renderer(tool_key: str) -> ProfileRenderer | None:
 class ProfileManifest:
     """Tracks installed native agent profile files.
 
-    Stored at: .kittify/tool-surface-profile-manifest.json
+    Stored at: .kittify/agent-profiles-manifest.json
     """
     manifest_path: Path
 
@@ -217,7 +223,7 @@ class ProfileManifest:
 **Files**: `src/specify_cli/tool_surface/profiles/manifest.py` (new, ~70 lines)
 
 **Validation**:
-- [ ] Manifest is stored at `.kittify/tool-surface-profile-manifest.json`
+- [ ] Manifest is stored at `.kittify/agent-profiles-manifest.json` (NOT `tool-surface-profile-manifest.json`)
 - [ ] Hash is SHA-256 of file content
 - [ ] Manifest survives round-trip (write → read → same data)
 
@@ -297,6 +303,18 @@ def test_claude_code_renderer_output_path():
 def test_claude_code_renderer_produces_yaml_frontmatter():
     ...
 
+def test_copilot_renderer_output_path():
+    profile = make_test_profile(slug="researcher-robbie")
+    renderer = CopilotProfileRenderer()
+    path = renderer.output_path("copilot", profile, Path("/project"))
+    assert path == Path("/project/.github/agents/researcher-robbie.agent.md")
+
+def test_copilot_renderer_produces_agent_md_frontmatter():
+    ...
+
+def test_get_renderer_returns_none_for_codex():
+    assert get_renderer("codex") is None  # Codex yields research-gap-surface
+
 def test_get_renderer_returns_none_for_unknown_tool():
     assert get_renderer("unknown_tool") is None
 
@@ -328,7 +346,8 @@ def test_agent_profiles_provider_repair_writes_file():
 - [ ] Built-in profiles are projected into `.claude/agents/` for configured Claude Code users
 - [ ] `spec-kitty doctor tool-surfaces --kind agent-profile --json` reports gaps and repairs them
 - [ ] Tools without native agent support show `TOOL_SURFACE_AGENT_PROFILE_RESEARCH_GAP` at `research_gap` severity
-- [ ] Profile manifest is written to `.kittify/tool-surface-profile-manifest.json`
+- [ ] Profile manifest is written to `.kittify/agent-profiles-manifest.json` (NOT `tool-surface-profile-manifest.json`)
+- [ ] `.kittify/agent-profiles-manifest.json` is the manifest used (NOT `tool-surface-profile-manifest.json`)
 - [ ] `pytest tests/specify_cli/tool_surface/profiles/` passes
 - [ ] `mypy --strict src/specify_cli/tool_surface/` passes
 

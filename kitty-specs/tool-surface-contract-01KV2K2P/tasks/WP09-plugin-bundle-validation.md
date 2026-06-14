@@ -68,11 +68,24 @@ Before reading anything else, run:
 
 ## Objective
 
-Implement plugin bundle projection and pre-publish validation as a release/staging capability. This WP projects all canonical tool surfaces into plugin package layouts for Claude Code, Copilot, and VS Code distribution targets, and validates that the resulting bundles are complete before publication.
+Implement plugin bundle projection and pre-publish validation as a release/staging capability. This WP projects all canonical tool surfaces into plugin package layouts for Claude Code, Copilot CLI, and VS Code distribution targets, and validates that the resulting bundles are complete before publication.
 
 **Hard scope limit** (FR-015, C-006): No auto-install, no marketplace push, no project-local installation replacement. This is purely projection + validation for release pipelines.
 
 **Out-of-map edits required**: Extends `status.py` and `findings.py` (owned by WP03) for `SurfaceKind.PLUGIN_MANIFEST`. Rationale: "WP09 sequential after WP06; no parallel conflict."
+
+**Plugin bundle payload (per architecture)**:
+- Plugin manifest (`plugin.json` or `.claude-plugin/plugin.json`)
+- Command skills (`skills/<name>/SKILL.md`)
+- Agent profiles (`agents/<profile-id>.md` or `agents/<profile-id>.agent.md`)
+- Hooks (`hooks.json` or `hooks/hooks.json` depending on target)
+- MCP config (`.mcp.json`)
+
+**NOT in plugin bundle**: session-presence files (CLAUDE.md, AGENTS.md, rules/steering files). Those are project install surfaces, not plugin bundle components.
+
+**Supported initial targets**:
+- Claude Code plugin format (`.claude-plugin/plugin.json`, skills, agents, hooks, .mcp.json)
+- Copilot CLI / VS Code plugin format (root `plugin.json`, agents, skills, hooks.json, .mcp.json)
 
 **Child issue**: #1943
 **Parent epic**: #1945
@@ -82,9 +95,11 @@ Implement plugin bundle projection and pre-publish validation as a release/stagi
 Plugin bundles group tool surfaces for distribution. When Spec Kitty ships as a Claude Code plugin, the plugin bundle must include:
 - All command skills
 - All doctrine skills
-- Session presence files
 - Native agent profile projections
 - Plugin manifest
+- Hooks and MCP config
+
+Session-presence files (CLAUDE.md, AGENTS.md, rules files) are NOT included in the plugin bundle — they are project install surfaces.
 
 The `PluginBundleBuilder` projects the canonical `SurfacePlan` into the appropriate package layout for each distribution target. The `BundleValidator` checks that the resulting bundle is complete before it is published.
 
@@ -180,20 +195,45 @@ class ClaudeCodeBundleProjector:
 
 ### T045 -- Implement `bundles/copilot.py` and `bundles/vscode.py`
 
-**Purpose**: Stub projectors for GitHub Copilot and VS Code extension bundle targets.
+**Purpose**: Projectors for GitHub Copilot CLI and VS Code bundle targets. Both are confirmed supported targets with known layouts.
 
-For this WP, these can be stubs that:
-1. Define the `distribution_target` string
-2. Define the expected bundle layout (comments OK)
-3. Raise `NotImplementedError` for `project()` with a clear message: "Copilot bundle projection is a RESEARCH_GAP -- contribute at <issue>"
-4. Validate that the required entries are structurally correct (even if projection is not implemented)
+**Copilot CLI / VS Code plugin bundle layout** (root `plugin.json` format):
+```
+<output-dir>/
+├── plugin.json           # Plugin manifest (root-level for Copilot/VS Code)
+├── skills/               # Command skills
+│   └── spec-kitty.plan/SKILL.md
+├── agents/               # Native agent profile projections (.agent.md format)
+│   ├── architect-alphonso.agent.md
+│   └── ...
+├── hooks.json            # Hook config
+└── .mcp.json             # MCP config
+```
+
+```python
+class CopilotBundleProjector:
+    distribution_target = "copilot_skill_package"
+
+    def project(
+        self,
+        plan: list[SurfacePlan],
+        project_root: Path,
+        output_dir: Path,
+    ) -> PluginBundle: ...
+
+    def validate(self, bundle: PluginBundle, required_surface_kinds: set[SurfaceKind]) -> BundleValidationResult: ...
+```
+
+The VS Code projector (`VsCodeBundleProjector`) uses the same layout as Copilot — both use `plugin.json` at root and `.agent.md` files in `agents/`.
 
 **Files**:
-- `src/specify_cli/tool_surface/bundles/copilot.py` (new, ~40 lines -- stub with `RESEARCH_GAP` note)
-- `src/specify_cli/tool_surface/bundles/vscode.py` (new, ~40 lines -- stub with `RESEARCH_GAP` note)
+- `src/specify_cli/tool_surface/bundles/copilot.py` (new, ~80 lines)
+- `src/specify_cli/tool_surface/bundles/vscode.py` (new, ~40 lines — delegates to CopilotBundleProjector with `vscode_extension` target key)
 
 **Validation**:
-- [ ] Calling `project()` on a stub raises `NotImplementedError` (not crashes silently)
+- [ ] `CopilotBundleProjector.project()` creates the correct directory structure
+- [ ] `validate()` returns `passed=False` if skills or agent profiles are missing
+- [ ] `plugin.json` is created at output root (not in a subdirectory)
 - [ ] Stub files exist and are importable
 
 ---
@@ -275,8 +315,8 @@ def test_claude_code_bundle_plugin_json_exists():
     ...
 
 # test_plugin_bundle.py
-def test_plugin_bundle_provider_research_gap_for_copilot():
-    """Copilot bundle projection returns RESEARCH_GAP (NotImplementedError handled)."""
+def test_plugin_bundle_provider_copilot_projects_correctly():
+    """Copilot bundle projection produces plugin.json at root."""
     ...
 
 def test_plugin_bundle_provider_probe_detects_missing_bundle():

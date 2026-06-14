@@ -82,40 +82,72 @@ The existing `doctor skills --json` command and `spec-kitty agent config list/st
 
 **Purpose**: Assert that `spec-kitty doctor skills --json` output schema is unchanged before and after the ToolSurfaceContract registry is introduced.
 
-**Approach**:
-1. Run `spec-kitty doctor skills --json` using subprocess against the current installed version.
-2. Capture the output structure: top-level keys, finding code format, per-finding field names.
-3. Write a baseline snapshot to `tests/specify_cli/tool_surface/integration/fixtures/doctor_skills_baseline.json`.
-4. The test asserts: running `doctor skills --json` returns output that conforms to the baseline schema (required top-level keys present, finding objects have `code`, `detail`, etc.).
+**Approach -- use checkout-local entrypoint, not system `spec-kitty`**:
 
-**Key assertions**:
+The test MUST NOT shell out to `["spec-kitty", ...]` because that invokes the globally-installed version, not the checkout under test. Use one of these checkout-local approaches:
+
 ```python
-def test_doctor_skills_json_schema_stable():
-    """Assert doctor skills --json output schema has not changed."""
+import subprocess
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).parents[5]  # adjust depth to repo root
+
+def _run_spec_kitty(*args: str, cwd: Path | None = None) -> dict:
+    """Run spec-kitty from the checkout's venv or via python -m."""
     result = subprocess.run(
-        ["spec-kitty", "doctor", "skills", "--json"],
-        capture_output=True, text=True, cwd=project_root
+        [sys.executable, "-m", "specify_cli"] + list(args),
+        capture_output=True, text=True,
+        cwd=str(cwd or PROJECT_ROOT),
     )
-    output = json.loads(result.stdout)
-    # Top-level keys must be present
-    assert "findings" in output or "result" in output  # adjust to actual schema
-    # Each finding must have required fields
-    for finding in output.get("findings", []):
-        assert "code" in finding
-        assert "detail" in finding
+    return {"returncode": result.returncode, "stdout": result.stdout, "stderr": result.stderr}
 ```
 
-Consult the actual current `doctor skills --json` output to determine the exact schema. Do not assume -- run it and capture it.
+**Use controlled fixtures, not ambient machine state**:
+
+The test must create a temporary `.kittify/config.yaml` with a fixed minimal agent list so that doctor output is deterministic regardless of what the developer has configured. Example:
+
+```python
+import tempfile, json, yaml
+
+def test_doctor_skills_json_schema_stable(tmp_path):
+    # Write minimal controlled .kittify config
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    (kittify / "config.yaml").write_text(
+        yaml.dump({"agents": {"available": ["codex"]}})
+    )
+    # Write minimal command-skills manifest so doctor doesn't error
+    (kittify / "command-skills-manifest.json").write_text(
+        json.dumps({"schema_version": 1, "entries": {}})
+    )
+
+    result = _run_spec_kitty("doctor", "skills", "--json", cwd=tmp_path)
+    assert result["returncode"] == 0, result["stderr"]
+    output = json.loads(result["stdout"])
+
+    # Assert schema shape (not content)
+    assert "result" in output or "findings" in output, "Top-level schema changed"
+    for finding in output.get("findings", []):
+        assert "code" in finding, "Finding missing 'code' field"
+        assert "detail" in finding or "message" in finding, "Finding missing detail"
+```
+
+**Key assertions**:
+- Output is valid JSON
+- Top-level schema keys present (at minimum `result` or `findings`)
+- Each finding has `code` and a human-readable message field
+- Test is deterministic: does NOT depend on what tools the developer has configured
 
 **Files**:
 - `tests/specify_cli/tool_surface/integration/__init__.py` (new, empty)
-- `tests/specify_cli/tool_surface/integration/test_migration_compat.py` (new, ~80 lines)
+- `tests/specify_cli/tool_surface/integration/test_migration_compat.py` (new, ~120 lines)
 - `tests/specify_cli/tool_surface/integration/fixtures/__init__.py` (new, empty)
-- `tests/specify_cli/tool_surface/integration/fixtures/doctor_skills_baseline.json` (new, captured from real run)
 
 **Validation**:
-- [ ] Test passes against the current (pre-registry) codebase
-- [ ] Test is deterministic (does not depend on whether skills are installed or not)
+- [ ] Test passes without any globally-installed `spec-kitty`
+- [ ] Test is deterministic (fixed config in tmp_path, not ambient state)
+- [ ] `subprocess.run(["spec-kitty", ...])` does NOT appear in this file
 
 ---
 
@@ -130,18 +162,18 @@ Consult the actual current `doctor skills --json` output to determine the exact 
 
 **Key assertions**:
 ```python
-def test_agent_config_list_json_schema_stable():
+def test_agent_config_list_json_schema_stable(tmp_path):
     """Assert agent config list --json output schema has not changed."""
-    result = subprocess.run(
-        ["spec-kitty", "agent", "config", "list", "--json"],
-        capture_output=True, text=True, cwd=project_root
-    )
-    assert result.returncode == 0
-    output = json.loads(result.stdout)
+    # Use checkout-local entrypoint (sys.executable + -m specify_cli), not ["spec-kitty", ...]
+    result = _run_spec_kitty("agent", "config", "list", "--json", cwd=tmp_path)
+    assert result["returncode"] == 0
+    output = json.loads(result["stdout"])
     # Assert expected top-level keys
     assert isinstance(output, dict)
     # Add specific field assertions based on actual output
 ```
+
+Use controlled fixtures in `tmp_path` (same approach as T008) so results are deterministic.
 
 **Files**:
 - `tests/specify_cli/tool_surface/integration/test_agent_config_compat.py` (new, ~80 lines)
@@ -159,33 +191,36 @@ def test_agent_config_list_json_schema_stable():
 **Helpers to create**:
 ```python
 # tests/specify_cli/tool_surface/integration/conftest.py or fixtures module
+import subprocess
+import sys
+from pathlib import Path
 
-def run_spec_kitty(*args: str, cwd: Path) -> dict:
-    """Run spec-kitty CLI and return parsed JSON output."""
+PROJECT_ROOT = Path(__file__).parents[5]  # adjust depth to repo root
+
+def _run_spec_kitty(*args: str, cwd: Path | None = None) -> dict:
+    """Run spec-kitty from the checkout's venv or via python -m.
+
+    IMPORTANT: Do NOT use ["spec-kitty", ...] -- that invokes the globally-installed
+    version, not the checkout under test.
+    """
     result = subprocess.run(
-        ["spec-kitty", *args],
-        capture_output=True, text=True, cwd=str(cwd)
+        [sys.executable, "-m", "specify_cli"] + list(args),
+        capture_output=True, text=True,
+        cwd=str(cwd or PROJECT_ROOT),
     )
-    return json.loads(result.stdout)
-
-def project_root() -> Path:
-    """Return the repository root for subprocess calls."""
-    ...
+    return {"returncode": result.returncode, "stdout": result.stdout, "stderr": result.stderr}
 ```
 
-Also capture the actual baseline JSON snapshots by running the commands against the current code:
-```bash
-spec-kitty doctor skills --json > tests/specify_cli/tool_surface/integration/fixtures/doctor_skills_baseline.json
-spec-kitty agent config list --json > tests/specify_cli/tool_surface/integration/fixtures/agent_config_list_baseline.json
-```
+Generate schema shape fixtures programmatically using the checkout-local approach above (not by piping from the global `spec-kitty` CLI). Store only the JSON key structure (not content) so fixtures are machine-independent.
 
 **Files**:
-- `tests/specify_cli/tool_surface/integration/fixtures/doctor_skills_baseline.json` (captured)
-- `tests/specify_cli/tool_surface/integration/fixtures/agent_config_list_baseline.json` (captured)
+- `tests/specify_cli/tool_surface/integration/fixtures/doctor_skills_schema.json` (schema shape only, generated programmatically)
+- `tests/specify_cli/tool_surface/integration/fixtures/agent_config_list_schema.json` (schema shape only, generated programmatically)
 
 **Validation**:
-- [ ] Both baseline files are valid JSON
-- [ ] Baseline files are committed (not gitignored)
+- [ ] Both fixture files are valid JSON
+- [ ] Fixture files do NOT contain machine-specific paths or ambient tool config
+- [ ] Fixtures are committed (not gitignored)
 
 ---
 

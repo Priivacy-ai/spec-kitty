@@ -25,10 +25,26 @@ WP09 (#1943) Plugin bundle projection and validation
 1. Read the child issue (#1936 etc.) for acceptance criteria.
 2. Implement in `src/specify_cli/tool_surface/` (new bounded context only -- no changes to `core.config`, `agent.config`, or `doctor.py` internals).
 3. Run migration compat fixtures (from WP02 onward): `pytest tests/specify_cli/tool_surface/integration/test_migration_compat.py tests/specify_cli/tool_surface/integration/test_agent_config_compat.py`
-4. Run full test suite: `pytest tests/`
+4. Run focused per-WP tests (see table below). Do NOT run `pytest tests/` after every WP -- use focused commands.
 5. Check type safety: `.venv/bin/mypy --strict src/specify_cli/tool_surface/`
 6. Check complexity: `.venv/bin/ruff check src/specify_cli/tool_surface/`
 7. Submit PR for Codex review. Codex reviews for: glossary compliance, source/generated/manifest ownership, backward compatibility, stable finding codes, repair safety, focused tests.
+
+**Per-WP focused test commands**:
+
+| WP | Focused test command |
+|----|---------------------|
+| WP01 | `pytest tests/specify_cli/tool_surface/test_enums.py tests/specify_cli/tool_surface/test_model.py tests/specify_cli/tool_surface/test_registry.py` |
+| WP02 | `pytest tests/specify_cli/tool_surface/integration/test_migration_compat.py tests/specify_cli/tool_surface/integration/test_agent_config_compat.py` |
+| WP03 | `pytest tests/specify_cli/tool_surface/test_plan.py tests/specify_cli/tool_surface/test_status.py tests/specify_cli/tool_surface/test_findings.py tests/specify_cli/tool_surface/test_repair.py tests/specify_cli/tool_surface/providers/test_command_skills.py tests/specify_cli/tool_surface/integration/test_doctor_tool_surfaces_cli.py` |
+| WP04 | `pytest tests/specify_cli/tool_surface/providers/test_session_presence.py tests/specify_cli/tool_surface/providers/test_native_config.py` |
+| WP05 | `pytest tests/specify_cli/tool_surface/providers/test_managed_skills.py` |
+| WP06 | `pytest tests/specify_cli/tool_surface/profiles/` |
+| WP07 | `pytest tests/specify_cli/cli/commands/test_agent_config.py` |
+| WP08 | `pytest tests/specify_cli/tool_surface/test_docs.py` |
+| WP09 | `pytest tests/specify_cli/tool_surface/bundles/ tests/specify_cli/tool_surface/providers/test_plugin_bundle.py` |
+
+Run full `pytest tests/` only at major integration gates (after WP07 and at final acceptance). Per-WP verification uses focused test commands to keep feedback loops short.
 
 ### Key invariants to preserve
 
@@ -76,5 +92,5 @@ spec-kitty doctor tool-surfaces --kind command-skill --fix
 | `src/specify_cli/tool_surface/repair.py` | Executes repair for a finding |
 | `.kittify/command-skills-manifest.json` | Command-skill install state (not policy) |
 | `.kittify/skills-manifest.json` | Doctrine-skill install state (not policy) |
-| `.kittify/tool-surface-profile-manifest.json` | Native agent profile install state (new, WP06) |
+| `.kittify/agent-profiles-manifest.json` | Native agent profile install state (new, WP06) |
 | `kitty-specs/tool-surface-contract-01KV2K2P/contracts/doctor-tool-surfaces-output.schema.json` | JSON Schema for doctor output |

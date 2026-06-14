@@ -53,9 +53,18 @@ Before reading anything else, run:
 
 ## Objective
 
-Add a `SurfaceProvider` for session presence and context/hook surfaces, making session presence a distinct surface kind in `doctor tool-surfaces` output -- explicitly separate from command skills and doctrine skills.
+Add a `SurfaceProvider` for session presence and context/hook surfaces, making session presence surfaces distinct in `doctor tool-surfaces` output -- explicitly separate from command skills and doctrine skills.
 
-**Out-of-map edits required**: This WP extends `status.py`, `findings.py`, and `repair.py` (owned by WP03). Record the rationale: "WP04 sequential; no parallel conflict; extends status/findings for session-presence SurfaceKind."
+**Important**: `session_presence` is a provider name, not a SurfaceKind. The provider expands into instances of distinct SurfaceKind values:
+- `context_file` — CLAUDE.md, AGENTS.md, orientation files (always-on context)
+- `hook` — `.claude/settings.json` hook entries (tool lifecycle event handlers)
+- `rule` — markdown rules, steering files, cursor rules (path-pattern-activated)
+
+These distinct kinds matter for `--kind` filtering (e.g., `--kind context_file` vs `--kind hook`), for docs validation, and for plugin bundle mapping. The `session_presence` provider MUST expand into `context_file`, `hook`, and/or `rule` instances — never into a fictional `session_presence` kind instance.
+
+For `NullWriter` harnesses: yield a `research-gap-surface` finding (not silent OK).
+
+**Out-of-map edits required**: This WP extends `status.py`, `findings.py`, and `repair.py` (owned by WP03). Record the rationale: "WP04 sequential; no parallel conflict; extends status/findings for context_file/hook/rule SurfaceKinds."
 
 **Child issue**: #1938
 **Parent epic**: #1945

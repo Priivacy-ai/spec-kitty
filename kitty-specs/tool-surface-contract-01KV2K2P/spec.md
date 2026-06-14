@@ -45,7 +45,15 @@ An existing user upgrades Spec Kitty. Their `.kittify/config.yaml` is unchanged.
 
 ### Scenario 4: Native agent profile selection
 
-A user who has configured Claude Code opens its native agent/subagent selector and finds "Architect Alphonso" and "Researcher Robbie" listed, along with any org or project overlay profiles. These were projected from Spec Kitty's canonical profile sources into Claude Code's native format by the tool surface contract machinery. `doctor tool-surfaces` verifies those projection files exist and are up to date.
+A user who has configured Claude Code, Copilot CLI, or VS Code opens the tool's native agent/subagent selector and finds "Architect Alphonso" and "Researcher Robbie" listed, along with any org or project overlay profiles. These were projected from Spec Kitty's canonical profile sources into host-native formats by the tool surface contract machinery. Projection targets and path formats:
+
+- **Claude Code project/user**: `.claude/agents/<profile-id>.md` (Claude agent frontmatter + body)
+- **Claude plugin**: `agents/<profile-id>.md` (Claude plugin agent format)
+- **Copilot CLI**: `.github/agents/<profile-id>.agent.md` or `~/.copilot/agents/<profile-id>.agent.md`
+- **VS Code**: `.github/agents/<profile-id>.agent.md` (auto-discovered by VS Code)
+- **Codex**: no verified native profile primitive → `research-gap-surface` finding; keep `ad-hoc-profile-load` as fallback
+
+`doctor tool-surfaces` verifies that projection files exist and are up to date.
 
 ### Scenario 5: Plugin bundle validation (staging/release only)
 
@@ -61,7 +69,7 @@ A doc file references a generated skill path. A lint step validates that every d
 |----|-------------|--------|
 | FR-001 | The system shall provide a single registry that, given a configured tool, returns the complete set of surfaces (command skills, doctrine skills, session presence, native agent profiles, plugin bundle artifacts) that should exist for that tool. | Proposed |
 | FR-002 | The registry shall expose a machine-readable status command (`doctor tool-surfaces --json`) reporting all surface kinds with stable finding codes, affected paths, and repair commands. | Proposed |
-| FR-003 | `doctor tool-surfaces --json` shall cover at minimum: command skills, doctrine skills, session presence surfaces, native agent profile projections, and plugin bundle surfaces. | Proposed |
+| FR-003 | `doctor tool-surfaces --json` shall cover at minimum: command skills, slash-command file surfaces (`command_file`), doctrine skills, session presence (context files, hooks, rules), native agent profile projections, and plugin bundle surfaces. | Proposed |
 | FR-004 | `doctor tool-surfaces --json` shall support filtering by surface kind (e.g., `--kind command-skill`). | Proposed |
 | FR-005 | Finding codes in `doctor tool-surfaces --json` shall be stable across releases: the same code shall mean the same condition and shall not be renamed or removed without a documented deprecation cycle. | Proposed |
 | FR-006 | Repair commands surfaced by `doctor tool-surfaces` shall be runnable without any manual file editing by the user. | Proposed |

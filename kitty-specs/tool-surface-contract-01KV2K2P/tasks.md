@@ -57,6 +57,7 @@
 | T046 | Implement `providers/plugin_bundle.py` wrapping bundle projections | WP09 | |
 | T047 | Extend `status.py` and `findings.py` for plugin-bundle kind | WP09 | |
 | T048 | Write tests for plugin bundle validation | WP09 | [P] |
+| T049 | Implement `providers/slash_commands.py` wrapping `AGENT_COMMAND_CONFIG`, `runtime.agent_commands`, and `_load_slash_command_state()` | WP03 | [P] |
 
 ---
 
@@ -117,6 +118,7 @@
 - [ ] T016 Implement `repair.py` `SurfaceRepairService` for command skills (WP03)
 - [ ] T017 Add `doctor tool-surfaces` subcommand to `cli/commands/doctor.py` (WP03)
 - [ ] T018 Write integration tests for `doctor tool-surfaces --kind command-skill` (WP03)
+- [ ] T049 Implement `providers/slash_commands.py` wrapping AGENT_COMMAND_CONFIG and runtime.agent_commands (WP03)
 
 **Prompt**: [WP03-command-skill-provider.md](tasks/WP03-command-skill-provider.md)
 

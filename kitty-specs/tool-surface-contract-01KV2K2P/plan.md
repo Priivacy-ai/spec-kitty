@@ -74,7 +74,7 @@ src/specify_cli/tool_surface/           # NEW bounded context
         command_skills.py               # Wraps specify_cli.skills.command_installer
         managed_skills.py               # Wraps specify_cli.skills.installer, verifier, registry
         agent_profiles.py               # Wraps doctrine.agent_profiles + profile projection
-        # slash_commands.py             # DEFERRED: command_file SurfaceKind is legacy; out of scope for this mission (#1945). Omit this provider.
+        slash_commands.py               # Wraps AGENT_COMMAND_CONFIG, runtime.agent_commands, _load_slash_command_state()
         session_presence.py             # Wraps specify_cli.session_presence.writers.registry
         native_config.py                # Wraps tool-specific config helpers (vibe_config, etc.)
         plugin_bundle.py                # New: projects surfaces into plugin package layouts
@@ -156,7 +156,8 @@ The nine implementation concerns correspond exactly to the nine child issues, in
 
 - **Purpose**: Route command-skill status through the provider model and add the first umbrella doctor command (`doctor tool-surfaces --kind command-skill --json` and `--fix`).
 - **Relevant requirements**: FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-010
-- **Affected surfaces**: `providers/command_skills.py`; `plan.py` (first real surface plan); `status.py`, `findings.py`, `repair.py`; `src/specify_cli/cli/commands/doctor.py`; integration tests
+- **Affected surfaces**: `providers/command_skills.py`, `providers/slash_commands.py`; `plan.py` (first real surface plan); `status.py`, `findings.py`, `repair.py`; `src/specify_cli/cli/commands/doctor.py`; integration tests
+- **Backward compatibility note**: `doctor skills` must continue to work. Its behavior maps to `doctor tool-surfaces --kind command-skill --kind command-file`. The doctor.py wiring for `doctor skills` must delegate to the new `doctor tool-surfaces` implementation filtered by those two kinds.
 - **Sequencing/depends-on**: IC-01, IC-02
 - **Risks**: Finding codes established here become the public API -- they must follow the stable-code contract from day one. `doctor tool-surfaces` with no `--kind` flag must not break if later kinds are not yet implemented.
 
@@ -183,14 +184,19 @@ The nine implementation concerns correspond exactly to the nine child issues, in
 - **Affected surfaces**: `providers/agent_profiles.py`; `profiles/projection.py`, `profiles/renderers.py`, `profiles/manifest.py`; finding codes for projection gaps; tools that do not support named agents get `RESEARCH_GAP` code
 - **Sequencing/depends-on**: IC-01, IC-02, IC-03
 - **Risks**: Host-native formats differ significantly per harness (Claude Code `.claude/agents/`, Codex `AGENTS.md` hints, etc.). Renderers must be isolated per harness and guarded by feature-detection logic.
-- **Native projection decision matrix** (to be expanded in research.md during IC-06):
+- **Native projection targets for IC-06** (confirmed from architecture research):
 
-  | Tool key | Native named-agent support | Action |
-  |----------|---------------------------|--------|
-  | `claude` | Yes — `.claude/agents/<name>.md` | NATIVE_PROJECTION |
-  | All others (codex, copilot, cursor, windsurf, kilocode, q, kiro, antigravity, opencode, auggie, roo, gemini, qwen, vibe, pi, letta, ...) | Not confirmed or not yet supported | RESEARCH_GAP |
+  | Target | Path | Format | Scope |
+  |--------|------|--------|-------|
+  | Claude Code project/user | `.claude/agents/<profile-id>.md` | `claude-agent` (Markdown frontmatter + body) | `PROJECT` or `USER_GLOBAL` |
+  | Claude plugin bundle | `agents/<profile-id>.md` | `claude-plugin-agent` | `PLUGIN_BUNDLE` |
+  | Copilot CLI | `.github/agents/<profile-id>.agent.md` or `~/.copilot/agents/<profile-id>.agent.md` | `copilot-agent` (`.agent.md` frontmatter + instructions) | `PROJECT` or `USER_GLOBAL` |
+  | VS Code | `.github/agents/<profile-id>.agent.md` | `vscode-agent` | `PROJECT` |
+  | Codex | No verified native profile primitive | → `research-gap-surface` finding; keep `ad-hoc-profile-load` fallback | N/A |
 
-  Populate this matrix in `research.md` before implementing `profiles/renderers.py`. Any tool promoted from RESEARCH_GAP to NATIVE_PROJECTION must have a confirmed native format spec and a corresponding renderer file.
+  Do NOT model Codex AGENTS.md hints as native profiles — AGENTS.md is a `context_file` surface (session presence), not an agent profile projection.
+
+  Renderers for Claude, Copilot, and VS Code must be implemented in `profiles/renderers.py` by IC-06. Each renderer is an isolated function with stable inputs/outputs. Profile manifest: `.kittify/agent-profiles-manifest.json`.
 
 ### IC-07 -- Legacy Agent Config Refactor (#1941)
 

@@ -346,6 +346,12 @@ def register_builtin_definitions(registry: ToolSurfaceRegistry) -> None:
 
 Use the tool keys from `specify_cli.core.config.AI_CHOICES` (or the equivalent canonical list) to understand what `tool_key` values are valid. Do not hardcode them; import from the existing config.
 
+**Builtins test requirement**: The test for builtins.py (T007) MUST assert:
+1. Every key in `AI_CHOICES` (from `specify_cli.core.config`) has a corresponding `ToolHarness` entry in the registry.
+2. Every supported tool (where `harness.supported == True`) exposes at least one `SurfaceDefinition` with `required=RequiredPolicy.REPAIRABLE_REQUIRED`.
+3. The registry raises a structured error (not a KeyError) when asked for an unknown tool key.
+An empty builtins.py stub that does not fail these assertions is not a passing WP01.
+
 **Files**: `src/specify_cli/tool_surface/builtins.py` (new, ~30 lines)
 
 **Validation**:
@@ -397,6 +403,8 @@ Use the tool keys from `specify_cli.core.config.AI_CHOICES` (or the equivalent c
 - [ ] Naming convention verified: `ToolSurfaceContract`, `SurfaceKind`, not any `Agent*` variants
 - [ ] All file path operations use `pathlib.Path`; no hardcoded path separators (C-010 cross-platform gate)
 - [ ] `src/specify_cli/tool_surface/data/tool-surface-contract.schema.json` and `surface-status.schema.json` created with minimal but valid JSON Schema skeletons
+- [ ] `builtins.py` has at minimum stub harness entries for all keys in `AI_CHOICES`; tests assert all `AI_CHOICES` keys resolve to a `ToolHarness`
+- [ ] Registry raises a structured error for unknown tool keys (tested in T007)
 
 ## Risks
 

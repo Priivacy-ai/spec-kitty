@@ -4,16 +4,16 @@ Per FR-037 of the spec-kitty-mission-review skill Gate-4. One row per issue refe
 
 | Issue | Title | Verdict | Evidence ref |
 |-------|-------|---------|--------------|
-| #1945 | <fill at WP-implementation time> | unknown | <link or commit> |
-| #1935 | <fill at WP-implementation time> | unknown | <link or commit> |
-| #1944 | <fill at WP-implementation time> | unknown | <link or commit> |
-| #1936 | <fill at WP-implementation time> | unknown | <link or commit> |
-| #1937 | <fill at WP-implementation time> | unknown | <link or commit> |
-| #1938 | <fill at WP-implementation time> | unknown | <link or commit> |
-| #1939 | <fill at WP-implementation time> | unknown | <link or commit> |
-| #1940 | <fill at WP-implementation time> | unknown | <link or commit> |
-| #1941 | <fill at WP-implementation time> | unknown | <link or commit> |
-| #1942 | <fill at WP-implementation time> | unknown | <link or commit> |
-| #1943 | <fill at WP-implementation time> | unknown | <link or commit> |
+| #1945 | ToolSurfaceContract: Unified Tool Surface Registry (parent epic) | in-mission | All WPs in this mission |
+| #1935 | Glossary pre-formalization (prerequisite) | in-mission | Prerequisite; must merge before or with #1936 |
+| #1944 | Migration and Compatibility Gate | in-mission | WP02 |
+| #1936 | Registry Skeleton and Glossary-Compliant Naming | in-mission | WP01 |
+| #1937 | Command-Skill Provider and `doctor tool-surfaces` | in-mission | WP03 |
+| #1938 | Session-Presence Provider | in-mission | WP04 |
+| #1939 | Managed Doctrine Skill Provider | in-mission | WP05 |
+| #1940 | Native Agent Profile Projection | in-mission | WP06 |
+| #1941 | Legacy Agent Config Refactor | in-mission | WP07 |
+| #1942 | Docs Contract Lint | in-mission | WP08 |
+| #1943 | Plugin Bundle Projection and Validation | in-mission | WP09 |
 
 Valid `Verdict` values: `fixed`, `verified-already-fixed`, `deferred-with-followup`, `in-mission` (being fixed by a later WP in this mission; must reach a terminal verdict before mission `done`).
