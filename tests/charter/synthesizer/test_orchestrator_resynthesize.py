@@ -42,7 +42,7 @@ from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 @pytest.fixture
 def fixture_root() -> Path:
