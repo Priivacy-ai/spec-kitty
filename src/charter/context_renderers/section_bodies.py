@@ -31,17 +31,19 @@ __all__ = [
 ]
 
 
+TERMINOLOGY_CANON = "Terminology Canon"
+CODE_REVIEW_CHECKLIST = "Code Review Checklist"
+REGRESSION_VIGILANCE = "Regression Vigilance"
+_COMMON_ACTION_CRITICAL_SECTIONS = [
+    TERMINOLOGY_CANON,
+    CODE_REVIEW_CHECKLIST,
+    REGRESSION_VIGILANCE,
+]
+
+
 ACTION_CRITICAL_SECTIONS: dict[str, list[str]] = {
-    "implement": [
-        "Terminology Canon",
-        "Code Review Checklist",
-        "Regression Vigilance",
-    ],
-    "review": [
-        "Terminology Canon",
-        "Code Review Checklist",
-        "Regression Vigilance",
-    ],
+    "implement": list(_COMMON_ACTION_CRITICAL_SECTIONS),
+    "review": list(_COMMON_ACTION_CRITICAL_SECTIONS),
 }
 """Mapping of action -> ordered list of charter section names whose body
 the resolver MUST surface (or fetch-substitute).  Future missions may
@@ -50,9 +52,9 @@ an empty block."""
 
 
 CRITICAL_SECTION_WHEN_CLAUSES: dict[str, str] = {
-    "Terminology Canon": "rename or introduce a term in the diff",
-    "Code Review Checklist": "prepare a WP for review",
-    "Regression Vigilance": "perform a terminology cutover",
+    TERMINOLOGY_CANON: "rename or introduce a term in the diff",
+    CODE_REVIEW_CHECKLIST: "prepare a WP for review",
+    REGRESSION_VIGILANCE: "perform a terminology cutover",
 }
 """Per-section when-doing clause used when the verbatim body is missing.
 
