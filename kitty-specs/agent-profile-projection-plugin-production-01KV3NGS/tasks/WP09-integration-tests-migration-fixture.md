@@ -360,6 +360,11 @@ EXPECTED_SURFACE_KINDS = frozenset({
 def test_doctor_surface_kinds_are_additive(tmp_path):
     """doctor tool-surfaces --json must include all expected surface kinds."""
     import subprocess, json
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    (kittify / "config.yaml").write_text(
+        "agents:\n  available:\n    - claude\n    - codex\n    - vibe\n"
+    )
     result = subprocess.run(
         ["spec-kitty", "doctor", "tool-surfaces", "--json"],
         capture_output=True, text=True, cwd=tmp_path,
