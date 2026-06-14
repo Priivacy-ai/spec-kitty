@@ -16,7 +16,6 @@ CLI) call into it.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
 
 from pydantic import ValidationError
 
@@ -71,7 +70,7 @@ def find_wp_dependency_cycles(feature_dir: Path) -> list[list[str]] | None:
     graph = _build_wp_dependency_graph(feature_dir)
     if not graph:
         return None
-    return cast("list[list[str]] | None", detect_cycles(graph))
+    return detect_cycles(graph)
 
 
 def _format_cycles(cycles: list[list[str]]) -> str:

@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-import requests  # type: ignore[import-untyped]
+import requests
 
 from specify_cli.auth.http import request_with_stdlib_fallback_sync
 from specify_cli.sync._team import CATEGORY_MISSING_PRIVATE_TEAM

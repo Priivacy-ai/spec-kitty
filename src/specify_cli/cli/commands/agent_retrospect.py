@@ -427,10 +427,13 @@ def synthesize_cmd(
     # ------------------------------------------------------------------
     retro_file = _retro_path(repo_root, resolved.mission_slug, mission_id)
     outcome = "retrospective_synthesized"
-    generator_record = None
+    record: RetrospectiveRecord | None = None
+    generator_record: GenRetrospectiveRecord | None = None
+    _fabricated_empty = False
     try:
         record = read_record(retro_file)
     except FileNotFoundError as exc:
+        missing_record_exc = exc
         # T028: Default path — error with RETROSPECTIVE_RECORD_MISSING (exit 1).
         # Legacy path preserved behind --fabricate-empty flag.
         if not fabricate_empty:
@@ -456,7 +459,7 @@ def synthesize_cmd(
                     f"No retrospective record found for this mission.\n"
                     f"Author one with: [bold]spec-kitty retrospect create --mission {resolved.mission_slug}[/bold]"
                 )
-            raise typer.Exit(1) from exc
+            raise typer.Exit(1) from missing_record_exc
 
         # --fabricate-empty: legacy auto-fabrication path
         feature_dir = resolved.feature_dir
@@ -521,9 +524,9 @@ def synthesize_cmd(
                         }
                     )
                 )
-                raise typer.Exit(0) from exc
+                raise typer.Exit(0) from missing_record_exc
             _err_console.print(f"[red]Error:[/red] {msg}")
-            raise typer.Exit(3) from exc
+            raise typer.Exit(3) from missing_record_exc
     except (YAMLParseError, SchemaError) as exc:
         try:
             generator_record = read_gen_record(retro_file)
@@ -562,7 +565,11 @@ def synthesize_cmd(
     # When --fabricate-empty created the record, _fabricated_empty is True and
     # record is not defined (the gen record format is incompatible with Pydantic
     # read_record). The fabricated record has no proposals by definition.
-    all_proposals = [] if locals().get("_fabricated_empty") or generator_record is not None else record.proposals
+    if _fabricated_empty or generator_record is not None:
+        all_proposals = []
+    else:
+        assert record is not None
+        all_proposals = record.proposals
 
     if proposal_id:
         # --proposal-id filter: restrict approved_proposal_ids to those listed

@@ -21,9 +21,10 @@ import subprocess  # noqa: F401  (monkeypatched in tests)
 import sys
 import tomllib
 from pathlib import Path
-from typing import Annotated, Literal, cast
+from typing import Annotated, Literal
 
 import typer
+from rich.console import Console
 
 from specify_cli.cli.commands._test_env_check import (  # noqa: F401
     TestExtraMissing,
@@ -364,7 +365,7 @@ def _same_path(left: Path, right: Path) -> bool:
 
 def _resolve_repo_root(console: object) -> Path:
     try:
-        return cast("Path", find_repo_root())
+        return find_repo_root()
     except TaskCliError as exc:
         console.print(f"[red]Error:[/red] {exc}")  # type: ignore[attr-defined]
         raise typer.Exit(2) from exc
@@ -396,12 +397,9 @@ def _resolve_mode_or_exit(
     baseline_merge_commit: str | None,
 ) -> tuple[MissionReviewMode, bool]:
     try:
-        return cast(
-            "tuple[MissionReviewMode, bool]",
-            resolve_mode(
-                cli_flag=cli_mode,
-                baseline_merge_commit=baseline_merge_commit,
-            ),
+        return resolve_mode(
+            cli_flag=cli_mode,
+            baseline_merge_commit=baseline_merge_commit,
         )
     except ModeMismatchError as exc:
         diagnostic = {
@@ -419,7 +417,7 @@ def _resolve_mode_or_exit(
 def _record_gate(
     gates_recorded: list[GateRecord],
     *,
-    gate_id: str,
+    gate_id: Literal["gate_1", "gate_2", "gate_3", "gate_4"],
     name: str,
     result: Literal["pass", "fail"],
 ) -> None:
@@ -437,7 +435,7 @@ def _record_gate(
 def _run_lane_gate(
     feature_dir: Path,
     repo_root: Path,
-    console: object,
+    console: Console,
     findings: list[dict[str, str]],
     gates_recorded: list[GateRecord],
 ) -> None:
@@ -451,7 +449,7 @@ def _run_dead_code_gate(
     *,
     baseline_merge_commit: str | None,
     repo_root: Path,
-    console: object,
+    console: Console,
     findings: list[dict[str, str]],
     mission_id: str | None,
     mission_slug: str,

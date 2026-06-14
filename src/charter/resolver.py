@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from charter.catalog import DoctrineCatalog, load_doctrine_catalog
 from charter.reference_resolver import resolve_references_transitively
@@ -38,6 +38,7 @@ __all__ = [
 if TYPE_CHECKING:
     from doctrine.agent_profiles.profile import AgentProfile
     from doctrine.drg.models import DRGGraph
+    from doctrine.missions.mission_step_repository import _PackContextLike
     from doctrine.paradigms.models import Paradigm
     from doctrine.procedures.models import Procedure
     import doctrine.service as _doctrine_service_module
@@ -445,7 +446,7 @@ def resolve_mission_steps(
 
     return MissionStepRepository.default().resolve_all_for_mission_type(
         mission_type_id,
-        pack_context=pack_context,
+        pack_context=cast("_PackContextLike | None", pack_context),
     )
 
 
@@ -456,4 +457,3 @@ def _merge_unique(primary: list[str], secondary: list[str]) -> list[str]:
         if item and item not in merged:
             merged.append(item)
     return merged
-

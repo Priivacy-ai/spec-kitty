@@ -7,6 +7,7 @@ consumer registry, so this forward migration removes stale generated copies.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 
 from ..registry import MigrationRegistry
@@ -59,7 +60,7 @@ class RetireProfileContextCommandMigration(BaseMigration):
         )
 
 
-def _iter_existing_profile_context_files(project_path: Path):
+def _iter_existing_profile_context_files(project_path: Path) -> Iterator[Path]:
     for agent_root, subdir in get_agent_dirs_for_project(project_path):
         agent_dir = project_path / agent_root / subdir
         if not agent_dir.exists():

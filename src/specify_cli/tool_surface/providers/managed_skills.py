@@ -32,7 +32,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Protocol, cast
 
 from specify_cli.core.config import AGENT_SKILL_CONFIG, SKILL_CLASS_WRAPPER
 from specify_cli.skills import installer as skill_installer
@@ -100,15 +100,8 @@ class _RepairProto(Protocol):
         self,
         project_path: Path,
         verify_result: _VerifyResultProto,
-        registry: _RegistryProto,
+        registry: SkillRegistry,
     ) -> tuple[int, int]:
-        ...
-
-
-class _RegistryProto(Protocol):
-    """Subset of ``SkillRegistry`` needed to decide if a registry is usable."""
-
-    def discover_skills(self) -> Sequence[Any]:
         ...
 
 
@@ -135,7 +128,7 @@ class ManagedSkillsProvider:
         self,
         verifier: _VerifierProto | None = None,
         installer: _RepairProto | None = None,
-        registry_factory: Callable[[], _RegistryProto] | None = None,
+        registry_factory: Callable[[], SkillRegistry] | None = None,
     ) -> None:
         # All collaborators are accepted for dependency injection in tests. By
         # default the module-level functions from ``skills.verifier`` are used
@@ -147,9 +140,9 @@ class ManagedSkillsProvider:
             verifier if verifier is not None else skill_verifier
         )
         self._installer: _RepairProto = (
-            installer if installer is not None else skill_verifier
+            installer if installer is not None else cast(_RepairProto, skill_verifier)
         )
-        self._registry_factory: Callable[[], _RegistryProto] = (
+        self._registry_factory: Callable[[], SkillRegistry] = (
             registry_factory
             if registry_factory is not None
             else SkillRegistry.from_package
@@ -329,7 +322,7 @@ class ManagedSkillsProvider:
     @staticmethod
     def _install_expected(
         project_root: Path,
-        registry: _RegistryProto,
+        registry: SkillRegistry,
         tool_keys: tuple[str, ...],
         ids: tuple[str, ...],
     ) -> RepairResult:
@@ -364,7 +357,7 @@ class ManagedSkillsProvider:
             )
         return RepairResult(repaired=ids, dry_run=False)
 
-    def _resolve_registry(self) -> _RegistryProto | None:
+    def _resolve_registry(self) -> SkillRegistry | None:
         registry = self._registry_factory()
         if registry.discover_skills():
             return registry

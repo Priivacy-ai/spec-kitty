@@ -7,7 +7,6 @@ WP state. No frontmatter reads or writes occur in this module.
 """
 
 from pathlib import Path
-from typing import cast
 
 from .models import (
     AgentAssignment,
@@ -192,9 +191,7 @@ def uninitialized_status_error(mission_slug: str, wp_id: str, feature_dir: Path)
     """Return the cycle-aware missing-status message without eager dependency-graph imports."""
     from .uninitialized_hint import uninitialized_status_error as _uninitialized_status_error
 
-    # cast: follow_imports=skip makes _uninitialized_status_error return Any;
-    # the real signature (uninitialized_hint.py) returns str.
-    return cast(str, _uninitialized_status_error(mission_slug, wp_id, feature_dir))
+    return _uninitialized_status_error(mission_slug, wp_id, feature_dir)
 
 # The canonical status artifacts (event log + snapshot). On coordination-topology
 # missions these are owned by the transactional status emitter on the coordination

@@ -154,7 +154,7 @@ class OrgCharterDeviationChecker:
 
         # Optional dependency on WP09's module.  When absent, advisory is a no-op.
         try:
-            from specify_cli.doctrine.org_charter import (  # type: ignore[attr-defined]
+            from specify_cli.doctrine.org_charter import (
                 load_org_charter_policies,
             )
         except ImportError:

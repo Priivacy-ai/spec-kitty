@@ -480,3 +480,22 @@ from specify_cli.cli.commands.charter._fresh_doctrine import (  # noqa: E402,F40
     _planned_fresh_doctrine_deletes,
     _planned_fresh_doctrine_paths,
 )
+
+__all__ = [
+    "_MINIMAL_FRESH_DOCTRINE_PROVENANCE_TEMPLATE",
+    "_build_synthesis_request",
+    "_build_synthesis_validation_callback",
+    "_collect_evidence_result",
+    "_extract_artifact_id_from_provenance",
+    "_has_generated_artifacts",
+    "_list_resynthesis_topics",
+    "_load_written_artifacts_from_manifest",
+    "_materialize_fresh_doctrine",
+    "_planned_fresh_doctrine_deletes",
+    "_planned_fresh_doctrine_paths",
+    "_provenance_to_planned_artifacts",
+    "_read_written_artifacts_from_manifest",
+    "_run_synthesis_dry_run",
+    "_run_synthesis_dry_run_with_artifacts",
+    "_staged_to_planned_artifacts",
+]

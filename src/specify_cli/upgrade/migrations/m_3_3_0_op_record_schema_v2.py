@@ -34,7 +34,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -139,7 +139,7 @@ def _map_completed_line(
         )
     except ValidationError:
         return None
-    return cast(str, event.to_jsonl_line())
+    return event.to_jsonl_line()
 
 
 def _plan_file(path: Path) -> _FilePlan:

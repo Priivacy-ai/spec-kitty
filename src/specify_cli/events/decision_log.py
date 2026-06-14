@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 def _generate_event_id() -> str:
     """Generate a ULID-format event ID."""
     try:
-        import ulid  # type: ignore[import-untyped]
+        import ulid
         return str(ulid.ULID())
     except ImportError:
         # Fallback: use a UUID4-based ID if ulid not available.

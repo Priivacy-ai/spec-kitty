@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -116,8 +117,10 @@ def _read_id(path: Path) -> str | None:
         data = _yaml().load(path)
     except (YAMLError, OSError):
         return None
-    if isinstance(data, dict) and isinstance(data.get("id"), str):
-        return data["id"]
+    if isinstance(data, dict):
+        raw_id = data.get("id")
+        if isinstance(raw_id, str):
+            return raw_id
     return None
 
 
@@ -455,24 +458,28 @@ def _copy_drg_fragments(
     count = 0
     seq = 0
     seen_edges: set[tuple[str, str, str]] = set()
+    load_graph_fn: Callable[[Path], Any] | None = None
+    drg_load_error: type[Exception] = Exception
 
     if force:
         # Drop duplicate edges across packs; preserve unique ones in order.
         try:
             from doctrine.drg.loader import DRGLoadError, load_graph
         except ModuleNotFoundError:
-            load_graph = None  # type: ignore[assignment]
-            DRGLoadError = Exception  # type: ignore[assignment]
+            pass
+        else:
+            load_graph_fn = load_graph
+            drg_load_error = DRGLoadError
 
     for pack, fragments in fragments_by_pack.items():
         for fragment in fragments:
             seq += 1
             dest_name = f"{seq:03d}-{pack.name}-{fragment.name}"
             dest = drg_out / dest_name
-            if force and load_graph is not None:
+            if force and load_graph_fn is not None:
                 try:
-                    graph = load_graph(fragment)
-                except DRGLoadError:
+                    graph = load_graph_fn(fragment)
+                except drg_load_error:
                     shutil.copy2(fragment, dest)
                     count += 1
                     continue
@@ -523,7 +530,7 @@ def _merge_org_charters_to_output(
 
     # Lazy import — model may not exist yet.
     try:
-        from specify_cli.doctrine.org_charter import (  # type: ignore[attr-defined]
+        from specify_cli.doctrine.org_charter import (
             OrgCharterPolicy,
         )
     except ModuleNotFoundError:

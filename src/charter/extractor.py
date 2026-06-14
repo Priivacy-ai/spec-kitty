@@ -792,7 +792,8 @@ def _generated_directive_placeholder_id(item_text: str) -> str | None:
     match = _GENERATED_DIRECTIVE_PLACEHOLDER_RE.match(item_text.strip())
     if not match:
         return None
-    return match.group("directive_id")
+    directive_id = match.group("directive_id")
+    return str(directive_id)
 
 
 def _generated_directive_placeholder_warning(directive_id: str) -> str:

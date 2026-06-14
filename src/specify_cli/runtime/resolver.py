@@ -19,6 +19,7 @@ import sys
 import warnings
 from functools import lru_cache
 from pathlib import Path
+from typing import Protocol
 
 # Single source of truth for the resolution enum / result dataclass.
 # Re-exported via the charter.resolution facade (which itself re-exports
@@ -44,6 +45,17 @@ __all__ = [
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 
 logger = logging.getLogger(__name__)
+
+
+class _CharterTemplateResolver(Protocol):
+    def resolve_command_template_path(self, mission: str, command: str) -> Path | None:
+        ...
+
+    def resolve_content_template_path(self, mission: str, name: str) -> Path | None:
+        ...
+
+    def resolve_mission_config_path(self, mission: str) -> Path | None:
+        ...
 
 
 # ---------------------------------------------------------------------------
@@ -125,7 +137,7 @@ def _reset_migrate_nudge() -> None:
 
 
 @lru_cache(maxsize=8)
-def _charter_template_resolver_for(missions_root: str):
+def _charter_template_resolver_for(missions_root: str) -> _CharterTemplateResolver:
     """Return a charter template resolver for ``missions_root``.
 
     Kept at the Tier-5 boundary so package-default filesystem access remains
@@ -146,9 +158,11 @@ def _package_default_path(
     """Resolve package defaults through charter's doctrine facade."""
     charter_resolver = _charter_template_resolver_for(str(pkg_missions))
     if subdir == "command-templates":
-        return charter_resolver.resolve_command_template_path(mission, Path(name).stem)
+        resolved = charter_resolver.resolve_command_template_path(mission, Path(name).stem)
+        return resolved if isinstance(resolved, Path) else None
     if subdir == "templates":
-        return charter_resolver.resolve_content_template_path(mission, name)
+        resolved = charter_resolver.resolve_content_template_path(mission, name)
+        return resolved if isinstance(resolved, Path) else None
 
     pkg_path = pkg_missions / mission / subdir / name
     return pkg_path if pkg_path.is_file() else None

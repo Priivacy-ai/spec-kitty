@@ -55,7 +55,7 @@ def load_org_charter_json_block(org_roots: list[Path] | None) -> dict[str, Any]:
         return dict(_EMPTY_BLOCK)
 
     try:
-        from specify_cli.doctrine.org_charter import (  # type: ignore[attr-defined]
+        from specify_cli.doctrine.org_charter import (
             load_org_charter_policy,
         )
     except ImportError:

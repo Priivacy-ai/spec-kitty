@@ -64,7 +64,7 @@ def _fresh_seed_manifest_text() -> str:
     except Exception:
         synthesizer_version = "unknown"
 
-    without_hash = {
+    without_hash: dict[str, object] = {
         "schema_version": "2",
         "mission_id": None,
         "created_at": "1970-01-01T00:00:00+00:00",
