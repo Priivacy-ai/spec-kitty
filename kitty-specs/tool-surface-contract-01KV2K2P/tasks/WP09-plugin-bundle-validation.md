@@ -22,8 +22,8 @@ subtasks:
 - T046
 - T047
 - T048
-agent: claude
-shell_pid: '48078'
+agent: "claude:opus:reviewer:reviewer"
+shell_pid: "55569"
 history:
 - date: '2026-06-14'
   action: created
@@ -368,3 +368,11 @@ def test_plugin_bundle_provider_probe_detects_missing_bundle():
 - Verify Claude Code bundle includes all required surface kinds (command skills, doctrine skills, agent profiles)
 - Verify `PluginBundleProvider` delegates to projectors (not reimplements projection)
 - Verify finding codes are kebab-case in JSON output (`"bundle-component-missing"`, not `TOOL_SURFACE_PLUGIN_BUNDLE_INCOMPLETE`)
+
+## Activity Log
+
+- 2026-06-14T11:34:45Z – user – Moved to planned
+- 2026-06-14T11:34:47Z – claude:opus:implementer:implementer – shell_pid=48513 – Started implementation via action command
+- 2026-06-14T11:53:44Z – claude:opus:implementer:implementer – shell_pid=48513 – Ready for review: WP09 plugin bundle projection + validation (Claude/Copilot/VSCode projectors, PluginBundleProvider wired into doctor tool-surfaces via build_providers/build_registry + plugin-manifest --kind token). Live wiring confirmed: doctor tool-surfaces --kind plugin-manifest --json surfaces 3 manifests (one per target). Diff-scoped ruff check exit 0; mypy (config) exit 0; full tool_surface suite 207 passed (was 177, +30). FR-016/C-006 negative-assertion test added (AST scan + behavioural guards) and proven to fail on injected publish logic. --force used only for the documented base-ref preflight false-positive (lane base is kitty/mission-tool-surface-contract-01KV2K2P); tree clean, commit present.
+- 2026-06-14T11:54:22Z – claude:opus:reviewer:reviewer – shell_pid=55569 – Started review via action command
+- 2026-06-14T12:00:40Z – user – shell_pid=55569 – Review passed (arbiter override of stale review-cycle-1.md = dependency-lane auto-merge re-dispatch note, affected_files:[], reviewer_agent:unknown, NOT a code defect; --force for documented base-ref preflight false-positive: real lane base is kitty/mission-tool-surface-contract-01KV2K2P, tree clean, WP09 commit 11b0aa67e present). FR-016/C-006 prohibition guard reproduced: injected marketplace_publish -> AST-scan + behavioural staging-only tests both FAILED; reverted -> green. Live no-stub doctor --kind plugin-manifest --json surfaces 3 targets all missing ok=true OPTIONAL. Default --fix succeeds, writes confined to dist/spec-kitty-plugins/ staging only (no live agent dir, no network). 7-provider union intact + plugin-manifest tokens added; prior providers untouched. Schema conformant. ruff/mypy(config) clean; 207 passed.

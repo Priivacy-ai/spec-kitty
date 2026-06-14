@@ -1,0 +1,30 @@
+{
+  "_comment": "agent config has NO --json flag; its external interface is the command surface, exit codes, and stable human-readable markers. Captured as an interface descriptor (not a JSON output shape) so a subsequent WP that removes a subcommand or drops a marker is caught.",
+  "subcommands": {
+    "list": {
+      "json_flag": false,
+      "success_exit_code": 0,
+      "required_markers": [
+        "Configured agents:",
+        "Auto-commit:"
+      ]
+    },
+    "status": {
+      "json_flag": false,
+      "success_exit_code": 0,
+      "required_markers": [
+        "Agent Status",
+        "Agent Key",
+        "Directory",
+        "Configured",
+        "Exists",
+        "Status"
+      ]
+    },
+    "sync": {
+      "json_flag": false,
+      "success_exit_code": 0,
+      "idempotent_keep_orphaned_marker": "No changes needed"
+    }
+  }
+}

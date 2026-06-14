@@ -1,0 +1,100 @@
+"""GitHub Copilot CLI plugin bundle projection and validation.
+
+Projects the canonical tool surfaces into the Copilot CLI / VS Code bundle
+layout: a root-level ``plugin.json`` manifest, ``skills/<name>/SKILL.md`` command
+skills, ``agents/<profile-id>.agent.md`` native agent profiles, a root
+``hooks.json``, and a root ``.mcp.json``. Session-presence files are excluded.
+
+**Scope guard (FR-016, C-006):** projection writes only staging files under the
+caller-supplied ``output_dir`` and returns an inert :class:`PluginBundle`. It
+never installs, registers, enables, or publishes the bundle to any marketplace.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from pathlib import Path
+
+from ..enums import SurfaceKind
+from ..model import SurfacePlan
+from .claude import _validate_bundle
+from .model import (
+    TARGET_COPILOT,
+    BundleValidationResult,
+    PluginBundle,
+)
+from .projection import (
+    BUNDLE_SURFACE_KINDS,
+    bundle_entries_for_plans,
+    plugin_manifest_payload,
+    write_bundle,
+)
+
+# Copilot / VS Code layout: ``plugin.json`` at the package root, ``hooks.json``
+# at root (NOT under ``hooks/``), and ``.mcp.json`` at root.
+_MANIFEST_NAME = "plugin.json"
+
+_COPILOT_LAYOUT: dict[SurfaceKind, str] = {
+    SurfaceKind.COMMAND_SKILL: "skills",
+    SurfaceKind.DOCTRINE_SKILL: "skills",
+    SurfaceKind.AGENT_PROFILE: "agents",
+    SurfaceKind.HOOK: "",
+    SurfaceKind.NATIVE_CONFIG: "",
+}
+
+_REQUIRED_KINDS: frozenset[SurfaceKind] = frozenset(
+    {
+        SurfaceKind.COMMAND_SKILL,
+        SurfaceKind.DOCTRINE_SKILL,
+        SurfaceKind.AGENT_PROFILE,
+    }
+)
+
+
+def _agent_filename(profile_id: str) -> str:
+    """Copilot / VS Code use the ``<profile-id>.agent.md`` agent file suffix."""
+    return f"{profile_id}.agent.md"
+
+
+class CopilotBundleProjector:
+    """Project + validate Copilot CLI plugin bundles (staging only)."""
+
+    distribution_target = TARGET_COPILOT
+    # Copilot / VS Code keep the manifest at the package root.
+    manifest_relative_path = _MANIFEST_NAME
+    layout: dict[SurfaceKind, str] = _COPILOT_LAYOUT
+
+    def project(
+        self,
+        plan: Sequence[SurfacePlan],
+        project_root: Path,
+        output_dir: Path,
+    ) -> PluginBundle:
+        """Project all bundleable surfaces into the Copilot/VS Code layout."""
+        entries = bundle_entries_for_plans(
+            plan,
+            project_root,
+            layout=self.layout,
+            agent_filename=_agent_filename,
+            bundle_kinds=BUNDLE_SURFACE_KINDS,
+        )  # project_root scopes bundling to the project tree.
+        manifest = plugin_manifest_payload(self.distribution_target)
+        write_bundle(output_dir, entries, _MANIFEST_NAME, manifest)
+        return PluginBundle(
+            distribution_target=self.distribution_target,
+            entries=entries,
+            manifest_path=output_dir / _MANIFEST_NAME,
+        )
+
+    def validate(
+        self,
+        bundle: PluginBundle,
+        required_surface_kinds: set[SurfaceKind] | None = None,
+    ) -> BundleValidationResult:
+        """Validate that every required surface kind is present in ``bundle``."""
+        required = (
+            frozenset(required_surface_kinds)
+            if required_surface_kinds is not None
+            else _REQUIRED_KINDS
+        )
+        return _validate_bundle(bundle, required)

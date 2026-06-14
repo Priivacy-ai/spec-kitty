@@ -208,11 +208,11 @@
 **Depends on**: WP01 through WP06
 **Child issue**: #1942
 
-- [ ] T038 Implement `docs.py` `DocsLinter` (WP08)
-- [ ] T039 Build registry path index for doc reference validation (WP08)
-- [ ] T040 Add CI/lint integration for docs contract check (WP08)
-- [ ] T041 Fix existing doc paths that drift from registry (WP08)
-- [ ] T042 Write tests for docs linter (WP08)
+- [x] T038 Implement `docs.py` `DocsLinter` (WP08)
+- [x] T039 Build registry path index for doc reference validation (WP08)
+- [x] T040 Add CI/lint integration for docs contract check (WP08)
+- [x] T041 Fix existing doc paths that drift from registry (WP08)
+- [x] T042 Write tests for docs linter (WP08)
 
 **Prompt**: [WP08-docs-contract-lint.md](tasks/WP08-docs-contract-lint.md)
 
@@ -227,11 +227,11 @@
 **Depends on**: WP01 through WP06
 **Child issue**: #1943
 
-- [ ] T043 Implement `bundles/model.py` (WP09)
-- [ ] T044 Implement `bundles/claude.py` (WP09)
-- [ ] T045 Implement `bundles/copilot.py` and `bundles/vscode.py` (WP09)
-- [ ] T046 Implement `providers/plugin_bundle.py` (WP09)
-- [ ] T047 Extend `status.py` and `findings.py` for plugin-bundle kind (WP09)
-- [ ] T048 Write tests for plugin bundle validation (WP09)
+- [x] T043 Implement `bundles/model.py` (WP09)
+- [x] T044 Implement `bundles/claude.py` (WP09)
+- [x] T045 Implement `bundles/copilot.py` and `bundles/vscode.py` (WP09)
+- [x] T046 Implement `providers/plugin_bundle.py` (WP09)
+- [x] T047 Extend `status.py` and `findings.py` for plugin-bundle kind (WP09)
+- [x] T048 Write tests for plugin bundle validation (WP09)
 
 **Prompt**: [WP09-plugin-bundle-validation.md](tasks/WP09-plugin-bundle-validation.md)

@@ -21,8 +21,8 @@ subtasks:
 - T040
 - T041
 - T042
-agent: claude
-shell_pid: '46357'
+agent: "claude:opus:reviewer:reviewer"
+shell_pid: "58600"
 history:
 - date: '2026-06-14'
   action: created
@@ -239,3 +239,12 @@ def test_registry_path_index_no_match():
 - Verify linter does not flag non-tool-surface paths (e.g., `src/specify_cli/` references)
 - Verify `ignore` annotation works
 - Verify CI test would catch a new drift introduced in a future PR
+
+## Activity Log
+
+- 2026-06-14T11:42:32Z – claude – shell_pid=46357 – Ready for review: DocsLinter+RegistryPathIndex (docs.py) validate generated/native tool surface path refs against the registry (FR-017); wired via service.build_docs_linter/lint_docs_directory into CI-collected pytest test_docs_contract_lint. Live-wiring proven: passes clean on real docs/, FAILS on injected drift, passes after revert. T041 drift in 3-2-harness-research-method.md suppressed with rationale. ruff exit 0 on all 3 changed files; mypy --strict clean; full tool_surface suite 192 passed. --force used only for the known behind-base preflight quirk (real lane base kitty/mission-tool-surface-contract-01KV2K2P); tree clean, commit 09d484887 present.
+- 2026-06-14T11:43:02Z – claude:opus:reviewer:reviewer – shell_pid=51475 – Started review via action command
+- 2026-06-14T11:47:17Z – user – shell_pid=51475 – Review passed (independent reviewer). --force used ONLY for the known behind-base preflight quirk (real lane base kitty/mission-tool-surface-contract-01KV2K2P; tree clean; WP08 commit 09d484887 present). Prior review-cycle-2 rejection was a workflow re-dispatch note (dependency-lane auto-merge conflict on service.py), NOT an unresolved code defect; the manual provider-union merge it describes is verified intact (6 providers, 10 kind tokens, 8 builtin definitions); WP08 only ADDED build_docs_linter/lint_docs_directory + DocsLinter import. DocsLinter+RegistryPathIndex validate path refs vs registry path_patterns (FR-016/FR-017). DRIFT-INJECTION VERIFIED on REAL docs/: injected .agents/skills/__reviewer_injected__/SKILL.md -> test_docs_contract_lint FAILED with UNREGISTERED_PATH; PASSED clean after revert. No false positives. Lane suppression is a genuine FP (advise dir ref). CI-collected by default pytest.ini. ruff clean, mypy --strict clean, 192 tests pass; no noqa/type-ignore, no feature aliases.
+- 2026-06-14T12:04:03Z – user – shell_pid=51475 – Re-review to write approved artifact superseding false rejection note
+- 2026-06-14T12:04:05Z – claude:opus:reviewer:reviewer – shell_pid=58600 – Started review via action command
+- 2026-06-14T12:10:06Z – user – shell_pid=58600 – Restore to approved: 192 tool_surface tests green; supersedes false-rejection orchestration note (dependency-lane merge-conflict re-dispatch), already independently reviewed

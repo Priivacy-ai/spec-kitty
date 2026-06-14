@@ -23,6 +23,8 @@ from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
 )
 from specify_cli.task_utils import find_repo_root
 
+from .surface_presence import SurfacePresenceIndex
+
 app = typer.Typer(
     name="config",
     help="Manage project AI agent configuration (add, remove, list agents)",
@@ -51,21 +53,35 @@ def _display_path(path: Path) -> str:
     return label.rstrip("/") + "/"
 
 
-def _agent_location(repo_root: Path, agent_key: str) -> tuple[Path | None, str, bool]:
-    """Return the managed command/skill location for an agent."""
+def _agent_location(
+    repo_root: Path,
+    agent_key: str,
+    presence: SurfacePresenceIndex | None = None,
+) -> tuple[Path | None, str, bool]:
+    """Return the managed command/skill location for an agent.
+
+    Install state ("does the managed surface exist?") is resolved through the
+    surface contract via ``presence`` when supplied, so ``agent config`` no
+    longer recomputes its own per-agent existence probe. The *labels* below stay
+    owned here because they are part of the frozen ``agent config`` interface.
+    """
+
+    def _exists(path: Path) -> bool:
+        return presence.exists(agent_key) if presence is not None else path.exists()
+
     if agent_key in GLOBAL_COMMAND_AGENTS:
         path = get_global_command_dir(agent_key)
-        return path, f"{_display_path(path)} (global)", path.exists()
+        return path, f"{_display_path(path)} (global)", _exists(path)
 
     if agent_key in SKILL_ONLY_AGENTS:
         path = repo_root / ".agents" / "skills"
-        return path, ".agents/skills/ (project skills)", path.exists()
+        return path, ".agents/skills/ (project skills)", _exists(path)
 
     agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
     if agent_dir_info:
         agent_dir, subdir = agent_dir_info
         path = repo_root / agent_dir / subdir
-        return path, f"{agent_dir}/{subdir}/", path.exists()
+        return path, f"{agent_dir}/{subdir}/", _exists(path)
 
     return None, "unknown agent", False
 
@@ -290,10 +306,16 @@ def list_agents():
         console.print("\nRun 'spec-kitty init' or use 'spec-kitty agent config add' to add agents.")
         return
 
+    # Resolve install state through the surface contract (WP07): the plan is the
+    # source of truth for "is this tool's managed surface present?".
+    presence = SurfacePresenceIndex.build(
+        repo_root, config.available, global_command_dir=get_global_command_dir
+    )
+
     # Display configured agents
     console.print("[cyan]Configured agents:[/cyan]")
     for agent_key in config.available:
-        _, location, exists = _agent_location(repo_root, agent_key)
+        _, location, exists = _agent_location(repo_root, agent_key, presence)
         status = "✓" if exists else "⚠"
         console.print(f"  {status} {agent_key} ({location})")
 
@@ -489,8 +511,14 @@ def agent_status():
 
     all_agent_keys = sorted(VALID_AGENTS)
 
+    # Resolve install state through the surface contract (WP07) for every known
+    # tool, so the status table no longer recomputes existence per agent.
+    presence = SurfacePresenceIndex.build(
+        repo_root, all_agent_keys, global_command_dir=get_global_command_dir
+    )
+
     for agent_key in all_agent_keys:
-        _, location, exists_bool = _agent_location(repo_root, agent_key)
+        _, location, exists_bool = _agent_location(repo_root, agent_key, presence)
         configured = "✓" if agent_key in config.available else "✗"
         exists = "✓" if exists_bool else "✗"
 
