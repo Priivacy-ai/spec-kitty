@@ -28,6 +28,11 @@ runner = CliRunner()
 
 _REPO_ROOT = Path(__file__).parent.parent.parent.parent.parent
 
+# Number of command-skills one skill-only agent install produces. Derived from
+# the canonical command set so the test tracks roster growth (e.g. the #1946
+# skill-alignment refactor) instead of pinning a brittle magic number.
+_EXPECTED_SKILL_COUNT = len(command_installer.CANONICAL_COMMANDS)
+
 
 def _write_config(tmp_path: Path, agents: list[str]) -> None:
     kittify = tmp_path / ".kittify"
@@ -114,11 +119,11 @@ def test_remove_vibe_only(tmp_path: Path) -> None:
 
     # Install vibe skills
     report = command_installer.install(tmp_path, "vibe")
-    assert len(report.added) == 11
+    assert len(report.added) == _EXPECTED_SKILL_COUNT
 
     # Verify files exist before removal
     manifest = manifest_store.load(tmp_path)
-    assert len(manifest.entries) == 11
+    assert len(manifest.entries) == _EXPECTED_SKILL_COUNT
     for entry in manifest.entries:
         assert (tmp_path / entry.path).exists()
 
@@ -161,7 +166,7 @@ def test_remove_vibe_leaves_codex_entries(tmp_path: Path) -> None:
 
     # After both installs, all entries should have agents == ("codex", "vibe")
     manifest_before = manifest_store.load(tmp_path)
-    assert len(manifest_before.entries) == 11
+    assert len(manifest_before.entries) == _EXPECTED_SKILL_COUNT
     for entry in manifest_before.entries:
         assert "codex" in entry.agents
         assert "vibe" in entry.agents
@@ -177,10 +182,11 @@ def test_remove_vibe_leaves_codex_entries(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.output
 
-    # Manifest must still have 12 entries — codex still owns them
+    # Manifest must still have all entries — codex still owns them
     manifest_after = manifest_store.load(tmp_path)
-    assert len(manifest_after.entries) == 11, (
-        f"Expected 12 entries (codex still present); got {len(manifest_after.entries)}"
+    assert len(manifest_after.entries) == _EXPECTED_SKILL_COUNT, (
+        f"Expected {_EXPECTED_SKILL_COUNT} entries (codex still present); "
+        f"got {len(manifest_after.entries)}"
     )
 
     # All entries must be codex-only now

@@ -29,6 +29,12 @@ from specify_cli.skills.manifest import ManagedFileEntry, ManagedSkillManifest, 
 
 pytestmark = pytest.mark.integration
 
+# The number of command-skills a single skill-only agent install produces.
+# Derived from the canonical command set so the test stays correct as the
+# command roster grows (e.g. the #1946 skill-alignment refactor added the
+# CLI-wrapper commands) rather than pinning a brittle magic number.
+_EXPECTED_SKILL_COUNT = len(command_installer.CANONICAL_COMMANDS)
+
 
 def _legacy_manifest_path(project: Path) -> Path:
     return project / ".kittify" / "skills-manifest.json"
@@ -70,7 +76,9 @@ def test_mixed_install_keeps_both_manifests_intact(tmp_path: Path) -> None:
     # Simulate the order init.py uses: per-agent loop first, then the
     # legacy save_manifest at the bottom. Write the new manifest first.
     report = command_installer.install(project, "vibe")
-    assert len(report.added) == 11, f"vibe install should create 11 entries, got {len(report.added)}"
+    assert len(report.added) == _EXPECTED_SKILL_COUNT, (
+        f"vibe install should create {_EXPECTED_SKILL_COUNT} entries, got {len(report.added)}"
+    )
 
     # Now simulate the legacy path writing its manifest.
     _write_claude_like_legacy_manifest(project)
@@ -89,11 +97,13 @@ def test_mixed_install_keeps_both_manifests_intact(tmp_path: Path) -> None:
     legacy_paths = {e["installed_path"] for e in legacy_data["entries"]}
     assert ".claude/skills/spec-kitty-runtime-next/SKILL.md" in legacy_paths
 
-    # New manifest holds the 11 vibe command-skill entries, schema_version: 1.
+    # New manifest holds the vibe command-skill entries, schema_version: 1.
     new_data = json.loads(new_path.read_text(encoding="utf-8"))
     assert new_data["schema_version"] == 1, "New manifest must carry schema_version: 1"
     assert "version" not in new_data, "New manifest must not carry legacy version field"
-    assert len(new_data["entries"]) == 11, f"Expected 11 vibe entries, got {len(new_data['entries'])}"
+    assert len(new_data["entries"]) == _EXPECTED_SKILL_COUNT, (
+        f"Expected {_EXPECTED_SKILL_COUNT} vibe entries, got {len(new_data['entries'])}"
+    )
     for entry in new_data["entries"]:
         assert entry["agents"] == ["vibe"], entry
         assert entry["path"].startswith(".agents/skills/spec-kitty."), entry["path"]
@@ -116,8 +126,9 @@ def test_subsequent_installer_ops_succeed_after_mixed_install(tmp_path: Path) ->
     # the rename, because manifest_store.load would have seen the legacy
     # file and rejected its schema.
     report = command_installer.install(project, "codex")
-    assert len(report.reused_shared) == 11, (
-        f"codex install should reuse the 12 existing vibe entries, got {len(report.reused_shared)}"
+    assert len(report.reused_shared) == _EXPECTED_SKILL_COUNT, (
+        f"codex install should reuse the {_EXPECTED_SKILL_COUNT} existing vibe entries, "
+        f"got {len(report.reused_shared)}"
     )
 
     # Manifest now reflects both agents.
@@ -127,8 +138,8 @@ def test_subsequent_installer_ops_succeed_after_mixed_install(tmp_path: Path) ->
 
     # And remove(codex) works — leaving vibe entries intact.
     remove_report = command_installer.remove(project, "codex")
-    assert len(remove_report.kept) == 11, (
-        f"vibe should still need all 12 entries, got kept={remove_report.kept}"
+    assert len(remove_report.kept) == _EXPECTED_SKILL_COUNT, (
+        f"vibe should still need all {_EXPECTED_SKILL_COUNT} entries, got kept={remove_report.kept}"
     )
     final = json.loads(_new_manifest_path(project).read_text(encoding="utf-8"))
     for entry in final["entries"]:
