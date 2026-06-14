@@ -132,6 +132,7 @@ from .lifecycle import (
     MissionLifecycleResult,
     derive_mission_lifecycle,
     generate_lifecycle_json,
+    is_mission_completed,
 )
 from .validate import (
     ValidationResult,
@@ -156,6 +157,7 @@ from .lifecycle_events import (
     SPECIFY_STARTED,
     TASKS_COMPLETED,
     TASKS_STARTED,
+    MissionNotCompletedError,
     build_saas_lifecycle_queue_event,
     emit_artifact_phase,
     emit_follow_up_recorded,
@@ -221,6 +223,7 @@ __all__ = [
     "SPECIFY_STARTED",
     "TASKS_COMPLETED",
     "TASKS_STARTED",
+    "MissionNotCompletedError",
     "TransitionRequest",
     "WorkPackageClaimConflict",
     "WorkPackageStartRejected",
@@ -260,6 +263,7 @@ __all__ = [
     "derive_mission_lifecycle",
     "generate_lifecycle_json",
     "generate_progress_json",
+    "is_mission_completed",
     "materialize_if_stale",
     "CANONICAL_LANES",
     "DoneEvidence",

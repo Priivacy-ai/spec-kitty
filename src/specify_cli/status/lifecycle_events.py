@@ -50,6 +50,24 @@ from .models import Lane as _Lane
 logger = logging.getLogger(__name__)
 
 
+class MissionNotCompletedError(RuntimeError):
+    """Raised when a post-mission lifecycle event is emitted before completion.
+
+    Post-mission facts (``MissionReopened`` / ``FollowUpRecorded``) are only
+    valid once a mission has reached completion (#1926). This is the producer
+    side of the invariant the sibling events-package reducer enforces on the
+    consumer side. The emit helpers raise this fail-closed *before* writing any
+    event, so a rejected emit leaves the log untouched.
+    """
+
+    def __init__(self, action: str, mission_slug: str) -> None:
+        self.action = action
+        self.mission_slug = mission_slug
+        super().__init__(
+            f"cannot {action}: mission {mission_slug!r} has not completed/merged"
+        )
+
+
 # ---------------------------------------------------------------------------
 # Event type constants — kept in sync with spec_kitty_events.project_lifecycle
 # ---------------------------------------------------------------------------
@@ -770,6 +788,20 @@ def emit_reviewer_self_approval(
     )
 
 
+def _require_mission_completed(
+    feature_dir: Path, *, action: str, mission_slug: str
+) -> None:
+    """Fail-closed guard: raise unless the mission has reached completion (#1926).
+
+    Lazy-imports :func:`is_mission_completed` to avoid a circular import
+    (``lifecycle`` imports event-type constants from this module).
+    """
+    from specify_cli.status.lifecycle import is_mission_completed  # noqa: PLC0415
+
+    if not is_mission_completed(feature_dir):
+        raise MissionNotCompletedError(action, mission_slug)
+
+
 def emit_mission_reopened(
     feature_dir: Path,
     *,
@@ -796,7 +828,14 @@ def emit_mission_reopened(
 
     This is a LOCAL-ONLY event (see ``MISSION_REOPENED`` registration note): it
     is intentionally kept off the SaaS strict-validation model map.
+
+    Fail-closed (#1926): a mission can only be re-opened once it has *reached
+    completion* (merged, or all WPs terminal). Re-opening a mission that never
+    completed is rejected with :class:`MissionNotCompletedError` before any
+    metadata or event is written. The completion check happens here — the
+    canonical producer — so no emit path can bypass it.
     """
+    _require_mission_completed(feature_dir, action="re-open", mission_slug=mission_slug)
     payload: dict[str, Any] = {
         "mission_id": mission_id,
         "mission_slug": mission_slug,
@@ -831,9 +870,14 @@ def emit_follow_up_recorded(
     project_uuid: str | None = None,
     project_slug: str | None = None,
 ) -> dict[str, Any] | None:
-    """Record a follow-up commit or PR against an already-merged (or any-state) mission.
+    """Record a follow-up commit or PR against an already-completed mission.
 
-    Allowed in **any** mission state (passive post-merge follow-ups are valid).
+    Fail-closed (#1926): a follow-up is a *post-mission* fact and is only valid
+    once the mission has reached completion (merged, or all WPs terminal).
+    Recording a follow-up against a mission that never completed is rejected with
+    :class:`MissionNotCompletedError` before any event is written. The check
+    lives here — the canonical producer — so no emit path can bypass it.
+
     **Idempotent** on its dedup key ``(mission_id, commit_sha | pr_number)`` —
     re-recording the identical ``--commit``/``--pr`` reference is a no-op,
     consistent with the existing ``has_lifecycle_event()`` dedup pattern. A
@@ -857,6 +901,10 @@ def emit_follow_up_recorded(
         raise ValueError(
             f"follow_up_type must be 'commit' or 'pr', got {follow_up_type!r}"
         )
+
+    _require_mission_completed(
+        feature_dir, action="record follow-up", mission_slug=mission_slug
+    )
 
     payload: dict[str, Any] = {
         "mission_id": mission_id,

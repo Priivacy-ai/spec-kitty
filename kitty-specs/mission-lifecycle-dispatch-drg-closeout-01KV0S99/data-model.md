@@ -21,6 +21,11 @@ needing an external `spec_kitty_events` contract bump.
 ### `MissionReopened`
 
 Records that a merged/closed mission was returned to an actionable state.
+**Requires a prior completion** (#1926): only emittable once the mission has reached completion
+(`is_mission_completed` — `merged_at` present **OR** `derive_mission_lifecycle` reports
+`recently_completed`/`archived`). The producer (`emit_mission_reopened`) and the command layer both
+guard this fail-closed; a re-open of a not-yet-completed mission raises `MissionNotCompletedError`
+and writes no event / clears no `merged_*`.
 
 | payload field | type | required | notes |
 |---|---|---|---|
@@ -44,7 +49,11 @@ Records that a merged/closed mission was returned to an actionable state.
 
 ### `FollowUpRecorded`
 
-Records a follow-up commit or PR against an already-merged (or any-state) mission.
+Records a follow-up commit or PR against an **already-completed** mission (#1926). A follow-up is a
+post-mission fact — only valid once the mission has reached completion (same `is_mission_completed`
+predicate as `MissionReopened`). Recording one against a not-yet-completed mission raises
+`MissionNotCompletedError` and writes no event. (Supersedes the earlier "allowed in any state"
+design.)
 
 | payload field | type | required | notes |
 |---|---|---|---|
@@ -56,7 +65,7 @@ Records a follow-up commit or PR against an already-merged (or any-state) missio
 | `recorded_by` | str (actor) | yes | detected actor |
 | `recorded_at` | str (ISO-8601 UTC) | yes | event time |
 
-- **Semantics:** allowed in **any** mission state (passive post-merge follow-ups are valid).
+- **Semantics:** valid only once the mission has **reached completion** (post-mission fact, #1926).
   **Idempotent** via dedup key `(mission_id, commit_sha | pr_number)` — re-recording the
   identical `--commit`/`--pr` reference is a no-op (no duplicate event), consistent with the
   existing `has_lifecycle_event()` dedup pattern.
@@ -87,5 +96,8 @@ immutable across re-open (number reused on re-merge — deferred sub-decision, d
 ## Invariants
 
 - Event log is append-only; no past line is rewritten (reducer determinism preserved).
+- **Post-mission events require completion (#1926):** both `MissionReopened` and `FollowUpRecorded`
+  are emittable only when `is_mission_completed` is true. The producer guards fail-closed, so no
+  emit path can record a post-mission fact for a not-yet-completed mission.
 - `FollowUpRecorded` is idempotent on its dedup key; `MissionReopened` is append-each.
 - Every closing behavior carries pinning regression coverage (NFR-005).

@@ -325,8 +325,11 @@ def test_remerge_after_reopen_drops_reopened_state(tmp_path: Path) -> None:
 
 def test_post_mission_events_sorted_and_last_follow_up_recorded(tmp_path: Path) -> None:
     now = datetime(2026, 5, 20, 12, 0, tzinfo=UTC)
+    # The merge marker is retained so the mission remains *completed* — the
+    # precondition for emitting post-mission events (#1926). Both events are
+    # therefore accepted; this test exercises the sort/last_follow_up surface,
+    # not the reopen-clears-merge sequencing.
     feature_dir = _merged_mission(tmp_path, merged_at="2026-04-03T10:00:00+00:00")
-    _write_meta(feature_dir, merged_at=None)
 
     emit_mission_reopened(
         feature_dir,
@@ -404,7 +407,7 @@ def _canonical_post_mission_events(
     """Emit one reopen + one commit follow-up via the canonical helpers and
     return the persisted envelopes (renderer input) + the feature_dir."""
     feature_dir = tmp_path / "kitty-specs" / "090-render"
-    feature_dir.mkdir(parents=True, exist_ok=True)
+    _write_meta(feature_dir, merged_at="2026-04-03T10:00:00+00:00")
     emit_mission_reopened(
         feature_dir,
         mission_id=MISSION_ID,
@@ -456,7 +459,7 @@ def test_renderer_renders_follow_up_commit_line(tmp_path: Path) -> None:
 
 def test_renderer_renders_follow_up_pr_line(tmp_path: Path) -> None:
     feature_dir = tmp_path / "kitty-specs" / "091-render-pr"
-    feature_dir.mkdir(parents=True, exist_ok=True)
+    _write_meta(feature_dir, merged_at="2026-04-03T10:00:00+00:00")
     emit_follow_up_recorded(
         feature_dir,
         mission_id=MISSION_ID,
@@ -481,7 +484,7 @@ def test_renderer_renders_reopen_and_follow_up_together(tmp_path: Path) -> None:
 
 def test_renderer_reopen_without_reason_omits_suffix(tmp_path: Path) -> None:
     feature_dir = tmp_path / "kitty-specs" / "092-no-reason"
-    feature_dir.mkdir(parents=True, exist_ok=True)
+    _write_meta(feature_dir, merged_at="2026-04-03T10:00:00+00:00")
     emit_mission_reopened(
         feature_dir,
         mission_id=MISSION_ID,

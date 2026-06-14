@@ -8,7 +8,11 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.status.lifecycle import derive_mission_lifecycle, generate_lifecycle_json
+from specify_cli.status.lifecycle import (
+    derive_mission_lifecycle,
+    generate_lifecycle_json,
+    is_mission_completed,
+)
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 
@@ -20,9 +24,10 @@ def _write_meta(
     *,
     mission_id: str = "01ARZ3NDEKTSV4RRFFQ69G5FAV",
     created_at: str = "2026-04-01T10:00:00+00:00",
+    merged_at: str | None = None,
 ) -> None:
     feature_dir.mkdir(parents=True, exist_ok=True)
-    meta = {
+    meta: dict[str, object] = {
         "created_at": created_at,
         "friendly_name": feature_dir.name,
         "mission_id": mission_id,
@@ -32,6 +37,9 @@ def _write_meta(
         "slug": feature_dir.name,
         "target_branch": "main",
     }
+    if merged_at is not None:
+        meta["merged_at"] = merged_at
+        meta["merged_into"] = "main"
     (feature_dir / "meta.json").write_text(
         json.dumps(meta, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
         encoding="utf-8",
@@ -183,3 +191,55 @@ def test_generate_lifecycle_json_writes_machine_facing_file(tmp_path: Path) -> N
     assert data["mission_slug"] == "040-derived"
     assert data["state"] == "active"
     assert data["surface_state"] == "active"
+
+
+# ---------------------------------------------------------------------------
+# is_mission_completed predicate (#1926): the post-mission-event precondition.
+# ---------------------------------------------------------------------------
+
+
+def test_is_mission_completed_true_when_merged_at_present(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "050-merged"
+    _write_meta(feature_dir, merged_at="2026-04-03T10:00:00+00:00")
+    # No event log at all, but the merge marker alone signals completion.
+    assert is_mission_completed(feature_dir) is True
+
+
+def test_is_mission_completed_true_when_all_wps_terminal(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "051-terminal"
+    _write_meta(feature_dir)  # no merge marker
+    _append_event(
+        feature_dir,
+        wp_id="WP01",
+        to_lane="done",
+        at="2026-04-21T12:00:00+00:00",
+        event_id="01TESTTERMINAL0000000000001",
+        from_lane="approved",
+    )
+    # recently_completed / archived both classify as completed.
+    assert is_mission_completed(
+        feature_dir, now=datetime(2026, 4, 22, 12, 0, tzinfo=UTC)
+    ) is True
+
+
+def test_is_mission_completed_false_for_active_wip(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "052-wip"
+    _write_meta(feature_dir)  # no merge marker
+    _append_event(
+        feature_dir,
+        wp_id="WP01",
+        to_lane="in_progress",
+        at="2026-04-21T12:00:00+00:00",
+        event_id="01TESTWIP000000000000000001",
+    )
+    assert is_mission_completed(
+        feature_dir, now=datetime(2026, 4, 22, 12, 0, tzinfo=UTC)
+    ) is False
+
+
+def test_is_mission_completed_false_for_recoverable_no_events(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "053-recoverable"
+    _write_meta(feature_dir)  # no merge marker, no events → recoverable
+    assert is_mission_completed(
+        feature_dir, now=datetime(2026, 4, 22, 12, 0, tzinfo=UTC)
+    ) is False
