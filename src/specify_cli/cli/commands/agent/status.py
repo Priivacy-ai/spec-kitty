@@ -682,7 +682,7 @@ def lifecycle(
     console.print(table)
 
     # WP02 / T009: render post-mission lifecycle history (re-opens + follow-ups).
-    from specify_cli.status.views import format_post_mission_events
+    from specify_cli.status import format_post_mission_events
 
     history_lines = format_post_mission_events(result.post_mission_events)
     if history_lines:

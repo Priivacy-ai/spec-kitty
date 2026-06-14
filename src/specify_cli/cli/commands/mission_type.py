@@ -971,7 +971,7 @@ def reopen_cmd(
         MissionSelectorAmbiguous,
     )
     from specify_cli.mission_metadata import clear_merge_metadata
-    from specify_cli.status.lifecycle_events import emit_mission_reopened
+    from specify_cli.status import emit_mission_reopened
 
     project_root = get_project_root_or_exit()
     repo_root = _resolve_primary_repo_root(project_root)
@@ -1074,7 +1074,7 @@ def follow_up_cmd(
     from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
         MissionSelectorAmbiguous,
     )
-    from specify_cli.status.lifecycle_events import emit_follow_up_recorded
+    from specify_cli.status import emit_follow_up_recorded
 
     # Validate: exactly one of --commit / --pr.
     if (commit is None) == (pr is None):

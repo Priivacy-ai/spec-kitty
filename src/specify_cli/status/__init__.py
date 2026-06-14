@@ -158,12 +158,17 @@ from .lifecycle_events import (
     TASKS_STARTED,
     build_saas_lifecycle_queue_event,
     emit_artifact_phase,
+    emit_follow_up_recorded,
     emit_mission_created_local,
+    emit_mission_reopened,
     emit_project_initialized,
     emit_reviewer_self_approval,
     emit_wp_created_local,
     has_non_bootstrap_status_history,
     repo_root_for_lifecycle_log,
+)
+from .views import (
+    format_post_mission_events,
 )
 from .work_package_lifecycle import (
     WorkPackageClaimConflict,
@@ -221,10 +226,13 @@ __all__ = [
     "WorkPackageStartRejected",
     "build_saas_lifecycle_queue_event",
     "emit_artifact_phase",
+    "emit_follow_up_recorded",
     "emit_mission_created_local",
+    "emit_mission_reopened",
     "emit_project_initialized",
     "emit_reviewer_self_approval",
     "emit_wp_created_local",
+    "format_post_mission_events",
     "has_non_bootstrap_status_history",
     "is_retrospective_lifecycle_event",
     "materialize_snapshot",

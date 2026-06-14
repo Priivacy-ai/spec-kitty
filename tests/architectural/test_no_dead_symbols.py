@@ -619,6 +619,21 @@ _CATEGORY_C_UPSTREAM_SESSION_PRESENCE: frozenset[str] = frozenset(
 )
 
 
+_CATEGORY_C_QUALITY_DEBT_1928: frozenset[str] = frozenset(
+    {
+        # PathValidationError is the public exception type raised by
+        # validate_mission_paths(..., strict=True). It is exercised by
+        # tests/agent/test_validators_unit.py (which imports it as a public
+        # symbol) and is part of the validator's documented public surface,
+        # but the sole runtime caller (acceptance/__init__.py) invokes the
+        # validator non-strict, so no src/ module imports the exception yet.
+        # Kept in __all__ as a deliberate public API. Tracked under the
+        # quality-debt epic #1928 (FR-303).
+        "specify_cli.validators.paths::PathValidationError",
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``).
@@ -634,6 +649,7 @@ _SYMBOL_ALLOWLIST: frozenset[str] = (
     | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION
     | _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT
     | _CATEGORY_C_UPSTREAM_SESSION_PRESENCE
+    | _CATEGORY_C_QUALITY_DEBT_1928
 )
 
 
