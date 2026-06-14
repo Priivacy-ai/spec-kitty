@@ -913,6 +913,8 @@ _Project health diagnostics_
 │ command-files       Check all agent command files for correctness.           │
 │ skills              Check command-skill manifest drift for Codex, Vibe, Pi,  │
 │                     and Letta.                                               │
+│ tool-surfaces       Audit (and optionally repair) every configured tool      │
+│                     surface.                                                 │
 │ state-roots         Show state roots, surface classification, and safety     │
 │                     warnings.                                                │
 │ workspaces          Report .worktrees/ husk directories (entries lacking a   │
@@ -1255,6 +1257,27 @@ _Project health diagnostics_
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json          Machine-readable JSON output                                 │
 │ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor tool-surfaces
+
+```
+ Usage: spec-kitty doctor tool-surfaces [OPTIONS]
+
+ Audit (and optionally repair) every configured tool surface.
+
+ Examples:
+ spec-kitty doctor tool-surfaces --json
+ spec-kitty doctor tool-surfaces --kind command-skill --json
+ spec-kitty doctor tool-surfaces --tool codex --fix
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --kind        TEXT  Filter to surface kind(s), e.g. command-skill            │
+│ --tool        TEXT  Filter to a single configured tool key                   │
+│ --fix               Repair missing or stale surfaces                         │
+│ --json              Machine-readable JSON output                             │
+│ --help              Show this message and exit.                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2257,8 +2280,10 @@ _Inspect mission types for this project._
 
  Exactly one of ``--commit <40-hex>`` / ``--pr <int>`` must be supplied.
  Appends a ``FollowUpRecorded`` lifecycle event attributed to ``mission_id``.
- Allowed in ANY mission state (passive post-merge follow-ups are valid) and
- idempotent on its dedup key ``(mission_id, commit_sha | pr_number)`` —
+ Fail-closed (#1926): only valid once the mission has reached completion
+ (merged, or all WPs terminal) — a follow-up against a not-yet-completed
+ mission exits non-zero with a structured error and writes no event.
+ Idempotent on its dedup key ``(mission_id, commit_sha | pr_number)`` —
  re-recording the same reference is a successful no-op.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
@@ -2520,8 +2545,10 @@ _Inspect mission types for this project._
 
  Exactly one of ``--commit <40-hex>`` / ``--pr <int>`` must be supplied.
  Appends a ``FollowUpRecorded`` lifecycle event attributed to ``mission_id``.
- Allowed in ANY mission state (passive post-merge follow-ups are valid) and
- idempotent on its dedup key ``(mission_id, commit_sha | pr_number)`` —
+ Fail-closed (#1926): only valid once the mission has reached completion
+ (merged, or all WPs terminal) — a follow-up against a not-yet-completed
+ mission exits non-zero with a structured error and writes no event.
+ Idempotent on its dedup key ``(mission_id, commit_sha | pr_number)`` —
  re-recording the same reference is a successful no-op.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮

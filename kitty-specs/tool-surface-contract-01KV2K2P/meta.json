@@ -1,0 +1,17 @@
+{
+  "baseline_merge_commit": "789d34b042276063559d301fa700ed5acc03c9af",
+  "coordination_branch": "kitty/mission-tool-surface-contract-01KV2K2P",
+  "created_at": "2026-06-14T08:13:26.186483+00:00",
+  "friendly_name": "ToolSurfaceContract -- Unified Tool Surface Registry",
+  "mission_id": "01KV2K2P989VGC1TZF43ATGCPC",
+  "mission_number": 135,
+  "mission_slug": "tool-surface-contract-01KV2K2P",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Spec Kitty has no unified model for what should be installed for each configured tool. Session presence, command skills, doctrine skills, native agent profiles, and plugin bundles are verified by separate subsystems with no shared contract. This mission introduces a ToolSurfaceContract registry that wraps existing installers as providers, powers a unified doctor tool-surfaces command with stable finding codes and repair commands, and ensures fresh-clone installs can be diagnosed and repaired without manual intervention. Parent epic: #1945. Glossary context: PR #1935.",
+  "purpose_tldr": "Establish a single authoritative contract for what tool surfaces should exist for each configured tool, enabling reliable installation, verification, and repair across all supported harnesses.",
+  "slug": "tool-surface-contract-01KV2K2P",
+  "source_description": "GitHub issue #1945 (epic) with research gist and architecture gist. Child issues: #1936, #1944, #1937-#1943.",
+  "target_branch": "feat/tool-surface-contract",
+  "vcs": "git"
+}

@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "doctor-tool-surfaces-output.schema.json",
+  "title": "doctor tool-surfaces --json output",
+  "description": "Machine-readable output of spec-kitty doctor tool-surfaces --json. Finding codes are stable kebab-case strings across releases.",
+  "type": "object",
+  "required": ["ok", "schema_version", "project_root", "configured_tools", "summary", "surfaces", "findings"],
+  "properties": {
+    "ok": {
+      "type": "boolean",
+      "description": "False when any error-severity finding is present."
+    },
+    "schema_version": {
+      "type": "integer",
+      "description": "Schema version of this output. Currently 1.",
+      "enum": [1]
+    },
+    "project_root": {
+      "type": "string",
+      "description": "Absolute path to the project root that was inspected."
+    },
+    "configured_tools": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Tool keys from .kittify/config.yaml that were inspected."
+    },
+    "summary": {
+      "$ref": "#/definitions/SurfaceSummary"
+    },
+    "surfaces": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/SurfaceStatusEntry" },
+      "description": "Per-surface-instance probe results. Includes present and missing surfaces."
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/SurfaceFinding" },
+      "description": "All findings (errors, warnings, info) across all surfaces."
+    },
+    "tool_key_filter": {
+      "type": ["string", "null"],
+      "description": "The --tool filter value if provided, or null for all configured tools."
+    },
+    "surface_kind_filter": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "description": "The --kind filter values if provided, or null for all surface kinds."
+    },
+    "spec_kitty_version": {
+      "type": "string",
+      "description": "The spec-kitty version that produced this output."
+    }
+  },
+  "definitions": {
+    "SurfaceSummary": {
+      "type": "object",
+      "required": ["surfaces", "present", "missing", "drifted", "warnings", "errors"],
+      "properties": {
+        "surfaces": { "type": "integer", "description": "Total surface instances checked." },
+        "present":  { "type": "integer", "description": "Instances with state 'present'." },
+        "missing":  { "type": "integer", "description": "Instances with state 'missing'." },
+        "drifted":  { "type": "integer", "description": "Instances with state 'drifted'." },
+        "warnings": { "type": "integer", "description": "Finding count at warning severity." },
+        "errors":   { "type": "integer", "description": "Finding count at error severity." }
+      }
+    },
+    "SurfaceStatusEntry": {
+      "type": "object",
+      "required": ["id", "tool", "kind", "provider", "state", "source_kind"],
+      "properties": {
+        "id":           { "type": "string", "description": "SurfaceDefinition ID." },
+        "tool":         { "type": "string", "description": "Tool harness key." },
+        "kind":         { "type": "string", "description": "SurfaceKind value." },
+        "provider":     { "type": "string", "description": "Provider key." },
+        "path":         { "type": ["string", "null"] },
+        "state":        { "type": "string", "enum": ["present", "missing", "drifted", "stale", "orphaned", "unsafe", "unsupported", "not_applicable"] },
+        "source_kind":  { "type": "string" },
+        "manifest":     { "type": ["string", "null"], "description": "Path of the manifest tracking this instance." },
+        "repair_command": { "type": ["string", "null"] }
+      }
+    },
+    "SurfaceFinding": {
+      "type": "object",
+      "required": ["code", "severity", "message"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Stable kebab-case finding code. Never renamed or removed without deprecation cycle.",
+          "examples": [
+            "generated-surface-missing",
+            "managed-file-drift",
+            "stale-generated-surface",
+            "unsafe-managed-path",
+            "configured-tool-surface-uninstalled",
+            "native-agent-profile-missing",
+            "native-agent-profile-drift",
+            "profile-projection-unsupported",
+            "context-file-missing",
+            "research-gap-surface",
+            "docs-ref-stale",
+            "bundle-component-missing"
+          ]
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["error", "warning", "info"],
+          "description": "Severity of the finding."
+        },
+        "message": { "type": "string", "description": "Human-readable explanation." },
+        "tool_key": { "type": ["string", "null"] },
+        "surface_id": { "type": ["string", "null"] },
+        "path": { "type": ["string", "null"] },
+        "repair_command": { "type": ["string", "null"] },
+        "docs_ref": { "type": ["string", "null"] },
+        "details": { "type": "object" }
+      }
+    }
+  }
+}
