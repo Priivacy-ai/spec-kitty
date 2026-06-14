@@ -113,6 +113,10 @@ def _canonical_skill(root: Path, name: str = "a") -> CanonicalSkill:
     return CanonicalSkill(name=name, skill_dir=skill_dir, skill_md=skill_md)
 
 
+def _manifest_only_provider() -> ManagedSkillsProvider:
+    return ManagedSkillsProvider(registry_factory=lambda: _StubRegistry([]))
+
+
 def test_managed_skills_expand_no_manifest_uses_registry_policy(
     tmp_path: Path,
 ) -> None:
@@ -141,7 +145,7 @@ def test_managed_skills_expand_returns_per_tool_skills(tmp_path: Path) -> None:
             _entry("claude", ".claude/skills/c/SKILL.md", other, skill_name="c"),
         ],
     )
-    provider = ManagedSkillsProvider()
+    provider = _manifest_only_provider()
     instances = provider.expand(managed_skill_definition(), "codex", tmp_path)
     assert len(instances) == 2
     assert all(i.owner == "codex" for i in instances)
@@ -166,7 +170,7 @@ def test_managed_skills_probe_present(tmp_path: Path) -> None:
         tmp_path,
         [_entry("codex", ".agents/skills/a/SKILL.md", h1, skill_name="a")],
     )
-    provider = ManagedSkillsProvider()
+    provider = _manifest_only_provider()
     instance = provider.expand(managed_skill_definition(), "codex", tmp_path)[0]
     status = provider.probe(instance)
     assert status.state == STATE_PRESENT
@@ -178,7 +182,7 @@ def test_managed_skills_probe_detects_missing(tmp_path: Path) -> None:
         tmp_path,
         [_entry("codex", ".agents/skills/a/SKILL.md", "sha256:deadbeef", skill_name="a")],
     )
-    provider = ManagedSkillsProvider()
+    provider = _manifest_only_provider()
     instance = provider.expand(managed_skill_definition(), "codex", tmp_path)[0]
     status = provider.probe(instance)
     assert status.state == STATE_MISSING
@@ -194,7 +198,7 @@ def test_managed_skills_probe_detects_drift(tmp_path: Path) -> None:
         tmp_path,
         [_entry("codex", ".agents/skills/a/SKILL.md", h1, skill_name="a")],
     )
-    provider = ManagedSkillsProvider()
+    provider = _manifest_only_provider()
     instance = provider.expand(managed_skill_definition(), "codex", tmp_path)[0]
     drifted = replace(instance, file_hash="sha256:" + "00" * 32)
     status = provider.probe(drifted)
@@ -208,7 +212,7 @@ def test_managed_skills_repair_no_actionable_returns_clean(tmp_path: Path) -> No
         tmp_path,
         [_entry("codex", ".agents/skills/a/SKILL.md", h1, skill_name="a")],
     )
-    provider = ManagedSkillsProvider()
+    provider = _manifest_only_provider()
     instance = provider.expand(managed_skill_definition(), "codex", tmp_path)[0]
     present = provider.probe(instance)
     assert present.state == STATE_PRESENT
@@ -222,7 +226,7 @@ def test_managed_skills_repair_dry_run_does_not_install(tmp_path: Path) -> None:
         tmp_path,
         [_entry("codex", ".agents/skills/a/SKILL.md", "sha256:deadbeef", skill_name="a")],
     )
-    provider = ManagedSkillsProvider()
+    provider = _manifest_only_provider()
     instance = provider.expand(managed_skill_definition(), "codex", tmp_path)[0]
     missing = provider.probe(instance)
     assert missing.state == STATE_MISSING
@@ -309,10 +313,10 @@ class _StubInstaller:
 
 
 class _StubRegistry:
-    def __init__(self, skills: list[str]) -> None:
+    def __init__(self, skills: list[object]) -> None:
         self._skills = skills
 
-    def discover_skills(self) -> list[str]:
+    def discover_skills(self) -> list[object]:
         return self._skills
 
 
@@ -324,10 +328,11 @@ def test_managed_skills_repair_calls_installer(tmp_path: Path) -> None:
     )
     verifier = _StubVerifier(ok=False)
     installer = _StubInstaller(repaired=1, failed=0)
+    skill = _canonical_skill(tmp_path / "canonical")
     provider = ManagedSkillsProvider(
         verifier=verifier,
         installer=installer,
-        registry_factory=lambda: _StubRegistry(["a"]),
+        registry_factory=lambda: _StubRegistry([skill]),
     )
     instance = provider.expand(managed_skill_definition(), "codex", tmp_path)[0]
     missing = provider.probe(instance)
@@ -343,10 +348,11 @@ def test_managed_skills_repair_reports_installer_failures(tmp_path: Path) -> Non
         tmp_path,
         [_entry("codex", ".agents/skills/a/SKILL.md", "sha256:deadbeef", skill_name="a")],
     )
+    skill = _canonical_skill(tmp_path / "canonical")
     provider = ManagedSkillsProvider(
         verifier=_StubVerifier(ok=False),
         installer=_StubInstaller(repaired=0, failed=1),
-        registry_factory=lambda: _StubRegistry(["a"]),
+        registry_factory=lambda: _StubRegistry([skill]),
     )
     instance = provider.expand(managed_skill_definition(), "codex", tmp_path)[0]
     missing = provider.probe(instance)
@@ -361,10 +367,11 @@ def test_managed_skills_repair_skips_when_verifier_clean(tmp_path: Path) -> None
         [_entry("codex", ".agents/skills/a/SKILL.md", "sha256:deadbeef", skill_name="a")],
     )
     installer = _StubInstaller(repaired=0, failed=0)
+    skill = _canonical_skill(tmp_path / "canonical")
     provider = ManagedSkillsProvider(
         verifier=_StubVerifier(ok=True),
         installer=installer,
-        registry_factory=lambda: _StubRegistry(["a"]),
+        registry_factory=lambda: _StubRegistry([skill]),
     )
     instance = provider.expand(managed_skill_definition(), "codex", tmp_path)[0]
     missing = provider.probe(instance)

@@ -178,10 +178,13 @@ class ManagedSkillsProvider:
             if manifest is not None
             else []
         )
-        source_entries = (
-            manifest_entries if manifest_entries else self._expected_entries(tool_key)
+        entries_by_path = {
+            entry.installed_path: entry
+            for entry in self._expected_entries(tool_key)
+        }
+        entries_by_path.update(
+            {entry.installed_path: entry for entry in manifest_entries}
         )
-        entries_by_path = {entry.installed_path: entry for entry in source_entries}
         instances: list[SurfaceInstance] = []
         for entry in entries_by_path.values():
             abs_path = project_root / entry.installed_path
