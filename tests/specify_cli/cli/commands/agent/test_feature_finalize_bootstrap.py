@@ -456,17 +456,19 @@ def _setup_lane_based_feature(tmp_path: Path, mission_slug: str = "061-lane-feat
     tasks_dir.mkdir(parents=True)
 
     (feature_dir / "spec.md").write_text(
-        "---\ntitle: Lane Feature\n---\n\n## Requirements\n\n"
-        "- FR-001: First requirement\n- FR-002: Second requirement\n",
+        "---\ntitle: Lane Feature\n---\n\n## Requirements\n\n- FR-001: First requirement\n- FR-002: Second requirement\n",
         encoding="utf-8",
     )
     (feature_dir / "tasks.md").write_text(
         "# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nNo dependencies.\n",
         encoding="utf-8",
     )
-    (feature_dir / "meta.json").write_text(
-        json.dumps({"mission_slug": mission_slug}), encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_slug": mission_slug}), encoding="utf-8")
+
+    src_dir = tmp_path / "src"
+    src_dir.mkdir(parents=True)
+    (src_dir / "alpha.py").write_text("# alpha\n", encoding="utf-8")
+    (src_dir / "beta.py").write_text("# beta\n", encoding="utf-8")
 
     # Two independent WPs owning disjoint files → compute_lanes yields lanes.
     for wp_id, owned, refs in [
@@ -495,9 +497,7 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
 
         patches = _common_patches(tmp_path, mission_slug)
         patches[f"{MODULE}._find_feature_directory"] = MagicMock(return_value=feature_dir)
-        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
-            return_value=_make_bootstrap_result()
-        )
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
 
         from specify_cli.cli.commands.agent.mission import finalize_tasks
 
@@ -533,9 +533,7 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
 
         patches = _common_patches(tmp_path, mission_slug)
         patches[f"{MODULE}._find_feature_directory"] = MagicMock(return_value=feature_dir)
-        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
-            return_value=_make_bootstrap_result()
-        )
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
 
         from specify_cli.cli.commands.agent.mission import finalize_tasks
 
@@ -550,9 +548,7 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
             for p in ctx_patches.values():
                 p.stop()
 
-        assert not (feature_dir / "acceptance-matrix.json").exists(), (
-            "validate-only must not write the acceptance-matrix scaffold"
-        )
+        assert not (feature_dir / "acceptance-matrix.json").exists(), "validate-only must not write the acceptance-matrix scaffold"
 
     def test_explicit_frontmatter_dependencies_beat_tasks_md_parser(
         self,
@@ -602,9 +598,7 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
         mission_slug = "060-test-feature"
         feature_dir = _setup_feature(tmp_path, mission_slug)
         (feature_dir / "tasks.md").write_text(
-            "# Tasks\n\n"
-            "## WP01\n\n**Dependencies**: WP02\n\n"
-            "## WP02\n\n**Dependencies**: WP01\n",
+            "# Tasks\n\n## WP01\n\n**Dependencies**: WP02\n\n## WP02\n\n**Dependencies**: WP01\n",
             encoding="utf-8",
         )
 
@@ -1172,9 +1166,7 @@ def _write_overlap_feature(
         encoding="utf-8",
     )
     (feature_dir / "tasks.md").write_text(tasks_md, encoding="utf-8")
-    (feature_dir / "meta.json").write_text(
-        json.dumps({"mission_slug": mission_slug}), encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_slug": mission_slug}), encoding="utf-8")
     for wp_id, owned, surface, deps, scope in wps:
         lines = [
             "---",
@@ -1206,9 +1198,7 @@ def _run_finalize_validate_only(
     """Run finalize-tasks --validate-only with the REAL ownership validator."""
     patches = _common_patches(tmp_path, mission_slug)
     del patches[f"{MODULE}.validate_ownership"]  # exercise the real validator
-    patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
-        return_value=_make_bootstrap_result()
-    )
+    patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
     from specify_cli.cli.commands.agent.mission import finalize_tasks
 
     started = [patch(target, value) for target, value in patches.items()]
@@ -1234,9 +1224,7 @@ def _run_finalize_validate_only(
 class TestOwnershipOverlapAcceptance:
     """Overlap fails for narrow WPs regardless of lane/dependency structure."""
 
-    def test_independent_wps_overlap_fails(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_independent_wps_overlap_fails(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """Two independent (different-lane) narrow WPs on the same files fail."""
         _write_overlap_feature(
             tmp_path,
@@ -1253,9 +1241,7 @@ class TestOwnershipOverlapAcceptance:
         assert isinstance(errors, list)
         assert any("WP01" in e and "WP02" in e for e in errors)
 
-    def test_dependent_wps_overlap_still_fails(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_dependent_wps_overlap_still_fails(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """WP02→WP01 dependency (one lane) does NOT exempt narrow overlap."""
         _write_overlap_feature(
             tmp_path,
@@ -1267,14 +1253,9 @@ class TestOwnershipOverlapAcceptance:
         )
         results = _run_finalize_validate_only(tmp_path, capsys)
         failures = [r for r in results if r.get("error") == "Ownership validation failed"]
-        assert failures, (
-            "a dependency hierarchy must NOT exempt overlapping narrow WPs; "
-            f"got {results}"
-        )
+        assert failures, f"a dependency hierarchy must NOT exempt overlapping narrow WPs; got {results}"
 
-    def test_codebase_wide_is_the_only_exemption(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_codebase_wide_is_the_only_exemption(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """A codebase-wide WP overlapping a narrow WP passes (end-to-end #1753)."""
         # Create the literal-path file so the glob-match validator doesn't
         # raise a hard error for a non-existent path (FR-006 / WP04).
@@ -1291,9 +1272,5 @@ class TestOwnershipOverlapAcceptance:
             tasks_md="# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nDepends on WP01.\n",
         )
         results = _run_finalize_validate_only(tmp_path, capsys)
-        assert not [
-            r for r in results if r.get("error") == "Ownership validation failed"
-        ], f"codebase-wide WP must be exempt from overlap; got {results}"
-        assert any(
-            r.get("result") == "validation_passed" for r in results
-        ), f"expected validation_passed; got {results}"
+        assert not [r for r in results if r.get("error") == "Ownership validation failed"], f"codebase-wide WP must be exempt from overlap; got {results}"
+        assert any(r.get("result") == "validation_passed" for r in results), f"expected validation_passed; got {results}"

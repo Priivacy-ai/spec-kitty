@@ -70,7 +70,7 @@ This command creates research artifacts in your feature directory. You must be i
 
 **Correct the issue:**
 1. Navigate to your repository root checkout: `cd /path/to/project/root`
-2. Verify you're on the correct feature branch: `git branch --show-current`
+2. Verify you're on the correct feature branch<!-- glossary:glossary:feature-branch -->: `git branch --show-current`
 3. Then run this research command again
 
 ---

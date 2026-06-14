@@ -56,7 +56,7 @@ It is probably overkill for one-off edits, tiny scripts, or teams that do not us
 - Keep architecture decisions, constraints, and acceptance criteria close to the code.
 - Build a governed software factory that can scale toward more autonomy without hiding review, test, or merge decisions.
 
-## Governed Agent Workflow
+## Governance layer
 
 Spec Kitty keeps runtime governance in the repo instead of treating it as
 agent-only prompt text. The trail model in [docs/trail-model.md](docs/trail-model.md)

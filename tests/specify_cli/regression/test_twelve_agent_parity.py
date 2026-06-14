@@ -34,7 +34,7 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
-from specify_cli.skills.command_installer import CANONICAL_COMMANDS as COMMAND_SKILL_COMMANDS
+from specify_cli.skills.command_installer import PROMPT_BACKED_COMMANDS
 from specify_cli.template.asset_generator import render_command_template
 
 # ---------------------------------------------------------------------------
@@ -43,14 +43,7 @@ from specify_cli.template.asset_generator import render_command_template
 
 pytestmark = [pytest.mark.unit]
 
-TEMPLATES_DIR = (
-    Path(__file__).parent.parent.parent.parent
-    / "src"
-    / "doctrine"
-    / "missions"
-    / "mission-steps"
-    / "software-dev"
-)
+TEMPLATES_DIR = Path(__file__).parent.parent.parent.parent / "src" / "doctrine" / "missions" / "mission-steps" / "software-dev"
 
 BASELINE_DIR = Path(__file__).parent / "_twelve_agent_baseline"
 
@@ -58,8 +51,13 @@ BASELINE_DIR = Path(__file__).parent / "_twelve_agent_baseline"
 # Command-skill agents are absent: they use the Agent Skills pipeline.
 NON_MIGRATED_AGENTS: tuple[str, ...] = tuple(AGENT_COMMAND_CONFIG.keys())
 
-# Canonical command templates to test (one prompt.md source file per command).
-CANONICAL_COMMANDS: tuple[str, ...] = COMMAND_SKILL_COMMANDS
+# Canonical prompt-backed command templates to test (one prompt.md source file per command).
+#
+# ``command_installer.CANONICAL_COMMANDS`` also includes thin CLI-wrapper
+# Agent Skills such as ``dashboard``, ``merge``, and ``status``. Those do not
+# have software-dev prompt templates and are covered by command-skill tests,
+# not by this non-migrated command-file renderer regression.
+CANONICAL_COMMANDS: tuple[str, ...] = PROMPT_BACKED_COMMANDS
 
 # Fixed version for rendering (must match what was used when capturing the
 # baseline; see _twelve_agent_baseline/__init__.py).
@@ -131,11 +129,7 @@ def test_command_output_unchanged(agent: str, command: str) -> None:
         return
 
     if not snap.exists():
-        pytest.fail(
-            f"Baseline missing for {agent}/{command} at {snap}.\n"
-            f"Regenerate with: PYTEST_UPDATE_SNAPSHOTS=1 pytest "
-            f"tests/specify_cli/regression/ -v"
-        )
+        pytest.fail(f"Baseline missing for {agent}/{command} at {snap}.\nRegenerate with: PYTEST_UPDATE_SNAPSHOTS=1 pytest tests/specify_cli/regression/ -v")
 
     expected = snap.read_text(encoding="utf-8")
     assert produced == expected, (
@@ -174,27 +168,19 @@ def test_non_migrated_agents_count() -> None:
     agent alongside the 12 existing non-migrated agents. Command-skill agents remain
     absent (they use the Agent Skills pipeline — see AGENT_SKILL_CONFIG).
     """
-    assert len(NON_MIGRATED_AGENTS) == 13, (
-        f"Expected 13 non-migrated agents, got {len(NON_MIGRATED_AGENTS)}: "
-        f"{NON_MIGRATED_AGENTS}"
-    )
+    assert len(NON_MIGRATED_AGENTS) == 13, f"Expected 13 non-migrated agents, got {len(NON_MIGRATED_AGENTS)}: {NON_MIGRATED_AGENTS}"
 
 
 def test_codex_not_in_agent_command_config() -> None:
     """codex must NOT be in AGENT_COMMAND_CONFIG (migrated to Agent Skills)."""
     assert "codex" not in AGENT_COMMAND_CONFIG, (
-        "codex was found in AGENT_COMMAND_CONFIG. "
-        "Mission 083 migrated codex to the Agent Skills pipeline; "
-        "it must not appear in the command-file registry."
+        "codex was found in AGENT_COMMAND_CONFIG. Mission 083 migrated codex to the Agent Skills pipeline; it must not appear in the command-file registry."
     )
 
 
 def test_vibe_not_in_agent_command_config() -> None:
     """vibe must NOT be in AGENT_COMMAND_CONFIG (uses Agent Skills pipeline)."""
-    assert "vibe" not in AGENT_COMMAND_CONFIG, (
-        "vibe was found in AGENT_COMMAND_CONFIG. "
-        "Vibe uses the Agent Skills pipeline, not the command-file pipeline."
-    )
+    assert "vibe" not in AGENT_COMMAND_CONFIG, "vibe was found in AGENT_COMMAND_CONFIG. Vibe uses the Agent Skills pipeline, not the command-file pipeline."
 
 
 def test_pi_and_letta_not_in_agent_command_config() -> None:
@@ -208,22 +194,17 @@ def test_agent_baseline_directory_exists(agent: str) -> None:
     """Each non-migrated agent must have a baseline directory."""
     agent_dir = BASELINE_DIR / agent
     assert agent_dir.is_dir(), (
-        f"Baseline directory missing for agent '{agent}' at {agent_dir}.\n"
-        f"Regenerate with: PYTEST_UPDATE_SNAPSHOTS=1 pytest "
-        f"tests/specify_cli/regression/ -v"
+        f"Baseline directory missing for agent '{agent}' at {agent_dir}.\nRegenerate with: PYTEST_UPDATE_SNAPSHOTS=1 pytest tests/specify_cli/regression/ -v"
     )
 
 
 @pytest.mark.parametrize("agent", NON_MIGRATED_AGENTS)
 def test_agent_baseline_file_count(agent: str) -> None:
-    """Each agent baseline directory must contain exactly 11 command files."""
+    """Each agent baseline directory must contain one file per prompt-backed command."""
     agent_dir = BASELINE_DIR / agent
     if not agent_dir.is_dir():
         pytest.skip(f"Baseline dir missing for {agent}")
-    files = [
-        f for f in agent_dir.iterdir()
-        if f.is_file() and not f.name.startswith(".")
-    ]
+    files = [f for f in agent_dir.iterdir() if f.is_file() and not f.name.startswith(".")]
     assert len(files) == len(CANONICAL_COMMANDS), (
         f"Agent '{agent}' baseline has {len(files)} files, "
         f"expected {len(CANONICAL_COMMANDS)} (one per canonical command).\n"
@@ -242,7 +223,7 @@ def test_agent_outputs_contain_arg_placeholder(agent: str) -> None:
     config = AGENT_COMMAND_CONFIG[agent]
     expected_placeholder = config["arg_format"]
     # Only commands that forward user args will have the placeholder —
-    # check all 11 templates and verify at least one contains the placeholder.
+    # check every prompt-backed template and verify at least one contains it.
     found_any = False
     for command in CANONICAL_COMMANDS:
         snap = _baseline_path(agent, command)
