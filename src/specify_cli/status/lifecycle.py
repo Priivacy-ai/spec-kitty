@@ -280,6 +280,43 @@ def _classify_state(
     return ("recoverable", None, "Mission is recoverable history and not active enough for the default surface.")
 
 
+# States in which a mission counts as having *reached completion* — i.e. all
+# work packages are terminal. These are the classifier outputs that mean
+# "all-WPs-terminal" (see ``_classify_state``). ``merged_at`` in ``meta.json``
+# is treated as an independent completion signal alongside these (see
+# ``is_mission_completed``).
+_COMPLETED_LIFECYCLE_STATES = frozenset({"recently_completed", "archived"})
+
+
+def is_mission_completed(
+    feature_dir: Path,
+    *,
+    now: datetime | None = None,
+) -> bool:
+    """Return ``True`` iff the mission has reached completion (#1926).
+
+    Completion is the precondition for post-mission lifecycle facts
+    (``MissionReopened`` / ``FollowUpRecorded``): those events are only valid
+    once a mission has actually completed. A mission is completed when EITHER:
+
+    * ``merged_at`` is present in ``meta.json`` (an explicit merge marker), OR
+    * ``derive_mission_lifecycle`` classifies it as completed
+      (``recently_completed`` / ``archived`` — i.e. every WP is terminal).
+
+    Fail-closed: any state that is not provably completed returns ``False``.
+
+    Note the intentional self-correcting behaviour after a re-open: a
+    ``MissionReopened`` event clears ``merged_at`` and flips the derived state to
+    ``reopened`` (active), so this predicate returns ``False`` again — further
+    post-mission events are correctly blocked until the mission is *re-completed*
+    (re-merged or all WPs terminal once more).
+    """
+    if _last_merge_marker_at(feature_dir) is not None:
+        return True
+    lifecycle = derive_mission_lifecycle(feature_dir, now=now)
+    return lifecycle.state in _COMPLETED_LIFECYCLE_STATES
+
+
 def derive_mission_lifecycle(
     feature_dir: Path,
     *,

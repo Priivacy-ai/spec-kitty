@@ -11,6 +11,9 @@ These tests pin the binding contract in
   mission branch resolves in neither the local repo nor any configured remote):
   exit non-zero, no event, no metadata change (NFR-004);
 * a missing worktree directory ALONE is recoverable — NOT fail-closed;
+* fail-closed (#1926): a mission that has NOT reached completion (no merge
+  marker and no terminal WPs) cannot be re-opened — exit non-zero, no event,
+  no metadata change;
 * an ambiguous handle surfaces ``MISSION_AMBIGUOUS_SELECTOR`` (no silent slug guess).
 """
 
@@ -235,6 +238,107 @@ def test_reopen_recoverable_when_only_worktree_missing(
     assert len([e for e in events if e.get("event_type") == MISSION_REOPENED]) == 1
 
 
+def _make_uncompleted_mission(repo: Path) -> Path:
+    """A mission with no merge marker and only active (non-terminal) WPs.
+
+    Such a mission has NOT reached completion, so a re-open must be rejected
+    fail-closed (#1926).
+    """
+    slug = "wip-mission"
+    feature_dir = repo / "kitty-specs" / f"{slug}-{_MID8}"
+    feature_dir.mkdir(parents=True)
+    branch = f"kitty/mission-{slug}-{_MID8}-{_MID8}"
+    meta = {
+        "slug": f"{slug}-{_MID8}",
+        "mission_slug": f"{slug}-{_MID8}",
+        "friendly_name": "WIP Mission",
+        "mission_type": "software-dev",
+        "target_branch": "main",
+        "created_at": "2026-01-01T00:00:00+00:00",
+        "mission_id": _ULID,
+        "mid8": _MID8,
+        "mission_branch": branch,
+    }
+    (feature_dir / "meta.json").write_text(
+        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    # A WP still in progress — not terminal — so the mission is not completed.
+    log = feature_dir / "status.events.jsonl"
+    chain = [("genesis", "planned"), ("planned", "claimed"), ("claimed", "in_progress")]
+    lines = []
+    for idx, (frm, to) in enumerate(chain):
+        lines.append(
+            json.dumps(
+                {
+                    "event_id": f"01HXYZWIPEVENT0{idx:09d}",
+                    "mission_slug": f"{slug}-{_MID8}",
+                    "mission_id": _ULID,
+                    "wp_id": "WP01",
+                    "from_lane": frm,
+                    "to_lane": to,
+                    "at": f"2026-01-1{idx}T00:00:00+00:00",
+                    "actor": "claude",
+                    "force": frm == "genesis",
+                    "execution_mode": "worktree",
+                    "reason": None,
+                    "review_ref": None,
+                    "evidence": None,
+                }
+            )
+        )
+    log.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    _git(repo, "branch", branch)
+    return feature_dir
+
+
+def test_reopen_rejected_when_mission_not_completed(tmp_path: Path, monkeypatch) -> None:
+    # #1926: a re-open is only valid once a mission has reached completion. A WIP
+    # mission (no merge marker, active WPs) must be rejected fail-closed: non-zero
+    # exit, no MissionReopened event, and meta.json left untouched.
+    repo = _init_repo(tmp_path)
+    feature_dir = _make_uncompleted_mission(repo)
+    before_meta = (feature_dir / "meta.json").read_text(encoding="utf-8")
+    monkeypatch.chdir(repo)
+
+    result = _invoke(repo, "reopen", _MID8, "--reason", "premature")
+    assert result.exit_code != 0, result.output
+    # Rich may wrap the message across lines; match on a contiguous fragment.
+    assert "cannot re-open" in result.output
+
+    events = read_lifecycle_events(mission_event_log_path(feature_dir))
+    assert not [e for e in events if e.get("event_type") == MISSION_REOPENED]
+    after_meta = (feature_dir / "meta.json").read_text(encoding="utf-8")
+    assert before_meta == after_meta, "meta.json must be untouched on rejection"
+
+
+def test_second_reopen_blocked_until_recompletion(tmp_path: Path, monkeypatch) -> None:
+    # #1926 self-correcting invariant: after a re-open clears merged_* and flips
+    # the state to reopened/active, the mission is NOT completed again — so a
+    # second re-open (and any follow-up) is blocked until it is re-completed.
+    repo = _init_repo(tmp_path)
+    feature_dir = _make_merged_mission(repo)
+    monkeypatch.chdir(repo)
+
+    first = _invoke(repo, "reopen", _MID8, "--reason", "first reopen")
+    assert first.exit_code == 0, first.output
+
+    # State is now reopened/active and merged_at is cleared → not completed.
+    lifecycle = derive_mission_lifecycle(feature_dir, now=datetime(2026, 3, 1, tzinfo=UTC))
+    assert lifecycle.state == "reopened"
+
+    second = _invoke(repo, "reopen", _MID8, "--reason", "second reopen")
+    assert second.exit_code != 0, second.output
+    assert "cannot re-open" in second.output
+
+    follow = _invoke(repo, "follow-up", _MID8, "--pr", "99")
+    assert follow.exit_code != 0, follow.output
+    assert "cannot record follow-up" in follow.output
+
+    # Only the first re-open is recorded; the blocked attempts wrote nothing.
+    events = read_lifecycle_events(mission_event_log_path(feature_dir))
+    assert len([e for e in events if e.get("event_type") == MISSION_REOPENED]) == 1
+
+
 def test_format_post_mission_events_renders_reopen_and_follow_up(
     tmp_path: Path,
 ) -> None:
@@ -252,6 +356,28 @@ def test_format_post_mission_events_renders_reopen_and_follow_up(
 
     feature_dir = tmp_path / "kitty-specs" / f"demo-{_MID8}"
     feature_dir.mkdir(parents=True)
+    # The mission must be completed for the emit helpers to accept post-mission
+    # events (#1926): a merge marker satisfies the precondition.
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "slug": feature_dir.name,
+                "mission_slug": feature_dir.name,
+                "friendly_name": "Demo",
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "mission_id": _ULID,
+                "mid8": _MID8,
+                "merged_at": "2026-02-01T00:00:00+00:00",
+                "merged_into": "main",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
     emit_mission_reopened(
         feature_dir,

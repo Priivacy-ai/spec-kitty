@@ -971,7 +971,7 @@ def reopen_cmd(
         MissionSelectorAmbiguous,
     )
     from specify_cli.mission_metadata import clear_merge_metadata
-    from specify_cli.status import emit_mission_reopened
+    from specify_cli.status import emit_mission_reopened, is_mission_completed
 
     project_root = get_project_root_or_exit()
     repo_root = _resolve_primary_repo_root(project_root)
@@ -1002,6 +1002,19 @@ def reopen_cmd(
             "nor any configured remote.\n"
             "[dim]Remediation: fetch the branch (`git fetch <remote> "
             f"{mission_branch}`) or restore it before re-opening.[/dim]"
+        )
+        raise typer.Exit(1)
+
+    # Fail-closed precondition (#1926): a mission can only be re-opened once it
+    # has reached completion (merged, or all WPs terminal). Checked BEFORE any
+    # metadata mutation so a rejected re-open leaves meta.json untouched and
+    # writes no event. The emit helper enforces the same invariant defensively.
+    if not is_mission_completed(resolved.feature_dir):
+        console.print(
+            "[red]Error:[/red] cannot re-open: mission "
+            f"[bold]{resolved.mission_slug}[/bold] has not completed/merged.\n"
+            "[dim]Remediation: a mission can only be re-opened after it has "
+            "merged or all its work packages are terminal.[/dim]"
         )
         raise typer.Exit(1)
 
@@ -1065,8 +1078,10 @@ def follow_up_cmd(
 
     Exactly one of ``--commit <40-hex>`` / ``--pr <int>`` must be supplied.
     Appends a ``FollowUpRecorded`` lifecycle event attributed to ``mission_id``.
-    Allowed in ANY mission state (passive post-merge follow-ups are valid) and
-    idempotent on its dedup key ``(mission_id, commit_sha | pr_number)`` —
+    Fail-closed (#1926): only valid once the mission has reached completion
+    (merged, or all WPs terminal) — a follow-up against a not-yet-completed
+    mission exits non-zero with a structured error and writes no event.
+    Idempotent on its dedup key ``(mission_id, commit_sha | pr_number)`` —
     re-recording the same reference is a successful no-op.
     """
     import re  # noqa: PLC0415
@@ -1074,7 +1089,7 @@ def follow_up_cmd(
     from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
         MissionSelectorAmbiguous,
     )
-    from specify_cli.status import emit_follow_up_recorded
+    from specify_cli.status import emit_follow_up_recorded, is_mission_completed
 
     # Validate: exactly one of --commit / --pr.
     if (commit is None) == (pr is None):
@@ -1104,6 +1119,19 @@ def follow_up_cmd(
             "[red]Error:[/red] mission has no resolvable mission_id for handle "
             f"[bold]{handle}[/bold].\n"
             "[dim]Remediation: run `spec-kitty migrate backfill-identity`.[/dim]"
+        )
+        raise typer.Exit(1)
+
+    # Fail-closed precondition (#1926): a follow-up is a post-mission fact and is
+    # only valid once the mission has reached completion (merged, or all WPs
+    # terminal). Checked before emitting so a rejected follow-up writes no event.
+    # The emit helper enforces the same invariant defensively.
+    if not is_mission_completed(resolved.feature_dir):
+        console.print(
+            "[red]Error:[/red] cannot record follow-up: mission "
+            f"[bold]{resolved.mission_slug}[/bold] has not completed/merged.\n"
+            "[dim]Remediation: follow-ups can only be recorded after a mission "
+            "has merged or all its work packages are terminal.[/dim]"
         )
         raise typer.Exit(1)
 

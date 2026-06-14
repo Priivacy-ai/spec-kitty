@@ -5,7 +5,9 @@ Pins the binding contract:
 * exactly one of ``--commit <40-hex>`` / ``--pr <int>`` (validated);
 * appends a ``FollowUpRecorded`` event attributed to ``mission_id``;
 * idempotent: re-recording the same reference is a no-op (no duplicate event);
-* allowed in ANY mission state (passive post-merge follow-ups are valid);
+* fail-closed (#1926): a follow-up is a post-mission fact — only valid once the
+  mission has reached completion (merged, or all WPs terminal). A follow-up
+  against a not-yet-completed mission exits non-zero and writes no event;
 * ambiguous handle → ``MISSION_AMBIGUOUS_SELECTOR``.
 """
 
@@ -56,7 +58,20 @@ def _init_repo(tmp_path: Path) -> Path:
     return repo
 
 
-def _make_mission(repo: Path, *, slug: str = "demo-mission", mission_id: str = _ULID) -> Path:
+def _make_mission(
+    repo: Path,
+    *,
+    slug: str = "demo-mission",
+    mission_id: str = _ULID,
+    completed: bool = True,
+) -> Path:
+    """Create a mission fixture.
+
+    When ``completed`` is True the mission carries a ``merged_at`` marker so it
+    satisfies the #1926 completion precondition for follow-ups. When False the
+    mission has neither a merge marker nor any terminal WP — it has *not*
+    completed — so a follow-up must be rejected fail-closed.
+    """
     feature_dir = repo / "kitty-specs" / f"{slug}-{_MID8}"
     feature_dir.mkdir(parents=True)
     meta = {
@@ -69,6 +84,9 @@ def _make_mission(repo: Path, *, slug: str = "demo-mission", mission_id: str = _
         "mission_id": mission_id,
         "mid8": _MID8,
     }
+    if completed:
+        meta["merged_at"] = "2026-02-01T00:00:00+00:00"
+        meta["merged_into"] = "main"
     (feature_dir / "meta.json").write_text(
         json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
@@ -146,15 +164,19 @@ def test_follow_up_rejects_malformed_commit(tmp_path: Path, monkeypatch) -> None
     assert result.exit_code != 0
 
 
-def test_follow_up_allowed_in_any_state(tmp_path: Path, monkeypatch) -> None:
-    # No status.events.jsonl at all (a freshly-created mission) — follow-up still allowed.
+def test_follow_up_rejected_when_mission_not_completed(tmp_path: Path, monkeypatch) -> None:
+    # #1926: a follow-up is a post-mission fact. A not-yet-completed mission (no
+    # merge marker, no terminal WPs, no status.events.jsonl) must be rejected
+    # fail-closed: non-zero exit, no event written.
     repo = _init_repo(tmp_path)
-    feature_dir = _make_mission(repo)
+    feature_dir = _make_mission(repo, completed=False)
     monkeypatch.chdir(repo)
 
     result = _invoke(repo, "follow-up", _MID8, "--pr", "7")
-    assert result.exit_code == 0, result.output
-    assert len(_follow_ups(feature_dir)) == 1
+    assert result.exit_code != 0, result.output
+    # Rich may wrap the message across lines; match on a contiguous fragment.
+    assert "cannot record follow-up" in result.output
+    assert len(_follow_ups(feature_dir)) == 0, "no event must be written on rejection"
 
 
 def test_follow_up_ambiguous_handle_emits_structured_error(tmp_path: Path, monkeypatch) -> None:
