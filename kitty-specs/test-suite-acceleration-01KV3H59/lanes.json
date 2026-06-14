@@ -2,7 +2,7 @@
   "version": 1,
   "mission_slug": "test-suite-acceleration-01KV3H59",
   "mission_id": "01KV3H590RHSQHF8XV843X5YHA",
-  "mission_branch": "kitty/mission-test-suite-acceleration-01KV3H59-01KV3H59",
+  "mission_branch": "kitty/mission-test-suite-acceleration-01KV3H59",
   "target_branch": "feat/test-suite-acceleration",
   "lanes": [
     {

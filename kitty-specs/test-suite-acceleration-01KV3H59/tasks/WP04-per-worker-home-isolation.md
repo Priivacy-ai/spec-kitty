@@ -9,7 +9,7 @@ planning_base_branch: feat/test-suite-acceleration
 merge_target_branch: feat/test-suite-acceleration
 branch_strategy: Planning artifacts for this mission were generated on feat/test-suite-acceleration. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/test-suite-acceleration unless the human explicitly redirects the landing branch.
 base_branch: kitty/mission-test-suite-acceleration-01KV3H59-01KV3H59
-base_commit: unknown
+base_commit: 3aaf618fd051440a2dab99582995d25d346a39d9
 created_at: '2026-06-14T17:29:41.753317+00:00'
 subtasks:
 - T013
