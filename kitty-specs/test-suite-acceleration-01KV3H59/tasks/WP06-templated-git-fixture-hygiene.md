@@ -17,6 +17,7 @@ subtasks:
 - T027
 phase: Phase 4 - Structural
 agent: claude
+shell_pid: '2425'
 history:
 - at: '2026-06-14T17:10:00Z'
   actor: system
