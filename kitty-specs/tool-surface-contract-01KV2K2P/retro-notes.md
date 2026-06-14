@@ -34,6 +34,11 @@ Running log of process/tooling observations during the implement-review loop, to
 
 - **Two `SurfaceFinding` classes (WP03).** WP01's `tool_surface/model.py::SurfaceFinding` (fields `…surface_kind…detail`) diverges from the JSON-schema-canonical `tool_surface/findings.py::SurfaceFinding` (fields `code/severity/message/tool_key/surface_id/path/repair_command/docs_ref/details`) that WP03 added. WP01's version now has ZERO production importers. WP03 correctly avoided mutating the frozen WP01 file, but this leaves a same-name duplicate in the package. → Follow-up cleanup (likely WP07 legacy refactor or a post-merge task): retire/rename `model.SurfaceFinding` so there is one canonical type. Confirmed acceptable for WP03 by review.
 
+## Post-merge mission review
+
+- **Verdict: PASS (releasable).** 18/18 FRs covered (live code + tests), 7 providers wired + schema-conformant, FR-016/C-006 prohibition enforced by negative-assertion tests, backward-compat baselines frozen, issue-matrix all terminal, terminology canon clean. 222 tool_surface tests + agent-config/migration suites green; ruff + mypy clean.
+- **New minor finding (LOW, follow-up only):** `providers/managed_skills.py` (~line 202) returns `STATE_PRESENT` for a managed skill file that exists but is UNREADABLE — `_content_hash` returns `None` on `OSError`, which skips the drift check rather than reporting a read-error finding. Benign (the failure is bounded to hash comparison, not error masking), but a truly unreadable-but-present surface would report `present` instead of surfacing the read problem. → Follow-up only if read-permission edge cases matter operationally.
+
 ## Tooling / Environment
 
 - **Pyright false positives on lane-worktree files (WP01).** After WP01 implementation, the IDE surfaced `reportMissingImports` diagnostics (e.g. `Import ".enums" could not be resolved`) for files under `src/specify_cli/tool_surface/`. These are FALSE POSITIVES: the new files live on the lane worktree branch (`.worktrees/tool-surface-contract-01KV2K2P-lane-a`), not in the main checkout the IDE indexes, so Pyright cannot resolve the intra-package imports. The implementing subagent confirmed `mypy --strict` passed cleanly (0 issues, 7 files) inside the worktree. Action: ignore IDE import diagnostics for in-flight lane work; trust the worktree-local mypy/ruff/pytest run.
