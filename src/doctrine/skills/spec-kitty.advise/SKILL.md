@@ -131,7 +131,7 @@ spec-kitty invocations list --limit 10 --json
 | Before any governed work — canonical form | `spec-kitty dispatch "<request>" --json` |
 | Before implementing — profile known | `spec-kitty dispatch "<request>" --profile <profile>` or alias `spec-kitty ask <profile> "implement <mission>"` |
 | Before implementing — profile unknown | `spec-kitty dispatch "<request>"` or alias `spec-kitty do "implement <mission>"` |
-| Advisory context only (no implementation) | `spec-kitty dispatch "<request>" --mode advisory` or alias `spec-kitty advise "<request>"` |
+| Advisory context only (no implementation) | `spec-kitty advise "<request>"` (advisory mode comes from the `advise` entry verb — `dispatch` is always task_execution) |
 | After completing work | `spec-kitty profile-invocation complete --invocation-id <id> --outcome <done\|failed\|abandoned>` |
 | Audit what ran recently | `spec-kitty invocations list --json` |
 | Find orphaned (open) Ops | `spec-kitty doctor ops` |

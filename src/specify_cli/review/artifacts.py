@@ -126,6 +126,14 @@ class ReviewCycleArtifact:
             "verdict": self.verdict,
             "wp_id": self.wp_id,
         }
+        # Round-trip the approval-override block when present so a
+        # ``from_file``→``write`` cycle does not silently drop the override that
+        # the approval gate stamped onto a rejected artifact (#1924). Keys are
+        # emitted only when set, leaving non-overridden artifacts byte-identical.
+        if self.override_actor is not None:
+            d["review_artifact_override_actor"] = self.override_actor
+        if self.override_reason is not None:
+            d["review_artifact_override_reason"] = self.override_reason
         return d
 
     @classmethod

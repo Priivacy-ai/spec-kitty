@@ -92,6 +92,35 @@ def test_write_and_from_file_round_trip(tmp_path: Path) -> None:
     assert restored.affected_files[0].line_range == artifact.affected_files[0].line_range
 
 
+def test_write_and_from_file_preserves_complete_override(tmp_path: Path) -> None:
+    """A write()→from_file() cycle must not drop the approval override (#1924).
+
+    The override block is what the approval gate stamps onto a rejected latest
+    so the terminal-lane consistency gate honors it; if to_dict() dropped it, a
+    round-trip would silently reintroduce #1924-style merge gating.
+    """
+    artifact = _sample_artifact(
+        override_actor="operator",
+        override_reason="Arbiter approved despite the rejected latest cycle.",
+    )
+    assert artifact.has_complete_override is True
+
+    dest = tmp_path / "review-cycle-1.md"
+    artifact.write(dest)
+    restored = ReviewCycleArtifact.from_file(dest)
+
+    assert restored.has_complete_override is True
+    assert restored.override_actor == artifact.override_actor
+    assert restored.override_reason == artifact.override_reason
+
+
+def test_to_dict_omits_override_keys_when_absent() -> None:
+    """Artifacts with no override emit no override keys (byte-identical output)."""
+    d = _sample_artifact().to_dict()
+    assert "review_artifact_override_actor" not in d
+    assert "review_artifact_override_reason" not in d
+
+
 # ---------------------------------------------------------------------------
 # T3: next_cycle_number() on empty dir → 1
 # ---------------------------------------------------------------------------
