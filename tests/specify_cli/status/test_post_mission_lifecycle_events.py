@@ -505,7 +505,9 @@ def test_renderer_skips_non_dict_and_non_dict_payload_entries() -> None:
     # are the unit under test, so we deliberately feed off-contract shapes.
     malformed: list[Any] = [
         "not-a-dict",
+        # canonical-event-exempt(exception-flow): off-contract shape feeds views.py isinstance guards; no *Payload model can represent a non-dict-payload entry
         {"event_type": "UnrelatedEvent", "payload": {}},
+        # canonical-event-exempt(exception-flow): payload=None is a malformed shape the canonical emit path never produces; exercises the views.py coerce guard
         {
             "event_type": MISSION_REOPENED,
             "timestamp": "2026-05-05T10:00:00+00:00",
@@ -576,6 +578,7 @@ def test_latest_event_time_falls_back_to_envelope_timestamp() -> None:
     # reopened_at nor recorded_at, the envelope ``timestamp`` is used.
     from specify_cli.status.lifecycle import _latest_event_time
 
+    # canonical-event-exempt(exception-flow): payload omits reopened_at (the emit path always sets it) to force the envelope-timestamp fallback in lifecycle
     event = {
         "event_type": MISSION_REOPENED,
         "timestamp": "2026-05-07T10:00:00+00:00",

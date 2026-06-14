@@ -34,19 +34,38 @@
 # - scripts/benchmarks/bench_queue_enqueue.py — micro-bench harness;
 #   not a real producer. Tracked under #1200.
 #
-# - tests/specify_cli/status/test_post_mission_lifecycle_events.py —
-#   VIEW-renderer / classifier defensive-branch fixtures, NOT event
-#   producers. The hand-rolled dicts deliberately model shapes the
-#   canonical emit path can never produce: a payload missing
-#   reopened_at/recorded_at (forces the envelope-timestamp fallback in
-#   lifecycle._latest_event_time) and a non-dict payload (the views.py
-#   coerce-to-{} guard). A spec_kitty_events.*Payload model cannot
-#   represent these legacy/malformed shapes, so a raw fixture is the
-#   correct unit-under-test input. Tracked under #1200.
+# TEST-FIXTURE DISCIPLINE (issue #1927)
+# -------------------------------------
+# Tests are now held to the same canonical-producer discipline as
+# production. A test that hand-rolls an event must EITHER be refactored to
+# build it via the canonical emit/model path (emit_* + read_* round-trip),
+# OR carry an inline category-backed annotation that the AST lint
+# recognizes:
+#
+#     # canonical-event-exempt(comparison): <reason>
+#     # canonical-event-exempt(exception-flow): <reason>
+#
+# placed on the violating line or the line immediately above. ``comparison``
+# = a test whose scope is asserting a creation function's output equals an
+# expected hand-rolled dict; ``exception-flow`` = a test feeding a
+# deliberately malformed / legacy / off-contract shape into a defensive
+# branch that no *Payload model can represent. A missing/unknown category or
+# empty reason fails the lint with CP901. Un-annotated hand-rolled event
+# creation in a test is a violation (CP001/CP002).
+#
+# Migration goal: shrink this opaque line-baseline toward zero by replacing
+# entries with in-code annotations (auditable + self-documenting) or
+# canonical-path refactors. The entries below are the residual not yet
+# migrated this op; see #1927 for the per-file triage.
+#
+# Already migrated off the baseline:
+# - tests/specify_cli/status/test_post_mission_lifecycle_events.py — the two
+#   defensive-branch fixtures (views.py coerce guard + _latest_event_time
+#   envelope-timestamp fallback) now carry canonical-event-exempt(
+#   exception-flow) annotations.
 scripts/benchmarks/bench_queue_enqueue.py::CP001
 tests/audit/test_audit_classifiers.py::CP001
 tests/contract/test_handoff_fixtures.py::CP001
-tests/dossier/test_events.py::CP001
 tests/e2e/test_mission_create_clean_output.py::CP001
 tests/integration/test_offline_queue_overflow.py::CP001
 tests/integration/test_offline_queue_overflow.py::CP002
@@ -58,10 +77,7 @@ tests/migration/test_teamspace_migration_rehearsal.py::CP001
 tests/retrospective/test_gate_decision.py::CP002
 tests/specify_cli/audit/test_detectors_row_family.py::CP001
 tests/specify_cli/core/test_contract_gate.py::CP002
-tests/specify_cli/status/test_post_mission_lifecycle_events.py::CP001
 tests/status/test_lifecycle_events.py::CP001
-tests/status/test_read_events_tolerates_decision_events.py::CP001
-tests/status/test_read_events_tolerates_decision_events.py::CP002
 tests/sync/test_background.py::CP001
 tests/sync/test_batch_error_surfacing.py::CP001
 tests/sync/test_batch_retry_hygiene.py::CP001

@@ -288,6 +288,110 @@ def test_lint_dangling_malformed_exemption_fires_cp900(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Category-backed test-fixture exemption (canonical-event-exempt, #1927)        #
+# --------------------------------------------------------------------------- #
+
+
+def test_event_exempt_comparison_zero_findings(tmp_path: Path) -> None:
+    findings = _lint_source(
+        tmp_path,
+        """
+        def test_thing():
+            # canonical-event-exempt(comparison): asserts emit output equals this expected dict
+            expected = {"event_type": "WPApproved", "payload": {"wp_id": "WP01"}}
+            assert expected == expected
+        """,
+    )
+    assert findings == []
+
+
+def test_event_exempt_exception_flow_zero_findings(tmp_path: Path) -> None:
+    findings = _lint_source(
+        tmp_path,
+        """
+        def test_thing():
+            # canonical-event-exempt(exception-flow): malformed shape feeds the defensive guard
+            malformed = {"event_type": "X", "payload": None}
+            return malformed
+        """,
+    )
+    assert findings == []
+
+
+def test_event_exempt_above_literal_zero_findings(tmp_path: Path) -> None:
+    findings = _lint_source(
+        tmp_path,
+        """
+        def test_thing():
+            # canonical-event-exempt(exception-flow): legacy shape
+            x = {
+                "event_type": "X",
+                "payload": {"k": "v"},
+            }
+            return x
+        """,
+    )
+    assert findings == []
+
+
+def test_event_exempt_unknown_category_fires_cp901(tmp_path: Path) -> None:
+    findings = _lint_source(
+        tmp_path,
+        """
+        def test_thing():
+            # canonical-event-exempt(typo): not a real category
+            x = {"event_type": "X", "payload": {"k": "v"}}
+            return x
+        """,
+    )
+    codes = [f.code for f in findings]
+    # CP901 fires (bad category); the underlying CP001 is suppressed so the
+    # operator's attention is redirected to the malformed annotation.
+    assert "CP901" in codes
+    assert "CP001" not in codes
+
+
+def test_event_exempt_empty_reason_fires_cp901(tmp_path: Path) -> None:
+    findings = _lint_source(
+        tmp_path,
+        """
+        def test_thing():
+            # canonical-event-exempt(comparison):
+            x = {"event_type": "X", "payload": {"k": "v"}}
+            return x
+        """,
+    )
+    assert "CP901" in [f.code for f in findings]
+
+
+def test_event_exempt_dangling_malformed_fires_cp901(tmp_path: Path) -> None:
+    findings = _lint_source(
+        tmp_path,
+        """
+        # canonical-event-exempt(typo): dangling, attaches to nothing
+        x = 1
+        """,
+    )
+    assert "CP901" in [f.code for f in findings]
+
+
+def test_event_exempt_covers_cp002_return(tmp_path: Path) -> None:
+    # A dict[str, Any]-returning helper that builds an event-shaped dict (CP002)
+    # is also silenced by a single canonical-event-exempt on the return literal.
+    findings = _lint_source(
+        tmp_path,
+        """
+        from typing import Any
+
+        def _make() -> dict[str, Any]:
+            # canonical-event-exempt(exception-flow): legacy wire shape under test
+            return {"event_type": "X", "payload": {"k": "v"}}
+        """,
+    )
+    assert findings == []
+
+
+# --------------------------------------------------------------------------- #
 # CLI / exit code                                                              #
 # --------------------------------------------------------------------------- #
 

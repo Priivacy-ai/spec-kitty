@@ -30,17 +30,58 @@ CP003  `payload=` keyword argument in a call to any identifier matching
 
 CP900  Exemption comment present but tracker reference missing or malformed.
 
-Exemption mechanism
--------------------
+CP901  ``canonical-event-exempt`` comment present but the category is missing
+       / not one of the allowed categories, or the reason is empty.
 
-Each violation can be silenced with an inline comment of the form:
+Exemption mechanisms
+--------------------
 
-    # canonical-producer-exempt: <tracker-ref> -- <one-line reason>
+There are two ways to silence a violation. Pick the one that matches *why*
+the hand-rolled shape is legitimate.
 
-placed on the violating line OR on the line immediately above it. The
-tracker reference is enforced by regex (default: `(<repo>)?#\\d+`) so every
-exemption is auditable and has a path to closure. Missing or malformed
-tracker still fails the lint (with CP900).
+1. Production wire-envelope sites (tracker-backed)
+   ------------------------------------------------
+
+   For documented local-only wire-envelope assembly in production code, use
+   an inline comment of the form:
+
+       # canonical-producer-exempt: <tracker-ref> -- <one-line reason>
+
+   placed on the violating line OR on the line immediately above it. The
+   tracker reference is enforced by regex (default: `(<repo>)?#\\d+`) so every
+   exemption is auditable and has a path to closure. Missing or malformed
+   tracker still fails the lint (with CP900).
+
+2. Legitimate test fixtures (category-backed)
+   -------------------------------------------
+
+   A *test* that hand-rolls an event must EITHER be refactored to build the
+   event via the canonical emit/model path (``emit_*`` + ``read_*`` round
+   trip), OR be explicitly annotated as one of two legitimate categories:
+
+       # canonical-event-exempt(comparison): <reason>
+       # canonical-event-exempt(exception-flow): <reason>
+
+   placed on the violating line OR on the line immediately above it.
+
+   * ``comparison``     -- the test's scope is specifically to compare a
+                           creation function's output against an expected
+                           hand-rolled dict (``assert emit_*(...) == {...}``).
+                           The expected dict MUST be hand-rolled or the test
+                           would be tautological.
+   * ``exception-flow`` -- the test feeds a deliberately non-canonical /
+                           malformed / legacy event shape into a defensive or
+                           exception code path. A ``spec_kitty_events.*Payload``
+                           model cannot represent the shape (that's the point),
+                           so a raw fixture is the correct unit-under-test
+                           input.
+
+   The category is required and must be one of the two above; the reason is
+   required and is surfaced in lint output so reviewers see WHY. A missing /
+   unknown category or empty reason fails the lint with CP901.
+
+   Un-annotated hand-rolled event creation in a test is a violation: either
+   refactor it to the canonical path or annotate it with the right category.
 
 Usage
 -----
@@ -127,6 +168,13 @@ _TRACKER_REF_PATTERN: re.Pattern[str] = re.compile(
 
 _EXEMPT_PREFIX = "canonical-producer-exempt:"
 
+# Category-backed exemption for legitimate test fixtures.
+#   # canonical-event-exempt(<category>): <reason>
+_EVENT_EXEMPT_PATTERN: re.Pattern[str] = re.compile(
+    r"^canonical-event-exempt\((?P<category>[^)]*)\)\s*:\s*(?P<reason>.*)$"
+)
+_EVENT_EXEMPT_CATEGORIES: frozenset[str] = frozenset({"comparison", "exception-flow"})
+
 
 # --------------------------------------------------------------------------- #
 # Data structures                                                              #
@@ -155,6 +203,26 @@ class ExemptionToken:
     line: int  # line number where the comment appears
     tracker_ref: str | None  # parsed tracker reference (None if malformed)
     raw: str  # raw comment text (for diagnostics)
+
+
+@dataclass(frozen=True)
+class EventExemptionToken:
+    """A parsed ``canonical-event-exempt(<category>): <reason>`` comment.
+
+    Used by *test* fixtures that legitimately hand-roll an event. ``category``
+    is ``None`` when missing / not one of the allowed categories, and
+    ``reason`` is ``None`` when empty -- either condition is malformed and
+    surfaces as CP901.
+    """
+
+    line: int  # line number where the comment appears
+    category: str | None  # comparison | exception-flow (None if malformed)
+    reason: str | None  # one-line reason (None if empty/missing)
+    raw: str  # raw comment text (for diagnostics)
+
+    @property
+    def is_valid(self) -> bool:
+        return self.category is not None and self.reason is not None
 
 
 # --------------------------------------------------------------------------- #
@@ -210,6 +278,49 @@ def _is_exempt(node_line: int, exemptions: dict[int, ExemptionToken]) -> Exempti
 
     An exemption applies if its comment is on the same line as the finding
     or on the line immediately above.
+    """
+    for candidate_line in (node_line, node_line - 1):
+        if candidate_line in exemptions:
+            return exemptions[candidate_line]
+    return None
+
+
+def _parse_event_exemptions(source: str) -> dict[int, EventExemptionToken]:
+    """Parse all ``canonical-event-exempt(<category>): <reason>`` comments.
+
+    Returns a mapping from comment line number to the parsed exemption.
+    """
+    exemptions: dict[int, EventExemptionToken] = {}
+    try:
+        tokens = tokenize.generate_tokens(io.StringIO(source).readline)
+        for tok in tokens:
+            if tok.type != tokenize.COMMENT:
+                continue
+            text = tok.string.lstrip("#").strip()
+            match = _EVENT_EXEMPT_PATTERN.match(text)
+            if match is None:
+                continue
+            raw_category = match.group("category").strip()
+            reason = match.group("reason").strip()
+            category = raw_category if raw_category in _EVENT_EXEMPT_CATEGORIES else None
+            exemptions[tok.start[0]] = EventExemptionToken(
+                line=tok.start[0],
+                category=category,
+                reason=reason or None,
+                raw=tok.string,
+            )
+    except tokenize.TokenizeError:
+        return {}
+    return exemptions
+
+
+def _event_exempt_for(
+    node_line: int, exemptions: dict[int, EventExemptionToken]
+) -> EventExemptionToken | None:
+    """Return the event-exemption applicable to a finding at `node_line`.
+
+    Applies if the comment is on the same line as the finding or the line
+    immediately above.
     """
     for candidate_line in (node_line, node_line - 1):
         if candidate_line in exemptions:
@@ -312,14 +423,23 @@ class _ParentTagger(ast.NodeTransformer):
 
 
 class _CanonicalProducerVisitor(ast.NodeVisitor):
-    def __init__(self, path: Path, exemptions: dict[int, ExemptionToken]) -> None:
+    def __init__(
+        self,
+        path: Path,
+        exemptions: dict[int, ExemptionToken],
+        event_exemptions: dict[int, EventExemptionToken] | None = None,
+    ) -> None:
         self.path = path
         self.exemptions = exemptions
+        self.event_exemptions = event_exemptions or {}
         self.findings: list[Finding] = []
         # Track which exemption-comment lines have been "consumed" by a
         # finding-or-suppression decision so we can detect unused/invalid
         # exemptions and emit CP900.
         self._exemption_decisions: dict[int, bool] = {}
+        # Track which event-exemption comment lines were consumed so a dangling
+        # malformed canonical-event-exempt surfaces as CP901 in finalize().
+        self._event_exemption_decisions: dict[int, bool] = {}
 
     # ------------------------------------------------------------------ CP001
     def visit_Dict(self, node: ast.Dict) -> None:
@@ -403,6 +523,32 @@ class _CanonicalProducerVisitor(ast.NodeVisitor):
 
     # ------------------------------------------------------------------ shared
     def _maybe_report(self, *, line: int, col: int, code: str, message: str) -> None:
+        # Category-backed test-fixture exemption takes precedence: a test that
+        # legitimately hand-rolls an event annotates it as comparison /
+        # exception-flow. A malformed annotation surfaces CP901 instead.
+        event_exempt = _event_exempt_for(line, self.event_exemptions)
+        if event_exempt is not None:
+            self._event_exemption_decisions[event_exempt.line] = True
+            if event_exempt.is_valid:
+                # Legitimate, categorized fixture -- suppressed (reason is
+                # surfaced via the comment itself; nothing to report).
+                return
+            self.findings.append(
+                Finding(
+                    path=self.path,
+                    line=event_exempt.line,
+                    col=0,
+                    code="CP901",
+                    message=(
+                        "canonical-event-exempt has a missing/unknown category "
+                        "or empty reason -- required form: "
+                        "'# canonical-event-exempt(comparison|exception-flow): "
+                        "<reason>'"
+                    ),
+                )
+            )
+            return
+
         exempt = _is_exempt(line, self.exemptions)
         if exempt is None:
             self.findings.append(
@@ -444,6 +590,25 @@ class _CanonicalProducerVisitor(ast.NodeVisitor):
                             "exemption comment is missing or has a malformed "
                             "tracker reference (and does not attach to any "
                             "violation) -- remove it or fix the tracker ref"
+                        ),
+                    )
+                )
+        # CP901: a malformed canonical-event-exempt that did NOT attach to any
+        # violation is still flagged so dead/broken annotations don't pile up.
+        for line, event_exempt in self.event_exemptions.items():
+            if not event_exempt.is_valid and line not in self._event_exemption_decisions:
+                self.findings.append(
+                    Finding(
+                        path=self.path,
+                        line=line,
+                        col=0,
+                        code="CP901",
+                        message=(
+                            "canonical-event-exempt has a missing/unknown "
+                            "category or empty reason (and does not attach to "
+                            "any violation) -- remove it or fix the annotation: "
+                            "'# canonical-event-exempt(comparison|exception-flow)"
+                            ": <reason>'"
                         ),
                     )
                 )
@@ -496,7 +661,10 @@ def _lint_one_file(path: Path) -> list[Finding]:
         return []
     _ParentTagger().visit(tree)
     exemptions = _parse_exemptions(source)
-    visitor = _CanonicalProducerVisitor(path=path, exemptions=exemptions)
+    event_exemptions = _parse_event_exemptions(source)
+    visitor = _CanonicalProducerVisitor(
+        path=path, exemptions=exemptions, event_exemptions=event_exemptions
+    )
     visitor.visit(tree)
     visitor.finalize()
     return visitor.findings

@@ -65,6 +65,7 @@ def captured_emissions(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
 
     def _fake(event_type: str, aggregate_id: str, aggregate_type: str, payload: dict[str, Any]) -> dict[str, Any]:
         captured.append(
+            # canonical-event-exempt(comparison): test double records the exact args the producer passed to fire_dossier_event so the test asserts on output
             {
                 "event_type": event_type,
                 "aggregate_id": aggregate_id,
