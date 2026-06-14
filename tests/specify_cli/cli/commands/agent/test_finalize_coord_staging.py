@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.cli.commands.agent.mission import (
+    _branch_tree_relative_path,
     _stage_finalize_artifacts_in_coord_worktree,
 )
 from specify_cli.status import COORD_OWNED_STATUS_FILES
@@ -76,12 +77,64 @@ def test_staging_copies_only_existing_non_status_artifacts(tmp_path: Path) -> No
     assert not (coord_wt / "kitty-specs" / "060-test" / "acceptance-matrix.json").exists()
 
 
-def test_staging_skips_artifacts_already_under_worktrees(tmp_path: Path) -> None:
-    """FR-035: coord-resolved sources must not create nested .worktrees paths."""
+def test_branch_tree_relative_path_strips_target_worktree_prefix(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    coord_wt = repo_root / ".worktrees" / "060-test-01KT3YBD-coord"
+    plan_file = _write(
+        coord_wt / "kitty-specs" / "060-test-01KT3YBD" / "plan.md",
+        "# plan\n",
+    )
+
+    assert (
+        _branch_tree_relative_path(plan_file, repo_root)
+        == "kitty-specs/060-test-01KT3YBD/plan.md"
+    )
+
+
+def test_staging_includes_artifacts_already_in_target_coord_worktree(tmp_path: Path) -> None:
+    """#1954: coord-local sources are already at branch-tree paths."""
+    repo_root = tmp_path / "repo"
+    coord_wt = repo_root / ".worktrees" / "060-test-01KT3YBD-coord"
+    coord_source = _write(
+        coord_wt / "kitty-specs" / "060-test-01KT3YBD" / "tasks.md",
+        "# tasks\n",
+    )
+
+    staged = _stage_finalize_artifacts_in_coord_worktree(
+        [coord_source], coord_wt, repo_root
+    )
+
+    assert staged == [coord_source]
+    assert not (
+        coord_wt / ".worktrees" / "060-test-01KT3YBD-coord"
+    ).exists()
+
+
+def test_staging_skips_foreign_worktree_artifacts(tmp_path: Path) -> None:
+    """FR-035: foreign coord-resolved sources must not create nested paths."""
+    repo_root = tmp_path / "repo"
+    coord_wt = repo_root / ".worktrees" / "060-test-01KT3YBD-coord"
+    foreign_source = _write(
+        repo_root / ".worktrees" / "other-coord" / "kitty-specs" / "060-test-01KT3YBD" / "tasks.md",
+        "# tasks\n",
+    )
+
+    staged = _stage_finalize_artifacts_in_coord_worktree(
+        [foreign_source], coord_wt, repo_root
+    )
+
+    assert staged == []
+    assert not (
+        coord_wt / ".worktrees" / "060-test-01KT3YBD-coord"
+    ).exists()
+
+
+def test_staging_skips_nested_worktree_artifacts(tmp_path: Path) -> None:
+    """FR-035: nested .worktrees paths inside the coord worktree stay blocked."""
     repo_root = tmp_path / "repo"
     coord_wt = repo_root / ".worktrees" / "060-test-01KT3YBD-coord"
     nested_source = _write(
-        coord_wt / "kitty-specs" / "060-test-01KT3YBD" / "tasks.md",
+        coord_wt / ".worktrees" / "nested" / "kitty-specs" / "060-test-01KT3YBD" / "tasks.md",
         "# tasks\n",
     )
 
@@ -90,6 +143,3 @@ def test_staging_skips_artifacts_already_under_worktrees(tmp_path: Path) -> None
     )
 
     assert staged == []
-    assert not (
-        coord_wt / ".worktrees" / "060-test-01KT3YBD-coord"
-    ).exists()

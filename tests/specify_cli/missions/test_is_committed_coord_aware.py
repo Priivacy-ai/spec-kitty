@@ -147,6 +147,42 @@ def test_coord_placement_file_on_coord_branch_returns_true(tmp_path: Path) -> No
     assert is_committed(spec, tmp_path, placement=placement) is True  # type: ignore[arg-type]
 
 
+def test_coord_placement_file_in_coord_worktree_returns_true(tmp_path: Path) -> None:
+    """A spec path under .worktrees resolves against the coord branch tree."""
+    _init_repo(tmp_path)
+
+    coord_ref = "kitty/mission-test-WORKTREE"
+    subprocess.run(
+        ["git", "-C", str(tmp_path), "branch", coord_ref, "main"],
+        check=True,
+        capture_output=True,
+    )
+    coord_worktree = tmp_path / ".worktrees" / "test-coord"
+    coord_worktree.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        ["git", "-C", str(tmp_path), "worktree", "add", str(coord_worktree), coord_ref],
+        check=True,
+        capture_output=True,
+    )
+
+    spec = coord_worktree / "kitty-specs" / "test" / "spec.md"
+    spec.parent.mkdir(parents=True, exist_ok=True)
+    spec.write_text("# Spec\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "-C", str(coord_worktree), "add", "kitty-specs/test/spec.md"],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(coord_worktree), "commit", "-m", "add spec on coord worktree"],
+        check=True,
+        capture_output=True,
+    )
+
+    placement = _make_commit_target(coord_ref, "COORDINATION")
+    assert is_committed(spec, tmp_path, placement=placement) is True  # type: ignore[arg-type]
+
+
 def test_coord_placement_file_on_both_branches_returns_true(tmp_path: Path) -> None:
     """File on HEAD AND coord branch: still True (OR logic)."""
     _init_repo(tmp_path)

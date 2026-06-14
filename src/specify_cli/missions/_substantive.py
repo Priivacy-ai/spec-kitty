@@ -260,6 +260,29 @@ def is_substantive(file_path: Path, kind: Kind) -> bool:
     raise ValueError(f"Unknown kind: {kind!r}")
 
 
+def _git_commit_check_context(file_path: Path, repo_root: Path) -> tuple[Path, str] | None:
+    """Return ``(git_cwd, tree_path)`` for committedness checks.
+
+    Linked worktrees live under ``.worktrees/<name>/`` on disk, but branch tree
+    paths start at that worktree root.  A file at
+    ``.worktrees/<name>/kitty-specs/<slug>/spec.md`` must therefore be checked
+    as ``kitty-specs/<slug>/spec.md`` against the target ref.
+    """
+    try:
+        repo_abs = repo_root.resolve()
+        rel = file_path.resolve().relative_to(repo_abs)
+    except ValueError:
+        return None
+
+    parts = rel.parts
+    if len(parts) > 2 and parts[0] == ".worktrees":
+        worktree_root = repo_abs / parts[0] / parts[1]
+        if worktree_root.is_dir():
+            return worktree_root, str(Path(*parts[2:]))
+
+    return repo_abs, str(rel)
+
+
 def is_committed(
     file_path: Path,
     repo_root: Path,
@@ -286,11 +309,10 @@ def is_committed(
         ``True`` iff the file is committed to the coordination branch (when
         applicable) or to ``HEAD``.
     """
-    try:
-        rel = file_path.resolve().relative_to(repo_root.resolve())
-    except ValueError:
+    check_context = _git_commit_check_context(file_path, repo_root)
+    if check_context is None:
         return False
-    rel_str = str(rel)
+    git_cwd, tree_path = check_context
 
     # Coord-topology fast path: check the coordination branch before HEAD.
     # OR logic: committed to *either* branch counts as committed.
@@ -308,7 +330,7 @@ def is_committed(
         if coord_ref is not None:
             try:
                 subprocess.run(
-                    ["git", "-C", str(repo_root), "cat-file", "-e", f"{coord_ref}:{rel_str}"],
+                    ["git", "-C", str(git_cwd), "cat-file", "-e", f"{coord_ref}:{tree_path}"],
                     check=True,
                     capture_output=True,
                 )
@@ -319,12 +341,12 @@ def is_committed(
     # Primary HEAD check (flat topology or coord-branch miss).
     try:
         subprocess.run(
-            ["git", "-C", str(repo_root), "ls-files", "--error-unmatch", rel_str],
+            ["git", "-C", str(git_cwd), "ls-files", "--error-unmatch", tree_path],
             check=True,
             capture_output=True,
         )
         subprocess.run(
-            ["git", "-C", str(repo_root), "cat-file", "-e", f"HEAD:{rel_str}"],
+            ["git", "-C", str(git_cwd), "cat-file", "-e", f"HEAD:{tree_path}"],
             check=True,
             capture_output=True,
         )
