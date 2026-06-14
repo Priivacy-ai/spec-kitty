@@ -19,6 +19,8 @@ Running log of process/tooling observations during the implement-review loop, to
 
 ## Implementation debt to watch
 
+- **WP09 plugin-bundle staging fidelity (non-blocking, reviewer-noted).** The `--kind plugin-manifest --fix` staging tree for the Claude target aggregates source surfaces across multiple tool keys, so it contains both `<profile>.md` and `<profile>.agent.md` agent files (claude supplies `.md`, copilot supplies `.agent.md`) plus `hooks/settings.json` and `config.toml`. Does NOT violate the FR-016/C-006 prohibition or the inert/declarative contract — purely a staging-fidelity quirk. → Future tightening: scope each target's bundle to that target's own surfaces.
+
 - **Two `SurfaceFinding` classes (WP03).** WP01's `tool_surface/model.py::SurfaceFinding` (fields `…surface_kind…detail`) diverges from the JSON-schema-canonical `tool_surface/findings.py::SurfaceFinding` (fields `code/severity/message/tool_key/surface_id/path/repair_command/docs_ref/details`) that WP03 added. WP01's version now has ZERO production importers. WP03 correctly avoided mutating the frozen WP01 file, but this leaves a same-name duplicate in the package. → Follow-up cleanup (likely WP07 legacy refactor or a post-merge task): retire/rename `model.SurfaceFinding` so there is one canonical type. Confirmed acceptable for WP03 by review.
 
 ## Tooling / Environment
