@@ -61,7 +61,7 @@ A doc file references a generated skill path. A lint step validates that every d
 |----|-------------|--------|
 | FR-001 | The system shall provide a single registry that, given a configured tool, returns the complete set of surfaces (command skills, doctrine skills, session presence, native agent profiles, plugin bundle artifacts) that should exist for that tool. | Proposed |
 | FR-002 | The registry shall expose a machine-readable status command (`doctor tool-surfaces --json`) reporting all surface kinds with stable finding codes, affected paths, and repair commands. | Proposed |
-| FR-003 | `doctor tool-surfaces --json` shall cover at minimum: command skills, doctrine skills, session/context surfaces, native agent profile projections, and plugin bundle surfaces. | Proposed |
+| FR-003 | `doctor tool-surfaces --json` shall cover at minimum: command skills, doctrine skills, session presence surfaces, native agent profile projections, and plugin bundle surfaces. | Proposed |
 | FR-004 | `doctor tool-surfaces --json` shall support filtering by surface kind (e.g., `--kind command-skill`). | Proposed |
 | FR-005 | Finding codes in `doctor tool-surfaces --json` shall be stable across releases: the same code shall mean the same condition and shall not be renamed or removed without a documented deprecation cycle. | Proposed |
 | FR-006 | Repair commands surfaced by `doctor tool-surfaces` shall be runnable without any manual file editing by the user. | Proposed |
@@ -82,7 +82,7 @@ A doc file references a generated skill path. A lint step validates that every d
 
 | ID | Requirement | Threshold | Status |
 |----|-------------|-----------|--------|
-| NFR-001 | `doctor tool-surfaces --json` shall complete for a project with up to 19 configured tools on a standard developer workstation. | <= 5 seconds | Proposed |
+| NFR-001 | `doctor tool-surfaces --json` shall complete for a project with up to 19 configured tools on a 4-core 3.0 GHz CPU, 16 GB RAM, SSD workstation (representative of a CI runner). | <= 5 seconds | Proposed |
 | NFR-002 | All new public interfaces in the ToolSurfaceContract bounded context shall pass mypy --strict with zero warnings. | 0 mypy warnings | Proposed |
 | NFR-003 | Test coverage for new code in the ToolSurfaceContract bounded context shall meet the project minimum. | >= 90% line coverage | Proposed |
 | NFR-004 | The `doctor skills --json` output structure shall not regress for any finding code that existing consumers depend on. | 0 breaking schema changes | Proposed |
@@ -97,7 +97,7 @@ A doc file references a generated skill path. A lint step validates that every d
 | C-003 | The naming convention `ToolSurfaceContract` (not `AgentSurfaceContract`) is non-negotiable and must be used in all new identifiers, CLI output, and documentation. | Accepted |
 | C-004 | Existing installers shall be wrapped as providers, not rewritten; core installer logic must be preserved intact. | Accepted |
 | C-005 | The glossary-compliant term distinction must be maintained: Tool = concrete execution runtime; Agent = logical collaborator identity/role; Tool Surface = installable/verifiable artifact exposed to a Tool. | Accepted |
-| C-006 | Plugin bundle scope is validation and projection for release/staging only; no marketplace publish or auto-install logic shall be introduced. | Accepted |
+| C-006 | Plugin bundle scope is validation and projection for release/staging only; no marketplace publish or auto-install logic shall be introduced. (See FR-016 for the testable requirement form.) | Accepted |
 | C-007 | Generated tool surface files that are currently gitignored must remain gitignored; no change to the git tracking policy for generated files is in scope. | Accepted |
 | C-008 | The implementation sequence must follow the prescribed order: #1936 (registry skeleton) -> #1944 (migration/compatibility gate) -> #1937 (command-skill provider) -> #1938 (session-presence provider) -> #1939 (doctrine-skill provider) -> #1940 (native profile projection) -> #1941 (legacy agent config refactor) -> #1942 (docs lint) -> #1943 (plugin bundle validation). | Accepted |
 | C-009 | PR #1935 (glossary pre-formalization) is a prerequisite; all new naming must respect the terminology established there. | Accepted |

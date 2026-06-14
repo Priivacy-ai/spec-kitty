@@ -35,6 +35,8 @@ create_intent:
 - src/specify_cli/tool_surface/builtins.py
 - src/specify_cli/tool_surface/providers/__init__.py
 - src/specify_cli/tool_surface/providers/base.py
+- src/specify_cli/tool_surface/data/tool-surface-contract.schema.json
+- src/specify_cli/tool_surface/data/surface-status.schema.json
 - tests/specify_cli/tool_surface/__init__.py
 - tests/specify_cli/tool_surface/test_enums.py
 - tests/specify_cli/tool_surface/test_model.py
@@ -49,6 +51,8 @@ owned_files:
 - src/specify_cli/tool_surface/builtins.py
 - src/specify_cli/tool_surface/providers/__init__.py
 - src/specify_cli/tool_surface/providers/base.py
+- src/specify_cli/tool_surface/data/tool-surface-contract.schema.json
+- src/specify_cli/tool_surface/data/surface-status.schema.json
 - tests/specify_cli/tool_surface/__init__.py
 - tests/specify_cli/tool_surface/test_enums.py
 - tests/specify_cli/tool_surface/test_model.py
@@ -391,6 +395,8 @@ Use the tool keys from `specify_cli.core.config.AI_CHOICES` (or the equivalent c
 - [ ] No existing tests broken: `pytest tests/` passes
 - [ ] No changes to `core.config`, `agent.config`, or `doctor.py`
 - [ ] Naming convention verified: `ToolSurfaceContract`, `SurfaceKind`, not any `Agent*` variants
+- [ ] All file path operations use `pathlib.Path`; no hardcoded path separators (C-010 cross-platform gate)
+- [ ] `src/specify_cli/tool_surface/data/tool-surface-contract.schema.json` and `surface-status.schema.json` created with minimal but valid JSON Schema skeletons
 
 ## Risks
 

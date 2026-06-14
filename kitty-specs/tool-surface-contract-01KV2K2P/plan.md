@@ -74,7 +74,7 @@ src/specify_cli/tool_surface/           # NEW bounded context
         command_skills.py               # Wraps specify_cli.skills.command_installer
         managed_skills.py               # Wraps specify_cli.skills.installer, verifier, registry
         agent_profiles.py               # Wraps doctrine.agent_profiles + profile projection
-        slash_commands.py               # Wraps specify_cli.runtime.agent_commands
+        # slash_commands.py             # DEFERRED: command_file SurfaceKind is legacy; out of scope for this mission (#1945). Omit this provider.
         session_presence.py             # Wraps specify_cli.session_presence.writers.registry
         native_config.py                # Wraps tool-specific config helpers (vibe_config, etc.)
         plugin_bundle.py                # New: projects surfaces into plugin package layouts
@@ -93,8 +93,8 @@ src/specify_cli/tool_surface/           # NEW bounded context
         vscode.py                       # VS Code extension bundle projection
 
     data/
-        tool-surface-contract.schema.json   # JSON Schema for registry entries
-        surface-status.schema.json          # JSON Schema for doctor output
+        tool-surface-contract.schema.json   # JSON Schema for registry entries (owned by WP01/IC-01)
+        surface-status.schema.json          # JSON Schema for doctor output (owned by WP01/IC-01)
 
 src/specify_cli/cli/commands/doctor.py  # MODIFIED: add `tool-surfaces` subcommand
 src/specify_cli/cli/commands/agent/
@@ -163,7 +163,7 @@ The nine implementation concerns correspond exactly to the nine child issues, in
 ### IC-04 -- Session-Presence Provider (#1938)
 
 - **Purpose**: Add a provider for session presence and context/hook surfaces, making the distinction between session presence and command-skill install state explicit in doctor output.
-- **Relevant requirements**: FR-002, FR-003, FR-010, FR-017, FR-018
+- **Relevant requirements**: FR-003, FR-006, FR-010, FR-018, NFR-001
 - **Affected surfaces**: `providers/session_presence.py`; `providers/native_config.py` (partial -- hooks and tool-specific glue); `status.py` (extend for session-presence kind); finding codes for session-presence gaps
 - **Sequencing/depends-on**: IC-01, IC-02, IC-03
 - **Risks**: Session presence paths differ per harness (CLAUDE.md vs. AGENTS.md vs. rules files). Provider must not assume a fixed path.
@@ -171,7 +171,7 @@ The nine implementation concerns correspond exactly to the nine child issues, in
 ### IC-05 -- Managed Doctrine Skill Provider (#1939)
 
 - **Purpose**: Add a provider for managed doctrine skills, clearly separating them from command skills in doctor output and status.
-- **Relevant requirements**: FR-002, FR-003, FR-010, FR-017, FR-018
+- **Relevant requirements**: FR-003, FR-006, FR-010, FR-018
 - **Affected surfaces**: `providers/managed_skills.py`; wraps `specify_cli.skills.registry`, `specify_cli.skills.installer`, `specify_cli.skills.verifier`; new finding codes for doctrine-skill gaps; integration tests
 - **Sequencing/depends-on**: IC-01, IC-02, IC-03
 - **Risks**: The managed doctrine skill verifier already has its own reporting; the provider wrapper must not duplicate that logic or change its behavior.
@@ -183,6 +183,14 @@ The nine implementation concerns correspond exactly to the nine child issues, in
 - **Affected surfaces**: `providers/agent_profiles.py`; `profiles/projection.py`, `profiles/renderers.py`, `profiles/manifest.py`; finding codes for projection gaps; tools that do not support named agents get `RESEARCH_GAP` code
 - **Sequencing/depends-on**: IC-01, IC-02, IC-03
 - **Risks**: Host-native formats differ significantly per harness (Claude Code `.claude/agents/`, Codex `AGENTS.md` hints, etc.). Renderers must be isolated per harness and guarded by feature-detection logic.
+- **Native projection decision matrix** (to be expanded in research.md during IC-06):
+
+  | Tool key | Native named-agent support | Action |
+  |----------|---------------------------|--------|
+  | `claude` | Yes — `.claude/agents/<name>.md` | NATIVE_PROJECTION |
+  | All others (codex, copilot, cursor, windsurf, kilocode, q, kiro, antigravity, opencode, auggie, roo, gemini, qwen, vibe, pi, letta, ...) | Not confirmed or not yet supported | RESEARCH_GAP |
+
+  Populate this matrix in `research.md` before implementing `profiles/renderers.py`. Any tool promoted from RESEARCH_GAP to NATIVE_PROJECTION must have a confirmed native format spec and a corresponding renderer file.
 
 ### IC-07 -- Legacy Agent Config Refactor (#1941)
 

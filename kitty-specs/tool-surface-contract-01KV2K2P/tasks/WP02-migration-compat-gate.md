@@ -32,6 +32,7 @@ create_intent:
 - tests/specify_cli/tool_surface/integration/test_agent_config_compat.py
 - tests/specify_cli/tool_surface/integration/fixtures/__init__.py
 - tests/specify_cli/tool_surface/integration/fixtures/doctor_skills_baseline.json
+- src/specify_cli/tool_surface/contracts/migration-compatibility.md
 execution_mode: code_change
 owned_files:
 - tests/specify_cli/tool_surface/integration/__init__.py
@@ -39,6 +40,7 @@ owned_files:
 - tests/specify_cli/tool_surface/integration/test_agent_config_compat.py
 - tests/specify_cli/tool_surface/integration/fixtures/__init__.py
 - tests/specify_cli/tool_surface/integration/fixtures/doctor_skills_baseline.json
+- src/specify_cli/tool_surface/contracts/migration-compatibility.md
 role: implementer
 tags: []
 ---
@@ -191,7 +193,7 @@ spec-kitty agent config list --json > tests/specify_cli/tool_surface/integration
 
 **Purpose**: Record the migration compatibility policy in a contract file so future implementers understand the constraints.
 
-**File**: `kitty-specs/tool-surface-contract-01KV2K2P/contracts/migration-compatibility.md`
+**File**: `src/specify_cli/tool_surface/contracts/migration-compatibility.md`
 
 **Content**:
 - What `doctor skills --json` schema fields are frozen (must not change)
@@ -237,7 +239,7 @@ If an intentional additive change causes baseline drift:
 - [ ] `pytest tests/specify_cli/tool_surface/integration/test_migration_compat.py` passes
 - [ ] `pytest tests/specify_cli/tool_surface/integration/test_agent_config_compat.py` passes
 - [ ] Both baseline JSON files are committed
-- [ ] `kitty-specs/tool-surface-contract-01KV2K2P/contracts/migration-compatibility.md` exists
+- [ ] `src/specify_cli/tool_surface/contracts/migration-compatibility.md` exists and references the actual baseline field names
 - [ ] No changes to any existing source files (this WP is test-and-contract only)
 
 ## Risks

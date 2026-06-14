@@ -6,10 +6,9 @@ dependencies:
 - WP02
 - WP03
 requirement_refs:
-- FR-002
 - FR-003
+- FR-006
 - FR-010
-- FR-017
 - FR-018
 tracker_refs: []
 planning_base_branch: feat/tool-surface-contract
