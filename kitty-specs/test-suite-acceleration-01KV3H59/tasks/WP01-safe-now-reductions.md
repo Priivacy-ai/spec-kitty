@@ -11,6 +11,9 @@ tracker_refs: []
 planning_base_branch: feat/test-suite-acceleration
 merge_target_branch: feat/test-suite-acceleration
 branch_strategy: Planning artifacts for this mission were generated on feat/test-suite-acceleration. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/test-suite-acceleration unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-test-suite-acceleration-01KV3H59-01KV3H59
+base_commit: unknown
+created_at: '2026-06-14T17:28:33.179069+00:00'
 subtasks:
 - T001
 - T002
@@ -18,6 +21,7 @@ subtasks:
 - T004
 phase: Phase 1 - Safe-now wave
 agent: claude
+shell_pid: '70899'
 history:
 - at: '2026-06-14T17:10:00Z'
   actor: system
