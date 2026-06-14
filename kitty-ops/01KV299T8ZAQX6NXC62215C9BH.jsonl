@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KV299T8ZAQX6NXC62215C9BH", "profile_id": "planner-priti", "action": "plan", "request_text": "Create 3 epics, rehome #391 open children, close #391", "actor": "claude", "mode_of_work": "advisory", "governance_context_hash": "b1d80e23116414c0", "governance_context_available": true, "started_at": "2026-06-14T05:22:34.625800+00:00"}
+{"event": "completed", "invocation_id": "01KV299T8ZAQX6NXC62215C9BH", "completed_at": "2026-06-14T05:25:58.130284+00:00", "outcome": "done", "closed_by": "agent"}
