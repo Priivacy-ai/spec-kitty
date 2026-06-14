@@ -192,6 +192,19 @@ Python 3.11+. Follow standard conventions. Any changes to `__init__.py` require 
 
 **Pre-push: run the terminology guard when touching `src/doctrine/` or user-facing prose.** Some repo-wide gates run only in CI's `integration-tests-core-misc` job, NOT in the `fast-tests-*` suites — so a forbidden-term regression passes local doctrine runs and only fails at CI. Before pushing doctrine/prose changes, run `pytest tests/architectural/test_no_legacy_terminology.py` (≈0.1 s); it enforces the Terminology Canon (e.g. canonical `status commit` not `ceremony`; `Mission` not `feature`). The full `tests/architectural/` suite is the complete safety net.
 
+## Sonar Expectations
+
+Treat these as code-shaping constraints, not post-hoc cleanup:
+
+- **Complexity ceiling is 15.** Ruff `C901` and Sonar `S3776` are aligned (`[tool.ruff.lint.mccabe].max-complexity = 15`). When touching a function near that limit, keep it at `<=15` by extracting small helpers, flattening nested conditionals, or separating lookup/build/emit phases. Do **not** leave a function at 16+ and assume "tests passing" is enough.
+- **Repeated non-trivial literals become constants.** If a string/path/message/help text appears `>=3` times in the same module, hoist it to a named module constant instead of duplicating it. This is the default response to Sonar `S1192`.
+- **Do not leave empty or effect-free exception handlers.** If an `except` block does nothing meaningful, either remove it and let the exception propagate, or add the concrete recovery/logging/translation logic Sonar expects.
+- **Every new branch/helper needs tests in the same PR.** Sonar's project gate is dominated by new-code coverage; extracting helpers without adding focused tests simply moves the failure. When you add or refactor logic, add narrow tests that execute the new branches/helpers directly.
+- **Prefer testable extractions.** Sonar generally rewards pure/helper extraction plus focused tests. If a function is large, extract deterministic subroutines with stable inputs/outputs, then test those paths instead of only relying on a broad integration test.
+- **Prefer real fixes over suppression.** Do not add `# noqa`, `# type: ignore`, or Sonar suppression comments to silence maintainability findings unless the tool is materially wrong about correct code. If suppression is unavoidable, keep it narrow and explain why the code is safe.
+- **Loopback/local-only HTTP is a special case.** Do not "fix" localhost/127.0.0.1 control-plane URLs by forcing HTTPS when the transport is intentionally loopback-only. Keep the safe loopback semantics, add/keep regression tests, and record the rationale in the PR if Sonar raises a hotspot. Code change and hotspot review are separate actions.
+- **PR description must call out remaining Sonar UI work.** If the code is correct but Sonar still needs hotspot review or UI-side rationale application, say so explicitly in the PR body so a later agent does not waste time trying to "fix" it in code.
+
 ## Recent Changes
 
 - **068**: `src/specify_cli/post_merge/` (AST-based stale-assertion analyzer), `agent tests` CLI subgroup, `agent/release.py prep` subcommand, FR-019 safe_commit fix in `_run_lane_based_merge`, FR-021 `scan_recovery_state` + `implement --base`

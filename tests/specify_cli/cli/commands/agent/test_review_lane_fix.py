@@ -6,6 +6,7 @@ compatibility and execution_context detection parity.
 """
 import pytest
 from pathlib import Path
+from types import SimpleNamespace
 from specify_cli.status.models import Lane, StatusEvent
 
 
@@ -232,3 +233,65 @@ class TestLegacyJsonlCompatibility:
         assert events[0].force is False
         is_claimed = _is_review_claimed_workflow(events[0])
         assert is_claimed is True
+
+
+class TestFindFirstForReviewWp:
+    """Regression coverage for workflow._find_first_for_review_wp."""
+
+    @staticmethod
+    def _write_wp(path: Path, wp_id: str) -> None:
+        path.write_text(
+            f"---\nwork_package_id: {wp_id}\n---\nBody\n",
+            encoding="utf-8",
+        )
+
+    def test_prefers_explicit_for_review_lane(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from specify_cli.cli.commands.agent import workflow
+        import specify_cli.status as status_module
+
+        feature_dir = tmp_path / "kitty-specs" / "test-feature"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        self._write_wp(tasks_dir / "WP01-alpha.md", "WP01")
+        self._write_wp(tasks_dir / "WP02-beta.md", "WP02")
+        seed_event = _make_event(Lane.FOR_REVIEW, wp_id="WP02")
+
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr("specify_cli.core.paths.is_worktree_context", lambda _path: False)
+        monkeypatch.setattr(workflow, "resolve_feature_dir_for_mission", lambda _repo, _slug: feature_dir)
+        monkeypatch.setattr(status_module, "read_events", lambda _feature_dir: [seed_event])
+        monkeypatch.setattr(
+            status_module,
+            "reduce",
+            lambda _events: SimpleNamespace(
+                work_packages={
+                    "WP01": {"lane": Lane.IN_REVIEW},
+                    "WP02": {"lane": Lane.FOR_REVIEW},
+                }
+            ),
+        )
+
+        assert workflow._find_first_for_review_wp(tmp_path, "test-feature") == "WP02"
+
+    def test_falls_back_to_claimed_in_review_wp(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from specify_cli.cli.commands.agent import workflow
+        import specify_cli.status as status_module
+
+        feature_dir = tmp_path / "kitty-specs" / "test-feature"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        self._write_wp(tasks_dir / "WP01-alpha.md", "WP01")
+
+        claimed_event = _make_event(Lane.IN_REVIEW, wp_id="WP01")
+
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr("specify_cli.core.paths.is_worktree_context", lambda _path: False)
+        monkeypatch.setattr(workflow, "resolve_feature_dir_for_mission", lambda _repo, _slug: feature_dir)
+        monkeypatch.setattr(status_module, "read_events", lambda _feature_dir: [claimed_event])
+        monkeypatch.setattr(
+            status_module,
+            "reduce",
+            lambda _events: SimpleNamespace(work_packages={"WP01": {"lane": Lane.IN_REVIEW}}),
+        )
+
+        assert workflow._find_first_for_review_wp(tmp_path, "test-feature") == "WP01"
