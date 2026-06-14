@@ -312,10 +312,12 @@ def run(
            Empty targets (EC-4) → return current manifest unchanged + diagnostic.
         4. Construct bounded ``SynthesisRequest`` objects for each target.
         5. Call ``synthesize_pipeline.run_all()`` → ``[(body, prov), ...]``.
-        6. Stage + promote via WP03's ``write_pipeline.promote()`` for
-           the bounded artifact set only.
-        7. Rewrite manifest: regenerated entries get fresh hashes;
-           untouched entries retain prior ``content_hash`` (FR-017).
+        6. Build the authoritative merged manifest: regenerated entries get
+           fresh hashes; untouched entries retain prior ``content_hash``
+           (FR-017).
+        7. Stage + promote bounded artifacts via WP03's
+           ``write_pipeline.promote()``, passing the merged manifest so the
+           manifest-last write is still the final commit marker.
         8. Return ``ResynthesisResult``.
 
     Parameters
@@ -437,7 +439,15 @@ def run(
     all_new_results = _run_bounded(bounded_request, adapter, target_slugs)
 
     # ------------------------------------------------------------------
-    # Step 6: Stage + promote bounded artifacts
+    # Step 6: Build final merged manifest (FR-017: untouched entries retain
+    # prior hash). It is passed into promote() so bounded resynthesis does not
+    # write a temporary bounded-only manifest before the authoritative full
+    # manifest.
+    # ------------------------------------------------------------------
+    new_manifest = _rewrite_manifest(existing_manifest, all_new_results, run_id)
+
+    # ------------------------------------------------------------------
+    # Step 7: Stage + promote bounded artifacts
     # ------------------------------------------------------------------
     built_in_drg = _built_in_drg_from_request(request)
 
@@ -458,45 +468,20 @@ def run(
         _validate_project_graph(staged_dir.root, built_in_drg)
 
     with _StagingDir.create(_repo_root, run_id) as staging_dir:
-        _write_pipeline.promote(
+        written_manifest = _write_pipeline.promote(
             bounded_request,
             staging_dir,
             all_new_results,
             _validation_callback,
             repo_root=_repo_root,
+            manifest_override=new_manifest,
         )
-
-    # ------------------------------------------------------------------
-    # Step 7: Rewrite manifest (FR-017: untouched entries retain prior hash)
-    # ------------------------------------------------------------------
-    new_manifest = _rewrite_manifest(existing_manifest, all_new_results, run_id)
-
-    # Write the updated manifest to disk — no-op-stable (#1912): skip the
-    # rewrite when the merged manifest is unchanged modulo volatile fields
-    # (created_at, run_id, synthesizer_version, manifest_hash), so a resynthesis
-    # that regenerates identical content leaves the tracked manifest untouched.
-    from .path_guard import PathGuard as _PathGuard  # noqa: PLC0415
-    from .manifest import dump_yaml as _dump_manifest  # noqa: PLC0415
-    from .write_pipeline import (  # noqa: PLC0415
-        _VOLATILE_MANIFEST_FIELDS,
-        _substantively_equal,
-    )
-
-    guard = _PathGuard(
-        repo_root=_repo_root,
-        extra_allowed_prefixes=(_repo_root / _KITTIFY_DIRNAME,),
-    )
-    new_manifest_bytes = canonical_yaml(new_manifest.model_dump(mode="python"))
-    if not _substantively_equal(
-        new_manifest_bytes, manifest_path, _VOLATILE_MANIFEST_FIELDS
-    ):
-        _dump_manifest(new_manifest, manifest_path, guard)
 
     # ------------------------------------------------------------------
     # Step 8: Return result
     # ------------------------------------------------------------------
     return ResynthesisResult(
-        manifest=new_manifest,
+        manifest=written_manifest,
         resolved_topic=resolved,
         is_noop=False,
         diagnostic="",
@@ -524,17 +509,24 @@ def _load_project_artifacts_from_provenance(
     if not prov_dir.exists():
         return []
 
+    graph_labels = _load_project_graph_labels(repo_root)
     targets: list[SynthesisTarget] = []
     for prov_file in sorted(prov_dir.glob("*.yaml")):
         try:
             prov = load_provenance(prov_file)
+            artifact_id = prov.artifact_urn.split(":", 1)[1]
+            artifact_urn = f"{prov.artifact_kind}:{artifact_id}"
             # Reconstruct a minimal SynthesisTarget from provenance data
-            # (title is not stored in provenance; use slug as fallback)
+            # (title is not stored in provenance; prefer the existing graph
+            # label so bounded no-op resynthesis does not churn graph.yaml)
             target = SynthesisTarget(
                 kind=prov.artifact_kind,
                 slug=prov.artifact_slug,
-                title=prov.artifact_slug.replace("-", " ").title(),
-                artifact_id=prov.artifact_urn.split(":", 1)[1],
+                title=graph_labels.get(
+                    artifact_urn,
+                    prov.artifact_slug.replace("-", " ").title(),
+                ),
+                artifact_id=artifact_id,
                 source_section=prov.source_section,
                 source_urns=tuple(prov.source_urns),
             )
@@ -543,6 +535,22 @@ def _load_project_artifacts_from_provenance(
             continue  # Skip malformed provenance files
 
     return targets
+
+
+def _load_project_graph_labels(repo_root: Path) -> dict[str, str]:
+    """Return existing project graph labels keyed by URN, best-effort."""
+    project_graph_dir = repo_root / _KITTIFY_DIRNAME / "doctrine"
+    if not project_graph_dir.exists():
+        return {}
+    try:
+        graph = load_graph_or_dir(project_graph_dir)
+    except Exception:  # noqa: BLE001
+        return {}
+    return {
+        node.urn: node.label
+        for node in graph.nodes
+        if node.label is not None
+    }
 
 
 def _load_merged_drg(
@@ -596,18 +604,38 @@ def _merge_project_overlay(
 ) -> DRGGraph:
     """Replace only the resynthesized nodes/edges inside an existing overlay."""
     updated_urns = {node.urn for node in updated_overlay.nodes}
-    preserved_nodes: list[DRGNode] = [
-        node for node in existing_overlay.nodes if node.urn not in updated_urns
-    ]
-    preserved_edges: list[DRGEdge] = [
-        edge for edge in existing_overlay.edges if edge.source not in updated_urns
-    ]
+    updated_nodes_by_urn = {node.urn: node for node in updated_overlay.nodes}
+    merged_nodes: list[DRGNode] = []
+    for node in existing_overlay.nodes:
+        replacement = updated_nodes_by_urn.pop(node.urn, None)
+        merged_nodes.append(replacement if replacement is not None else node)
+    merged_nodes.extend(updated_nodes_by_urn.values())
+
+    updated_edges_by_source: dict[str, list[DRGEdge]] = {}
+    for edge in updated_overlay.edges:
+        updated_edges_by_source.setdefault(edge.source, []).append(edge)
+
+    merged_edges: list[DRGEdge] = []
+    inserted_sources: set[str] = set()
+    for edge in existing_overlay.edges:
+        if edge.source not in updated_urns:
+            merged_edges.append(edge)
+            continue
+        if edge.source in inserted_sources:
+            continue
+        merged_edges.extend(updated_edges_by_source.get(edge.source, []))
+        inserted_sources.add(edge.source)
+
+    for source, edges in updated_edges_by_source.items():
+        if source not in inserted_sources:
+            merged_edges.extend(edges)
+
     return DRGGraph(
         schema_version=updated_overlay.schema_version,
         generated_at=updated_overlay.generated_at,
         generated_by=updated_overlay.generated_by,
-        nodes=preserved_nodes + list(updated_overlay.nodes),
-        edges=preserved_edges + list(updated_overlay.edges),
+        nodes=merged_nodes,
+        edges=merged_edges,
     )
 
 
