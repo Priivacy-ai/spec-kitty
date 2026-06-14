@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KV27EHM7YPB6S3B6WR2EJKVM", "profile_id": "planner-priti", "action": "plan", "request_text": "Create lint/mypy/sonar tech-debt epic + triage last-24h tickets", "actor": "claude", "mode_of_work": "advisory", "governance_context_hash": "b1d80e23116414c0", "governance_context_available": true, "started_at": "2026-06-14T04:50:12.447052+00:00"}
+{"event": "completed", "invocation_id": "01KV27EHM7YPB6S3B6WR2EJKVM", "completed_at": "2026-06-14T04:59:44.936848+00:00", "outcome": "done", "closed_by": "agent"}
