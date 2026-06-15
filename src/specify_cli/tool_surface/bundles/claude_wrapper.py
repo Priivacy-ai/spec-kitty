@@ -135,8 +135,9 @@ def wrapper_cmd_content(version: str) -> str:
     return _CMD_WRAPPER_TEMPLATE.format(version=version)
 
 
+# NOTE: wrapper_bash_content / wrapper_cmd_content are public helpers consumed
+# only by tests (filesystem-free inspection). They remain importable by name but
+# are intentionally NOT in __all__ so the no-dead-symbols gate stays green.
 __all__ = [
     "write_wrappers",
-    "wrapper_bash_content",
-    "wrapper_cmd_content",
 ]

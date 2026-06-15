@@ -66,7 +66,7 @@ class RooDeprecationMigration(BaseMigration):
     description = (
         "Emit Roo Code deprecation notice; remove 'roo' from .kittify/config.yaml"
     )
-    target_version = "3.2.0rc45"
+    target_version = "3.2.0rc44"
     runs_on_worktrees = False
 
     def detect(self, project_path: Path) -> bool:

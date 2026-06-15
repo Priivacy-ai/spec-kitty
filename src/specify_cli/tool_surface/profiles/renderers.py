@@ -36,15 +36,12 @@ from specify_cli.tool_surface.profiles._render_helpers import (
     render_markdown_agent as _render_markdown_agent,
 )
 from specify_cli.tool_surface.profiles.amazon_q_renderer import (
-    FORMAT_AMAZON_Q_AGENT,
     AmazonQProfileRenderer,
 )
 from specify_cli.tool_surface.profiles.augment_renderer import (
-    FORMAT_AUGMENT_AGENT,
     AugmentProfileRenderer,
 )
 from specify_cli.tool_surface.profiles.codex_renderer import (
-    FORMAT_CODEX_AGENT,
     CodexProfileRenderer,
 )
 
@@ -52,11 +49,12 @@ from specify_cli.tool_surface.profiles.codex_renderer import (
 FORMAT_CLAUDE_AGENT = "claude-agent"
 FORMAT_COPILOT_AGENT = "copilot-agent"
 
+# NOTE: FORMAT_AMAZON_Q_AGENT / FORMAT_AUGMENT_AGENT / FORMAT_CODEX_AGENT are
+# NOT re-exported here. Their canonical home is the individual renderer modules
+# (amazon_q_renderer / augment_renderer / codex_renderer); other src/ files
+# import them from there directly.
 __all__ = [
-    "FORMAT_AMAZON_Q_AGENT",
-    "FORMAT_AUGMENT_AGENT",
     "FORMAT_CLAUDE_AGENT",
-    "FORMAT_CODEX_AGENT",
     "FORMAT_COPILOT_AGENT",
 ]
 

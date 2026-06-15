@@ -49,7 +49,6 @@ from .manifest_errors import ManifestError
 __all__ = [
     "SCHEMA_VERSION",
     "ManifestEntry",
-    "ManifestRepairResult",
     "SkillsManifest",
     "fingerprint",
     "fingerprint_file",

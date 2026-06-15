@@ -3010,6 +3010,45 @@ _Machine-contract API for external orchestrators (JSON-first)_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty plugin
+
+_Plugin bundle commands._
+
+```
+ Usage: spec-kitty plugin [OPTIONS] COMMAND [ARGS]...
+
+ Plugin bundle commands
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ build  Build a Spec Kitty plugin bundle for a specific target harness.       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty plugin build
+
+```
+ Usage: spec-kitty plugin build [OPTIONS]
+
+ Build a Spec Kitty plugin bundle for a specific target harness.
+
+ The bundle is written to <output-dir>/<target>/ and includes a plugin.json
+ manifest, rendered command skills, and agent profiles.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --target               TEXT  Plugin target (claude-code, codex).          │
+│                                 [required]                                    │
+│    --output-dir           PATH  Root directory under which the bundle is      │
+│                                 written.                                      │
+│                                 [default: dist/spec-kitty-plugins]            │
+│    --skip-validate              Skip the 'claude plugin validate --strict'    │
+│                                 step.                                         │
+│    --help                       Show this message and exit.                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty profile-invocation
 
 _Manage invocation records._

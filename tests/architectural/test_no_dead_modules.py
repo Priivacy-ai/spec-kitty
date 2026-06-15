@@ -147,6 +147,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_0_9_0_frontmatter_only_lanes",
         "specify_cli.upgrade.migrations.m_0_9_2_research_mission_templates",
         "specify_cli.upgrade.migrations.m_0_9_3_surface_repair_wiring",  # WP01: auto-discovered sentinel migration
+        "specify_cli.upgrade.migrations.m_0_9_4_roo_deprecation",  # WP07: Roo Code deprecation; auto-discovered, never statically imported
         "specify_cli.upgrade.migrations.m_2_0_0_charter_directory",
         "specify_cli.upgrade.migrations.m_2_0_0_historical_status_migration",
         "specify_cli.upgrade.migrations.m_2_0_0_retire_git_hooks",
