@@ -31,7 +31,7 @@ assert emitted.year == datetime.now(UTC).year
 assert expires_at > time.time()
 ```
 
-Pytest collection fails on direct `datetime.now()`, `datetime.utcnow()`, `date.today()`, `datetime.datetime.now()`, `datetime.date.today()`, and `time.time()` calls inside `assert` expressions.
+Pytest collection fails on direct `datetime.now()`, `datetime.utcnow()`, `datetime.today()`, `date.today()`, `datetime.datetime.now()`, `datetime.datetime.utcnow()`, `datetime.datetime.today()`, `datetime.date.today()`, and `time.time()` calls inside `assert` expressions.
 
 When the behavior is explicitly “mint a fresh timestamp now,” capture a bounded window outside the assertion:
 

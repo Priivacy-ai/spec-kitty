@@ -9,8 +9,10 @@ from pathlib import Path
 _BANNED_CALLS = {
     ("datetime", "now"): "datetime.now()",
     ("datetime", "utcnow"): "datetime.utcnow()",
+    ("datetime", "today"): "datetime.today()",
     ("datetime", "datetime", "now"): "datetime.datetime.now()",
     ("datetime", "datetime", "utcnow"): "datetime.datetime.utcnow()",
+    ("datetime", "datetime", "today"): "datetime.datetime.today()",
     ("date", "today"): "date.today()",
     ("datetime", "date", "today"): "datetime.date.today()",
     ("time", "time"): "time.time()",
