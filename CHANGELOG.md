@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc45] - 2026-06-15
+
+### 🐛 Fixed
+
+- **Agent profile projection plugin production follow-through (PR #1975):** Claude Code plugin bundles now emit
+  strict-validator-compatible `skills`/`agents` component paths and a valid empty hooks record; init/upgrade
+  auto-repair no longer builds optional disabled plugin bundle artifacts or silently writes Amazon Q user-global
+  agent profiles; docs inventory, lockfile, and Roo-deprecation test expectations are refreshed for the CI gates.
+
 ## [3.2.0rc44] - 2026-06-14
 
 ### ✨ Added
