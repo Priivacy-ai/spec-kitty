@@ -23,6 +23,7 @@ from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import app as charter_app
+from specify_cli.cli.commands.charter._status_collectors import _collect_manifest_status
 from specify_cli.cli.commands.charter_bundle import app as charter_bundle_app
 
 
@@ -262,6 +263,22 @@ def test_status_v2_bundle_exits_0(
     assert result.exit_code == 0, (
         f"Expected exit code 0 for v2 bundle; got {result.exit_code}.\nOutput: {result.output}"
     )
+
+
+def test_manifest_status_counts_singular_live_artifacts_only(tmp_path: Path) -> None:
+    """Live project doctrine status must not accept legacy plural dirs."""
+    singular = tmp_path / ".kittify" / "doctrine" / "tactic"
+    plural = tmp_path / ".kittify" / "doctrine" / "tactics"
+    singular.mkdir(parents=True)
+    plural.mkdir(parents=True)
+    (singular / "live.tactic.yaml").write_text("id: live\n", encoding="utf-8")
+    (plural / "legacy.tactic.yaml").write_text("id: legacy\n", encoding="utf-8")
+
+    status, manifest = _collect_manifest_status(tmp_path)
+
+    assert manifest is None
+    assert status["state"] == "partial"
+    assert status["live_artifact_count"] == 1
 
 
 # ---------------------------------------------------------------------------

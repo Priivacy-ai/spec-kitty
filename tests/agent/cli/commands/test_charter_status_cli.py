@@ -147,7 +147,7 @@ class TestCharterStatus:
             tmp_path
             / ".kittify"
             / "doctrine"
-            / "directives"
+            / "directive"
             / "001-mission-type-scope-directive.directive.yaml"
         )
         provenance_path = (

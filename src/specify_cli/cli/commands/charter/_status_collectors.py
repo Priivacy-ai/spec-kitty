@@ -153,7 +153,7 @@ def _collect_manifest_status(repo_root: Path) -> tuple[dict[str, Any], Any | Non
     provenance_root = repo_root / ".kittify" / "charter" / "provenance"
     live_artifact_count = sum(
         len(list((doctrine_root / subdir).glob("*.yaml")))
-        for subdir in ("directives", "tactics", "styleguides")
+        for subdir in ("directive", "tactic", "styleguide")
     )
     live_provenance_count = len(list(provenance_root.glob("*.yaml")))
 
