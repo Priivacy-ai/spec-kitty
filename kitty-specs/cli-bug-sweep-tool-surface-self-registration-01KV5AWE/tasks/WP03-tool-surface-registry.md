@@ -277,6 +277,7 @@ _PROVIDERS = (
 - [ ] `_discovery.py` created with explicit 7-module import tuple, mypy-clean.
 - [ ] `service.py` refactored: no central provider imports, no `_KIND_TOKENS` literal, `build_providers()` and `build_registry()` delegating to registry.
 - [ ] All existing `tool_surface` tests pass — tests that previously relied on the hardcoded provider list (e.g. `test_managed_skills.py::surface_kind_from_token` calls, `test_drift_policy.py` mocks of `build_providers`) must be updated to either pre-populate the registry in a fixture or mock the registry output. Do not skip or weaken them; the empty-registry state is expected and temporary.
+- [ ] Branch coverage on `_registry.py` and `_discovery.py` is ≥ 90%: `pytest tests/specify_cli/tool_surface/ --cov=src/specify_cli/tool_surface/providers/_registry --cov=src/specify_cli/tool_surface/providers/_discovery --cov-report=term-missing --cov-fail-under=90` passes.
 - [ ] `mypy src/specify_cli/tool_surface/ --strict` → zero errors.
 - [ ] `ruff check src/specify_cli/tool_surface/` → zero issues.
 

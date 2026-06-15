@@ -41,6 +41,8 @@ Before reading anything else, load your assigned profile:
 
 ---
 
+> **Note on plan.md in coord worktree**: If you are reading this from a coord worktree environment, the `plan.md` visible there predates the IC-05 mission expansion and shows only four ICs. The planning-branch `plan.md` (on `fix/cli-bug-sweep-tool-surface-self-registration`) contains IC-05 context. This WP file is self-contained — all required implementation detail is here.
+
 ## Objective
 
 Fix two workflow bugs discovered during this mission's own planning phase. Both are small, independent code changes that unblock the documented `map-requirements` → `finalize-tasks` task-authoring workflow and improve the error signal when ownership metadata is wrong.

@@ -24,10 +24,11 @@ Six targeted fixes across four subsystems. The largest is a structural refactor 
 | Gate | Status | Notes |
 |------|--------|-------|
 | DIRECTIVE_003 — Decision documentation | Pass | `SurfaceRegistration` shape documented in research.md and data-model.md |
+| DIRECTIVE_005 — Tests for new functionality | Pass | Each IC includes test coverage; IC-04 adds Directive-030 conformance test |
+| DIRECTIVE_006 — mypy --strict | Pass | Enforced as part of NFR-001 |
 | DIRECTIVE_010 — Spec fidelity | Pass | All FR/NFR/C mapped to specific ICs; no undocumented deviations |
-| DIR-005 — Tests for new functionality | Pass | Each IC includes test coverage; IC-04 adds conformance test |
-| DIR-006 — mypy --strict | Pass | Enforced as part of NFR-001 |
-| DIR-010/011 — Identifier sanitization | N/A | No sanitizer changes in scope |
+| DIRECTIVE_010/011 — Identifier sanitization | N/A | No sanitizer changes in scope |
+| DIRECTIVE_030 — No central provider literals | Pass | IC-04 conformance test asserts coordinator file has no central provider list |
 | Complexity ceiling (15) | Pass | IC-04 introduces helper functions scoped to stay ≤15 |
 
 No charter violations requiring justification.
@@ -140,7 +141,7 @@ src/specify_cli/
 - **Purpose**: Fix two workflow bugs discovered during this mission's own planning phase that block the documented `map-requirements` → `finalize-tasks` flow and produce misleading error messages.
 - **Relevant requirements**: FR-011, FR-012
 - **Affected surfaces**:
-  - Part A (`src/specify_cli/cli/commands/agent/tasks.py` — `map_requirements` function): `map-requirements` resolves `spec.md` via `resolve_feature_dir_for_mission(main_repo_root, mission_slug)`, where `main_repo_root` is the primary checkout (typically on `main`). When `setup-plan` has created a coord worktree, the mission's target branch is checked out there, not in the primary checkout — so `feature_dir` does not exist in the primary checkout's working tree and the command errors. Fix: after `feature_dir` not found in `main_repo_root`, look for the mission's coord worktree and resolve `feature_dir` from it; or read `spec.md` from git (target branch HEAD) via `git show <target_branch>:<path>`.
+  - Part A (`src/specify_cli/cli/commands/agent/tasks.py` — `map_requirements` function): `map-requirements` calls `resolve_feature_dir_for_mission(main_repo_root, mission_slug)`, which delegates to `mission_runtime.resolve_action_context`. The runtime's coord-worktree routing fires only when `meta.json` carries `coordination_branch` — absent for PR-bound missions. The runtime falls through to the primary checkout, where `kitty-specs/<mission>/` may not exist if the mission's target branch is checked out in a coord worktree, causing the "spec.md not found" error. **Fix (investigation-first — see WP05 T020 for the confirmed approach):** Route `map_requirements` through `resolve_feature_dir_for_slug` (which calls `_read_path_resolver.resolve_mission_read_path` directly and is already coord-topology-aware, bypassing the `coordination_branch` gate). Confirm via source tracing before implementing — see WP05 T020 for detailed investigation guidance.
   - Part B (`src/specify_cli/ownership/validation.py` — `validate_glob_matches`, around line 374): when a zero-match literal `owned_files` entry has a nearest-match suggestion (`_nearest_match_suggestion` returns non-None), the error message includes the "did you mean?" hint but omits the `create_intent` guidance. The two paths are mutually exclusive (`if suggestion: msg += suggestion; else: msg += create_intent_hint`). Fix: change to `if suggestion: msg += suggestion; msg += create_intent_hint` so both appear together when a nearest-match is found.
 - **Sequencing/depends-on**: none; both parts touch independent code surfaces
 - **Risks**:

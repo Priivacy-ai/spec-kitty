@@ -64,6 +64,8 @@ The marker is at `tests/adversarial/test_distribution.py` lines 193–206 (a com
 
 **Residual risk**: `ensure_runtime()` inside `init` may be flaky in some CI environments (absent global runtime state). If the test fails after the marker is removed with a failure unrelated to the agent-strategy prompt, that is a pre-existing latent issue. File a new GitHub issue with the failure; do NOT restore the xfail.
 
+**Note on T002 scope**: T002 (docstring addition to `_human_slug_for_mid8_branch`) is plan-level refinement complementing the test required by FR-002. FR-002 specifies the test; T002 documents the invariant the test covers so future maintainers understand the guard before touching it. Both are part of this WP.
+
 ### Why the branch naming test gap exists (IC-02)
 
 `_human_slug_for_mid8_branch()` in `src/specify_cli/lanes/branch_naming.py` strips the embedded `mid8` from a slug before re-appending it — but only when the slug's embedded `mid8` matches the `mission_id` argument's `mid8`. When they differ (the pathological case), the guard does not fire and the `mid8` is appended twice, producing a doubled branch name like `kitty/mission-my-feature-AAAA1111-01KV3NGS`.

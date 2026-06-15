@@ -299,6 +299,12 @@ PWHEADLESS=1 pytest tests/specify_cli/tool_surface/ -v
 # Full suite
 PWHEADLESS=1 pytest tests/ -n auto --dist loadfile -p no:cacheprovider -q
 
+# Branch coverage on new provider registration code (NFR-003)
+.venv/bin/pytest tests/specify_cli/tool_surface/ \
+  --cov=src/specify_cli/tool_surface/providers \
+  --cov-report=term-missing \
+  --cov-fail-under=90
+
 # Type check
 .venv/bin/mypy src/ --strict
 
@@ -315,6 +321,7 @@ PWHEADLESS=1 pytest tests/ -n auto --dist loadfile -p no:cacheprovider -q
 - [ ] `native_config` registration has both hyphen and underscore kind tokens.
 - [ ] `test_provider_registration.py` conformance tests pass.
 - [ ] `spec-kitty doctor tool-surface` behavior is unchanged from pre-refactor.
+- [ ] Branch coverage on `src/specify_cli/tool_surface/providers/` is ≥ 90% (NFR-003): `pytest tests/specify_cli/tool_surface/ --cov=src/specify_cli/tool_surface/providers --cov-fail-under=90` passes.
 - [ ] `mypy src/specify_cli/tool_surface/ --strict` → zero errors.
 - [ ] `ruff check src/specify_cli/tool_surface/` → zero issues.
 - [ ] All pre-existing `tool_surface` tests pass.

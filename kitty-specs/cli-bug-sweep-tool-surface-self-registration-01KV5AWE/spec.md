@@ -100,7 +100,7 @@ A contributor writes a WP with `owned_files` listing a file to be created during
 
 1. `tests/adversarial/test_distribution.py::TestUpgradeWithAllMissions::test_upgrade_updates_templates` produces PASS or FAIL — never XFAIL or XPASS — and a future regression in init-with-`--ai` is immediately visible as a test failure.
 2. `spec-kitty charter bundle validate` exits 0 on a fresh clone of the spec-kitty repository with no project-level synthesis artifacts committed.
-3. Two contributors can each add a separate tool surface provider in parallel lanes and complete a merge with zero conflicts in the coordinator file.
+3. The coordinator file (`src/specify_cli/tool_surface/service.py`) contains no provider-specific literals — asserted by the Directive-030 conformance test in T019 — eliminating the structural cause of merge conflicts when contributors add providers in parallel lanes.
 4. `spec-kitty agent tasks map-requirements` succeeds when a coord worktree is present and resolves spec.md from the main checkout.
 5. `finalize-tasks --validate-only` ownership errors for zero-match paths include a `create_intent` hint naming the missing path.
 6. The full test suite passes with no new failures, type errors, or linter issues introduced by this mission.
