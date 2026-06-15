@@ -273,12 +273,14 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
             for statement in node.body:
                 self.visit(statement)
             return
-        self.generic_visit(node)
+        self.visit(node.test)
+        self._visit_unknown_branch(node.body)
+        self._visit_unknown_branch(node.orelse)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         if self.defer_function_scans:
             self._set_shadow((node.name,))
-            if node.name in _MODULE_SETUP_NAMES:
+            if node.name in _MODULE_SETUP_NAMES or _is_autouse_fixture(node):
                 _propagate_module_setup_aliases(node, self.scopes)
             self.deferred_functions.append(node)
             return
@@ -287,7 +289,7 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         if self.defer_function_scans:
             self._set_shadow((node.name,))
-            if node.name in _MODULE_SETUP_NAMES:
+            if node.name in _MODULE_SETUP_NAMES or _is_autouse_fixture(node):
                 _propagate_module_setup_aliases(node, self.scopes)
             self.deferred_functions.append(node)
             return
@@ -380,6 +382,14 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
             return self.scopes[0]
         return self.scope
 
+    def _visit_unknown_branch(self, statements: list[ast.stmt]) -> None:
+        branch_scope: _AliasMap = {}
+        self.scopes.append(branch_scope)
+        for statement in statements:
+            self.visit(statement)
+        self.scopes.pop()
+        _merge_clock_aliases(self.scope, branch_scope)
+
 
 def _add_star_import_aliases(
     aliases: _AliasMap,
@@ -401,6 +411,24 @@ def _module_class_aliases(
         for alias_path, source in module_scope.items()
         if len(alias_path) > 1 and alias_path[0] == class_name and source is not None
     }
+
+
+def _merge_clock_aliases(target: _AliasMap, source: _AliasMap) -> None:
+    for path, alias_source in source.items():
+        if alias_source is not None:
+            _set_alias(target, path, alias_source)
+
+
+def _is_autouse_fixture(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    for decorator in node.decorator_list:
+        if not isinstance(decorator, ast.Call):
+            continue
+        if _attribute_path(decorator.func) not in {("fixture",), ("pytest", "fixture")}:
+            continue
+        for keyword in decorator.keywords:
+            if keyword.arg == "autouse" and isinstance(keyword.value, ast.Constant) and keyword.value.value is True:
+                return True
+    return False
 
 
 def _propagate_module_setup_aliases(
@@ -440,7 +468,9 @@ class _ModuleSetupAliasCollector(ast.NodeVisitor):
             for statement in node.body:
                 self.visit(statement)
             return
-        self.generic_visit(node)
+        self.visit(node.test)
+        self._visit_unknown_branch(node.body)
+        self._visit_unknown_branch(node.orelse)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         del node
@@ -455,6 +485,14 @@ class _ModuleSetupAliasCollector(ast.NodeVisitor):
         if len(target_path) == 1 and target_path[0] in self.global_names:
             return self.scopes[0]
         return self.scope
+
+    def _visit_unknown_branch(self, statements: list[ast.stmt]) -> None:
+        branch_scope: _AliasMap = {}
+        self.scopes.append(branch_scope)
+        for statement in statements:
+            self.visit(statement)
+        self.scopes.pop()
+        _merge_clock_aliases(self.scope, branch_scope)
 
 
 def _add_assignment_aliases(
@@ -602,6 +640,8 @@ class _MethodInstanceAliasCollector(ast.NodeVisitor):
     ) -> None:
         self.self_names = self_names
         self.aliases: dict[tuple[str, ...], tuple[str, ...]] = {}
+        self.local_helpers: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] = {}
+        self.active_helpers: set[str] = set()
         local_scope: _AliasMap = {(name,): None for name in _function_bound_names(node)}
         for self_name in self_names:
             for path, source in class_aliases.items():
@@ -631,19 +671,35 @@ class _MethodInstanceAliasCollector(ast.NodeVisitor):
             for statement in node.body:
                 self.visit(statement)
             return
-        self.generic_visit(node)
+        self.visit(node.test)
+        self._visit_unknown_branch(node.body)
+        self._visit_unknown_branch(node.orelse)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        del node
+        self.local_helpers[node.name] = node
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-        del node
+        self.local_helpers[node.name] = node
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         del node
 
     def visit_Lambda(self, node: ast.Lambda) -> None:
         del node
+
+    def visit_Call(self, node: ast.Call) -> None:
+        helper_name = _called_name(node)
+        if helper_name is None or helper_name not in self.local_helpers or helper_name in self.active_helpers:
+            self.generic_visit(node)
+            return
+        if node.args or any(keyword.arg is not None for keyword in node.keywords):
+            self.generic_visit(node)
+            return
+        helper = self.local_helpers[helper_name]
+        self.active_helpers.add(helper_name)
+        for statement in helper.body:
+            self.visit(statement)
+        self.active_helpers.remove(helper_name)
 
     def _record_instance_aliases(self, targets: list[ast.expr], value: ast.expr) -> None:
         if len(targets) == 1 and isinstance(targets[0], ast.Tuple | ast.List) and isinstance(value, ast.Tuple | ast.List):
@@ -661,6 +717,14 @@ class _MethodInstanceAliasCollector(ast.NodeVisitor):
                 self.aliases[instance_path] = source
             else:
                 self.aliases.pop(instance_path, None)
+
+    def _visit_unknown_branch(self, statements: list[ast.stmt]) -> None:
+        branch_scope: _AliasMap = {}
+        self.scopes.append(branch_scope)
+        for statement in statements:
+            self.visit(statement)
+        self.scopes.pop()
+        _merge_clock_aliases(self.scope, branch_scope)
 
 
 class _FunctionBindingVisitor(ast.NodeVisitor):
@@ -783,6 +847,12 @@ def _assignment_target_paths(target: ast.expr) -> list[tuple[str, ...]]:
     if target_path:
         return [target_path]
     return []
+
+
+def _called_name(node: ast.Call) -> str | None:
+    if isinstance(node.func, ast.Name):
+        return node.func.id
+    return None
 
 
 def _attribute_path(node: ast.AST) -> tuple[str, ...]:
