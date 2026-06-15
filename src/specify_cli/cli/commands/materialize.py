@@ -60,8 +60,10 @@ def materialize(
     derived_dir = repo_root / ".kittify" / "derived"
     derived_dir.mkdir(parents=True, exist_ok=True)
 
-    # Resolve feature directories to process
-    mission_slug = mission
+    # Resolve feature directories to process. Normalize whitespace to preserve
+    # the prior resolve_selector() behavior (` 034-foo ` must resolve the same as
+    # `034-foo`); whitespace-only/empty means "all missions".
+    mission_slug = mission.strip() if mission else mission
 
     if mission_slug:
         from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug

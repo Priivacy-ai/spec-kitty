@@ -62,7 +62,9 @@ def verify_setup(
 ) -> None:
     """Verify that the current environment matches Spec Kitty expectations."""
     output_data: dict[str, object] = {}
-    mission_slug = mission
+    # Normalize whitespace to preserve prior resolve_selector() behavior and stay
+    # consistent with the validate-* commands; empty/None means "no mission".
+    mission_slug = mission.strip() if mission else mission
 
     # If diagnostics mode requested, use diagnostics output
     if diagnostics:
