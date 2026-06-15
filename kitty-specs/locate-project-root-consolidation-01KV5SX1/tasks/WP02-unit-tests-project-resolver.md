@@ -19,6 +19,7 @@ subtasks:
 - T005
 - T006
 agent: claude
+shell_pid: '16033'
 history:
 - date: '2026-06-15'
   event: Created during /spec-kitty.tasks by Architect Alphonso
