@@ -76,6 +76,7 @@ PRIMARY_ARTIFACT_FILES = (
 _PROJECT_CONFIG_RELPATH = ".kittify/config.yaml"
 _DECISION_ID_MARKER = "decision_id:"
 _ACCEPTED_READY_LANES = frozenset({"approved", "done"})
+_PATH_CONVENTIONS_NOT_SATISFIED = "Path conventions not satisfied."
 
 # Paths written by the accept pipeline itself.  These must be excluded from the
 # git-dirty gate so that a second accept run on unchanged mission state produces
@@ -1159,18 +1160,18 @@ def collect_feature_summary(
         if path_result.missing_paths:
             if strict_metadata:
                 path_violations.append(
-                    path_result.format_errors() or "Path conventions not satisfied."
+                    path_result.format_errors() or _PATH_CONVENTIONS_NOT_SATISFIED
                 )
             else:
                 path_convention_warning = (
-                    path_result.format_warnings() or "Path conventions not satisfied."
+                    path_result.format_warnings() or _PATH_CONVENTIONS_NOT_SATISFIED
                 )
 
     warnings: list[str] = []
     if missing_optional:
         warnings.append("Optional artifacts missing: " + ", ".join(missing_optional))
     if path_violations:
-        warnings.append("Path conventions not satisfied.")
+        warnings.append(_PATH_CONVENTIONS_NOT_SATISFIED)
     elif path_convention_warning:
         warnings.append(path_convention_warning)
 
