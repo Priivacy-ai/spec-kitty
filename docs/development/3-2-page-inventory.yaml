@@ -2801,6 +2801,15 @@
   current_target: true
   citation_refs: []
   notes: How-to; provisional current — confirm in WP08 IA review.
+- path: docs/how-to/tool-surface-upgrade-and-repair.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: E
+  current_target: true
+  citation_refs:
+    - '1944'
+    - '1965'
+  notes: Tool-vs-Agent terminology + doctor tool-surfaces --fix repair path (mission tool-surface-contract-residuals-01KV4S5B, WP05/FR-006).
 - path: docs/how-to/troubleshoot-charter.md
   tag: current
   divio_type: how-to

@@ -14,6 +14,8 @@
   href: uninstall.md
 - name: Diagnose Installation Problems
   href: diagnose-installation.md
+- name: Repair Tool Surfaces After an Upgrade
+  href: tool-surface-upgrade-and-repair.md
 - name: Harness Guides
   href: harnesses/
 - name: Set Up Codex Launcher

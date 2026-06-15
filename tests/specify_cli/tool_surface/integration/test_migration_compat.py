@@ -23,8 +23,14 @@ from ._compat_support import (
 )
 
 import pytest
+from typer.testing import CliRunner
+
+import specify_cli.cli.commands.doctor as doctor_mod
+from specify_cli.cli.commands.doctor import app
 
 pytestmark = [pytest.mark.integration]
+
+_runner = CliRunner()
 
 _FIXTURES = Path(__file__).parent / "fixtures"
 _BASELINE = _FIXTURES / "doctor_skills_baseline.json"
@@ -93,18 +99,28 @@ def test_doctor_skills_json_is_deterministic(tmp_path: Path) -> None:
     assert first.json() == second.json()
 
 
-def test_doctor_skills_json_error_schema_stable(tmp_path: Path) -> None:
-    """The structured error envelope is frozen too: {ok, error:{code, message}}."""
-    # No .kittify project here => 'not_in_project' error path. Point the repo-root
-    # override at an empty dir so resolution genuinely fails.
-    empty = tmp_path / "empty"
-    empty.mkdir()
-    result = run_spec_kitty("doctor", "skills", "--json", cwd=empty)
-    assert result.returncode == 2, result.stdout
-    payload = result.json()
+def test_doctor_skills_json_error_schema_stable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The structured error envelope is frozen too: {ok, error:{code, message}}.
+
+    Post-#1965, ``locate_project_root`` treats an *existing* ``SPECIFY_REPO_ROOT``
+    as authoritative even without ``.kittify/`` — so the old approach of pointing
+    the override at an empty dir now *succeeds* (the dir becomes the root) instead
+    of reaching ``not_in_project``. Reaching the error path via the resolver would
+    require a failing Tier-2 walk-up, which is non-deterministic: a leaked
+    ``/tmp/.kittify`` (E2E test pollution) above a temp cwd would resolve and pass.
+
+    To freeze the *error envelope* deterministically we force the resolver's
+    ``None`` outcome directly and assert doctor's formatting of it. This pins
+    ``doctor.py``'s ``not_in_project`` branch (code + message keys), which is a
+    distinct contract from the success-path schema frozen by the tests above.
+    """
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: None)
+    result = _runner.invoke(app, ["skills", "--json"])
+    assert result.exit_code == 2, result.output
+    payload = json.loads(result.output)
     assert payload["ok"] is False
     assert isinstance(payload["error"], dict)
-    assert "code" in payload["error"]
+    assert payload["error"]["code"] == "not_in_project"
     assert "message" in payload["error"]
     assert isinstance(payload["error"]["code"], str)
     assert isinstance(payload["error"]["message"], str)

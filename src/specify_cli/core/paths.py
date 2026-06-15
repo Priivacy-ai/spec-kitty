@@ -54,7 +54,13 @@ def locate_project_root(start: Path | None = None) -> Path | None:
     pointer back to the main repository.
 
     Resolution order:
-    1. SPECIFY_REPO_ROOT environment variable (highest priority)
+    1. SPECIFY_REPO_ROOT environment variable (highest priority). When set and
+       the named path *exists*, it is authoritative — it is honoured even if the
+       path has no ``.kittify/`` directory (#1965). A non-existent path is
+       ignored and resolution falls through to the walk-up. This makes the env
+       var a deterministic override for CI/CD and tests; real ``.kittify/``
+       projects are unaffected because both branches flow through
+       ``get_main_repo_root`` on the same directory (C-003).
     2. Walk up directory tree, detecting worktree .git files and following to main repo
     3. Fall back to .kittify/ marker search
 
@@ -73,12 +79,18 @@ def locate_project_root(start: Path | None = None) -> Path | None:
         >>> root = locate_project_root(Path(".worktrees/my-feature"))
         >>> assert ".worktrees" not in str(root)
     """
-    # Tier 1: Check environment variable (allows override for CI/CD)
+    # Tier 1: Check environment variable (authoritative override for CI/CD).
+    # When the named path exists it wins outright — a missing ``.kittify/`` is
+    # NOT a disqualifier (#1965). The ``exists()`` guard is retained so a
+    # non-existent path falls through to the walk-up instead of returning a
+    # bogus root. Real ``.kittify/`` projects are unaffected: both this branch
+    # and the walk-up resolve the same directory via ``get_main_repo_root``
+    # (C-003 regression-guarded).
     if env_root := os.getenv("SPECIFY_REPO_ROOT"):
         env_path = Path(env_root).resolve()
-        if env_path.exists() and (env_path / KITTIFY_DIR).is_dir():
+        if env_path.exists():
             return get_main_repo_root(env_path)
-        # Invalid env var - fall through to other methods
+        # Non-existent env var path - fall through to other methods
 
     # Tier 2: Walk up directory tree, handling worktree .git files
     current = (start or Path.cwd()).resolve()
