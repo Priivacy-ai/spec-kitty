@@ -553,6 +553,22 @@ def _resolve_placement_ref(
     return placement.placement_ref if placement is not None else None
 
 
+def _resolve_lanes_dir(repo_root: Path, mission_slug: str) -> Path:
+    """Return the feature dir to read lanes.json from (coord-aware).
+
+    C-LANES-1 (#1991 / #1993): finalize-tasks commits lanes.json to the
+    coordination branch and deletes the primary-checkout copy. This resolver
+    prefers the coord-worktree surface (where the file lives) and falls back
+    to the primary checkout for flat/legacy topology. Distinct from
+    feature_dir (meta-anchored to primary) and _status_feature_dir
+    (status-emitter surface) — three artifact families, three surfaces.
+    """
+    d = resolve_feature_dir_for_mission(repo_root, mission_slug)
+    if not (d / "meta.json").exists():
+        d = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    return d
+
+
 def _placement_coord_filter(placement_ref: CommitTarget | None) -> str | None:
     """Return the coord-owned-exclusion ref implied by the context placement.
 
@@ -954,18 +970,19 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         if auto_commit is None:
             auto_commit = get_auto_commit_default(repo_root)
         _feature_number, mission_slug = detect_feature_context(mission, feature, repo_root=repo_root)
-        feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
-        if not (feature_dir / "meta.json").exists():
-            feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+        # C-LANES-1 (#1991 / #1993): lanes.json lives on the coord-worktree
+        # surface; _resolve_lanes_dir is the pure seam that returns the right
+        # surface without anchoring to primary. feature_dir starts from the same
+        # coord-aware result then gets the primary-meta fallback separately —
+        # three artifact families (lanes, status, meta), three surfaces.
+        _lanes_feature_dir: Path = _resolve_lanes_dir(repo_root, mission_slug)
+        feature_dir: Path = _lanes_feature_dir
         # FR-003 cascade layer 1: meta.json lives ONLY on the PRIMARY checkout —
-        # the coord worktree's mission dir never carries it. Both resolvers above
-        # are topology-aware and prefer the coord worktree once materialized, so
-        # ``feature_dir`` lands on a meta-less coord dir and every downstream
-        # meta read (``_ensure_vcs_in_meta``, identity resolution) fails with
-        # "meta.json not found". When the resolved dir lacks meta, anchor on the
-        # canonical primary dir so config is readable before topology is
-        # resolved. (The coord surface stays authoritative for STATUS reads,
-        # which route through the canonical surface authority, not this dir.)
+        # the coord worktree's mission dir never carries it. When the coord-aware
+        # result lacks meta, anchor on the canonical primary dir so config is
+        # readable before topology is resolved. (The coord surface stays
+        # authoritative for STATUS reads and lanes reads — only meta reads use
+        # the primary surface.)
         if not (feature_dir / "meta.json").exists():
             from specify_cli.missions._read_path_resolver import (
                 primary_feature_dir_for_mission,
@@ -1121,7 +1138,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         lane = None
         from specify_cli.lanes.compute import is_planning_lane
         if not is_planning_lane(resolved_workspace):
-            lanes_manifest = require_lanes_json(feature_dir)
+            lanes_manifest = require_lanes_json(_lanes_feature_dir)
             lane = lanes_manifest.lane_for_wp(wp_id)
             if lane is None:
                 raise ValueError(f"{wp_id} is not assigned to any lane in lanes.json")
