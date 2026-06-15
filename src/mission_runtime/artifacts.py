@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Literal
 
 from mission_runtime.context import CommitTarget, CommitTargetKind
@@ -128,7 +128,8 @@ def _artifact_kind_for_path(
     *,
     mission_slug: str | None,
 ) -> MissionArtifactKind | None:
-    parts = Path(path).parts
+    normalized = str(path).replace("\\", "/").rstrip("/")
+    parts = PurePosixPath(normalized).parts
     try:
         specs_index = parts.index("kitty-specs")
     except ValueError:
@@ -145,6 +146,7 @@ def _artifact_kind_for_path(
 
     mission_rel_parts = parts[rel_index:]
     if len(mission_rel_parts) == 1:
-        return _COORD_RESIDUE_FILENAMES.get(mission_rel_parts[0])
+        name = mission_rel_parts[0]
+        return _COORD_RESIDUE_FILENAMES.get(name) or _COORD_RESIDUE_DIRS.get(name)
 
     return _COORD_RESIDUE_DIRS.get(mission_rel_parts[0])

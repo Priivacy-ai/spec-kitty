@@ -108,6 +108,48 @@ class TestRecordAnalysisCoordResidueNoDeadlock:
             repo, json_output=True, placement_ref=coord_placement
         )
 
+    def test_untracked_tasks_dir_residue_does_not_block_record_analysis(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.cli.commands.agent.mission import (
+            _enforce_analysis_report_write_preflight,
+        )
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+
+        def git(*args: str) -> str:
+            return subprocess.run(
+                ["git", *args],
+                cwd=repo,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+
+        git("init", "-b", "kitty/mission-residue-lane-a")
+        git("config", "user.email", "t@example.com")
+        git("config", "user.name", "Test")
+        mission_dir = repo / "kitty-specs" / "residue-01ABCDEF"
+        mission_dir.mkdir(parents=True)
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+        git("add", "-A")
+        git("commit", "-m", "seed mission")
+        (mission_dir / "tasks").mkdir()
+        (mission_dir / "tasks" / "WP01.md").write_text("# WP01\n", encoding="utf-8")
+        assert "?? kitty-specs/residue-01ABCDEF/tasks/" in git("status", "--porcelain")
+        monkeypatch.chdir(repo)
+
+        _enforce_analysis_report_write_preflight(
+            repo,
+            json_output=True,
+            placement_ref=CommitTarget(
+                ref="kitty/mission-residue-01ABCDEF",
+                kind=CommitTargetKind.COORDINATION,
+            ),
+            mission_slug="residue-01ABCDEF",
+        )
+
     def test_regression_guard_without_context_still_blocks(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:

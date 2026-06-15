@@ -41,6 +41,9 @@ def test_coordination_residue_path_filter_is_specific_to_finalized_artifacts() -
         "kitty-specs/demo/tasks/WP01.md", mission_slug="demo"
     )
     assert is_coordination_artifact_residue_path(
+        "kitty-specs/demo/tasks/", mission_slug="demo"
+    )
+    assert is_coordination_artifact_residue_path(
         "kitty-specs/demo/issue-matrix.md", mission_slug="demo"
     )
     assert not is_coordination_artifact_residue_path(
