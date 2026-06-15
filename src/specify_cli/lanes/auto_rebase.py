@@ -364,15 +364,21 @@ def _merge_head_exists(worktree: Path) -> bool:
 
 
 def _staged_status_event_dirs(worktree: Path) -> tuple[set[Path], str | None]:
-    result = _run(["git", "diff", "--name-only", "--cached"], worktree)
+    result = _run(["git", "diff", "--name-status", "--cached"], worktree)
     if result.returncode != 0:
         return set(), result.stderr.strip() or result.stdout.strip()
 
     feature_dirs: set[Path] = set()
     for raw in result.stdout.splitlines():
-        rel_path = raw.strip()
-        if rel_path and _is_status_events_path(rel_path):
-            feature_dirs.add((worktree / rel_path).parent)
+        status, _, rel_path = raw.strip().partition("\t")
+        if not rel_path and status:
+            rel_path = status
+            status = ""
+        if not rel_path or not _is_status_events_path(rel_path):
+            continue
+        if status.startswith("D"):
+            return set(), f"{RULE_ID_STATUS_EVENTS}: refusing staged deletion of {rel_path}"
+        feature_dirs.add((worktree / rel_path).parent)
     return feature_dirs, None
 
 

@@ -17,7 +17,7 @@ LANE_AUTO_REBASE_FAILED = "LANE_AUTO_REBASE_FAILED"
 WORKTREES_DIRNAME = ".worktrees"
 
 
-@dataclass(frozen=True)
+@dataclass
 class LaneAutoRebaseSyncError(RuntimeError):
     """Structured failure for a lane sync-point auto-rebase refusal."""
 
@@ -85,7 +85,7 @@ def _resolve_lane_branch(
     planning_base_branch: str,
     mission_id: str | None,
 ) -> str:
-    candidates = []
+    candidates: list[str] = []
     if mission_id and len(mission_id) >= 8:
         candidates.append(
             lane_branch_name(

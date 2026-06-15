@@ -743,6 +743,71 @@ class TestAutoRebaseAdditive:
         assert committed_status["event_count"] == 3
         assert sorted(committed_status["work_packages"]) == ["WP01", "WP02", "WP03"]
 
+    def test_clean_status_events_deletion_fails_closed(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        repo = _init_repo(tmp_path)
+        mission_slug = "1968-delete-clean"
+        mission_branch = f"kitty/mission-{mission_slug}"
+        branch_b = f"kitty/mission-{mission_slug}-lane-a"
+        mission_dir = Path("kitty-specs") / mission_slug
+        status_events_rel = mission_dir / "status.events.jsonl"
+        status_json_rel = mission_dir / "status.json"
+        base_event = _status_event(
+            "01AAA000000000000000000001",
+            at="2026-06-15T04:00:00Z",
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            from_lane="genesis",
+            to_lane="planned",
+        )
+
+        _write_status_events(repo / status_events_rel, [base_event])
+        (repo / status_json_rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / status_json_rel).write_text('{"event_count": 1}\n', encoding="utf-8")
+        _run(["git", "add", str(mission_dir)], repo)
+        _run(["git", "commit", "-m", "seed deletion status artifacts"], repo)
+
+        _run(["git", "branch", mission_branch, "main"], repo)
+        _run(["git", "checkout", mission_branch], repo)
+        (repo / status_events_rel).unlink()
+        _run(["git", "add", str(status_events_rel)], repo)
+        _run(["git", "commit", "-m", "mission: delete status events"], repo)
+
+        _run(["git", "checkout", "-b", branch_b, "main"], repo)
+        (repo / "src").mkdir(exist_ok=True)
+        (repo / "src" / "lane-only.txt").write_text("lane\n", encoding="utf-8")
+        _run(["git", "add", "src/lane-only.txt"], repo)
+        _run(["git", "commit", "-m", "lane: unrelated work"], repo)
+        _run(["git", "checkout", "main"], repo)
+
+        worktree_b = repo / ".worktrees" / f"{mission_slug}-lane-a"
+        worktree_b.parent.mkdir(parents=True, exist_ok=True)
+        _run(["git", "worktree", "add", str(worktree_b), branch_b], repo)
+        _run(["git", "config", "user.email", "test@spec-kitty"], worktree_b)
+        _run(["git", "config", "user.name", "test"], worktree_b)
+        pre_sync_head = _run(["git", "rev-parse", "HEAD"], worktree_b).stdout.strip()
+
+        report = attempt_auto_rebase(
+            lane=_make_lane(),
+            branch=branch_b,
+            mission_branch=mission_branch,
+            repo_root=repo,
+            worktree_path=worktree_b,
+        )
+
+        assert report.succeeded is False
+        assert report.halt_reason is not None
+        assert "refusing staged deletion" in report.halt_reason
+        assert _run(["git", "rev-parse", "HEAD"], worktree_b).stdout.strip() == pre_sync_head
+        assert (worktree_b / status_events_rel).exists()
+        assert (worktree_b / status_json_rel).exists()
+        assert "status.events.jsonl" not in _run(
+            ["git", "status", "--porcelain"],
+            worktree_b,
+        ).stdout
+
 
 class TestAutoRebaseSemanticConflict:
     """T045 — Negative: a semantic conflict falls through to Manual."""
