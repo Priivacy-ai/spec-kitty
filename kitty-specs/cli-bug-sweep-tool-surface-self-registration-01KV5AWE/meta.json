@@ -13,6 +13,7 @@
   "accepted_at": "2026-06-15T12:41:53.671219+00:00",
   "accepted_by": "robert",
   "accepted_from_commit": "d10fa9ea01c7122608ef2af6b721565dd44996ae",
+  "baseline_merge_commit": "ed214e16c11f7e8a9c858acfbbde7cad4671d510",
   "coordination_branch": "kitty/mission-cli-bug-sweep-tool-surface-self-registration-01KV5AWE",
   "created_at": "2026-06-15T09:47:55.786206+00:00",
   "friendly_name": "CLI Bug Sweep & Tool Surface Self-Registration",
