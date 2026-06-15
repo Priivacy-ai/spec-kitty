@@ -395,6 +395,18 @@ def _staged_status_artifact_dirs(worktree: Path) -> tuple[set[Path], str | None]
     return feature_dirs, None
 
 
+def _status_json_already_classified(
+    file_path: Path,
+    classifications: list[ConflictClassification],
+) -> bool:
+    return any(
+        classification.file_path == file_path
+        and isinstance(classification.resolution, Auto)
+        and classification.resolution.rule_id == RULE_ID_STATUS_JSON
+        for classification in classifications
+    )
+
+
 def _refresh_status_json_for_staged_artifacts(
     worktree: Path,
     classifications: list[ConflictClassification],
@@ -407,6 +419,8 @@ def _refresh_status_json_for_staged_artifacts(
 
     for feature_dir in sorted(feature_dirs, key=lambda path: path.as_posix()):
         file_path = feature_dir / "status.json"
+        if _status_json_already_classified(file_path, classifications):
+            continue
         classification, halt_reason = _resolve_status_json(file_path, worktree)
         if halt_reason is not None:
             return halt_reason

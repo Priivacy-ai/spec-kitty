@@ -723,6 +723,16 @@ class TestAutoRebaseAdditive:
         )
 
         assert report.succeeded is True, report.halt_reason
+        rule_ids = [
+            getattr(classification.resolution, "rule_id", None)
+            for classification in report.classifications
+        ]
+        assert rule_ids == [
+            "R-STATUS-EVENTS-JSONL-UNION",
+            "R-STATUS-JSON-REMATERIALIZE",
+        ]
+        subject = _run(["git", "log", "-1", "--pretty=%s"], worktree_b).stdout.strip()
+        assert subject.startswith("auto-rebase(lane=lane-a): 2 conflicts resolved")
         committed_status = json.loads(
             _run(["git", "show", f"HEAD:{status_json_rel.as_posix()}"], worktree_b).stdout
         )
