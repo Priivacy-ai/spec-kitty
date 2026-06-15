@@ -1,0 +1,285 @@
+---
+work_package_id: WP03
+title: Caller Integration Tests and Suite Validation
+dependencies:
+- WP01
+- WP02
+requirement_refs:
+- FR-005
+- FR-006
+- FR-007
+- FR-009
+- FR-010
+- NFR-001
+- NFR-005
+tracker_refs: []
+planning_base_branch: feat/locate-project-root-consolidation
+merge_target_branch: feat/locate-project-root-consolidation
+branch_strategy: Planning artifacts for this mission were generated on feat/locate-project-root-consolidation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/locate-project-root-consolidation unless the human explicitly redirects the landing branch.
+subtasks:
+- T007
+- T008
+- T009
+agent: claude
+history:
+- date: '2026-06-15'
+  event: Created during /spec-kitty.tasks by Architect Alphonso
+agent_profile: implementer-ivan
+authoritative_surface: tests/specify_cli/cli/
+create_intent:
+- tests/specify_cli/cli/test_helpers.py
+- tests/specify_cli/cli/commands/test_lint.py
+execution_mode: code_change
+owned_files:
+- tests/specify_cli/cli/test_helpers.py
+- tests/specify_cli/cli/commands/test_lint.py
+role: implementer
+tags: []
+---
+
+## ⚡ Do This First: Load Agent Profile
+
+Before reading anything else, load your assigned agent profile:
+
+```
+/ad-hoc-profile-load implementer-ivan
+```
+
+---
+
+## Objective
+
+Add targeted integration-level tests for two of the four affected callers — `get_project_root_or_exit` (worktree scenario) and `lint_command` (`SPECIFY_REPO_ROOT` scenario) — then run the full suite to confirm zero regressions and ≥90% coverage for all changed files.
+
+**Prerequisites:** WP01 (shim) and WP02 (unit tests) must be complete before this WP's validation in T009 is meaningful.
+
+---
+
+## Context
+
+**Coverage gap (Stenographer, 2026-06-15):**
+- `get_project_root_or_exit` is universally mocked in all existing tests (8 locations across 4 test files). It has never been tested with a real worktree filesystem.
+- `lint_command` has no test for `SPECIFY_REPO_ROOT` behavior.
+- Without these tests, the shim from WP01 is invisible to the test suite — a future reversion would pass all tests.
+
+**Active failures this closes (Matrix-Maker rows 3 and 4):**
+- Row 3: `get_project_root_or_exit` exits 1 from a git worktree (no `SPECIFY_REPO_ROOT`) — any `spec-kitty status`, `merge`, `review` command fails from a worktree
+- Row 4: `lint_command` falls back to `Path.cwd()` when `SPECIFY_REPO_ROOT` is set and CWD is outside the project — `ruff`/`mypy` run with the wrong working directory
+
+---
+
+## Branch Strategy
+
+**Planning base branch:** `feat/locate-project-root-consolidation`  
+**Final merge target:** `feat/locate-project-root-consolidation`  
+**Execution workspace:** allocated per `lanes.json` — resolve via `spec-kitty agent action implement WP03 --agent claude`.
+
+---
+
+## Subtask T007 — Add test_get_project_root_or_exit_succeeds_in_worktree
+
+**Purpose:** Verify that `get_project_root_or_exit` returns the main repo root (does not call `typer.Exit`) when the caller is in a git worktree and the main repo has `.kittify`.
+
+**File:** `tests/specify_cli/cli/test_helpers.py` (create if absent; if `tests/specify_cli/cli/` does not exist, use the nearest existing test file for `cli/helpers.py`)
+
+**Step 1 — Find or create the test file:**
+```bash
+find tests/ -name "test_helpers.py" | head -5
+find tests/ -name "*helper*" | head -5
+```
+If `tests/specify_cli/cli/test_helpers.py` exists, add to it. If it doesn't, create it.
+
+**Step 2 — Read `src/specify_cli/cli/helpers.py`** to understand `get_project_root_or_exit`'s signature and error behavior before writing the test.
+
+**Test to add:**
+```python
+import pytest
+from pathlib import Path
+from specify_cli.cli.helpers import get_project_root_or_exit
+
+
+def test_get_project_root_or_exit_succeeds_in_worktree(tmp_path: Path) -> None:
+    """get_project_root_or_exit returns main repo root when called from a git worktree."""
+    # Build fake main repo with .kittify
+    main_repo = tmp_path / "main_repo"
+    (main_repo / ".kittify").mkdir(parents=True)
+    worktrees_dir = main_repo / ".git" / "worktrees" / "test_lane"
+    worktrees_dir.mkdir(parents=True)
+
+    # Build fake worktree — .git is a file pointer
+    worktree = tmp_path / "worktree"
+    worktree.mkdir()
+    (worktree / ".git").write_text(f"gitdir: {worktrees_dir}\n")
+
+    # Call without mocking — exercises the real delegation chain
+    result = get_project_root_or_exit(start=worktree)
+    assert result == main_repo
+```
+
+**Important:** `get_project_root_or_exit` calls `typer.Exit(1)` when it cannot find the root. If the function signature does not accept a `start` parameter, check how the existing function is defined — you may need to `monkeypatch` the `locate_project_root` it calls internally, OR verify that `get_project_root_or_exit` passes its argument through to `locate_project_root`. Do not mock `locate_project_root` itself — that would defeat the purpose.
+
+**Steps:**
+1. Read `src/specify_cli/cli/helpers.py` to understand `get_project_root_or_exit` signature.
+2. If the function accepts `start: Path | None = None`, use it directly as shown above.
+3. If it does not, check if there's a way to pass the start via the `locate_project_root` call inside.
+4. Run: `pytest tests/specify_cli/cli/test_helpers.py::test_get_project_root_or_exit_succeeds_in_worktree -v`
+
+**Catching typer.Exit:** If `get_project_root_or_exit` raises `SystemExit` (which `typer.Exit` does), the test will fail with an unexpected exception. If the worktree construction is correct and WP01 is in place, the function should NOT raise — it should return the main repo path. A `SystemExit` in this test means the shim is not working correctly.
+
+**Validation:**
+- [ ] Test passes without mocking `locate_project_root`
+- [ ] `result == main_repo`
+- [ ] Test does not catch or suppress `SystemExit` — let it fail loudly if the shim is broken
+
+---
+
+## Subtask T008 — Add test_lint_uses_spec_repo_root_as_cwd
+
+**Purpose:** Verify that `lint_command` uses `SPECIFY_REPO_ROOT` as the working directory for `ruff`/`mypy` subprocess calls when the env var is set and CWD is outside the project.
+
+**File:** `tests/specify_cli/cli/commands/test_lint.py` (create if absent)
+
+**Step 1 — Find or create the test file:**
+```bash
+find tests/ -name "test_lint.py" | head -5
+ls tests/specify_cli/cli/commands/ 2>/dev/null || echo "directory not found"
+```
+If the file exists, add to it. If not, create it at `tests/specify_cli/cli/commands/test_lint.py`.
+
+**Step 2 — Read `src/specify_cli/cli/commands/lint.py`** to understand how `locate_project_root` result is used as `cwd=` in the subprocess call.
+
+**Test to add:**
+```python
+import subprocess
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+import pytest
+
+
+def test_lint_uses_spec_repo_root_as_cwd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """lint_command uses SPECIFY_REPO_ROOT as subprocess cwd, not Path.cwd()."""
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(project_root))
+
+    captured_calls: list[dict] = []
+
+    def mock_subprocess_run(*args: object, **kwargs: object) -> MagicMock:
+        captured_calls.append({"args": args, "kwargs": kwargs})
+        result = MagicMock()
+        result.returncode = 0
+        result.stdout = ""
+        result.stderr = ""
+        return result
+
+    with patch("subprocess.run", side_effect=mock_subprocess_run):
+        # Import and call lint_command — adjust import path to match actual location
+        from specify_cli.cli.commands.lint import lint_command
+        try:
+            lint_command()
+        except SystemExit:
+            pass  # Acceptable if lint_command calls typer.Exit on success
+
+    # At least one subprocess call should have used the SPECIFY_REPO_ROOT path as cwd
+    assert any(
+        str(call["kwargs"].get("cwd") or "") == str(project_root)
+        or str(project_root) in str(call)
+        for call in captured_calls
+    ), f"Expected cwd={project_root} in subprocess calls, got: {captured_calls}"
+```
+
+**Steps:**
+1. Read `src/specify_cli/cli/commands/lint.py` to understand the exact `subprocess.run` call signature, including which module path to patch.
+2. Adjust the `patch` target to match the actual import path used in `lint.py` (e.g., `specify_cli.cli.commands.lint.subprocess.run` or `subprocess.run`).
+3. Adjust the `lint_command()` call to match its actual signature (it may require CLI arguments via `typer.testing.CliRunner`).
+4. Run: `pytest tests/specify_cli/cli/commands/test_lint.py::test_lint_uses_spec_repo_root_as_cwd -v`
+
+**Alternate approach using CliRunner (if `lint_command` is a typer command):**
+```python
+from typer.testing import CliRunner
+from specify_cli.cli.commands.lint import app  # adjust to actual export
+
+def test_lint_uses_spec_repo_root_as_cwd(tmp_path, monkeypatch):
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(project_root))
+    
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        runner = CliRunner()
+        runner.invoke(app, [])
+    
+    # Verify cwd
+    for call in mock_run.call_args_list:
+        cwd = call.kwargs.get("cwd") or (call.args[1] if len(call.args) > 1 else None)
+        if cwd == project_root:
+            break
+    else:
+        pytest.fail(f"subprocess.run was never called with cwd={project_root}")
+```
+
+**Validation:**
+- [ ] Test passes with WP01 shim in place
+- [ ] `monkeypatch.setenv` is used (not `os.environ` mutation)
+- [ ] At least one `subprocess.run` call had `cwd=project_root`
+- [ ] Test fails if `SPECIFY_REPO_ROOT` is unset (regression guard)
+
+---
+
+## Subtask T009 — Full suite validation
+
+**Purpose:** Run the complete test suite in parallel to confirm zero regressions and ≥90% coverage for all files changed by this mission.
+
+**Steps:**
+1. Run the full suite:
+   ```bash
+   PWHEADLESS=1 pytest tests/ -n auto --dist loadfile -p no:cacheprovider -q 2>&1 | tail -30
+   ```
+2. If failures: diagnose. Any failure in an existing test that was passing before this mission is a regression — do not merge until it is fixed.
+3. Check coverage for changed files:
+   ```bash
+   pytest tests/runtime/test_project_resolver.py tests/specify_cli/cli/test_helpers.py tests/specify_cli/cli/commands/test_lint.py \
+     --cov=src/specify_cli/core/project_resolver \
+     --cov-report=term-missing \
+     -q
+   ```
+4. If coverage < 90% for `project_resolver.py`: add the missing test case (likely the `SPECIFY_REPO_ROOT` path doesn't exist scenario).
+5. Run `mypy --strict` on all new/modified test files:
+   ```bash
+   .venv/bin/mypy --strict tests/runtime/test_project_resolver.py
+   .venv/bin/mypy --strict tests/specify_cli/cli/test_helpers.py
+   .venv/bin/mypy --strict tests/specify_cli/cli/commands/test_lint.py
+   ```
+
+**Parallelism note:** Real-port and daemon tests run serially. If `test_orphan_sweep.py` or similar fails with a port conflict, run them separately: `pytest tests/sync/test_orphan_sweep.py -n0 -q`.
+
+**Validation:**
+- [ ] `pytest tests/ -n auto --dist loadfile` exits 0 with no new failures
+- [ ] Coverage ≥ 90% for `src/specify_cli/core/project_resolver.py`
+- [ ] `mypy --strict` passes on all new/modified test files
+- [ ] No test was added that mocks `locate_project_root` in a way that defeats the purpose of this mission
+
+---
+
+## Definition of Done
+
+- [ ] `tests/specify_cli/cli/test_helpers.py` contains `test_get_project_root_or_exit_succeeds_in_worktree` and it passes without mocking `locate_project_root`
+- [ ] `tests/specify_cli/cli/commands/test_lint.py` contains `test_lint_uses_spec_repo_root_as_cwd` and it passes
+- [ ] Full parallel suite exits 0 with zero new failures
+- [ ] Coverage ≥ 90% for `src/specify_cli/core/project_resolver.py`
+- [ ] `mypy --strict` passes on all new test files
+
+## Risks
+
+- **`get_project_root_or_exit` may not accept a `start` parameter.** If so, read the implementation carefully. It may call `locate_project_root()` with no argument, using `Path.cwd()` implicitly. In that case, `monkeypatch.chdir(worktree)` is the correct approach.
+- **`lint_command` subprocess patch target.** If `lint.py` does `import subprocess` at module level and calls `subprocess.run`, patch `specify_cli.cli.commands.lint.subprocess.run`. If it does `from subprocess import run`, patch `specify_cli.cli.commands.lint.run`.
+- **`typer.Exit` vs `SystemExit`.** Typer commands raise `SystemExit` when they call `Exit`. Tests calling `lint_command()` directly (not via `CliRunner`) should wrap with `pytest.raises(SystemExit)` or `CliRunner.invoke` (which catches it internally).
+
+## Reviewer Guidance
+
+- Confirm T007's test does NOT mock `locate_project_root` — the whole point is to exercise the real delegation chain
+- Confirm T008 patches subprocess at the correct import path
+- Confirm T009 shows zero new failures in the full suite output
+- Confirm coverage report shows ≥ 90% for `project_resolver.py`
