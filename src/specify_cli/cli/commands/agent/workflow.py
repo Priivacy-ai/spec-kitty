@@ -1075,21 +1075,46 @@ def _auto_claim_failure_message(preview: object | None) -> str:
 
 def _require_current_analysis_report(feature_dir: Path, repo_root: Path, mission_slug: str) -> None:
     """Block implementation until `/spec-kitty.analyze` is persisted and fresh."""
-    from specify_cli.analysis_report import check_analysis_report_current
+    from specify_cli.analysis_report import (
+        ANALYSIS_REPORT_REASON_CARRIER_FORMAT,
+        check_analysis_report_current,
+    )
 
     analysis_freshness = check_analysis_report_current(feature_dir, repo_root)
     if analysis_freshness.ok:
         return
+
+    # Header line is always emitted first, in every branch.
     print("Error: analysis_report_required: /spec-kitty.analyze must be run before implementation.")
-    if analysis_freshness.missing:
+
+    if analysis_freshness.reason == ANALYSIS_REPORT_REASON_CARRIER_FORMAT:
+        print(
+            "  Reason: analysis-report.md is in carrier format (analysis-findings/v1) — written directly\n"
+            "          rather than via record-analysis. The implement gate requires the persisted\n"
+            "          outer-wrapper format (artifact_type: spec-kitty.analysis-report)."
+        )
+        print(
+            "  Recovery: spec-kitty agent mission record-analysis "
+            f"--mission {mission_slug} --input-file {analysis_freshness.path}"
+        )
+    elif analysis_freshness.missing:
         print(f"  Missing: {analysis_freshness.path}")
-    elif analysis_freshness.reason:
+        print("  Run step 1: /spec-kitty.analyze")
+        print(
+            "  Run step 2: spec-kitty agent mission record-analysis "
+            f"--mission {mission_slug} --input-file -"
+        )
+    elif analysis_freshness.mismatches:
         print(f"  Reason: {analysis_freshness.reason}")
-    if analysis_freshness.mismatches:
         print("  Stale inputs:")
         for artifact_name in sorted(analysis_freshness.mismatches):
             print(f"    - {artifact_name}")
-    print(f"  Run: /spec-kitty.analyze --mission {mission_slug}")
+        print(f"  Run: /spec-kitty.analyze --mission {mission_slug}")
+    else:
+        if analysis_freshness.reason:
+            print(f"  Reason: {analysis_freshness.reason}")
+        print(f"  Run: /spec-kitty.analyze --mission {mission_slug}")
+
     raise typer.Exit(1)
 
 

@@ -209,7 +209,69 @@ def test_implement_gate_blocks_missing_analysis_report(tmp_path, capsys):
 
     out = capsys.readouterr().out
     assert "analysis_report_required" in out
-    assert "/spec-kitty.analyze --mission sample-01KS" in out
+    # Missing-report branch now emits a two-step recovery (WP03 / FR-005).
+    assert "Run step 1: /spec-kitty.analyze" in out
+    assert (
+        "Run step 2: spec-kitty agent mission record-analysis "
+        "--mission sample-01KS --input-file -"
+    ) in out
+
+
+def test_require_analysis_report_missing_emits_two_step_recovery(tmp_path, capsys):
+    """_require_current_analysis_report emits two-step recovery for a missing report."""
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "my-mission"
+    _write_required_artifacts(feature_dir)
+    # Do NOT write analysis-report.md.
+
+    with pytest.raises(typer.Exit):
+        _require_current_analysis_report(feature_dir, repo_root, "my-mission")
+
+    out = capsys.readouterr().out
+    assert "Error: analysis_report_required:" in out
+    assert "Run step 1: /spec-kitty.analyze" in out
+    assert (
+        "Run step 2: spec-kitty agent mission record-analysis "
+        "--mission my-mission --input-file -"
+    ) in out
+
+
+def test_require_analysis_report_carrier_format_emits_recovery_command(tmp_path, capsys):
+    """_require_current_analysis_report emits the exact carrier-format recovery command."""
+    from specify_cli.analysis_report import ANALYSIS_REPORT_FILENAME
+
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "my-mission"
+    _write_required_artifacts(feature_dir)
+
+    # Write a carrier-format file (analysis-findings/v1 schema, not outer-wrapper).
+    carrier_content = (
+        "---\n"
+        "schema: analysis-findings/v1\n"
+        "findings: []\n"
+        "counts:\n"
+        "  critical: 0\n"
+        "  high: 0\n"
+        "  medium: 0\n"
+        "  low: 0\n"
+        "verdict_hint: ready\n"
+        "---\n\n"
+        "Report body.\n"
+    )
+    report_path = feature_dir / ANALYSIS_REPORT_FILENAME
+    report_path.write_text(carrier_content, encoding="utf-8")
+
+    with pytest.raises(typer.Exit):
+        _require_current_analysis_report(feature_dir, repo_root, "my-mission")
+
+    out = capsys.readouterr().out
+    assert "Error: analysis_report_required:" in out
+    # The raw reason code must NOT be shown; the explanatory message is shown instead.
+    assert "carrier_format_not_wrapped" not in out
+    assert "carrier format (analysis-findings/v1)" in out
+    assert "Recovery: spec-kitty agent mission record-analysis" in out
+    assert "--mission my-mission" in out
+    assert str(report_path) in out
 
 
 def test_implement_gate_allows_current_analysis_report(tmp_path):
