@@ -11,10 +11,10 @@ on:
       - "src/specify_cli/tool_surface/bundles/**"
       - "src/specify_cli/tool_surface/profiles/**"
       - "src/specify_cli/skills/**"
+      - "src/specify_cli/cli/**"
       - "src/doctrine/agent_profiles/**"
       - "src/doctrine/hooks/**"
       - "src/doctrine/.mcp.json"
-      - "src/specify_cli/cli/commands/plugin.py"
       - ".github/workflows/plugin-validate.yml"
   pull_request:
     paths:
@@ -23,10 +23,10 @@ on:
       - "src/specify_cli/tool_surface/bundles/**"
       - "src/specify_cli/tool_surface/profiles/**"
       - "src/specify_cli/skills/**"
+      - "src/specify_cli/cli/**"
       - "src/doctrine/agent_profiles/**"
       - "src/doctrine/hooks/**"
       - "src/doctrine/.mcp.json"
-      - "src/specify_cli/cli/commands/plugin.py"
       - ".github/workflows/plugin-validate.yml"
 
 jobs:
