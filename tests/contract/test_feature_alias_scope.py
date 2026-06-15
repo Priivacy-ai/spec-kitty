@@ -24,8 +24,10 @@ All tests are offline / loopback — no network calls, no real git operations.
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from specify_cli import app
@@ -57,6 +59,7 @@ _INSCOPE_FILES: tuple[str, ...] = (
 _INSCOPE_COMMAND_NAMES: tuple[str, ...] = (
     "agent status",
     "agent tasks",
+    "agent action",
     "agent workflow",
     "agent context",
     "agent mission",
@@ -403,6 +406,23 @@ def test_validate_tasks_requires_selector_cleanly() -> None:
     assert result.exit_code == 1, result.output
     assert not isinstance(result.exception, TypeError), result.output
     assert "required" in result.output.lower()
+
+
+def test_validate_tasks_direct_call_without_selector_clean_error(tmp_path: Path) -> None:
+    """Programmatic calls must not leak Typer ``OptionInfo`` into ``.strip()``."""
+    from specify_cli.cli.commands.validate_tasks import validate_tasks
+
+    with (
+        patch("specify_cli.cli.commands.validate_tasks.find_repo_root", return_value=tmp_path),
+        patch(
+            "specify_cli.cli.commands.validate_tasks.get_project_root_or_exit",
+            return_value=tmp_path,
+        ),
+        pytest.raises(typer.Exit) as excinfo,
+    ):
+        validate_tasks(check_all=False)
+
+    assert excinfo.value.exit_code == 1
 
 
 def test_validate_encoding_requires_selector_cleanly() -> None:
