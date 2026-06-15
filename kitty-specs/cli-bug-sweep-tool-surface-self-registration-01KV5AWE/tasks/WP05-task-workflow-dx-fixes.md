@@ -10,6 +10,7 @@ tracker_refs:
 - '#1982'
 planning_base_branch: fix/cli-bug-sweep-tool-surface-self-registration
 merge_target_branch: fix/cli-bug-sweep-tool-surface-self-registration
+branch_strategy: Planning artifacts for this mission were generated on fix/cli-bug-sweep-tool-surface-self-registration. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/cli-bug-sweep-tool-surface-self-registration unless the human explicitly redirects the landing branch.
 subtasks:
 - T020
 - T021
@@ -19,10 +20,13 @@ history:
   event: created
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/
+create_intent:
+- tests/specify_cli/cli/commands/agent/test_map_requirements_coord.py
 execution_mode: code_change
 owned_files:
 - src/specify_cli/cli/commands/agent/tasks.py
 - src/specify_cli/ownership/validation.py
+- tests/specify_cli/cli/commands/agent/test_map_requirements_coord.py
 role: implementer
 tags: []
 ---
@@ -52,14 +56,26 @@ Fix two workflow bugs discovered during this mission's own planning phase. Both 
 
 ### Bug A — `map-requirements` spec.md path resolution (T020)
 
-**Root cause**: `map_requirements` in `src/specify_cli/cli/commands/agent/tasks.py` resolves `spec.md` by calling `resolve_feature_dir_for_mission(main_repo_root, mission_slug)`. Here `main_repo_root` is the primary checkout (typically on `main`). After `spec-kitty agent mission setup-plan` runs, a coord worktree (`.worktrees/<mission_slug>-coord/`) is created with the mission's target branch checked out. The primary checkout remains on `main`. Because `kitty-specs/<mission>/` is on the target branch, it exists in the coord worktree's working tree, not in the primary checkout's working tree. `feature_dir` therefore doesn't exist at `main_repo_root / "kitty-specs" / <mission_slug>`, and `spec.md` is reported as not found.
+**Root cause**: `map_requirements` calls `resolve_feature_dir_for_mission(main_repo_root, mission_slug)`, which delegates to `mission_runtime.resolve_action_context`. The runtime's coord-worktree routing in `runtime_bridge.py` fires **only when `meta.json` carries `coordination_branch`**. For PR-bound missions created without explicit coord-branch setup, `coordination_branch` is absent from `meta.json`. The runtime falls through to the primary checkout (`main`). If the mission's target branch is not checked out in the primary checkout (e.g. it is checked out in a coord worktree), `kitty-specs/<mission>/` does not exist in the primary checkout's working tree, and `spec.md` is reported not found.
 
 **Key code path** (read before editing):
-1. `src/specify_cli/cli/commands/agent/tasks.py` → `map_requirements` function (~line 3444)
-2. The `feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)` call (~line 3547)
-3. The `if not feature_dir.exists()` guard and `spec_md = feature_dir / SPEC_MD_FILENAME` (~lines 3549–3556)
+1. `src/specify_cli/cli/commands/agent/tasks.py` → `def map_requirements` (search with `grep -n "def map_requirements" src/specify_cli/cli/commands/agent/tasks.py`)
+2. `resolve_feature_dir_for_mission(main_repo_root, mission_slug)` — delegates to `mission_runtime.resolve_action_context`
+3. `src/runtime/next/runtime_bridge.py` → `_mission_declares_coordination_branch()` gate — check whether this is the actual failure branch for this scenario
+4. `src/specify_cli/missions/_read_path_resolver.py` → `resolve_mission_read_path()` — the coord-aware primitive already used by `resolve_feature_dir_for_slug` (note: NOT the same as `resolve_feature_dir_for_mission`)
 
-**Coord worktree naming convention**: `.worktrees/<mission_slug>-coord` — read `src/specify_cli/coordination/` or grep for `coord` to confirm the exact path pattern used by `setup-plan`.
+**Investigation step required**: Before writing any code, trace the actual execution for a PR-bound mission with no `coordination_branch` in `meta.json` and the primary checkout on `main`. Specifically: does `resolve_feature_dir_for_mission` ever reach `_read_path_resolver.resolve_mission_read_path()`, which IS coord-topology-aware? If not, the fix is to route `map_requirements` through `resolve_feature_dir_for_slug` (which calls `resolve_mission_read_path` directly) instead of `resolve_feature_dir_for_mission` (which goes through `resolve_action_context` with the `coordination_branch` gate).
+
+**Likely fix path** (confirm against source before implementing):
+```python
+# In map_requirements, replace:
+feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+
+# With the coord-aware slug resolver (which calls resolve_mission_read_path directly):
+from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug
+feature_dir = resolve_feature_dir_for_slug(main_repo_root, mission_slug)
+```
+`resolve_feature_dir_for_slug` calls `_read_path_resolver.resolve_mission_read_path(repo_root, mission_slug, mid8_from_slug(mission_slug))`, which checks the coord worktree first regardless of `coordination_branch` in `meta.json`. Confirm this is safe for the action context that `map_requirements` needs (read-only spec path resolution, no write commit targeting required).
 
 ### Bug B — `validate_glob_matches` omits `create_intent` hint when suggestion present (T021)
 
@@ -123,7 +139,14 @@ When `_nearest_match_suggestion` returns a "did you mean?" string, the `create_i
 
 4. Confirm that `spec_md = feature_dir / SPEC_MD_FILENAME` and the subsequent read work correctly with the coord-worktree-resolved `feature_dir`.
 
-5. Run `mypy src/specify_cli/cli/commands/agent/tasks.py --strict` — zero errors.
+5. Write a unit test in `tests/specify_cli/cli/commands/agent/test_map_requirements_coord.py`:
+   - Read the existing test patterns in `tests/specify_cli/cli/commands/agent/` to understand fixtures and mocking conventions.
+   - **Test A**: primary checkout has the kitty-specs dir → spec.md found (baseline, no regression).
+   - **Test B**: primary checkout lacks the kitty-specs dir, but a coord worktree mock at the expected path has it → spec.md found via fallback.
+   - **Test C**: neither primary nor coord worktree has the dir → "Mission directory not found" error emitted.
+   - Mock filesystem and coord worktree resolution at the appropriate boundary (do not hit real git). Use `tmp_path` fixtures.
+
+6. Run `mypy src/specify_cli/cli/commands/agent/tasks.py --strict` — zero errors.
 
 **Validation**:
 - With a coord worktree present and primary checkout on `main`: `spec-kitty agent tasks map-requirements --wp WP01 --refs FR-001 --mission <slug> --json` succeeds and returns a coverage summary.
@@ -193,8 +216,8 @@ When `_nearest_match_suggestion` returns a "did you mean?" string, the `create_i
 After both subtasks:
 
 ```bash
-# T020: test with a coord worktree scenario (or mock/test the fallback logic)
-pytest tests/specify_cli/ -v -k "map_requirements or map-requirements" 2>/dev/null || echo "no targeted test yet — run manual validation"
+# T020: coord worktree resolution unit tests (must pass — not optional)
+pytest tests/specify_cli/cli/commands/agent/test_map_requirements_coord.py -v
 
 # T021: ownership validation tests
 pytest tests/specify_cli/ownership/ -v
@@ -213,6 +236,7 @@ PWHEADLESS=1 pytest tests/ -n auto --dist loadfile -p no:cacheprovider -q
 
 - [ ] `map-requirements` resolves `spec.md` correctly when the coord worktree is present and the primary checkout is on a different branch.
 - [ ] `map-requirements` has no regression for the no-coord-worktree case.
+- [ ] Unit tests in `tests/specify_cli/cli/commands/agent/test_map_requirements_coord.py` cover the three T020 scenarios (baseline, fallback, neither).
 - [ ] `validate_glob_matches` zero-match literal error always includes the `create_intent` hint, whether or not a nearest-match suggestion is also present.
 - [ ] Any test assertions affected by the error message change are updated.
 - [ ] `mypy src/specify_cli/cli/commands/agent/tasks.py src/specify_cli/ownership/validation.py --strict` → zero errors.
