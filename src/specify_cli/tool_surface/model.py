@@ -59,21 +59,15 @@ class SurfacePlan:
 
 
 @dataclass(frozen=True)
-class SurfaceFinding:
-    """A diagnostic produced while probing or validating a surface."""
-
-    code: str
-    tool_key: str
-    surface_kind: SurfaceKind
-    severity: str
-    path: Path | None
-    repair_command: str | None
-    detail: str
-
-
-@dataclass(frozen=True)
 class NativeAgentProfile:
-    """A native agent profile projected into a tool-specific output file."""
+    """A native agent profile projected into a tool-specific output file.
+
+    Provenance fields (``source_path``/``source_hash``/``projection_version``,
+    added for #1940) are optional with ``None`` defaults so legacy 6-field
+    manifest entries deserialize without them; they are populated on the next
+    projection write. ``source_hash`` tracks the *source* profile YAML and is
+    independent of ``file_hash`` which tracks the *rendered* output.
+    """
 
     profile_urn: str
     source_layer: str
@@ -81,3 +75,6 @@ class NativeAgentProfile:
     output_path: Path
     format: str
     file_hash: str | None
+    source_path: str | None = None
+    source_hash: str | None = None
+    projection_version: int | None = None

@@ -19,7 +19,7 @@ from .amazon_q_renderer import AmazonQProfileRenderer, FORMAT_AMAZON_Q_AGENT
 from .augment_renderer import AugmentProfileRenderer, FORMAT_AUGMENT_AGENT
 from .capability_matrix import HARNESS_CAPABILITY_MATRIX, HarnessCapabilityRecord
 from .codex_renderer import CodexProfileRenderer, FORMAT_CODEX_AGENT
-from .manifest import MANIFEST_FILENAME, ProfileManifest
+from .manifest import MANIFEST_FILENAME, PROJECTION_VERSION, ProfileManifest
 from .projection import ProfileProjector, default_profile_repository
 from .renderers import (
     ClaudeCodeProfileRenderer,
@@ -28,6 +28,7 @@ from .renderers import (
     FORMAT_COPILOT_AGENT,
     ProfileRenderer,
     get_renderer,
+    native_name_violation,
 )
 
 __all__ = [
@@ -39,6 +40,7 @@ __all__ = [
     "HARNESS_CAPABILITY_MATRIX",
     "HarnessCapabilityRecord",
     "MANIFEST_FILENAME",
+    "PROJECTION_VERSION",
     "AmazonQProfileRenderer",
     "AugmentProfileRenderer",
     "ClaudeCodeProfileRenderer",
@@ -49,4 +51,5 @@ __all__ = [
     "ProfileRenderer",
     "default_profile_repository",
     "get_renderer",
+    "native_name_violation",
 ]
