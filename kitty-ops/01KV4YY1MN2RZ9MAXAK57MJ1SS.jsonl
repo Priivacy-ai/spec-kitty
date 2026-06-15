@@ -1,0 +1,3 @@
+{"event": "started", "invocation_id": "01KV4YY1MN2RZ9MAXAK57MJ1SS", "profile_id": "python-pedro", "action": "generate", "request_text": "Record second adversarial PR review remediation for #1974", "actor": "operator", "mode_of_work": "task_execution", "governance_context_hash": "9acc95a653fe7b0f", "governance_context_available": true, "started_at": "2026-06-15T06:19:07.123133+00:00"}
+{"event": "completed", "invocation_id": "01KV4YY1MN2RZ9MAXAK57MJ1SS", "completed_at": "2026-06-15T06:19:13.720125+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "commit_link", "invocation_id": "01KV4YY1MN2RZ9MAXAK57MJ1SS", "at": "2026-06-15T06:19:13.720340+00:00", "sha": "a3cfe1ecc"}
