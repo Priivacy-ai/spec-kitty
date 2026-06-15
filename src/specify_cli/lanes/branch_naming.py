@@ -131,6 +131,15 @@ def mid8_from_slug(slug: str) -> str:
     return ""
 
 
+def _human_slug_for_mid8_branch(mission_slug: str, mission_id: str) -> str:
+    """Return human slug without numeric prefix or duplicate own mid8 suffix."""
+    human_slug = strip_numeric_prefix(mission_slug)
+    suffix = f"-{mid8(mission_id)}"
+    if human_slug.endswith(suffix):
+        return human_slug[: -len(suffix)]
+    return human_slug
+
+
 # ---------------------------------------------------------------------------
 # Branch name constructors
 # ---------------------------------------------------------------------------
@@ -153,13 +162,13 @@ def mission_branch_name(mission_slug: str, *, mission_id: str | None = None) -> 
           -> "kitty/mission-057-my-feature"
     """
     if mission_id is not None:
-        human_slug = strip_numeric_prefix(mission_slug)
+        human_slug = _human_slug_for_mid8_branch(mission_slug, mission_id)
         return f"{_MISSION_PREFIX}{human_slug}-{mid8(mission_id)}"
     # Legacy form: no mission_id supplied (pre-WP02 callers, must still work)
     return f"{_MISSION_PREFIX}{mission_slug}"
 
 
-class BranchIdentityUnresolved(StructuredError):
+class BranchIdentityUnresolved(StructuredError):  # type: ignore[misc]
     """Raised when a mission branch cannot be composed without inventing identity.
 
     Fail-closed signal for seam 2 (FR-006): a *modern* mission whose ``mission_id``
@@ -190,7 +199,7 @@ class BranchIdentityUnresolved(StructuredError):
         )
 
     def to_dict(self) -> dict[str, Any]:
-        payload = super().to_dict()
+        payload: dict[str, Any] = super().to_dict()
         payload["mission_handle"] = self.mission_handle
         payload["next_step"] = self.next_step
         return payload
@@ -367,7 +376,7 @@ def lane_branch_name(
     if lane_id == "lane-planning":
         return planning_base_branch if planning_base_branch is not None else "main"
     if mission_id is not None:
-        human_slug = strip_numeric_prefix(mission_slug)
+        human_slug = _human_slug_for_mid8_branch(mission_slug, mission_id)
         return f"{_MISSION_PREFIX}{human_slug}-{mid8(mission_id)}-{lane_id}"
     # Legacy form
     return f"{_MISSION_PREFIX}{mission_slug}-{lane_id}"

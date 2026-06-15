@@ -11,7 +11,11 @@ import pytest
 import typer
 
 import specify_cli.cli.commands.merge as merge_mod
-from specify_cli.cli.commands.merge import _check_mission_branch, _load_merge_state_for_mission
+from specify_cli.cli.commands.merge import (
+    _check_mission_branch,
+    _load_merge_state_for_mission,
+    _load_or_create_merge_state,
+)
 from specify_cli.merge.state import MergeState, get_state_path, load_state, save_state
 
 pytestmark = pytest.mark.fast
@@ -68,7 +72,10 @@ def _prepare_dry_run(
     monkeypatch.setattr(
         merge_mod,
         "_check_mission_branch",
-        lambda _mission_slug, _repo_root: (branch_ok, None if branch_ok else _blocker()),
+        lambda _mission_slug, _repo_root, **_kwargs: (
+            branch_ok,
+            None if branch_ok else _blocker(),
+        ),
     )
 
 
@@ -120,6 +127,26 @@ class TestCheckMissionBranch:
         assert blocker["blocker"] == "missing_mission_branch"
         assert blocker["expected_branch"] == "kitty/mission-my-mission-01KQ"
         assert blocker["remediation"] == "git branch kitty/mission-my-mission-01KQ abc1234def56"
+
+    def test_branch_missing_uses_manifest_branch_when_supplied(self, tmp_path: Path) -> None:
+        manifest_branch = "kitty/mission-my-mission-01KQ-01KQTEST"
+        with patch(
+            "specify_cli.cli.commands.merge._has_branch_ref",
+            return_value=False,
+        ), patch(
+            "specify_cli.cli.commands.merge.run_command",
+            return_value=(0, "abc1234def5678\n", ""),
+        ):
+            exists, blocker = _check_mission_branch(
+                "my-mission-01KQ",
+                tmp_path,
+                expected_branch=manifest_branch,
+            )
+
+        assert exists is False
+        assert blocker is not None
+        assert blocker["expected_branch"] == manifest_branch
+        assert blocker["remediation"] == f"git branch {manifest_branch} abc1234def56"
 
 
 class TestMergeDryRunMissingBranch:
@@ -348,6 +375,52 @@ class TestMergeDryRunMissingBranch:
         assert state is not None
         assert state.mission_id == mission_id
 
+    def test_inner_merge_adopts_legacy_slug_keyed_state_for_canonical_id(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Locked merge must not restart after outer --resume finds legacy state."""
+        mission_slug = "inner-legacy-state-key-regression-01KV4X40"
+        mission_id = "01KV4X40ULIDKEYEDSTATE0000"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text(
+            json.dumps(
+                {
+                    "mission_id": mission_id,
+                    "mission_slug": mission_slug,
+                    "slug": mission_slug,
+                    "target_branch": "main",
+                }
+            ),
+            encoding="utf-8",
+        )
+        save_state(
+            MergeState(
+                mission_id=mission_slug,
+                mission_slug=mission_slug,
+                target_branch="main",
+                wp_order=["WP01", "WP02"],
+                completed_wps=["WP01"],
+            ),
+            tmp_path,
+        )
+
+        state, is_resume = _load_or_create_merge_state(
+            main_repo=tmp_path,
+            mission_slug=mission_slug,
+            canonical_id=mission_id,
+            target_branch="main",
+            wp_order=["WP01", "WP02"],
+            push_requested=False,
+        )
+
+        assert is_resume is True
+        assert state.mission_id == mission_id
+        assert state.completed_wps == ["WP01"]
+        assert load_state(tmp_path, mission_id) is not None
+        assert load_state(tmp_path, mission_slug) is None
+
     def test_dry_run_json_missing_branch_still_previews(
         self,
         tmp_path: Path,
@@ -402,7 +475,7 @@ class TestMergeDryRunMissingBranch:
         monkeypatch.setattr(
             merge_mod,
             "_check_mission_branch",
-            lambda _mission_slug, _repo_root: (False, _blocker()),
+            lambda _mission_slug, _repo_root, **_kwargs: (False, _blocker()),
         )
         acquire_lock = Mock(return_value=True)
         monkeypatch.setattr(merge_mod, "acquire_merge_lock", acquire_lock)
@@ -491,7 +564,7 @@ class TestMergeDryRunMissingBranch:
         monkeypatch.setattr(
             merge_mod,
             "_check_mission_branch",
-            lambda _mission_slug, _repo_root: (False, _blocker()),
+            lambda _mission_slug, _repo_root, **_kwargs: (False, _blocker()),
         )
 
         with pytest.raises(typer.Exit):

@@ -1192,6 +1192,8 @@ def _has_branch_ref(repo_root: Path, ref_name: str) -> bool:
 def _check_mission_branch(
     mission_slug: str,
     repo_root: Path,
+    *,
+    expected_branch: str | None = None,
 ) -> tuple[bool, MissionBranchBlocker | None]:
     """Check whether the expected mission branch exists locally.
 
@@ -1199,7 +1201,7 @@ def _check_mission_branch(
     branches are reported as structured blockers; this function never creates
     the branch.
     """
-    expected_branch = f"kitty/mission-{mission_slug}"
+    expected_branch = expected_branch or f"kitty/mission-{mission_slug}"
     if _has_branch_ref(repo_root, expected_branch):
         return True, None
 
@@ -1363,17 +1365,66 @@ def _load_merge_state_for_mission(
     mission_slug: str | None,
 ) -> MergeState | None:
     """Load merge state by modern key, legacy key, then stored mission_slug."""
+    entry = _load_merge_state_entry_for_mission(repo_root, mission_slug)
+    if entry is None:
+        return None
+    _key, state = entry
+    return state
+
+
+def _load_merge_state_entry_for_mission(
+    repo_root: Path,
+    mission_slug: str | None,
+) -> tuple[str | None, MergeState] | None:
+    """Load merge state plus the runtime key used to find it."""
     if not mission_slug:
-        return load_state(repo_root)
+        state = load_state(repo_root)
+        return (None, state) if state is not None else None
 
     for key in _merge_state_key_candidates(repo_root, mission_slug):
         state = load_state(repo_root, key)
         if state is not None:
-            return state
+            return key, state
 
-    for _key, state in _iter_merge_states_for_slug(repo_root, mission_slug):
-        return state
+    for key, state in _iter_merge_states_for_slug(repo_root, mission_slug):
+        return key, state
     return None
+
+
+def _load_or_create_merge_state(
+    *,
+    main_repo: Path,
+    mission_slug: str,
+    canonical_id: str,
+    target_branch: str,
+    wp_order: list[str],
+    push_requested: bool,
+) -> tuple[MergeState, bool]:
+    """Load canonical/legacy merge state, migrating legacy state to canonical."""
+    canonical_state = load_state(main_repo, canonical_id)
+    if canonical_state is not None:
+        return canonical_state, True
+
+    entry = _load_merge_state_entry_for_mission(main_repo, mission_slug)
+    if entry is not None:
+        source_key, state = entry
+        if state.mission_id != canonical_id:
+            state.mission_id = canonical_id
+            state.mission_slug = mission_slug
+            save_state(state, main_repo)
+            if source_key is not None and source_key != canonical_id:
+                clear_state(main_repo, source_key)
+        return state, True
+
+    state = MergeState(
+        mission_id=canonical_id,
+        mission_slug=mission_slug,
+        target_branch=target_branch,
+        wp_order=wp_order,
+        push_requested=push_requested,
+    )
+    save_state(state, main_repo)
+    return state, False
 
 
 def _clear_merge_state_for_mission(repo_root: Path, mission_slug: str | None) -> bool:
@@ -2088,7 +2139,11 @@ def _run_lane_based_merge(
             lanes_manifest.target_branch,
         )
     else:
-        branch_ok, branch_blocker = _check_mission_branch(mission_slug, main_repo)
+        branch_ok, branch_blocker = _check_mission_branch(
+            mission_slug,
+            main_repo,
+            expected_branch=lanes_manifest.mission_branch,
+        )
         if not branch_ok:
             assert branch_blocker is not None
             console.print(
@@ -2156,20 +2211,16 @@ def _run_lane_based_merge_locked(
     )
 
     planning_artifact_only = is_planning_artifact_only(lanes_manifest)
-    state = load_state(main_repo, canonical_id)
-    is_resume = False
-    if state is not None:
-        is_resume = True
+    state, is_resume = _load_or_create_merge_state(
+        main_repo=main_repo,
+        mission_slug=mission_slug,
+        canonical_id=canonical_id,
+        target_branch=lanes_manifest.target_branch,
+        wp_order=all_wp_ids,
+        push_requested=push,
+    )
+    if is_resume:
         console.print(f"[bold cyan]Resuming[/bold cyan] merge for {mission_slug} ({len(state.completed_wps)}/{len(state.wp_order)} WPs already done)")
-    else:
-        state = MergeState(
-            mission_id=canonical_id,
-            mission_slug=mission_slug,
-            target_branch=lanes_manifest.target_branch,
-            wp_order=all_wp_ids,
-            push_requested=push,
-        )
-        save_state(state, main_repo)
 
     console.print(f"[bold]Lane-based merge for {mission_slug}[/bold]")
     console.print(f"  Mission branch: {lanes_manifest.mission_branch}")
@@ -3125,6 +3176,7 @@ __all__ = [
     "_mark_wp_merged_done",
     "_project_status_bookkeeping_to_target",
     "_load_merge_state_for_mission",
+    "_load_or_create_merge_state",
     "_clear_merge_state_for_mission",
     "_run_lane_based_merge",
     "_is_linear_history_rejection",

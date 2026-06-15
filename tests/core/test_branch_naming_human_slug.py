@@ -81,11 +81,25 @@ def test_mission_branch_name_new_format() -> None:
     assert result == "kitty/mission-mission-id-canonical-identity-migration-01KNXQS9"
 
 
+def test_mission_branch_name_does_not_double_existing_mid8_suffix() -> None:
+    slug = "agent-profile-projection-plugin-production-01KV3NGS"
+    ulid = "01KV3NGSDCJ272573TF6T6NWDW"
+    result = mission_branch_name(slug, mission_id=ulid)
+    assert result == "kitty/mission-agent-profile-projection-plugin-production-01KV3NGS"
+
+
 def test_lane_branch_name_new_format() -> None:
     slug = "083-mission-id-canonical-identity-migration"
     ulid = "01KNXQS9ATWWFXS3K5ZJ9E5008"
     result = lane_branch_name(slug, "lane-a", mission_id=ulid)
     assert result == "kitty/mission-mission-id-canonical-identity-migration-01KNXQS9-lane-a"
+
+
+def test_lane_branch_name_does_not_double_existing_mid8_suffix() -> None:
+    slug = "agent-profile-projection-plugin-production-01KV3NGS"
+    ulid = "01KV3NGSDCJ272573TF6T6NWDW"
+    result = lane_branch_name(slug, "lane-a", mission_id=ulid)
+    assert result == "kitty/mission-agent-profile-projection-plugin-production-01KV3NGS-lane-a"
 
 
 def test_lane_branch_name_without_numeric_prefix() -> None:
