@@ -118,8 +118,9 @@ To determine what to do next, always run:
 spec-kitty next --agent <your-name> --mission <mission-slug>
 ```
 
-> **Note:** `--feature` is the hidden deprecated alias for `--mission`.
-> Always use `--mission` in new scripts.
+> **Note:** `--mission` is the canonical selector. The legacy `--feature` alias
+> has been removed from the internal/agent commands (e.g. `agent action implement`,
+> `agent action review`); always use `--mission`.
 
 This reads the dependency graph and current lane state and returns the exact
 command. Do NOT reason about lane transitions yourself.

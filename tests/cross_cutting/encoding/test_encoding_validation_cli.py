@@ -61,7 +61,7 @@ class TestValidateCleanFeature:
             # Run validate-encoding command
             # Use subprocess instead of CliRunner for proper cwd handling
             result = run_validate_encoding_cli(
-                "--feature",
+                "--mission",
                 "001-test-feature",
                 cwd=tmpdir,
             )
@@ -95,7 +95,7 @@ class TestDetectIssuesWithoutFix:
 
             # Run without --fix
             result = run_validate_encoding_cli(
-                "--feature",
+                "--mission",
                 "001-test-feature",
                 cwd=tmpdir,
             )
@@ -134,7 +134,7 @@ class TestFixIssuesWithBackup:
 
             # Run with --fix
             result = run_validate_encoding_cli(
-                "--feature",
+                "--mission",
                 "001-test-feature",
                 "--fix",
                 cwd=tmpdir,
@@ -179,7 +179,7 @@ class TestFixWithoutBackup:
 
             # Run with --fix --no-backup
             result = run_validate_encoding_cli(
-                "--feature",
+                "--mission",
                 "001-test-feature",
                 "--fix",
                 "--no-backup",
@@ -281,7 +281,7 @@ class TestCLIErrorHandling:
             tmpdir = Path(tmpdir)
 
             result = run_validate_encoding_cli(
-                "--feature",
+                "--mission",
                 "001-test",
                 cwd=tmpdir,
             )
@@ -304,7 +304,7 @@ class TestCLIErrorHandling:
 
             # Try to validate nonexistent feature
             result = run_validate_encoding_cli(
-                "--feature",
+                "--mission",
                 "999-nonexistent",
                 cwd=tmpdir,
             )
@@ -340,7 +340,7 @@ class TestCLIOutputFormatting:
 
             # Run validation
             result = run_validate_encoding_cli(
-                "--feature",
+                "--mission",
                 "001-test",
                 cwd=tmpdir,
             )
@@ -371,7 +371,7 @@ class TestCLIOutputFormatting:
 
             # Run with --fix
             result = run_validate_encoding_cli(
-                "--feature",
+                "--mission",
                 "001-test",
                 "--fix",
                 cwd=tmpdir,

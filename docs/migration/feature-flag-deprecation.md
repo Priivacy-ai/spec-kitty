@@ -8,7 +8,15 @@ description: "Migration guidance for Migration: --feature to --mission in Spec K
 # Migration: `--feature` to `--mission`
 
 **Status**: Deprecated as of Mission `077-mission-terminology-cleanup`.
-**Removal**: Gated on named conditions. No calendar date is set.
+**Partial removal (3.2.x, #1060-A)**: the alias has been **removed from the
+internal/agent command cluster** (`agent status/tasks/workflow/context/mission`,
+`charter lint`, `materialize`, `validate-encoding`, `validate-tasks`,
+`verify`/`verify-setup`). On those commands `--feature` is no longer accepted —
+the parser rejects it with "No such option". It remains a hidden alias only on
+the deferred user-facing top-level commands (`implement`, `merge`, `next`,
+`research`, `context`, `accept`, `lifecycle`, `mission-type`) pending full
+removal (gated by #1059).
+**Full removal**: Gated on named conditions. No calendar date is set.
 
 ## Why This Change
 
@@ -20,9 +28,10 @@ canonical terminology boundary:
 - **Mission** = concrete tracked item under `kitty-specs/<mission-slug>/`
 - **Mission Run** = runtime/session execution instance only
 
-`--feature` remains available only as a hidden deprecated alias during the
-migration window so older scripts can keep running while first-party surfaces
-finish moving to `--mission`.
+`--feature` remains available only as a hidden deprecated alias **on the deferred
+user-facing top-level commands** during the migration window so older scripts can
+keep running while first-party surfaces finish moving to `--mission`. On the
+internal/agent command cluster it has already been removed (3.2.x, #1060-A).
 
 ## What Changed
 
@@ -30,9 +39,11 @@ finish moving to `--mission`.
 | --- | --- |
 | `spec-kitty mission current --feature 077-foo` | `spec-kitty mission current --mission 077-foo` |
 | `spec-kitty next --feature 077-foo` | `spec-kitty next --mission 077-foo` |
-| `spec-kitty agent tasks status --feature 077-foo` | `spec-kitty agent tasks status --mission 077-foo` |
+| `spec-kitty agent tasks status --feature 077-foo` | `spec-kitty agent tasks status --mission 077-foo` (the `--feature` form is now **removed** — it errors) |
 
-The alias still resolves, but it emits a deprecation warning on stderr.
+On the deferred user-facing commands the alias still resolves but emits a
+deprecation warning on stderr. On the internal/agent cluster (3.2.x, #1060-A) the
+alias is gone and `--feature` is rejected with "No such option".
 
 ## Behavioral Changes
 

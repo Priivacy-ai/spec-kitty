@@ -3619,7 +3619,7 @@ def finalize_tasks(
                 if not json_output:
                     console.print(f"[yellow]Warning:[/yellow] could not scaffold acceptance-matrix.json: {_acc_matrix_exc}")
                     console.print(
-                        f"[yellow]Hint:[/yellow] create it manually before acceptance:\n  spec-kitty agent mission finalize-tasks --feature {mission_slug}"
+                        f"[yellow]Hint:[/yellow] create it manually before acceptance:\n  spec-kitty agent mission finalize-tasks --mission {mission_slug}"
                     )
             else:
                 if acceptance_matrix_path is not None and not json_output:

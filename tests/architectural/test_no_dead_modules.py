@@ -336,10 +336,6 @@ _CATEGORY_6_FROZEN_RUNTIME_REEXPORTS: frozenset[str] = frozenset(
 # glossary.rendering) per DM-01KRX6N0YAFBY7MTJC0CN3D3E4.
 _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
     {
-        # TODO(triage): hidden_feature_option / LEGACY_FEATURE_HELP
-        # landed in mission stability-and-hygiene-hardening-2026-04
-        # WP07 but no CLI command adopted them.
-        "specify_cli.missions._legacy_aliases",
         # TODO(triage): TaskProfile suggestion engine has unit tests
         # but no integration with `spec-kitty agent tasks`.
         "specify_cli.task_profile",

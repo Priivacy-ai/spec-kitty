@@ -1224,8 +1224,13 @@ class TestDoctorCLI:
         assert "claimed" in finding["message"]
         assert finding["recommended_action"]  # Non-empty
 
-    def test_doctor_cli_json_selector_conflict_returns_json(self, tmp_path: Path):
-        """Selector resolution failures must stay JSON-clean under --json."""
+    def test_doctor_cli_feature_flag_removed(self, tmp_path: Path):
+        """`doctor` no longer accepts `--feature` (#1060-A).
+
+        The hidden alias was retired from the internal/agent cluster (doctor
+        lives in agent/status.py), so the parser now rejects `--feature` with
+        exit code 2 — the old `--mission`+`--feature` JSON-conflict path is gone.
+        """
         from typer.testing import CliRunner
 
         from specify_cli.cli.commands.agent.status import app
@@ -1238,13 +1243,11 @@ class TestDoctorCLI:
         ):
             result = runner.invoke(
                 app,
-                ["doctor", "--mission", "077-a", "--feature", "077-b", "--json"],
+                ["doctor", "--feature", "077-b", "--json"],
             )
 
-        assert result.exit_code == 1
-        parsed = json.loads(result.output.strip())
-        assert "error" in parsed
-        assert "Conflicting selectors" in parsed["error"]
+        assert result.exit_code == 2, result.output
+        assert "No such option" in result.output
 
     def test_doctor_cli_feature_not_found(self, tmp_path: Path):
         """Feature directory not found -> exit code 1."""

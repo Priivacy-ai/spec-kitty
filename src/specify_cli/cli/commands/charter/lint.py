@@ -81,12 +81,6 @@ def _print_charter_lint_banner(
 @charter_app.command("lint")
 def charter_lint(
     mission: str | None = typer.Option(None, "--mission", help="Scope lint to a specific mission slug"),
-    feature: str | None = typer.Option(
-        None,
-        "--feature",
-        hidden=True,
-        help="(deprecated) Use --mission",
-    ),
     orphans: bool = typer.Option(False, "--orphans", help="Run only orphan checks"),
     contradictions: bool = typer.Option(False, "--contradictions", help="Run only contradiction checks"),
     stale: bool = typer.Option(False, "--stale", help="Run only staleness checks"),
@@ -104,8 +98,7 @@ def charter_lint(
         _emit_error(console, json_output=output_json, message=str(e))
         raise typer.Exit(code=1) from e
 
-    # Resolve canonical --mission, accepting hidden --feature as a deprecated alias.
-    scope = mission if mission is not None else feature
+    scope = mission
 
     # Resolve which checks to run
     explicit = {k for k, v in [("orphans", orphans), ("contradictions", contradictions), ("staleness", stale)] if v}

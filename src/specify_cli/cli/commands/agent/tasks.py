@@ -23,7 +23,7 @@ import typer
 from rich.console import Console
 from typing import Annotated
 
-from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
+from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.sync.events import (
     emit_history_added,
     emit_error_logged,
@@ -714,7 +714,6 @@ def _ensure_target_branch_checked_out(
 
 def _find_mission_slug(
     explicit_mission: str | None = None,
-    explicit_feature: str | None = None,
     *,
     json_output: bool = False,
     repo_root: Path | None = None,
@@ -726,12 +725,8 @@ def _find_mission_slug(
     numeric-prefix handles, mid8 prefixes, and full ULID forms.  The
     resolver calls sys.exit(2) on error so no try/except is needed.
 
-    Without repo_root the function falls back to the legacy selector
-    logic (bare slug parsing with deprecation warnings for --feature).
-
     Args:
         explicit_mission: Mission slug provided via --mission.
-        explicit_feature: Mission slug provided via hidden --feature alias.
         json_output: Propagate to resolver error rendering.
         repo_root: Repository root; if provided, enables canonical resolver.
 
@@ -739,25 +734,17 @@ def _find_mission_slug(
         Mission slug (e.g., "008-unified-python-cli")
 
     Raises:
-        typer.Exit: If mission slug is not provided or selectors conflict.
+        typer.Exit: If mission slug is not provided.
     """
-    try:
-        selector = resolve_selector(
-            canonical_value=explicit_mission,
-            canonical_flag="--mission",
-            alias_value=explicit_feature,
-            alias_flag="--feature",
-            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
-            command_hint="--mission <slug>",
-        )
-    except typer.BadParameter as e:
+    if not explicit_mission or not explicit_mission.strip():
+        err = "--mission <slug> is required"
         if json_output:
-            print(json.dumps({"error": str(e)}))
+            print(json.dumps({"error": err}))
         else:
-            console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1) from None
+            console.print(f"[red]Error:[/red] {err}")
+        raise typer.Exit(1)
 
-    raw_handle = selector.canonical_value
+    raw_handle = explicit_mission.strip()
     if repo_root is not None:
         # Write path: keep main-repo-root resolution so canonical serialization
         # pins to the primary checkout regardless of where the operator stands.
@@ -1684,7 +1671,6 @@ def move_task(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
     to: Annotated[str, typer.Option("--to", help="Target lane (planned/doing/for_review/approved/done)")],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
     agent: Annotated[str | None, typer.Option("--agent", help="Agent name")] = None,
     assignee: Annotated[str | None, typer.Option("--assignee", help="Assignee name (sets assignee when moving to doing)")] = None,
     shell_pid: Annotated[str | None, typer.Option("--shell-pid", help="Shell PID")] = None,
@@ -1773,7 +1759,7 @@ def move_task(
         if auto_commit is None:
             auto_commit = get_auto_commit_default(repo_root)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
+        mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
 
         # Ensure we operate on the target branch for this feature
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
@@ -2801,7 +2787,7 @@ def mark_status(
     task_ids: Annotated[list[str], typer.Argument(help="Task ID(s) - space-separated (e.g., T001 T002 T003)")],
     status: Annotated[str, typer.Option("--status", help="Status: done/pending")],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
+
     auto_commit: Annotated[
         bool | None, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit tasks.md changes to target branch (default: from project config)")
     ] = None,
@@ -2858,7 +2844,7 @@ def mark_status(
         if auto_commit is None:
             auto_commit = get_auto_commit_default(repo_root)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
+        mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
         # Ensure we operate on the target branch for this feature
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         if auto_commit:
@@ -3060,7 +3046,7 @@ def mark_status(
 def list_tasks(
     lane: Annotated[str | None, typer.Option("--lane", help="Filter by lane")] = None,
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
+
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """List tasks with optional lane filtering.
@@ -3076,7 +3062,7 @@ def list_tasks(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
+        mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
 
         # Ensure we operate on the target branch for this feature
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
@@ -3146,7 +3132,7 @@ def add_history(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
     note: Annotated[str, typer.Option("--note", help="History note")],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
+
     agent: Annotated[str | None, typer.Option("--agent", help="Agent name")] = None,
     shell_pid: Annotated[str | None, typer.Option("--shell-pid", help="Shell PID")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
@@ -3166,7 +3152,7 @@ def add_history(
         # FR-010 / FR-019: one-shot sparse-checkout session warning.
         _emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks add-history")
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
+        mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
 
         # Ensure we operate on the target branch for this feature
         _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
@@ -3223,7 +3209,7 @@ def add_history(
 @app.command(name="finalize-tasks")
 def finalize_tasks(
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
+
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     validate_only: Annotated[bool, typer.Option("--validate-only", help="Validate without writing changes")] = False,
 ) -> None:
@@ -3247,7 +3233,7 @@ def finalize_tasks(
         # FR-010 / FR-019: one-shot sparse-checkout session warning.
         _emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks finalize-tasks")
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
+        mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
         # Ensure we operate on the target branch for this feature
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
@@ -3472,7 +3458,7 @@ def map_requirements(
         ),
     ] = None,
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
+
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     auto_commit: Annotated[
         bool | None,
@@ -3531,7 +3517,7 @@ def map_requirements(
         # FR-010 / FR-019: one-shot sparse-checkout session warning.
         _emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks map-requirements")
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
+        mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         if auto_commit is None:
             auto_commit = get_auto_commit_default(main_repo_root)
@@ -3793,7 +3779,7 @@ def map_requirements(
 def validate_workflow(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
+
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Validate task metadata structure and workflow consistency.
@@ -3808,7 +3794,7 @@ def validate_workflow(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
+        mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
 
         # Ensure we operate on the target branch for this feature
         _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
@@ -3886,7 +3872,7 @@ def validate_workflow(
 @app.command(name="status")
 def status(
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
+
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
     stale_threshold: Annotated[int, typer.Option("--stale-threshold", help="Minutes of inactivity before a WP is considered stale")] = 10,
 ):
@@ -3917,7 +3903,7 @@ def status(
             raise typer.Exit(1)
 
         # Auto-detect or use provided feature slug
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
+        mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
 
         # Ensure we operate on the target branch for this feature
         # Write path: keep main-repo-root resolution so canonical serialization
@@ -4374,7 +4360,7 @@ def status(
 def list_dependents(
     wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
+
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Find all WPs that depend on a given WP (downstream dependents).
@@ -4394,7 +4380,7 @@ def list_dependents(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
+        mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
 

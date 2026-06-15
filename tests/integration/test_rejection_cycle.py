@@ -525,7 +525,7 @@ class TestImplementReviewFeedbackHandoff:
         runner = CliRunner()
         result = runner.invoke(
             workflow.app,
-            ["implement", "WP01", "--feature", "001-test-feature", "--agent", "test-agent"],
+            ["implement", "WP01", "--mission", "001-test-feature", "--agent", "test-agent"],
         )
 
         assert result.exit_code == 0, result.stdout
@@ -557,7 +557,7 @@ class TestImplementReviewFeedbackHandoff:
         runner = CliRunner()
         result = runner.invoke(
             workflow.app,
-            ["implement", "WP01", "--feature", "001-test-feature", "--agent", "test-agent"],
+            ["implement", "WP01", "--mission", "001-test-feature", "--agent", "test-agent"],
         )
 
         assert result.exit_code == 1, result.stdout

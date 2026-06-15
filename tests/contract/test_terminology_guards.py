@@ -24,6 +24,27 @@ pytestmark = [pytest.mark.contract]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
+# ---------------------------------------------------------------------------
+# T013 in-scope cluster: the 10 internal command files from which the
+# ``--feature`` alias was fully removed (WP01 + WP02).  Any reintroduction
+# of the literal ``--feature`` string in these files — whether inside a
+# typer.Option block, an alias_flag argument, a resolve_selector call, or
+# any other construct — must fail this gate.
+# Authority: spec.md FR-003, FR-004.
+# ---------------------------------------------------------------------------
+INSCOPE_FEATURE_FREE_FILES: tuple[str, ...] = (
+    "src/specify_cli/cli/commands/agent/status.py",
+    "src/specify_cli/cli/commands/agent/tasks.py",
+    "src/specify_cli/cli/commands/agent/workflow.py",
+    "src/specify_cli/cli/commands/agent/context.py",
+    "src/specify_cli/cli/commands/agent/mission.py",
+    "src/specify_cli/cli/commands/charter/lint.py",
+    "src/specify_cli/cli/commands/materialize.py",
+    "src/specify_cli/cli/commands/validate_encoding.py",
+    "src/specify_cli/cli/commands/validate_tasks.py",
+    "src/specify_cli/cli/commands/verify.py",
+)
+
 CLI_COMMAND_GLOBS = ("src/specify_cli/cli/commands/**/*.py",)
 DOCTRINE_SKILL_GLOBS = ("src/doctrine/skills/**/*.md",)
 AGENT_DOC_GLOBS = ("docs/**/*.md",)
@@ -411,4 +432,37 @@ def test_grep_guards_do_not_scan_historical_artifacts():
     assert "CHANGELOG.md" not in AGENT_DOC_GLOBS, (
         "CHANGELOG.md must be handled through _extract_changelog_unreleased(), not a raw glob. "
         "Authority: spec.md FR-022."
+    )
+
+
+def test_no_feature_alias_in_internal_command_cluster() -> None:
+    """The in-scope internal command cluster must contain zero occurrences of ``--feature``.
+
+    This gate is stricter than ``test_no_visible_feature_alias_in_cli_commands``
+    (which only checks Typer Option blocks for ``hidden=True``).  The WP01/WP02
+    removals eliminated the alias entirely from these 10 files.  ANY reintroduction
+    — whether inside a typer.Option call, an ``alias_flag="--feature"`` argument,
+    a ``resolve_selector(... "--feature" ...)`` call, or a stray comment-free
+    string literal — must fail this gate.
+
+    Authority: spec.md FR-003, FR-004.  Defined by INSCOPE_FEATURE_FREE_FILES.
+    """
+    offenders: list[str] = []
+    for rel_path in INSCOPE_FEATURE_FREE_FILES:
+        path = REPO_ROOT / rel_path
+        if not path.exists():
+            pytest.fail(
+                f"In-scope file not found: {rel_path}. "
+                "Update INSCOPE_FEATURE_FREE_FILES or restore the file."
+            )
+        content = _read(path)
+        if "--feature" in content:
+            # Report each hit with line number for fast triage
+            for lineno, line in enumerate(content.splitlines(), start=1):
+                if "--feature" in line:
+                    offenders.append(f"{rel_path}:{lineno}: {line.strip()!r}")
+    assert not offenders, (
+        "FR-003/FR-004 regression: '--feature' literal found in in-scope command files "
+        "(INSCOPE_FEATURE_FREE_FILES).  Remove the alias entirely — do not hide it.\n  "
+        + "\n  ".join(offenders)
     )

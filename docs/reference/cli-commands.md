@@ -11,7 +11,7 @@ Terminology note:
 - `Mission Type` = reusable workflow blueprint
 - `Mission` = tracked item under `kitty-specs/<mission-slug>/`
 - `Mission Run` = runtime/session instance
-- As of 3.1.0, `--mission` is the canonical flag name for specifying the mission slug. `--feature` remains only as a hidden deprecated alias during the migration window.
+- As of 3.1.0, `--mission` is the canonical flag name for specifying the mission slug. `--feature` was a hidden deprecated alias; as of 3.2.x (#1060-A) it has been **removed from the internal/agent command cluster** and remains a hidden alias only on the deferred user-facing top-level commands during the migration window.
 - `mission-state`/`accept-mission`/`merge-mission` are the canonical orchestrator-api command names
 
 ## Getting Started

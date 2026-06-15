@@ -12,7 +12,6 @@ from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.cli import StepTracker
-from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.helpers import console, get_project_root_or_exit
 from specify_cli.core.paths import locate_project_root
 from specify_cli.core.tool_checker import check_tool_for_tracker
@@ -56,7 +55,6 @@ TOOL_LABELS = [
 
 def verify_setup(
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug to verify")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format for AI agents")] = False,
     check_files: Annotated[bool, typer.Option("--check-files", help="Check mission file integrity")] = True,
     check_tools: Annotated[bool, typer.Option("--check-tools", help="Check for installed development tools")] = True,
@@ -64,16 +62,7 @@ def verify_setup(
 ) -> None:
     """Verify that the current environment matches Spec Kitty expectations."""
     output_data: dict[str, object] = {}
-    mission_slug = None
-    if mission is not None or feature is not None:
-        mission_slug = resolve_selector(
-            canonical_value=mission,
-            canonical_flag="--mission",
-            alias_value=feature,
-            alias_flag="--feature",
-            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
-            command_hint="--mission <slug>",
-        ).canonical_value
+    mission_slug = mission
 
     # If diagnostics mode requested, use diagnostics output
     if diagnostics:

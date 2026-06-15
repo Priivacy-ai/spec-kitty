@@ -277,8 +277,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.mission_v1::MissionProtocol",
         "specify_cli.mission_v1::load_mission",
         "specify_cli.mission_v1::load_mission_by_name",
-        "specify_cli.missions._legacy_aliases::LEGACY_FEATURE_HELP",
-        "specify_cli.missions._legacy_aliases::hidden_feature_option",
         "specify_cli.missions::PrimitiveExecutionContext",
         "specify_cli.missions::execute_with_glossary",
         "runtime.next._internal_runtime.emitter::RuntimeEventEmitter",
