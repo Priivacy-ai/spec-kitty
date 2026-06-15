@@ -791,6 +791,52 @@ def _target_bookkeeping_status_paths(
     )
 
 
+def _read_optional_bytes(path: Path) -> bytes | None:
+    if not path.exists():
+        return None
+    return path.read_bytes()
+
+
+def _restore_optional_bytes(path: Path, original: bytes | None) -> None:
+    if original is None:
+        path.unlink(missing_ok=True)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(original)
+
+
+def _project_status_bookkeeping_to_target(
+    *,
+    main_repo: Path,
+    mission_slug: str,
+    status_feature_dir: Path,
+) -> tuple[Path, Path]:
+    """Copy authoritative status bookkeeping to target-checkout paths.
+
+    Coord-backed missions write done transitions through the coordination
+    surface, but the final target-branch housekeeping commit can only stage
+    paths tracked under ``main_repo``. Project just the status artifacts into
+    ``kitty-specs/<slug>/`` before the commit; keep the authoritative write
+    topology unchanged.
+    """
+    target_events_path, target_status_path = _target_bookkeeping_status_paths(
+        main_repo=main_repo,
+        mission_slug=mission_slug,
+        status_feature_dir=status_feature_dir,
+    )
+    if not is_under_worktrees_segment(status_feature_dir):
+        return target_events_path, target_status_path
+
+    target_events_path.parent.mkdir(parents=True, exist_ok=True)
+    source_events_path = status_feature_dir / _STATUS_EVENTS_FILENAME
+    source_status_path = status_feature_dir / _STATUS_FILENAME
+    if source_events_path.exists():
+        target_events_path.write_bytes(source_events_path.read_bytes())
+    if source_status_path.exists():
+        target_status_path.write_bytes(source_status_path.read_bytes())
+    return target_events_path, target_status_path
+
+
 def _already_baked(merge_state: MergeState | None) -> bool:
     """Resume short-circuit predicate (T026 / FR-012).
 
@@ -1258,6 +1304,29 @@ def _resolve_mission_slug(repo_root: Path, mission_slug: str | None) -> str | No
     if retcode != 0:
         return None
     return _extract_mission_slug(current_branch.strip())
+
+
+def _resolve_merge_state_key(repo_root: Path, mission_slug: str | None) -> str | None:
+    """Return the canonical merge-state key for a resolved mission slug.
+
+    Modern merge state is keyed by mission ULID, while operators usually pass
+    the mission directory slug. If identity resolution is unavailable, return
+    the slug so legacy slug-keyed state and historical error paths still work.
+    """
+    if not mission_slug:
+        return None
+    try:
+        feature_dir = candidate_feature_dir_for_mission(
+            get_main_repo_root(repo_root),
+            mission_slug,
+        )
+        if feature_dir.exists():
+            identity = resolve_mission_identity(feature_dir)
+            if identity.mission_id:
+                return identity.mission_id
+    except Exception as exc:  # noqa: BLE001 - resume/abort must stay cleanup-safe
+        logger.debug("Could not resolve merge state key for %s: %s", mission_slug, exc)
+    return mission_slug
 
 
 def _resolve_target_branch(
@@ -2278,6 +2347,13 @@ def _run_lane_based_merge_locked(
     _pre_done_status_bytes = (
         _merge_status_path.read_bytes() if _merge_status_path.exists() else None
     )
+    target_events_path, target_status_path = _target_bookkeeping_status_paths(
+        main_repo=main_repo,
+        mission_slug=mission_slug,
+        status_feature_dir=feature_dir,
+    )
+    _pre_target_event_bytes = _read_optional_bytes(target_events_path)
+    _pre_target_status_bytes = _read_optional_bytes(target_status_path)
 
     # Merge-path status surface audit (mission merge-done-surface-resolver-01KTDVHZ):
     # Write sites: _mark_wp_merged_done — resolve_status_surface determines feature_dir;
@@ -2301,6 +2377,12 @@ def _run_lane_based_merge_locked(
             merge_state=state,
             all_wp_ids=all_wp_ids,
         )
+
+    target_events_path, target_status_path = _project_status_bookkeeping_to_target(
+        main_repo=main_repo,
+        mission_slug=mission_slug,
+        status_feature_dir=feature_dir,
+    )
 
     # -- WP05/T007 FR-014: Post-merge working-tree invariant --
     # After the refresh, `git status --porcelain` MUST report at most the two
@@ -2365,11 +2447,6 @@ def _run_lane_based_merge_locked(
         )
 
     # -- T012: FR-019 — Persist done events to git BEFORE any worktree removal --
-    target_events_path, target_status_path = _target_bookkeeping_status_paths(
-        main_repo=main_repo,
-        mission_slug=mission_slug,
-        status_feature_dir=feature_dir,
-    )
     files_to_commit = [
         target_events_path,
         target_status_path,
@@ -2409,6 +2486,10 @@ def _run_lane_based_merge_locked(
                         _merge_status_path.unlink(missing_ok=True)
                     else:
                         _merge_status_path.write_bytes(_pre_done_status_bytes)
+                with contextlib.suppress(OSError):
+                    _restore_optional_bytes(target_events_path, _pre_target_event_bytes)
+                with contextlib.suppress(OSError):
+                    _restore_optional_bytes(target_status_path, _pre_target_status_bytes)
             raise
     else:
         console.print("  [dim]No post-merge bookkeeping changes to commit; continuing cleanup.[/dim]")
@@ -2674,7 +2755,8 @@ def merge(
         mission_slug_raw = (mission or feature or "").strip() or None
         resolved = _resolve_mission_slug(repo_root, mission_slug_raw)
         if resolved:
-            cleared = clear_state(repo_root, resolved)
+            state_key = _resolve_merge_state_key(repo_root, resolved)
+            cleared = clear_state(repo_root, state_key)
             cleanup_merge_workspace(resolved, repo_root)
             # WP07 / FR-016: --abort also tears down the coordination
             # worktree (idempotent; no-op for legacy missions without
@@ -2743,7 +2825,8 @@ def merge(
     if resume:
         mission_slug_raw = (mission or feature or "").strip() or None
         resolved = _resolve_mission_slug(repo_root, mission_slug_raw)
-        existing_state = load_state(repo_root, resolved)
+        state_key = _resolve_merge_state_key(repo_root, resolved)
+        existing_state = load_state(repo_root, state_key)
         if existing_state is None:
             console.print("[red]Error:[/red] No interrupted merge to resume.")
             raise typer.Exit(1)
@@ -2977,6 +3060,8 @@ __all__ = [
     "_record_baseline_merge_commit",
     "BaselineMergeCommitError",
     "_mark_wp_merged_done",
+    "_project_status_bookkeeping_to_target",
+    "_resolve_merge_state_key",
     "_run_lane_based_merge",
     "_is_linear_history_rejection",
     "_emit_remediation_hint",

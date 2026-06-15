@@ -15,6 +15,7 @@ from specify_cli.cli.commands.merge import (
     _assert_baseline_merge_commit_on_target,
     _assert_merged_wps_reached_done,
     _mark_wp_merged_done,
+    _project_status_bookkeeping_to_target,
     _record_baseline_merge_commit,
 )
 
@@ -761,3 +762,30 @@ def test_coord_branch_assert_ignores_primary_checkout(
     # Must RAISE — coord surface only has approved, not done
     with pytest.raises(typer.Exit):
         _assert_merged_wps_reached_done(repo_root, _COORD_SLUG, ["WP01"])
+
+
+def test_project_status_bookkeeping_copies_coord_surface_to_primary_target(
+    coord_branch_mission: dict,
+) -> None:
+    """Final merge bookkeeping must stage primary paths, not .worktrees paths."""
+    repo_root = coord_branch_mission["repo_root"]
+    primary_dir = coord_branch_mission["primary_dir"]
+    coord_specs = coord_branch_mission["coord_specs"]
+
+    (primary_dir / "status.events.jsonl").write_text("old-event\n", encoding="utf-8")
+    (primary_dir / "status.json").write_text('{"WP01": "approved"}\n', encoding="utf-8")
+    (coord_specs / "status.events.jsonl").write_text("new-done-event\n", encoding="utf-8")
+    (coord_specs / "status.json").write_text('{"WP01": "done"}\n', encoding="utf-8")
+
+    target_events, target_status = _project_status_bookkeeping_to_target(
+        main_repo=repo_root,
+        mission_slug=_COORD_SLUG,
+        status_feature_dir=coord_specs,
+    )
+
+    assert target_events == primary_dir / "status.events.jsonl"
+    assert target_status == primary_dir / "status.json"
+    assert ".worktrees" not in target_events.parts
+    assert ".worktrees" not in target_status.parts
+    assert target_events.read_text(encoding="utf-8") == "new-done-event\n"
+    assert target_status.read_text(encoding="utf-8") == '{"WP01": "done"}\n'

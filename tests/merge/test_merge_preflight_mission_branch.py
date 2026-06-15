@@ -12,6 +12,7 @@ import typer
 
 import specify_cli.cli.commands.merge as merge_mod
 from specify_cli.cli.commands.merge import _check_mission_branch
+from specify_cli.merge.state import MergeState, save_state
 
 pytestmark = pytest.mark.fast
 
@@ -88,6 +89,7 @@ def _invoke_merge_dry_run(*, json_output: bool) -> None:
         context_token=None,
         keep_workspace=False,
         allow_sparse_checkout=False,
+        yes=False,
     )
 
 
@@ -122,6 +124,74 @@ class TestCheckMissionBranch:
 
 class TestMergeDryRunMissingBranch:
     """Integration tests for merge --dry-run with missing mission branch."""
+
+    def test_resume_loads_ulid_keyed_state_when_invoked_with_slug(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """--resume canonicalizes slug handles to mission_id before load_state."""
+        mission_slug = "resume-state-key-regression-01KV4X00"
+        mission_id = "01KV4X00ULIDKEYEDSTATE0000"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text(
+            json.dumps(
+                {
+                    "mission_id": mission_id,
+                    "mission_slug": mission_slug,
+                    "slug": mission_slug,
+                    "target_branch": "main",
+                }
+            ),
+            encoding="utf-8",
+        )
+        save_state(
+            MergeState(
+                mission_id=mission_id,
+                mission_slug=mission_slug,
+                target_branch="main",
+                wp_order=["WP01", "WP02"],
+                completed_wps=["WP01"],
+            ),
+            tmp_path,
+        )
+
+        class StopAfterResume(Exception):
+            pass
+
+        monkeypatch.setattr(merge_mod, "show_banner", lambda: None)
+        monkeypatch.setattr(merge_mod, "find_repo_root", lambda: tmp_path)
+        monkeypatch.setattr(merge_mod, "get_main_repo_root", lambda repo_root: repo_root)
+        monkeypatch.setattr(
+            merge_mod,
+            "_enforce_git_preflight",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(StopAfterResume()),
+        )
+
+        command = merge_mod.merge.__wrapped__
+        with pytest.raises(StopAfterResume):
+            command(
+                strategy=None,
+                delete_branch=True,
+                remove_worktree=True,
+                push=False,
+                target_branch=None,
+                dry_run=False,
+                json_output=False,
+                mission=mission_slug,
+                feature=None,
+                resume=True,
+                abort=False,
+                context_token=None,
+                keep_workspace=False,
+                allow_sparse_checkout=False,
+                yes=False,
+            )
+
+        output = _compact_output(capsys.readouterr().out)
+        assert f"Resume requested for {mission_slug} (1/2 done)" in output
 
     def test_dry_run_json_missing_branch_still_previews(
         self,
