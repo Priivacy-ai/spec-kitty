@@ -1,0 +1,342 @@
+# Bulk-edit occurrence map — remove the hidden `--feature` CLI alias from the
+# INTERNAL/AGENT command cluster (#1060-A, epic #1797).
+#
+# Mission: codebase-sanitization-1060-1622-01KV5F0B
+# Change mode: bulk_edit (declared in meta.json)
+# Operation: remove (the token is deleted, not renamed; `--mission` already exists)
+#
+# Action vocabulary (enforced by the bulk-edit gate):
+#   - rename                 : substitute the literal token
+#   - rename_if_user_visible : substitute only on a public surface
+#   - manual_review          : implementer inspects and removes per occurrence
+#   - do_not_change          : preserve as-is (out of scope or N/A)
+#
+# This is a REMOVAL, so in-scope categories use `manual_review`: the implementer
+# deletes the `--feature` option + its plumbing while preserving the `--mission`
+# path and leaving the shared resolver intact for out-of-scope commands.
+
+schema_version: "1.0"
+mission: codebase-sanitization-1060-1622-01KV5F0B
+
+target:
+  term: "--feature"
+  operation: remove
+  scope_notes: |
+    Remove the hidden `--feature` Typer option (and its `feature` /
+    `explicit_feature` plumbing + alias-flag arguments to resolve_selector) from
+    the INTERNAL/AGENT command cluster ONLY:
+      src/specify_cli/cli/commands/agent/status.py
+      src/specify_cli/cli/commands/agent/tasks.py
+      src/specify_cli/cli/commands/agent/workflow.py
+      src/specify_cli/cli/commands/agent/context.py
+      src/specify_cli/cli/commands/agent/mission.py
+      src/specify_cli/cli/commands/charter/lint.py
+      src/specify_cli/cli/commands/materialize.py
+      src/specify_cli/cli/commands/validate_encoding.py
+      src/specify_cli/cli/commands/validate_tasks.py
+      src/specify_cli/cli/commands/verify.py
+
+    EXPLICITLY OUT OF SCOPE (the alias is RETAINED — do_not_change):
+      - User-facing top-level commands: implement.py, merge.py, next_cmd.py,
+        research.py, context.py, accept.py, lifecycle.py, mission_type.py
+        (deferred behind the #1059 sunset policy).
+      - src/specify_cli/cli/selector_resolution.py (shared resolver — stays).
+      - src/specify_cli/missions/_legacy_aliases.py (hidden_feature_option helper
+        — stays for the deferred commands).
+      - src/specify_cli/upgrade/migrations/m_0_14_0_centralized_feature_detection.py
+        (historical migration).
+      - Generated agent dirs (.claude/, .codex/, …) — regenerated, never hand-edited.
+
+categories:
+
+  code_symbols:
+    description: >
+      The `feature` / `explicit_feature` parameters and the alias arguments to
+      resolve_selector in the in-scope command modules.
+    action: manual_review
+    notes: |
+      CRITICAL (adversarial review): `resolve_selector(*, alias_value, alias_flag, ...)`
+      has NO defaults for `alias_value`/`alias_flag` (selector_resolution.py:123) —
+      you CANNOT just drop the args (TypeError) and you MUST NOT leave
+      `alias_flag="--feature"` (forbidden token + keeps the alias alive). The
+      recipe is NOT uniform across files:
+        - tasks.py / status.py: route through a SHARED `_find_mission_slug` helper
+          holding the single resolve_selector call; status.py threads
+          `explicit_feature` through a SECOND helper `_resolve_status_surface`.
+          Remove the per-command `feature` params + every `explicit_feature=...`
+          arg + the `alias_value`/`alias_flag` args in the helper's single call.
+        - workflow.py: one resolve_selector call (keep the unrelated
+          merge_append_preserving_coordination_event_log_bytes import).
+        - materialize.py / verify.py / validate_encoding.py / validate_tasks.py:
+          ONE resolve_selector call each — remove the call and use `mission`
+          directly (`mission_slug = mission`); do NOT blindly swap to
+          resolve_mission_handle (it returns ResolvedMission + exits(2)).
+        - charter/lint.py: NO resolver — plain ternary `scope = mission if
+          mission is not None else feature` (L108) → `scope = mission`.
+        - agent/context.py: uses `resolve_mission_handle(mission or feature)` (L123/126)
+          → drop `or feature`.
+        - agent/mission.py: NO `--feature` option (see cs-005) — help-string only.
+      Never touch the resolve_selector definition (FR-008).
+    occurrences:
+      - id: cs-001
+        file: src/specify_cli/cli/commands/agent/tasks.py
+        notes: "12 hits: feature params + explicit_feature plumbing + resolve_selector alias args (e.g. L717,734,749,1687,2804,3063,3149,3226,3475,3794,3887,4375)."
+      - id: cs-002
+        file: src/specify_cli/cli/commands/agent/status.py
+        notes: "9 hits: feature params + resolve_selector alias args."
+      - id: cs-003
+        file: src/specify_cli/cli/commands/agent/workflow.py
+        notes: "4 hits (alias). NOTE: the merge_append_preserving_coordination_event_log_bytes import from status_service is UNRELATED and stays."
+      - id: cs-004
+        file: src/specify_cli/cli/commands/agent/context.py
+        notes: "2 hits."
+      - id: cs-005
+        file: src/specify_cli/cli/commands/agent/mission.py
+        notes: "CORRECTION (adversarial review): mission.py has NO `--feature` typer.Option. The 1 hit at L3622 is a help-HINT STRING `finalize-tasks --feature {mission_slug}` → fix to `--mission {mission_slug}`. DO NOT touch the `feature`-named params (bound to `--mission`) or the `--mission-type`/`--mission` resolve_selector at L1484. This is a user_facing_strings edit, not an option removal."
+      - id: cs-006
+        file: src/specify_cli/cli/commands/charter/lint.py
+        notes: "2 hits."
+      - id: cs-007
+        file: src/specify_cli/cli/commands/materialize.py
+        notes: "2 hits."
+      - id: cs-008
+        file: src/specify_cli/cli/commands/validate_encoding.py
+        notes: "2 hits."
+      - id: cs-009
+        file: src/specify_cli/cli/commands/validate_tasks.py
+        notes: "2 hits."
+      - id: cs-010
+        file: src/specify_cli/cli/commands/verify.py
+        notes: "2 hits."
+
+  import_paths:
+    description: >
+      Python module/package paths containing the token.
+    action: do_not_change
+    notes: |
+      No module path contains "feature" in a way this mission renames. The
+      `from specify_cli.cli.selector_resolution import resolve_selector` imports
+      stay (resolver retained).
+
+  filesystem_paths:
+    description: >
+      Repository file/directory names containing the token.
+    action: do_not_change
+    notes: |
+      No file or directory is named for the `--feature` flag.
+
+  serialized_keys:
+    description: >
+      JSON/YAML keys, frontmatter, fixture IDs containing the token.
+    action: do_not_change
+    notes: |
+      The flag is a CLI option, not a serialized key. `feature_slug` internal
+      field names are explicitly out of scope (tracked separately under #1060).
+
+  cli_commands:
+    description: >
+      The hidden `--feature` Typer option declarations on in-scope commands.
+    action: manual_review
+    notes: |
+      Remove `typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")`
+      from each in-scope command. The bundled help string is deleted with the
+      option (see user_facing_strings). Out-of-scope commands keep their option.
+    occurrences:
+      - id: cli-001
+        file: src/specify_cli/cli/commands/agent/tasks.py
+        notes: "Remove all hidden --feature option declarations (8 typer.Option blocks at L1687..L4375)."
+      - id: cli-002
+        file: src/specify_cli/cli/commands/agent/status.py
+        notes: "Remove all hidden --feature option declarations."
+      - id: cli-003
+        file: src/specify_cli/cli/commands/agent/workflow.py
+        notes: "Remove hidden --feature option declarations."
+      - id: cli-004
+        file: src/specify_cli/cli/commands/agent/context.py
+        notes: "Remove hidden --feature option declaration."
+      - id: cli-005
+        file: src/specify_cli/cli/commands/agent/mission.py
+        notes: "Remove hidden --feature option declaration."
+      - id: cli-006
+        file: src/specify_cli/cli/commands/charter/lint.py
+        notes: "Remove hidden --feature option declaration."
+      - id: cli-007
+        file: src/specify_cli/cli/commands/materialize.py
+        notes: "Remove hidden --feature option declaration."
+      - id: cli-008
+        file: src/specify_cli/cli/commands/validate_encoding.py
+        notes: "Remove hidden --feature option declaration."
+      - id: cli-009
+        file: src/specify_cli/cli/commands/validate_tasks.py
+        notes: "Remove hidden --feature option declaration."
+      - id: cli-010
+        file: src/specify_cli/cli/commands/verify.py
+        notes: "Remove hidden --feature option declaration."
+
+  user_facing_strings:
+    description: >
+      Help text and prose mentioning `--feature`.
+    action: do_not_change
+    notes: |
+      The "(deprecated) Use --mission" help text on in-scope options is deleted
+      together with its option (covered under cli_commands; the command-file path
+      is editable via that category). The only standalone prose references are:
+        - src/doctrine/skills/spec-kitty-implement-review/SKILL.md:121 (note re:
+          implement/review — OUT OF SCOPE commands) — preserve.
+        - src/doctrine/skills/spec-kitty-runtime-next/SKILL.md:349 (note re: next
+          — OUT OF SCOPE command) — preserve.
+        - src/doctrine/tactics/built-in/occurrence-classification-workflow.tactic.yaml:40
+          (`agent bulk-edit` example — not in the in-scope cluster) — preserve.
+      None reference an in-scope command, so no doctrine edits are required.
+
+  tests_fixtures:
+    description: >
+      Tests that invoke an in-scope command with `--feature`.
+    action: manual_review
+    notes: |
+      Identify the tests that pass `--feature` to an in-scope command and update
+      them to `--mission` (or, for the de-aliasing regression, assert the option
+      is now rejected). ~30 test files reference `--feature` overall; only the
+      in-scope-command callers change. Out-of-scope command tests are untouched.
+    occurrences:
+      - id: tf-001
+        file: tests/specify_cli/cli/commands/agent/
+        notes: "agent tasks/status/workflow/context/mission test modules — update in-scope --feature invocations to --mission."
+      - id: tf-002
+        file: tests/e2e/test_feature_alias_smoke.py
+        notes: "(WP01) Contains an FR-006 alias-equivalence arm for `agent tasks status --feature` that NOW CONTRADICTS the removal — convert that arm to assert rejection (out-of-scope arms stay)."
+      - id: tf-003
+        file: tests/cross_cutting/misc/test_tasks_cli_commands.py
+        notes: "(WP01) `status --feature` / `verify --feature` in-scope callers (L90/97/197) → --mission."
+      - id: tf-004
+        file: tests/cross_cutting/encoding/test_encoding_validation_cli.py
+        notes: "(WP02) validate_encoding --feature → --mission."
+      - id: tf-005
+        file: tests/integration/test_legacy_feature_alias.py
+        notes: "(WP05) asserts charter/lint.py KEEPS a --feature block (L91-96) AND tests hidden_feature_option (L23-45) — both contradicted by this mission; owned + reconciled by WP05."
+
+  logs_telemetry:
+    description: >
+      Log fields / telemetry / metric names containing the token.
+    action: do_not_change
+    notes: |
+      The one-shot deprecation warning is emitted by resolve_selector (retained
+      for out-of-scope commands). Removing the alias from in-scope commands stops
+      that path being reachable for them, but no log/metric name changes.
+
+# ──────────────────────────────────────────────────────────────────────
+# NEW / MODIFIED GUARD (regression guard — same diff)
+# ──────────────────────────────────────────────────────────────────────
+new_files: []
+
+guard_changes:
+  - file: tests/contract/test_terminology_guards.py
+    purpose: |
+      Tighten the terminology gate for the in-scope cluster: fail if ANY
+      `--feature` Typer option (hidden or visible) is declared in one of the 10
+      in-scope command files. The existing global "hidden-only" rule continues
+      to govern the out-of-scope files. Land the failing assertion BEFORE removal
+      (ATDD-First, charter C-011).
+    spec_anchor: ["FR-004"]
+
+# ──────────────────────────────────────────────────────────────────────
+# OUT OF SCOPE (preserve — the alias is retained here)
+# ──────────────────────────────────────────────────────────────────────
+historical_preservation:
+  description: >
+    Surfaces where `--feature` MUST be preserved (deferred behind #1059, shared
+    infra, historical migrations, or generated artifacts).
+  action: do_not_change
+  paths:
+    - "src/specify_cli/cli/commands/{implement,merge,next_cmd,research,context,accept,lifecycle,mission_type}.py (deferred user-facing commands; #1059)"
+    - "src/specify_cli/cli/selector_resolution.py (shared resolver — retained, FR-008)"
+    # NOTE: _legacy_aliases.py was DELETED under FR-009 (WP05) — its hidden_feature_option
+    # helper had zero src callers. Only resolve_selector (above) is retained.
+    - "src/specify_cli/upgrade/migrations/m_0_14_0_centralized_feature_detection.py (historical migration)"
+    - ".claude/ .codex/ .opencode/ … (generated agent dirs — regenerated, never hand-edited)"
+    - "kitty-specs/*/** (frozen historical mission artifacts)"
+
+# ──────────────────────────────────────────────────────────────────────
+# EXCEPTIONS (recognized by the bulk-edit gate; top-level key)
+# ──────────────────────────────────────────────────────────────────────
+exceptions:
+  - path: "kitty-specs/codebase-sanitization-1060-1622-01KV5F0B/**"
+    action: manual_review
+    reason: >
+      This mission's own planning/documentation directory (spec.md, plan.md,
+      research.md, issue-matrix.md, analysis-report.md, occurrence_map.yaml,
+      tasks/*, decisions/*, status.*). These artifacts DESCRIBE the --feature
+      removal and therefore legitimately contain the literal "--feature" in
+      prose — they are documentation, not rename/remove targets. The actual
+      removal happens in src/ + tests/ (the categories above).
+  - path: "kitty-specs/*/status.events.jsonl"
+    action: manual_review
+    reason: >
+      Runtime-written status event log; system artifact, not a rename/remove
+      target. Reviewed: no in-scope --feature CLI declarations present.
+  - path: "kitty-specs/*/status.json"
+    action: manual_review
+    reason: >
+      Runtime-written status snapshot derived from status.events.jsonl. System
+      artifact updated by every WP lane transition; not a rename/remove target.
+  - path: "kitty-specs/*/tasks/WP*.md"
+    action: manual_review
+    reason: >
+      WP prompt frontmatter (assignee/agent/shell_pid/history) is updated by the
+      runtime during status transitions. System writes, not rename/remove targets.
+  - path: "kitty-specs/*/tasks.md"
+    action: manual_review
+    reason: >
+      Mission tasks index; subtask checkboxes are flipped by the runtime during
+      implementation. System artifact, not a rename/remove target.
+  - path: "kitty-specs/*/occurrence_map.yaml"
+    action: manual_review
+    reason: >
+      This planning artifact. Updated during the sprint if new exceptions are
+      discovered. Not a code surface.
+
+# ──────────────────────────────────────────────────────────────────────
+# DEAD CODE CANDIDATES
+# ──────────────────────────────────────────────────────────────────────
+dead_code_candidates:
+  description: >
+    Occurrences DELETED outright (the alias plumbing in in-scope commands).
+  action: manual_review
+  notes: |
+    The in-scope `--feature` option declarations + `feature`/`explicit_feature`
+    plumbing are removed (not renamed). Captured under code_symbols/cli_commands
+    with action manual_review; listed here to make the removal intent explicit.
+
+# ──────────────────────────────────────────────────────────────────────
+# ACCEPTANCE GATE (operational check; matches spec FR-001/FR-004)
+# ──────────────────────────────────────────────────────────────────────
+acceptance_check:
+  command: |
+    git grep -n -- '--feature' -- \
+      src/specify_cli/cli/commands/agent/status.py \
+      src/specify_cli/cli/commands/agent/tasks.py \
+      src/specify_cli/cli/commands/agent/workflow.py \
+      src/specify_cli/cli/commands/agent/context.py \
+      src/specify_cli/cli/commands/agent/mission.py \
+      src/specify_cli/cli/commands/charter/lint.py \
+      src/specify_cli/cli/commands/materialize.py \
+      src/specify_cli/cli/commands/validate_encoding.py \
+      src/specify_cli/cli/commands/validate_tasks.py \
+      src/specify_cli/cli/commands/verify.py | wc -l
+  expected: 0
+  notes: |
+    Zero `--feature` references in the in-scope cluster after the mission. The
+    tightened terminology guard (FR-004) operationalises this on every CI run.
+
+# ──────────────────────────────────────────────────────────────────────
+# SUMMARY (bookkeeping)
+# ──────────────────────────────────────────────────────────────────────
+summary:
+  scope: "workstream 1 only (#1060-A). #1622 is verify-only — no code edits, not part of this bulk edit."
+  in_scope_command_files: 10
+  total_alias_occurrences_in_scope: 38
+  by_category:
+    code_symbols: manual_review
+    cli_commands: manual_review
+    tests_fixtures: manual_review
+    not_applicable: [import_paths, filesystem_paths, serialized_keys, user_facing_strings, logs_telemetry]
