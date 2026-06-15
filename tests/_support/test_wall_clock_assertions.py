@@ -301,6 +301,19 @@ from tests._support.wall_clock_assertions import (
             "    pass\n\n"
             "@pytest.fixture(autouse=True)\n"
             "def clock_fixture(monkeypatch):\n"
+            "    monkeypatch.setattr('test_bad.Holder.wall_now', datetime.now)\n\n"
+            "def test_bad():\n"
+            "    assert Holder.wall_now().year == 2026\n",
+            "Holder.wall_now()",
+            12,
+        ),
+        (
+            "import pytest\n"
+            "from datetime import datetime\n\n"
+            "class Holder:\n"
+            "    pass\n\n"
+            "@pytest.fixture(autouse=True)\n"
+            "def clock_fixture(monkeypatch):\n"
             "    monkeypatch.setattr(Holder, 'wall_now', datetime.now)\n\n"
             "def test_bad():\n"
             "    assert Holder.wall_now().year == 2026\n",
@@ -353,6 +366,18 @@ from tests._support.wall_clock_assertions import (
             "    assert wall_now().year == 2026\n",
             "wall_now()",
             9,
+        ),
+        (
+            "import pytest\n"
+            "from datetime import datetime\n\n"
+            "CLOCKS = [datetime.now]\n\n"
+            "@pytest.fixture(params=CLOCKS)\n"
+            "def wall_now(request):\n"
+            "    return request.param\n\n"
+            "def test_bad(wall_now):\n"
+            "    assert wall_now().year == 2026\n",
+            "wall_now()",
+            11,
         ),
         (
             "import pytest\n"
@@ -459,6 +484,26 @@ from tests._support.wall_clock_assertions import (
             9,
         ),
         (
+            "from datetime import datetime\n\n"
+            "class Holder:\n"
+            "    def __init__(self, clock):\n"
+            "        self.wall_now = clock\n\n"
+            "def test_bad():\n"
+            "    holder = Holder(datetime.now)\n"
+            "    assert holder.wall_now().year == 2026\n",
+            "holder.wall_now()",
+            9,
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "def is_current_year():\n"
+            "    return datetime.now().year == 2026\n\n"
+            "def test_bad():\n"
+            "    assert is_current_year()\n",
+            "is_current_year()",
+            7,
+        ),
+        (
             "import pytest\n"
             "from datetime import datetime\n\n"
             "@pytest.mark.parametrize('wall_now', [datetime.now])\n"
@@ -466,6 +511,16 @@ from tests._support.wall_clock_assertions import (
             "    assert wall_now().year == 2026\n",
             "wall_now()",
             6,
+        ),
+        (
+            "import pytest\n"
+            "from datetime import datetime\n\n"
+            "PARAMS = [datetime.now]\n\n"
+            "@pytest.mark.parametrize('wall_now', PARAMS)\n"
+            "def test_bad(wall_now):\n"
+            "    assert wall_now().year == 2026\n",
+            "wall_now()",
+            8,
         ),
         (
             "from pytest import mark, param\n"
