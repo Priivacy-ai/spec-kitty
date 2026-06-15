@@ -1073,6 +1073,19 @@ def _auto_claim_failure_message(preview: object | None) -> str:
     return "No planned work packages found. Specify a WP ID explicitly."
 
 
+def _analysis_report_gate_dir(main_repo_root: Path, mission_slug: str) -> Path:
+    """Resolve the mission dir the implement gate reads ``analysis-report.md`` from.
+
+    #1989: this MUST be the topology-blind primary checkout — where
+    ``record-analysis`` writes the report — NOT the coord-aware
+    ``candidate_feature_dir_for_mission`` (which resolves to the coordination
+    worktree once one exists, and that worktree lacks the report + ``spec.md`` for
+    the freshness hash, so the gate would falsely report it missing). Extracted as
+    a named seam so the read-anchor decision is unit-testable in isolation.
+    """
+    return primary_feature_dir_for_mission(main_repo_root, mission_slug)
+
+
 def _require_current_analysis_report(feature_dir: Path, repo_root: Path, mission_slug: str) -> None:
     """Block implementation until `/spec-kitty.analyze` is persisted and fresh."""
     from specify_cli.analysis_report import (
@@ -1307,15 +1320,10 @@ def implement(
             print("Re-run move-task with --review-feedback-file so the fix cycle can attach the canonical review artifact.")
             raise typer.Exit(1)
 
-        # #1989 (read-side companion to WP01): the implement gate must read
-        # analysis-report.md from the PRIMARY checkout, where record-analysis now
-        # writes it. ``candidate_feature_dir_for_mission`` is topology-aware and
-        # resolves to the coordination worktree once one exists — which lacks the
-        # report (and spec.md for the freshness hash), so the gate would falsely
-        # report it missing under coord topology. ``primary_feature_dir_for_mission``
-        # is the topology-blind anchor that matches the write path.
+        # #1989 (read-side companion to WP01): read the report from the PRIMARY
+        # checkout where record-analysis writes it (see _analysis_report_gate_dir).
         _require_current_analysis_report(
-            primary_feature_dir_for_mission(main_repo_root, mission_slug),
+            _analysis_report_gate_dir(main_repo_root, mission_slug),
             main_repo_root,
             mission_slug,
         )
