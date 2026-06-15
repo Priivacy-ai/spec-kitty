@@ -32,6 +32,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.file_lock import MachineFileLock
 from specify_cli.lanes.models import ExecutionLane
 from specify_cli.merge.conflict_classifier import (
@@ -43,6 +44,8 @@ from specify_cli.merge.conflict_classifier import (
     classify,
     validate_resolution,
 )
+from specify_cli.status.event_log_merge import EventLogMergeError, merge_event_log_texts
+from specify_cli.status.reducer import materialize
 
 __all__ = [
     "AutoRebaseReport",
@@ -50,6 +53,9 @@ __all__ = [
 ]
 
 _UV_LOCK_FILENAME = "uv.lock"
+RULE_ID_STATUS_EVENTS = "R-STATUS-EVENTS-JSONL-UNION"
+RULE_ID_STATUS_JSON = "R-STATUS-JSON-REMATERIALIZE"
+RULE_ID_COORDINATION_ARTIFACT = "R-COORDINATION-ARTIFACT-THEIRS"
 
 
 @dataclass(frozen=True)
@@ -112,6 +118,199 @@ def _list_conflicted_files(worktree: Path) -> list[Path]:
             continue
         paths.append(worktree / name)
     return paths
+
+
+def _relative_path(file_path: Path, worktree: Path) -> str:
+    return file_path.relative_to(worktree).as_posix()
+
+
+def _path_parts(rel_path: str) -> tuple[str, ...]:
+    return tuple(Path(rel_path).parts)
+
+
+def _is_status_events_path(rel_path: str) -> bool:
+    parts = _path_parts(rel_path)
+    return (
+        len(parts) >= 3
+        and parts[0] == KITTY_SPECS_DIR
+        and parts[-1] == "status.events.jsonl"
+    )
+
+
+def _is_status_json_path(rel_path: str) -> bool:
+    parts = _path_parts(rel_path)
+    return (
+        len(parts) >= 3
+        and parts[0] == KITTY_SPECS_DIR
+        and parts[-1] == "status.json"
+    )
+
+
+def _is_coordination_owned_artifact(rel_path: str) -> bool:
+    parts = _path_parts(rel_path)
+    if len(parts) < 3 or parts[0] != KITTY_SPECS_DIR:
+        return False
+
+    name = parts[-1]
+    if name in {"tasks.md", "lanes.json", "acceptance-matrix.json"}:
+        return True
+
+    return (
+        len(parts) >= 4
+        and parts[2] == "tasks"
+        and name.startswith("WP")
+        and name.endswith(".md")
+    )
+
+
+def _git_show_stage(worktree: Path, rel_path: str, stage: int) -> str | None:
+    result = _run(["git", "show", f":{stage}:{rel_path}"], worktree)
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def _stage_sparse(worktree: Path, rel_path: str) -> tuple[bool, str | None]:
+    result = _run(["git", "add", "--sparse", rel_path], worktree)
+    if result.returncode != 0:
+        return False, result.stderr.strip() or result.stdout.strip()
+    return True, None
+
+
+def _remove_sparse(worktree: Path, rel_path: str) -> tuple[bool, str | None]:
+    target = worktree / rel_path
+    if target.exists():
+        try:
+            target.unlink()
+        except OSError as exc:
+            return False, f"could not remove {rel_path}: {exc!r}"
+    result = _run(["git", "rm", "-f", "--ignore-unmatch", "--sparse", rel_path], worktree)
+    if result.returncode != 0:
+        return False, result.stderr.strip() or result.stdout.strip()
+    return True, None
+
+
+def _managed_classification(file_path: Path, rule_id: str) -> ConflictClassification:
+    return ConflictClassification(
+        file_path=file_path,
+        hunk_text="",
+        resolution=Auto(merged_text="", rule_id=rule_id),
+    )
+
+
+def _resolve_status_events(
+    file_path: Path,
+    worktree: Path,
+) -> tuple[ConflictClassification | None, str | None]:
+    rel_path = _relative_path(file_path, worktree)
+    stage_texts = [
+        text
+        for stage in (1, 2, 3)
+        if (text := _git_show_stage(worktree, rel_path, stage)) is not None
+    ]
+    if not stage_texts:
+        return None, f"{RULE_ID_STATUS_EVENTS}: no index stages found for {rel_path}"
+
+    try:
+        merged_text = merge_event_log_texts(*stage_texts)
+    except EventLogMergeError as exc:
+        return None, f"{RULE_ID_STATUS_EVENTS}: {exc}"
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        file_path.write_text(merged_text, encoding="utf-8")
+    except OSError as exc:
+        return None, f"{RULE_ID_STATUS_EVENTS}: could not write {rel_path}: {exc!r}"
+
+    ok, message = _stage_sparse(worktree, rel_path)
+    if not ok:
+        return None, f"{RULE_ID_STATUS_EVENTS}: git add --sparse {rel_path} failed: {message}"
+    return _managed_classification(file_path, RULE_ID_STATUS_EVENTS), None
+
+
+def _resolve_take_theirs(
+    file_path: Path,
+    worktree: Path,
+) -> tuple[ConflictClassification | None, str | None]:
+    rel_path = _relative_path(file_path, worktree)
+    theirs = _git_show_stage(worktree, rel_path, 3)
+    if theirs is None:
+        ok, message = _remove_sparse(worktree, rel_path)
+        if not ok:
+            return None, (
+                f"{RULE_ID_COORDINATION_ARTIFACT}: git rm --sparse {rel_path} "
+                f"failed: {message}"
+            )
+        return _managed_classification(file_path, RULE_ID_COORDINATION_ARTIFACT), None
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        file_path.write_text(theirs, encoding="utf-8")
+    except OSError as exc:
+        return None, (
+            f"{RULE_ID_COORDINATION_ARTIFACT}: could not write {rel_path}: {exc!r}"
+        )
+
+    ok, message = _stage_sparse(worktree, rel_path)
+    if not ok:
+        return None, (
+            f"{RULE_ID_COORDINATION_ARTIFACT}: git add --sparse {rel_path} "
+            f"failed: {message}"
+        )
+    return _managed_classification(file_path, RULE_ID_COORDINATION_ARTIFACT), None
+
+
+def _resolve_status_json(
+    file_path: Path,
+    worktree: Path,
+) -> tuple[ConflictClassification | None, str | None]:
+    rel_path = _relative_path(file_path, worktree)
+    try:
+        materialize(file_path.parent)
+    except Exception as exc:  # noqa: BLE001 - surface reducer/store failures to operator
+        return None, f"{RULE_ID_STATUS_JSON}: could not materialize {rel_path}: {exc!r}"
+
+    ok, message = _stage_sparse(worktree, rel_path)
+    if not ok:
+        return None, f"{RULE_ID_STATUS_JSON}: git add --sparse {rel_path} failed: {message}"
+    return _managed_classification(file_path, RULE_ID_STATUS_JSON), None
+
+
+def _resolve_managed_artifact_conflicts(
+    conflicted: list[Path],
+    worktree: Path,
+    classifications: list[ConflictClassification],
+) -> tuple[list[Path], str | None]:
+    """Resolve Spec Kitty-owned planning artifacts before generic text rules."""
+    remaining: list[Path] = []
+    status_json_paths: list[Path] = []
+
+    for file_path in conflicted:
+        rel_path = _relative_path(file_path, worktree)
+        if _is_status_events_path(rel_path):
+            classification, halt_reason = _resolve_status_events(file_path, worktree)
+        elif _is_status_json_path(rel_path):
+            status_json_paths.append(file_path)
+            continue
+        elif _is_coordination_owned_artifact(rel_path):
+            classification, halt_reason = _resolve_take_theirs(file_path, worktree)
+        else:
+            remaining.append(file_path)
+            continue
+
+        if halt_reason is not None:
+            return remaining, halt_reason
+        assert classification is not None
+        classifications.append(classification)
+
+    for file_path in status_json_paths:
+        classification, halt_reason = _resolve_status_json(file_path, worktree)
+        if halt_reason is not None:
+            return remaining, halt_reason
+        assert classification is not None
+        classifications.append(classification)
+
+    return remaining, None
 
 
 def _split_into_regions(
@@ -450,6 +649,13 @@ def attempt_auto_rebase(
     classifications: list[ConflictClassification] = []
     init_py_touched: list[Path] = []
     uvlock_seen = False
+    conflicted, halt_reason = _resolve_managed_artifact_conflicts(
+        conflicted, worktree_path, classifications
+    )
+    if halt_reason is not None:
+        return _abort_with_failure(
+            worktree_path, lane.lane_id, classifications, halt_reason,
+        )
 
     for file_path in conflicted:
         if file_path.name == _UV_LOCK_FILENAME:
