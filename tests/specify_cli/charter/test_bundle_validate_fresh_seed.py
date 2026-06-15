@@ -20,8 +20,12 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+import pytest
+
 from charter.bundle import validate_synthesis_state
 from charter.synthesizer.synthesize_pipeline import canonical_yaml
+
+pytestmark = [pytest.mark.fast]
 
 
 def _write_fresh_seed_manifest(repo_root: Path) -> Path:

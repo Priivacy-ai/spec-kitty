@@ -10,6 +10,8 @@ from tests._support.wall_clock_assertions import (
     format_wall_clock_assertion_violations,
 )
 
+pytestmark = [pytest.mark.fast]
+
 
 @pytest.mark.parametrize(
     ("source", "expected", "expected_line"),

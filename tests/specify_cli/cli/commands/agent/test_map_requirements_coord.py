@@ -15,7 +15,11 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug
+
+pytestmark = [pytest.mark.fast]
 
 
 # Must carry a valid mid8 suffix (Crockford base32, 8 chars) so that
