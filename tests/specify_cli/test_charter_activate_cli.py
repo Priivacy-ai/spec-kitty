@@ -175,7 +175,7 @@ class TestLayerAwareActivation:
         self, project_root: Path
     ) -> None:
         _write_directive(
-            project_root / ".kittify" / "doctrine" / "directives" / "project",
+            project_root / ".kittify" / "doctrine" / "directive",
             "950-project-only-directive",
             "DIRECTIVE_950",
         )

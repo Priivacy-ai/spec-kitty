@@ -118,10 +118,10 @@ _CAVEMAN_STYLEGUIDE_YAML = textwrap.dedent(
 def _write_project_styleguide(repo_root: Path, *, styleguide_id: str, body: str) -> Path:
     """Drop a user-authored styleguide into the project doctrine layer.
 
-    The path layout matches Mission A's three-layer resolver convention
-    (``.kittify/doctrine/<kind>s/<id>.<kind>.yaml``).
+    The path layout matches the synthesized project-doctrine convention
+    (``.kittify/doctrine/<kind>/<id>.<kind>.yaml``).
     """
-    target_dir = repo_root / ".kittify" / "doctrine" / "styleguides"
+    target_dir = repo_root / ".kittify" / "doctrine" / "styleguide"
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / f"{styleguide_id}.styleguide.yaml"
     target.write_text(body, encoding="utf-8")
@@ -166,7 +166,7 @@ whose body cites the styleguide id.
 ### DIRECTIVE_CAVEMAN_WRAPPER — Caveman Comment Wrapper (severity: warn)
 
 When you write a code comment, apply the ``caveman-comments`` styleguide.
-The styleguide body lives at ``.kittify/doctrine/styleguides/``.
+The styleguide body lives at ``.kittify/doctrine/styleguide/``.
 
 ## Doctrine Selection
 

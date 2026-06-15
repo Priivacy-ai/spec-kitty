@@ -51,7 +51,7 @@ shell_pid: "1816945"
 
 Add three operator-facing CLI surfaces:
 
-1. **`spec-kitty doctrine new <kind> <name>`** — scaffolds a stub artifact YAML in `.kittify/doctrine/<kind>s/` (or `<pack_path>/<kind>s/` with `--pack`).
+1. **`spec-kitty doctrine new <kind> <name>`** — scaffolds a stub artifact YAML in `.kittify/doctrine/<kind>/` (or `<pack_path>/<kind>s/` with `--pack`).
 2. **`spec-kitty doctrine validate <path>`** — validates a single artifact YAML or a doctrine tree against the schemas (project-layer analogue of `pack validate`).
 3. **Extended `spec-kitty doctor doctrine`** — new "Selections" section listing, per kind, the active globally-selected artifacts with resolved pack source.
 
@@ -101,7 +101,7 @@ def new(
 The scaffolder:
 
 - Validates `kind` is one of the 8 canonical kinds.
-- Resolves the target directory: `.kittify/doctrine/<kind>s/` (project) or `<pack>/<kind>s/` (`--pack`).
+- Resolves the target directory: `.kittify/doctrine/<kind>/` (project) or `<pack>/<kind>s/` (`--pack`).
 - Writes a stub `<name>.<kind>.yaml` populated with the required schema fields (`schema_version`, `id`, plus kind-specific placeholders).
 - Refuses to overwrite an existing file (use `--force` to override — out of scope here).
 
@@ -189,8 +189,8 @@ Add a section calling out the FR-015 policy change:
 
 ## Definition of Done
 
-- ✅ `spec-kitty doctrine new styleguide my-test` writes a valid YAML to `.kittify/doctrine/styleguides/my-test.styleguide.yaml`
-- ✅ `spec-kitty doctrine validate .kittify/doctrine/styleguides/my-test.styleguide.yaml` exits 0
+- ✅ `spec-kitty doctrine new styleguide my-test` writes a valid YAML to `.kittify/doctrine/styleguide/my-test.styleguide.yaml`
+- ✅ `spec-kitty doctrine validate .kittify/doctrine/styleguide/my-test.styleguide.yaml` exits 0
 - ✅ `spec-kitty doctor doctrine` output includes a "Selections" section
 - ✅ `tests/cli/test_doctor_doctrine_selections_snapshot.py` GREEN; snapshot at `tests/cli/__snapshots__/doctor_doctrine_selections.txt` matches the rendered output byte-for-byte (resolves analysis-report finding U1)
 - ✅ All 10 glossary entries in `glossary/contexts/doctrine.md` carry `Status: canonical`
@@ -214,7 +214,7 @@ Add a section calling out the FR-015 policy change:
 
 ## Reviewer Guidance
 
-- Run `spec-kitty doctrine new styleguide foo` then `spec-kitty doctrine validate .kittify/doctrine/styleguides/foo.styleguide.yaml` end-to-end; exit codes 0 / 0.
+- Run `spec-kitty doctrine new styleguide foo` then `spec-kitty doctrine validate .kittify/doctrine/styleguide/foo.styleguide.yaml` end-to-end; exit codes 0 / 0.
 - Verify all 10 glossary entries flipped to `Status: canonical` — grep for `Status \| candidate` returns zero hits in the Mission B-affected sections.
 - Verify the user-doc note names the FR-015 policy change with concrete remediation steps.
 - Spot-check the doctor output formatting — provenance suffix readable, no empty sections shown.

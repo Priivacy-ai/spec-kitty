@@ -96,6 +96,8 @@ kitty-specs/*/.kittify/dossiers/*/snapshot-latest.json
 !.kittify/doctrine/directive/**
 !.kittify/doctrine/tactic/
 !.kittify/doctrine/tactic/**
+!.kittify/doctrine/styleguide/
+!.kittify/doctrine/styleguide/**
 !.kittify/doctrine/procedure/
 !.kittify/doctrine/procedure/**
 !.kittify/doctrine/overlays/

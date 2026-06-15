@@ -65,7 +65,7 @@ Fix `spec-kitty charter bundle validate` so it exits 0 on a fresh checkout of th
 
 **Defect 1 — Stale sidecars (T004)**: Seven `adapter_id: fixture` placeholder files are tracked in `.kittify/charter/provenance/`. They were committed in commit `0b6e2d7d9` without corresponding generated artifacts. The validator finds them, looks for their artifacts, finds nothing, and fails.
 
-**Defect 2 — Plural/singular mismatch (T005, T006)**: `doctrine_kind_subdir()` in `src/charter/synthesizer/artifact_naming.py` maps kinds to plural directories (`directives/`, `tactics/`, `styleguides/`). The `.gitignore` whitelists only singular directories (`directive/`, `tactic/`). Synthesized artifacts are structurally ungittrackable. The validator's `_find_artifact()` does `doctrine_root.rglob("*.directive.yaml")` which hits nothing because no plural-dir artifacts exist.
+**Defect 2 — Plural/singular mismatch (T005, T006)**: `doctrine_kind_subdir()` in `src/charter/synthesizer/artifact_naming.py` maps kinds to plural directories (`directives/`, `tactics/`, `styleguides/`). The `.gitignore` must whitelist only singular directories (`directive/`, `tactic/`, `styleguide/`). Synthesized artifacts are structurally ungittrackable when produced under plural directories. The validator's `_find_artifact()` does `doctrine_root.rglob("*.directive.yaml")` which hits nothing because no plural-dir artifacts exist.
 
 **Defect 3 — Validator early-exit gap (T007)**: `validate_synthesis_state()` early-exits only when artifact_files, provenance_files, AND manifest are ALL absent. The seeded `synthesis-manifest.yaml` (`built_in_only: true`, `artifacts: []`) prevents the early-exit even though no synthesis has occurred.
 
@@ -125,7 +125,7 @@ Do NOT change `.gitignore` to whitelist plural dirs — that would allow gitigno
 2. Change the return values from plural to singular:
    - `"directives"` → `"directive"`
    - `"tactics"` → `"tactic"`
-   - `"styleguides"` → `"styleguide"` (or whatever the gitignore-whitelisted name is — confirm against `.gitignore` lines 94–102)
+   - `"styleguides"` → `"styleguide"` (the singular gitignore-whitelisted name)
 
 3. Run `mypy src/charter/synthesizer/artifact_naming.py --strict` — must pass with zero errors.
 

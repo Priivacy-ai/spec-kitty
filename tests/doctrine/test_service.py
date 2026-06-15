@@ -132,6 +132,86 @@ def test_service_honors_custom_built_in_and_project_roots(tmp_path: Path) -> Non
     assert directive.enforcement.value == "advisory"
 
 
+def test_service_loads_synthesized_project_root_singular_kind_dirs(tmp_path: Path) -> None:
+    project_root = tmp_path / ".kittify" / "doctrine"
+
+    _write_yaml(
+        project_root / "directive" / "001-project.directive.yaml",
+        {
+            "schema_version": "1.0",
+            "id": "PROJECT_001",
+            "title": "Project Directive",
+            "intent": "Project intent.",
+            "enforcement": "required",
+        },
+    )
+    _write_yaml(
+        project_root / "tactic" / "project-tactic.tactic.yaml",
+        {
+            "schema_version": "1.0",
+            "id": "project-tactic",
+            "name": "Project Tactic",
+            "steps": [{"title": "Step 1"}],
+        },
+    )
+    _write_yaml(
+        project_root / "styleguide" / "project-style.styleguide.yaml",
+        {
+            "schema_version": "1.0",
+            "id": "project-style",
+            "title": "Project Style",
+            "scope": "code",
+            "principles": ["Be clear"],
+        },
+    )
+
+    service = DoctrineService(built_in_root=tmp_path / "shipped-root", project_root=project_root)
+
+    assert service.directives.get("PROJECT_001") is not None
+    assert service.tactics.get("project-tactic") is not None
+    assert service.styleguides.get("project-style") is not None
+
+
+def test_service_ignores_legacy_plural_dirs_for_synthesized_project_root(tmp_path: Path) -> None:
+    project_root = tmp_path / ".kittify" / "doctrine"
+
+    _write_yaml(
+        project_root / "directives" / "001-legacy.directive.yaml",
+        {
+            "schema_version": "1.0",
+            "id": "PROJECT_LEGACY",
+            "title": "Legacy Directive",
+            "intent": "Legacy intent.",
+            "enforcement": "required",
+        },
+    )
+    _write_yaml(
+        project_root / "tactics" / "legacy-tactic.tactic.yaml",
+        {
+            "schema_version": "1.0",
+            "id": "legacy-tactic",
+            "name": "Legacy Tactic",
+            "steps": [{"title": "Step 1"}],
+        },
+    )
+    _write_yaml(
+        project_root / "styleguides" / "legacy-style.styleguide.yaml",
+        {
+            "schema_version": "1.0",
+            "id": "legacy-style",
+            "title": "Legacy Style",
+            "scope": "code",
+            "principles": ["Be clear"],
+        },
+    )
+
+    service = DoctrineService(built_in_root=tmp_path / "shipped-root", project_root=project_root)
+
+    assert service.directives.get("PROJECT_LEGACY") is None
+    assert service.tactics.get("legacy-tactic") is None
+    assert service.styleguides.get("legacy-style") is None
+
+
 # NOTE: `test_service_resolves_directive_tactic_refs_across_repositories`
 # has been removed as part of WP02 of the
 # ``excise-doctrine-curation-and-inline-references-01KP54J6`` mission.

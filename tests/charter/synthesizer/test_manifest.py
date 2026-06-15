@@ -60,7 +60,7 @@ def _make_manifest(run_id: str = "01KPE222TESTRUNID0000000001") -> SynthesisMani
         ManifestArtifactEntry(
             kind="tactic",
             slug="my-tactic",
-            path=".kittify/doctrine/tactics/my-tactic.tactic.yaml",
+            path=".kittify/doctrine/tactic/my-tactic.tactic.yaml",
             provenance_path=".kittify/charter/provenance/tactic-my-tactic.yaml",
             content_hash="a" * 64,
         ),
@@ -247,7 +247,7 @@ def test_verify_passes_when_hashes_match(tmp_path: Path, guard: PathGuard) -> No
     artifact_bytes = b"id: PROJECT_001\ntitle: Test\n"
     content_hash = hashlib.sha256(artifact_bytes).hexdigest()  # noqa: TID251 — file-integrity checksum of an artifact's raw on-disk bytes, not the charter.hasher.hash_content() freshness algorithm
 
-    artifact_rel = ".kittify/doctrine/tactics/my-tactic.tactic.yaml"
+    artifact_rel = ".kittify/doctrine/tactic/my-tactic.tactic.yaml"
     artifact_path = tmp_path / artifact_rel
     artifact_path.parent.mkdir(parents=True, exist_ok=True)
     artifact_path.write_bytes(artifact_bytes)
@@ -288,7 +288,7 @@ def test_verify_passes_when_hashes_match(tmp_path: Path, guard: PathGuard) -> No
 
 def test_verify_raises_on_hash_mismatch(tmp_path: Path) -> None:
     """verify() raises ManifestIntegrityError when content_hash does not match."""
-    artifact_rel = ".kittify/doctrine/tactics/my-tactic.tactic.yaml"
+    artifact_rel = ".kittify/doctrine/tactic/my-tactic.tactic.yaml"
     artifact_path = tmp_path / artifact_rel
     artifact_path.parent.mkdir(parents=True, exist_ok=True)
     artifact_path.write_bytes(b"actual content")
@@ -332,7 +332,7 @@ def test_verify_raises_on_hash_mismatch(tmp_path: Path) -> None:
 
 def test_verify_raises_on_missing_artifact(tmp_path: Path) -> None:
     """verify() raises ManifestIntegrityError when artifact file is missing."""
-    artifact_rel = ".kittify/doctrine/tactics/missing-tactic.tactic.yaml"
+    artifact_rel = ".kittify/doctrine/tactic/missing-tactic.tactic.yaml"
     # Don't create the artifact file
 
     artifacts = [
@@ -409,7 +409,7 @@ def test_verify_rejects_traversal_artifact_path(tmp_path: Path) -> None:
 
 def test_verify_rejects_provenance_path_outside_provenance_tree(tmp_path: Path) -> None:
     """Manifest provenance paths must stay within .kittify/charter/provenance."""
-    artifact_rel = ".kittify/doctrine/tactics/my-tactic.tactic.yaml"
+    artifact_rel = ".kittify/doctrine/tactic/my-tactic.tactic.yaml"
     artifact_path = tmp_path / artifact_rel
     artifact_path.parent.mkdir(parents=True, exist_ok=True)
     artifact_path.write_bytes(b"id: my-tactic\n")
@@ -431,7 +431,7 @@ def test_verify_rejects_provenance_path_outside_provenance_tree(tmp_path: Path) 
 
 def test_verify_accepts_manifest_paths_with_windows_separators(tmp_path: Path) -> None:
     """Windows-written manifest paths are normalized before validation."""
-    artifact_rel = ".kittify/doctrine/tactics/windows-path.tactic.yaml"
+    artifact_rel = ".kittify/doctrine/tactic/windows-path.tactic.yaml"
     artifact_path = tmp_path / artifact_rel
     artifact_path.parent.mkdir(parents=True, exist_ok=True)
     artifact_path.write_bytes(b"id: windows-path\n")
@@ -463,21 +463,21 @@ def test_manifest_artifact_ordering(tmp_path: Path, guard: PathGuard) -> None:
         ManifestArtifactEntry(
             kind="tactic",
             slug="z-tactic",
-            path=".kittify/doctrine/tactics/z-tactic.tactic.yaml",
+            path=".kittify/doctrine/tactic/z-tactic.tactic.yaml",
             provenance_path=".kittify/charter/provenance/tactic-z-tactic.yaml",
             content_hash="a" * 64,
         ),
         ManifestArtifactEntry(
             kind="directive",
             slug="a-directive",
-            path=".kittify/doctrine/directives/001-a-directive.directive.yaml",
+            path=".kittify/doctrine/directive/001-a-directive.directive.yaml",
             provenance_path=".kittify/charter/provenance/directive-a-directive.yaml",
             content_hash="b" * 64,
         ),
         ManifestArtifactEntry(
             kind="tactic",
             slug="a-tactic",
-            path=".kittify/doctrine/tactics/a-tactic.tactic.yaml",
+            path=".kittify/doctrine/tactic/a-tactic.tactic.yaml",
             provenance_path=".kittify/charter/provenance/tactic-a-tactic.yaml",
             content_hash="c" * 64,
         ),

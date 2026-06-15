@@ -443,7 +443,7 @@ def test_bundle_validate_fails_when_manifest_artifact_has_missing_sidecar(
             {
                 "kind": "directive",
                 "slug": "orphan-directive",
-                "path": ".kittify/doctrine/directives/orphan-directive.yaml",
+                "path": ".kittify/doctrine/directive/orphan-directive.yaml",
                 "provenance_path": ".kittify/charter/provenance/orphan-directive.yaml",
                 "content_hash": "c" * 64,
             }

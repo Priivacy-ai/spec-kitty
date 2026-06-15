@@ -76,6 +76,12 @@ _ID_FIELD_BY_KIND: dict[ArtifactKind, str] = {
     ArtifactKind.AGENT_PROFILE: "profile-id",
 }
 _DEFAULT_ID_FIELD = "id"
+_PROJECT_KIND_DIRS: dict[ArtifactKind, str] = {
+    ArtifactKind.DIRECTIVE: "directive",
+    ArtifactKind.TACTIC: "tactic",
+    ArtifactKind.STYLEGUIDE: "styleguide",
+    ArtifactKind.PROCEDURE: "procedure",
+}
 
 
 def _id_field_for(kind: ArtifactKind) -> str:
@@ -122,8 +128,9 @@ def _scan_roots(
     Roots are supplied as data (C-008). ``doctrine_root`` is the resolved
     doctrine package root. ``org_roots`` preserves the legacy package-shaped
     root contract where each root contributes ``<root>/<plural>/built-in``.
-    ``layer_roots`` is the modern charter layer map where each root contributes
-    ``<root>/doctrine/<plural>/<layer>``.
+    ``layer_roots`` is the modern charter layer map. Org roots contribute
+    ``<root>/doctrine/<plural>/org``. Project roots contribute
+    ``<root>/doctrine/<singular>`` for live ``.kittify/doctrine`` overlays.
     """
     roots: list[Path] = [doctrine_root]
     if org_roots:
@@ -135,7 +142,11 @@ def _scan_roots(
             dirs.append(candidate)
     if layer_roots:
         for layer, root in layer_roots.items():
-            candidate = root / "doctrine" / kind.plural / layer
+            candidate = (
+                root / "doctrine" / _PROJECT_KIND_DIRS.get(kind, kind.plural)
+                if layer == "project"
+                else root / "doctrine" / kind.plural / layer
+            )
             if candidate.is_dir():
                 dirs.append(candidate)
     return dirs

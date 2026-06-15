@@ -130,7 +130,7 @@ class TestSynthesizeHappyPath:
                 ["directive:test-directive"],
                 [
                     {
-                        "path": ".kittify/doctrine/directives/001-test-directive.directive.yaml",
+                        "path": ".kittify/doctrine/directive/001-test-directive.directive.yaml",
                         "kind": "directive",
                         "slug": "test-directive",
                         "artifact_id": "PROJECT_001",
@@ -160,7 +160,7 @@ class TestSynthesizeHappyPath:
                 "specify_cli.cli.commands.charter._load_written_artifacts_from_manifest",
                 return_value=[
                     {
-                        "path": ".kittify/doctrine/directives/001-test.directive.yaml",
+                        "path": ".kittify/doctrine/directive/001-test.directive.yaml",
                         "kind": "directive",
                         "slug": "test",
                         "artifact_id": "PROJECT_001",
@@ -177,7 +177,7 @@ class TestSynthesizeHappyPath:
         assert data["adapter"] == {"id": "fixture", "version": "1.0.0"}
         assert data["written_artifacts"] == [
             {
-                "path": ".kittify/doctrine/directives/001-test.directive.yaml",
+                "path": ".kittify/doctrine/directive/001-test.directive.yaml",
                 "kind": "directive",
                 "slug": "test",
                 "artifact_id": "PROJECT_001",
@@ -232,7 +232,7 @@ class TestSynthesizeHappyPath:
                 ["directive:test-directive"],
                 [
                     {
-                        "path": ".kittify/doctrine/directives/001-test-directive.directive.yaml",
+                        "path": ".kittify/doctrine/directive/001-test-directive.directive.yaml",
                         "kind": "directive",
                         "slug": "test-directive",
                         "artifact_id": "PROJECT_001",

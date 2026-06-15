@@ -45,7 +45,7 @@ class TestAllowedWrites:
     def test_write_text_under_kittify_doctrine_succeeds(self, tmp_path: Path) -> None:
         """write_text under .kittify/doctrine/ is allowed by default."""
         guard = _make_guard(tmp_path)
-        target_dir = tmp_path / ".kittify" / "doctrine" / "directives"
+        target_dir = tmp_path / ".kittify" / "doctrine" / "directive"
         target_dir.mkdir(parents=True, exist_ok=True)
         target_file = target_dir / "001-test.directive.yaml"
 
@@ -65,7 +65,7 @@ class TestAllowedWrites:
     def test_write_bytes_under_kittify_doctrine_succeeds(self, tmp_path: Path) -> None:
         """write_bytes under .kittify/doctrine/ is allowed."""
         guard = _make_guard(tmp_path)
-        target_dir = tmp_path / ".kittify" / "doctrine" / "tactics"
+        target_dir = tmp_path / ".kittify" / "doctrine" / "tactic"
         target_dir.mkdir(parents=True, exist_ok=True)
         target_file = target_dir / "test.tactic.yaml"
 
@@ -87,7 +87,7 @@ class TestAllowedWrites:
         src = staging_dir / "test.directive.yaml"
         src.write_text("body: ok")
 
-        live_dir = tmp_path / ".kittify" / "doctrine" / "directives"
+        live_dir = tmp_path / ".kittify" / "doctrine" / "directive"
         live_dir.mkdir(parents=True)
         dst = live_dir / "001-test.directive.yaml"
 

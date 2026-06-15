@@ -2,7 +2,7 @@
 
 The scaffolder MUST write a YAML file that:
 
-1. lands at ``<root>/<plural>/<id>.<kind>.yaml``,
+1. lands at ``<root>/<singular>/<id>.<kind>.yaml`` for project mode,
 2. carries a pre-filled stub passing the canonical Pydantic schema for that
    kind, so a subsequent ``doctrine validate`` exits 0 on first emit, and
 3. refuses to overwrite an existing file.
@@ -47,7 +47,7 @@ def test_new_styleguide_writes_stub_under_project_doctrine_root(tmp_path: Path) 
         os.chdir(old_cwd)
 
     assert result.exit_code == 0, result.stdout
-    target = project / ".kittify" / "doctrine" / "styleguides" / "foo.styleguide.yaml"
+    target = project / ".kittify" / "doctrine" / "styleguide" / "foo.styleguide.yaml"
     assert target.exists()
     text = target.read_text(encoding="utf-8")
     # The stub MUST carry the schema-version + id fields the operator
@@ -70,7 +70,7 @@ def test_new_validates_stub_against_schema_so_validate_passes(tmp_path: Path) ->
         assert result_new.exit_code == 0, result_new.stdout
 
         target = (
-            project / ".kittify" / "doctrine" / "tactics" / "my-tactic.tactic.yaml"
+            project / ".kittify" / "doctrine" / "tactic" / "my-tactic.tactic.yaml"
         )
         assert target.exists()
 

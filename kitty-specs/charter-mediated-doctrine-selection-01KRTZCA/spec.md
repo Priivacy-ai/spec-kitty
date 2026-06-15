@@ -22,13 +22,13 @@ The canonical executable spec is the 7-file ATDD suite that landed in `bd95f1f5`
 
 ### Journey 1 — Project-layer user-authored doctrine artifact
 
-> "I author a `caveman-comments.styleguide.yaml` saying all code comments should be written as a caveman would. I drop it into `.kittify/doctrine/styleguides/`. I add `selected_styleguides: [caveman-comments]` to my charter. During the next mission run, the implementer's prompt contains the caveman rule body (or a fetch + when-doing stanza naming it). I did not need to write a wrapper directive."
+> "I author a `caveman-comments.styleguide.yaml` saying all code comments should be written as a caveman would. I drop it into `.kittify/doctrine/styleguide/`. I add `selected_styleguides: [caveman-comments]` to my charter. During the next mission run, the implementer's prompt contains the caveman rule body (or a fetch + when-doing stanza naming it). I did not need to write a wrapper directive."
 
 **Actors:** Project owner (charter author), implementing agent
 **Preconditions:** Mission A's three-layer doctrine model is in place. The project's charter is the standard `.kittify/charter/charter.md`.
 
 After this mission:
-1. The user creates `.kittify/doctrine/styleguides/caveman-comments.styleguide.yaml` against the published schema.
+1. The user creates `.kittify/doctrine/styleguide/caveman-comments.styleguide.yaml` against the published schema.
 2. The user adds `selected_styleguides: [caveman-comments]` to a fenced YAML block in `charter.md`.
 3. `spec-kitty charter sync` extracts the new field into `governance.yaml`.
 4. The implementer's prompt — produced by `_build_wp_prompt` — carries the caveman styleguide body (or fetch + when-doing stanza on token-budget overflow) under a new `Selected styleguides` section.
