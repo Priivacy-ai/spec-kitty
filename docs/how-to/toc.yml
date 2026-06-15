@@ -38,6 +38,8 @@
   href: worktrees-with-mcp-agents.md
 - name: Review Work Packages
   href: review-work-package.md
+- name: Write Time-Dependent Tests
+  href: write-time-dependent-tests.md
 - name: Run an Autonomous Mission
   href: run-an-autonomous-mission.md
 - name: Accept and Merge

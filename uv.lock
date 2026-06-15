@@ -2091,7 +2091,7 @@ wheels = [
 
 [[package]]
 name = "spec-kitty-cli"
-version = "3.2.0rc44"
+version = "3.2.0rc45"
 source = { editable = "." }
 dependencies = [
     { name = "charset-normalizer" },
@@ -2115,6 +2115,7 @@ dependencies = [
     { name = "spec-kitty-events" },
     { name = "spec-kitty-tracker" },
     { name = "toml" },
+    { name = "tomli-w" },
     { name = "transitions" },
     { name = "truststore" },
     { name = "typer" },
@@ -2196,6 +2197,7 @@ requires-dist = [
     { name = "spec-kitty-events", specifier = ">=6.0.0,<7.0.0" },
     { name = "spec-kitty-tracker", specifier = ">=0.4,<0.5" },
     { name = "toml", specifier = ">=0.10.2" },
+    { name = "tomli-w", specifier = ">=1.0.0" },
     { name = "transitions", specifier = ">=0.9.2" },
     { name = "truststore", specifier = ">=0.10.4" },
     { name = "typer", specifier = ">=0.24.1" },

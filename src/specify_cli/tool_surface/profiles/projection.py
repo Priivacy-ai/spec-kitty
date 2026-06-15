@@ -29,6 +29,7 @@ from ..findings import (
     make_finding,
 )
 from ..model import NativeAgentProfile
+from .manifest import PROJECTION_VERSION, hash_file as hash_source_file
 from .renderers import ProfileRenderer, get_renderer, native_name_violation
 
 # Provenance layers exposed by ``AgentProfileRepository.get_provenance``.
@@ -44,6 +45,25 @@ _REPAIR_HINT = "spec-kitty doctor tool-surfaces --kind agent-profile --fix"
 def _profile_urn(profile: AgentProfile) -> str:
     """Return the DRG-style URN for ``profile`` (``agent_profile:<id>``)."""
     return f"agent_profile:{profile.profile_id}"
+
+
+def _manifest_source_path(source_path: Path | None, project_root: Path) -> str | None:
+    if source_path is None:
+        return None
+    resolved = source_path.resolve()
+    try:
+        return resolved.relative_to(project_root.resolve()).as_posix()
+    except ValueError:
+        return str(resolved)
+
+
+def _source_hash(source_path: Path | None) -> str | None:
+    if source_path is None or not source_path.exists():
+        return None
+    try:
+        return str(hash_source_file(source_path))
+    except OSError:
+        return None
 
 
 def default_profile_repository(project_root: Path) -> AgentProfileRepository:
@@ -106,6 +126,7 @@ class ProfileProjector:
     ) -> NativeAgentProfile:
         output_path = renderer.output_path(tool_key, profile, project_root)
         layer = self._repo.get_provenance(profile.profile_id) or LAYER_BUILTIN
+        source_path = self._repo.get_source_path(profile.profile_id)
         return NativeAgentProfile(
             profile_urn=_profile_urn(profile),
             source_layer=layer,
@@ -113,6 +134,9 @@ class ProfileProjector:
             output_path=output_path,
             format=renderer.format_key,
             file_hash=None,
+            source_path=_manifest_source_path(source_path, project_root),
+            source_hash=_source_hash(source_path),
+            projection_version=PROJECTION_VERSION,
         )
 
     def render(self, tool_key: str, profile_urn: str) -> str | None:
@@ -129,7 +153,7 @@ class ProfileProjector:
         profile = self._repo.get(profile_id)
         if profile is None:
             return None
-        return renderer.render(profile)
+        return str(renderer.render(profile))
 
     def diagnose(self, tool_key: str, project_root: Path) -> list[SurfaceFinding]:
         """Return findings for profile-projection conditions for ``tool_key``.

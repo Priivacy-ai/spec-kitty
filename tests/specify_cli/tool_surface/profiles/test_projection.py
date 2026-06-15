@@ -18,6 +18,7 @@ from specify_cli.tool_surface.profiles.projection import (
     ProfileProjector,
     default_profile_repository,
 )
+from specify_cli.tool_surface.profiles.manifest import PROJECTION_VERSION, hash_file
 
 from .test_renderers import make_test_profile
 
@@ -48,9 +49,10 @@ def test_project_claude_returns_builtin_profiles() -> None:
 
 
 def test_project_unsupported_tool_returns_empty() -> None:
+    # "codex" now has a renderer (WP02), so use a truly unsupported tool key.
     projector = ProfileProjector(_builtin_repo())
-    assert projector.project("codex", Path("/project")) == []
-    assert projector.project("unknown_tool", Path("/project")) == []
+    assert projector.project("unknown_tool_xyz", Path("/project")) == []
+    assert projector.project("windsurf", Path("/project")) == []
 
 
 def test_project_excludes_sentinel_profiles() -> None:
@@ -96,8 +98,10 @@ def test_render_returns_body_for_known_profile() -> None:
 
 
 def test_render_returns_none_for_unsupported_tool() -> None:
+    # "codex" now has a renderer (WP02); use a tool with no native primitive.
     projector = ProfileProjector(_builtin_repo())
-    assert projector.render("codex", "agent_profile:architect-alphonso") is None
+    assert projector.render("unknown_tool_xyz", "agent_profile:architect-alphonso") is None
+    assert projector.render("windsurf", "agent_profile:architect-alphonso") is None
 
 
 def test_render_returns_none_for_unknown_profile() -> None:
@@ -122,6 +126,43 @@ def test_project_uses_injected_repo_provenance() -> None:
         p.profile_urn: p for p in projector.project("claude", Path("/project"))
     }
     assert projected["agent_profile:custom-carol"].source_layer == "project"
+
+
+def test_project_populates_manifest_source_provenance_for_project_profile(
+    tmp_path: Path,
+) -> None:
+    """Projected profiles carry source path/hash/version for manifest writes."""
+    project_dir = tmp_path / ".kittify" / "agent_profiles"
+    project_dir.mkdir(parents=True)
+    source = project_dir / "custom-carol.agent.yaml"
+    source.write_text(
+        "\n".join(
+            [
+                "profile-id: custom-carol",
+                "name: Custom Carol",
+                "description: Project profile.",
+                "roles:",
+                "  - architect",
+                "purpose: Project-only profile.",
+                "specialization:",
+                "  primary-focus: testing projections",
+                "  avoidance-boundary: unrelated work",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    repo = AgentProfileRepository(project_dir=project_dir)
+
+    projected = {
+        p.profile_urn: p for p in ProfileProjector(repo).project("claude", tmp_path)
+    }
+
+    native = projected["agent_profile:custom-carol"]
+    assert native.source_layer == "project"
+    assert native.source_path == ".kittify/agent_profiles/custom-carol.agent.yaml"
+    assert native.source_hash == hash_file(source)
+    assert native.projection_version == PROJECTION_VERSION
 
 
 # --- #1940 finding-code emission (drive the CONDITION, assert it is emitted) --

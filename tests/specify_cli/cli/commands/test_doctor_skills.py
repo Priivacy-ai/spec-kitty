@@ -291,10 +291,11 @@ def test_doctor_skills_json_error_schema_stable(
     above the test, leaking ambient ``~/.claude``/repo state into the result —
     the exact flakiness #1965 describes.
 
-    After the fix, an *existing* ``SPECIFY_REPO_ROOT`` is authoritative even
-    without ``.kittify/``: the resolver returns it directly, the walk-up never
-    runs, and ``doctor skills`` reports against that controlled empty root. The
-    payload is therefore byte-stable no matter what ``~/.claude`` or cwd holds.
+    After the fix, an existing-directory ``SPECIFY_REPO_ROOT`` is authoritative
+    even without ``.kittify/``: the resolver returns it directly, the walk-up
+    never runs, and ``doctor skills`` reports against that controlled empty
+    root. The payload is therefore byte-stable no matter what ``~/.claude`` or
+    cwd holds.
 
     This test touches only ``SPECIFY_REPO_ROOT`` and cwd — proving the resolver
     itself is deterministic. The asserted schema is the *frozen* full

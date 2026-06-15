@@ -5,7 +5,7 @@ description: "Reference for Spec Kitty supported AI agents. Learn about slash co
 
 # Supported AI Agents Reference
 
-Spec Kitty currently exposes **17 agent surfaces**: 13 slash-command or prompt-file hosts and 4 project-local command-skill hosts.
+Spec Kitty currently exposes **16 agent surfaces**: 12 slash-command or prompt-file hosts and 4 project-local command-skill hosts.
 
 Slash-command agents get user-global command directories such as `~/.claude/commands/` or `~/.opencode/command/`. Codex CLI, Vibe, Pi, and Letta Code use shared project-local Agent Skills under `.agents/skills/spec-kitty.<command>/`.
 
@@ -27,7 +27,6 @@ Slash-command agents get user-global command directories such as `~/.claude/comm
 | Google Antigravity | `~/.agent/` | `workflows/` | `/spec-kitty.*` |
 | Kilocode | `~/.kilocode/` | `workflows/` | `/spec-kitty.*` |
 | Augment Code | `~/.augment/` | `commands/` | `/spec-kitty.*` |
-| Roo Cline | `~/.roo/` | `commands/` | `/spec-kitty.*` |
 | Amazon Q (legacy) | `~/.amazonq/` | `prompts/` | `/spec-kitty.*` |
 | Kiro | `~/.kiro/` | `prompts/` | `/spec-kitty.*` |
 
@@ -46,7 +45,7 @@ Command-skill packages share the same `SKILL.md` files. `.kittify/command-skills
 
 ## Managing Active Agents
 
-Spec-kitty supports 17 AI agents (listed above). You can activate or deactivate agents at any time using the `spec-kitty agent config` command family.
+Spec-kitty supports 16 AI agents (listed above). You can activate or deactivate agents at any time using the `spec-kitty agent config` command family.
 
 To manage which agents are active in your project:
 - **View configured agents**: `spec-kitty agent config list`
@@ -241,19 +240,16 @@ spec-kitty init my-project --ai auggie
 
 ---
 
-### Roo Cline
+### Roo Code (deprecated)
 
-| Property | Value |
-|----------|-------|
-| Directory | `.roo/` |
-| Commands subdirectory | `commands/` |
-| CLI flag | `--ai roo` |
-| Status | Supported |
-
-**Usage**:
-```bash
-spec-kitty init my-project --ai roo
-```
+> **Roo Code shut down on 2026-05-15 and is no longer supported.**
+>
+> Existing projects with a `.roo/` directory will receive a deprecation notice
+> during `spec-kitty upgrade`. The `.roo/` directory is preserved and will not
+> be deleted automatically. To remove it from your project configuration, run:
+> ```bash
+> spec-kitty agent config remove roo
+> ```
 
 ---
 
@@ -311,7 +307,7 @@ You can initialize a project with multiple agents:
 spec-kitty init my-project --ai claude,pi
 
 # Initialize with all agents
-spec-kitty init my-project --ai claude,copilot,gemini,cursor,qwen,opencode,windsurf,codex,kilocode,auggie,roo,q,kiro,antigravity,vibe,pi,letta
+spec-kitty init my-project --ai claude,copilot,gemini,cursor,qwen,opencode,windsurf,codex,kilocode,auggie,q,kiro,antigravity,vibe,pi,letta
 ```
 
 This registers all specified agents, allowing team members to use their preferred tool. Slash-command files are installed in user-global agent roots at CLI startup; Codex, Vibe, Pi, and Letta command skills are installed project-locally under `.agents/skills/`.

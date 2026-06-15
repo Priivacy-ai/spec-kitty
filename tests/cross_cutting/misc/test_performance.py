@@ -101,7 +101,7 @@ def test_performance_selected_agents():
         test_cases = [
             (["claude"], "single"),
             (["claude", "codex", "gemini"], "three"),
-            (["claude", "codex", "gemini", "cursor", "qwen", "roo"], "six"),
+            (["claude", "codex", "gemini", "cursor", "qwen", "kiro"], "six"),
         ]
 
         for agents, desc in test_cases:

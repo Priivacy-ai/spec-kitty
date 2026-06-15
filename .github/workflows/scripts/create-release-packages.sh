@@ -179,9 +179,6 @@ build_variant() {
     auggie)
       mkdir -p "$base_dir/.augment/commands"
       generate_commands auggie md "\$ARGUMENTS" "$base_dir/.augment/commands" "$script" ;;
-    roo)
-      mkdir -p "$base_dir/.roo/commands"
-      generate_commands roo md "\$ARGUMENTS" "$base_dir/.roo/commands" "$script" ;;
     q)
       mkdir -p "$base_dir/.amazonq/prompts"
       generate_commands q md "\$ARGUMENTS" "$base_dir/.amazonq/prompts" "$script" ;;
@@ -191,7 +188,7 @@ build_variant() {
 }
 
 # Determine agent list
-ALL_AGENTS=(claude gemini copilot cursor qwen opencode windsurf codex kilocode auggie roo q)
+ALL_AGENTS=(claude gemini copilot cursor qwen opencode windsurf codex kilocode auggie q)
 ALL_SCRIPTS=(sh ps)
 
 

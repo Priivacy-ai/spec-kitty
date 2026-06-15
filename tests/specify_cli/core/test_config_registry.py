@@ -73,8 +73,11 @@ def test_pi_and_letta_not_in_command_config() -> None:
     assert "letta" not in AGENT_COMMAND_CONFIG
 
 
-def test_twelve_agents_still_in_command_config() -> None:
-    """NFR-005 smoke test: the twelve non-migrated command-layer agents are present."""
+def test_eleven_agents_still_in_command_config() -> None:
+    """NFR-005 smoke test: the eleven command-layer agents are present.
+
+    "roo" was removed — Roo Code shut down on 2026-05-15 (C-007).
+    """
     expected = {
         "claude",
         "copilot",
@@ -85,7 +88,7 @@ def test_twelve_agents_still_in_command_config() -> None:
         "windsurf",
         "kilocode",
         "auggie",
-        "roo",
+        # "roo" removed — Roo Code shut down on 2026-05-15 (C-007)
         "q",
         "antigravity",
     }

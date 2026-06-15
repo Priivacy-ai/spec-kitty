@@ -1,9 +1,9 @@
 """Resolver behaviour for :mod:`specify_cli.core.paths`.
 
 These tests pin the #1965 fix: ``SPECIFY_REPO_ROOT`` is authoritative whenever
-the path it names *exists*, even if that path has no ``.kittify/`` directory.
-The determinism the doctor-skills error-schema test relies on must flow from
-this resolver, not from test-local ``monkeypatch`` isolation.
+the path it names is an existing directory, even if that directory has no
+``.kittify/``. The determinism the doctor-skills error-schema test relies on
+must flow from this resolver, not from test-local ``monkeypatch`` isolation.
 
 C-003 regression guard: a real ``.kittify/`` project resolves to the *same*
 canonical root whether or not ``SPECIFY_REPO_ROOT`` is set, so honouring the
@@ -59,7 +59,7 @@ def test_env_root_authoritative_without_kittify(
 def test_env_root_ignored_when_path_missing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A non-existent ``SPECIFY_REPO_ROOT`` still falls through (exists() guard kept)."""
+    """A non-existent ``SPECIFY_REPO_ROOT`` still falls through."""
     ambient = tmp_path / "ambient-checkout"
     (ambient / ".kittify").mkdir(parents=True)
     _init_git_repo(ambient)
@@ -69,6 +69,23 @@ def test_env_root_ignored_when_path_missing(
     resolved = locate_project_root(start=ambient)
 
     # The env var named a non-existent path → ignored → walk-up finds ambient.
+    assert resolved == ambient.resolve()
+
+
+def test_env_root_ignored_when_path_is_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A file-valued ``SPECIFY_REPO_ROOT`` is not accepted as a project root."""
+    ambient = tmp_path / "ambient-checkout"
+    (ambient / ".kittify").mkdir(parents=True)
+    _init_git_repo(ambient)
+    marker_file = tmp_path / "not-a-directory"
+    marker_file.write_text("not a repo root\n", encoding="utf-8")
+
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(marker_file))
+
+    resolved = locate_project_root(start=ambient)
+
     assert resolved == ambient.resolve()
 
 

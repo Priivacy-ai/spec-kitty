@@ -21,6 +21,7 @@ pytestmark = pytest.mark.git_repo
 
 GitignoreManager = gitignore_manager.GitignoreManager
 TOTAL_PROTECTED_ENTRIES = len(gitignore_manager.AGENT_DIRECTORIES) + len(gitignore_manager.RUNTIME_PROTECTED_ENTRIES)
+AGENT_DIRS = [agent.directory for agent in gitignore_manager.AGENT_DIRECTORIES]
 
 def test_init_flow_fresh_project():
     """Test init flow with a fresh project (no .gitignore)."""
@@ -209,13 +210,7 @@ npm-debug.log*
         assert "# Added by Spec Kitty CLI" in content
 
         # All agents should be present
-        all_agents = [
-            ".claude/", ".codex/", ".opencode/", ".windsurf/",
-            ".gemini/", ".cursor/", ".qwen/", ".kilocode/",
-            ".augment/", ".roo/", ".amazonq/", ".agent/",
-            ".github/copilot/"
-        ]
-        for agent in all_agents:
+        for agent in AGENT_DIRS:
             assert agent in content
 
         print("✓ test_init_flow_mixed_content")

@@ -1,0 +1,254 @@
+schema_version: 1
+mission_id: 01KV3NGSDCJ272573TF6T6NWDW
+mission_slug: agent-profile-projection-plugin-production-01KV3NGS
+mission_number: 136
+friendly_name: Agent Profile Projection and Plugin Production Pipeline
+mission_type: software-dev
+target_branch: feat/agent-profile-projection-plugin-production
+created_at: '2026-06-15T07:14:30.217084+00:00'
+created_by:
+  kind: human
+  id: cli
+  display: spec-kitty retrospect
+provenance:
+  kind: explicit_create
+  invoked_at: '2026-06-15T07:14:30.217084+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+  command: spec-kitty retrospect create
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-002
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-003
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-004
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-005
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-006
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-007
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-014
+not_helpful:
+- id: n-011
+  category: implementation
+  summary: WP01 needed 2 implementation cycles
+  evidence_refs:
+  - e-025
+  details: WP WP01 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-002
+  category: process
+  summary: WP01 required 4 --force override(s) during workflow
+  evidence_refs:
+  - e-016
+  details: WP WP01 required 4 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-003
+  category: process
+  summary: WP02 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-017
+  details: WP WP02 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP03 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-018
+  details: WP WP03 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP04 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-019
+  details: WP WP04 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-006
+  category: process
+  summary: WP05 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-020
+  details: WP WP05 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-007
+  category: process
+  summary: WP06 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-021
+  details: WP WP06 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-008
+  category: process
+  summary: WP07 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-022
+  details: WP WP07 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-009
+  category: process
+  summary: WP08 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-023
+  details: WP WP08 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-010
+  category: process
+  summary: WP09 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-024
+  details: WP WP09 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP01 was sent back from review to planning 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/tasks/WP01-surface-repair-wiring.md
+- id: e-006
+  kind: file
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/tasks/WP02-codex-native-profile-renderer.md
+- id: e-007
+  kind: file
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/tasks/WP03-harness-capability-matrix.md
+- id: e-008
+  kind: file
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/tasks/WP04-claude-plugin-build-command.md
+- id: e-009
+  kind: file
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/tasks/WP05-claude-plugin-runtime-distribution.md
+- id: e-010
+  kind: file
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/tasks/WP06-codex-plugin-projector.md
+- id: e-011
+  kind: file
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/tasks/WP07-manifest-repair-roo-deprecation.md
+- id: e-012
+  kind: file
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/tasks/WP08-renderer-unit-tests.md
+- id: e-013
+  kind: file
+  path:
+    kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/tasks/WP09-integration-tests-migration-fixture.md
+- id: e-014
+  kind: file
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/status.events.jsonl
+- id: e-015
+  kind: event_range
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/status.events.jsonl
+  range: 01KV3X7J2BC4TJ948KW935JRZC
+- id: e-016
+  kind: event_range
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/status.events.jsonl
+  range: 01KV3X0MZKA1RW7P3B7541W7Q7..01KV3XTPVN6EZFFY0ZE552RTQA
+- id: e-017
+  kind: event_range
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/status.events.jsonl
+  range: 01KV3Y70Z52ZH4FZH67T2GDEWX..01KV3YBCV6KACXK7KTZNQEMDQ0
+- id: e-018
+  kind: event_range
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/status.events.jsonl
+  range: 01KV3Z73YD7F4QD020K3DJ1E7H..01KV3ZF8HMS0YS6ENBRJ8NPV0G
+- id: e-019
+  kind: event_range
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/status.events.jsonl
+  range: 01KV3W67PTX8W525XM5EZ4RZJ5..01KV3X466P8BXFZF6HQXC271YD
+- id: e-020
+  kind: event_range
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/status.events.jsonl
+  range: 01KV3XG061T3Y1DN7PBT92XBJE..01KV3XNWM2XSVNF4TSQ0HFD265
+- id: e-021
+  kind: event_range
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/status.events.jsonl
+  range: 01KV3XHHE3250JYXNXGFGAG9A6..01KV3XR6WV93NCEY1144N6YY28
+- id: e-022
+  kind: event_range
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/status.events.jsonl
+  range: 01KV40JK6KRCSNRHWW6S10GHR2..01KV40PNVA8K7Y7GWBYP0B5BV0
+- id: e-023
+  kind: event_range
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/status.events.jsonl
+  range: 01KV4Q2GDT5EPZBVR13T0QX69F
+- id: e-024
+  kind: event_range
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/status.events.jsonl
+  range: 01KV4RJKKVGBQWZKVS8RH838WW
+- id: e-025
+  kind: event_range
+  path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/status.events.jsonl
+  range: implementation_cycles
+generator_version: '1.0'
+provenance_history: []

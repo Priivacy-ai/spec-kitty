@@ -6,11 +6,16 @@ reporting-layer provider for :data:`SurfaceKind.AGENT_PROFILE`.
 
 Behavioural contract (FR-012/013/014):
 
-* Tools with a native named-agent primitive (Claude Code, Copilot/VS Code)
-  expand to one instance per projected profile and are repairable.
-* Tools without one (e.g. Codex) expand to a single research-gap instance whose
-  finding is ``research-gap-surface`` at severity ``info`` -- the top-level
+* Tools with a native named-agent primitive (Claude Code, Copilot/VS Code,
+  Codex, Augment, Amazon Q) expand to one instance per projected profile and
+  are repairable.  Amazon Q profiles are user-global (not manifest-tracked);
+  their presence is checked via filesystem inspection.
+* Tools assessed as having no native primitive (e.g. Windsurf, Cursor) expand
+  to a single ``not_applicable`` instance whose finding is
+  ``profile-projection-unsupported`` at severity ``info`` -- the top-level
   ``ok`` stays ``true`` because no ``error`` finding is produced.
+* Tools that have not yet been formally assessed yield a ``research_gap``
+  instance with finding ``research-gap-surface`` at severity ``info``.
 * A projected file that is configured but missing is an ``error``
   (``native-agent-profile-missing``); a file whose content no longer matches the
   manifest hash is a ``warning`` (``native-agent-profile-drift``).
@@ -31,6 +36,7 @@ from ..enums import (
 from ..findings import (
     NATIVE_AGENT_PROFILE_DRIFT,
     NATIVE_AGENT_PROFILE_MISSING,
+    PROFILE_PROJECTION_UNSUPPORTED,
     RESEARCH_GAP_SURFACE,
     SEVERITY_ERROR,
     SEVERITY_INFO,
@@ -38,6 +44,8 @@ from ..findings import (
     make_finding,
 )
 from ..model import NativeAgentProfile, SurfaceDefinition, SurfaceInstance
+from ..profiles.amazon_q_renderer import FORMAT_AMAZON_Q_AGENT
+from ..profiles.capability_matrix import HARNESS_CAPABILITY_MATRIX, is_research_gap
 from ..profiles.manifest import ProfileManifest, hash_content, hash_file
 from ..profiles.projection import ProfileProjector, default_profile_repository
 from ..repair import RepairResult
@@ -54,7 +62,9 @@ from ..status import (
 PROVIDER_KEY = "agent_profiles"
 _PATH_PATTERN = ".claude/agents/{profile_id}.md"
 _REPAIR_HINT = "spec-kitty doctor tool-surfaces --kind agent-profile --fix"
+# Sentinel paths used to route probe() without holding real filesystem paths.
 _RESEARCH_GAP_SENTINEL = "<unsupported>"
+_NOT_APPLICABLE_SENTINEL = "<not-applicable>"
 # Synthetic instance path that routes ``probe`` to the projection diagnostics
 # (the #1940 finding codes from :meth:`ProfileProjector.diagnose`). Carries no
 # file on disk; it exists only to flow ``diagnose`` findings through the standard
@@ -97,7 +107,7 @@ class AgentProfilesProvider:
         self._manifest = manifest
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
-        return definition.kind == SurfaceKind.AGENT_PROFILE
+        return bool(definition.kind == SurfaceKind.AGENT_PROFILE)
 
     def _projector_for(self, project_root: Path) -> ProfileProjector:
         return self._projector or _build_projector(project_root)
@@ -113,15 +123,27 @@ class AgentProfilesProvider:
     ) -> list[SurfaceInstance]:
         """Expand into one instance per projected profile for ``tool_key``.
 
-        A synthetic diagnostics instance is always appended so that
-        :meth:`ProfileProjector.diagnose`'s #1940 finding codes flow through the
-        standard ``collect`` path and reach ``doctor tool-surfaces --json`` for
-        tools with a native renderer. Unsupported tools (no projection) emit only
-        the research-gap instance.
+        Uses :data:`~.profiles.capability_matrix.HARNESS_CAPABILITY_MATRIX` to
+        distinguish ``not_applicable`` (assessed, no native primitive) from
+        ``research_gap`` (not yet assessed) before attempting projection.
+
+        A synthetic diagnostics instance is appended for tools with a native
+        renderer so :meth:`ProfileProjector.diagnose` findings reach
+        ``doctor tool-surfaces --json`` through the standard collection path.
+        Assessed non-capable tools emit only the ``not_applicable`` instance.
         """
+        record = HARNESS_CAPABILITY_MATRIX.get(tool_key)
+        if record is not None and not record.has_native_agent_primitive:
+            return [self._not_applicable_instance(definition, tool_key)]
         projector = self._projector_for(project_root)
         projected = projector.project(tool_key, project_root)
         if not projected:
+            # Tool is assessed as capable but the projector returned nothing —
+            # this occurs when no renderer is registered yet, which is a
+            # research gap (the capability matrix may be ahead of the renderer
+            # registry).
+            if is_research_gap(tool_key):
+                return [self._research_gap_instance(definition, tool_key)]
             return [self._research_gap_instance(definition, tool_key)]
         manifest = self._manifest_for(project_root)
         instances = [
@@ -149,6 +171,19 @@ class AgentProfilesProvider:
             file_hash=None,
             owner=tool_key,
             surface_id=f"{tool_key}.{definition.kind}.{_DIAGNOSTICS_SENTINEL}",
+        )
+
+    @staticmethod
+    def _not_applicable_instance(
+        definition: SurfaceDefinition, tool_key: str
+    ) -> SurfaceInstance:
+        """Return a sentinel instance representing a ``not_applicable`` harness."""
+        return SurfaceInstance(
+            definition=definition,
+            path=Path(_NOT_APPLICABLE_SENTINEL),
+            exists=False,
+            file_hash=None,
+            owner=tool_key,
         )
 
     @staticmethod
@@ -182,12 +217,15 @@ class AgentProfilesProvider:
         """Probe one projected profile (or a sentinel instance).
 
         The diagnostics sentinel delegates to :meth:`ProfileProjector.diagnose`
-        so the #1940 finding codes are surfaced; the research-gap sentinel and
-        normal projected files keep their existing semantics.
+        so the #1940 finding codes are surfaced; not-applicable/research-gap
+        sentinels and normal projected files keep their existing semantics.
         """
         if self._is_diagnostics_instance(instance):
             return self._diagnostics_status(instance)
-        if str(instance.path) == _RESEARCH_GAP_SENTINEL:
+        path_str = str(instance.path)
+        if path_str == _NOT_APPLICABLE_SENTINEL:
+            return self._not_applicable_status(instance)
+        if path_str == _RESEARCH_GAP_SENTINEL:
             return self._research_gap_status(instance)
         if not instance.path.exists():
             return self._missing_status(instance)
@@ -200,7 +238,7 @@ class AgentProfilesProvider:
         surface_id = instance.surface_id
         if surface_id is None:
             return False
-        return surface_id.endswith(_DIAGNOSTICS_SENTINEL)
+        return bool(surface_id.endswith(_DIAGNOSTICS_SENTINEL))
 
     def _diagnostics_status(self, instance: SurfaceInstance) -> SurfaceStatus:
         # ``path`` is the ``project_root`` recorded at expand time (see
@@ -213,6 +251,30 @@ class AgentProfilesProvider:
             instance=instance,
             state=STATE_NOT_APPLICABLE,
             findings=findings,
+        )
+
+    @staticmethod
+    def _not_applicable_status(instance: SurfaceInstance) -> SurfaceStatus:
+        """Build a ``not_applicable`` status for an assessed non-capable harness."""
+        record = HARNESS_CAPABILITY_MATRIX.get(instance.owner)
+        reason = record.reason if record is not None else "No native agent primitive."
+        return SurfaceStatus(
+            instance=instance,
+            state=STATE_NOT_APPLICABLE,
+            findings=(
+                make_finding(
+                    PROFILE_PROJECTION_UNSUPPORTED,
+                    SEVERITY_INFO,
+                    (
+                        f"{instance.owner} does not support native agent profile "
+                        "projection; profiles are exposed through other surfaces "
+                        f"instead. Reason: {reason}"
+                    ),
+                    tool_key=instance.owner,
+                    surface_id=_surface_id(instance),
+                    details={"status": "not_applicable", "reason": reason},
+                ),
+            ),
         )
 
     @staticmethod
@@ -230,6 +292,7 @@ class AgentProfilesProvider:
                     ),
                     tool_key=instance.owner,
                     surface_id=_surface_id(instance),
+                    details={"status": "research_gap"},
                 ),
             ),
         )
@@ -357,5 +420,8 @@ class AgentProfilesProvider:
         except OSError as exc:  # surfaced as a failure, never swallowed
             failed.append(f"{surface_id}: {exc}")
             return
-        manifest.record(replace(native, file_hash=hash_content(body)))
+        # User-global renderers (e.g. Amazon Q) write outside the project tree
+        # and must NOT be recorded in the project manifest.
+        if native.format != FORMAT_AMAZON_Q_AGENT:
+            manifest.record(replace(native, file_hash=hash_content(body)))
         repaired.append(surface_id)

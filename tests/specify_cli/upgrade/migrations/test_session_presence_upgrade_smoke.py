@@ -43,7 +43,7 @@ _HARNESS_DIRS = [
     ".cursor",       # cursor  (MarkdownRulesWriter)
     ".windsurf",     # windsurf (MarkdownRulesWriter)
     ".github",       # copilot  (MarkdownRulesWriter, check_dir=".github")
-    ".roo",          # roo      (MarkdownRulesWriter)
+    # ".roo" omitted — Roo Code shut down on 2026-05-15 (C-007)
     ".kiro",         # kiro     (MarkdownRulesWriter)
     ".gemini",       # gemini   (MarkdownRulesWriter, append_mode=True)
     # codex / opencode / antigravity → AgentsMdWriter (always can_write=True)
@@ -52,10 +52,11 @@ _HARNESS_DIRS = [
 
 _ALL_AGENT_KEYS = [
     "claude",
-    "cursor", "windsurf", "copilot", "roo", "kiro", "gemini",
+    "cursor", "windsurf", "copilot", "kiro", "gemini",
     "codex", "opencode", "antigravity",
     "pi", "vibe", "letta",
     "qwen", "kilocode", "auggie", "q",
+    # "roo" removed — Roo Code shut down on 2026-05-15 (C-007)
 ]
 
 _FROM_VERSION = "3.2.0rc38"

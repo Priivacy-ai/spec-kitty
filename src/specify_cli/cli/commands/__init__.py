@@ -153,6 +153,7 @@ def register_commands(app: typer.Typer) -> None:
     from . import advise as advise_module
     from . import agent as agent_module
     from . import auth as auth_module
+    from . import plugin as plugin_module
     from . import charter as charter_module
     from . import config_cmd as config_cmd_module
     from . import context as context_module
@@ -219,6 +220,7 @@ def register_commands(app: typer.Typer) -> None:
     app.command(name="next")(next_cmd_module.next_step)
     app.add_typer(mission_type_module.app, name="mission-type")
     app.add_typer(ops_module.app, name="ops")
+    app.add_typer(plugin_module.plugin_app, name="plugin", help="Plugin bundle commands")
     app.add_typer(orchestrator_api_module.app, name="orchestrator-api")
     app.command()(research_module.research)
     app.command(name="review")(review_module.review_mission)

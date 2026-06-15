@@ -55,12 +55,13 @@ def locate_project_root(start: Path | None = None) -> Path | None:
 
     Resolution order:
     1. SPECIFY_REPO_ROOT environment variable (highest priority). When set and
-       the named path *exists*, it is authoritative — it is honoured even if the
-       path has no ``.kittify/`` directory (#1965). A non-existent path is
-       ignored and resolution falls through to the walk-up. This makes the env
-       var a deterministic override for CI/CD and tests; real ``.kittify/``
-       projects are unaffected because both branches flow through
-       ``get_main_repo_root`` on the same directory (C-003).
+       the named path is an existing directory, it is authoritative — it is
+       honoured even if the path has no ``.kittify/`` directory (#1965).
+       Missing or non-directory paths are ignored and resolution falls through
+       to the walk-up. This makes the env var a deterministic override for
+       CI/CD and tests; real ``.kittify/`` projects are unaffected because both
+       branches flow through ``get_main_repo_root`` on the same directory
+       (C-003).
     2. Walk up directory tree, detecting worktree .git files and following to main repo
     3. Fall back to .kittify/ marker search
 
@@ -80,17 +81,17 @@ def locate_project_root(start: Path | None = None) -> Path | None:
         >>> assert ".worktrees" not in str(root)
     """
     # Tier 1: Check environment variable (authoritative override for CI/CD).
-    # When the named path exists it wins outright — a missing ``.kittify/`` is
-    # NOT a disqualifier (#1965). The ``exists()`` guard is retained so a
-    # non-existent path falls through to the walk-up instead of returning a
-    # bogus root. Real ``.kittify/`` projects are unaffected: both this branch
-    # and the walk-up resolve the same directory via ``get_main_repo_root``
-    # (C-003 regression-guarded).
+    # When the named directory exists it wins outright — a missing ``.kittify/``
+    # is NOT a disqualifier (#1965). The ``is_dir()`` guard is retained so a
+    # non-existent or file-valued path falls through to the walk-up instead of
+    # returning a bogus root. Real ``.kittify/`` projects are unaffected: both
+    # this branch and the walk-up resolve the same directory via
+    # ``get_main_repo_root`` (C-003 regression-guarded).
     if env_root := os.getenv("SPECIFY_REPO_ROOT"):
         env_path = Path(env_root).resolve()
-        if env_path.exists():
+        if env_path.is_dir():
             return get_main_repo_root(env_path)
-        # Non-existent env var path - fall through to other methods
+        # Missing or non-directory env var path - fall through to other methods
 
     # Tier 2: Walk up directory tree, handling worktree .git files
     current = (start or Path.cwd()).resolve()
@@ -469,7 +470,7 @@ def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
 
     main_root = get_main_repo_root(repo_root)
     meta_file = candidate_feature_dir_for_mission(main_root, mission_slug) / "meta.json"
-    fallback = resolve_primary_branch(main_root)
+    fallback = str(resolve_primary_branch(main_root))
 
     if not meta_file.exists():
         return fallback

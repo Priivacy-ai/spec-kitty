@@ -102,12 +102,13 @@ def test_doctor_skills_json_is_deterministic(tmp_path: Path) -> None:
 def test_doctor_skills_json_error_schema_stable(monkeypatch: pytest.MonkeyPatch) -> None:
     """The structured error envelope is frozen too: {ok, error:{code, message}}.
 
-    Post-#1965, ``locate_project_root`` treats an *existing* ``SPECIFY_REPO_ROOT``
-    as authoritative even without ``.kittify/`` — so the old approach of pointing
-    the override at an empty dir now *succeeds* (the dir becomes the root) instead
-    of reaching ``not_in_project``. Reaching the error path via the resolver would
-    require a failing Tier-2 walk-up, which is non-deterministic: a leaked
-    ``/tmp/.kittify`` (E2E test pollution) above a temp cwd would resolve and pass.
+    Post-#1965, ``locate_project_root`` treats an existing-directory
+    ``SPECIFY_REPO_ROOT`` as authoritative even without ``.kittify/`` — so the
+    old approach of pointing the override at an empty dir now *succeeds* (the
+    dir becomes the root) instead of reaching ``not_in_project``. Reaching the
+    error path via the resolver would require a failing Tier-2 walk-up, which is
+    non-deterministic: a leaked ``/tmp/.kittify`` (E2E test pollution) above a
+    temp cwd would resolve and pass.
 
     To freeze the *error envelope* deterministically we force the resolver's
     ``None`` outcome directly and assert doctor's formatting of it. This pins
@@ -124,6 +125,74 @@ def test_doctor_skills_json_error_schema_stable(monkeypatch: pytest.MonkeyPatch)
     assert "message" in payload["error"]
     assert isinstance(payload["error"]["code"], str)
     assert isinstance(payload["error"]["message"], str)
+
+
+# ---------------------------------------------------------------------------
+# T043 — doctor tool-surfaces --json surface-kind stability contract
+# ---------------------------------------------------------------------------
+
+# Additive-only contract (FR-042/NFR-005): new surface kinds are welcome, but
+# any kind in this frozen set must continue to be a recognised surface kind.
+# ``agent_profile`` was added in the agent-profile-projection mission.
+EXPECTED_SURFACE_KINDS = frozenset(
+    {
+        "command_skill",
+        "command_file",
+        "doctrine_skill",
+        "context_file",
+        "hook",
+        "rule",
+        "native_config",
+        "plugin_manifest",
+        "agent_profile",
+    }
+)
+
+
+def test_doctor_surface_kinds_are_known_enum_members() -> None:
+    """Every frozen surface kind must remain a valid ``SurfaceKind`` value."""
+    from specify_cli.tool_surface.enums import SurfaceKind
+
+    valid = {kind.value for kind in SurfaceKind}
+    missing = EXPECTED_SURFACE_KINDS - valid
+    assert not missing, (
+        f"frozen surface kinds no longer exist in SurfaceKind enum: {missing}"
+    )
+
+
+def test_doctor_emits_agent_profile_kind(tmp_path: Path) -> None:
+    """``doctor tool-surfaces --json`` must surface ``agent_profile`` after renderers land.
+
+    A claude+codex project has native agent-profile surfaces, so the kind must
+    appear in the report. FR-016: Codex no longer reports ``research_gap`` once
+    its renderer is wired.
+    """
+    project = write_controlled_project(tmp_path, agents=["claude", "codex"])
+    result = run_spec_kitty("doctor", "tool-surfaces", "--json", cwd=project)
+    assert result.returncode in (0, 1), result.stderr
+    payload = result.json()
+
+    actual_kinds = {surface["kind"] for surface in payload["surfaces"]}
+    assert "agent_profile" in actual_kinds, (
+        "doctor tool-surfaces must report the agent_profile surface kind"
+    )
+    # Additive-only: nothing emitted may be an unknown kind.
+    from specify_cli.tool_surface.enums import SurfaceKind
+
+    valid = {kind.value for kind in SurfaceKind}
+    assert actual_kinds <= valid, (
+        f"doctor emitted unknown surface kinds: {actual_kinds - valid}"
+    )
+
+    # FR-016: agent_profile states for codex are concrete (not research_gap).
+    codex_profile_states = {
+        surface["state"]
+        for surface in payload["surfaces"]
+        if surface["kind"] == "agent_profile" and surface["tool"] == "codex"
+    }
+    assert "research_gap" not in codex_profile_states, (
+        "Codex agent-profile must not report research_gap after its renderer lands"
+    )
 
 
 def test_baseline_fixture_is_machine_independent() -> None:

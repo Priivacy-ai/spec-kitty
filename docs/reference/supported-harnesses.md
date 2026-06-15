@@ -38,7 +38,7 @@ Full tier criteria and promotion rules are maintained in `docs/development/3-2-h
 | Amazon Q CLI | `q` | `.amazonq/prompts/` | prompt | **supported** | https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/ | Retained as legacy alongside Kiro rebrand per `CLAUDE.md`. |
 | GitHub Copilot | `copilot` | `.github/prompts/` | prompt | **supported** | https://docs.github.com/en/copilot/customizing-copilot/adding-custom-instructions-for-github-copilot | Prompt-file mechanism; `/spec-kitty.*` set installed. |
 | Augment Code (Auggie) | `augment` | `.augment/commands/` | slash_command | **supported** | https://docs.augmentcode.com/auggie/overview | `/spec-kitty.*` command set installed via standard installer. |
-| Roo Cline | `roo` | `.roo/commands/` | slash_command | **supported** | https://docs.roocode.com/ | `/spec-kitty.*` command set installed via standard installer. |
+| Roo Cline | `roo` | `.roo/commands/` (existing projects only) | slash_command | **deprecated** | https://docs.roocode.com/ | Roo Code shut down on 2026-05-15. `spec-kitty init --ai roo` is rejected; existing `.roo/` dirs are preserved and a deprecation notice is shown on `spec-kitty upgrade`. |
 | Kilo Code | `kilocode` | `.kilocode/workflows/` | workflow | **supported** | https://kilocode.ai/docs | Workflow mechanism; `/spec-kitty.*` set installed. |
 | Windsurf | `windsurf` | `.windsurf/workflows/` | workflow | **supported** | https://docs.windsurf.com/windsurf/cascade/workflows | Workflow mechanism; `/spec-kitty.*` set installed. |
 | Kiro | `kiro` | `.kiro/prompts/` | prompt | **partial** | https://kiro.dev/docs | Prompt-file surface only for Spec Kitty 3.3 plugin-install scoping; not a plugin/Powers bundle candidate until upstream exposes and verifies a package primitive. |
@@ -54,9 +54,10 @@ Full tier criteria and promotion rules are maintained in `docs/development/3-2-h
 | Tier | Count | Members |
 |------|-------|---------|
 | first_class | 2 | Claude Code, Codex CLI |
-| supported | 10 | OpenCode, Cursor, Gemini CLI, Qwen Code, Amazon Q CLI, GitHub Copilot, Augment Code, Roo Cline, Kilo Code, Windsurf |
+| supported | 9 | OpenCode, Cursor, Gemini CLI, Qwen Code, Amazon Q CLI, GitHub Copilot, Augment Code, Kilo Code, Windsurf |
 | partial | 4 | Kiro, Google Antigravity, Pi TUI, Letta Code |
 | experimental | 1 | Mistral Vibe |
+| deprecated | 1 | Roo Cline (shut down 2026-05-15) |
 | archived | 0 | |
 | **Total** | **17** | |
 

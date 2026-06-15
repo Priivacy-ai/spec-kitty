@@ -10,9 +10,15 @@ the user can pick from the tool's agent picker). A renderer owns three things:
 * ``render`` -- the file body (YAML frontmatter + Markdown instructions).
 
 :func:`get_renderer` maps a tool key to its renderer, or ``None`` when the tool
-has no verified native named-agent primitive (e.g. Codex). A ``None`` renderer is
-the signal that the surface is a *research gap*: the provider emits an ``info``
-finding rather than treating the tool as healthy or broken.
+has no verified native named-agent primitive. A ``None`` renderer is the signal
+that the surface is a *research gap*: the provider emits an ``info`` finding
+rather than treating the tool as healthy or broken.
+
+Shared rendering helpers live in :mod:`._render_helpers` to avoid circular
+imports between renderer modules (each renderer module was formerly importing
+from this module, which itself imports from each renderer module to build the
+registry -- a circular dependency).  The public helpers are re-exported below
+for backward compatibility.
 """
 
 from __future__ import annotations
@@ -23,9 +29,35 @@ from typing import Protocol, runtime_checkable
 
 from charter.profiles import AgentProfile
 
+from specify_cli.tool_surface.profiles._render_helpers import (
+    _body_lines,
+    _frontmatter_lines,
+    _roles_csv,
+    _yaml_scalar,
+    render_markdown_agent as _render_markdown_agent,
+)
+from specify_cli.tool_surface.profiles.amazon_q_renderer import (
+    AmazonQProfileRenderer,
+)
+from specify_cli.tool_surface.profiles.augment_renderer import (
+    AugmentProfileRenderer,
+)
+from specify_cli.tool_surface.profiles.codex_renderer import (
+    CodexProfileRenderer,
+)
+
 # Native format identifiers (stable strings recorded in the manifest).
 FORMAT_CLAUDE_AGENT = "claude-agent"
 FORMAT_COPILOT_AGENT = "copilot-agent"
+
+# NOTE: FORMAT_AMAZON_Q_AGENT / FORMAT_AUGMENT_AGENT / FORMAT_CODEX_AGENT are
+# NOT re-exported here. Their canonical home is the individual renderer modules
+# (amazon_q_renderer / augment_renderer / codex_renderer); other src/ files
+# import them from there directly.
+__all__ = [
+    "FORMAT_CLAUDE_AGENT",
+    "FORMAT_COPILOT_AGENT",
+]
 
 # Directory / suffix fragments (hoisted: each appears in path + tests >=3x).
 _CLAUDE_AGENTS_DIR = ".claude"
@@ -60,6 +92,15 @@ def native_name_violation(profile_id: str) -> str | None:
         )
     return None
 
+# Re-export shared helpers for backward compatibility.
+__all__ += [
+    "_body_lines",
+    "_frontmatter_lines",
+    "_render_markdown_agent",
+    "_roles_csv",
+    "_yaml_scalar",
+]
+
 
 @runtime_checkable
 class ProfileRenderer(Protocol):
@@ -80,67 +121,6 @@ class ProfileRenderer(Protocol):
     def render(self, profile: AgentProfile) -> str:
         """Return the file body (frontmatter + instructions) for ``profile``."""
         ...
-
-
-def _yaml_scalar(value: str) -> str:
-    """Quote a scalar for single-line YAML frontmatter.
-
-    Profile descriptions and purposes are free text that may contain colons or
-    leading characters that would otherwise break a bare YAML scalar, so they
-    are always double-quoted with internal quotes/backslashes escaped.
-    """
-    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-    # Collapse newlines so the value stays a single YAML line.
-    escaped = escaped.replace("\n", " ").replace("\r", " ")
-    return f'"{escaped}"'
-
-
-def _roles_csv(profile: AgentProfile) -> str:
-    return ", ".join(str(role) for role in profile.roles)
-
-
-def _frontmatter_lines(profile: AgentProfile) -> list[str]:
-    """Shared YAML frontmatter lines common to the supported native formats."""
-    description = profile.description or profile.purpose
-    return [
-        "---",
-        f"name: {profile.profile_id}",
-        f"description: {_yaml_scalar(description)}",
-        f"roles: [{_roles_csv(profile)}]",
-        "---",
-    ]
-
-
-def _body_lines(profile: AgentProfile) -> list[str]:
-    """Shared Markdown body describing the projected agent profile."""
-    spec = profile.specialization
-    return [
-        f"# {profile.name}",
-        "",
-        profile.purpose,
-        "",
-        "## Specialization",
-        "",
-        f"- Primary focus: {spec.primary_focus}",
-        f"- Avoidance boundary: {spec.avoidance_boundary or '(none declared)'}",
-        "",
-        (
-            "_Projected from Spec Kitty agent profile "
-            f"`{profile.profile_id}`; do not edit by hand._"
-        ),
-        "",
-    ]
-
-
-def _render_markdown_agent(profile: AgentProfile) -> str:
-    """Render a Markdown agent file (frontmatter + body).
-
-    Both the Claude Code ``claude-agent`` and Copilot ``copilot-agent`` formats
-    are frontmatter-plus-Markdown; they share the same body and frontmatter
-    shape, differing only in file extension and output directory.
-    """
-    lines = _frontmatter_lines(profile) + [""] + _body_lines(profile)
-    return "\n".join(lines)
 
 
 class ClaudeCodeProfileRenderer:
@@ -194,6 +174,9 @@ class CopilotProfileRenderer:
 _RENDERERS: tuple[ProfileRenderer, ...] = (
     ClaudeCodeProfileRenderer(),
     CopilotProfileRenderer(),
+    CodexProfileRenderer(),
+    AugmentProfileRenderer(),
+    AmazonQProfileRenderer(),
 )
 
 
@@ -201,8 +184,7 @@ def get_renderer(tool_key: str) -> ProfileRenderer | None:
     """Return the renderer for ``tool_key``, or ``None`` if unsupported.
 
     A ``None`` result means the tool has no verified native named-agent
-    primitive (e.g. ``codex``, ``unknown``) and yields a research-gap finding
-    rather than projected files.
+    primitive and yields a research-gap finding rather than projected files.
     """
     for renderer in _RENDERERS:
         if renderer.can_render(tool_key):
