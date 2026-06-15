@@ -141,3 +141,16 @@ def test_apply_is_idempotent_when_surface_absent(tmp_path: Path) -> None:
 
     assert result.success is True
     assert result.changes_made == ["Retired standalone governance skill surfaces absent"]
+
+
+def test_migration_is_registered_by_auto_discovery() -> None:
+    from specify_cli.upgrade.migrations import auto_discover_migrations
+    from specify_cli.upgrade.registry import MigrationRegistry
+
+    MigrationRegistry.clear()
+    auto_discover_migrations()
+
+    assert (
+        "3.2.0rc45_retire_standalone_skill_surface"
+        in MigrationRegistry._migrations
+    )

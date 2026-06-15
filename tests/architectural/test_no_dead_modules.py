@@ -230,6 +230,9 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # imported by runtime code. Test-exercised by
         # tests/upgrade/test_op_record_schema_v2_migration.py.
         "specify_cli.upgrade.migrations.m_3_3_0_op_record_schema_v2",
+        # 3.2.0rc45 standalone governance skill retirement migration:
+        # auto-discovered via pkgutil.iter_modules in migrations/__init__.py.
+        "specify_cli.upgrade.migrations.m_3_2_0rc45_retire_standalone_skill_surface",
     }
 )
 
