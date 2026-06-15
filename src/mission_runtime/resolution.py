@@ -788,17 +788,17 @@ def resolve_action_context(
     if _ec_raw_lane == "uninitialized":
         _ec_raw_lane = Lane.PLANNED
     lane = resolve_lane_alias(_ec_raw_lane)
-    workspace = resolve_workspace_for_wp(repo_root, mission_slug, normalized_wp_id)
+    wp_workspace = resolve_workspace_for_wp(repo_root, mission_slug, normalized_wp_id)
 
     context.wp_id = normalized_wp_id
     context.wp_file = str(wp.path)
     context.lane = lane
-    context.lane_id = workspace.lane_id
-    context.branch_name = workspace.branch_name
-    context.execution_mode = workspace.execution_mode
-    context.resolution_kind = workspace.resolution_kind
+    context.lane_id = wp_workspace.lane_id
+    context.branch_name = wp_workspace.branch_name
+    context.execution_mode = wp_workspace.execution_mode
+    context.resolution_kind = wp_workspace.resolution_kind
     context.dependencies = dependencies
-    context.workspace_path = str(workspace.worktree_path)
+    context.workspace_path = str(wp_workspace.worktree_path)
 
     if action == "implement":
         command = f"spec-kitty agent action implement {normalized_wp_id}"

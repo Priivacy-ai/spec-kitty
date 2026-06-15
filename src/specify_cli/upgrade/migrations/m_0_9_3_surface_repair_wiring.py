@@ -37,7 +37,7 @@ def _marker_path(project_path: Path) -> Path:
 
 
 @MigrationRegistry.register
-class SurfaceRepairWiringMigration(BaseMigration):  # type: ignore[misc]
+class SurfaceRepairWiringMigration(BaseMigration):
     """Sentinel migration: record that tool-surface repair wiring is active."""
 
     migration_id = "0_9_3_surface_repair_wiring"

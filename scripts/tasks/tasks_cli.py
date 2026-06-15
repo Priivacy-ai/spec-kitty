@@ -428,12 +428,7 @@ def rollback_command(args: argparse.Namespace) -> None:
     if not wp_events:
         raise TaskCliError(f"No canonical status events for {wp_id}. Cannot determine the previous lane.")
 
-    if len(wp_events) == 1:
-        # Only one event: previous lane is the from_lane of that event
-        previous_lane_canonical = str(wp_events[0].from_lane)
-    else:
-        # Two or more events: previous lane is the to_lane of the second-to-last
-        previous_lane_canonical = str(wp_events[-2].to_lane)
+    previous_lane_canonical = str(wp_events[0].from_lane) if len(wp_events) == 1 else str(wp_events[-2].to_lane)
     # Map canonical lane back to standalone alias for ensure_lane
     # (e.g. "in_progress" is valid in canonical but standalone uses "doing")
     _REVERSE_ALIASES: dict[str, str] = {"in_progress": "doing"}
@@ -531,6 +526,28 @@ def verify_command(args: argparse.Namespace) -> None:
     sys.exit(0 if summary.ok else 1)
 
 
+def _print_acceptance_result(result, feature: str, json_output: bool) -> None:
+    if json_output:
+        print(json.dumps(result.to_dict(), indent=2))
+        return
+    print(f"✅ Feature '{feature}' accepted at {result.accepted_at} by {result.accepted_by}")
+    if result.accept_commit:
+        print(f"   Acceptance commit: {result.accept_commit}")
+    if result.parent_commit:
+        print(f"   Parent commit: {result.parent_commit}")
+    if result.notes:
+        print("\nNotes:")
+        for note in result.notes:
+            print(f"  {note}")
+    print("\nNext steps:")
+    for instruction in result.instructions:
+        print(f"  - {instruction}")
+    if result.cleanup_instructions:
+        print("\nCleanup:")
+        for instruction in result.cleanup_instructions:
+            print(f"  - {instruction}")
+
+
 def accept_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
     feature = _resolve_feature(repo_root, args.feature)
@@ -574,26 +591,7 @@ def accept_command(args: argparse.Namespace) -> None:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    if args.json:
-        print(json.dumps(result.to_dict(), indent=2))
-        return
-
-    print(f"✅ Feature '{feature}' accepted at {result.accepted_at} by {result.accepted_by}")
-    if result.accept_commit:
-        print(f"   Acceptance commit: {result.accept_commit}")
-    if result.parent_commit:
-        print(f"   Parent commit: {result.parent_commit}")
-    if result.notes:
-        print("\nNotes:")
-        for note in result.notes:
-            print(f"  {note}")
-    print("\nNext steps:")
-    for instruction in result.instructions:
-        print(f"  - {instruction}")
-    if result.cleanup_instructions:
-        print("\nCleanup:")
-        for instruction in result.cleanup_instructions:
-            print(f"  - {instruction}")
+    _print_acceptance_result(result, feature, args.json)
 
 
 def _merge_actor(repo_root: Path) -> str:
@@ -638,11 +636,64 @@ def _finalize_merge_metadata(meta_path: Path | None, merge_commit: str) -> None:
     if not meta_path or not meta_path.exists():
         return
 
+    import contextlib
     feature_dir = meta_path.parent
-    try:
+    with contextlib.suppress(ValueError, FileNotFoundError):
         finalize_merge(feature_dir, merged_commit=merge_commit)
-    except (ValueError, FileNotFoundError):
-        pass
+
+
+def _merge_dry_run(args, feature: str, primary_repo_root: Path, repo_root: Path, in_worktree: bool) -> None:
+    steps = ["Planned actions:"]
+    steps.append(f"  - Checkout {args.target} in {primary_repo_root}")
+    steps.append("  - Fetch remote (if configured)")
+    if args.strategy == "squash":
+        steps.append(f"  - Merge {feature} with --squash and commit")
+    elif args.strategy == "rebase":
+        steps.append(f"  - Rebase {feature} onto {args.target} manually (command exits before merge)")
+    else:
+        steps.append(f"  - Merge {feature} with --no-ff")
+    if args.push:
+        steps.append(f"  - Push {args.target} to origin (if upstream configured)")
+    if in_worktree and args.remove_worktree:
+        steps.append(f"  - Remove worktree at {repo_root}")
+    if args.delete_branch:
+        steps.append(f"  - Delete branch {feature}")
+    print("\n".join(steps))
+
+
+def _merge_execute(git_fn, feature: str, args, primary_repo_root: Path) -> Path | None:
+    if args.strategy == "squash":
+        merge_proc = git_fn(["merge", "--squash", feature], check=False)
+    else:
+        merge_proc = git_fn(["merge", "--no-ff", "--no-commit", feature], check=False)
+    if merge_proc.returncode != 0:
+        raise TaskCliError("Merge failed. Resolve conflicts manually, commit, then rerun with --keep-worktree --keep-branch.")
+    meta_path = _prepare_merge_metadata(primary_repo_root, feature, args.target, args.strategy, args.push)
+    meta_rel = str(meta_path.relative_to(primary_repo_root)) if meta_path else None
+    if meta_rel:
+        git_fn(["add", meta_rel])
+    git_fn(["commit", "-m", f"Merge feature {feature}"])
+    if meta_path:
+        merge_commit = git_fn(["rev-parse", "HEAD"]).stdout.strip()
+        _finalize_merge_metadata(meta_path, merge_commit)
+        git_fn(["add", meta_rel or str(meta_path.relative_to(primary_repo_root))])
+        git_fn(["commit", "--amend", "--no-edit"])
+    return meta_path
+
+
+def _merge_post(git_fn, args, feature: str, has_remote: bool, in_worktree: bool, repo_root: Path) -> None:
+    if args.push and has_remote:
+        push_result = git_fn(["push", "origin", args.target], check=False)
+        if push_result.returncode != 0:
+            raise TaskCliError(f"Merge succeeded but push failed. Run `git push origin {args.target}` manually.")
+    elif args.push and not has_remote:
+        print("[spec-kitty] Skipping push: no remote configured.", file=sys.stderr)
+    if in_worktree and args.remove_worktree and repo_root.exists():
+        git_fn(["worktree", "remove", str(repo_root), "--force"])
+    if args.delete_branch:
+        delete = git_fn(["branch", "-d", feature], check=False)
+        if delete.returncode != 0:
+            git_fn(["branch", "-D", feature])
 
 
 def merge_command(args: argparse.Namespace) -> None:
@@ -664,10 +715,8 @@ def merge_command(args: argparse.Namespace) -> None:
     else:
         feature = detect_mission_slug(find_repo_root(), cwd=repo_root)
 
-    # Resolve target branch dynamically if not specified
     if args.target is None:
         from specify_cli.core.git_ops import resolve_primary_branch
-
         args.target = resolve_primary_branch(repo_root)
 
     if current_branch == args.target:
@@ -699,22 +748,7 @@ def merge_command(args: argparse.Namespace) -> None:
         ensure_clean(primary_repo_root)
 
     if args.dry_run:
-        steps = ["Planned actions:"]
-        steps.append(f"  - Checkout {args.target} in {primary_repo_root}")
-        steps.append("  - Fetch remote (if configured)")
-        if args.strategy == "squash":
-            steps.append(f"  - Merge {feature} with --squash and commit")
-        elif args.strategy == "rebase":
-            steps.append(f"  - Rebase {feature} onto {args.target} manually (command exits before merge)")
-        else:
-            steps.append(f"  - Merge {feature} with --no-ff")
-        if args.push:
-            steps.append(f"  - Push {args.target} to origin (if upstream configured)")
-        if in_worktree and args.remove_worktree:
-            steps.append(f"  - Remove worktree at {repo_root}")
-        if args.delete_branch:
-            steps.append(f"  - Delete branch {feature}")
-        print("\n".join(steps))
+        _merge_dry_run(args, feature, primary_repo_root, repo_root, in_worktree)
         return
 
     def git(cmd: list[str], *, cwd: Path = primary_repo_root, check: bool = True) -> subprocess.CompletedProcess:
@@ -733,51 +767,8 @@ def merge_command(args: argparse.Namespace) -> None:
     if args.strategy == "rebase":
         raise TaskCliError("Rebase strategy requires manual steps. Run `git checkout {feature}` followed by `git rebase {args.target}`.")
 
-    meta_path: Path | None = None
-    meta_rel: str | None = None
-
-    if args.strategy == "squash":
-        merge_proc = git(["merge", "--squash", feature], check=False)
-        if merge_proc.returncode != 0:
-            raise TaskCliError("Merge failed. Resolve conflicts manually, commit, then rerun with --keep-worktree --keep-branch.")
-        meta_path = _prepare_merge_metadata(primary_repo_root, feature, args.target, args.strategy, args.push)
-        if meta_path:
-            meta_rel = str(meta_path.relative_to(primary_repo_root))
-            git(["add", meta_rel])
-        git(["commit", "-m", f"Merge feature {feature}"])
-    else:
-        merge_proc = git(["merge", "--no-ff", "--no-commit", feature], check=False)
-        if merge_proc.returncode != 0:
-            raise TaskCliError("Merge failed. Resolve conflicts manually, commit, then rerun with --keep-worktree --keep-branch.")
-        meta_path = _prepare_merge_metadata(primary_repo_root, feature, args.target, args.strategy, args.push)
-        if meta_path:
-            meta_rel = str(meta_path.relative_to(primary_repo_root))
-            git(["add", meta_rel])
-        git(["commit", "-m", f"Merge feature {feature}"])
-
-    if meta_path:
-        merge_commit = git(["rev-parse", "HEAD"]).stdout.strip()
-        _finalize_merge_metadata(meta_path, merge_commit)
-        meta_rel = meta_rel or str(meta_path.relative_to(primary_repo_root))
-        git(["add", meta_rel])
-        git(["commit", "--amend", "--no-edit"])
-
-    if args.push and has_remote:
-        push_result = git(["push", "origin", args.target], check=False)
-        if push_result.returncode != 0:
-            raise TaskCliError(f"Merge succeeded but push failed. Run `git push origin {args.target}` manually.")
-    elif args.push and not has_remote:
-        print("[spec-kitty] Skipping push: no remote configured.", file=sys.stderr)
-
-    if in_worktree and args.remove_worktree:
-        if repo_root.exists():
-            git(["worktree", "remove", str(repo_root), "--force"])
-
-    if args.delete_branch:
-        delete = git(["branch", "-d", feature], check=False)
-        if delete.returncode != 0:
-            git(["branch", "-D", feature])
-
+    _merge_execute(git, feature, args, primary_repo_root)
+    _merge_post(git, args, feature, has_remote, in_worktree, repo_root)
     print(f"Merge complete: {feature} -> {args.target}")
 
 

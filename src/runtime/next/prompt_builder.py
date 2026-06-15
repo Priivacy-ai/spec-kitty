@@ -16,6 +16,10 @@ from __future__ import annotations
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from runtime.next._internal_runtime.workflow_schema import WorkflowSequence
 
 from charter.context import build_charter_context
 from charter.scope import CharterScopeConflict, CharterScopeNotFound
@@ -37,7 +41,7 @@ from specify_cli.workspace.context import resolve_workspace_for_wp
 # ---------------------------------------------------------------------------
 
 
-def _workflow_for(mission_dir_str: str):
+def _workflow_for(mission_dir_str: str) -> WorkflowSequence:
     """Return the ``WorkflowSequence`` for *mission_dir_str*.
 
     Uses ``_resolve_workflow_for_mission`` from ``planner`` so the resolver

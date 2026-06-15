@@ -35,7 +35,7 @@ from typing import Any
 from specify_cli.skills import manifest_store
 from specify_cli.skills.manifest_store import ManifestEntry
 from specify_cli.skills import command_renderer
-from specify_cli.skills._agent_roster import SUPPORTED_AGENTS
+from specify_cli.skills._agent_roster import SUPPORTED_AGENTS as SUPPORTED_AGENTS
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 from specify_cli.shims.registry import CONSUMER_SKILLS
 
