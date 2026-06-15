@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import ClassVar
 
 from specify_cli.lanes.auto_rebase import AutoRebaseReport, attempt_auto_rebase
-from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path as _worktree_path
 from specify_cli.lanes.compute import is_planning_lane
 from specify_cli.lanes.models import ExecutionLane
 from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
@@ -145,16 +145,19 @@ def sync_lane_after_coordination_commit(
     if lane is None or is_planning_lane(lane):
         return None
 
+    _lane_worktree = _worktree_path(
+        repo_root, mission_slug, mission_id=None, lane_id=lane.lane_id
+    )
     lane_branch = _resolve_lane_branch(
         repo_root,
-        repo_root / WORKTREES_DIRNAME / f"{mission_slug}-{lane.lane_id}",
+        _lane_worktree,
         mission_slug,
         lane,
         planning_base_branch=lanes_manifest.target_branch,
         mission_id=lanes_manifest.mission_id,
     )
     coordination_head = _git_stdout(repo_root, "rev-parse", coordination_branch)
-    worktree_path = repo_root / WORKTREES_DIRNAME / f"{mission_slug}-{lane.lane_id}"
+    worktree_path = _lane_worktree
     if not (worktree_path / ".git").exists():
         worktree_path.parent.mkdir(parents=True, exist_ok=True)
         add_result = subprocess.run(

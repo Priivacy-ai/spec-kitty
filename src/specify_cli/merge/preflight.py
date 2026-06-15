@@ -36,8 +36,17 @@ def target_branch_sync_remediation(
     *,
     mission_slug: str | None,
     mission_branch: str | None = None,
+    mission_id: str | None = None,
 ) -> list[str]:
-    """Build actionable, non-destructive remediation diagnostics."""
+    """Build actionable, non-destructive remediation diagnostics.
+
+    The focused-PR recovery source branch prefers the recorded
+    ``mission_branch`` (``lanes.json.mission_branch``) verbatim. When it is
+    absent the canonical branch is composed via the fail-closed WP01 seam
+    :func:`mission_branch_name_required`, NOT a bare ``kitty/mission-<slug>``
+    f-string that drops the ``-<mid8>`` disambiguator / keeps a stale ``NNN-``
+    prefix and so names a never-created branch (#1978).
+    """
     tracking_branch = status.tracking_branch or f"origin/{status.target_branch}"
     lines = [
         (
@@ -82,8 +91,12 @@ def target_branch_sync_remediation(
         )
 
     if mission_slug:
+        from specify_cli.lanes.branch_naming import mission_branch_name_required
+
         focused_branch = focused_pr_branch_name(mission_slug, status.target_branch)
-        source_branch = mission_branch or f"kitty/mission-{mission_slug}"
+        source_branch = mission_branch or mission_branch_name_required(
+            mission_slug, mission_id
+        )
         lines.extend(
             [
                 (

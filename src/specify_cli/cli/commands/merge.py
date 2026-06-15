@@ -1221,14 +1221,31 @@ def _check_mission_branch(
     repo_root: Path,
     *,
     expected_branch: str | None = None,
+    mission_id: str | None = None,
 ) -> tuple[bool, MissionBranchBlocker | None]:
     """Check whether the expected mission branch exists locally.
 
     Dry-run and real merge both use this as a read-only preflight. Missing
     branches are reported as structured blockers; this function never creates
     the branch.
+
+    When ``expected_branch`` is not supplied (no recorded
+    ``lanes.json.mission_branch``), the branch to CHECK is RESOLVED via the WP01
+    seam :func:`resolve_branch_name` — the canonical-first / legacy-failover
+    resolver (FR-004) — rather than a bare ``kitty/mission-<slug>`` f-string. The
+    f-string drops the ``-<mid8>`` disambiguator and never strips a stale ``NNN-``
+    prefix, so it mis-targeted the never-created branch and falsely reported it
+    missing (#1978). ``resolve_branch_name`` keeps that #1978 fix intact for
+    canonical/embedded slugs (no warning), failovers to the legacy ``NNN-`` branch
+    with a one-shot deprecation warning, and still raises
+    :class:`BranchIdentityUnresolved` for a genuinely-unresolvable modern slug
+    (fail-closed preserved).
     """
-    expected_branch = expected_branch or f"kitty/mission-{mission_slug}"
+    from specify_cli.lanes.branch_naming import resolve_branch_name
+
+    expected_branch = expected_branch or resolve_branch_name(
+        mission_slug, mission_id=mission_id
+    )
     if _has_branch_ref(repo_root, expected_branch):
         return True, None
 
@@ -1796,11 +1813,13 @@ def _target_branch_sync_payload(
     *,
     mission_slug: str | None,
     mission_branch: str | None = None,
+    mission_id: str | None = None,
 ) -> dict[str, object]:
     remediation = target_branch_sync_remediation(
         status,
         mission_slug=mission_slug,
         mission_branch=mission_branch,
+        mission_id=mission_id,
     )
     return {
         "spec_kitty_version": SPEC_KITTY_VERSION,
@@ -1846,6 +1865,7 @@ def _enforce_target_branch_sync_preflight(
     target_branch: str,
     mission_slug: str | None,
     mission_branch: str | None = None,
+    mission_id: str | None = None,
     json_output: bool = False,
     remote_name: str = "origin",
 ) -> None:
@@ -1884,6 +1904,7 @@ def _enforce_target_branch_sync_preflight(
         status,
         mission_slug=mission_slug,
         mission_branch=mission_branch,
+        mission_id=mission_id,
     )
     if json_output:
         print(json.dumps(payload))
@@ -2180,6 +2201,7 @@ def _run_lane_based_merge(
             target_branch=lanes_manifest.target_branch,
             mission_slug=mission_slug,
             mission_branch=lanes_manifest.mission_branch,
+            mission_id=_preflight_mission_id,
         )
 
     if planning_artifact_only:
@@ -2192,6 +2214,7 @@ def _run_lane_based_merge(
             mission_slug,
             main_repo,
             expected_branch=lanes_manifest.mission_branch,
+            mission_id=_preflight_mission_id,
         )
         if not branch_ok:
             assert branch_blocker is not None
@@ -2763,9 +2786,21 @@ def _run_lane_based_merge_locked(
 
     # -- T005: Worktree removal with retry tolerance and macOS FSEvents delay --
     if remove_worktree:
+        from specify_cli.lanes.branch_naming import worktree_path
+
         delay = _worktree_removal_delay()
         for idx, lane in enumerate(lanes_manifest.lanes):
-            wt_path = main_repo / ".worktrees" / f"{mission_slug}-{lane.lane_id}"
+            # Route through the WP01 seam with the REAL mission_id so the teardown
+            # resolves the SAME on-disk path the WP03 allocator created. The old
+            # f-string omitted the ``-<mid8>`` segment, so for a mid8-era mission it
+            # named ``<slug>-<lane>`` while the allocator created
+            # ``<slug>-<mid8>-<lane>`` — silently failing to find/remove it (#1899).
+            wt_path = worktree_path(
+                main_repo,
+                mission_slug,
+                mission_id=_baseline_mission_id,
+                lane_id=lane.lane_id,
+            )
             if wt_path.exists():
                 run_command(
                     ["git", "worktree", "remove", str(wt_path), "--force"],

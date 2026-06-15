@@ -102,12 +102,23 @@ def _invoke_merge_dry_run(*, json_output: bool) -> None:
 
 
 class TestCheckMissionBranch:
+    # Modern slug (no NNN- prefix, no embedded mid8) + a declared mission_id:
+    # the #1978 seam resolves the canonical <human-slug>-<mid8> branch. The
+    # bare slug here ("my-mission") would, with NO mission_id, correctly
+    # fail-closed (BranchIdentityUnresolved); these tests assert the resolvable
+    # path so the branch-exists / branch-missing-payload intent still has a
+    # concrete expected_branch to check against.
+    _RESOLVABLE_ID = "01KQTESTBRANCH00000000000A"
+    _RESOLVED_BRANCH = "kitty/mission-my-mission-01KQTEST"
+
     def test_branch_exists_returns_true(self, tmp_path: Path) -> None:
         with patch(
             "specify_cli.cli.commands.merge._has_branch_ref",
             return_value=True,
         ):
-            exists, blocker = _check_mission_branch("my-mission-01KQ", tmp_path)
+            exists, blocker = _check_mission_branch(
+                "my-mission", tmp_path, mission_id=self._RESOLVABLE_ID
+            )
 
         assert exists is True
         assert blocker is None
@@ -120,14 +131,28 @@ class TestCheckMissionBranch:
             "specify_cli.cli.commands.merge.run_command",
             return_value=(0, "abc1234def5678\n", ""),
         ):
-            exists, blocker = _check_mission_branch("my-mission-01KQ", tmp_path)
+            exists, blocker = _check_mission_branch(
+                "my-mission", tmp_path, mission_id=self._RESOLVABLE_ID
+            )
 
         assert exists is False
         assert blocker is not None
         assert blocker["ready"] is False
         assert blocker["blocker"] == "missing_mission_branch"
-        assert blocker["expected_branch"] == "kitty/mission-my-mission-01KQ"
-        assert blocker["remediation"] == "git branch kitty/mission-my-mission-01KQ abc1234def56"
+        assert blocker["expected_branch"] == self._RESOLVED_BRANCH
+        assert blocker["remediation"] == f"git branch {self._RESOLVED_BRANCH} abc1234def56"
+
+    def test_branch_missing_fail_closed_for_unresolvable_modern_slug(
+        self, tmp_path: Path
+    ) -> None:
+        """No mission_id + modern slug (no NNN-, no mid8) -> #1978 fail-closed."""
+        from specify_cli.lanes.branch_naming import BranchIdentityUnresolved
+
+        with patch(
+            "specify_cli.cli.commands.merge._has_branch_ref",
+            return_value=False,
+        ), pytest.raises(BranchIdentityUnresolved):
+            _check_mission_branch("my-mission", tmp_path)
 
     def test_branch_missing_uses_manifest_branch_when_supplied(self, tmp_path: Path) -> None:
         manifest_branch = "kitty/mission-my-mission-01KQ-01KQTEST"
@@ -702,6 +727,10 @@ class TestMergeDryRunMissingBranch:
                 "target_branch": "main",
                 "mission_slug": MISSION_SLUG,
                 "mission_branch": f"kitty/mission-{MISSION_SLUG}",
+                # #1978: mission_id is now threaded through to the preflight so
+                # remediation composes the canonical <slug>-<mid8> branch via
+                # the fail-closed seam instead of a bare kitty/mission-<slug>.
+                "mission_id": "01TESTPUSHREQUESTED",
             }
         ]
         acquire_lock.assert_not_called()

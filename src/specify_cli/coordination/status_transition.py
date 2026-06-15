@@ -22,7 +22,11 @@ from specify_cli.coordination.status_service import (
 )
 from specify_cli.coordination.transaction import BookkeepingTransaction
 from specify_cli.lanes._git import branch_exists as _branch_exists
-from specify_cli.lanes.branch_naming import resolve_transaction_mid8
+from specify_cli.lanes.branch_naming import (
+    coord_mission_dir_name as _seam_coord_mission_dir_name,
+    mid8 as _seam_mid8,
+    resolve_transaction_mid8,
+)
 from specify_cli.mission_metadata import load_meta
 from specify_cli.status import emit as _emit
 from specify_cli.status.adapters import fire_dossier_sync
@@ -73,7 +77,20 @@ def _repo_supports_transactions(repo_root: Path) -> bool:
 
 
 def _transaction_dir_name(mission_slug: str, mid8: str) -> str:
-    return mission_slug if mission_slug.endswith(f"-{mid8}") else f"{mission_slug}-{mid8}"
+    """Return the on-disk transaction (kitty-specs) dir name for this mission.
+
+    Delegates to the seam's VERBATIM coordination primitive
+    (``lanes.branch_naming.coord_mission_dir_name``, FR-010): exactly ONE
+    algorithm for the coordination ``<slug>-<mid8>`` grammar, reconstructed
+    byte-identical to the prior hand-rolled body. The ``mission_slug`` arrives
+    VERBATIM from ``meta.json`` (including any legacy ``NNN-`` prefix); the seam
+    primitive does NOT strip it, so the transaction dir matches the on-disk coord
+    target (#1589). ``mid8`` may be ``""`` for the legacy/flattened routing path —
+    the verbatim primitive preserves the prior ``f"{slug}-"`` form there, so
+    routing stays byte-identical. The canonical, NNN-stripping ``mission_dir_name``
+    is NOT used here.
+    """
+    return _seam_coord_mission_dir_name(mission_slug, mid8=mid8)
 
 
 def _transaction_topology_available(identity: _TransactionIdentity, mission_slug: str) -> bool:
@@ -249,7 +266,9 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
         mission_id = str(raw_mission_id) if raw_mission_id else None
         mid8 = str(raw_mid8) if raw_mid8 else None
         if mid8 is None and mission_id and len(mission_id) >= 8:
-            mid8 = mission_id[:8]
+            # Single grammar (FR-010): derive the mid8 via the seam's
+            # authoritative first-8 primitive, not a local ``[:8]`` slice.
+            mid8 = _seam_mid8(mission_id)
 
     effective_mission_id = mission_id or f"legacy-{mission_slug}"
     # FR-007: the mid8 names the ON-DISK transaction dir. Route through the

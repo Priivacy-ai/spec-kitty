@@ -243,24 +243,16 @@ _BARE_SLUG_FIELD_NAMES: frozenset[str] = frozenset(
     {"mission_slug", "slug", "feature_slug", "self.mission_slug", "self.slug"}
 )
 
-_ALLOWLISTED_LEGACY_COMPOSE_SITES: frozenset[str] = frozenset(
-    {
-        # Pre-init / meta-absent window (create -> first-write): meta.json does
-        # not yet carry coordination_branch, so the legacy form is the documented
-        # decision-table "undeclared" row, NOT a fail-closed raise (NFR-003 carve-out).
-        "src/runtime/next/runtime_bridge.py",
-        # C-002 scope-reserved residual: merge.py's expected-branch existence
-        # preflight composes the legacy form. The merge.py adjacent ranges are
-        # owned by the upstream coord-merge-stabilization mission; WP04 honored
-        # C-002 and left this site untouched. Documented deferral.
-        "src/specify_cli/cli/commands/merge.py",
-        # C-002 scope-reserved residual: merge/preflight.py builds an operator
-        # "git switch -c" instruction from ``mission_branch or f"kitty/mission-{slug}"``.
-        # Same reserved-range deferral; tracked for a follow-up migration to
-        # mission_branch_name_required.
-        "src/specify_cli/merge/preflight.py",
-    }
-)
+# All previously-reserved legacy-compose residuals have now been routed through
+# the canonical seam by this mission's routing WPs:
+#   * runtime_bridge.py  — now resolves the branch from the declared mission_id;
+#   * cli/commands/merge.py — now uses the mission_branch resolver (FR-004);
+#   * merge/preflight.py — now composes via mission_branch_name_required.
+# Each retains only a docstring mentioning the bare legacy form (which the
+# detector skips), so the allow-list is empty: any new bare-slug compose is now
+# an unconditional C-SEAM-2 regression. The ``stale`` assertion below keeps this
+# empty set from silently re-accumulating dead exemptions.
+_ALLOWLISTED_LEGACY_COMPOSE_SITES: frozenset[str] = frozenset()
 
 
 def _legacy_mission_compose_sites(path: Path) -> bool:

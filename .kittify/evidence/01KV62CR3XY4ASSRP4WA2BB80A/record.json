@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KV62CR3XY4ASSRP4WA2BB80A",
+  "completed_at": "2026-06-15T16:42:21.095524+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "Open-bug backlog consolidation: scanned 38 bug-labeled + 5 unlabeled bug-like open issues. Retyped 2 (#1947, #1827 added bug type). Relabeled 6 with priority/area labels (#1947 P1+reliability, #1983 P2, #1982 P2+workflow, #1981 P1+reliability, #1949 P2+reliability, #1827 P1). Reparented 5 via native sub-issues to functional epics (#1947->#1799, #1983->#1868, #1982->#1801, #1981->#1666, #1949->#1868). No false duplicates closed; verified mid8 cluster (#1949/#1978/#1918) and coord cluster (#1981/#1887/#1832) are distinct surfaces. Cross-ref comment on #1982<->#1888 (sibling not dup). Flagged #1844 (P0 release-infra, parent #1802 now CLOSED, no clean functional epic) for human routing."
+}

@@ -16,6 +16,7 @@ from pathlib import Path
 from specify_cli.ownership.models import ExecutionMode
 from specify_cli.lanes.lane_env import lane_test_env
 from specify_cli.lanes.models import LanesManifest
+from specify_cli.lanes.branch_naming import worktree_dir_name as _worktree_dir_name
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.workspace.context import ResolvedWorkspace
 from specify_cli.workspace.context import WorkspaceContext, save_context
@@ -117,7 +118,7 @@ def create_lane_workspace(
 
     if is_reuse:
         # Reuse — refresh context to reflect the new active WP.
-        context_name = f"{mission_slug}-{lane_id}"
+        context_name = _worktree_dir_name(mission_slug, mission_id=None, lane_id=lane_id)
         existing_ctx = load_context(repo_root, context_name)
         if existing_ctx is not None:
             existing_ctx.wp_id = wp_id

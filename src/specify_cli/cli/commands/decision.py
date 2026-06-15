@@ -414,9 +414,14 @@ def cmd_verify(
     from specify_cli.missions._read_path_resolver import (
         resolve_mission_read_path,
     )
-    from specify_cli.lanes.branch_naming import mid8_from_slug
+    from specify_cli.lanes.branch_naming import resolve_mid8
+    from specify_cli.mission_metadata import load_meta
 
-    _mid8 = mid8_from_slug(mission_slug)
+    _primary_dir = repo_root / KITTY_SPECS_DIR / mission_slug
+    _meta = load_meta(_primary_dir) or {}
+    _raw_mission_id = _meta.get("mission_id")
+    _mission_id = _raw_mission_id if isinstance(_raw_mission_id, str) else None
+    _mid8 = resolve_mid8(mission_slug, mission_id=_mission_id)
     mission_dir = resolve_mission_read_path(repo_root, mission_slug, _mid8)
 
     result = _verify_decisions(mission_dir, mission_slug)

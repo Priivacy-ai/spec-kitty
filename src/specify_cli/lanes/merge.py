@@ -23,7 +23,7 @@ from pathlib import Path
 
 from specify_cli.git.ref_advance import advance_branch_ref
 from specify_cli.lanes._git import branch_exists as _shared_branch_exists
-from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path as _worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.lanes.stale_check import StaleCheckResult, check_lane_staleness
@@ -79,8 +79,8 @@ def _try_auto_rebase_if_stale(
     """If the lane is stale and a worktree exists, attempt auto-rebase and recheck."""
     if not stale.is_stale:
         return stale
-    worktree_path = (
-        repo_root / ".worktrees" / f"{mission_slug}-{lane.lane_id}"
+    worktree_path = _worktree_path(
+        repo_root, mission_slug, mission_id=None, lane_id=lane.lane_id
     )
     if not worktree_path.exists():
         return stale

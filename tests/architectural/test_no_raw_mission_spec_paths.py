@@ -47,6 +47,17 @@ _SEMANTIC_CONSTRUCTOR_FILES = {
     Path("src/specify_cli/mission_read_path.py"),
     Path("src/specify_cli/missions/feature_dir_resolver.py"),
     Path("src/specify_cli/workspace/root_resolver.py"),
+    # Mission-identity routing (WP10, #1918 fallout): these three CLI command
+    # entrypoints construct a `KITTY_SPECS_DIR / <raw-handle>` primary dir for the
+    # SOLE purpose of `load_meta(...)`-bootstrapping the declared `mission_id`,
+    # which is then fed into the authoritative `resolve_mission_read_path` seam
+    # (so disambiguation has the mission_id and never silently falls back). The
+    # path is a meta-read seed, not an independent resolution path — the canonical
+    # resolver still owns the final read. Named individually (not a blanket
+    # pattern) so the constructor inventory stays explicit.
+    Path("src/specify_cli/cli/commands/agent/context.py"),
+    Path("src/specify_cli/cli/commands/agent/mission.py"),
+    Path("src/specify_cli/cli/commands/decision.py"),
 }
 
 

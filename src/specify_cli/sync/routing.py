@@ -92,8 +92,18 @@ def _build_checkout_sync_routing(repo_root: Path, identity: ProjectIdentity) -> 
 
 
 def is_sync_enabled_for_checkout(start: Path | None = None) -> bool:
-    """Return whether the active checkout may emit/upload SaaS sync data."""
-    routing = resolve_checkout_sync_routing(start=start)
+    """Return whether the active checkout may emit/upload SaaS sync data.
+
+    This is a pure *policy read* — it answers "is sync enabled?" and never needs
+    to mint or persist project identity. It is reached from the accept-readiness
+    path (``sync.emitter`` emit-time gate, batch/body-upload gates), so it MUST be
+    side-effect-free: route through the read-only twin
+    (``resolve_checkout_sync_routing_readonly``) instead of the writing
+    ``resolve_checkout_sync_routing`` (which calls ``ensure_identity`` and
+    persists ``.kittify/config.yaml``). This is the third readiness writer closed
+    for #1916 (WP08).
+    """
+    routing = resolve_checkout_sync_routing_readonly(start=start)
     if routing is None:
         return True
     return routing.effective_sync_enabled

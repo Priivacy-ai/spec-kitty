@@ -55,7 +55,9 @@ def _find_feature_directory(
         ActionContextError: If no handle is provided, the handle is ambiguous, or
             it resolves to no existing mission directory (structured error).
     """
-    from specify_cli.lanes.branch_naming import mid8_from_slug
+    from specify_cli.core.constants import KITTY_SPECS_DIR
+    from specify_cli.lanes.branch_naming import resolve_mid8
+    from specify_cli.mission_metadata import load_meta
     from specify_cli.missions._read_path_resolver import (
         MissionSelectorAmbiguous,
         StatusReadPathNotFound,
@@ -67,13 +69,17 @@ def _find_feature_directory(
         raise ActionContextError(
             "FEATURE_CONTEXT_UNRESOLVED", "--mission <slug> is required"
         )
+    _primary_dir = repo_root / KITTY_SPECS_DIR / raw_handle
+    _meta = load_meta(_primary_dir) or {}
+    _raw_mission_id = _meta.get("mission_id")
+    _mission_id = _raw_mission_id if isinstance(_raw_mission_id, str) else None
     try:
         feature_dir: Path = cast(
             Path,
             resolve_mission_read_path(
                 repo_root,
                 raw_handle,
-                mid8_from_slug(raw_handle),
+                resolve_mid8(raw_handle, mission_id=_mission_id),
                 require_exists=True,
             ),
         )

@@ -160,8 +160,16 @@ def get_emitter() -> EventEmitter:
     Thread-safe via double-checked locking pattern.
     Lazily initializes on first access.
 
-    Also ensures project identity exists before creating the emitter,
-    logging a warning (but not failing) if identity can't be resolved.
+    Resolves project identity (read-only) before creating the emitter so identity is
+    available in-memory, logging a warning (but not failing) if it can't be resolved.
+
+    #1916: this path is side-effect-free — it must NOT persist identity into
+    ``.kittify/config.yaml``. ``get_emitter()`` is reached on the accept readiness /
+    ``--no-commit`` path, where a write would be left dirty (never folded into a
+    commit) and trip the gate's own dirty check on the next run. We therefore use the
+    read-only ``resolve_identity`` here; persisting the minted identity is the job of
+    ``ensure_identity`` at a write-authorized boundary (``init``, commit-authorized
+    accept).
     """
     global _emitter
     if _emitter is None:
@@ -169,20 +177,40 @@ def get_emitter() -> EventEmitter:
             if _emitter is None:
                 repo_root = _resolve_repo_root()
 
-                # Ensure identity exists before creating emitter
+                # Resolve identity (read-only) before creating emitter — never persist.
+                resolved_identity = None
                 try:
-                    from specify_cli.identity.project import ensure_identity
+                    from specify_cli.identity.project import resolve_identity
 
                     if repo_root is not None:
-                        ensure_identity(repo_root)
+                        resolved_identity = resolve_identity(repo_root)
                     else:
                         logger.debug("Non-project context; identity will be empty")
                 except Exception as e:
-                    logger.warning(f"Could not ensure identity: {e}")
+                    logger.warning(f"Could not resolve identity: {e}")
 
                 from .emitter import EventEmitter
 
                 _emitter = EventEmitter()
+                # Seed the emitter with the read-only identity (and a matching git
+                # resolver) so its own lazy ``_get_identity`` / ``_get_git_metadata``
+                # — reached via ``attach_emitter`` → ``_attached_project_identity`` and
+                # ``emit_build_registered`` — return the in-memory identity instead of
+                # calling the persisting ``ensure_identity`` (#1916). Both the identity
+                # cache and the git-resolver cache must be primed; otherwise the build
+                # registration payload re-mints + persists identity on the readiness
+                # path.
+                if resolved_identity is not None and repo_root is not None:
+                    _emitter._identity = resolved_identity
+                    try:
+                        from .git_metadata import GitMetadataResolver
+
+                        _emitter._git_resolver = GitMetadataResolver(
+                            repo_root=repo_root,
+                            repo_slug_override=resolved_identity.repo_slug,
+                        )
+                    except Exception as exc:
+                        logger.debug("Could not pre-seed git resolver: %s", exc)
                 try:
                     from .runtime import get_runtime
 

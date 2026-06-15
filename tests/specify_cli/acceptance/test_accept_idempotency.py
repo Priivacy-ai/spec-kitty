@@ -325,13 +325,22 @@ def test_accept_still_trips_on_non_owned_kittify_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Adversarial (NFR-003): a non-owned untracked ``.kittify/`` file still trips.
+    """NFR-003 (post-stopgap contract): a non-owned ``.kittify/`` file still trips.
 
-    The gate's own ``.kittify/config.yaml`` write is excluded, but git collapses
-    a fully-untracked ``.kittify/`` tree to a single ``?? .kittify/`` directory
-    entry regardless of contents. The exclusion must expand that entry and drop
-    *only* ``config.yaml`` — a USER-created untracked file under ``.kittify/``
-    (e.g. ``.kittify/operator-note.txt``) must STILL surface in ``git_dirty``.
+    History: PR #1908 special-cased ``.kittify/config.yaml`` out of the dirty gate
+    (``_filter_accept_owned_project_config`` + ``_expand_untracked_kittify``) to
+    paper over readiness *writing* the file. WP08 (#1916) removed the write from the
+    readiness path, so that exclusion is RETIRED — there is no longer any
+    ``.kittify/`` carve-out NOR the ``_expand_untracked_kittify`` helper that the
+    carve-out needed. The standing contract is the plain one: dirt under
+    ``.kittify/`` that the accept gate does not own must surface in ``git_dirty``
+    and trip the gate, with no exclusion (and no expansion) helper in the path.
+
+    git collapses a fully-untracked ``.kittify/`` tree to a single ``?? .kittify/``
+    entry; with the expansion helper retired the gate reports that directory entry
+    verbatim. That is the correct post-stopgap behavior — the dirt is surfaced and
+    the gate trips. We assert on the ``.kittify`` path (not a specific child file,
+    which only the retired expansion produced) and on ``not summary.ok``.
     """
     repo_root = (tmp_path / "repo").resolve()
     repo_root.mkdir()
@@ -339,9 +348,9 @@ def test_accept_still_trips_on_non_owned_kittify_file(
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)
 
-    # Prime the gate's own config.yaml write, then drop a NON-owned file beside
-    # it. Both live under an otherwise-untracked ``.kittify/`` that git collapses.
-    (repo_root / ".kittify" / "config.yaml").write_text("project:\n  uuid: x\n")
+    # Drop a genuinely non-owned file under ``.kittify/`` (an operator note, not a
+    # gate-owned artifact). With the stopgap retired there is no carve-out, so the
+    # ``.kittify/`` dirt must surface and trip the dirty gate.
     (repo_root / ".kittify" / "operator-note.txt").write_text("operator edit\n")
 
     summary = collect_feature_summary(
@@ -350,10 +359,7 @@ def test_accept_still_trips_on_non_owned_kittify_file(
         strict_metadata=True,
         mutate_matrix=True,
     )
-    assert any("operator-note.txt" in line for line in summary.git_dirty), (
-        f"non-owned .kittify file was wrongly excluded: {summary.git_dirty}"
+    assert any(".kittify" in line for line in summary.git_dirty), (
+        f"non-owned .kittify dirt was wrongly excluded: {summary.git_dirty}"
     )
-    assert not any(
-        line.strip().endswith(".kittify/config.yaml") for line in summary.git_dirty
-    ), f"gate-own config.yaml should be excluded: {summary.git_dirty}"
     assert not summary.ok

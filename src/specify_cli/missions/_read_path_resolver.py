@@ -102,16 +102,23 @@ def _declares_coordination_branch(path: Path) -> bool:
 def _compose_mission_dir(mission_slug: str, mid8: str) -> str:
     """Return ``<slug>-<mid8>`` but avoid double-suffixing.
 
-    Mirrors :func:`specify_cli.coordination.workspace._compose_mission_dir`
-    so the two paths stay in lock-step.  ``mission_slug`` may be either
-    the bare human slug (legacy) or the post-WP03 ``<human>-<mid8>``
-    slug.
+    Delegates the ``<slug>-<mid8>`` grammar to the seam's VERBATIM coordination
+    primitive (``lanes.branch_naming.coord_mission_dir_name``) so exactly ONE
+    algorithm exists (FR-010). This is a READ path: ``mission_slug`` arrives
+    VERBATIM from ``meta.json`` (including any legacy ``NNN-`` prefix), and the
+    on-disk mission dir was created without stripping it — so the verbatim
+    primitive (no ``NNN-`` strip) reconstructs the EXISTING dir, while the
+    canonical, NNN-stripping ``mission_dir_name`` would drift to a path that never
+    existed (#1589). The read-path's load-bearing empty-``mid8`` contract is
+    preserved locally: a missing mid8 (legacy mission that never minted a
+    ``mission_id``) returns the slug VERBATIM — the seam has no empty-mid8 form and
+    would emit a spurious trailing ``-``, so the guard stays here.
     """
-    if mid8 and mission_slug.endswith(f"-{mid8}"):
+    from specify_cli.lanes.branch_naming import coord_mission_dir_name
+
+    if not mid8:
         return mission_slug
-    if mid8:
-        return f"{mission_slug}-{mid8}"
-    return mission_slug
+    return coord_mission_dir_name(mission_slug, mid8=mid8)
 
 
 def compose_meta_json_path(base: Path, mission_slug: str) -> Path:

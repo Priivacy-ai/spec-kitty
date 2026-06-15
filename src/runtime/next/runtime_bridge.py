@@ -94,19 +94,33 @@ def _primary_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
 def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:
     """Return the coordination branch for a mission from meta.json.
 
-    Falls back to ``kitty/mission-<slug>`` when meta.json is absent or
-    does not carry the ``coordination_branch`` key.
+    When meta.json declares ``coordination_branch`` explicitly, that value is
+    authoritative. Otherwise the branch is composed via the fail-closed WP01
+    seam (:func:`coord_branch_name`/:func:`mission_branch_name_required`) using
+    the declared ``mission_id``, instead of a bare ``kitty/mission-<slug>``
+    f-string that drops the ``-<mid8>`` disambiguator (#1978). When the mission
+    is legacy/unresolvable the seam still composes the legacy branch; a modern
+    slug with no recoverable identity raises :class:`BranchIdentityUnresolved`,
+    surfacing the lost identity rather than silently mis-composing.
     """
+    meta: dict[str, Any] = {}
     meta_path = _primary_runtime_feature_dir(repo_root, mission_slug) / META_JSON
     if meta_path.exists():
         try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            loaded = json.loads(meta_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
-            meta = {}
-        branch = meta.get("coordination_branch") if isinstance(meta, dict) else None
+            loaded = {}
+        if isinstance(loaded, dict):
+            meta = loaded
+        branch = meta.get("coordination_branch")
         if isinstance(branch, str) and branch.strip():
             return branch.strip()
-    return f"kitty/mission-{mission_slug}"
+
+    from specify_cli.lanes.branch_naming import mission_branch_name_required
+
+    mission_id = meta.get("mission_id")
+    resolved_id = mission_id.strip() if isinstance(mission_id, str) and mission_id.strip() else None
+    return mission_branch_name_required(mission_slug, resolved_id)
 
 
 def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str:
@@ -163,13 +177,18 @@ def _wrap_with_decision_git_log(
         mission_id = _resolve_mission_ulid(mission_slug, repo_root)
 
         # Resolve coord worktree path (pure static method, no side effects).
-        # Extract mid8 from slug (post-083 slugs end in "-<8-char-ULID-prefix>").
+        # Derive the mid8 authoritatively from the declared mission_id via the
+        # WP01 seam (FR-004): the heuristic mid8_from_slug trusts a coincidental
+        # 8-char tail with no identity to confirm against, so it must not sit on
+        # this correctness path (#1918). resolve_mid8 returns mission_id[:8] when
+        # a ULID is declared, and declines (``""``) on a bare slug with no id.
         # Fall back to repo_root only for legacy missions or pre-init runs that
         # do not yet declare coord-branch topology.  Modern missions with a
         # missing coord worktree fail closed to avoid dirtying the primary
         # checkout with coord-branch decision events.
-        from specify_cli.lanes.branch_naming import mid8_from_slug as _mid8_from_slug
-        _mid8 = _mid8_from_slug(mission_slug)
+        from specify_cli.lanes.branch_naming import resolve_mid8 as _resolve_mid8
+        _declared_id = mission_id if mission_id != mission_slug else None
+        _mid8 = _resolve_mid8(mission_slug, mission_id=_declared_id)
         _coord_path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, _mid8)
         if _coord_path.exists():
             worktree_root = _coord_path
@@ -2390,13 +2409,25 @@ def _build_operational_context_for_decision(
 
 
 def _resolve_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
-    """Resolve a mission dir for runtime reads without importing CLI context."""
-    from specify_cli.lanes.branch_naming import mid8_from_slug as _mid8_from_slug
+    """Resolve a mission dir for runtime reads without importing CLI context.
+
+    The mid8 disambiguator is derived authoritatively from the declared
+    ``mission_id`` via the WP01 seam (:func:`resolve_mid8`, FR-004) rather than
+    the heuristic ``mid8_from_slug`` — the heuristic trusts a coincidental 8-char
+    slug tail it cannot confirm against a declared identity (#1918). When no ULID
+    is declared (legacy mission), ``resolve_mid8`` declines and the read path
+    falls back exactly as the heuristic's empty-string did.
+    """
+    from specify_cli.lanes.branch_naming import resolve_mid8 as _resolve_mid8
     from specify_cli.mission_read_path import (
         resolve_mission_read_path as _resolve_read_path,
     )
 
-    return _resolve_read_path(repo_root, mission_slug, _mid8_from_slug(mission_slug))
+    mission_id = _resolve_mission_ulid(mission_slug, repo_root)
+    declared_id = mission_id if mission_id != mission_slug else None
+    return _resolve_read_path(
+        repo_root, mission_slug, _resolve_mid8(mission_slug, mission_id=declared_id)
+    )
 
 
 def decide_next_via_runtime(  # noqa: C901

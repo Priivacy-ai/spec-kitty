@@ -620,6 +620,30 @@ _CATEGORY_C_QUALITY_DEBT_1928: frozenset[str] = frozenset(
 )
 
 
+_CATEGORY_C_BRANCH_NAMING_FAILOVER_SEAM: frozenset[str] = frozenset(
+    {
+        # Both symbols are LIVE — the gate only counts cross-file src/ `__all__`
+        # importers, so a test-only hook and an intra-module env read are invisible
+        # to it (NOT dead). Manufacturing a fake src/ importer is the exact
+        # anti-pattern this gate warns against, so they are allow-listed instead.
+        #
+        # reset_legacy_failover_warning: a pytest one-shot reset hook for the
+        # legacy-failover deprecation notice. Exercised by
+        # tests/lanes/test_branch_naming_seam.py and
+        # tests/merge/test_mid8_embedded_preflight.py. Part of the seam's public
+        # test surface; no src/ caller by design (resetting one-shot state is a
+        # test concern).
+        "specify_cli.lanes.branch_naming::reset_legacy_failover_warning",
+        # LEGACY_FAILOVER_SUPPRESS_ENV: the env-var name read INSIDE
+        # branch_naming._emit_legacy_failover_warning (runtime-exercised via
+        # _check_mission_branch -> resolve_branch_name). It is consumed in the
+        # same module that declares it, so no cross-file src/ import exists; it is
+        # exported so operators/tests can reference the canonical env name.
+        "specify_cli.lanes.branch_naming::LEGACY_FAILOVER_SUPPRESS_ENV",
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``).
@@ -636,6 +660,7 @@ _SYMBOL_ALLOWLIST: frozenset[str] = (
     | _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT
     | _CATEGORY_C_UPSTREAM_SESSION_PRESENCE
     | _CATEGORY_C_QUALITY_DEBT_1928
+    | _CATEGORY_C_BRANCH_NAMING_FAILOVER_SEAM
 )
 
 

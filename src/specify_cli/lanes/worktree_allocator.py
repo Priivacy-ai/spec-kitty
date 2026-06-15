@@ -25,7 +25,7 @@ from pathlib import Path
 from specify_cli.coordination import register_lane_sparse_checkout
 from specify_cli.core.errors import StructuredError
 from specify_cli.lanes._git import branch_exists as _branch_exists
-from specify_cli.lanes.branch_naming import lane_branch_name, mid8
+from specify_cli.lanes.branch_naming import lane_branch_name, mid8, worktree_path as _worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 
 
@@ -124,7 +124,14 @@ def allocate_lane_worktree(
         )
 
     branch = lane_branch_name(mission_slug, lane.lane_id)
-    worktree_path = repo_root / ".worktrees" / f"{mission_slug}-{lane.lane_id}"
+    # Emit-don't-guess: route the on-disk worktree name through the canonical
+    # WP01 seam instead of an ad-hoc f-string. Pass ``mission_id=None`` so the
+    # seam reproduces the legacy ``f"{slug}-{lane}"`` grammar byte-identically
+    # (the old call site carried no mid8); introducing a mission_id here would
+    # append ``-{mid8}`` and rename every existing lane worktree.
+    worktree_path = _worktree_path(
+        repo_root, mission_slug, mission_id=None, lane_id=lane.lane_id
+    )
 
     if worktree_path.exists():
         # Reuse existing lane worktree — validate it is clean first.
@@ -220,6 +227,26 @@ def _create_branch_from(
         )
 
 
+def _current_head(worktree_path: Path) -> str | None:
+    """Return the commit SHA at ``worktree_path``'s HEAD, or ``None``.
+
+    Used to snapshot a lane worktree's ref before the dependency-merge loop so
+    a later-dependency conflict can roll the lane back atomically (#1915). On an
+    unborn HEAD or any git failure we return ``None`` and the caller skips the
+    reset — there is no committed state to preserve.
+    """
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", "HEAD"],
+        cwd=str(worktree_path),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    head = result.stdout.strip()
+    return head or None
+
+
 def _merge_dependency_lane_tips(
     repo_root: Path,
     worktree_path: Path,
@@ -244,17 +271,25 @@ def _merge_dependency_lane_tips(
       merged-and-deleted post-mission no longer resolves; we emit a warning and
       fall back to the existing base rather than crashing (mirrors the
       ``--base main`` recovery surface).
-    * **Conflict → fail closed.** A merge that cannot auto-resolve is aborted
-      (``git merge --abort``) so the worktree is never left half-merged, then
-      :class:`DependencyLaneMergeConflictError` is raised with a structured
-      ``next_step``.
+    * **Conflict → fail closed AND atomic (#1915).** A merge that cannot
+      auto-resolve is aborted (``git merge --abort``) and the lane is then reset
+      hard to the ref recorded BEFORE the loop, so no *earlier* clean dep merge
+      survives a *later* dep conflict. Without this, ``git merge --abort`` only
+      undoes the conflicting merge, orphaning a partially-propagated state the
+      operator never asked for. The whole multi-dep loop is all-or-nothing.
 
     The merge composes with an explicit ``--base`` override: ``--base`` selects
     the *root* the lane branches from (handled by the caller via the patched
     ``mission_branch``); dependency tips are then merged on top so cross-lane
     code still propagates regardless of the chosen root.
     """
-    for dep_lane in _ordered_dependency_lanes(lane, lanes_manifest):
+    ordered = _ordered_dependency_lanes(lane, lanes_manifest)
+    if not ordered:
+        return
+    # Snapshot the lane ref before the loop so a later-dep conflict can roll
+    # the worktree back to its exact pre-merge HEAD (#1915 atomicity).
+    pre_loop_ref = _current_head(worktree_path)
+    for dep_lane in ordered:
         dep_branch = lane_branch_name(mission_slug, dep_lane.lane_id)
         if not _branch_exists(repo_root, dep_branch):
             # Merged-and-deleted (or never-started) dependency lane: fall back
@@ -288,14 +323,23 @@ def _merge_dependency_lane_tips(
             text=True,
         )
         if merge.returncode != 0:
-            # Fail closed: abort the half-merge before raising so the worktree
-            # is left clean for the operator's manual merge.
+            # Fail closed AND atomic (#1915): abort the half-merge, then reset
+            # hard to the pre-loop ref so no EARLIER clean dep merge survives
+            # this LATER conflict. The worktree is left exactly as it was before
+            # the loop began — clean, for the operator's manual merge.
             subprocess.run(
                 ["git", "merge", "--abort"],
                 cwd=str(worktree_path),
                 capture_output=True,
                 text=True,
             )
+            if pre_loop_ref is not None:
+                subprocess.run(
+                    ["git", "reset", "--hard", pre_loop_ref],
+                    cwd=str(worktree_path),
+                    capture_output=True,
+                    text=True,
+                )
             raise DependencyLaneMergeConflictError(
                 lane.lane_id, dep_lane.lane_id, dep_branch
             )

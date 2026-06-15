@@ -60,20 +60,6 @@ PRIMARY_ARTIFACT_FILES = (
     DATA_MODEL_FILE,
 )
 
-# FR-002 / C-GATE-2 (#1883 ROOT-β, boy-scout extension): the accept readiness
-# run also materializes the *project* identity into ``.kittify/config.yaml`` via
-# the sync event emitter (``identity.project.ensure_identity`` →
-# ``atomic_write_config``). On a project whose identity was not yet persisted,
-# the first accept run mints ``project.uuid/slug/node_id/build_id`` and writes
-# ``.kittify/config.yaml``; in ``--no-commit``/diagnose modes that write is never
-# folded into a commit, so the second-run ``git_dirty`` snapshot trips on a file
-# the gate itself wrote. ``ensure_identity`` is already no-op-stable once the
-# identity is complete (it never rewrites on the second run), so this is the
-# same accept-owned-residue class as the matrix/status writes. The exclusion is
-# scoped to EXACTLY the project-root ``.kittify/config.yaml`` — never an
-# arbitrary ``config.yaml`` elsewhere in the tree — and other dirty paths under
-# ``.kittify/`` are preserved verbatim (NFR-003 fail-closed).
-_PROJECT_CONFIG_RELPATH = ".kittify/config.yaml"
 _DECISION_ID_MARKER = "decision_id:"
 _ACCEPTED_READY_LANES = frozenset({"approved", "done"})
 _PATH_CONVENTIONS_NOT_SATISFIED = "Path conventions not satisfied."
@@ -578,62 +564,6 @@ def _resolve_git_context(repo_root: Path) -> tuple[str | None, Path, Path, list[
     return branch, worktree_root, primary_repo_root, git_dirty
 
 
-def _filter_accept_owned_project_config(repo_root: Path, git_dirty: list[str]) -> list[str]:
-    """Drop the gate's own project-root ``.kittify/config.yaml`` write.
-
-    The accept readiness path materializes project identity into
-    ``.kittify/config.yaml`` (``identity.project.ensure_identity``). That write
-    is accept-owned residue in ``--no-commit``/diagnose modes (see
-    ``_PROJECT_CONFIG_RELPATH``). Exclude EXACTLY that path so accept converges.
-
-    ``git status --porcelain`` collapses a fully-untracked ``.kittify/`` tree to
-    a single ``?? .kittify/`` directory entry regardless of how many files it
-    holds, so a naive directory-prefix exclusion would over-exclude a
-    *user-created* untracked file under ``.kittify/`` (NFR-003 violation). To
-    stay fail-closed, a collapsed directory entry is expanded with
-    ``--untracked-files=all`` and only the literal ``config.yaml`` line is
-    dropped; every other ``.kittify/`` path is preserved verbatim.
-    """
-    kept: list[str] = []
-    for line in git_dirty:
-        path = _porcelain_dirty_path(line)
-        status_xy = line[:2]
-        # Exact gate-own config write (explicit-file porcelain form).
-        if path == _PROJECT_CONFIG_RELPATH:
-            continue
-        # Collapsed untracked-directory form: expand and re-classify.
-        if status_xy == "??" and path == ".kittify/":
-            expanded = _expand_untracked_kittify(repo_root)
-            kept.extend(
-                expanded_line
-                for expanded_line in expanded
-                if _porcelain_dirty_path(expanded_line) != _PROJECT_CONFIG_RELPATH
-            )
-            continue
-        kept.append(line)
-    return kept
-
-
-def _expand_untracked_kittify(repo_root: Path) -> list[str]:
-    """Return per-file porcelain lines for untracked content under ``.kittify/``.
-
-    Uses ``--untracked-files=all`` so a collapsed ``?? .kittify/`` entry is
-    expanded into one line per untracked file, restricted to the ``.kittify``
-    pathspec. Returns ``[]`` on any git failure (the caller then keeps the
-    original collapsed entry, which is the fail-closed default).
-    """
-    try:
-        result = run_git(
-            ["status", "--porcelain", "--untracked-files=all", "--", ".kittify"],
-            cwd=repo_root,
-            check=True,
-        )
-    except TaskCliError:
-        return ["?? .kittify/"]
-    expanded = [line for line in result.stdout.splitlines() if line.strip()]
-    return expanded or ["?? .kittify/"]
-
-
 def _collect_snapshot_wps(feature: str, feature_dir: Path, activity_issues: list[str]) -> dict[str, dict[str, Any]]:
     """Load canonical WP states from status.events.jsonl; append issues on failure."""
     events_path = feature_dir / EVENTS_FILENAME
@@ -1071,13 +1001,6 @@ def collect_feature_summary(
     blocked_checks: list[AcceptanceCheckDiagnostic] = []
 
     snapshot_wps = _collect_snapshot_wps(feature, status_feature_dir, activity_issues)
-
-    # C-GATE-2 boy-scout extension (#1883): also absorb the gate's own
-    # project-identity write to ``.kittify/config.yaml`` so accept ∘ accept
-    # converges in --no-commit/diagnose modes. Scoped to that exact project-root
-    # path; other dirty paths (including other untracked ``.kittify/`` files) are
-    # preserved verbatim (NFR-003 fail-closed).
-    git_dirty = _filter_accept_owned_project_config(repo_root, git_dirty)
 
     expected_wp_ids: list[str] = []
     for wp in _iter_work_packages(repo_root, feature):

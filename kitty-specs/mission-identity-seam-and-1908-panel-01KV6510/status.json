@@ -1,0 +1,91 @@
+{
+  "event_count": 85,
+  "last_event_id": "01KV6JFZ2ZDR2JFN4N5JMXD0SR",
+  "materialized_at": "2026-06-15T21:20:10.335184+00:00",
+  "mission_number": "138",
+  "mission_slug": "mission-identity-seam-and-1908-panel-01KV6510",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 10,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KV6JFTY199236QWEA38Q2G0K",
+      "last_transition_at": "2026-06-15T21:20:06.081106+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 5,
+      "lane": "done",
+      "last_event_id": "01KV6JFWBZYR013VM40F04CNT0",
+      "last_transition_at": "2026-06-15T21:20:07.551984+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KV6JFWTPWBCJ0504B3VHZA00",
+      "last_transition_at": "2026-06-15T21:20:08.022494+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KV6JFX995NDW86S4E4XDCQSZ",
+      "last_transition_at": "2026-06-15T21:20:08.489340+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KV6JFXQPC8V3R118NGHKR2Z9",
+      "last_transition_at": "2026-06-15T21:20:08.950035+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KV6JFY62C1R99YD1T69341S2",
+      "last_transition_at": "2026-06-15T21:20:09.410216+00:00"
+    },
+    "WP07": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KV6JFVF1REBQMH50GTHAP9DZ",
+      "last_transition_at": "2026-06-15T21:20:06.625506+00:00"
+    },
+    "WP08": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KV6JFVXGCPMD2K9B0CR3V80W",
+      "last_transition_at": "2026-06-15T21:20:07.088241+00:00"
+    },
+    "WP09": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KV6JFZ2ZDR2JFN4N5JMXD0SR",
+      "last_transition_at": "2026-06-15T21:20:10.335184+00:00"
+    },
+    "WP10": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KV6JFYMEWETGJ17N20EP7YP1",
+      "last_transition_at": "2026-06-15T21:20:09.870215+00:00"
+    }
+  }
+}
