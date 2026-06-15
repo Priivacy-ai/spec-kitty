@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -47,6 +48,11 @@ def _collect_nodes(args: list[str]) -> set[str]:
         check=True,
         capture_output=True,
         text=True,
+        # Generous wall-clock (_COLLECT_TIMEOUT_SECONDS): these `--collect-only`
+        # subprocesses run several at a time (see the worker-capped
+        # ThreadPoolExecutor below), so on a CPU-constrained CI runner a single
+        # collection's wall-clock can stretch well past a tight cap even though
+        # it is fast in isolation.
         timeout=_COLLECT_TIMEOUT_SECONDS,
     )
     return {
@@ -258,9 +264,14 @@ def test_core_misc_shards_plus_e2e_owner_cover_legacy_selection() -> None:
     collections.append(("new", e2e_args))
 
     # Each _collect_nodes call spawns a child pytest process and blocks on it;
-    # run the 8 of them concurrently so the wall-clock is bounded by the slowest
-    # single collection instead of their serial sum.
-    with ThreadPoolExecutor(max_workers=len(collections)) as executor:
+    # run them concurrently so the wall-clock is bounded by the slowest single
+    # collection instead of their serial sum. Cap concurrency at the CPU count
+    # (min 2): launching all of them at once oversubscribes a 2-core CI runner,
+    # which inflates each child's wall-clock and made a single collection blow
+    # its per-subprocess timeout. Pacing to the available cores keeps each
+    # collection fast without serialising the whole set.
+    max_workers = min(len(collections), max(2, os.cpu_count() or 2))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
         results = list(
             executor.map(lambda item: (item[0], _collect_nodes(item[1])), collections)
         )
