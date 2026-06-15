@@ -22,6 +22,7 @@ subtasks:
 - T043
 - T044
 agent: claude
+shell_pid: '72428'
 history:
 - at: '2026-06-14T00:00:00Z'
   event: created
