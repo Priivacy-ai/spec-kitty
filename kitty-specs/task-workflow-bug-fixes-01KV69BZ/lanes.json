@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "mission_slug": "task-workflow-bug-fixes-01KV69BZ",
+  "mission_id": "01KV69BZEHXDSGGMR6J3QN0J2E",
+  "mission_branch": "kitty/mission-task-workflow-bug-fixes-01KV69BZ",
+  "target_branch": "fix/task-workflow-bug-fixes",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "tests/specify_cli/cli/commands/agent/test_map_requirements_spec_path.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/ownership/validation.py",
+        "tests/specify_cli/ownership/test_validation.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-06-15T19:03:50.424722+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
