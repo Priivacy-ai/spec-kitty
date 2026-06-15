@@ -29,6 +29,7 @@ _ALIASABLE_CLOCK_PATHS = set(_BANNED_CALLS) | {
 _AliasMap = dict[tuple[str, ...], tuple[str, ...] | None]
 _SHADOWED_PATH = ("<shadowed>",)
 _SETUP_METHOD_NAMES = {"setup", "setup_method", "setup_class", "setUp", "setUpClass"}
+_MODULE_SETUP_NAMES = {"setup_module", "setup_function", "setUpModule"}
 
 
 @dataclass(frozen=True, order=True)
@@ -110,6 +111,17 @@ class _AssertCallVisitor(ast.NodeVisitor):
         self.visit(node.value)
         self._add_assignment_aliases([node.target], node.value)
 
+    def visit_If(self, node: ast.If) -> None:
+        if _is_static_false(node.test) or _is_type_checking_name(node.test):
+            for statement in node.orelse:
+                self.visit(statement)
+            return
+        if _is_static_true(node.test):
+            for statement in node.body:
+                self.visit(statement)
+            return
+        self.generic_visit(node)
+
     def visit_Lambda(self, node: ast.Lambda) -> None:
         self.scopes.append({(name,): None for name in _argument_names(node.args)})
         self.visit(node.body)
@@ -154,6 +166,7 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
         self.violations: list[WallClockAssertionViolation] = []
         self.scopes: list[_AliasMap] = [{}]
         self.global_names_stack: list[set[str]] = []
+        self.propagate_global_stack: list[bool] = []
 
     @property
     def scope(self) -> _AliasMap:
@@ -236,6 +249,17 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
     def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
         self._add_assignment_aliases([node.target], node.value)
 
+    def visit_If(self, node: ast.If) -> None:
+        if _is_static_false(node.test) or _is_type_checking_name(node.test):
+            for statement in node.orelse:
+                self.visit(statement)
+            return
+        if _is_static_true(node.test):
+            for statement in node.body:
+                self.visit(statement)
+            return
+        self.generic_visit(node)
+
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         self._visit_function_scope(node, bind_name=True)
 
@@ -285,8 +309,10 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
                     local_shadows[(self_name, *path)] = source
         self.scopes.append(local_shadows)
         self.global_names_stack.append(_function_global_names(node))
+        self.propagate_global_stack.append(bind_name and node.name in _MODULE_SETUP_NAMES)
         for statement in node.body:
             self.visit(statement)
+        self.propagate_global_stack.pop()
         self.global_names_stack.pop()
         self.scopes.pop()
 
@@ -305,7 +331,13 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
         _set_shadow(self.scope, target_path)
 
     def _scope_for_target(self, target_path: tuple[str, ...]) -> _AliasMap:
-        if self.global_names_stack and len(target_path) == 1 and target_path[0] in self.global_names_stack[-1]:
+        if (
+            self.global_names_stack
+            and self.propagate_global_stack
+            and self.propagate_global_stack[-1]
+            and len(target_path) == 1
+            and target_path[0] in self.global_names_stack[-1]
+        ):
             return self.scopes[0]
         return self.scope
 
@@ -332,7 +364,7 @@ def _add_assignment_aliases(
             _add_assignment_aliases(scopes, scope_for_target, [target], element)
         return
 
-    source = _normalize_alias(_attribute_path(value), scopes)
+    source = _alias_source(value, scopes)
     if source not in _ALIASABLE_CLOCK_PATHS:
         for target in targets:
             for target_path in _assignment_target_paths(target):
@@ -371,6 +403,28 @@ def _normalize_alias(
     return path
 
 
+def _alias_source(node: ast.expr, scopes: list[_AliasMap]) -> tuple[str, ...]:
+    if (
+        isinstance(node, ast.Call)
+        and _attribute_path(node.func) in {("staticmethod",), ("classmethod",)}
+        and len(node.args) == 1
+    ):
+        return _normalize_alias(_attribute_path(node.args[0]), scopes)
+    return _normalize_alias(_attribute_path(node), scopes)
+
+
+def _is_static_false(node: ast.AST) -> bool:
+    return isinstance(node, ast.Constant) and node.value is False
+
+
+def _is_static_true(node: ast.AST) -> bool:
+    return isinstance(node, ast.Constant) and node.value is True
+
+
+def _is_type_checking_name(node: ast.AST) -> bool:
+    return _attribute_path(node) in {("TYPE_CHECKING",), ("typing", "TYPE_CHECKING")}
+
+
 def _function_bound_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
     names = _argument_names(node.args)
     visitor = _FunctionBindingVisitor()
@@ -395,14 +449,14 @@ def _function_default_aliases(
     positional_args = (*node.args.posonlyargs, *node.args.args)
     default_offset = len(positional_args) - len(node.args.defaults)
     for arg, default in zip(positional_args[default_offset:], node.args.defaults, strict=False):
-        source = _normalize_alias(_attribute_path(default), scopes)
+        source = _alias_source(default, scopes)
         if source in _ALIASABLE_CLOCK_PATHS:
             aliases[(arg.arg,)] = source
 
     for arg, kw_default in zip(node.args.kwonlyargs, node.args.kw_defaults, strict=True):
         if kw_default is None:
             continue
-        source = _normalize_alias(_attribute_path(kw_default), scopes)
+        source = _alias_source(kw_default, scopes)
         if source in _ALIASABLE_CLOCK_PATHS:
             aliases[(arg.arg,)] = source
     return aliases
@@ -428,38 +482,81 @@ def _method_instance_aliases(
     if not self_names:
         return aliases
 
-    local_scope: _AliasMap = {(name,): None for name in _function_bound_names(node)}
-    for self_name in self_names:
-        for path, source in class_aliases.items():
-            local_scope[(self_name, *path)] = source
-    method_scopes = [*scopes, local_scope]
-    for statement in ast.walk(ast.Module(body=list(node.body), type_ignores=[])):
-        if isinstance(statement, ast.Assign):
-            _add_method_instance_aliases(statement.targets, statement.value, self_names, method_scopes, aliases)
-        elif isinstance(statement, ast.AnnAssign) and statement.value is not None:
-            _add_method_instance_aliases([statement.target], statement.value, self_names, method_scopes, aliases)
-    return aliases
+    collector = _MethodInstanceAliasCollector(scopes, class_aliases, self_names, node)
+    for statement in node.body:
+        collector.visit(statement)
+    return collector.aliases
 
 
-def _add_method_instance_aliases(
-    targets: list[ast.expr],
-    value: ast.expr,
-    self_names: set[str],
-    scopes: list[_AliasMap],
-    aliases: dict[tuple[str, ...], tuple[str, ...]],
-) -> None:
-    if len(targets) == 1 and isinstance(targets[0], ast.Tuple | ast.List) and isinstance(value, ast.Tuple | ast.List):
-        for target, element in zip(targets[0].elts, value.elts, strict=False):
-            _add_method_instance_aliases([target], element, self_names, scopes, aliases)
-        return
+class _MethodInstanceAliasCollector(ast.NodeVisitor):
+    def __init__(
+        self,
+        scopes: list[_AliasMap],
+        class_aliases: dict[tuple[str, ...], tuple[str, ...]],
+        self_names: set[str],
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+    ) -> None:
+        self.self_names = self_names
+        self.aliases: dict[tuple[str, ...], tuple[str, ...]] = {}
+        local_scope: _AliasMap = {(name,): None for name in _function_bound_names(node)}
+        for self_name in self_names:
+            for path, source in class_aliases.items():
+                local_scope[(self_name, *path)] = source
+        self.scopes = [*scopes, local_scope]
 
-    source = _normalize_alias(_attribute_path(value), scopes)
-    if source not in _ALIASABLE_CLOCK_PATHS:
-        return
-    for target in targets:
-        target_path = _attribute_path(target)
-        if len(target_path) > 1 and target_path[0] in self_names:
-            aliases[target_path[1:]] = source
+    @property
+    def scope(self) -> _AliasMap:
+        return self.scopes[-1]
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        self._record_instance_aliases(node.targets, node.value)
+        _add_assignment_aliases(self.scopes, lambda _: self.scope, node.targets, node.value)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        if node.value is None:
+            return
+        self._record_instance_aliases([node.target], node.value)
+        _add_assignment_aliases(self.scopes, lambda _: self.scope, [node.target], node.value)
+
+    def visit_If(self, node: ast.If) -> None:
+        if _is_static_false(node.test) or _is_type_checking_name(node.test):
+            for statement in node.orelse:
+                self.visit(statement)
+            return
+        if _is_static_true(node.test):
+            for statement in node.body:
+                self.visit(statement)
+            return
+        self.generic_visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        del node
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        del node
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        del node
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        del node
+
+    def _record_instance_aliases(self, targets: list[ast.expr], value: ast.expr) -> None:
+        if len(targets) == 1 and isinstance(targets[0], ast.Tuple | ast.List) and isinstance(value, ast.Tuple | ast.List):
+            for target, element in zip(targets[0].elts, value.elts, strict=False):
+                self._record_instance_aliases([target], element)
+            return
+
+        source = _alias_source(value, self.scopes)
+        for target in targets:
+            target_path = _attribute_path(target)
+            if len(target_path) <= 1 or target_path[0] not in self.self_names:
+                continue
+            instance_path = target_path[1:]
+            if source in _ALIASABLE_CLOCK_PATHS:
+                self.aliases[instance_path] = source
+            else:
+                self.aliases.pop(instance_path, None)
 
 
 class _FunctionBindingVisitor(ast.NodeVisitor):
@@ -590,6 +687,10 @@ def _attribute_path(node: ast.AST) -> tuple[str, ...]:
     while isinstance(current, ast.Attribute):
         parts.append(current.attr)
         current = current.value
+    if isinstance(current, ast.NamedExpr):
+        target_path = _attribute_path(current.target)
+        if target_path:
+            return target_path + tuple(reversed(parts))
     if isinstance(current, ast.Name):
         parts.append(current.id)
     return tuple(reversed(parts))

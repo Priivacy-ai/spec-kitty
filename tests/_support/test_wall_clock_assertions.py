@@ -102,6 +102,31 @@ from tests._support.wall_clock_assertions import (
         ),
         (
             "from datetime import datetime\n\n"
+            "def test_bad():\n"
+            "    assert (dt := datetime).now().year == 2026\n",
+            "dt.now()",
+            4,
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "class Holder:\n"
+            "    wall_now = staticmethod(datetime.now)\n\n"
+            "def test_bad():\n"
+            "    assert Holder.wall_now().year == 2026\n",
+            "Holder.wall_now()",
+            7,
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "class Holder:\n"
+            "    wall_now = staticmethod(datetime.now)\n\n"
+            "    def test_bad(self):\n"
+            "        assert self.wall_now().year == 2026\n",
+            "self.wall_now()",
+            7,
+        ),
+        (
+            "from datetime import datetime\n\n"
             "def setup_module():\n"
             "    global wall_now\n"
             "    wall_now = datetime.now\n\n"
@@ -119,6 +144,25 @@ from tests._support.wall_clock_assertions import (
             "        assert self.wall_now().year == 2026\n",
             "self.wall_now()",
             8,
+        ),
+        (
+            "from typing import TYPE_CHECKING\n"
+            "from datetime import datetime\n\n"
+            "if TYPE_CHECKING:\n"
+            "    from fake_datetime import datetime\n\n"
+            "def test_bad():\n"
+            "    assert datetime.now().year == 2026\n",
+            "datetime.now()",
+            8,
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "if False:\n"
+            "    from fake_datetime import datetime\n\n"
+            "def test_bad():\n"
+            "    assert datetime.now().year == 2026\n",
+            "datetime.now()",
+            7,
         ),
     ],
 )
@@ -242,6 +286,34 @@ def test_find_wall_clock_assertion_violations_allows_freshness_bounds(tmp_path: 
             "values = [type('FakeDateTime', (), {'now': staticmethod(lambda: 1)})]\n\n"
             "def test_good():\n"
             "    assert [datetime.now() for datetime in values] == [1]\n"
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "wall_now = lambda: 1\n\n"
+            "def helper():\n"
+            "    global wall_now\n"
+            "    wall_now = datetime.now\n\n"
+            "def test_good():\n"
+            "    assert wall_now() == 1\n"
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "class TestClock:\n"
+            "    def setup_method(self):\n"
+            "        self.wall_now = datetime.now\n"
+            "        self.wall_now = lambda: 1\n\n"
+            "    def test_good(self):\n"
+            "        assert self.wall_now() == 1\n"
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "class TestClock:\n"
+            "    def setup_method(self):\n"
+            "        def helper():\n"
+            "            self.wall_now = datetime.now\n\n"
+            "    def test_good(self):\n"
+            "        self.wall_now = lambda: 1\n"
+            "        assert self.wall_now() == 1\n"
         ),
     ],
 )
