@@ -160,6 +160,17 @@ from tests._support.wall_clock_assertions import (
         ),
         (
             "from datetime import datetime\n\n"
+            "class Holder:\n"
+            "    pass\n\n"
+            "def setup_module():\n"
+            "    Holder.wall_now = datetime.now\n\n"
+            "def test_bad():\n"
+            "    assert Holder.wall_now().year == 2026\n",
+            "Holder.wall_now()",
+            10,
+        ),
+        (
+            "from datetime import datetime\n\n"
             "class TestClock:\n"
             "    def setup_method(self):\n"
             "        self.wall_now = datetime.now\n\n"
@@ -250,6 +261,19 @@ from tests._support.wall_clock_assertions import (
             10,
         ),
         (
+            "import pytest\n"
+            "from datetime import datetime\n\n"
+            "class Holder:\n"
+            "    pass\n\n"
+            "@pytest.fixture(autouse=True)\n"
+            "def clock_fixture():\n"
+            "    Holder.wall_now = datetime.now\n\n"
+            "def test_bad():\n"
+            "    assert Holder.wall_now().year == 2026\n",
+            "Holder.wall_now()",
+            12,
+        ),
+        (
             "import pytest as pt\n"
             "from datetime import datetime\n\n"
             "wall_now = lambda: 1\n\n"
@@ -280,6 +304,17 @@ from tests._support.wall_clock_assertions import (
             "@pytest.fixture\n"
             "def wall_now():\n"
             "    return datetime.now\n\n"
+            "def test_bad(wall_now):\n"
+            "    assert wall_now().year == 2026\n",
+            "wall_now()",
+            9,
+        ),
+        (
+            "import pytest\n"
+            "from datetime import datetime\n\n"
+            "@pytest.fixture\n"
+            "def wall_now():\n"
+            "    return lambda: datetime.now()\n\n"
             "def test_bad(wall_now):\n"
             "    assert wall_now().year == 2026\n",
             "wall_now()",
@@ -322,6 +357,39 @@ from tests._support.wall_clock_assertions import (
             "    assert holder.wall_now().year == 2026\n",
             "holder.wall_now()",
             12,
+        ),
+        (
+            "import pytest\n"
+            "from datetime import datetime\n"
+            "from types import SimpleNamespace\n\n"
+            "@pytest.fixture\n"
+            "def holder():\n"
+            "    return SimpleNamespace(wall_now=datetime.now)\n\n"
+            "def test_bad(holder):\n"
+            "    assert holder.wall_now().year == 2026\n",
+            "holder.wall_now()",
+            10,
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "def helper():\n"
+            "    return lambda: datetime.now()\n\n"
+            "def test_bad():\n"
+            "    wall_now = helper()\n"
+            "    assert wall_now().year == 2026\n",
+            "wall_now()",
+            8,
+        ),
+        (
+            "from datetime import datetime\n"
+            "from types import SimpleNamespace\n\n"
+            "def helper():\n"
+            "    return SimpleNamespace(wall_now=datetime.now)\n\n"
+            "def test_bad():\n"
+            "    holder = helper()\n"
+            "    assert holder.wall_now().year == 2026\n",
+            "holder.wall_now()",
+            9,
         ),
         (
             "import pytest\n"
@@ -822,6 +890,40 @@ def test_find_wall_clock_assertion_violations_resolves_conftest_fixture_returns(
 
     assert [(violation.path.name, violation.call, violation.line) for violation in violations] == [
         ("test_uses_conftest.py", "wall_now()", 2)
+    ]
+
+
+def test_find_wall_clock_assertion_violations_resolves_conftest_autouse_helper_mutation(tmp_path: Path) -> None:
+    tests_root = tmp_path / "tests"
+    helper_file = tests_root / "helpers" / "clock.py"
+    conftest_file = tests_root / "conftest.py"
+    test_file = tests_root / "test_uses_conftest_helper.py"
+    helper_file.parent.mkdir(parents=True)
+    helper_file.write_text(
+        "class Holder:\n"
+        "    pass\n",
+        encoding="utf-8",
+    )
+    conftest_file.write_text(
+        "import pytest\n"
+        "from datetime import datetime\n"
+        "import helpers.clock as clock\n\n"
+        "@pytest.fixture(autouse=True)\n"
+        "def clock_fixture():\n"
+        "    clock.Holder.wall_now = datetime.now\n",
+        encoding="utf-8",
+    )
+    test_file.write_text(
+        "import helpers.clock as clock\n\n"
+        "def test_bad():\n"
+        "    assert clock.Holder.wall_now().year == 2026\n",
+        encoding="utf-8",
+    )
+
+    violations = find_wall_clock_assertion_violations([helper_file, conftest_file, test_file])
+
+    assert [(violation.path.name, violation.call, violation.line) for violation in violations] == [
+        ("test_uses_conftest_helper.py", "clock.Holder.wall_now()", 4)
     ]
 
 
