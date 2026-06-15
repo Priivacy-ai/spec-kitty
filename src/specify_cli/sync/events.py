@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
 import logging
+import os
 import threading
 import json
 import urllib.parse
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 _emitter: EventEmitter | None = None
 _lock = threading.Lock()
 logger = logging.getLogger(__name__)
+READ_ONLY_IDENTITY_ENV = "SPEC_KITTY_SYNC_READONLY_IDENTITY"
 
 
 def _resolve_repo_root() -> Path | None:
@@ -154,41 +156,86 @@ def _publish_event_via_sync_daemon(event: dict[str, Any], repo_root: Path | None
         logger.debug("Sync daemon publish skipped: %s", exc)
 
 
-def get_emitter() -> EventEmitter:
+def _read_only_identity_requested(value: bool | None) -> bool:
+    if value is not None:
+        return value
+    return os.environ.get(READ_ONLY_IDENTITY_ENV) == "1"
+
+
+def _seed_emitter_identity(
+    emitter: EventEmitter,
+    repo_root: Path,
+    *,
+    read_only_identity: bool,
+) -> None:
+    """Seed emitter identity and git resolver for either read-only or writing mode."""
+    try:
+        if read_only_identity:
+            from specify_cli.identity.project import resolve_identity
+
+            identity = resolve_identity(repo_root)
+        else:
+            from specify_cli.identity.project import ensure_identity
+
+            identity = ensure_identity(repo_root)
+    except Exception as exc:
+        action = "resolve" if read_only_identity else "ensure"
+        logger.warning("Could not %s identity: %s", action, exc)
+        return
+
+    emitter._identity = identity
+    try:
+        from .git_metadata import GitMetadataResolver
+
+        emitter._git_resolver = GitMetadataResolver(
+            repo_root=repo_root,
+            repo_slug_override=identity.repo_slug,
+        )
+    except Exception as exc:
+        logger.debug("Could not pre-seed git resolver: %s", exc)
+
+
+def get_emitter(*, read_only_identity: bool | None = None) -> EventEmitter:
     """Get the singleton EventEmitter instance.
 
     Thread-safe via double-checked locking pattern.
     Lazily initializes on first access.
 
-    Also ensures project identity exists before creating the emitter,
-    logging a warning (but not failing) if identity can't be resolved.
+    By default this is a sync write boundary: incomplete project identity is
+    persisted via ``ensure_identity`` before events can be queued or uploaded, so
+    project_uuid/build_id provenance stays stable. Readiness-only paths may pass
+    ``read_only_identity=True`` (or set ``SPEC_KITTY_SYNC_READONLY_IDENTITY=1``)
+    to make initialization side-effect-free.
     """
     global _emitter
+    use_read_only_identity = _read_only_identity_requested(read_only_identity)
+    repo_root = _resolve_repo_root()
     if _emitter is None:
         with _lock:
             if _emitter is None:
-                repo_root = _resolve_repo_root()
-
-                # Ensure identity exists before creating emitter
-                try:
-                    from specify_cli.identity.project import ensure_identity
-
-                    if repo_root is not None:
-                        ensure_identity(repo_root)
-                    else:
-                        logger.debug("Non-project context; identity will be empty")
-                except Exception as e:
-                    logger.warning(f"Could not ensure identity: {e}")
-
                 from .emitter import EventEmitter
 
                 _emitter = EventEmitter()
+                if repo_root is not None:
+                    _seed_emitter_identity(
+                        _emitter,
+                        repo_root,
+                        read_only_identity=use_read_only_identity,
+                    )
+                else:
+                    logger.debug("Non-project context; identity will be empty")
                 try:
                     from .runtime import get_runtime
 
                     get_runtime().attach_emitter(_emitter)
                 except Exception as exc:
                     logger.warning("Could not attach emitter to sync runtime: %s", exc)
+    elif not use_read_only_identity and repo_root is not None:
+        _seed_emitter_identity(
+            _emitter,
+            repo_root,
+            read_only_identity=False,
+        )
     return _emitter
 
 

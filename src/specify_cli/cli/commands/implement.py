@@ -218,7 +218,7 @@ def _validate_base_ref(repo_root: Path, base_ref: str) -> str:
     Raises typer.Exit(1) with a clear error message if the ref is unknown.
     """
     result = subprocess.run(
-        ["git", "rev-parse", "--verify", base_ref],
+        ["git", "rev-parse", "--verify", "--end-of-options", base_ref],
         cwd=str(repo_root),
         capture_output=True,
         text=True,

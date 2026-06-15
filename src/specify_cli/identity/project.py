@@ -333,6 +333,32 @@ def ensure_identity(repo_root: Path) -> ProjectIdentity:
     return identity
 
 
+def resolve_identity(repo_root: Path) -> ProjectIdentity:
+    """Resolve a complete project identity WITHOUT persisting it (#1916).
+
+    Read-only counterpart of :func:`ensure_identity`. Loads the on-disk identity and
+    fills any missing fields with generated values *in memory only* — it never writes
+    ``.kittify/config.yaml``. Use this on side-effect-free paths (e.g. accept
+    readiness / the sync emitter init) where identity must be *available* but the
+    minting must not dirty the working tree. Persisting the minted identity is the
+    job of :func:`ensure_identity` at a write-authorized boundary (``init``,
+    commit-authorized accept).
+
+    Args:
+        repo_root: Path to repository root
+
+    Returns:
+        Complete ProjectIdentity (all fields populated, not persisted)
+    """
+    config_path = repo_root / ".kittify" / "config.yaml"
+
+    identity = load_identity(config_path)
+    if identity.is_complete:
+        return identity
+
+    return identity.with_defaults(repo_root)
+
+
 def _warn_in_memory() -> None:
     """Log warning about using in-memory identity."""
     console = Console(stderr=True)

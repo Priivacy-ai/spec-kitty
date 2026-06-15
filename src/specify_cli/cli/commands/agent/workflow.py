@@ -72,7 +72,6 @@ from specify_cli.core.dependency_graph import (
     get_dependents,
 )
 from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root, is_worktree_context, locate_project_root
-from specify_cli.lanes.branch_naming import mid8_from_slug
 from specify_cli.core.utils import write_text_within_directory
 from mission_runtime import CommitTarget, CommitTargetKind
 from specify_cli.core.commit_guard import GuardCapability
@@ -297,11 +296,17 @@ def _load_coord_branch_meta(feature_dir: Path) -> tuple[str | None, str | None, 
 
 def _mid8_for_mission_read_path(primary_feature_dir: Path, mission_slug: str) -> str:
     """Return the mission mid8 token for topology-aware status reads."""
-    _, _, meta_mid8 = _load_coord_branch_meta(primary_feature_dir)
+    from specify_cli.lanes.branch_naming import resolve_mid8
+
+    _, mission_id_raw, meta_mid8 = _load_coord_branch_meta(primary_feature_dir)
     if meta_mid8:
         return str(meta_mid8)
 
-    return mid8_from_slug(mission_slug)
+    # Authoritative fallback: derive from declared mission_id when available
+    # (#1918). When mission_id is absent (legacy mission), resolve_mid8 declines
+    # (returns "") rather than trusting a coincidental 8-char slug tail.
+    _mission_id = mission_id_raw if isinstance(mission_id_raw, str) else None
+    return resolve_mid8(mission_slug, mission_id=_mission_id)
 
 
 def _canonical_status_feature_dir(main_repo_root: Path, mission_slug: str) -> Path:

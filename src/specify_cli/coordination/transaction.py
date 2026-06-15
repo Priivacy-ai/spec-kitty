@@ -54,6 +54,7 @@ from specify_cli.coordination.types import (
     Refused,
 )
 from specify_cli.coordination.workspace import CoordinationWorkspace
+from specify_cli.lanes.branch_naming import coord_mission_dir_name as _seam_coord_mission_dir_name
 from mission_runtime import CommitTarget, CommitTargetKind
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import (
@@ -152,13 +153,16 @@ _SAFE_PATH_SEGMENT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 def _mission_specs_dir_name(mission_slug: str, mid8: str) -> str:
     """Return the kitty-specs sub-directory name for this mission.
 
-    Mirrors the heuristic in
-    :func:`specify_cli.coordination.workspace._compose_mission_dir`:
-    post-WP03 slugs already contain ``-<mid8>``; pre-WP03 slugs do not.
+    Delegates to the seam's VERBATIM coordination primitive
+    (``lanes.branch_naming.coord_mission_dir_name``, FR-010) so there is exactly
+    ONE algorithm for the coordination ``<slug>-<mid8>`` grammar, reconstructed
+    byte-identical to the prior hand-rolled body. This transaction path consumes
+    ``meta.json.mission_slug`` VERBATIM (including any legacy ``NNN-`` prefix); the
+    seam primitive does NOT strip it, so the kitty-specs dir matches the on-disk
+    coord target (#1589). The canonical, NNN-stripping ``mission_dir_name`` is NOT
+    used here.
     """
-    if mission_slug.endswith(f"-{mid8}"):
-        return mission_slug
-    return f"{mission_slug}-{mid8}"
+    return _seam_coord_mission_dir_name(mission_slug, mid8=mid8)
 
 
 def _validate_safe_segment(name: str, value: str) -> str:

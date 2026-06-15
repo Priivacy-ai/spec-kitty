@@ -22,6 +22,7 @@ from specify_cli.lanes.branch_naming import (
     BranchIdentityUnresolved,
     mission_branch_name_required,
     parse_lane_id_from_branch,
+    worktree_path as _worktree_path,
 )
 from specify_cli.status import Lane
 from specify_cli.workspace.context import (
@@ -388,7 +389,9 @@ def scan_recovery_state(  # noqa: C901
 
         # Check worktree existence
         worktree_path_from_git = _worktree_exists_for_branch(repo_root, branch)
-        expected_worktree = repo_root / ".worktrees" / f"{mission_slug}-{lane_id}"
+        expected_worktree = _worktree_path(
+            repo_root, mission_slug, mission_id=None, lane_id=lane_id
+        )
         worktree_exists = (
             worktree_path_from_git is not None
             or expected_worktree.exists()
@@ -589,7 +592,9 @@ def recover_worktree(
     """
     from specify_cli.lanes.worktree_allocator import _recover_lane_worktree
 
-    worktree_path = repo_root / ".worktrees" / f"{mission_slug}-{state.lane_id}"
+    worktree_path = _worktree_path(
+        repo_root, mission_slug, mission_id=None, lane_id=state.lane_id
+    )
     _recover_lane_worktree(repo_root, worktree_path, state.branch_name)
 
 
@@ -604,7 +609,9 @@ def recover_context(
     reconstruct the context from available metadata.
     """
     feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
-    worktree_path = repo_root / ".worktrees" / f"{mission_slug}-{state.lane_id}"
+    worktree_path = _worktree_path(
+        repo_root, mission_slug, mission_id=None, lane_id=state.lane_id
+    )
 
     # Get base info from lanes.json
     wp_ids = _find_wp_ids_for_lane(feature_dir, state.lane_id)

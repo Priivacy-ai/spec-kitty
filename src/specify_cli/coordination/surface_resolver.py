@@ -27,7 +27,7 @@ from pathlib import Path
 
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.lanes.branch_naming import mid8_from_slug
+from specify_cli.lanes.branch_naming import mid8_from_slug, resolve_mid8
 from specify_cli.mission_metadata import load_meta
 from specify_cli.missions._read_path_resolver import (
     StatusReadPathNotFound,
@@ -364,21 +364,39 @@ def _coord_mid8(meta: dict[str, object], mission_slug: str, repo_root: Path) -> 
     """Derive the coord-worktree mid8 from declared authority, or fail closed.
 
     Cascade of declared sources (post-083 ``meta.json`` is authoritative):
-    ``meta.mid8`` → ``meta.mission_id[:8]`` → the mid8 embedded in the canonical
-    ``<slug>-<mid8>`` directory name. When every declared source is exhausted the
-    disambiguator is genuinely lost, and composing a coord path would mis-route
-    to a wrong-but-plausible surface. Per the 3.x execution invariant ("raises
-    rather than silently falling back on unresolvable context"; F-001: never
-    compose a wrong-but-plausible coord path), this raises a structured
-    :class:`StatusReadPathNotFound` instead of fabricating a mid8.
+
+    1. ``meta.mid8`` — an explicit declared disambiguator, used verbatim.
+    2. :func:`resolve_mid8` keyed on the declared ``meta.mission_id`` — derives
+       the mid8 from the declared identity (NOT a local ``[:8]`` slice, #1918) and
+       trusts the slug's embedded tail only when it provably matches that declared
+       identity.
+    3. :func:`mid8_from_slug` — the seam's sanctioned best-effort heuristic, used
+       ONLY as the final fallback once every *declared* source is exhausted. This
+       layer fires for a mission that declares ``coordination_branch`` but never
+       persisted ``mid8`` / ``mission_id``: the canonical ``<slug>-<mid8>``
+       directory/branch name embeds the real disambiguator, so the tail is the
+       legitimate coord-topology mid8.
+
+    When all three are exhausted the disambiguator is genuinely lost, and
+    composing a coord path would mis-route to a wrong-but-plausible surface. Per
+    the 3.x execution invariant ("raises rather than silently falling back on
+    unresolvable context"; F-001), this raises :class:`StatusReadPathNotFound`
+    instead of fabricating a mid8.
     """
     raw_mid8 = meta.get("mid8")
-    raw_mission_id = meta.get("mission_id")
     if raw_mid8:
         return str(raw_mid8)
-    if raw_mission_id and len(str(raw_mission_id)) >= 8:
-        return str(raw_mission_id)[:8]
-    # The canonical ``<slug>-<mid8>`` directory name carries the real mid8.
+    raw_mission_id = meta.get("mission_id")
+    declared_mission_id = str(raw_mission_id) if raw_mission_id else None
+    # Authoritative resolution: derive from the declared mission_id; declines a
+    # coincidental slug tail when no declared identity confirms it.
+    resolved: str = resolve_mid8(mission_slug, mission_id=declared_mission_id)
+    if resolved:
+        return resolved
+    # Final fallback: no DECLARED source carries the disambiguator. The seam's
+    # sanctioned heuristic reads the mid8 embedded in the canonical
+    # ``<slug>-<mid8>`` name — the legitimate coord-topology mid8 for a mission
+    # that declared a coordination_branch but never persisted mid8/mission_id.
     slug_mid8: str = mid8_from_slug(mission_slug)
     if slug_mid8:
         return slug_mid8

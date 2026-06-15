@@ -815,8 +815,15 @@ def _coord_topology_active(repo_root: Path, mission_slug: str) -> bool:
     """Return True if the coordination worktree exists for this mission."""
     try:
         from specify_cli.coordination.workspace import CoordinationWorkspace
-        from specify_cli.lanes.branch_naming import mid8_from_slug
-        mid8 = mid8_from_slug(mission_slug)
+        from specify_cli.lanes.branch_naming import resolve_transaction_mid8
+        # Authoritative topology resolver (FR-004/#1918): a coord-worktree lookup
+        # needs the REAL mid8 to name its dir. With no declared mission_id/mid8 the
+        # seam falls back to the embedded ``<slug>-<mid8>`` tail (genuine slug) and
+        # returns "" only for a legacy/flattened mission with no coord topology —
+        # exactly the historical mid8_from_slug behaviour for resolvable slugs.
+        mid8 = resolve_transaction_mid8(
+            mission_slug, mission_id=None, mid8=None, coordination_branch=None
+        )
         path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
         return path.exists()
     except Exception:
@@ -835,14 +842,19 @@ def _coord_status_events_path(repo_root: Path, mission_slug: str) -> Path | None
     """Return coord-worktree status event path when coord topology is active."""
     try:
         from specify_cli.coordination.workspace import CoordinationWorkspace
-        from specify_cli.lanes.branch_naming import mid8_from_slug
+        from specify_cli.lanes.branch_naming import mission_dir_name, resolve_transaction_mid8
 
-        mid8 = mid8_from_slug(mission_slug)
+        # Topology resolver (FR-004): resolve the on-disk mid8 from the embedded
+        # ``<slug>-<mid8>`` tail; "" for a legacy/flattened mission (no coord dir).
+        mid8 = resolve_transaction_mid8(
+            mission_slug, mission_id=None, mid8=None, coordination_branch=None
+        )
         if not mid8:
             return None
-        mission_dir = (
-            mission_slug if mission_slug.endswith(f"-{mid8}") else f"{mission_slug}-{mid8}"
-        )
+        # Delegate the idempotent ``<slug>-<mid8>`` compose to the seam so the
+        # inline endswith-dedup (the #1949 reinvention WP09 bans) lives only in
+        # lanes.branch_naming (FR-010).
+        mission_dir = mission_dir_name(mission_slug, mid8=mid8)
         coord_root = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
         if not coord_root.exists():
             return None
@@ -1330,7 +1342,13 @@ def _validate_ready_for_review(
             return True, []
 
         if workspace is None:
-            worktree_path = main_repo_root / ".worktrees" / f"{mission_slug}-lane-a"
+            from specify_cli.lanes.branch_naming import worktree_path as _seam_worktree_path
+
+            # Legacy lane-a worktree grammar ({slug}-lane-a, no mid8) ⇒
+            # mission_id=None reproduces the historical name byte-identically (FR-005).
+            worktree_path = _seam_worktree_path(
+                main_repo_root, mission_slug, mission_id=None, lane_id="lane-a"
+            )
         else:
             worktree_path = workspace.worktree_path
 
@@ -3938,12 +3956,14 @@ def status(
         from specify_cli.missions._read_path_resolver import (
             resolve_mission_read_path,
         )
-        from specify_cli.lanes.branch_naming import mid8_from_slug
+        from specify_cli.lanes.branch_naming import resolve_mid8
 
-        # Derive mid8 from the resolved slug when it carries the
-        # post-WP03 ``-<mid8>`` suffix.  For legacy slugs the suffix is
-        # absent and the resolver falls back to the primary checkout.
-        _mid8 = mid8_from_slug(mission_slug)
+        # Authoritative resolve (#1918, FR-004): no declared mission_id at this
+        # read-path bootstrap, so the seam DECLINES a coincidental 8-char tail
+        # rather than mis-routing. A genuine ``<slug>-<mid8>`` handle is unchanged:
+        # resolve_mission_read_path composes idempotently and its canonical-handle
+        # fallback re-derives the real mid8 when the literal path misses.
+        _mid8 = resolve_mid8(mission_slug, mission_id=None)
         # Legacy worktree-aware fallback for #984 (detached-worktree
         # status reads): only used when neither the coord worktree nor
         # the primary checkout view exists.  Kept for back-compat with

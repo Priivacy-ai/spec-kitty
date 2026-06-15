@@ -249,9 +249,16 @@ def _resolve_mission_dir(main_repo_root: Path, mission_slug: str) -> Path | None
         resolve_mission_read_path,
         StatusReadPathNotFound,
     )
-    from specify_cli.lanes.branch_naming import mid8_from_slug
+    from specify_cli.lanes.branch_naming import resolve_mid8
 
-    mid8 = mid8_from_slug(mission_slug)
+    # Authoritative resolve (#1918, FR-004): no declared mission_id is available
+    # at this read-path bootstrap (we are locating meta.json itself), so the seam
+    # DECLINES a coincidental 8-char tail rather than mis-routing to a coord
+    # worktree that never carried this identity. For a genuine ``<slug>-<mid8>``
+    # handle the empty mid8 is byte-identical here: the resolver's compose is
+    # idempotent on an embedded slug and its canonical-handle fallback re-derives
+    # the real mid8 when the literal path misses.
+    mid8 = resolve_mid8(mission_slug, mission_id=None)
 
     try:
         mission_dir = resolve_mission_read_path(main_repo_root, mission_slug, mid8)
@@ -471,8 +478,14 @@ def _execute_lane_merge(
         run_command(["git", "push", "origin", lanes_manifest.target_branch], cwd=main_repo_root)
 
     if remove_worktree:
+        from specify_cli.lanes.branch_naming import worktree_path
+
         for lane in lanes_manifest.lanes:
-            wt_path = main_repo_root / ".worktrees" / f"{mission_slug}-{lane.lane_id}"
+            # Legacy lane-worktree grammar ({slug}-{lane}, no mid8) ⇒ mission_id=None
+            # reproduces the historical name byte-identically (FR-005).
+            wt_path = worktree_path(
+                main_repo_root, mission_slug, mission_id=None, lane_id=lane.lane_id
+            )
             if wt_path.exists():
                 run_command(
                     ["git", "worktree", "remove", str(wt_path), "--force"],
@@ -768,7 +781,15 @@ def start_implementation(
     from specify_cli.status import TransitionError
     from specify_cli.status import WorkPackageClaimConflict, start_implementation_status
 
-    workspace_path = str(main_repo_root / ".worktrees" / f"{mission}-{wp}")
+    from specify_cli.lanes.branch_naming import worktree_path as _wt_path
+
+    # Legacy WP-based worktree form ({mission}-{wp}, no mid8): the seam's
+    # mission_id=None grammar is ``{slug}-{lane_id}`` — pass the WP id in the
+    # lane_id slot so the historical ``f"{mission}-{wp}"`` name is reproduced
+    # byte-identically (FR-005), routing the COMPOSE rather than guessing inline.
+    workspace_path = str(
+        _wt_path(main_repo_root, mission, mission_id=None, lane_id=wp)
+    )
     prompt_path = str(wp_path)
 
     try:

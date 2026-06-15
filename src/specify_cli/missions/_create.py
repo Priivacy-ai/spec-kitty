@@ -45,8 +45,7 @@ from pathlib import Path
 
 from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes._git import ref_exists as _ref_resolves
-from specify_cli.lanes.branch_naming import mid8 as _mid8
-from specify_cli.lanes.branch_naming import strip_numeric_prefix
+from specify_cli.lanes.branch_naming import coord_branch_name as _seam_coord_branch_name
 
 __all__ = [
     "CoordinationBranchDiverged",
@@ -151,11 +150,14 @@ def coordination_branch_name(mission_slug: str, mission_id: str) -> str:
     the ``mission_branch_name`` double-mid8 trap when the formatted form is
     passed.  The ``-coord`` suffix is *not* applied at the branch level (it
     is reserved for the worktree path in WP04, per spec).
+
+    Delegates to the canonical naming seam (``lanes.branch_naming.coord_branch_name``)
+    so there is exactly ONE algorithm for the coord-branch grammar (FR-010). The
+    seam strips a stale ``NNN-`` prefix and dedups an embedded ``-<mid8>`` exactly
+    as the prior hand-rolled body did, so this LIVE ``mission create`` composer
+    produces byte-identical branch names for embedded, bare, and legacy slugs.
     """
-    mid8_token = _mid8(mission_id)
-    suffix = f"-{mid8_token}"
-    human_part = mission_slug if mission_slug.endswith(suffix) else f"{strip_numeric_prefix(mission_slug)}{suffix}"
-    return f"kitty/mission-{human_part}"
+    return _seam_coord_branch_name(mission_slug, mission_id=mission_id)
 
 
 def ensure_coordination_branch(

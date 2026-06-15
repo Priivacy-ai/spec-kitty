@@ -1,0 +1,17 @@
+{
+  "baseline_merge_commit": "81c8337b6bcde4d32f0148614a7f88b5cfe1479c",
+  "coordination_branch": "kitty/mission-mission-identity-seam-and-1908-panel-01KV6510",
+  "created_at": "2026-06-15T17:24:49.245861+00:00",
+  "friendly_name": "Mission-identity naming seam & #1908 panel hardening",
+  "mission_id": "01KV6510YXX3HM222Y0YG5JY3M",
+  "mission_number": 138,
+  "mission_slug": "mission-identity-seam-and-1908-panel-01KV6510",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The slug-to-mid8 branch/worktree naming is reimplemented ad-hoc in several places, each with its own idempotency or parsing bug — including #1978 which blocks spec-kitty merge for missions whose slug embeds its mid8. This mission binds that mapping to a single canonical seam and routes the broken call sites through it, then clears the remaining post-#1908 adversarial-panel findings (lane-merge atomicity, base-ref argument hygiene, and an accept-gate identity side-effect) so the merge/lane/accept paths are robust.",
+  "purpose_tldr": "Establish one canonical authority for mission-identity branch/worktree naming (fixing a recurring mid8 regression class incl. a P1 merge-blocker) and close the remaining post-#1908 adversarial-panel robustness findings.",
+  "slug": "mission-identity-seam-and-1908-panel-01KV6510",
+  "source_description": "Cluster A (mid8 identity seam): #1978/#1949/#1918/#1899 under epic #1868. Cluster B (rest of post-#1908 panel, meta-tracker #1929): #1915/#1917/#1916. NOT a bulk edit.",
+  "target_branch": "mission/mission-identity-seam-and-1908-panel",
+  "vcs": "git"
+}

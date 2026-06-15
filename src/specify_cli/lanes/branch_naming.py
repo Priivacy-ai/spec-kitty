@@ -27,21 +27,47 @@ Both forms are accepted at read time so existing worktrees keep working (FR-052)
 
 from __future__ import annotations
 
+import os
 import re
+import warnings
+from pathlib import Path
 from typing import Any, NamedTuple
 
 from specify_cli.core.errors import StructuredError
 
 # Public surface for the fail-closed branch-identity seam introduced by FR-006
-# (WP04). Scoped to the NEW symbols this slice adds (C-007 convention); the
-# module's long-standing helpers retain their existing implicit public surface.
+# (WP04) and the canonical naming seam consolidation (mission 01KV6510 / WP01).
+# Scoped to the NEW symbols this slice adds (C-007 convention); the module's
+# long-standing helpers retain their existing implicit public surface.
 __all__ = [
     "BranchIdentityUnresolved",
+    "LEGACY_FAILOVER_SUPPRESS_ENV",
+    "coord_branch_name",
+    "coord_dir_name",
+    "coord_mission_dir_name",
+    "coord_reconstruct_branch",
     "mission_branch_name_required",
+    "mission_dir_name",
+    "reset_legacy_failover_warning",
+    "resolve_branch_name",
+    "resolve_mid8",
     "resolve_transaction_mid8",
+    "worktree_dir_name",
+    "worktree_path",
 ]
 
 _MISSION_PREFIX = "kitty/mission-"
+# Grammar suffix appended to the mission/coord directory name for the
+# per-mission coordination worktree (mirrors coordination.workspace L154).
+_COORD_DIR_SUFFIX = "-coord"
+# Root directory (relative to repo root) under which lane/coord worktrees live.
+_WORKTREES_DIRNAME = ".worktrees"
+
+# Env var that suppresses the one-shot legacy-failover deprecation warning,
+# mirroring the project's selector_resolution suppress-env pattern.
+LEGACY_FAILOVER_SUPPRESS_ENV = "SPEC_KITTY_SUPPRESS_LEGACY_BRANCH_WARNING"
+# Process-lifetime guard so the legacy-failover deprecation warning fires once.
+_legacy_failover_warned = False
 
 # Legacy regex: NNN-slug (3 digits + hyphen prefix)
 _LEGACY_MISSION_RE = re.compile(r"^kitty/mission-(\d{3}-.+)$")
@@ -114,20 +140,63 @@ def mid8(mission_id: str) -> str:
 
 
 def mid8_from_slug(slug: str) -> str:
-    """Extract the mid8 suffix from a mission slug, or return empty string.
+    """Best-effort HEURISTIC detector of a mid8 tail — NEVER authoritative (#1918).
 
     Recognises the 8-character Crockford base32 tail appended to mission slugs
     by the mission-identity system (e.g. ``my-feature-01KT3YBD`` → ``01KT3YBD``).
 
-    The check is ``tail == tail.upper()`` rather than ``tail.isupper()`` so that
-    all-digit tails (valid in ULID base32) are accepted correctly — ``str.isupper()``
-    returns ``False`` for strings that contain no cased characters.
+    .. warning::
+        This is a *heuristic*: it cannot tell a genuine mid8 from a coincidental
+        8-Crockford-char hyphen segment, because it has no ``mission_id`` to
+        confirm against. It is retained ONLY as a final, best-effort fallback for
+        topology consumers (``resolve_transaction_mid8`` /
+        ``surface_resolver._coord_mid8``) that have already exhausted every
+        declared source. For any correctness path, use the authoritative
+        :func:`resolve_mid8`, which derives the mid8 from a declared ``mission_id``
+        and declines a coincidental tail when none is available.
+
+    The check is ``_MID8_RE`` (exactly 8 Crockford base32 chars) so that all-digit
+    tails (valid in ULID base32) are accepted correctly.
     """
     if "-" not in slug:
         return ""
     tail = slug.rsplit("-", 1)[-1]
     if _MID8_RE.match(tail):
         return tail
+    return ""
+
+
+def resolve_mid8(mission_slug: str, *, mission_id: str | None) -> str:
+    """Authoritative mid8 resolver for correctness paths (#1918, FR-004).
+
+    Unlike the heuristic :func:`mid8_from_slug`, this derives the mid8 from the
+    *declared* ``mission_id`` and trusts the slug's embedded tail only when it
+    **provably matches** that declared identity. When no ``mission_id`` is
+    available it DECLINES (returns ``""``) on an embedded 8-char tail rather than
+    mis-resolving a coincidental segment — the name proposes, authority disposes.
+
+    Resolution:
+      - ``mission_id`` present (>= 8 chars), slug embeds NO tail or a *matching*
+        tail → ``mission_id[:8]`` (authoritative, provable-match cross-checked).
+      - ``mission_id`` present but the slug embeds a *divergent* tail → still
+        ``mission_id[:8]``: the declared identity governs; the stale slug tail
+        never wins (NFR-003).
+      - ``mission_id`` absent → the embedded tail cannot be confirmed against a
+        declared identity, so it is NOT trusted: DECLINE (``""``).
+
+    Returns:
+        The 8-char mid8 when it can be authoritatively derived, else ``""``.
+    """
+    embedded = mid8_from_slug(mission_slug)
+    if mission_id is not None and len(mission_id) >= 8:
+        declared = mission_id[:8]
+        if embedded and embedded != declared:
+            # Slug carries a stale/foreign mid8 tail; declared identity governs.
+            return declared
+        # No tail, or a tail that provably matches the declared identity.
+        return declared
+    # No declared identity to confirm a (possibly coincidental) 8-char tail
+    # against: decline rather than mis-resolve (#1918).
     return ""
 
 
@@ -138,6 +207,28 @@ def _human_slug_for_mid8_branch(mission_slug: str, mission_id: str) -> str:
     if human_slug.endswith(suffix):
         return human_slug[: -len(suffix)]
     return human_slug
+
+
+def _idempotent_legacy_body(mission_slug: str) -> str:
+    """Compose the branch *body* for a ``mission_id=None`` slug, idempotently (#1949).
+
+    The ``mission_id``-present path dedups via :func:`_human_slug_for_mid8_branch`;
+    the ``mission_id=None`` path historically appended NOTHING and returned the slug
+    verbatim, which silently diverged for a slug carrying BOTH a stale ``NNN-``
+    prefix AND an embedded mid8 (``057-foo-01KV6510`` → never-created
+    ``kitty/mission-057-foo-01KV6510``). This helper produces the SAME body the
+    mission_id path would for such a slug, while preserving pure legacy ``NNN-``
+    slugs (no embedded mid8) byte-identically.
+
+    Rule:
+      - slug carries an embedded mid8 tail → strip any stale ``NNN-`` prefix so the
+        body is the resolvable ``<human-slug>-<mid8>`` form (fixpoint with the
+        mission_id path);
+      - otherwise (pure legacy ``NNN-`` or bare slug) → returned verbatim.
+    """
+    if mid8_from_slug(mission_slug):
+        return strip_numeric_prefix(mission_slug)
+    return mission_slug
 
 
 # ---------------------------------------------------------------------------
@@ -164,8 +255,10 @@ def mission_branch_name(mission_slug: str, *, mission_id: str | None = None) -> 
     if mission_id is not None:
         human_slug = _human_slug_for_mid8_branch(mission_slug, mission_id)
         return f"{_MISSION_PREFIX}{human_slug}-{mid8(mission_id)}"
-    # Legacy form: no mission_id supplied (pre-WP02 callers, must still work)
-    return f"{_MISSION_PREFIX}{mission_slug}"
+    # Legacy form: no mission_id supplied (pre-WP02 callers, must still work).
+    # Idempotency-preserving (#1949): a slug embedding a mid8 dedups its stale
+    # NNN- prefix so it composes the same resolvable branch as the mission_id path.
+    return f"{_MISSION_PREFIX}{_idempotent_legacy_body(mission_slug)}"
 
 
 class BranchIdentityUnresolved(StructuredError):
@@ -378,8 +471,231 @@ def lane_branch_name(
     if mission_id is not None:
         human_slug = _human_slug_for_mid8_branch(mission_slug, mission_id)
         return f"{_MISSION_PREFIX}{human_slug}-{mid8(mission_id)}-{lane_id}"
-    # Legacy form
-    return f"{_MISSION_PREFIX}{mission_slug}-{lane_id}"
+    # Legacy form. Idempotency-preserving (#1949): embedded-mid8 slugs dedup
+    # their stale NNN- prefix; pure legacy NNN- slugs are preserved verbatim.
+    return f"{_MISSION_PREFIX}{_idempotent_legacy_body(mission_slug)}-{lane_id}"
+
+
+# ---------------------------------------------------------------------------
+# Worktree + coordination directory grammar (FR-005, #1899)
+# ---------------------------------------------------------------------------
+
+
+def worktree_dir_name(
+    mission_slug: str,
+    *,
+    mission_id: str | None,
+    lane_id: str,
+) -> str:
+    """Return the on-disk lane-worktree directory name (no ``.worktrees/`` prefix).
+
+    Reproduces the CURRENT on-disk grammar EXACTLY in BOTH modes so routing call
+    sites to this seam causes zero worktree churn (FR-005):
+
+    - ``mission_id=None`` ⇒ legacy ``{slug}-{lane_id}`` — byte-identical to the
+      allocator/lifecycle ``f"{mission_slug}-{lane_id}"`` f-strings (no mid8);
+    - ``mission_id`` present ⇒ the embedded ``{human-slug}-{mid8}-{lane_id}`` form,
+      derived from :func:`lane_branch_name` with the ``kitty/mission-`` prefix
+      stripped (single source of grammar).
+
+    Examples:
+        worktree_dir_name("057-foo", mission_id=None, lane_id="lane-a")
+          -> "057-foo-lane-a"
+        worktree_dir_name("foo-01KV6510", mission_id="01KV6510…", lane_id="lane-a")
+          -> "foo-01KV6510-lane-a"
+    """
+    if mission_id is None:
+        # Legacy grammar: the allocator composes ``f"{mission_slug}-{lane_id}"``
+        # with no mission_id; preserve it byte-for-byte (no idempotent dedup here,
+        # because the legacy allocator never dedups its dir name).
+        return f"{mission_slug}-{lane_id}"
+    branch = lane_branch_name(mission_slug, lane_id, mission_id=mission_id)
+    return branch.removeprefix(_MISSION_PREFIX)
+
+
+def worktree_path(
+    repo_root: os.PathLike[str] | str,
+    mission_slug: str,
+    *,
+    mission_id: str | None,
+    lane_id: str,
+) -> Path:
+    """Emit the absolute lane-worktree path under ``<repo_root>/.worktrees/`` (FR-005).
+
+    Emit-don't-guess: the directory name is composed by :func:`worktree_dir_name`,
+    never by an ad-hoc f-string at the call site.
+    """
+    dir_name = worktree_dir_name(mission_slug, mission_id=mission_id, lane_id=lane_id)
+    return Path(repo_root) / _WORKTREES_DIRNAME / dir_name
+
+
+def mission_dir_name(mission_slug: str, *, mid8: str) -> str:
+    """Return the canonical ``<human-slug>-<mid8>`` mission directory name (NO lane).
+
+    Canonical (post-083) mission-dir grammar: idempotent on an already-embedded
+    slug (no double-suffix), and strips a stale ``NNN-`` prefix when appending, so
+    a legacy ``057-foo`` slug normalizes to the post-083 ``foo-<mid8>`` form.
+
+    .. warning::
+        This is the **canonical** grammar (NNN- stripped). The historical
+        **coordination read/transaction** path composes names VERBATIM (no strip)
+        to match on-disk worktrees/branches created before the strip existed — use
+        :func:`coord_mission_dir_name` / :func:`coord_dir_name` /
+        :func:`coord_branch_name` for that path, NOT this function.
+
+    Examples:
+        mission_dir_name("foo", mid8="01KV6510")            -> "foo-01KV6510"
+        mission_dir_name("foo-01KV6510", mid8="01KV6510")   -> "foo-01KV6510"
+        mission_dir_name("057-foo", mid8="01KV6510")        -> "foo-01KV6510"
+    """
+    suffix = f"-{mid8}"
+    if mission_slug.endswith(suffix):
+        return mission_slug
+    return f"{strip_numeric_prefix(mission_slug)}{suffix}"
+
+
+def coord_mission_dir_name(mission_slug: str, *, mid8: str) -> str:
+    """Return the VERBATIM coordination mission-dir name ``<slug>-<mid8>`` (NO strip).
+
+    Byte-identical to the pre-WP06 coordination composers
+    (``workspace._compose_mission_dir``, ``transaction._mission_specs_dir_name``,
+    ``status_transition._transaction_dir_name``), which composed:
+
+        ``mission_slug if mission_slug.endswith(f"-{mid8}") else f"{mission_slug}-{mid8}"``
+
+    Crucially it does **not** strip a leading ``NNN-`` prefix. The coordination
+    read/transaction path consumes ``meta.json.mission_slug`` VERBATIM and must
+    reconstruct the EXISTING on-disk name; for a legacy ``NNN-``-prefixed slug the
+    canonical (stripping) :func:`mission_dir_name` would drift to a name that was
+    never created on disk, orphaning the coord worktree and breaking status reads
+    (#1589). This primitive preserves the historical verbatim grammar so the
+    reconstructed name matches what ``mission create`` (or a pre-083 mission)
+    actually wrote (FR-010).
+
+    Idempotent on an already-embedded slug (no double-suffix).
+
+    Examples:
+        coord_mission_dir_name("foo", mid8="01KV6510")          -> "foo-01KV6510"
+        coord_mission_dir_name("foo-01KV6510", mid8="01KV6510") -> "foo-01KV6510"
+        coord_mission_dir_name("060-test", mid8="01COORD0")     -> "060-test-01COORD0"
+    """
+    suffix = f"-{mid8}"
+    if mission_slug.endswith(suffix):
+        return mission_slug
+    return f"{mission_slug}{suffix}"
+
+
+def coord_dir_name(mission_slug: str, *, mid8: str) -> str:
+    """Return the coordination-worktree directory name ``<slug>-<mid8>-coord``.
+
+    Byte-identical to the pre-WP06 ``coordination.workspace.worktree_path``
+    (``_compose_mission_dir(...)`` + ``-coord``). Composes VERBATIM via
+    :func:`coord_mission_dir_name` (no ``NNN-`` strip) so the reconstructed dir
+    name matches the on-disk coord worktree for legacy ``NNN-`` slugs (#1589).
+    """
+    return f"{coord_mission_dir_name(mission_slug, mid8=mid8)}{_COORD_DIR_SUFFIX}"
+
+
+def coord_branch_name(mission_slug: str, *, mission_id: str | None) -> str:
+    """Return the CANONICAL coordination branch ``kitty/mission-<human-slug>-<mid8>``.
+
+    This is the **mission-create** coord-branch composer (``missions._create.
+    coordination_branch_name``, T039). It strips a stale ``NNN-`` prefix and
+    dedups an embedded ``-<mid8>`` — byte-identical to the pre-WP06 hand-rolled
+    body, which composed ``strip_numeric_prefix(mission_slug)`` + ``-<mid8>``.
+    Mission-create pre-strips the slug, so this is correct for every real input.
+
+    Delegates to :func:`mission_branch_name` so there is ONE canonical grammar.
+
+    .. warning::
+        This composes the CANONICAL (NNN-stripped) branch. The historical
+        coordination READ/TRANSACTION path reconstructs an EXISTING branch
+        VERBATIM (no strip) — that path must use :func:`coord_reconstruct_branch`
+        / :func:`coord_mission_dir_name`, NOT this function (#1589).
+
+    The ``-coord`` suffix is NOT applied at the branch level (reserved for the
+    worktree dir).
+    """
+    return mission_branch_name(mission_slug, mission_id=mission_id)
+
+
+def coord_reconstruct_branch(mission_slug: str, *, mid8: str) -> str:
+    """Reconstruct an EXISTING coordination branch VERBATIM (no ``NNN-`` strip).
+
+    Byte-identical to the pre-WP06 ``coordination.workspace.branch_name``
+    (``f"kitty/mission-{_compose_mission_dir(...)}"``) — composes VERBATIM via
+    :func:`coord_mission_dir_name`. The coordination READ/TRANSACTION path reads
+    ``meta.json.mission_slug`` verbatim and must reconstruct the branch that was
+    actually created on disk; for a legacy ``NNN-`` slug the canonical,
+    NNN-stripping :func:`mission_branch_name` would drift to a branch that never
+    existed, orphaning the coord worktree (#1589). The canonical
+    :func:`mission_branch_name` is reserved for the canonical branch grammar
+    (WP02 / #1978 merge path) and must NOT be used here.
+
+    Examples:
+        coord_reconstruct_branch("foo", mid8="01KV6510")
+          -> "kitty/mission-foo-01KV6510"
+        coord_reconstruct_branch("060-test", mid8="01COORD0")
+          -> "kitty/mission-060-test-01COORD0"
+    """
+    return f"{_MISSION_PREFIX}{coord_mission_dir_name(mission_slug, mid8=mid8)}"
+
+
+# ---------------------------------------------------------------------------
+# Canonical-first / legacy-failover branch resolver (FR-004)
+# ---------------------------------------------------------------------------
+
+
+def reset_legacy_failover_warning() -> None:
+    """Reset the one-shot legacy-failover warning guard (test seam)."""
+    global _legacy_failover_warned
+    _legacy_failover_warned = False
+
+
+def _emit_legacy_failover_warning(mission_handle: str) -> None:
+    """Emit the legacy-failover deprecation warning at most once per process."""
+    global _legacy_failover_warned
+    if _legacy_failover_warned:
+        return
+    if os.environ.get(LEGACY_FAILOVER_SUPPRESS_ENV):
+        _legacy_failover_warned = True
+        return
+    _legacy_failover_warned = True
+    warnings.warn(
+        f"resolving {mission_handle!r} via the legacy branch grammar "
+        "(NNN-/bare slug). Legacy resolution is a deprecated compatibility "
+        "branch — migrate to a declared mission_id "
+        "(`spec-kitty migrate backfill-identity`). Set "
+        f"{LEGACY_FAILOVER_SUPPRESS_ENV}=1 to silence this notice.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+
+
+def resolve_branch_name(mission_slug: str, *, mission_id: str | None) -> str:
+    """Resolve the canonical mission branch, canonical-first with legacy failover.
+
+    Deterministic resolution (FR-004):
+      1. Canonical path — a declared ``mission_id`` (or a slug already embedding a
+         resolvable mid8 tail) composes the mid8-era branch directly, with NO
+         warning.
+      2. Legacy failover — a ``mission_id=None`` slug with no embedded mid8 tail
+         falls over to the legacy ``NNN-``/bare parser, emitting a ONE-SHOT
+         :class:`DeprecationWarning` that nudges migration.
+      3. Genuinely-unresolvable modern slug (no mission_id, no ``NNN-`` prefix, no
+         mid8 tail) → :class:`BranchIdentityUnresolved` (fail closed, NFR-003).
+
+    Legacy is a warned compatibility branch, not a co-equal parser.
+    """
+    if mission_id is not None or mid8_from_slug(mission_slug):
+        # Canonical: declared identity or a slug carrying its own disambiguator.
+        return mission_branch_name_required(mission_slug, mission_id)
+    if _NUMERIC_PREFIX_RE.match(mission_slug):
+        # Legacy NNN- failover: resolvable, but deprecated — warn once.
+        _emit_legacy_failover_warning(mission_slug)
+        return mission_branch_name(mission_slug, mission_id=None)
+    # Modern slug with no recoverable disambiguator: fail closed.
+    raise BranchIdentityUnresolved(mission_slug)
 
 
 # ---------------------------------------------------------------------------

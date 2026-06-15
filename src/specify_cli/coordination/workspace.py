@@ -35,6 +35,12 @@ import subprocess
 import threading
 from pathlib import Path
 
+from specify_cli.lanes.branch_naming import (
+    coord_dir_name as _seam_coord_dir_name,
+    coord_mission_dir_name as _seam_coord_mission_dir_name,
+    coord_reconstruct_branch as _seam_coord_reconstruct_branch,
+)
+
 
 # #1357: serialize concurrent ``CoordinationWorkspace.resolve`` calls so two
 # callers cannot race the existence-check / ``git worktree add`` and materialize
@@ -91,15 +97,18 @@ def _normalize_ref(ref: str) -> str:
 
 
 def _compose_mission_dir(mission_slug: str, mid8: str) -> str:
-    """Return ``<slug>-<mid8>`` but avoid double-suffixing.
+    """Return the ``<slug>-<mid8>`` mission directory name (no double-suffix).
 
-    Post-WP03 ``mission_slug`` already contains the mid8 (e.g.
-    ``demo-feature-01J6XW9K``). Older callers may pass a bare human
-    slug. We accept both and only append when the suffix is absent.
+    Delegates to the seam's VERBATIM coordination primitive
+    (``lanes.branch_naming.coord_mission_dir_name``) so there is exactly ONE
+    algorithm for the coordination grammar (FR-010), reconstructed byte-identical
+    to the pre-WP06 body. The coordination read/transaction path consumes
+    ``meta.json.mission_slug`` VERBATIM, including a legacy ``NNN-`` prefix; the
+    seam primitive does NOT strip it, so the reconstructed dir matches the on-disk
+    coord worktree (#1589). The canonical, NNN-stripping ``mission_dir_name`` is
+    NOT used here — it would drift a legacy ``NNN-`` slug to a name never created.
     """
-    if mission_slug.endswith(f"-{mid8}"):
-        return mission_slug
-    return f"{mission_slug}-{mid8}"
+    return _seam_coord_mission_dir_name(mission_slug, mid8=mid8)
 
 
 def _has_stale_worktree_registration(repo_root: Path, path: Path) -> bool:
@@ -150,13 +159,24 @@ class CoordinationWorkspace:
 
     @staticmethod
     def worktree_path(repo_root: Path, mission_slug: str, mid8: str) -> Path:
-        """Return the canonical worktree path. Pure; no filesystem touch."""
-        return repo_root / ".worktrees" / f"{_compose_mission_dir(mission_slug, mid8)}-coord"
+        """Return the canonical worktree path. Pure; no filesystem touch.
+
+        The ``<slug>-<mid8>-coord`` directory name is composed by the seam's
+        :func:`coord_dir_name` (single grammar, FR-010).
+        """
+        return repo_root / ".worktrees" / _seam_coord_dir_name(mission_slug, mid8=mid8)
 
     @staticmethod
     def branch_name(mission_slug: str, mid8: str) -> str:
-        """Return the canonical coordination branch name. Pure."""
-        return f"kitty/mission-{_compose_mission_dir(mission_slug, mid8)}"
+        """Return the coordination branch name for an EXISTING coord worktree. Pure.
+
+        Reconstructed VERBATIM via the seam's :func:`coord_reconstruct_branch`
+        (no ``NNN-`` strip) so the coord branch and the coord/mission directory
+        names stay byte-identical to what was created on disk (FR-010), including
+        for legacy ``NNN-`` slugs (#1589). The canonical, NNN-stripping
+        ``mission_branch_name`` is reserved for the merge path, not this read path.
+        """
+        return _seam_coord_reconstruct_branch(mission_slug, mid8=mid8)
 
     @classmethod
     def resolve(
