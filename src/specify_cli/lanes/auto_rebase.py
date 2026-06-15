@@ -358,6 +358,42 @@ def _resolve_managed_artifact_conflicts(
     return remaining, None
 
 
+def _merge_head_exists(worktree: Path) -> bool:
+    result = _run(["git", "rev-parse", "-q", "--verify", "MERGE_HEAD"], worktree)
+    return result.returncode == 0
+
+
+def _staged_status_event_dirs(worktree: Path) -> tuple[set[Path], str | None]:
+    result = _run(["git", "diff", "--name-only", "--cached"], worktree)
+    if result.returncode != 0:
+        return set(), result.stderr.strip() or result.stdout.strip()
+
+    feature_dirs: set[Path] = set()
+    for raw in result.stdout.splitlines():
+        rel_path = raw.strip()
+        if rel_path and _is_status_events_path(rel_path):
+            feature_dirs.add((worktree / rel_path).parent)
+    return feature_dirs, None
+
+
+def _refresh_status_json_for_staged_events(
+    worktree: Path,
+    classifications: list[ConflictClassification],
+) -> str | None:
+    feature_dirs, error = _staged_status_event_dirs(worktree)
+    if error is not None:
+        return f"{RULE_ID_STATUS_JSON}: could not inspect staged paths: {error}"
+
+    for feature_dir in sorted(feature_dirs, key=lambda path: path.as_posix()):
+        file_path = feature_dir / "status.json"
+        classification, halt_reason = _resolve_status_json(file_path, worktree)
+        if halt_reason is not None:
+            return halt_reason
+        assert classification is not None
+        classifications.append(classification)
+    return None
+
+
 def _split_into_regions(
     text: str,
 ) -> tuple[list[tuple[bool, str]], int]:
@@ -671,8 +707,8 @@ def attempt_auto_rebase(
 
     The caller has already determined the lane is stale. This function:
 
-    1. Runs ``git merge <mission_branch>`` inside ``worktree_path``.
-    2. If clean, returns ``succeeded=True``.
+    1. Runs ``git merge --no-commit <mission_branch>`` inside ``worktree_path``.
+    2. If clean, refreshes any staged status snapshots and commits the merge.
     3. Classifies each conflict region. Any ``Manual`` aborts the merge and
        returns ``succeeded=False``.
     4. Applies ``Auto`` resolutions, regenerates ``uv.lock`` if needed, runs
@@ -682,15 +718,43 @@ def attempt_auto_rebase(
     _git_user_env_ready(worktree_path)
 
     merge_result = _run(
-        ["git", "merge", "--no-edit", "--no-ff", mission_branch],
+        ["git", "merge", "--no-edit", "--no-ff", "--no-commit", mission_branch],
         worktree_path,
     )
     if merge_result.returncode == 0:
+        clean_classifications: list[ConflictClassification] = []
+        halt_reason = _refresh_status_json_for_staged_events(
+            worktree_path, clean_classifications
+        )
+        if halt_reason is not None:
+            return _abort_with_failure(
+                worktree_path, lane.lane_id, clean_classifications, halt_reason,
+            )
+
+        sparse_error = _reapply_sparse_checkout(worktree_path)
+        if sparse_error is not None:
+            return _abort_with_failure(
+                worktree_path, lane.lane_id, clean_classifications,
+                f"sparse checkout cleanup failed: {sparse_error}",
+            )
+
+        if _merge_head_exists(worktree_path):
+            commit_result = _run(
+                ["git", "-c", "commit.gpgsign=false", "commit", "--no-edit"],
+                worktree_path,
+            )
+            if commit_result.returncode != 0:
+                return _abort_with_failure(
+                    worktree_path, lane.lane_id, clean_classifications,
+                    f"merge commit failed: "
+                    f"{(commit_result.stderr or commit_result.stdout).strip()}",
+                )
+
         return AutoRebaseReport(
             lane_id=lane.lane_id,
             attempted=True,
             succeeded=True,
-            classifications=(),
+            classifications=tuple(clean_classifications),
         )
 
     conflicted = _list_conflicted_files(worktree_path)

@@ -10,7 +10,9 @@ these tests construct a minimal real git repository in ``tmp_path``.
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
@@ -20,6 +22,7 @@ from specify_cli.lanes.auto_rebase import AutoRebaseReport, attempt_auto_rebase
 from specify_cli.lanes.models import ExecutionLane
 
 pytestmark = pytest.mark.git_repo
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _run(cmd: list[str], cwd: Path, *, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -106,6 +109,49 @@ def _write_status_events(path: Path, events: list[dict[str, object]]) -> None:
     path.write_text(
         "".join(json.dumps(event, sort_keys=True) + "\n" for event in events),
         encoding="utf-8",
+    )
+
+
+def _write_event_log_driver_script(path: Path) -> None:
+    path.write_text(
+        "\n".join(
+            [
+                "from pathlib import Path",
+                "import sys",
+                f"sys.path.insert(0, {str(REPO_ROOT / 'src')!r})",
+                "from specify_cli.status.event_log_merge import merge_event_log_files",
+                "merge_event_log_files(",
+                "    base_path=Path(sys.argv[1]),",
+                "    ours_path=Path(sys.argv[2]),",
+                "    theirs_path=Path(sys.argv[3]),",
+                ")",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _configure_event_log_merge_driver(repo: Path, script_path: Path) -> None:
+    _run(
+        [
+            "git",
+            "config",
+            "--local",
+            "merge.spec-kitty-event-log.name",
+            "Spec Kitty event log union merge",
+        ],
+        repo,
+    )
+    _run(
+        [
+            "git",
+            "config",
+            "--local",
+            "merge.spec-kitty-event-log.driver",
+            f"{shlex.quote(sys.executable)} {shlex.quote(str(script_path))} %O %A %B",
+        ],
+        repo,
     )
 
 
@@ -606,6 +652,96 @@ class TestAutoRebaseAdditive:
         assert "Invalid event structure" in report.halt_reason
         assert not (worktree_b / status_events_rel).exists()
         assert not (worktree_b / status_json_rel).exists()
+
+    def test_clean_event_log_merge_driver_refreshes_status_json(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        repo = _init_repo(tmp_path)
+        driver_script = tmp_path / "event_log_driver.py"
+        _write_event_log_driver_script(driver_script)
+        _configure_event_log_merge_driver(repo, driver_script)
+        mission_slug = "1968-clean-driver"
+        mission_branch = f"kitty/mission-{mission_slug}"
+        branch_b = f"kitty/mission-{mission_slug}-lane-a"
+        mission_dir = Path("kitty-specs") / mission_slug
+        status_events_rel = mission_dir / "status.events.jsonl"
+        status_json_rel = mission_dir / "status.json"
+        base_event = _status_event(
+            "01AAA000000000000000000001",
+            at="2026-06-15T04:00:00Z",
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            from_lane="genesis",
+            to_lane="planned",
+        )
+        mission_event = _status_event(
+            "01BBB000000000000000000002",
+            at="2026-06-15T04:01:00Z",
+            mission_slug=mission_slug,
+            wp_id="WP02",
+            from_lane="genesis",
+            to_lane="planned",
+        )
+        lane_event = _status_event(
+            "01CCC000000000000000000003",
+            at="2026-06-15T04:02:00Z",
+            mission_slug=mission_slug,
+            wp_id="WP03",
+            from_lane="genesis",
+            to_lane="planned",
+        )
+
+        (repo / ".gitattributes").write_text(
+            "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log\n",
+            encoding="utf-8",
+        )
+        _write_status_events(repo / status_events_rel, [base_event])
+        (repo / status_json_rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / status_json_rel).write_text('{"event_count": 1}\n', encoding="utf-8")
+        _run(["git", "add", ".gitattributes", str(mission_dir)], repo)
+        _run(["git", "commit", "-m", "seed production driver status artifacts"], repo)
+
+        _run(["git", "branch", mission_branch, "main"], repo)
+        _run(["git", "checkout", mission_branch], repo)
+        _write_status_events(repo / status_events_rel, [base_event, mission_event])
+        (repo / status_json_rel).write_text('{"event_count": 2, "side": "mission"}\n', encoding="utf-8")
+        _run(["git", "add", str(mission_dir)], repo)
+        _run(["git", "commit", "-m", "mission: event log and stale snapshot"], repo)
+
+        _run(["git", "checkout", "-b", branch_b, "main"], repo)
+        _write_status_events(repo / status_events_rel, [base_event, lane_event])
+        _run(["git", "add", str(status_events_rel)], repo)
+        _run(["git", "commit", "-m", "lane: event log only"], repo)
+        _run(["git", "checkout", "main"], repo)
+
+        worktree_b = repo / ".worktrees" / f"{mission_slug}-lane-a"
+        worktree_b.parent.mkdir(parents=True, exist_ok=True)
+        _run(["git", "worktree", "add", str(worktree_b), branch_b], repo)
+        _run(["git", "config", "user.email", "test@spec-kitty"], worktree_b)
+        _run(["git", "config", "user.name", "test"], worktree_b)
+
+        report = attempt_auto_rebase(
+            lane=_make_lane(),
+            branch=branch_b,
+            mission_branch=mission_branch,
+            repo_root=repo,
+            worktree_path=worktree_b,
+        )
+
+        assert report.succeeded is True, report.halt_reason
+        committed_status = json.loads((worktree_b / status_json_rel).read_text(encoding="utf-8"))
+        committed_events = [
+            json.loads(line)
+            for line in (worktree_b / status_events_rel).read_text(encoding="utf-8").splitlines()
+        ]
+        assert [event["event_id"] for event in committed_events] == [
+            "01AAA000000000000000000001",
+            "01BBB000000000000000000002",
+            "01CCC000000000000000000003",
+        ]
+        assert committed_status["event_count"] == 3
+        assert sorted(committed_status["work_packages"]) == ["WP01", "WP02", "WP03"]
 
 
 class TestAutoRebaseSemanticConflict:
