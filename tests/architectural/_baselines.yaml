@@ -53,7 +53,8 @@ test_no_dead_modules:
   # glossary.prompts, glossary.rendering)
   # bringing the live size to 7. Per C-006 this category MUST shrink
   # by >= 2 entries per major release; target = 0 by 4.0.
-  category_7_grandfathered_orphans: 7
+  # Lowered 7 -> 6 to lock in observed shrinkage (one further orphan removed).
+  category_7_grandfathered_orphans: 6
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:

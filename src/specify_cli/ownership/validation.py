@@ -377,8 +377,8 @@ def validate_glob_matches(
                 if suggestion:
                     msg += f" {suggestion}"
                 msg += (
-                    " If this file will be created by this WP, add it to "
-                    "'create_intent' in the WP frontmatter."
+                    " If this file will be created during implementation, "
+                    f"declare it in the WP frontmatter:\n  create_intent:\n    - {pattern}"
                 )
                 result.errors.append(msg)
 
