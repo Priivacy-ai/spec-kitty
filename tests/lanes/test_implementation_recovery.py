@@ -360,6 +360,31 @@ class TestWorktreeRecovery:
         assert loaded.created_by == "recovery"
         assert loaded.lane_wp_ids == ["WP01", "WP02"]
 
+    def test_recover_context_uses_none_when_base_commit_unavailable(self, tmp_path: Path) -> None:
+        """Missing mission branch must not persist the legacy 'unknown' sentinel."""
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _make_git_repo(repo)
+        _setup_feature(repo)
+
+        state = RecoveryState(
+            wp_id="WP01",
+            lane_id="lane-a",
+            branch_name="kitty/mission-010-feat-lane-a",
+            branch_exists=True,
+            worktree_exists=True,
+            context_exists=False,
+            status_lane="planned",
+            has_commits=True,
+            recovery_action="recreate_context",
+        )
+
+        recover_context(repo, "010-feat", state)
+
+        loaded = load_context(repo, "010-feat-lane-a")
+        assert loaded is not None
+        assert loaded.base_commit is None
+
 
 class TestStatusReconciliation:
     """T009: Status reconciliation tests."""
