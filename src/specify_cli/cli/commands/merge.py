@@ -68,6 +68,7 @@ from specify_cli.merge.state import (
     abort_git_merge,
     acquire_merge_lock,
     clear_state,
+    get_state_path,
     load_state,
     needs_number_assignment,
     release_merge_lock,
@@ -803,6 +804,15 @@ def _restore_optional_bytes(path: Path, original: bytes | None) -> None:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(original)
+
+
+def _restore_final_bookkeeping_snapshots(
+    snapshots: dict[Path, bytes | None],
+) -> None:
+    """Best-effort restore for final merge bookkeeping rollback."""
+    for path, original in snapshots.items():
+        with contextlib.suppress(OSError):
+            _restore_optional_bytes(path, original)
 
 
 def _project_status_bookkeeping_to_target(
@@ -2331,6 +2341,10 @@ def _run_lane_based_merge_locked(
 
     status_surface_path = resolve_status_surface(main_repo, mission_slug)
     done_marked_before_target = is_under_worktrees_segment(status_surface_path) and not planning_artifact_only
+    canonical_events_path = status_surface_path
+    canonical_status_path = status_surface_path.parent / _STATUS_FILENAME
+    merge_state_path = get_state_path(main_repo, state.mission_id)
+    final_bookkeeping_snapshots: dict[Path, bytes | None] = {}
     mission_number_meta_path: Path | None = None
     mission_already_applied = False
     if planning_artifact_only:
@@ -2356,20 +2370,31 @@ def _run_lane_based_merge_locked(
         )
 
         if done_marked_before_target:
+            final_bookkeeping_snapshots.update(
+                {
+                    canonical_events_path: _read_optional_bytes(canonical_events_path),
+                    canonical_status_path: _read_optional_bytes(canonical_status_path),
+                    merge_state_path: _read_optional_bytes(merge_state_path),
+                }
+            )
             # Modern coordination-backed missions must carry done events in the
             # mission branch before it is merged to target. Recording after the
             # target merge writes to a disposable coord/mission branch and can
             # pass surface-local validation while target history never receives
             # done.
-            _record_merged_wps_done_for_merge(
-                main_repo=main_repo,
-                feature_dir=feature_dir,
-                mission_slug=mission_slug,
-                lanes_manifest=lanes_manifest,
-                target_branch=lanes_manifest.target_branch,
-                merge_state=state,
-                all_wp_ids=all_wp_ids,
-            )
+            try:
+                _record_merged_wps_done_for_merge(
+                    main_repo=main_repo,
+                    feature_dir=feature_dir,
+                    mission_slug=mission_slug,
+                    lanes_manifest=lanes_manifest,
+                    target_branch=lanes_manifest.target_branch,
+                    merge_state=state,
+                    all_wp_ids=all_wp_ids,
+                )
+            except Exception:
+                _restore_final_bookkeeping_snapshots(final_bookkeeping_snapshots)
+                raise
 
         # -- Mission-to-target merge (T010: honor strategy for this step only) --
         # FR-037 (#1772 Bug 3): a no-op squash is only legitimate when the
@@ -2433,6 +2458,28 @@ def _run_lane_based_merge_locked(
     # repos; the helper uses a tracked-file hard refresh instead.
     _refresh_primary_checkout_after_merge(main_repo)
 
+    if not done_marked_before_target:
+        final_bookkeeping_snapshots.update(
+            {
+                canonical_events_path: _read_optional_bytes(canonical_events_path),
+                canonical_status_path: _read_optional_bytes(canonical_status_path),
+                merge_state_path: _read_optional_bytes(merge_state_path),
+            }
+        )
+    target_events_path, target_status_path = _target_bookkeeping_status_paths(
+        main_repo=main_repo,
+        mission_slug=mission_slug,
+        status_feature_dir=feature_dir,
+    )
+    target_meta_path = target_feature_dir / "meta.json"
+    final_bookkeeping_snapshots.update(
+        {
+            target_events_path: _read_optional_bytes(target_events_path),
+            target_status_path: _read_optional_bytes(target_status_path),
+            target_meta_path: _read_optional_bytes(target_meta_path),
+        }
+    )
+
     if planning_artifact_only:
         mission_number_meta_path = _assign_planning_only_mission_number_if_needed(
             main_repo,
@@ -2449,27 +2496,9 @@ def _run_lane_based_merge_locked(
         # Modern lane mission could not record its post-merge review baseline.
         # Fail loudly — an apparently successful merge that drops the baseline
         # produces MISSION_REVIEW_MODE_MISMATCH downstream.
+        _restore_final_bookkeeping_snapshots(final_bookkeeping_snapshots)
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
-
-    # If the final bookkeeping commit fails after done events are emitted,
-    # restore the canonical status artifacts to their pre-emit bytes. This
-    # keeps the merge path aligned with the #1348 dangling-event invariant.
-    _merge_events_path = feature_dir / _STATUS_EVENTS_FILENAME
-    _merge_status_path = feature_dir / _STATUS_FILENAME
-    _pre_done_event_size = (
-        _merge_events_path.stat().st_size if _merge_events_path.exists() else 0
-    )
-    _pre_done_status_bytes = (
-        _merge_status_path.read_bytes() if _merge_status_path.exists() else None
-    )
-    target_events_path, target_status_path = _target_bookkeeping_status_paths(
-        main_repo=main_repo,
-        mission_slug=mission_slug,
-        status_feature_dir=feature_dir,
-    )
-    _pre_target_event_bytes = _read_optional_bytes(target_events_path)
-    _pre_target_status_bytes = _read_optional_bytes(target_status_path)
 
     # Merge-path status surface audit (mission merge-done-surface-resolver-01KTDVHZ):
     # Write sites: _mark_wp_merged_done — resolve_status_surface determines feature_dir;
@@ -2484,21 +2513,29 @@ def _run_lane_based_merge_locked(
 
     # -- T001: Mark WPs done with per-WP state tracking --
     if not done_marked_before_target:
-        _record_merged_wps_done_for_merge(
-            main_repo=main_repo,
-            feature_dir=feature_dir,
-            mission_slug=mission_slug,
-            lanes_manifest=lanes_manifest,
-            target_branch=lanes_manifest.target_branch,
-            merge_state=state,
-            all_wp_ids=all_wp_ids,
-        )
+        try:
+            _record_merged_wps_done_for_merge(
+                main_repo=main_repo,
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                lanes_manifest=lanes_manifest,
+                target_branch=lanes_manifest.target_branch,
+                merge_state=state,
+                all_wp_ids=all_wp_ids,
+            )
+        except Exception:
+            _restore_final_bookkeeping_snapshots(final_bookkeeping_snapshots)
+            raise
 
-    target_events_path, target_status_path = _project_status_bookkeeping_to_target(
-        main_repo=main_repo,
-        mission_slug=mission_slug,
-        status_feature_dir=feature_dir,
-    )
+    try:
+        target_events_path, target_status_path = _project_status_bookkeeping_to_target(
+            main_repo=main_repo,
+            mission_slug=mission_slug,
+            status_feature_dir=feature_dir,
+        )
+    except Exception:
+        _restore_final_bookkeeping_snapshots(final_bookkeeping_snapshots)
+        raise
 
     # -- WP05/T007 FR-014: Post-merge working-tree invariant --
     # After the refresh, `git status --porcelain` MUST report at most the two
@@ -2555,6 +2592,7 @@ def _run_lane_based_merge_locked(
                     "\nUnexpected working-tree state after merge. "
                     "Run `git status` to investigate before retrying."
                 )
+            _restore_final_bookkeeping_snapshots(final_bookkeeping_snapshots)
             raise typer.Exit(1)
     else:
         console.print(
@@ -2593,19 +2631,7 @@ def _run_lane_based_merge_locked(
             )
         except Exception as exc:
             if not (isinstance(exc, SafeCommitRecoveryFailed) and exc.commit_sha is not None):
-                with contextlib.suppress(OSError):
-                    if _merge_events_path.exists():
-                        with _merge_events_path.open("ab") as _fh:
-                            _fh.truncate(_pre_done_event_size)
-                with contextlib.suppress(OSError):
-                    if _pre_done_status_bytes is None:
-                        _merge_status_path.unlink(missing_ok=True)
-                    else:
-                        _merge_status_path.write_bytes(_pre_done_status_bytes)
-                with contextlib.suppress(OSError):
-                    _restore_optional_bytes(target_events_path, _pre_target_event_bytes)
-                with contextlib.suppress(OSError):
-                    _restore_optional_bytes(target_status_path, _pre_target_status_bytes)
+                _restore_final_bookkeeping_snapshots(final_bookkeeping_snapshots)
             raise
     else:
         console.print("  [dim]No post-merge bookkeeping changes to commit; continuing cleanup.[/dim]")

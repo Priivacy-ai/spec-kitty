@@ -17,6 +17,7 @@ from specify_cli.cli.commands.merge import (
     _mark_wp_merged_done,
     _project_status_bookkeeping_to_target,
     _record_baseline_merge_commit,
+    _restore_final_bookkeeping_snapshots,
 )
 
 pytestmark = pytest.mark.fast
@@ -815,3 +816,47 @@ def test_project_status_bookkeeping_restores_primary_on_projection_failure(
 
     assert primary_events.read_text(encoding="utf-8") == "old-event\n"
     assert primary_status.read_text(encoding="utf-8") == '{"WP01": "approved"}\n'
+
+
+def test_final_bookkeeping_rollback_restores_status_meta_and_state(tmp_path: Path) -> None:
+    """Final bookkeeping rollback restores every mutable surface it snapshots."""
+    coord_events = tmp_path / ".worktrees" / "m-coord" / "kitty-specs" / "m" / "status.events.jsonl"
+    coord_status = coord_events.parent / "status.json"
+    target_events = tmp_path / "kitty-specs" / "m" / "status.events.jsonl"
+    target_status = target_events.parent / "status.json"
+    target_meta = target_events.parent / "meta.json"
+    state_path = tmp_path / ".kittify" / "runtime" / "merge" / "01TESTSTATE" / "state.json"
+    for path, body in {
+        coord_events: b"approved-event\n",
+        coord_status: b'{"WP01": "approved"}\n',
+        target_meta: b'{"mission_slug": "m"}\n',
+        state_path: b'{"completed_wps": []}\n',
+    }.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(body)
+
+    snapshots = {
+        coord_events: coord_events.read_bytes(),
+        coord_status: coord_status.read_bytes(),
+        target_events: None,
+        target_status: None,
+        target_meta: target_meta.read_bytes(),
+        state_path: state_path.read_bytes(),
+    }
+
+    coord_events.write_text("approved-event\ndone-event\n", encoding="utf-8")
+    coord_status.write_text('{"WP01": "done"}\n', encoding="utf-8")
+    target_events.parent.mkdir(parents=True, exist_ok=True)
+    target_events.write_text("approved-event\ndone-event\n", encoding="utf-8")
+    target_status.write_text('{"WP01": "done"}\n', encoding="utf-8")
+    target_meta.write_text('{"mission_slug": "m", "baseline_merge_commit": "HEAD~1"}\n', encoding="utf-8")
+    state_path.write_text('{"completed_wps": ["WP01"]}\n', encoding="utf-8")
+
+    _restore_final_bookkeeping_snapshots(snapshots)
+
+    assert coord_events.read_bytes() == b"approved-event\n"
+    assert coord_status.read_bytes() == b'{"WP01": "approved"}\n'
+    assert not target_events.exists()
+    assert not target_status.exists()
+    assert target_meta.read_bytes() == b'{"mission_slug": "m"}\n'
+    assert state_path.read_bytes() == b'{"completed_wps": []}\n'
