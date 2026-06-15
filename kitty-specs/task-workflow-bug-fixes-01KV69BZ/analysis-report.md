@@ -1,16 +1,40 @@
 ---
-schema: analysis-findings/v1
+schema_version: 1
+artifact_type: spec-kitty.analysis-report
+command: /spec-kitty.analyze
+mission_slug: task-workflow-bug-fixes-01KV69BZ
+mission_id: 01KV69BZEHXDSGGMR6J3QN0J2E
+generated_at: '2026-06-15T19:30:51.583348+00:00'
+analyzer_agent: claude
+input_artifacts:
+  spec.md:
+    path: kitty-specs/task-workflow-bug-fixes-01KV69BZ/spec.md
+    sha256: f527a1671107829fb1c829499ebfb7e1071e6512e6d7b2be14802c000e564759
+  plan.md:
+    path: kitty-specs/task-workflow-bug-fixes-01KV69BZ/plan.md
+    sha256: d977a52b144a946cb3a42207ea303c31e31f063530aebb0fc1e44f07ddaae242
+  tasks.md:
+    path: kitty-specs/task-workflow-bug-fixes-01KV69BZ/tasks.md
+    sha256: 20ffcbe7fe64d615b2a7fda8d73e038fb90579392b7fbf3b3865bd572cbff784
+  charter:
+    path: /Users/robert/spec-kitty-dev/spec-kitty-20260615-203207-57hooZ/spec-kitty/.kittify/charter/charter.md
+    sha256: d393b068f20eab1bb918c2f53e669d01048f049e8b0f948ff6001fc280517c08
+verdict: ready
+issue_counts:
+  critical: 0
+  high: 0
+  medium: 1
+  low: 1
+  info: 0
 findings:
-  - id: C2
-    severity: medium
-    category: coverage
-    summary: "C-003 (both fixes independently revertable) has no commit-structure task or note in either WP prompt. (Partially addressed: C-003 notes added to both Definitions of Done.)"
-  - id: I2
-    severity: low
-    category: inconsistency
-    summary: "FR-004 and FR-005 embed regression-test obligations as functional requirements rather than deriving tests from FRs. (Left as-is: optional, non-blocking.)"
-counts: {critical: 0, high: 0, medium: 1, low: 1, info: 0}
-verdict_hint: ready
+- id: C2
+  severity: medium
+  category: coverage
+  summary: 'C-003 (both fixes independently revertable) has no commit-structure task or note in either WP prompt. (Partially addressed: C-003 notes added to both Definitions of Done.)'
+- id: I2
+  severity: low
+  category: inconsistency
+  summary: 'FR-004 and FR-005 embed regression-test obligations as functional requirements rather than deriving tests from FRs. (Left as-is: optional, non-blocking.)'
 ---
 
 ## Specification Analysis Report (Post-Remediation)
