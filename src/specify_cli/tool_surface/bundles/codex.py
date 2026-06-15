@@ -37,6 +37,12 @@ from ._builder import (
 _MANIFEST_DIR = ".codex-plugin"
 _MANIFEST_NAME = "plugin.json"
 
+# MCP companion file name and the manifest pointer the Codex schema expects.
+# Per plugin-manifest-codex-01, ``mcpServers`` points at ``./.mcp.json`` and is
+# emitted ONLY when a ``.mcp.json`` companion is present in the bundle.
+_MCP_JSON_NAME = ".mcp.json"
+_MCP_POINTER = f"./{_MCP_JSON_NAME}"
+
 # Keys that Codex plugin.json must NEVER contain.
 _FORBIDDEN_KEYS: frozenset[str] = frozenset({"hooks", "agents"})
 
@@ -98,17 +104,22 @@ class CodexBundleProjector:
                 err=True,
             )
 
-        # Step 1: write the plugin manifest.
+        # Step 1: stage the optional MCP companion BEFORE the manifest so the
+        # ``mcpServers`` pointer can be emitted only when ``.mcp.json`` is
+        # actually present in the bundle ("when applicable", FR-027).
+        self._copy_mcp_if_present()
+
+        # Step 2: write the plugin manifest (pointer added iff .mcp.json present).
         self._generate_plugin_json(version)
 
-        # Step 2: copy canonical command skills.
+        # Step 3: copy canonical command skills.
         skill_count = self._copy_skills(version)
         typer.echo(f"Skills: {skill_count} written to {self.bundle_dir / 'skills'}")
 
-        # Step 3: write marketplace.json.
+        # Step 4: write marketplace.json.
         self._generate_marketplace_json()
 
-        # Step 4: copy hooks/ by filesystem presence if applicable.
+        # Step 5: copy hooks/ by filesystem presence if applicable.
         self._copy_hooks_if_present()
 
         if skip_validate:
@@ -140,6 +151,10 @@ class CodexBundleProjector:
             },
             "skills": "skills/",
         }
+        # FR-027: advertise the MCP companion only when it was actually staged
+        # into the bundle ("when applicable"). Absent companion => no pointer.
+        if (self.bundle_dir / _MCP_JSON_NAME).is_file():
+            manifest["mcpServers"] = _MCP_POINTER
         self._validate_manifest(manifest)
         manifest_path = self.bundle_dir / _MANIFEST_DIR / _MANIFEST_NAME
         write_json(manifest_path, manifest)
@@ -262,6 +277,35 @@ class CodexBundleProjector:
         if hooks_dst.exists():
             shutil.rmtree(hooks_dst)
         shutil.copytree(hooks_src, hooks_dst)
+
+    # ------------------------------------------------------------------
+    # MCP companion (filesystem-presence only, conditional manifest pointer)
+    # ------------------------------------------------------------------
+
+    def _copy_mcp_if_present(self) -> None:
+        """Stage ``.mcp.json`` into the bundle when a canonical source exists.
+
+        FR-027 / plugin-manifest-codex-01: the Codex bundle carries an MCP
+        companion "when applicable". There is no canonical MCP source shipped
+        in doctrine today, so this is a guarded no-op in practice — but the
+        contract is now explicit and testable: when a ``.mcp.json`` is present
+        at the doctrine root it is copied into the bundle and
+        :meth:`_generate_plugin_json` emits the ``mcpServers`` pointer; when it
+        is absent nothing is written and no pointer appears.
+        """
+        import shutil  # noqa: PLC0415 — deferred to avoid top-level import cost
+
+        try:
+            import doctrine  # noqa: PLC0415
+        except ImportError:
+            return
+
+        mcp_src = Path(doctrine.__file__).parent / _MCP_JSON_NAME
+        if not mcp_src.is_file():
+            return
+
+        self.bundle_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(mcp_src, self.bundle_dir / _MCP_JSON_NAME)
 
     # ------------------------------------------------------------------
     # Marketplace catalog

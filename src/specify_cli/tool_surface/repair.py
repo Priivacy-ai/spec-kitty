@@ -164,6 +164,37 @@ class DriftPolicySummary:
     skipped: list[Path] = field(default_factory=list)
 
 
+def render_surface_summary_lines(summary: DriftPolicySummary) -> list[str]:
+    """Render the human-facing tool-surface summary as ``rich``-markup lines.
+
+    Shared by ``init`` and ``upgrade`` so both report identical, count-based
+    text (FR-007). Each bucket is reported as a *count*, never the raw list of
+    :class:`~pathlib.Path` objects. Returns one line per non-empty bucket, in a
+    stable order; the caller is responsible for the drift-exit control flow.
+    """
+    lines: list[str] = []
+    if summary.created:
+        lines.append(f"[dim]Created {len(summary.created)} tool surface(s)[/dim]")
+    if summary.repaired:
+        lines.append(
+            f"[dim]Repaired {len(summary.repaired)} stale tool surface(s)[/dim]"
+        )
+    if summary.drifted_overwritten:
+        lines.append(
+            f"[dim]Overwrote {len(summary.drifted_overwritten)} drifted tool surface(s)[/dim]"
+        )
+    if summary.drifted_reported:
+        lines.append(
+            f"[dim]Note: {len(summary.drifted_reported)} tool surface(s) have local edits "
+            f"— run 'spec-kitty doctor tool-surfaces' to review[/dim]"
+        )
+    if summary.skipped:
+        lines.append(
+            f"  {len(summary.skipped)} surface(s) not applicable, skipped."
+        )
+    return lines
+
+
 def _prompt_overwrite(path: Path) -> bool:
     """Prompt the user whether to overwrite a drifted file.  Returns True on ``y``."""
     try:

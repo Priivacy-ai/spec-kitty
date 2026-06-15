@@ -357,6 +357,69 @@ class TestMarketplaceJson:
 
 
 # ---------------------------------------------------------------------------
+# FR-027 — .mcp.json companion projected "when applicable"
+# ---------------------------------------------------------------------------
+
+
+class TestMcpCompanion:
+    """The Codex bundle carries ``.mcp.json`` + ``mcpServers`` pointer only when
+    a canonical MCP source exists ("when applicable", FR-027 /
+    plugin-manifest-codex-01)."""
+
+    def test_no_mcp_json_when_no_source(self, tmp_path: Path) -> None:
+        """Absent MCP source: no companion file and no manifest pointer.
+
+        This is the current canonical behavior (no MCP source ships in
+        doctrine today) and must stay a guarded no-op, not a silent gap.
+        """
+        bundle_dir = _run_build(tmp_path)
+        assert not (bundle_dir / ".mcp.json").exists(), (
+            ".mcp.json must NOT be written when no MCP source is present"
+        )
+        payload = _read_manifest(bundle_dir)
+        assert "mcpServers" not in payload, (
+            "mcpServers pointer must be absent when there is no .mcp.json"
+        )
+
+    def test_mcp_json_projected_when_source_present(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Present MCP source: companion copied and ``mcpServers`` pointer set.
+
+        Drives the two MCP-aware units directly (``_copy_mcp_if_present`` then
+        ``_generate_plugin_json``) so the doctrine-root monkeypatch only
+        affects the MCP companion lookup and not the unrelated skill renderer.
+        """
+        import doctrine
+
+        # Point the doctrine root at a fake package dir carrying a .mcp.json.
+        fake_doctrine_root = tmp_path / "fake_doctrine"
+        fake_doctrine_root.mkdir()
+        mcp_payload = '{"mcpServers": {"demo": {"command": "echo"}}}\n'
+        (fake_doctrine_root / ".mcp.json").write_text(
+            mcp_payload, encoding="utf-8"
+        )
+        monkeypatch.setattr(
+            doctrine, "__file__", str(fake_doctrine_root / "__init__.py")
+        )
+
+        projector = CodexBundleProjector(tmp_path / "dist")
+        projector.bundle_dir.mkdir(parents=True, exist_ok=True)
+        projector._copy_mcp_if_present()
+        projector._generate_plugin_json("3.2.0")
+
+        staged = projector.bundle_dir / ".mcp.json"
+        assert staged.is_file(), ".mcp.json must be staged when a source is present"
+        assert staged.read_text(encoding="utf-8") == mcp_payload, (
+            ".mcp.json contents must be copied verbatim"
+        )
+        payload = _read_manifest(projector.bundle_dir)
+        assert payload.get("mcpServers") == "./.mcp.json", (
+            "manifest must advertise mcpServers -> ./.mcp.json when companion present"
+        )
+
+
+# ---------------------------------------------------------------------------
 # Idempotency
 # ---------------------------------------------------------------------------
 

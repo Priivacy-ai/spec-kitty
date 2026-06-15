@@ -9,7 +9,7 @@ Learn how to add, remove, and manage AI agents in your spec-kitty project after 
 
 ## Overview
 
-Spec-kitty supports slash-command agents such as Claude Code, Gemini CLI, Cursor, Qwen Code, OpenCode, Windsurf, GitHub Copilot, Kilo Code, Auggie CLI, Roo Code, Kiro CLI, legacy Amazon Q, and Google Antigravity. It also supports command-skill agents such as Codex CLI, Mistral Vibe, Pi, and Letta Code.
+Spec-kitty supports slash-command agents such as Claude Code, Gemini CLI, Cursor, Qwen Code, OpenCode, Windsurf, GitHub Copilot, Kilo Code, Auggie CLI, Kiro CLI, legacy Amazon Q, and Google Antigravity. It also supports command-skill agents such as Codex CLI, Mistral Vibe, Pi, and Letta Code. (Roo Code shut down on 2026-05-15 and is no longer supported.)
 
 This guide applies after you've run `spec-kitty init` and want to change which agents are active in your project. For initial setup, see the [Getting Started](../tutorials/getting-started.md) guide.
 
@@ -113,7 +113,6 @@ Available but not configured:
   - qwen
   - windsurf
   - kilocode
-  - roo
   - copilot
   - auggie
   - q
@@ -175,7 +174,7 @@ Error: Invalid agent keys: cluade
 
 Valid agent keys:
   claude, codex, gemini, cursor, qwen, opencode,
-  windsurf, kilocode, roo, copilot, auggie, q, kiro,
+  windsurf, kilocode, copilot, auggie, q, kiro,
   antigravity, vibe, pi, letta
 ```
 
@@ -270,7 +269,7 @@ This is informational, not an error - command continues processing other agents.
 
 ```bash
 # Started with many agents, narrowing to preferred ones
-spec-kitty agent config remove windsurf kilocode roo
+spec-kitty agent config remove windsurf kilocode qwen
 # Keep only the agents you actively use
 ```
 
@@ -544,7 +543,7 @@ environment you intentionally manage.
 # Error message shows:
 # Valid agent keys:
 #   claude, codex, gemini, cursor, qwen, opencode,
-#   windsurf, kilocode, roo, copilot, auggie, q, kiro,
+#   windsurf, kilocode, copilot, auggie, q, kiro,
 #   antigravity, vibe, pi, letta
 
 # Fix typo and retry

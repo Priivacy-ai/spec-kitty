@@ -189,7 +189,11 @@ project-scoped), limiting its usefulness for project-level scanning.
 
 ---
 
-### Roo Cline (`roo`)
+### Roo Cline (`roo`) — deprecated
+
+> Roo Code shut down on 2026-05-15 and is no longer a supported harness
+> (`spec-kitty init --ai roo` is rejected). The entry below is retained as a
+> historical capability record only.
 
 | Field | Value |
 |-------|-------|

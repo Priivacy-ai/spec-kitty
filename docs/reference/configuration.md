@@ -293,8 +293,9 @@ Spec Kitty supports AI agents across different platforms. Agent configuration is
 | `letta` | `.agents/skills/spec-kitty.<command>/` | Letta Code |
 | `kilocode` | `~/.kilocode/workflows/` | Kilocode |
 | `auggie` | `~/.augment/commands/` | Augment Code |
-| `roo` | `~/.roo/commands/` | Roo Cline |
 | `q` | `~/.amazonq/prompts/` | Amazon Q |
+
+> **Roo Cline (`roo`) is deprecated.** Roo Code shut down on 2026-05-15; `spec-kitty init --ai roo` is rejected. Existing `.roo/` directories are preserved and a deprecation notice is shown on `spec-kitty upgrade`. Remove it with `spec-kitty agent config remove roo`.
 
 ### Configuration File
 

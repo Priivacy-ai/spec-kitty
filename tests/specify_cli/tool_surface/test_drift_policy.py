@@ -26,6 +26,7 @@ from specify_cli.tool_surface.repair import (
     DriftPolicySummary,
     RepairResult,
     _prompt_overwrite,
+    render_surface_summary_lines,
     run_surface_repair,
 )
 from specify_cli.tool_surface.status import (
@@ -519,3 +520,43 @@ class TestPromptOverwrite:
             "specify_cli.tool_surface.repair.input", side_effect=EOFError
         ):
             assert _prompt_overwrite(Path("/x")) is False
+
+
+class TestRenderSurfaceSummaryLines:
+    """FR-007: the summary reports *counts*, never raw Path-list reprs.
+
+    Regression guard for RISK-1, where the ``skipped`` line interpolated the
+    raw ``list[Path]`` instead of ``len(...)``.
+    """
+
+    def test_skipped_line_shows_count_not_list_repr(self) -> None:
+        summary = DriftPolicySummary(
+            skipped=[Path("/a/b.md"), Path("/c/d.md"), Path("/e/f.md")]
+        )
+        lines = render_surface_summary_lines(summary)
+        assert lines == ["  3 surface(s) not applicable, skipped."]
+        # The raw Path repr must never leak into the rendered text.
+        joined = "\n".join(lines)
+        assert "PosixPath" not in joined and "WindowsPath" not in joined
+        assert "[" not in joined
+
+    def test_empty_summary_renders_no_lines(self) -> None:
+        assert render_surface_summary_lines(DriftPolicySummary()) == []
+
+    def test_all_buckets_report_counts(self) -> None:
+        summary = DriftPolicySummary(
+            created=[Path("/c1")],
+            repaired=[Path("/r1"), Path("/r2")],
+            drifted_overwritten=[Path("/o1")],
+            drifted_reported=[Path("/d1"), Path("/d2"), Path("/d3")],
+            skipped=[Path("/s1")],
+        )
+        lines = render_surface_summary_lines(summary)
+        assert lines == [
+            "[dim]Created 1 tool surface(s)[/dim]",
+            "[dim]Repaired 2 stale tool surface(s)[/dim]",
+            "[dim]Overwrote 1 drifted tool surface(s)[/dim]",
+            "[dim]Note: 3 tool surface(s) have local edits "
+            "— run 'spec-kitty doctor tool-surfaces' to review[/dim]",
+            "  1 surface(s) not applicable, skipped.",
+        ]

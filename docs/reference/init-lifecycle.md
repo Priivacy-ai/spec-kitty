@@ -21,7 +21,7 @@ spec-kitty init [PROJECT_NAME] [OPTIONS]
 
 | Option | Description |
 |---|---|
-| `--ai <keys>` | Comma-separated agent keys (`claude`, `codex`, `gemini`, `cursor`, `qwen`, `opencode`, `windsurf`, `kilocode`, `auggie`, `roo`, `copilot`, `q`, `kiro`, `antigravity`, `vibe`, `pi`, `letta`). Required in non-interactive mode. |
+| `--ai <keys>` | Comma-separated agent keys (`claude`, `codex`, `gemini`, `cursor`, `qwen`, `opencode`, `windsurf`, `kilocode`, `auggie`, `copilot`, `q`, `kiro`, `antigravity`, `vibe`, `pi`, `letta`). Required in non-interactive mode. (`roo` is deprecated and rejected — Roo Code shut down 2026-05-15.) |
 | `--non-interactive` / `--yes` / `-y` | Skip all prompts. Equivalent to setting `SPEC_KITTY_NON_INTERACTIVE=1`. |
 | `--help` | Show full help (this page is a curated summary). |
 
@@ -48,7 +48,7 @@ Empty at init time. Populated by `/spec-kitty.specify`, `/spec-kitty.plan`, and 
 
 ### Agent command directories
 
-One directory per agent selected via `--ai`. Spec Kitty supports 17 agents total — 13 command-surface agents and 4 command-skill agents:
+One directory per agent selected via `--ai`. Spec Kitty supports 16 agents total — 12 command-surface agents and 4 command-skill agents. (Roo Code shut down on 2026-05-15 and can no longer be selected; existing `.roo/` directories are preserved on upgrade.)
 
 | Agent key | Directory created | Command surface |
 |---|---|---|
@@ -61,7 +61,6 @@ One directory per agent selected via `--ai`. Spec Kitty supports 17 agents total
 | `windsurf` | `.windsurf/workflows/` | `/spec-kitty.*` |
 | `kilocode` | `.kilocode/workflows/` | `/spec-kitty.*` |
 | `auggie` | `.augment/commands/` | `/spec-kitty.*` |
-| `roo` | `.roo/commands/` | `/spec-kitty.*` |
 | `q` | `.amazonq/prompts/` | `/spec-kitty.*` |
 | `kiro` | `.kiro/prompts/` | `/spec-kitty.*` |
 | `antigravity` | `.agent/workflows/` | `/spec-kitty.*` |

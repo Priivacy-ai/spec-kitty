@@ -551,7 +551,10 @@ def _run_upgrade_surface_repair(
     try:
         _repair_stale_command_manifest(project_path, json_output=json_output)
 
-        from specify_cli.tool_surface.repair import run_surface_repair
+        from specify_cli.tool_surface.repair import (
+            render_surface_summary_lines,
+            run_surface_repair,
+        )
 
         summary = run_surface_repair(
             project_path,
@@ -560,27 +563,10 @@ def _run_upgrade_surface_repair(
         )
         if json_output:
             return
-        if summary.created:
-            console.print(
-                f"[dim]Created {len(summary.created)} tool surface(s)[/dim]"
-            )
-        if summary.repaired:
-            console.print(
-                f"[dim]Repaired {len(summary.repaired)} stale tool surface(s)[/dim]"
-            )
-        if summary.drifted_overwritten:
-            console.print(
-                f"[dim]Overwrote {len(summary.drifted_overwritten)} drifted tool surface(s)[/dim]"
-            )
-        if summary.drifted_reported:
-            console.print(
-                f"[dim]Note: {len(summary.drifted_reported)} tool surface(s) have local edits "
-                f"— run 'spec-kitty doctor tool-surfaces' to review[/dim]"
-            )
-            if confirm:
-                raise typer.Exit(1)
-        if summary.skipped:
-            console.print(f"  {summary.skipped} surface(s) not applicable, skipped.")
+        for line in render_surface_summary_lines(summary):
+            console.print(line)
+        if summary.drifted_reported and confirm:
+            raise typer.Exit(1)
     except typer.Exit:
         raise
     except Exception as surf_exc:  # noqa: BLE001

@@ -55,7 +55,6 @@ spec-kitty init .
 | `windsurf` | Windsurf |
 | `kilocode` | Kilo Code |
 | `auggie` | Auggie CLI (Augment Code) |
-| `roo` | Roo Code |
 | `copilot` | GitHub Copilot |
 | `q` | Amazon Q Developer CLI (legacy; rebranded to Kiro) |
 | `kiro` | Kiro CLI (formerly Amazon Q Developer CLI) |
@@ -105,11 +104,11 @@ spec-kitty init . \
   --non-interactive
 ```
 
-### Example 5: All 13 init-surface agents
+### Example 5: All init-surface agents
 
 ```bash
 spec-kitty init my-project \
-  --ai codex,claude,gemini,cursor,qwen,opencode,windsurf,kilocode,auggie,roo,copilot,q,kiro \
+  --ai codex,claude,gemini,cursor,qwen,opencode,windsurf,kilocode,auggie,copilot,q,kiro \
   --non-interactive
 ```
 
@@ -186,13 +185,6 @@ When you specify agents with `--ai`, spec-kitty creates:
 - `.kittify/AGENTS.md`
 - `.windsurfrules` → symlink to `.kittify/AGENTS.md` (legacy)
 - `.windsurf/rules/AGENTS.md` → symlink to `.kittify/AGENTS.md` (modern)
-
-### For `--ai roo`
-
-- `.roo/commands/spec-kitty.*.md` (13 command files)
-- `.kittify/AGENTS.md`
-- `.roorules` → symlink to `.kittify/AGENTS.md` (legacy)
-- `.roo/rules/AGENTS.md` → symlink to `.kittify/AGENTS.md` (modern)
 
 ### For `--ai gemini`
 
@@ -314,7 +306,7 @@ spec-kitty init proj --ai CODEX
 spec-kitty init proj --ai codex
 ```
 
-Valid keys are lowercase: `codex`, `claude`, `gemini`, `cursor`, `qwen`, `opencode`, `windsurf`, `kilocode`, `auggie`, `roo`, `copilot`, `q`, `kiro`, `vibe`, `pi`, `letta`
+Valid keys are lowercase: `codex`, `claude`, `gemini`, `cursor`, `qwen`, `opencode`, `windsurf`, `kilocode`, `auggie`, `copilot`, `q`, `kiro`, `vibe`, `pi`, `letta`
 
 ## Complete Reference
 
