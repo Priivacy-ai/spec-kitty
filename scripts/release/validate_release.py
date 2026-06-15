@@ -67,6 +67,7 @@ class ValidationResult:
     mode: str
     pyproject_path: Path
     changelog_path: Path
+    lockfile_path: Path
     version: str
     tag: str | None
     issues: list[ValidationIssue] = field(default_factory=list)
@@ -78,6 +79,7 @@ class ValidationResult:
         print(f"Mode: {self.mode}")
         print(f"pyproject.toml: {self.pyproject_path}")
         print(f"CHANGELOG.md: {self.changelog_path}")
+        print(f"uv.lock: {self.lockfile_path}")
         print(f"Version: {self.version or 'N/A'}")
         print(f"Tag: {self.tag or 'N/A'}")
         if not self.ok:
@@ -118,6 +120,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--changelog",
         default="CHANGELOG.md",
         help="Path to changelog file (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--lockfile",
+        default="uv.lock",
+        help="Path to uv.lock (default: %(default)s)",
     )
     parser.add_argument(
         "--tag-pattern",
@@ -175,7 +182,7 @@ def load_pyproject_version(path: Path) -> str:
 def load_metadata_yaml_version(repo_root: Path) -> str:
     """Load spec_kitty.version from .kittify/metadata.yaml."""
     try:
-        import yaml  # type: ignore[import-untyped]
+        import yaml
     except ModuleNotFoundError as exc:  # pragma: no cover - pyyaml required
         raise ReleaseValidatorError(
             "PyYAML is required to load .kittify/metadata.yaml. "
@@ -217,6 +224,58 @@ def validate_metadata_yaml_version_sync(
             hint=(
                 f"Update .kittify/metadata.yaml spec_kitty.version to "
                 f"{pyproject_version!r} so both files agree before cutting the release."
+            ),
+        )
+    return None
+
+
+def load_uv_lock_project_version(
+    path: Path,
+    package_name: str = "spec-kitty-cli",
+) -> str:
+    """Load the root package version recorded in uv.lock."""
+    if not path.exists():
+        raise ReleaseValidatorError(f"uv.lock not found at {path}")
+    with path.open("rb") as fp:
+        data = tomllib.load(fp)
+
+    packages = data.get("package")
+    if not isinstance(packages, list):
+        raise ReleaseValidatorError("uv.lock does not contain a package list.")
+
+    for package in packages:
+        if not isinstance(package, dict) or package.get("name") != package_name:
+            continue
+        version = package.get("version")
+        if not isinstance(version, str):
+            raise ReleaseValidatorError(
+                f"uv.lock package {package_name!r} is missing a string version."
+            )
+        return version
+
+    raise ReleaseValidatorError(f"uv.lock does not contain package {package_name!r}.")
+
+
+def validate_uv_lock_version_sync(
+    pyproject_version: str,
+    lockfile_path: Path,
+) -> ValidationIssue | None:
+    """Assert uv.lock's root package version matches pyproject.toml."""
+    try:
+        lockfile_version = load_uv_lock_project_version(lockfile_path)
+    except ReleaseValidatorError as exc:
+        return ValidationIssue(message=str(exc))
+
+    if pyproject_version != lockfile_version:
+        return ValidationIssue(
+            message=(
+                f"Version mismatch detected: "
+                f"pyproject.toml={pyproject_version!r} vs "
+                f"uv.lock spec-kitty-cli={lockfile_version!r}"
+            ),
+            hint=(
+                "Run `uv lock` after updating pyproject.toml so uv.lock records "
+                f"spec-kitty-cli {pyproject_version!r}."
             ),
         )
     return None
@@ -449,6 +508,7 @@ def ensure_tag_matches_version(version: str, tag: str | None) -> ValidationIssue
 def run_validation(args: argparse.Namespace) -> ValidationResult:
     pyproject_path = Path(args.pyproject).resolve()
     changelog_path = Path(args.changelog).resolve()
+    lockfile_path = Path(args.lockfile).resolve()
     version = ""
     tag: str | None = None
     issues: list[ValidationIssue] = []
@@ -463,6 +523,7 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
             mode=args.mode,
             pyproject_path=pyproject_path,
             changelog_path=changelog_path,
+            lockfile_path=lockfile_path,
             version=version,
             tag=tag,
             issues=issues,
@@ -474,6 +535,10 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
     metadata_issue = validate_metadata_yaml_version_sync(version, repo_root)
     if metadata_issue is not None:
         issues.append(metadata_issue)
+
+    lockfile_issue = validate_uv_lock_version_sync(version, lockfile_path)
+    if lockfile_issue is not None:
+        issues.append(lockfile_issue)
 
     migration_line_issue = validate_release_covers_migration_targets(
         version,
@@ -522,6 +587,7 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
         mode=args.mode,
         pyproject_path=pyproject_path,
         changelog_path=changelog_path,
+        lockfile_path=lockfile_path,
         version=version,
         tag=tag,
         issues=issues,

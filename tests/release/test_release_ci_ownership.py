@@ -24,6 +24,13 @@ RELEASE_OWNER_PATHS = {
     ".github/workflows/check-spec-kitty-events-alignment.yml",
 }
 
+RELEASE_VERSION_SOURCE_PATHS = {
+    "pyproject.toml",
+    ".kittify/metadata.yaml",
+    "CHANGELOG.md",
+    "uv.lock",
+}
+
 
 def load_workflow(name: str) -> dict[str, Any]:
     return yaml.safe_load((WORKFLOWS / name).read_text(encoding="utf-8"))
@@ -44,6 +51,12 @@ def path_filter_text(workflow: dict[str, Any]) -> str:
     return filter_step["with"]["filters"]
 
 
+def release_readiness_filter_text(workflow: dict[str, Any]) -> str:
+    steps = workflow["jobs"]["check-readiness"]["steps"]
+    filter_step = next(step for step in steps if step.get("id") == "metadata_changes")
+    return filter_step["with"]["filters"]
+
+
 def test_ci_quality_runs_for_release_owned_paths() -> None:
     workflow = load_workflow("ci-quality.yml")
 
@@ -57,6 +70,23 @@ def test_ci_quality_release_slice_covers_release_owned_paths() -> None:
 
     for path in RELEASE_OWNER_PATHS:
         assert f"- '{path}'" in filters, f"release path filter misses {path}"
+
+
+def test_release_readiness_runs_for_all_version_sources() -> None:
+    workflow = load_workflow("release-readiness.yml")
+    paths = event_paths(workflow, "pull_request")
+    filters = release_readiness_filter_text(workflow)
+
+    missing_paths = RELEASE_VERSION_SOURCE_PATHS - paths
+    assert not missing_paths, (
+        "Release Readiness pull_request trigger misses version source paths: "
+        f"{sorted(missing_paths)}"
+    )
+
+    for path in RELEASE_VERSION_SOURCE_PATHS:
+        assert f"- '{path}'" in filters, (
+            f"Release Readiness metadata filter misses {path}"
+        )
 
 
 def test_shared_drift_has_scheduled_and_manual_monitoring() -> None:

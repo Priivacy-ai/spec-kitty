@@ -44,6 +44,21 @@ def _write_release_files(
         f"spec_kitty:\n  version: {version}\n",
         encoding="utf-8",
     )
+    (tmp_path / "uv.lock").write_text(
+        dedent(
+            f"""\
+            version = 1
+            revision = 3
+            requires-python = ">=3.11"
+
+            [[package]]
+            name = "spec-kitty-cli"
+            version = "{version}"
+            source = {{ editable = "." }}
+            """
+        ),
+        encoding="utf-8",
+    )
 
 
 def _init_git_repo(tmp_path: Path) -> None:

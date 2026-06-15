@@ -69,6 +69,26 @@ def write_release_files(tmp_path: Path, version: str, changelog_body: str) -> No
         f"spec_kitty:\n  version: {version}\n",
         encoding="utf-8",
     )
+    write_uv_lock(tmp_path, version)
+
+
+def write_uv_lock(tmp_path: Path, version: str) -> None:
+    (tmp_path / "uv.lock").write_text(
+        dedent(
+            f"""
+            version = 1
+            revision = 3
+            requires-python = ">=3.11"
+
+            [[package]]
+            name = "spec-kitty-cli"
+            version = "{version}"
+            source = {{ editable = "." }}
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def stage_and_commit(tmp_path: Path, message: str) -> None:
@@ -238,6 +258,35 @@ def test_branch_mode_fails_without_changelog_entry(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert "CHANGELOG.md lacks a populated section for 0.2.4" in result.stderr
+
+
+def test_branch_mode_fails_when_uv_lock_version_drifts(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "0.2.3",
+        changelog_for_versions(("0.2.3", "- Initial release")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap project")
+    tag(tmp_path, "v0.2.3")
+
+    write_release_files(
+        tmp_path,
+        "0.2.4",
+        changelog_for_versions(
+            ("0.2.4", "- Add automation"),
+            ("0.2.3", "- Initial release"),
+        ),
+    )
+    write_uv_lock(tmp_path, "0.2.3")
+    stage_and_commit(tmp_path, "chore: prep 0.2.4 with stale lockfile")
+
+    result = run_validator(tmp_path, "--mode", "branch")
+
+    assert result.returncode == 1
+    assert "uv.lock" in result.stderr
+    assert "0.2.4" in result.stderr
+    assert "0.2.3" in result.stderr
 
 
 def test_tag_mode_validates_tag_alignment(tmp_path: Path) -> None:

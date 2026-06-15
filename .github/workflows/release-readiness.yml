@@ -7,7 +7,9 @@ on:
       - 2.x
     paths:
       - pyproject.toml
+      - .kittify/metadata.yaml
       - CHANGELOG.md
+      - uv.lock
       - scripts/release/**
       - RELEASE_CHECKLIST.md
       - .github/workflows/release-readiness.yml
@@ -57,6 +59,9 @@ jobs:
           filters: |
             release_metadata:
               - 'pyproject.toml'
+              - '.kittify/metadata.yaml'
+              - 'CHANGELOG.md'
+              - 'uv.lock'
 
       - name: Validate release metadata
         if: github.event_name != 'pull_request' || steps.metadata_changes.outputs.release_metadata == 'true'
@@ -82,6 +87,7 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "This branch is ready for release:" >> $GITHUB_STEP_SUMMARY
             echo "- Version is properly bumped" >> $GITHUB_STEP_SUMMARY
+            echo "- pyproject.toml, .kittify/metadata.yaml, CHANGELOG.md, and uv.lock agree" >> $GITHUB_STEP_SUMMARY
             echo "- Changelog entry exists and is populated" >> $GITHUB_STEP_SUMMARY
             echo "- Version progression is monotonic" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -101,8 +107,9 @@ jobs:
             echo "### Required Actions" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "1. **Version Bump** - Update version in \`pyproject.toml\`" >> $GITHUB_STEP_SUMMARY
-            echo "2. **Changelog Entry** - Add release notes under \`## [X.Y.Z]\` in \`CHANGELOG.md\`" >> $GITHUB_STEP_SUMMARY
-            echo "3. **Version Progression** - Ensure new version > latest tag" >> $GITHUB_STEP_SUMMARY
+            echo "2. **Version Sync** - Keep \`pyproject.toml\`, \`.kittify/metadata.yaml\`, \`CHANGELOG.md\`, and \`uv.lock\` consistent" >> $GITHUB_STEP_SUMMARY
+            echo "3. **Changelog Entry** - Add release notes under \`## [X.Y.Z]\` in \`CHANGELOG.md\`" >> $GITHUB_STEP_SUMMARY
+            echo "4. **Version Progression** - Ensure new version > latest tag" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "See the validation output above for specific errors." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
