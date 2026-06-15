@@ -1,0 +1,56 @@
+{
+  "event_count": 27,
+  "last_event_id": "01KV5VPJYGEXZ53NREA58DJ3E7",
+  "materialized_at": "2026-06-15T14:41:50.032241+00:00",
+  "mission_number": "",
+  "mission_slug": "codebase-sanitization-1060-1622-01KV5F0B",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KV5VPD16KKY9VG7GX1CG1EW6",
+      "last_transition_at": "2026-06-15T14:41:43.974627+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KV5VPEGAKWG0152BF5EKBSBQ",
+      "last_transition_at": "2026-06-15T14:41:45.482940+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KV5VPG0EYPNTHGZ1NPE5BV3G",
+      "last_transition_at": "2026-06-15T14:41:47.022542+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KV5VPHGFT5S1X1WNA45E2XDK",
+      "last_transition_at": "2026-06-15T14:41:48.559596+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KV5VPJYGEXZ53NREA58DJ3E7",
+      "last_transition_at": "2026-06-15T14:41:50.032241+00:00"
+    }
+  }
+}
