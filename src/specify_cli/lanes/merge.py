@@ -248,7 +248,7 @@ def _branch_exists(repo_root: Path, branch: str) -> bool:
     # Routes the existence check through the shared lanes/_git helper while
     # preserving the merge pipeline's single env authority (_make_merge_env);
     # the env composes through rather than forking the helper (#1904).
-    return _shared_branch_exists(repo_root, branch, env=_make_merge_env())
+    return bool(_shared_branch_exists(repo_root, branch, env=_make_merge_env()))
 
 
 def _git_config_get(repo_root: Path, key: str) -> str | None:

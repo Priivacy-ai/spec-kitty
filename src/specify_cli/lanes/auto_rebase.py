@@ -34,6 +34,10 @@ from pathlib import Path
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.file_lock import MachineFileLock
+from specify_cli.lanes.merge import (
+    _ensure_event_log_merge_driver_config,
+    _make_merge_env,
+)
 from specify_cli.lanes.models import ExecutionLane
 from specify_cli.merge.conflict_classifier import (
     RULE_ID_INIT_IMPORTS,
@@ -102,6 +106,7 @@ def _run(
         capture_output=True,
         text=True,
         check=check,
+        env=_make_merge_env(),
     )
 
 
@@ -309,7 +314,7 @@ def _hydrate_status_events_from_index(feature_dir: Path, worktree: Path) -> str 
     rel_path = _relative_path(events_path, worktree)
     index_text = _git_show_stage(worktree, rel_path, 0)
     if index_text is None:
-        return None
+        return f"{RULE_ID_STATUS_JSON}: missing authoritative {rel_path}"
 
     events_path.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -367,6 +372,59 @@ def _resolve_managed_artifact_conflicts(
 def _merge_head_exists(worktree: Path) -> bool:
     result = _run(["git", "rev-parse", "-q", "--verify", "MERGE_HEAD"], worktree)
     return result.returncode == 0
+
+
+def _git_ref_has_path(worktree: Path, ref: str, rel_path: str) -> bool:
+    result = _run(["git", "cat-file", "-e", f"{ref}:{rel_path}"], worktree)
+    return result.returncode == 0
+
+
+def _status_artifact_paths_from_ref(
+    worktree: Path,
+    ref: str,
+) -> tuple[set[str], str | None]:
+    result = _run(
+        ["git", "ls-tree", "-r", "--name-only", ref, "--", KITTY_SPECS_DIR],
+        worktree,
+    )
+    if result.returncode != 0:
+        return set(), result.stderr.strip() or result.stdout.strip()
+    return {
+        rel_path
+        for rel_path in result.stdout.splitlines()
+        if _is_status_events_path(rel_path) or _is_status_json_path(rel_path)
+    }, None
+
+
+def _refuse_preexisting_lane_status_deletions(
+    worktree: Path,
+    mission_branch: str,
+) -> str | None:
+    merge_base = _run(["git", "merge-base", "HEAD", mission_branch], worktree)
+    if merge_base.returncode != 0:
+        return (
+            f"{RULE_ID_STATUS_EVENTS}: could not find merge base with "
+            f"{mission_branch}: {(merge_base.stderr or merge_base.stdout).strip()}"
+        )
+    base_ref = merge_base.stdout.strip()
+
+    base_paths, error = _status_artifact_paths_from_ref(worktree, base_ref)
+    if error is not None:
+        return f"{RULE_ID_STATUS_EVENTS}: could not inspect base status artifacts: {error}"
+    mission_paths, error = _status_artifact_paths_from_ref(worktree, mission_branch)
+    if error is not None:
+        return (
+            f"{RULE_ID_STATUS_EVENTS}: could not inspect coordination status "
+            f"artifacts: {error}"
+        )
+
+    for rel_path in sorted(base_paths & mission_paths):
+        if not _git_ref_has_path(worktree, "HEAD", rel_path):
+            return (
+                f"{RULE_ID_STATUS_EVENTS}: refusing pre-existing lane-side "
+                f"deletion of coordination-owned status artifact {rel_path}"
+            )
+    return None
 
 
 def _staged_status_artifact_dirs(worktree: Path) -> tuple[set[Path], str | None]:
@@ -756,6 +814,21 @@ def attempt_auto_rebase(
        commits with the audit message.
     """
     _git_user_env_ready(worktree_path)
+
+    halt_reason = _refuse_preexisting_lane_status_deletions(
+        worktree_path,
+        mission_branch,
+    )
+    if halt_reason is not None:
+        return AutoRebaseReport(
+            lane_id=lane.lane_id,
+            attempted=True,
+            succeeded=False,
+            classifications=(),
+            halt_reason=halt_reason,
+        )
+
+    _ensure_event_log_merge_driver_config(repo_root)
 
     merge_result = _run(
         ["git", "merge", "--no-edit", "--no-ff", "--no-commit", mission_branch],
