@@ -1,0 +1,3 @@
+{"event": "started", "invocation_id": "01KV4X2M3SPXSTZS2QGEJ77ZSE", "profile_id": "debugger-debbie", "action": "advise", "request_text": "Confirm GitHub issue #1972 root cause and scope before planning a fix", "actor": "operator", "mode_of_work": "task_execution", "governance_context_hash": "d5bf4e2848434427", "governance_context_available": true, "started_at": "2026-06-15T05:46:40.528037+00:00"}
+{"event": "completed", "invocation_id": "01KV4X2M3SPXSTZS2QGEJ77ZSE", "completed_at": "2026-06-15T05:47:26.970706+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "artifact_link", "invocation_id": "01KV4X2M3SPXSTZS2QGEJ77ZSE", "at": "2026-06-15T05:47:26.971812+00:00", "kind": "artifact", "ref": "https:/github.com/Priivacy-ai/spec-kitty/issues/1972"}
