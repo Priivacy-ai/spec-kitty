@@ -2,7 +2,7 @@
   "event_count": 58,
   "last_event_id": "01KV4SVP8TT899JB0GVWT65TR3",
   "materialized_at": "2026-06-15T04:50:25.690896+00:00",
-  "mission_number": "",
+  "mission_number": "136",
   "mission_slug": "agent-profile-projection-plugin-production-01KV3NGS",
   "mission_type": "software-dev",
   "summary": {
