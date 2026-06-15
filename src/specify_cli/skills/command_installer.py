@@ -35,6 +35,7 @@ from typing import Any
 from specify_cli.skills import manifest_store
 from specify_cli.skills.manifest_store import ManifestEntry
 from specify_cli.skills import command_renderer
+from specify_cli.skills._agent_roster import SUPPORTED_AGENTS
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 from specify_cli.shims.registry import CONSUMER_SKILLS
 
@@ -42,7 +43,9 @@ from specify_cli.shims.registry import CONSUMER_SKILLS
 # Constants
 # ---------------------------------------------------------------------------
 
-SUPPORTED_AGENTS: tuple[str, ...] = ("codex", "vibe", "pi", "letta")
+#: Re-exported from the leaf authority :data:`specify_cli.skills._agent_roster`
+#: so historical ``command_installer.SUPPORTED_AGENTS`` references keep working
+#: while the roster has exactly one definition (#1941).
 
 #: Commands installed as full prompt-backed Agent Skills.  These match the
 #: step directories under ``src/doctrine/missions/mission-steps/software-dev/``.

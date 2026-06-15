@@ -5,6 +5,7 @@ agents:
   - claude
   - codex
   auto_commit: false
+  lint_on_edit: true
 project:
   uuid: 8a4a7da6-a97c-4bb4-893a-b31664abfee4
   slug: spec-kitty

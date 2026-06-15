@@ -245,6 +245,7 @@ class AgentProfileRepository:
         """
         self._profiles: dict[str, AgentProfile] = {}
         self._provenance: dict[str, str] = {}
+        self._source_paths: dict[str, Path] = {}
         self._skipped: list[SkippedProfile] = []
         self._built_in_dir = built_in_dir or self._default_built_in_dir()
         self._org_dirs: list[Path] = list(org_dirs) if org_dirs else []
@@ -490,6 +491,7 @@ class AgentProfileRepository:
 
             self._profiles[profile.profile_id] = profile
             self._provenance[profile.profile_id] = layer
+            self._source_paths[profile.profile_id] = yaml_file
             loaded[profile.profile_id] = profile
 
         return loaded
@@ -568,6 +570,10 @@ class AgentProfileRepository:
         ``None`` if the profile is not loaded.
         """
         return self._provenance.get(profile_id)
+
+    def get_source_path(self, profile_id: str) -> Path | None:
+        """Return the YAML file path that supplied the loaded profile."""
+        return self._source_paths.get(profile_id)
 
     def find_by_role(self, role: Role | str) -> list[AgentProfile]:
         """Find all profiles that list the given role (primary or secondary position).

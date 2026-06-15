@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "mission_slug": "tool-surface-contract-residuals-01KV4S5B",
+  "mission_id": "01KV4S5BZMQ3M7BSAS7XT4ATNC",
+  "mission_branch": "kitty/mission-tool-surface-contract-residuals-01KV4S5B-01KV4S5B",
+  "target_branch": "feat/tool-surface-contract-residuals",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/tool_surface/model.py",
+        "tests/specify_cli/tool_surface/test_model.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/tool_surface/findings.py",
+        "src/specify_cli/tool_surface/profiles/**",
+        "tests/specify_cli/tool_surface/profiles/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/config.py",
+        "src/specify_cli/skills/command_renderer.py",
+        "tests/specify_cli/cli/commands/test_agent_config.py",
+        "tests/specify_cli/cli/commands/test_agent_config_pi_letta.py",
+        "tests/specify_cli/cli/commands/test_agent_config_vibe.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        "tests/specify_cli/tool_surface/test_docs.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/development/3-2-page-inventory.yaml",
+        "docs/how-to/**",
+        "src/specify_cli/core/paths.py",
+        "tests/specify_cli/cli/commands/test_doctor_skills.py",
+        "tests/specify_cli/core/test_paths.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-06-15T05:24:52.847361+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

@@ -18,8 +18,19 @@ from pathlib import Path
 
 from charter.profiles import AgentProfile, AgentProfileRepository
 
+from ..findings import (
+    PROFILE_NAME_INVALID,
+    PROFILE_OVERLAY_CONFLICT,
+    PROFILE_SENTINEL_SKIPPED,
+    PROFILE_SOURCE_INVALID,
+    SEVERITY_ERROR,
+    SEVERITY_INFO,
+    SurfaceFinding,
+    make_finding,
+)
 from ..model import NativeAgentProfile
-from .renderers import ProfileRenderer, get_renderer
+from .manifest import PROJECTION_VERSION, hash_file as hash_source_file
+from .renderers import ProfileRenderer, get_renderer, native_name_violation
 
 # Provenance layers exposed by ``AgentProfileRepository.get_provenance``.
 LAYER_BUILTIN = "builtin"
@@ -28,10 +39,31 @@ LAYER_PROJECT = "project"
 
 _PROJECT_PROFILE_SUBDIR = ".kittify/agent_profiles"
 
+_REPAIR_HINT = "spec-kitty doctor tool-surfaces --kind agent-profile --fix"
+
 
 def _profile_urn(profile: AgentProfile) -> str:
     """Return the DRG-style URN for ``profile`` (``agent_profile:<id>``)."""
     return f"agent_profile:{profile.profile_id}"
+
+
+def _manifest_source_path(source_path: Path | None, project_root: Path) -> str | None:
+    if source_path is None:
+        return None
+    resolved = source_path.resolve()
+    try:
+        return resolved.relative_to(project_root.resolve()).as_posix()
+    except ValueError:
+        return str(resolved)
+
+
+def _source_hash(source_path: Path | None) -> str | None:
+    if source_path is None or not source_path.exists():
+        return None
+    try:
+        return str(hash_source_file(source_path))
+    except OSError:
+        return None
 
 
 def default_profile_repository(project_root: Path) -> AgentProfileRepository:
@@ -94,6 +126,7 @@ class ProfileProjector:
     ) -> NativeAgentProfile:
         output_path = renderer.output_path(tool_key, profile, project_root)
         layer = self._repo.get_provenance(profile.profile_id) or LAYER_BUILTIN
+        source_path = self._repo.get_source_path(profile.profile_id)
         return NativeAgentProfile(
             profile_urn=_profile_urn(profile),
             source_layer=layer,
@@ -101,6 +134,9 @@ class ProfileProjector:
             output_path=output_path,
             format=renderer.format_key,
             file_hash=None,
+            source_path=_manifest_source_path(source_path, project_root),
+            source_hash=_source_hash(source_path),
+            projection_version=PROJECTION_VERSION,
         )
 
     def render(self, tool_key: str, profile_urn: str) -> str | None:
@@ -117,4 +153,122 @@ class ProfileProjector:
         profile = self._repo.get(profile_id)
         if profile is None:
             return None
-        return renderer.render(profile)
+        return str(renderer.render(profile))
+
+    def diagnose(self, tool_key: str, project_root: Path) -> list[SurfaceFinding]:
+        """Return findings for profile-projection conditions for ``tool_key``.
+
+        Emits the four #1940 diagnostic codes from their *real* triggering
+        conditions (never a dead constant):
+
+        * ``profile-source-invalid`` (error) — every profile the repository
+          recorded as a skipped/invalid source.
+        * ``profile-overlay-conflict`` (error) — an id that is both loaded in
+          one layer and rejected in another (ambiguous/unsafe overlay).
+        * ``profile-name-invalid`` (error) — a loaded, non-sentinel profile id
+          illegal for the native filename stem.
+        * ``profile-sentinel-skipped`` (info) — each sentinel profile, recorded
+          rather than silently dropped.
+
+        Tools without a native renderer yield no projection-specific findings
+        here (the provider reports their research gap separately).
+        """
+        # ``project_root`` is accepted for call-site symmetry with ``project``
+        # (the provider passes the same arguments); the diagnostics below read
+        # only the repository, which already resolved its layers at load time.
+        _ = project_root
+        if get_renderer(tool_key) is None:
+            return []
+        findings: list[SurfaceFinding] = []
+        findings.extend(self._source_invalid_findings(tool_key))
+        findings.extend(self._overlay_conflict_findings(tool_key))
+        findings.extend(self._name_invalid_findings(tool_key))
+        findings.extend(self._sentinel_findings(tool_key))
+        return findings
+
+    def _source_invalid_findings(self, tool_key: str) -> list[SurfaceFinding]:
+        out: list[SurfaceFinding] = []
+        for skip in self._repo.skipped_profiles():
+            label = skip.profile_id or skip.path
+            out.append(
+                make_finding(
+                    PROFILE_SOURCE_INVALID,
+                    SEVERITY_ERROR,
+                    f"Agent profile source is invalid: {label} ({skip.error_summary})",
+                    tool_key=tool_key,
+                    surface_id=skip.profile_id,
+                    repair_command=_REPAIR_HINT,
+                    details={
+                        "layer": skip.layer,
+                        "path": skip.path,
+                        "reason": skip.error_summary,
+                    },
+                )
+            )
+        return out
+
+    def _overlay_conflict_findings(self, tool_key: str) -> list[SurfaceFinding]:
+        """One finding per id present in both the loaded set and a skipped layer.
+
+        Such an id was successfully loaded from one layer yet rejected when an
+        overlay layer tried to redefine it — an ambiguous resolution across
+        layers that must not be presented as healthy.
+        """
+        loaded = {p.profile_id for p in self._repo.list_all()}
+        conflicts = sorted(
+            {
+                skip.profile_id
+                for skip in self._repo.skipped_profiles()
+                if skip.profile_id and skip.profile_id in loaded
+            }
+        )
+        return [
+            make_finding(
+                PROFILE_OVERLAY_CONFLICT,
+                SEVERITY_ERROR,
+                (
+                    f"Agent profile {profile_id!r} is defined in multiple layers "
+                    "with an incompatible overlay; resolution is ambiguous."
+                ),
+                tool_key=tool_key,
+                surface_id=profile_id,
+                repair_command=_REPAIR_HINT,
+            )
+            for profile_id in conflicts
+        ]
+
+    def _name_invalid_findings(self, tool_key: str) -> list[SurfaceFinding]:
+        out: list[SurfaceFinding] = []
+        for profile in self._repo.list_all():
+            if profile.sentinel:
+                continue
+            reason = native_name_violation(profile.profile_id)
+            if reason is None:
+                continue
+            out.append(
+                make_finding(
+                    PROFILE_NAME_INVALID,
+                    SEVERITY_ERROR,
+                    f"Agent profile id {profile.profile_id!r} is invalid: {reason}",
+                    tool_key=tool_key,
+                    surface_id=profile.profile_id,
+                    details={"reason": reason},
+                )
+            )
+        return out
+
+    def _sentinel_findings(self, tool_key: str) -> list[SurfaceFinding]:
+        return [
+            make_finding(
+                PROFILE_SENTINEL_SKIPPED,
+                SEVERITY_INFO,
+                (
+                    f"Sentinel profile {profile.profile_id!r} is a workflow "
+                    "routing signal and is intentionally not projected."
+                ),
+                tool_key=tool_key,
+                surface_id=_profile_urn(profile),
+            )
+            for profile in self._repo.list_all()
+            if profile.sentinel
+        ]

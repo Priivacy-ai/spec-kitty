@@ -38,6 +38,8 @@ RELEASE_VALIDATOR_SURFACE_PATHS = {
     ".github/workflows/release-readiness.yml",
 }
 
+DOCS_CONTRACT_CI_PATHS = {"docs/**"}
+
 
 def load_workflow(name: str) -> dict[str, Any]:
     return yaml.safe_load((WORKFLOWS / name).read_text(encoding="utf-8"))
@@ -86,6 +88,20 @@ def test_ci_quality_release_slice_covers_release_owned_paths() -> None:
 
     for path in RELEASE_OWNER_PATHS:
         assert f"- '{path}'" in filters, f"release path filter misses {path}"
+
+
+def test_ci_quality_docs_contract_gate_runs_for_docs_changes() -> None:
+    workflow = load_workflow("ci-quality.yml")
+    filters = path_filter_text(workflow)
+
+    for event in ("pull_request", "push"):
+        missing = DOCS_CONTRACT_CI_PATHS - event_paths(workflow, event)
+        assert not missing, (
+            f"CI Quality {event} trigger misses docs-contract paths: "
+            f"{sorted(missing)}"
+        )
+    for path in DOCS_CONTRACT_CI_PATHS:
+        assert f"- '{path}'" in filters, f"core_misc path filter misses {path}"
 
 
 def test_release_packaging_does_not_ship_removed_roo_harness() -> None:

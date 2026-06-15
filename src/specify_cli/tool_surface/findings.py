@@ -45,6 +45,15 @@ NATIVE_AGENT_PROFILE_DRIFT = "native-agent-profile-drift"
 PROFILE_PROJECTION_UNSUPPORTED = "profile-projection-unsupported"
 RESEARCH_GAP_SURFACE = "research-gap-surface"
 
+# --- Agent-profile projection diagnostics (#1940) ---------------------------
+# Append-only: these four codes extend the agent-profile vocabulary; the three
+# codes above are stable and MUST NOT be renamed. Values match
+# ``contracts/profile-findings-and-manifest.md`` verbatim.
+PROFILE_SOURCE_INVALID = "profile-source-invalid"
+PROFILE_NAME_INVALID = "profile-name-invalid"
+PROFILE_OVERLAY_CONFLICT = "profile-overlay-conflict"
+PROFILE_SENTINEL_SKIPPED = "profile-sentinel-skipped"
+
 # --- Plugin bundles (placeholders, populated in WP09) -----------------------
 BUNDLE_COMPONENT_MISSING = "bundle-component-missing"
 PLUGIN_MANIFEST_STALE_PATH = "plugin-manifest-stale-path"

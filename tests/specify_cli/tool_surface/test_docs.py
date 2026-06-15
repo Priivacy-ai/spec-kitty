@@ -1,4 +1,11 @@
-"""Unit + CI-level tests for the docs contract linter (WP08, FR-017)."""
+"""Integration + CI-level tests for the docs contract linter (WP08, FR-017).
+
+Marked ``integration`` (WP04, #1942) so that CI's ``integration-tests-core-misc``
+``specify-cli-rest`` shard actually collects it. The companion wiring change adds
+``tests/specify_cli/tool_surface/**`` and ``src/specify_cli/tool_surface/**`` to
+the ``core_misc`` paths-filter list, which is the glob the shard's ``if:`` gate
+evaluates — without both halves the docs-contract gate stays uncollected.
+"""
 
 from __future__ import annotations
 
@@ -26,7 +33,7 @@ from specify_cli.tool_surface.service import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.integration]
 
 _REPO_ROOT = Path(__file__).resolve()
 while not (_REPO_ROOT / "pyproject.toml").exists():
@@ -207,7 +214,13 @@ def test_docs_contract_lint() -> None:
 
 
 def test_docs_contract_lint_catches_injected_drift(tmp_path: Path) -> None:
-    """A newly introduced unregistered path must fail the contract lint."""
+    """A newly introduced *unregistered* path must fail the contract lint.
+
+    The assertion pins the REAL ``FINDING_UNREGISTERED_PATH`` constant (value
+    ``"UNREGISTERED_PATH"``, ``docs.py``), not a prose string and not merely
+    ``len(findings) > 0`` — so the gate fails specifically on tool-surface drift
+    rather than on incidental lint noise.
+    """
     drifted = tmp_path / "drifted.md"
     drifted.write_text(
         "New surface at `.agents/skills/totally-made-up/SKILL.md`.\n",
@@ -216,3 +229,19 @@ def test_docs_contract_lint_catches_injected_drift(tmp_path: Path) -> None:
     findings = lint_docs_directory(tmp_path)
     assert findings, "Injected drift should have produced a finding"
     assert findings[0].finding == FINDING_UNREGISTERED_PATH
+
+
+def test_docs_contract_lint_discriminates_drift_from_noise(tmp_path: Path) -> None:
+    """A *registered* path injected the same way yields ZERO findings.
+
+    Paired with :func:`test_docs_contract_lint_catches_injected_drift`, this
+    proves the gate fails on drift *and only on drift*: the identical injection
+    mechanism over a registered command-skill surface must not produce a finding
+    (no false positives that would mask the real signal).
+    """
+    registered = tmp_path / "registered.md"
+    registered.write_text(
+        "Existing surface at `.agents/skills/spec-kitty.advise/SKILL.md`.\n",
+        encoding="utf-8",
+    )
+    assert lint_docs_directory(tmp_path) == []

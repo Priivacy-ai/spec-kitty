@@ -8,6 +8,7 @@ on:
       - 2.x
     paths:
       - 'src/**'
+      - 'docs/**'
       - '.kittify/doctrine/overlays/**'
       - 'tests/**'
       - 'pyproject.toml'
@@ -29,6 +30,7 @@ on:
       - 2.x
     paths:
       - 'src/**'
+      - 'docs/**'
       - '.kittify/doctrine/overlays/**'
       - 'tests/**'
       - 'pyproject.toml'
@@ -176,7 +178,10 @@ jobs:
               - 'src/specify_cli/core/**'
               - 'src/specify_cli/doctrine_synthesizer/**'
               - 'src/specify_cli/saas/**'
+              - 'src/specify_cli/tool_surface/**'
+              - 'docs/**'
               - 'tests/architectural/**'
+              - 'tests/specify_cli/tool_surface/**'
               - 'tests/kernel/**'
               - 'tests/doctrine/**'
               - 'tests/doctrine_synthesizer/**'

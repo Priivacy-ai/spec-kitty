@@ -14,7 +14,6 @@ from specify_cli.tool_surface.enums import (
 from specify_cli.tool_surface.model import (
     NativeAgentProfile,
     SurfaceDefinition,
-    SurfaceFinding,
     SurfaceInstance,
     SurfacePlan,
 )
@@ -64,20 +63,6 @@ def test_surface_plan_accepts_empty_instances() -> None:
     )
     assert plan.instances == ()
     assert plan.tool_key == "claude"
-
-
-def test_surface_finding_allows_none_path_and_repair() -> None:
-    finding = SurfaceFinding(
-        code="TSC001",
-        tool_key="claude",
-        surface_kind=SurfaceKind.COMMAND_SKILL,
-        severity="research_gap",
-        path=None,
-        repair_command=None,
-        detail="no repair path known",
-    )
-    assert finding.path is None
-    assert finding.repair_command is None
 
 
 def test_native_agent_profile_fields() -> None:
