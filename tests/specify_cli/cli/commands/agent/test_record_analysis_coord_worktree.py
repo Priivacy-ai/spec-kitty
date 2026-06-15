@@ -12,12 +12,14 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 pytestmark = [pytest.mark.integration]
 
-from specify_cli.analysis_report import ANALYSIS_REPORT_FILENAME
+from specify_cli.analysis_report import ANALYSIS_REPORT_FILENAME, write_analysis_report
 from specify_cli.cli.commands.agent.mission import app as mission_app
+from specify_cli.cli.commands.agent.workflow import _require_current_analysis_report
 
 _CARRIER_READY = (
     "---\n"
@@ -118,3 +120,37 @@ def test_record_analysis_writes_to_primary_without_coord_worktree(tmp_path, monk
     assert result.exit_code == 0, emitted
     assert emitted["success"] is True
     assert emitted["path"] == str(primary_feature_dir / ANALYSIS_REPORT_FILENAME)
+
+
+# --- Read-side companion (#1989): the implement gate must READ the report from
+# the primary checkout, where record-analysis writes it. The implement command
+# previously located analysis-report.md via the topology-aware
+# ``candidate_feature_dir_for_mission`` (→ coordination worktree, which lacks the
+# report), so it falsely reported "missing" under coord topology. The gate now
+# resolves via the topology-blind ``primary_feature_dir_for_mission``.
+
+
+def test_implement_gate_finds_report_in_primary_not_coord(tmp_path):
+    slug = "sample-01KS"
+    repo_root = tmp_path
+    primary_feature_dir = repo_root / "kitty-specs" / slug
+    coord_feature_dir = repo_root / ".worktrees" / f"{slug}-coord" / "kitty-specs" / slug
+    _make_primary(primary_feature_dir)
+    _make_coord_without_spec(coord_feature_dir)
+
+    # Persist a valid outer-wrapper report in the PRIMARY checkout (as the fixed
+    # record-analysis does).
+    write_analysis_report(
+        feature_dir=primary_feature_dir,
+        repo_root=repo_root,
+        body=_CARRIER_READY,
+        analyzer_agent="test",
+    )
+
+    # Passing the PRIMARY dir (what the fixed gate does) → the gate is satisfied.
+    _require_current_analysis_report(primary_feature_dir, repo_root, slug)
+
+    # Passing the COORD dir (the old buggy behavior) → the gate fails: the report
+    # is absent there. This documents why the gate must anchor to primary.
+    with pytest.raises(typer.Exit):
+        _require_current_analysis_report(coord_feature_dir, repo_root, slug)

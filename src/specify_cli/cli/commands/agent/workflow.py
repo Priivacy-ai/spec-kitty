@@ -38,7 +38,11 @@ from specify_cli.core.constants import (
     KITTY_SPECS_DIR,
     MISSION_TYPE_RESEARCH,
 )
-from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
+from specify_cli.missions.feature_dir_resolver import (
+    candidate_feature_dir_for_mission,
+    primary_feature_dir_for_mission,
+    resolve_feature_dir_for_mission,
+)
 import json
 import logging
 import re
@@ -1278,8 +1282,15 @@ def implement(
             print("Re-run move-task with --review-feedback-file so the fix cycle can attach the canonical review artifact.")
             raise typer.Exit(1)
 
+        # #1989 (read-side companion to WP01): the implement gate must read
+        # analysis-report.md from the PRIMARY checkout, where record-analysis now
+        # writes it. ``candidate_feature_dir_for_mission`` is topology-aware and
+        # resolves to the coordination worktree once one exists — which lacks the
+        # report (and spec.md for the freshness hash), so the gate would falsely
+        # report it missing under coord topology. ``primary_feature_dir_for_mission``
+        # is the topology-blind anchor that matches the write path.
         _require_current_analysis_report(
-            candidate_feature_dir_for_mission(main_repo_root, mission_slug),
+            primary_feature_dir_for_mission(main_repo_root, mission_slug),
             main_repo_root,
             mission_slug,
         )
