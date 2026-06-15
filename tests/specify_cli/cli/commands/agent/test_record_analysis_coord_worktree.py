@@ -10,12 +10,13 @@ the topology-blind ``primary_feature_dir_for_mission``.
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
 
 import pytest
 import typer
 from typer.testing import CliRunner
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 from specify_cli.analysis_report import ANALYSIS_REPORT_FILENAME, write_analysis_report
 from specify_cli.cli.commands.agent.mission import app as mission_app
@@ -219,3 +220,75 @@ def test_record_analysis_persists_outer_wrapper_format_under_coord(tmp_path, mon
     # The carrier input (schema: analysis-findings/v1) MUST be wrapped, not persisted raw.
     assert frontmatter.get("artifact_type") == ANALYSIS_REPORT_ARTIFACT_TYPE
     assert frontmatter.get("schema") != "analysis-findings/v1"
+
+
+def test_record_analysis_refuses_protected_primary_when_invoked_from_coord_worktree(tmp_path, monkeypatch):
+    """The #1989 primary write target must be branch-safe, not just the coord CWD."""
+    from mission_runtime import CommitTarget, CommitTargetKind
+
+    slug = "sample-01KS"
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / ".kittify").mkdir()
+    (repo_root / ".gitignore").write_text(".worktrees/\n", encoding="utf-8")
+    primary_feature_dir = repo_root / "kitty-specs" / slug
+    _make_primary(primary_feature_dir)
+
+    def git(*args: str) -> None:
+        subprocess.run(
+            ["git", *args],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+    git("init")
+    git("config", "user.email", "test@example.com")
+    git("config", "user.name", "Test User")
+    git("branch", "-M", "main")
+    git("add", ".")
+    git("commit", "-m", "seed protected primary")
+
+    coord_root = repo_root / ".worktrees" / f"{slug}-coord"
+    git("worktree", "add", "-b", "analysis-work", str(coord_root))
+    coord_feature_dir = coord_root / "kitty-specs" / slug
+
+    input_file = tmp_path / "analysis.md"
+    input_file.write_text(_CARRIER_READY, encoding="utf-8")
+
+    monkeypatch.chdir(coord_root)
+    monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.agent.mission.locate_project_root",
+        lambda: repo_root,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.agent.mission.get_main_repo_root",
+        lambda _path: repo_root,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.agent.mission._find_feature_directory",
+        lambda *_args, **_kwargs: coord_feature_dir,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.agent.mission._resolve_record_analysis_placement_ref",
+        lambda *_args, **_kwargs: CommitTarget(
+            ref="kitty/sample-01KS",
+            kind=CommitTargetKind.COORDINATION,
+        ),
+    )
+    emitted: dict[str, object] = {}
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.agent.mission._emit_json",
+        lambda payload: emitted.update(payload),
+    )
+
+    result = CliRunner().invoke(
+        mission_app,
+        ["record-analysis", "--mission", slug, "--input-file", str(input_file), "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert emitted["error_code"] == "PROTECTED_BRANCH_REFUSED"
+    assert not (primary_feature_dir / ANALYSIS_REPORT_FILENAME).exists()
