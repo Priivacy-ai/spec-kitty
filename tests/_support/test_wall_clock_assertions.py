@@ -103,6 +103,13 @@ from tests._support.wall_clock_assertions import (
         (
             "from datetime import datetime\n\n"
             "def test_bad():\n"
+            "    assert (lambda wall_now=datetime.now: wall_now())().year == 2026\n",
+            "wall_now()",
+            4,
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "def test_bad():\n"
             "    assert (dt := datetime).now().year == 2026\n",
             "dt.now()",
             4,
@@ -250,6 +257,55 @@ from tests._support.wall_clock_assertions import (
             "    assert wall_now().year == 2026\n",
             "wall_now()",
             10,
+        ),
+        (
+            "import pytest\n"
+            "from datetime import datetime\n\n"
+            "@pytest.fixture\n"
+            "def wall_now():\n"
+            "    return datetime.now\n\n"
+            "def test_bad(wall_now):\n"
+            "    assert wall_now().year == 2026\n",
+            "wall_now()",
+            9,
+        ),
+        (
+            "import pytest\n"
+            "from datetime import datetime\n\n"
+            "@pytest.fixture(name='clock_alias')\n"
+            "def wall_now():\n"
+            "    return datetime.now\n\n"
+            "def test_bad(clock_alias):\n"
+            "    assert clock_alias().year == 2026\n",
+            "clock_alias()",
+            9,
+        ),
+        (
+            "import pytest\n"
+            "from datetime import datetime\n\n"
+            "@pytest.fixture\n"
+            "def wall_now():\n"
+            "    return datetime.now\n\n"
+            "@pytest.fixture\n"
+            "def wrapper(wall_now):\n"
+            "    return wall_now\n\n"
+            "def test_bad(wrapper):\n"
+            "    assert wrapper().year == 2026\n",
+            "wrapper()",
+            13,
+        ),
+        (
+            "import pytest\n"
+            "from datetime import datetime\n\n"
+            "@pytest.fixture\n"
+            "def clock_fixture():\n"
+            "    global wall_now\n"
+            "    wall_now = datetime.now\n\n"
+            "@pytest.mark.usefixtures('clock_fixture')\n"
+            "def test_bad():\n"
+            "    assert wall_now().year == 2026\n",
+            "wall_now()",
+            11,
         ),
         (
             "import pytest\n"
@@ -558,6 +614,44 @@ def test_find_wall_clock_assertion_violations_respects_local_shadowing(tmp_path:
     test_file.write_text(source, encoding="utf-8")
 
     assert find_wall_clock_assertion_violations([test_file]) == []
+
+
+def test_find_wall_clock_assertion_violations_resolves_cross_file_clock_aliases(tmp_path: Path) -> None:
+    tests_root = tmp_path / "tests"
+    helper_file = tests_root / "helpers" / "clock.py"
+    direct_import_file = tests_root / "test_direct_import.py"
+    module_import_file = tests_root / "test_module_import.py"
+    package_import_file = tests_root / "test_package_import.py"
+    helper_file.parent.mkdir(parents=True)
+    helper_file.write_text("from datetime import datetime\n\nwall_now = datetime.now\n", encoding="utf-8")
+    direct_import_file.write_text(
+        "from helpers.clock import wall_now\n\n"
+        "def test_bad():\n"
+        "    assert wall_now().year == 2026\n",
+        encoding="utf-8",
+    )
+    module_import_file.write_text(
+        "import helpers.clock as clock\n\n"
+        "def test_bad():\n"
+        "    assert clock.wall_now().year == 2026\n",
+        encoding="utf-8",
+    )
+    package_import_file.write_text(
+        "from helpers import clock\n\n"
+        "def test_bad():\n"
+        "    assert clock.wall_now().year == 2026\n",
+        encoding="utf-8",
+    )
+
+    violations = find_wall_clock_assertion_violations(
+        [helper_file, direct_import_file, module_import_file, package_import_file]
+    )
+
+    assert [(violation.path.name, violation.call, violation.line) for violation in violations] == [
+        ("test_direct_import.py", "wall_now()", 4),
+        ("test_module_import.py", "clock.wall_now()", 4),
+        ("test_package_import.py", "clock.wall_now()", 4),
+    ]
 
 
 def test_find_test_python_paths_includes_helper_modules(tmp_path: Path) -> None:
