@@ -18,11 +18,15 @@ tracker_refs: []
 planning_base_branch: feat/locate-project-root-consolidation
 merge_target_branch: feat/locate-project-root-consolidation
 branch_strategy: Planning artifacts for this mission were generated on feat/locate-project-root-consolidation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/locate-project-root-consolidation unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-locate-project-root-consolidation-01KV5SX1
+base_commit: c29ee0790efd383097160821e2679409b4c9f997
+created_at: '2026-06-15T14:54:24.352240+00:00'
 subtasks:
 - T001
 - T002
 - T003
 agent: claude
+shell_pid: '73512'
 history:
 - date: '2026-06-15'
   event: Created during /spec-kitty.tasks by Architect Alphonso
