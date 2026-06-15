@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands import context
 from specify_cli.workspace.context import WorkspaceContext, save_context
+
+pytestmark = [pytest.mark.fast]
 
 
 def test_context_info_displays_unknown_when_base_commit_missing(

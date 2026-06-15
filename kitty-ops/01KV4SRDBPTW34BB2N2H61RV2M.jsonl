@@ -1,0 +1,3 @@
+{"event": "started", "invocation_id": "01KV4SRDBPTW34BB2N2H61RV2M", "profile_id": "python-pedro", "action": "generate", "request_text": "Address fourth adversarial review finding on PR #1966 CI ownership for metadata.yaml", "actor": "operator", "mode_of_work": "task_execution", "governance_context_hash": "f922fb25a8d8ba0d", "governance_context_available": true, "started_at": "2026-06-15T04:48:39.646930+00:00"}
+{"event": "completed", "invocation_id": "01KV4SRDBPTW34BB2N2H61RV2M", "completed_at": "2026-06-15T04:48:49.057866+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "artifact_link", "invocation_id": "01KV4SRDBPTW34BB2N2H61RV2M", "at": "2026-06-15T04:48:49.058138+00:00", "kind": "artifact", "ref": "https://github.com/Priivacy-ai/spec-kitty/pull/1966"}

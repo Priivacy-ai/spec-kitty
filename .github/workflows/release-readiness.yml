@@ -7,7 +7,9 @@ on:
       - 2.x
     paths:
       - pyproject.toml
+      - .kittify/metadata.yaml
       - CHANGELOG.md
+      - uv.lock
       - scripts/release/**
       - RELEASE_CHECKLIST.md
       - .github/workflows/release-readiness.yml
@@ -55,20 +57,37 @@ jobs:
         uses: dorny/paths-filter@v4
         with:
           filters: |
-            release_metadata:
+            version_sources:
               - 'pyproject.toml'
+              - '.kittify/metadata.yaml'
+              - 'CHANGELOG.md'
+              - 'uv.lock'
+            version_bump:
+              - 'pyproject.toml'
+            validator_surface:
+              - 'scripts/release/**'
+              - '.github/workflows/release-readiness.yml'
 
       - name: Validate release metadata
-        if: github.event_name != 'pull_request' || steps.metadata_changes.outputs.release_metadata == 'true'
+        if: >-
+          github.event_name != 'pull_request' ||
+          steps.metadata_changes.outputs.version_sources == 'true' ||
+          steps.metadata_changes.outputs.validator_surface == 'true'
         id: validate
         continue-on-error: true
         run: |
           if [[ -n "${{ inputs.tag }}" ]]; then
             echo "Running validation in tag mode for dry run: ${{ inputs.tag }}"
+            echo "scope=tag" >> "$GITHUB_OUTPUT"
             python scripts/release/validate_release.py --mode tag --tag "${{ inputs.tag }}" --tag-pattern "v*.*.*"
-          else
+          elif [[ "${{ github.event_name }}" != "pull_request" || "${{ steps.metadata_changes.outputs.version_bump }}" == "true" ]]; then
             echo "Running validation in branch mode"
+            echo "scope=full" >> "$GITHUB_OUTPUT"
             python scripts/release/validate_release.py --mode branch --tag-pattern "v*.*.*"
+          else
+            echo "Running version-source consistency gate"
+            echo "scope=consistency" >> "$GITHUB_OUTPUT"
+            python scripts/release/validate_release.py --mode branch --consistency-only --tag-pattern "v*.*.*"
           fi
 
       - name: Generate readiness summary
@@ -77,20 +96,31 @@ jobs:
           echo "# Release Readiness Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [[ "${{ steps.validate.outcome }}" == "success" ]]; then
+          if [[ "${{ steps.validate.outcome }}" == "success" && "${{ steps.validate.outputs.scope }}" == "consistency" ]]; then
+            echo "✅ **Version-source consistency checks passed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Release-version sources agree:" >> $GITHUB_STEP_SUMMARY
+            echo "- pyproject.toml, .kittify/metadata.yaml, CHANGELOG.md, and uv.lock are consistent" >> $GITHUB_STEP_SUMMARY
+            echo "- Changelog entry exists and is populated for the current source version" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This was a consistency-only validation. It did not check whether the branch is release-ready, whether the version was bumped, or whether version progression is monotonic." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Use CI Quality and Check Shared Package Drift on the same commit for test, package, and compatibility evidence." >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ steps.validate.outcome }}" == "success" ]]; then
             echo "✅ **All readiness checks passed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "This branch is ready for release:" >> $GITHUB_STEP_SUMMARY
             echo "- Version is properly bumped" >> $GITHUB_STEP_SUMMARY
+            echo "- pyproject.toml, .kittify/metadata.yaml, CHANGELOG.md, and uv.lock agree" >> $GITHUB_STEP_SUMMARY
             echo "- Changelog entry exists and is populated" >> $GITHUB_STEP_SUMMARY
             echo "- Version progression is monotonic" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "This workflow validates release metadata only. CI Quality owns tests, wheel build, exact-install, and SaaS consumer compatibility checks; Check Shared Package Drift owns shared-package pin drift checks." >> $GITHUB_STEP_SUMMARY
             echo "Do not summarize a release as green until CI Quality and Check Shared Package Drift have also passed on the same commit." >> $GITHUB_STEP_SUMMARY
-          elif [[ "${{ github.event_name }}" == "pull_request" && "${{ steps.metadata_changes.outputs.release_metadata }}" != "true" ]]; then
+          elif [[ "${{ github.event_name }}" == "pull_request" && "${{ steps.metadata_changes.outputs.version_sources }}" != "true" && "${{ steps.metadata_changes.outputs.validator_surface }}" != "true" ]]; then
             echo "✅ **Release metadata validation skipped**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Release metadata validation was skipped because this pull request does not modify \`pyproject.toml\`." >> $GITHUB_STEP_SUMMARY
+            echo "Release metadata validation was skipped because this pull request does not modify release-version sources or validator logic." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "This workflow no longer repeats CI Quality or shared-package drift work. Use CI Quality and Check Shared Package Drift on the same commit for test, package, and compatibility evidence." >> $GITHUB_STEP_SUMMARY
           else
@@ -101,8 +131,9 @@ jobs:
             echo "### Required Actions" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "1. **Version Bump** - Update version in \`pyproject.toml\`" >> $GITHUB_STEP_SUMMARY
-            echo "2. **Changelog Entry** - Add release notes under \`## [X.Y.Z]\` in \`CHANGELOG.md\`" >> $GITHUB_STEP_SUMMARY
-            echo "3. **Version Progression** - Ensure new version > latest tag" >> $GITHUB_STEP_SUMMARY
+            echo "2. **Version Sync** - Keep \`pyproject.toml\`, \`.kittify/metadata.yaml\`, \`CHANGELOG.md\`, and \`uv.lock\` consistent" >> $GITHUB_STEP_SUMMARY
+            echo "3. **Changelog Entry** - Add release notes under \`## [X.Y.Z]\` in \`CHANGELOG.md\`" >> $GITHUB_STEP_SUMMARY
+            echo "4. **Version Progression** - Ensure new version > latest tag" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "See the validation output above for specific errors." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -110,7 +141,11 @@ jobs:
           fi
 
       - name: Fail if validation failed
-        if: (github.event_name != 'pull_request' || steps.metadata_changes.outputs.release_metadata == 'true') && steps.validate.outcome != 'success'
+        if: >-
+          (github.event_name != 'pull_request' ||
+          steps.metadata_changes.outputs.version_sources == 'true' ||
+          steps.metadata_changes.outputs.validator_surface == 'true') &&
+          steps.validate.outcome != 'success'
         run: |
           echo "::error::Release readiness checks failed. Review the validation output and job summary for details."
           exit 1

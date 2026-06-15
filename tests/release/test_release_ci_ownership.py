@@ -15,6 +15,7 @@ WORKFLOWS = ROOT / ".github" / "workflows"
 
 RELEASE_OWNER_PATHS = {
     "pyproject.toml",
+    ".kittify/metadata.yaml",
     "uv.lock",
     ".kittify/release/shared-package-compatibility.json",
     "CHANGELOG.md",
@@ -22,6 +23,18 @@ RELEASE_OWNER_PATHS = {
     "scripts/release/**",
     ".github/workflows/release-readiness.yml",
     ".github/workflows/check-spec-kitty-events-alignment.yml",
+}
+
+RELEASE_VERSION_SOURCE_PATHS = {
+    "pyproject.toml",
+    ".kittify/metadata.yaml",
+    "CHANGELOG.md",
+    "uv.lock",
+}
+
+RELEASE_VALIDATOR_SURFACE_PATHS = {
+    "scripts/release/**",
+    ".github/workflows/release-readiness.yml",
 }
 
 
@@ -44,6 +57,17 @@ def path_filter_text(workflow: dict[str, Any]) -> str:
     return filter_step["with"]["filters"]
 
 
+def release_readiness_filter_text(workflow: dict[str, Any]) -> str:
+    steps = workflow["jobs"]["check-readiness"]["steps"]
+    filter_step = next(step for step in steps if step.get("id") == "metadata_changes")
+    return filter_step["with"]["filters"]
+
+
+def release_readiness_step(workflow: dict[str, Any], name: str) -> dict[str, Any]:
+    steps = workflow["jobs"]["check-readiness"]["steps"]
+    return next(step for step in steps if step.get("name") == name)
+
+
 def test_ci_quality_runs_for_release_owned_paths() -> None:
     workflow = load_workflow("ci-quality.yml")
 
@@ -57,6 +81,62 @@ def test_ci_quality_release_slice_covers_release_owned_paths() -> None:
 
     for path in RELEASE_OWNER_PATHS:
         assert f"- '{path}'" in filters, f"release path filter misses {path}"
+
+
+def test_release_readiness_runs_for_all_version_sources() -> None:
+    workflow = load_workflow("release-readiness.yml")
+    paths = event_paths(workflow, "pull_request")
+    filters = release_readiness_filter_text(workflow)
+    validate_step = next(
+        step
+        for step in workflow["jobs"]["check-readiness"]["steps"]
+        if step.get("id") == "validate"
+    )
+
+    missing_paths = RELEASE_VERSION_SOURCE_PATHS - paths
+    assert not missing_paths, (
+        "Release Readiness pull_request trigger misses version source paths: "
+        f"{sorted(missing_paths)}"
+    )
+
+    for path in RELEASE_VERSION_SOURCE_PATHS:
+        assert f"- '{path}'" in filters, (
+            f"Release Readiness metadata filter misses {path}"
+        )
+    for path in RELEASE_VALIDATOR_SURFACE_PATHS:
+        assert f"- '{path}'" in filters, (
+            f"Release Readiness validator filter misses {path}"
+        )
+
+    assert "version_sources" in filters
+    assert "version_bump" in filters
+    assert "validator_surface" in filters
+    assert "outputs.version_sources" in validate_step["if"]
+    assert "outputs.validator_surface" in validate_step["if"]
+    assert "outputs.version_bump" in validate_step["run"]
+    assert "--consistency-only" in validate_step["run"]
+    assert "scope=full" in validate_step["run"]
+    assert "scope=consistency" in validate_step["run"]
+
+
+def test_release_readiness_consistency_summary_does_not_claim_release_ready() -> None:
+    workflow = load_workflow("release-readiness.yml")
+    summary_script = release_readiness_step(workflow, "Generate readiness summary")["run"]
+
+    consistency_start = summary_script.index(
+        '"${{ steps.validate.outputs.scope }}" == "consistency"'
+    )
+    full_start = summary_script.index(
+        'elif [[ "${{ steps.validate.outcome }}" == "success" ]]',
+        consistency_start,
+    )
+    consistency_block = summary_script[consistency_start:full_start]
+
+    assert "Version-source consistency checks passed" in consistency_block
+    assert "consistency-only validation" in consistency_block
+    assert "This branch is ready for release" not in consistency_block
+    assert "Version is properly bumped" not in consistency_block
+    assert "Version progression is monotonic" not in consistency_block
 
 
 def test_shared_drift_has_scheduled_and_manual_monitoring() -> None:

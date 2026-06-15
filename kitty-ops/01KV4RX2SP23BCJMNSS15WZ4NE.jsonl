@@ -1,0 +1,3 @@
+{"event": "started", "invocation_id": "01KV4RX2SP23BCJMNSS15WZ4NE", "profile_id": "python-pedro", "action": "generate", "request_text": "Address second adversarial review finding on PR #1966 release-readiness summary", "actor": "operator", "mode_of_work": "task_execution", "governance_context_hash": "f922fb25a8d8ba0d", "governance_context_available": true, "started_at": "2026-06-15T04:33:44.126729+00:00"}
+{"event": "completed", "invocation_id": "01KV4RX2SP23BCJMNSS15WZ4NE", "completed_at": "2026-06-15T04:33:51.366184+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "artifact_link", "invocation_id": "01KV4RX2SP23BCJMNSS15WZ4NE", "at": "2026-06-15T04:33:51.366502+00:00", "kind": "artifact", "ref": "https://github.com/Priivacy-ai/spec-kitty/pull/1966"}

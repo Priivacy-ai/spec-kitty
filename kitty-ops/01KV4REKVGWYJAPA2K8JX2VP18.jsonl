@@ -1,0 +1,3 @@
+{"event": "started", "invocation_id": "01KV4REKVGWYJAPA2K8JX2VP18", "profile_id": "python-pedro", "action": "generate", "request_text": "Address adversarial review findings on PR #1966 release-version consistency gate", "actor": "operator", "mode_of_work": "task_execution", "governance_context_hash": "f922fb25a8d8ba0d", "governance_context_available": true, "started_at": "2026-06-15T04:25:50.058692+00:00"}
+{"event": "completed", "invocation_id": "01KV4REKVGWYJAPA2K8JX2VP18", "completed_at": "2026-06-15T04:26:00.884498+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "artifact_link", "invocation_id": "01KV4REKVGWYJAPA2K8JX2VP18", "at": "2026-06-15T04:26:00.884900+00:00", "kind": "artifact", "ref": "https://github.com/Priivacy-ai/spec-kitty/pull/1966"}
