@@ -8,7 +8,12 @@ from specify_cli.core.constants import (
 )
 from specify_cli.coordination.types import PROTECTED_BRANCH_REFUSED
 from specify_cli.core.commit_guard import GuardCapability
-from mission_runtime import ActionContextError, CommitTarget, CommitTargetKind
+from mission_runtime import (
+    ActionContextError,
+    CommitTarget,
+    CommitTargetKind,
+    is_coordination_artifact_residue_path,
+)
 import contextlib
 import json
 import logging
@@ -302,6 +307,7 @@ def _collect_finalize_artifacts(
         feature_dir / "status.json",
         feature_dir / TASKS_MD_FILENAME,
         feature_dir / "acceptance-matrix.json",
+        feature_dir / "issue-matrix.md",
         feature_dir / ".kittify" / "dossiers" / mission_slug / "snapshot-latest.json",
     ]
     candidates.extend(sorted(path for path in tasks_dir.iterdir() if path.is_file()))
@@ -824,27 +830,26 @@ def _enforce_analysis_report_write_preflight(
     *,
     json_output: bool,
     placement_ref: CommitTarget | None = None,
+    mission_slug: str | None = None,
 ) -> None:
     """Fail before `record-analysis` mutates a mission artifact in unsafe git state.
 
-    WP06 / T020 / C-PLACE-1 (#1814): the dirty-tree check is **context-aware**.
-    Under coordination topology the canonical status log/snapshot
-    (``COORD_OWNED_STATUS_FILES``) is owned by the transactional emitter on the
-    coordination branch; the primary checkout legitimately carries stale copies
-    of those files. Counting that coord-residue as a "dirty working tree" was the
-    #1814 deadlock — ``record-analysis`` could never run from the primary
-    checkout of a coord mission. When ``placement_ref`` resolves to a
-    coordination target we drop the coord-owned files from the dirty set so the
-    preflight gates only on *genuine* uncommitted edits. Under flattened/primary
-    topology there is no coord owner, so nothing is excluded (the primary status
-    files are canonical there).
+    The dirty-tree check is context-aware. Under coordination topology,
+    finalized planning/status artifacts are owned by the coordination branch; the
+    primary checkout may legitimately carry stale copies. When ``placement_ref``
+    resolves to a coordination target, drop only artifact-home residue from the
+    dirty set so the preflight still gates on genuine uncommitted edits.
     """
     if not is_git_repo(repo_root):
         return
 
     dirty_paths = _git_dirty_paths(repo_root)
     if placement_ref is not None and placement_ref.kind is CommitTargetKind.COORDINATION:
-        dirty_paths = [path for path in dirty_paths if Path(path).name not in COORD_OWNED_STATUS_FILES]
+        dirty_paths = [
+            path
+            for path in dirty_paths
+            if not is_coordination_artifact_residue_path(path, mission_slug=mission_slug)
+        ]
     if dirty_paths:
         payload = {
             "success": False,
@@ -999,7 +1004,7 @@ def _resolve_planning_branch(
     del repo_root  # No longer used; kept in signature for API stability.
     if target_branch_override is not None and target_branch_override.strip():
         return target_branch_override.strip()
-    return load_mission_target_branch(feature_dir)
+    return cast(str, load_mission_target_branch(feature_dir))
 
 
 def _artifact_has_no_git_changes(repo_root: Path, file_path: Path) -> bool:
@@ -1261,7 +1266,7 @@ def _find_feature_directory(
             "FEATURE_CONTEXT_UNRESOLVED",
             f"Mission not found for handle {raw_handle!r}; checked the coordination worktree and the primary checkout. {exc}",
         ) from exc
-    return feature_dir
+    return cast(Path, feature_dir)
 
 
 def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
@@ -1833,6 +1838,7 @@ def record_analysis(
             cwd_repo_root,
             json_output=json_output,
             placement_ref=placement_ref,
+            mission_slug=feature_dir.name,
         )
 
         body = sys.stdin.read() if input_file == "-" else Path(input_file).read_text(encoding="utf-8")
@@ -2425,7 +2431,7 @@ def _find_latest_feature_worktree(repo_root: Path) -> Path | None:
 
 def _find_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:
     """Find a deterministic worktree for a feature slug."""
-    return resolve_feature_worktree(repo_root, mission_slug)
+    return cast(Path | None, resolve_feature_worktree(repo_root, mission_slug))
 
 
 def _get_current_branch(repo_root: Path) -> str:
@@ -3931,4 +3937,4 @@ def _parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str
     """Parse requirement IDs from spec.md content."""
     from specify_cli.requirement_mapping import parse_requirement_ids_from_spec_md
 
-    return parse_requirement_ids_from_spec_md(spec_content)
+    return cast(dict[str, list[str]], parse_requirement_ids_from_spec_md(spec_content))

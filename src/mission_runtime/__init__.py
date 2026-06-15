@@ -37,6 +37,12 @@ from mission_runtime.context import (
     StatusSurfaceFragment,
     WorkspaceFragment,
 )
+from mission_runtime.artifacts import (
+    MissionArtifactHome,
+    MissionArtifactKind,
+    artifact_home_for,
+    is_coordination_artifact_residue_path,
+)
 from mission_runtime.resolution import (
     ActionContextError,
     resolve_action_context,
@@ -52,9 +58,13 @@ __all__ = [
     "ExecutionContext",
     "ExecutionMode",
     "IdentityFragment",
+    "MissionArtifactHome",
+    "MissionArtifactKind",
     "PromptSourceFragment",
     "StatusSurfaceFragment",
     "WorkspaceFragment",
+    "artifact_home_for",
+    "is_coordination_artifact_residue_path",
     "resolve_action_context",
     "resolve_placement_only",
 ]

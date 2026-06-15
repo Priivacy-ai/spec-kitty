@@ -54,9 +54,13 @@ _PUBLIC_SURFACE = sorted(
         "ExecutionContext",
         "ExecutionMode",
         "IdentityFragment",
+        "MissionArtifactHome",
+        "MissionArtifactKind",
         "PromptSourceFragment",
         "StatusSurfaceFragment",
         "WorkspaceFragment",
+        "artifact_home_for",
+        "is_coordination_artifact_residue_path",
         "resolve_action_context",
         "resolve_placement_only",
     ]

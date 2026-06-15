@@ -15,6 +15,7 @@ import pytest
 
 from specify_cli.cli.commands.agent.mission import (
     _branch_tree_relative_path,
+    _collect_finalize_artifacts,
     _stage_finalize_artifacts_in_coord_worktree,
 )
 from specify_cli.status import COORD_OWNED_STATUS_FILES
@@ -75,6 +76,18 @@ def test_staging_copies_only_existing_non_status_artifacts(tmp_path: Path) -> No
     assert {p.name for p in staged} == {"tasks.md", "acceptance-matrix.json"}
     assert (coord_wt / "kitty-specs" / "060-test" / "tasks.md").exists()
     assert not (coord_wt / "kitty-specs" / "060-test" / "acceptance-matrix.json").exists()
+
+
+def test_collect_finalize_artifacts_includes_issue_matrix(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "repo" / "kitty-specs" / "060-test"
+    tasks_dir = feature_dir / "tasks"
+    _write(feature_dir / "tasks.md", "# tasks\n")
+    _write(feature_dir / "issue-matrix.md", "# issues\n")
+    _write(tasks_dir / "WP01.md", "# WP01\n")
+
+    artifacts = _collect_finalize_artifacts(feature_dir, tasks_dir, "060-test")
+
+    assert feature_dir / "issue-matrix.md" in artifacts
 
 
 def test_branch_tree_relative_path_strips_target_worktree_prefix(tmp_path: Path) -> None:

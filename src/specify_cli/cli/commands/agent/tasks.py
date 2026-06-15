@@ -7,7 +7,11 @@ from specify_cli.core.constants import (
     MISSION_TYPE_RESEARCH,
     MISSION_TYPE_SOFTWARE_DEV,
 )
-from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
+from specify_cli.missions.feature_dir_resolver import (
+    candidate_feature_dir_for_mission,
+    primary_feature_dir_for_mission,
+    resolve_feature_dir_for_mission,
+)
 import contextlib
 from dataclasses import dataclass
 import enum
@@ -47,7 +51,7 @@ from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.core.paths import get_status_read_root
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.mission import get_mission_type
-from mission_runtime import CommitTarget, CommitTargetKind
+from mission_runtime import CommitTarget, CommitTargetKind, resolve_placement_only
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import (
@@ -157,6 +161,8 @@ _VALID_VERDICTS: frozenset[str] = frozenset(
 
 def _issue_matrix_evaluation(
     feature_dir: Path,
+    *,
+    spec_feature_dir: Path | None = None,
 ) -> tuple[object, set[str], list[str], list[str]]:
     from specify_cli.cli.commands.review._issue_matrix import (
         IssueMatrixVerdict,
@@ -164,7 +170,7 @@ def _issue_matrix_evaluation(
     )
     from specify_cli.tasks.issue_matrix import detect_issue_references
 
-    refs = detect_issue_references(feature_dir / SPEC_MD_FILENAME)
+    refs = detect_issue_references((spec_feature_dir or feature_dir) / SPEC_MD_FILENAME)
     result = validate_issue_matrix(feature_dir / "issue-matrix.md")
     referenced_issues = {f"#{ref.number}" for ref in refs}
     matrix_issues = _issue_matrix_row_issues(result)
@@ -217,6 +223,7 @@ def _issue_matrix_approval_blocker(
     feature_dir: Path,
     *,
     target_lane: Lane | None = None,
+    primary_feature_dir: Path | None = None,
 ) -> str | None:
     """Return a blocking message when referenced issues still lack final verdicts.
 
@@ -228,7 +235,12 @@ def _issue_matrix_approval_blocker(
     reached a terminal verdict (``fixed`` / ``verified-already-fixed`` /
     ``deferred-with-followup``) before the mission lands.
     """
-    spec_path = feature_dir / SPEC_MD_FILENAME
+    spec_feature_dir = (
+        primary_feature_dir
+        if primary_feature_dir is not None and (primary_feature_dir / SPEC_MD_FILENAME).exists()
+        else feature_dir
+    )
+    spec_path = spec_feature_dir / SPEC_MD_FILENAME
     if not spec_path.exists():
         return None
 
@@ -249,6 +261,13 @@ def _issue_matrix_approval_blocker(
 
     matrix_path = feature_dir / "issue-matrix.md"
     if not matrix_path.exists():
+        if _primary_issue_matrix_satisfies(
+            primary_feature_dir=primary_feature_dir,
+            feature_dir=feature_dir,
+            spec_feature_dir=spec_feature_dir,
+            target_lane=target_lane,
+        ):
+            return None
         issue_list = ", ".join(f"#{ref.number}" for ref in refs)
         return (
             "ERROR: issue-matrix.md is required before approval.\n"
@@ -256,11 +275,21 @@ def _issue_matrix_approval_blocker(
             "Fill verdicts before approving."
         )
 
-    result, _, missing_issues, unresolved_in_mission = _issue_matrix_evaluation(feature_dir)
+    result, _, missing_issues, unresolved_in_mission = _issue_matrix_evaluation(
+        feature_dir,
+        spec_feature_dir=spec_feature_dir,
+    )
     if target_lane != Lane.DONE:
         unresolved_in_mission = []
 
     if result.passed and not missing_issues and not unresolved_in_mission:
+        return None
+    if _primary_issue_matrix_satisfies(
+        primary_feature_dir=primary_feature_dir,
+        feature_dir=feature_dir,
+        spec_feature_dir=spec_feature_dir,
+        target_lane=target_lane,
+    ):
         return None
 
     unknown_issues, other_messages = _issue_matrix_diagnostic_lines(result)
@@ -278,6 +307,55 @@ def _issue_matrix_approval_blocker(
     for message in other_messages:
         lines.append(f"- {message}")
     return "\n".join(lines)
+
+
+def _primary_issue_matrix_satisfies(
+    *,
+    primary_feature_dir: Path | None,
+    feature_dir: Path,
+    spec_feature_dir: Path,
+    target_lane: Lane | None,
+) -> bool:
+    if primary_feature_dir is None or primary_feature_dir == feature_dir:
+        return False
+    if not (primary_feature_dir / "issue-matrix.md").exists():
+        return False
+
+    try:
+        result, _, missing_issues, unresolved_in_mission = _issue_matrix_evaluation(
+            primary_feature_dir,
+            spec_feature_dir=spec_feature_dir,
+        )
+    except Exception as exc:  # noqa: BLE001 -- fallback must not hide real blockers
+        logger.debug("Could not evaluate primary issue-matrix fallback: %s", exc)
+        return False
+
+    if target_lane != Lane.DONE:
+        unresolved_in_mission = []
+    return result.passed and not missing_issues and not unresolved_in_mission
+
+
+def _review_currency_check_branch(
+    *,
+    main_repo_root: Path,
+    mission_slug: str,
+    target_branch: str,
+    workspace: object | None,
+) -> str:
+    context = getattr(workspace, "context", None)
+    base_branch = getattr(context, "base_branch", None)
+    if base_branch:
+        return str(base_branch)
+
+    try:
+        placement = resolve_placement_only(main_repo_root, mission_slug)
+    except Exception as exc:  # noqa: BLE001 -- legacy fixtures keep target-branch fallback
+        logger.debug("Could not resolve review currency placement: %s", exc)
+        return target_branch
+
+    if placement.kind is CommitTargetKind.COORDINATION:
+        return placement.ref
+    return target_branch
 
 
 def _self_review_fallback_option_error(
@@ -1416,14 +1494,12 @@ def _validate_ready_for_review(
             # track. In the lane-only model this is usually the mission branch.
             target_branch = get_feature_target_branch(repo_root, mission_slug)
 
-            # Resolve actual base: workspace context tracks the real base branch.
-            # ``workspace`` is None when the canonical resolver could not classify
-            # the WP (legacy/test fixtures); in that case fall back to the target
-            # branch so the legacy worktree-existence checks still apply.
-            if workspace is not None and workspace.context and workspace.context.base_branch:
-                check_branch = workspace.context.base_branch
-            else:
-                check_branch = target_branch
+            check_branch = _review_currency_check_branch(
+                main_repo_root=main_repo_root,
+                mission_slug=mission_slug,
+                target_branch=target_branch,
+                workspace=workspace,
+            )
 
             result = subprocess.run(
                 ["git", "rev-list", "--count", f"HEAD..{check_branch}"],
@@ -2130,7 +2206,12 @@ def move_task(
 
         if target_lane in (Lane.APPROVED, Lane.DONE):
             issue_matrix_blocker = _issue_matrix_approval_blocker(
-                feature_dir, target_lane=target_lane
+                feature_dir,
+                target_lane=target_lane,
+                primary_feature_dir=primary_feature_dir_for_mission(
+                    main_repo_root,
+                    mission_slug,
+                ),
             )
             if issue_matrix_blocker:
                 _output_error(json_output, issue_matrix_blocker)

@@ -113,6 +113,30 @@ def test_issue_matrix_approval_blocker_requires_resolved_verdicts(tmp_path: Path
     assert _issue_matrix_approval_blocker(feature_dir) is None
 
 
+def test_issue_matrix_approval_uses_primary_verdicts_when_coord_copy_stale(
+    tmp_path: Path,
+) -> None:
+    coord_dir = tmp_path / "coord" / "kitty-specs" / "demo"
+    primary_dir = tmp_path / "primary" / "kitty-specs" / "demo"
+    coord_dir.mkdir(parents=True)
+    primary_dir.mkdir(parents=True)
+    spec_text = "Fix Priivacy-ai/spec-kitty issue #1582.\n"
+    (coord_dir / "spec.md").write_text(spec_text, encoding="utf-8")
+    (primary_dir / "spec.md").write_text(spec_text, encoding="utf-8")
+    _write_issue_matrix(coord_dir, "unknown")
+    _write_issue_matrix(primary_dir, "fixed")
+
+    blocker = _issue_matrix_approval_blocker(
+        coord_dir,
+        primary_feature_dir=primary_dir,
+    )
+
+    assert blocker is None
+    stale_blocker = _issue_matrix_approval_blocker(coord_dir)
+    assert stale_blocker is not None
+    assert "Unknown: #1582" in stale_blocker
+
+
 def test_issue_matrix_in_mission_passes_approved_blocks_done(tmp_path: Path) -> None:
     from specify_cli.status.models import Lane
 

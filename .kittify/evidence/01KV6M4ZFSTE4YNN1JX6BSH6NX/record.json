@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KV6M4ZFSTE4YNN1JX6BSH6NX",
+  "completed_at": "2026-06-15T21:52:06.410365+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "Verification passed: targeted 7 passed, affected sweep 121 passed, ruff clean, mypy clean."
+}
