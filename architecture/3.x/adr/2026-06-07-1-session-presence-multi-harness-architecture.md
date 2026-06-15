@@ -14,7 +14,7 @@
 
 ## Context and Problem Statement
 
-`spec-kitty init` deploys command-skill files into 13 slash-command agent directories and 6 skills-based agent roots (19 harnesses total). After init, no harness has any persistent awareness that spec-kitty exists — there is no always-loaded orientation text, no upgrade check, and no routing rule that directs "hey spec kitty, fix X" to `spec-kitty do`. Competing tools (e.g. gstack) solve this by injecting a section into their harness's persistent instruction file at install time and registering a session-start hook where the harness supports one.
+`spec-kitty init` deploys command-skill files into 13 slash-command agent directories and 6 skills-based agent roots (19 harnesses total). After init, no harness has any persistent awareness that spec-kitty exists — there is no always-loaded orientation text, no upgrade check, and no routing rule that directs "hey spec kitty, fix X" to `spec-kitty dispatch`. Competing tools (e.g. gstack) solve this by injecting a section into their harness's persistent instruction file at install time and registering a session-start hook where the harness supports one.
 
 We need a mechanism that, at `spec-kitty init` and `spec-kitty upgrade`, writes orientation content into each configured harness's persistent instruction surface and registers a live session-start hook where the harness supports it.
 

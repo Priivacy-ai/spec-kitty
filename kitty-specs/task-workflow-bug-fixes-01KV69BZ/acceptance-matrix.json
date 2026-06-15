@@ -1,0 +1,59 @@
+{
+  "mission_slug": "task-workflow-bug-fixes-01KV69BZ",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "map-requirements reads spec.md from the primary checkout regardless of coord worktree",
+      "proof_type": "automated_test",
+      "evidence": "test_primary_feature_dir_is_not_coord_worktree in tests/specify_cli/cli/commands/agent/test_map_requirements_spec_path.py \u2014 PASSED; spec_md = primary_dir / SPEC_MD_FILENAME in tasks.py map_requirements",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-rachel:reviewer",
+      "verified_at": "2026-06-15T19:47:13.865048+00:00",
+      "notes": "primary_feature_dir_for_mission replaces feature_dir for spec_md only; feature_dir unchanged downstream"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "map-requirements continues to resolve WP task files from topology-aware path",
+      "proof_type": "automated_test",
+      "evidence": "Code review confirmed feature_dir (topology-aware resolve_feature_dir_for_slug) remains for all downstream WP access; only spec_md line changed",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-rachel:reviewer",
+      "verified_at": "2026-06-15T19:47:13.865048+00:00",
+      "notes": "diff shows feature_dir usage unchanged below the spec_md swap"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "validate_glob_matches zero-match error includes ready-to-paste YAML create_intent example",
+      "proof_type": "automated_test",
+      "evidence": "test_literal_zero_match_error_hints_create_intent PASSED (green); error now ends with '\\n  create_intent:\\n    - {pattern}'",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-rachel:reviewer",
+      "verified_at": "2026-06-15T19:47:13.865048+00:00",
+      "notes": "Only the final msg += line changed; suggestion logic and errors.append untouched"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Regression test asserts error text contains both path and create_intent YAML key",
+      "proof_type": "automated_test",
+      "evidence": "test_literal_zero_match_error_hints_create_intent asserts '  create_intent:\\n    -' in error_text AND absent_path in error_text \u2014 PASSED after fix, FAILED before (ATDD confirmed)",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-rachel:reviewer",
+      "verified_at": "2026-06-15T19:47:13.865048+00:00",
+      "notes": "YAML-syntax assertion (not just field name substring) was absent pre-fix"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Regression test asserts map-requirements succeeds when coord worktree exists and spec.md is only in primary checkout",
+      "proof_type": "automated_test",
+      "evidence": "test_primary_feature_dir_is_not_coord_worktree PASSED; asserts result path has no .worktrees component",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-rachel:reviewer",
+      "verified_at": "2026-06-15T19:47:13.865048+00:00",
+      "notes": "Test committed as ATDD-first standalone commit before implementation"
+    }
+  ],
+  "negative_invariants": []
+}

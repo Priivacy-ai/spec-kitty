@@ -26,9 +26,9 @@ charter.md  ->  charter synthesize  ->  validated Charter state  ->  governed pr
 ```
 
 When you run `spec-kitty next --agent <name> --mission <slug>`, the runtime automatically injects
-the relevant Charter context into the prompt file it returns for the next mission action. Separate
-profile-invocation commands such as `ask`, `advise`, and `do` use the same governed-context model
-for standalone work.
+the relevant Charter context into the prompt file it returns for the next mission action. For
+standalone work, `spec-kitty dispatch "<request>"` uses the same governed-context model and records
+an Op trail.
 
 For the full mental model, see [How Charter Works](charter-overview.md).
 
@@ -61,7 +61,7 @@ Precise CLI and schema references.
 
 - [Charter CLI Reference](../reference/charter-commands.md) — All `charter` subcommands with flags
 - [CLI Commands](../reference/cli-commands.md) — Full spec-kitty CLI reference including Charter-era additions
-- [Profile Invocation Reference](../reference/profile-invocation.md) — `ask`, `advise`, `do`, invocation trail
+- [Profile Invocation Reference](../reference/profile-invocation.md) — standalone dispatch and invocation trail
 - [Retrospective Schema Reference](../reference/retrospective-schema.md) — `retrospective.yaml` schema, proposal kinds, exit codes
 - [Governance Files Reference](governance-files.md) — Every file in `.kittify/charter/`
 

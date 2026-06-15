@@ -26,7 +26,7 @@ def _setup_project(tmp_path: Path) -> Path:
     profiles_dir.mkdir(parents=True)
     for yaml_file in FIXTURES_DIR.glob("*.agent.yaml"):
         shutil.copy(yaml_file, profiles_dir / yaml_file.name)
-    (tmp_path / ".kittify" / "events" / "profile-invocations").mkdir(parents=True)
+    (tmp_path / "kitty-ops").mkdir(parents=True)
     return tmp_path
 
 
@@ -61,7 +61,8 @@ def test_complete_with_evidence_creates_tier2_directory(tmp_path: Path) -> None:
 
     executor.complete_invocation(
         invocation_id=invocation_id,
-        outcome="done", closed_by="agent",
+        outcome="done",
+        closed_by="agent",
         evidence_ref=str(evidence_file),
     )
 
@@ -90,7 +91,8 @@ def test_complete_with_nonexistent_evidence_path_uses_inline_content(tmp_path: P
 
     executor.complete_invocation(
         invocation_id=invocation_id,
-        outcome="done", closed_by="agent",
+        outcome="done",
+        closed_by="agent",
         evidence_ref="all tests passed: 42/42",  # a label, not a path
     )
 
@@ -107,7 +109,8 @@ def test_complete_with_relative_escape_path_uses_inline_content(tmp_path: Path) 
 
     executor.complete_invocation(
         invocation_id=invocation_id,
-        outcome="done", closed_by="agent",
+        outcome="done",
+        closed_by="agent",
         evidence_ref=f"../{outside_file.name}",
     )
 

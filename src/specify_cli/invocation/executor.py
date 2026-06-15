@@ -63,21 +63,16 @@ class ActionRouterPlugin(Protocol):
     # No methods in v1. Fill in WP02's ActionRouterPlugin slot here.
 
 
-def build_close_contract(
-    invocation_id: str, mode_of_work: str | None = None
-) -> dict[str, object]:
+def build_close_contract(invocation_id: str, mode_of_work: str | None = None) -> dict[str, object]:
     """Machine-readable close contract for an open Op (contracts/cli-do-output.md).
 
     Emitted in every invocation JSON payload so orchestrators know exactly how
     to close the Op with the real outcome.  ``evidence_flag`` is omitted for
-    advisory/query modes because ``profile-invocation complete`` refuses
+            non-evidence-eligible modes because ``profile-invocation complete`` refuses
     ``--evidence`` there (InvalidModeForEvidenceError, FR-009).
     """
     contract: dict[str, object] = {
-        "command": (
-            "spec-kitty profile-invocation complete "
-            f"--invocation-id {invocation_id} --outcome <done|failed|abandoned>"
-        ),
+        "command": (f"spec-kitty profile-invocation complete --invocation-id {invocation_id} --outcome <done|failed|abandoned>"),
         "outcomes": ["done", "failed", "abandoned"],
         "evidence_flag": "--evidence",
         "artifact_flag": "--artifact",
@@ -145,9 +140,7 @@ class InvocationPayload:
         # FR-002 / contracts/cli-do-output.md: invoke() leaves the Op open;
         # every JSON payload carries the explicit close contract.
         result["status"] = "open"
-        result["close_contract"] = build_close_contract(
-            self.invocation_id, getattr(self, "mode_of_work", None)
-        )
+        result["close_contract"] = build_close_contract(self.invocation_id, getattr(self, "mode_of_work", None))
         return result
 
 
@@ -204,9 +197,7 @@ class ProfileInvocationExecutor:
             # FR-009/FR-010/FR-011/EDGE-005: when caller supplies a truthy action_hint,
             # use it verbatim; otherwise fall back to the legacy role-default-verb
             # derivation. Truthiness (not `is not None`) means empty-string falls back.
-            action = action_hint or self._derive_action_from_request(
-                request_text, profile.role
-            )
+            action = action_hint or self._derive_action_from_request(request_text, profile.role)
             router_confidence = None  # caller supplied explicit hint
         elif self._router is not None:
             # route() returns RouterDecision or raises RouterAmbiguityError (never returns error)
@@ -215,10 +206,7 @@ class ProfileInvocationExecutor:
             action = result.action
             router_confidence = result.confidence
         else:
-            raise RuntimeError(
-                "No profile_hint and no router configured. "
-                "Use 'spec-kitty ask <profile>' or supply a router."
-            )
+            raise RuntimeError("No profile_hint and no router configured. Use 'spec-kitty dispatch \"<request>\" --profile <profile>' or supply a router.")
 
         # 2. Assemble governance context (mark_loaded=False — critical)
         # NEVER pass mark_loaded=True here — would corrupt context-state.json
@@ -237,6 +225,7 @@ class ProfileInvocationExecutor:
         # This routing is performed inside GlossaryChokepoint._run_inner() (WP02 code).
         # Exception guard: any failure returns an error-bundle; the invocation always continues.
         from glossary.chokepoint import GlossaryChokepoint, GlossaryObservationBundle
+
         try:
             if self._chokepoint is None:
                 self._chokepoint = GlossaryChokepoint(self._repo_root)
@@ -247,11 +236,9 @@ class ProfileInvocationExecutor:
             )
         except Exception as _exc:  # noqa: BLE001
             import logging as _logging
-            _logging.getLogger(__name__).warning(
-                "glossary chokepoint outer exception (invocation_id=%r): %r", invocation_id, _exc)
-            bundle = GlossaryObservationBundle(
-                matched_urns=(), high_severity=(), all_conflicts=(),
-                tokens_checked=0, duration_ms=0.0, error_msg=repr(_exc))
+
+            _logging.getLogger(__name__).warning("glossary chokepoint outer exception (invocation_id=%r): %r", invocation_id, _exc)
+            bundle = GlossaryObservationBundle(matched_urns=(), high_severity=(), all_conflicts=(), tokens_checked=0, duration_ms=0.0, error_msg=repr(_exc))
 
         # 3. Write started record (raises InvocationWriteError on fs failure)
         started_at = datetime.datetime.now(datetime.UTC).isoformat()
@@ -321,7 +308,7 @@ class ProfileInvocationExecutor:
         Raises ``InvocationError`` if invocation_id is not found.
         Raises ``InvocationWriteError`` on filesystem failure.
         Raises ``InvalidModeForEvidenceError`` if evidence_ref is supplied on an
-            advisory or query invocation (FR-009). This is a pre-write check —
+            non-evidence-eligible invocation (FR-009). This is a pre-write check —
             no JSONL lines are written if this error is raised.
         """
         # Step 1: Read started event for mode enforcement (FR-009).
@@ -379,11 +366,7 @@ class ProfileInvocationExecutor:
     def _resolve_evidence_content(self, evidence_ref: str) -> str:
         candidate_path = self._resolve_evidence_path(evidence_ref)
         try:
-            return (
-                candidate_path.read_text(encoding="utf-8")
-                if candidate_path is not None
-                else evidence_ref
-            )
+            return candidate_path.read_text(encoding="utf-8") if candidate_path is not None else evidence_ref
         except OSError:
             return evidence_ref
 
@@ -516,4 +499,4 @@ class ProfileInvocationExecutor:
         caps = DEFAULT_ROLE_CAPABILITIES.get(role) if isinstance(role, Role) else None
         if caps and caps.canonical_verbs:
             return caps.canonical_verbs[0]
-        return "advise"  # default fallback
+        return "review"  # default fallback

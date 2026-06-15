@@ -608,3 +608,126 @@ class TestImplementCommand:
             kwargs = mock_create_lane_workspace.call_args.kwargs
             assert kwargs["lanes_manifest"] is None
             assert kwargs["resolved_workspace"].execution_mode == "planning_artifact"
+
+
+class TestImplementCoordTopologyLanesJson:
+    """Regression tests for #1991: lanes.json read from coord worktree.
+
+    finalize-tasks writes lanes.json to the coordination branch and deletes
+    the primary-checkout copy via _stage_finalize_artifacts_in_coord_worktree.
+    The implement validate block must read it from the coord-aware surface
+    (_lanes_feature_dir), not from the meta-anchored primary feature_dir.
+    """
+
+    def test_lanes_json_read_from_coord_dir_not_primary(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """lanes.json in coord dir only — implement must NOT fail with MissingLanesError."""
+        mission_slug = "010-feature"
+
+        # Primary checkout: meta.json + WP file + status — NO lanes.json
+        primary_dir = tmp_path / "kitty-specs" / mission_slug
+        create_meta_json(primary_dir)
+        wp_file = primary_dir / "tasks" / "WP01-setup.md"
+        wp_file.parent.mkdir(parents=True)
+        wp_file.write_text(
+            "---\nwork_package_id: WP01\ndependencies: []\n"
+            "execution_mode: code_change\nowned_files:\n  - src/wp01/**\n"
+            "authoritative_surface: src/wp01/\n---\n# WP01",
+            encoding="utf-8",
+        )
+        _seed_planned(primary_dir, "WP01")
+
+        # Coord dir: lanes.json + status — NO meta.json (mirrors real coord topology)
+        coord_dir = tmp_path / ".worktrees" / f"{mission_slug}-coord" / "kitty-specs" / mission_slug
+        coord_dir.mkdir(parents=True)
+        create_lanes_json(coord_dir, wp_ids=("WP01",))
+        _seed_planned(coord_dir, "WP01")
+
+        # Status surface points to coord (finalize-tasks seeds events there)
+        class _FakeStatusSurface:
+            read_dir = coord_dir
+
+        # Non-planning ResolvedWorkspace — causes require_lanes_json to be called
+        from specify_cli.workspace.context import ResolvedWorkspace
+
+        fake_workspace = ResolvedWorkspace(
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            execution_mode="code_change",
+            mode_source="frontmatter",
+            resolution_kind="lane_workspace",
+            workspace_name=f"{mission_slug}-lane-a",
+            worktree_path=tmp_path / ".worktrees" / f"{mission_slug}-lane-a",
+            branch_name=f"kitty/mission-{mission_slug}-lane-a",
+            lane_id="lane-a",
+            lane_wp_ids=["WP01"],
+            context=None,
+        )
+
+        mock_gate = MagicMock()
+        mock_gate.passed = True
+        mock_gate.change_mode = None
+
+        with (
+            patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
+            patch(
+                "specify_cli.cli.commands.implement.detect_feature_context",
+                return_value=("010", mission_slug),
+            ),
+            # Both coord-aware resolvers return coord_dir — triggers meta.json
+            # fallback so feature_dir lands on primary, but _lanes_feature_dir
+            # stays on coord_dir (the fix for #1991).
+            patch(
+                "specify_cli.cli.commands.implement.resolve_feature_dir_for_mission",
+                return_value=coord_dir,
+            ),
+            patch(
+                "specify_cli.cli.commands.implement.candidate_feature_dir_for_mission",
+                return_value=coord_dir,
+            ),
+            patch(
+                "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+                return_value="main",
+            ),
+            patch("specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git"),
+            patch("specify_cli.cli.commands.implement._resolve_placement_ref", return_value=None),
+            patch(
+                "specify_cli.coordination.surface_resolver.resolve_status_surface_with_anchor",
+                return_value=_FakeStatusSurface(),
+            ),
+            patch(
+                "specify_cli.bulk_edit.gate.ensure_occurrence_classification_ready",
+                return_value=mock_gate,
+            ),
+            patch(
+                "specify_cli.next.runtime_bridge.build_operational_context_for_claim",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "specify_cli.cli.commands.implement.resolve_workspace_for_wp",
+                return_value=fake_workspace,
+            ),
+            # Fail at workspace creation with a sentinel — not a lanes.json error
+            patch(
+                "specify_cli.cli.commands.implement.create_lane_workspace",
+                side_effect=RuntimeError("__workspace_create_sentinel__"),
+            ),
+        ):
+            with pytest.raises(typer.Exit):
+                implement("WP01", feature=mission_slug, json_output=True, recover=False)
+
+        payload = json.loads(capsys.readouterr().out.strip())
+        error = payload.get("error", "")
+
+        # KEY assertion: the pre-fix error must NOT appear
+        assert "lanes.json is required" not in error, (
+            f"Implement read lanes.json from the primary dir (deleted by finalize-tasks) "
+            f"instead of the coord dir — #1991 regression. Got: {error!r}"
+        )
+        # We reached the workspace-create step, which confirms lanes.json was found
+        assert "__workspace_create_sentinel__" in error, (
+            f"Expected to pass lanes.json validation and reach workspace creation. Got: {error!r}"
+        )

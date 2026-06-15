@@ -60,19 +60,11 @@ def _definition(path_pattern: str, kind: SurfaceKind) -> SurfaceDefinition:
 
 def _registry() -> ToolSurfaceRegistry:
     registry = ToolSurfaceRegistry()
-    registry.register_definition(
-        "claude", _definition(_COMMAND_SKILL_PATTERN, SurfaceKind.COMMAND_SKILL)
-    )
-    registry.register_definition(
-        "claude", _definition(_PROFILE_PATTERN, SurfaceKind.AGENT_PROFILE)
-    )
+    registry.register_definition("claude", _definition(_COMMAND_SKILL_PATTERN, SurfaceKind.COMMAND_SKILL))
+    registry.register_definition("claude", _definition(_PROFILE_PATTERN, SurfaceKind.AGENT_PROFILE))
     # Sentinel + manifest-embedded patterns must be excluded from validation.
-    registry.register_definition(
-        "claude", _definition(_SENTINEL_PATTERN, SurfaceKind.CONTEXT_FILE)
-    )
-    registry.register_definition(
-        "claude", _definition(_MANIFEST_PATTERN, SurfaceKind.DOCTRINE_SKILL)
-    )
+    registry.register_definition("claude", _definition(_SENTINEL_PATTERN, SurfaceKind.CONTEXT_FILE))
+    registry.register_definition("claude", _definition(_MANIFEST_PATTERN, SurfaceKind.DOCTRINE_SKILL))
     return registry
 
 
@@ -149,8 +141,7 @@ def test_docs_linter_empty_for_no_surface_paths(tmp_path: Path) -> None:
 def test_docs_linter_ignore_annotation(tmp_path: Path) -> None:
     doc = _write(
         tmp_path,
-        "Legacy `.agents/skills/nonexistent/SKILL.md`. "
-        "<!-- tool-surface: ignore -->\n",
+        "Legacy `.agents/skills/nonexistent/SKILL.md`. <!-- tool-surface: ignore -->\n",
     )
     assert DocsLinter(_registry()).lint_file(doc) == []
 
@@ -158,21 +149,16 @@ def test_docs_linter_ignore_annotation(tmp_path: Path) -> None:
 def test_docs_linter_skips_doc_wildcards(tmp_path: Path) -> None:
     doc = _write(
         tmp_path,
-        "Pattern `.agents/skills/spec-kitty.*/SKILL.md` and "
-        "`.agents/skills/spec-kitty.<command>/SKILL.md` are placeholders.\n",
+        "Pattern `.agents/skills/spec-kitty.*/SKILL.md` and `.agents/skills/spec-kitty.<command>/SKILL.md` are placeholders.\n",
     )
     assert DocsLinter(_registry()).lint_file(doc) == []
 
 
 def test_docs_linter_lint_directory(tmp_path: Path) -> None:
-    (tmp_path / "ok.md").write_text(
-        "`.agents/skills/spec-kitty.plan/SKILL.md`\n", encoding="utf-8"
-    )
+    (tmp_path / "ok.md").write_text("`.agents/skills/spec-kitty.plan/SKILL.md`\n", encoding="utf-8")
     bad = tmp_path / "nested"
     bad.mkdir()
-    (bad / "bad.md").write_text(
-        "`.agents/skills/bogus/SKILL.md`\n", encoding="utf-8"
-    )
+    (bad / "bad.md").write_text("`.agents/skills/bogus/SKILL.md`\n", encoding="utf-8")
     findings = DocsLinter(_registry()).lint_directory(tmp_path)
     assert len(findings) == 1
     assert findings[0].referenced_path == ".agents/skills/bogus/SKILL.md"
@@ -193,9 +179,7 @@ def test_build_docs_linter_indexes_builtin_patterns(tmp_path: Path) -> None:
     linter = build_docs_linter()
     # A concrete command-skill path with a valid {command} segment is registered.
     ok = tmp_path / "ok.md"
-    ok.write_text(
-        "`.agents/skills/spec-kitty.advise/SKILL.md`\n", encoding="utf-8"
-    )
+    ok.write_text("`.agents/skills/spec-kitty.plan/SKILL.md`\n", encoding="utf-8")
     assert linter.lint_file(ok) == []
     # An unregistered shape is flagged.
     bad = tmp_path / "bad.md"
@@ -241,7 +225,7 @@ def test_docs_contract_lint_discriminates_drift_from_noise(tmp_path: Path) -> No
     """
     registered = tmp_path / "registered.md"
     registered.write_text(
-        "Existing surface at `.agents/skills/spec-kitty.advise/SKILL.md`.\n",
+        "Existing surface at `.agents/skills/spec-kitty.plan/SKILL.md`.\n",
         encoding="utf-8",
     )
     assert lint_docs_directory(tmp_path) == []

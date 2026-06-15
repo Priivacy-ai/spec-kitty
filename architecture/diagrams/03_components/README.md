@@ -27,7 +27,7 @@ flowchart TB
       router["Command Router"]
       workflow["Workflow Command Set — specify/plan/tasks/implement/review/merge"]
       statusCmd["Status Mutation Command Set"]
-      opCmd["Op Command Set — do/ask/advise"]
+      opCmd["Op Command Set — dispatch"]
     end
 
     subgraph Governance["Governance Module"]
@@ -106,7 +106,7 @@ flowchart TB
 | Command Router | CLI | Normalizes and dispatches commands to the correct surface |
 | Workflow Command Set | CLI | Drives specify/plan/tasks/implement/review/merge command families |
 | Status Mutation Command Set | CLI | Handles lane-transition and status-mutation commands |
-| Op Command Set | CLI | Handles `spec-kitty do`/`ask`/`advise` profile-governed invocations |
+| Op Command Set | CLI | Handles `spec-kitty dispatch` governed invocations |
 | Op Invocation Context | Op Tier | Opens an Op under resolved governance context and closes it with the real outcome |
 | Charter Activation Engine | Governance | Plan/commit activation seam; writes config only after plan succeeds |
 | Charter Cascade | Governance | Follows DRG `requires`/`suggests` edges for cascade (de)activation |
@@ -199,7 +199,7 @@ sequenceDiagram
     participant Activation as Charter Activation Engine
     participant DRG as Doctrine Relationship Graph
 
-    User->>OpCmd: spec-kitty do / ask / advise
+    User->>OpCmd: spec-kitty dispatch
     OpCmd->>Inv: open Op
     Inv->>Activation: load action-scoped governance context
     Activation->>DRG: resolve active artifacts + profile lineage

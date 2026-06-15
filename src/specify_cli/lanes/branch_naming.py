@@ -261,7 +261,7 @@ def mission_branch_name(mission_slug: str, *, mission_id: str | None = None) -> 
     return f"{_MISSION_PREFIX}{_idempotent_legacy_body(mission_slug)}"
 
 
-class BranchIdentityUnresolved(StructuredError):  # type: ignore[misc]
+class BranchIdentityUnresolved(StructuredError):
     """Raised when a mission branch cannot be composed without inventing identity.
 
     Fail-closed signal for seam 2 (FR-006): a *modern* mission whose ``mission_id``

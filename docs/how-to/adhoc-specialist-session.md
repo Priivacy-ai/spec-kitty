@@ -5,7 +5,7 @@ description: "How to start an ad-hoc specialist session with Spec Kitty 3.2: How
 
 # How to Start an Ad-Hoc Specialist Session
 
-Use `spec-kitty ask <profile>` or `spec-kitty advise --profile <profile>` to open a profile-governed advisory session without starting a full mission. This is the right tool for exploration, quick questions, small fixes, and experimentation.
+Use `spec-kitty dispatch "<request>"` to open a governed standalone Op without starting a full mission. Add `--profile <profile>` only when you intentionally want a specific specialist profile.
 
 ---
 
@@ -28,15 +28,15 @@ It is **not** appropriate when:
 
 ## Starting a session
 
-Invoke a profile-governed command with a profile name:
+Open a governed standalone Op:
 
 ```
-spec-kitty ask architect "How should I structure this API?"
-spec-kitty advise "Review this approach" --profile reviewer
-spec-kitty ask researcher "What prior art should I inspect?"
+spec-kitty dispatch "How should I structure this API?" --profile architect
+spec-kitty dispatch "Review this approach" --profile reviewer
+spec-kitty dispatch "What prior art should I inspect?" --profile researcher
 ```
 
-The agent loads its profile — role, doctrine, specialization context, and initialization declaration — and introduces itself. From that point on, you are in a live advisory session.
+Spec Kitty opens an Op, loads governance context, and returns the selected profile. The host agent does the work under that context, then closes the Op with `spec-kitty profile-invocation complete`.
 
 **Available profiles** (built-in): `architect`, `designer`, `implementer`, `planner`, `researcher`, `reviewer`, `curator`, `manager`
 
@@ -44,14 +44,14 @@ The agent loads its profile — role, doctrine, specialization context, and init
 
 ## What happens during a session
 
-The session is **advisory by default**. The specialist:
+During the Op, the selected profile:
 
-- Answers questions, proposes options, and explains trade-offs from its defined perspective
+- Answers questions, proposes options, explains trade-offs, reviews code, or makes the requested change from its defined perspective
 - May suggest involving another specialist ("this looks like it needs a Reviewer")
 - Does **not** switch specialists automatically — any handoff requires your explicit approval
 - Does **not** advance mission state, move work packages, or write to `kitty-specs/`
 
-The system writes a lightweight session record (memory-dump), but does not produce full mission-grade tracing. You stay in control throughout.
+The system writes a local Op record in `kitty-ops/`. You stay in control throughout.
 
 ---
 
@@ -60,7 +60,7 @@ The system writes a lightweight session record (memory-dump), but does not produ
 To bring in a different perspective, invoke the command again with another profile:
 
 ```
-spec-kitty ask reviewer "Review the architecture direction above."
+spec-kitty dispatch "Review the architecture direction above." --profile reviewer
 ```
 
 The previous agent's session context is checkpointed. The new specialist starts with the same conversation history available as background.
@@ -75,7 +75,7 @@ You can also switch based on an agent's own suggestion — but only if you agree
 
 ## Keeping or discarding the output
 
-By default, the session produces a lightweight memory-dump artefact. Nothing is committed or promoted automatically.
+By default, standalone dispatch records what happened without advancing mission state. Nothing is committed or promoted automatically.
 
 If the session produced something worth keeping — a decision, an approach, a pattern — you can request formalization:
 
@@ -95,7 +95,7 @@ Ad-hoc sessions are the first layer in a three-layer model:
 
 | Layer | Mode | Purpose |
 |-------|------|---------|
-| **Think** | Ad-hoc specialist session | Explore, question, experiment |
+| **Think** | Standalone governed Op | Explore, question, experiment |
 | **Capture** | Formalization (on request) | Turn a finding into a repeatable artefact |
 | **Execute** | Mission pipeline | Structured, tracked delivery |
 
@@ -106,7 +106,7 @@ A session never escalates to Capture or Execute automatically. You decide if and
 ## Example: quick architecture question
 
 ```
-spec-kitty ask architect "I'm adding a new sync endpoint. Should it be synchronous or return a job ID?"
+spec-kitty dispatch "I'm adding a new sync endpoint. Should it be synchronous or return a job ID?" --profile architect
 
 [Architect Alphonso responds with trade-off analysis]
 

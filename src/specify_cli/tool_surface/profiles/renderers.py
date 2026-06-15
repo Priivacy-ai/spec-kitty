@@ -103,34 +103,6 @@ __all__ += [
 ]
 
 
-# A profile id becomes the *stem* of a native agent file (``<id>.md`` /
-# ``<id>.agent.md``). It must therefore be a single safe path segment: no path
-# separators, no traversal, no whitespace or control characters. The native
-# formats agree on this constraint, so the check is renderer-agnostic.
-_NATIVE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
-_NATIVE_NAME_TRAVERSAL = {".", ".."}
-
-
-def native_name_violation(profile_id: str) -> str | None:
-    """Return a reason string if ``profile_id`` is illegal as a native filename.
-
-    Returns ``None`` for a legal id. A violation means the id cannot be used as
-    the filename stem of a host-native agent file (``.claude/agents/<id>.md``)
-    without escaping the agents directory or producing an unsafe path — the
-    condition that surfaces as ``profile-name-invalid``.
-    """
-    if not profile_id:
-        return "empty profile id has no native filename stem"
-    if profile_id in _NATIVE_NAME_TRAVERSAL:
-        return f"profile id {profile_id!r} is a path-traversal segment"
-    if not _NATIVE_NAME_PATTERN.fullmatch(profile_id):
-        return (
-            f"profile id {profile_id!r} contains characters illegal in a "
-            "native agent filename (allowed: letters, digits, '.', '_', '-')"
-        )
-    return None
-
-
 @runtime_checkable
 class ProfileRenderer(Protocol):
     """Render contract a per-harness profile renderer must satisfy."""

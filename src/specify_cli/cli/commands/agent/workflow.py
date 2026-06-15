@@ -38,7 +38,11 @@ from specify_cli.core.constants import (
     KITTY_SPECS_DIR,
     MISSION_TYPE_RESEARCH,
 )
-from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
+from specify_cli.missions.feature_dir_resolver import (
+    candidate_feature_dir_for_mission,
+    primary_feature_dir_for_mission,
+    resolve_feature_dir_for_mission,
+)
 import json
 import logging
 import re
@@ -1074,23 +1078,61 @@ def _auto_claim_failure_message(preview: object | None) -> str:
     return "No planned work packages found. Specify a WP ID explicitly."
 
 
+def _analysis_report_gate_dir(main_repo_root: Path, mission_slug: str) -> Path:
+    """Resolve the mission dir the implement gate reads ``analysis-report.md`` from.
+
+    #1989: this MUST be the topology-blind primary checkout — where
+    ``record-analysis`` writes the report — NOT the coord-aware
+    ``candidate_feature_dir_for_mission`` (which resolves to the coordination
+    worktree once one exists, and that worktree lacks the report + ``spec.md`` for
+    the freshness hash, so the gate would falsely report it missing). Extracted as
+    a named seam so the read-anchor decision is unit-testable in isolation.
+    """
+    return primary_feature_dir_for_mission(main_repo_root, mission_slug)
+
+
 def _require_current_analysis_report(feature_dir: Path, repo_root: Path, mission_slug: str) -> None:
     """Block implementation until `/spec-kitty.analyze` is persisted and fresh."""
-    from specify_cli.analysis_report import check_analysis_report_current
+    from specify_cli.analysis_report import (
+        ANALYSIS_REPORT_REASON_CARRIER_FORMAT,
+        check_analysis_report_current,
+    )
 
     analysis_freshness = check_analysis_report_current(feature_dir, repo_root)
     if analysis_freshness.ok:
         return
+
+    # Header line is always emitted first, in every branch.
     print("Error: analysis_report_required: /spec-kitty.analyze must be run before implementation.")
-    if analysis_freshness.missing:
+
+    if analysis_freshness.reason == ANALYSIS_REPORT_REASON_CARRIER_FORMAT:
+        print(
+            "  Reason: analysis-report.md is in carrier format (analysis-findings/v1) — written directly\n"
+            "          rather than via record-analysis. The implement gate requires the persisted\n"
+            "          outer-wrapper format (artifact_type: spec-kitty.analysis-report)."
+        )
+        print(
+            "  Recovery: spec-kitty agent mission record-analysis "
+            f"--mission {mission_slug} --input-file {analysis_freshness.path}"
+        )
+    elif analysis_freshness.missing:
         print(f"  Missing: {analysis_freshness.path}")
-    elif analysis_freshness.reason:
+        print("  Run step 1: /spec-kitty.analyze")
+        print(
+            "  Run step 2: spec-kitty agent mission record-analysis "
+            f"--mission {mission_slug} --input-file -"
+        )
+    elif analysis_freshness.mismatches:
         print(f"  Reason: {analysis_freshness.reason}")
-    if analysis_freshness.mismatches:
         print("  Stale inputs:")
         for artifact_name in sorted(analysis_freshness.mismatches):
             print(f"    - {artifact_name}")
-    print(f"  Run: /spec-kitty.analyze --mission {mission_slug}")
+        print(f"  Run: /spec-kitty.analyze --mission {mission_slug}")
+    else:
+        if analysis_freshness.reason:
+            print(f"  Reason: {analysis_freshness.reason}")
+        print(f"  Run: /spec-kitty.analyze --mission {mission_slug}")
+
     raise typer.Exit(1)
 
 
@@ -1283,8 +1325,10 @@ def implement(
             print("Re-run move-task with --review-feedback-file so the fix cycle can attach the canonical review artifact.")
             raise typer.Exit(1)
 
+        # #1989 (read-side companion to WP01): read the report from the PRIMARY
+        # checkout where record-analysis writes it (see _analysis_report_gate_dir).
         _require_current_analysis_report(
-            candidate_feature_dir_for_mission(main_repo_root, mission_slug),
+            _analysis_report_gate_dir(main_repo_root, mission_slug),
             main_repo_root,
             mission_slug,
         )

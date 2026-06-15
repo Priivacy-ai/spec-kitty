@@ -30,9 +30,9 @@ cross-module imports of internal submodules are prohibited by architectural test
 Status and kanban are owned **exclusively by Mission Management** (the `status/`
 OHS facade). The canonical execution-state surface is the top-level
 [`mission_runtime`](../3.x/adr/2026-06-07-1-execution-state-canonical-surface.md)
-package. The **Op execution tier** (the `spec-kitty do` / `ask` / `advise`
-profile-governed invocations and the pre/post-mission lifecycle) sits across the
-modules as the shared Op shape.
+package. The **Op execution tier** (`spec-kitty dispatch` plus
+`profile-invocation complete` and the pre/post-mission lifecycle) sits across
+the modules as the shared Op shape.
 
 ## Convention
 

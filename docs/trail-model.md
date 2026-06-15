@@ -4,7 +4,7 @@
 
 ## Overview
 
-Every profile invocation in Spec Kitty — whether triggered by `advise`, `ask`, or `do` — leaves an auditable trail. The trail serves three purposes:
+Every standalone Spec Kitty dispatch leaves an auditable trail. The trail serves three purposes:
 
 1. **Local accountability**: operators can reconstruct what happened on any checkout without SaaS connectivity.
 2. **SaaS coherence**: the dashboard timeline shows the same history as the local audit log.
@@ -14,10 +14,10 @@ Every profile invocation in Spec Kitty — whether triggered by `advise`, `ask`,
 
 **One JSONL file per invocation, written locally before the executor returns.**
 
-Every `advise`, `ask`, and `do` call writes a `started` event to:
+Every `spec-kitty dispatch "<request>"` call writes a `started` event to:
 
 ```
-.kittify/events/profile-invocations/{invocation_id}.jsonl
+kitty-ops/{invocation_id}.jsonl
 ```
 
 When `spec-kitty profile-invocation complete` is called, a `completed` event is appended to the same file.
@@ -30,16 +30,15 @@ Every invocation belongs to one of four work modes. The mode determines which op
 
 | Mode | Description | Example actions | Tier 2 eligible | Tier 3 eligible |
 |------|-------------|-----------------|-----------------|-----------------|
-| `advisory` | Pure routing/context advisory, no durable output | `advise` | No | No |
-| `task_execution` | Produces a checkable output (code change, review, test run) | `ask`, `do` (non-mission) | Yes (caller-triggered) | No |
+| `task_execution` | Standalone governed work, including advice, review, code changes, and test runs | `dispatch` | Yes (caller-triggered) | No |
 | `mission_step` | One step in a governed mission workflow | `specify`, `plan`, `tasks`, `merge`, `accept` | Yes (caller-triggered) | Yes |
 | `query` | Read-only, no execution | `profiles list`, `invocations list` | No | No |
 
-Mode-of-work is derived deterministically at runtime from the CLI entry command and recorded on the `started` event as the `mode_of_work` field. Runtime enforcement is active: `profile-invocation complete --evidence` is rejected for invocations in `advisory` or `query` mode (see "Mode Enforcement at Tier 2 Promotion" below).
+Mode-of-work is recorded on the `started` event as the `mode_of_work` field. New standalone dispatch records use `task_execution`. Runtime enforcement is active: `profile-invocation complete --evidence` is rejected for records that are not evidence-eligible (see "Mode Enforcement at Tier 2 Promotion" below).
 
 ### Mode Enforcement at Tier 2 Promotion
 
-`spec-kitty profile-invocation complete --evidence <path>` is rejected with `InvalidModeForEvidenceError` when the target invocation's `mode_of_work` is `advisory` or `query`. The enforcement runs **before** any write, so the invocation remains open and uncommitted — rerun `complete` without `--evidence` to close cleanly.
+`spec-kitty profile-invocation complete --evidence <path>` is rejected with `InvalidModeForEvidenceError` when the target invocation is not evidence-eligible. The enforcement runs **before** any write, so the invocation remains open and uncommitted — rerun `complete` without `--evidence` to close cleanly.
 
 Pre-mission records (invocations opened before this enforcement landed) have no `mode_of_work` field and are accepted by enforcement — legacy behaviour is preserved. See ADR-002-mode-derivation.md for the full derivation table and rationale.
 
@@ -49,9 +48,9 @@ Pre-mission records (invocations opened before this enforcement landed) have no 
 
 Written unconditionally before the executor returns.
 
-- **Storage**: `.kittify/events/profile-invocations/{invocation_id}.jsonl`
+- **Storage**: `kitty-ops/{invocation_id}.jsonl`
 - **Content**: Two JSONL lines — a `started` event and (after completion) a `completed` event.
-- **When**: All `advise`, `ask`, and `do` invocations.
+- **When**: All standalone `dispatch` invocations.
 
 ### Glossary Check Event (conditional, Tier 1)
 
@@ -80,7 +79,7 @@ the `started`/`completed` pair.
 
 `spec-kitty profile-invocation complete` accepts two additional flags that append correlation events to the invocation JSONL:
 
-- `--artifact <path>` — repeatable. Each value appends one `{event: "artifact_link", invocation_id, kind, ref, at}` line to `.kittify/events/profile-invocations/<id>.jsonl`. Refs are stored repo-relative when the resolved path is under the checkout, absolute otherwise.
+- `--artifact <path>` — repeatable. Each value appends one `{event: "artifact_link", invocation_id, kind, ref, at}` line to `kitty-ops/<id>.jsonl`. Refs are stored repo-relative when the resolved path is under the checkout, absolute otherwise.
 - `--commit <sha>` — singular. Appends one `{event: "commit_link", invocation_id, sha, at}` line.
 
 Both events are append-only (never mutate existing lines) and readable by a single-file scan. Readers that do not recognise these event types may safely skip the line — the same additive-reader invariant that protects `glossary_checked`.
@@ -121,10 +120,6 @@ Projection is conditional on `CheckoutSyncRouting.effective_sync_enabled`. When 
 
 | mode_of_work | event | project | include_request_text | include_evidence_ref |
 |--------------|-------|---------|----------------------|----------------------|
-| advisory | started | yes | no | no |
-| advisory | completed | yes | no | no |
-| advisory | artifact_link | no | — | — |
-| advisory | commit_link | no | — | — |
 | task_execution | started | yes | yes | no |
 | task_execution | completed | yes | yes | yes |
 | task_execution | artifact_link | yes | no | no |
@@ -158,18 +153,18 @@ Projection is additive. Events accumulate; there is no deletion, replay-based ov
 |-------|-----------|
 | `request_text` | Retained as-written in local JSONL. No automatic redaction in 3.2. |
 | `governance_context_hash` | First 16 hex chars of SHA-256 only. Full governance context is never persisted. |
-| JSONL files | Persist indefinitely unless the operator purges `.kittify/events/`. |
+| JSONL files | Persist indefinitely unless the operator purges `kitty-ops/`. |
 | SaaS propagation | Additive. No delete-on-disable in 3.2. |
 
-Propagation failures are written to `.kittify/events/propagation-errors.jsonl` and never affect the CLI exit code.
+Propagation failures are written to `kitty-ops/propagation-errors.jsonl` and never affect the CLI exit code.
 
 ## `spec-kitty intake` — Not a Profile Invocation
 
-`spec-kitty intake` ingests a plan document into `.kittify/mission-brief.md` for use by `/spec-kitty.specify` brief-intake mode. It is **not** a profile invocation and produces no `InvocationRecord`. The governed trail begins when the host calls `spec-kitty advise`, `ask`, or `do` — not when the user stages a brief.
+`spec-kitty intake` ingests a plan document into `.kittify/mission-brief.md` for use by `/spec-kitty.specify` brief-intake mode. It is **not** a standalone Op and produces no `InvocationRecord`. The governed trail begins when the host calls `spec-kitty dispatch "<request>"` — not when the user stages a brief.
 
 ## Host surfaces that teach the trail
 
-The advise/ask/do surface is taught to host LLMs through per-host skill packs. See [`docs/host-surface-parity.md`](host-surface-parity.md) for the authoritative matrix of supported hosts and each host's parity status.
+The standalone dispatch surface is taught to host LLMs through per-host skill packs. See [`docs/host-surface-parity.md`](host-surface-parity.md) for the authoritative matrix of supported hosts and each host's parity status.
 
 ## `spec-kitty explain` — Deferred to Phase 5
 

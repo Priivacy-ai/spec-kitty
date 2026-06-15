@@ -1,6 +1,6 @@
 """End-to-end invocation tests (WP05 T018–T021, WP06 T032).
 
-Tests exercise the advise/execute loop at the executor level (bypassing the CLI
+Tests exercise the dispatch/execute loop at the executor level (bypassing the CLI
 layer for reliability) to verify:
 
 - T018: A `started` JSONL record is written with a 26-char ULID invocation_id.
@@ -12,7 +12,7 @@ layer for reliability) to verify:
 WP06 additions (T032):
 - mode_of_work is recorded on the started event (FR-008).
 - artifact_link / commit_link events appended by complete_invocation (FR-007).
-- InvalidModeForEvidenceError raised pre-write for advisory/query (FR-009).
+- InvalidModeForEvidenceError raised pre-write for non-eligible modes (FR-009).
 - Legacy records with null mode_of_work allow evidence (backward compat).
 - Sync-disabled: all events written locally, no propagation errors.
 
@@ -91,15 +91,15 @@ def _make_started_record(invocation_id: str = "01KPQRX2EVGMRVB4Q1JQBAZJV3") -> O
 
 
 # ---------------------------------------------------------------------------
-# T018 — test_advise_writes_tier1_jsonl
+# T018 — test_dispatch_writes_tier1_jsonl
 # ---------------------------------------------------------------------------
 
 
-def test_advise_writes_tier1_jsonl(tmp_path: Path) -> None:
+def test_dispatch_writes_tier1_jsonl(tmp_path: Path) -> None:
     """Running the executor must write a `started` JSONL record (Tier 1 audit trail).
 
     Verifies:
-    - At least one JSONL file is created in .kittify/events/profile-invocations/
+    - At least one JSONL file is created in kitty-ops/
     - First line event == "started"
     - invocation_id is present and is 26 characters (ULID)
     """
@@ -126,10 +126,7 @@ def test_advise_writes_tier1_jsonl(tmp_path: Path) -> None:
     started = json.loads(lines[0])
     assert started["event"] == "started", f"Expected event='started', got {started['event']!r}"
     assert "invocation_id" in started, "invocation_id missing from started record"
-    assert len(started["invocation_id"]) == 26, (
-        f"Expected 26-char ULID, got {len(started['invocation_id'])!r}-char "
-        f"{started['invocation_id']!r}"
-    )
+    assert len(started["invocation_id"]) == 26, f"Expected 26-char ULID, got {len(started['invocation_id'])!r}-char {started['invocation_id']!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -164,7 +161,8 @@ def test_complete_writes_completed_event(tmp_path: Path) -> None:
     ):
         executor.complete_invocation(
             invocation_id=invocation_id,
-            outcome="done", closed_by="agent",
+            outcome="done",
+            closed_by="agent",
         )
 
     # Step 3: Verify JSONL has started + completed
@@ -176,19 +174,11 @@ def test_complete_writes_completed_event(tmp_path: Path) -> None:
     assert len(lines) == 2, f"Expected 2 lines (started + completed), got {len(lines)}"
 
     completed = json.loads(lines[1])
-    assert completed["event"] == "completed", (
-        f"Expected event='completed', got {completed['event']!r}"
-    )
-    assert completed["outcome"] == "done", (
-        f"Expected outcome='done', got {completed['outcome']!r}"
-    )
-    assert completed["invocation_id"] == invocation_id, (
-        f"invocation_id mismatch: {completed['invocation_id']!r} != {invocation_id!r}"
-    )
+    assert completed["event"] == "completed", f"Expected event='completed', got {completed['event']!r}"
+    assert completed["outcome"] == "done", f"Expected outcome='done', got {completed['outcome']!r}"
+    assert completed["invocation_id"] == invocation_id, f"invocation_id mismatch: {completed['invocation_id']!r} != {invocation_id!r}"
     # FR-003: the closing actor is recorded verbatim on the written line.
-    assert '"closed_by": "agent"' in lines[1], (
-        f"Expected literal closed_by=agent on the completed line, got: {lines[1]!r}"
-    )
+    assert '"closed_by": "agent"' in lines[1], f"Expected literal closed_by=agent on the completed line, got: {lines[1]!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -234,8 +224,7 @@ def test_invocations_list_reads_local_only(tmp_path: Path) -> None:
         mock_routing.assert_not_called()
 
     assert any(r.get("invocation_id") == test_id for r in records), (
-        f"Expected invocation_id={test_id!r} in list output; got: "
-        f"{[r.get('invocation_id') for r in records]}"
+        f"Expected invocation_id={test_id!r} in list output; got: {[r.get('invocation_id') for r in records]}"
     )
 
 
@@ -268,12 +257,15 @@ def test_sync_disabled_no_saas_events(tmp_path: Path) -> None:
         effective_sync_enabled=False,
     )
 
-    with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=disabled_routing,
-    ), patch(
-        "specify_cli.invocation.propagator._get_saas_client",
-    ) as mock_client:
+    with (
+        patch(
+            "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
+            return_value=disabled_routing,
+        ),
+        patch(
+            "specify_cli.invocation.propagator._get_saas_client",
+        ) as mock_client,
+    ):
         with patch(
             "specify_cli.invocation.executor.build_charter_context",
             return_value=_COMPACT_CTX,
@@ -290,10 +282,9 @@ def test_sync_disabled_no_saas_events(tmp_path: Path) -> None:
     # (b) Local JSONL written by the executor (not manually) — Tier 1 is mandatory
     events_dir = project / EVENTS_DIR
     expected_file = events_dir / f"{payload.invocation_id}.jsonl"
-    assert expected_file.exists(), (
-        f"Expected executor to write JSONL at {expected_file}; file not found"
-    )
+    assert expected_file.exists(), f"Expected executor to write JSONL at {expected_file}; file not found"
     import json as _json
+
     lines = [ln for ln in expected_file.read_text().splitlines() if ln.strip()]
     assert len(lines) >= 1 and _json.loads(lines[0])["event"] == "started"
 
@@ -356,9 +347,7 @@ def test_started_event_records_mode_advisory(tmp_path: Path) -> None:
 
     events_dir = project / EVENTS_DIR
     started_raw = json.loads((events_dir / f"{inv_id}.jsonl").read_text().splitlines()[0])
-    assert started_raw.get("mode_of_work") == "advisory", (
-        f"Expected mode_of_work='advisory', got {started_raw.get('mode_of_work')!r}"
-    )
+    assert started_raw.get("mode_of_work") == "advisory", f"Expected mode_of_work='advisory', got {started_raw.get('mode_of_work')!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -367,22 +356,20 @@ def test_started_event_records_mode_advisory(tmp_path: Path) -> None:
 
 
 def test_started_event_records_mode_task_execution(tmp_path: Path) -> None:
-    """ask and do entry commands both record mode_of_work='task_execution' (FR-008).
+    """Standalone execution records mode_of_work='task_execution' (FR-008).
 
     Simulated programmatically since ActionRouter setup would require full profiles.
     """
     project = _setup_minimal_project(tmp_path)
 
-    # ask maps to task_execution
-    inv_id_ask = _invoke_with_mode(project, ModeOfWork.TASK_EXECUTION)
+    inv_id_one = _invoke_with_mode(project, ModeOfWork.TASK_EXECUTION)
     events_dir = project / EVENTS_DIR
-    started_ask = json.loads((events_dir / f"{inv_id_ask}.jsonl").read_text().splitlines()[0])
-    assert started_ask.get("mode_of_work") == "task_execution"
+    started_one = json.loads((events_dir / f"{inv_id_one}.jsonl").read_text().splitlines()[0])
+    assert started_one.get("mode_of_work") == "task_execution"
 
-    # do also maps to task_execution
-    inv_id_do = _invoke_with_mode(project, ModeOfWork.TASK_EXECUTION)
-    started_do = json.loads((events_dir / f"{inv_id_do}.jsonl").read_text().splitlines()[0])
-    assert started_do.get("mode_of_work") == "task_execution"
+    inv_id_two = _invoke_with_mode(project, ModeOfWork.TASK_EXECUTION)
+    started_two = json.loads((events_dir / f"{inv_id_two}.jsonl").read_text().splitlines()[0])
+    assert started_two.get("mode_of_work") == "task_execution"
 
 
 # ---------------------------------------------------------------------------
@@ -402,7 +389,8 @@ def test_complete_with_two_artifacts_and_commit(tmp_path: Path) -> None:
         executor = ProfileInvocationExecutor(project)
         executor.complete_invocation(
             invocation_id=inv_id,
-            outcome="done", closed_by="agent",
+            outcome="done",
+            closed_by="agent",
             artifact_refs=["src/foo.py", "src/bar.py"],
             commit_sha="deadbeef1234",
         )
@@ -444,7 +432,8 @@ def test_complete_artifact_ref_normalisation_in_checkout(tmp_path: Path) -> None
         executor = ProfileInvocationExecutor(project)
         executor.complete_invocation(
             invocation_id=inv_id,
-            outcome="done", closed_by="agent",
+            outcome="done",
+            closed_by="agent",
             artifact_refs=[str(artifact_file)],
         )
 
@@ -463,9 +452,7 @@ def test_complete_artifact_ref_normalisation_in_checkout(tmp_path: Path) -> None
 # ---------------------------------------------------------------------------
 
 
-def test_complete_artifact_ref_outside_checkout(
-    tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
-) -> None:
+def test_complete_artifact_ref_outside_checkout(tmp_path: Path, tmp_path_factory: pytest.TempPathFactory) -> None:
     """An artifact path outside the repo checkout is stored absolute (FR-007 / data-model §6)."""
     project = _setup_minimal_project(tmp_path)
     outside = tmp_path_factory.mktemp("outside_repo") / "external.log"
@@ -480,7 +467,8 @@ def test_complete_artifact_ref_outside_checkout(
         executor = ProfileInvocationExecutor(project)
         executor.complete_invocation(
             invocation_id=inv_id,
-            outcome="done", closed_by="agent",
+            outcome="done",
+            closed_by="agent",
             artifact_refs=[str(outside)],
         )
 
@@ -518,7 +506,8 @@ def test_complete_rejects_evidence_on_advisory(tmp_path: Path) -> None:
         with pytest.raises(InvalidModeForEvidenceError) as exc_info:
             executor.complete_invocation(
                 invocation_id=inv_id,
-                outcome="done", closed_by="agent",
+                outcome="done",
+                closed_by="agent",
                 evidence_ref=str(evidence_file),
             )
 
@@ -562,7 +551,8 @@ def test_complete_rejects_evidence_on_query(tmp_path: Path) -> None:
         with pytest.raises(InvalidModeForEvidenceError) as exc_info:
             executor.complete_invocation(
                 invocation_id=inv_id,
-                outcome="done", closed_by="agent",
+                outcome="done",
+                closed_by="agent",
                 evidence_ref=str(evidence_file),
             )
 
@@ -595,7 +585,8 @@ def test_complete_allows_evidence_on_task_execution(tmp_path: Path) -> None:
         executor = ProfileInvocationExecutor(project)
         completed = executor.complete_invocation(
             invocation_id=inv_id,
-            outcome="done", closed_by="agent",
+            outcome="done",
+            closed_by="agent",
             evidence_ref=str(evidence_file),
         )
 
@@ -632,7 +623,8 @@ def test_complete_allows_evidence_on_mission_step(tmp_path: Path) -> None:
         executor = ProfileInvocationExecutor(project)
         completed = executor.complete_invocation(
             invocation_id=inv_id,
-            outcome="done", closed_by="agent",
+            outcome="done",
+            closed_by="agent",
             evidence_ref=str(evidence_file),
         )
 
@@ -670,7 +662,8 @@ def test_complete_on_pre_mission_record_allows_evidence(tmp_path: Path) -> None:
         executor = ProfileInvocationExecutor(project)
         completed = executor.complete_invocation(
             invocation_id=inv_id,
-            outcome="done", closed_by="agent",
+            outcome="done",
+            closed_by="agent",
             evidence_ref=str(evidence_file),
         )
 
@@ -691,9 +684,7 @@ def test_complete_on_pre_mission_record_allows_evidence(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("action_key", ["specify", "plan", "tasks", "implement", "review"])
-def test_invoke_with_action_hint_and_profile_hint_records_hint(
-    tmp_path: Path, action_key: str
-) -> None:
+def test_invoke_with_action_hint_and_profile_hint_records_hint(tmp_path: Path, action_key: str) -> None:
     """profile_hint + truthy action_hint records action_hint verbatim (FR-009/FR-010).
 
     Parametrized over the five contract actions (specify/plan/tasks/implement/review)
@@ -714,17 +705,13 @@ def test_invoke_with_action_hint_and_profile_hint_records_hint(
         )
 
     # Payload exposes the hint
-    assert payload.action == action_key, (
-        f"Expected payload.action={action_key!r}, got {payload.action!r}"
-    )
+    assert payload.action == action_key, f"Expected payload.action={action_key!r}, got {payload.action!r}"
 
     # Started JSONL record carries the hint
     events_dir = project / EVENTS_DIR
     jsonl_file = events_dir / f"{payload.invocation_id}.jsonl"
     started = json.loads(jsonl_file.read_text().splitlines()[0])
-    assert started["action"] == action_key, (
-        f"Expected started.action={action_key!r}, got {started['action']!r}"
-    )
+    assert started["action"] == action_key, f"Expected started.action={action_key!r}, got {started['action']!r}"
 
 
 def test_invoke_profile_hint_only_falls_back_to_derived_action(tmp_path: Path) -> None:
@@ -756,9 +743,7 @@ def test_invoke_profile_hint_only_falls_back_to_derived_action(tmp_path: Path) -
     events_dir = project / EVENTS_DIR
     jsonl_file = events_dir / f"{payload.invocation_id}.jsonl"
     started = json.loads(jsonl_file.read_text().splitlines()[0])
-    assert started["action"] == expected_action, (
-        f"Expected legacy-derived action {expected_action!r}, got {started['action']!r}"
-    )
+    assert started["action"] == expected_action, f"Expected legacy-derived action {expected_action!r}, got {started['action']!r}"
 
 
 def test_invoke_empty_action_hint_falls_back(tmp_path: Path) -> None:
@@ -789,10 +774,7 @@ def test_invoke_empty_action_hint_falls_back(tmp_path: Path) -> None:
     events_dir = project / EVENTS_DIR
     jsonl_file = events_dir / f"{payload.invocation_id}.jsonl"
     started = json.loads(jsonl_file.read_text().splitlines()[0])
-    assert started["action"] == expected_action, (
-        f"Empty-string action_hint should fall back to {expected_action!r}, "
-        f"got {started['action']!r}"
-    )
+    assert started["action"] == expected_action, f"Empty-string action_hint should fall back to {expected_action!r}, got {started['action']!r}"
 
 
 def test_invoke_router_branch_unchanged_with_action_hint(tmp_path: Path) -> None:
@@ -832,9 +814,7 @@ def test_invoke_router_branch_unchanged_with_action_hint(tmp_path: Path) -> None
     events_dir = project / EVENTS_DIR
     jsonl_file = events_dir / f"{payload.invocation_id}.jsonl"
     started = json.loads(jsonl_file.read_text().splitlines()[0])
-    assert started["action"] == router_action, (
-        f"Router branch must use router action {router_action!r}, got {started['action']!r}"
-    )
+    assert started["action"] == router_action, f"Router branch must use router action {router_action!r}, got {started['action']!r}"
     assert started["action"] != "anything"
 
 
@@ -856,10 +836,13 @@ def test_sync_disabled_no_propagation_errors(tmp_path: Path) -> None:
         effective_sync_enabled=False,
     )
 
-    with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=disabled_routing,
-    ), patch("specify_cli.invocation.propagator._get_saas_client") as mock_client:
+    with (
+        patch(
+            "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
+            return_value=disabled_routing,
+        ),
+        patch("specify_cli.invocation.propagator._get_saas_client") as mock_client,
+    ):
         with patch(
             "specify_cli.invocation.executor.build_charter_context",
             return_value=_COMPACT_CTX,
@@ -875,7 +858,8 @@ def test_sync_disabled_no_propagation_errors(tmp_path: Path) -> None:
             # Complete with artifact and commit links
             executor.complete_invocation(
                 invocation_id=inv_id,
-                outcome="done", closed_by="agent",
+                outcome="done",
+                closed_by="agent",
                 artifact_refs=["src/example.py"],
                 commit_sha="cafebabe1234",
             )
@@ -929,9 +913,7 @@ def _init_git(project: Path) -> None:
 
 
 @pytest.mark.parametrize("outcome", ["done", "failed", "abandoned"])
-def test_each_outcome_written_verbatim(
-    tmp_path: Path, outcome: Literal["done", "failed", "abandoned"]
-) -> None:
+def test_each_outcome_written_verbatim(tmp_path: Path, outcome: Literal["done", "failed", "abandoned"]) -> None:
     """Every supported outcome value is written verbatim — never coerced (FR-003)."""
     project = _setup_minimal_project(tmp_path)
     inv_id = _invoke_with_mode(project, ModeOfWork.TASK_EXECUTION)
@@ -994,9 +976,7 @@ def test_double_close_raises_already_closed_and_appends_nothing(tmp_path: Path) 
     assert after == before, "Double close must not append any event"
 
 
-def test_open_op_untracked_then_committed_with_message_format(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_open_op_untracked_then_committed_with_message_format(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-012: an open Op stays untracked; the close-time auto-commit message is
     ``op(<profile-id>): <action> [<id8>]``."""
     import re
@@ -1022,14 +1002,10 @@ def test_open_op_untracked_then_committed_with_message_format(
         assert (project / op_rel).exists()
         assert op_rel not in _git(project, "ls-files").splitlines()
 
-        executor.complete_invocation(
-            payload.invocation_id, outcome="done", closed_by="agent"
-        )
+        executor.complete_invocation(payload.invocation_id, outcome="done", closed_by="agent")
 
     # After close: file committed with the pinned message format.
     assert op_rel in _git(project, "ls-files").splitlines()
     subject = _git(project, "log", "-1", "--format=%s").strip()
     id8 = payload.invocation_id[:8]
-    assert re.fullmatch(rf"op\(implementer-fixture\): \S+ \[{re.escape(id8)}\]", subject), (
-        f"Unexpected auto-commit subject: {subject!r}"
-    )
+    assert re.fullmatch(rf"op\(implementer-fixture\): \S+ \[{re.escape(id8)}\]", subject), f"Unexpected auto-commit subject: {subject!r}"

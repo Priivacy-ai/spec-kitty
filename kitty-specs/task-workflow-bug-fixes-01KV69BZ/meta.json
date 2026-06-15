@@ -1,0 +1,17 @@
+{
+  "baseline_merge_commit": "71bd3b4846de3b64a5444181a4116cfd67413cec",
+  "coordination_branch": "kitty/mission-task-workflow-bug-fixes-01KV69BZ",
+  "created_at": "2026-06-15T18:40:42.452108+00:00",
+  "friendly_name": "Task Workflow Bug Fixes: Spec Path and Error Hint",
+  "mission_id": "01KV69BZEHXDSGGMR6J3QN0J2E",
+  "mission_number": 139,
+  "mission_slug": "task-workflow-bug-fixes-01KV69BZ",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Two bugs block the standard map-requirements → finalize-tasks workflow. The P1 bug causes map-requirements to look for spec.md in the coordination worktree (where it does not exist) instead of the primary checkout. The P2 bug leaves the finalize-tasks --validate-only error for planned-new-files without an actionable YAML example and without regression test coverage, allowing silent re-regression.",
+  "purpose_tldr": "Fix two task-workflow bugs: map-requirements spec.md path and finalize-tasks create_intent error hint",
+  "slug": "task-workflow-bug-fixes-01KV69BZ",
+  "target_branch": "fix/task-workflow-bug-fixes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-15T19:35:22.752978+00:00"
+}

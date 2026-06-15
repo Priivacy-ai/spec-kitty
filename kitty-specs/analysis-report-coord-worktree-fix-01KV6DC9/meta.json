@@ -1,0 +1,14 @@
+{
+  "coordination_branch": "kitty/mission-analysis-report-coord-worktree-fix-01KV6DC9",
+  "created_at": "2026-06-15T19:50:47.495565+00:00",
+  "friendly_name": "Analysis Report Coord-Worktree Fix & Recovery UX",
+  "mission_id": "01KV6DC9Y5FJ9FCYJMM1KA09XK",
+  "mission_number": null,
+  "mission_slug": "analysis-report-coord-worktree-fix-01KV6DC9",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "When a coordination worktree is active, record-analysis resolves the mission directory to the coord-worktree path, where spec.md is absent, causing it to fail. Agents forced to write analysis-report.md directly use the carrier format, which the implement gate rejects with a cryptic error. This mission fixes the write-path anchor, adds a named error code for the carrier-format case, and surfaces exact recovery commands so agents can unblock themselves.",
+  "purpose_tldr": "Fix record-analysis to succeed under coord-worktree topology and emit actionable recovery guidance when analysis-report.md is in carrier format.",
+  "slug": "analysis-report-coord-worktree-fix-01KV6DC9",
+  "target_branch": "fix/analysis-report-coord-worktree-fix"
+}

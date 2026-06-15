@@ -184,8 +184,7 @@ Body for {wp_id}.
         ("WP03", Lane.IN_REVIEW, Lane.APPROVED, "APPROVED"),
         ("WP03", Lane.APPROVED, Lane.DONE, "DONE"),
     ]
-    counter = 0
-    for wp_id, from_lane, to_lane, tag in transitions:
+    for counter, (wp_id, from_lane, to_lane, tag) in enumerate(transitions):
         # Stable identity ULIDs derived from a counter so re-runs are identical.
         ulid = f"TESTBASELINE{tag}{wp_id}{counter:04d}"[:26].ljust(26, "0")
         append_event(
@@ -202,7 +201,6 @@ Body for {wp_id}.
                 execution_mode="direct_repo",
             ),
         )
-        counter += 1
     materialize(feature_dir)
 
     return root

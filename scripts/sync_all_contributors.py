@@ -81,8 +81,7 @@ def run_json(cmd: list[str]) -> object:
     completed = subprocess.run(
         cmd,
         check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         text=True,
     )
     return json.loads(completed.stdout)
@@ -92,8 +91,7 @@ def run_text(cmd: list[str]) -> str:
     completed = subprocess.run(
         cmd,
         check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         text=True,
     )
     return completed.stdout

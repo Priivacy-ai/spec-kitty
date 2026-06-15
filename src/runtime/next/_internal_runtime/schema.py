@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 from spec_kitty_events.mission_next import RuntimeActorIdentity
 
 # ``specify_cli`` sits above ``runtime`` in the layer stack (runtime <-
@@ -433,7 +433,8 @@ class PromptStep(BaseModel):
     raci_override_reason: str | None = None
     agent_profile: str | None = Field(
         default=None,
-        alias="agent-profile",
+        validation_alias=AliasChoices("agent-profile", "agent_profile"),
+        serialization_alias="agent-profile",
         description="Profile id used as profile_hint when this step dispatches via composition.",
     )
     contract_ref: str | None = Field(

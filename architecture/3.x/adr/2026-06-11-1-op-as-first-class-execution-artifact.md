@@ -3,15 +3,15 @@
 **Date**: 2026-06-11
 **Status**: Accepted
 **Mission**: `doctrine-glossary-architecture-consolidation-01KTNWFC` (WP06, FR-007)
-**Issues**: [#1688](https://github.com/Priivacy-ai/spec-kitty/issues/1688) (proposal — closed/superseded), [#1804](https://github.com/Priivacy-ai/spec-kitty/issues/1804) (Ops execution layer), [#1802](https://github.com/Priivacy-ai/spec-kitty/issues/1802) (pre/post-mission lifecycle), [#1810](https://github.com/Priivacy-ai/spec-kitty/issues/1810) (do/ask/advise → dispatch collapse)
+**Issues**: [#1688](https://github.com/Priivacy-ai/spec-kitty/issues/1688) (proposal — closed/superseded), [#1804](https://github.com/Priivacy-ai/spec-kitty/issues/1804) (Ops execution layer), [#1802](https://github.com/Priivacy-ai/spec-kitty/issues/1802) (pre/post-mission lifecycle), [#1810](https://github.com/Priivacy-ai/spec-kitty/issues/1810) (standalone dispatch)
 **Deciders**: Architect Alphonso, Operator (Stijn)
 
 ---
 
 ## Context and Problem Statement
 
-`spec-kitty ask`, `spec-kitty advise`, and `spec-kitty do` are bounded,
-doctrine-governed agent actions that run immediately — no spec, no plan, no work
+`spec-kitty dispatch` opens bounded, doctrine-governed agent actions that run
+immediately — no spec, no plan, no work
 packages, no lane worktree — yet they still load governance context, route to an
 agent profile, and produce a durable record. The implementation lives in
 `src/specify_cli/invocation/` and already emits `OpStartedEvent` /
@@ -24,8 +24,7 @@ diagnosed the gap precisely: the records were treated as scratch byproducts of
 Two epics now press on the same gap from different directions:
 
 - **#1804 (Ops execution layer)** wants a durable, governed, queue-backed
-  execution artifact for `ask`/`advise`/`do` (which #1810 collapses into a
-  single `dispatch` opener). It has **no ADR** — it is the highest-value
+  execution artifact for standalone dispatch. It has **no ADR** — it is the highest-value
   architecture gap in `work/EPIC_ARCHITECTURE_CORRELATION.md`.
 - **#1802 (pre/post-mission lifecycle)** wants bounded, governed flows that sit
   *outside* a Mission's spec→merge loop: an **intake** flow before a Mission
@@ -76,7 +75,7 @@ cheapest moment to converge; after, we would be unifying two shipped primitives.
 
 An **Op** is a *bounded, doctrine-governed agent action, dispatched immediately,
 that produces a durable governed record without a full Mission lifecycle.* It is
-to `dispatch` (the collapsed `ask`/`advise`/`do`, #1810) what a Mission is to the
+to `dispatch` what a Mission is to the
 spec→plan→tasks→implement→review→merge loop: lighter, immediate, no planning
 loop — but real work, real doctrine, real record.
 
@@ -93,9 +92,8 @@ The Op lifecycle is a short dispatch loop, not a Mission state machine:
    loaded governance context; the CLI does not perform the work itself.
 5. **Close the Op** — append an `OpCompletedEvent` with the real outcome.
 
-An Op carries a `ModeOfWork` (`advisory` | `task_execution` | `query`, per
-`src/specify_cli/invocation/modes.py`) — the lighter-weight sibling of a Mission
-step's `mission_step` mode. The Op record is the durable trace; durability is a
+An Op carries a `ModeOfWork` (`task_execution`, `mission_step`, or `query`, per
+`src/specify_cli/invocation/modes.py`). The Op record is the durable trace; durability is a
 *property of the artifact*, not a bolt-on. (#1688 framed the original
 two-invocation durability bug as a symptom of this missing concept; naming the Op
 resolves it structurally.)
@@ -334,6 +332,6 @@ residual action is editorial: the stale 2.x link in
 - Mission spec (FR-007): [`kitty-specs/doctrine-glossary-architecture-consolidation-01KTNWFC/spec.md`](../../../kitty-specs/doctrine-glossary-architecture-consolidation-01KTNWFC/spec.md)
 - Proposal (superseded into this ADR): [#1688](https://github.com/Priivacy-ai/spec-kitty/issues/1688)
 - Consuming epics: [#1804](https://github.com/Priivacy-ai/spec-kitty/issues/1804) (Ops), [#1802](https://github.com/Priivacy-ai/spec-kitty/issues/1802) (lifecycle), [#1810](https://github.com/Priivacy-ai/spec-kitty/issues/1810) (dispatch collapse)
-- Current Op surface in code: `src/specify_cli/invocation/` (`OpStartedEvent` / `OpCompletedEvent`, `ModeOfWork`), `src/specify_cli/cli/commands/{do_cmd,advise,invocations_cmd}.py`
+- Current Op surface in code: `src/specify_cli/invocation/` (`OpStartedEvent` / `OpCompletedEvent`, `ModeOfWork`), `src/specify_cli/cli/commands/{dispatch,profile_invocation,invocations_cmd}.py`
 - Canonical execution surfaces: ADR [`2026-06-07-1-execution-state-canonical-surface.md`](2026-06-07-1-execution-state-canonical-surface.md) (`mission_runtime`); ADR [`2026-06-03-2-executioncontext-owner-and-committarget.md`](2026-06-03-2-executioncontext-owner-and-committarget.md) + its 2026-06-10 addendum (`CommitTarget(ref, kind)`, step 7 delivered); `src/specify_cli/core/commit_guard.py` (`GuardCapability`, single `evaluate`)
 - Correlation matrix: `work/EPIC_ARCHITECTURE_CORRELATION.md` (Ops gap → SC-2)

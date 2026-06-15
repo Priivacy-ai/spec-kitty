@@ -90,7 +90,7 @@ flowchart LR
 | Mission Management | Owns mission lifecycle, WP status/kanban, status events, and planning artifacts; the **sole** status authority. |
 | Execution / Runtime | Owns workspace resolution, branch state, and the CWD-invariant `mission_runtime` execution context. |
 | Shared Kernel | Provides value types and the single commit-guard decision; holds no domain logic. |
-| Op Tier | The shared Op shape across `spec-kitty do`/`ask`/`advise` and pre/post-mission lifecycle; governed by a resolved agent profile. |
+| Op Tier | The shared Op shape across `spec-kitty dispatch` and pre/post-mission lifecycle; governed by a resolved agent profile. |
 
 ## Branch and Routing Boundary
 

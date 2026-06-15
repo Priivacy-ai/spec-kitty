@@ -1,4 +1,5 @@
 """Unit tests for derive_mode() from CLI entry command."""
+
 from __future__ import annotations
 
 import pytest
@@ -8,12 +9,11 @@ from specify_cli.invocation.modes import ModeOfWork, derive_mode
 
 pytestmark = [pytest.mark.unit]
 
+
 @pytest.mark.parametrize(
     ("entry_command", "expected"),
     [
-        ("advise", ModeOfWork.ADVISORY),
-        ("ask", ModeOfWork.TASK_EXECUTION),
-        ("do", ModeOfWork.TASK_EXECUTION),
+        ("dispatch", ModeOfWork.TASK_EXECUTION),
         ("next.specify", ModeOfWork.MISSION_STEP),
         ("next.plan", ModeOfWork.MISSION_STEP),
         ("next.tasks", ModeOfWork.MISSION_STEP),

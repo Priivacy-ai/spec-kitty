@@ -39,11 +39,7 @@ def list_orphan_ops(repo_root: Path) -> list[Path]:
     ops_dir = repo_root / EVENTS_DIR
     if not ops_dir.exists():
         return []
-    return [
-        path
-        for path in sorted(ops_dir.glob("*.jsonl"))
-        if path.name not in _NON_OP_JSONL and not _has_completed_event(path)
-    ]
+    return [path for path in sorted(ops_dir.glob("*.jsonl")) if path.name not in _NON_OP_JSONL and not _has_completed_event(path)]
 
 
 @dataclass
@@ -148,19 +144,15 @@ def close_stale_ops(
     if not orphans:
         return report
 
-    # Same SaaS propagator the do/ask/advise close paths use (FR-008 parity):
+    # Same SaaS propagator the dispatch close path uses (FR-008 parity):
     # sync-gated and best-effort inside the propagator itself, so swept
     # `abandoned` completions reach SaaS instead of leaving the Op open there.
-    executor = ProfileInvocationExecutor(
-        repo_root, propagator=InvocationSaaSPropagator(repo_root)
-    )
+    executor = ProfileInvocationExecutor(repo_root, propagator=InvocationSaaSPropagator(repo_root))
     for path in orphans:
         invocation_id = path.stem
         profile_id, started_at = _read_started_fields(path)
         age = _age_hours(started_at, now)
-        parse_warning = None if age is not None else (
-            f"unparseable started_at {started_at!r}; treated as stale"
-        )
+        parse_warning = None if age is not None else (f"unparseable started_at {started_at!r}; treated as stale")
         is_stale = threshold_hours == 0 or age is None or age > threshold_hours
         entry = SweepOpEntry(
             invocation_id=invocation_id,

@@ -9,13 +9,17 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
+from typer.testing import CliRunner
 
 from mission_runtime import ActionContextError
-from specify_cli.cli.commands.agent.context import _find_feature_directory
+from specify_cli.cli.commands.agent.context import _find_feature_directory, app as context_app
 
 pytestmark = [pytest.mark.fast]
+runner = CliRunner()
 
 
 def _seed_mission(tmp_path: Path, *, slug: str, mission_id: str) -> Path:
@@ -40,6 +44,64 @@ def test_mid8_resolves_same_as_full_slug(tmp_path: Path) -> None:
 
     assert via_slug == expected
     assert via_mid8 == expected
+
+
+def test_find_feature_directory_strips_explicit_mission(tmp_path: Path) -> None:
+    """Whitespace around ``--mission`` preserves resolver compatibility."""
+    mission_id = "01KTPKSTABCDEFGHJKMNPQRSTV"
+    slug = "083-my-feature"
+    expected = _seed_mission(tmp_path, slug=slug, mission_id=mission_id)
+
+    resolved = _find_feature_directory(
+        tmp_path,
+        tmp_path,
+        explicit_mission=f"  {slug}  ",
+    )
+
+    assert resolved == expected
+
+
+def test_context_resolve_strips_explicit_mission(tmp_path: Path) -> None:
+    """CLI path must strip ``--mission`` before mission handle resolution."""
+    mission_id = "01KTPKSTABCDEFGHJKMNPQRSTV"
+    slug = "083-my-feature"
+    _seed_mission(tmp_path, slug=slug, mission_id=mission_id)
+    context = SimpleNamespace(
+        to_dict=lambda: {
+            "mission_slug": slug,
+            "detection_method": "test",
+            "target_branch": "main",
+            "wp_id": None,
+            "workspace_path": None,
+            "commands": {},
+        }
+    )
+
+    with (
+        patch(
+            "specify_cli.cli.commands.agent.context.locate_project_root",
+            return_value=tmp_path,
+        ),
+        patch(
+            "specify_cli.cli.commands.agent.context.resolve_action_context",
+            return_value=context,
+        ),
+    ):
+        result = runner.invoke(
+            context_app,
+            [
+                "--action",
+                "status",
+                "--mission",
+                f"  {slug}  ",
+                "--json",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["success"] is True
+    assert payload["mission_slug"] == slug
 
 
 def test_unresolvable_handle_raises_structured_error(tmp_path: Path) -> None:
