@@ -430,6 +430,182 @@ class TestAutoRebaseAdditive:
         }
         assert committed_status["event_count"] == 3
         assert sorted(committed_status["work_packages"]) == ["WP01", "WP02", "WP03"]
+        assert not (worktree_b / status_events_rel).exists()
+        assert not (worktree_b / status_json_rel).exists()
+
+    def test_status_events_conflict_rematerializes_unconflicted_status_json(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        repo = _init_repo(tmp_path)
+        mission_slug = "1968-event-only"
+        mission_branch = f"kitty/mission-{mission_slug}"
+        branch_b = f"kitty/mission-{mission_slug}-lane-a"
+        mission_dir = Path("kitty-specs") / mission_slug
+        status_events_rel = mission_dir / "status.events.jsonl"
+        status_json_rel = mission_dir / "status.json"
+        base_event = _status_event(
+            "01AAA000000000000000000001",
+            at="2026-06-15T04:00:00Z",
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            from_lane="genesis",
+            to_lane="planned",
+        )
+        mission_event = _status_event(
+            "01BBB000000000000000000002",
+            at="2026-06-15T04:01:00Z",
+            mission_slug=mission_slug,
+            wp_id="WP02",
+            from_lane="genesis",
+            to_lane="planned",
+        )
+        lane_event = _status_event(
+            "01CCC000000000000000000003",
+            at="2026-06-15T04:02:00Z",
+            mission_slug=mission_slug,
+            wp_id="WP03",
+            from_lane="genesis",
+            to_lane="planned",
+        )
+
+        _write_status_events(repo / status_events_rel, [base_event])
+        (repo / status_json_rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / status_json_rel).write_text('{"event_count": 1}\n', encoding="utf-8")
+        _run(["git", "add", str(mission_dir)], repo)
+        _run(["git", "commit", "-m", "seed status artifacts"], repo)
+
+        _run(["git", "branch", mission_branch, "main"], repo)
+        _run(["git", "checkout", mission_branch], repo)
+        _write_status_events(repo / status_events_rel, [base_event, mission_event])
+        _run(["git", "add", str(status_events_rel)], repo)
+        _run(["git", "commit", "-m", "mission: append event"], repo)
+
+        _run(["git", "checkout", "-b", branch_b, "main"], repo)
+        _write_status_events(repo / status_events_rel, [base_event, lane_event])
+        _run(["git", "add", str(status_events_rel)], repo)
+        _run(["git", "commit", "-m", "lane: append event"], repo)
+        _run(["git", "checkout", "main"], repo)
+
+        worktree_b = repo / ".worktrees" / f"{mission_slug}-lane-a"
+        worktree_b.parent.mkdir(parents=True, exist_ok=True)
+        _run(["git", "worktree", "add", str(worktree_b), branch_b], repo)
+        _run(["git", "config", "user.email", "test@spec-kitty"], worktree_b)
+        _run(["git", "config", "user.name", "test"], worktree_b)
+        _run(["git", "sparse-checkout", "init", "--no-cone"], worktree_b)
+        _run(
+            [
+                "git",
+                "sparse-checkout",
+                "set",
+                "--no-cone",
+                "/*",
+                f"!{status_events_rel.as_posix()}",
+                f"!{status_json_rel.as_posix()}",
+            ],
+            worktree_b,
+        )
+        assert not (worktree_b / status_events_rel).exists()
+        assert not (worktree_b / status_json_rel).exists()
+
+        report = attempt_auto_rebase(
+            lane=_make_lane(),
+            branch=branch_b,
+            mission_branch=mission_branch,
+            repo_root=repo,
+            worktree_path=worktree_b,
+        )
+
+        assert report.succeeded is True, report.halt_reason
+        committed_status = json.loads(
+            _run(["git", "show", f"HEAD:{status_json_rel.as_posix()}"], worktree_b).stdout
+        )
+        assert committed_status["event_count"] == 3
+        assert sorted(committed_status["work_packages"]) == ["WP01", "WP02", "WP03"]
+        assert not (worktree_b / status_events_rel).exists()
+        assert not (worktree_b / status_json_rel).exists()
+
+    def test_failed_sparse_status_resolution_reapplies_sparse_checkout(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        repo = _init_repo(tmp_path)
+        mission_slug = "1968-sparse-failure"
+        mission_branch = f"kitty/mission-{mission_slug}"
+        branch_b = f"kitty/mission-{mission_slug}-lane-a"
+        mission_dir = Path("kitty-specs") / mission_slug
+        status_events_rel = mission_dir / "status.events.jsonl"
+        status_json_rel = mission_dir / "status.json"
+        base_event = _status_event(
+            "01AAA000000000000000000001",
+            at="2026-06-15T04:00:00Z",
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            from_lane="genesis",
+            to_lane="planned",
+        )
+
+        (repo / ".gitattributes").write_text(
+            "kitty-specs/**/status.events.jsonl merge=union\n",
+            encoding="utf-8",
+        )
+        _write_status_events(repo / status_events_rel, [base_event])
+        (repo / status_json_rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / status_json_rel).write_text('{"event_count": 1}\n', encoding="utf-8")
+        _run(["git", "add", ".gitattributes", str(mission_dir)], repo)
+        _run(["git", "commit", "-m", "seed failure status artifacts"], repo)
+
+        _run(["git", "branch", mission_branch, "main"], repo)
+        _run(["git", "checkout", mission_branch], repo)
+        (repo / status_events_rel).write_text(
+            json.dumps({"event_id": "01BBB000000000000000000002"}) + "\n",
+            encoding="utf-8",
+        )
+        (repo / status_json_rel).write_text('{"event_count": 2, "side": "mission"}\n', encoding="utf-8")
+        _run(["git", "add", str(mission_dir)], repo)
+        _run(["git", "commit", "-m", "mission: invalid status event"], repo)
+
+        _run(["git", "checkout", "-b", branch_b, "main"], repo)
+        _write_status_events(repo / status_events_rel, [base_event])
+        (repo / status_json_rel).write_text('{"event_count": 2, "side": "lane"}\n', encoding="utf-8")
+        _run(["git", "add", str(mission_dir)], repo)
+        _run(["git", "commit", "-m", "lane: status json drift"], repo)
+        _run(["git", "checkout", "main"], repo)
+
+        worktree_b = repo / ".worktrees" / f"{mission_slug}-lane-a"
+        worktree_b.parent.mkdir(parents=True, exist_ok=True)
+        _run(["git", "worktree", "add", str(worktree_b), branch_b], repo)
+        _run(["git", "config", "user.email", "test@spec-kitty"], worktree_b)
+        _run(["git", "config", "user.name", "test"], worktree_b)
+        _run(["git", "sparse-checkout", "init", "--no-cone"], worktree_b)
+        _run(
+            [
+                "git",
+                "sparse-checkout",
+                "set",
+                "--no-cone",
+                "/*",
+                f"!{status_events_rel.as_posix()}",
+                f"!{status_json_rel.as_posix()}",
+            ],
+            worktree_b,
+        )
+        assert not (worktree_b / status_events_rel).exists()
+        assert not (worktree_b / status_json_rel).exists()
+
+        report = attempt_auto_rebase(
+            lane=_make_lane(),
+            branch=branch_b,
+            mission_branch=mission_branch,
+            repo_root=repo,
+            worktree_path=worktree_b,
+        )
+
+        assert report.succeeded is False
+        assert report.halt_reason is not None
+        assert "Invalid event structure" in report.halt_reason
+        assert not (worktree_b / status_events_rel).exists()
+        assert not (worktree_b / status_json_rel).exists()
 
 
 class TestAutoRebaseSemanticConflict:

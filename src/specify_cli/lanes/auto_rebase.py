@@ -177,6 +177,20 @@ def _stage_sparse(worktree: Path, rel_path: str) -> tuple[bool, str | None]:
     return True, None
 
 
+def _sparse_checkout_enabled(worktree: Path) -> bool:
+    result = _run(["git", "config", "--bool", "core.sparseCheckout"], worktree)
+    return result.returncode == 0 and result.stdout.strip().lower() == "true"
+
+
+def _reapply_sparse_checkout(worktree: Path) -> str | None:
+    if not _sparse_checkout_enabled(worktree):
+        return None
+    result = _run(["git", "sparse-checkout", "reapply"], worktree)
+    if result.returncode != 0:
+        return result.stderr.strip() or result.stdout.strip()
+    return None
+
+
 def _remove_sparse(worktree: Path, rel_path: str) -> tuple[bool, str | None]:
     target = worktree / rel_path
     if target.exists():
@@ -310,14 +324,17 @@ def _resolve_managed_artifact_conflicts(
 ) -> tuple[list[Path], str | None]:
     """Resolve Spec Kitty-owned planning artifacts before generic text rules."""
     remaining: list[Path] = []
-    status_json_paths: list[Path] = []
+    status_json_paths_by_dir: dict[Path, Path] = {}
+    status_refresh_dirs: set[Path] = set()
 
     for file_path in conflicted:
         rel_path = _relative_path(file_path, worktree)
         if _is_status_events_path(rel_path):
             classification, halt_reason = _resolve_status_events(file_path, worktree)
+            status_refresh_dirs.add(file_path.parent)
         elif _is_status_json_path(rel_path):
-            status_json_paths.append(file_path)
+            status_json_paths_by_dir[file_path.parent] = file_path
+            status_refresh_dirs.add(file_path.parent)
             continue
         elif _is_coordination_owned_artifact(rel_path):
             classification, halt_reason = _resolve_take_theirs(file_path, worktree)
@@ -330,7 +347,8 @@ def _resolve_managed_artifact_conflicts(
         assert classification is not None
         classifications.append(classification)
 
-    for file_path in status_json_paths:
+    for feature_dir in sorted(status_refresh_dirs, key=lambda path: path.as_posix()):
+        file_path = status_json_paths_by_dir.get(feature_dir, feature_dir / "status.json")
         classification, halt_reason = _resolve_status_json(file_path, worktree)
         if halt_reason is not None:
             return remaining, halt_reason
@@ -460,6 +478,9 @@ def _abort_with_failure(
 ) -> AutoRebaseReport:
     """Run ``git merge --abort`` and return a failure ``AutoRebaseReport``."""
     _run(["git", "merge", "--abort"], worktree_path)
+    sparse_error = _reapply_sparse_checkout(worktree_path)
+    if sparse_error is not None:
+        halt_reason = f"{halt_reason}; sparse checkout cleanup failed: {sparse_error}"
     return AutoRebaseReport(
         lane_id=lane_id,
         attempted=True,
@@ -600,6 +621,13 @@ def _finalize_auto_rebase(
         _run(
             ["git", "add", str(init_path.relative_to(worktree_path))],
             worktree_path,
+        )
+
+    sparse_error = _reapply_sparse_checkout(worktree_path)
+    if sparse_error is not None:
+        return _abort_with_failure(
+            worktree_path, lane_id, classifications,
+            f"sparse checkout cleanup failed: {sparse_error}",
         )
 
     rule_ids_used = sorted(
