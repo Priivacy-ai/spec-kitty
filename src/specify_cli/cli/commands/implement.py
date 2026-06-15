@@ -966,6 +966,12 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         # canonical primary dir so config is readable before topology is
         # resolved. (The coord surface stays authoritative for STATUS reads,
         # which route through the canonical surface authority, not this dir.)
+        # C-LANES-1 (#1991): lanes.json is committed to the COORDINATION branch
+        # by finalize-tasks (primary copy deleted after staging) — it lives in
+        # the coord worktree, not the primary checkout. Save the coord-aware dir
+        # BEFORE the primary fallback so require_lanes_json reads from the right
+        # surface. Mirrors the _status_feature_dir pattern (line below).
+        _lanes_feature_dir: Path = feature_dir
         if not (feature_dir / "meta.json").exists():
             from specify_cli.missions._read_path_resolver import (
                 primary_feature_dir_for_mission,
@@ -1121,7 +1127,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         lane = None
         from specify_cli.lanes.compute import is_planning_lane
         if not is_planning_lane(resolved_workspace):
-            lanes_manifest = require_lanes_json(feature_dir)
+            lanes_manifest = require_lanes_json(_lanes_feature_dir)
             lane = lanes_manifest.lane_for_wp(wp_id)
             if lane is None:
                 raise ValueError(f"{wp_id} is not assigned to any lane in lanes.json")
