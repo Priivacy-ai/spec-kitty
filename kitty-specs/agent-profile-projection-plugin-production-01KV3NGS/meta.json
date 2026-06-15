@@ -13,6 +13,7 @@
   "accepted_at": "2026-06-15T05:04:10.802065+00:00",
   "accepted_by": "robert",
   "accepted_from_commit": "91a963e0fb12fa9f00f32d3f2a47c9f3290d59af",
+  "baseline_merge_commit": "db6acc2ca4d1e4ddc6b2acf9bf74fc2e69aa0135",
   "coordination_branch": "kitty/mission-agent-profile-projection-plugin-production-01KV3NGS",
   "created_at": "2026-06-14T18:15:19.726919+00:00",
   "friendly_name": "Agent Profile Projection and Plugin Production Pipeline",
