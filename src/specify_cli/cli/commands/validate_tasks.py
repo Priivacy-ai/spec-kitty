@@ -20,6 +20,14 @@ from specify_cli.task_metadata_validation import (
 from specify_cli.task_utils import TaskCliError, find_repo_root
 
 
+def _normalize_mission_option(value: object) -> str | None:
+    """Return a stripped mission selector, treating Typer sentinels as unset."""
+    if not isinstance(value, str):
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
 def validate_tasks(
     mission: str | None = typer.Option(
         None, "--mission", help="Mission slug to validate"
@@ -98,10 +106,10 @@ def validate_tasks(
         raise typer.Exit(0 if total_mismatches == 0 or fix else 1)
 
     # Validate single feature
-    if not mission or not mission.strip():
+    mission_slug = _normalize_mission_option(mission)
+    if mission_slug is None:
         console.print("[red]Error:[/red] --mission <slug> is required (or use --all)")
         raise typer.Exit(1)
-    mission_slug = mission.strip()
     feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
 
     if not feature_dir.exists():

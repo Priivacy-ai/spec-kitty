@@ -1220,13 +1220,14 @@ def _find_feature_directory(
         resolve_mission_read_path,
     )
 
-    if not explicit_feature:
+    raw_handle = explicit_feature.strip() if explicit_feature else None
+    if not raw_handle:
         raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", "--mission <slug> is required")
     try:
         feature_dir = resolve_mission_read_path(
             repo_root,
-            explicit_feature,
-            mid8_from_slug(explicit_feature),
+            raw_handle,
+            mid8_from_slug(raw_handle),
             require_exists=True,
         )
     except MissionSelectorAmbiguous as exc:
@@ -1234,7 +1235,7 @@ def _find_feature_directory(
     except StatusReadPathNotFound as exc:
         raise ActionContextError(
             "FEATURE_CONTEXT_UNRESOLVED",
-            f"Mission not found for handle {explicit_feature!r}; checked the coordination worktree and the primary checkout. {exc}",
+            f"Mission not found for handle {raw_handle!r}; checked the coordination worktree and the primary checkout. {exc}",
         ) from exc
     return feature_dir
 

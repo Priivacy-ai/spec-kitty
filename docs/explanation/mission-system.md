@@ -13,7 +13,7 @@ Terminology note:
 - `Mission Run` = runtime/session instance
 - `Feature` = software-dev compatibility alias for a mission
 
-**3.1.0 naming updates**: The `--mission` flag is now canonical on all commands that previously used `--feature` (e.g., `spec-kitty implement`, `spec-kitty merge`, `spec-kitty next`). `--feature` was a hidden deprecated compatibility alias; as of 3.2.x (#1060-A) it has been **removed from the internal/agent command cluster** (`agent status/tasks/workflow/context/mission`, `charter lint`, `materialize`, `validate-encoding`, `validate-tasks`, `verify`) and remains only on the deferred user-facing top-level commands during the migration window. Additionally, `spec-kitty constitution` has been renamed to `spec-kitty charter`; the old command name no longer exists.
+**3.1.0 naming updates**: The `--mission` flag is now canonical on all commands that previously used `--feature` (e.g., `spec-kitty implement`, `spec-kitty merge`, `spec-kitty next`). `--feature` was a hidden deprecated compatibility alias; as of 3.2.x (#1060-A) it has been **removed from the internal/agent command cluster** (`agent status/tasks/action/context/mission`, `charter lint`, `materialize`, `validate-encoding`, `validate-tasks`, `verify`) and remains only on the deferred user-facing top-level commands during the migration window. Additionally, `spec-kitty constitution` has been renamed to `spec-kitty charter`; the old command name no longer exists.
 
 ## Why Different Missions?
 

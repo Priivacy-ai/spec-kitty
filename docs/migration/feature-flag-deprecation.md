@@ -9,7 +9,7 @@ description: "Migration guidance for Migration: --feature to --mission in Spec K
 
 **Status**: Deprecated as of Mission `077-mission-terminology-cleanup`.
 **Partial removal (3.2.x, #1060-A)**: the alias has been **removed from the
-internal/agent command cluster** (`agent status/tasks/workflow/context/mission`,
+internal/agent command cluster** (`agent status/tasks/action/context/mission`,
 `charter lint`, `materialize`, `validate-encoding`, `validate-tasks`,
 `verify`/`verify-setup`). On those commands `--feature` is no longer accepted —
 the parser rejects it with "No such option". It remains a hidden alias only on
@@ -47,7 +47,12 @@ alias is gone and `--feature` is rejected with "No such option".
 
 ## Behavioral Changes
 
-1. Passing both `--mission` and `--feature` with different values now fails fast with a deterministic conflict error.
+On the internal/agent command cluster, any `--feature` occurrence is now a
+parser error. The command exits before selector resolution.
+
+On the deferred user-facing commands that still carry the hidden alias:
+
+1. Passing both `--mission` and `--feature` with different values fails fast with a deterministic conflict error.
 2. Passing both flags with the same value succeeds, but still emits the deprecation warning once.
 3. `--feature` is hidden from `--help` output. New examples and docs must use `--mission`.
 

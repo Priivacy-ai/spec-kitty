@@ -62,7 +62,7 @@ def _find_feature_directory(
         resolve_mission_read_path,
     )
 
-    raw_handle = explicit_mission
+    raw_handle = explicit_mission.strip() if explicit_mission else None
     if not raw_handle:
         raise ActionContextError(
             "FEATURE_CONTEXT_UNRESOLVED", "--mission <slug> is required"
@@ -120,7 +120,7 @@ def resolve_context(
                 f"Invalid action '{action}'. Expected one of: {', '.join(ACTION_NAMES)}.",
             )
 
-        raw_handle = mission
+        raw_handle = mission.strip() if mission else None
         if not raw_handle:
             raise ActionContextError("MISSING_MISSION", "--mission <slug> is required")
         mission_resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)

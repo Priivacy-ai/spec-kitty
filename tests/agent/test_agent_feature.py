@@ -1312,6 +1312,22 @@ class TestFindFeatureDirectory:
         # Verify
         assert result == kitty_specs / "001-test-feature"
 
+    def test_strips_explicit_mission_slug(self, tmp_path: Path):
+        """Whitespace around the mission selector should not change resolution."""
+        from specify_cli.cli.commands.agent.mission import _find_feature_directory
+
+        kitty_specs = tmp_path / "kitty-specs"
+        kitty_specs.mkdir()
+        (kitty_specs / "001-test-feature").mkdir()
+
+        result = _find_feature_directory(
+            tmp_path,
+            tmp_path,
+            explicit_feature="  001-test-feature  ",
+        )
+
+        assert result == kitty_specs / "001-test-feature"
+
     def test_raises_error_when_no_explicit_slug(self, tmp_path: Path):
         """WP06 / C-CTX-4: a missing handle raises a structured ActionContextError
         (was ValueError before the read-primitive consolidation)."""
