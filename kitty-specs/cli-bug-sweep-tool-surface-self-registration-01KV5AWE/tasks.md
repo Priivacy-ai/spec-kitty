@@ -46,9 +46,9 @@
 **Can start**: Immediately (no dependencies)
 
 **Subtasks**:
-- [ ] T001 Remove xfail decorator + comment block from test_distribution.py (WP01)
-- [ ] T002 Add docstring invariant statement to _human_slug_for_mid8_branch() (WP01)
-- [ ] T003 Add pathological mid8-mismatch parameterized test case (WP01)
+- [x] T001 Remove xfail decorator + comment block from test_distribution.py (WP01)
+- [x] T002 Add docstring invariant statement to _human_slug_for_mid8_branch() (WP01)
+- [x] T003 Add pathological mid8-mismatch parameterized test case (WP01)
 
 **Implementation sketch**:
 1. Delete the `@pytest.mark.xfail(strict=False, reason=…)` decorator and its inline comment from `tests/adversarial/test_distribution.py:193–206`.
@@ -71,11 +71,11 @@
 **Can start**: Immediately (no dependencies)
 
 **Subtasks**:
-- [ ] T004 git rm 7 stale provenance sidecar files from .kittify/charter/provenance/ (WP02)
-- [ ] T005 Fix doctrine_kind_subdir() to return singular subdir names (WP02)
-- [ ] T006 Audit and fix all callers of doctrine_kind_subdir() and hardcoded plural paths in write_pipeline.py (WP02)
-- [ ] T007 Add built_in_only early-exit to validate_synthesis_state() in src/charter/bundle.py (WP02)
-- [ ] T008 Add test covering built_in_only fresh-seed state returning no errors (WP02)
+- [x] T004 git rm 7 stale provenance sidecar files from .kittify/charter/provenance/ (WP02)
+- [x] T005 Fix doctrine_kind_subdir() to return singular subdir names (WP02)
+- [x] T006 Audit and fix all callers of doctrine_kind_subdir() and hardcoded plural paths in write_pipeline.py (WP02)
+- [x] T007 Add built_in_only early-exit to validate_synthesis_state() in src/charter/bundle.py (WP02)
+- [x] T008 Add test covering built_in_only fresh-seed state returning no errors (WP02)
 
 **Implementation sketch**:
 1. Run `git rm` on all 7 `.kittify/charter/provenance/*.yaml` sidecar files listed in spec.md.
@@ -99,9 +99,9 @@
 **Can start**: Immediately (no dependencies)
 
 **Subtasks**:
-- [ ] T009 Create src/specify_cli/tool_surface/providers/_registry.py (WP03)
-- [ ] T010 Create src/specify_cli/tool_surface/providers/_discovery.py (WP03)
-- [ ] T011 Refactor service.py to consume registry instead of central literals (WP03)
+- [x] T009 Create src/specify_cli/tool_surface/providers/_registry.py (WP03)
+- [x] T010 Create src/specify_cli/tool_surface/providers/_discovery.py (WP03)
+- [x] T011 Refactor service.py to consume registry instead of central literals (WP03)
 
 **Implementation sketch**:
 1. Create `_registry.py` with `SurfaceRegistration` (frozen dataclass: `provider_class`, `definitions: tuple[SurfaceDefinition, ...]`, `kind_tokens: dict[str, SurfaceKind]`, `synthetic_key: str | None`, `order: int`) and `SurfaceProviderRegistry` (class with `_registrations: list[SurfaceRegistration]` classvar, `register(reg)` classmethod, `build_kind_tokens()`, `build_providers()`, `build_registry(tool_keys, project_root)` methods that sort by `.order` before iterating).
@@ -123,14 +123,14 @@
 **Can start**: After WP03 is merged (depends on WP03)
 
 **Subtasks**:
-- [ ] T012 Update agent_profiles.py with SurfaceProviderRegistry.register() call (WP04)
-- [ ] T013 Update command_skills.py with SurfaceProviderRegistry.register() call (WP04)
-- [ ] T014 Update managed_skills.py with SurfaceProviderRegistry.register() call (WP04)
-- [ ] T015 Update native_config.py with SurfaceProviderRegistry.register() call (includes underscore alias token) (WP04)
-- [ ] T016 Update plugin_bundle.py with SurfaceProviderRegistry.register() call (synthetic_key; preserve lazy import) (WP04)
-- [ ] T017 Update session_presence.py with SurfaceProviderRegistry.register() call (3 definitions) (WP04)
-- [ ] T018 Update slash_commands.py with SurfaceProviderRegistry.register() call (WP04)
-- [ ] T019 Add tests/specify_cli/tool_surface/test_provider_registration.py conformance test (WP04)
+- [x] T012 Update agent_profiles.py with SurfaceProviderRegistry.register() call (WP04)
+- [x] T013 Update command_skills.py with SurfaceProviderRegistry.register() call (WP04)
+- [x] T014 Update managed_skills.py with SurfaceProviderRegistry.register() call (WP04)
+- [x] T015 Update native_config.py with SurfaceProviderRegistry.register() call (includes underscore alias token) (WP04)
+- [x] T016 Update plugin_bundle.py with SurfaceProviderRegistry.register() call (synthetic_key; preserve lazy import) (WP04)
+- [x] T017 Update session_presence.py with SurfaceProviderRegistry.register() call (3 definitions) (WP04)
+- [x] T018 Update slash_commands.py with SurfaceProviderRegistry.register() call (WP04)
+- [x] T019 Add tests/specify_cli/tool_surface/test_provider_registration.py conformance test (WP04)
 
 **Implementation sketch**:
 1. For each standard provider (T012–T015, T018): add a module-level `SurfaceProviderRegistry.register(SurfaceRegistration(provider_class=..., definitions=(...,), kind_tokens={...}, synthetic_key=None, order=N))` call. Read the current `_KIND_TOKENS` entries in `service.py` to get the correct token strings and kinds for each provider.
@@ -153,8 +153,8 @@
 **Can start**: Immediately (no dependencies)
 
 **Subtasks**:
-- [ ] T020 Fix map-requirements to resolve spec.md from coord worktree when primary checkout lacks the target branch (WP05)
-- [ ] T021 Fix validate_glob_matches to include create_intent hint in error message even when nearest-match suggestion is present (WP05)
+- [x] T020 Fix map-requirements to resolve spec.md from coord worktree when primary checkout lacks the target branch (WP05)
+- [x] T021 Fix validate_glob_matches to include create_intent hint in error message even when nearest-match suggestion is present (WP05)
 
 **Implementation sketch**:
 1. In `src/specify_cli/cli/commands/agent/tasks.py`, after `feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)`, check if `feature_dir.exists()`. If not, search for a coord worktree (`.worktrees/<mission_slug>-coord/`) that has the target branch checked out and resolve `feature_dir` from there. If no worktree is found either, emit the existing "Mission directory not found" error. The resolved `feature_dir` is then used to read `spec.md`.
