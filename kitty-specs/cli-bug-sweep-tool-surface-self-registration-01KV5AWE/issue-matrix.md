@@ -4,12 +4,12 @@ Per FR-037 of the spec-kitty-mission-review skill Gate-4. One row per issue refe
 
 | Issue | Title | Verdict | Evidence ref |
 |-------|-------|---------|--------------|
-| #1947 | charter bundle validate + gitignored artifacts | in-mission | WP02 commit a635fc03f |
-| #1949 | branch_naming mid8 test coverage gap | in-mission | WP01 |
-| #1950 | tool_surface provider-discovery seam | in-mission | WP03/WP04 |
-| #1951 | host-CLI source provenance contract | deferred-with-followup | Closed on GitHub as won't-fix per spec.md |
-| #1953 | stale xfail in test_distribution | in-mission | WP01 |
-| #1981 | map-requirements resolves spec.md from coord worktree instead of main checkout | fixed | WP05 (T020): resolve_feature_dir_for_slug replaces resolve_feature_dir_for_mission in map_requirements |
-| #1982 | finalize-tasks --validate-only gives no hint for create_intent on planned-new-files | fixed | WP05 (T021): create_intent hint appended unconditionally after nearest-match suggestion in ownership/validation.py |
+| #1947 | Dogfooding: host-CLI source drift silently flips in-process gate verdicts (no provenance contract) | deferred-with-followup | Follow-up: dedicated provenance-contract mission; out of scope for this CLI bug sweep |
+| #1949 | charter bundle validate fails on tracked provenance sidecars whose generated artifacts are gitignored | in-mission | WP02: T007 built_in_only early-exit, T005/T006 singular kind subdirs, T004 stale sidecar removal |
+| #1950 | branch_naming: mission_branch_name double-appends mid8 when slug already carries it (creator≠recorder) | verified-already-fixed | WP01 T002+T003: guard was already in place; added invariant docstring and regression tests for mission_branch_name and lane_branch_name pathological cases |
+| #1951 | tool_surface: service.py has no provider-discovery seam — parallel lanes always conflict on registration | in-mission | WP03 (registry infrastructure) + WP04 (provider self-registrations) |
+| #1953 | spec-kitty init prompts for agent strategy despite --ai/--script/--mission flags (stale xfail in test_distribution) | fixed | WP01 T001: removed @pytest.mark.xfail(strict=False) from test_upgrade_updates_templates |
+| #1981 | map-requirements resolves spec.md from coord worktree instead of main checkout | fixed | WP05 T020: resolve_feature_dir_for_slug replaces resolve_feature_dir_for_mission in map_requirements |
+| #1982 | finalize-tasks --validate-only gives no hint for create_intent on planned-new-files | fixed | WP05 T021: create_intent hint appended unconditionally after nearest-match suggestion in ownership/validation.py |
 
 Valid `Verdict` values: `fixed`, `verified-already-fixed`, `deferred-with-followup`, `in-mission` (being fixed by a later WP in this mission; must reach a terminal verdict before mission `done`).
