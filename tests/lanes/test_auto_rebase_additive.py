@@ -305,7 +305,7 @@ class TestAutoRebaseAdditive:
         assert "R-STATUS-JSON-REMATERIALIZE" in rule_ids
         assert "R-COORDINATION-ARTIFACT-THEIRS" in rule_ids
 
-    def test_status_events_modify_delete_conflict_uses_index_stages(
+    def test_status_events_lane_delete_conflict_fails_closed(
         self,
         tmp_path: Path,
     ) -> None:
@@ -350,6 +350,7 @@ class TestAutoRebaseAdditive:
         (worktree_b / status_events_rel).unlink()
         _run(["git", "add", str(status_events_rel)], worktree_b)
         _run(["git", "commit", "-m", "lane: delete status events"], worktree_b)
+        pre_sync_head = _run(["git", "rev-parse", "HEAD"], worktree_b).stdout.strip()
 
         report = attempt_auto_rebase(
             lane=_make_lane(),
@@ -359,15 +360,174 @@ class TestAutoRebaseAdditive:
             worktree_path=worktree_b,
         )
 
-        assert report.succeeded is True, report.halt_reason
+        assert report.succeeded is False
+        assert report.halt_reason is not None
+        assert "refusing status.events.jsonl deletion conflict" in report.halt_reason
+        assert _run(["git", "rev-parse", "HEAD"], worktree_b).stdout.strip() == pre_sync_head
+        assert not (worktree_b / status_events_rel).exists()
+        assert "status.events.jsonl" not in _run(
+            ["git", "status", "--porcelain"],
+            worktree_b,
+        ).stdout
+
+    def test_status_events_coordination_delete_conflict_fails_closed(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        repo = _init_repo(tmp_path)
+        mission_slug = "1968-coordination-delete"
+        mission_branch = f"kitty/mission-{mission_slug}"
+        status_events_rel = (
+            Path("kitty-specs") / mission_slug / "status.events.jsonl"
+        )
+        base_event = _status_event(
+            "01AAA000000000000000000001",
+            at="2026-06-15T04:00:00Z",
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            from_lane="genesis",
+            to_lane="planned",
+        )
+        lane_event = _status_event(
+            "01CCC000000000000000000003",
+            at="2026-06-15T04:02:00Z",
+            mission_slug=mission_slug,
+            wp_id="WP03",
+            from_lane="genesis",
+            to_lane="planned",
+        )
+
+        _write_status_events(repo / status_events_rel, [base_event])
+        _run(["git", "add", str(status_events_rel)], repo)
+        _run(["git", "commit", "-m", "seed status events"], repo)
+        _run(["git", "branch", mission_branch, "main"], repo)
+
+        _run(["git", "checkout", mission_branch], repo)
+        (repo / status_events_rel).unlink()
+        _run(["git", "add", str(status_events_rel)], repo)
+        _run(["git", "commit", "-m", "mission: delete status events"], repo)
+        _run(["git", "checkout", "main"], repo)
+
+        branch_b = f"kitty/mission-{mission_slug}-lane-a"
+        worktree_b = _make_lane_worktree(repo, mission_slug, "lane-a", branch_b)
+        _run(["git", "config", "user.email", "test@spec-kitty"], worktree_b)
+        _run(["git", "config", "user.name", "test"], worktree_b)
+        _write_status_events(worktree_b / status_events_rel, [base_event, lane_event])
+        _run(["git", "add", str(status_events_rel)], worktree_b)
+        _run(["git", "commit", "-m", "lane: append status event"], worktree_b)
+        pre_sync_head = _run(["git", "rev-parse", "HEAD"], worktree_b).stdout.strip()
+
+        report = attempt_auto_rebase(
+            lane=_make_lane(),
+            branch=branch_b,
+            mission_branch=mission_branch,
+            repo_root=repo,
+            worktree_path=worktree_b,
+        )
+
+        assert report.succeeded is False
+        assert report.halt_reason is not None
+        assert "refusing status.events.jsonl deletion conflict" in report.halt_reason
+        assert _run(["git", "rev-parse", "HEAD"], worktree_b).stdout.strip() == pre_sync_head
         events = [
             json.loads(line)
             for line in (worktree_b / status_events_rel).read_text(encoding="utf-8").splitlines()
         ]
         assert [event["event_id"] for event in events] == [
             "01AAA000000000000000000001",
-            "01BBB000000000000000000002",
+            "01CCC000000000000000000003",
         ]
+        assert "status.events.jsonl" not in _run(
+            ["git", "status", "--porcelain"],
+            worktree_b,
+        ).stdout
+
+    def test_sparse_status_events_delete_conflict_reapplies_sparse_checkout(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        repo = _init_repo(tmp_path)
+        mission_slug = "1968-sparse-delete-conflict"
+        mission_branch = f"kitty/mission-{mission_slug}"
+        branch_b = f"kitty/mission-{mission_slug}-lane-a"
+        mission_dir = Path("kitty-specs") / mission_slug
+        status_events_rel = mission_dir / "status.events.jsonl"
+        status_json_rel = mission_dir / "status.json"
+        base_event = _status_event(
+            "01AAA000000000000000000001",
+            at="2026-06-15T04:00:00Z",
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            from_lane="genesis",
+            to_lane="planned",
+        )
+        mission_event = _status_event(
+            "01BBB000000000000000000002",
+            at="2026-06-15T04:01:00Z",
+            mission_slug=mission_slug,
+            wp_id="WP02",
+            from_lane="genesis",
+            to_lane="planned",
+        )
+
+        _write_status_events(repo / status_events_rel, [base_event])
+        (repo / status_json_rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / status_json_rel).write_text('{"event_count": 1}\n', encoding="utf-8")
+        _run(["git", "add", str(mission_dir)], repo)
+        _run(["git", "commit", "-m", "seed sparse deletion status artifacts"], repo)
+
+        _run(["git", "branch", mission_branch, "main"], repo)
+        _run(["git", "checkout", mission_branch], repo)
+        _write_status_events(repo / status_events_rel, [base_event, mission_event])
+        _run(["git", "add", str(status_events_rel)], repo)
+        _run(["git", "commit", "-m", "mission: append status event"], repo)
+
+        _run(["git", "checkout", "-b", branch_b, "main"], repo)
+        (repo / status_events_rel).unlink()
+        _run(["git", "add", str(status_events_rel)], repo)
+        _run(["git", "commit", "-m", "lane: delete status events"], repo)
+        _run(["git", "checkout", "main"], repo)
+
+        worktree_b = repo / ".worktrees" / f"{mission_slug}-lane-a"
+        worktree_b.parent.mkdir(parents=True, exist_ok=True)
+        _run(["git", "worktree", "add", str(worktree_b), branch_b], repo)
+        _run(["git", "config", "user.email", "test@spec-kitty"], worktree_b)
+        _run(["git", "config", "user.name", "test"], worktree_b)
+        _run(["git", "sparse-checkout", "init", "--no-cone"], worktree_b)
+        _run(
+            [
+                "git",
+                "sparse-checkout",
+                "set",
+                "--no-cone",
+                "/*",
+                f"!{status_events_rel.as_posix()}",
+                f"!{status_json_rel.as_posix()}",
+            ],
+            worktree_b,
+        )
+        assert not (worktree_b / status_events_rel).exists()
+        assert not (worktree_b / status_json_rel).exists()
+        pre_sync_head = _run(["git", "rev-parse", "HEAD"], worktree_b).stdout.strip()
+
+        report = attempt_auto_rebase(
+            lane=_make_lane(),
+            branch=branch_b,
+            mission_branch=mission_branch,
+            repo_root=repo,
+            worktree_path=worktree_b,
+        )
+
+        assert report.succeeded is False
+        assert report.halt_reason is not None
+        assert "refusing status.events.jsonl deletion conflict" in report.halt_reason
+        assert _run(["git", "rev-parse", "HEAD"], worktree_b).stdout.strip() == pre_sync_head
+        assert not (worktree_b / status_events_rel).exists()
+        assert not (worktree_b / status_json_rel).exists()
+        assert "status.events.jsonl" not in _run(
+            ["git", "status", "--porcelain"],
+            worktree_b,
+        ).stdout
 
     def test_sparse_status_json_uses_index_status_events_when_hidden(
         self,

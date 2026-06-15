@@ -217,11 +217,18 @@ def _resolve_status_events(
     worktree: Path,
 ) -> tuple[ConflictClassification | None, str | None]:
     rel_path = _relative_path(file_path, worktree)
-    stage_texts = [
-        text
+    stage_text_by_number = {
+        stage: text
         for stage in (1, 2, 3)
         if (text := _git_show_stage(worktree, rel_path, stage)) is not None
-    ]
+    }
+    if 2 not in stage_text_by_number or 3 not in stage_text_by_number:
+        return None, (
+            f"{RULE_ID_STATUS_EVENTS}: refusing status.events.jsonl deletion "
+            f"conflict for {rel_path}"
+        )
+
+    stage_texts = list(stage_text_by_number.values())
     if not stage_texts:
         return None, f"{RULE_ID_STATUS_EVENTS}: no index stages found for {rel_path}"
 
