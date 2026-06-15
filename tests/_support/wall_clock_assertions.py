@@ -270,6 +270,7 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
         self.defer_function_scans = True
         self.deferred_functions: list[ast.FunctionDef | ast.AsyncFunctionDef] = []
         self.deferred_classes: list[tuple[str, list[ast.FunctionDef | ast.AsyncFunctionDef], set[str]]] = []
+        self.local_functions: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] = {}
         self.autouse_fixtures: list[ast.FunctionDef | ast.AsyncFunctionDef] = []
         self.autouse_module_aliases: _AliasMap = {}
         self.fixtures: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] = {}
@@ -322,7 +323,7 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
             return
         if node.module == "pytest":
             for alias in node.names:
-                if alias.name in {"fixture", "mark"}:
+                if alias.name in {"fixture", "mark", "param"}:
                     self._set_alias((alias.asname or alias.name,), ("pytest", alias.name))
                 elif alias.name != "*":
                     self._set_shadow((alias.asname or alias.name,))
@@ -437,6 +438,10 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
     def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
         self._add_assignment_aliases([node.target], node.value)
 
+    def visit_Call(self, node: ast.Call) -> None:
+        _record_setattr_alias(self.scopes, self._scope_for_target, node)
+        self.generic_visit(node)
+
     def visit_If(self, node: ast.If) -> None:
         if _is_static_false(node.test) or _is_type_checking_name(node.test, self.scopes):
             for statement in node.orelse:
@@ -453,6 +458,7 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         if self.defer_function_scans:
             self._set_shadow((node.name,))
+            self.local_functions[node.name] = node
             self._record_function_return_alias(node)
             if node.name in _MODULE_SETUP_NAMES:
                 _propagate_module_setup_aliases(node, self.scopes)
@@ -466,6 +472,7 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         if self.defer_function_scans:
             self._set_shadow((node.name,))
+            self.local_functions[node.name] = node
             self._record_function_return_alias(node)
             if node.name in _MODULE_SETUP_NAMES:
                 _propagate_module_setup_aliases(node, self.scopes)
@@ -575,6 +582,8 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
             self._set_shadow((node.name,))
         local_shadows: _AliasMap = {(name,): None for name in _function_bound_names(node)}
         local_shadows.update(_function_default_aliases(node, self.scopes))
+        if _is_test_function(node):
+            local_shadows.update(_parametrize_aliases(node.decorator_list, self.scopes))
         if class_aliases:
             for self_name in _method_self_names(node):
                 for path, source in class_aliases.items():
@@ -592,6 +601,13 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
 
     def _add_assignment_aliases(self, targets: list[ast.expr], value: ast.expr) -> None:
         _add_assignment_aliases(self.scopes, self._scope_for_target, targets, value)
+        _add_call_result_aliases_from_functions(
+            self.scopes,
+            self._scope_for_target,
+            targets,
+            value,
+            self.local_functions,
+        )
 
     def _record_function_return_alias(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         for alias_path, source in _function_result_aliases(
@@ -646,10 +662,19 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
         _propagate_module_setup_aliases(
             fixture,
             self.scopes,
-            self._fixture_argument_aliases(fixture, active_fixtures),
+            self._fixture_setup_aliases(fixture, active_fixtures),
             stop_at_yield=True,
         )
         active_fixtures.remove(fixture_id)
+
+    def _fixture_setup_aliases(
+        self,
+        fixture: ast.FunctionDef | ast.AsyncFunctionDef,
+        active_fixtures: set[int],
+    ) -> _AliasMap:
+        aliases = _fixture_param_aliases(fixture, self.scopes)
+        aliases.update(self._fixture_argument_aliases(fixture, active_fixtures))
+        return aliases
 
     def _fixture_argument_aliases(
         self,
@@ -674,6 +699,7 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
             return {}
         active_fixtures.add(fixture_id)
         local_aliases = _function_default_aliases(fixture, self.scopes)
+        local_aliases.update(_fixture_param_aliases(fixture, self.scopes))
         local_aliases.update(self._fixture_argument_aliases(fixture, active_fixtures))
         aliases = _function_result_aliases(
             fixture,
@@ -814,6 +840,85 @@ def _pytestmark_usefixture_names(node: ast.expr, scopes: list[_AliasMap]) -> set
     return set()
 
 
+def _parametrize_aliases(decorators: list[ast.expr], scopes: list[_AliasMap]) -> _AliasMap:
+    aliases: _AliasMap = {}
+    for decorator in decorators:
+        if not isinstance(decorator, ast.Call):
+            continue
+        if _normalize_alias(_attribute_path(decorator.func), scopes) != ("pytest", "mark", "parametrize"):
+            continue
+        argnames_node = _call_arg_or_keyword(decorator, 0, "argnames")
+        argvalues_node = _call_arg_or_keyword(decorator, 1, "argvalues")
+        if argnames_node is None or argvalues_node is None:
+            continue
+        argnames = _parametrize_argnames(argnames_node)
+        if not argnames:
+            continue
+        for row in _parametrize_rows(argvalues_node, len(argnames), scopes):
+            for name, value in zip(argnames, row, strict=False):
+                aliases.update(_expression_aliases_for_target((name,), value, scopes))
+    return aliases
+
+
+def _fixture_param_aliases(node: ast.FunctionDef | ast.AsyncFunctionDef, scopes: list[_AliasMap]) -> _AliasMap:
+    aliases: _AliasMap = {}
+    for decorator in node.decorator_list:
+        if not _is_fixture_decorator(decorator, scopes) or not isinstance(decorator, ast.Call):
+            continue
+        params_node = _call_arg_or_keyword(decorator, -1, "params")
+        if params_node is None:
+            continue
+        for row in _parametrize_rows(params_node, 1, scopes):
+            if row:
+                aliases.update(_expression_aliases_for_target(("request", "param"), row[0], scopes))
+    return aliases
+
+
+def _call_arg_or_keyword(call: ast.Call, index: int, name: str) -> ast.expr | None:
+    if index >= 0 and len(call.args) > index:
+        return call.args[index]
+    for keyword in call.keywords:
+        if keyword.arg == name:
+            return keyword.value
+    return None
+
+
+def _parametrize_argnames(node: ast.expr) -> list[str]:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        separator = "," if "," in node.value else None
+        return [name.strip() for name in node.value.split(separator) if name.strip()]
+    if isinstance(node, ast.Tuple | ast.List):
+        names: list[str] = []
+        for element in node.elts:
+            if isinstance(element, ast.Constant) and isinstance(element.value, str):
+                names.append(element.value)
+        return names
+    return []
+
+
+def _parametrize_rows(node: ast.expr, arity: int, scopes: list[_AliasMap]) -> list[list[ast.expr]]:
+    if not isinstance(node, ast.Tuple | ast.List):
+        return []
+    rows: list[list[ast.expr]] = []
+    for element in node.elts:
+        pytest_param_values = _pytest_param_values(element, scopes)
+        if pytest_param_values is not None:
+            rows.append(pytest_param_values[:arity])
+        elif arity == 1:
+            rows.append([element])
+        elif isinstance(element, ast.Tuple | ast.List):
+            rows.append(list(element.elts)[:arity])
+    return rows
+
+
+def _pytest_param_values(node: ast.expr, scopes: list[_AliasMap]) -> list[ast.expr] | None:
+    if not isinstance(node, ast.Call):
+        return None
+    if _normalize_alias(_attribute_path(node.func), scopes) != ("pytest", "param"):
+        return None
+    return list(node.args)
+
+
 def _propagate_module_setup_aliases(
     node: ast.FunctionDef | ast.AsyncFunctionDef,
     scopes: list[_AliasMap],
@@ -881,6 +986,7 @@ class _ModuleSetupAliasCollector(ast.NodeVisitor):
         del node
 
     def visit_Call(self, node: ast.Call) -> None:
+        _record_setattr_alias(self.scopes, self._scope_for_target, node)
         helper_name = self._local_helper_alias_name(_raw_called_name(node))
         if helper_name is None:
             helper_name = self._local_helper_name(_called_name(node, self.scopes))
@@ -971,6 +1077,97 @@ def _add_assignment_aliases(
         target_path = _attribute_path(target)
         if target_path:
             _set_alias(scope_for_target(target_path), target_path, source)
+
+
+def _add_call_result_aliases_from_functions(
+    scopes: list[_AliasMap],
+    scope_for_target: Callable[[tuple[str, ...]], _AliasMap],
+    targets: list[ast.expr],
+    value: ast.expr,
+    functions: dict[str, ast.FunctionDef | ast.AsyncFunctionDef],
+) -> None:
+    if not isinstance(value, ast.Call):
+        return
+    helper_name = _called_name(value, scopes)
+    raw_helper_name = _raw_called_name(value)
+    if helper_name is None and raw_helper_name is not None and (raw_helper_name,) not in scopes[-1]:
+        helper_name = raw_helper_name
+    if helper_name is None:
+        return
+    helper = functions.get(helper_name)
+    if helper is None:
+        return
+    bindings = _call_argument_bindings(helper, value)
+    if bindings is None:
+        return
+    call_scope = _function_call_scope(helper, bindings, scopes)
+    for target in targets:
+        target_path = _attribute_path(target)
+        if not target_path:
+            continue
+        target_scope = scope_for_target(target_path)
+        for alias_path, source in _function_result_aliases(
+            helper,
+            scopes,
+            target_path,
+            include_yields=False,
+            initial_aliases=call_scope,
+        ).items():
+            if source is not None:
+                _set_alias(target_scope, alias_path, source)
+
+
+def _record_setattr_alias(
+    scopes: list[_AliasMap],
+    scope_for_target: Callable[[tuple[str, ...]], _AliasMap],
+    node: ast.Call,
+) -> None:
+    target_and_value = _setattr_target_and_value(node)
+    if target_and_value is None:
+        return
+    target_path, value = target_and_value
+    target_scope = scope_for_target(target_path)
+    aliases = _expression_aliases_for_target(target_path, value, scopes)
+    if not aliases:
+        _set_shadow(target_scope, target_path)
+        return
+    for alias_path, source in aliases.items():
+        if source is not None:
+            _set_alias(target_scope, alias_path, source)
+
+
+def _setattr_target_and_value(node: ast.Call) -> tuple[tuple[str, ...], ast.expr] | None:
+    func_path = _attribute_path(node.func)
+    if func_path == ("setattr",) or (len(func_path) >= 2 and func_path[-1] == "setattr"):
+        args = node.args
+    else:
+        return None
+    if len(args) < 3:
+        return None
+    if not isinstance(args[1], ast.Constant) or not isinstance(args[1].value, str):
+        return None
+    target_root = _attribute_path(args[0])
+    if not target_root:
+        return None
+    return (*target_root, args[1].value), args[2]
+
+
+def _expression_aliases_for_target(
+    target_path: tuple[str, ...],
+    value: ast.expr,
+    scopes: list[_AliasMap],
+) -> _AliasMap:
+    aliases: _AliasMap = {}
+    source = _alias_source(value, scopes)
+    if _is_clock_source(source):
+        aliases[target_path] = source
+    for field_path, field_source in _call_field_aliases(value, scopes).items():
+        if field_source is not None:
+            aliases[(*target_path, *field_path)] = field_source
+    for field_path, field_source in _call_result_field_aliases(value, scopes).items():
+        if field_source is not None:
+            aliases[(*target_path, *field_path)] = field_source
+    return aliases
 
 
 def _add_inline_field_aliases(
@@ -1084,6 +1281,10 @@ def _call_result_field_aliases(node: ast.expr, scopes: list[_AliasMap]) -> _Alia
                 if len(alias_path) > len(prefix) and alias_path[: len(prefix)] == prefix:
                     aliases[alias_path[len(prefix) :]] = source
     return aliases
+
+
+def _is_clock_source(source: tuple[str, ...] | None) -> bool:
+    return source in _ALIASABLE_CLOCK_PATHS or source in _BANNED_CALLS
 
 
 def _is_static_false(node: ast.AST) -> bool:
@@ -1398,6 +1599,8 @@ class _MethodInstanceAliasCollector(ast.NodeVisitor):
         del node
 
     def visit_Call(self, node: ast.Call) -> None:
+        self._record_setattr_instance_alias(node)
+        _record_setattr_alias(self.scopes, lambda _: self.scope, node)
         helper_name = self._local_helper_alias_name(_raw_called_name(node))
         if helper_name is None:
             helper_name = self._local_helper_name(_called_name(node, self.scopes))
@@ -1422,6 +1625,20 @@ class _MethodInstanceAliasCollector(ast.NodeVisitor):
             self.scopes.pop()
             self.self_names = original_self_names
             self.active_helpers.remove(helper_name)
+
+    def _record_setattr_instance_alias(self, node: ast.Call) -> None:
+        target_and_value = _setattr_target_and_value(node)
+        if target_and_value is None:
+            return
+        target_path, value = target_and_value
+        if len(target_path) <= 1 or target_path[0] not in self.self_names:
+            return
+        instance_path = target_path[1:]
+        source = _alias_source(value, self.scopes)
+        if source in _ALIASABLE_CLOCK_PATHS:
+            self.aliases[instance_path] = source
+        else:
+            self.aliases.pop(instance_path, None)
 
     def _record_instance_aliases(self, targets: list[ast.expr], value: ast.expr) -> None:
         if len(targets) == 1 and isinstance(targets[0], ast.Tuple | ast.List) and isinstance(value, ast.Tuple | ast.List):
@@ -1605,6 +1822,8 @@ def _assignment_target_paths(target: ast.expr) -> list[tuple[str, ...]]:
 
 def _called_name(node: ast.Call, scopes: list[_AliasMap]) -> str | None:
     path = _normalize_alias(_attribute_path(node.func), scopes)
+    if path == _SHADOWED_PATH:
+        return None
     if len(path) == 1:
         return path[0]
     return None
