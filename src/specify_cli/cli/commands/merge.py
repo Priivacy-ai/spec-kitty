@@ -68,6 +68,7 @@ from specify_cli.merge.state import (
     abort_git_merge,
     acquire_merge_lock,
     clear_state,
+    get_state_path,
     load_state,
     needs_number_assignment,
     release_merge_lock,
@@ -791,6 +792,87 @@ def _target_bookkeeping_status_paths(
     )
 
 
+def _read_optional_bytes(path: Path) -> bytes | None:
+    if not path.exists():
+        return None
+    return path.read_bytes()
+
+
+def _restore_optional_bytes(path: Path, original: bytes | None) -> None:
+    if original is None:
+        path.unlink(missing_ok=True)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(original)
+
+
+def _restore_final_bookkeeping_snapshots(
+    snapshots: dict[Path, bytes | None],
+) -> None:
+    """Best-effort restore for final merge bookkeeping rollback."""
+    for path, original in snapshots.items():
+        with contextlib.suppress(OSError):
+            _restore_optional_bytes(path, original)
+
+
+def _target_branch_still_at_baseline(
+    main_repo: Path,
+    target_branch: str,
+    baseline_sha: str,
+) -> bool:
+    """Return True when target still points at the pre-target-merge baseline."""
+    if not baseline_sha or baseline_sha == "HEAD~1":
+        return False
+    ret, out, _err = run_command(
+        ["git", "rev-parse", target_branch],
+        capture=True,
+        check_return=False,
+        cwd=main_repo,
+    )
+    return ret == 0 and out.strip() == baseline_sha
+
+
+def _project_status_bookkeeping_to_target(
+    *,
+    main_repo: Path,
+    mission_slug: str,
+    status_feature_dir: Path,
+) -> tuple[Path, Path]:
+    """Copy authoritative status bookkeeping to target-checkout paths.
+
+    Coord-backed missions write done transitions through the coordination
+    surface, but the final target-branch housekeeping commit can only stage
+    paths tracked under ``main_repo``. Project just the status artifacts into
+    ``kitty-specs/<slug>/`` before the commit; keep the authoritative write
+    topology unchanged.
+    """
+    target_events_path, target_status_path = _target_bookkeeping_status_paths(
+        main_repo=main_repo,
+        mission_slug=mission_slug,
+        status_feature_dir=status_feature_dir,
+    )
+    if not is_under_worktrees_segment(status_feature_dir):
+        return target_events_path, target_status_path
+
+    target_events_path.parent.mkdir(parents=True, exist_ok=True)
+    source_events_path = status_feature_dir / _STATUS_EVENTS_FILENAME
+    source_status_path = status_feature_dir / _STATUS_FILENAME
+    source_events_bytes = _read_optional_bytes(source_events_path)
+    source_status_bytes = _read_optional_bytes(source_status_path)
+    original_events_bytes = _read_optional_bytes(target_events_path)
+    original_status_bytes = _read_optional_bytes(target_status_path)
+    try:
+        if source_events_bytes is not None:
+            target_events_path.write_bytes(source_events_bytes)
+        if source_status_bytes is not None:
+            target_status_path.write_bytes(source_status_bytes)
+    except OSError:
+        _restore_optional_bytes(target_events_path, original_events_bytes)
+        _restore_optional_bytes(target_status_path, original_status_bytes)
+        raise
+    return target_events_path, target_status_path
+
+
 def _already_baked(merge_state: MergeState | None) -> bool:
     """Resume short-circuit predicate (T026 / FR-012).
 
@@ -1137,6 +1219,8 @@ def _has_branch_ref(repo_root: Path, ref_name: str) -> bool:
 def _check_mission_branch(
     mission_slug: str,
     repo_root: Path,
+    *,
+    expected_branch: str | None = None,
 ) -> tuple[bool, MissionBranchBlocker | None]:
     """Check whether the expected mission branch exists locally.
 
@@ -1144,7 +1228,7 @@ def _check_mission_branch(
     branches are reported as structured blockers; this function never creates
     the branch.
     """
-    expected_branch = f"kitty/mission-{mission_slug}"
+    expected_branch = expected_branch or f"kitty/mission-{mission_slug}"
     if _has_branch_ref(repo_root, expected_branch):
         return True, None
 
@@ -1258,6 +1342,156 @@ def _resolve_mission_slug(repo_root: Path, mission_slug: str | None) -> str | No
     if retcode != 0:
         return None
     return _extract_mission_slug(current_branch.strip())
+
+
+def _merge_state_key_candidates(repo_root: Path, mission_slug: str | None) -> list[str]:
+    """Return merge-state keys to try for a resolved mission slug.
+
+    Modern merge state is keyed by mission ULID, while operators usually pass
+    the mission directory slug. Legacy interrupted state may still be keyed by
+    slug, so callers must try both.
+    """
+    if not mission_slug:
+        return []
+    keys: list[str] = []
+    try:
+        feature_dir = candidate_feature_dir_for_mission(
+            get_main_repo_root(repo_root),
+            mission_slug,
+        )
+        if feature_dir.exists():
+            identity = resolve_mission_identity(feature_dir)
+            if identity.mission_id:
+                keys.append(identity.mission_id)
+    except Exception as exc:  # noqa: BLE001 - resume/abort must stay cleanup-safe
+        logger.debug("Could not resolve merge state key for %s: %s", mission_slug, exc)
+    keys.append(mission_slug)
+    return list(dict.fromkeys(keys))
+
+
+def _iter_merge_states_for_slug(
+    repo_root: Path,
+    mission_slug: str,
+) -> list[tuple[str, MergeState]]:
+    runtime_merge_dir = repo_root / ".kittify" / "runtime" / "merge"
+    if not runtime_merge_dir.exists():
+        return []
+
+    matches: list[tuple[str, MergeState]] = []
+    for candidate in sorted(runtime_merge_dir.iterdir()):
+        if not candidate.is_dir():
+            continue
+        state = load_state(repo_root, candidate.name)
+        if state is not None and state.mission_slug == mission_slug:
+            matches.append((candidate.name, state))
+    return matches
+
+
+def _load_merge_state_for_mission(
+    repo_root: Path,
+    mission_slug: str | None,
+) -> MergeState | None:
+    """Load merge state by modern key, legacy key, then stored mission_slug."""
+    entry = _load_merge_state_entry_for_mission(repo_root, mission_slug)
+    if entry is None:
+        return None
+    _key, state = entry
+    return state
+
+
+def _load_merge_state_entry_for_mission(
+    repo_root: Path,
+    mission_slug: str | None,
+) -> tuple[str | None, MergeState] | None:
+    """Load merge state plus the runtime key used to find it."""
+    if not mission_slug:
+        state = load_state(repo_root)
+        return (None, state) if state is not None else None
+
+    for key in _merge_state_key_candidates(repo_root, mission_slug):
+        state = load_state(repo_root, key)
+        if state is not None:
+            return key, state
+
+    for key, state in _iter_merge_states_for_slug(repo_root, mission_slug):
+        return key, state
+    return None
+
+
+def _load_or_create_merge_state(
+    *,
+    main_repo: Path,
+    mission_slug: str,
+    canonical_id: str,
+    target_branch: str,
+    wp_order: list[str],
+    push_requested: bool,
+) -> tuple[MergeState, bool]:
+    """Load canonical/legacy merge state, migrating legacy state to canonical."""
+    canonical_state = load_state(main_repo, canonical_id)
+    if canonical_state is not None:
+        return canonical_state, True
+
+    entry = _load_merge_state_entry_for_mission(main_repo, mission_slug)
+    if entry is not None:
+        source_key, state = entry
+        if state.mission_id != canonical_id:
+            state.mission_id = canonical_id
+            state.mission_slug = mission_slug
+            save_state(state, main_repo)
+            if source_key is not None and source_key != canonical_id:
+                clear_state(main_repo, source_key)
+        return state, True
+
+    state = MergeState(
+        mission_id=canonical_id,
+        mission_slug=mission_slug,
+        target_branch=target_branch,
+        wp_order=wp_order,
+        push_requested=push_requested,
+    )
+    save_state(state, main_repo)
+    return state, False
+
+
+def _clear_merge_state_for_mission(repo_root: Path, mission_slug: str | None) -> bool:
+    """Clear every state file that could belong to *mission_slug*."""
+    if not mission_slug:
+        return clear_state(repo_root)
+
+    cleared = False
+    seen: set[str] = set()
+    for key in _merge_state_key_candidates(repo_root, mission_slug):
+        seen.add(key)
+        cleared = clear_state(repo_root, key) or cleared
+
+    for key, _state in _iter_merge_states_for_slug(repo_root, mission_slug):
+        if key in seen:
+            continue
+        cleared = clear_state(repo_root, key) or cleared
+    return cleared
+
+
+def _cleanup_merge_workspaces_for_state(
+    repo_root: Path,
+    *,
+    mission_slug: str | None,
+    state_entry: tuple[str | None, MergeState] | None,
+) -> None:
+    """Clean every runtime workspace key that could belong to a merge state."""
+    cleanup_keys: list[str] = []
+    if state_entry is not None:
+        source_key, state = state_entry
+        cleanup_keys.append(state.mission_id)
+        if source_key:
+            cleanup_keys.append(source_key)
+        cleanup_keys.append(state.mission_slug)
+    if mission_slug:
+        cleanup_keys.extend(_merge_state_key_candidates(repo_root, mission_slug))
+        cleanup_keys.append(mission_slug)
+
+    for key in dict.fromkeys(key for key in cleanup_keys if key):
+        cleanup_merge_workspace(key, repo_root)
 
 
 def _resolve_target_branch(
@@ -1954,7 +2188,11 @@ def _run_lane_based_merge(
             lanes_manifest.target_branch,
         )
     else:
-        branch_ok, branch_blocker = _check_mission_branch(mission_slug, main_repo)
+        branch_ok, branch_blocker = _check_mission_branch(
+            mission_slug,
+            main_repo,
+            expected_branch=lanes_manifest.mission_branch,
+        )
         if not branch_ok:
             assert branch_blocker is not None
             console.print(
@@ -2022,20 +2260,16 @@ def _run_lane_based_merge_locked(
     )
 
     planning_artifact_only = is_planning_artifact_only(lanes_manifest)
-    state = load_state(main_repo, canonical_id)
-    is_resume = False
-    if state is not None:
-        is_resume = True
+    state, is_resume = _load_or_create_merge_state(
+        main_repo=main_repo,
+        mission_slug=mission_slug,
+        canonical_id=canonical_id,
+        target_branch=lanes_manifest.target_branch,
+        wp_order=all_wp_ids,
+        push_requested=push,
+    )
+    if is_resume:
         console.print(f"[bold cyan]Resuming[/bold cyan] merge for {mission_slug} ({len(state.completed_wps)}/{len(state.wp_order)} WPs already done)")
-    else:
-        state = MergeState(
-            mission_id=canonical_id,
-            mission_slug=mission_slug,
-            target_branch=lanes_manifest.target_branch,
-            wp_order=all_wp_ids,
-            push_requested=push,
-        )
-        save_state(state, main_repo)
 
     console.print(f"[bold]Lane-based merge for {mission_slug}[/bold]")
     console.print(f"  Mission branch: {lanes_manifest.mission_branch}")
@@ -2146,6 +2380,11 @@ def _run_lane_based_merge_locked(
 
     status_surface_path = resolve_status_surface(main_repo, mission_slug)
     done_marked_before_target = is_under_worktrees_segment(status_surface_path) and not planning_artifact_only
+    canonical_events_path = status_surface_path
+    canonical_status_path = status_surface_path.parent / _STATUS_FILENAME
+    merge_state_path = get_state_path(main_repo, state.mission_id)
+    pre_target_bookkeeping_snapshots: dict[Path, bytes | None] = {}
+    final_bookkeeping_snapshots: dict[Path, bytes | None] = {}
     mission_number_meta_path: Path | None = None
     mission_already_applied = False
     if planning_artifact_only:
@@ -2171,20 +2410,31 @@ def _run_lane_based_merge_locked(
         )
 
         if done_marked_before_target:
+            pre_target_bookkeeping_snapshots.update(
+                {
+                    canonical_events_path: _read_optional_bytes(canonical_events_path),
+                    canonical_status_path: _read_optional_bytes(canonical_status_path),
+                    merge_state_path: _read_optional_bytes(merge_state_path),
+                }
+            )
             # Modern coordination-backed missions must carry done events in the
             # mission branch before it is merged to target. Recording after the
             # target merge writes to a disposable coord/mission branch and can
             # pass surface-local validation while target history never receives
             # done.
-            _record_merged_wps_done_for_merge(
-                main_repo=main_repo,
-                feature_dir=feature_dir,
-                mission_slug=mission_slug,
-                lanes_manifest=lanes_manifest,
-                target_branch=lanes_manifest.target_branch,
-                merge_state=state,
-                all_wp_ids=all_wp_ids,
-            )
+            try:
+                _record_merged_wps_done_for_merge(
+                    main_repo=main_repo,
+                    feature_dir=feature_dir,
+                    mission_slug=mission_slug,
+                    lanes_manifest=lanes_manifest,
+                    target_branch=lanes_manifest.target_branch,
+                    merge_state=state,
+                    all_wp_ids=all_wp_ids,
+                )
+            except Exception:
+                _restore_final_bookkeeping_snapshots(pre_target_bookkeeping_snapshots)
+                raise
 
         # -- Mission-to-target merge (T010: honor strategy for this step only) --
         # FR-037 (#1772 Bug 3): a no-op squash is only legitimate when the
@@ -2198,13 +2448,22 @@ def _run_lane_based_merge_locked(
         )
         _allow_noop = is_resume and _mission_integrated_into_target
         console.print(f"  [dim]Merging mission branch into {lanes_manifest.target_branch}...[/dim]")
-        mission_result = merge_mission_to_target(
-            main_repo,
-            mission_slug,
-            lanes_manifest,
-            strategy=strategy,
-            allow_already_applied=_allow_noop,
-        )
+        try:
+            mission_result = merge_mission_to_target(
+                main_repo,
+                mission_slug,
+                lanes_manifest,
+                strategy=strategy,
+                allow_already_applied=_allow_noop,
+            )
+        except Exception:
+            if done_marked_before_target and _target_branch_still_at_baseline(
+                main_repo,
+                lanes_manifest.target_branch,
+                target_baseline_sha,
+            ):
+                _restore_final_bookkeeping_snapshots(pre_target_bookkeeping_snapshots)
+            raise
         mission_already_applied = getattr(mission_result, "already_applied", False) is True
         # FR-037 fail-loud: a no-op result is only acceptable when the mission
         # branch was genuinely already integrated AND no un-integrated lane code
@@ -2225,6 +2484,12 @@ def _run_lane_based_merge_locked(
                 f"target: {lanes_manifest.target_branch}. "
                 "Inspect the lane branches and rerun, or `spec-kitty merge --abort`."
             )
+            if done_marked_before_target and _target_branch_still_at_baseline(
+                main_repo,
+                lanes_manifest.target_branch,
+                target_baseline_sha,
+            ):
+                _restore_final_bookkeeping_snapshots(pre_target_bookkeeping_snapshots)
             raise typer.Exit(1)
         if not mission_result.success:
             # T005: tolerate already-merged on retry
@@ -2234,6 +2499,12 @@ def _run_lane_based_merge_locked(
             else:
                 for error in mission_result.errors:
                     console.print(f"[red]Error:[/red] {error}")
+                if done_marked_before_target and _target_branch_still_at_baseline(
+                    main_repo,
+                    lanes_manifest.target_branch,
+                    target_baseline_sha,
+                ):
+                    _restore_final_bookkeeping_snapshots(pre_target_bookkeeping_snapshots)
                 raise typer.Exit(1)
         else:
             console.print(f"\n[green]✓[/green] {lanes_manifest.mission_branch} → {lanes_manifest.target_branch}")
@@ -2247,6 +2518,28 @@ def _run_lane_based_merge_locked(
     # A path checkout does not remove stale rename sources in sparse-checkout
     # repos; the helper uses a tracked-file hard refresh instead.
     _refresh_primary_checkout_after_merge(main_repo)
+
+    if not done_marked_before_target:
+        final_bookkeeping_snapshots.update(
+            {
+                canonical_events_path: _read_optional_bytes(canonical_events_path),
+                canonical_status_path: _read_optional_bytes(canonical_status_path),
+                merge_state_path: _read_optional_bytes(merge_state_path),
+            }
+        )
+    target_events_path, target_status_path = _target_bookkeeping_status_paths(
+        main_repo=main_repo,
+        mission_slug=mission_slug,
+        status_feature_dir=feature_dir,
+    )
+    target_meta_path = target_feature_dir / "meta.json"
+    final_bookkeeping_snapshots.update(
+        {
+            target_events_path: _read_optional_bytes(target_events_path),
+            target_status_path: _read_optional_bytes(target_status_path),
+            target_meta_path: _read_optional_bytes(target_meta_path),
+        }
+    )
 
     if planning_artifact_only:
         mission_number_meta_path = _assign_planning_only_mission_number_if_needed(
@@ -2264,20 +2557,9 @@ def _run_lane_based_merge_locked(
         # Modern lane mission could not record its post-merge review baseline.
         # Fail loudly — an apparently successful merge that drops the baseline
         # produces MISSION_REVIEW_MODE_MISMATCH downstream.
+        _restore_final_bookkeeping_snapshots(final_bookkeeping_snapshots)
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
-
-    # If the final bookkeeping commit fails after done events are emitted,
-    # restore the canonical status artifacts to their pre-emit bytes. This
-    # keeps the merge path aligned with the #1348 dangling-event invariant.
-    _merge_events_path = feature_dir / _STATUS_EVENTS_FILENAME
-    _merge_status_path = feature_dir / _STATUS_FILENAME
-    _pre_done_event_size = (
-        _merge_events_path.stat().st_size if _merge_events_path.exists() else 0
-    )
-    _pre_done_status_bytes = (
-        _merge_status_path.read_bytes() if _merge_status_path.exists() else None
-    )
 
     # Merge-path status surface audit (mission merge-done-surface-resolver-01KTDVHZ):
     # Write sites: _mark_wp_merged_done — resolve_status_surface determines feature_dir;
@@ -2292,15 +2574,29 @@ def _run_lane_based_merge_locked(
 
     # -- T001: Mark WPs done with per-WP state tracking --
     if not done_marked_before_target:
-        _record_merged_wps_done_for_merge(
+        try:
+            _record_merged_wps_done_for_merge(
+                main_repo=main_repo,
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                lanes_manifest=lanes_manifest,
+                target_branch=lanes_manifest.target_branch,
+                merge_state=state,
+                all_wp_ids=all_wp_ids,
+            )
+        except Exception:
+            _restore_final_bookkeeping_snapshots(final_bookkeeping_snapshots)
+            raise
+
+    try:
+        target_events_path, target_status_path = _project_status_bookkeeping_to_target(
             main_repo=main_repo,
-            feature_dir=feature_dir,
             mission_slug=mission_slug,
-            lanes_manifest=lanes_manifest,
-            target_branch=lanes_manifest.target_branch,
-            merge_state=state,
-            all_wp_ids=all_wp_ids,
+            status_feature_dir=feature_dir,
         )
+    except Exception:
+        _restore_final_bookkeeping_snapshots(final_bookkeeping_snapshots)
+        raise
 
     # -- WP05/T007 FR-014: Post-merge working-tree invariant --
     # After the refresh, `git status --porcelain` MUST report at most the two
@@ -2357,6 +2653,7 @@ def _run_lane_based_merge_locked(
                     "\nUnexpected working-tree state after merge. "
                     "Run `git status` to investigate before retrying."
                 )
+            _restore_final_bookkeeping_snapshots(final_bookkeeping_snapshots)
             raise typer.Exit(1)
     else:
         console.print(
@@ -2365,11 +2662,6 @@ def _run_lane_based_merge_locked(
         )
 
     # -- T012: FR-019 — Persist done events to git BEFORE any worktree removal --
-    target_events_path, target_status_path = _target_bookkeeping_status_paths(
-        main_repo=main_repo,
-        mission_slug=mission_slug,
-        status_feature_dir=feature_dir,
-    )
     files_to_commit = [
         target_events_path,
         target_status_path,
@@ -2400,15 +2692,7 @@ def _run_lane_based_merge_locked(
             )
         except Exception as exc:
             if not (isinstance(exc, SafeCommitRecoveryFailed) and exc.commit_sha is not None):
-                with contextlib.suppress(OSError):
-                    if _merge_events_path.exists():
-                        with _merge_events_path.open("ab") as _fh:
-                            _fh.truncate(_pre_done_event_size)
-                with contextlib.suppress(OSError):
-                    if _pre_done_status_bytes is None:
-                        _merge_status_path.unlink(missing_ok=True)
-                    else:
-                        _merge_status_path.write_bytes(_pre_done_status_bytes)
+                _restore_final_bookkeeping_snapshots(final_bookkeeping_snapshots)
             raise
     else:
         console.print("  [dim]No post-merge bookkeeping changes to commit; continuing cleanup.[/dim]")
@@ -2673,9 +2957,25 @@ def merge(
 
         mission_slug_raw = (mission or feature or "").strip() or None
         resolved = _resolve_mission_slug(repo_root, mission_slug_raw)
-        if resolved:
-            cleared = clear_state(repo_root, resolved)
-            cleanup_merge_workspace(resolved, repo_root)
+        state_entry = _load_merge_state_entry_for_mission(repo_root, resolved)
+        if state_entry is None and resolved is None:
+            state_entry = _load_merge_state_entry_for_mission(repo_root, None)
+        if state_entry is not None and resolved is None:
+            _source_key, active_state = state_entry
+            resolved = active_state.mission_slug
+
+        if resolved or state_entry is not None:
+            cleared = _clear_merge_state_for_mission(repo_root, resolved)
+            if state_entry is not None:
+                source_key, active_state = state_entry
+                if source_key:
+                    cleared = clear_state(repo_root, source_key) or cleared
+                cleared = clear_state(repo_root, active_state.mission_id) or cleared
+            _cleanup_merge_workspaces_for_state(
+                repo_root,
+                mission_slug=resolved,
+                state_entry=state_entry,
+            )
             # WP07 / FR-016: --abort also tears down the coordination
             # worktree (idempotent; no-op for legacy missions without
             # coordination state). Done here so partial-state aborts
@@ -2685,17 +2985,25 @@ def merge(
                 from specify_cli.mission_metadata import load_meta as _load_meta
 
                 _main_for_abort = get_main_repo_root(repo_root)
-                _feature_dir_for_abort = candidate_feature_dir_for_mission(_main_for_abort, resolved)
+                _coord_slug_for_abort = resolved
+                if _coord_slug_for_abort is None and state_entry is not None:
+                    _coord_slug_for_abort = state_entry[1].mission_slug
+                if not _coord_slug_for_abort:
+                    raise ValueError("cannot resolve mission slug for coordination cleanup")
+                _feature_dir_for_abort = candidate_feature_dir_for_mission(
+                    _main_for_abort,
+                    _coord_slug_for_abort,
+                )
                 _meta_for_abort = _load_meta(_feature_dir_for_abort)
                 _mid8_for_abort = (
                     str(_meta_for_abort.get("mid8", "")).strip()
                     if isinstance(_meta_for_abort, dict)
                     else ""
                 )
-                if _mid8_for_abort:
+                if _mid8_for_abort and _coord_slug_for_abort:
                     CoordinationWorkspace.teardown(
                         _main_for_abort,
-                        resolved,
+                        _coord_slug_for_abort,
                         _mid8_for_abort,
                     )
             except Exception as _coord_abort_exc:  # noqa: BLE001 — abort cleanup is best-effort
@@ -2743,10 +3051,12 @@ def merge(
     if resume:
         mission_slug_raw = (mission or feature or "").strip() or None
         resolved = _resolve_mission_slug(repo_root, mission_slug_raw)
-        existing_state = load_state(repo_root, resolved)
+        existing_state = _load_merge_state_for_mission(repo_root, resolved)
         if existing_state is None:
             console.print("[red]Error:[/red] No interrupted merge to resume.")
             raise typer.Exit(1)
+        if not mission_slug_raw:
+            mission = existing_state.mission_slug
         console.print(
             f"[bold cyan]Resume requested[/bold cyan] for {existing_state.mission_slug} ({len(existing_state.completed_wps)}/{len(existing_state.wp_order)} done)"
         )
@@ -2977,6 +3287,10 @@ __all__ = [
     "_record_baseline_merge_commit",
     "BaselineMergeCommitError",
     "_mark_wp_merged_done",
+    "_project_status_bookkeeping_to_target",
+    "_load_merge_state_for_mission",
+    "_load_or_create_merge_state",
+    "_clear_merge_state_for_mission",
     "_run_lane_based_merge",
     "_is_linear_history_rejection",
     "_emit_remediation_hint",

@@ -565,11 +565,13 @@ class TestLegacyPlanningOnlyMetaInvariant:
         meta_rel = f"kitty-specs/{slug}/meta.json"
 
         real_classify = merge_mod._classify_porcelain_lines
+        classified_lines: list[str] = []
 
         def classify_without_meta_membership(
             lines: list[str], expected_paths: set[str]
         ) -> tuple[list[str], int]:
             # Drop the F2 membership to recreate the pre-fix expected_paths.
+            classified_lines.extend(lines)
             return real_classify(lines, expected_paths - {meta_rel})
 
         with (
@@ -592,9 +594,12 @@ class TestLegacyPlanningOnlyMetaInvariant:
             )
 
         # The dirtied meta.json was genuinely the file that tripped the
-        # invariant (its intact " M " line reached classification).
+        # invariant (its intact " M " line reached classification). The final
+        # bookkeeping rollback restores the uncommitted mission_number after
+        # this artificial failure, so the persisted meta returns to null.
+        assert f" M {meta_rel}" in classified_lines
         post_meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
-        assert isinstance(post_meta.get("mission_number"), int)
+        assert post_meta.get("mission_number") is None
 
 
 class TestPostMergePorcelainHole:

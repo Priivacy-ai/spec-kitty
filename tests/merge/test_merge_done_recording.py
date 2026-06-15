@@ -15,7 +15,9 @@ from specify_cli.cli.commands.merge import (
     _assert_baseline_merge_commit_on_target,
     _assert_merged_wps_reached_done,
     _mark_wp_merged_done,
+    _project_status_bookkeeping_to_target,
     _record_baseline_merge_commit,
+    _restore_final_bookkeeping_snapshots,
 )
 
 pytestmark = pytest.mark.fast
@@ -761,3 +763,100 @@ def test_coord_branch_assert_ignores_primary_checkout(
     # Must RAISE — coord surface only has approved, not done
     with pytest.raises(typer.Exit):
         _assert_merged_wps_reached_done(repo_root, _COORD_SLUG, ["WP01"])
+
+
+def test_project_status_bookkeeping_copies_coord_surface_to_primary_target(
+    coord_branch_mission: dict,
+) -> None:
+    """Final merge bookkeeping must stage primary paths, not .worktrees paths."""
+    repo_root = coord_branch_mission["repo_root"]
+    primary_dir = coord_branch_mission["primary_dir"]
+    coord_specs = coord_branch_mission["coord_specs"]
+
+    (primary_dir / "status.events.jsonl").write_text("old-event\n", encoding="utf-8")
+    (primary_dir / "status.json").write_text('{"WP01": "approved"}\n', encoding="utf-8")
+    (coord_specs / "status.events.jsonl").write_text("new-done-event\n", encoding="utf-8")
+    (coord_specs / "status.json").write_text('{"WP01": "done"}\n', encoding="utf-8")
+
+    target_events, target_status = _project_status_bookkeeping_to_target(
+        main_repo=repo_root,
+        mission_slug=_COORD_SLUG,
+        status_feature_dir=coord_specs,
+    )
+
+    assert target_events == primary_dir / "status.events.jsonl"
+    assert target_status == primary_dir / "status.json"
+    assert ".worktrees" not in target_events.parts
+    assert ".worktrees" not in target_status.parts
+    assert target_events.read_text(encoding="utf-8") == "new-done-event\n"
+    assert target_status.read_text(encoding="utf-8") == '{"WP01": "done"}\n'
+
+
+def test_project_status_bookkeeping_restores_primary_on_projection_failure(
+    coord_branch_mission: dict,
+) -> None:
+    """Projection failure must not leave split-brain primary bookkeeping."""
+    repo_root = coord_branch_mission["repo_root"]
+    primary_dir = coord_branch_mission["primary_dir"]
+    coord_specs = coord_branch_mission["coord_specs"]
+
+    primary_events = primary_dir / "status.events.jsonl"
+    primary_status = primary_dir / "status.json"
+    primary_events.write_text("old-event\n", encoding="utf-8")
+    primary_status.write_text('{"WP01": "approved"}\n', encoding="utf-8")
+    (coord_specs / "status.events.jsonl").write_text("new-done-event\n", encoding="utf-8")
+    (coord_specs / "status.json").mkdir()
+
+    with pytest.raises(IsADirectoryError):
+        _project_status_bookkeeping_to_target(
+            main_repo=repo_root,
+            mission_slug=_COORD_SLUG,
+            status_feature_dir=coord_specs,
+        )
+
+    assert primary_events.read_text(encoding="utf-8") == "old-event\n"
+    assert primary_status.read_text(encoding="utf-8") == '{"WP01": "approved"}\n'
+
+
+def test_final_bookkeeping_rollback_restores_status_meta_and_state(tmp_path: Path) -> None:
+    """Final bookkeeping rollback restores every mutable surface it snapshots."""
+    coord_events = tmp_path / ".worktrees" / "m-coord" / "kitty-specs" / "m" / "status.events.jsonl"
+    coord_status = coord_events.parent / "status.json"
+    target_events = tmp_path / "kitty-specs" / "m" / "status.events.jsonl"
+    target_status = target_events.parent / "status.json"
+    target_meta = target_events.parent / "meta.json"
+    state_path = tmp_path / ".kittify" / "runtime" / "merge" / "01TESTSTATE" / "state.json"
+    for path, body in {
+        coord_events: b"approved-event\n",
+        coord_status: b'{"WP01": "approved"}\n',
+        target_meta: b'{"mission_slug": "m"}\n',
+        state_path: b'{"completed_wps": []}\n',
+    }.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(body)
+
+    snapshots = {
+        coord_events: coord_events.read_bytes(),
+        coord_status: coord_status.read_bytes(),
+        target_events: None,
+        target_status: None,
+        target_meta: target_meta.read_bytes(),
+        state_path: state_path.read_bytes(),
+    }
+
+    coord_events.write_text("approved-event\ndone-event\n", encoding="utf-8")
+    coord_status.write_text('{"WP01": "done"}\n', encoding="utf-8")
+    target_events.parent.mkdir(parents=True, exist_ok=True)
+    target_events.write_text("approved-event\ndone-event\n", encoding="utf-8")
+    target_status.write_text('{"WP01": "done"}\n', encoding="utf-8")
+    target_meta.write_text('{"mission_slug": "m", "baseline_merge_commit": "HEAD~1"}\n', encoding="utf-8")
+    state_path.write_text('{"completed_wps": ["WP01"]}\n', encoding="utf-8")
+
+    _restore_final_bookkeeping_snapshots(snapshots)
+
+    assert coord_events.read_bytes() == b"approved-event\n"
+    assert coord_status.read_bytes() == b'{"WP01": "approved"}\n'
+    assert not target_events.exists()
+    assert not target_status.exists()
+    assert target_meta.read_bytes() == b'{"mission_slug": "m"}\n'
+    assert state_path.read_bytes() == b'{"completed_wps": []}\n'
