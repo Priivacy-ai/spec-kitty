@@ -20,6 +20,7 @@
 | T007 | Add `test_get_project_root_or_exit_succeeds_in_worktree` to `tests/specify_cli/cli/test_helpers.py` | WP03 | [P] |
 | T008 | Add `test_lint_uses_spec_repo_root_as_cwd` to `tests/specify_cli/cli/commands/test_lint.py` | WP03 | [P] |
 | T009 | Run full test suite, confirm zero regressions, ≥90% coverage for changed files | WP03 | No |
+| T010 | Add `test_planner_default_resolver_in_worktree` to `tests/specify_cli/compat/test_planner.py` — exercises FR-007 | WP03 | [P] |
 
 ---
 
@@ -75,6 +76,7 @@ Subtasks:
 - [ ] T007 Add `test_get_project_root_or_exit_succeeds_in_worktree` — fake worktree CWD, main repo has `.kittify`; assert function returns main repo path, does not call `typer.Exit` (WP03)
 - [ ] T008 Add `test_lint_uses_spec_repo_root_as_cwd` — `SPECIFY_REPO_ROOT` set, mock `subprocess.run`, invoke `lint_command`; assert subprocess called with correct `cwd` (WP03)
 - [ ] T009 Run `PWHEADLESS=1 pytest tests/ -n auto --dist loadfile -p no:cacheprovider`; confirm zero regressions; check coverage for `project_resolver.py`, `test_project_resolver.py`, `test_helpers.py`, `test_lint.py` (WP03)
+- [ ] T010 Add `test_planner_default_resolver_in_worktree` to `tests/specify_cli/compat/test_planner.py`; `monkeypatch.chdir(worktree)`, call `plan(invocation)` with no `project_root_resolver`, assert `result.project_status.state != ProjectState.NO_PROJECT` (WP03)
 
 **Implementation sketch**: For T007, import `get_project_root_or_exit` from `specify_cli.cli.helpers` (not mocked); construct fake worktree in `tmp_path`; call with `start=worktree_path`; assert result. For T008, use `monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path / "project"))` and `monkeypatch.setattr(subprocess, "run", mock_fn)`.  
 **Risks**: `get_project_root_or_exit` calls `typer.Exit(1)` on failure — test must call it in a way that catches `SystemExit` if the path is wrong. T009 is the integration gate; don't skip it.  

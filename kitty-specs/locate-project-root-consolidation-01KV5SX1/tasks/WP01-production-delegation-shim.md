@@ -171,6 +171,9 @@ def locate_project_root(start: Path | None = None) -> Path | None:
 3. Run a quick smoke import: `python -c "from specify_cli.core.project_resolver import locate_project_root; print('OK')"`
    - Expected: `OK`
    - If import error: diagnose and fix (likely a missing deferred import or syntax error)
+4. Measure import time (NFR-004): `python -c "import time; t=time.time(); import specify_cli.core.project_resolver; print(time.time()-t)"`
+   - Expected: < 0.005 (5 ms) — the deferred import fires at call time, not at module load
+   - If ≥ 5 ms: the deferred import leaked to module scope; check for accidental top-level `from specify_cli.core.paths import ...`
 
 **Common failure modes:**
 - `error: Module "specify_cli.core.paths" has no attribute "locate_project_root"` — check the import path spelling
@@ -181,6 +184,7 @@ def locate_project_root(start: Path | None = None) -> Path | None:
 - [ ] `mypy --strict` exits 0 with "no issues found"
 - [ ] `ruff check` exits 0 with no output
 - [ ] `python -c "from specify_cli.core.project_resolver import locate_project_root; print('OK')"` prints `OK`
+- [ ] Import time measurement prints < 0.005
 
 ---
 
@@ -192,6 +196,7 @@ def locate_project_root(start: Path | None = None) -> Path | None:
 - [ ] `mypy --strict` passes with zero errors
 - [ ] `ruff check` passes with zero violations
 - [ ] Import smoke test passes
+- [ ] Import time measurement prints < 0.005 (NFR-004)
 
 ## Risks
 

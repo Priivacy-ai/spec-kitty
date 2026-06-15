@@ -11,6 +11,7 @@ requirement_refs:
 - FR-009
 - FR-010
 - NFR-001
+- NFR-004
 - NFR-005
 tracker_refs: []
 planning_base_branch: feat/locate-project-root-consolidation
@@ -20,6 +21,7 @@ subtasks:
 - T007
 - T008
 - T009
+- T010
 agent: claude
 history:
 - date: '2026-06-15'
@@ -33,6 +35,7 @@ execution_mode: code_change
 owned_files:
 - tests/specify_cli/cli/test_helpers.py
 - tests/specify_cli/cli/commands/test_lint.py
+- tests/specify_cli/compat/test_planner.py
 role: implementer
 tags: []
 ---
@@ -263,10 +266,88 @@ def test_lint_uses_spec_repo_root_as_cwd(tmp_path, monkeypatch):
 
 ---
 
+## Subtask T010 — Add test_planner_default_resolver_in_worktree
+
+**Purpose:** Verify that `plan()` with the default `project_root_resolver` (the `project_resolver.locate_project_root` shim) correctly classifies project state when the CWD is inside a git worktree. This is the only test that exercises FR-007 — the planner's Matrix-Maker row 9 failure — and makes a future shim reversion immediately detectable.
+
+**File:** `tests/specify_cli/compat/test_planner.py` (add to existing file)
+
+**Step 1 — Read the existing test helpers:**
+```bash
+# Check for _make_invocation and _make_project_root_resolver at the top of the file
+head -120 tests/specify_cli/compat/test_planner.py
+```
+
+**Step 2 — Add the test** (it uses the existing `_make_invocation` helper):
+```python
+import pytest
+from pathlib import Path
+from specify_cli.compat.planner import plan, ProjectState
+
+
+def test_planner_default_resolver_in_worktree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """plan() with default project_root_resolver classifies project correctly from a worktree.
+
+    Regression guard for FR-007 / issue #1971: before the shim, calling plan()
+    from a worktree caused _scan_project to receive None root → NO_PROJECT.
+    """
+    # Build fake main repo with .kittify and a minimal schema file
+    main_repo = tmp_path / "main_repo"
+    kittify = main_repo / ".kittify"
+    kittify.mkdir(parents=True)
+    # Write a minimal schema_version so ProjectStatus has something to report
+    (kittify / "schema_version").write_text("3")
+
+    # Build fake worktree structure
+    worktrees_dir = main_repo / ".git" / "worktrees" / "test_lane"
+    worktrees_dir.mkdir(parents=True)
+    (main_repo / ".git" / "HEAD").write_text("ref: refs/heads/main\n")
+
+    worktree = tmp_path / "worktree"
+    worktree.mkdir()
+    (worktree / ".git").write_text(f"gitdir: {worktrees_dir}\n")
+
+    # Simulate being in the worktree (no SPECIFY_REPO_ROOT — tests worktree path)
+    monkeypatch.chdir(worktree)
+    monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
+
+    invocation = _make_invocation()
+    # Call plan() with NO project_root_resolver → exercises the default shim
+    result = plan(invocation)
+
+    assert result.project_status.state != ProjectState.NO_PROJECT, (
+        f"plan() resolved NO_PROJECT from worktree; shim may not be delegating "
+        f"to paths.locate_project_root. project_root={result.project_status.project_root}"
+    )
+```
+
+**Important notes:**
+- `_make_invocation` is already defined in `test_planner.py` around line 91 — do not re-define it.
+- Do NOT pass `project_root_resolver` to `plan()` — that's the whole point of this test.
+- The test exercises the shim: `plan()` → `_plan_impl()` → `_scan_project(locate_project_root)` → `locate_project_root(worktree)` → `paths.locate_project_root` → worktree pointer → `main_repo`.
+- If `paths.locate_project_root` checks for `.kittify/schema_version` or additional files beyond just `.kittify/`, adjust the fake repo setup accordingly. Read `src/specify_cli/core/paths.py` to confirm what the worktree scanner expects.
+
+**Steps:**
+1. Read `src/specify_cli/core/paths.py` worktree detection logic to confirm the exact `.git` file format and any additional `.kittify/` contents required.
+2. Add the test above to `tests/specify_cli/compat/test_planner.py`.
+3. Run: `pytest tests/specify_cli/compat/test_planner.py::test_planner_default_resolver_in_worktree -v`
+
+**Validation:**
+- [ ] Test passes with WP01 shim in place
+- [ ] Test does NOT pass `project_root_resolver` to `plan()` — it must use the default
+- [ ] `result.project_status.state != ProjectState.NO_PROJECT`
+- [ ] `monkeypatch.chdir(worktree)` is used (not monkeypatching `Path.cwd`)
+- [ ] `monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)` is present to isolate from CI env
+
+---
+
 ## Definition of Done
 
 - [ ] `tests/specify_cli/cli/test_helpers.py` contains `test_get_project_root_or_exit_succeeds_in_worktree` and it passes without mocking `locate_project_root`
 - [ ] `tests/specify_cli/cli/commands/test_lint.py` contains `test_lint_uses_spec_repo_root_as_cwd` and it passes
+- [ ] `tests/specify_cli/compat/test_planner.py` contains `test_planner_default_resolver_in_worktree` and it passes without passing `project_root_resolver` to `plan()`
 - [ ] Full parallel suite exits 0 with zero new failures
 - [ ] Coverage ≥ 90% for `src/specify_cli/core/project_resolver.py`
 - [ ] `mypy --strict` passes on all new test files
@@ -283,3 +364,4 @@ def test_lint_uses_spec_repo_root_as_cwd(tmp_path, monkeypatch):
 - Confirm T008 patches subprocess at the correct import path
 - Confirm T009 shows zero new failures in the full suite output
 - Confirm coverage report shows ≥ 90% for `project_resolver.py`
+- Confirm T010 does NOT pass `project_root_resolver` to `plan()` — the test must exercise the default shim path, not an injected resolver
