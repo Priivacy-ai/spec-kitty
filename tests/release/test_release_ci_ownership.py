@@ -15,6 +15,7 @@ WORKFLOWS = ROOT / ".github" / "workflows"
 
 RELEASE_OWNER_PATHS = {
     "pyproject.toml",
+    ".kittify/metadata.yaml",
     "uv.lock",
     ".kittify/release/shared-package-compatibility.json",
     "CHANGELOG.md",
