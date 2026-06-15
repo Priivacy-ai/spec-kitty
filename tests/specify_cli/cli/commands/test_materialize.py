@@ -157,7 +157,7 @@ def test_materialize_command_no_project(tmp_path):
 
 
 def test_materialize_command_all_features(tmp_path):
-    """materialize processes all features when no --feature given."""
+    """materialize processes all features when no --mission given."""
     from specify_cli.cli.commands.materialize import materialize
     import typer
 
@@ -166,7 +166,7 @@ def test_materialize_command_all_features(tmp_path):
 
     with patch("specify_cli.cli.commands.materialize.locate_project_root", return_value=tmp_path):
         with pytest.raises(typer.Exit) as exc_info:
-            materialize(feature=None, json_output=False)
+            materialize(mission=None, json_output=False)
         assert exc_info.value.exit_code == 0
 
     # Verify files written
@@ -175,7 +175,7 @@ def test_materialize_command_all_features(tmp_path):
 
 
 def test_materialize_command_single_feature(tmp_path):
-    """materialize --feature processes only the specified feature."""
+    """materialize --mission processes only the specified mission."""
     from specify_cli.cli.commands.materialize import materialize
     import typer
 
@@ -183,14 +183,14 @@ def test_materialize_command_single_feature(tmp_path):
 
     with patch("specify_cli.cli.commands.materialize.locate_project_root", return_value=tmp_path):
         with pytest.raises(typer.Exit) as exc_info:
-            materialize(feature="006-target", json_output=False)
+            materialize(mission="006-target", json_output=False)
         assert exc_info.value.exit_code == 0
 
     assert (tmp_path / ".kittify" / "derived" / "006-target" / "status.json").exists()
 
 
 def test_materialize_command_feature_not_found(tmp_path):
-    """materialize exits 1 when --feature slug does not exist."""
+    """materialize exits 1 when --mission slug does not exist."""
     from specify_cli.cli.commands.materialize import materialize
     import typer
 
@@ -198,7 +198,7 @@ def test_materialize_command_feature_not_found(tmp_path):
 
     with patch("specify_cli.cli.commands.materialize.locate_project_root", return_value=tmp_path):
         with pytest.raises(typer.Exit) as exc_info:
-            materialize(feature="999-nonexistent", json_output=False)
+            materialize(mission="999-nonexistent", json_output=False)
         assert exc_info.value.exit_code == 1
 
 
@@ -211,7 +211,7 @@ def test_materialize_command_json_output(tmp_path):
 
     with patch("specify_cli.cli.commands.materialize.locate_project_root", return_value=tmp_path):
         with pytest.raises(typer.Exit) as exc_info:
-            materialize(feature="007-json", json_output=True)
+            materialize(mission="007-json", json_output=True)
         assert exc_info.value.exit_code == 0
 
 

@@ -11,7 +11,6 @@ import typer
 from rich.panel import Panel
 from rich.table import Table
 
-from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.helpers import console, get_project_root_or_exit
 from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug
 from specify_cli.task_metadata_validation import (
@@ -24,9 +23,6 @@ from specify_cli.task_utils import TaskCliError, find_repo_root
 def validate_tasks(
     mission: str | None = typer.Option(
         None, "--mission", help="Mission slug to validate"
-    ),
-    feature: str | None = typer.Option(
-        None, "--feature", hidden=True, help="(deprecated) Use --mission"
     ),
     fix: bool = typer.Option(False, "--fix", help="Automatically repair metadata inconsistencies"),
     check_all: bool = typer.Option(False, "--all", help="Check all features, not just one"),
@@ -102,19 +98,10 @@ def validate_tasks(
         raise typer.Exit(0 if total_mismatches == 0 or fix else 1)
 
     # Validate single feature
-    try:
-        mission_slug = resolve_selector(
-            canonical_value=mission,
-            canonical_flag="--mission",
-            alias_value=feature,
-            alias_flag="--feature",
-            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
-            command_hint="--mission <slug>",
-        ).canonical_value
-    except typer.BadParameter as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
-
+    if not mission or not mission.strip():
+        console.print("[red]Error:[/red] --mission <slug> is required (or use --all)")
+        raise typer.Exit(1)
+    mission_slug = mission.strip()
     feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
 
     if not feature_dir.exists():

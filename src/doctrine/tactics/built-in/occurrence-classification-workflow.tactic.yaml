@@ -37,4 +37,4 @@ steps:
       Write the classification to occurrence_map.yaml. Run validation before
       proceeding to implementation.
     examples:
-      - "spec-kitty agent bulk-edit validate --feature my-feature"
+      - "spec-kitty agent bulk-edit validate --mission my-mission"

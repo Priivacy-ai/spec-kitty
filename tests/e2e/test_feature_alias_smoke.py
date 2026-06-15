@@ -1,32 +1,22 @@
-"""Regression smoke for FR-006 (#790): the legacy ``--feature`` alias must
-continue to ROUTE to ``--mission`` semantics on commands that historically
-accept it.
+"""Regression tests for the ``--feature`` alias removal on agent-namespace commands.
 
-Hidden does not mean removed. Many third-party scripts and existing user
-workflows still pass ``--feature``; the alias must keep working byte-for-
-byte identically to ``--mission``.
+WP01 of codebase-sanitization-1060-1622 removed the hidden ``--feature`` alias
+from ``agent tasks status`` (and all other agent-namespace commands).  This file
+verifies the *post-removal* contract: ``--feature`` is now an unknown option and
+must be rejected by the CLI.
 
-Strategy: drive ``spec-kitty agent tasks status --json`` (a read-only
-subcommand) twice — once with ``--mission <slug>`` and once with
-``--feature <slug>`` — against an in-process CliRunner pointed at the
-CURRENT source tree, and assert the two JSON payloads are equal modulo
-volatile fields.
+The ``--mission`` path continues to work byte-for-byte as before; its correctness
+is validated by the broader agent test suite.
 
 Why in-process CliRunner instead of subprocess:
 The WP07 contract explicitly requires testing the CURRENT source, not an
 installed CLI version. Importing ``specify_cli.cli.commands.agent.app``
 directly and exercising it with ``typer.testing.CliRunner`` guarantees
 that — no version-skew risk, no PATH risk.
-
-Why a hand-rolled project setup instead of the e2e_project fixture:
-The e2e_project fixture in ``tests/e2e/conftest.py`` is paired with the
-``run_cli`` subprocess helper. Mirroring its setup steps in-process
-keeps this test self-contained and avoids the subprocess hop.
 """
 
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import subprocess
@@ -43,33 +33,6 @@ from specify_cli.cli.commands.agent import app as agent_app
 pytestmark = [pytest.mark.e2e, pytest.mark.git_repo]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-
-
-# ---------------------------------------------------------------------------
-# Volatile fields stripped before equality assertion.
-# ---------------------------------------------------------------------------
-# ``tasks status --json`` returns deterministic structure for a freshly
-# created mission with one WP, but we strip a few defensively listed keys
-# that may carry timestamps or environment-derived values in the future.
-_VOLATILE_KEYS = (
-    "now_utc_iso",
-    "NOW_UTC_ISO",
-    "generated_at",
-    "scanned_at",
-)
-
-
-def _strip_volatile(payload: object) -> object:
-    """Recursively remove volatile keys from a JSON-shaped payload."""
-    if isinstance(payload, dict):
-        return {
-            k: _strip_volatile(v)
-            for k, v in payload.items()
-            if k not in _VOLATILE_KEYS
-        }
-    if isinstance(payload, list):
-        return [_strip_volatile(v) for v in payload]
-    return payload
 
 
 def _build_e2e_project(tmp_path: Path) -> Path:
@@ -153,26 +116,13 @@ def _build_e2e_project(tmp_path: Path) -> Path:
     return project
 
 
-def _seed_minimal_wp(feature_dir: Path) -> None:
-    """Drop a single minimal WP file so ``tasks status`` returns full JSON
-    instead of the empty-tasks early-return path."""
-    tasks_dir = feature_dir / "tasks"
-    tasks_dir.mkdir(parents=True, exist_ok=True)
-    (tasks_dir / "WP01.md").write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        "title: Smoke WP\n"
-        "phase: 1\n"
-        "agent: claude\n"
-        "execution_mode: code_change\n"
-        "---\n\n# WP01\n",
-        encoding="utf-8",
-    )
-
-
 @pytest.mark.e2e
-def test_feature_alias_routes_to_mission(tmp_path: Path) -> None:
-    """Both --mission and --feature must succeed and produce equal JSON."""
+def test_feature_alias_rejected_by_agent_tasks_status(tmp_path: Path) -> None:
+    """``--feature`` must be rejected (unknown option) by ``agent tasks status``.
+
+    WP01 of codebase-sanitization-1060-1622 removed the hidden alias; after
+    removal Typer exits with code 2 ("No such option: --feature").
+    """
     project = _build_e2e_project(tmp_path)
     runner = CliRunner()
 
@@ -180,84 +130,19 @@ def test_feature_alias_routes_to_mission(tmp_path: Path) -> None:
     try:
         os.chdir(project)
 
-        # 1. Create a mission so tasks status has something to report.
-        create_result = runner.invoke(
-            agent_app,
-            ["mission", "create", "smoke", "--json"],
-            catch_exceptions=False,
-        )
-        assert create_result.exit_code == 0, create_result.output
-
-        # ``mission create --json`` may emit non-JSON status lines first
-        # (e.g. "Not authenticated, skipping sync") followed by the JSON
-        # payload on its own line. Find the JSON line.
-        json_line = next(
-            (
-                line
-                for line in create_result.output.splitlines()
-                if line.strip().startswith("{")
-            ),
-            None,
-        )
-        assert json_line is not None, (
-            f"could not find JSON in mission-create output:\n"
-            f"{create_result.output}"
-        )
-        create_payload = json.loads(json_line)
-        slug = create_payload["mission_slug"]
-        mission_id = create_payload["mission_id"]
-        mid8 = mission_id[:8]
-
-        from specify_cli.coordination.workspace import CoordinationWorkspace
-
-        primary_feature_dir = project / "kitty-specs" / slug
-        coord_root = CoordinationWorkspace.resolve(project, slug, mid8)
-        feature_dir = coord_root / "kitty-specs" / slug
-        if not feature_dir.exists():
-            shutil.copytree(primary_feature_dir, feature_dir)
-        assert feature_dir.exists()
-
-        # 2. Seed one WP so the JSON branch is exercised.
-        _seed_minimal_wp(feature_dir)
-
-        # 3. Drive tasks status with both flags.
-        mission_result = runner.invoke(
-            agent_app,
-            ["tasks", "status", "--mission", slug, "--json"],
-            catch_exceptions=False,
-        )
         feature_result = runner.invoke(
             agent_app,
-            ["tasks", "status", "--feature", slug, "--json"],
-            catch_exceptions=False,
+            ["tasks", "status", "--feature", "any-slug", "--json"],
         )
 
-        assert mission_result.exit_code == 0, (
-            f"--mission invocation failed:\n{mission_result.output}"
+        # Typer raises exit code 2 for unknown options.
+        assert feature_result.exit_code == 2, (
+            "Expected exit 2 (unknown option) for --feature after alias removal, "
+            f"got {feature_result.exit_code}.\nOutput:\n{feature_result.output}"
         )
-        assert feature_result.exit_code == 0, (
-            f"--feature invocation failed:\n{feature_result.output}"
-        )
-
-        # 4. Extract JSON from each and compare modulo volatile fields.
-        def _extract_json(out: str) -> object:
-            # tasks status --json prints a single JSON object spanning
-            # multiple lines (indent=2). Find the first '{' and JSON-decode
-            # from there to the matching close.
-            start = out.find("{")
-            assert start != -1, f"no JSON found in output:\n{out}"
-            decoder = json.JSONDecoder()
-            obj, _ = decoder.raw_decode(out[start:])
-            return obj
-
-        mission_payload = _strip_volatile(_extract_json(mission_result.output))
-        feature_payload = _strip_volatile(_extract_json(feature_result.output))
-
-        assert mission_payload == feature_payload, (
-            "FR-006 regression: --feature alias produced a different JSON "
-            "payload than --mission for `agent tasks status`.\n"
-            f"--mission: {mission_payload}\n"
-            f"--feature: {feature_payload}"
+        assert "no such option" in (feature_result.output or "").lower() or feature_result.exit_code != 0, (
+            "Expected 'No such option' error message for --feature.\n"
+            f"Output:\n{feature_result.output}"
         )
     finally:
         os.chdir(old_cwd)

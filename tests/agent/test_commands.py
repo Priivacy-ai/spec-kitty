@@ -470,7 +470,7 @@ def test_verify_setup_json_output(monkeypatch, tmp_path: Path) -> None:
 
     monkeypatch.setattr(verify_module, "run_enhanced_verify", fake_verify)
 
-    result = runner.invoke(cli_app, ["verify-setup", "--json", "--feature", "001-demo-feature"])
+    result = runner.invoke(cli_app, ["verify-setup", "--json", "--mission", "001-demo-feature"])
     assert result.exit_code == 0
     payload = _load_json_from_output(result.stdout)
     assert payload["status"] == "ok"

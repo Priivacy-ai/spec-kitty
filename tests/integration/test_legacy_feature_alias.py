@@ -8,7 +8,14 @@ The legacy ``--feature`` flag must remain accepted as an alias for
 The companion contract test
 ``tests/contract/test_terminology_guards.py::test_no_visible_feature_alias_in_cli_commands``
 enforces the static-analysis side; this integration suite pins the
-runtime side and documents the canonical alias-helper API.
+runtime side.
+
+C-001 rationale: ``test_hidden_feature_option_*`` tests and
+``test_charter_lint_help_does_not_mention_feature_flag`` were removed
+alongside ``_legacy_aliases.hidden_feature_option`` / ``LEGACY_FEATURE_HELP``
+(FR-009, WP05 of codebase-sanitization-1060-1622). Those symbols had zero
+``src/`` callers; WP02 also removed the ``--feature`` block from
+``charter/lint.py``, making the charter-lint snapshot assertion false.
 """
 
 from __future__ import annotations
@@ -18,33 +25,11 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.missions._legacy_aliases import (
-    LEGACY_FEATURE_HELP,
-    hidden_feature_option,
-)
-
 
 pytestmark = [pytest.mark.integration]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 COMMANDS_DIR = REPO_ROOT / "src" / "specify_cli" / "cli" / "commands"
-
-
-def test_hidden_feature_option_returns_typer_option() -> None:
-    """The helper produces a Typer option with the canonical alias shape."""
-    option = hidden_feature_option()
-    # Typer stores option spec on OptionInfo; check its declared flag and
-    # hidden-ness via the public attributes we control.
-    assert option.hidden is True
-    assert "--feature" in option.param_decls
-    assert option.help == LEGACY_FEATURE_HELP
-
-
-def test_hidden_feature_option_help_text_overrides() -> None:
-    custom = "(deprecated) Use --mission for charter scope"
-    option = hidden_feature_option(help_text=custom)
-    assert option.help == custom
-    assert option.hidden is True
 
 
 def _scan_typer_option_blocks(text: str):
@@ -75,27 +60,6 @@ def test_no_unhidden_feature_typer_options_in_commands_tree() -> None:
         "These typer.Option blocks declare --feature without hidden=True:\n"
         + "\n".join(offenders)
     )
-
-
-def test_charter_lint_help_does_not_mention_feature_flag() -> None:
-    """The historically-offending command surface must not advertise --feature.
-
-    ``charter/lint.py:charter_lint`` was the load-bearing offender (issue
-    flagged by WP04/05/06 reviewers). We snapshot the source line that
-    declares the option and assert it carries ``hidden=True`` so a
-    future regression is caught at the command-source layer too.
-    """
-    charter_py = COMMANDS_DIR / "charter" / "lint.py"
-    text = charter_py.read_text(encoding="utf-8")
-    feature_blocks = [
-        block for block in _scan_typer_option_blocks(text) if '"--feature"' in block
-    ]
-    assert feature_blocks, "Expected at least one --feature option block in charter/lint.py"
-    for block in feature_blocks:
-        assert "hidden=True" in block, (
-            "charter/lint.py declares a --feature typer.Option without "
-            f"hidden=True:\n{block}"
-        )
 
 
 def test_charter_lint_offers_canonical_mission_option() -> None:

@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 from charter.context import build_charter_context
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 from specify_cli.cli.commands.implement import implement as top_level_implement
-from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
+from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.coordination.types import CommitReceipt
 from specify_cli.core.dependency_graph import (
     build_dependency_graph,
@@ -975,7 +975,6 @@ def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tup
 
 def _find_mission_slug(
     explicit_mission: str | None = None,
-    explicit_feature: str | None = None,
     repo_root: Path | None = None,
 ) -> str:
     """Require an explicit mission slug (no auto-detection).
@@ -986,30 +985,20 @@ def _find_mission_slug(
 
     Args:
         explicit_mission: Mission slug provided explicitly.
-        explicit_feature: Mission slug provided via hidden --feature alias.
         repo_root: Repository root; if provided, enables canonical resolver.
 
     Returns:
         Mission slug (e.g., "008-unified-python-cli")
 
     Raises:
-        typer.Exit: If mission slug is not provided or selectors conflict.
+        typer.Exit: If mission slug is not provided.
     """
-    try:
-        selector = resolve_selector(
-            canonical_value=explicit_mission,
-            canonical_flag="--mission",
-            alias_value=explicit_feature,
-            alias_flag="--feature",
-            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
-            command_hint="--mission <slug>",
-        )
-    except typer.BadParameter as e:
-        print(f"Error: {e}")
+    if not explicit_mission or not explicit_mission.strip():
+        print("Error: --mission <slug> is required")
         raise typer.Exit(1)
 
-    raw_handle = selector.canonical_value
-    if raw_handle is not None and repo_root is not None:
+    raw_handle = explicit_mission.strip()
+    if repo_root is not None:
         legacy_dir = candidate_feature_dir_for_mission(get_main_repo_root(repo_root), raw_handle)
         if legacy_dir.exists():
             # F-001: the candidate resolver canonicalizes mid8/ULID/numeric
@@ -1104,7 +1093,6 @@ def _require_current_analysis_report(feature_dir: Path, repo_root: Path, mission
 def implement(
     wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
     agent: Annotated[str | None, typer.Option("--agent", help="Agent name (required for auto-move to in_progress)")] = None,
     allow_sparse_checkout: Annotated[
         bool,
@@ -1148,7 +1136,7 @@ def implement(
             raise typer.Exit(1)
         repo_root = get_main_repo_root(repo_root)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, repo_root=repo_root)
+        mission_slug = _find_mission_slug(explicit_mission=mission, repo_root=repo_root)
 
         # -- WP05/T021 FR-007: Sparse-checkout preflight --
         # Runs BEFORE any worktree creation or state changes. Same surface as
@@ -2150,7 +2138,6 @@ def _prepare_review_workspace(
 def review(
     wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
     agent: Annotated[str | None, typer.Option("--agent", help="Agent name (required for auto-move to in_progress)")] = None,
 ) -> None:
     """Display work package prompt with review instructions.
@@ -2174,7 +2161,7 @@ def review(
             print("Error: Could not locate project root")
             raise typer.Exit(1)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, repo_root=repo_root)
+        mission_slug = _find_mission_slug(explicit_mission=mission, repo_root=repo_root)
 
         # Ensure planning repo is on the target branch before we start
         # (needed for auto-commits and status tracking inside this command)

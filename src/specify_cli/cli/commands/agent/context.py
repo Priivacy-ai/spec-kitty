@@ -32,7 +32,6 @@ def _find_feature_directory(
     repo_root: Path,
     cwd: Path,  # noqa: ARG001 -- kept for signature compatibility
     explicit_mission: str | None = None,
-    explicit_feature: str | None = None,
 ) -> Path:
     """Find the mission directory from an explicit mission handle.
 
@@ -48,7 +47,6 @@ def _find_feature_directory(
         repo_root: Repository root path
         cwd: Current working directory (unused — kept for signature compatibility)
         explicit_mission: Mission handle provided explicitly (required)
-        explicit_feature: Mission handle provided via hidden --feature alias.
 
     Returns:
         Path to mission directory
@@ -64,17 +62,20 @@ def _find_feature_directory(
         resolve_mission_read_path,
     )
 
-    raw_handle = explicit_mission or explicit_feature
+    raw_handle = explicit_mission
     if not raw_handle:
         raise ActionContextError(
             "FEATURE_CONTEXT_UNRESOLVED", "--mission <slug> is required"
         )
     try:
-        feature_dir = resolve_mission_read_path(
-            repo_root,
-            raw_handle,
-            mid8_from_slug(raw_handle),
-            require_exists=True,
+        feature_dir: Path = cast(
+            Path,
+            resolve_mission_read_path(
+                repo_root,
+                raw_handle,
+                mid8_from_slug(raw_handle),
+                require_exists=True,
+            ),
         )
     except MissionSelectorAmbiguous as exc:
         raise ActionContextError(exc.error_code, str(exc)) from exc
@@ -100,7 +101,6 @@ def resolve_context(
         ),
     ],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
     wp_id: Annotated[str | None, typer.Option("--wp-id", help="Work package ID (e.g., WP01)")] = None,
     agent: Annotated[str | None, typer.Option("--agent", help="Agent name for exact command rendering")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON")] = False,
@@ -120,7 +120,7 @@ def resolve_context(
                 f"Invalid action '{action}'. Expected one of: {', '.join(ACTION_NAMES)}.",
             )
 
-        raw_handle = mission or feature
+        raw_handle = mission
         if not raw_handle:
             raise ActionContextError("MISSING_MISSION", "--mission <slug> is required")
         mission_resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)

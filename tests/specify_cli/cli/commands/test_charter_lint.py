@@ -144,10 +144,10 @@ class TestCharterlintSeverityFilter:
             )
 
 
-class TestCharterlintFeatureScope:
-    """T037-S3: --feature scopes findings."""
+class TestCharterlintMissionScope:
+    """T037-S3: --mission scopes findings."""
 
-    def test_feature_flag_passed_to_engine(self, tmp_path: Path) -> None:
+    def test_mission_flag_passed_to_engine(self, tmp_path: Path) -> None:
         mock_report = _make_report([
             _make_finding(feature_id="042-my-feature"),
         ])
@@ -156,22 +156,22 @@ class TestCharterlintFeatureScope:
             patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=mock_report) as mock_run,
             patch("specify_cli.tasks_support.find_repo_root", return_value=tmp_path),
         ):
-            result = runner.invoke(app, ["lint", "--feature", "042-my-feature", "--json"])
+            result = runner.invoke(app, ["lint", "--mission", "042-my-feature", "--json"])
 
         assert result.exit_code == 0
-        # Verify the feature was passed through
+        # Verify the mission was passed through
         mock_run.assert_called_once()
         call_kwargs = mock_run.call_args
         assert call_kwargs.kwargs.get("feature_scope") == "042-my-feature"
 
-    def test_feature_scoped_run_succeeds(self, tmp_path: Path) -> None:
+    def test_mission_scoped_run_succeeds(self, tmp_path: Path) -> None:
         mock_report = _make_report([])
 
         with (
             patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=mock_report),
             patch("specify_cli.tasks_support.find_repo_root", return_value=tmp_path),
         ):
-            result = runner.invoke(app, ["lint", "--feature", "042", "--json"])
+            result = runner.invoke(app, ["lint", "--mission", "042", "--json"])
 
         assert result.exit_code == 0
         parsed = json.loads(result.output)

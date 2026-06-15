@@ -593,27 +593,33 @@ def test_agent_tasks_status_canonical_selector_succeeds(tmp_path: Path) -> None:
     assert payload["work_packages"][0]["id"] == "WP01"
 
 
-def test_agent_tasks_status_alias_selector_succeeds_with_warning(
-    tmp_path: Path,
-    warning_stream: io.StringIO,
-) -> None:
+def test_agent_tasks_status_feature_alias_removed(tmp_path: Path) -> None:
+    """`agent tasks status` no longer accepts `--feature` (#1060-A).
+
+    The hidden alias was retired from the internal/agent cluster; the parser now
+    rejects it with exit code 2 ("No such option"). (Previously the alias
+    resolved with a deprecation warning.)
+    """
     repo_root = _build_task_repo(tmp_path)
 
     with setup_mocked_env(repo_root, auto_commit_default=True):
         result = runner.invoke(tasks_app, ["status", "--feature", "077-demo-mission", "--json"])
 
-    assert result.exit_code == 0, result.output
-    assert "--feature is deprecated; use --mission" in warning_stream.getvalue()
+    assert result.exit_code == 2, result.output
+    assert "No such option" in result.output
 
 
-def test_agent_tasks_status_dual_flag_conflict_fails(tmp_path: Path) -> None:
+def test_agent_tasks_status_rejects_feature_even_with_mission(tmp_path: Path) -> None:
+    """Supplying `--feature` to `agent tasks status` is rejected outright now
+    (#1060-A), so the old `--mission`+`--feature` conflict path no longer exists.
+    """
     repo_root = _build_task_repo(tmp_path)
 
     with setup_mocked_env(repo_root):
         result = runner.invoke(tasks_app, ["status", "--mission", "077-a", "--feature", "077-b", "--json"])
 
-    assert result.exit_code != 0
-    assert "Conflicting selectors" in result.output
+    assert result.exit_code == 2, result.output
+    assert "No such option" in result.output
 
 
 def test_top_level_tasks_mission_selector_forwards_to_finalize_tasks() -> None:

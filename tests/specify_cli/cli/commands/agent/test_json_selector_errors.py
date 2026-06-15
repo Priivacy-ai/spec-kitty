@@ -34,8 +34,8 @@ def test_agent_tasks_status_missing_mission_returns_json_error(
     assert "--mission <slug>" in payload["error"]
 
 
-def test_agent_status_validate_conflicting_selectors_return_json_error() -> None:
-    """Conflict errors must stay machine-readable under ``--json``."""
+def test_agent_status_validate_feature_option_rejected() -> None:
+    """After alias removal ``--feature`` must be an unknown option (exit 2)."""
 
     result = runner.invoke(
         status_app,
@@ -49,7 +49,5 @@ def test_agent_status_validate_conflicting_selectors_return_json_error() -> None
         ],
     )
 
-    assert result.exit_code == 1
-    payload = json.loads(result.output)
-    assert "error" in payload
-    assert "Conflicting selectors" in payload["error"]
+    # Typer exits 2 for unknown options; the --feature alias was removed in WP01.
+    assert result.exit_code == 2

@@ -58,13 +58,25 @@ _SELF = Path(__file__).resolve()
 
 
 def _iter_candidate_test_files() -> list[Path]:
-    """Return every ``test_*.py`` file under ``tests/`` except known exemptions."""
+    """Return every ``test_*.py`` file under ``tests/`` except known exemptions.
+
+    Exemptions:
+    - this checker file itself;
+    - hidden / cache dirs (``.pytest_cache``, ``__pycache__``);
+    - anything under a ``_support`` directory — the test-support/helper tree
+      (leading underscore = not a normal collected suite; these modules are
+      shared fixtures/utilities, not CI-profiled test suites), so they are not
+      required to carry a marker.
+    """
     paths: list[Path] = []
     for path in _TESTS_ROOT.rglob("test_*.py"):
         if path.resolve() == _SELF:
             continue
         # Skip files inside __pycache__/.pytest_cache and similar
         if any(part.startswith((".", "__")) for part in path.parts):
+            continue
+        # Skip the test-support/helper tree (tests/_support/**).
+        if "_support" in path.parts:
             continue
         paths.append(path)
     return sorted(paths)
@@ -162,3 +174,18 @@ def test_every_test_file_declares_a_pytestmark_marker() -> None:
             violators.append(path)
 
     assert not violators, _format_violation_hint(repo_root, violators)
+
+
+def test_support_helper_tree_is_exempt_from_marker_convention() -> None:
+    """``tests/_support/**`` (the helper tree) is excluded from the candidate set.
+
+    Support modules are shared fixtures/utilities (and meta-tests of those
+    utilities), not CI-profiled suites, so they are not required to carry a
+    marker. Guards the ``"_support" in path.parts`` exemption.
+    """
+    candidates = _iter_candidate_test_files()
+    assert candidates, "expected the checker to find at least one candidate file"
+    assert not any("_support" in p.parts for p in candidates), (
+        "tests/_support/** must be exempt from the marker convention; found: "
+        + ", ".join(str(p) for p in candidates if "_support" in p.parts)
+    )
