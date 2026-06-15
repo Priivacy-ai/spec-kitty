@@ -4,7 +4,7 @@ Per FR-037 of the spec-kitty-mission-review skill Gate-4. One row per issue refe
 
 | Issue | Title | Verdict | Evidence ref |
 |-------|-------|---------|--------------|
-| #1947 | Dogfooding: host-CLI source drift silently flips in-process gate verdicts (no provenance contract) | deferred-with-followup | Follow-up: dedicated provenance-contract mission; out of scope for this CLI bug sweep |
+| #1947 | Dogfooding: host-CLI source drift silently flips in-process gate verdicts (no provenance contract) | deferred-with-followup | Follow-up: #1983 (dedicated provenance-contract mission); out of scope for this CLI bug sweep |
 | #1949 | charter bundle validate fails on tracked provenance sidecars whose generated artifacts are gitignored | fixed | WP02 (merged): T007 built_in_only early-exit, T005/T006 singular kind subdirs, T004 stale sidecar removal; test_bundle_validate_fresh_seed.py passes |
 | #1950 | branch_naming: mission_branch_name double-appends mid8 when slug already carries it (creator≠recorder) | verified-already-fixed | WP01 T002+T003: guard was already in place; added invariant docstring and regression tests for mission_branch_name and lane_branch_name pathological cases |
 | #1951 | tool_surface: service.py has no provider-discovery seam — parallel lanes always conflict on registration | fixed | WP03 (merged): registry infrastructure (_registry.py, _discovery.py, service.py); WP04 (merged): 7 provider self-registrations + Directive-030 conformance test |

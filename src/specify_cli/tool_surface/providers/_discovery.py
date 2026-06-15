@@ -8,10 +8,9 @@ Importing this module causes each provider module to execute its module-level
 This module must use an explicit import tuple, not ``pkgutil``, to remain
 compatible with the project's dead-symbol static analysis gate (C-001).
 
-Note: at WP03 stage, providers have not yet been updated to call
-``SurfaceProviderRegistry.register()`` — that is WP04's job.  The imports
-succeed because the modules exist; the registry remains empty until WP04 wires
-the registration calls.  This is intentional and expected.
+Each provider module declares its own ``SurfaceProviderRegistry.register()``
+call at module scope, so importing this module is sufficient to fully populate
+the registry.
 """
 
 from __future__ import annotations

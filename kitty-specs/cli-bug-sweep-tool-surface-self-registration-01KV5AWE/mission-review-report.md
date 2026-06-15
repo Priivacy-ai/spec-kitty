@@ -96,10 +96,12 @@ Suppressions audit (NFR-002): 3 `noqa` added, all narrowly scoped with inline ra
 
 All 12 FRs are adequately covered with production-path tests. No locked decisions violated, no non-goals invaded, no dead code, no silent-failure anti-patterns, no security findings. Two gate failures were found during this review and both were **fixed in this review pass**: (1) Gate 2 architectural marker-convention violation on two mission test files (+ one pre-existing file), and (2) Gate 4 two `in-mission` issue-matrix verdicts surviving to mission `done`. After fixes, all runnable gates (1, 2, 4) pass; Gate 3 is N/A (cross-repo repo absent, no cross-repo behavior claimed). No remaining blocking findings.
 
-### Open items (non-blocking)
+### Open items (non-blocking) — RESOLVED in this review pass
 
-1. **#1947 follow-up** — `deferred-with-followup`: a dedicated host-CLI source-drift provenance-contract mission still needs to be filed/scheduled. Currently a written commitment, not yet a tracked issue.
-2. **`_discovery.py` stale docstring** — lines referencing "registry remains empty until WP04" are cosmetically stale (the registry is populated). Harmless; clean up in a future tool_surface touch.
+1. **#1947 follow-up** — RESOLVED: filed as **#1983** (host-CLI ⇄ source provenance contract); issue-matrix `evidence_ref` updated to reference it.
+2. **`_discovery.py` stale docstring** — RESOLVED: replaced the "registry remains empty until WP04" note with an accurate description (each provider self-registers at module scope; importing `_discovery` fully populates the registry).
+
+No remaining open items.
 
 ## Retrospective Reminder
 
