@@ -201,8 +201,13 @@ def test_amazon_q_output_path_is_user_global(tmp_path: Path) -> None:
         )
 
 
-def test_amazon_q_repair_writes_file_but_not_manifest(tmp_path: Path) -> None:
+def test_amazon_q_repair_writes_file_but_not_manifest(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Amazon Q profiles are user-global and must NOT appear in the project manifest."""
+    fake_home = tmp_path / "home"
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: fake_home))
+
     provider = _provider(tmp_path)
     instance = provider.expand(agent_profile_definition(), "q", tmp_path)[0]
     missing = provider.probe(instance)
@@ -220,9 +225,6 @@ def test_amazon_q_repair_writes_file_but_not_manifest(tmp_path: Path) -> None:
     assert reloaded.get_hash(instance.path) is None, (
         "Amazon Q (user-global) profiles must NOT be recorded in the project manifest"
     )
-    # Cleanup: remove the written user-global file to avoid polluting the test
-    # runner's home directory.
-    instance.path.unlink(missing_ok=True)
 
 
 # ---------------------------------------------------------------------------

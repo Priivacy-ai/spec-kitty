@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .enums import SurfaceKind
+from .enums import ActivationMode, RequiredPolicy, SurfaceKind
 from .findings import SurfaceFinding
 from .providers.protocol import ReportingSurfaceProvider
 from .status import (
@@ -142,6 +142,7 @@ class SurfaceRepairService:
 # ---------------------------------------------------------------------------
 
 _DRIFT_PROMPT = "Drifted: {path}. Overwrite? [y/N] "
+_AMAZON_Q_TOOL_KEYS = frozenset({"q", "amazon-q", "amazon-q-agent"})
 
 
 @dataclass
@@ -233,7 +234,11 @@ def _apply_auto_repairs(
     summary: DriftPolicySummary,
 ) -> None:
     """Apply Rules 1 and 2 (auto-create missing, auto-repair stale)."""
-    auto_repair_statuses = missing_statuses + stale_statuses
+    auto_repair_statuses = [
+        status
+        for status in (*missing_statuses, *stale_statuses)
+        if _is_init_upgrade_auto_repairable(status)
+    ]
     if not auto_repair_statuses:
         return
     service = SurfaceRepairService(providers)
@@ -249,6 +254,19 @@ def _apply_auto_repairs(
             summary.created.append(parent.instance.path)
         else:
             summary.repaired.append(parent.instance.path)
+
+
+def _is_init_upgrade_auto_repairable(status: SurfaceStatus) -> bool:
+    """Return whether init/upgrade may repair this status without more user intent."""
+    definition = status.instance.definition
+    if definition.required_policy != RequiredPolicy.REPAIRABLE_REQUIRED:
+        return False
+    if definition.activation_mode == ActivationMode.DISABLED:
+        return False
+    return not (
+        definition.kind == SurfaceKind.AGENT_PROFILE
+        and status.instance.owner in _AMAZON_Q_TOOL_KEYS
+    )
 
 
 def run_surface_repair(
@@ -279,7 +297,6 @@ def run_surface_repair(
     """
     # Import here (lazy) to avoid circular import at module load time;
     # service.py already imports from repair.py.
-    from .providers.plugin_bundle import PLUGIN_BUNDLE_TOOL_KEY
     from .service import build_providers, build_registry
     from .plan import SurfacePlanBuilder
     from .status import SurfaceStatusService
@@ -298,9 +315,8 @@ def run_surface_repair(
 
     providers = build_providers()
     registry = build_registry(configured_tools)
-    plan_tools = [*configured_tools, PLUGIN_BUNDLE_TOOL_KEY]
     builder = SurfacePlanBuilder(registry, providers)
-    plans = builder.build(plan_tools, project_root)
+    plans = builder.build(configured_tools, project_root)
     report = SurfaceStatusService(providers).collect(
         project_root, plans, configured_tools=configured_tools
     )

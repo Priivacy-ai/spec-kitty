@@ -2637,6 +2637,13 @@
   current_target: true
   citation_refs: []
   notes: Install/lifecycle how-to; provisional current — confirm install matrix in WP10/WP11.
+- path: docs/how-to/install-claude-code-plugin.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: install-lifecycle
+  current_target: true
+  citation_refs: []
+  notes: Claude Code plugin install and troubleshooting page.
 - path: docs/how-to/install-spec-kitty.md
   tag: current
   divio_type: how-to

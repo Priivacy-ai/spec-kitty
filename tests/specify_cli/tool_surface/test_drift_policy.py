@@ -49,26 +49,38 @@ pytestmark = [pytest.mark.unit]
 # ---------------------------------------------------------------------------
 
 
-def _definition(kind: SurfaceKind = SurfaceKind.COMMAND_SKILL) -> SurfaceDefinition:
+def _definition(
+    kind: SurfaceKind = SurfaceKind.COMMAND_SKILL,
+    *,
+    install_scope: InstallScope = InstallScope.PROJECT,
+    required_policy: RequiredPolicy = RequiredPolicy.REPAIRABLE_REQUIRED,
+    activation_mode: ActivationMode = ActivationMode.ALWAYS,
+) -> SurfaceDefinition:
     return SurfaceDefinition(
         kind=kind,
         source_kind=SourceKind.GENERATED,
-        install_scope=InstallScope.PROJECT,
+        install_scope=install_scope,
         path_pattern="x/{command}",
-        required_policy=RequiredPolicy.REPAIRABLE_REQUIRED,
-        activation_mode=ActivationMode.ALWAYS,
+        required_policy=required_policy,
+        activation_mode=activation_mode,
         provider_key="p",
         repair_hint="fix",
     )
 
 
-def _make_status(state: str, path: str = "a.md") -> SurfaceStatus:
+def _make_status(
+    state: str,
+    path: str = "a.md",
+    *,
+    definition: SurfaceDefinition | None = None,
+    owner: str = "codex",
+) -> SurfaceStatus:
     inst = SurfaceInstance(
-        definition=_definition(),
+        definition=definition or _definition(),
         path=Path("/proj") / path,
         exists=state != STATE_MISSING,
         file_hash=None,
-        owner="codex",
+        owner=owner,
     )
     return SurfaceStatus(instance=inst, state=state)
 
@@ -208,14 +220,11 @@ def _patch_surface_layer(
                     "specify_cli.core.agent_config.get_configured_agents",
                     return_value=["codex"],
                 ),
-                patch(
-                    "specify_cli.tool_surface.service.PLUGIN_BUNDLE_TOOL_KEY",
-                    "__bundle__",
-                ),
             ]
             for p in self._patches:
                 p.start()
             self.recorder = recorder
+            self.builder = mock_builder
             return self
 
         def __exit__(self, *args: object) -> None:
@@ -247,6 +256,69 @@ class TestRunSurfaceRepairRules:
         # Provider was called for the missing surface
         assert len(recorder.received) == 1
 
+    def test_auto_repair_does_not_plan_plugin_bundles(self) -> None:
+        """init/upgrade repair must not build optional disabled plugin bundles."""
+        report = _empty_report()
+        recorder = _RepairRecorder()
+
+        with _patch_surface_layer(report, recorder) as ctx:
+            run_surface_repair(Path("/proj"), interactive=True, repair_drift=False)
+
+        ctx.builder.build.assert_called_once_with(["codex"], Path("/proj"))
+
+    def test_optional_disabled_missing_surface_is_not_auto_created(self) -> None:
+        """Optional disabled surfaces remain explicit doctor/build work."""
+        plugin_def = _definition(
+            SurfaceKind.PLUGIN_MANIFEST,
+            install_scope=InstallScope.PLUGIN_BUNDLE,
+            required_policy=RequiredPolicy.OPTIONAL,
+            activation_mode=ActivationMode.DISABLED,
+        )
+        missing = _make_status(
+            STATE_MISSING,
+            "dist/spec-kitty-plugins/claude-code/.claude-plugin/plugin.json",
+            definition=plugin_def,
+            owner="plugin_bundle",
+        )
+        report = _empty_report(surfaces=(missing,))
+        recorder = _RepairRecorder()
+
+        with _patch_surface_layer(report, recorder):
+            summary = run_surface_repair(
+                Path("/proj"), interactive=True, repair_drift=False
+            )
+
+        assert summary.created == []
+        assert recorder.received == []
+
+    def test_amazon_q_profiles_are_not_auto_created_in_home(self) -> None:
+        """Amazon Q user-global profile writes require explicit repair intent."""
+        profile_def = _definition(SurfaceKind.AGENT_PROFILE)
+        missing = SurfaceStatus(
+            instance=SurfaceInstance(
+                definition=profile_def,
+                path=Path.home()
+                / ".aws"
+                / "amazonq"
+                / "cli-agents"
+                / "analyst-alex.json",
+                exists=False,
+                file_hash=None,
+                owner="q",
+            ),
+            state=STATE_MISSING,
+        )
+        report = _empty_report(surfaces=(missing,))
+        recorder = _RepairRecorder()
+
+        with _patch_surface_layer(report, recorder):
+            summary = run_surface_repair(
+                Path("/proj"), interactive=True, repair_drift=False
+            )
+
+        assert summary.created == []
+        assert recorder.received == []
+
     # Rule 2 — stale → auto-repaired (no prompt)
     def test_rule2_stale_repaired_silently(self) -> None:
         stale = _make_status(STATE_STALE, "s.md")
@@ -271,7 +343,7 @@ class TestRunSurfaceRepairRules:
 
         with (
             _patch_surface_layer(report, recorder),
-            patch("specify_cli.tool_surface.repair.input", return_value="y"),
+            patch("builtins.input", return_value="y"),
         ):
             summary = run_surface_repair(
                 Path("/proj"), interactive=True, repair_drift=False
@@ -288,7 +360,7 @@ class TestRunSurfaceRepairRules:
 
         with (
             _patch_surface_layer(report, recorder),
-            patch("specify_cli.tool_surface.repair.input", return_value="N"),
+            patch("builtins.input", return_value="N"),
         ):
             summary = run_surface_repair(
                 Path("/proj"), interactive=True, repair_drift=False
@@ -500,25 +572,23 @@ class TestDriftPolicyViaCli:
 
 class TestPromptOverwrite:
     def test_y_returns_true(self) -> None:
-        with patch("specify_cli.tool_surface.repair.input", return_value="y"):
+        with patch("builtins.input", return_value="y"):
             assert _prompt_overwrite(Path("/x")) is True
 
     def test_Y_returns_true(self) -> None:
-        with patch("specify_cli.tool_surface.repair.input", return_value="Y"):
+        with patch("builtins.input", return_value="Y"):
             assert _prompt_overwrite(Path("/x")) is True
 
     def test_n_returns_false(self) -> None:
-        with patch("specify_cli.tool_surface.repair.input", return_value="N"):
+        with patch("builtins.input", return_value="N"):
             assert _prompt_overwrite(Path("/x")) is False
 
     def test_empty_returns_false(self) -> None:
-        with patch("specify_cli.tool_surface.repair.input", return_value=""):
+        with patch("builtins.input", return_value=""):
             assert _prompt_overwrite(Path("/x")) is False
 
     def test_eoferror_returns_false(self) -> None:
-        with patch(
-            "specify_cli.tool_surface.repair.input", side_effect=EOFError
-        ):
+        with patch("builtins.input", side_effect=EOFError):
             assert _prompt_overwrite(Path("/x")) is False
 
 

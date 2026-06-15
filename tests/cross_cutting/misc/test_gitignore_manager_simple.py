@@ -20,6 +20,7 @@ import gitignore_manager
 GitignoreManager = gitignore_manager.GitignoreManager
 ProtectionResult = gitignore_manager.ProtectionResult
 TOTAL_PROTECTED_ENTRIES = len(gitignore_manager.AGENT_DIRECTORIES) + len(gitignore_manager.RUNTIME_PROTECTED_ENTRIES)
+AGENT_DIRS = [agent.directory for agent in gitignore_manager.AGENT_DIRECTORIES]
 
 
 def run_tests():
@@ -81,23 +82,8 @@ def test_all_agents_protected():
 
         manager.protect_all_agents()
 
-        expected_dirs = [
-            ".claude/",
-            ".codex/",
-            ".opencode/",
-            ".windsurf/",
-            ".gemini/",
-            ".cursor/",
-            ".qwen/",
-            ".kilocode/",
-            ".augment/",
-            ".roo/",
-            ".amazonq/",
-            ".github/copilot/",
-        ]
-
         content = manager.gitignore_path.read_text()
-        for dir_name in expected_dirs:
+        for dir_name in AGENT_DIRS:
             assert dir_name in content, f"{dir_name} not found in .gitignore"
 
         # Check for marker

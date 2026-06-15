@@ -214,16 +214,17 @@ class ClaudeBundleProjector:
                 err=True,
             )
 
-        # Step 1: write the plugin manifest.
-        self._generate_plugin_json(bundle_dir, version)
-
-        # Step 2: render and install canonical command skills.
+        # Step 1: render and install canonical command skills.
         skill_count = self._copy_skills(bundle_dir, version)
         typer.echo(f"Skills: {skill_count} written to {bundle_dir / 'skills'}")
 
-        # Step 3: render built-in agent profiles.
+        # Step 2: render built-in agent profiles and hooks placeholder.
         agent_count = self._copy_agents(bundle_dir)
         typer.echo(f"Agents: {agent_count} written to {bundle_dir / 'agents'}")
+
+        # Step 3: write the plugin manifest after components exist so Claude's
+        # validator can resolve explicit component paths.
+        self._generate_plugin_json(bundle_dir, version)
 
         # Step 4: generate runtime bootstrap wrappers (bash + Windows CMD).
         write_wrappers(bundle_dir, version)
@@ -240,6 +241,13 @@ class ClaudeBundleProjector:
 
     def _generate_plugin_json(self, bundle_dir: Path, version: str) -> None:
         """Write ``.claude-plugin/plugin.json`` with real version metadata."""
+        skills = _skill_manifest_paths(bundle_dir)
+        agents = _agent_manifest_paths(bundle_dir)
+        if not skills:
+            raise BuildError("Claude plugin manifest has no skills to declare.")
+        if not agents:
+            raise BuildError("Claude plugin manifest has no agents to declare.")
+
         manifest: dict[str, object] = {
             "name": "spec-kitty",
             "displayName": "Spec Kitty",
@@ -251,8 +259,8 @@ class ClaudeBundleProjector:
                 "name": "Priivacy AI",
                 "url": "https://github.com/Priivacy-ai/spec-kitty",
             },
-            "skills": "skills/",
-            "agents": "agents/",
+            "skills": skills,
+            "agents": agents,
         }
         if _has_non_trivial_hooks(bundle_dir):
             manifest["hooks"] = "hooks/hooks.json"
@@ -315,7 +323,7 @@ class ClaudeBundleProjector:
         hooks_dir.mkdir(parents=True, exist_ok=True)
         hooks_json = hooks_dir / "hooks.json"
         if not hooks_json.exists():
-            hooks_json.write_text("{}\n", encoding="utf-8")
+            write_json(hooks_json, {"hooks": {}})
 
         profiles_src = _built_in_profiles_dir()
         renderer = ClaudeCodeProfileRenderer()
@@ -418,13 +426,34 @@ def _built_in_profiles_dir() -> Path:
     return Path(doctrine.__file__).parent / "agent_profiles" / "built-in"
 
 
+def _plugin_relative_path(path: Path, bundle_dir: Path) -> str:
+    """Return Claude plugin manifest path syntax for *path* under *bundle_dir*."""
+    return f"./{path.relative_to(bundle_dir).as_posix()}"
+
+
+def _skill_manifest_paths(bundle_dir: Path) -> list[str]:
+    """Return explicit Claude plugin manifest entries for staged skill dirs."""
+    return sorted(
+        _plugin_relative_path(skill_file.parent, bundle_dir)
+        for skill_file in (bundle_dir / "skills").glob("*/SKILL.md")
+    )
+
+
+def _agent_manifest_paths(bundle_dir: Path) -> list[str]:
+    """Return explicit Claude plugin manifest entries for staged agent files."""
+    return sorted(
+        _plugin_relative_path(agent_file, bundle_dir)
+        for agent_file in (bundle_dir / "agents").glob("*.md")
+    )
+
+
 def _has_non_trivial_hooks(bundle_dir: Path) -> bool:
     """Return ``True`` when ``hooks/hooks.json`` contains non-empty content.
 
     The placeholder written by :meth:`ClaudeBundleProjector._copy_agents` is
-    ``{}`` (empty JSON object).  A ``hooks.json`` with only an empty object is
-    not considered non-trivial; the ``"hooks"`` pointer is omitted from the
-    manifest in that case so repeated builds produce byte-identical manifests.
+    ``{"hooks": {}}``.  A ``hooks.json`` with only an empty hooks record is not
+    considered non-trivial; the ``"hooks"`` pointer is omitted from the manifest
+    in that case so repeated builds produce byte-identical manifests.
     """
     import json as _json  # noqa: PLC0415
 
@@ -434,6 +463,8 @@ def _has_non_trivial_hooks(bundle_dir: Path) -> bool:
     try:
         data = _json.loads(hooks_json.read_text(encoding="utf-8"))
     except (ValueError, OSError):
+        return False
+    if isinstance(data, dict) and set(data) == {"hooks"} and not data["hooks"]:
         return False
     return bool(data)  # non-empty dict / list counts as non-trivial
 

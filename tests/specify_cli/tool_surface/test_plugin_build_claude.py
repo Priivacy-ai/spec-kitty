@@ -78,8 +78,10 @@ class TestPluginJson:
         missing = required_keys - payload.keys()
         assert not missing, f"plugin.json missing keys: {missing}"
         assert payload["name"] == "spec-kitty"
-        assert payload["skills"] == "skills/"
-        assert payload["agents"] == "agents/"
+        assert payload["skills"] == sorted(
+            f"./skills/spec-kitty.{command}" for command in CANONICAL_COMMANDS
+        )
+        assert all(str(path).startswith("./agents/") for path in payload["agents"])
 
     def test_plugin_json_no_hooks_key_when_hooks_empty(self, tmp_path: Path) -> None:
         """hooks/ key must be absent when hooks/hooks.json is the empty placeholder."""
@@ -87,7 +89,7 @@ class TestPluginJson:
         payload = json.loads(
             (bundle_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
         )
-        # The hooks placeholder is "{}\n" (≤2 bytes meaningful content).
+        # The hooks placeholder is {"hooks": {}} and contains no hook entries.
         assert "hooks" not in payload
 
 
@@ -150,7 +152,9 @@ class TestAgentsCopy:
         hooks_json = bundle_dir / "hooks" / "hooks.json"
         assert hooks_json.is_file(), "hooks/hooks.json placeholder must be created"
         payload = json.loads(hooks_json.read_text(encoding="utf-8"))
-        assert payload == {}, "hooks.json placeholder must be an empty JSON object"
+        assert payload == {"hooks": {}}, (
+            "hooks.json placeholder must be an empty hooks record"
+        )
 
 
 # ---------------------------------------------------------------------------
