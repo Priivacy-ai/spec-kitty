@@ -3521,9 +3521,14 @@ def map_requirements(
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         if auto_commit is None:
             auto_commit = get_auto_commit_default(main_repo_root)
+        commit_target = CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY)
+        if auto_commit:
+            from specify_cli.cli.commands.agent.mission import _resolve_planning_placement
+
+            commit_target = _resolve_planning_placement(main_repo_root, mission_slug)
         if auto_commit:
             protected_error = _protected_branch_status_commit_error(
-                target_branch,
+                commit_target.ref,
                 main_repo_root,
                 "spec-kitty agent tasks map-requirements",
             )
@@ -3734,15 +3739,23 @@ def map_requirements(
                 spec_number = mission_slug.split("-")[0] if "-" in mission_slug else mission_slug
                 commit_msg = f"chore: Map requirements for {', '.join(sorted(new_mappings))} on spec {spec_number}"
                 try:
+                    from specify_cli.cli.commands.agent.mission import _planning_commit_worktree
+
+                    commit_worktree_root, commit_paths = _planning_commit_worktree(
+                        main_repo_root,
+                        mission_slug,
+                        commit_target,
+                        tuple(written_files),
+                    )
                     # ``safe_commit`` returns a ``CommitResult`` (not a bool); keep
                     # the JSON payload serializable by recording a bool plus the
                     # resulting SHA rather than the raw object (issue #1891).
                     commit_result = safe_commit(
                         repo_root=main_repo_root,
-                        worktree_root=main_repo_root,
-                        target=CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY),
+                        worktree_root=commit_worktree_root,
+                        target=commit_target,
                         message=commit_msg,
-                        paths=tuple(written_files),
+                        paths=tuple(commit_paths),
                         capability=GuardCapability.STANDARD,
                     )
                     committed = True
@@ -3753,7 +3766,7 @@ def map_requirements(
 
         payload = {
             "result": "success",
-            **_mission_identity_payload(feature_dir),
+            **_mission_identity_payload(primary_dir),
             "mapped": {wp_id: sorted(refs) for wp_id, refs in new_mappings.items()},
             "total_mappings": {wp_id: sorted(refs) for wp_id, refs in all_wp_refs.items() if refs},
             "coverage": coverage,
