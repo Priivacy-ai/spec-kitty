@@ -12,6 +12,7 @@ from pathlib import Path, PurePosixPath
 from typing import Literal
 
 from mission_runtime.context import CommitTarget, CommitTargetKind
+from specify_cli.core.constants import KITTY_SPECS_DIR
 
 ArtifactSurface = Literal["primary", "placement"]
 
@@ -131,7 +132,7 @@ def _artifact_kind_for_path(
     normalized = str(path).replace("\\", "/").rstrip("/")
     parts = PurePosixPath(normalized).parts
     try:
-        specs_index = parts.index("kitty-specs")
+        specs_index = parts.index(KITTY_SPECS_DIR)
     except ValueError:
         return None
 
