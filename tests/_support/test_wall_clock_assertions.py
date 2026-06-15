@@ -227,12 +227,49 @@ from tests._support.wall_clock_assertions import (
             10,
         ),
         (
+            "import pytest as pt\n"
+            "from datetime import datetime\n\n"
+            "wall_now = lambda: 1\n\n"
+            "@pt.fixture(autouse=True)\n"
+            "def wall_clock_fixture():\n"
+            "    global wall_now\n"
+            "    wall_now = datetime.now\n\n"
+            "def test_bad():\n"
+            "    assert wall_now().year == 2026\n",
+            "wall_now()",
+            12,
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "def setup_module():\n"
+            "    def helper():\n"
+            "        global wall_now\n"
+            "        wall_now = datetime.now\n"
+            "    helper()\n\n"
+            "def test_bad():\n"
+            "    assert wall_now().year == 2026\n",
+            "wall_now()",
+            10,
+        ),
+        (
             "from datetime import datetime\n\n"
             "class TestClock:\n"
             "    def setup_method(self):\n"
             "        def helper():\n"
             "            self.wall_now = datetime.now\n"
             "        helper()\n\n"
+            "    def test_bad(self):\n"
+            "        assert self.wall_now().year == 2026\n",
+            "self.wall_now()",
+            10,
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "class TestClock:\n"
+            "    def setup_method(self):\n"
+            "        def helper(clock_holder):\n"
+            "            clock_holder.wall_now = datetime.now\n"
+            "        helper(self)\n\n"
             "    def test_bad(self):\n"
             "        assert self.wall_now().year == 2026\n",
             "self.wall_now()",
