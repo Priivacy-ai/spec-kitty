@@ -5,6 +5,15 @@ from __future__ import annotations
 from pathlib import Path
 
 from doctrine.agent_profiles.repository import AgentProfileRepository
+from specify_cli.tool_surface.findings import (
+    PROFILE_NAME_INVALID,
+    PROFILE_OVERLAY_CONFLICT,
+    PROFILE_SENTINEL_SKIPPED,
+    PROFILE_SOURCE_INVALID,
+    SEVERITY_ERROR,
+    SEVERITY_INFO,
+    SurfaceFinding,
+)
 from specify_cli.tool_surface.profiles.projection import (
     ProfileProjector,
     default_profile_repository,
@@ -19,6 +28,10 @@ pytestmark = [pytest.mark.unit]
 
 def _builtin_repo() -> AgentProfileRepository:
     return AgentProfileRepository()
+
+
+def _codes(findings: list[SurfaceFinding]) -> set[str]:
+    return {f.code for f in findings}
 
 
 def test_project_claude_returns_builtin_profiles() -> None:
@@ -109,3 +122,122 @@ def test_project_uses_injected_repo_provenance() -> None:
         p.profile_urn: p for p in projector.project("claude", Path("/project"))
     }
     assert projected["agent_profile:custom-carol"].source_layer == "project"
+
+
+# --- #1940 finding-code emission (drive the CONDITION, assert it is emitted) --
+
+
+def _project_dir_with_invalid_profile(tmp_path: Path) -> Path:
+    """Write a project-layer profile dir holding one schema-invalid profile.
+
+    The YAML parses fine but fails ``AgentProfile`` validation (no ``roles``),
+    so ``AgentProfileRepository`` records it as a skipped/invalid source — the
+    exact condition ``profile-source-invalid`` must surface.
+    """
+    project_dir = tmp_path / ".kittify" / "agent_profiles"
+    project_dir.mkdir(parents=True)
+    (project_dir / "broken.agent.yaml").write_text(
+        # Valid profile-id so the repo attributes the skip, but missing the
+        # required ``roles``/``purpose``/``specialization`` -> ValidationError.
+        "profile-id: broken-bob\nname: Broken Bob\n",
+        encoding="utf-8",
+    )
+    return project_dir
+
+
+def test_diagnose_emits_profile_source_invalid(tmp_path: Path) -> None:
+    """A profile YAML that fails repository validation emits source-invalid."""
+    project_dir = _project_dir_with_invalid_profile(tmp_path)
+    repo = AgentProfileRepository(project_dir=project_dir)
+    # Pre-condition: the repository actually recorded the invalid source.
+    assert any(s.profile_id == "broken-bob" for s in repo.skipped_profiles())
+
+    findings = ProfileProjector(repo).diagnose("claude", tmp_path)
+
+    invalid = [f for f in findings if f.code == PROFILE_SOURCE_INVALID]
+    assert invalid, "expected a profile-source-invalid finding to be emitted"
+    finding = invalid[0]
+    assert finding.severity == SEVERITY_ERROR
+    assert "broken-bob" in finding.message
+    # The skip reason is carried through, not swallowed.
+    assert finding.details
+
+
+def test_diagnose_does_not_emit_source_invalid_for_clean_repo(
+    tmp_path: Path,
+) -> None:
+    """A repo with no invalid sources emits no source-invalid finding."""
+    findings = ProfileProjector(_builtin_repo()).diagnose("claude", tmp_path)
+    assert PROFILE_SOURCE_INVALID not in _codes(findings)
+
+
+def test_diagnose_emits_profile_sentinel_skipped(tmp_path: Path) -> None:
+    """Sentinel profiles are RECORDED as info findings, never silently dropped."""
+    repo = _builtin_repo()
+    sentinels = [p.profile_id for p in repo.list_all() if p.sentinel]
+    assert sentinels, "fixture precondition: a sentinel built-in must exist"
+
+    findings = ProfileProjector(repo).diagnose("claude", tmp_path)
+
+    skipped = [f for f in findings if f.code == PROFILE_SENTINEL_SKIPPED]
+    assert skipped, "expected sentinel profiles to be recorded as findings"
+    assert all(f.severity == SEVERITY_INFO for f in skipped)
+    skipped_ids = {
+        f.surface_id.split(":", 1)[-1] for f in skipped if f.surface_id
+    }
+    assert set(sentinels).issubset(skipped_ids)
+
+
+def test_diagnose_emits_profile_overlay_conflict(tmp_path: Path) -> None:
+    """An id loaded in one layer but rejected in another is an overlay conflict.
+
+    A project-layer file redefines ``architect-alphonso`` (a built-in) with
+    invalid content. The repository keeps the valid built-in and *skips* the
+    project override, leaving the same id both loaded and skipped across two
+    layers — an ambiguous/unsafe overlay resolution.
+    """
+    project_dir = tmp_path / ".kittify" / "agent_profiles"
+    project_dir.mkdir(parents=True)
+    (project_dir / "arch-override.agent.yaml").write_text(
+        "profile-id: architect-alphonso\nroles: []\n", encoding="utf-8"
+    )
+    repo = AgentProfileRepository(project_dir=project_dir)
+    assert "architect-alphonso" in {p.profile_id for p in repo.list_all()}
+    assert "architect-alphonso" in {
+        s.profile_id for s in repo.skipped_profiles()
+    }
+
+    findings = ProfileProjector(repo).diagnose("claude", tmp_path)
+
+    conflicts = [f for f in findings if f.code == PROFILE_OVERLAY_CONFLICT]
+    assert conflicts, "expected a profile-overlay-conflict finding to be emitted"
+    assert all(f.severity == SEVERITY_ERROR for f in conflicts)
+    assert any("architect-alphonso" in f.message for f in conflicts)
+
+
+def test_diagnose_clean_builtin_repo_has_no_conflict(tmp_path: Path) -> None:
+    """The shipped built-ins do not collide on output paths."""
+    findings = ProfileProjector(_builtin_repo()).diagnose("claude", tmp_path)
+    assert PROFILE_OVERLAY_CONFLICT not in _codes(findings)
+
+
+def test_diagnose_emits_profile_name_invalid(tmp_path: Path) -> None:
+    """A profile id illegal for the native filename emits name-invalid."""
+    repo = _builtin_repo()
+    profile = make_test_profile(slug="custom-carol")
+    profile.profile_id = "bad/slash"  # illegal for .claude/agents/<id>.md
+    repo._profiles[profile.profile_id] = profile  # noqa: SLF001 - test seam
+    repo._provenance[profile.profile_id] = "project"  # noqa: SLF001 - test seam
+
+    findings = ProfileProjector(repo).diagnose("claude", tmp_path)
+
+    invalid = [f for f in findings if f.code == PROFILE_NAME_INVALID]
+    assert invalid, "expected a profile-name-invalid finding to be emitted"
+    assert all(f.severity == SEVERITY_ERROR for f in invalid)
+    assert any("bad/slash" in f.message for f in invalid)
+
+
+def test_diagnose_clean_builtin_repo_has_no_name_invalid(tmp_path: Path) -> None:
+    """Canonical built-in ids are all legal native filenames."""
+    findings = ProfileProjector(_builtin_repo()).diagnose("claude", tmp_path)
+    assert PROFILE_NAME_INVALID not in _codes(findings)

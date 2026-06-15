@@ -15,17 +15,19 @@ provider surfaces a research-gap finding for them instead.
 
 from __future__ import annotations
 
-from .manifest import MANIFEST_FILENAME, ProfileManifest
+from .manifest import MANIFEST_FILENAME, PROJECTION_VERSION, ProfileManifest
 from .projection import ProfileProjector, default_profile_repository
 from .renderers import (
     ClaudeCodeProfileRenderer,
     CopilotProfileRenderer,
     ProfileRenderer,
     get_renderer,
+    native_name_violation,
 )
 
 __all__ = [
     "MANIFEST_FILENAME",
+    "PROJECTION_VERSION",
     "ClaudeCodeProfileRenderer",
     "CopilotProfileRenderer",
     "ProfileManifest",
@@ -33,4 +35,5 @@ __all__ = [
     "ProfileRenderer",
     "default_profile_repository",
     "get_renderer",
+    "native_name_violation",
 ]

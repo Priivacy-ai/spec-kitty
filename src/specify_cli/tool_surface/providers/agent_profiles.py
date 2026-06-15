@@ -55,6 +55,11 @@ PROVIDER_KEY = "agent_profiles"
 _PATH_PATTERN = ".claude/agents/{profile_id}.md"
 _REPAIR_HINT = "spec-kitty doctor tool-surfaces --kind agent-profile --fix"
 _RESEARCH_GAP_SENTINEL = "<unsupported>"
+# Synthetic instance path that routes ``probe`` to the projection diagnostics
+# (the #1940 finding codes from :meth:`ProfileProjector.diagnose`). Carries no
+# file on disk; it exists only to flow ``diagnose`` findings through the standard
+# ``collect`` path into ``doctor tool-surfaces --json`` output.
+_DIAGNOSTICS_SENTINEL = "<profile-diagnostics>"
 
 
 def agent_profile_definition() -> SurfaceDefinition:
@@ -106,16 +111,45 @@ class AgentProfilesProvider:
         tool_key: str,
         project_root: Path,
     ) -> list[SurfaceInstance]:
-        """Expand into one instance per projected profile for ``tool_key``."""
+        """Expand into one instance per projected profile for ``tool_key``.
+
+        A synthetic diagnostics instance is always appended so that
+        :meth:`ProfileProjector.diagnose`'s #1940 finding codes flow through the
+        standard ``collect`` path and reach ``doctor tool-surfaces --json`` for
+        tools with a native renderer. Unsupported tools (no projection) emit only
+        the research-gap instance.
+        """
         projector = self._projector_for(project_root)
         projected = projector.project(tool_key, project_root)
         if not projected:
             return [self._research_gap_instance(definition, tool_key)]
         manifest = self._manifest_for(project_root)
-        return [
+        instances = [
             self._instance_from_projection(definition, native, manifest)
             for native in projected
         ]
+        instances.append(
+            self._diagnostics_instance(definition, tool_key, project_root)
+        )
+        return instances
+
+    @staticmethod
+    def _diagnostics_instance(
+        definition: SurfaceDefinition,
+        tool_key: str,
+        project_root: Path,
+    ) -> SurfaceInstance:
+        # ``path`` carries ``project_root`` so ``probe`` can rebuild a projector
+        # for the project overlay layer; ``surface_id`` marks it as the
+        # diagnostics sentinel and ``owner`` carries the tool key.
+        return SurfaceInstance(
+            definition=definition,
+            path=project_root,
+            exists=False,
+            file_hash=None,
+            owner=tool_key,
+            surface_id=f"{tool_key}.{definition.kind}.{_DIAGNOSTICS_SENTINEL}",
+        )
 
     @staticmethod
     def _research_gap_instance(
@@ -145,7 +179,14 @@ class AgentProfilesProvider:
         )
 
     def probe(self, instance: SurfaceInstance) -> SurfaceStatus:
-        """Probe one projected profile (or the research-gap sentinel)."""
+        """Probe one projected profile (or a sentinel instance).
+
+        The diagnostics sentinel delegates to :meth:`ProfileProjector.diagnose`
+        so the #1940 finding codes are surfaced; the research-gap sentinel and
+        normal projected files keep their existing semantics.
+        """
+        if self._is_diagnostics_instance(instance):
+            return self._diagnostics_status(instance)
         if str(instance.path) == _RESEARCH_GAP_SENTINEL:
             return self._research_gap_status(instance)
         if not instance.path.exists():
@@ -153,6 +194,26 @@ class AgentProfilesProvider:
         if instance.file_hash is not None and hash_file(instance.path) != instance.file_hash:
             return self._drift_status(instance)
         return SurfaceStatus(instance=instance, state=STATE_PRESENT)
+
+    @staticmethod
+    def _is_diagnostics_instance(instance: SurfaceInstance) -> bool:
+        surface_id = instance.surface_id
+        if surface_id is None:
+            return False
+        return surface_id.endswith(_DIAGNOSTICS_SENTINEL)
+
+    def _diagnostics_status(self, instance: SurfaceInstance) -> SurfaceStatus:
+        # ``path`` is the ``project_root`` recorded at expand time (see
+        # ``_diagnostics_instance``); rebuild the projector for it so the project
+        # overlay layer participates in diagnosis.
+        project_root = instance.path
+        projector = self._projector_for(project_root)
+        findings = tuple(projector.diagnose(instance.owner, project_root))
+        return SurfaceStatus(
+            instance=instance,
+            state=STATE_NOT_APPLICABLE,
+            findings=findings,
+        )
 
     @staticmethod
     def _research_gap_status(instance: SurfaceInstance) -> SurfaceStatus:

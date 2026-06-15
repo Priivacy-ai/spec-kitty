@@ -25,6 +25,11 @@ MANIFEST_FILENAME = "agent_profiles_manifest.json"
 _KITTIFY_DIR = ".kittify"
 SCHEMA_VERSION = 1
 
+#: Provenance generation stamped on entries written by the current projector
+#: (#1940). Bumped when the projection algorithm changes in a way that should
+#: force re-projection; recorded per entry so stale generations are detectable.
+PROJECTION_VERSION = 1
+
 
 def manifest_path_for(project_root: Path) -> Path:
     """Return the canonical manifest path under ``project_root``."""
@@ -101,16 +106,45 @@ def _entry_to_json(entry: NativeAgentProfile) -> dict[str, object]:
         "output_path": str(entry.output_path),
         "format": entry.format,
         "file_hash": entry.file_hash,
+        # Provenance (#1940). Always written by the current projector so new
+        # manifests are full 8-field entries.
+        "source_path": entry.source_path,
+        "source_hash": entry.source_hash,
+        "projection_version": entry.projection_version,
     }
 
 
+def _opt_str(raw: dict[str, object], key: str) -> str | None:
+    """Read an optional string field, defaulting to ``None`` when absent.
+
+    Uses ``raw.get`` (not subscripting) so a legacy 6-field entry that predates
+    the provenance keys deserializes cleanly rather than raising ``KeyError``.
+    """
+    value = raw.get(key)
+    return str(value) if value is not None else None
+
+
+def _opt_int(raw: dict[str, object], key: str) -> int | None:
+    """Read an optional int field, defaulting to ``None`` when absent."""
+    value = raw.get(key)
+    if value is None:
+        return None
+    if isinstance(value, bool):  # bool is an int subclass; reject it explicitly
+        raise TypeError(f"manifest field {key!r} must be an int, got bool")
+    if isinstance(value, (int, str)):
+        return int(value)
+    raise TypeError(f"manifest field {key!r} must be an int, got {type(value)!r}")
+
+
 def _entry_from_json(raw: dict[str, object]) -> NativeAgentProfile:
-    file_hash = raw.get("file_hash")
     return NativeAgentProfile(
         profile_urn=str(raw["profile_urn"]),
         source_layer=str(raw["source_layer"]),
         tool_key=str(raw["tool_key"]),
         output_path=Path(str(raw["output_path"])),
         format=str(raw["format"]),
-        file_hash=str(file_hash) if file_hash is not None else None,
+        file_hash=_opt_str(raw, "file_hash"),
+        source_path=_opt_str(raw, "source_path"),
+        source_hash=_opt_str(raw, "source_hash"),
+        projection_version=_opt_int(raw, "projection_version"),
     )
