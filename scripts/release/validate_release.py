@@ -247,8 +247,11 @@ def load_uv_lock_project_version(
     """Load the root package version recorded in uv.lock."""
     if not path.exists():
         raise ReleaseValidatorError(f"uv.lock not found at {path}")
-    with path.open("rb") as fp:
-        data = tomllib.load(fp)
+    try:
+        with path.open("rb") as fp:
+            data = tomllib.load(fp)
+    except tomllib.TOMLDecodeError as exc:
+        raise ReleaseValidatorError(f"Unable to parse uv.lock at {path}: {exc}") from exc
 
     packages = data.get("package")
     if not isinstance(packages, list):
@@ -261,6 +264,11 @@ def load_uv_lock_project_version(
         if not isinstance(version, str):
             raise ReleaseValidatorError(
                 f"uv.lock package {package_name!r} is missing a string version."
+            )
+        if not RELEASE_VERSION_RE.match(version):
+            raise ReleaseValidatorError(
+                f"uv.lock package {package_name!r} version {version!r} is not "
+                "a supported release version."
             )
         return version
 
@@ -277,7 +285,9 @@ def validate_uv_lock_version_sync(
     except ReleaseValidatorError as exc:
         return ValidationIssue(message=str(exc))
 
-    if pyproject_version != lockfile_version:
+    if canonical_release_version(pyproject_version) != canonical_release_version(
+        lockfile_version
+    ):
         return ValidationIssue(
             message=(
                 f"Version mismatch detected: "
@@ -381,6 +391,26 @@ def parse_release_version(value: str) -> tuple[int, int, int, int, int]:
         stage_rank,
         stage_number,
     )
+
+
+def canonical_release_version(value: str) -> str:
+    """Return the canonical spelling for an accepted release version."""
+    match = RELEASE_VERSION_RE.match(value)
+    if not match:
+        raise ReleaseValidatorError(
+            f"Value '{value}' is not a valid release version "
+            "(expected X.Y.Z or X.Y.ZaN/X.Y.ZbN/X.Y.ZrcN)."
+        )
+
+    version = (
+        f"{int(match.group('major'))}."
+        f"{int(match.group('minor'))}."
+        f"{int(match.group('patch'))}"
+    )
+    stage = _normalize_stage(match.group("stage"))
+    if stage is None:
+        return version
+    return f"{version}{stage}{int(match.group('stage_num') or '0')}"
 
 
 def detect_tag_from_env() -> str | None:

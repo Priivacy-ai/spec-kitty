@@ -358,6 +358,50 @@ def test_consistency_only_skips_release_progression(tmp_path: Path) -> None:
     assert "All required checks passed." in result.stdout
 
 
+@pytest.mark.parametrize(
+    ("pyproject_version", "lockfile_version"),
+    [
+        ("1.0.0alpha", "1.0.0a0"),
+        ("1.0.0alpha1", "1.0.0a1"),
+        ("1.0.0beta", "1.0.0b0"),
+        ("1.0.0beta1", "1.0.0b1"),
+    ],
+)
+def test_uv_lock_sync_accepts_canonical_prerelease_aliases(
+    tmp_path: Path,
+    pyproject_version: str,
+    lockfile_version: str,
+) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        pyproject_version,
+        changelog_for_versions((pyproject_version, "- Prerelease")),
+    )
+    write_uv_lock(tmp_path, lockfile_version)
+
+    result = run_validator(tmp_path, "--mode", "branch", "--consistency-only")
+
+    assert result.returncode == 0, result.stderr
+    assert "All required checks passed." in result.stdout
+
+
+def test_malformed_uv_lock_reports_validation_issue(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "0.2.4",
+        changelog_for_versions(("0.2.4", "- Add automation")),
+    )
+    (tmp_path / "uv.lock").write_text("not = [valid\n", encoding="utf-8")
+
+    result = run_validator(tmp_path, "--mode", "branch", "--consistency-only")
+
+    assert result.returncode == 1
+    assert "Unable to parse uv.lock" in result.stderr
+    assert "Issues detected:" in result.stdout
+
+
 def test_tag_mode_validates_tag_alignment(tmp_path: Path) -> None:
     init_repo(tmp_path)
     write_release_files(
