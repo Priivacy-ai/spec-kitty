@@ -6,6 +6,7 @@ import pytest
 
 from tests._support.wall_clock_assertions import (
     find_wall_clock_assertion_violations,
+    find_test_python_paths,
     format_wall_clock_assertion_violations,
 )
 
@@ -36,6 +37,17 @@ from tests._support.wall_clock_assertions import (
         ("from datetime import date\n\nd = date\n\ndef test_bad():\n    assert d.today().year == 2026\n", "d.today()", 6),
         ("from datetime import *\n\ndt = datetime\n\ndef test_bad():\n    assert dt.now().year == 2026\n", "dt.now()", 6),
         ("import time\n\ntm = time\n\ndef test_bad():\n    assert tm.time() > 0\n", "tm.time()", 6),
+        (
+            "from datetime import datetime\n\n"
+            "class Holder:\n"
+            "    pass\n\n"
+            "Holder.wall_now = datetime.now\n\n"
+            "def test_bad():\n"
+            "    assert Holder.wall_now().year == 2026\n",
+            "Holder.wall_now()",
+            9,
+        ),
+        ("from datetime import datetime\n\nwall_now, other = datetime.now, object()\n\ndef test_bad():\n    assert wall_now().year == 2026\n", "wall_now()", 6),
     ],
 )
 def test_find_wall_clock_assertion_violations_flags_direct_assert_calls(
@@ -81,6 +93,17 @@ def test_find_wall_clock_assertion_violations_allows_freshness_bounds(tmp_path: 
     )
 
     assert find_wall_clock_assertion_violations([test_file]) == []
+
+
+def test_find_test_python_paths_includes_helper_modules(tmp_path: Path) -> None:
+    tests_root = tmp_path / "tests"
+    helper_file = tests_root / "helpers" / "bad_helper.py"
+    test_file = tests_root / "test_uses_helper.py"
+    helper_file.parent.mkdir(parents=True)
+    helper_file.write_text("def helper():\n    pass\n", encoding="utf-8")
+    test_file.write_text("def test_uses_helper():\n    pass\n", encoding="utf-8")
+
+    assert find_test_python_paths(tests_root) == [helper_file, test_file]
 
 
 def test_format_wall_clock_assertion_violations_names_injection_pattern(tmp_path: Path) -> None:

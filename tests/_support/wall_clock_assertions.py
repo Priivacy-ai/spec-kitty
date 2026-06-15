@@ -58,6 +58,11 @@ def find_wall_clock_assertion_violations(paths: Iterable[Path]) -> list[WallCloc
     return sorted(violations)
 
 
+def find_test_python_paths(root: Path) -> list[Path]:
+    """Return every Python file under the test tree, including helper modules."""
+    return sorted(path for path in root.rglob("*.py") if path.is_file())
+
+
 def format_wall_clock_assertion_violations(
     violations: Iterable[WallClockAssertionViolation],
 ) -> str:
@@ -72,7 +77,7 @@ def format_wall_clock_assertion_violations(
 
 def _wall_clock_calls(
     assert_node: ast.Assert,
-    aliases: dict[str, tuple[str, ...]],
+    aliases: dict[tuple[str, ...], tuple[str, ...]],
 ) -> list[tuple[ast.Call, str]]:
     calls: list[tuple[ast.Call, str]] = []
     for node in ast.walk(assert_node):
@@ -87,20 +92,20 @@ def _wall_clock_calls(
     return calls
 
 
-def _import_aliases(tree: ast.AST) -> dict[str, tuple[str, ...]]:
-    aliases: dict[str, tuple[str, ...]] = {}
+def _import_aliases(tree: ast.AST) -> dict[tuple[str, ...], tuple[str, ...]]:
+    aliases: dict[tuple[str, ...], tuple[str, ...]] = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
                 parts = tuple(alias.name.split("."))
                 if parts and parts[0] in {"datetime", "time"}:
-                    aliases[alias.asname or parts[0]] = parts
+                    aliases[(alias.asname or parts[0],)] = parts
         elif isinstance(node, ast.ImportFrom) and node.module in {"datetime", "time"}:
             for alias in node.names:
                 if alias.name == "*":
                     _add_star_import_aliases(aliases, node.module)
                     continue
-                aliases[alias.asname or alias.name] = (node.module, alias.name)
+                aliases[(alias.asname or alias.name,)] = (node.module, alias.name)
         elif isinstance(node, ast.Assign):
             _add_assignment_aliases(aliases, node.targets, node.value)
         elif isinstance(node, ast.AnnAssign) and node.value is not None:
@@ -109,39 +114,45 @@ def _import_aliases(tree: ast.AST) -> dict[str, tuple[str, ...]]:
 
 
 def _add_star_import_aliases(
-    aliases: dict[str, tuple[str, ...]],
+    aliases: dict[tuple[str, ...], tuple[str, ...]],
     module: str | None,
 ) -> None:
     if module == "time":
-        aliases["time"] = ("time", "time")
+        aliases[("time",)] = ("time", "time")
     elif module == "datetime":
-        aliases["datetime"] = ("datetime", "datetime")
-        aliases["date"] = ("datetime", "date")
+        aliases[("datetime",)] = ("datetime", "datetime")
+        aliases[("date",)] = ("datetime", "date")
 
 
 def _add_assignment_aliases(
-    aliases: dict[str, tuple[str, ...]],
+    aliases: dict[tuple[str, ...], tuple[str, ...]],
     targets: list[ast.expr],
     value: ast.expr,
 ) -> None:
+    if len(targets) == 1 and isinstance(targets[0], ast.Tuple | ast.List) and isinstance(value, ast.Tuple | ast.List):
+        for target, element in zip(targets[0].elts, value.elts, strict=False):
+            _add_assignment_aliases(aliases, [target], element)
+        return
+
     source = _normalize_alias(_attribute_path(value), aliases)
     if source not in _ALIASABLE_CLOCK_PATHS:
         return
     for target in targets:
-        if isinstance(target, ast.Name):
-            aliases[target.id] = source
+        target_path = _attribute_path(target)
+        if target_path:
+            aliases[target_path] = source
 
 
 def _normalize_alias(
     path: tuple[str, ...],
-    aliases: dict[str, tuple[str, ...]],
+    aliases: dict[tuple[str, ...], tuple[str, ...]],
 ) -> tuple[str, ...]:
-    if not path:
-        return path
-    replacement = aliases.get(path[0])
-    if replacement is None:
-        return path
-    return replacement + path[1:]
+    for index in range(len(path), 0, -1):
+        prefix = path[:index]
+        replacement = aliases.get(prefix)
+        if replacement is not None:
+            return replacement + path[index:]
+    return path
 
 
 def _attribute_path(node: ast.AST) -> tuple[str, ...]:

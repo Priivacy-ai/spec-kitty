@@ -15,6 +15,7 @@ from filelock import FileLock, Timeout
 
 from tests._support.wall_clock_assertions import (
     find_wall_clock_assertion_violations,
+    find_test_python_paths,
     format_wall_clock_assertion_violations,
 )
 from tests.branch_contract import IS_2X_BRANCH
@@ -194,7 +195,8 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
 
 
 def _fail_on_wall_clock_assertions(items: list[pytest.Item]) -> None:
-    paths = {Path(str(item.path)) for item in items if Path(str(item.path)).suffix == ".py"}
+    del items
+    paths = find_test_python_paths(Path(__file__).parent)
     violations = find_wall_clock_assertion_violations(paths)
     if violations:
         raise pytest.UsageError(format_wall_clock_assertion_violations(violations))
