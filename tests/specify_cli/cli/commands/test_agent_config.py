@@ -299,6 +299,70 @@ class TestStatusConsultsSurfacePlan:
         assert spy.called
 
 
+class TestConfiguredClaudeSessionPresence:
+    """FR-004: a configured ``claude`` resolves its session-presence surface
+    through the registry path (``GLOBAL_COMMAND_AGENTS`` + SurfacePresenceIndex),
+    not an ad-hoc per-agent probe.
+
+    ``claude`` is a global-command agent: its managed surface is the global
+    command directory. These tests exercise the real registry path end to end
+    (no stub) for both the present and absent surface states.
+    """
+
+    _CLAUDE = "claude"
+
+    def test_claude_present_resolves_via_registry_path(self, tmp_path: Path) -> None:
+        """claude configured + global surface present → ✓ via the presence index."""
+        global_root = tmp_path / "home"
+        resolver = _fake_global_resolver(global_root)
+        # Materialize the claude session-presence (global command) surface.
+        resolver(self._CLAUDE).mkdir(parents=True)
+        _write_project(tmp_path, [self._CLAUDE])
+
+        real_build = SurfacePresenceIndex.build
+        with patch(
+            "specify_cli.cli.commands.agent.config.find_repo_root",
+            return_value=tmp_path,
+        ), patch(
+            "specify_cli.cli.commands.agent.config.get_global_command_dir",
+            side_effect=resolver,
+        ), patch(
+            "specify_cli.cli.commands.agent.config.SurfacePresenceIndex.build",
+            side_effect=real_build,
+        ) as spy:
+            result = runner.invoke(app, ["list"])
+
+        assert result.exit_code == 0
+        # The registry path was taken (presence index built), and claude shows ✓.
+        assert spy.called
+        assert self._CLAUDE in result.output
+        assert "✓" in result.output
+        assert "(global)" in result.output
+
+    def test_claude_absent_resolves_via_registry_path(self, tmp_path: Path) -> None:
+        """claude configured + global surface absent → ⚠ via the presence index."""
+        resolver = _fake_global_resolver(tmp_path / "home")
+        _write_project(tmp_path, [self._CLAUDE])
+
+        real_build = SurfacePresenceIndex.build
+        with patch(
+            "specify_cli.cli.commands.agent.config.find_repo_root",
+            return_value=tmp_path,
+        ), patch(
+            "specify_cli.cli.commands.agent.config.get_global_command_dir",
+            side_effect=resolver,
+        ), patch(
+            "specify_cli.cli.commands.agent.config.SurfacePresenceIndex.build",
+            side_effect=real_build,
+        ) as spy:
+            result = runner.invoke(app, ["list"])
+
+        assert result.exit_code == 0
+        assert spy.called
+        assert self._CLAUDE in result.output
+        assert "⚠" in result.output
+
+
 def test_config_roundtrip_helpers_still_exposed(tmp_path: Path) -> None:
     """Sanity: the preserved config I/O helpers remain importable + functional."""
     _write_project(tmp_path, [_GLOBAL_AGENT])

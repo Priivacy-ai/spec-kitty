@@ -24,6 +24,7 @@ from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
     AGENT_DIR_TO_KEY,
     CompleteLaneMigration,
 )
+from specify_cli.skills._agent_roster import SUPPORTED_AGENTS as _SKILL_ONLY_ROSTER
 from specify_cli.task_utils import find_repo_root
 
 from .surface_presence import SurfacePresenceIndex
@@ -48,7 +49,11 @@ KEY_TO_AGENT_DIR = {
     for agent_dir, subdir in CompleteLaneMigration.AGENT_DIRS
     if agent_dir in AGENT_DIR_TO_KEY
 }
-SKILL_ONLY_AGENTS = {"codex", "vibe", "pi", "letta"}
+#: Derived from the single roster authority (#1941); no standalone literal
+#: tool-universe lives here. Patching ``_agent_roster.SUPPORTED_AGENTS`` and
+#: reloading this module flows straight through to ``SKILL_ONLY_AGENTS`` and the
+#: ``VALID_AGENTS`` union.
+SKILL_ONLY_AGENTS = set(_SKILL_ONLY_ROSTER)
 GLOBAL_COMMAND_AGENTS = frozenset(AGENT_COMMAND_CONFIG)
 VALID_AGENTS = set(AGENT_DIR_TO_KEY.values()) | SKILL_ONLY_AGENTS
 

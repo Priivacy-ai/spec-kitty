@@ -29,13 +29,16 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.skills._user_input_block import rewrite as _rewrite_user_input
+from specify_cli.skills._agent_roster import SUPPORTED_AGENTS
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-SUPPORTED_AGENTS: tuple[str, ...] = ("codex", "vibe", "pi", "letta")
+#: Re-exported from the leaf authority :data:`specify_cli.skills._agent_roster`
+#: so historical ``command_renderer.SUPPORTED_AGENTS`` references keep working
+#: while the roster has exactly one definition (#1941).
 
 # Matches the YAML frontmatter block at the very start of a template file
 # (delimited by ``---`` lines).  Handles both ``---\nkey: value\n---`` and
