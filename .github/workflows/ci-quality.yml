@@ -17,6 +17,7 @@ on:
       - 'CHANGELOG.md'
       - 'RELEASE_CHECKLIST.md'
       - 'scripts/release/**'
+      - '.github/workflows/scripts/**'
       - 'ruff.toml'
       - '.github/workflows/ci-quality.yml'
       - '.github/workflows/release-readiness.yml'
@@ -37,6 +38,7 @@ on:
       - 'CHANGELOG.md'
       - 'RELEASE_CHECKLIST.md'
       - 'scripts/release/**'
+      - '.github/workflows/scripts/**'
       - 'ruff.toml'
       - '.github/workflows/ci-quality.yml'
       - '.github/workflows/release-readiness.yml'
@@ -131,6 +133,7 @@ jobs:
               - 'CHANGELOG.md'
               - 'RELEASE_CHECKLIST.md'
               - 'scripts/release/**'
+              - '.github/workflows/scripts/**'
               - '.github/workflows/release-readiness.yml'
               - '.github/workflows/check-spec-kitty-events-alignment.yml'
             status:

@@ -21,6 +21,7 @@ RELEASE_OWNER_PATHS = {
     "CHANGELOG.md",
     "RELEASE_CHECKLIST.md",
     "scripts/release/**",
+    ".github/workflows/scripts/**",
     ".github/workflows/release-readiness.yml",
     ".github/workflows/check-spec-kitty-events-alignment.yml",
 }
@@ -68,6 +69,10 @@ def release_readiness_step(workflow: dict[str, Any], name: str) -> dict[str, Any
     return next(step for step in steps if step.get("name") == name)
 
 
+def workflow_script_text(name: str) -> str:
+    return (WORKFLOWS / "scripts" / name).read_text(encoding="utf-8")
+
+
 def test_ci_quality_runs_for_release_owned_paths() -> None:
     workflow = load_workflow("ci-quality.yml")
 
@@ -81,6 +86,16 @@ def test_ci_quality_release_slice_covers_release_owned_paths() -> None:
 
     for path in RELEASE_OWNER_PATHS:
         assert f"- '{path}'" in filters, f"release path filter misses {path}"
+
+
+def test_release_packaging_does_not_ship_removed_roo_harness() -> None:
+    package_script = workflow_script_text("create-release-packages.sh")
+    release_script = workflow_script_text("create-github-release.sh")
+
+    assert "roo)" not in package_script
+    assert ".roo/" not in package_script
+    assert " roo " not in f" {package_script} "
+    assert "spec-kitty-template-roo-" not in release_script
 
 
 def test_release_readiness_runs_for_all_version_sources() -> None:

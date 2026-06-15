@@ -36,8 +36,6 @@ gh release create "$VERSION" \
   .genreleases/spec-kitty-template-kilocode-ps-"$VERSION".zip \
   .genreleases/spec-kitty-template-auggie-sh-"$VERSION".zip \
   .genreleases/spec-kitty-template-auggie-ps-"$VERSION".zip \
-  .genreleases/spec-kitty-template-roo-sh-"$VERSION".zip \
-  .genreleases/spec-kitty-template-roo-ps-"$VERSION".zip \
   .genreleases/spec-kitty-template-q-sh-"$VERSION".zip \
   .genreleases/spec-kitty-template-q-ps-"$VERSION".zip \
   --title "Spec Kitty Templates - $VERSION_NO_V" \
