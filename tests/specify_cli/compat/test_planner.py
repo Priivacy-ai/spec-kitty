@@ -163,12 +163,12 @@ class TestDataclasses:
     def test_cli_status_frozen(self) -> None:
         cs = _make_cli_status()
         with pytest.raises(AttributeError):
-            cs.installed_version = "x"  # type: ignore[misc]
+            cs.installed_version = "x"
 
     def test_project_status_frozen(self) -> None:
         ps = _make_project_status(ProjectState.COMPATIBLE)
         with pytest.raises(AttributeError):
-            ps.state = ProjectState.CORRUPT  # type: ignore[misc]
+            ps.state = ProjectState.CORRUPT
 
     def test_migration_step_frozen(self) -> None:
         ms = MigrationStep(
@@ -178,7 +178,7 @@ class TestDataclasses:
             files_modified=None,
         )
         with pytest.raises(AttributeError):
-            ms.migration_id = "other"  # type: ignore[misc]
+            ms.migration_id = "other"
 
     def test_invocation_suppresses_nag_tty(self) -> None:
         inv = _make_invocation(stdout_is_tty=True)
@@ -592,6 +592,44 @@ class TestDecideProjectNotInitialized:
         # UNSAFE command → PROJECT_NOT_INITIALIZED case; message must be non-empty
         if result.fr023_case == Fr023Case.PROJECT_NOT_INITIALIZED:
             assert result.rendered_human.strip() != ""
+
+
+# ---------------------------------------------------------------------------
+# T010 — default project_root_resolver works correctly from a git worktree
+# ---------------------------------------------------------------------------
+
+
+def test_planner_default_resolver_in_worktree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """plan() with default project_root_resolver classifies project correctly from a worktree.
+
+    Regression guard for FR-007 / issue #1971: before the shim, calling plan()
+    from a worktree caused _scan_project to receive None root → NO_PROJECT.
+    """
+    main_repo = tmp_path / "main_repo"
+    kittify = main_repo / ".kittify"
+    kittify.mkdir(parents=True)
+    (kittify / "schema_version").write_text("3")
+
+    worktrees_dir = main_repo / ".git" / "worktrees" / "test_lane"
+    worktrees_dir.mkdir(parents=True)
+    (main_repo / ".git" / "HEAD").write_text("ref: refs/heads/main\n")
+
+    worktree = tmp_path / "worktree"
+    worktree.mkdir()
+    (worktree / ".git").write_text(f"gitdir: {worktrees_dir}\n")
+
+    monkeypatch.chdir(worktree)
+    monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
+
+    invocation = _make_invocation()
+    result = plan(invocation)
+
+    assert result.project_status.state != ProjectState.NO_PROJECT, (
+        f"plan() resolved NO_PROJECT from worktree; shim may not be delegating "
+        f"to paths.locate_project_root. project_root={result.project_status.project_root}"
+    )
 
 
 # ---------------------------------------------------------------------------

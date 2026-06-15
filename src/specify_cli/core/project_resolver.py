@@ -6,37 +6,23 @@ from pathlib import Path
 
 
 def locate_project_root(start: Path | None = None) -> Path | None:
-    """Walk upwards from *start* (or CWD) to find the directory that owns .kittify.
+    """Delegates to the authoritative implementation in :mod:`specify_cli.core.paths`.
 
-    NOTE (#1971 — three-way resolver consolidation, deferred): this is the
-    *simpler* of the two ``locate_project_root`` implementations. It deliberately
-    does NOT honour ``SPECIFY_REPO_ROOT`` or follow worktree ``.git`` pointers;
-    that authority lives in :func:`specify_cli.core.paths.locate_project_root`.
-    The two were intentionally kept separate in WP05 (#1965) because the four
-    callers of *this* resolver do not need env-var / worktree authority for
-    correctness.
+    All resolution authority — ``SPECIFY_REPO_ROOT`` env-var check (Tier 1),
+    git worktree ``.git`` pointer following (Tier 2), and ``.kittify`` directory
+    walk (Tier 3) — lives in :func:`specify_cli.core.paths.locate_project_root`.
 
-    Callers that do NOT require env-var / worktree authority (#1971 pre-analysis):
-      cli/helpers.py         — interactive CLI root detection via ``get_project_root_or_exit``;
-                               prints guidance and exits on None; CI sets env-var through the
-                               paths.py resolver on a different code path, not here.
-      cli/commands/lint.py   — uses ``locate_project_root() or Path.cwd()`` as ruff/mypy cwd;
-                               falls back to cwd on None, so env-var authority is irrelevant
-                               to lint correctness.
-      compat/planner.py      — injectable ``project_root_resolver`` default for best-effort
-                               upgrade-nag planning; the caller controls which resolver to
-                               supply at construction time; never raises on None.
-      core/__init__.py       — pure re-export shim; delegates to this function with no
-                               additional authority assumptions.
-
-    Full consolidation (collapsing this into ``paths.locate_project_root``) is
-    scoped to #1971 to avoid import-cycle risk and scope creep here.
+    The import is deferred to the function body (not module-level) to preserve
+    import-cycle safety: ``core/__init__.py`` imports from this module, and a
+    module-level import of ``paths`` here could trigger ``specify_cli`` package
+    initialisation before it finishes loading. The deferred pattern fires only at
+    call time, after the package is fully loaded. This is the same mechanism used
+    by ``paths.py`` itself for its ``git_ops`` and ``feature_dir_resolver``
+    deferred imports. Reverting to a module-level import is a regression. (#1971)
     """
-    current = (start or Path.cwd()).resolve()
-    for candidate in [current, *current.parents]:
-        if (candidate / ".kittify").is_dir():
-            return candidate
-    return None
+    from specify_cli.core.paths import locate_project_root as _authoritative
+    result: Path | None = _authoritative(start)
+    return result
 
 
 def resolve_template_path(project_root: Path, mission_type: str, template_subpath: str | Path) -> Path | None:

@@ -1,0 +1,42 @@
+{
+  "event_count": 26,
+  "last_event_id": "01KV60R1MBGY9SB27Q00S97SYP",
+  "materialized_at": "2026-06-15T16:10:00.715759+00:00",
+  "mission_number": "138",
+  "mission_slug": "locate-project-root-consolidation-01KV5SX1",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KV60QZNM0MN8WQCJZP4G4VEY",
+      "last_transition_at": "2026-06-15T16:09:58.708805+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KV60R0PWX66EW267D80NKPKT",
+      "last_transition_at": "2026-06-15T16:09:59.772824+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KV60R1MBGY9SB27Q00S97SYP",
+      "last_transition_at": "2026-06-15T16:10:00.715759+00:00"
+    }
+  }
+}

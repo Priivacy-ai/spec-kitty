@@ -1,0 +1,17 @@
+{
+  "baseline_merge_commit": "a7a51b7eb618ff006f909034eb047f7c65485a45",
+  "coordination_branch": "kitty/mission-locate-project-root-consolidation-01KV5SX1",
+  "created_at": "2026-06-15T14:10:24.112943+00:00",
+  "friendly_name": "locate_project_root Split-Brain Consolidation",
+  "mission_id": "01KV5SX17ERG3B9YEVJ1NF6FX9",
+  "mission_number": 138,
+  "mission_slug": "locate-project-root-consolidation-01KV5SX1",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Three implementations of locate_project_root exist with divergent behavior: the authoritative one in paths.py (honors SPECIFY_REPO_ROOT and git worktree pointers) and a reduced one in project_resolver.py (plain .kittify walk only) re-exported by core/__init__.py. The four callers of the reduced version silently misresolve in CI/CD environments and git worktrees, causing hard exits, wrong lint working directories, and silent migration-gate bypasses. This mission consolidates all resolution authority into a single code path via a deferred-import delegation shim, plus adds the missing test coverage that would have caught the divergence.",
+  "purpose_tldr": "Eliminate the three-way split-brain in project root resolution so all callers get authoritative env-var and worktree behavior.",
+  "slug": "locate-project-root-consolidation-01KV5SX1",
+  "target_branch": "feat/locate-project-root-consolidation",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-15T14:54:20.715889+00:00"
+}
