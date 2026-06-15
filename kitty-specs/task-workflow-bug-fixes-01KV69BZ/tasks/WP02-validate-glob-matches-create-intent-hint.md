@@ -10,8 +10,8 @@ planning_base_branch: fix/task-workflow-bug-fixes
 merge_target_branch: fix/task-workflow-bug-fixes
 branch_strategy: Planning artifacts for this mission were generated on fix/task-workflow-bug-fixes. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/task-workflow-bug-fixes unless the human explicitly redirects the landing branch.
 subtasks:
-- T004
 - T005
+- T004
 agent: claude
 history:
 - date: '2026-06-15'
@@ -107,6 +107,87 @@ Where `src/path/to/new_file.py` is the actual `pattern` value already in scope.
 
 ## Subtasks
 
+> **⚡ ATDD-First (C-011, binding):** Begin with **T005**. Write and commit the regression test as a standalone first commit in this lane *before* any implementation changes (T004). The reviewer will verify the test was RED (failing) on `fix/task-workflow-bug-fixes` before T004 and GREEN after.
+
+> **C-003 Commit Discipline:** Keep WP02 changes in their own commit(s), separate from any WP01 changes, so that each fix can be independently reverted.
+
+### T005 — Add regression test for create_intent hint in error message
+
+**File**: `tests/specify_cli/ownership/test_validation.py`
+
+**⚡ ATDD commit: write and commit this test FIRST, before T004.**
+
+**Purpose**: Assert that calling `validate_glob_matches` with a literal path absent from disk (and no `create_intent` suppression) produces an error whose text contains a YAML-format `create_intent` snippet. The assertion is specifically designed to **fail against the current code** (pre-fix) and pass only after T004's change is applied.
+
+> **Critical**: The pre-fix error message already contains the substring `'create_intent'` in the phrase "add it to 'create_intent' in the WP frontmatter." A naive `assert "create_intent" in error_text` would PASS before the fix and is therefore NOT a valid ATDD assertion. The test MUST assert the YAML-list syntax form (`"  create_intent:\n    -"`) which is absent in the pre-fix message.
+
+**Steps**:
+
+1. Open `tests/specify_cli/ownership/test_validation.py`.
+2. Locate the existing `validate_glob_matches` test class (defined around line 244, comment `# T013`).
+3. Add a new test method **after** the existing methods in that class:
+
+   ```python
+   def test_literal_zero_match_error_hints_create_intent(self, tmp_path: Path) -> None:
+       """Regression for issue #1982.
+
+       A literal owned_files path that matches zero files must produce an error
+       message containing a YAML-format create_intent snippet so agents can
+       self-recover without consulting documentation.
+
+       The assertion checks for the YAML-list syntax form which is absent in
+       the pre-fix message ("add it to 'create_intent' in the WP frontmatter")
+       and present only after the fix adds the inline YAML fragment.
+       """
+       from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+
+       absent_path = "src/specify_cli/new_planned_module.py"
+       manifests = {
+           "WP01": OwnershipManifest(
+               wp_id="WP01",
+               owned_files=(absent_path,),
+               authoritative_surface="src/specify_cli/",
+               execution_mode=ExecutionMode.CODE_CHANGE,
+           )
+       }
+
+       result = validate_glob_matches(manifests, tmp_path)
+
+       assert not result.passed, "Expected validation to fail for absent literal path"
+       assert result.errors, "Expected at least one error message"
+       error_text = result.errors[0]
+       # Assert YAML-list syntax — absent in pre-fix message, present only after the fix.
+       # Pre-fix: "add it to 'create_intent' in the WP frontmatter."
+       # Post-fix: "declare it in the WP frontmatter:\n  create_intent:\n    - <path>"
+       assert "  create_intent:\n    -" in error_text, (
+           f"Error must contain YAML snippet '  create_intent:\\n    -' (absent in pre-fix "
+           f"message). Got: {error_text!r}"
+       )
+       assert absent_path in error_text, (
+           f"Error message must include the offending path '{absent_path}'. Got: {error_text!r}"
+       )
+   ```
+
+4. Run the test **before** T004 to confirm it FAILS (red state):
+   ```bash
+   pytest tests/specify_cli/ownership/test_validation.py -v -k "test_literal_zero_match_error_hints_create_intent"
+   ```
+   Expected: FAILED — the pre-fix message does not contain `"  create_intent:\n    -"`.
+
+5. Commit this test as the **first commit** in the lane:
+   ```bash
+   spec-kitty safe-commit --message "test(atdd): validate_glob_matches must hint YAML create_intent snippet (#1982)" \
+     tests/specify_cli/ownership/test_validation.py
+   ```
+
+**Validation**:
+- Test FAILS before T004 (red — the pre-fix message lacks YAML syntax)
+- Test PASSES after T004 (green — the new message contains `"  create_intent:\n    -"`)
+- `ruff check tests/specify_cli/ownership/test_validation.py` — zero issues
+- `mypy --strict tests/specify_cli/ownership/test_validation.py` — zero errors
+
+---
+
 ### T004 — Replace error tail with YAML fragment
 
 **File**: `src/specify_cli/ownership/validation.py`
@@ -155,74 +236,18 @@ Where `src/path/to/new_file.py` is the actual `pattern` value already in scope.
 
 ---
 
-### T005 — Add regression test for create_intent hint in error message
-
-**File**: `tests/specify_cli/ownership/test_validation.py`
-
-**Purpose**: Assert that calling `validate_glob_matches` with a literal path absent from disk (and no `create_intent` suppression) produces an error whose text contains both `"create_intent"` and the offending path string. Locks the hint against future string refactors.
-
-**Steps**:
-
-1. Open `tests/specify_cli/ownership/test_validation.py`.
-2. Locate the existing `validate_glob_matches` test class (defined around line 244, comment `# T013`).
-3. Add a new test method **after** the existing methods in that class:
-
-   ```python
-   def test_literal_zero_match_error_hints_create_intent(self, tmp_path: Path) -> None:
-       """Regression for issue #1982.
-
-       A literal owned_files path that matches zero files must produce an error
-       message containing 'create_intent' and the offending path, so agents can
-       self-recover without consulting documentation.
-       """
-       from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
-
-       absent_path = "src/specify_cli/new_planned_module.py"
-       manifests = {
-           "WP01": OwnershipManifest(
-               wp_id="WP01",
-               owned_files=(absent_path,),
-               authoritative_surface="src/specify_cli/",
-               execution_mode=ExecutionMode.CODE_CHANGE,
-           )
-       }
-
-       result = validate_glob_matches(manifests, tmp_path)
-
-       assert not result.passed, "Expected validation to fail for absent literal path"
-       assert result.errors, "Expected at least one error message"
-       error_text = result.errors[0]
-       assert "create_intent" in error_text, (
-           f"Error message must mention 'create_intent' for discoverability. Got: {error_text!r}"
-       )
-       assert absent_path in error_text, (
-           f"Error message must include the offending path '{absent_path}'. Got: {error_text!r}"
-       )
-   ```
-
-4. Run the test:
-   ```bash
-   pytest tests/specify_cli/ownership/test_validation.py -v -k "test_literal_zero_match_error_hints_create_intent"
-   ```
-
-**Validation**:
-- New test is collected and green
-- All pre-existing tests in `tests/specify_cli/ownership/test_validation.py` still pass
-- `ruff check tests/specify_cli/ownership/test_validation.py` — zero issues
-- `mypy --strict tests/specify_cli/ownership/test_validation.py` — zero errors
-
----
-
 ## Definition of Done
 
+- [ ] T005 regression test committed as the **first standalone commit** in this lane (C-011 ATDD-first); test is RED before T004 and GREEN after
+- [ ] T005 assertion uses `"  create_intent:\n    -" in error_text` (YAML-syntax form, not just the field name)
 - [ ] `validate_glob_matches` error tail replaced with YAML fragment (T004)
-- [ ] New test `test_literal_zero_match_error_hints_create_intent` added to existing test class (T005)
-- [ ] New test passes and `create_intent` assertion is in the test
+- [ ] New test `test_literal_zero_match_error_hints_create_intent` added to existing test class
 - [ ] All pre-existing ownership validation tests pass
 - [ ] `ruff check src/specify_cli/ownership/validation.py` zero issues
 - [ ] `mypy --strict src/specify_cli/ownership/validation.py` zero errors
 - [ ] Error message length for a typical path verified ≤300 chars (NFR-003)
 - [ ] `_nearest_match_suggestion` logic untouched
+- [ ] WP02 changes committed separately from any WP01 changes (C-003 independent revert)
 
 ---
 
@@ -231,5 +256,5 @@ Where `src/path/to/new_file.py` is the actual `pattern` value already in scope.
 One-line diff in `validation.py` — verify:
 1. Only the final `msg +=` line changed; the `suggestion` block and `result.errors.append` are untouched.
 2. The YAML fragment uses `{pattern}` (the local variable), not a hardcoded string.
-3. Test asserts both `"create_intent"` and the path string — not just one of them.
+3. Test asserts `"  create_intent:\n    -" in error_text` (YAML-list syntax, fails pre-fix) AND the absent path string — not just the field name substring.
 4. No change to the `create_intent` suppression path (the `elif pattern in wp_intent_paths:` branch above).

@@ -11,9 +11,9 @@ planning_base_branch: fix/task-workflow-bug-fixes
 merge_target_branch: fix/task-workflow-bug-fixes
 branch_strategy: Planning artifacts for this mission were generated on fix/task-workflow-bug-fixes. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/task-workflow-bug-fixes unless the human explicitly redirects the landing branch.
 subtasks:
+- T003
 - T001
 - T002
-- T003
 agent: claude
 history:
 - date: '2026-06-15'
@@ -104,6 +104,79 @@ from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_sl
 
 ## Subtasks
 
+> **⚡ ATDD-First (C-011, binding):** Begin with **T003**. Write and commit the regression test as a standalone first commit in this lane *before* any implementation changes (T001, T002). The reviewer will verify the test was RED (failing or non-exercising the fixed path) on `fix/task-workflow-bug-fixes` before T001/T002 and GREEN after.
+
+> **C-003 Commit Discipline:** Keep WP01 changes in their own commit(s), separate from any WP02 changes, so that each fix can be independently reverted.
+
+### T003 — Regression test: spec.md resolves from primary when coord worktree exists
+
+**File**: `tests/specify_cli/cli/commands/agent/test_map_requirements_spec_path.py` (new file — declared in `create_intent`)
+
+**⚡ ATDD commit: write and commit this test FIRST, before T001 or T002.**
+
+**Purpose**: Assert that `primary_feature_dir_for_mission` returns a path rooted in the primary checkout even when a coord worktree directory exists on disk. This directly tests the invariant broken by issue #1981 and locks it against future refactors.
+
+**Steps**:
+
+1. Create the test file. Test structure:
+   ```python
+   """Regression test for issue #1981.
+
+   map-requirements must resolve spec.md from the primary checkout even
+   when a coordination worktree exists for the mission.
+   """
+   from __future__ import annotations
+
+   from pathlib import Path
+
+   import pytest
+
+   from specify_cli.missions.feature_dir_resolver import primary_feature_dir_for_mission
+
+
+   def test_primary_feature_dir_is_not_coord_worktree(tmp_path: Path) -> None:
+       """primary_feature_dir_for_mission returns primary-checkout path, not coord path."""
+       repo_root = tmp_path / "repo"
+       repo_root.mkdir()
+       mission_slug = "my-mission-01ABCDEF"
+
+       # Simulate coord worktree existing on disk
+       coord_root = repo_root / ".worktrees" / "my-mission-01ABCDEF-coord"
+       coord_root.mkdir(parents=True)
+       coord_spec = coord_root / "kitty-specs" / mission_slug
+       coord_spec.mkdir(parents=True)
+
+       # Call the primary resolver (topology-blind)
+       result = primary_feature_dir_for_mission(repo_root, mission_slug)
+
+       # Result must be under the primary checkout, not the coord worktree
+       assert ".worktrees" not in str(result), (
+           f"primary_feature_dir_for_mission returned a path under .worktrees/: {result}. "
+           "map-requirements spec.md lookup will fail when the coord dir lacks spec.md."
+       )
+       assert str(result).startswith(str(repo_root)), (
+           f"Expected path under {repo_root}, got {result}"
+       )
+   ```
+
+2. Run the test before T001/T002 to confirm it passes (this test exercises the already-correct `primary_feature_dir_for_mission` function; committing it first locks the invariant for all future changes):
+   ```bash
+   pytest tests/specify_cli/cli/commands/agent/test_map_requirements_spec_path.py -v
+   ```
+
+3. Commit this test as the **first commit** in the lane:
+   ```bash
+   spec-kitty safe-commit --message "test(regression): primary_feature_dir never returns coord worktree path (#1981)" \
+     tests/specify_cli/cli/commands/agent/test_map_requirements_spec_path.py
+   ```
+
+**Validation**:
+- Test is collected and green
+- `ruff check tests/specify_cli/cli/commands/agent/test_map_requirements_spec_path.py` — zero issues
+- `mypy --strict tests/specify_cli/cli/commands/agent/test_map_requirements_spec_path.py` — zero errors
+
+---
+
 ### T001 — Add `primary_feature_dir_for_mission` late import inside `map_requirements`
 
 **File**: `src/specify_cli/cli/commands/agent/tasks.py`
@@ -191,70 +264,9 @@ spec_md = primary_dir / SPEC_MD_FILENAME
 
 ---
 
-### T003 — Regression test: spec.md resolves from primary when coord worktree exists
-
-**File**: `tests/specify_cli/cli/commands/agent/test_map_requirements_spec_path.py` (new file)
-
-**Purpose**: Assert that `primary_feature_dir_for_mission` returns a path rooted in the primary checkout even when a coord worktree directory exists on disk. This directly tests the invariant broken by issue #1981 and locks it against future refactors.
-
-**Steps**:
-
-1. Create the test file. Test structure:
-   ```python
-   """Regression test for issue #1981.
-
-   map-requirements must resolve spec.md from the primary checkout even
-   when a coordination worktree exists for the mission.
-   """
-   from __future__ import annotations
-
-   from pathlib import Path
-   from unittest.mock import patch
-
-   import pytest
-
-   from specify_cli.missions.feature_dir_resolver import primary_feature_dir_for_mission
-
-
-   def test_primary_feature_dir_is_not_coord_worktree(tmp_path: Path) -> None:
-       """primary_feature_dir_for_mission returns primary-checkout path, not coord path."""
-       repo_root = tmp_path / "repo"
-       repo_root.mkdir()
-       mission_slug = "my-mission-01ABCDEF"
-
-       # Simulate coord worktree existing on disk
-       coord_root = repo_root / ".worktrees" / "my-mission-01ABCDEF-coord"
-       coord_root.mkdir(parents=True)
-       coord_spec = coord_root / "kitty-specs" / mission_slug
-       coord_spec.mkdir(parents=True)
-
-       # Call the primary resolver (topology-blind)
-       result = primary_feature_dir_for_mission(repo_root, mission_slug)
-
-       # Result must be under the primary checkout, not the coord worktree
-       assert ".worktrees" not in str(result), (
-           f"primary_feature_dir_for_mission returned a path under .worktrees/: {result}. "
-           "map-requirements spec.md lookup will fail when the coord dir lacks spec.md."
-       )
-       assert str(result).startswith(str(repo_root)), (
-           f"Expected path under {repo_root}, got {result}"
-       )
-   ```
-
-2. Run the test to confirm it passes with the fix in place:
-   ```bash
-   pytest tests/specify_cli/cli/commands/agent/test_map_requirements_spec_path.py -v
-   ```
-
-**Validation**:
-- Test is collected and green
-- `ruff check tests/specify_cli/cli/commands/agent/test_map_requirements_spec_path.py` — zero issues
-- `mypy --strict tests/specify_cli/cli/commands/agent/test_map_requirements_spec_path.py` — zero errors
-
----
-
 ## Definition of Done
 
+- [ ] T003 regression test committed as the **first standalone commit** in this lane (C-011 ATDD-first)
 - [ ] `primary_feature_dir_for_mission` imported as late import inside `map_requirements`
 - [ ] `spec_md` derived from `primary_dir`, not `feature_dir`
 - [ ] `feature_dir` unchanged for all downstream WP file access
@@ -263,6 +275,7 @@ spec_md = primary_dir / SPEC_MD_FILENAME
 - [ ] `ruff check src/specify_cli/cli/commands/agent/tasks.py` zero issues
 - [ ] `mypy --strict src/specify_cli/cli/commands/agent/tasks.py` zero errors
 - [ ] No existing tests in `tests/specify_cli/` regress
+- [ ] WP01 changes committed separately from any WP02 changes (C-003 independent revert)
 
 ---
 

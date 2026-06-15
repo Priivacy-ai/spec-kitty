@@ -56,9 +56,9 @@ src/specify_cli/
 
 tests/specify_cli/
 ├── cli/commands/agent/
-│   └── test_map_requirements.py  # IC-01 regression test (new or existing file)
+│   └── test_map_requirements_spec_path.py  # IC-01 regression test (new file, declared in create_intent)
 └── ownership/
-    └── test_ownership_validation.py  # IC-02 regression test (new or existing file)
+    └── test_validation.py  # IC-02 regression test (existing file, add method)
 ```
 
 ## Implementation Concern Map
