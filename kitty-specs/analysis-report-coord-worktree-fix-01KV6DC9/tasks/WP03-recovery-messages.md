@@ -18,6 +18,7 @@ subtasks:
 - T014
 - T015
 agent: claude
+shell_pid: '8055'
 history:
 - event: created
   at: '2026-06-15T19:57:30Z'
