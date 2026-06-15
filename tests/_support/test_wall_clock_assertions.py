@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = [pytest.mark.unit]
+
 from tests._support.wall_clock_assertions import (
     find_wall_clock_assertion_violations,
     find_test_python_paths,

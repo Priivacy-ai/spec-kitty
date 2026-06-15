@@ -163,12 +163,12 @@ class TestDataclasses:
     def test_cli_status_frozen(self) -> None:
         cs = _make_cli_status()
         with pytest.raises(AttributeError):
-            cs.installed_version = "x"  # type: ignore[misc]
+            cs.installed_version = "x"
 
     def test_project_status_frozen(self) -> None:
         ps = _make_project_status(ProjectState.COMPATIBLE)
         with pytest.raises(AttributeError):
-            ps.state = ProjectState.CORRUPT  # type: ignore[misc]
+            ps.state = ProjectState.CORRUPT
 
     def test_migration_step_frozen(self) -> None:
         ms = MigrationStep(
@@ -178,7 +178,7 @@ class TestDataclasses:
             files_modified=None,
         )
         with pytest.raises(AttributeError):
-            ms.migration_id = "other"  # type: ignore[misc]
+            ms.migration_id = "other"
 
     def test_invocation_suppresses_nag_tty(self) -> None:
         inv = _make_invocation(stdout_is_tty=True)

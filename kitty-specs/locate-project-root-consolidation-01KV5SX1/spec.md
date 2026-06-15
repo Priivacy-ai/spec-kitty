@@ -76,7 +76,7 @@ The divergence has been active since commit `2e071e8ad` (2026-05-31) when `SPECI
 | NFR-001 | No existing passing test is broken by the change | 0 regressions | Proposed |
 | NFR-002 | `mypy --strict` passes with zero new errors or warnings on all modified and new files | 0 type errors | Proposed |
 | NFR-003 | `ruff check` passes with zero new violations on all modified and new files | 0 violations | Proposed |
-| NFR-004 | The new delegation in `project_resolver.py` does not increase module import time measurably — the deferred import fires only at call time, not at module load time | Import time delta < 5 ms measured by `python -c "import time; t=time.time(); import specify_cli.core.project_resolver; print(time.time()-t)"` | Proposed |
+| NFR-004 | The new delegation in `project_resolver.py` does not increase module import time measurably — the deferred import fires only at call time, not at module load time | No measurable import-time increase vs. baseline (deferred import inside function body fires at call time only, not at module load; absolute import time reflects full package init cost and is not a relevant comparator) | Proposed |
 | NFR-005 | New test coverage for the modified and new code paths is ≥ 90% as measured by the project's standard coverage tooling | ≥ 90% line coverage | Proposed |
 
 ---
