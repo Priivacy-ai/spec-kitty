@@ -37,7 +37,7 @@ def _marker_path(project_path: Path) -> Path:
 
 
 @MigrationRegistry.register
-class SurfaceRepairWiringMigration(BaseMigration):
+class SurfaceRepairWiringMigration(BaseMigration):  # type: ignore[misc]
     """Sentinel migration: record that tool-surface repair wiring is active."""
 
     migration_id = "0_9_3_surface_repair_wiring"
@@ -87,11 +87,10 @@ class SurfaceRepairWiringMigration(BaseMigration):
 def _probe_surface_count(project_path: Path) -> int:
     """Return the total number of configured tool surfaces (read-only probe)."""
     try:
-        from specify_cli.tool_surface.service import (
+        from specify_cli.tool_surface.providers.plugin_bundle import (
             PLUGIN_BUNDLE_TOOL_KEY,
-            build_providers,
-            build_registry,
         )
+        from specify_cli.tool_surface.service import build_providers, build_registry
         from specify_cli.tool_surface.plan import SurfacePlanBuilder
         from specify_cli.tool_surface.status import SurfaceStatusService
         from specify_cli.core.agent_config import get_configured_agents

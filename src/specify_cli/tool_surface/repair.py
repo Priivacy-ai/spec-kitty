@@ -279,7 +279,8 @@ def run_surface_repair(
     """
     # Import here (lazy) to avoid circular import at module load time;
     # service.py already imports from repair.py.
-    from .service import PLUGIN_BUNDLE_TOOL_KEY, build_providers, build_registry
+    from .providers.plugin_bundle import PLUGIN_BUNDLE_TOOL_KEY
+    from .service import build_providers, build_registry
     from .plan import SurfacePlanBuilder
     from .status import SurfaceStatusService
 
