@@ -878,33 +878,52 @@ def _enforce_analysis_report_write_preflight(
     except Exception:
         cwd_toplevel = repo_root
 
-    try:
-        assert_not_protected_branch(cwd_toplevel, operation="record analysis report")
-    except ProtectedBranchCommitError as exc:
-        # WP05 / FR-003 / T021 / C-GUARD-3: name the RESOLVED destination, never
-        # the pre-lanes "switch to the lane branch" advice (#1777/#1631). When a
-        # placement is known we tell the operator exactly where the analysis
-        # report commits to.
-        if placement_ref is not None:
-            error_text = (
-                f"Refusing to record analysis report from a protected branch. "
-                f"Planning artifacts for this mission commit to "
-                f"'{placement_ref.ref}'; run record-analysis so the commit lands "
-                f"there (the resolved placement), not on the protected checkout."
+    protected_check_roots = [cwd_toplevel]
+    if cwd_toplevel.resolve() != repo_root.resolve():
+        # #1989: record-analysis may be invoked from a coord worktree while the
+        # report is written through the primary checkout. Both roots must be
+        # branch-safe before any mission artifact is mutated.
+        protected_check_roots.append(repo_root)
+
+    for protected_check_root in protected_check_roots:
+        try:
+            assert_not_protected_branch(
+                protected_check_root,
+                operation="record analysis report",
             )
-        else:
-            error_text = str(exc)
-        payload = {
-            "success": False,
-            "error_code": PROTECTED_BRANCH_REFUSED,
-            "error": error_text,
-            "resolved_destination": placement_ref.ref if placement_ref else None,
-        }
-        if json_output:
-            _emit_json(payload)
-        else:
-            console.print(f"[red]Error:[/red] {error_text}")
-        raise typer.Exit(1) from None
+        except ProtectedBranchCommitError as exc:
+            # WP05 / FR-003 / T021 / C-GUARD-3: name the RESOLVED destination, never
+            # the pre-lanes "switch to the lane branch" advice (#1777/#1631). When a
+            # placement is known we tell the operator exactly where the analysis
+            # report commits to.
+            if placement_ref is not None:
+                if protected_check_root.resolve() == repo_root.resolve() and cwd_toplevel.resolve() != repo_root.resolve():
+                    error_text = (
+                        f"Refusing to record analysis report into a protected primary checkout. "
+                        f"Planning artifacts for this mission commit to "
+                        f"'{placement_ref.ref}', but analysis-report.md is written "
+                        f"through the primary checkout before placement."
+                    )
+                else:
+                    error_text = (
+                        f"Refusing to record analysis report from a protected branch. "
+                        f"Planning artifacts for this mission commit to "
+                        f"'{placement_ref.ref}'; run record-analysis so the commit lands "
+                        f"there (the resolved placement), not on the protected checkout."
+                    )
+            else:
+                error_text = str(exc)
+            payload = {
+                "success": False,
+                "error_code": PROTECTED_BRANCH_REFUSED,
+                "error": error_text,
+                "resolved_destination": placement_ref.ref if placement_ref else None,
+            }
+            if json_output:
+                _emit_json(payload)
+            else:
+                console.print(f"[red]Error:[/red] {error_text}")
+            raise typer.Exit(1) from None
 
 
 def _show_branch_context(
@@ -1822,8 +1841,20 @@ def record_analysis(
 
         from specify_cli.analysis_report import write_analysis_report
 
+        # #1989: the write destination must be the PRIMARY-checkout mission dir,
+        # not the coord-aware ``feature_dir`` from ``_find_feature_directory``
+        # (which resolves to the coordination worktree once one exists — and that
+        # worktree lacks ``spec.md``, so ``write_analysis_report`` would fail with
+        # "Required artifact missing"). ``primary_feature_dir_for_mission`` is the
+        # topology-blind anchor already used elsewhere in this module; the
+        # coord-aware ``feature_dir`` still drives the placement-ref and dirty-tree
+        # preflight above.
+        from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+
+        write_feature_dir = primary_feature_dir_for_mission(repo_root, feature_dir.name)
+
         result = write_analysis_report(
-            feature_dir=feature_dir,
+            feature_dir=write_feature_dir,
             repo_root=repo_root,
             body=body,
             analyzer_agent=analyzer_agent,
@@ -1835,7 +1866,7 @@ def record_analysis(
             )
 
             trigger_feature_dossier_sync_if_enabled(
-                feature_dir,
+                write_feature_dir,
                 result.mission_slug,
                 repo_root,
             )

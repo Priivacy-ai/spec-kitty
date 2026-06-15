@@ -28,6 +28,7 @@ from specify_cli.mission_metadata import resolve_mission_identity
 ANALYSIS_REPORT_FILENAME = "analysis-report.md"
 ANALYSIS_REPORT_ARTIFACT_TYPE = "spec-kitty.analysis-report"
 ANALYSIS_REPORT_COMMAND = "/spec-kitty.analyze"
+ANALYSIS_REPORT_REASON_CARRIER_FORMAT = "carrier_format_not_wrapped"
 _HASH_INPUTS = ("spec.md", "plan.md", "tasks.md")
 
 # --- analysis-findings/v1 structured carrier (FR-004 / #1819) ---------------
@@ -447,6 +448,16 @@ def check_analysis_report_current(feature_dir: Path, repo_root: Path) -> Analysi
             stale=True,
             missing=False,
             reason=f"invalid_analysis_report_frontmatter: {exc}",
+            mismatches={},
+        )
+
+    if frontmatter.get("schema") == FINDINGS_SCHEMA_V1:
+        return AnalysisFreshness(
+            ok=False,
+            path=path,
+            stale=True,
+            missing=False,
+            reason=ANALYSIS_REPORT_REASON_CARRIER_FORMAT,
             mismatches={},
         )
 
