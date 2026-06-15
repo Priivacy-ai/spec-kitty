@@ -107,6 +107,7 @@ from .bootstrap import (
 from .event_log_merge import (
     EventLogMergeError,
     merge_event_log_files,
+    merge_event_log_texts,
 )
 from .identity_audit import (
     IdentityState,
@@ -191,7 +192,7 @@ def uninitialized_status_error(mission_slug: str, wp_id: str, feature_dir: Path)
     """Return the cycle-aware missing-status message without eager dependency-graph imports."""
     from .uninitialized_hint import uninitialized_status_error as _uninitialized_status_error
 
-    return _uninitialized_status_error(mission_slug, wp_id, feature_dir)
+    return str(_uninitialized_status_error(mission_slug, wp_id, feature_dir))
 
 # The canonical status artifacts (event log + snapshot). On coordination-topology
 # missions these are owned by the transactional status emitter on the coordination
@@ -293,6 +294,7 @@ __all__ = [
     "fix_workspace_husks",
     "is_dossier_snapshot",
     "merge_event_log_files",
+    "merge_event_log_texts",
     "register_dossier_sync_handler",
     "register_lifecycle_saas_fanout_handler",
     "register_saas_fanout_handler",
