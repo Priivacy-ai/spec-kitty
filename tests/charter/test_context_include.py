@@ -33,6 +33,7 @@ from typing import Any
 import pytest
 
 import charter.context as context_module
+from charter.pack_context import CharterPackConfigError
 from charter.context import build_charter_context_include
 
 
@@ -240,6 +241,21 @@ class TestTemplateInclude:
     def test_malformed_template_id_fails_closed(self, tmp_path: Path) -> None:
         with pytest.raises(ValueError, match="Malformed template selector"):
             build_charter_context_include(tmp_path, "template:no-slash-here")
+
+    def test_template_include_surfaces_pack_config_errors(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        def _raise_pack_config_error(_repo_root: Path) -> Path | None:
+            raise CharterPackConfigError("broken pack config")
+
+        monkeypatch.setattr(context_module, "resolve_project_root", _raise_pack_config_error)
+
+        with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
+            build_charter_context_include(
+                tmp_path, "template:software-dev/spec-template.md"
+            )
 
 
 # ---------------------------------------------------------------------------

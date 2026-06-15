@@ -406,14 +406,7 @@ def _render_template_include(
     from doctrine.resolver import ResolutionTier
     from doctrine.template_catalog import TierRoot, resolve_template_by_id
 
-    from charter.pack_context import CharterPackConfigError
-
-    try:
-        project_root = resolve_project_root(repo_root)
-    except CharterPackConfigError:
-        # Fail closed (parity with WP12): a malformed charter pack config
-        # must surface, not silently degrade to a partial template lookup.
-        raise
+    project_root = resolve_project_root(repo_root)
 
     tier_roots = [
         TierRoot(
