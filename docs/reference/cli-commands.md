@@ -62,44 +62,6 @@ For non-obvious runtime behaviour an operator may encounter:
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty advise
-
-_Get governance context for a request (opens an invocation record)._
-
-```
- Usage: spec-kitty advise [OPTIONS] REQUEST
-
- Get governance context for a request (opens an invocation record).
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    request      TEXT  Natural language request to route [required]         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --profile  -p      TEXT  Explicit profile ID or name                         │
-│ --json                   Output JSON payload                                 │
-│ --help                   Show this message and exit.                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty ask
-
-_Invoke a named profile directly._
-
-```
- Usage: spec-kitty ask [OPTIONS] PROFILE REQUEST
-
- Invoke a named profile directly.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    profile      TEXT  Profile ID or name [required]                        │
-│ *    request      TEXT  Natural language request [required]                  │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json          Output JSON payload                                          │
-│ --help          Show this message and exit.                                  │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
 ## spec-kitty auth
 
 _Authentication commands_
@@ -855,34 +817,12 @@ _Query workspace context information_
 
 ## spec-kitty dispatch
 
-_Dispatch a request to a profile-governed Op (canonical surface)._
+_Dispatch a request to a governed Op._
 
 ```
  Usage: spec-kitty dispatch [OPTIONS] REQUEST
 
- Dispatch a request to a profile-governed Op (canonical surface).
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    request      TEXT  Natural language request. The router picks the best  │
-│                         profile.                                             │
-│                         [required]                                           │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --profile        TEXT  Optional profile ID. Bypasses the router — use when   │
-│                        the request is ambiguous.                             │
-│ --json                 Output JSON payload                                   │
-│ --help                 Show this message and exit.                           │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty do
-
-_Route a request to the best-matching profile (anonymous dispatch)._
-
-```
- Usage: spec-kitty do [OPTIONS] REQUEST
-
- Route a request to the best-matching profile (anonymous dispatch).
+ Dispatch a request to a governed Op.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    request      TEXT  Natural language request. The router picks the best  │
@@ -3077,7 +3017,7 @@ _Manage invocation records._
  Use --artifact (repeatable) to link output artifacts to this invocation.
  Use --commit (singular) to link the primary git commit produced.
  Use --evidence to promote a file to a Tier 2 evidence artifact.
- Note: --evidence is not allowed on advisory or query invocations (FR-009).
+ Note: --evidence is rejected for records that are not execution records.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --invocation-id  -i      TEXT  Invocation ULID to close [required]        │

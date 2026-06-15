@@ -6,11 +6,13 @@ from pathlib import Path
 
 from specify_cli.runtime.agent_skills import ensure_global_agent_skills
 from specify_cli.skills.registry import SkillRegistry
+from specify_cli.skills.retired import RETIRED_STANDALONE_SKILL_NAMES
 
 
 import pytest
 
 pytestmark = [pytest.mark.unit]
+
 
 def _create_skill(root: Path, name: str, content: str | None = None) -> None:
     skill_dir = root / name
@@ -50,9 +52,7 @@ def test_global_bootstrap_preserves_non_spec_kitty_user_skills(tmp_path: Path, m
     assert mode & 0o200 == 0
 
 
-def test_global_bootstrap_removes_retired_paula_and_debbie_skills(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_global_bootstrap_removes_retired_paula_and_debbie_skills(tmp_path: Path, monkeypatch) -> None:
     home = tmp_path / "home"
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
@@ -89,9 +89,71 @@ def test_global_bootstrap_removes_retired_paula_and_debbie_skills(
         assert (root / "custom-skill" / "SKILL.md").is_file()
 
 
-def test_global_bootstrap_removes_readonly_retired_skill_tree(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_global_bootstrap_removes_retired_standalone_skill_surface(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
+
+    skills_root = tmp_path / "doctrine_skills"
+    _create_skill(skills_root, "spec-kitty")
+    registry = SkillRegistry(skills_root)
+
+    retired_name = next(iter(RETIRED_STANDALONE_SKILL_NAMES))
+    for root in [
+        home / ".claude" / "skills",
+        home / ".agents" / "skills",
+    ]:
+        stale = root / retired_name / "SKILL.md"
+        stale.parent.mkdir(parents=True, exist_ok=True)
+        stale.write_text("# stale standalone surface\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "specify_cli.runtime.agent_skills._discover_registry",
+        lambda: registry,
+    )
+
+    ensure_global_agent_skills()
+
+    for root in [
+        home / ".claude" / "skills",
+        home / ".agents" / "skills",
+    ]:
+        assert not (root / retired_name).exists()
+    assert (home / ".agents" / "skills" / "spec-kitty" / "SKILL.md").is_file()
+
+
+def test_global_bootstrap_prunes_retired_skill_even_when_version_lock_is_current(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    kittify_home = home / ".kittify"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(kittify_home))
+    monkeypatch.setattr("specify_cli.runtime.agent_skills._get_cli_version", lambda: "3.2.0rc45")
+
+    skills_root = tmp_path / "doctrine_skills"
+    _create_skill(skills_root, "spec-kitty")
+    registry = SkillRegistry(skills_root)
+
+    retired_name = next(iter(RETIRED_STANDALONE_SKILL_NAMES))
+    stale = home / ".agents" / "skills" / retired_name / "SKILL.md"
+    stale.parent.mkdir(parents=True, exist_ok=True)
+    stale.write_text("# stale standalone surface\n", encoding="utf-8")
+
+    cache_dir = kittify_home / "cache"
+    cache_dir.mkdir(parents=True)
+    (cache_dir / "agent-skills.lock").write_text("3.2.0rc45", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "specify_cli.runtime.agent_skills._discover_registry",
+        lambda: registry,
+    )
+
+    ensure_global_agent_skills()
+
+    assert not stale.parent.exists()
+    assert (home / ".agents" / "skills" / "spec-kitty" / "SKILL.md").is_file()
+
+
+def test_global_bootstrap_removes_readonly_retired_skill_tree(tmp_path: Path, monkeypatch) -> None:
     from specify_cli.runtime import agent_skills
 
     home = tmp_path / "home"
@@ -110,11 +172,7 @@ def test_global_bootstrap_removes_readonly_retired_skill_tree(
     real_rmtree = agent_skills.shutil.rmtree
 
     def windows_like_rmtree(path: str | Path, onerror=None, **kwargs) -> None:
-        readonly_files = [
-            file_path
-            for file_path in Path(path).rglob("*")
-            if file_path.is_file() and not file_path.stat().st_mode & 0o200
-        ]
+        readonly_files = [file_path for file_path in Path(path).rglob("*") if file_path.is_file() and not file_path.stat().st_mode & 0o200]
         if readonly_files and onerror is None:
             raise PermissionError(readonly_files[0])
         for readonly_file in readonly_files:
@@ -140,9 +198,7 @@ def test_global_bootstrap_removes_readonly_retired_skill_tree(
     assert not retired_skill.parent.exists()
 
 
-def test_global_bootstrap_adds_frontmatter_to_plain_skill(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_global_bootstrap_adds_frontmatter_to_plain_skill(tmp_path: Path, monkeypatch) -> None:
     home = tmp_path / "home"
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
@@ -150,8 +206,8 @@ def test_global_bootstrap_adds_frontmatter_to_plain_skill(
     skills_root = tmp_path / "doctrine_skills"
     _create_skill(
         skills_root,
-        "spec-kitty.advise",
-        "# spec-kitty.advise\n\nGet governance context for an action.\n",
+        "spec-kitty",
+        "# spec-kitty\n\nGet governance context for an action.\n",
     )
     registry = SkillRegistry(skills_root)
 
@@ -162,8 +218,8 @@ def test_global_bootstrap_adds_frontmatter_to_plain_skill(
 
     ensure_global_agent_skills()
 
-    managed_skill = home / ".agents" / "skills" / "spec-kitty.advise" / "SKILL.md"
+    managed_skill = home / ".agents" / "skills" / "spec-kitty" / "SKILL.md"
     content = managed_skill.read_text(encoding="utf-8")
     assert content.startswith("---\n")
-    assert "name: spec-kitty.advise\n" in content
+    assert "name: spec-kitty\n" in content
     assert "description: Get governance context for an action.\n" in content

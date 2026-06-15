@@ -25,13 +25,10 @@ from specify_cli.skills.paths import (
     get_primary_project_skill_root,
 )
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
+from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
 
 DELIVERY_COPY = "copy"
 DELIVERY_SYMLINK = "symlink"
-RETIRED_CANONICAL_SKILL_NAMES = frozenset({
-    "debugger-debbie",
-    "paula-patterns",
-})
 
 
 def _make_path_writable(path: str | Path) -> None:

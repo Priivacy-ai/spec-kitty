@@ -11,9 +11,9 @@ from pathlib import Path
 from specify_cli.runtime.bootstrap import _get_cli_version, _lock_exclusive
 from specify_cli.runtime.home import get_kittify_home
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
-from specify_cli.skills.installer import RETIRED_CANONICAL_SKILL_NAMES
 from specify_cli.skills.paths import get_primary_global_skill_root, iter_installable_agents
 from specify_cli.skills.registry import SkillRegistry
+from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
 from specify_cli.template import get_local_repo_root
 
 logger = logging.getLogger(__name__)
@@ -79,6 +79,15 @@ def _unique_global_roots() -> list[Path]:
     return roots
 
 
+def _retired_skill_cleanup_needed() -> bool:
+    for root in _unique_global_roots():
+        for skill_name in RETIRED_CANONICAL_SKILL_NAMES:
+            dest = root / skill_name
+            if dest.exists() or dest.is_symlink():
+                return True
+    return False
+
+
 def _sync_skill_root(root: Path, registry: SkillRegistry) -> None:
     root.mkdir(parents=True, exist_ok=True)
     skills = registry.discover_skills()
@@ -125,7 +134,11 @@ def ensure_global_agent_skills() -> None:
 
     version_file = cache_dir / _VERSION_FILENAME
     cli_version = _get_cli_version()
-    if version_file.exists() and version_file.read_text().strip() == cli_version:
+    if (
+        version_file.exists()
+        and version_file.read_text().strip() == cli_version
+        and not _retired_skill_cleanup_needed()
+    ):
         return
 
     registry = _discover_registry()
@@ -136,7 +149,11 @@ def ensure_global_agent_skills() -> None:
     lock_fd = open(lock_path, "w")  # noqa: SIM115
     try:
         _lock_exclusive(lock_fd)
-        if version_file.exists() and version_file.read_text().strip() == cli_version:
+        if (
+            version_file.exists()
+            and version_file.read_text().strip() == cli_version
+            and not _retired_skill_cleanup_needed()
+        ):
             return
 
         for root in _unique_global_roots():

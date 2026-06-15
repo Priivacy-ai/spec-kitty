@@ -1,7 +1,7 @@
 """Persistence layer for ``.kittify/command-skills-manifest.json``.
 
 This module is the canonical source for reading and writing the Skills Manifest
-that records every ``.agents/skills/spec-kitty.<command>/SKILL.md`` file that
+that records every ``.agents/skills/spec-kitty*/SKILL.md`` file that
 Spec Kitty has installed on a project.
 
 Invariants
@@ -80,7 +80,7 @@ class ManifestEntry:
     """
 
     path: str
-    """POSIX-style path relative to repo root (.agents/skills/spec-kitty.<cmd>/SKILL.md)."""
+    """POSIX-style path relative to repo root (.agents/skills/spec-kitty*/SKILL.md)."""
 
     content_hash: str
     """64-char lowercase hex SHA-256 of the installed file content."""
@@ -271,8 +271,7 @@ def load(repo_root: Path) -> SkillsManifest:
     unknown = set(data.keys()) - known_top_level
     if unknown:
         warnings.warn(
-            f"command-skills-manifest.json contains unknown top-level fields that will be "
-            f"dropped on next save: {sorted(unknown)}",
+            f"command-skills-manifest.json contains unknown top-level fields that will be dropped on next save: {sorted(unknown)}",
             stacklevel=2,
         )
         data = {k: v for k, v in data.items() if k in known_top_level}
@@ -433,10 +432,7 @@ def repair_stale_manifest(
     manifest = load(project_root)
     result = ManifestRepairResult()
 
-    canonical_paths = {
-        _SKILL_PATH_TEMPLATE.format(command=cmd): cmd
-        for cmd in canonical_commands
-    }
+    canonical_paths = {_SKILL_PATH_TEMPLATE.format(command=cmd): cmd for cmd in canonical_commands}
 
     existing_paths = {e.path for e in manifest.entries}
 
@@ -448,11 +444,7 @@ def repair_stale_manifest(
         # File absent or is a symlink — synthesize a placeholder hash so
         # the manifest count is correct; the surface repair service will
         # detect and address the underlying file issue.
-        content_hash = (
-            fingerprint_file(abs_path)
-            if abs_path.exists() and not abs_path.is_symlink()
-            else fingerprint(b"")
-        )
+        content_hash = fingerprint_file(abs_path) if abs_path.exists() and not abs_path.is_symlink() else fingerprint(b"")
         new_entry = ManifestEntry(
             path=rel_path,
             content_hash=content_hash,
@@ -497,9 +489,9 @@ def remove_unsafe_symlinks(project_root: Path) -> ManifestRepairResult:
     """Detect and remove unsafe symlink artifacts under ``.agents/skills/``.
 
     A past migration bug created symlink directories such as
-    ``.agents/skills/spec-kitty.advise`` pointing outside the project tree.
+    ``.agents/skills/spec-kitty`` pointing outside the project tree.
     This function walks ``.agents/skills/`` and removes any entry whose name
-    starts with ``spec-kitty.`` and that is a symbolic link (rather than a
+    is a Spec Kitty skill package name and is a symbolic link (rather than a
     real directory containing ``SKILL.md``).
 
     Only symlinks are removed — real directories are left untouched.
@@ -513,7 +505,7 @@ def remove_unsafe_symlinks(project_root: Path) -> ManifestRepairResult:
         return result
 
     for child in sorted(skills_dir.iterdir()):
-        if not child.name.startswith(_SPEC_KITTY_SKILL_PREFIX):
+        if child.name != "spec-kitty" and not child.name.startswith(_SPEC_KITTY_SKILL_PREFIX):
             continue
         if child.is_symlink():
             try:

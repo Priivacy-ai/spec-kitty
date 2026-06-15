@@ -523,31 +523,25 @@ null prompt is a runtime bug.
 
 ## Standalone Invocations (Outside Missions)
 
-Not all governed work happens inside an active mission. When a user asks for help with a task that has no active `spec-kitty next` loop — a code review, a quick implementation, an ad-hoc analysis — you should still invoke Spec Kitty's governance layer via the profile invocation surface.
+Not all governed work happens inside an active mission. When a user asks for
+help with a task that has no active `spec-kitty next` loop — a code review, a
+quick implementation, an ad-hoc analysis — you should still invoke Spec Kitty's
+governance layer with standalone dispatch.
 
 Spec Kitty never spawns a parallel LLM call. You are the host; Spec Kitty routes, assembles governance context, and records the trail.
 
-### When to use which command
+### When to use standalone dispatch
 
-`spec-kitty dispatch` is the canonical command. `do`, `ask`, and `advise` are
-retained first-class aliases with identical Op lifecycle — use whichever fits
-your intent; they are not deprecated.
-
-| Situation | Command |
-|-----------|---------|
-| Request is clear — canonical form | `spec-kitty dispatch "<request>" --json` |
-| Request is clear, profile unknown | `spec-kitty dispatch "<request>" --json` or alias `spec-kitty do "<request>" --json` |
-| Request is clear, profile known | `spec-kitty dispatch "<request>" --profile <profile> --json` or alias `spec-kitty ask <profile> "<request>" --json` |
-| Need routing decision only (no implementation) | `spec-kitty advise "<request>" --json` |
+If the user says anything like "use spec kitty to ...", "hey spec kitty ...",
+or "spec kitty <anything>", run standalone dispatch unless they are clearly
+asking for a full mission.
 
 ### The governance injection loop
 
 1. **Get context**:
    ```bash
    spec-kitty dispatch "implement the login handler" --json
-   # or using retained aliases:
-   spec-kitty do "implement the login handler" --json
-   spec-kitty ask pedro "review WP05" --json
+   spec-kitty dispatch "review WP05" --profile reviewer --json
    ```
    Response includes `invocation_id`, `governance_context_text`, and `governance_context_available`.
 
@@ -558,7 +552,7 @@ your intent; they are not deprecated.
 3. **Execute**:
    Do the work. Generate the code, analysis, or plan.
 
-4. **Close the Op** (mandatory — `dispatch`/`do`/`ask`/`advise` leave it open):
+4. **Close the Op** (mandatory — `dispatch` leaves it open):
    ```bash
    spec-kitty profile-invocation complete \
      --invocation-id <invocation_id> \
@@ -572,12 +566,12 @@ your intent; they are not deprecated.
 
 Every standalone invocation writes a Tier 1 JSONL file to:
 ```
-.kittify/events/profile-invocations/<invocation_id>.jsonl
+kitty-ops/<invocation_id>.jsonl
 ```
 
 Viewable at any time with `spec-kitty invocations list --json`. No SaaS connection required.
 
-For full CLI surface documentation, see `src/doctrine/skills/spec-kitty.advise/SKILL.md`.
+For full CLI surface documentation, see `src/doctrine/skills/spec-kitty/SKILL.md`.
 
 ---
 

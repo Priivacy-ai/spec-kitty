@@ -1,8 +1,8 @@
 """Migration: retire the legacy profile-context command template.
 
 The old ``/spec-kitty.profile-context`` surface is no longer part of the
-consumer command registry or root CLI.  Standalone profile work now routes
-through ``spec-kitty advise``, ``spec-kitty ask``, and ``profiles`` commands.
+consumer command registry or root CLI. Standalone governed work now routes
+through ``spec-kitty dispatch`` and ``profiles`` commands.
 This migration no longer deploys the legacy command; when it sees stale
 generated copies in configured agent command directories, it removes them.
 """

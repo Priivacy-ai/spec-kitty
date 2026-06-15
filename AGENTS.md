@@ -567,10 +567,12 @@ Two usage patterns:
   trigger: "spec out", "create a mission", "write a spec", "plan this"
   → run `/spec-kitty.specify`
 - **Lightweight dispatch** (ad-hoc fix, question, or advice — no mission created):
-  trigger: "hey spec kitty", "use spec kitty to", "spec kitty, fix/do/ask/advise"
-  → **ALWAYS run `spec-kitty do "<request verbatim>"` — do NOT answer directly.**
+  trigger: "hey spec kitty", "use spec kitty to", "spec kitty <anything>"
+  → **ALWAYS run `spec-kitty dispatch "<request verbatim>"` — do NOT answer directly.**
   If you know the right profile, pass it to skip routing:
-  `spec-kitty do --profile <profile-id> "<request verbatim>"`
-  Reason: `spec-kitty do` loads governance context, routes to the correct agent
-  profile, and records the Op. Skipping it produces ungoverned, untracked responses.
+  `spec-kitty dispatch "<request verbatim>" --profile <profile-id>`
+  Reason: `spec-kitty dispatch` loads governance context, routes the request,
+  and opens the Op. Skipping it produces ungoverned, untracked responses.
+  After finishing the work, close the Op:
+  `spec-kitty profile-invocation complete --invocation-id <id> --outcome <done|failed|abandoned>`
 <!-- /spec-kitty:orientation -->

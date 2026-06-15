@@ -93,7 +93,7 @@ The open `?` (does behaviour depend on runtime state?) is now **answered: yes**,
 
 **`[C]` What the activity ledger actually is** (two layers):
 - Invocation event trail — `src/specify_cli/invocation/record.py` / `writer.py` → append-only
-  `.kittify/events/profile-invocations/{id}.jsonl` (started/completed with `profile_id, action, actor`).
+  `kitty-ops/{id}.jsonl` (started/completed with `profile_id, action, actor`).
 - Profile-invocation **lifecycle log** (the canonical ledger) — `src/specify_cli/invocation/lifecycle.py`
   → `.kittify/events/profile-invocation-lifecycle.jsonl`, paired started/completed records carrying
   `canonical_action_id, phase, agent, mission_id, wp_id, at, reason` (`lifecycle.py:290-341`).

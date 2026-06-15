@@ -195,9 +195,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `LegacyRecordError` for them. `spec-kitty invocations list` now shows
   `outcome` and `closed_by` for closed Ops. `artifact_link`, `commit_link`, and
   `glossary_checked` event shapes are unchanged.
-- **Breaking — `spec-kitty do` no longer auto-closes its Op as `done`
-  (do-dispatch-open-op-lifecycle)**: `do` / `ask` / `advise` now only OPEN the
-  Op and load governance context; the working agent closes it via
+- **Breaking — standalone dispatch no longer auto-closes its Op as `done`
+  (dispatch-open-op-lifecycle)**: `spec-kitty dispatch` opens the Op and loads
+  governance context; the working agent closes it via
   `spec-kitty profile-invocation complete --invocation-id <id>
   --outcome <done|failed|abandoned>` (completed-event schema v2: `outcome`
   required, new `closed_by` field). New `spec-kitty doctor ops --close-stale`
@@ -214,10 +214,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dangling `ops-index.jsonl` rows after unsalvageable Op files are deleted, and
   migration idempotency now treats only v2-parseable `mode_of_work` / `closed_by`
   values as already migrated.
-- Preserved machine-readable output for `do`, `ask`, and `advise --json` by
+- Preserved machine-readable output for standalone dispatch `--json` by
   suppressing post-payload inline glossary notices on JSON paths; rich output
   still shows the notices.
-- Updated the rich `ask` / `advise` close hint to include the now-required
+- Updated the rich standalone-dispatch close hint to include the now-required
   `--outcome <done|failed|abandoned>` flag.
 - Replaced stale short profile aliases in shipped mission-runtime templates
   (`researcher`, `architect`, `planner`, `implementer`, `reviewer`) with the
@@ -365,10 +365,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🔧 Improved
 
-- Moved Op record storage from gitignored
-  `.kittify/events/profile-invocations/` to git-tracked `kitty-ops/`,
-  including `ops-index.jsonl`, `lifecycle.jsonl`, and propagation errors.
-  Pre-existing records under `.kittify/events/profile-invocations/` are
+- Moved Op record storage from its previous gitignored event directory to
+  git-tracked `kitty-ops/`, including `ops-index.jsonl`, `lifecycle.jsonl`, and
+  propagation errors. Pre-existing records in the retired location are
   abandoned and not migrated.
 - Consolidated software-dev template source resolution and rejected stale
   template-root environment overrides so runtime fixtures and package defaults
@@ -676,7 +675,7 @@ PR review and publishes the launch-readiness hardening merged after the yanked
   adding installed-entrypoint smoke coverage, and preserving clean-install
   latency evidence.
 - Documented the host-surface parity matrix and Mode of Work governance layer
-  so advise/ask/do behavior has a visible README entry point.
+  so standalone dispatch behavior has a visible README entry point.
 - Clarified correlation link and projection policy / read-model policy coverage
   for the 3.2.0 trail-model tranche, including deferred Tier 2 items.
 
@@ -1829,12 +1828,12 @@ command and no new top-level runtime dependencies.
   project-only migrations, non-interactive confirmation, and explicit nag
   suppression. `spec-kitty upgrade --dry-run --json` emits the stable
   compatibility-plan contract for automation.
-- **Host-surface parity matrix** at `docs/host-surface-parity.md` — authoritative record of how each of the 15 supported host surfaces teaches the advise/ask/do governance-injection contract. Closes the remaining `#496` host-surface breadth rollout.
-- **Mode of work runtime derivation** — every `advise`, `ask`, `do` invocation now records its `mode_of_work` (`advisory`, `task_execution`, `mission_step`, `query`) on the `started` event. Derivation is from the CLI entry command.
+- **Host-surface parity matrix** at `docs/host-surface-parity.md` — authoritative record of how each of the 15 supported host surfaces teaches the standalone dispatch governance-injection contract. Closes the remaining `#496` host-surface breadth rollout.
+- **Mode of work runtime derivation** — every standalone dispatch invocation records its `mode_of_work` (`task_execution`, `mission_step`, or `query`) on the `started` event. Derivation is from the CLI entry command.
 - **Correlation links** — `spec-kitty profile-invocation complete` accepts `--artifact <path>` (repeatable) and `--commit <sha>` (singular); each appends an additive event to the invocation JSONL for single-file request→artifact/commit correlation.
 - **SaaS read-model policy** at `src/specify_cli/invocation/projection_policy.py` — typed module mapping `(mode, event)` to projection rules. Documented in `docs/trail-model.md`.
 - **Tier 2 SaaS projection decision** — decisively documented as deferred in `docs/trail-model.md`. Tier 2 evidence stays local-only in 3.2.x.
-- **README Governance layer subsection** — entry point for operators discovering the advise/ask/do surface.
+- **README Governance layer subsection** — entry point for operators discovering standalone dispatch.
 - **Decision Moment Ledger (V1)** — new `spec-kitty agent decision` subgroup with five
   subcommands: `open`, `resolve`, `defer`, `cancel`, `verify`. Mints ULID `decision_id`s
   at interview ask-time, writes paper trail under `kitty-specs/<mission>/decisions/`
@@ -1863,7 +1862,7 @@ command and no new top-level runtime dependencies.
   planner. Out-of-date CLI notices are passive and throttled; incompatible
   project schemas block unsafe commands with exit codes 4, 5, or 6 and exact
   remediation guidance.
-- `spec-kitty profile-invocation complete --evidence` is now mode-gated: rejected on `advisory` / `query` invocations with `InvalidModeForEvidenceError`. Rejection occurs before any write; the invocation stays open.
+- `spec-kitty profile-invocation complete --evidence` is now mode-gated: rejected on non-evidence-eligible invocations with `InvalidModeForEvidenceError`. Rejection occurs before any write; the invocation stays open.
 - `_propagate_one` consults the new projection policy after the sync-gate and authentication lookup. Existing `task_execution` / `mission_step` projection behaviour is preserved exactly.
 - Dashboard user-visible wording: the mission selector, current-mission header, overview heading, analysis heading, and empty-state prompt now read "Mission Run" / "mission" instead of "Feature". Backend identifiers (CSS classes, HTML IDs, cookie keys, API route segments, JSON field names) are unchanged.
 - **`spec-kitty-events` bumped to `==4.0.0`** — vendored copy at
@@ -1890,14 +1889,14 @@ command and no new top-level runtime dependencies.
 
 - Pre-mission invocation records (no `mode_of_work`) continue to accept `--evidence` and project under legacy `task_execution` rules.
 - Existing SaaS dashboards see no change for `task_execution` / `mission_step` traffic.
-- New advisory events now appear in the SaaS timeline as minimal entries without body — this is a deliberate behaviour change documented in the SaaS Read-Model Policy table.
+- New standalone dispatch events now appear in the SaaS timeline as minimal entries without body — this is a deliberate behaviour change documented in the SaaS Read-Model Policy table.
 
 ### Added (Phase 4 trail follow-on)
 
 - `docs/trail-model.md`: Formal operator documentation for the Phase 4 trail contract,
   mode-of-work taxonomy, tier promotion rules, SaaS projection policy, intake positioning,
   and explain deferral (WP04).
-- "Governance context injection" section in `.agents/skills/spec-kitty.advise/SKILL.md`
+- "Governance context injection" section in `.agents/skills/spec-kitty/SKILL.md`
   for Codex/Vibe hosts, enabling Tier 1 trail recording without host-side SaaS auth (WP03).
 - "Standalone invocations (outside missions)" section in
   `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` for Claude Code and gstack hosts,

@@ -42,18 +42,8 @@ class SessionPresenceContent:
         ``SECTION_CLOSE`` followed by a newline, suitable for injection into
         any text-based agent configuration file.
         """
-        upgrade_line = (
-            f"\n⚠ Upgrade available: {self.available_version} — "
-            "run `spec-kitty upgrade --cli` to update."
-            if self.health == "upgrade-available"
-            else ""
-        )
-        migration_line = (
-            "\n⚠ Project migration required — "
-            "run `spec-kitty upgrade` before using missions."
-            if self.health == "migration-required"
-            else ""
-        )
+        upgrade_line = f"\n⚠ Upgrade available: {self.available_version} — run `spec-kitty upgrade --cli` to update." if self.health == "upgrade-available" else ""
+        migration_line = "\n⚠ Project migration required — run `spec-kitty upgrade` before using missions." if self.health == "migration-required" else ""
         return (
             f"{SECTION_OPEN}\n"
             f"**Spec Kitty v{self.version}** — "
@@ -64,13 +54,12 @@ class SessionPresenceContent:
             '  trigger: "spec out", "create a mission", "write a spec", "plan this"\n'
             "  → run `/spec-kitty.specify`\n"
             "- **Lightweight dispatch** (ad-hoc fix, question, or advice — no mission created):\n"
-            '  trigger: "hey spec kitty", "use spec kitty to", "spec kitty, fix/do/ask/advise/dispatch"\n'
+            '  trigger: "hey spec kitty", "use spec kitty to", "spec kitty <anything>"\n'
             '  → **ALWAYS run `spec-kitty dispatch "<request verbatim>"` — do NOT answer directly.**\n'
-            "  `spec-kitty do`, `ask`, and `advise` are retained first-class aliases — use whichever fits.\n"
             "  If you know the right profile, pass it to skip routing:\n"
-            '  `spec-kitty dispatch --profile <profile-id> "<request verbatim>"`\n'
-            "  Reason: `spec-kitty dispatch` (and its aliases) loads governance context, routes to the\n"
-            "  correct agent profile, and opens the Op. Skipping it produces ungoverned, untracked responses.\n"
+            '  `spec-kitty dispatch "<request verbatim>" --profile <profile-id>`\n'
+            "  Reason: `spec-kitty dispatch` loads governance context, routes the request,\n"
+            "  and opens the Op. Skipping it produces ungoverned, untracked responses.\n"
             "  After finishing the work, close the Op with the command printed in the capsule\n"
             "  (`spec-kitty profile-invocation complete --invocation-id <id> "
             "--outcome <done|failed|abandoned>`).\n"

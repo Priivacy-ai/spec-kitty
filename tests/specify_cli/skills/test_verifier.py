@@ -19,6 +19,7 @@ import pytest
 
 pytestmark = [pytest.mark.unit]
 
+
 def _make_entry(
     skill_name: str = "test-skill",
     source_file: str = "SKILL.md",
@@ -288,13 +289,13 @@ def test_repair_updates_manifest(tmp_path: Path) -> None:
 
 def test_repair_adds_frontmatter_to_plain_skill(tmp_path: Path) -> None:
     """Repair normalizes plain Markdown SKILL.md files from older generated packs."""
-    canonical = "# spec-kitty.advise\n\nGet governance context for an action.\n"
-    registry = _create_registry(tmp_path, "spec-kitty.advise", {"SKILL.md": canonical})
+    canonical = "# spec-kitty\n\nGet governance context for an action.\n"
+    registry = _create_registry(tmp_path, "spec-kitty", {"SKILL.md": canonical})
 
     entry = _make_entry(
-        skill_name="spec-kitty.advise",
+        skill_name="spec-kitty",
         source_file="SKILL.md",
-        installed_path=".agents/skills/spec-kitty.advise/SKILL.md",
+        installed_path=".agents/skills/spec-kitty/SKILL.md",
         agent_key="codex",
         content_hash="sha256:old-stale-hash",
         delivery_mode="copy",
@@ -308,10 +309,10 @@ def test_repair_adds_frontmatter_to_plain_skill(tmp_path: Path) -> None:
     assert repaired == 1
     assert failed == 0
 
-    restored = tmp_path / ".agents/skills/spec-kitty.advise/SKILL.md"
+    restored = tmp_path / ".agents/skills/spec-kitty/SKILL.md"
     content = restored.read_text(encoding="utf-8")
     assert content.startswith("---\n")
-    assert "name: spec-kitty.advise\n" in content
+    assert "name: spec-kitty\n" in content
     assert "description: Get governance context for an action.\n" in content
 
 

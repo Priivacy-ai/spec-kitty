@@ -86,14 +86,14 @@ spec-kitty agent profile list
 
 **One-shot invocation (when the user wants a profile-governed answer rather
 than to adopt the role for the session):** route the request through the
-canonical invoke surfaces instead of loading the profile manually:
+canonical dispatch surface instead of loading the profile manually:
 
 ```bash
 # Ask a named profile to handle a specific request:
-spec-kitty ask <profile-id> "<request>"
+spec-kitty dispatch "<request>" --profile <profile-id>
 
 # Or let the router pick a profile for the request:
-spec-kitty advise "<request>" --profile <profile-id>
+spec-kitty dispatch "<request>"
 ```
 
 ---
@@ -216,17 +216,14 @@ for mode in profile.mode_defaults:
 
 ## Step 5: Standalone Profile Invocation
 
-For a profile-governed answer outside a mission, use the supported standalone
-commands:
+For a profile-governed answer outside a mission, use standalone dispatch:
 
 ```
-spec-kitty ask <profile-id> "<request>"
-spec-kitty advise "<request>" --profile <profile-id>
+spec-kitty dispatch "<request>" --profile <profile-id>
 ```
 
-These commands open an advisory invocation with governance context. They do not
-advance mission state, and they replace the retired `/spec-kitty.profile-context`
-surface.
+This opens a governed Op with governance context. It does not advance mission
+state, and it replaces the retired `/spec-kitty.profile-context` surface.
 
 ---
 
@@ -241,11 +238,10 @@ spec-kitty agent profile show architect
 spec-kitty agent profile show architect --all
 
 # One-shot profile-governed invocation
-spec-kitty ask architect "<request>"
-spec-kitty advise "<request>" --profile architect
+spec-kitty dispatch "<request>" --profile architect
 
 # Profile-governed standalone invocation
-spec-kitty ask architect "<request>"
+spec-kitty dispatch "<request>" --profile architect
 ```
 
 ```python
