@@ -42,13 +42,20 @@ def _provider(tmp_path: Path) -> AgentProfilesProvider:
     )
 
 
-def _projected_profile_instances(
-    instances: list[SurfaceInstance],
-) -> list[SurfaceInstance]:
+_DIAGNOSTICS_SENTINEL_SUFFIX = "<profile-diagnostics>"
+
+
+def _real_profiles(instances: list[SurfaceInstance]) -> list[SurfaceInstance]:
+    """Keep only real projected-profile instances.
+
+    Drops the #1940 ``<profile-diagnostics>`` sentinel that ``expand`` appends to
+    carry ``ProfileProjector.diagnose`` findings — it is not a projected profile
+    file, so per-renderer path/suffix invariants must not assert over it.
+    """
     return [
         i
         for i in instances
-        if not (i.surface_id and i.surface_id.endswith("<profile-diagnostics>"))
+        if not (i.surface_id and i.surface_id.endswith(_DIAGNOSTICS_SENTINEL_SUFFIX))
     ]
 
 
@@ -66,7 +73,13 @@ def test_can_handle_only_agent_profile() -> None:
 def test_expand_supported_tool_yields_profiles(tmp_path: Path) -> None:
     provider = _provider(tmp_path)
     instances = provider.expand(agent_profile_definition(), "claude", tmp_path)
-    profile_instances = _projected_profile_instances(instances)
+    # The trailing diagnostics sentinel is not a projected profile file; scope the
+    # markdown-suffix invariant to the projected-profile instances.
+    profile_instances = [
+        i
+        for i in instances
+        if not (i.surface_id and i.surface_id.endswith(_DIAGNOSTICS_SENTINEL_SUFFIX))
+    ]
     assert len(profile_instances) > 1
     assert all(i.owner == "claude" for i in instances)
     assert all(i.path.suffix == ".md" for i in profile_instances)
@@ -80,13 +93,12 @@ def test_expand_supported_tool_yields_profiles(tmp_path: Path) -> None:
 def test_codex_expands_to_real_profiles(tmp_path: Path) -> None:
     """After WP02, codex has a real renderer and projects actual profiles."""
     provider = _provider(tmp_path)
-    instances = provider.expand(agent_profile_definition(), "codex", tmp_path)
-    profile_instances = _projected_profile_instances(instances)
+    instances = _real_profiles(provider.expand(agent_profile_definition(), "codex", tmp_path))
     # Must yield at least one real profile instance (not a sentinel).
-    assert len(profile_instances) >= 1
+    assert len(instances) >= 1
     assert all(i.owner == "codex" for i in instances)
     # All paths should be inside .codex/agents/ with .toml suffix.
-    assert all(i.path.suffix == ".toml" for i in profile_instances)
+    assert all(i.path.suffix == ".toml" for i in instances)
 
 
 # ---------------------------------------------------------------------------
@@ -152,13 +164,12 @@ def test_agent_profiles_provider_codex_no_longer_research_gap(
 ) -> None:
     """Codex now has a renderer and expands to real profile instances, not a research gap."""
     provider = _provider(tmp_path)
-    instances = provider.expand(agent_profile_definition(), "codex", tmp_path)
-    profile_instances = _projected_profile_instances(instances)
+    instances = _real_profiles(provider.expand(agent_profile_definition(), "codex", tmp_path))
     # At least one profile projected (built-in profiles are always loaded).
-    assert len(profile_instances) > 0
+    assert len(instances) > 0
     # All instances are owned by codex and point to .toml files.
     assert all(i.owner == "codex" for i in instances)
-    assert all(i.path.suffix == ".toml" for i in profile_instances)
+    assert all(i.path.suffix == ".toml" for i in instances)
     # None of the instances is the research-gap sentinel.
     assert all(str(i.path) != "<unsupported>" for i in instances)
 
@@ -170,12 +181,11 @@ def test_agent_profiles_provider_codex_no_longer_research_gap(
 
 def test_augment_expands_to_real_profiles(tmp_path: Path) -> None:
     provider = _provider(tmp_path)
-    instances = provider.expand(agent_profile_definition(), "auggie", tmp_path)
-    profile_instances = _projected_profile_instances(instances)
-    assert len(profile_instances) >= 1
+    instances = _real_profiles(provider.expand(agent_profile_definition(), "auggie", tmp_path))
+    assert len(instances) >= 1
     assert all(i.owner == "auggie" for i in instances)
-    assert all(i.path.suffix == ".md" for i in profile_instances)
-    assert all(".augment/agents" in str(i.path) for i in profile_instances)
+    assert all(i.path.suffix == ".md" for i in instances)
+    assert all(".augment/agents" in str(i.path) for i in instances)
 
 
 def test_augment_repair_writes_file_and_records_manifest(tmp_path: Path) -> None:
@@ -201,19 +211,17 @@ def test_augment_repair_writes_file_and_records_manifest(tmp_path: Path) -> None
 
 def test_amazon_q_expands_to_real_profiles(tmp_path: Path) -> None:
     provider = _provider(tmp_path)
-    instances = provider.expand(agent_profile_definition(), "q", tmp_path)
-    profile_instances = _projected_profile_instances(instances)
-    assert len(profile_instances) >= 1
+    instances = _real_profiles(provider.expand(agent_profile_definition(), "q", tmp_path))
+    assert len(instances) >= 1
     assert all(i.owner == "q" for i in instances)
-    assert all(i.path.suffix == ".json" for i in profile_instances)
+    assert all(i.path.suffix == ".json" for i in instances)
 
 
 def test_amazon_q_output_path_is_user_global(tmp_path: Path) -> None:
     provider = _provider(tmp_path)
-    instances = provider.expand(agent_profile_definition(), "q", tmp_path)
-    profile_instances = _projected_profile_instances(instances)
+    instances = _real_profiles(provider.expand(agent_profile_definition(), "q", tmp_path))
     home = Path.home()
-    for instance in profile_instances:
+    for instance in instances:
         assert str(instance.path).startswith(str(home)), (
             f"Amazon Q path {instance.path} must be under home directory"
         )
@@ -306,7 +314,7 @@ def test_agent_profiles_provider_repair_records_source_provenance(
     tmp_path: Path,
 ) -> None:
     provider = _provider(tmp_path)
-    instance = _projected_profile_instances(
+    instance = _real_profiles(
         provider.expand(agent_profile_definition(), "claude", tmp_path)
     )[0]
     missing = provider.probe(instance)
@@ -315,9 +323,7 @@ def test_agent_profiles_provider_repair_records_source_provenance(
 
     assert result.failed == ()
     reloaded = ProfileManifest.load(tmp_path)
-    entry = next(
-        e for e in reloaded.all_entries() if e.output_path == instance.path
-    )
+    entry = next(e for e in reloaded.all_entries() if e.output_path == instance.path)
     assert entry.source_path
     assert entry.source_hash
     assert entry.projection_version == PROJECTION_VERSION
@@ -363,7 +369,7 @@ def test_expand_appends_diagnostics_instance_for_supported_tool(
     diagnostics = [
         i
         for i in instances
-        if i.surface_id and i.surface_id.endswith("<profile-diagnostics>")
+        if i.surface_id and i.surface_id.endswith(_DIAGNOSTICS_SENTINEL_SUFFIX)
     ]
     assert len(diagnostics) == 1
     assert diagnostics[0].owner == "claude"
@@ -384,7 +390,7 @@ def test_probe_diagnostics_instance_emits_profile_finding_codes(
     diagnostics = next(
         i
         for i in instances
-        if i.surface_id and i.surface_id.endswith("<profile-diagnostics>")
+        if i.surface_id and i.surface_id.endswith(_DIAGNOSTICS_SENTINEL_SUFFIX)
     )
     status = provider.probe(diagnostics)
     assert status.state == STATE_NOT_APPLICABLE

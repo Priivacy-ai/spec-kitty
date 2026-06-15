@@ -1,0 +1,261 @@
+{
+  "entries": [
+    {
+      "file_hash": "3ed76a94a690c494d80082b11fb4089ef531f9bf45036abb7fa21a525096d21e",
+      "format": "claude-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.claude/agents/architect-alphonso.md",
+      "profile_urn": "agent_profile:architect-alphonso",
+      "source_layer": "builtin",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "d530b0822fde2e35e4d1b1cb76a09dcd5ae403d7e5715245ac09de01536d7001",
+      "format": "claude-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.claude/agents/curator-carla.md",
+      "profile_urn": "agent_profile:curator-carla",
+      "source_layer": "builtin",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "92294ad835fc1fb021dac94190edd5d078c3cbd5959e34d4d173f7ab518dee01",
+      "format": "claude-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.claude/agents/debugger-debbie.md",
+      "profile_urn": "agent_profile:debugger-debbie",
+      "source_layer": "builtin",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "771d15d67f7d95a61235a3c599585b87355a4d2a595df5fb5aeb55c3e7e9cd6d",
+      "format": "claude-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.claude/agents/designer-dagmar.md",
+      "profile_urn": "agent_profile:designer-dagmar",
+      "source_layer": "builtin",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "c1b9cffbf3bdffafae644af7c3367be2e8402332dd842b21257b59b2c9181c88",
+      "format": "claude-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.claude/agents/frontend-freddy.md",
+      "profile_urn": "agent_profile:frontend-freddy",
+      "source_layer": "builtin",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "1540c46b8e617ba1e5a5a783b13fd9e4062d9556f142866c6ee1e13f66425360",
+      "format": "claude-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.claude/agents/generic-agent.md",
+      "profile_urn": "agent_profile:generic-agent",
+      "source_layer": "builtin",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "4870efd119c0832c3d05b9534c9197c8583143d56fe946547d64215c5bc511d9",
+      "format": "claude-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.claude/agents/implementer-ivan.md",
+      "profile_urn": "agent_profile:implementer-ivan",
+      "source_layer": "builtin",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "11347576888da9dad7f6a6e5177691b99062f265c92ab3895ef55da461448470",
+      "format": "claude-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.claude/agents/java-jenny.md",
+      "profile_urn": "agent_profile:java-jenny",
+      "source_layer": "builtin",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "f246a7471c7806a4746ee2e7c604cbced21b260d6ead8c8bb5559a99a68049f5",
+      "format": "claude-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.claude/agents/node-norris.md",
+      "profile_urn": "agent_profile:node-norris",
+      "source_layer": "builtin",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "986d55ac2b43dcd6c64a9f77d7a2d340173443c115a4aab4b83bfd57e30dde3b",
+      "format": "claude-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.claude/agents/paula-patterns.md",
+      "profile_urn": "agent_profile:paula-patterns",
+      "source_layer": "builtin",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "86d34e608590f264ce75d9cdcfb58af9e032b2cf5edec8a94e816c7c44cf2e3b",
+      "format": "claude-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.claude/agents/planner-priti.md",
+      "profile_urn": "agent_profile:planner-priti",
+      "source_layer": "builtin",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "0020b8f701e2e8ed548264c9c178dd49f69f05803d93d4f306cb16abc49e990b",
+      "format": "claude-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.claude/agents/python-pedro.md",
+      "profile_urn": "agent_profile:python-pedro",
+      "source_layer": "builtin",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "bc1af556253805396ae0ca8b0b74aa17e22bbabd7e01c4a42e13a0e2b40457b9",
+      "format": "claude-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.claude/agents/randy-reducer.md",
+      "profile_urn": "agent_profile:randy-reducer",
+      "source_layer": "builtin",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "c2c398f4d63776757ef19dc3942e22ef9904a7e7770f15b6a45971fe4bcaf8b3",
+      "format": "claude-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.claude/agents/researcher-robbie.md",
+      "profile_urn": "agent_profile:researcher-robbie",
+      "source_layer": "builtin",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "b96fe0da65a0accd7e3c0c1f9b55bf89810faeb87746d513f8e5fac6171ea838",
+      "format": "claude-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.claude/agents/retrospective-facilitator.md",
+      "profile_urn": "agent_profile:retrospective-facilitator",
+      "source_layer": "builtin",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "f087cc97448daabdb3954991b5c669e12192e4ba36902d63afc38dff68c59b02",
+      "format": "claude-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.claude/agents/reviewer-renata.md",
+      "profile_urn": "agent_profile:reviewer-renata",
+      "source_layer": "builtin",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "4cd7213bc6a9819bdf79eecf1f6edec8d2270adb015354a876e78b2fbafb1c53",
+      "format": "codex-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.codex/agents/architect-alphonso.toml",
+      "profile_urn": "agent_profile:architect-alphonso",
+      "source_layer": "builtin",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "b8337afc8eacac4f5588beaaad095ba23ff992c8d906e52acbb1910175bbe8a4",
+      "format": "codex-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.codex/agents/curator-carla.toml",
+      "profile_urn": "agent_profile:curator-carla",
+      "source_layer": "builtin",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "cab310d01e3ef69eb99ee59ab2e215e6ffbf1ebb1fd3f693c48f258729e16d51",
+      "format": "codex-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.codex/agents/debugger-debbie.toml",
+      "profile_urn": "agent_profile:debugger-debbie",
+      "source_layer": "builtin",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "75ab35480af1d42370bceeeab2940c4f5d41a671f7734d5125875776e6fd9f2c",
+      "format": "codex-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.codex/agents/designer-dagmar.toml",
+      "profile_urn": "agent_profile:designer-dagmar",
+      "source_layer": "builtin",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "3282d0824e984598e1df245de16f9e2da79f334daacbaa6b271b382a431bc6da",
+      "format": "codex-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.codex/agents/frontend-freddy.toml",
+      "profile_urn": "agent_profile:frontend-freddy",
+      "source_layer": "builtin",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "fd2d1cbad1a9edc7e5d72c6a0752a9eacf05d0d6f6c7a6bf08a2a07febdd41a9",
+      "format": "codex-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.codex/agents/generic-agent.toml",
+      "profile_urn": "agent_profile:generic-agent",
+      "source_layer": "builtin",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "bc4c87d70d394ea98c62dfce2b6c8c980904982cd4b95da79ab185572b4f4888",
+      "format": "codex-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.codex/agents/implementer-ivan.toml",
+      "profile_urn": "agent_profile:implementer-ivan",
+      "source_layer": "builtin",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "e6b5c65f759deff40c1f63b949d5b87d07e7053005084b661ab2442a6ab00d27",
+      "format": "codex-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.codex/agents/java-jenny.toml",
+      "profile_urn": "agent_profile:java-jenny",
+      "source_layer": "builtin",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "77cd80e44a601ce5dffae12784063008d255ccdb652021152e24d15115286398",
+      "format": "codex-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.codex/agents/node-norris.toml",
+      "profile_urn": "agent_profile:node-norris",
+      "source_layer": "builtin",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "173fc9d49296d4ea685ee4eb22a6f917ce84bf308bf68306a58741c435609db9",
+      "format": "codex-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.codex/agents/paula-patterns.toml",
+      "profile_urn": "agent_profile:paula-patterns",
+      "source_layer": "builtin",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "e1cbf503b7739fca8c572ae907011058987e25bbf25253ba954f4be5601595a6",
+      "format": "codex-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.codex/agents/planner-priti.toml",
+      "profile_urn": "agent_profile:planner-priti",
+      "source_layer": "builtin",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "73552420ba82a229a73af6ad532791783db176cef231fe24c913779d0079976c",
+      "format": "codex-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.codex/agents/python-pedro.toml",
+      "profile_urn": "agent_profile:python-pedro",
+      "source_layer": "builtin",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "63f272c25fa3a53bb4c12ce6200da5649173a398a93a187f43f55cc7d859221d",
+      "format": "codex-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.codex/agents/randy-reducer.toml",
+      "profile_urn": "agent_profile:randy-reducer",
+      "source_layer": "builtin",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "9a66cd32aa8f349c3f3559cb98af4ed6de26ddda7cd9a871ccb9718b3cf5a993",
+      "format": "codex-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.codex/agents/researcher-robbie.toml",
+      "profile_urn": "agent_profile:researcher-robbie",
+      "source_layer": "builtin",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "56bb17ef4d86a1f402eb7db75b66fb625b9ea096b3c26d09f39c6686aa2e0573",
+      "format": "codex-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.codex/agents/retrospective-facilitator.toml",
+      "profile_urn": "agent_profile:retrospective-facilitator",
+      "source_layer": "builtin",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "080b6b3b3117c31049b82e20c38640ea3b978f3faf7ae5f7b86314f0a05a5d0c",
+      "format": "codex-agent",
+      "output_path": "/Users/robert/spec-kitty-dev/spec-kitty-20260615-112805-Z0YHcU/spec-kitty/.codex/agents/reviewer-renata.toml",
+      "profile_urn": "agent_profile:reviewer-renata",
+      "source_layer": "builtin",
+      "tool_key": "codex"
+    }
+  ],
+  "schema_version": 1
+}

@@ -127,10 +127,11 @@ class AgentProfilesProvider:
         distinguish ``not_applicable`` (assessed, no native primitive) from
         ``research_gap`` (not yet assessed) before attempting projection.
 
-        A synthetic diagnostics instance is appended for tools with a native
-        renderer so :meth:`ProfileProjector.diagnose` findings reach
-        ``doctor tool-surfaces --json`` through the standard collection path.
-        Assessed non-capable tools emit only the ``not_applicable`` instance.
+        For projectable tools a synthetic diagnostics instance is appended so
+        that :meth:`ProfileProjector.diagnose`'s #1940 finding codes flow through
+        the standard ``collect`` path and reach ``doctor tool-surfaces --json``.
+        ``not_applicable`` harnesses (no native primitive) return early; tools
+        with no projection emit only the research-gap instance.
         """
         record = HARNESS_CAPABILITY_MATRIX.get(tool_key)
         if record is not None and not record.has_native_agent_primitive:
@@ -217,8 +218,9 @@ class AgentProfilesProvider:
         """Probe one projected profile (or a sentinel instance).
 
         The diagnostics sentinel delegates to :meth:`ProfileProjector.diagnose`
-        so the #1940 finding codes are surfaced; not-applicable/research-gap
-        sentinels and normal projected files keep their existing semantics.
+        so the #1940 finding codes are surfaced; the not-applicable and
+        research-gap sentinels and normal projected files keep their existing
+        semantics.
         """
         if self._is_diagnostics_instance(instance):
             return self._diagnostics_status(instance)
@@ -232,26 +234,6 @@ class AgentProfilesProvider:
         if instance.file_hash is not None and hash_file(instance.path) != instance.file_hash:
             return self._drift_status(instance)
         return SurfaceStatus(instance=instance, state=STATE_PRESENT)
-
-    @staticmethod
-    def _is_diagnostics_instance(instance: SurfaceInstance) -> bool:
-        surface_id = instance.surface_id
-        if surface_id is None:
-            return False
-        return bool(surface_id.endswith(_DIAGNOSTICS_SENTINEL))
-
-    def _diagnostics_status(self, instance: SurfaceInstance) -> SurfaceStatus:
-        # ``path`` is the ``project_root`` recorded at expand time (see
-        # ``_diagnostics_instance``); rebuild the projector for it so the project
-        # overlay layer participates in diagnosis.
-        project_root = instance.path
-        projector = self._projector_for(project_root)
-        findings = tuple(projector.diagnose(instance.owner, project_root))
-        return SurfaceStatus(
-            instance=instance,
-            state=STATE_NOT_APPLICABLE,
-            findings=findings,
-        )
 
     @staticmethod
     def _not_applicable_status(instance: SurfaceInstance) -> SurfaceStatus:
@@ -275,6 +257,26 @@ class AgentProfilesProvider:
                     details={"status": "not_applicable", "reason": reason},
                 ),
             ),
+        )
+
+    @staticmethod
+    def _is_diagnostics_instance(instance: SurfaceInstance) -> bool:
+        surface_id = instance.surface_id
+        if surface_id is None:
+            return False
+        return bool(surface_id.endswith(_DIAGNOSTICS_SENTINEL))
+
+    def _diagnostics_status(self, instance: SurfaceInstance) -> SurfaceStatus:
+        # ``path`` is the ``project_root`` recorded at expand time (see
+        # ``_diagnostics_instance``); rebuild the projector for it so the project
+        # overlay layer participates in diagnosis.
+        project_root = instance.path
+        projector = self._projector_for(project_root)
+        findings = tuple(projector.diagnose(instance.owner, project_root))
+        return SurfaceStatus(
+            instance=instance,
+            state=STATE_NOT_APPLICABLE,
+            findings=findings,
         )
 
     @staticmethod

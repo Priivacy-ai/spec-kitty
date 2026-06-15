@@ -158,31 +158,6 @@ def test_get_renderer_returns_none_for_non_capable_harness() -> None:
     assert get_renderer("windsurf") is None
 
 
-# --- #1940 native-name validity (drives the profile-name-invalid condition) ---
-
-
-def test_native_name_violation_accepts_clean_id() -> None:
-    """A canonical kebab-case id is legal for the native filename."""
-    assert native_name_violation("architect-alphonso") is None
-
-
-@pytest.mark.parametrize(
-    "bad_id",
-    [
-        "bad/slash",  # path separator escapes the agents dir
-        "bad\\back",  # Windows separator
-        "..",  # path traversal
-        "with space",  # whitespace is illegal in the native filename
-        "tab\tchar",  # control char
-        "",  # empty id has no filename stem
-    ],
-)
-def test_native_name_violation_flags_illegal_ids(bad_id: str) -> None:
-    """Ids illegal for ``.claude/agents/<id>.md`` return a violation reason."""
-    reason = native_name_violation(bad_id)
-    assert reason is not None
-    assert isinstance(reason, str) and reason
-
 
 # ---------------------------------------------------------------------------
 # CodexProfileRenderer tests
@@ -451,3 +426,29 @@ def test_all_renderers_render_non_empty_str(
     rendered = renderer.render(profile)
     assert isinstance(rendered, str)
     assert len(rendered) > 50
+
+
+# --- #1940 native-name validity (drives the profile-name-invalid condition) ---
+
+
+def test_native_name_violation_accepts_clean_id() -> None:
+    """A canonical kebab-case id is legal for the native filename."""
+    assert native_name_violation("architect-alphonso") is None
+
+
+@pytest.mark.parametrize(
+    "bad_id",
+    [
+        "bad/slash",  # path separator escapes the agents dir
+        "bad\\back",  # Windows separator
+        "..",  # path traversal
+        "with space",  # whitespace is illegal in the native filename
+        "tab\tchar",  # control char
+        "",  # empty id has no filename stem
+    ],
+)
+def test_native_name_violation_flags_illegal_ids(bad_id: str) -> None:
+    """Ids illegal for ``.claude/agents/<id>.md`` return a violation reason."""
+    reason = native_name_violation(bad_id)
+    assert reason is not None
+    assert isinstance(reason, str) and reason
