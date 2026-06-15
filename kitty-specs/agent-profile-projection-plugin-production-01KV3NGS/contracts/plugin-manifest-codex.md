@@ -1,7 +1,7 @@
 # Contract: Codex Plugin Manifest
 
-**Mission**: agent-profile-projection-plugin-production-01KV3NGS  
-**Contract ID**: plugin-manifest-codex-01  
+**Mission**: agent-profile-projection-plugin-production-01KV3NGS
+**Contract ID**: plugin-manifest-codex-01
 **Status**: Proposed
 
 ---
@@ -72,5 +72,5 @@ codex plugin add spec-kitty@spec-kitty-plugins
 
 ## Version Invariant
 
-`plugin.json:version` MUST equal `importlib.metadata.version("spec-kitty-cli")` and be valid semver.  
+`plugin.json:version` MUST equal `importlib.metadata.version("spec-kitty-cli")` and be valid semver.
 A mismatch or non-semver value is a build error.

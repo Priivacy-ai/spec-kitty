@@ -1,8 +1,8 @@
 # Spec: Agent Profile Projection and Plugin Production Pipeline
 
-**Mission:** agent-profile-projection-plugin-production-01KV3NGS  
-**Mission ID:** 01KV3NGSDCJ272573TF6T6NWDW  
-**Type:** software-dev  
+**Mission:** agent-profile-projection-plugin-production-01KV3NGS
+**Mission ID:** 01KV3NGSDCJ272573TF6T6NWDW
+**Type:** software-dev
 **Status:** Draft
 
 ## Overview

@@ -1,7 +1,7 @@
 # Research: Agent Profile Projection and Plugin Production Pipeline
 
-**Mission**: agent-profile-projection-plugin-production-01KV3NGS  
-**Phase**: 0 — Pre-design research  
+**Mission**: agent-profile-projection-plugin-production-01KV3NGS
+**Phase**: 0 — Pre-design research
 **Date**: 2026-06-14
 
 ---

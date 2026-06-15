@@ -1,7 +1,7 @@
 # Specification Quality Checklist: Agent Profile Projection and Plugin Production Pipeline
 
-**Purpose**: Validate specification completeness and quality before proceeding to planning  
-**Created**: 2026-06-14  
+**Purpose**: Validate specification completeness and quality before proceeding to planning
+**Created**: 2026-06-14
 **Mission**: [spec.md](../spec.md)
 
 ## Content Quality

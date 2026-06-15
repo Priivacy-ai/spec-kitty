@@ -1,7 +1,7 @@
 # Contract: Claude Code Plugin Manifest
 
-**Mission**: agent-profile-projection-plugin-production-01KV3NGS  
-**Contract ID**: plugin-manifest-claude-01  
+**Mission**: agent-profile-projection-plugin-production-01KV3NGS
+**Contract ID**: plugin-manifest-claude-01
 **Status**: Proposed
 
 ---
@@ -47,10 +47,10 @@ dist/spec-kitty-plugins/claude-code/
 
 ## Validation Gate
 
-`claude plugin validate --strict dist/spec-kitty-plugins/claude-code/` must exit 0.  
+`claude plugin validate --strict dist/spec-kitty-plugins/claude-code/` must exit 0.
 Runs in CI in the `plugin-validate` job before release.
 
 ## Version Invariant
 
-`plugin.json:version` MUST equal `importlib.metadata.version("spec-kitty-cli")` at build time.  
+`plugin.json:version` MUST equal `importlib.metadata.version("spec-kitty-cli")` at build time.
 A mismatch is a build error, not a warning.

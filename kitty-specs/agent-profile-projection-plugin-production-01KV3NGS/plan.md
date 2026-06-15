@@ -1,6 +1,6 @@
 # Implementation Plan: Agent Profile Projection and Plugin Production Pipeline
 
-**Branch**: `feat/agent-profile-projection-plugin-production` | **Date**: 2026-06-14 | **Spec**: [spec.md](spec.md)  
+**Branch**: `feat/agent-profile-projection-plugin-production` | **Date**: 2026-06-14 | **Spec**: [spec.md](spec.md)
 **Mission ID**: 01KV3NGSDCJ272573TF6T6NWDW | **Mission slug**: agent-profile-projection-plugin-production-01KV3NGS
 
 ## Summary
@@ -9,27 +9,27 @@ rc44 added the ToolSurfaceContract registry and staging plugin bundles but stopp
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+  
-**Primary Dependencies**: typer (CLI), rich (console output), ruamel.yaml (YAML/frontmatter), tomli/tomllib (TOML write for Codex profiles), pytest (testing), mypy (strict type checking), ruff (linting)  
-**Storage**: Files — JSONL event log, YAML config (`.kittify/config.yaml`), Markdown agent profiles (`.claude/agents/`, `.github/agents/`, `.augment/agents/`), TOML agent profiles (`.codex/agents/`), JSON agent config (`~/.aws/amazonq/cli-agents/`), JSON plugin manifests (`.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`), JSON command-skill manifests (`.kittify/command-skills-manifest.json`), JSON managed-doctrine skill manifests (`.kittify/skills-manifest.json`)  
-**Testing**: pytest with ≥90% branch coverage on new code; `mypy --strict` on changed modules; `ruff check`; integration tests for CLI commands; migration acceptance fixture for rc44-era upgrade scenario  
-**Target Platform**: Linux, macOS, Windows 10+ (cross-platform CLI tool)  
-**Project Type**: Single Python package (`src/specify_cli/`)  
-**Performance Goals**: `spec-kitty upgrade` completes in ≤30 s on a typical project; `spec-kitty plugin build` completes in ≤60 s; `doctor tool-surfaces` completes in ≤5 s  
-**Constraints**: Python 3.11+; McCabe complexity ≤15 on new/changed functions; no new top-level dependencies not already in `pyproject.toml` unless strictly required; drift policy applies uniformly across all surface kinds; `--yes` alone must never overwrite drifted files  
+**Language/Version**: Python 3.11+
+**Primary Dependencies**: typer (CLI), rich (console output), ruamel.yaml (YAML/frontmatter), tomli/tomllib (TOML write for Codex profiles), pytest (testing), mypy (strict type checking), ruff (linting)
+**Storage**: Files — JSONL event log, YAML config (`.kittify/config.yaml`), Markdown agent profiles (`.claude/agents/`, `.github/agents/`, `.augment/agents/`), TOML agent profiles (`.codex/agents/`), JSON agent config (`~/.aws/amazonq/cli-agents/`), JSON plugin manifests (`.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`), JSON command-skill manifests (`.kittify/command-skills-manifest.json`), JSON managed-doctrine skill manifests (`.kittify/skills-manifest.json`)
+**Testing**: pytest with ≥90% branch coverage on new code; `mypy --strict` on changed modules; `ruff check`; integration tests for CLI commands; migration acceptance fixture for rc44-era upgrade scenario
+**Target Platform**: Linux, macOS, Windows 10+ (cross-platform CLI tool)
+**Project Type**: Single Python package (`src/specify_cli/`)
+**Performance Goals**: `spec-kitty upgrade` completes in ≤30 s on a typical project; `spec-kitty plugin build` completes in ≤60 s; `doctor tool-surfaces` completes in ≤5 s
+**Constraints**: Python 3.11+; McCabe complexity ≤15 on new/changed functions; no new top-level dependencies not already in `pyproject.toml` unless strictly required; drift policy applies uniformly across all surface kinds; `--yes` alone must never overwrite drifted files
 **Scale/Scope**: 19 supported harnesses; ≤15 canonical command skills; ≤20 built-in agent profiles; single project checkout at a time
 
 ## Charter Check
 
-- **typer** CLI framework: ✓ All new CLI commands (`plugin build`) use typer  
-- **rich** console output: ✓ Upgrade/init summary uses rich panels/tables  
-- **ruamel.yaml** for YAML: ✓ Used for agent profile frontmatter  
-- **mypy --strict**: ✓ Applied to all new and changed modules  
-- **90%+ test coverage**: ✓ New code paths have focused unit + integration tests  
-- **No direct push to origin/main**: ✓ All changes go through PR from `feat/agent-profile-projection-plugin-production`  
-- **Migrations use `get_agent_dirs_for_project()`**: ✓ Hardcoded `AGENT_DIRS` is forbidden  
-- **No `feature*` terminology**: ✓ All new code and docs use `mission`  
-- **Complexity ceiling ≤15**: ✓ Functions near the limit will be extracted  
+- **typer** CLI framework: ✓ All new CLI commands (`plugin build`) use typer
+- **rich** console output: ✓ Upgrade/init summary uses rich panels/tables
+- **ruamel.yaml** for YAML: ✓ Used for agent profile frontmatter
+- **mypy --strict**: ✓ Applied to all new and changed modules
+- **90%+ test coverage**: ✓ New code paths have focused unit + integration tests
+- **No direct push to origin/main**: ✓ All changes go through PR from `feat/agent-profile-projection-plugin-production`
+- **Migrations use `get_agent_dirs_for_project()`**: ✓ Hardcoded `AGENT_DIRS` is forbidden
+- **No `feature*` terminology**: ✓ All new code and docs use `mission`
+- **Complexity ceiling ≤15**: ✓ Functions near the limit will be extracted
 
 Gates pass. No charter violations.
 

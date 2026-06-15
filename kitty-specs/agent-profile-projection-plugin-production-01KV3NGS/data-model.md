@@ -1,6 +1,6 @@
 # Data Model: Agent Profile Projection and Plugin Production Pipeline
 
-**Mission**: agent-profile-projection-plugin-production-01KV3NGS  
+**Mission**: agent-profile-projection-plugin-production-01KV3NGS
 **Date**: 2026-06-14
 
 ---

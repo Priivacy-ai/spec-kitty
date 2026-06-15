@@ -1,8 +1,8 @@
 # Contract: Surface Drift Policy
 
-**Mission**: agent-profile-projection-plugin-production-01KV3NGS  
-**Contract ID**: drift-policy-01  
-**Status**: Proposed  
+**Mission**: agent-profile-projection-plugin-production-01KV3NGS
+**Contract ID**: drift-policy-01
+**Status**: Proposed
 **Enforced by**: `SurfaceRepairService`, `test_drift_policy.py`
 
 ---

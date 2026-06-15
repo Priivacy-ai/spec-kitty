@@ -1,8 +1,8 @@
 # Tasks: Agent Profile Projection and Plugin Production Pipeline
 
-**Mission:** agent-profile-projection-plugin-production-01KV3NGS  
-**Mission ID:** 01KV3NGSDCJ272573TF6T6NWDW  
-**Branch:** feat/agent-profile-projection-plugin-production  
+**Mission:** agent-profile-projection-plugin-production-01KV3NGS
+**Mission ID:** 01KV3NGSDCJ272573TF6T6NWDW
+**Branch:** feat/agent-profile-projection-plugin-production
 **Generated:** 2026-06-14
 
 ---
@@ -63,10 +63,10 @@
 
 ### WP01 — Surface Repair Wiring into Init/Upgrade
 
-**Priority:** Critical (blocks WP02, WP03, WP07, WP08, WP09)  
-**Estimated prompt size:** ~380 lines  
-**Execution mode:** code_change  
-**Dependencies:** none  
+**Priority:** Critical (blocks WP02, WP03, WP07, WP08, WP09)
+**Estimated prompt size:** ~380 lines
+**Execution mode:** code_change
+**Dependencies:** none
 
 **Goal:** Make `spec-kitty init` and `spec-kitty upgrade` call the `SurfaceRepairService` after all agent configuration is written, applying the full 6-rule drift policy (auto-create missing, auto-repair stale, prompt/report drifted) and emitting a human-readable summary.
 
@@ -85,17 +85,17 @@
 5. Call `run_surface_repair()` at the tail of `init` (after agent dirs written) and at tail of upgrade runner
 6. Emit summary with counts and paths; second run on clean project reports zero
 
-**Parallel opportunities:** none (sequential — service extraction must precede wiring)  
+**Parallel opportunities:** none (sequential — service extraction must precede wiring)
 **Risks:** `upgrade/runner.py` may run migrations in a loop; repair must happen only once at the end, not per-migration
 
 ---
 
 ### WP02 — Codex Native Profile Renderer
 
-**Priority:** High  
-**Estimated prompt size:** ~310 lines  
-**Execution mode:** code_change  
-**Dependencies:** [WP01]  
+**Priority:** High
+**Estimated prompt size:** ~310 lines
+**Execution mode:** code_change
+**Dependencies:** [WP01]
 
 **Goal:** Implement `CodexProfileRenderer` that projects Spec Kitty agent profiles to `.codex/agents/<profile_id>.toml` using TOML format, eliminating the `research_gap` finding for Codex in `doctor tool-surfaces`.
 
@@ -113,17 +113,17 @@
 5. Register in `renderers.py` alongside `ClaudeCodeProfileRenderer` and `CopilotProfileRenderer`
 6. Smoke test with `spec-kitty doctor tool-surfaces --kind agent-profile --json`
 
-**Parallel opportunities:** T006-T009 are internally sequential; WP02 can run in parallel with WP03 after WP01 lands  
+**Parallel opportunities:** T006-T009 are internally sequential; WP02 can run in parallel with WP03 after WP01 lands
 **Risks:** `tomli-w` must be added to both `pyproject.toml` and the uv lockfile
 
 ---
 
 ### WP03 — Harness Capability Matrix Completion
 
-**Priority:** High  
-**Estimated prompt size:** ~400 lines  
-**Execution mode:** code_change  
-**Dependencies:** [WP01]  
+**Priority:** High
+**Estimated prompt size:** ~400 lines
+**Execution mode:** code_change
+**Dependencies:** [WP01]
 
 **Goal:** Complete the harness capability matrix: implement Amazon Q and Augment Code renderers where confirmed; mark all remaining harnesses (Windsurf, Cursor, Kiro, etc.) as `not_applicable` with machine-readable reasons; ensure `doctor tool-surfaces --kind agent-profile --json` reports only the six valid statuses.
 
@@ -141,17 +141,17 @@
 4. Update `AgentProfilesProvider` to consult capability matrix when building findings
 5. Verify with `--kind agent-profile --json`: every harness is `present`/`missing`/`stale`/`drifted`/`not_applicable` or `research_gap` only for truly unassessed ones
 
-**Parallel opportunities:** T010 and T011 can execute in parallel (independent renderer files)  
+**Parallel opportunities:** T010 and T011 can execute in parallel (independent renderer files)
 **Risks:** Amazon Q user-global path must not be added to project manifest; must use direct filesystem inspection in doctor
 
 ---
 
 ### WP04 — Claude Code Plugin Build Command
 
-**Priority:** High  
-**Estimated prompt size:** ~420 lines  
-**Execution mode:** code_change  
-**Dependencies:** none  
+**Priority:** High
+**Estimated prompt size:** ~420 lines
+**Execution mode:** code_change
+**Dependencies:** none
 
 **Goal:** Implement `spec-kitty plugin build --target claude-code` that generates a complete, validatable plugin bundle at `dist/spec-kitty-plugins/claude-code/` with real version metadata, all canonical skills, and all built-in agent profiles.
 
@@ -169,17 +169,17 @@
 4. Copy profile Markdown files from doctrine to `dist/.../agents/<id>.md`
 5. Shell out to `claude plugin validate --strict` if `claude` CLI is found; display result; non-zero exit on failure
 
-**Parallel opportunities:** none (sequential bundle build)  
+**Parallel opportunities:** none (sequential bundle build)
 **Risks:** `claude` CLI may not be installed in dev environment; validate step should be skippable in unit tests but must run in CI
 
 ---
 
 ### WP05 — Claude Code Plugin Runtime Bootstrap and Distribution
 
-**Priority:** High  
-**Estimated prompt size:** ~320 lines  
-**Execution mode:** code_change  
-**Dependencies:** [WP04]  
+**Priority:** High
+**Estimated prompt size:** ~320 lines
+**Execution mode:** code_change
+**Dependencies:** [WP04]
 
 **Goal:** Complete the Claude Code plugin with the `bin/spec-kitty-wrapper` runtime bootstrap script (PATH-check + uvx fallback), CI validation job, `marketplace.json` for git-based distribution, and developer documentation.
 
@@ -196,17 +196,17 @@
 4. `marketplace.json` format per contract at `contracts/plugin-manifest-claude.md`
 5. README how-to: marketplace install (3-minute) + `--plugin-dir` dev install
 
-**Parallel opportunities:** T020-T023 can execute in parallel within WP05  
+**Parallel opportunities:** T020-T023 can execute in parallel within WP05
 **Risks:** `npm install -g @anthropic-ai/claude-code` requires Node.js in CI; CI matrix must include Node setup step
 
 ---
 
 ### WP06 — Codex Plugin Bundle Projector
 
-**Priority:** Medium  
-**Estimated prompt size:** ~350 lines  
-**Execution mode:** code_change  
-**Dependencies:** [WP04]  
+**Priority:** Medium
+**Estimated prompt size:** ~350 lines
+**Execution mode:** code_change
+**Dependencies:** [WP04]
 
 **Goal:** Implement `spec-kitty plugin build --target codex` that generates a Codex plugin bundle at `dist/spec-kitty-plugins/codex/` with a schema-valid `.codex-plugin/plugin.json` (no `hooks` key, no `agents` key), canonical skills, and a `marketplace.json` for repo-local install.
 
@@ -223,17 +223,17 @@
 4. `marketplace.json` format: `{name, plugins: [{name, source: {source: "local", path: "."}, ...}]}`
 5. Assertion in build step: `assert "hooks" not in manifest` and `assert "agents" not in manifest`
 
-**Parallel opportunities:** WP06 runs in parallel with WP05 (different output targets)  
+**Parallel opportunities:** WP06 runs in parallel with WP05 (different output targets)
 **Risks:** Codex plugin schema changes may invalidate the manifest; build must be re-verified against current docs
 
 ---
 
 ### WP07 — Command-Skill Manifest Repair and Roo Code Deprecation
 
-**Priority:** Medium  
-**Estimated prompt size:** ~450 lines  
-**Execution mode:** code_change  
-**Dependencies:** [WP01]  
+**Priority:** Medium
+**Estimated prompt size:** ~450 lines
+**Execution mode:** code_change
+**Dependencies:** [WP01]
 
 **Goal:** Make stale command-skill manifests self-heal during upgrade (11→canonical count); apply drift policy to modified SKILL.md files; remove unsafe symlink artifacts; fully remove Roo Code from AI_CHOICES, AGENT_DIRS, config.yaml; emit deprecation notice for existing `.roo/` directories; update documentation.
 
@@ -254,17 +254,17 @@
 5. Upgrade migration: detect `.roo/` presence → emit Rich deprecation panel; remove from `config.yaml` via `load_agent_config/save_agent_config`
 6. README: remove Roo Code row from Supported AI Agents table; add "Roo Code (shut down 2026-05-15)" to archived section
 
-**Parallel opportunities:** T028-T030 relate to skills; T031-T034 relate to Roo Code — these two groups can run in parallel within WP07  
+**Parallel opportunities:** T028-T030 relate to skills; T031-T034 relate to Roo Code — these two groups can run in parallel within WP07
 **Risks:** `AI_CHOICES` removal must not break any project that previously created `.roo/` commands — guard for absence per C-007
 
 ---
 
 ### WP08 — Renderer Unit Tests
 
-**Priority:** High (gates WP09)  
-**Estimated prompt size:** ~380 lines  
-**Execution mode:** code_change  
-**Dependencies:** [WP01, WP02, WP03]  
+**Priority:** High (gates WP09)
+**Estimated prompt size:** ~380 lines
+**Execution mode:** code_change
+**Dependencies:** [WP01, WP02, WP03]
 
 **Goal:** Write focused unit tests for all five profile renderers (ClaudeCode, Codex, Copilot, AmazonQ, Augment) covering output path, required fields, idempotency, and format validity; achieve ≥90% branch coverage on renderer modules.
 
@@ -283,17 +283,17 @@
 4. For `CopilotProfileRenderer`: assert path ends in `.github/agents/<id>.agent.md`; NOT `.chatmode.md`
 5. Parametric: `@pytest.mark.parametrize("renderer", [Claude, Codex, Copilot, AmazonQ, Augment])` with shared `AgentProfile`; assert `can_render()` returns True for their respective tool_key
 
-**Parallel opportunities:** T035-T038 can execute in parallel (different renderer test files)  
+**Parallel opportunities:** T035-T038 can execute in parallel (different renderer test files)
 **Risks:** TOML validation in T036 requires `tomllib` (stdlib ≥3.11) — already available in Python 3.11+
 
 ---
 
 ### WP09 — Integration Tests, Migration Acceptance Fixture, and CI Gate
 
-**Priority:** Critical (definition of done)  
-**Estimated prompt size:** ~430 lines  
-**Execution mode:** code_change  
-**Dependencies:** [WP01, WP02, WP03, WP07, WP08]  
+**Priority:** Critical (definition of done)
+**Estimated prompt size:** ~430 lines
+**Execution mode:** code_change
+**Dependencies:** [WP01, WP02, WP03, WP07, WP08]
 
 **Goal:** Write integration tests for init/upgrade surface wiring and drift policy; implement the rc44-era migration acceptance fixture; update the doctor JSON stability contract; run the full suite at ≥90% coverage on all new code.
 
@@ -311,7 +311,7 @@
 4. `test_migration_compat.py`: add `"agent_profile"` to the `expected_surface_kinds` baseline; assert `doctor tool-surfaces --json` schema still additive-only
 5. Final gate: `mypy --strict` on all WP-touched modules; `ruff check` on all changed files; `pytest --cov` targeting new paths
 
-**Parallel opportunities:** T040-T043 can run in parallel; T044 is the sequential gate  
+**Parallel opportunities:** T040-T043 can run in parallel; T044 is the sequential gate
 **Risks:** Migration fixture may require a real or mocked `get_agent_dirs_for_project()` call; must use test-project isolation (tmp_path)
 
 ---

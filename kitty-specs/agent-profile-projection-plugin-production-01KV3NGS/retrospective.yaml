@@ -89,7 +89,7 @@ not_helpful:
   summary: WP01 needed 2 implementation cycles
   evidence_refs:
   - e-025
-  details: WP WP01 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+  details: WP WP01 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
     documented review rejection; the WP scope or contract may need refinement.
 - id: n-002
   category: process
@@ -201,7 +201,7 @@ evidence_refs:
   path: kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/tasks/WP08-renderer-unit-tests.md
 - id: e-013
   kind: file
-  path: 
+  path:
     kitty-specs/agent-profile-projection-plugin-production-01KV3NGS/tasks/WP09-integration-tests-migration-fixture.md
 - id: e-014
   kind: file
