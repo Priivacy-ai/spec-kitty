@@ -44,6 +44,17 @@ from specify_cli.calibration.inequality import InequalityResult, assert_inequali
 # Data models
 # ---------------------------------------------------------------------------
 
+ACTION_RESEARCH_GATHERING = "action:research/gathering"
+DIRECTIVE_003 = "directive:DIRECTIVE_003"
+DIRECTIVE_010 = "directive:DIRECTIVE_010"
+DIRECTIVE_037 = "directive:DIRECTIVE_037"
+TACTIC_ADR_DRAFTING_WORKFLOW = "tactic:adr-drafting-workflow"
+TACTIC_PREMORTEM_RISK_IDENTIFICATION = "tactic:premortem-risk-identification"
+TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW = "tactic:requirements-validation-workflow"
+AGENT_PROFILE_PLANNER_PRITI = "agent_profile:planner-priti"
+AGENT_PROFILE_IMPLEMENTER_IVAN = "agent_profile:implementer-ivan"
+AGENT_PROFILE_RETROSPECTIVE_FACILITATOR = "agent_profile:retrospective-facilitator"
+
 
 @dataclass(frozen=True)
 class EdgeChange:
@@ -99,25 +110,25 @@ _REQUIRED_SCOPE: dict[tuple[str, str], frozenset[str]] = {
     # software-dev
     # ------------------------------------------------------------------
     ("software-dev", "action:software-dev/specify"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-        "tactic:requirements-validation-workflow",
+        DIRECTIVE_003,
+        DIRECTIVE_010,
+        TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
     ("software-dev", "action:software-dev/plan"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-        "tactic:adr-drafting-workflow",
-        "tactic:premortem-risk-identification",
+        DIRECTIVE_003,
+        DIRECTIVE_010,
+        TACTIC_ADR_DRAFTING_WORKFLOW,
+        TACTIC_PREMORTEM_RISK_IDENTIFICATION,
         "tactic:problem-decomposition",
-        "tactic:requirements-validation-workflow",
+        TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
     ("software-dev", "action:software-dev/tasks"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
+        DIRECTIVE_003,
+        DIRECTIVE_010,
         "directive:DIRECTIVE_024",
-        "tactic:adr-drafting-workflow",
+        TACTIC_ADR_DRAFTING_WORKFLOW,
         "tactic:problem-decomposition",
-        "tactic:requirements-validation-workflow",
+        TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
     ("software-dev", "action:software-dev/implement"): frozenset({
         "directive:DIRECTIVE_024",
@@ -150,86 +161,86 @@ _REQUIRED_SCOPE: dict[tuple[str, str], frozenset[str]] = {
         "tactic:stopping-conditions",
     }),
     ("software-dev", "action:software-dev/retrospect"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
+        DIRECTIVE_003,
+        DIRECTIVE_010,
     }),
 
     # ------------------------------------------------------------------
     # research
     # ------------------------------------------------------------------
     ("research", "action:research/scoping"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-        "tactic:requirements-validation-workflow",
-        "tactic:premortem-risk-identification",
+        DIRECTIVE_003,
+        DIRECTIVE_010,
+        TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
+        TACTIC_PREMORTEM_RISK_IDENTIFICATION,
     }),
     ("research", "action:research/methodology"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-        "tactic:adr-drafting-workflow",
-        "tactic:requirements-validation-workflow",
+        DIRECTIVE_003,
+        DIRECTIVE_010,
+        TACTIC_ADR_DRAFTING_WORKFLOW,
+        TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
-    ("research", "action:research/gathering"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_037",
-        "tactic:requirements-validation-workflow",
+    ("research", ACTION_RESEARCH_GATHERING): frozenset({
+        DIRECTIVE_003,
+        DIRECTIVE_037,
+        TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
     ("research", "action:research/synthesis"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-        "tactic:premortem-risk-identification",
-        "tactic:requirements-validation-workflow",
+        DIRECTIVE_003,
+        DIRECTIVE_010,
+        TACTIC_PREMORTEM_RISK_IDENTIFICATION,
+        TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
     ("research", "action:research/output"): frozenset({
-        "directive:DIRECTIVE_010",
-        "directive:DIRECTIVE_037",
-        "tactic:requirements-validation-workflow",
+        DIRECTIVE_010,
+        DIRECTIVE_037,
+        TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
     ("research", "action:research/retrospect"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
+        DIRECTIVE_003,
+        DIRECTIVE_010,
     }),
 
     # ------------------------------------------------------------------
     # documentation
     # ------------------------------------------------------------------
     ("documentation", "action:documentation/audit"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_037",
-        "tactic:requirements-validation-workflow",
+        DIRECTIVE_003,
+        DIRECTIVE_037,
+        TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
     ("documentation", "action:documentation/design"): frozenset({
         "directive:DIRECTIVE_001",
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-        "tactic:adr-drafting-workflow",
-        "tactic:requirements-validation-workflow",
+        DIRECTIVE_003,
+        DIRECTIVE_010,
+        TACTIC_ADR_DRAFTING_WORKFLOW,
+        TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
     ("documentation", "action:documentation/discover"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-        "tactic:premortem-risk-identification",
-        "tactic:requirements-validation-workflow",
+        DIRECTIVE_003,
+        DIRECTIVE_010,
+        TACTIC_PREMORTEM_RISK_IDENTIFICATION,
+        TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
     ("documentation", "action:documentation/generate"): frozenset({
-        "directive:DIRECTIVE_010",
-        "directive:DIRECTIVE_037",
-        "tactic:requirements-validation-workflow",
+        DIRECTIVE_010,
+        DIRECTIVE_037,
+        TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
     ("documentation", "action:documentation/publish"): frozenset({
-        "directive:DIRECTIVE_010",
-        "directive:DIRECTIVE_037",
-        "tactic:requirements-validation-workflow",
+        DIRECTIVE_010,
+        DIRECTIVE_037,
+        TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
     ("documentation", "action:documentation/validate"): frozenset({
-        "directive:DIRECTIVE_010",
-        "directive:DIRECTIVE_037",
-        "tactic:premortem-risk-identification",
-        "tactic:requirements-validation-workflow",
+        DIRECTIVE_010,
+        DIRECTIVE_037,
+        TACTIC_PREMORTEM_RISK_IDENTIFICATION,
+        TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
     ("documentation", "action:documentation/retrospect"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
+        DIRECTIVE_003,
+        DIRECTIVE_010,
     }),
 
     # ------------------------------------------------------------------
@@ -239,10 +250,10 @@ _REQUIRED_SCOPE: dict[tuple[str, str], frozenset[str]] = {
     # ask-user                                   → software-dev/specify
     # retrospective                              → software-dev/retrospect
     # ------------------------------------------------------------------
-    ("erp-custom", "action:research/gathering"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_037",
-        "tactic:requirements-validation-workflow",
+    ("erp-custom", ACTION_RESEARCH_GATHERING): frozenset({
+        DIRECTIVE_003,
+        DIRECTIVE_037,
+        TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
     ("erp-custom", "action:software-dev/implement"): frozenset({
         "directive:DIRECTIVE_024",
@@ -260,13 +271,13 @@ _REQUIRED_SCOPE: dict[tuple[str, str], frozenset[str]] = {
         "toolguide:efficient-local-tooling",
     }),
     ("erp-custom", "action:software-dev/specify"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-        "tactic:requirements-validation-workflow",
+        DIRECTIVE_003,
+        DIRECTIVE_010,
+        TACTIC_REQUIREMENTS_VALIDATION_WORKFLOW,
     }),
     ("erp-custom", "action:software-dev/retrospect"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
+        DIRECTIVE_003,
+        DIRECTIVE_010,
     }),
 }
 
@@ -277,20 +288,20 @@ _REQUIRED_SCOPE: dict[tuple[str, str], frozenset[str]] = {
 # Maps mission_key → list of (step_id, action_urn, profile_urn)
 _MISSION_STEPS: dict[str, list[tuple[str, str, str]]] = {
     "software-dev": [
-        ("specify",    "action:software-dev/specify",    "agent_profile:planner-priti"),
-        ("plan",       "action:software-dev/plan",       "agent_profile:planner-priti"),
-        ("tasks",      "action:software-dev/tasks",      "agent_profile:planner-priti"),
-        ("implement",  "action:software-dev/implement",  "agent_profile:implementer-ivan"),
+        ("specify",    "action:software-dev/specify",    AGENT_PROFILE_PLANNER_PRITI),
+        ("plan",       "action:software-dev/plan",       AGENT_PROFILE_PLANNER_PRITI),
+        ("tasks",      "action:software-dev/tasks",      AGENT_PROFILE_PLANNER_PRITI),
+        ("implement",  "action:software-dev/implement",  AGENT_PROFILE_IMPLEMENTER_IVAN),
         ("review",     "action:software-dev/review",     "agent_profile:reviewer-renata"),
-        ("retrospect", "action:software-dev/retrospect", "agent_profile:retrospective-facilitator"),
+        ("retrospect", "action:software-dev/retrospect", AGENT_PROFILE_RETROSPECTIVE_FACILITATOR),
     ],
     "research": [
         ("scoping",     "action:research/scoping",     "agent_profile:researcher-robbie"),
         ("methodology", "action:research/methodology", "agent_profile:researcher-robbie"),
-        ("gathering",   "action:research/gathering",   "agent_profile:researcher-robbie"),
+        ("gathering",   ACTION_RESEARCH_GATHERING,     "agent_profile:researcher-robbie"),
         ("synthesis",   "action:research/synthesis",   "agent_profile:researcher-robbie"),
         ("output",      "action:research/output",      "agent_profile:researcher-robbie"),
-        ("retrospect",  "action:research/retrospect",  "agent_profile:retrospective-facilitator"),
+        ("retrospect",  "action:research/retrospect",  AGENT_PROFILE_RETROSPECTIVE_FACILITATOR),
     ],
     "documentation": [
         ("audit",       "action:documentation/audit",    "agent_profile:curator-carla"),
@@ -299,16 +310,16 @@ _MISSION_STEPS: dict[str, list[tuple[str, str, str]]] = {
         ("generate",    "action:documentation/generate", "agent_profile:curator-carla"),
         ("publish",     "action:documentation/publish",  "agent_profile:curator-carla"),
         ("validate",    "action:documentation/validate", "agent_profile:curator-carla"),
-        ("retrospect",  "action:documentation/retrospect", "agent_profile:retrospective-facilitator"),
+        ("retrospect",  "action:documentation/retrospect", AGENT_PROFILE_RETROSPECTIVE_FACILITATOR),
     ],
     "erp-custom": [
-        ("query-erp",         "action:research/gathering",       "agent_profile:researcher-robbie"),
-        ("lookup-provider",   "action:research/gathering",       "agent_profile:researcher-robbie"),
-        ("ask-user",          "action:software-dev/specify",     "agent_profile:implementer-ivan"),
-        ("create-js",         "action:software-dev/implement",   "agent_profile:implementer-ivan"),
-        ("refactor-function", "action:software-dev/implement",   "agent_profile:implementer-ivan"),
-        ("write-report",      "action:research/gathering",       "agent_profile:researcher-robbie"),
-        ("retrospective",     "action:software-dev/retrospect",  "agent_profile:retrospective-facilitator"),
+        ("query-erp",         ACTION_RESEARCH_GATHERING,         "agent_profile:researcher-robbie"),
+        ("lookup-provider",   ACTION_RESEARCH_GATHERING,         "agent_profile:researcher-robbie"),
+        ("ask-user",          "action:software-dev/specify",     AGENT_PROFILE_IMPLEMENTER_IVAN),
+        ("create-js",         "action:software-dev/implement",   AGENT_PROFILE_IMPLEMENTER_IVAN),
+        ("refactor-function", "action:software-dev/implement",   AGENT_PROFILE_IMPLEMENTER_IVAN),
+        ("write-report",      ACTION_RESEARCH_GATHERING,         "agent_profile:researcher-robbie"),
+        ("retrospective",     "action:software-dev/retrospect",  AGENT_PROFILE_RETROSPECTIVE_FACILITATOR),
     ],
 }
 

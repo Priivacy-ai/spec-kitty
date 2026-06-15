@@ -609,7 +609,7 @@ def _switch_to_start_branch(repo_root: Path | None, start_branch: str) -> str:
     if not branch:
         raise ValueError("--start-branch requires a non-empty branch name.")
     if repo_root is None:
-        raise ValueError("Could not locate project root. Run from within spec-kitty repository.")
+        raise ValueError(PROJECT_ROOT_NOT_FOUND_MESSAGE)
 
     check_ref = subprocess.run(
         ["git", "check-ref-format", "--branch", branch],
@@ -1322,7 +1322,7 @@ def branch_context(
     try:
         repo_root = locate_project_root()
         if repo_root is None:
-            error_msg = "Could not locate project root. Run from within spec-kitty repository."
+            error_msg = PROJECT_ROOT_NOT_FOUND_MESSAGE
             if json_output:
                 _emit_json({"error": error_msg})
             else:
@@ -1959,7 +1959,7 @@ def setup_plan(
 
         repo_root = locate_project_root()
         if repo_root is None:
-            error_msg = "Could not locate project root. Run from within spec-kitty repository."
+            error_msg = PROJECT_ROOT_NOT_FOUND_MESSAGE
             if json_output:
                 _emit_json({"error": error_msg})
             else:
