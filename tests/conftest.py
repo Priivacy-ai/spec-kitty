@@ -13,6 +13,10 @@ import pytest
 import yaml
 from filelock import FileLock, Timeout
 
+from tests._support.wall_clock_assertions import (
+    find_wall_clock_assertion_violations,
+    format_wall_clock_assertion_violations,
+)
 from tests.branch_contract import IS_2X_BRANCH
 from tests.mutmut_env import prepare_mutants_environment_from_cwd
 from tests.test_isolation_helpers import get_installed_version
@@ -186,6 +190,14 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     for item in items:
         if item.get_closest_marker("windows_ci") and sys.platform != "win32":
             item.add_marker(skip_windows)
+    _fail_on_wall_clock_assertions(items)
+
+
+def _fail_on_wall_clock_assertions(items: list[pytest.Item]) -> None:
+    paths = {Path(str(item.path)) for item in items if Path(str(item.path)).suffix == ".py"}
+    violations = find_wall_clock_assertion_violations(paths)
+    if violations:
+        raise pytest.UsageError(format_wall_clock_assertion_violations(violations))
 
 
 @pytest.fixture(autouse=True)
