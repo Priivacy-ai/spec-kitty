@@ -332,7 +332,7 @@ def test_tier_eligible_tier3_for_durable_actions(action: str) -> None:
     assert tier_eligible(_make_started(action=action)).tier_3 is True
 
 
-@pytest.mark.parametrize("action", ["advise", "implement"])
+@pytest.mark.parametrize("action", ["review", "implement"])
 def test_tier_eligible_tier3_not_for_non_durable_actions(action: str) -> None:
     assert tier_eligible(_make_started(action=action)).tier_3 is False
 
@@ -380,8 +380,8 @@ def test_tier3_actions_contains_expected() -> None:
     assert {"specify", "plan", "tasks", "merge", "accept"} <= TIER_3_ACTIONS
 
 
-def test_tier3_actions_excludes_advise_and_implement() -> None:
-    assert "advise" not in TIER_3_ACTIONS
+def test_tier3_actions_excludes_review_and_implement() -> None:
+    assert "review" not in TIER_3_ACTIONS
     assert "implement" not in TIER_3_ACTIONS
 
 

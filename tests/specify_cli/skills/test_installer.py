@@ -16,9 +16,11 @@ from specify_cli.core.config import (
 from specify_cli.skills.installer import install_all_skills, install_skills_for_agent
 from specify_cli.skills.manifest import ManagedFileEntry, compute_content_hash
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
+from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
 
 
 pytestmark = [pytest.mark.unit]
+
 
 def _make_skill(
     root: Path,
@@ -116,9 +118,7 @@ class TestInstallSharedRootAgent:
         assert entries[0].installation_class == SKILL_CLASS_SHARED
         assert entries[0].agent_key == "codex"
 
-    def test_codex_advise_generation_adds_missing_frontmatter(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_codex_spec_kitty_generation_adds_missing_frontmatter(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("HOME", str(tmp_path / "home"))
         skills_root = tmp_path / "skills_src"
         project = tmp_path / "project"
@@ -126,25 +126,20 @@ class TestInstallSharedRootAgent:
 
         skill = _make_skill(
             skills_root,
-            "spec-kitty.advise",
-            skill_md_content=(
-                "# spec-kitty.advise\n\n"
-                "Get governance context for an action and open an invocation record.\n"
-            ),
+            "spec-kitty",
+            skill_md_content=("# spec-kitty\n\nGet governance context for an action and open an invocation record.\n"),
         )
 
         entries = install_skills_for_agent(project, "codex", [skill])
 
-        installed = project / ".agents" / "skills" / "spec-kitty.advise" / "SKILL.md"
+        installed = project / ".agents" / "skills" / "spec-kitty" / "SKILL.md"
         content = installed.read_text(encoding="utf-8")
         assert content.startswith("---\n")
-        assert "name: spec-kitty.advise\n" in content
+        assert "name: spec-kitty\n" in content
         assert "description: Get governance context for an action and open an invocation record.\n" in content
         assert entries[0].content_hash == compute_content_hash(installed)
 
-    def test_native_generation_adds_missing_frontmatter(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_native_generation_adds_missing_frontmatter(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("HOME", str(tmp_path / "home"))
         skills_root = tmp_path / "skills_src"
         project = tmp_path / "project"
@@ -163,9 +158,7 @@ class TestInstallSharedRootAgent:
         assert content.startswith("---\n")
         assert "name: plain-skill\n" in content
 
-    def test_reinstall_clears_windows_readonly_global_tree(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_reinstall_clears_windows_readonly_global_tree(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.skills import installer
 
         monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
@@ -184,11 +177,7 @@ class TestInstallSharedRootAgent:
             onerror: Callable[[Callable[[str], object], str, object], object] | None = None,
             **kwargs: object,
         ) -> None:
-            readonly_files = [
-                file_path
-                for file_path in Path(path).rglob("*")
-                if file_path.is_file() and not file_path.stat().st_mode & stat.S_IWRITE
-            ]
+            readonly_files = [file_path for file_path in Path(path).rglob("*") if file_path.is_file() and not file_path.stat().st_mode & stat.S_IWRITE]
             if readonly_files and onerror is None:
                 raise PermissionError(readonly_files[0])
             for readonly_file in readonly_files:
@@ -210,9 +199,7 @@ class TestInstallSharedRootAgent:
         installed = project / ".claude" / "skills" / "my-skill" / "SKILL.md"
         assert installed.exists()
 
-    def test_reinstall_clears_windows_readonly_copied_projection(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_reinstall_clears_windows_readonly_copied_projection(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
         skills_root = tmp_path / "skills_src"
         project = tmp_path / "project"
@@ -239,9 +226,7 @@ class TestInstallSharedRootAgent:
         assert installed.is_file()
         assert not installed.is_symlink()
 
-    def test_install_removes_retired_paula_and_debbie_skill_dirs(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_install_removes_retired_skill_dirs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
         skills_root = tmp_path / "skills_src"
         project = tmp_path / "project"
@@ -251,7 +236,7 @@ class TestInstallSharedRootAgent:
             tmp_path / "home" / ".claude" / "skills",
             project / ".claude" / "skills",
         ]:
-            for retired_name in ["debugger-debbie", "paula-patterns"]:
+            for retired_name in sorted(RETIRED_CANONICAL_SKILL_NAMES):
                 retired_skill = root / retired_name / "SKILL.md"
                 retired_skill.parent.mkdir(parents=True, exist_ok=True)
                 retired_skill.write_text("# retired\n", encoding="utf-8")
@@ -266,8 +251,8 @@ class TestInstallSharedRootAgent:
             tmp_path / "home" / ".claude" / "skills",
             project / ".claude" / "skills",
         ]:
-            assert not (root / "debugger-debbie").exists()
-            assert not (root / "paula-patterns").exists()
+            for retired_name in RETIRED_CANONICAL_SKILL_NAMES:
+                assert not (root / retired_name).exists()
             assert (root / "custom-skill" / "SKILL.md").is_file()
             assert (root / "my-skill" / "SKILL.md").is_file()
 
@@ -313,16 +298,12 @@ class TestSharedRootDeduplication:
         shared_set: set[str] = set()
 
         # First shared-root agent (codex) copies files
-        entries_1 = install_skills_for_agent(
-            project, "codex", [skill], shared_root_installed=shared_set
-        )
+        entries_1 = install_skills_for_agent(project, "codex", [skill], shared_root_installed=shared_set)
         assert "my-skill" in shared_set
         assert len(entries_1) == 1
 
         # Second shared-root agent (copilot) reuses files
-        entries_2 = install_skills_for_agent(
-            project, "copilot", [skill], shared_root_installed=shared_set
-        )
+        entries_2 = install_skills_for_agent(project, "copilot", [skill], shared_root_installed=shared_set)
         assert len(entries_2) == 1
 
         # Both point to the same installed path
@@ -340,12 +321,8 @@ class TestSharedRootDeduplication:
         skill = _make_skill(skills_root, "my-skill")
         shared_set: set[str] = set()
 
-        install_skills_for_agent(
-            project, "codex", [skill], shared_root_installed=shared_set
-        )
-        install_skills_for_agent(
-            project, "copilot", [skill], shared_root_installed=shared_set
-        )
+        install_skills_for_agent(project, "codex", [skill], shared_root_installed=shared_set)
+        install_skills_for_agent(project, "copilot", [skill], shared_root_installed=shared_set)
 
         # Only one copy on disk (in .agents/skills/)
         installed = project / ".agents" / "skills" / "my-skill" / "SKILL.md"

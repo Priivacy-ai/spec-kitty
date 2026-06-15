@@ -41,13 +41,7 @@ from specify_cli.skills.command_renderer import (
 pytestmark = [pytest.mark.unit]
 
 # New doctrine layout: src/doctrine/missions/mission-steps/<mission_type>/
-DOCTRINE_MISSION_STEPS_DIR = (
-    Path(__file__).parent.parent.parent.parent
-    / "src"
-    / "doctrine"
-    / "missions"
-    / "mission-steps"
-)
+DOCTRINE_MISSION_STEPS_DIR = Path(__file__).parent.parent.parent.parent / "src" / "doctrine" / "missions" / "mission-steps"
 
 # Default mission type used in most tests.
 _DEFAULT_MISSION_TYPE = "software-dev"
@@ -55,14 +49,7 @@ _DEFAULT_MISSION_TYPE = "software-dev"
 TEMPLATES_DIR = DOCTRINE_MISSION_STEPS_DIR / _DEFAULT_MISSION_TYPE
 
 # Old command-templates path — must NOT exist after WP02 migration.
-_LEGACY_COMMAND_TEMPLATES_DIR = (
-    Path(__file__).parent.parent.parent.parent
-    / "src"
-    / "specify_cli"
-    / "missions"
-    / "software-dev"
-    / "command-templates"
-)
+_LEGACY_COMMAND_TEMPLATES_DIR = Path(__file__).parent.parent.parent.parent / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
 
 SNAPSHOTS_DIR = Path(__file__).parent / "__snapshots__"
 
@@ -115,14 +102,10 @@ def _render_and_compare(template_path: Path, agent_key: str) -> None:
         snap.write_text(output, encoding="utf-8")
         return
 
-    assert snap.exists(), (
-        f"Snapshot missing: {snap}\n"
-        "Run with PYTEST_UPDATE_SNAPSHOTS=1 to generate it."
-    )
+    assert snap.exists(), f"Snapshot missing: {snap}\nRun with PYTEST_UPDATE_SNAPSHOTS=1 to generate it."
     expected = snap.read_text(encoding="utf-8")
     assert output == expected, (
-        f"Skill output for {template_path.name} ({agent_key}) differs from snapshot.\n"
-        "If the change is intentional, run with PYTEST_UPDATE_SNAPSHOTS=1."
+        f"Skill output for {template_path.name} ({agent_key}) differs from snapshot.\nIf the change is intentional, run with PYTEST_UPDATE_SNAPSHOTS=1."
     )
 
 
@@ -149,9 +132,7 @@ def test_deterministic(template_path: Path, agent_key: str) -> None:
     """Rendering the same template twice produces byte-identical output."""
     first = render(template_path, agent_key, _TEST_VERSION).to_skill_md()
     second = render(template_path, agent_key, _TEST_VERSION).to_skill_md()
-    assert first == second, (
-        f"Non-deterministic output for {template_path.name} ({agent_key})"
-    )
+    assert first == second, f"Non-deterministic output for {template_path.name} ({agent_key})"
 
 
 # ---------------------------------------------------------------------------
@@ -187,12 +168,12 @@ def test_template_not_found(tmp_path: Path) -> None:
 
 
 def test_ensure_skill_frontmatter_adds_metadata_for_plain_markdown() -> None:
-    content = "# spec-kitty.advise\n\nGet governance context for an action.\n"
+    content = "# spec-kitty\n\nGet governance context for an action.\n"
 
-    normalized = ensure_skill_frontmatter(content, "spec-kitty.advise")
+    normalized = ensure_skill_frontmatter(content, "spec-kitty")
 
     assert normalized.startswith("---\n")
-    assert "name: spec-kitty.advise\n" in normalized
+    assert "name: spec-kitty\n" in normalized
     assert "description: Get governance context for an action.\n" in normalized
     assert normalized.endswith(content)
 
@@ -200,17 +181,14 @@ def test_ensure_skill_frontmatter_adds_metadata_for_plain_markdown() -> None:
 def test_ensure_skill_frontmatter_preserves_existing_frontmatter() -> None:
     content = "---\nname: existing\n---\n# Existing\n"
 
-    assert ensure_skill_frontmatter(content, "spec-kitty.advise") == content
+    assert ensure_skill_frontmatter(content, "spec-kitty") == content
 
 
 def test_user_input_block_missing(tmp_path: Path) -> None:
     """A template without '## User Input' raises SkillRenderError(user_input_block_missing)."""
     template = tmp_path / "no-user-input.md"
     template.write_text(
-        "---\ndescription: A test template\n---\n"
-        "# Test Template\n\n"
-        "## Purpose\n\nDoes something useful.\n\n"
-        "## Steps\n\nDo the thing.\n",
+        "---\ndescription: A test template\n---\n# Test Template\n\n## Purpose\n\nDoes something useful.\n\n## Steps\n\nDo the thing.\n",
         encoding="utf-8",
     )
     with pytest.raises(SkillRenderError) as exc_info:
@@ -273,9 +251,7 @@ def test_frontmatter_key_order(tmp_path: Path) -> None:
     )
     skill = render(template, "codex", _TEST_VERSION)
     keys = list(skill.frontmatter.keys())
-    assert keys == ["name", "description", "user-invocable"], (
-        f"Unexpected frontmatter key order: {keys}"
-    )
+    assert keys == ["name", "description", "user-invocable"], f"Unexpected frontmatter key order: {keys}"
 
 
 def test_frontmatter_user_invocable_true(tmp_path: Path) -> None:
@@ -353,9 +329,7 @@ def test_description_fallback_to_canonical(tmp_path: Path) -> None:
     template = tmp_path / "fallback.md"
     template.write_text(
         # No description in frontmatter, no ## Purpose section.
-        "---\n---\n"
-        "## User Input\n\n```text\n$ARGUMENTS\n```\n\n"
-        "You **MUST** consider the user input before proceeding (if not empty).\n",
+        "---\n---\n## User Input\n\n```text\n$ARGUMENTS\n```\n\nYou **MUST** consider the user input before proceeding (if not empty).\n",
         encoding="utf-8",
     )
     skill = render(template, "codex", _TEST_VERSION)
@@ -385,9 +359,7 @@ def test_rendered_skill_name(tmp_path: Path) -> None:
     """RenderedSkill.name must be 'spec-kitty.<command>'."""
     template = tmp_path / "my-command.md"
     template.write_text(
-        "---\ndescription: A command\n---\n"
-        "## User Input\n\n```text\n$ARGUMENTS\n```\n\n"
-        "You **MUST** consider the user input before proceeding (if not empty).\n",
+        "---\ndescription: A command\n---\n## User Input\n\n```text\n$ARGUMENTS\n```\n\nYou **MUST** consider the user input before proceeding (if not empty).\n",
         encoding="utf-8",
     )
     skill = render(template, "codex", _TEST_VERSION)
@@ -398,18 +370,14 @@ def test_rendered_skill_no_arguments_in_body(tmp_path: Path) -> None:
     """The rendered body must not contain $ARGUMENTS."""
     for tmpl in _all_templates():
         skill = render(tmpl, "codex", _TEST_VERSION)
-        assert "$ARGUMENTS" not in skill.body, (
-            f"$ARGUMENTS found in rendered body for {_command_name(tmpl)}"
-        )
+        assert "$ARGUMENTS" not in skill.body, f"$ARGUMENTS found in rendered body for {_command_name(tmpl)}"
 
 
 def test_rendered_skill_source_hash(tmp_path: Path) -> None:
     """source_hash must be a SHA-256 hex string (64 chars)."""
     template = tmp_path / "hash-test.md"
     template.write_text(
-        "---\ndescription: Hash test\n---\n"
-        "## User Input\n\n```text\n$ARGUMENTS\n```\n\n"
-        "You **MUST** consider the user input before proceeding (if not empty).\n",
+        "---\ndescription: Hash test\n---\n## User Input\n\n```text\n$ARGUMENTS\n```\n\nYou **MUST** consider the user input before proceeding (if not empty).\n",
         encoding="utf-8",
     )
     skill = render(template, "codex", _TEST_VERSION)
@@ -453,9 +421,9 @@ def test_identify_returns_correct_span() -> None:
     assert span is not None
     start, end = span
     # The block starts at the '## User Input' line.
-    assert body[start:start + 14] == "## User Input\n"
+    assert body[start : start + 14] == "## User Input\n"
     # The block ends just before '## Next Section'.
-    assert body[end:end + 16] == "## Next Section\n"
+    assert body[end : end + 16] == "## Next Section\n"
 
 
 def test_identify_returns_none_when_missing() -> None:
@@ -518,8 +486,7 @@ def test_replacement_block_constant_unchanged() -> None:
         "You **MUST** consider this user input before proceeding (if not empty).\n\n"
     )
     assert expected == REPLACEMENT_BLOCK, (
-        "REPLACEMENT_BLOCK has drifted from its locked value. "
-        "This is a load-bearing constant — any change requires a deliberate version bump."
+        "REPLACEMENT_BLOCK has drifted from its locked value. This is a load-bearing constant — any change requires a deliberate version bump."
     )
 
 
@@ -535,12 +502,9 @@ def test_nfr004_doctrine_path_exists() -> None:
     pipeline is broken and nothing will render.
     """
     assert DOCTRINE_MISSION_STEPS_DIR.is_dir(), (
-        f"doctrine mission-steps directory missing: {DOCTRINE_MISSION_STEPS_DIR}\n"
-        "WP02 should have moved command-templates into this location."
+        f"doctrine mission-steps directory missing: {DOCTRINE_MISSION_STEPS_DIR}\nWP02 should have moved command-templates into this location."
     )
-    assert TEMPLATES_DIR.is_dir(), (
-        f"software-dev mission-steps directory missing: {TEMPLATES_DIR}"
-    )
+    assert TEMPLATES_DIR.is_dir(), f"software-dev mission-steps directory missing: {TEMPLATES_DIR}"
 
 
 def test_nfr004_legacy_command_templates_absent() -> None:
@@ -563,20 +527,12 @@ def test_nfr004_specify_step_renders_from_doctrine() -> None:
     Then the output is the content of that file (not the old command-templates path).
     """
     specify_prompt = TEMPLATES_DIR / "specify" / "prompt.md"
-    assert specify_prompt.is_file(), (
-        f"software-dev/specify/prompt.md missing at: {specify_prompt}\n"
-        "WP02 should have created this file."
-    )
+    assert specify_prompt.is_file(), f"software-dev/specify/prompt.md missing at: {specify_prompt}\nWP02 should have created this file."
 
     skill = render(specify_prompt, "codex", _TEST_VERSION)
 
-    assert skill.name == "spec-kitty.specify", (
-        f"Expected name 'spec-kitty.specify', got '{skill.name}'"
-    )
-    assert skill.source_template == specify_prompt.resolve(), (
-        f"source_template mismatch: expected {specify_prompt.resolve()}, "
-        f"got {skill.source_template}"
-    )
+    assert skill.name == "spec-kitty.specify", f"Expected name 'spec-kitty.specify', got '{skill.name}'"
+    assert skill.source_template == specify_prompt.resolve(), f"source_template mismatch: expected {specify_prompt.resolve()}, got {skill.source_template}"
     assert "$ARGUMENTS" not in skill.body, "Rendered body must not contain $ARGUMENTS"
 
 
@@ -599,19 +555,12 @@ def test_nfr004_all_canonical_steps_render() -> None:
             continue
         try:
             skill = render(prompt_path, "codex", _TEST_VERSION)
-            assert skill.name == f"spec-kitty.{command}", (
-                f"Wrong skill name for {command}: {skill.name}"
-            )
+            assert skill.name == f"spec-kitty.{command}", f"Wrong skill name for {command}: {skill.name}"
         except Exception as exc:  # noqa: BLE001
             render_errors.append(f"{command}: {exc}")
 
-    assert not missing, (
-        f"Canonical commands missing prompt.md in doctrine path: {missing}\n"
-        f"Expected files under: {TEMPLATES_DIR}"
-    )
-    assert not render_errors, (
-        f"Commands failed to render: {render_errors}"
-    )
+    assert not missing, f"Canonical commands missing prompt.md in doctrine path: {missing}\nExpected files under: {TEMPLATES_DIR}"
+    assert not render_errors, f"Commands failed to render: {render_errors}"
 
 
 def test_nfr004_command_installer_resolves_doctrine_path() -> None:
@@ -624,15 +573,7 @@ def test_nfr004_command_installer_resolves_doctrine_path() -> None:
 
     template_path = _resolve_template(Path("/unused"), "specify")
 
-    assert template_path.name == "prompt.md", (
-        f"Expected template filename 'prompt.md', got '{template_path.name}'"
-    )
-    assert "doctrine" in str(template_path), (
-        f"Resolved template path does not go through 'doctrine': {template_path}"
-    )
-    assert "command-templates" not in str(template_path), (
-        f"Resolved template path still references legacy 'command-templates': {template_path}"
-    )
-    assert template_path.is_file(), (
-        f"Resolved template path does not exist on disk: {template_path}"
-    )
+    assert template_path.name == "prompt.md", f"Expected template filename 'prompt.md', got '{template_path.name}'"
+    assert "doctrine" in str(template_path), f"Resolved template path does not go through 'doctrine': {template_path}"
+    assert "command-templates" not in str(template_path), f"Resolved template path still references legacy 'command-templates': {template_path}"
+    assert template_path.is_file(), f"Resolved template path does not exist on disk: {template_path}"

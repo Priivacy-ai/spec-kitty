@@ -38,8 +38,8 @@ _OLD_BLOCK = (
     '  trigger: "spec out", "create a mission", "write a spec", "plan this"\n'
     "  → run `/spec-kitty.specify`\n"
     "- **Lightweight dispatch** (ad-hoc fix, question, or advice — no mission created):\n"
-    '  trigger: "hey spec kitty", "use spec kitty to", "spec kitty, fix/do/ask/advise"\n'
-    '  → run `spec-kitty do "<request verbatim>"`\n'
+    '  trigger: "hey spec kitty", "use spec kitty to", "spec kitty <anything>"\n'
+    '  → run `spec-kitty dispatch "<request verbatim>"`\n'
     f"{SECTION_CLOSE}\n"
 )
 
@@ -56,11 +56,7 @@ def _make_project(
 ) -> Path:
     (tmp_path / ".kittify").mkdir(exist_ok=True)
     avail = agents or []
-    lines = (
-        "agents:\n  available:\n" + "".join(f"    - {a}\n" for a in avail)
-        if avail
-        else "agents:\n  available: []\n"
-    )
+    lines = "agents:\n  available:\n" + "".join(f"    - {a}\n" for a in avail) if avail else "agents:\n  available: []\n"
     (tmp_path / ".kittify" / "config.yaml").write_text(lines, encoding="utf-8")
     for d in agent_dirs or []:
         (tmp_path / d).mkdir(parents=True, exist_ok=True)
@@ -150,10 +146,10 @@ class TestApply:
         assert result.success  # type: ignore[union-attr]
         text = (project / "AGENTS.md").read_text(encoding="utf-8")
         assert SECTION_OPEN in text
-        # New wording must be present; old single-line dispatch must be gone
+        # New wording must be present; stale single-line dispatch must be gone
         assert "ALWAYS run" in text
         assert "do NOT answer directly" in text
-        assert '  → run `spec-kitty do "<request verbatim>"`\n' not in text
+        assert '  → run `spec-kitty dispatch "<request verbatim>"`\n' not in text
 
     def test_apply_refreshes_stale_non_agents_writer_block(self, tmp_path: Path) -> None:
         """Stale cursor block is replaced with current content."""

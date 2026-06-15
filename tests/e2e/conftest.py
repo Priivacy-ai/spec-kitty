@@ -89,8 +89,8 @@ class SourcePollutionBaseline:
 
     Layer 2 (`inventory`): mapping of watched root -> {relative_path: (size,
     mtime_ns)}. Watched roots include each of `_WATCHED_ROOTS` plus a
-    synthetic `**/profile-invocations` bucket aggregating every
-    `profile-invocations` directory anywhere under the repo. This catches
+    synthetic `**/kitty-ops` bucket aggregating every
+    `kitty-ops` directory anywhere under the repo. This catches
     writes that a top-level `.gitignore` entry would mask from `git status`.
     """
 
@@ -107,7 +107,7 @@ def _walk_inventory(
 
     `anchor` controls the relative-path base. When omitted, paths are made
     relative to `root` itself; when supplied, paths are made relative to
-    `anchor`. The latter is used for the aggregated `profile-invocations`
+    `anchor`. The latter is used for the aggregated `kitty-ops`
     bucket so paths from different subtrees stay disambiguated.
     """
     inv: dict[str, tuple[int, int]] = {}
@@ -139,19 +139,17 @@ def capture_source_pollution_baseline(repo_root: Path) -> SourcePollutionBaselin
         root = repo_root / root_name
         inventory[root_name] = _walk_inventory(root) if root.exists() else {}
 
-    # Aggregate every `profile-invocations` directory anywhere under repo_root.
+    # Aggregate every `kitty-ops` directory anywhere under repo_root.
     pi_inventory: dict[str, tuple[int, int]] = {}
-    for path in repo_root.rglob("profile-invocations"):
+    for path in repo_root.rglob("kitty-ops"):
         if path.is_dir():
             pi_inventory.update(_walk_inventory(path, anchor=repo_root))
-    inventory["**/profile-invocations"] = pi_inventory
+    inventory["**/kitty-ops"] = pi_inventory
 
     return SourcePollutionBaseline(git_status_short=status, inventory=inventory)
 
 
-def assert_no_source_pollution(
-    baseline: SourcePollutionBaseline, repo_root: Path
-) -> None:
+def assert_no_source_pollution(baseline: SourcePollutionBaseline, repo_root: Path) -> None:
     """Compare current source-checkout state against `baseline`; raise on drift.
 
     Two-layer guard:
@@ -165,25 +163,16 @@ def assert_no_source_pollution(
 
     if current.git_status_short != baseline.git_status_short:
         raise AssertionError(
-            "Source-checkout polluted (FR-017 / git status drift):\n"
-            f"  before: {baseline.git_status_short!r}\n"
-            f"  after:  {current.git_status_short!r}"
+            f"Source-checkout polluted (FR-017 / git status drift):\n  before: {baseline.git_status_short!r}\n  after:  {current.git_status_short!r}"
         )
 
     for watched, before in baseline.inventory.items():
         after = current.inventory.get(watched, {})
         added = sorted(set(after) - set(before))
         removed = sorted(set(before) - set(after))
-        modified = sorted(
-            p for p in set(before) & set(after) if before[p] != after[p]
-        )
+        modified = sorted(p for p in set(before) & set(after) if before[p] != after[p])
         if added or removed or modified:
-            raise AssertionError(
-                f"Source-checkout polluted (FR-018 / {watched} drift):\n"
-                f"  added:    {added}\n"
-                f"  removed:  {removed}\n"
-                f"  modified: {modified}"
-            )
+            raise AssertionError(f"Source-checkout polluted (FR-018 / {watched} drift):\n  added:    {added}\n  removed:  {removed}\n  modified: {modified}")
 
 
 # ---------------------------------------------------------------------------
@@ -276,7 +265,7 @@ def e2e_project(tmp_path: Path) -> Path:
         _charter_hash = _hash_content(_charter_content)  # returns "sha256:<hex>"
         _now_iso = datetime.now(tz=UTC).isoformat()
         (_charter_dir / "metadata.yaml").write_text(
-            f"charter_hash: {_charter_hash}\nextracted_at: \"{_now_iso}\"\n",
+            f'charter_hash: {_charter_hash}\nextracted_at: "{_now_iso}"\n',
             encoding="utf-8",
         )
 
@@ -426,12 +415,7 @@ def fresh_e2e_project(tmp_path: Path) -> Path:
         "--non-interactive",
     )
     if result.returncode != 0:
-        raise AssertionError(
-            "spec-kitty init failed for fresh fixture:\n"
-            f"  rc={result.returncode}\n"
-            f"  stdout: {result.stdout}\n"
-            f"  stderr: {result.stderr}"
-        )
+        raise AssertionError(f"spec-kitty init failed for fresh fixture:\n  rc={result.returncode}\n  stdout: {result.stdout}\n  stderr: {result.stderr}")
 
     # Step 3: commit the freshly seeded project state so subsequent
     # CLI commands see a clean working tree.

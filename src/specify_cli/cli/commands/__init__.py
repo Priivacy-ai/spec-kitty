@@ -150,7 +150,6 @@ def register_commands(app: typer.Typer) -> None:
         return
 
     from . import accept as accept_module
-    from . import advise as advise_module
     from . import agent as agent_module
     from . import auth as auth_module
     from . import plugin as plugin_module
@@ -159,7 +158,6 @@ def register_commands(app: typer.Typer) -> None:
     from . import context as context_module
     from . import dashboard as dashboard_module
     from . import dispatch as dispatch_module
-    from . import do_cmd as do_cmd_module
     from . import doctor as doctor_module
     from . import doctrine as doctrine_module
     from . import glossary as glossary_module
@@ -177,6 +175,7 @@ def register_commands(app: typer.Typer) -> None:
     from . import next_cmd as next_cmd_module
     from . import ops as ops_module
     from . import profiles_cmd as profiles_cmd_module
+    from . import profile_invocation as profile_invocation_module
     from . import research as research_module
     from . import review as review_module
     from . import safe_commit_cmd as safe_commit_module
@@ -230,23 +229,19 @@ def register_commands(app: typer.Typer) -> None:
     app.add_typer(sync_module.app, name="sync", help="Synchronization commands")
     if tracker_module is not None:
         app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
-        app.command(name="issue-search", help="Search tracker issues via the hosted read path")(
-            tracker_module.issue_search_command
-        )
+        app.command(name="issue-search", help="Search tracker issues via the hosted read path")(tracker_module.issue_search_command)
     app.command()(upgrade_module.upgrade)
     app.command(name="validate-encoding")(validate_encoding_module.validate_encoding)
     app.command(name="validate-tasks")(validate_tasks_module.validate_tasks)
     app.command()(verify_module.verify_setup)
     app.add_typer(workflow_module.app, name="workflow", help="Manage mission workflow definitions")
     app.add_typer(profiles_cmd_module.app, name="profiles")
-    app.command(name="dispatch", help="Dispatch a request to a profile-governed Op (canonical surface).")(dispatch_module.dispatch)
-    app.command(name="advise", help="Get governance context for a request (opens an invocation record).")(advise_module.advise)
-    app.command(name="ask", help="Invoke a named profile directly.")(advise_module.ask)
-    app.add_typer(advise_module.profile_invocation_app, name="profile-invocation")
-    app.command(name="do", help="Route a request to the best-matching profile (anonymous dispatch).")(do_cmd_module.do)
+    app.command(name="dispatch", help="Dispatch a request to a governed Op (canonical surface).")(dispatch_module.dispatch)
+    app.add_typer(profile_invocation_module.profile_invocation_app, name="profile-invocation")
     app.add_typer(invocations_cmd_module.app, name="invocations")
 
     from specify_cli.cli.commands.retrospect import app as retrospect_app  # WP05 (replaces WP09 single-command registration)
+
     app.add_typer(retrospect_app, name="retrospect", help="Retrospective authoring and summary (create / backfill / summary)")
     _enforce_top_level_empty_group_help(app)
 

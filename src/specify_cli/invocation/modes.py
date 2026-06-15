@@ -2,12 +2,15 @@
 
 See ADR-002-mode-derivation.md for the rationale and acceptance mapping.
 """
+
 from __future__ import annotations
 
 from enum import Enum
 
 
 class ModeOfWork(str, Enum):
+    # Kept for historical Op records. New standalone dispatch records are
+    # written as task_execution.
     ADVISORY = "advisory"
     TASK_EXECUTION = "task_execution"
     MISSION_STEP = "mission_step"
@@ -16,9 +19,6 @@ class ModeOfWork(str, Enum):
 
 _ENTRY_COMMAND_MODE: dict[str, ModeOfWork] = {
     # Invocation-openers
-    "advise": ModeOfWork.ADVISORY,
-    "ask": ModeOfWork.TASK_EXECUTION,
-    "do": ModeOfWork.TASK_EXECUTION,
     "dispatch": ModeOfWork.TASK_EXECUTION,
     # Mission-step drivers (invoked via `spec-kitty next --agent ...`)
     "next.specify": ModeOfWork.MISSION_STEP,

@@ -145,7 +145,7 @@ MINIMAL_VIABLE_TRAIL_POLICY = MinimalViableTrailPolicy(
     tier_1=TierPolicy(
         name="every_invocation",
         mandatory=True,
-        description=("One InvocationRecord written locally before executor returns. Applies to all advise / ask / do invocations."),
+        description=("One InvocationRecord written locally before executor returns. Applies to all standalone dispatch invocations."),
         storage_path="kitty-ops/{invocation_id}.jsonl",
     ),
     tier_2=TierPolicy(

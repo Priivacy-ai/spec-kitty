@@ -45,7 +45,7 @@ _CMD_TASKS = "tasks"
 _PATH_SPECIFY = ".agents/skills/spec-kitty.specify/SKILL.md"
 _PATH_PLAN = ".agents/skills/spec-kitty.plan/SKILL.md"
 _PATH_TASKS = ".agents/skills/spec-kitty.tasks/SKILL.md"
-_PATH_ORPHAN = ".agents/skills/spec-kitty.advise/SKILL.md"
+_PATH_ORPHAN = ".agents/skills/spec-kitty.legacy-opener/SKILL.md"
 
 
 def _make_entry(path: str, content_hash: str = _VALID_HASH) -> ManifestEntry:
@@ -83,9 +83,7 @@ class TestRepairStaleManifestAddsEntries:
         # Manifest starts empty
         save(tmp_path, SkillsManifest())
 
-        result = repair_stale_manifest(
-            tmp_path, canonical_commands=[_CMD_SPECIFY]
-        )
+        result = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
 
         assert _PATH_SPECIFY in result.added
         assert result.changed is True
@@ -101,9 +99,7 @@ class TestRepairStaleManifestAddsEntries:
         """A missing entry is added with empty-bytes placeholder hash when file does not exist."""
         save(tmp_path, SkillsManifest())
 
-        result = repair_stale_manifest(
-            tmp_path, canonical_commands=[_CMD_SPECIFY]
-        )
+        result = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
 
         assert _PATH_SPECIFY in result.added
         manifest = load(tmp_path)
@@ -118,9 +114,7 @@ class TestRepairStaleManifestAddsEntries:
         m.upsert(_make_entry(_PATH_SPECIFY))
         save(tmp_path, m)
 
-        result = repair_stale_manifest(
-            tmp_path, canonical_commands=[_CMD_SPECIFY]
-        )
+        result = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
 
         assert _PATH_SPECIFY not in result.added
         assert result.added == []
@@ -135,9 +129,7 @@ class TestRepairStaleManifestRemovesOrphans:
         m.upsert(_make_entry(_PATH_ORPHAN))  # not in canonical set
         save(tmp_path, m)
 
-        result = repair_stale_manifest(
-            tmp_path, canonical_commands=[_CMD_SPECIFY]
-        )
+        result = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
 
         assert _PATH_ORPHAN in result.removed
         assert result.changed is True
@@ -151,9 +143,7 @@ class TestRepairStaleManifestRemovesOrphans:
         m.upsert(_make_entry(_PATH_SPECIFY))
         save(tmp_path, m)
 
-        result = repair_stale_manifest(
-            tmp_path, canonical_commands=[_CMD_SPECIFY]
-        )
+        result = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
 
         assert result.removed == []
 
@@ -169,9 +159,7 @@ class TestRepairStaleManifestIdempotent:
         m.upsert(_make_entry(_PATH_SPECIFY, content_hash=fingerprint(content)))
         save(tmp_path, m)
 
-        result = repair_stale_manifest(
-            tmp_path, canonical_commands=[_CMD_SPECIFY]
-        )
+        result = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
 
         assert result.added == []
         assert result.removed == []
@@ -189,9 +177,7 @@ class TestRepairStaleManifestDriftDetection:
         m.upsert(_make_entry(_PATH_SPECIFY, content_hash=fingerprint(original_content)))
         save(tmp_path, m)
 
-        result = repair_stale_manifest(
-            tmp_path, canonical_commands=[_CMD_SPECIFY]
-        )
+        result = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
 
         # Drifted file is reported
         assert _PATH_SPECIFY in result.drifted
@@ -208,9 +194,7 @@ class TestRepairStaleManifestDriftDetection:
 
         save(tmp_path, SkillsManifest())  # empty manifest — entry is missing
 
-        result = repair_stale_manifest(
-            tmp_path, canonical_commands=[_CMD_SPECIFY]
-        )
+        result = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
 
         assert _PATH_SPECIFY in result.added
         # The newly-added entry must NOT also appear in drifted
@@ -228,9 +212,7 @@ class TestRepairStaleManifestDriftDetection:
         m.upsert(_make_entry(_PATH_SPECIFY, content_hash=_VALID_HASH))
         save(tmp_path, m)
 
-        result = repair_stale_manifest(
-            tmp_path, canonical_commands=[_CMD_SPECIFY]
-        )
+        result = repair_stale_manifest(tmp_path, canonical_commands=[_CMD_SPECIFY])
 
         assert _PATH_SPECIFY not in result.drifted
 
@@ -276,7 +258,7 @@ class TestRemoveUnsafeSymlinks:
         skills_dir.mkdir(parents=True, exist_ok=True)
 
         # Create a symlink that looks like a skill package dir
-        link = skills_dir / "spec-kitty.advise"
+        link = skills_dir / "spec-kitty"
         target = tmp_path / "elsewhere"
         target.mkdir()
         link.symlink_to(target)
@@ -324,7 +306,7 @@ class TestRemoveUnsafeSymlinks:
         target = tmp_path / "tgt"
         target.mkdir()
 
-        links = ["spec-kitty.advise", "spec-kitty.old-cmd"]
+        links = ["spec-kitty", "spec-kitty.old-cmd"]
         for name in links:
             (skills_dir / name).symlink_to(target)
 

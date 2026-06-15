@@ -1,73 +1,67 @@
 ---
 title: "Understanding Governed Profile Invocation"
-description: "How profile invocation works under governance — the (profile, action, governance-context) triple, modes, lifecycle, and the invocation trail."
+description: "How standalone dispatch works under governance: route, inject context, open an Op, do work, close the trail."
 ---
 
 # Understanding Governed Profile Invocation
 
-This document explains governed profile invocation. For how to run a governed mission, see
-[How to Run a Governed Mission](../how-to/run-governed-mission.md). For the CLI reference, see
+This document explains governed profile invocation. For how to run a governed
+mission, see [How to Run a Governed Mission](../how-to/run-governed-mission.md).
+For the CLI reference, see
 [Profile Invocation Reference](../reference/profile-invocation.md).
 
 ---
 
-## The governed invocation primitive
+## The Governed Invocation Primitive
 
-Every mission action in Spec Kitty is a **governed invocation** — a triple of three elements:
+Standalone governed work in Spec Kitty is a triple:
 
-1. **Profile**: the agent persona being invoked (e.g., `implementer-ivan`, `reviewer-renata`,
-   `researcher-robbie`). A profile encodes domain knowledge, tool preferences, and behavioral
-   guidelines appropriate to a specific role.
+1. **Profile**: the resolved agent profile used to select the right governance
+   context. Users normally do not need to choose this; the router does it. A
+   caller can pass `--profile <profile-id>` when they intentionally want a
+   specific profile.
+2. **Action**: the action token resolved for the request, such as `implement`,
+   `review`, or `plan`.
+3. **Governance context**: the Charter bundle context injected at invocation
+   time. This is the DRG-derived, action-scoped set of directives, tactics, and
+   glossary terms that the agent receives.
 
-2. **Action**: the workflow action being performed (e.g., `specify`, `plan`, `implement`,
-   `review`). The action determines which DRG subgraph the runtime traverses and which prompt
-   template is used.
-
-3. **Governance context**: the Charter bundle context injected at invocation time. This is the
-   DRG-derived, action-scoped set of directives, tactics, and glossary terms that the agent
-   receives. The governance context is what makes the invocation "governed" — the agent reads
-   project policy from this context rather than inventing it.
-
-When `spec-kitty next` prepares a prompt for the current mission step, it resolves the action and
-renders governance context into the prompt file returned to the calling agent. The agent does not
-construct that context itself; the runtime does.
+When `spec-kitty next` prepares a prompt for the current mission step, it
+resolves the action and renders governance context into the prompt file returned
+to the calling agent. For standalone work, `spec-kitty dispatch "<request>"`
+does the same governance-context loading and records an Op trail.
 
 ---
 
-## Three invocation modes
+## Standalone Dispatch
 
-Profile invocation has three CLI-accessible modes. These correspond to the three commands that
-open an invocation record:
+Use standalone dispatch when the user wants Spec Kitty involved but is not
+asking for a full mission:
 
-| Mode | Command | Behavior |
-|---|---|---|
-| Ask | `spec-kitty ask <profile> <request>` | Invoke a named profile directly for a query or advisory flow. The caller chooses the profile explicitly. |
-| Advise | `spec-kitty advise [--profile <profile>] <request>` | Get governance context for a request; opens an invocation record. The runtime routes the request and may auto-select a profile. |
-| Do | `spec-kitty do <request>` | Route a request to the best-matching profile for action (anonymous dispatch). The router picks the profile. |
+```bash
+uv run spec-kitty dispatch "Review this approach" --json
+uv run spec-kitty dispatch "Implement token validation" --profile implementer-ivan --json
+```
 
-In the current 3.2.x CLI, `spec-kitty next` is separate from these ad-hoc profile-invocation
-commands. `next` issues governed prompt files and mission-step lifecycle records; `ask`,
-`advise`, and `do` open `.kittify/events/profile-invocations/*.jsonl` records for ad-hoc
-governed requests.
+The command returns `governance_context_text`, `invocation_id`, and a
+`close_contract`. The host agent must read `governance_context_text`, treat it
+as binding context, do the work, then close the Op.
 
 ---
 
-## Invocation lifecycle
+## Invocation Lifecycle
 
-Every invocation opened by `ask`, `advise`, or `do` follows the same append-only lifecycle:
+Every standalone dispatch follows the same append-only lifecycle:
 
 1. **Opened**: A `started` event is written to
-   `.kittify/events/profile-invocations/{invocation_id}.jsonl` before the executor returns. This
-   write is unconditional — it happens regardless of SaaS connectivity or charter state.
-
-2. **Work happens outside the CLI**: The CLI has returned the prompt/context payload. The caller or
-   agent performs the work.
-
-3. **Completed**: When execution finishes, `spec-kitty profile-invocation complete` is called to
-   close the trail. This appends a `completed` event to the same JSONL file. `--artifact` and
-   `--commit` append separate correlation events after the completed event.
-
-The `profile-invocation complete` command signals that the invocation has ended:
+   `kitty-ops/{invocation_id}.jsonl` before the executor returns. This write is
+   unconditional: it happens regardless of SaaS connectivity or charter state.
+2. **Work happens outside the CLI**: The CLI has returned the context payload.
+   The caller or agent performs the work.
+3. **Completed**: When execution finishes, `spec-kitty profile-invocation
+   complete` closes the trail. This appends a `completed` event to the same
+   JSONL file. `--artifact` and `--commit` append separate correlation events
+   after the completed event.
 
 ```bash
 uv run spec-kitty profile-invocation complete \
@@ -78,38 +72,42 @@ uv run spec-kitty profile-invocation complete \
 ```
 
 Options for `profile-invocation complete`:
+
 - `--outcome`: `done`, `failed`, or `abandoned`
 - `--artifact`: path to an artifact produced by this invocation (repeatable)
 - `--commit`: the primary git commit SHA produced by this invocation (singular)
-- `--evidence`: promote a file to a Tier 2 evidence artifact (not allowed for `advisory` or
-  `query` mode invocations)
+- `--evidence`: promote a file to a Tier 2 evidence artifact when the record is
+  evidence-eligible
 
 ---
 
-## The invocation trail
+## The Invocation Trail
 
-The invocation trail is the local audit record written by every governed invocation. It provides:
+The invocation trail is the local audit record written by every governed
+invocation. It provides:
 
-1. **Local accountability**: operators can reconstruct what happened on any checkout without SaaS
-   connectivity.
-2. **SaaS coherence**: the dashboard timeline shows the same history as the local audit log.
-3. **Governance provenance**: retrospective and doctrine work can reference specific invocations.
+1. **Local accountability**: operators can reconstruct what happened on any
+   checkout without SaaS connectivity.
+2. **SaaS coherence**: the dashboard timeline shows the same history as the
+   local audit log.
+3. **Governance provenance**: retrospective and doctrine work can reference
+   specific invocations.
 
-Trail files live at `.kittify/events/profile-invocations/{invocation_id}.jsonl` - one JSONL file
-per invocation. Each line is an event (`started`, `completed`, `glossary_checked`,
+Trail files live at `kitty-ops/{invocation_id}.jsonl`: one JSONL file per
+invocation. Each line is an event (`started`, `completed`, `glossary_checked`,
 `artifact_link`, `commit_link`, or future additive events).
 
 Key fields on the `started` event:
 
 | Field | Type | Description |
 |---|---|---|
-| `profile_id` | string | Agent profile identifier |
-| `action` | string | Mission action being performed |
-| `request_text` | string | Request supplied to `ask`, `advise`, or `do` |
+| `profile_id` | string | Resolved profile identifier |
+| `action` | string | Resolved action token |
+| `request_text` | string | Request supplied to `dispatch` |
 | `governance_context_hash` | string | Hash of the rendered Charter context |
 | `governance_context_available` | boolean | Whether Charter context was available |
 | `started_at` | ISO timestamp | When the invocation was opened |
-| `mode_of_work` | string | `advisory`, `task_execution`, `mission_step`, or `query` |
+| `mode_of_work` | string | Work mode used for trail policy |
 
 Key fields on the `completed` event:
 
@@ -118,22 +116,22 @@ Key fields on the `completed` event:
 | `invocation_id` | ULID | Matches the `started` event |
 | `outcome` | string | `done`, `failed`, or `abandoned` |
 | `completed_at` | ISO timestamp | When `profile-invocation complete` was called |
+| `closed_by` | string | `agent` or `doctor_sweep` |
 | `evidence_ref` | string/null | Evidence path or text supplied with `--evidence` |
 
 ---
 
-## Evidence and artifact correlation
+## Evidence and Artifact Correlation
 
-Artifacts produced during an invocation are linked back to the trail record via separate
-`artifact_link` and `commit_link` events appended by the `--artifact` and `--commit` options on
-`profile-invocation complete`. This correlation provides:
+Artifacts produced during an invocation are linked back to the trail record via
+separate `artifact_link` and `commit_link` events appended by the `--artifact`
+and `--commit` options on `profile-invocation complete`. This correlation
+provides:
 
 - A local audit link from an invocation to the artifacts or commit it produced
 - Governance provenance context for humans and future automated consumers
 
-Evidence files (promoted via `--evidence`) receive Tier 2 status in the trail, meaning they are
-specifically designated as evidence of the invocation's outcome. Note: `--evidence` is not allowed
-for `advisory` or `query` mode invocations (enforced before any write).
+Evidence files promoted via `--evidence` receive Tier 2 status in the trail.
 
 ---
 

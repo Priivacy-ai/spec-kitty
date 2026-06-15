@@ -5,7 +5,7 @@ Covers FR-003/FR-012:
 - --outcome is required and validated at the CLI boundary (never silently "done").
 - Each outcome value is written verbatim.
 - Double close exits 1 with the structured already-closed error (rich + --json).
-- Evidence refused for advisory mode before any write; accepted for task_execution.
+- Evidence refused for legacy advisory records before any write; accepted for task_execution.
 """
 
 from __future__ import annotations
@@ -70,11 +70,12 @@ def _open_invocation(project: Path, mode: ModeOfWork = ModeOfWork.TASK_EXECUTION
 
 
 def _run_complete(project: Path, *args: str):  # type: ignore[no-untyped-def]
-    with patch(
-        "specify_cli.cli.commands.advise.find_repo_root", return_value=project
-    ), patch(
-        "specify_cli.invocation.executor.build_charter_context",
-        return_value=_COMPACT_CTX,
+    with (
+        patch("specify_cli.cli.commands.profile_invocation.find_repo_root", return_value=project),
+        patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=_COMPACT_CTX,
+        ),
     ):
         return runner.invoke(cli_app, ["profile-invocation", "complete", *args])
 
@@ -90,9 +91,7 @@ def _read_events(project: Path, invocation_id: str) -> list[dict[str, object]]:
 
 
 @pytest.mark.parametrize("outcome", ["done", "failed", "abandoned"])
-def test_cli_close_records_outcome_verbatim_and_closed_by_agent(
-    tmp_path: Path, outcome: str
-) -> None:
+def test_cli_close_records_outcome_verbatim_and_closed_by_agent(tmp_path: Path, outcome: str) -> None:
     project = _setup_project(tmp_path)
     inv_id = _open_invocation(project)
 
@@ -113,9 +112,12 @@ def test_cli_does_not_expose_closed_by_flag(tmp_path: Path) -> None:
 
     result = _run_complete(
         project,
-        "--invocation-id", inv_id,
-        "--outcome", "done",
-        "--closed-by", "doctor_sweep",
+        "--invocation-id",
+        inv_id,
+        "--outcome",
+        "done",
+        "--closed-by",
+        "doctor_sweep",
     )
     assert result.exit_code != 0
     # The Op stays open: the unknown option is rejected before any write.
@@ -176,14 +178,10 @@ def test_double_close_exits_1_json(tmp_path: Path) -> None:
     project = _setup_project(tmp_path)
     inv_id = _open_invocation(project)
 
-    first = _run_complete(
-        project, "--invocation-id", inv_id, "--outcome", "done", "--json"
-    )
+    first = _run_complete(project, "--invocation-id", inv_id, "--outcome", "done", "--json")
     assert first.exit_code == 0, first.output
 
-    second = _run_complete(
-        project, "--invocation-id", inv_id, "--outcome", "done", "--json"
-    )
+    second = _run_complete(project, "--invocation-id", inv_id, "--outcome", "done", "--json")
     assert second.exit_code == 1
     error_obj = json.loads(second.output.strip().splitlines()[-1])
     assert error_obj == {"error": "already_closed", "invocation_id": inv_id}
@@ -194,7 +192,7 @@ def test_double_close_exits_1_json(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_cli_evidence_refused_for_advisory_before_any_write(tmp_path: Path) -> None:
+def test_cli_evidence_refused_for_legacy_advisory_before_any_write(tmp_path: Path) -> None:
     project = _setup_project(tmp_path)
     inv_id = _open_invocation(project, mode=ModeOfWork.ADVISORY)
     evidence = tmp_path / "evidence.md"
@@ -202,9 +200,12 @@ def test_cli_evidence_refused_for_advisory_before_any_write(tmp_path: Path) -> N
 
     result = _run_complete(
         project,
-        "--invocation-id", inv_id,
-        "--outcome", "done",
-        "--evidence", str(evidence),
+        "--invocation-id",
+        inv_id,
+        "--outcome",
+        "done",
+        "--evidence",
+        str(evidence),
     )
 
     assert result.exit_code == 2
@@ -222,9 +223,12 @@ def test_cli_evidence_accepted_for_task_execution(tmp_path: Path) -> None:
 
     result = _run_complete(
         project,
-        "--invocation-id", inv_id,
-        "--outcome", "done",
-        "--evidence", str(evidence),
+        "--invocation-id",
+        inv_id,
+        "--outcome",
+        "done",
+        "--evidence",
+        str(evidence),
     )
 
     assert result.exit_code == 0, result.output
@@ -248,11 +252,16 @@ def test_cli_close_appends_artifact_and_commit_links_after_completed(
 
     result = _run_complete(
         project,
-        "--invocation-id", inv_id,
-        "--outcome", "done",
-        "--artifact", "src/foo.py",
-        "--artifact", "src/bar.py",
-        "--commit", "deadbeef1234",
+        "--invocation-id",
+        inv_id,
+        "--outcome",
+        "done",
+        "--artifact",
+        "src/foo.py",
+        "--artifact",
+        "src/bar.py",
+        "--commit",
+        "deadbeef1234",
     )
 
     assert result.exit_code == 0, result.output

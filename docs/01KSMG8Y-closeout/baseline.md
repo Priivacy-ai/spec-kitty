@@ -120,16 +120,12 @@ FAILED tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py::
 FAILED tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py::TestWP01Regressions::test_json_reports_modified_unchanged_preserved
 FAILED tests/specify_cli/cli/commands/test_charter_interview_org_prefill.py::test_interview_without_org_packs_has_no_pre_fill
 FAILED tests/specify_cli/docs/test_trail_model_doc.py::test_changelog_unreleased_has_both_tranches
-FAILED tests/specify_cli/invocation/cli/test_advise.py::TestAdviseMissingProfile::test_missing_profile_exits_1
-FAILED tests/specify_cli/invocation/cli/test_advise.py::TestAdviseNoCharter::test_no_charter_governance_context_unavailable_exits_zero
-FAILED tests/specify_cli/invocation/cli/test_advise.py::TestAdviseWithExplicitProfile::test_exits_zero_and_returns_json_payload
-FAILED tests/specify_cli/invocation/cli/test_advise.py::TestAskShim::test_ask_delegates_to_advise
-FAILED tests/specify_cli/invocation/cli/test_advise.py::TestProfileInvocationComplete::test_complete_already_closed_exits_zero_with_warning
-FAILED tests/specify_cli/invocation/cli/test_advise.py::TestProfileInvocationComplete::test_complete_closes_record
-FAILED tests/specify_cli/invocation/cli/test_advise.py::TestProfileInvocationComplete::test_complete_only_needs_invocation_id
-FAILED tests/specify_cli/invocation/cli/test_do.py::TestDoRoutingFailures::test_no_match_writes_error_to_stderr
-FAILED tests/specify_cli/invocation/cli/test_do.py::TestDoSuccessfulRouting::test_implement_request_routes_to_implementer
-FAILED tests/specify_cli/invocation/cli/test_do.py::TestDoSuccessfulRouting::test_returns_valid_invocation_payload_shape
+FAILED tests/specify_cli/invocation/cli/test_dispatch.py::TestDispatchMissingProfile::test_missing_profile_exits_1
+FAILED tests/specify_cli/invocation/cli/test_dispatch.py::TestDispatchNoCharter::test_no_charter_governance_context_unavailable_exits_zero
+FAILED tests/specify_cli/invocation/cli/test_dispatch.py::TestDispatchWithExplicitProfile::test_exits_zero_and_returns_json_payload
+FAILED tests/specify_cli/invocation/cli/test_dispatch.py::TestProfileInvocationComplete::test_complete_already_closed_exits_zero_with_warning
+FAILED tests/specify_cli/invocation/cli/test_dispatch.py::TestProfileInvocationComplete::test_complete_closes_record
+FAILED tests/specify_cli/invocation/cli/test_dispatch.py::TestProfileInvocationComplete::test_complete_only_needs_invocation_id
 FAILED tests/specify_cli/invocation/cli/test_invocations.py::TestInvocationsListJSON::test_empty_log_returns_empty_array
 FAILED tests/specify_cli/invocation/cli/test_invocations.py::TestInvocationsListJSON::test_limit_caps_results
 FAILED tests/specify_cli/invocation/cli/test_invocations.py::TestInvocationsListJSON::test_no_events_dir_returns_empty
@@ -206,7 +202,7 @@ FAILED tests/tasks/test_tasks_support.py::test_find_repo_root_worktree_with_subd
 **Gate NOT met**: 138 failures vs. ≤75 threshold. Reduction from ~249 to 138 (~44% improvement) was achieved, but the remaining failures fall into clusters not fully addressed by this mission's scope:
 
 1. **Checklist template failures (9)**: `spec-kitty.checklist` skill package absent — tracked as #1317 (explicitly re-deferred per C-008).
-2. **Invocation CLI failures (21)**: `test_advise`, `test_do`, `test_profiles`, `test_invocations` — T037 fix in WP09 addressed the `mode_of_work` field but deeper routing regressions remain.
+2. **Invocation CLI failures (21)**: dispatch/profile/invocation tests — T037 fix in WP09 addressed the `mode_of_work` field but deeper routing regressions remain.
 3. **Prompt-file invariant (3)**: New tests added by WP05 T019 (`_build_prompt_or_error` path) have edge-case failures in the error-handling branches.
 4. **Version isolation / encoding (15)**: Pre-existing environment-specific failures unrelated to this mission's scope.
 5. **Skills snapshots (8)**: Codex/vibe command renderer snapshots need refresh after WP01 template changes.

@@ -56,7 +56,7 @@ flowchart TB
       commitGuard["commit_guard.evaluate + GuardCapability"]
     end
 
-    op["Op Tier — do / ask / advise + pre/post-mission lifecycle"]
+    op["Op Tier — dispatch + pre/post-mission lifecycle"]
     orchestrator["External Orchestrator"] --> cli
     extTracker["External Tracker / SaaS"]
 
@@ -89,7 +89,7 @@ flowchart TB
 | Container | Core Responsibility | Behavioral Ownership |
 |---|---|---|
 | CLI Command Surface | Interactive and scripted command entry point | Validates command intent and routes to the Op tier and bounded modules |
-| Op Tier | Profile-governed standalone invocations (`do`/`ask`/`advise`) and the pre/post-mission lifecycle | Opens an Op under resolved governance context, does the work, closes the Op with the real outcome |
+| Op Tier | Standalone dispatch invocations and the pre/post-mission lifecycle | Opens an Op under resolved governance context, does the work, closes the Op with the real outcome |
 | Charter Engine | Charter interview, activation, cascade, and `org-charter.yaml` `extends:` resolution | Produces governance constraints (the active charter/doctrine policy) consumed by the Op tier and missions |
 | Doctrine Catalog + DRG | Typed governance/mission assets and the Doctrine Relationship Graph | Loads/validates doctrine resources; resolves profile lineage via DRG edges |
 | Glossary Corpus | Canonical terminology surface | Supplies terms and guards terminology drift |

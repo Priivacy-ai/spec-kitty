@@ -1,7 +1,7 @@
 """Open-Ops rendering for session presence (session-start / session-stop).
 
-Surfaces orphaned Ops — work that was dispatched via ``spec-kitty do`` /
-``ask`` / ``advise`` but never closed — at session boundaries (FR-009).
+Surfaces orphaned Ops — work that was opened via ``spec-kitty dispatch`` but
+never closed — at session boundaries (FR-009).
 
 Performance contract: this runs on every Claude Code session start/stop, so it
 is scan-only (``list_orphan_ops()``), makes no git calls, and must add < 0.5 s
@@ -16,10 +16,7 @@ from pathlib import Path
 
 __all__ = ["render_open_ops_section", "render_open_ops_reminder"]
 
-_CLOSE_CMD = (
-    "spec-kitty profile-invocation complete --invocation-id {invocation_id} "
-    "--outcome <done|failed|abandoned>"
-)
+_CLOSE_CMD = "spec-kitty profile-invocation complete --invocation-id {invocation_id} --outcome <done|failed|abandoned>"
 _SWEEP_HINT = "Sweep stale ones: spec-kitty doctor ops --close-stale"
 
 
@@ -67,10 +64,7 @@ def render_open_ops_section(repo_root: Path, now: datetime | None = None) -> str
         age = _format_age(started_at, now)
         meta = ", ".join(part for part in (profile_id, age) if part)
         meta_text = f" ({meta})" if meta else ""
-        lines.append(
-            f"  {invocation_id}{meta_text} — close: "
-            + _CLOSE_CMD.format(invocation_id=invocation_id)
-        )
+        lines.append(f"  {invocation_id}{meta_text} — close: " + _CLOSE_CMD.format(invocation_id=invocation_id))
     lines.append(_SWEEP_HINT)
     return "\n".join(lines)
 
@@ -83,7 +77,4 @@ def render_open_ops_reminder(repo_root: Path, now: datetime | None = None) -> st
     section = render_open_ops_section(repo_root, now=now)
     if not section:
         return ""
-    return (
-        "spec-kitty: this session is ending with open Ops — close each with the\n"
-        "real outcome before moving on.\n" + section
-    )
+    return "spec-kitty: this session is ending with open Ops — close each with the\nreal outcome before moving on.\n" + section

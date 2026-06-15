@@ -26,7 +26,7 @@ the Charter era) to the current Charter-era 3.x.
 | CLI structure | `spec-kitty charter <subcommand>` | Same — `spec-kitty charter <subcommand>` |
 | Mission execution | Direct workflow commands: `/spec-kitty.specify`, `/spec-kitty.plan`, etc. | `spec-kitty next --agent <name> --mission <slug>` with automatic Charter context injection |
 | Retrospective | Not available in 2.x | Default-on in 3.2.0+: `retrospective.yaml` is authored automatically at mission completion. `spec-kitty retrospect create --mission <slug>` authors on demand; `retrospect summary` aggregates (read-only); `agent retrospect synthesize --mission <slug>` previews/applies proposals. See [How to Use Retrospective Learning](../how-to/use-retrospective-learning.md). |
-| Profile invocation | Not available in 2.x | `spec-kitty ask`, `advise`, `do` + `profile-invocation complete` |
+| Profile invocation | Not available in 2.x | `spec-kitty dispatch "<request>"` + `profile-invocation complete` |
 | Governance context injection | `charter context --action <action>` (available; used by runtime) | Same command available for debugging; automatic injection via `spec-kitty next` |
 
 **Note on `constitution`**: In early 3.x, the governance command was `spec-kitty constitution`.
