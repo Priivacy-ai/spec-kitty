@@ -1,1 +1,2 @@
 {"event": "started", "invocation_id": "01KV0ZBAEB1J95G06ZBHBEQJXP", "profile_id": "python-pedro", "action": "generate", "request_text": "smoke test the dispatch unification", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "3200a46c535a9701", "governance_context_available": true, "started_at": "2026-06-13T17:09:23.985685+00:00"}
+{"event": "completed", "invocation_id": "01KV0ZBAEB1J95G06ZBHBEQJXP", "completed_at": "2026-06-15T10:05:29.053787+00:00", "outcome": "abandoned", "closed_by": "doctor_sweep"}
