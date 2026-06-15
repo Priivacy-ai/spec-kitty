@@ -395,6 +395,8 @@ def _refresh_status_json_for_staged_events(
 ) -> str | None:
     feature_dirs, error = _staged_status_event_dirs(worktree)
     if error is not None:
+        if error.startswith(f"{RULE_ID_STATUS_EVENTS}:"):
+            return error
         return f"{RULE_ID_STATUS_JSON}: could not inspect staged paths: {error}"
 
     for feature_dir in sorted(feature_dirs, key=lambda path: path.as_posix()):
@@ -670,6 +672,12 @@ def _finalize_auto_rebase(
         _run(
             ["git", "add", str(init_path.relative_to(worktree_path))],
             worktree_path,
+        )
+
+    halt_reason = _refresh_status_json_for_staged_events(worktree_path, classifications)
+    if halt_reason is not None:
+        return _abort_with_failure(
+            worktree_path, lane_id, classifications, halt_reason,
         )
 
     sparse_error = _reapply_sparse_checkout(worktree_path)
