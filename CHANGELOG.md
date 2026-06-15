@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-06-16
+
+### ✨ Added / 🔧 Changed
+
+- Stable 3.2.0 release of the mission-runtime, profile-invocation, tool-surface,
+  branch-authority, and coordination-worktree line after the rc45 validation cycle.
+  This promotes the accumulated 3.2.0 release-candidate fixes to the default PyPI
+  channel.
+
 ## [3.2.0rc45] - 2026-06-15
 
 ### 🐛 Fixed
