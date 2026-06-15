@@ -31,6 +31,11 @@ RELEASE_VERSION_SOURCE_PATHS = {
     "uv.lock",
 }
 
+RELEASE_VALIDATOR_SURFACE_PATHS = {
+    "scripts/release/**",
+    ".github/workflows/release-readiness.yml",
+}
+
 
 def load_workflow(name: str) -> dict[str, Any]:
     return yaml.safe_load((WORKFLOWS / name).read_text(encoding="utf-8"))
@@ -76,6 +81,11 @@ def test_release_readiness_runs_for_all_version_sources() -> None:
     workflow = load_workflow("release-readiness.yml")
     paths = event_paths(workflow, "pull_request")
     filters = release_readiness_filter_text(workflow)
+    validate_step = next(
+        step
+        for step in workflow["jobs"]["check-readiness"]["steps"]
+        if step.get("id") == "validate"
+    )
 
     missing_paths = RELEASE_VERSION_SOURCE_PATHS - paths
     assert not missing_paths, (
@@ -87,6 +97,18 @@ def test_release_readiness_runs_for_all_version_sources() -> None:
         assert f"- '{path}'" in filters, (
             f"Release Readiness metadata filter misses {path}"
         )
+    for path in RELEASE_VALIDATOR_SURFACE_PATHS:
+        assert f"- '{path}'" in filters, (
+            f"Release Readiness validator filter misses {path}"
+        )
+
+    assert "version_sources" in filters
+    assert "version_bump" in filters
+    assert "validator_surface" in filters
+    assert "outputs.version_sources" in validate_step["if"]
+    assert "outputs.validator_surface" in validate_step["if"]
+    assert "outputs.version_bump" in validate_step["run"]
+    assert "--consistency-only" in validate_step["run"]
 
 
 def test_shared_drift_has_scheduled_and_manual_monitoring() -> None:

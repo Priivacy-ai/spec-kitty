@@ -118,13 +118,21 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--changelog",
-        default="CHANGELOG.md",
-        help="Path to changelog file (default: %(default)s)",
+        default=None,
+        help="Path to changelog file (default: CHANGELOG.md under the target repository root)",
     )
     parser.add_argument(
         "--lockfile",
-        default="uv.lock",
-        help="Path to uv.lock (default: %(default)s)",
+        default=None,
+        help="Path to uv.lock (default: uv.lock under the target repository root)",
+    )
+    parser.add_argument(
+        "--consistency-only",
+        action="store_true",
+        help=(
+            "In branch mode, validate release-version source consistency without "
+            "requiring the project version to advance beyond the latest tag."
+        ),
     )
     parser.add_argument(
         "--tag-pattern",
@@ -137,7 +145,10 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Treat missing tag detection as a hard failure (defaults to failure in tag mode).",
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.mode == "tag" and args.consistency_only:
+        parser.error("--consistency-only can only be used with --mode branch")
+    return args
 
 
 def _normalize_stage(stage: str | None) -> str | None:
@@ -507,15 +518,22 @@ def ensure_tag_matches_version(version: str, tag: str | None) -> ValidationIssue
 
 def run_validation(args: argparse.Namespace) -> ValidationResult:
     pyproject_path = Path(args.pyproject).resolve()
-    changelog_path = Path(args.changelog).resolve()
-    lockfile_path = Path(args.lockfile).resolve()
+    changelog_path = (
+        Path(args.changelog).resolve()
+        if args.changelog
+        else pyproject_path.parent / "CHANGELOG.md"
+    )
+    lockfile_path = (
+        Path(args.lockfile).resolve()
+        if args.lockfile
+        else pyproject_path.parent / "uv.lock"
+    )
     version = ""
     tag: str | None = None
     issues: list[ValidationIssue] = []
 
     try:
         version = load_pyproject_version(pyproject_path)
-        changelog_text = read_changelog(changelog_path)
     except ReleaseValidatorError as exc:
         issues.append(ValidationIssue(str(exc)))
         return ValidationResult(
@@ -530,6 +548,25 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
         )
 
     repo_root = find_repo_root(pyproject_path.parent)
+    if not args.changelog:
+        changelog_path = repo_root / "CHANGELOG.md"
+    if not args.lockfile:
+        lockfile_path = repo_root / "uv.lock"
+
+    try:
+        changelog_text = read_changelog(changelog_path)
+    except ReleaseValidatorError as exc:
+        issues.append(ValidationIssue(str(exc)))
+        return ValidationResult(
+            ok=False,
+            mode=args.mode,
+            pyproject_path=pyproject_path,
+            changelog_path=changelog_path,
+            lockfile_path=lockfile_path,
+            version=version,
+            tag=tag,
+            issues=issues,
+        )
 
     # FR-601, FR-602: verify .kittify/metadata.yaml is in sync with pyproject.toml
     metadata_issue = validate_metadata_yaml_version_sync(version, repo_root)
@@ -575,7 +612,7 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
         progression_issue = validate_version_progression(version, existing_tags)
         if progression_issue:
             issues.append(progression_issue)
-    else:
+    elif not args.consistency_only:
         existing_tags = discover_release_tags(repo_root, tag_pattern=args.tag_pattern)
         progression_issue = validate_version_progression(version, existing_tags)
         if progression_issue:

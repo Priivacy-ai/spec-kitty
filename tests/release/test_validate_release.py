@@ -289,6 +289,75 @@ def test_branch_mode_fails_when_uv_lock_version_drifts(tmp_path: Path) -> None:
     assert "0.2.3" in result.stderr
 
 
+def test_default_lockfile_uses_target_repo_when_called_from_elsewhere(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "target"
+    caller = tmp_path / "caller"
+    target.mkdir()
+    caller.mkdir()
+    init_repo(target)
+
+    write_release_files(
+        target,
+        "0.2.3",
+        changelog_for_versions(("0.2.3", "- Initial release")),
+    )
+    stage_and_commit(target, "chore: bootstrap project")
+    tag(target, "v0.2.3")
+
+    write_release_files(
+        target,
+        "0.2.4",
+        changelog_for_versions(
+            ("0.2.4", "- Add automation"),
+            ("0.2.3", "- Initial release"),
+        ),
+    )
+    write_uv_lock(target, "0.2.3")
+    write_uv_lock(caller, "0.2.4")
+    stage_and_commit(target, "chore: prep 0.2.4 with stale target lockfile")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(VALIDATOR),
+            "--mode",
+            "branch",
+            "--pyproject",
+            str(target / "pyproject.toml"),
+            "--changelog",
+            str(target / "CHANGELOG.md"),
+        ],
+        cwd=caller,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert str(target / "uv.lock") in result.stdout
+    assert str(caller / "uv.lock") not in result.stdout
+    assert "uv.lock" in result.stderr
+    assert "0.2.4" in result.stderr
+    assert "0.2.3" in result.stderr
+
+
+def test_consistency_only_skips_release_progression(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "0.2.3",
+        changelog_for_versions(("0.2.3", "- Initial release")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap project")
+    tag(tmp_path, "v0.2.3")
+
+    result = run_validator(tmp_path, "--mode", "branch", "--consistency-only")
+
+    assert result.returncode == 0, result.stderr
+    assert "All required checks passed." in result.stdout
+
+
 def test_tag_mode_validates_tag_alignment(tmp_path: Path) -> None:
     init_repo(tmp_path)
     write_release_files(
