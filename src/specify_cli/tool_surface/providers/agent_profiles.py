@@ -58,6 +58,7 @@ from ..status import (
     SurfaceStatus,
     _surface_id,
 )
+from ._registry import SurfaceProviderRegistry, SurfaceRegistration
 
 PROVIDER_KEY = "agent_profiles"
 _PATH_PATTERN = ".claude/agents/{profile_id}.md"
@@ -366,3 +367,16 @@ class AgentProfilesProvider:
         if native.format != FORMAT_AMAZON_Q_AGENT:
             manifest.record(replace(native, file_hash=hash_content(body)))
         repaired.append(surface_id)
+
+
+# ---------------------------------------------------------------------------
+# Self-registration (fires at import time via providers._discovery)
+# ---------------------------------------------------------------------------
+SurfaceProviderRegistry.register(
+    SurfaceRegistration(
+        provider_class=AgentProfilesProvider,
+        definitions=(agent_profile_definition(),),
+        kind_tokens={"agent-profile": SurfaceKind.AGENT_PROFILE},
+        order=50,
+    )
+)

@@ -69,6 +69,7 @@ from ..status import (
     SurfaceStatus,
     _surface_id,
 )
+from ._registry import SurfaceProviderRegistry, SurfaceRegistration
 
 PROVIDER_KEY = "session_presence"
 _REPAIR_HINT = "spec-kitty doctor tool-surfaces --kind context_file --fix"
@@ -447,3 +448,25 @@ def _orientation_content(project_root: Path) -> SessionPresenceContent:
             health="healthy",
             available_version=None,
         )
+
+
+# ---------------------------------------------------------------------------
+# Self-registration (fires at import time via providers._discovery)
+# ---------------------------------------------------------------------------
+SurfaceProviderRegistry.register(
+    SurfaceRegistration(
+        provider_class=SessionPresenceProvider,
+        definitions=(
+            context_file_definition(),
+            hook_definition(),
+            rule_definition(),
+        ),
+        kind_tokens={
+            "context-file": SurfaceKind.CONTEXT_FILE,
+            "context_file": SurfaceKind.CONTEXT_FILE,
+            "hook": SurfaceKind.HOOK,
+            "rule": SurfaceKind.RULE,
+        },
+        order=20,
+    )
+)

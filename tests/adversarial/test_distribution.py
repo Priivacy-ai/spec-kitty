@@ -190,20 +190,6 @@ class TestInitWithoutTemplateRoot:
 class TestUpgradeWithAllMissions:
     """Test upgrade command updates templates from package."""
 
-    # WP06 (R9): the bare ``#TBD`` placeholder is replaced with a real tracked
-    # issue (Priivacy-ai/spec-kitty#1953). The marker stays ``strict=False``
-    # because the test was observed to XPASS in some environments — it is
-    # non-deterministic, not a stable xfail — so the tracked issue owns the
-    # decision to fix the underlying init-prompt gap and then retire/stricten
-    # this guard.
-    @pytest.mark.xfail(
-        reason=(
-            "spec-kitty init still prompts for agent strategy even with "
-            "--ai/--script/--mission flags "
-            "(Priivacy-ai/spec-kitty#1953; previously a bare #TBD placeholder)"
-        ),
-        strict=False,
-    )
     def test_upgrade_updates_templates(self, installed_venv: Path, tmp_path: Path) -> None:
         """spec-kitty upgrade should update templates from packaged source."""
         project_dir = tmp_path / "upgrade-project"

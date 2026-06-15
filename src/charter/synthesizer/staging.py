@@ -6,9 +6,9 @@ staging directory under ``.kittify/charter/.staging/<run_id>/``.
 Layout inside a staging directory:
     .kittify/charter/.staging/<run_id>/
         doctrine/
-            directives/
-            tactics/
-            styleguides/
+            directive/
+            tactic/
+            styleguide/
         charter/
             provenance/
 
@@ -46,10 +46,11 @@ from .path_guard import PathGuard
 
 
 # Kind → staging content subdirectory name (mirrors final doctrine layout).
+# Singular names match the .gitignore whitelist (directive/, tactic/).
 _KIND_SUBDIR: dict[str, str] = {
-    "directive": "directives",
-    "tactic": "tactics",
-    "styleguide": "styleguides",
+    "directive": "directive",
+    "tactic": "tactic",
+    "styleguide": "styleguide",
 }
 
 
@@ -84,9 +85,9 @@ class StagingDir:
         """Create a new staging directory and all required subdirectories.
 
         Directory layout created:
-            .kittify/charter/.staging/<run_id>/doctrine/directives/
-            .kittify/charter/.staging/<run_id>/doctrine/tactics/
-            .kittify/charter/.staging/<run_id>/doctrine/styleguides/
+            .kittify/charter/.staging/<run_id>/doctrine/directive/
+            .kittify/charter/.staging/<run_id>/doctrine/tactic/
+            .kittify/charter/.staging/<run_id>/doctrine/styleguide/
             .kittify/charter/.staging/<run_id>/charter/provenance/
 
         Parameters

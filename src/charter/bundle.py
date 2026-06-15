@@ -170,12 +170,45 @@ def validate_synthesis_state(repo_root: Path) -> BundleValidationResult:
     if not artifact_files and not provenance_files and not manifest_path.exists():
         return result
 
+    # Fresh-seed early-exit (belt-and-suspenders): when the manifest declares
+    # built_in_only=True with an empty artifact list, no user synthesis has
+    # occurred.  Any residual sidecar files are stale fixtures — do not
+    # validate against them.  The condition requires BOTH built_in_only AND
+    # artifacts == [] so a manifest with real artifacts still gets validated.
+    if manifest_path.exists() and _manifest_is_fresh_seed(manifest_path):
+        result.synthesis_state_present = True
+        return result
+
     result.synthesis_state_present = True
 
     _check_artifacts_have_provenance(repo_root, artifact_files, provenance_root, result)
     _check_provenance_have_artifacts(repo_root, doctrine_root, provenance_root, result)
     _check_manifest_integrity(repo_root, result)
     return result
+
+
+def _manifest_is_fresh_seed(manifest_path: Path) -> bool:
+    """Return True when the manifest declares built_in_only=True with no artifacts.
+
+    Called as a guard before provenance cross-checking so that a seeded
+    synthesis-manifest.yaml (``built_in_only: true``, ``artifacts: []``)
+    produced at project initialisation does not trigger spurious errors when
+    stale fixture sidecar files are present.
+
+    The condition is intentionally strict: BOTH ``built_in_only`` and an empty
+    ``artifacts`` list are required.  A manifest with ``built_in_only: true``
+    but a non-empty artifact list is an inconsistent state that warrants full
+    validation.
+    """
+    try:
+        from .synthesizer.manifest import load_yaml as load_manifest  # noqa: PLC0415
+
+        manifest = load_manifest(manifest_path)
+    except Exception:  # noqa: BLE001
+        # If the manifest cannot be parsed we fall through to full validation,
+        # which will surface the load error via _check_manifest_integrity().
+        return False
+    return bool(manifest.built_in_only) and not manifest.artifacts
 
 
 def _check_stale_failed_dirs(repo_root: Path, result: BundleValidationResult) -> None:

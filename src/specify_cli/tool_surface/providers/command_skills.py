@@ -44,6 +44,7 @@ from ..status import (
     SurfaceStatus,
     _surface_id,
 )
+from ._registry import SurfaceProviderRegistry, SurfaceRegistration
 
 PROVIDER_KEY = "command_skills"
 _PATH_PATTERN = ".agents/skills/spec-kitty.{command}/SKILL.md"
@@ -338,3 +339,16 @@ def _project_root_and_rel(path: Path) -> tuple[Path | None, str | None]:
     project_root = Path(*parts[:agents_index])
     rel = Path(*parts[agents_index:])
     return project_root, rel.as_posix()
+
+
+# ---------------------------------------------------------------------------
+# Self-registration (fires at import time via providers._discovery)
+# ---------------------------------------------------------------------------
+SurfaceProviderRegistry.register(
+    SurfaceRegistration(
+        provider_class=CommandSkillsProvider,
+        definitions=(command_skill_definition(),),
+        kind_tokens={"command-skill": SurfaceKind.COMMAND_SKILL},
+        order=0,
+    )
+)

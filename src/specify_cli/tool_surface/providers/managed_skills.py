@@ -70,6 +70,7 @@ from ..status import (
     SurfaceStatus,
     _surface_id,
 )
+from ._registry import SurfaceProviderRegistry, SurfaceRegistration
 
 PROVIDER_KEY = "managed_skills"
 _PATH_PATTERN = ".kittify/skills-manifest.json:{installed_path}"
@@ -426,3 +427,16 @@ def _manifest_owns(project_root: Path, instance: SurfaceInstance) -> bool:
         entry.agent_key == instance.owner and entry.installed_path == rel
         for entry in manifest.entries
     )
+
+
+# ---------------------------------------------------------------------------
+# Self-registration (fires at import time via providers._discovery)
+# ---------------------------------------------------------------------------
+SurfaceProviderRegistry.register(
+    SurfaceRegistration(
+        provider_class=ManagedSkillsProvider,
+        definitions=(managed_skill_definition(),),
+        kind_tokens={"doctrine-skill": SurfaceKind.DOCTRINE_SKILL},
+        order=40,
+    )
+)

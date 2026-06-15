@@ -47,6 +47,7 @@ from ..status import (
     SurfaceStatus,
     _surface_id,
 )
+from ._registry import SurfaceProviderRegistry, SurfaceRegistration
 
 PROVIDER_KEY = "native_config"
 _REPAIR_HINT = "spec-kitty doctor tool-surfaces --kind native_config --fix"
@@ -230,3 +231,19 @@ def _vibe_skill_path_present(config_path: Path) -> bool:
     if isinstance(skill_paths, list):
         return VIBE_SKILL_PATH in [str(value) for value in skill_paths]
     return False
+
+
+# ---------------------------------------------------------------------------
+# Self-registration (fires at import time via providers._discovery)
+# ---------------------------------------------------------------------------
+SurfaceProviderRegistry.register(
+    SurfaceRegistration(
+        provider_class=NativeConfigProvider,
+        definitions=(native_config_definition(),),
+        kind_tokens={
+            "native-config": SurfaceKind.NATIVE_CONFIG,
+            "native_config": SurfaceKind.NATIVE_CONFIG,
+        },
+        order=30,
+    )
+)

@@ -45,6 +45,7 @@ from ..status import (
     SurfaceStatus,
     _surface_id,
 )
+from ._registry import SurfaceProviderRegistry, SurfaceRegistration
 
 PROVIDER_KEY = "plugin_bundle"
 # Synthetic registry key under which the (tool-agnostic) plugin-manifest surface
@@ -353,3 +354,20 @@ def _staged_manifest_path(output_dir: Path) -> Path:
     if claude_manifest.exists():
         return claude_manifest
     return output_dir / "plugin.json"
+
+
+# ---------------------------------------------------------------------------
+# Self-registration (fires at import time via providers._discovery)
+# ---------------------------------------------------------------------------
+SurfaceProviderRegistry.register(
+    SurfaceRegistration(
+        provider_class=PluginBundleProvider,
+        definitions=(plugin_manifest_definition(),),
+        kind_tokens={
+            "plugin-manifest": SurfaceKind.PLUGIN_MANIFEST,
+            "plugin_manifest": SurfaceKind.PLUGIN_MANIFEST,
+        },
+        synthetic_key=PLUGIN_BUNDLE_TOOL_KEY,
+        order=60,
+    )
+)

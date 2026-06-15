@@ -105,7 +105,7 @@ class StagedArtifact:
     """
 
     path: str
-    """Repo-relative POSIX path (e.g. ``.kittify/doctrine/directives/001-foo.directive.yaml``)."""
+    """Repo-relative POSIX path (e.g. ``.kittify/doctrine/directive/001-foo.directive.yaml``)."""
 
     kind: str
     """Doctrine kind: ``directive`` | ``tactic`` | ``styleguide``."""
@@ -547,9 +547,10 @@ def promote(
     # Step 3: ordered os.replace into final live trees
     # ------------------------------------------------------------------
     # Ensure destination directories exist.
-    for kind_subdir in ("directives", "tactics", "styleguides"):
+    # Use doctrine_kind_subdir() so the names match the .gitignore whitelist.
+    for kind in ("directive", "tactic", "styleguide"):
         guard.mkdir(
-            repo_root / _KITTIFY_DIRNAME / _DOCTRINE_DIRNAME / kind_subdir,
+            repo_root / _KITTIFY_DIRNAME / _DOCTRINE_DIRNAME / _doctrine_kind_subdir(kind),
             caller="write_pipeline.promote[mkdir-doctrine]",
         )
 
