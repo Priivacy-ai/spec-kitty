@@ -56,6 +56,35 @@ from tests._support.wall_clock_assertions import (
             "Holder.wall_now()",
             7,
         ),
+        (
+            "from datetime import datetime\n\n"
+            "class Holder:\n"
+            "    wall_now = datetime.now\n\n"
+            "    def test_bad(self):\n"
+            "        assert self.wall_now().year == 2026\n",
+            "self.wall_now()",
+            7,
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "class Holder:\n"
+            "    wall_now = datetime.now\n\n"
+            "    @classmethod\n"
+            "    def test_bad(cls):\n"
+            "        assert cls.wall_now().year == 2026\n",
+            "cls.wall_now()",
+            8,
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "class Holder:\n"
+            "    wall_now = datetime.now\n\n"
+            "    @staticmethod\n"
+            "    def test_bad(self):\n"
+            "        assert self.wall_now().year == 2026\n",
+            "self.wall_now()",
+            8,
+        ),
         ("from datetime import datetime\n\nwall_now, other = datetime.now, object()\n\ndef test_bad():\n    assert wall_now().year == 2026\n", "wall_now()", 6),
     ],
 )
@@ -133,6 +162,18 @@ def test_find_wall_clock_assertion_violations_allows_freshness_bounds(tmp_path: 
             "    def test_good(self):\n"
             "        wall_now = lambda: 1\n"
             "        assert wall_now() == 1\n"
+        ),
+        (
+            "from datetime import datetime\n"
+            "from fake_datetime import datetime\n\n"
+            "def test_good():\n"
+            "    assert datetime.now() == 1\n"
+        ),
+        (
+            "from datetime import datetime as dt\n"
+            "from fake_datetime import datetime as dt\n\n"
+            "def test_good():\n"
+            "    assert dt.now() == 1\n"
         ),
     ],
 )

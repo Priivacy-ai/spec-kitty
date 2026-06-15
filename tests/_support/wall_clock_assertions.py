@@ -112,9 +112,14 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
             parts = tuple(alias.name.split("."))
             if parts and parts[0] in {"datetime", "time"}:
                 self._set_alias((alias.asname or parts[0],), parts)
+            else:
+                self._set_shadow((alias.asname or parts[0],))
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         if node.module not in {"datetime", "time"}:
+            for alias in node.names:
+                if alias.name != "*":
+                    self._set_shadow((alias.asname or alias.name,))
             return
         for alias in node.names:
             if alias.name == "*":
@@ -188,17 +193,26 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
         for path, source in class_aliases.items():
             self._set_alias((node.name, *path), source)
         for method in deferred_methods:
-            self._visit_function_scope(method, bind_name=False)
+            self._visit_function_scope(
+                method,
+                bind_name=False,
+                class_aliases=class_aliases,
+            )
 
     def _visit_function_scope(
         self,
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         *,
         bind_name: bool,
+        class_aliases: dict[tuple[str, ...], tuple[str, ...]] | None = None,
     ) -> None:
         if bind_name:
             self._set_shadow((node.name,))
         local_shadows: _AliasMap = {(name,): None for name in _function_bound_names(node)}
+        if class_aliases:
+            for self_name in _method_self_names(node):
+                for path, source in class_aliases.items():
+                    local_shadows[(self_name, *path)] = source
         self.scopes.append(local_shadows)
         for statement in node.body:
             self.visit(statement)
@@ -264,6 +278,16 @@ def _function_bound_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[s
     for statement in node.body:
         visitor.visit(statement)
     names.update(visitor.names - visitor.global_names - visitor.nonlocal_names)
+    return names
+
+
+def _method_self_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
+    names: set[str] = set()
+    positional_args = (*node.args.posonlyargs, *node.args.args)
+    if positional_args:
+        names.add(positional_args[0].arg)
+    if node.args.vararg is not None:
+        names.add(node.args.vararg.arg)
     return names
 
 
