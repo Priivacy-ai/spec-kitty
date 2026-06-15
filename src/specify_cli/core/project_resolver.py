@@ -6,7 +6,32 @@ from pathlib import Path
 
 
 def locate_project_root(start: Path | None = None) -> Path | None:
-    """Walk upwards from *start* (or CWD) to find the directory that owns .kittify."""
+    """Walk upwards from *start* (or CWD) to find the directory that owns .kittify.
+
+    NOTE (#1971 — three-way resolver consolidation, deferred): this is the
+    *simpler* of the two ``locate_project_root`` implementations. It deliberately
+    does NOT honour ``SPECIFY_REPO_ROOT`` or follow worktree ``.git`` pointers;
+    that authority lives in :func:`specify_cli.core.paths.locate_project_root`.
+    The two were intentionally kept separate in WP05 (#1965) because the four
+    callers of *this* resolver do not need env-var / worktree authority for
+    correctness.
+
+    Callers that do NOT require env-var / worktree authority (#1971 pre-analysis):
+      cli/helpers.py         — interactive CLI root detection via ``get_project_root_or_exit``;
+                               prints guidance and exits on None; CI sets env-var through the
+                               paths.py resolver on a different code path, not here.
+      cli/commands/lint.py   — uses ``locate_project_root() or Path.cwd()`` as ruff/mypy cwd;
+                               falls back to cwd on None, so env-var authority is irrelevant
+                               to lint correctness.
+      compat/planner.py      — injectable ``project_root_resolver`` default for best-effort
+                               upgrade-nag planning; the caller controls which resolver to
+                               supply at construction time; never raises on None.
+      core/__init__.py       — pure re-export shim; delegates to this function with no
+                               additional authority assumptions.
+
+    Full consolidation (collapsing this into ``paths.locate_project_root``) is
+    scoped to #1971 to avoid import-cycle risk and scope creep here.
+    """
     current = (start or Path.cwd()).resolve()
     for candidate in [current, *current.parents]:
         if (candidate / ".kittify").is_dir():
