@@ -26,6 +26,11 @@ from tests._support.wall_clock_assertions import (
         ("from datetime import datetime\n\ndef test_bad():\n    wall_now = datetime.now\n    assert wall_now().year == 2026\n", "wall_now()", 5),
         ("from time import *\n\ndef test_bad():\n    assert time() > 0\n", "time()", 4),
         ("from datetime import *\n\ndef test_bad():\n    assert datetime.now().year == 2026\n", "datetime.now()", 4),
+        ("import datetime\n\ndt = datetime.datetime\n\ndef test_bad():\n    assert dt.now().year == 2026\n", "dt.now()", 6),
+        ("from datetime import datetime\n\ndt = datetime\n\ndef test_bad():\n    assert dt.now().year == 2026\n", "dt.now()", 6),
+        ("from datetime import date\n\nd = date\n\ndef test_bad():\n    assert d.today().year == 2026\n", "d.today()", 6),
+        ("from datetime import *\n\ndt = datetime\n\ndef test_bad():\n    assert dt.now().year == 2026\n", "dt.now()", 6),
+        ("import time\n\ntm = time\n\ndef test_bad():\n    assert tm.time() > 0\n", "tm.time()", 6),
     ],
 )
 def test_find_wall_clock_assertion_violations_flags_direct_assert_calls(

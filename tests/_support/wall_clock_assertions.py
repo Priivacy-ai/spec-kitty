@@ -16,6 +16,14 @@ _BANNED_CALLS = {
     ("time", "time"): "time.time()",
 }
 
+_ALIASABLE_CLOCK_PATHS = set(_BANNED_CALLS) | {
+    ("datetime",),
+    ("datetime", "datetime"),
+    ("date",),
+    ("datetime", "date"),
+    ("time",),
+}
+
 
 @dataclass(frozen=True, order=True)
 class WallClockAssertionViolation:
@@ -115,7 +123,7 @@ def _add_assignment_aliases(
     value: ast.expr,
 ) -> None:
     source = _normalize_alias(_attribute_path(value), aliases)
-    if source not in _BANNED_CALLS:
+    if source not in _ALIASABLE_CLOCK_PATHS:
         return
     for target in targets:
         if isinstance(target, ast.Name):
