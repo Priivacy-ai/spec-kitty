@@ -622,8 +622,19 @@ def test_find_wall_clock_assertion_violations_resolves_cross_file_clock_aliases(
     direct_import_file = tests_root / "test_direct_import.py"
     module_import_file = tests_root / "test_module_import.py"
     package_import_file = tests_root / "test_package_import.py"
+    class_import_file = tests_root / "test_class_import.py"
+    star_import_file = tests_root / "test_star_import.py"
+    wrapper_import_file = tests_root / "test_wrapper_import.py"
     helper_file.parent.mkdir(parents=True)
-    helper_file.write_text("from datetime import datetime\n\nwall_now = datetime.now\n", encoding="utf-8")
+    helper_file.write_text(
+        "from datetime import datetime\n\n"
+        "wall_now = datetime.now\n\n"
+        "class Holder:\n"
+        "    wall_now = datetime.now\n\n"
+        "def wrapper_now():\n"
+        "    return datetime.now()\n",
+        encoding="utf-8",
+    )
     direct_import_file.write_text(
         "from helpers.clock import wall_now\n\n"
         "def test_bad():\n"
@@ -642,15 +653,70 @@ def test_find_wall_clock_assertion_violations_resolves_cross_file_clock_aliases(
         "    assert clock.wall_now().year == 2026\n",
         encoding="utf-8",
     )
+    class_import_file.write_text(
+        "from helpers.clock import Holder\n\n"
+        "def test_bad():\n"
+        "    assert Holder.wall_now().year == 2026\n",
+        encoding="utf-8",
+    )
+    star_import_file.write_text(
+        "from helpers.clock import *\n\n"
+        "def test_bad():\n"
+        "    assert Holder.wall_now().year == 2026\n",
+        encoding="utf-8",
+    )
+    wrapper_import_file.write_text(
+        "from helpers.clock import wrapper_now\n\n"
+        "def test_bad():\n"
+        "    assert wrapper_now().year == 2026\n",
+        encoding="utf-8",
+    )
 
     violations = find_wall_clock_assertion_violations(
-        [helper_file, direct_import_file, module_import_file, package_import_file]
+        [
+            helper_file,
+            direct_import_file,
+            module_import_file,
+            package_import_file,
+            class_import_file,
+            star_import_file,
+            wrapper_import_file,
+        ]
     )
 
     assert [(violation.path.name, violation.call, violation.line) for violation in violations] == [
+        ("test_class_import.py", "Holder.wall_now()", 4),
         ("test_direct_import.py", "wall_now()", 4),
         ("test_module_import.py", "clock.wall_now()", 4),
         ("test_package_import.py", "clock.wall_now()", 4),
+        ("test_star_import.py", "Holder.wall_now()", 4),
+        ("test_wrapper_import.py", "wrapper_now()", 4),
+    ]
+
+
+def test_find_wall_clock_assertion_violations_resolves_conftest_fixture_returns(tmp_path: Path) -> None:
+    tests_root = tmp_path / "tests"
+    conftest_file = tests_root / "conftest.py"
+    test_file = tests_root / "test_uses_conftest.py"
+    tests_root.mkdir()
+    conftest_file.write_text(
+        "import pytest\n"
+        "from datetime import datetime\n\n"
+        "@pytest.fixture\n"
+        "def wall_now():\n"
+        "    return datetime.now\n",
+        encoding="utf-8",
+    )
+    test_file.write_text(
+        "def test_bad(wall_now):\n"
+        "    assert wall_now().year == 2026\n",
+        encoding="utf-8",
+    )
+
+    violations = find_wall_clock_assertion_violations([conftest_file, test_file])
+
+    assert [(violation.path.name, violation.call, violation.line) for violation in violations] == [
+        ("test_uses_conftest.py", "wall_now()", 2)
     ]
 
 
