@@ -10,6 +10,9 @@ tracker_refs: []
 planning_base_branch: fix/cli-bug-sweep-tool-surface-self-registration
 merge_target_branch: fix/cli-bug-sweep-tool-surface-self-registration
 branch_strategy: Planning artifacts for this mission were generated on fix/cli-bug-sweep-tool-surface-self-registration. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/cli-bug-sweep-tool-surface-self-registration unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-cli-bug-sweep-tool-surface-self-registration-01KV5AWE
+base_commit: 145670caf7e7bedcb30ef3ea108690f8b8aacfc4
+created_at: '2026-06-15T11:24:31.093929+00:00'
 subtasks:
 - T004
 - T005
@@ -17,6 +20,7 @@ subtasks:
 - T007
 - T008
 agent: claude
+shell_pid: '16428'
 history:
 - date: '2026-06-15'
   event: created
