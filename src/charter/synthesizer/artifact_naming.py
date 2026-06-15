@@ -57,9 +57,15 @@ def artifact_filename(kind: str, slug: str, artifact_id: str | None = None) -> s
 
 
 def doctrine_kind_subdir(kind: str) -> str:
-    """Return the doctrine subdirectory name for a given artifact kind."""
+    """Return the doctrine subdirectory name for a given artifact kind.
+
+    Returns singular names that match the ``.gitignore`` whitelist entries
+    (``directive/``, ``tactic/``, ``styleguide/``).  Plural names
+    (``directives/``, etc.) were previously returned but are NOT whitelisted,
+    making synthesized artifacts ungit-trackable.
+    """
     return {
-        "directive": "directives",
-        "tactic": "tactics",
-        "styleguide": "styleguides",
+        "directive": "directive",
+        "tactic": "tactic",
+        "styleguide": "styleguide",
     }[kind]

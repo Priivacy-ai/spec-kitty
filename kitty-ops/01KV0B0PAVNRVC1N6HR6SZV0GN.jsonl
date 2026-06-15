@@ -1,1 +1,2 @@
 {"event": "started", "invocation_id": "01KV0B0PAVNRVC1N6HR6SZV0GN", "profile_id": "python-pedro", "action": "generate", "request_text": "noop reproduction probe", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "3200a46c535a9701", "governance_context_available": true, "started_at": "2026-06-13T11:14:04.201799+00:00"}
+{"event": "completed", "invocation_id": "01KV0B0PAVNRVC1N6HR6SZV0GN", "completed_at": "2026-06-15T10:05:28.529672+00:00", "outcome": "abandoned", "closed_by": "doctor_sweep"}

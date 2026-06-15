@@ -1,0 +1,56 @@
+{
+  "event_count": 40,
+  "last_event_id": "01KV5MXMS0WNTGPD3FS7A7J1RG",
+  "materialized_at": "2026-06-15T12:43:21.248103+00:00",
+  "mission_number": "137",
+  "mission_slug": "cli-bug-sweep-tool-surface-self-registration-01KV5AWE",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KV5MXHD67XT4WYMV40ZP70P2",
+      "last_transition_at": "2026-06-15T12:43:17.798367+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KV5MXJ9MVW0WM22NBRBWRPS5",
+      "last_transition_at": "2026-06-15T12:43:18.708691+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KV5MXK3Z11FAM4XKT0VABF6T",
+      "last_transition_at": "2026-06-15T12:43:19.551504+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KV5MXMS0WNTGPD3FS7A7J1RG",
+      "last_transition_at": "2026-06-15T12:43:21.248103+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KV5MXKYYYGW2VBK41T0S7Q8E",
+      "last_transition_at": "2026-06-15T12:43:20.414433+00:00"
+    }
+  }
+}

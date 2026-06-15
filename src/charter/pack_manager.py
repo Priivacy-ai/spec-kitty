@@ -129,6 +129,12 @@ _LAYER_SEGMENTS: tuple[str, ...] = ("built-in", "org", "project")
 _KITTIFY_DIRNAME = ".kittify"
 _CONFIG_FILENAME = "config.yaml"
 _CHARTER_FILENAME = "charter.md"
+_PROJECT_KIND_DIRS: dict[ArtifactKind, str] = {
+    ArtifactKind.DIRECTIVE: "directive",
+    ArtifactKind.TACTIC: "tactic",
+    ArtifactKind.STYLEGUIDE: "styleguide",
+    ArtifactKind.PROCEDURE: "procedure",
+}
 
 
 def _resolve_kind(token: str) -> ArtifactKind | None:
@@ -537,9 +543,10 @@ class CharterPackManager:
         """Return ``(layer, directory)`` pairs to scan for *kind_token*.
 
         The built-in layer is rooted under the installed doctrine package
-        (``src/doctrine``). Org/project roots are supplied **as data** (C-008):
-        each value in *layer_roots* is the doctrine root for that layer, and the
-        kind's base dir is resolved beneath it. Non-existent directories are
+        (``src/doctrine``). Org/project roots are supplied **as data** (C-008).
+        Org roots use the pack layout ``doctrine/<plural>/org``. Project roots
+        use the live project overlay layout ``doctrine/<singular>`` for kinds
+        synthesized into ``.kittify/doctrine``. Non-existent directories are
         skipped so a layer that is simply not present contributes nothing.
         """
         kind = _resolve_kind(kind_token)
@@ -553,7 +560,10 @@ class CharterPackManager:
             root = roots.get(layer)
             if root is None:
                 continue
-            if layered:
+            if layered and layer == "project" and kind is not None:
+                kind_dir = _PROJECT_KIND_DIRS.get(kind, kind.plural)
+                candidate = root / "doctrine" / kind_dir
+            elif layered:
                 candidate = root / base_dir / layer
             elif layer == "built-in":
                 # Flat-directory kinds (mission-type / step contracts) only have

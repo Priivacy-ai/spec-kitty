@@ -152,7 +152,7 @@ class TestListAvailableAcrossLayers:
         project_root = tmp_path / "project-doctrine"
         _write_directive(org_root / "doctrine" / "directives" / "org", "900-org-rule", "DIRECTIVE_900")
         _write_directive(
-            project_root / "doctrine" / "directives" / "project",
+            project_root / "doctrine" / "directive",
             "950-project-rule",
             "DIRECTIVE_950",
         )
@@ -164,6 +164,29 @@ class TestListAvailableAcrossLayers:
         assert "950-project-rule" in result
         # Built-in still present.
         assert "001-architectural-integrity-standard" in result
+
+    def test_project_layer_ignores_legacy_plural_directory(
+        self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path
+    ) -> None:
+        """Project layer scans the singular runtime layout, not plural pack dirs."""
+        project_root = tmp_path / "project-doctrine"
+        _write_directive(
+            project_root / "doctrine" / "directive",
+            "950-project-rule",
+            "DIRECTIVE_950",
+        )
+        _write_directive(
+            project_root / "doctrine" / "directives" / "project",
+            "951-legacy-project-rule",
+            "DIRECTIVE_951",
+        )
+
+        result = manager.list_available(
+            ctx, kind="directive", layer_roots={"project": project_root}
+        )
+
+        assert "950-project-rule" in result
+        assert "951-legacy-project-rule" not in result
 
     def test_detailed_carries_layer_per_artifact(self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path) -> None:
         org_root = tmp_path / "org-doctrine"

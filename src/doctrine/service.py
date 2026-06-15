@@ -15,6 +15,13 @@ from doctrine.styleguides import StyleguideRepository
 from doctrine.tactics import TacticRepository
 from doctrine.toolguides import ToolguideRepository
 
+_PROJECT_KIND_DIRS = {
+    "directives": "directive",
+    "tactics": "tactic",
+    "styleguides": "styleguide",
+    "procedures": "procedure",
+}
+
 
 class DoctrineService:
     """Lazy aggregation service for doctrine repositories."""
@@ -40,6 +47,8 @@ class DoctrineService:
     def _project_dir(self, artifact: str) -> Path | None:
         if self._project_root is None:
             return None
+        if self._project_root.name == "doctrine" and self._project_root.parent.name == ".kittify":
+            return self._project_root / _PROJECT_KIND_DIRS.get(artifact, artifact)
         return self._project_root / artifact
 
     def _org_dirs(self, artifact: str) -> list[Path]:

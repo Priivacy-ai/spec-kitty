@@ -379,8 +379,9 @@ def pack_assemble(
 # new — scaffold a stub artifact (FR-016 / WP09 T048)
 # ----------------------------------------------------------------------
 
-#: Canonical artifact kinds the scaffolder supports.  The plural form names
-#: the on-disk directory (``directives/``, ``styleguides/``, …) and the
+#: Canonical artifact kinds the scaffolder supports. The plural form names the
+#: pack-mode directory (``directives/``, ``styleguides/``, …); project mode uses
+#: the singular project overlay directories for the runtime-managed kinds. The
 #: singular form becomes the YAML filename suffix
 #: (``foo.directive.yaml``).  Order is the canonical listing order from
 #: the pack contract; consumed by ``--help`` rendering.
@@ -393,6 +394,13 @@ _CANONICAL_KIND_SINGULAR_TO_PLURAL: dict[str, str] = {
     "procedure": "procedures",
     "agent_profile": "agent_profiles",
     "mission_step_contract": "mission_step_contracts",
+}
+
+_PROJECT_KIND_DIRS: dict[str, str] = {
+    "directive": "directive",
+    "tactic": "tactic",
+    "styleguide": "styleguide",
+    "procedure": "procedure",
 }
 
 #: Per-kind stub bodies.  Each stub is the *minimum* YAML payload that
@@ -507,9 +515,9 @@ def _resolve_scaffold_root(
 ) -> Path:
     """Return the doctrine root that scaffolded files should land under.
 
-    Project-layer scaffolding (no ``--pack``) writes to
-    ``<repo_root>/.kittify/doctrine/``.  Pack-mode scaffolding writes to
-    the user-supplied pack root verbatim.
+    Project-layer scaffolding (no ``--pack``) writes under
+    ``<repo_root>/.kittify/doctrine/``. Pack-mode scaffolding writes to the
+    user-supplied pack root verbatim.
     """
     if pack is not None:
         return pack
@@ -571,7 +579,10 @@ def new(
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
 
-    target_dir = doctrine_root / plural
+    target_dir_name = (
+        plural if pack is not None else _PROJECT_KIND_DIRS.get(kind_singular, plural)
+    )
+    target_dir = doctrine_root / target_dir_name
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / _artifact_filename(kind_singular, artifact_id)
 

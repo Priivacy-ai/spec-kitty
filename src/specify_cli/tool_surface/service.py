@@ -14,40 +14,12 @@ from pathlib import Path
 
 from .docs import DocsLinter, DocsLintFinding
 from .enums import SurfaceKind
-from .plan import SurfacePlanBuilder
-from .providers.agent_profiles import (
-    AgentProfilesProvider,
-    agent_profile_definition,
-)
-from .providers.command_skills import (
-    CommandSkillsProvider,
-    command_skill_definition,
-)
-from .providers.managed_skills import (
-    ManagedSkillsProvider,
-    managed_skill_definition,
-)
-from .providers.native_config import (
-    NativeConfigProvider,
-    native_config_definition,
-)
-from .providers.plugin_bundle import (
-    PLUGIN_BUNDLE_TOOL_KEY,
-    PluginBundleProvider,
-    plugin_manifest_definition,
-)
-from .providers.protocol import ReportingSurfaceProvider
-from .providers.session_presence import (
-    SessionPresenceProvider,
-    context_file_definition,
-    hook_definition,
-    rule_definition,
-)
-from .providers.slash_commands import (
-    SlashCommandsProvider,
-    slash_command_definition,
-)
 from .model import SurfacePlan
+from .plan import SurfacePlanBuilder
+from .providers._discovery import _PROVIDERS  # noqa: F401 — imported for side-effects (registration)
+from .providers._registry import SurfaceProviderRegistry
+from .providers.plugin_bundle import PLUGIN_BUNDLE_TOOL_KEY
+from .providers.protocol import ReportingSurfaceProvider
 from .registry import ToolSurfaceRegistry
 from .repair import RepairResult, SurfaceRepairService
 from .status import SurfaceReport, SurfaceStatusService
@@ -55,20 +27,9 @@ from .status import SurfaceReport, SurfaceStatusService
 # Operator-facing ``--kind`` tokens are kebab-case; map them to SurfaceKind.
 # Session-presence kinds also accept the underscore wire value so operators can
 # pass ``--kind context_file`` (matching the JSON ``surface_kind``) directly.
-_KIND_TOKENS: dict[str, SurfaceKind] = {
-    "command-skill": SurfaceKind.COMMAND_SKILL,
-    "command-file": SurfaceKind.COMMAND_FILE,
-    "context-file": SurfaceKind.CONTEXT_FILE,
-    "context_file": SurfaceKind.CONTEXT_FILE,
-    "hook": SurfaceKind.HOOK,
-    "rule": SurfaceKind.RULE,
-    "native-config": SurfaceKind.NATIVE_CONFIG,
-    "native_config": SurfaceKind.NATIVE_CONFIG,
-    "doctrine-skill": SurfaceKind.DOCTRINE_SKILL,
-    "agent-profile": SurfaceKind.AGENT_PROFILE,
-    "plugin-manifest": SurfaceKind.PLUGIN_MANIFEST,
-    "plugin_manifest": SurfaceKind.PLUGIN_MANIFEST,
-}
+# Built from registered provider kind_tokens dicts; populated after _discovery
+# fires all module-level SurfaceProviderRegistry.register() calls (WP04+).
+_KIND_TOKENS: dict[str, SurfaceKind] = SurfaceProviderRegistry.build_kind_tokens()
 
 # Representative tool keys whose surfaces feed bundle projection: skills-invocable
 # agents supply command + doctrine skills, ``claude`` supplies native agent
@@ -119,40 +80,12 @@ class ToolSurfaceOutcome:
 
 def build_providers() -> list[ReportingSurfaceProvider]:
     """Return all providers available at this work package."""
-    return [
-        CommandSkillsProvider(),
-        SlashCommandsProvider(),
-        SessionPresenceProvider(),
-        NativeConfigProvider(),
-        ManagedSkillsProvider(),
-        AgentProfilesProvider(),
-        PluginBundleProvider(),
-    ]
+    return SurfaceProviderRegistry.build_providers()
 
 
 def build_registry(tool_keys: Sequence[str]) -> ToolSurfaceRegistry:
     """Register the built-in definitions for each configured tool key."""
-    registry = ToolSurfaceRegistry()
-    definitions = (
-        command_skill_definition(),
-        slash_command_definition(),
-        context_file_definition(),
-        rule_definition(),
-        hook_definition(),
-        native_config_definition(),
-        managed_skill_definition(),
-        agent_profile_definition(),
-    )
-    for tool_key in tool_keys:
-        for definition in definitions:
-            registry.register_definition(tool_key, definition)
-    # Plugin manifests aggregate across all tools; register the definition once
-    # under the synthetic bundle key so its provider emits one manifest instance
-    # per distribution target (not one per configured tool).
-    registry.register_definition(
-        PLUGIN_BUNDLE_TOOL_KEY, plugin_manifest_definition()
-    )
-    return registry
+    return SurfaceProviderRegistry.build_registry(tool_keys)
 
 
 def build_plans_for_bundles(project_root: Path) -> list[SurfacePlan]:

@@ -77,7 +77,7 @@ def layered_project(tmp_path: Path) -> Path:
     Layout::
 
         <repo>/.kittify/config.yaml                 (registers the org pack)
-        <repo>/.kittify/doctrine/directives/project/<...>.directive.yaml
+        <repo>/.kittify/doctrine/directive/<...>.directive.yaml
         <repo>/.kittify/doctrine/missions/<mission>/templates/<name>
         <org-pack>/doctrine/directives/org/<...>.directive.yaml
     """
@@ -108,7 +108,7 @@ def layered_project(tmp_path: Path) -> Path:
 
     # Project doctrine layer directive.
     _write_directive(
-        kittify / "doctrine" / "directives" / "project",
+        kittify / "doctrine" / "directive",
         "950-project-only-directive",
         "950-project-only-directive",
     )

@@ -24,6 +24,7 @@ from specify_cli.skills.manifest import (
 from specify_cli.skills.registry import CanonicalSkill
 from specify_cli.tool_surface.enums import SurfaceKind
 from specify_cli.tool_surface.providers.command_skills import (
+    CommandSkillsProvider,
     command_skill_definition,
 )
 from specify_cli.tool_surface.providers.managed_skills import (
@@ -453,8 +454,45 @@ def test_repair_default_path_repairs_without_injection(tmp_path: Path) -> None:
     assert restored.read_text(encoding="utf-8").strip()  # canonical content
 
 
-def test_doctrine_vs_command_skill_in_doctor_output(tmp_path: Path) -> None:
+def _make_real_providers() -> list[ReportingSurfaceProvider]:
+    """Build the real provider list used by the two integration tests below.
+
+    WP03: SurfaceProviderRegistry._registrations is empty until WP04 wires
+    providers.  These tests pre-populate via monkeypatch on build_providers /
+    build_registry so they exercise real provider logic without relying on the
+    registry being populated.  WP04 will delete this helper and let the registry
+    supply providers automatically.
+    """
+    return [CommandSkillsProvider(), ManagedSkillsProvider()]
+
+
+def _make_real_registry(tool_keys: list[str]) -> object:
+    """Build a real ToolSurfaceRegistry with command and doctrine definitions.
+
+    Used by the two integration tests below to bypass the empty registry at
+    WP03 stage.  WP04 will remove this helper.
+    """
+    from specify_cli.tool_surface.registry import ToolSurfaceRegistry
+
+    registry = ToolSurfaceRegistry()
+    definitions = (command_skill_definition(), managed_skill_definition())
+    for tool_key in tool_keys:
+        for defn in definitions:
+            registry.register_definition(tool_key, defn)
+    return registry
+
+
+def test_doctrine_vs_command_skill_in_doctor_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """doctor tool-surfaces output separates doctrine and command kinds."""
+    import specify_cli.tool_surface.service as svc
+
+    # WP03: pre-populate build_providers and build_registry with real impls
+    # because SurfaceProviderRegistry._registrations is empty until WP04.
+    monkeypatch.setattr(svc, "build_providers", _make_real_providers)
+    monkeypatch.setattr(svc, "build_registry", _make_real_registry)
+
     from specify_cli.tool_surface.service import run_tool_surfaces
 
     # One doctrine skill registered in the managed manifest.
@@ -478,10 +516,22 @@ def test_doctrine_vs_command_skill_in_doctor_output(tmp_path: Path) -> None:
     assert "doctrine_skill" != "command_skill"
 
 
-def test_run_tool_surfaces_kind_filter_doctrine_only(tmp_path: Path) -> None:
-    from specify_cli.tool_surface.service import (
-        run_tool_surfaces,
-        surface_kind_from_token,
+def test_run_tool_surfaces_kind_filter_doctrine_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import specify_cli.tool_surface.service as svc
+    from specify_cli.tool_surface.service import run_tool_surfaces
+
+    # WP03: pre-populate build_providers and build_registry with real impls
+    # because SurfaceProviderRegistry._registrations is empty until WP04.
+    monkeypatch.setattr(svc, "build_providers", _make_real_providers)
+    monkeypatch.setattr(svc, "build_registry", _make_real_registry)
+    # _KIND_TOKENS is a module-level constant built at import time from the
+    # (currently empty) registry.  Patch it so surface_kind_from_token works.
+    monkeypatch.setattr(
+        svc,
+        "_KIND_TOKENS",
+        {"doctrine-skill": SurfaceKind.DOCTRINE_SKILL},
     )
 
     h1 = _write_skill_file(tmp_path, ".agents/skills/a/SKILL.md")
@@ -492,7 +542,7 @@ def test_run_tool_surfaces_kind_filter_doctrine_only(tmp_path: Path) -> None:
     (tmp_path / ".kittify" / "command-skills-manifest.json").write_text(
         json.dumps({"schema_version": 1, "entries": []}), encoding="utf-8"
     )
-    kind = surface_kind_from_token("doctrine-skill")
+    kind = svc.surface_kind_from_token("doctrine-skill")
     assert kind == SurfaceKind.DOCTRINE_SKILL
     outcome = run_tool_surfaces(tmp_path, ["codex"], kinds=[kind])
     kinds = {s.instance.definition.kind for s in outcome.report.surfaces}

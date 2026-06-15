@@ -83,9 +83,9 @@ def _make_provenance(
 def test_staging_create_creates_subdirs(tmp_path: Path) -> None:
     """StagingDir.create() creates all required subdirectories."""
     stage = StagingDir.create(tmp_path, RUN_ID)
-    assert (stage.root / "doctrine" / "directives").is_dir()
-    assert (stage.root / "doctrine" / "tactics").is_dir()
-    assert (stage.root / "doctrine" / "styleguides").is_dir()
+    assert (stage.root / "doctrine" / "directive").is_dir()
+    assert (stage.root / "doctrine" / "tactic").is_dir()
+    assert (stage.root / "doctrine" / "styleguide").is_dir()
     assert (stage.root / "charter" / "provenance").is_dir()
 
 
@@ -93,7 +93,7 @@ def test_staging_path_for_content(tmp_path: Path) -> None:
     """path_for_content returns correct location under doctrine subtree."""
     stage = StagingDir.create(tmp_path, RUN_ID)
     p = stage.path_for_content("tactic", "my-tactic.tactic.yaml")
-    assert p == stage.root / "doctrine" / "tactics" / "my-tactic.tactic.yaml"
+    assert p == stage.root / "doctrine" / "tactic" / "my-tactic.tactic.yaml"
 
 
 def test_staging_path_for_provenance(tmp_path: Path) -> None:
@@ -234,7 +234,7 @@ def test_promote_success_writes_files_and_manifest(tmp_path: Path) -> None:
     assert manifest.run_id == RUN_ID
 
     # Artifact file in live tree
-    live_tactic = repo / ".kittify" / "doctrine" / "tactics" / "my-tactic.tactic.yaml"
+    live_tactic = repo / ".kittify" / "doctrine" / "tactic" / "my-tactic.tactic.yaml"
     assert live_tactic.exists()
 
     # Provenance sidecar in live tree

@@ -190,7 +190,7 @@ Implementation point: `specify_cli.doctrine.config.load_pack_registry` (or its c
 
 New CLI surfaces in `src/specify_cli/cli/commands/doctrine.py`:
 
-- `spec-kitty doctrine new <kind> <name>` — writes a stub `<name>.<kind>.yaml` in `.kittify/doctrine/<kind>s/` (project default) or `<pack_path>/<kind>s/` when `--pack <path>` is given. Stub carries the required schema fields populated with sentinels.
+- `spec-kitty doctrine new <kind> <name>` — writes a stub `<name>.<kind>.yaml` in `.kittify/doctrine/<kind>/` (project default) or `<pack_path>/<kind>s/` when `--pack <path>` is given. Stub carries the required schema fields populated with sentinels.
 - `spec-kitty doctrine validate <path>` — validates a single artifact YAML or a doctrine directory tree against the canonical schemas; exits 0 on valid, non-zero on invalid. Reuses the validation logic from `spec-kitty doctrine pack validate`.
 
 Extend `spec-kitty doctor doctrine`:

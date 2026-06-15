@@ -3544,7 +3544,9 @@ def map_requirements(
             if protected_error is not None:
                 _output_error(json_output, protected_error)
                 raise typer.Exit(1)
-        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug
+
+        feature_dir = resolve_feature_dir_for_slug(main_repo_root, mission_slug)
 
         if not feature_dir.exists():
             _output_error(json_output, f"Mission directory not found: {feature_dir}")

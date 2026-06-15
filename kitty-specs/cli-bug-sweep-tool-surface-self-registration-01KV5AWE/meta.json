@@ -1,0 +1,31 @@
+{
+  "accept_commit": "b2eba71e574d45db497b020c518d51f3d983e47a",
+  "acceptance_history": [
+    {
+      "accept_commit": "b2eba71e574d45db497b020c518d51f3d983e47a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-15T12:41:53.671219+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "d10fa9ea01c7122608ef2af6b721565dd44996ae"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-15T12:41:53.671219+00:00",
+  "accepted_by": "robert",
+  "accepted_from_commit": "d10fa9ea01c7122608ef2af6b721565dd44996ae",
+  "baseline_merge_commit": "ed214e16c11f7e8a9c858acfbbde7cad4671d510",
+  "coordination_branch": "kitty/mission-cli-bug-sweep-tool-surface-self-registration-01KV5AWE",
+  "created_at": "2026-06-15T09:47:55.786206+00:00",
+  "friendly_name": "CLI Bug Sweep & Tool Surface Self-Registration",
+  "mission_id": "01KV5AWE08DZ7VCJ673QDB0R9P",
+  "mission_number": 137,
+  "mission_slug": "cli-bug-sweep-tool-surface-self-registration-01KV5AWE",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A targeted sweep that removes a stale xfail masking an already-fixed init-flow bug, closes a pathological test coverage gap in branch naming, repairs three interlocking charter bundle validation failures caused by a plural/singular directory mismatch in the synthesizer, and eliminates parallel-lane merge conflicts in the tool surface via a self-registration seam modeled on the existing MigrationRegistry pattern.",
+  "purpose_tldr": "Resolve four tracked defects: stale init-flow xfail, branch naming coverage gap, charter bundle validation failures, and tool surface parallel-lane merge conflicts.",
+  "slug": "cli-bug-sweep-tool-surface-self-registration-01KV5AWE",
+  "target_branch": "fix/cli-bug-sweep-tool-surface-self-registration",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-15T11:21:37.220485+00:00"
+}

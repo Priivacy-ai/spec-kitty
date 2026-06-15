@@ -95,8 +95,8 @@ their subdirectory layout:
 
 ```bash
 # Example: extract shared directives and tactics
-cp -r project-A/.kittify/doctrine/directives/  ~/work/acme-doctrine/directives/
-cp -r project-A/.kittify/doctrine/tactics/     ~/work/acme-doctrine/tactics/
+cp -r project-A/.kittify/doctrine/directive/  ~/work/acme-doctrine/directives/
+cp -r project-A/.kittify/doctrine/tactic/     ~/work/acme-doctrine/tactics/
 ```
 
 Leave behind anything that is project-specific (exceptions, local overrides). Those
@@ -162,7 +162,7 @@ For each consumer project, remove the now-redundant artifacts from
 cd project-A
 # Remove only the artifacts that moved to the org pack.
 # KEEP anything that is a project-specific exception.
-rm .kittify/doctrine/directives/acme-001-secret-handling.directive.yaml
+rm .kittify/doctrine/directive/acme-001-secret-handling.directive.yaml
 # ... etc
 git add -A
 git commit -m "Migrate shared doctrine to org pack"

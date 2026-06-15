@@ -837,7 +837,7 @@ def _load_action_doctrine_bundle(
     # get the two-layer (built-in + project) merge.
     #
     # WP04 (charter-mediated-doctrine-selection): a project that authors a
-    # user doctrine artifact (e.g. ``.kittify/doctrine/styleguides/foo.yaml``)
+    # user doctrine artifact (e.g. ``.kittify/doctrine/styleguide/foo.yaml``)
     # without a sibling ``*.graph.yaml`` fragment causes ``load_graph_or_dir``
     # to raise ``DRGLoadError``. The DRG-action resolution is orthogonal to
     # charter-level global selection rendering, so we collapse the failure to

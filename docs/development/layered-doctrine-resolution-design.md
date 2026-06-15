@@ -159,7 +159,7 @@ project-level bootstrap is needed. The org layer is invisible until invoked — 
    directives without any project-level configuration. She does not know or care that they came
    from the org layer — they are just part of governance.
 4. She adds a project-local override for one directive (`sec-002-dependency-scanning`) to use a
-   different scanner: she drops an override YAML in `.kittify/doctrine/directives/` and the
+   different scanner: she drops an override YAML in `.kittify/doctrine/directive/` and the
    project layer takes precedence as usual.
 5. `spec-kitty charter status` shows the resolved governance stack: shipped → org → project,
    with source attribution for each artifact.

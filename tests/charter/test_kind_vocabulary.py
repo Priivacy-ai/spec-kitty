@@ -172,6 +172,47 @@ def test_round_trip_config_id(
     assert resolve_config_id(urn, doctrine_root=doctrine_root) == config_id
 
 
+def test_project_layer_resolver_ignores_legacy_plural_directory(tmp_path: Path) -> None:
+    """Project layer ID resolution scans singular runtime dirs only."""
+    doctrine_root = tmp_path / "src-doctrine"
+    project_root = tmp_path / ".kittify"
+    singular_dir = project_root / "doctrine" / "directive"
+    plural_dir = project_root / "doctrine" / "directives" / "project"
+    singular_dir.mkdir(parents=True)
+    plural_dir.mkdir(parents=True)
+    (singular_dir / "950-project-rule.directive.yaml").write_text(
+        "id: DIRECTIVE_950\ntype: directive\ntitle: Project\nintent: Project\n",
+        encoding="utf-8",
+    )
+    (plural_dir / "951-legacy-project-rule.directive.yaml").write_text(
+        "id: DIRECTIVE_951\ntype: directive\ntitle: Legacy\nintent: Legacy\n",
+        encoding="utf-8",
+    )
+
+    assert (
+        resolve_artifact_urn(
+            ArtifactKind.DIRECTIVE,
+            "950-project-rule",
+            doctrine_root=doctrine_root,
+            layer_roots={"project": project_root},
+        )
+        == "directive:DIRECTIVE_950"
+    )
+    with pytest.raises(UnknownArtifactIdError):
+        resolve_artifact_urn(
+            ArtifactKind.DIRECTIVE,
+            "951-legacy-project-rule",
+            doctrine_root=doctrine_root,
+            layer_roots={"project": project_root},
+        )
+    with pytest.raises(UnknownArtifactIdError):
+        resolve_config_id(
+            "directive:DIRECTIVE_951",
+            doctrine_root=doctrine_root,
+            layer_roots={"project": project_root},
+        )
+
+
 def test_resolve_artifact_urn_unknown_id_raises_structured_error(
     doctrine_root: Path,
 ) -> None:

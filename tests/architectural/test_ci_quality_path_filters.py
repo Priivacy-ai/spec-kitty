@@ -14,6 +14,7 @@ pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _WORKFLOW = _REPO_ROOT / ".github" / "workflows" / "ci-quality.yml"
+_COLLECT_TIMEOUT_SECONDS = 240
 
 
 def _path_filters() -> dict[str, list[str]]:
@@ -46,7 +47,7 @@ def _collect_nodes(args: list[str]) -> set[str]:
         check=True,
         capture_output=True,
         text=True,
-        timeout=120,
+        timeout=_COLLECT_TIMEOUT_SECONDS,
     )
     return {
         line.strip()

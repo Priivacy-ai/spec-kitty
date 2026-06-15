@@ -1,0 +1,129 @@
+{
+  "mission_slug": "cli-bug-sweep-tool-surface-self-registration-01KV5AWE",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pending",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "test_distribution xfail removed so init-with-flags regressions surface as real failures",
+      "proof_type": "automated_test",
+      "evidence": "WP01 T001: removed @pytest.mark.xfail(strict=False) from TestUpgradeWithAllMissions::test_upgrade_updates_templates in tests/adversarial/test_distribution.py; test now PASSES (no XFAIL/XPASS).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T13:20:00+00:00",
+      "notes": "Reviewed and approved in WP01 cycle 2."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Pathological mid8-mismatch test covers mission_branch_name and lane_branch_name",
+      "proof_type": "automated_test",
+      "evidence": "WP01 T002+T003: tests/core/test_branch_naming_human_slug.py adds test_mission_branch_name_does_not_strip_different_mid8_suffix and test_lane_branch_name_pathological_mid8_mismatch (slug my-feature-AAAA1111 + mission_id 01KV3NGSDCJ272573TF6T6NWDW); both pass.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T13:20:00+00:00",
+      "notes": "Guard invariant docstring added to _human_slug_for_mid8_branch."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "doctrine_kind_subdir returns singular subdir names matching .gitignore whitelist",
+      "proof_type": "automated_test",
+      "evidence": "WP02 T005+T006: src/charter/synthesizer/artifact_naming.py returns directive/tactic/styleguide; callers in write_pipeline.py and staging.py updated. mypy --strict and ruff clean.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T13:30:00+00:00",
+      "notes": "Reviewed and approved in WP02."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Stale provenance sidecars removed from .kittify/charter/provenance/",
+      "proof_type": "code_review",
+      "evidence": "WP02 T004: git rm of 7 adapter_id:fixture placeholder sidecar files committed in 0b6e2d7d9 without corresponding doctrine artifacts.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T13:30:00+00:00",
+      "notes": "Bootstrap placeholders; reconstructable via charter synthesize."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "charter bundle validate exits 0 on built_in_only fresh-seed state",
+      "proof_type": "automated_test",
+      "evidence": "WP02 T007+T008: _manifest_is_fresh_seed() early-exit in src/charter/bundle.py (built_in_only=True AND artifacts==[]); tests/specify_cli/charter/test_bundle_validate_fresh_seed.py (3 tests) pass including stale-sidecar reproduction.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T13:30:00+00:00",
+      "notes": "Reviewed and approved in WP02."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Adding a provider requires editing only one module",
+      "proof_type": "code_review",
+      "evidence": "WP03 T009-T011 + WP04 T012-T018: each provider module self-registers at module scope via SurfaceProviderRegistry.register(); service.py derives all config from the registry.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T14:10:00+00:00",
+      "notes": "Self-registration seam established; no central literal lists remain."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Each provider self-declares its registration at import time",
+      "proof_type": "automated_test",
+      "evidence": "WP04 T012-T018: all 7 provider modules call SurfaceProviderRegistry.register(SurfaceRegistration(...)) at module scope; test_provider_registration.py::test_all_providers_registered asserts exactly 7 registrations.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T14:30:00+00:00",
+      "notes": "Reviewed and approved in WP04."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Registry supports multi-definition, synthetic-key, and multi-token providers",
+      "proof_type": "automated_test",
+      "evidence": "WP03 T009 + WP04: SurfaceRegistration carries definitions tuple, synthetic_key, kind_tokens dict. Verified live: session_presence has 3 defs, plugin_bundle has synthetic_key=plugin_bundle, native_config exposes hyphen+underscore tokens.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T14:30:00+00:00",
+      "notes": "Reviewed and approved in WP03/WP04."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Coordinator derives all config from registry; Directive-030 conformance test enforces no central literals",
+      "proof_type": "automated_test",
+      "evidence": "WP03 T011 + WP04 T019: service.py build_providers/build_registry/_KIND_TOKENS derive from registry; tests/specify_cli/tool_surface/test_provider_registration.py::test_service_py_has_no_central_provider_literals AST-asserts no provider list literal.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T14:30:00+00:00",
+      "notes": "Success Criterion 3 structural proxy; reviewed and approved."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Provider ordering is deterministic via explicit order field",
+      "proof_type": "automated_test",
+      "evidence": "WP03 T009: SurfaceRegistration.order with duplicate-order ValueError guard; test_provider_registration.py::test_registration_orders_are_unique asserts unique ordering (0-60).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T14:30:00+00:00",
+      "notes": "Reviewed and approved in WP03/WP04."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "map-requirements resolves spec.md from main checkout when a coord worktree is present",
+      "proof_type": "automated_test",
+      "evidence": "WP05 T020: src/specify_cli/cli/commands/agent/tasks.py map_requirements uses resolve_feature_dir_for_slug (coord-aware) instead of resolve_feature_dir_for_mission; tests/specify_cli/cli/commands/agent/test_map_requirements_coord.py (3 tests) pass.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T13:40:00+00:00",
+      "notes": "Reviewed and approved in WP05."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "finalize-tasks zero-match ownership errors include create_intent hint even with a nearest-match suggestion",
+      "proof_type": "automated_test",
+      "evidence": "WP05 T021: src/specify_cli/ownership/validation.py validate_glob_matches appends create_intent hint unconditionally after the optional nearest-match suggestion; 120 ownership tests pass.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T13:40:00+00:00",
+      "notes": "Reviewed and approved in WP05."
+    }
+  ],
+  "negative_invariants": []
+}

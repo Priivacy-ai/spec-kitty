@@ -132,7 +132,7 @@ def mid8_from_slug(slug: str) -> str:
 
 
 def _human_slug_for_mid8_branch(mission_slug: str, mission_id: str) -> str:
-    """Return human slug without numeric prefix or duplicate own mid8 suffix."""
+    """Strip the embedded mid8 only when it matches mission_id's mid8; mismatched mid8 is not stripped."""
     human_slug = strip_numeric_prefix(mission_slug)
     suffix = f"-{mid8(mission_id)}"
     if human_slug.endswith(suffix):

@@ -43,6 +43,7 @@ from ..status import (
     SurfaceStatus,
     _surface_id,
 )
+from ._registry import SurfaceProviderRegistry, SurfaceRegistration
 
 PROVIDER_KEY = "slash_commands"
 _PATH_PATTERN = "<user-global>/spec-kitty.{command}"
@@ -269,3 +270,16 @@ class SlashCommandsProvider:
             failed=tuple(failed),
             dry_run=False,
         )
+
+
+# ---------------------------------------------------------------------------
+# Self-registration (fires at import time via providers._discovery)
+# ---------------------------------------------------------------------------
+SurfaceProviderRegistry.register(
+    SurfaceRegistration(
+        provider_class=SlashCommandsProvider,
+        definitions=(slash_command_definition(),),
+        kind_tokens={"command-file": SurfaceKind.COMMAND_FILE},
+        order=10,
+    )
+)

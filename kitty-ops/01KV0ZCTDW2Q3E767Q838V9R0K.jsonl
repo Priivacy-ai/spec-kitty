@@ -1,1 +1,2 @@
 {"event": "started", "invocation_id": "01KV0ZCTDW2Q3E767Q838V9R0K", "profile_id": "python-pedro", "action": "generate", "request_text": "smoke test", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "3200a46c535a9701", "governance_context_available": true, "started_at": "2026-06-13T17:10:13.153711+00:00"}
+{"event": "completed", "invocation_id": "01KV0ZCTDW2Q3E767Q838V9R0K", "completed_at": "2026-06-15T10:05:29.326602+00:00", "outcome": "abandoned", "closed_by": "doctor_sweep"}

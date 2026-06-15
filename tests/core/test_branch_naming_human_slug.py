@@ -270,3 +270,40 @@ def test_round_trip_construct_then_parse(slug: str, ulid: str, lane: str) -> Non
     assert parsed_lane == lane
     # The human slug should be strip_numeric_prefix(slug)
     assert parsed_slug == strip_numeric_prefix(slug)
+
+
+# ---------------------------------------------------------------------------
+# Pathological case: slug already ends with a *different* mid8-shaped token
+# ---------------------------------------------------------------------------
+
+
+def test_mission_branch_name_does_not_strip_different_mid8_suffix() -> None:
+    """Slug ending with a mid8-shaped token that differs from the mission's own mid8.
+
+    When the slug already contains a different mid8-shaped suffix (e.g. an
+    earlier mission's mid8 embedded in the human slug), ``_human_slug_for_mid8_branch``
+    must NOT strip it — the deduplication guard only removes the suffix when it
+    matches the *current* mission_id's mid8.  The result is a branch name with
+    both the embedded token and the own mid8, i.e. a double-append.  This is the
+    documented behavior, not a bug.
+    """
+    slug = "my-feature-AAAA1111"
+    ulid = "01KV3NGSDCJ272573TF6T6NWDW"  # mid8 = 01KV3NGS
+    result = mission_branch_name(slug, mission_id=ulid)
+    # "AAAA1111" != "01KV3NGS" so it is NOT stripped; own mid8 is appended normally.
+    assert result == "kitty/mission-my-feature-AAAA1111-01KV3NGS"
+
+
+def test_lane_branch_name_pathological_mid8_mismatch() -> None:
+    """Parallel pathological test for lane_branch_name with a mismatched mid8.
+
+    When the slug's embedded mid8-shaped suffix differs from the mission_id's
+    mid8, the guard does NOT strip the slug's token — documented behavior.
+    The result contains both the slug's embedded token and the own mid8,
+    followed by the lane suffix.
+    """
+    slug = "my-feature-AAAA1111"
+    mission_id = "01KV3NGSDCJ272573TF6T6NWDW"  # mid8 = "01KV3NGS"
+    result = lane_branch_name(slug, "lane-a", mission_id=mission_id)
+    # slug's "AAAA1111" treated as part of human name; "01KV3NGS" appended
+    assert result == "kitty/mission-my-feature-AAAA1111-01KV3NGS-lane-a"
