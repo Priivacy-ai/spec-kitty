@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-15T19:47:33.431955+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "ae0b67692dfecdfbeb8f61db8750257c2906fb47"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-15T19:47:33.431955+00:00",
+  "accepted_by": "robert",
+  "accepted_from_commit": "ae0b67692dfecdfbeb8f61db8750257c2906fb47",
   "coordination_branch": "kitty/mission-task-workflow-bug-fixes-01KV69BZ",
   "created_at": "2026-06-15T18:40:42.452108+00:00",
   "friendly_name": "Task Workflow Bug Fixes: Spec Path and Error Hint",
