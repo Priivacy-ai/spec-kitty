@@ -459,3 +459,54 @@ def test_no_substring_inference_symbols_remain():
     assert not hasattr(module, "infer_issue_counts")
     source = Path(module.__file__).read_text(encoding="utf-8")
     assert "READY FOR IMPLEMENTATION" not in source
+
+
+def test_implement_gate_detects_carrier_format_file(tmp_path):
+    """check_analysis_report_current returns carrier_format_not_wrapped for v1 carrier files."""
+    from specify_cli.analysis_report import (
+        ANALYSIS_REPORT_FILENAME,
+        ANALYSIS_REPORT_REASON_CARRIER_FORMAT,
+        check_analysis_report_current,
+    )
+
+    feature_dir = tmp_path / "kitty-specs" / "my-mission"
+    feature_dir.mkdir(parents=True)
+
+    # Write a carrier-format file (analysis-findings/v1 schema, not outer-wrapper)
+    carrier_content = (
+        "---\n"
+        "schema: analysis-findings/v1\n"
+        "findings: []\n"
+        "counts:\n"
+        "  critical: 0\n"
+        "  high: 0\n"
+        "  medium: 0\n"
+        "  low: 0\n"
+        "verdict_hint: ready\n"
+        "---\n\n"
+        "Report body.\n"
+    )
+    (feature_dir / ANALYSIS_REPORT_FILENAME).write_text(carrier_content, encoding="utf-8")
+
+    result = check_analysis_report_current(feature_dir, tmp_path)
+
+    assert result.ok is False
+    assert result.stale is True
+    assert result.missing is False
+    assert result.reason == ANALYSIS_REPORT_REASON_CARRIER_FORMAT
+
+
+def test_implement_gate_returns_generic_reason_for_arbitrary_frontmatter(tmp_path):
+    """Arbitrary frontmatter (no schema, no artifact_type) falls through to the generic reason."""
+    from specify_cli.analysis_report import check_analysis_report_current
+
+    feature_dir = tmp_path / "kitty-specs" / "my-mission"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "analysis-report.md").write_text(
+        "---\ntitle: Some Random File\nauthor: Alice\n---\n\nBody.\n",
+        encoding="utf-8",
+    )
+
+    result = check_analysis_report_current(feature_dir, tmp_path)
+
+    assert result.reason == "invalid_analysis_report_artifact_type"
