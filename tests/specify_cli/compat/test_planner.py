@@ -595,6 +595,44 @@ class TestDecideProjectNotInitialized:
 
 
 # ---------------------------------------------------------------------------
+# T010 — default project_root_resolver works correctly from a git worktree
+# ---------------------------------------------------------------------------
+
+
+def test_planner_default_resolver_in_worktree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """plan() with default project_root_resolver classifies project correctly from a worktree.
+
+    Regression guard for FR-007 / issue #1971: before the shim, calling plan()
+    from a worktree caused _scan_project to receive None root → NO_PROJECT.
+    """
+    main_repo = tmp_path / "main_repo"
+    kittify = main_repo / ".kittify"
+    kittify.mkdir(parents=True)
+    (kittify / "schema_version").write_text("3")
+
+    worktrees_dir = main_repo / ".git" / "worktrees" / "test_lane"
+    worktrees_dir.mkdir(parents=True)
+    (main_repo / ".git" / "HEAD").write_text("ref: refs/heads/main\n")
+
+    worktree = tmp_path / "worktree"
+    worktree.mkdir()
+    (worktree / ".git").write_text(f"gitdir: {worktrees_dir}\n")
+
+    monkeypatch.chdir(worktree)
+    monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
+
+    invocation = _make_invocation()
+    result = plan(invocation)
+
+    assert result.project_status.state != ProjectState.NO_PROJECT, (
+        f"plan() resolved NO_PROJECT from worktree; shim may not be delegating "
+        f"to paths.locate_project_root. project_root={result.project_status.project_root}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # DRIFT-2 / RISK-1 — _ensure_registry_loaded() called before reading registry (FIX 1)
 # ---------------------------------------------------------------------------
 

@@ -72,6 +72,43 @@ def test_lint_json_failure_mock(mock_run: MagicMock, runner: CliRunner, app: typ
     assert data["ruff_errors"] == ["ruff error"]
     assert data["mypy_errors"] == ["mypy error"]
 
+def test_lint_uses_spec_repo_root_as_cwd(
+    runner: CliRunner, app: typer.Typer, tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    """When SPECIFY_REPO_ROOT is set, lint_command uses it as cwd for subprocess calls.
+
+    Regression guard for FR-007: locate_project_root() must honour the env-var
+    override so that ruff/mypy run with the correct project root even when the
+    process cwd is a worktree or unrelated directory.
+    """
+    project_root = tmp_path / "my_project"
+    project_root.mkdir()
+    (project_root / ".kittify").mkdir()
+
+    test_file = tmp_path / "test.py"
+    test_file.write_text("x: int = 1\n")
+
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(project_root))
+
+    captured_cwds: list[Path] = []
+
+    def fake_subprocess_run(
+        args: list[str], *, cwd: Path, capture_output: bool, text: bool, check: bool
+    ) -> MagicMock:
+        captured_cwds.append(Path(cwd))
+        return MagicMock(returncode=0, stdout="", stderr="")
+
+    with patch("specify_cli.cli.commands.lint.subprocess.run", side_effect=fake_subprocess_run):
+        result = runner.invoke(app, ["lint", str(test_file)])
+
+    assert result.exit_code == 0, result.output
+    # Both ruff and mypy calls must have used the SPECIFY_REPO_ROOT path as cwd.
+    assert len(captured_cwds) == 2
+    assert all(cwd == project_root for cwd in captured_cwds), (
+        f"Expected cwd={project_root!r} for all subprocess calls; got {captured_cwds!r}"
+    )
+
+
 def test_lint_config_sync_idempotency(runner: CliRunner, app: typer.Typer, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     """Verify that sync_hooks handles the Claude settings.json correctly."""
     monkeypatch.chdir(tmp_path)

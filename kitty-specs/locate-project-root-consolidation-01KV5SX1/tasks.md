@@ -35,9 +35,9 @@
 **Dependencies**: none
 
 Subtasks:
-- [ ] T001 Replace `locate_project_root` walk body with deferred delegation shim (WP01)
-- [ ] T002 Write rationale docstring referencing #1971 and explaining deferred import pattern (WP01)
-- [ ] T003 Verify `mypy --strict` and `ruff check` pass with zero violations on modified file (WP01)
+- [x] T001 Replace `locate_project_root` walk body with deferred delegation shim (WP01)
+- [x] T002 Write rationale docstring referencing #1971 and explaining deferred import pattern (WP01)
+- [x] T003 Verify `mypy --strict` and `ruff check` pass with zero violations on modified file (WP01)
 
 **Implementation sketch**: Read `src/specify_cli/core/project_resolver.py` lines 8–40. Replace `locate_project_root` body with a single deferred import + call. Preserve `resolve_template_path` below it verbatim. Update the function docstring to explain the shim contract and import-cycle rationale. Run `mypy --strict src/specify_cli/core/project_resolver.py` and `ruff check src/specify_cli/core/project_resolver.py`.  
 **Risks**: Deferred import must be inside the function body, not at module level — a module-level import would reintroduce the cycle risk that blocked consolidation.  

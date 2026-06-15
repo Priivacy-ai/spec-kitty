@@ -22,8 +22,8 @@ subtasks:
 - T008
 - T009
 - T010
-agent: claude
-shell_pid: '32175'
+agent: "claude:sonnet-4-6:reviewer-riley:reviewer"
+shell_pid: "83941"
 history:
 - date: '2026-06-15'
   event: Created during /spec-kitty.tasks by Architect Alphonso
@@ -366,3 +366,10 @@ def test_planner_default_resolver_in_worktree(
 - Confirm T009 shows zero new failures in the full suite output
 - Confirm coverage report shows ≥ 90% for `project_resolver.py`
 - Confirm T010 does NOT pass `project_root_resolver` to `plan()` — the test must exercise the default shim path, not an injected resolver
+
+## Activity Log
+
+- 2026-06-15T15:19:59Z – user – Unblocking WP03 to restart implementation; previous session moved to blocked during failed claim attempt
+- 2026-06-15T15:59:07Z – claude – T007 T008 T009 T010 complete — caller integration tests pass; full suite clean; coverage 100% for project_resolver.py; mypy --strict clean on all new test files
+- 2026-06-15T15:59:46Z – claude:sonnet-4-6:reviewer-riley:reviewer – shell_pid=83941 – Started review via action command
+- 2026-06-15T16:04:41Z – user – shell_pid=83941 – Review passed: T007 exercises real delegation chain (no mock of locate_project_root); T008 patches at correct module path specify_cli.cli.commands.lint.subprocess.run and asserts both subprocess cwds equal SPECIFY_REPO_ROOT; T009 passes with 100% coverage on project_resolver.py (22/22 lines); T010 calls plan() with no project_root_resolver kwarg exercising the default shim; mypy --strict clean on all 3 new test files; ruff clean; no locate_project_root mocking defeats WP01 shim. Prior review-cycle-1.md rejection was a workflow reset artifact. kitty-specs/ net diff vs planning branch is zero — historical commits touched it for status transitions only.
