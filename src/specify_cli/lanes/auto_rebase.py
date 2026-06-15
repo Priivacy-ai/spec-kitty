@@ -44,8 +44,7 @@ from specify_cli.merge.conflict_classifier import (
     classify,
     validate_resolution,
 )
-from specify_cli.status.event_log_merge import EventLogMergeError, merge_event_log_texts
-from specify_cli.status.reducer import materialize
+from specify_cli.status import EventLogMergeError, materialize, merge_event_log_texts
 
 __all__ = [
     "AutoRebaseReport",
