@@ -641,7 +641,13 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
         active_fixtures.add(fixture_id)
         local_aliases = _function_default_aliases(fixture, self.scopes)
         local_aliases.update(self._fixture_argument_aliases(fixture, active_fixtures))
-        aliases = _function_result_aliases(fixture, [*self.scopes, local_aliases], (fixture_name,), include_yields=True)
+        aliases = _function_result_aliases(
+            fixture,
+            self.scopes,
+            (fixture_name,),
+            include_yields=True,
+            initial_aliases=local_aliases,
+        )
         active_fixtures.remove(fixture_id)
         return aliases
 
@@ -1025,7 +1031,7 @@ def _function_return_alias(
     *,
     include_yields: bool = False,
 ) -> tuple[str, ...] | None:
-    visitor = _FunctionReturnAliasVisitor(scopes, include_yields=include_yields)
+    visitor = _FunctionReturnAliasVisitor(scopes, node, include_yields=include_yields)
     for statement in node.body:
         visitor.visit(statement)
     return visitor.source
@@ -1037,8 +1043,14 @@ def _function_result_aliases(
     target_prefix: tuple[str, ...],
     *,
     include_yields: bool,
+    initial_aliases: _AliasMap | None = None,
 ) -> _AliasMap:
-    visitor = _FunctionReturnAliasVisitor(scopes, include_yields=include_yields)
+    visitor = _FunctionReturnAliasVisitor(
+        scopes,
+        node,
+        include_yields=include_yields,
+        initial_aliases=initial_aliases,
+    )
     for statement in node.body:
         visitor.visit(statement)
 
@@ -1046,7 +1058,7 @@ def _function_result_aliases(
     if visitor.source in _ALIASABLE_CLOCK_PATHS or visitor.source in _BANNED_CALLS:
         aliases[target_prefix] = visitor.source
     if visitor.result_path:
-        for scope in scopes:
+        for scope in visitor.scopes:
             for alias_path, source in scope.items():
                 if (
                     source is not None
@@ -1059,8 +1071,19 @@ def _function_result_aliases(
 
 
 class _FunctionReturnAliasVisitor(ast.NodeVisitor):
-    def __init__(self, scopes: list[_AliasMap], *, include_yields: bool) -> None:
-        self.scopes = [*scopes, {}]
+    def __init__(
+        self,
+        scopes: list[_AliasMap],
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        *,
+        include_yields: bool,
+        initial_aliases: _AliasMap | None = None,
+    ) -> None:
+        local_scope: _AliasMap = {(name,): None for name in _function_bound_names(node)}
+        local_scope.update(_function_default_aliases(node, scopes))
+        if initial_aliases:
+            local_scope.update(initial_aliases)
+        self.scopes = [*scopes, local_scope]
         self.include_yields = include_yields
         self.source: tuple[str, ...] | None = None
         self.result_path: tuple[str, ...] | None = None
@@ -1119,7 +1142,16 @@ class _FunctionReturnAliasVisitor(ast.NodeVisitor):
         del node
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        del node
+        _set_shadow(self.scope, (node.name,))
+        self.scopes.append({})
+        for statement in node.body:
+            if isinstance(statement, ast.FunctionDef | ast.AsyncFunctionDef):
+                continue
+            self.visit(statement)
+        class_aliases = {path: source for path, source in self.scope.items() if source is not None}
+        self.scopes.pop()
+        for path, source in class_aliases.items():
+            _set_alias(self.scope, (node.name, *path), source)
 
 
 def _call_argument_bindings(

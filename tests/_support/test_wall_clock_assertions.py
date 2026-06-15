@@ -95,6 +95,15 @@ from tests._support.wall_clock_assertions import (
         ),
         (
             "from datetime import datetime\n\n"
+            "def wrapper(clock=datetime.now):\n"
+            "    return clock()\n\n"
+            "def test_bad():\n"
+            "    assert wrapper().year == 2026\n",
+            "wrapper()",
+            7,
+        ),
+        (
+            "from datetime import datetime\n\n"
             "def test_bad():\n"
             "    assert (wall_now := datetime.now)().year == 2026\n",
             "wall_now()",
@@ -294,6 +303,20 @@ from tests._support.wall_clock_assertions import (
             "    wall_now = datetime.now\n\n"
             "@pytest.fixture\n"
             "def holder():\n"
+            "    return Holder\n\n"
+            "def test_bad(holder):\n"
+            "    assert holder.wall_now().year == 2026\n",
+            "holder.wall_now()",
+            12,
+        ),
+        (
+            "import pytest\n"
+            "from datetime import datetime\n\n"
+            "@pytest.fixture\n"
+            "def holder():\n"
+            "    class Holder:\n"
+            "        pass\n"
+            "    Holder.wall_now = datetime.now\n"
             "    return Holder\n\n"
             "def test_bad(holder):\n"
             "    assert holder.wall_now().year == 2026\n",
