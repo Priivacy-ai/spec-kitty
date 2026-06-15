@@ -269,7 +269,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.merge.ordering::display_merge_order",
         "specify_cli.merge.state::MergeAmbiguousStateError",
         "specify_cli.merge.state::detect_git_merge_state",
-        "specify_cli.merge.state::get_state_path",
         "specify_cli.migration::normalize_mission_lifecycle_repo",
         "specify_cli.mission_brief::IntakeFileMissingError",
         "specify_cli.mission_brief::IntakeFileUnreadableError",

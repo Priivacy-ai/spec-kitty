@@ -17,6 +17,7 @@ from specify_cli.cli.commands.merge import (
     _load_or_create_merge_state,
 )
 from specify_cli.merge.state import MergeState, get_state_path, load_state, save_state
+from specify_cli.merge.workspace import get_merge_workspace_path
 
 pytestmark = pytest.mark.fast
 
@@ -288,6 +289,59 @@ class TestMergeDryRunMissingBranch:
         output = _compact_output(capsys.readouterr().out)
         assert f"Resume requested for {mission_slug} (1/2 done)" in output
 
+    def test_resume_without_handle_adopts_unambiguous_state_slug(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """--resume with one active state must use that state's mission_slug."""
+        mission_slug = "resume-adoption-01KV51B0"
+        mission_id = "01KV51B0ULIDKEYEDSTATE0000"
+        save_state(
+            MergeState(
+                mission_id=mission_id,
+                mission_slug=mission_slug,
+                target_branch="main",
+                wp_order=["WP01"],
+            ),
+            tmp_path,
+        )
+
+        run_merge = Mock()
+        monkeypatch.setattr(merge_mod, "show_banner", lambda: None)
+        monkeypatch.setattr(merge_mod, "find_repo_root", lambda: tmp_path)
+        monkeypatch.setattr(merge_mod, "get_main_repo_root", lambda repo_root: repo_root)
+        monkeypatch.setattr(merge_mod, "_enforce_git_preflight", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr(merge_mod, "_resolve_target_branch", lambda *_args, **_kwargs: ("main", "flag"))
+        monkeypatch.setattr(merge_mod, "_validate_target_branch", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr(merge_mod, "_run_lane_based_merge", run_merge)
+        monkeypatch.setattr(merge_mod, "run_retrospective_postcondition", lambda *_args, **_kwargs: None)
+
+        command = merge_mod.merge.__wrapped__
+        command(
+            strategy=None,
+            delete_branch=True,
+            remove_worktree=True,
+            push=False,
+            target_branch=None,
+            dry_run=False,
+            json_output=False,
+            mission=None,
+            feature=None,
+            resume=True,
+            abort=False,
+            context_token=None,
+            keep_workspace=False,
+            allow_sparse_checkout=False,
+            yes=False,
+        )
+
+        run_merge.assert_called_once()
+        assert run_merge.call_args.kwargs["mission_slug"] == mission_slug
+        output = _compact_output(capsys.readouterr().out)
+        assert f"Resume requested for {mission_slug} (0/1 done)" in output
+
     def test_abort_clears_legacy_slug_keyed_state_when_meta_has_ulid(
         self,
         tmp_path: Path,
@@ -349,6 +403,117 @@ class TestMergeDryRunMissingBranch:
         assert not get_state_path(tmp_path, mission_slug).exists()
         output = _compact_output(capsys.readouterr().out)
         assert f"Aborted merge for {mission_slug}" in output
+
+    def test_abort_without_handle_cleans_unambiguous_state_workspace(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """--abort with one active state must clean that mission's workspace."""
+        mission_slug = "abort-adoption-01KV51B1"
+        mission_id = "01KV51B1ULIDKEYEDSTATE0000"
+        save_state(
+            MergeState(
+                mission_id=mission_id,
+                mission_slug=mission_slug,
+                target_branch="main",
+                wp_order=["WP01"],
+            ),
+            tmp_path,
+        )
+        workspace_path = get_merge_workspace_path(mission_id, tmp_path)
+        (workspace_path / "scratch").mkdir(parents=True)
+
+        monkeypatch.setattr(merge_mod, "show_banner", lambda: None)
+        monkeypatch.setattr(merge_mod, "find_repo_root", lambda: tmp_path)
+        monkeypatch.setattr(merge_mod, "get_main_repo_root", lambda repo_root: repo_root)
+        monkeypatch.setattr(merge_mod, "_resolve_mission_slug", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr(merge_mod, "abort_git_merge", lambda _repo_root: False)
+
+        command = merge_mod.merge.__wrapped__
+        command(
+            strategy=None,
+            delete_branch=True,
+            remove_worktree=True,
+            push=False,
+            target_branch=None,
+            dry_run=False,
+            json_output=False,
+            mission=None,
+            feature=None,
+            resume=False,
+            abort=True,
+            context_token=None,
+            keep_workspace=False,
+            allow_sparse_checkout=False,
+            yes=False,
+        )
+
+        assert load_state(tmp_path, mission_id) is None
+        assert not workspace_path.exists()
+        output = _compact_output(capsys.readouterr().out)
+        assert f"Aborted merge for {mission_slug}" in output
+
+    def test_abort_with_slug_cleans_canonical_mission_id_workspace(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """--abort --mission <slug> must clean runtime workspace keyed by ULID."""
+        mission_slug = "abort-canonical-workspace-01KV51B2"
+        mission_id = "01KV51B2ULIDKEYEDSTATE0000"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text(
+            json.dumps(
+                {
+                    "mission_id": mission_id,
+                    "mission_slug": mission_slug,
+                    "slug": mission_slug,
+                    "target_branch": "main",
+                }
+            ),
+            encoding="utf-8",
+        )
+        save_state(
+            MergeState(
+                mission_id=mission_id,
+                mission_slug=mission_slug,
+                target_branch="main",
+                wp_order=["WP01"],
+            ),
+            tmp_path,
+        )
+        workspace_path = get_merge_workspace_path(mission_id, tmp_path)
+        (workspace_path / "scratch").mkdir(parents=True)
+
+        monkeypatch.setattr(merge_mod, "show_banner", lambda: None)
+        monkeypatch.setattr(merge_mod, "find_repo_root", lambda: tmp_path)
+        monkeypatch.setattr(merge_mod, "get_main_repo_root", lambda repo_root: repo_root)
+        monkeypatch.setattr(merge_mod, "abort_git_merge", lambda _repo_root: False)
+
+        command = merge_mod.merge.__wrapped__
+        command(
+            strategy=None,
+            delete_branch=True,
+            remove_worktree=True,
+            push=False,
+            target_branch=None,
+            dry_run=False,
+            json_output=False,
+            mission=mission_slug,
+            feature=None,
+            resume=False,
+            abort=True,
+            context_token=None,
+            keep_workspace=False,
+            allow_sparse_checkout=False,
+            yes=False,
+        )
+
+        assert load_state(tmp_path, mission_id) is None
+        assert not workspace_path.exists()
 
     def test_resume_state_lookup_scans_by_slug_when_metadata_is_corrupt(
         self,

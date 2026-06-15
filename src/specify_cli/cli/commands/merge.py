@@ -1472,6 +1472,28 @@ def _clear_merge_state_for_mission(repo_root: Path, mission_slug: str | None) ->
     return cleared
 
 
+def _cleanup_merge_workspaces_for_state(
+    repo_root: Path,
+    *,
+    mission_slug: str | None,
+    state_entry: tuple[str | None, MergeState] | None,
+) -> None:
+    """Clean every runtime workspace key that could belong to a merge state."""
+    cleanup_keys: list[str] = []
+    if state_entry is not None:
+        source_key, state = state_entry
+        cleanup_keys.append(state.mission_id)
+        if source_key:
+            cleanup_keys.append(source_key)
+        cleanup_keys.append(state.mission_slug)
+    if mission_slug:
+        cleanup_keys.extend(_merge_state_key_candidates(repo_root, mission_slug))
+        cleanup_keys.append(mission_slug)
+
+    for key in dict.fromkeys(key for key in cleanup_keys if key):
+        cleanup_merge_workspace(key, repo_root)
+
+
 def _resolve_target_branch(
     repo_root: Path,
     mission_slug: str | None,
@@ -2935,9 +2957,25 @@ def merge(
 
         mission_slug_raw = (mission or feature or "").strip() or None
         resolved = _resolve_mission_slug(repo_root, mission_slug_raw)
-        if resolved:
+        state_entry = _load_merge_state_entry_for_mission(repo_root, resolved)
+        if state_entry is None and resolved is None:
+            state_entry = _load_merge_state_entry_for_mission(repo_root, None)
+        if state_entry is not None and resolved is None:
+            _source_key, active_state = state_entry
+            resolved = active_state.mission_slug
+
+        if resolved or state_entry is not None:
             cleared = _clear_merge_state_for_mission(repo_root, resolved)
-            cleanup_merge_workspace(resolved, repo_root)
+            if state_entry is not None:
+                source_key, active_state = state_entry
+                if source_key:
+                    cleared = clear_state(repo_root, source_key) or cleared
+                cleared = clear_state(repo_root, active_state.mission_id) or cleared
+            _cleanup_merge_workspaces_for_state(
+                repo_root,
+                mission_slug=resolved,
+                state_entry=state_entry,
+            )
             # WP07 / FR-016: --abort also tears down the coordination
             # worktree (idempotent; no-op for legacy missions without
             # coordination state). Done here so partial-state aborts
@@ -2947,17 +2985,25 @@ def merge(
                 from specify_cli.mission_metadata import load_meta as _load_meta
 
                 _main_for_abort = get_main_repo_root(repo_root)
-                _feature_dir_for_abort = candidate_feature_dir_for_mission(_main_for_abort, resolved)
+                _coord_slug_for_abort = resolved
+                if _coord_slug_for_abort is None and state_entry is not None:
+                    _coord_slug_for_abort = state_entry[1].mission_slug
+                if not _coord_slug_for_abort:
+                    raise ValueError("cannot resolve mission slug for coordination cleanup")
+                _feature_dir_for_abort = candidate_feature_dir_for_mission(
+                    _main_for_abort,
+                    _coord_slug_for_abort,
+                )
                 _meta_for_abort = _load_meta(_feature_dir_for_abort)
                 _mid8_for_abort = (
                     str(_meta_for_abort.get("mid8", "")).strip()
                     if isinstance(_meta_for_abort, dict)
                     else ""
                 )
-                if _mid8_for_abort:
+                if _mid8_for_abort and _coord_slug_for_abort:
                     CoordinationWorkspace.teardown(
                         _main_for_abort,
-                        resolved,
+                        _coord_slug_for_abort,
                         _mid8_for_abort,
                     )
             except Exception as _coord_abort_exc:  # noqa: BLE001 — abort cleanup is best-effort
@@ -3009,6 +3055,8 @@ def merge(
         if existing_state is None:
             console.print("[red]Error:[/red] No interrupted merge to resume.")
             raise typer.Exit(1)
+        if not mission_slug_raw:
+            mission = existing_state.mission_slug
         console.print(
             f"[bold cyan]Resume requested[/bold cyan] for {existing_state.mission_slug} ({len(existing_state.completed_wps)}/{len(existing_state.wp_order)} done)"
         )
