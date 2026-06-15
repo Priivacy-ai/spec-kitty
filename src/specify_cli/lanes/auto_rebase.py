@@ -265,6 +265,10 @@ def _resolve_status_json(
     worktree: Path,
 ) -> tuple[ConflictClassification | None, str | None]:
     rel_path = _relative_path(file_path, worktree)
+    event_log_error = _hydrate_status_events_from_index(file_path.parent, worktree)
+    if event_log_error is not None:
+        return None, event_log_error
+
     try:
         materialize(file_path.parent)
     except Exception as exc:  # noqa: BLE001 - surface reducer/store failures to operator
@@ -274,6 +278,29 @@ def _resolve_status_json(
     if not ok:
         return None, f"{RULE_ID_STATUS_JSON}: git add --sparse {rel_path} failed: {message}"
     return _managed_classification(file_path, RULE_ID_STATUS_JSON), None
+
+
+def _hydrate_status_events_from_index(feature_dir: Path, worktree: Path) -> str | None:
+    """Ensure materialize() can read event rows hidden by sparse checkout."""
+    events_path = feature_dir / "status.events.jsonl"
+    if events_path.exists():
+        return None
+
+    rel_path = _relative_path(events_path, worktree)
+    index_text = _git_show_stage(worktree, rel_path, 0)
+    if index_text is None:
+        return None
+
+    events_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        events_path.write_text(index_text, encoding="utf-8")
+    except OSError as exc:
+        return f"{RULE_ID_STATUS_JSON}: could not hydrate {rel_path}: {exc!r}"
+
+    ok, message = _stage_sparse(worktree, rel_path)
+    if not ok:
+        return f"{RULE_ID_STATUS_JSON}: git add --sparse {rel_path} failed: {message}"
+    return None
 
 
 def _resolve_managed_artifact_conflicts(
