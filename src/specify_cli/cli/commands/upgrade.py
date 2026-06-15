@@ -49,6 +49,7 @@ from typing import TYPE_CHECKING
 import typer
 
 if TYPE_CHECKING:
+    from specify_cli.tool_surface.repair import DriftPolicySummary
     from specify_cli.upgrade.runner import UpgradeResult
 from rich.panel import Panel
 from rich.table import Table
@@ -532,7 +533,7 @@ def _run_upgrade_surface_repair(
     confirm: bool,
     dry_run: bool,
     json_output: bool,
-) -> None:
+) -> DriftPolicySummary | None:
     """Run tool-surface repair after an upgrade and report the outcome.
 
     FR-001/FR-002 wiring: this MUST run on every ``upgrade`` invocation —
@@ -547,7 +548,7 @@ def _run_upgrade_surface_repair(
     detected and was not explicitly overwritten.
     """
     if dry_run:
-        return
+        return None
     try:
         _repair_stale_command_manifest(project_path, json_output=json_output)
 
@@ -561,12 +562,12 @@ def _run_upgrade_surface_repair(
             interactive=not confirm,
             repair_drift=False,
         )
-        if json_output:
-            return
-        for line in render_surface_summary_lines(summary):
-            console.print(line)
-        if summary.drifted_reported and confirm:
-            raise typer.Exit(1)
+        if not json_output:
+            for line in render_surface_summary_lines(summary):
+                console.print(line)
+            if summary.drifted_reported and confirm:
+                raise typer.Exit(1)
+        return summary
     except typer.Exit:
         raise
     except Exception as surf_exc:  # noqa: BLE001
@@ -575,6 +576,44 @@ def _run_upgrade_surface_repair(
             console.print(
                 f"[dim]Note: Could not run tool surface repair: {surf_exc}[/dim]"
             )
+        return None
+
+
+def _surface_repair_payload(
+    summary: DriftPolicySummary | None,
+) -> dict[str, list[str]]:
+    """Return a machine-readable drift-policy summary for upgrade JSON."""
+    if summary is None:
+        return {
+            "created": [],
+            "repaired": [],
+            "drifted_overwritten": [],
+            "drifted_reported": [],
+            "skipped": [],
+        }
+    return {
+        "created": [str(path) for path in summary.created],
+        "repaired": [str(path) for path in summary.repaired],
+        "drifted_overwritten": [str(path) for path in summary.drifted_overwritten],
+        "drifted_reported": [str(path) for path in summary.drifted_reported],
+        "skipped": [str(path) for path in summary.skipped],
+    }
+
+
+def _surface_drift_exit_required(
+    summary: DriftPolicySummary | None,
+    *,
+    confirm: bool,
+) -> bool:
+    """Return True when non-interactive upgrade reported unresolved drift."""
+    return bool(confirm and summary is not None and summary.drifted_reported)
+
+
+def _surface_drift_error(summary: DriftPolicySummary) -> str:
+    return (
+        f"Unresolved tool-surface drift in {len(summary.drifted_reported)} "
+        "file(s); run 'spec-kitty doctor tool-surfaces' to review."
+    )
 
 
 def _check_project_not_too_new(
@@ -886,29 +925,43 @@ def upgrade(  # noqa: C901
         # FR-001/FR-002: heal generated surfaces even when no migrations are
         # pending. Missing agent profiles or stale manifests on an already
         # up-to-date project would otherwise never be repaired.
-        _run_upgrade_surface_repair(
+        surface_repair_summary = _run_upgrade_surface_repair(
             project_path,
             confirm=confirm,
             dry_run=dry_run,
             json_output=json_output,
+        )
+        surface_drift_failed = _surface_drift_exit_required(
+            surface_repair_summary,
+            confirm=confirm,
         )
 
         if json_output:
             warnings = list(worktree_warnings)
             if auto_commit_warning:
                 warnings.append(auto_commit_warning)
+            errors: list[str] = []
+            if surface_drift_failed and surface_repair_summary is not None:
+                errors.append(_surface_drift_error(surface_repair_summary))
             print(
                 json.dumps(
                     {
-                        "status": "up_to_date",
+                        "status": "failed" if surface_drift_failed else "up_to_date",
                         "current_version": current_version,
                         "target_version": target_version,
+                        "success": not surface_drift_failed,
+                        "errors": errors,
                         "auto_committed": auto_committed,
                         "auto_commit_paths": auto_commit_paths,
                         "warnings": warnings,
+                        "surface_repair": _surface_repair_payload(
+                            surface_repair_summary
+                        ),
                     }
                 )
             )
+            if surface_drift_failed:
+                raise typer.Exit(1)
         else:
             console.print("[green]Project is already up to date![/green]")
             for warning in worktree_warnings:
@@ -994,13 +1047,22 @@ def upgrade(  # noqa: C901
         )
 
     # Run tool-surface repair after migrations have been applied.
+    surface_repair_summary = None
     if result.success:
-        _run_upgrade_surface_repair(
+        surface_repair_summary = _run_upgrade_surface_repair(
             project_path,
             confirm=confirm,
             dry_run=dry_run,
             json_output=json_output,
         )
+    surface_drift_failed = _surface_drift_exit_required(
+        surface_repair_summary,
+        confirm=confirm,
+    )
+    errors = list(result.errors)
+    if surface_drift_failed and surface_repair_summary is not None:
+        errors.append(_surface_drift_error(surface_repair_summary))
+    success = result.success and not surface_drift_failed
 
     if json_output:
         # Build detailed migrations array
@@ -1045,7 +1107,7 @@ def upgrade(  # noqa: C901
                 continue
 
         output = {
-            "status": "success" if result.success else "failed",
+            "status": "success" if success else "failed",
             "current_version": result.from_version,
             "target_version": result.to_version,
             "dry_run": result.dry_run,
@@ -1053,15 +1115,18 @@ def upgrade(  # noqa: C901
             "migrations_applied": result.migrations_applied,
             "migrations_skipped": result.migrations_skipped,
             "migration_reports": migration_reports,
-            "success": result.success,
-            "errors": result.errors,
+            "success": success,
+            "errors": errors,
             "warnings": result.warnings,
             "manual_review_required": bool(manual_review_paths),
             "manual_review_paths": manual_review_paths,
             "auto_committed": auto_committed,
             "auto_commit_paths": auto_commit_paths_list,
+            "surface_repair": _surface_repair_payload(surface_repair_summary),
         }
         print(json.dumps(output))
+        if surface_drift_failed:
+            raise typer.Exit(1)
         return
 
     # Display results

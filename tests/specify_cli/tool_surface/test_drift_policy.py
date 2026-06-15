@@ -569,6 +569,36 @@ class TestDriftPolicyViaCli:
             "drifted file must be preserved verbatim under --yes"
         )
 
+    def test_rule4_drifted_reported_only_under_yes_json(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Rule 4 applies equally to machine-readable ``upgrade --yes --json``."""
+        from .integration._compat_support import run_spec_kitty
+
+        self._init(tmp_path)
+        run_spec_kitty("upgrade", "--yes", cwd=tmp_path)
+
+        agents = tmp_path / ".claude" / "agents"
+        target = sorted(agents.glob("*.md"))[0]
+        custom = "# user edit\n"
+        target.write_text(custom, encoding="utf-8")
+
+        result = run_spec_kitty("upgrade", "--yes", "--json", cwd=tmp_path)
+        assert result.returncode != 0, (
+            "--yes --json must exit non-zero on unresolved drift"
+        )
+        payload = result.json()
+        assert payload["status"] == "failed"
+        assert payload["success"] is False
+        assert payload["errors"]
+        assert "Unresolved tool-surface drift" in payload["errors"][0]
+        drifted = payload["surface_repair"]["drifted_reported"]
+        assert any(Path(path).name == target.name for path in drifted)
+        assert target.read_text(encoding="utf-8") == custom, (
+            "drifted file must be preserved verbatim under --yes --json"
+        )
+
 
 class TestPromptOverwrite:
     def test_y_returns_true(self) -> None:
