@@ -62,6 +62,11 @@ def release_readiness_filter_text(workflow: dict[str, Any]) -> str:
     return filter_step["with"]["filters"]
 
 
+def release_readiness_step(workflow: dict[str, Any], name: str) -> dict[str, Any]:
+    steps = workflow["jobs"]["check-readiness"]["steps"]
+    return next(step for step in steps if step.get("name") == name)
+
+
 def test_ci_quality_runs_for_release_owned_paths() -> None:
     workflow = load_workflow("ci-quality.yml")
 
@@ -109,6 +114,28 @@ def test_release_readiness_runs_for_all_version_sources() -> None:
     assert "outputs.validator_surface" in validate_step["if"]
     assert "outputs.version_bump" in validate_step["run"]
     assert "--consistency-only" in validate_step["run"]
+    assert "scope=full" in validate_step["run"]
+    assert "scope=consistency" in validate_step["run"]
+
+
+def test_release_readiness_consistency_summary_does_not_claim_release_ready() -> None:
+    workflow = load_workflow("release-readiness.yml")
+    summary_script = release_readiness_step(workflow, "Generate readiness summary")["run"]
+
+    consistency_start = summary_script.index(
+        '"${{ steps.validate.outputs.scope }}" == "consistency"'
+    )
+    full_start = summary_script.index(
+        'elif [[ "${{ steps.validate.outcome }}" == "success" ]]',
+        consistency_start,
+    )
+    consistency_block = summary_script[consistency_start:full_start]
+
+    assert "Version-source consistency checks passed" in consistency_block
+    assert "consistency-only validation" in consistency_block
+    assert "This branch is ready for release" not in consistency_block
+    assert "Version is properly bumped" not in consistency_block
+    assert "Version progression is monotonic" not in consistency_block
 
 
 def test_shared_drift_has_scheduled_and_manual_monitoring() -> None:

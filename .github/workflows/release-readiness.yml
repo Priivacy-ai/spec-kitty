@@ -78,12 +78,15 @@ jobs:
         run: |
           if [[ -n "${{ inputs.tag }}" ]]; then
             echo "Running validation in tag mode for dry run: ${{ inputs.tag }}"
+            echo "scope=tag" >> "$GITHUB_OUTPUT"
             python scripts/release/validate_release.py --mode tag --tag "${{ inputs.tag }}" --tag-pattern "v*.*.*"
           elif [[ "${{ github.event_name }}" != "pull_request" || "${{ steps.metadata_changes.outputs.version_bump }}" == "true" ]]; then
             echo "Running validation in branch mode"
+            echo "scope=full" >> "$GITHUB_OUTPUT"
             python scripts/release/validate_release.py --mode branch --tag-pattern "v*.*.*"
           else
             echo "Running version-source consistency gate"
+            echo "scope=consistency" >> "$GITHUB_OUTPUT"
             python scripts/release/validate_release.py --mode branch --consistency-only --tag-pattern "v*.*.*"
           fi
 
@@ -93,7 +96,17 @@ jobs:
           echo "# Release Readiness Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [[ "${{ steps.validate.outcome }}" == "success" ]]; then
+          if [[ "${{ steps.validate.outcome }}" == "success" && "${{ steps.validate.outputs.scope }}" == "consistency" ]]; then
+            echo "✅ **Version-source consistency checks passed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Release-version sources agree:" >> $GITHUB_STEP_SUMMARY
+            echo "- pyproject.toml, .kittify/metadata.yaml, CHANGELOG.md, and uv.lock are consistent" >> $GITHUB_STEP_SUMMARY
+            echo "- Changelog entry exists and is populated for the current source version" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This was a consistency-only validation. It did not check whether the branch is release-ready, whether the version was bumped, or whether version progression is monotonic." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Use CI Quality and Check Shared Package Drift on the same commit for test, package, and compatibility evidence." >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ steps.validate.outcome }}" == "success" ]]; then
             echo "✅ **All readiness checks passed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "This branch is ready for release:" >> $GITHUB_STEP_SUMMARY
