@@ -306,12 +306,21 @@ register(
 
 
 # --- Agent Profile ---
+def _set_descriptions(props: dict, desc_map: dict) -> None:
+    for field_name, desc in desc_map.items():
+        if field_name in props:
+            props[field_name]["description"] = desc
+
+
+def _annotate_def(defs: dict, def_key: str, desc_map: dict) -> None:
+    def_dict = defs.get(def_key, {})
+    _set_descriptions(def_dict.get("properties", {}), desc_map)
+
+
 def _agent_profile_fixups(schema: dict) -> dict:
     """Add descriptions matching the hand-written schema."""
     props = schema.get("properties", {})
-
-    # Add descriptions to top-level properties
-    _desc_map = {
+    _set_descriptions(props, {
         "profile-id": "Unique identifier for this agent profile (kebab-case)",
         "name": "Human-readable name for this agent",
         "description": "Optional brief description",
@@ -324,126 +333,69 @@ def _agent_profile_fixups(schema: dict) -> dict:
         "routing-priority": "Priority for routing tasks to this agent (0-100, higher is more preferred)",
         "max-concurrent-tasks": "Maximum number of tasks this agent can handle concurrently",
         "initialization-declaration": "Agent's initialization prompt or declaration",
-    }
-    for field_name, desc in _desc_map.items():
-        if field_name in props:
-            props[field_name]["description"] = desc
+    })
 
-    # Add description to self-review-protocol
     if "self-review-protocol" in props:
         srp = props["self-review-protocol"]
-        # It may be a $ref; if it's inline, add description
         if "description" not in srp and "$ref" not in srp:
             srp["description"] = "Self-review checklist the agent runs before handing off work"
 
-    # Add descriptions to nested definitions
     defs = schema.get("definitions", {})
-
-    # Context sources
-    cs_def = defs.get("agent_context_sources", {})
-    cs_props = cs_def.get("properties", {})
-    _cs_descs = {
+    _annotate_def(defs, "agent_context_sources", {
         "doctrine-layers": "Doctrine layers this agent consults",
         "directives": "Directive IDs this agent references",
         "tactics": "Tactic IDs this agent references",
         "toolguides": "Toolguide IDs this agent references",
         "styleguides": "Styleguide IDs this agent references",
         "additional": "Additional context sources",
-    }
-    for field_name, desc in _cs_descs.items():
-        if field_name in cs_props:
-            cs_props[field_name]["description"] = desc
-
-    # Specialization
-    spec_def = defs.get("agent_specialization", {})
-    spec_props = spec_def.get("properties", {})
-    _spec_descs = {
+    })
+    _annotate_def(defs, "agent_specialization", {
         "primary-focus": "Primary area of specialization",
         "secondary-awareness": "Secondary areas agent is aware of",
         "avoidance-boundary": "What this agent explicitly avoids",
         "success-definition": "How success is defined for this agent",
-    }
-    for field_name, desc in _spec_descs.items():
-        if field_name in spec_props:
-            spec_props[field_name]["description"] = desc
-
-    # Collaboration
-    collab_def = defs.get("agent_collaboration", {})
-    collab_props = collab_def.get("properties", {})
-    _collab_descs = {
+    })
+    _annotate_def(defs, "agent_collaboration", {
         "handoff-to": "Roles/agents this agent hands off to",
         "handoff-from": "Roles/agents that hand off to this agent",
         "works-with": "Roles/agents this agent collaborates with",
         "output-artifacts": "Artifacts this agent produces",
         "operating-procedures": "Procedures this agent follows",
         "canonical-verbs": "Standard verbs for this agent's actions",
-    }
-    for field_name, desc in _collab_descs.items():
-        if field_name in collab_props:
-            collab_props[field_name]["description"] = desc
-
-    # Mode defaults
-    md_def = defs.get("agent_mode_default", {})
-    md_props = md_def.get("properties", {})
-    _md_descs = {
+    })
+    _annotate_def(defs, "agent_mode_default", {
         "mode": "Mode name",
         "description": "Mode description",
         "use-case": "When to use this mode",
-    }
-    for field_name, desc in _md_descs.items():
-        if field_name in md_props:
-            md_props[field_name]["description"] = desc
-
-    # Specialization context
-    sc_def = defs.get("agent_specialization_context", {})
-    sc_props = sc_def.get("properties", {})
-    _sc_descs = {
+    })
+    _annotate_def(defs, "agent_specialization_context", {
         "languages": "Programming languages this agent specializes in",
         "frameworks": "Frameworks this agent knows",
         "file-patterns": "File patterns this agent matches (glob patterns)",
         "domain-keywords": "Domain keywords for matching",
         "writing-style": "Preferred writing styles",
         "complexity-preference": "Task complexity preferences (low, medium, high)",
-    }
-    for field_name, desc in _sc_descs.items():
-        if field_name in sc_props:
-            sc_props[field_name]["description"] = desc
-
-    # Directive reference descriptions
-    dr_def = defs.get("agent_directive_reference", {})
-    dr_props = dr_def.get("properties", {})
-    _dr_descs = {
+    })
+    _annotate_def(defs, "agent_directive_reference", {
         "code": "Directive code",
         "name": "Directive name",
         "rationale": "Why this directive is referenced",
-    }
-    for field_name, desc in _dr_descs.items():
-        if field_name in dr_props:
-            dr_props[field_name]["description"] = desc
+    })
 
-    # Tactic/toolguide/styleguide reference descriptions
     for ref_def_name in ("agent_tactic_reference", "agent_toolguide_reference",
                          "agent_styleguide_reference"):
-        ref_def = defs.get(ref_def_name, {})
-        ref_props = ref_def.get("properties", {})
+        ref_props = defs.get(ref_def_name, {}).get("properties", {})
         kind = ref_def_name.replace("agent_", "").replace("_reference", "").capitalize()
         if "id" in ref_props:
             ref_props["id"]["description"] = f"{kind} ID"
         if "rationale" in ref_props:
             ref_props["rationale"]["description"] = f"Why this {kind.lower()} is referenced"
 
-    # Self-review step descriptions
-    srs_def = defs.get("self_review_step", {})
-    srs_props = srs_def.get("properties", {})
-    _srs_descs = {
+    _annotate_def(defs, "self_review_step", {
         "name": "Step name",
         "command": "Command to run for this step",
         "gate": "Pass/fail criteria for this step",
-    }
-    for field_name, desc in _srs_descs.items():
-        if field_name in srs_props:
-            srs_props[field_name]["description"] = desc
-
+    })
     return schema
 
 
@@ -763,13 +715,12 @@ def _add_minlength_to_string_fields(obj: Any, required_fields: list[str] | None 
     for field_name, prop_def in props.items():
         if not isinstance(prop_def, dict):
             continue
-        if prop_def.get("type") == "string" and field_name in required:
-            # Don't add minLength if there's already a pattern or minLength
-            if "pattern" not in prop_def and "minLength" not in prop_def:
-                prop_def["minLength"] = 1
+        if (prop_def.get("type") == "string" and field_name in required
+                and "pattern" not in prop_def and "minLength" not in prop_def):
+            prop_def["minLength"] = 1
 
     # Recurse into definitions
-    for def_name, def_body in obj.get("definitions", {}).items():
+    for _, def_body in obj.get("definitions", {}).items():
         if isinstance(def_body, dict) and "properties" in def_body:
             _add_minlength_to_string_fields(def_body)
 
@@ -948,10 +899,7 @@ def generate_schema(stem: str) -> dict:
     # For schemas with many enums (model-to-task_type), inline ALL enum refs.
     # For others, only inline ArtifactKind.
     enum_defs = {k for k, v in defs.items() if _is_enum_def(v)}
-    if enum_defs - {"ArtifactKind"}:
-        schema = _inline_all_enum_refs(raw, defs)
-    else:
-        schema = _inline_artifact_kind_refs(raw, defs)
+    schema = _inline_all_enum_refs(raw, defs) if enum_defs - {"ArtifactKind"} else _inline_artifact_kind_refs(raw, defs)
 
     # Phase 2: rename $defs → definitions, rewrite $ref paths
     if "$defs" in schema:

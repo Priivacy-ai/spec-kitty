@@ -68,14 +68,11 @@ def _find_feature_directory(
             "FEATURE_CONTEXT_UNRESOLVED", "--mission <slug> is required"
         )
     try:
-        feature_dir: Path = cast(
-            Path,
-            resolve_mission_read_path(
-                repo_root,
-                raw_handle,
-                mid8_from_slug(raw_handle),
-                require_exists=True,
-            ),
+        feature_dir: Path = resolve_mission_read_path(
+            repo_root,
+            raw_handle,
+            mid8_from_slug(raw_handle),
+            require_exists=True,
         )
     except MissionSelectorAmbiguous as exc:
         raise ActionContextError(exc.error_code, str(exc)) from exc

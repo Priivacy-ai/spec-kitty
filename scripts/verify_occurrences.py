@@ -185,10 +185,7 @@ def main(argv: list[str]) -> int:
         return 2
 
     is_index = "wps" in artifact and "must_be_zero" in artifact
-    if is_index:
-        failures = _verify_index(artifact)
-    else:
-        failures = _verify_per_wp(artifact)
+    failures = _verify_index(artifact) if is_index else _verify_per_wp(artifact)
 
     rel = os.path.relpath(artifact_path, REPO_ROOT)
     if failures:

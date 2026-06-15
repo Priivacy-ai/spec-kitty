@@ -136,7 +136,7 @@ import sys
 import tokenize
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from collections.abc import Iterable
 
 # --------------------------------------------------------------------------- #
 # Configuration                                                                #
@@ -373,11 +373,7 @@ def _dict_has_event_keys(node: ast.Dict) -> bool:
 
 def _dict_has_any_event_key(node: ast.Dict) -> bool:
     """True if a dict literal has `event_type` or `payload` as a string key."""
-    for key in node.keys:
-        if isinstance(key, ast.Constant) and isinstance(key.value, str):
-            if key.value in _EVENT_KEYS_REQUIRED:
-                return True
-    return False
+    return any(isinstance(key, ast.Constant) and isinstance(key.value, str) and key.value in _EVENT_KEYS_REQUIRED for key in node.keys)
 
 
 def _annotation_is_dict_str_any(annotation: ast.AST | None) -> bool:
@@ -401,9 +397,7 @@ def _annotation_is_dict_str_any(annotation: ast.AST | None) -> bool:
     # because they all reflect a hand-rolled return shape.
     if isinstance(second, ast.Name) and second.id in {"Any", "object"}:
         return True
-    if isinstance(second, ast.Attribute) and second.attr == "Any":
-        return True
-    return False
+    return bool(isinstance(second, ast.Attribute) and second.attr == "Any")
 
 
 # --------------------------------------------------------------------------- #
@@ -417,7 +411,7 @@ class _ParentTagger(ast.NodeTransformer):
 
     def visit(self, node: ast.AST) -> ast.AST:  # type: ignore[override]
         for child in ast.iter_child_nodes(node):
-            setattr(child, "_cp_parent", node)
+            child._cp_parent = node
             self.visit(child)
         return node
 
@@ -487,19 +481,18 @@ class _CanonicalProducerVisitor(ast.NodeVisitor):
         # dict that is then returned. Simple shape -- explicit return of a
         # dict literal -- is the documented hand-rolled case from rc14->rc22.
         for child in ast.walk(node):
-            if isinstance(child, ast.Return) and isinstance(child.value, ast.Dict):
-                if _dict_has_any_event_key(child.value):
-                    self._maybe_report(
-                        line=child.value.lineno,
-                        col=child.value.col_offset,
-                        code="CP002",
-                        message=(
-                            "function declared dict[str, Any] return builds "
-                            "event-shaped dict in body -- declare the "
-                            "canonical pydantic model as the return type and "
-                            "construct via that model"
-                        ),
-                    )
+            if isinstance(child, ast.Return) and isinstance(child.value, ast.Dict) and _dict_has_any_event_key(child.value):
+                self._maybe_report(
+                    line=child.value.lineno,
+                    col=child.value.col_offset,
+                    code="CP002",
+                    message=(
+                        "function declared dict[str, Any] return builds "
+                        "event-shaped dict in body -- declare the "
+                        "canonical pydantic model as the return type and "
+                        "construct via that model"
+                    ),
+                )
 
     # ------------------------------------------------------------------ CP003
     def visit_Call(self, node: ast.Call) -> None:

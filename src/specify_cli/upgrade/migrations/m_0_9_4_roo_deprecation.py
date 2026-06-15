@@ -59,7 +59,7 @@ def _roo_in_config(project_path: Path) -> bool:
 
 
 @MigrationRegistry.register
-class RooDeprecationMigration(BaseMigration):  # type: ignore[misc]
+class RooDeprecationMigration(BaseMigration):
     """Emit Roo Code deprecation notice and remove roo from agent config."""
 
     migration_id = "0_9_4_roo_deprecation"

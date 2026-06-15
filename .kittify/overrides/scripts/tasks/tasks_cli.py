@@ -435,7 +435,7 @@ def rollback_command(args: argparse.Namespace) -> None:
     update_command(args_for_update)
 
 
-def _resolve_mission(repo_root: Path, requested: str | None) -> str:
+def _resolve_mission(_repo_root: Path, requested: str | None) -> str:
     if requested:
         return requested
     raise TaskCliError(
@@ -512,6 +512,28 @@ def verify_command(args: argparse.Namespace) -> None:
     sys.exit(0 if summary.ok else 1)
 
 
+def _print_acceptance_result(result, mission_slug: str, json_output: bool) -> None:
+    if json_output:
+        print(json.dumps(result.to_dict(), indent=2, default=str))
+        return
+    print(f"✅ Mission '{mission_slug}' accepted at {result.accepted_at} by {result.accepted_by}")
+    if result.accept_commit:
+        print(f"   Acceptance commit: {result.accept_commit}")
+    if result.parent_commit:
+        print(f"   Parent commit: {result.parent_commit}")
+    if result.notes:
+        print("\nNotes:")
+        for note in result.notes:
+            print(f"  {note}")
+    print("\nNext steps:")
+    for instruction in result.instructions:
+        print(f"  - {instruction}")
+    if result.cleanup_instructions:
+        print("\nCleanup:")
+        for instruction in result.cleanup_instructions:
+            print(f"  - {instruction}")
+
+
 def accept_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
     mission_slug = _resolve_mission(repo_root, args.mission)
@@ -555,26 +577,7 @@ def accept_command(args: argparse.Namespace) -> None:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    if args.json:
-        print(json.dumps(result.to_dict(), indent=2, default=str))
-        return
-
-    print(f"✅ Mission '{mission_slug}' accepted at {result.accepted_at} by {result.accepted_by}")
-    if result.accept_commit:
-        print(f"   Acceptance commit: {result.accept_commit}")
-    if result.parent_commit:
-        print(f"   Parent commit: {result.parent_commit}")
-    if result.notes:
-        print("\nNotes:")
-        for note in result.notes:
-            print(f"  {note}")
-    print("\nNext steps:")
-    for instruction in result.instructions:
-        print(f"  - {instruction}")
-    if result.cleanup_instructions:
-        print("\nCleanup:")
-        for instruction in result.cleanup_instructions:
-            print(f"  - {instruction}")
+    _print_acceptance_result(result, mission_slug, args.json)
 
 
 def _merge_actor(repo_root: Path) -> str:
@@ -626,6 +629,60 @@ def _finalize_merge_metadata(meta_path: Path | None, merge_commit: str) -> None:
         logger.warning("Could not finalize merge metadata: %s", exc)
 
 
+def _merge_dry_run(args, mission_slug: str, primary_repo_root: Path, repo_root: Path, in_worktree: bool) -> None:
+    steps = ["Planned actions:"]
+    steps.append(f"  - Checkout {args.target} in {primary_repo_root}")
+    steps.append("  - Fetch remote (if configured)")
+    if args.strategy == "squash":
+        steps.append(f"  - Merge {mission_slug} with --squash and commit")
+    elif args.strategy == "rebase":
+        steps.append(f"  - Rebase {mission_slug} onto {args.target} manually (command exits before merge)")
+    else:
+        steps.append(f"  - Merge {mission_slug} with --no-ff")
+    if args.push:
+        steps.append(f"  - Push {args.target} to origin (if upstream configured)")
+    if in_worktree and args.remove_worktree:
+        steps.append(f"  - Remove worktree at {repo_root}")
+    if args.delete_branch:
+        steps.append(f"  - Delete branch {mission_slug}")
+    print("\n".join(steps))
+
+
+def _merge_execute(git_fn, mission_slug: str, args, primary_repo_root: Path) -> Path | None:
+    if args.strategy == "squash":
+        merge_proc = git_fn(["merge", "--squash", mission_slug], check=False)
+    else:
+        merge_proc = git_fn(["merge", "--no-ff", "--no-commit", mission_slug], check=False)
+    if merge_proc.returncode != 0:
+        raise TaskCliError("Merge failed. Resolve conflicts manually, commit, then rerun with --keep-worktree --keep-branch.")
+    meta_path = _prepare_merge_metadata(primary_repo_root, mission_slug, args.target, args.strategy, args.push)
+    meta_rel = str(meta_path.relative_to(primary_repo_root)) if meta_path else None
+    if meta_rel:
+        git_fn(["add", meta_rel])
+    git_fn(["commit", "-m", f"Merge mission {mission_slug}"])
+    if meta_path:
+        merge_commit = git_fn(["rev-parse", "HEAD"]).stdout.strip()
+        _finalize_merge_metadata(meta_path, merge_commit)
+        git_fn(["add", meta_rel or str(meta_path.relative_to(primary_repo_root))])
+        git_fn(["commit", "--amend", "--no-edit"])
+    return meta_path
+
+
+def _merge_post(git_fn, args, mission_slug: str, has_remote: bool, in_worktree: bool, repo_root: Path) -> None:
+    if args.push and has_remote:
+        push_result = git_fn(["push", "origin", args.target], check=False)
+        if push_result.returncode != 0:
+            raise TaskCliError(f"Merge succeeded but push failed. Run `git push origin {args.target}` manually.")
+    elif args.push and not has_remote:
+        print("[spec-kitty] Skipping push: no remote configured.", file=sys.stderr)
+    if in_worktree and args.remove_worktree and repo_root.exists():
+        git_fn(["worktree", "remove", str(repo_root), "--force"])
+    if args.delete_branch:
+        delete = git_fn(["branch", "-d", mission_slug], check=False)
+        if delete.returncode != 0:
+            git_fn(["branch", "-D", mission_slug])
+
+
 def merge_command(args: argparse.Namespace) -> None:
     # merge_command needs the LOCAL git root (may be a worktree), not the main
     # repo root that find_repo_root() returns.  git rev-parse --show-toplevel
@@ -648,10 +705,8 @@ def merge_command(args: argparse.Namespace) -> None:
             "No auto-detection is performed."
         )
 
-    # Resolve target branch dynamically if not specified
     if args.target is None:
         from specify_cli.core.git_ops import resolve_primary_branch
-
         args.target = resolve_primary_branch(repo_root)
 
     if current_branch == args.target:
@@ -683,22 +738,7 @@ def merge_command(args: argparse.Namespace) -> None:
         ensure_clean(primary_repo_root)
 
     if args.dry_run:
-        steps = ["Planned actions:"]
-        steps.append(f"  - Checkout {args.target} in {primary_repo_root}")
-        steps.append("  - Fetch remote (if configured)")
-        if args.strategy == "squash":
-            steps.append(f"  - Merge {mission_slug} with --squash and commit")
-        elif args.strategy == "rebase":
-            steps.append(f"  - Rebase {mission_slug} onto {args.target} manually (command exits before merge)")
-        else:
-            steps.append(f"  - Merge {mission_slug} with --no-ff")
-        if args.push:
-            steps.append(f"  - Push {args.target} to origin (if upstream configured)")
-        if in_worktree and args.remove_worktree:
-            steps.append(f"  - Remove worktree at {repo_root}")
-        if args.delete_branch:
-            steps.append(f"  - Delete branch {mission_slug}")
-        print("\n".join(steps))
+        _merge_dry_run(args, mission_slug, primary_repo_root, repo_root, in_worktree)
         return
 
     def git(cmd: list[str], *, cwd: Path = primary_repo_root, check: bool = True) -> subprocess.CompletedProcess:
@@ -717,50 +757,8 @@ def merge_command(args: argparse.Namespace) -> None:
     if args.strategy == "rebase":
         raise TaskCliError("Rebase strategy requires manual steps. Run `git checkout {mission_slug}` followed by `git rebase {args.target}`.")
 
-    meta_path: Path | None = None
-    meta_rel: str | None = None
-
-    if args.strategy == "squash":
-        merge_proc = git(["merge", "--squash", mission_slug], check=False)
-        if merge_proc.returncode != 0:
-            raise TaskCliError("Merge failed. Resolve conflicts manually, commit, then rerun with --keep-worktree --keep-branch.")
-        meta_path = _prepare_merge_metadata(primary_repo_root, mission_slug, args.target, args.strategy, args.push)
-        if meta_path:
-            meta_rel = str(meta_path.relative_to(primary_repo_root))
-            git(["add", meta_rel])
-        git(["commit", "-m", f"Merge mission {mission_slug}"])
-    else:
-        merge_proc = git(["merge", "--no-ff", "--no-commit", mission_slug], check=False)
-        if merge_proc.returncode != 0:
-            raise TaskCliError("Merge failed. Resolve conflicts manually, commit, then rerun with --keep-worktree --keep-branch.")
-        meta_path = _prepare_merge_metadata(primary_repo_root, mission_slug, args.target, args.strategy, args.push)
-        if meta_path:
-            meta_rel = str(meta_path.relative_to(primary_repo_root))
-            git(["add", meta_rel])
-        git(["commit", "-m", f"Merge mission {mission_slug}"])
-
-    if meta_path:
-        merge_commit = git(["rev-parse", "HEAD"]).stdout.strip()
-        _finalize_merge_metadata(meta_path, merge_commit)
-        meta_rel = meta_rel or str(meta_path.relative_to(primary_repo_root))
-        git(["add", meta_rel])
-        git(["commit", "--amend", "--no-edit"])
-
-    if args.push and has_remote:
-        push_result = git(["push", "origin", args.target], check=False)
-        if push_result.returncode != 0:
-            raise TaskCliError(f"Merge succeeded but push failed. Run `git push origin {args.target}` manually.")
-    elif args.push and not has_remote:
-        print("[spec-kitty] Skipping push: no remote configured.", file=sys.stderr)
-
-    if in_worktree and args.remove_worktree and repo_root.exists():
-        git(["worktree", "remove", str(repo_root), "--force"])
-
-    if args.delete_branch:
-        delete = git(["branch", "-d", mission_slug], check=False)
-        if delete.returncode != 0:
-            git(["branch", "-D", mission_slug])
-
+    _merge_execute(git, mission_slug, args, primary_repo_root)
+    _merge_post(git, args, mission_slug, has_remote, in_worktree, repo_root)
     print(f"Merge complete: {mission_slug} -> {args.target}")
 
 

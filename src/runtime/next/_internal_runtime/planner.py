@@ -348,7 +348,7 @@ def plan_next(
     # Blocked reason takes priority over everything.
     if snapshot.blocked_reason:
         return NextDecision(
-            kind=DecisionKind.blocked,
+            kind=DecisionKind.blocked.value,
             run_id=snapshot.run_id,
             mission_key=snapshot.mission_key,
             reason=snapshot.blocked_reason,
@@ -359,7 +359,7 @@ def plan_next(
         drift_reason = _check_template_drift(snapshot, live_template_path)
         if drift_reason:
             return NextDecision(
-                kind=DecisionKind.blocked,
+                kind=DecisionKind.blocked.value,
                 run_id=snapshot.run_id,
                 mission_key=snapshot.mission_key,
                 reason=drift_reason,
@@ -374,7 +374,7 @@ def plan_next(
         if req.decision_id.startswith("input:"):
             input_key = req.decision_id[len("input:"):]
         return NextDecision(
-            kind=DecisionKind.decision_required,
+            kind=DecisionKind.decision_required.value,
             run_id=snapshot.run_id,
             mission_key=snapshot.mission_key,
             step_id=req.step_id,
@@ -392,13 +392,13 @@ def plan_next(
         # Distinguish true completion from unschedulable DAG.
         if _has_remaining_steps(mission_template, snapshot):
             return NextDecision(
-                kind=DecisionKind.blocked,
+                kind=DecisionKind.blocked.value,
                 run_id=snapshot.run_id,
                 mission_key=snapshot.mission_key,
                 reason="No eligible steps: remaining steps have unmet dependencies.",
             )
         return NextDecision(
-            kind=DecisionKind.terminal,
+            kind=DecisionKind.terminal.value,
             run_id=snapshot.run_id,
             mission_key=snapshot.mission_key,
             reason="All mission steps completed",
@@ -409,7 +409,7 @@ def plan_next(
         if step.audit.enforcement == "blocking":
             # Blocking audit → decision_required; input_key is None for audit decisions.
             return NextDecision(
-                kind=DecisionKind.decision_required,
+                kind=DecisionKind.decision_required.value,
                 run_id=snapshot.run_id,
                 mission_key=snapshot.mission_key,
                 step_id=step.id,
@@ -432,7 +432,7 @@ def plan_next(
                 actor_context=actor_context,
             )
             return NextDecision(
-                kind=DecisionKind.step,
+                kind=DecisionKind.step.value,
                 run_id=snapshot.run_id,
                 mission_key=snapshot.mission_key,
                 step_id=step.id,
@@ -452,7 +452,7 @@ def plan_next(
         missing = missing_inputs[0]
         decision_id = f"input:{missing}"
         return NextDecision(
-            kind=DecisionKind.decision_required,
+            kind=DecisionKind.decision_required.value,
             run_id=snapshot.run_id,
             mission_key=snapshot.mission_key,
             step_id=step.id,
@@ -476,7 +476,7 @@ def plan_next(
     prompt = step.prompt or f"Execute step '{step.id}': {step.title}"
 
     return NextDecision(
-        kind=DecisionKind.step,
+        kind=DecisionKind.step.value,
         run_id=snapshot.run_id,
         mission_key=snapshot.mission_key,
         step_id=step.id,
