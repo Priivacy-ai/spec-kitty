@@ -47,6 +47,15 @@ from tests._support.wall_clock_assertions import (
             "Holder.wall_now()",
             9,
         ),
+        (
+            "from datetime import datetime\n\n"
+            "class Holder:\n"
+            "    wall_now = datetime.now\n\n"
+            "def test_bad():\n"
+            "    assert Holder.wall_now().year == 2026\n",
+            "Holder.wall_now()",
+            7,
+        ),
         ("from datetime import datetime\n\nwall_now, other = datetime.now, object()\n\ndef test_bad():\n    assert wall_now().year == 2026\n", "wall_now()", 6),
     ],
 )
@@ -91,6 +100,45 @@ def test_find_wall_clock_assertion_violations_allows_freshness_bounds(tmp_path: 
         "    assert before <= event.timestamp <= after\n",
         encoding="utf-8",
     )
+
+    assert find_wall_clock_assertion_violations([test_file]) == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        (
+            "from datetime import datetime\n\n"
+            "class FakeDateTime:\n"
+            "    @classmethod\n"
+            "    def now(cls):\n"
+            "        return 1\n\n"
+            "def test_good():\n"
+            "    datetime = FakeDateTime\n"
+            "    assert datetime.now() == 1\n"
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "def helper():\n"
+            "    wall_now = datetime.now\n"
+            "    return wall_now\n\n"
+            "def test_good():\n"
+            "    wall_now = lambda: 1\n"
+            "    assert wall_now() == 1\n"
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "class Holder:\n"
+            "    wall_now = datetime.now\n\n"
+            "    def test_good(self):\n"
+            "        wall_now = lambda: 1\n"
+            "        assert wall_now() == 1\n"
+        ),
+    ],
+)
+def test_find_wall_clock_assertion_violations_respects_local_shadowing(tmp_path: Path, source: str) -> None:
+    test_file = tmp_path / "test_good.py"
+    test_file.write_text(source, encoding="utf-8")
 
     assert find_wall_clock_assertion_violations([test_file]) == []
 
