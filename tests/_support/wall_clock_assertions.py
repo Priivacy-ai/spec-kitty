@@ -74,17 +74,43 @@ def _wall_clock_calls(
     assert_node: ast.Assert,
     scopes: list[_AliasMap],
 ) -> list[tuple[ast.Call, str]]:
-    calls: list[tuple[ast.Call, str]] = []
-    for node in ast.walk(assert_node):
-        if not isinstance(node, ast.Call):
-            continue
-        raw_path = _attribute_path(node.func)
-        if not raw_path:
-            continue
-        normalized_path = _normalize_alias(raw_path, scopes)
-        if normalized_path in _BANNED_CALLS:
-            calls.append((node, f"{'.'.join(raw_path)}()"))
-    return calls
+    visitor = _AssertCallVisitor(scopes)
+    visitor.visit(assert_node.test)
+    return visitor.calls
+
+
+class _AssertCallVisitor(ast.NodeVisitor):
+    def __init__(self, scopes: list[_AliasMap]) -> None:
+        self.scopes = [*scopes, {}]
+        self.calls: list[tuple[ast.Call, str]] = []
+
+    @property
+    def scope(self) -> _AliasMap:
+        return self.scopes[-1]
+
+    def visit_Call(self, node: ast.Call) -> None:
+        if isinstance(node.func, ast.NamedExpr):
+            self.visit(node.func.value)
+            self._add_assignment_aliases([node.func.target], node.func.value)
+            raw_path = _attribute_path(node.func.target)
+        else:
+            raw_path = _attribute_path(node.func)
+            self.visit(node.func)
+
+        if raw_path and _normalize_alias(raw_path, self.scopes) in _BANNED_CALLS:
+            self.calls.append((node, f"{'.'.join(raw_path)}()"))
+
+        for arg in node.args:
+            self.visit(arg)
+        for keyword in node.keywords:
+            self.visit(keyword.value)
+
+    def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
+        self.visit(node.value)
+        self._add_assignment_aliases([node.target], node.value)
+
+    def _add_assignment_aliases(self, targets: list[ast.expr], value: ast.expr) -> None:
+        _add_assignment_aliases(self.scopes, self.scope, targets, value)
 
 
 class _WallClockAssertionVisitor(ast.NodeVisitor):
@@ -118,7 +144,11 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         if node.module not in {"datetime", "time"}:
             for alias in node.names:
-                if alias.name != "*":
+                if alias.name == "*":
+                    self._set_shadow(("datetime",))
+                    self._set_shadow(("date",))
+                    self._set_shadow(("time",))
+                else:
                     self._set_shadow((alias.asname or alias.name,))
             return
         for alias in node.names:
@@ -209,6 +239,7 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
         if bind_name:
             self._set_shadow((node.name,))
         local_shadows: _AliasMap = {(name,): None for name in _function_bound_names(node)}
+        local_shadows.update(_function_default_aliases(node, self.scopes))
         if class_aliases:
             for self_name in _method_self_names(node):
                 for path, source in class_aliases.items():
@@ -219,19 +250,7 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
         self.scopes.pop()
 
     def _add_assignment_aliases(self, targets: list[ast.expr], value: ast.expr) -> None:
-        if len(targets) == 1 and isinstance(targets[0], ast.Tuple | ast.List) and isinstance(value, ast.Tuple | ast.List):
-            for target, element in zip(targets[0].elts, value.elts, strict=False):
-                self._add_assignment_aliases([target], element)
-            return
-
-        source = _normalize_alias(_attribute_path(value), self.scopes)
-        if source not in _ALIASABLE_CLOCK_PATHS:
-            self._shadow_targets(targets)
-            return
-        for target in targets:
-            target_path = _attribute_path(target)
-            if target_path:
-                self._set_alias(target_path, source)
+        _add_assignment_aliases(self.scopes, self.scope, targets, value)
 
     def _shadow_targets(self, targets: list[ast.expr]) -> None:
         for target in targets:
@@ -239,10 +258,10 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
                 self._set_shadow(target_path)
 
     def _set_alias(self, target_path: tuple[str, ...], source: tuple[str, ...]) -> None:
-        self.scope[target_path] = source
+        _set_alias(self.scope, target_path, source)
 
     def _set_shadow(self, target_path: tuple[str, ...]) -> None:
-        self.scope[target_path] = None
+        _set_shadow(self.scope, target_path)
 
 
 def _add_star_import_aliases(
@@ -256,13 +275,47 @@ def _add_star_import_aliases(
         aliases[("date",)] = ("datetime", "date")
 
 
+def _add_assignment_aliases(
+    scopes: list[_AliasMap],
+    scope: _AliasMap,
+    targets: list[ast.expr],
+    value: ast.expr,
+) -> None:
+    if len(targets) == 1 and isinstance(targets[0], ast.Tuple | ast.List) and isinstance(value, ast.Tuple | ast.List):
+        for target, element in zip(targets[0].elts, value.elts, strict=False):
+            _add_assignment_aliases(scopes, scope, [target], element)
+        return
+
+    source = _normalize_alias(_attribute_path(value), scopes)
+    if source not in _ALIASABLE_CLOCK_PATHS:
+        for target in targets:
+            for target_path in _assignment_target_paths(target):
+                _set_shadow(scope, target_path)
+        return
+    for target in targets:
+        target_path = _attribute_path(target)
+        if target_path:
+            _set_alias(scope, target_path, source)
+
+
+def _set_alias(scope: _AliasMap, target_path: tuple[str, ...], source: tuple[str, ...]) -> None:
+    scope[target_path] = source
+
+
+def _set_shadow(scope: _AliasMap, target_path: tuple[str, ...]) -> None:
+    for alias_path in list(scope):
+        if len(alias_path) > len(target_path) and alias_path[: len(target_path)] == target_path:
+            del scope[alias_path]
+    scope[target_path] = None
+
+
 def _normalize_alias(
     path: tuple[str, ...],
     scopes: list[_AliasMap],
 ) -> tuple[str, ...]:
-    for index in range(len(path), 0, -1):
-        prefix = path[:index]
-        for scope in reversed(scopes):
+    for scope in reversed(scopes):
+        for index in range(len(path), 0, -1):
+            prefix = path[:index]
             if prefix not in scope:
                 continue
             replacement = scope[prefix]
@@ -279,6 +332,27 @@ def _function_bound_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[s
         visitor.visit(statement)
     names.update(visitor.names - visitor.global_names - visitor.nonlocal_names)
     return names
+
+
+def _function_default_aliases(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    scopes: list[_AliasMap],
+) -> _AliasMap:
+    aliases: _AliasMap = {}
+    positional_args = (*node.args.posonlyargs, *node.args.args)
+    default_offset = len(positional_args) - len(node.args.defaults)
+    for arg, default in zip(positional_args[default_offset:], node.args.defaults, strict=False):
+        source = _normalize_alias(_attribute_path(default), scopes)
+        if source in _ALIASABLE_CLOCK_PATHS:
+            aliases[(arg.arg,)] = source
+
+    for arg, kw_default in zip(node.args.kwonlyargs, node.args.kw_defaults, strict=True):
+        if kw_default is None:
+            continue
+        source = _normalize_alias(_attribute_path(kw_default), scopes)
+        if source in _ALIASABLE_CLOCK_PATHS:
+            aliases[(arg.arg,)] = source
+    return aliases
 
 
 def _method_self_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:

@@ -86,6 +86,20 @@ from tests._support.wall_clock_assertions import (
             8,
         ),
         ("from datetime import datetime\n\nwall_now, other = datetime.now, object()\n\ndef test_bad():\n    assert wall_now().year == 2026\n", "wall_now()", 6),
+        (
+            "from datetime import datetime\n\n"
+            "def test_bad(wall_now=datetime.now):\n"
+            "    assert wall_now().year == 2026\n",
+            "wall_now()",
+            4,
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "def test_bad():\n"
+            "    assert (wall_now := datetime.now)().year == 2026\n",
+            "wall_now()",
+            4,
+        ),
     ],
 )
 def test_find_wall_clock_assertion_violations_flags_direct_assert_calls(
@@ -174,6 +188,25 @@ def test_find_wall_clock_assertion_violations_allows_freshness_bounds(tmp_path: 
             "from fake_datetime import datetime as dt\n\n"
             "def test_good():\n"
             "    assert dt.now() == 1\n"
+        ),
+        (
+            "from datetime import datetime\n"
+            "from fake_datetime import *\n\n"
+            "def test_good():\n"
+            "    assert datetime.now() == 1\n"
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "class Holder:\n"
+            "    pass\n\n"
+            "Holder.wall_now = datetime.now\n\n"
+            "class Fake:\n"
+            "    @staticmethod\n"
+            "    def wall_now():\n"
+            "        return 1\n\n"
+            "Holder = Fake\n\n"
+            "def test_good():\n"
+            "    assert Holder.wall_now() == 1\n"
         ),
     ],
 )
