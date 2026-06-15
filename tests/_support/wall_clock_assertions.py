@@ -112,7 +112,7 @@ class _AssertCallVisitor(ast.NodeVisitor):
         self._add_assignment_aliases([node.target], node.value)
 
     def visit_If(self, node: ast.If) -> None:
-        if _is_static_false(node.test) or _is_type_checking_name(node.test):
+        if _is_static_false(node.test) or _is_type_checking_name(node.test, self.scopes):
             for statement in node.orelse:
                 self.visit(statement)
             return
@@ -167,10 +167,18 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
         self.scopes: list[_AliasMap] = [{}]
         self.global_names_stack: list[set[str]] = []
         self.propagate_global_stack: list[bool] = []
+        self.defer_function_scans = True
+        self.deferred_functions: list[ast.FunctionDef | ast.AsyncFunctionDef] = []
+        self.deferred_classes: list[tuple[str, list[ast.FunctionDef | ast.AsyncFunctionDef]]] = []
 
     @property
     def scope(self) -> _AliasMap:
         return self.scopes[-1]
+
+    def visit_Module(self, node: ast.Module) -> None:
+        for statement in node.body:
+            self.visit(statement)
+        self._scan_deferred_functions()
 
     def visit_Assert(self, node: ast.Assert) -> None:
         for call, call_name in _wall_clock_calls(node, self.scopes):
@@ -185,12 +193,19 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
     def visit_Import(self, node: ast.Import) -> None:
         for alias in node.names:
             parts = tuple(alias.name.split("."))
-            if parts and parts[0] in {"datetime", "time"}:
+            if parts and parts[0] in {"datetime", "time", "typing"}:
                 self._set_alias((alias.asname or parts[0],), parts)
             else:
                 self._set_shadow((alias.asname or parts[0],))
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        if node.module == "typing":
+            for alias in node.names:
+                if alias.name == "TYPE_CHECKING":
+                    self._set_alias((alias.asname or alias.name,), ("typing", "TYPE_CHECKING"))
+                elif alias.name != "*":
+                    self._set_shadow((alias.asname or alias.name,))
+            return
         if node.module not in {"datetime", "time"}:
             for alias in node.names:
                 if alias.name == "*":
@@ -250,7 +265,7 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
         self._add_assignment_aliases([node.target], node.value)
 
     def visit_If(self, node: ast.If) -> None:
-        if _is_static_false(node.test) or _is_type_checking_name(node.test):
+        if _is_static_false(node.test) or _is_type_checking_name(node.test, self.scopes):
             for statement in node.orelse:
                 self.visit(statement)
             return
@@ -261,12 +276,31 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        self._visit_function_scope(node, bind_name=True)
+        if self.defer_function_scans:
+            self._set_shadow((node.name,))
+            if node.name in _MODULE_SETUP_NAMES:
+                _propagate_module_setup_aliases(node, self.scopes)
+            self.deferred_functions.append(node)
+            return
+        self._set_shadow((node.name,))
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        if self.defer_function_scans:
+            self._set_shadow((node.name,))
+            if node.name in _MODULE_SETUP_NAMES:
+                _propagate_module_setup_aliases(node, self.scopes)
+            self.deferred_functions.append(node)
+            return
+        self._set_shadow((node.name,))
+
+    def _scan_function_def(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         self._visit_function_scope(node, bind_name=True)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        if not self.defer_function_scans:
+            self._set_shadow((node.name,))
+            return
+
         self._set_shadow((node.name,))
         deferred_methods: list[ast.FunctionDef | ast.AsyncFunctionDef] = []
 
@@ -282,15 +316,20 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
 
         for path, source in class_aliases.items():
             self._set_alias((node.name, *path), source)
-        for method in deferred_methods:
-            if method.name in _SETUP_METHOD_NAMES:
-                class_aliases.update(_method_instance_aliases(method, self.scopes, class_aliases))
-        for method in deferred_methods:
-            self._visit_function_scope(
-                method,
-                bind_name=False,
-                class_aliases=class_aliases,
-            )
+        self.deferred_classes.append((node.name, deferred_methods))
+
+    def _scan_deferred_functions(self) -> None:
+        self.defer_function_scans = False
+        for function in self.deferred_functions:
+            self._scan_function_def(function)
+        for class_name, methods in self.deferred_classes:
+            class_aliases = _module_class_aliases(self.scopes[0], class_name)
+            for method in methods:
+                if method.name in _SETUP_METHOD_NAMES:
+                    class_aliases.update(_method_instance_aliases(method, self.scopes, class_aliases))
+            for method in methods:
+                self._visit_function_scope(method, bind_name=False, class_aliases=class_aliases)
+        self.defer_function_scans = True
 
     def _visit_function_scope(
         self,
@@ -351,6 +390,71 @@ def _add_star_import_aliases(
     elif module == "datetime":
         aliases[("datetime",)] = ("datetime", "datetime")
         aliases[("date",)] = ("datetime", "date")
+
+
+def _module_class_aliases(
+    module_scope: _AliasMap,
+    class_name: str,
+) -> dict[tuple[str, ...], tuple[str, ...]]:
+    return {
+        alias_path[1:]: source
+        for alias_path, source in module_scope.items()
+        if len(alias_path) > 1 and alias_path[0] == class_name and source is not None
+    }
+
+
+def _propagate_module_setup_aliases(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    scopes: list[_AliasMap],
+) -> None:
+    global_names = _function_global_names(node)
+    if not global_names:
+        return
+    collector = _ModuleSetupAliasCollector(scopes, global_names)
+    for statement in node.body:
+        collector.visit(statement)
+
+
+class _ModuleSetupAliasCollector(ast.NodeVisitor):
+    def __init__(self, scopes: list[_AliasMap], global_names: set[str]) -> None:
+        self.global_names = global_names
+        self.scopes = [*scopes, {}]
+
+    @property
+    def scope(self) -> _AliasMap:
+        return self.scopes[-1]
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        _add_assignment_aliases(self.scopes, self._scope_for_target, node.targets, node.value)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        if node.value is not None:
+            _add_assignment_aliases(self.scopes, self._scope_for_target, [node.target], node.value)
+
+    def visit_If(self, node: ast.If) -> None:
+        if _is_static_false(node.test) or _is_type_checking_name(node.test, self.scopes):
+            for statement in node.orelse:
+                self.visit(statement)
+            return
+        if _is_static_true(node.test):
+            for statement in node.body:
+                self.visit(statement)
+            return
+        self.generic_visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        del node
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        del node
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        del node
+
+    def _scope_for_target(self, target_path: tuple[str, ...]) -> _AliasMap:
+        if len(target_path) == 1 and target_path[0] in self.global_names:
+            return self.scopes[0]
+        return self.scope
 
 
 def _add_assignment_aliases(
@@ -421,8 +525,8 @@ def _is_static_true(node: ast.AST) -> bool:
     return isinstance(node, ast.Constant) and node.value is True
 
 
-def _is_type_checking_name(node: ast.AST) -> bool:
-    return _attribute_path(node) in {("TYPE_CHECKING",), ("typing", "TYPE_CHECKING")}
+def _is_type_checking_name(node: ast.AST, scopes: list[_AliasMap]) -> bool:
+    return _normalize_alias(_attribute_path(node), scopes) == ("typing", "TYPE_CHECKING")
 
 
 def _function_bound_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
@@ -519,7 +623,7 @@ class _MethodInstanceAliasCollector(ast.NodeVisitor):
         _add_assignment_aliases(self.scopes, lambda _: self.scope, [node.target], node.value)
 
     def visit_If(self, node: ast.If) -> None:
-        if _is_static_false(node.test) or _is_type_checking_name(node.test):
+        if _is_static_false(node.test) or _is_type_checking_name(node.test, self.scopes):
             for statement in node.orelse:
                 self.visit(statement)
             return

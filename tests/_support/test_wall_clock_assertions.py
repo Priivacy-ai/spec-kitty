@@ -164,6 +164,46 @@ from tests._support.wall_clock_assertions import (
             "datetime.now()",
             7,
         ),
+        (
+            "from datetime import datetime\n\n"
+            "def test_bad():\n"
+            "    assert wall_now().year == 2026\n\n"
+            "wall_now = datetime.now\n",
+            "wall_now()",
+            4,
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "def test_bad():\n"
+            "    assert wall_now().year == 2026\n\n"
+            "def setup_module():\n"
+            "    global wall_now\n"
+            "    wall_now = datetime.now\n",
+            "wall_now()",
+            4,
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "class TestClock:\n"
+            "    def test_bad(self):\n"
+            "        assert self.wall_now().year == 2026\n\n"
+            "TestClock.wall_now = datetime.now\n",
+            "self.wall_now()",
+            5,
+        ),
+        (
+            "import typing as t\n"
+            "from typing import TYPE_CHECKING as TC\n"
+            "from datetime import datetime\n\n"
+            "if t.TYPE_CHECKING:\n"
+            "    from fake_datetime import datetime\n\n"
+            "if TC:\n"
+            "    from fake_datetime import datetime\n\n"
+            "def test_bad():\n"
+            "    assert datetime.now().year == 2026\n",
+            "datetime.now()",
+            12,
+        ),
     ],
 )
 def test_find_wall_clock_assertion_violations_flags_direct_assert_calls(
