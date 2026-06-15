@@ -789,3 +789,29 @@ def test_project_status_bookkeeping_copies_coord_surface_to_primary_target(
     assert ".worktrees" not in target_status.parts
     assert target_events.read_text(encoding="utf-8") == "new-done-event\n"
     assert target_status.read_text(encoding="utf-8") == '{"WP01": "done"}\n'
+
+
+def test_project_status_bookkeeping_restores_primary_on_projection_failure(
+    coord_branch_mission: dict,
+) -> None:
+    """Projection failure must not leave split-brain primary bookkeeping."""
+    repo_root = coord_branch_mission["repo_root"]
+    primary_dir = coord_branch_mission["primary_dir"]
+    coord_specs = coord_branch_mission["coord_specs"]
+
+    primary_events = primary_dir / "status.events.jsonl"
+    primary_status = primary_dir / "status.json"
+    primary_events.write_text("old-event\n", encoding="utf-8")
+    primary_status.write_text('{"WP01": "approved"}\n', encoding="utf-8")
+    (coord_specs / "status.events.jsonl").write_text("new-done-event\n", encoding="utf-8")
+    (coord_specs / "status.json").mkdir()
+
+    with pytest.raises(IsADirectoryError):
+        _project_status_bookkeeping_to_target(
+            main_repo=repo_root,
+            mission_slug=_COORD_SLUG,
+            status_feature_dir=coord_specs,
+        )
+
+    assert primary_events.read_text(encoding="utf-8") == "old-event\n"
+    assert primary_status.read_text(encoding="utf-8") == '{"WP01": "approved"}\n'

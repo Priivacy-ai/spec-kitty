@@ -830,10 +830,19 @@ def _project_status_bookkeeping_to_target(
     target_events_path.parent.mkdir(parents=True, exist_ok=True)
     source_events_path = status_feature_dir / _STATUS_EVENTS_FILENAME
     source_status_path = status_feature_dir / _STATUS_FILENAME
-    if source_events_path.exists():
-        target_events_path.write_bytes(source_events_path.read_bytes())
-    if source_status_path.exists():
-        target_status_path.write_bytes(source_status_path.read_bytes())
+    source_events_bytes = _read_optional_bytes(source_events_path)
+    source_status_bytes = _read_optional_bytes(source_status_path)
+    original_events_bytes = _read_optional_bytes(target_events_path)
+    original_status_bytes = _read_optional_bytes(target_status_path)
+    try:
+        if source_events_bytes is not None:
+            target_events_path.write_bytes(source_events_bytes)
+        if source_status_bytes is not None:
+            target_status_path.write_bytes(source_status_bytes)
+    except OSError:
+        _restore_optional_bytes(target_events_path, original_events_bytes)
+        _restore_optional_bytes(target_status_path, original_status_bytes)
+        raise
     return target_events_path, target_status_path
 
 
@@ -1306,15 +1315,16 @@ def _resolve_mission_slug(repo_root: Path, mission_slug: str | None) -> str | No
     return _extract_mission_slug(current_branch.strip())
 
 
-def _resolve_merge_state_key(repo_root: Path, mission_slug: str | None) -> str | None:
-    """Return the canonical merge-state key for a resolved mission slug.
+def _merge_state_key_candidates(repo_root: Path, mission_slug: str | None) -> list[str]:
+    """Return merge-state keys to try for a resolved mission slug.
 
     Modern merge state is keyed by mission ULID, while operators usually pass
-    the mission directory slug. If identity resolution is unavailable, return
-    the slug so legacy slug-keyed state and historical error paths still work.
+    the mission directory slug. Legacy interrupted state may still be keyed by
+    slug, so callers must try both.
     """
     if not mission_slug:
-        return None
+        return []
+    keys: list[str] = []
     try:
         feature_dir = candidate_feature_dir_for_mission(
             get_main_repo_root(repo_root),
@@ -1323,10 +1333,65 @@ def _resolve_merge_state_key(repo_root: Path, mission_slug: str | None) -> str |
         if feature_dir.exists():
             identity = resolve_mission_identity(feature_dir)
             if identity.mission_id:
-                return identity.mission_id
+                keys.append(identity.mission_id)
     except Exception as exc:  # noqa: BLE001 - resume/abort must stay cleanup-safe
         logger.debug("Could not resolve merge state key for %s: %s", mission_slug, exc)
-    return mission_slug
+    keys.append(mission_slug)
+    return list(dict.fromkeys(keys))
+
+
+def _iter_merge_states_for_slug(
+    repo_root: Path,
+    mission_slug: str,
+) -> list[tuple[str, MergeState]]:
+    runtime_merge_dir = repo_root / ".kittify" / "runtime" / "merge"
+    if not runtime_merge_dir.exists():
+        return []
+
+    matches: list[tuple[str, MergeState]] = []
+    for candidate in sorted(runtime_merge_dir.iterdir()):
+        if not candidate.is_dir():
+            continue
+        state = load_state(repo_root, candidate.name)
+        if state is not None and state.mission_slug == mission_slug:
+            matches.append((candidate.name, state))
+    return matches
+
+
+def _load_merge_state_for_mission(
+    repo_root: Path,
+    mission_slug: str | None,
+) -> MergeState | None:
+    """Load merge state by modern key, legacy key, then stored mission_slug."""
+    if not mission_slug:
+        return load_state(repo_root)
+
+    for key in _merge_state_key_candidates(repo_root, mission_slug):
+        state = load_state(repo_root, key)
+        if state is not None:
+            return state
+
+    for _key, state in _iter_merge_states_for_slug(repo_root, mission_slug):
+        return state
+    return None
+
+
+def _clear_merge_state_for_mission(repo_root: Path, mission_slug: str | None) -> bool:
+    """Clear every state file that could belong to *mission_slug*."""
+    if not mission_slug:
+        return clear_state(repo_root)
+
+    cleared = False
+    seen: set[str] = set()
+    for key in _merge_state_key_candidates(repo_root, mission_slug):
+        seen.add(key)
+        cleared = clear_state(repo_root, key) or cleared
+
+    for key, _state in _iter_merge_states_for_slug(repo_root, mission_slug):
+        if key in seen:
+            continue
+        cleared = clear_state(repo_root, key) or cleared
+    return cleared
 
 
 def _resolve_target_branch(
@@ -2755,8 +2820,7 @@ def merge(
         mission_slug_raw = (mission or feature or "").strip() or None
         resolved = _resolve_mission_slug(repo_root, mission_slug_raw)
         if resolved:
-            state_key = _resolve_merge_state_key(repo_root, resolved)
-            cleared = clear_state(repo_root, state_key)
+            cleared = _clear_merge_state_for_mission(repo_root, resolved)
             cleanup_merge_workspace(resolved, repo_root)
             # WP07 / FR-016: --abort also tears down the coordination
             # worktree (idempotent; no-op for legacy missions without
@@ -2825,8 +2889,7 @@ def merge(
     if resume:
         mission_slug_raw = (mission or feature or "").strip() or None
         resolved = _resolve_mission_slug(repo_root, mission_slug_raw)
-        state_key = _resolve_merge_state_key(repo_root, resolved)
-        existing_state = load_state(repo_root, state_key)
+        existing_state = _load_merge_state_for_mission(repo_root, resolved)
         if existing_state is None:
             console.print("[red]Error:[/red] No interrupted merge to resume.")
             raise typer.Exit(1)
@@ -3061,7 +3124,8 @@ __all__ = [
     "BaselineMergeCommitError",
     "_mark_wp_merged_done",
     "_project_status_bookkeeping_to_target",
-    "_resolve_merge_state_key",
+    "_load_merge_state_for_mission",
+    "_clear_merge_state_for_mission",
     "_run_lane_based_merge",
     "_is_linear_history_rejection",
     "_emit_remediation_hint",
