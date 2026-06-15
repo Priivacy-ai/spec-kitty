@@ -370,30 +370,36 @@ def _merge_head_exists(worktree: Path) -> bool:
     return result.returncode == 0
 
 
-def _staged_status_event_dirs(worktree: Path) -> tuple[set[Path], str | None]:
+def _staged_status_artifact_dirs(worktree: Path) -> tuple[set[Path], str | None]:
     result = _run(["git", "diff", "--name-status", "--cached"], worktree)
     if result.returncode != 0:
         return set(), result.stderr.strip() or result.stdout.strip()
 
     feature_dirs: set[Path] = set()
     for raw in result.stdout.splitlines():
-        status, _, rel_path = raw.strip().partition("\t")
-        if not rel_path and status:
-            rel_path = status
-            status = ""
-        if not rel_path or not _is_status_events_path(rel_path):
+        fields = raw.strip().split("\t")
+        if not fields:
             continue
-        if status.startswith("D"):
-            return set(), f"{RULE_ID_STATUS_EVENTS}: refusing staged deletion of {rel_path}"
-        feature_dirs.add((worktree / rel_path).parent)
+        status = fields[0]
+        rel_paths = fields[1:] or [status]
+        for rel_path in rel_paths:
+            if _is_status_events_path(rel_path):
+                if status.startswith(("D", "R")):
+                    return set(), (
+                        f"{RULE_ID_STATUS_EVENTS}: refusing staged deletion "
+                        f"of {rel_path}"
+                    )
+                feature_dirs.add((worktree / rel_path).parent)
+            elif _is_status_json_path(rel_path):
+                feature_dirs.add((worktree / rel_path).parent)
     return feature_dirs, None
 
 
-def _refresh_status_json_for_staged_events(
+def _refresh_status_json_for_staged_artifacts(
     worktree: Path,
     classifications: list[ConflictClassification],
 ) -> str | None:
-    feature_dirs, error = _staged_status_event_dirs(worktree)
+    feature_dirs, error = _staged_status_artifact_dirs(worktree)
     if error is not None:
         if error.startswith(f"{RULE_ID_STATUS_EVENTS}:"):
             return error
@@ -674,7 +680,7 @@ def _finalize_auto_rebase(
             worktree_path,
         )
 
-    halt_reason = _refresh_status_json_for_staged_events(worktree_path, classifications)
+    halt_reason = _refresh_status_json_for_staged_artifacts(worktree_path, classifications)
     if halt_reason is not None:
         return _abort_with_failure(
             worktree_path, lane_id, classifications, halt_reason,
@@ -744,7 +750,7 @@ def attempt_auto_rebase(
     )
     if merge_result.returncode == 0:
         clean_classifications: list[ConflictClassification] = []
-        halt_reason = _refresh_status_json_for_staged_events(
+        halt_reason = _refresh_status_json_for_staged_artifacts(
             worktree_path, clean_classifications
         )
         if halt_reason is not None:

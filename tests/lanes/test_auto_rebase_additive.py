@@ -1163,6 +1163,61 @@ class TestAutoRebaseAdditive:
         assert not (worktree_b / status_json_rel).exists()
         assert _run(["git", "status", "--porcelain"], worktree_b).stdout == ""
 
+    def test_clean_status_json_only_change_is_rematerialized(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        repo = _init_repo(tmp_path)
+        mission_slug = "1968-clean-status-json-only"
+        mission_branch = f"kitty/mission-{mission_slug}"
+        mission_dir = Path("kitty-specs") / mission_slug
+        status_events_rel = mission_dir / "status.events.jsonl"
+        status_json_rel = mission_dir / "status.json"
+        base_event = _status_event(
+            "01AAA000000000000000000001",
+            at="2026-06-15T04:00:00Z",
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            from_lane="genesis",
+            to_lane="planned",
+        )
+
+        _write_status_events(repo / status_events_rel, [base_event])
+        (repo / status_json_rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / status_json_rel).write_text('{"event_count": 1}\n', encoding="utf-8")
+        _run(["git", "add", str(mission_dir)], repo)
+        _run(["git", "commit", "-m", "seed status snapshot artifacts"], repo)
+
+        _run(["git", "branch", mission_branch, "main"], repo)
+        _run(["git", "checkout", mission_branch], repo)
+        (repo / status_json_rel).write_text("not-json\n", encoding="utf-8")
+        _run(["git", "add", str(status_json_rel)], repo)
+        _run(["git", "commit", "-m", "mission: corrupt derived status snapshot"], repo)
+        _run(["git", "checkout", "main"], repo)
+
+        branch_b = f"kitty/mission-{mission_slug}-lane-a"
+        worktree_b = _make_lane_worktree(repo, mission_slug, "lane-a", branch_b)
+        _run(["git", "config", "user.email", "test@spec-kitty"], worktree_b)
+        _run(["git", "config", "user.name", "test"], worktree_b)
+        (worktree_b / "src").mkdir(exist_ok=True)
+        (worktree_b / "src" / "lane-only.txt").write_text("lane\n", encoding="utf-8")
+        _run(["git", "add", "src/lane-only.txt"], worktree_b)
+        _run(["git", "commit", "-m", "lane: unrelated work"], worktree_b)
+
+        report = attempt_auto_rebase(
+            lane=_make_lane(),
+            branch=branch_b,
+            mission_branch=mission_branch,
+            repo_root=repo,
+            worktree_path=worktree_b,
+        )
+
+        assert report.succeeded is True, report.halt_reason
+        committed_status = json.loads((worktree_b / status_json_rel).read_text(encoding="utf-8"))
+        assert committed_status["event_count"] == 1
+        assert sorted(committed_status["work_packages"]) == ["WP01"]
+        assert _run(["git", "status", "--porcelain"], worktree_b).stdout == ""
+
     def test_clean_status_events_deletion_fails_closed(
         self,
         tmp_path: Path,
