@@ -1,0 +1,1 @@
+Completed Alphonso artifact-home contract fix for #1997/#1998/#1999 with tests, implementation, and verification.

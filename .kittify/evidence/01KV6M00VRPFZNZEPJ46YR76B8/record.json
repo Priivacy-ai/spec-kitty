@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KV6M00VRPFZNZEPJ46YR76B8",
+  "completed_at": "2026-06-15T21:49:01.300529+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "Implemented artifact-home contract and targeted regressions pass: 7 passed."
+}

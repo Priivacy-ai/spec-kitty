@@ -1,0 +1,1 @@
+Targeted red test failed at collection: MissionArtifactKind not exported from mission_runtime.

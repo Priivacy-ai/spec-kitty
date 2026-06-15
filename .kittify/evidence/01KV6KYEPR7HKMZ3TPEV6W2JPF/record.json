@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KV6KYEPR7HKMZ3TPEV6W2JPF",
+  "completed_at": "2026-06-15T21:46:18.912448+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "Targeted red test failed at collection: MissionArtifactKind not exported from mission_runtime."
+}

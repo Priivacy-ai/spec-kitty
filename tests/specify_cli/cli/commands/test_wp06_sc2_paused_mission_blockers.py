@@ -56,16 +56,36 @@ class TestRecordAnalysisCoordResidueNoDeadlock:
         git("config", "user.name", "Test")
         mission_dir = repo / "kitty-specs" / "residue-01ABCDEF"
         mission_dir.mkdir(parents=True)
-        # Seed + commit the coord-owned status files so they are *tracked*; a
+        # Seed + commit coord-owned finalized artifacts so they are *tracked*; a
         # later edit makes them show up as worktree-modified residue.
         for name in sorted(COORD_OWNED_STATUS_FILES):
             (mission_dir / name).write_text("{}\n", encoding="utf-8")
+        for rel_path in (
+            "plan.md",
+            "tasks.md",
+            "tasks/WP01.md",
+            "lanes.json",
+            "acceptance-matrix.json",
+            "issue-matrix.md",
+        ):
+            path = mission_dir / rel_path
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("seed\n", encoding="utf-8")
         git("add", "-A")
-        git("commit", "-m", "seed status files")
-        # The coord branch is now the canonical owner of these files; the primary
-        # checkout edit below is exactly the "coord residue" that deadlocked #1814.
+        git("commit", "-m", "seed coord-owned artifacts")
+        # The coord branch is now the canonical owner; the primary checkout edit
+        # below is exactly the coord residue that deadlocked #1814/#1998.
         for name in sorted(COORD_OWNED_STATUS_FILES):
             (mission_dir / name).write_text('{"stale": true}\n', encoding="utf-8")
+        for rel_path in (
+            "plan.md",
+            "tasks.md",
+            "tasks/WP01.md",
+            "lanes.json",
+            "acceptance-matrix.json",
+            "issue-matrix.md",
+        ):
+            (mission_dir / rel_path).write_text("stale primary residue\n", encoding="utf-8")
         return repo
 
     def test_coord_residue_does_not_block_record_analysis(
