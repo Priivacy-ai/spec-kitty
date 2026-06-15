@@ -12,7 +12,7 @@ Spec Kitty accumulates maintenance debt when bug fixes land without removing the
 
 ## Problem Statement
 
-Four unresolved defects degrade contributor productivity and CI signal quality:
+Six unresolved defects degrade contributor productivity and CI signal quality:
 
 1. A test in `tests/adversarial/test_distribution.py` carries an `xfail` marker whose stated reason — that `spec-kitty init` prompts for agent strategy despite `--ai` being passed — is factually wrong. That bug was already fixed. The marker now suppresses all regression detection for the init-with-`--ai` code path.
 
@@ -21,6 +21,10 @@ Four unresolved defects degrade contributor productivity and CI signal quality:
 3. `spec-kitty charter bundle validate` fails on any fresh checkout of the spec-kitty repository. The synthesizer writes generated doctrine artifacts into plural-named directories (`directives/`, `tactics/`, `styleguides/`), while the gitignore policy only whitelists singular names. Seven provenance sidecar placeholders were committed without the artifacts they reference, and the validator's early-exit logic does not account for the fresh-seed (`built_in_only: true`) manifest state.
 
 4. Adding a provider to the tool surface subsystem requires hand-editing four co-located regions of a single coordinator file simultaneously. Every parallel-lane mission that adds a provider therefore produces a near-certain merge conflict on that file, requiring manual union resolution.
+
+5. `spec-kitty agent tasks map-requirements` resolves `spec.md` from the coord worktree rather than the main checkout. The coord worktree does not contain `spec.md`, so the command always errors with "spec.md not found" when a coord worktree exists — making the documented `map-requirements` → `finalize-tasks` workflow unreachable without a manual workaround.
+
+6. `finalize-tasks --validate-only` emits a generic "no match for path" ownership error when an `owned_files` entry lists a file not yet on disk. The `create_intent` frontmatter field exists to suppress this check for planned-new-files, but the error message does not mention it. Agents and authors must discover the fix by trial and error, and may incorrectly conclude that their WP frontmatter is wrong rather than that a declaration is missing.
 
 ## Users
 
@@ -42,6 +46,12 @@ A contributor clones the spec-kitty repository and runs `spec-kitty charter bund
 ### Scenario 4 — Two parallel lanes add providers without conflict
 Two contributors working in parallel lanes each create a new tool surface provider. When their lanes are merged, there is no conflict in the central coordinator file — each provider declares its own registration in its own module, and the coordinator derives its configuration from the registration store at assembly time.
 
+### Scenario 5 — Agent runs map-requirements after plan phase
+A contributor runs `spec-kitty agent tasks map-requirements --wp WP01 --refs FR-001 --mission <slug>` immediately after plan setup. A coord worktree is present. The command locates `spec.md` from the main checkout and maps the requirements successfully, returning a coverage summary without error.
+
+### Scenario 6 — Author gets clear guidance on planned-new-file ownership
+A contributor writes a WP with `owned_files` listing a file to be created during implementation. They run `finalize-tasks --validate-only` to preflight the tasks file. The error message explicitly tells them to add `create_intent` for the missing path, and they resolve it in one edit without searching docs or source.
+
 ---
 
 ## Functional Requirements
@@ -58,6 +68,8 @@ Two contributors working in parallel lanes each create a new tool surface provid
 | FR-008 | The provider registration mechanism must support providers that contribute multiple definitions (one-to-many), providers that register under a synthetic key rather than the standard per-tool-key fan-out, and providers that declare multiple CLI token aliases for a single kind. | Proposed |
 | FR-009 | The tool surface coordinator must derive all provider configuration — kind-token mapping, provider list, and definition registration — entirely from the registration store. A conformance test must assert that the coordinator file contains no central provider literal lists. | Proposed |
 | FR-010 | Provider registration ordering must be deterministic across Python processes. It must not depend on import order or filesystem enumeration order. | Proposed |
+| FR-011 | `spec-kitty agent tasks map-requirements` must resolve `spec.md` from the target branch HEAD of the main checkout, not from the coord worktree. When a coord worktree is present but does not contain `spec.md`, the command must resolve the spec file from the main checkout rather than erroring. | Proposed |
+| FR-012 | When `finalize-tasks --validate-only` encounters an `owned_files` entry that matches no files on disk, the error or warning output must include explicit guidance that `create_intent` can be used to declare planned-new-files not yet created during implementation. The hint must name the field and the missing path. | Proposed |
 
 ---
 
@@ -89,7 +101,9 @@ Two contributors working in parallel lanes each create a new tool surface provid
 1. `tests/adversarial/test_distribution.py::TestUpgradeWithAllMissions::test_upgrade_updates_templates` produces PASS or FAIL — never XFAIL or XPASS — and a future regression in init-with-`--ai` is immediately visible as a test failure.
 2. `spec-kitty charter bundle validate` exits 0 on a fresh clone of the spec-kitty repository with no project-level synthesis artifacts committed.
 3. Two contributors can each add a separate tool surface provider in parallel lanes and complete a merge with zero conflicts in the coordinator file.
-4. The full test suite passes with no new failures, type errors, or linter issues introduced by this mission.
+4. `spec-kitty agent tasks map-requirements` succeeds when a coord worktree is present and resolves spec.md from the main checkout.
+5. `finalize-tasks --validate-only` ownership errors for zero-match paths include a `create_intent` hint naming the missing path.
+6. The full test suite passes with no new failures, type errors, or linter issues introduced by this mission.
 
 ---
 
@@ -137,4 +151,6 @@ Two contributors working in parallel lanes each create a new tool surface provid
 - Closes #1950 (tool_surface provider-discovery seam)
 - Closes #1949 (branch_naming mid8 test coverage gap)
 - Closes #1947 (charter bundle validate + gitignored artifacts)
+- Closes #1981 (map-requirements resolves spec.md from coord worktree instead of main checkout)
+- Closes #1982 (finalize-tasks --validate-only gives no hint for create_intent on planned-new-files)
 - Dropped: #1951 (closed as won't-fix)
