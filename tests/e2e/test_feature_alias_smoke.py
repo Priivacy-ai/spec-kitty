@@ -140,7 +140,7 @@ def test_feature_alias_rejected_by_agent_tasks_status(tmp_path: Path) -> None:
             "Expected exit 2 (unknown option) for --feature after alias removal, "
             f"got {feature_result.exit_code}.\nOutput:\n{feature_result.output}"
         )
-        assert "no such option" in (feature_result.output or "").lower() or feature_result.exit_code != 0, (
+        assert "no such option" in (feature_result.output or "").lower(), (
             "Expected 'No such option' error message for --feature.\n"
             f"Output:\n{feature_result.output}"
         )
