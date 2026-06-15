@@ -1,13 +1,12 @@
 """Regression for #1916 (WP08): accept readiness must be side-effect-free.
 
-Root cause (documented in ``acceptance/__init__.py`` and ``sync/events.py``): the
-accept readiness path emits sync events through ``sync.events.get_emitter()``, whose
-first-init eagerly called ``identity.project.ensure_identity(repo_root)``. On a project
-with incomplete identity that call **writes** ``.kittify/config.yaml``. In
-``--no-commit``/diagnose modes the write is never folded into a commit, so a second
+Root cause (documented in ``acceptance/__init__.py`` and ``sync/events.py``): readiness
+paths can initialize ``sync.events.get_emitter()`` while running in no-write modes. If
+that initialization eagerly calls ``identity.project.ensure_identity(repo_root)`` on a
+project with incomplete identity, it writes ``.kittify/config.yaml`` and a second
 readiness run trips on a file the gate itself wrote. PR #1908 papered over it with
-``_filter_accept_owned_project_config``; this WP removes the *write* from the readiness
-path (``get_emitter`` resolves identity read-only) and retires that stopgap.
+``_filter_accept_owned_project_config``; this WP removes the *write* from the explicit
+readiness path while preserving default sync identity persistence.
 
 Two RED preconditions (squad note — without BOTH the test is green-from-start):
 
@@ -29,6 +28,7 @@ import json
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
@@ -93,16 +93,15 @@ def test_incomplete_identity_precondition(tmp_path: Path) -> None:
     assert not identity.is_complete, "fixture identity must be incomplete to reproduce #1916"
 
 
-def test_get_emitter_does_not_persist_identity(
+def test_get_emitter_read_only_identity_does_not_persist_identity(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Headline #1916 regression on the documented readiness seam.
+    """Headline #1916 regression on the explicit readiness seam.
 
-    Initializing the emitter (the eager-init path readiness reaches) on a project with
-    incomplete identity must NOT write ``.kittify/config.yaml``. With today's code
-    (pre-fix) ``get_emitter()`` persists the minted identity, so this FAILS. After the
-    fix the emitter resolves identity read-only and the file is byte-unchanged.
+    Initializing the emitter in readiness mode on a project with incomplete identity
+    must NOT write ``.kittify/config.yaml``. Normal sync emission remains a writing
+    boundary; readiness callers opt into read-only identity explicitly.
     """
     repo_root = (tmp_path / "repo").resolve()
     repo_root.mkdir()
@@ -122,7 +121,7 @@ def test_get_emitter_does_not_persist_identity(
     mtime_before = config_path.stat().st_mtime_ns
 
     reset_emitter()  # RED precondition 2: exercise the eager-init identity path.
-    emitter = get_emitter()
+    emitter = get_emitter(read_only_identity=True)
     assert emitter is not None, "emitter must still be available (event emission not regressed)"
 
     bytes_after = config_path.read_bytes()
@@ -136,6 +135,29 @@ def test_get_emitter_does_not_persist_identity(
     # Identity must remain in-memory-available even though it was not persisted.
     on_disk = load_identity(config_path)
     assert not on_disk.is_complete, "readiness must not complete identity on disk"
+
+
+def test_get_emitter_default_persists_identity_for_sync_provenance(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Default sync emitter init persists identity so event provenance is stable."""
+    repo_root = (tmp_path / "repo").resolve()
+    repo_root.mkdir()
+    _git(repo_root, "init")
+    config_path = _write_incomplete_config(repo_root)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
+    monkeypatch.delenv("SPEC_KITTY_SYNC_READONLY_IDENTITY", raising=False)
+    monkeypatch.chdir(repo_root)
+
+    reset_emitter()
+    with patch("specify_cli.sync.runtime.get_runtime", return_value=MagicMock()):
+        emitter = get_emitter()
+
+    persisted = load_identity(config_path)
+    assert persisted.is_complete, "normal sync emitter init must persist identity"
+    assert emitter._get_identity().project_uuid == persisted.project_uuid
+    assert emitter._get_identity().build_id == persisted.build_id
 
 
 def test_write_authorized_ensure_identity_still_persists(tmp_path: Path) -> None:
@@ -292,7 +314,7 @@ def _run_readiness(repo_root: Path) -> int | None:
     reset_emitter()
     # Force the emitter to initialize on the readiness path, mirroring real usage
     # where prior events / an active sync session have already created it.
-    get_emitter()
+    get_emitter(read_only_identity=True)
     exit_code: int | None = 0
     try:
         accept(
