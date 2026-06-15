@@ -88,15 +88,46 @@ def _import_aliases(tree: ast.AST) -> dict[str, tuple[str, ...]]:
         elif isinstance(node, ast.ImportFrom) and node.module in {"datetime", "time"}:
             for alias in node.names:
                 if alias.name == "*":
+                    _add_star_import_aliases(aliases, node.module)
                     continue
                 aliases[alias.asname or alias.name] = (node.module, alias.name)
+        elif isinstance(node, ast.Assign):
+            _add_assignment_aliases(aliases, node.targets, node.value)
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            _add_assignment_aliases(aliases, [node.target], node.value)
     return aliases
+
+
+def _add_star_import_aliases(
+    aliases: dict[str, tuple[str, ...]],
+    module: str | None,
+) -> None:
+    if module == "time":
+        aliases["time"] = ("time", "time")
+    elif module == "datetime":
+        aliases["datetime"] = ("datetime", "datetime")
+        aliases["date"] = ("datetime", "date")
+
+
+def _add_assignment_aliases(
+    aliases: dict[str, tuple[str, ...]],
+    targets: list[ast.expr],
+    value: ast.expr,
+) -> None:
+    source = _normalize_alias(_attribute_path(value), aliases)
+    if source not in _BANNED_CALLS:
+        return
+    for target in targets:
+        if isinstance(target, ast.Name):
+            aliases[target.id] = source
 
 
 def _normalize_alias(
     path: tuple[str, ...],
     aliases: dict[str, tuple[str, ...]],
 ) -> tuple[str, ...]:
+    if not path:
+        return path
     replacement = aliases.get(path[0])
     if replacement is None:
         return path
