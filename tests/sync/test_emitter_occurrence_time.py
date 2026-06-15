@@ -80,6 +80,7 @@ class TestEmitWpStatusChangedOccurredAt:
         assert event["timestamp"] == PRODUCER_TIME_ISO
 
     def test_method_without_occurred_at_mints_fresh(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        before = datetime.now(UTC)
         event = emitter.emit_wp_status_changed(
             wp_id="WP02",
             from_lane="planned",
@@ -87,9 +88,10 @@ class TestEmitWpStatusChangedOccurredAt:
             actor="test",
             mission_slug="test-mission",
         )
+        after = datetime.now(UTC)
         assert event is not None
         emitted = datetime.fromisoformat(event["timestamp"].replace("Z", "+00:00"))
-        assert emitted.year == datetime.now(UTC).year
+        assert before <= emitted <= after
 
 
 class TestSaasFanOutThreadsAt:
