@@ -1822,8 +1822,20 @@ def record_analysis(
 
         from specify_cli.analysis_report import write_analysis_report
 
+        # #1989: the write destination must be the PRIMARY-checkout mission dir,
+        # not the coord-aware ``feature_dir`` from ``_find_feature_directory``
+        # (which resolves to the coordination worktree once one exists — and that
+        # worktree lacks ``spec.md``, so ``write_analysis_report`` would fail with
+        # "Required artifact missing"). ``primary_feature_dir_for_mission`` is the
+        # topology-blind anchor already used elsewhere in this module; the
+        # coord-aware ``feature_dir`` still drives the placement-ref and dirty-tree
+        # preflight above.
+        from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+
+        write_feature_dir = primary_feature_dir_for_mission(repo_root, feature_dir.name)
+
         result = write_analysis_report(
-            feature_dir=feature_dir,
+            feature_dir=write_feature_dir,
             repo_root=repo_root,
             body=body,
             analyzer_agent=analyzer_agent,
@@ -1835,7 +1847,7 @@ def record_analysis(
             )
 
             trigger_feature_dossier_sync_if_enabled(
-                feature_dir,
+                write_feature_dir,
                 result.mission_slug,
                 repo_root,
             )
