@@ -1,0 +1,3 @@
+{"event": "started", "invocation_id": "01KV4X5K83ZFGNJ7HBJ3C6VY73", "profile_id": "python-pedro", "action": "generate", "request_text": "Implement issue #1972 fix with regression tests", "actor": "operator", "mode_of_work": "task_execution", "governance_context_hash": "9acc95a653fe7b0f", "governance_context_available": true, "started_at": "2026-06-15T05:48:17.469748+00:00"}
+{"event": "completed", "invocation_id": "01KV4X5K83ZFGNJ7HBJ3C6VY73", "completed_at": "2026-06-15T05:53:07.986249+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "commit_link", "invocation_id": "01KV4X5K83ZFGNJ7HBJ3C6VY73", "at": "2026-06-15T05:53:07.986692+00:00", "sha": "5325623fd"}
