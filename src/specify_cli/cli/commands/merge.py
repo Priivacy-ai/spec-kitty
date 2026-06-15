@@ -815,6 +815,23 @@ def _restore_final_bookkeeping_snapshots(
             _restore_optional_bytes(path, original)
 
 
+def _target_branch_still_at_baseline(
+    main_repo: Path,
+    target_branch: str,
+    baseline_sha: str,
+) -> bool:
+    """Return True when target still points at the pre-target-merge baseline."""
+    if not baseline_sha or baseline_sha == "HEAD~1":
+        return False
+    ret, out, _err = run_command(
+        ["git", "rev-parse", target_branch],
+        capture=True,
+        check_return=False,
+        cwd=main_repo,
+    )
+    return ret == 0 and out.strip() == baseline_sha
+
+
 def _project_status_bookkeeping_to_target(
     *,
     main_repo: Path,
@@ -2344,6 +2361,7 @@ def _run_lane_based_merge_locked(
     canonical_events_path = status_surface_path
     canonical_status_path = status_surface_path.parent / _STATUS_FILENAME
     merge_state_path = get_state_path(main_repo, state.mission_id)
+    pre_target_bookkeeping_snapshots: dict[Path, bytes | None] = {}
     final_bookkeeping_snapshots: dict[Path, bytes | None] = {}
     mission_number_meta_path: Path | None = None
     mission_already_applied = False
@@ -2370,7 +2388,7 @@ def _run_lane_based_merge_locked(
         )
 
         if done_marked_before_target:
-            final_bookkeeping_snapshots.update(
+            pre_target_bookkeeping_snapshots.update(
                 {
                     canonical_events_path: _read_optional_bytes(canonical_events_path),
                     canonical_status_path: _read_optional_bytes(canonical_status_path),
@@ -2393,7 +2411,7 @@ def _run_lane_based_merge_locked(
                     all_wp_ids=all_wp_ids,
                 )
             except Exception:
-                _restore_final_bookkeeping_snapshots(final_bookkeeping_snapshots)
+                _restore_final_bookkeeping_snapshots(pre_target_bookkeeping_snapshots)
                 raise
 
         # -- Mission-to-target merge (T010: honor strategy for this step only) --
@@ -2408,13 +2426,22 @@ def _run_lane_based_merge_locked(
         )
         _allow_noop = is_resume and _mission_integrated_into_target
         console.print(f"  [dim]Merging mission branch into {lanes_manifest.target_branch}...[/dim]")
-        mission_result = merge_mission_to_target(
-            main_repo,
-            mission_slug,
-            lanes_manifest,
-            strategy=strategy,
-            allow_already_applied=_allow_noop,
-        )
+        try:
+            mission_result = merge_mission_to_target(
+                main_repo,
+                mission_slug,
+                lanes_manifest,
+                strategy=strategy,
+                allow_already_applied=_allow_noop,
+            )
+        except Exception:
+            if done_marked_before_target and _target_branch_still_at_baseline(
+                main_repo,
+                lanes_manifest.target_branch,
+                target_baseline_sha,
+            ):
+                _restore_final_bookkeeping_snapshots(pre_target_bookkeeping_snapshots)
+            raise
         mission_already_applied = getattr(mission_result, "already_applied", False) is True
         # FR-037 fail-loud: a no-op result is only acceptable when the mission
         # branch was genuinely already integrated AND no un-integrated lane code
@@ -2435,6 +2462,12 @@ def _run_lane_based_merge_locked(
                 f"target: {lanes_manifest.target_branch}. "
                 "Inspect the lane branches and rerun, or `spec-kitty merge --abort`."
             )
+            if done_marked_before_target and _target_branch_still_at_baseline(
+                main_repo,
+                lanes_manifest.target_branch,
+                target_baseline_sha,
+            ):
+                _restore_final_bookkeeping_snapshots(pre_target_bookkeeping_snapshots)
             raise typer.Exit(1)
         if not mission_result.success:
             # T005: tolerate already-merged on retry
@@ -2444,6 +2477,12 @@ def _run_lane_based_merge_locked(
             else:
                 for error in mission_result.errors:
                     console.print(f"[red]Error:[/red] {error}")
+                if done_marked_before_target and _target_branch_still_at_baseline(
+                    main_repo,
+                    lanes_manifest.target_branch,
+                    target_baseline_sha,
+                ):
+                    _restore_final_bookkeeping_snapshots(pre_target_bookkeeping_snapshots)
                 raise typer.Exit(1)
         else:
             console.print(f"\n[green]✓[/green] {lanes_manifest.mission_branch} → {lanes_manifest.target_branch}")

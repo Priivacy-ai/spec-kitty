@@ -447,8 +447,6 @@ def test_final_bookkeeping_commit_failure_restores_uncommitted_surfaces(
     coord_events = coord_feature_dir / "status.events.jsonl"
     coord_status = coord_feature_dir / "status.json"
 
-    original_coord_events = coord_events.read_bytes()
-
     with _merge_external_mocks() as mocks:
         mocks["safe_commit"].side_effect = RuntimeError("final bookkeeping refused")
         with pytest.raises(RuntimeError, match="final bookkeeping refused"):
@@ -468,17 +466,63 @@ def test_final_bookkeeping_commit_failure_restores_uncommitted_surfaces(
     assert primary_status.read_bytes() == committed_status
     assert json.loads(primary_meta.read_text(encoding="utf-8")) == committed_meta
     assert "baseline_merge_commit" not in committed_meta
-    assert coord_events.read_bytes() == original_coord_events
-    assert not coord_status.exists()
+    assert b'"to_lane": "done"' in coord_events.read_bytes()
+    assert coord_status.exists()
+    assert _git(_coord_worktree(tmp_path), "status", "--porcelain").stdout == ""
 
     from specify_cli.merge.state import load_state
 
     state = load_state(tmp_path, MISSION_ID)
     assert state is not None
-    assert state.completed_wps == []
+    assert state.completed_wps == list(_WP_IDS)
     assert _git(
         tmp_path, "status", "--porcelain", "--", f"kitty-specs/{MISSION_SLUG}"
     ).stdout == ""
+
+
+def test_post_target_invariant_failure_keeps_coord_resume_state_truthful(
+    tmp_path: Path,
+) -> None:
+    """After target advances, rollback must not rewind committed coord done state."""
+    _init_git_repo(tmp_path)
+    feature_dir = _bootstrap_coord_mission(tmp_path)
+    coord_feature_dir = _coord_worktree(tmp_path) / "kitty-specs" / MISSION_SLUG
+
+    primary_events = feature_dir / "status.events.jsonl"
+    primary_status = feature_dir / "status.json"
+    primary_meta = feature_dir / "meta.json"
+    coord_events = coord_feature_dir / "status.events.jsonl"
+    coord_status = coord_feature_dir / "status.json"
+
+    with _merge_external_mocks() as mocks:
+        mocks["porcelain"].return_value = ([" M src/unexpected.py"], 0)
+        with pytest.raises(typer.Exit):
+            _run_merge(tmp_path)
+        mocks["safe_commit"].assert_not_called()
+
+    committed_events = _git(
+        tmp_path, "show", f"HEAD:kitty-specs/{MISSION_SLUG}/status.events.jsonl"
+    ).stdout.encode()
+    committed_status = _git(
+        tmp_path, "show", f"HEAD:kitty-specs/{MISSION_SLUG}/status.json"
+    ).stdout.encode()
+    committed_meta = json.loads(
+        _git(tmp_path, "show", f"HEAD:kitty-specs/{MISSION_SLUG}/meta.json").stdout
+    )
+
+    assert primary_events.read_bytes() == committed_events
+    assert primary_status.read_bytes() == committed_status
+    assert json.loads(primary_meta.read_text(encoding="utf-8")) == committed_meta
+    assert "baseline_merge_commit" not in committed_meta
+    assert b'"to_lane": "done"' in coord_events.read_bytes()
+    assert coord_status.exists()
+    assert _git(_coord_worktree(tmp_path), "status", "--porcelain").stdout == ""
+
+    from specify_cli.merge.state import load_state
+
+    state = load_state(tmp_path, MISSION_ID)
+    assert state is not None
+    assert state.completed_wps == list(_WP_IDS)
 
 
 # ---------------------------------------------------------------------------
