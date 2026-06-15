@@ -1,0 +1,29 @@
+{
+  "accept_commit": "5a0be7513ae1204464512e687f8d61b94f3d37d1",
+  "acceptance_history": [
+    {
+      "accept_commit": "5a0be7513ae1204464512e687f8d61b94f3d37d1",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-15T05:04:10.802065+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "91a963e0fb12fa9f00f32d3f2a47c9f3290d59af"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-15T05:04:10.802065+00:00",
+  "accepted_by": "robert",
+  "accepted_from_commit": "91a963e0fb12fa9f00f32d3f2a47c9f3290d59af",
+  "baseline_merge_commit": "db6acc2ca4d1e4ddc6b2acf9bf74fc2e69aa0135",
+  "coordination_branch": "kitty/mission-agent-profile-projection-plugin-production-01KV3NGS",
+  "created_at": "2026-06-14T18:15:19.726919+00:00",
+  "friendly_name": "Agent Profile Projection and Plugin Production Pipeline",
+  "mission_id": "01KV3NGSDCJ272573TF6T6NWDW",
+  "mission_number": 136,
+  "mission_slug": "agent-profile-projection-plugin-production-01KV3NGS",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "rc44 added the ToolSurfaceContract registry and staging plugin bundles but stopped short of wiring them into init/upgrade and shipping production plugin artifacts. This mission closes the gap: native agent profiles appear in Claude Code, Codex, and VS Code automatically after upgrade; drifted generated files are handled safely with a drift-protection policy; and the Claude Code plugin has a full build/validate/release path with a git-based marketplace. Every configured harness either shows agents or shows an explicit not_applicable finding — no silent gaps.",
+  "purpose_tldr": "Spec Kitty agent profiles project automatically into every configured harness after init or upgrade, with a production Claude Code plugin and full drift protection.",
+  "slug": "agent-profile-projection-plugin-production-01KV3NGS",
+  "target_branch": "feat/agent-profile-projection-plugin-production"
+}

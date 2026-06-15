@@ -23,7 +23,7 @@ AGENT_DIRS: list[tuple[str, str]] = [
     (".windsurf", "workflows"),
     (".kilocode", "workflows"),
     (".augment", "commands"),
-    (".roo", "commands"),
+    # ".roo" removed — Roo Code shut down on 2026-05-15 (C-007)
     (".amazonq", "prompts"),
     (".kiro", "prompts"),
     (".agent", "workflows"),
@@ -41,7 +41,7 @@ AGENT_DIR_TO_KEY = {
     ".windsurf": "windsurf",
     ".kilocode": "kilocode",
     ".augment": "auggie",  # auggie, not augment
-    ".roo": "roo",
+    # ".roo" removed — Roo Code shut down on 2026-05-15 (C-007)
     ".amazonq": "q",  # q, not amazonq (legacy — Kiro rebrand migrates to .kiro)
     ".kiro": "kiro",
     ".agent": "antigravity",
@@ -70,7 +70,7 @@ def get_agent_dirs_for_project(project_path: Path) -> list[tuple[str, str]]:
         >>> # Legacy project without config.yaml
         >>> dirs = get_agent_dirs_for_project(Path("/path/to/legacy"))
         >>> len(dirs)
-        12  # All command-layer agents (codex and vibe use AGENT_SKILL_CONFIG)
+        11  # All command-layer agents (codex and vibe use AGENT_SKILL_CONFIG; roo removed)
     """
     try:
         from specify_cli.core.agent_config import (

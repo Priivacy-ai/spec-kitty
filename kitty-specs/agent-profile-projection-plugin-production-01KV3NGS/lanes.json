@@ -1,0 +1,194 @@
+{
+  "version": 1,
+  "mission_slug": "agent-profile-projection-plugin-production-01KV3NGS",
+  "mission_id": "01KV3NGSDCJ272573TF6T6NWDW",
+  "mission_branch": "kitty/mission-agent-profile-projection-plugin-production-01KV3NGS-01KV3NGS",
+  "target_branch": "feat/agent-profile-projection-plugin-production",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/init.py",
+        "src/specify_cli/tool_surface/drift_policy.py",
+        "src/specify_cli/tool_surface/repair.py",
+        "src/specify_cli/upgrade/migrations/m_0_9_3_surface_repair_wiring.py",
+        "src/specify_cli/upgrade/runner.py",
+        "tests/specify_cli/tool_surface/test_repair_wiring_unit.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/plugin.py",
+        "src/specify_cli/tool_surface/bundles/_builder.py",
+        "src/specify_cli/tool_surface/bundles/claude.py",
+        "tests/specify_cli/tool_surface/test_plugin_build_claude.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "pyproject.toml",
+        "src/specify_cli/tool_surface/profiles/codex_renderer.py",
+        "src/specify_cli/tool_surface/profiles/renderers.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/tool_surface/profiles/amazon_q_renderer.py",
+        "src/specify_cli/tool_surface/profiles/augment_renderer.py",
+        "src/specify_cli/tool_surface/profiles/capability_matrix.py",
+        "src/specify_cli/tool_surface/providers/agent_profiles.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        ".github/workflows/plugin-validate.yml",
+        "docs/how-to/install-claude-code-plugin.md",
+        "src/specify_cli/tool_surface/bundles/claude_wrapper.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/tool_surface/bundles/codex.py",
+        "tests/specify_cli/tool_surface/test_plugin_build_codex.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "README.md",
+        "docs/supported-agents.md",
+        "src/specify_cli/core/config.py",
+        "src/specify_cli/skills/manifest.py",
+        "src/specify_cli/skills/manifest_store.py",
+        "src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py",
+        "src/specify_cli/upgrade/migrations/m_0_9_4_roo_deprecation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "tests/specify_cli/tool_surface/test_capability_matrix.py",
+        "tests/specify_cli/tool_surface/test_codex_renderer.py",
+        "tests/specify_cli/tool_surface/test_profile_renderers.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "tests/specify_cli/integration/test_rc44_migration_fixture.py",
+        "tests/specify_cli/test_migration_compat.py",
+        "tests/specify_cli/tool_surface/test_drift_policy.py",
+        "tests/specify_cli/tool_surface/test_surface_repair_wiring.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-g",
+        "lane-h"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-06-14T19:06:16.190247+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

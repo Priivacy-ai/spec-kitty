@@ -67,7 +67,7 @@ AGENT_DIRECTORIES = [
     AgentDirectory("qwen", ".qwen/", False, "Qwen"),
     AgentDirectory("kilocode", ".kilocode/", False, "Kilocode"),
     AgentDirectory("auggie", ".augment/", False, "Auggie"),
-    AgentDirectory("roo", ".roo/", False, "Roo Coder"),
+    # "roo" removed — Roo Code shut down on 2026-05-15 (C-007)
     AgentDirectory("amazonq", ".amazonq/", False, "Amazon Q"),
     AgentDirectory("kiro", ".kiro/", False, "Kiro CLI (rebrand of Amazon Q — registered in PR #626)"),
     AgentDirectory("antigravity", ".agent/", False, "Google Antigravity"),

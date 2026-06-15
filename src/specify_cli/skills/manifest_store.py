@@ -38,6 +38,7 @@ import logging
 import os
 import warnings
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +53,8 @@ __all__ = [
     "fingerprint",
     "fingerprint_file",
     "load",
+    "remove_unsafe_symlinks",
+    "repair_stale_manifest",
     "save",
 ]
 
@@ -140,6 +143,32 @@ class SkillsManifest:
     def remove_path(self, path: str) -> None:
         """Remove the entry for *path* (no-op if absent)."""
         self.entries = [e for e in self.entries if e.path != path]
+
+
+@dataclass
+class ManifestRepairResult:
+    """Result of a ``repair_stale_manifest()`` or ``remove_unsafe_symlinks()`` call."""
+
+    added: list[str] = field(default_factory=list)
+    """Relative paths added to the manifest (were missing from canonical set)."""
+
+    removed: list[str] = field(default_factory=list)
+    """Relative paths removed from the manifest (were orphaned / not canonical)."""
+
+    symlinks_removed: list[str] = field(default_factory=list)
+    """Absolute paths of unsafe symlink artifacts that were deleted."""
+
+    drifted: list[str] = field(default_factory=list)
+    """Relative paths whose on-disk content no longer matches the manifest hash.
+
+    Drifted files are *not* auto-repaired here — they are reported so callers
+    can route them through ``run_surface_repair()`` (Rule 3 / prompt policy).
+    """
+
+    @property
+    def changed(self) -> bool:
+        """Return True when any manifest mutations or symlink removals occurred."""
+        return bool(self.added or self.removed or self.symlinks_removed)
 
 
 # ---------------------------------------------------------------------------
@@ -356,3 +385,146 @@ def fingerprint_file(path: Path) -> str:
     resolve the path themselves before calling this function.
     """
     return fingerprint(path.read_bytes())
+
+
+# ---------------------------------------------------------------------------
+# Manifest repair helpers (T028, T029, T030)
+# ---------------------------------------------------------------------------
+
+_SKILL_PATH_TEMPLATE = ".agents/skills/spec-kitty.{command}/SKILL.md"
+_SKILL_DIR_PREFIX = ".agents/skills/"
+_SPEC_KITTY_SKILL_PREFIX = "spec-kitty."
+# Placeholder agent key used when synthesizing repair entries with no known owner.
+# Must be a valid value in the JSON schema's agents enum.
+_REPAIR_PLACEHOLDER_AGENT = "codex"
+
+
+def repair_stale_manifest(
+    project_root: Path,
+    *,
+    canonical_commands: list[str],
+    spec_kitty_version: str = "unknown",
+) -> ManifestRepairResult:
+    """Compare the manifest entry count against *canonical_commands*.
+
+    If the manifest is stale (missing entries or has orphaned entries), add
+    the missing entries and remove the orphaned ones.  Returns a
+    :class:`ManifestRepairResult` describing what was added/removed.
+
+    Drifted files (on-disk content differs from manifest hash) are reported
+    in ``result.drifted`` but are **not** auto-repaired here — they must be
+    routed through ``run_surface_repair()`` by the caller (Rule 3 / prompt
+    policy from WP01).
+
+    This function is always auto-applied (Rule 2 — auto-repair); it never
+    prompts the user.  It is idempotent: re-running on an already-correct
+    manifest is a no-op.
+
+    Parameters
+    ----------
+    project_root:
+        Repository root containing ``.kittify/`` and ``.agents/``.
+    canonical_commands:
+        The authoritative list of command names that should be in the
+        manifest (e.g. from ``CANONICAL_COMMANDS`` in ``command_installer``).
+    spec_kitty_version:
+        Version string written into synthesized placeholder entries.
+    """
+    manifest = load(project_root)
+    result = ManifestRepairResult()
+
+    canonical_paths = {
+        _SKILL_PATH_TEMPLATE.format(command=cmd): cmd
+        for cmd in canonical_commands
+    }
+
+    existing_paths = {e.path for e in manifest.entries}
+
+    # --- 1. Add missing canonical entries -----------------------------------
+    for rel_path in sorted(canonical_paths):
+        if rel_path in existing_paths:
+            continue
+        abs_path = project_root / rel_path
+        # File absent or is a symlink — synthesize a placeholder hash so
+        # the manifest count is correct; the surface repair service will
+        # detect and address the underlying file issue.
+        content_hash = (
+            fingerprint_file(abs_path)
+            if abs_path.exists() and not abs_path.is_symlink()
+            else fingerprint(b"")
+        )
+        new_entry = ManifestEntry(
+            path=rel_path,
+            content_hash=content_hash,
+            # Schema requires agents to be non-empty; use placeholder until the
+            # real installer overwrites this entry with the actual agent set.
+            agents=(_REPAIR_PLACEHOLDER_AGENT,),
+            installed_at=datetime.now(tz=UTC).isoformat(),
+            spec_kitty_version=spec_kitty_version,
+        )
+        manifest.upsert(new_entry)
+        result.added.append(rel_path)
+        logger.debug("repair_stale_manifest: added missing entry %s", rel_path)
+
+    # --- 2. Remove orphaned entries -----------------------------------------
+    for entry in list(manifest.entries):
+        if entry.path not in canonical_paths:
+            manifest.remove_path(entry.path)
+            result.removed.append(entry.path)
+            logger.debug("repair_stale_manifest: removed orphaned entry %s", entry.path)
+
+    # --- 3. Detect drifted files (report only — no auto-repair) -------------
+    for entry in manifest.entries:
+        abs_path = project_root / entry.path
+        if abs_path.exists() and not abs_path.is_symlink():
+            actual_hash = fingerprint_file(abs_path)
+            if actual_hash != entry.content_hash and entry.path not in result.added:
+                result.drifted.append(entry.path)
+                logger.debug(
+                    "repair_stale_manifest: drifted file detected %s (manifest=%s, disk=%s)",
+                    entry.path,
+                    entry.content_hash[:8],
+                    actual_hash[:8],
+                )
+
+    if result.changed:
+        save(project_root, manifest)
+
+    return result
+
+
+def remove_unsafe_symlinks(project_root: Path) -> ManifestRepairResult:
+    """Detect and remove unsafe symlink artifacts under ``.agents/skills/``.
+
+    A past migration bug created symlink directories such as
+    ``.agents/skills/spec-kitty.advise`` pointing outside the project tree.
+    This function walks ``.agents/skills/`` and removes any entry whose name
+    starts with ``spec-kitty.`` and that is a symbolic link (rather than a
+    real directory containing ``SKILL.md``).
+
+    Only symlinks are removed — real directories are left untouched.
+
+    Returns a :class:`ManifestRepairResult` whose ``symlinks_removed`` field
+    lists the absolute paths of every symlink that was deleted.
+    """
+    result = ManifestRepairResult()
+    skills_dir = project_root / _SKILL_DIR_PREFIX.rstrip("/")
+    if not skills_dir.is_dir():
+        return result
+
+    for child in sorted(skills_dir.iterdir()):
+        if not child.name.startswith(_SPEC_KITTY_SKILL_PREFIX):
+            continue
+        if child.is_symlink():
+            try:
+                child.unlink()
+                result.symlinks_removed.append(str(child))
+                logger.info("remove_unsafe_symlinks: removed symlink artifact %s", child)
+            except OSError as exc:
+                logger.warning(
+                    "remove_unsafe_symlinks: could not remove symlink %s: %s",
+                    child,
+                    exc,
+                )
+
+    return result

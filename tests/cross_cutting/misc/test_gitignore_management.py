@@ -24,6 +24,7 @@ ProtectionResult = gitignore_manager.ProtectionResult
 
 # Total entries: agents + runtime (derived from state contract)
 _TOTAL_ENTRIES = len(gitignore_manager.AGENT_DIRECTORIES) + len(gitignore_manager.RUNTIME_PROTECTED_ENTRIES)
+_AGENT_DIRS = [agent.directory for agent in gitignore_manager.AGENT_DIRECTORIES]
 
 
 def test_gitignore_manager_creates_new_file():
@@ -144,22 +145,7 @@ def test_protect_all_agents_adds_all_directories():
         content = gitignore_path.read_text()
 
         # Verify all expected directories are present
-        expected_dirs = [
-            ".claude/",
-            ".codex/",
-            ".opencode/",
-            ".windsurf/",
-            ".gemini/",
-            ".cursor/",
-            ".qwen/",
-            ".kilocode/",
-            ".augment/",
-            ".roo/",
-            ".amazonq/",
-            ".agent/",
-            ".github/copilot/",
-        ]
-        for dir_name in expected_dirs:
+        for dir_name in _AGENT_DIRS:
             assert dir_name in content
         assert ".kittify/.dashboard" in content
         assert ".kittify/missions/__pycache__/" in content

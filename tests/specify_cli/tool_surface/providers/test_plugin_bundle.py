@@ -148,9 +148,19 @@ def test_repair_noop_when_nothing_actionable(tmp_path: Path) -> None:
 
 
 # --- FR-016 / C-006 PROHIBITION regression -------------------------------- #
+#
+# C-006 amendment (mission agent-profile-projection-plugin-production-01KV3NGS,
+# 2026-06-15): the prohibition targets install/publish *actions* — the bundle
+# code must never auto-install a bundle or *publish* it to a marketplace
+# (the original regression injected ``marketplace_publish``, still caught by the
+# ``publish`` token below). Writing a *declarative* ``marketplace.json`` catalog
+# descriptor alongside the bundle (FR-023 / FR-029) is inert output, not an
+# action, and is therefore permitted: the bare ``marketplace`` token was removed
+# so a descriptor write (``_write_marketplace_json``, ``"marketplace.json"``) no
+# longer trips the guard, while ``marketplace_publish``/``*_publish`` still do.
+# See architecture/3.x/adr/2026-06-15-1-marketplace-descriptor-vs-publish.md.
 
 _FORBIDDEN_TOKENS = (
-    "marketplace",
     "publish",
     "auto_install",
     "auto-install",

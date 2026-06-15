@@ -78,10 +78,10 @@ class TestGetAgentDirsForProject:
 
         agent_dirs = get_agent_dirs_for_project(tmp_path)
 
-        # Should return all 13 slash-command agents (fallback).
-        # Count is 13 post PR #626 (Kiro registration); command-skill agents
+        # Should return all 12 slash-command agents (fallback).
+        # Count is 12 post roo removal (2026-05-15, C-007); command-skill agents
         # use AGENT_SKILL_CONFIG and are not listed in AGENT_DIRS.
-        assert len(agent_dirs) == 13
+        assert len(agent_dirs) == 12
         assert (".claude", "commands") in agent_dirs
         assert (".opencode", "command") in agent_dirs
         assert (".kiro", "prompts") in agent_dirs
@@ -96,9 +96,9 @@ class TestGetAgentDirsForProject:
 
         agent_dirs = get_agent_dirs_for_project(tmp_path)
 
-        # Should return all 13 slash-command agents (fallback for empty).
+        # Should return all 12 slash-command agents (fallback for empty).
         # See test_fallback_to_all_agents_when_no_config for count history.
-        assert len(agent_dirs) == 13
+        assert len(agent_dirs) == 12
 
 
 class TestMigrationRespectsConfig:
@@ -230,9 +230,9 @@ class TestAgentDirMapping:
 
     def test_agent_dir_to_key_complete(self):
         """Verify all agents have key mappings."""
-        # All 13 slash-command agents should be mapped
+        # All 12 slash-command agents should be mapped (roo removed 2026-05-15, C-007)
         # (command-skill agents use AGENT_SKILL_CONFIG, not AGENT_DIR_TO_KEY).
-        assert len(AGENT_DIR_TO_KEY) == 13
+        assert len(AGENT_DIR_TO_KEY) == 12
 
         # Verify special mappings
         assert AGENT_DIR_TO_KEY[".github"] == "copilot"

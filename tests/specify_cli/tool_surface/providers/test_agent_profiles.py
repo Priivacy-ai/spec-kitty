@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from doctrine.agent_profiles.repository import AgentProfileRepository
 from specify_cli.tool_surface.profiles.manifest import (
     ProfileManifest,
@@ -26,8 +28,6 @@ from specify_cli.tool_surface.status import (
     SurfaceStatus,
     _surface_id,
 )
-
-import pytest
 
 pytestmark = [pytest.mark.unit]
 
@@ -59,16 +59,177 @@ def test_expand_supported_tool_yields_profiles(tmp_path: Path) -> None:
     assert all(i.path.suffix == ".md" for i in instances)
 
 
-def test_agent_profiles_provider_research_gap_for_unsupported_tool(
-    tmp_path: Path,
-) -> None:
+# ---------------------------------------------------------------------------
+# Capability matrix integration: codex now has a renderer (WP02)
+# ---------------------------------------------------------------------------
+
+
+def test_codex_expands_to_real_profiles(tmp_path: Path) -> None:
+    """After WP02, codex has a real renderer and projects actual profiles."""
     provider = _provider(tmp_path)
     instances = provider.expand(agent_profile_definition(), "codex", tmp_path)
+    # Must yield at least one real profile instance (not a sentinel).
+    assert len(instances) >= 1
+    assert all(i.owner == "codex" for i in instances)
+    # All paths should be inside .codex/agents/ with .toml suffix.
+    assert all(i.path.suffix == ".toml" for i in instances)
+
+
+# ---------------------------------------------------------------------------
+# Capability matrix integration: not-applicable harnesses (WP03)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "harness_key",
+    ["windsurf", "cursor", "gemini", "qwen", "opencode", "kilocode", "vibe", "pi", "letta"],
+)
+def test_not_applicable_harnesses_yield_not_applicable_status(
+    harness_key: str, tmp_path: Path
+) -> None:
+    provider = _provider(tmp_path)
+    instances = provider.expand(agent_profile_definition(), harness_key, tmp_path)
+    assert len(instances) == 1
+    status = provider.probe(instances[0])
+    assert status.state == STATE_NOT_APPLICABLE
+    assert status.findings[0].code == "profile-projection-unsupported"
+    assert status.findings[0].severity == "info"
+    assert status.findings[0].details.get("status") == "not_applicable"
+
+
+def test_not_applicable_finding_includes_reason(tmp_path: Path) -> None:
+    provider = _provider(tmp_path)
+    instances = provider.expand(agent_profile_definition(), "windsurf", tmp_path)
+    status = provider.probe(instances[0])
+    reason = status.findings[0].details.get("reason", "")
+    assert reason, "not_applicable finding must include a non-empty reason"
+
+
+def test_not_applicable_harness_is_skipped_by_repair(tmp_path: Path) -> None:
+    provider = _provider(tmp_path)
+    na_instance = provider.expand(agent_profile_definition(), "windsurf", tmp_path)[0]
+    na_status = provider.probe(na_instance)
+    assert na_status.state == STATE_NOT_APPLICABLE
+    result = provider.repair(tmp_path, [na_status])
+    assert result.repaired == ()
+    assert len(result.skipped) == 1
+
+
+# ---------------------------------------------------------------------------
+# Research-gap harness (unknown / unassessed)
+# ---------------------------------------------------------------------------
+
+
+def test_research_gap_for_unknown_tool(tmp_path: Path) -> None:
+    """A tool not in AI_CHOICES or the capability matrix yields research_gap."""
+    provider = _provider(tmp_path)
+    instances = provider.expand(
+        agent_profile_definition(), "unknown_tool_xyz", tmp_path
+    )
     assert len(instances) == 1
     status = provider.probe(instances[0])
     assert status.state == STATE_NOT_APPLICABLE
     assert status.findings[0].code == "research-gap-surface"
     assert status.findings[0].severity == "info"
+
+
+def test_agent_profiles_provider_codex_no_longer_research_gap(
+    tmp_path: Path,
+) -> None:
+    """Codex now has a renderer and expands to real profile instances, not a research gap."""
+    provider = _provider(tmp_path)
+    instances = provider.expand(agent_profile_definition(), "codex", tmp_path)
+    # At least one profile projected (built-in profiles are always loaded).
+    assert len(instances) > 0
+    # All instances are owned by codex and point to .toml files.
+    assert all(i.owner == "codex" for i in instances)
+    assert all(i.path.suffix == ".toml" for i in instances)
+    # None of the instances is the research-gap sentinel.
+    assert all(str(i.path) != "<unsupported>" for i in instances)
+
+
+# ---------------------------------------------------------------------------
+# Augment renderer (WP03) — project-local, manifest-tracked
+# ---------------------------------------------------------------------------
+
+
+def test_augment_expands_to_real_profiles(tmp_path: Path) -> None:
+    provider = _provider(tmp_path)
+    instances = provider.expand(agent_profile_definition(), "auggie", tmp_path)
+    assert len(instances) >= 1
+    assert all(i.owner == "auggie" for i in instances)
+    assert all(i.path.suffix == ".md" for i in instances)
+    assert all(".augment/agents" in str(i.path) for i in instances)
+
+
+def test_augment_repair_writes_file_and_records_manifest(tmp_path: Path) -> None:
+    provider = _provider(tmp_path)
+    instance = provider.expand(agent_profile_definition(), "auggie", tmp_path)[0]
+    missing = provider.probe(instance)
+    assert missing.state == STATE_MISSING
+
+    result = provider.repair(tmp_path, [missing])
+    assert result.failed == ()
+    assert len(result.repaired) == 1
+    assert instance.path.exists()
+    reloaded = ProfileManifest.load(tmp_path)
+    assert reloaded.get_hash(instance.path) is not None, (
+        "Augment profiles must be recorded in the project manifest"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Amazon Q renderer (WP03) — user-global, NOT manifest-tracked
+# ---------------------------------------------------------------------------
+
+
+def test_amazon_q_expands_to_real_profiles(tmp_path: Path) -> None:
+    provider = _provider(tmp_path)
+    instances = provider.expand(agent_profile_definition(), "q", tmp_path)
+    assert len(instances) >= 1
+    assert all(i.owner == "q" for i in instances)
+    assert all(i.path.suffix == ".json" for i in instances)
+
+
+def test_amazon_q_output_path_is_user_global(tmp_path: Path) -> None:
+    provider = _provider(tmp_path)
+    instances = provider.expand(agent_profile_definition(), "q", tmp_path)
+    home = Path.home()
+    for instance in instances:
+        assert str(instance.path).startswith(str(home)), (
+            f"Amazon Q path {instance.path} must be under home directory"
+        )
+
+
+def test_amazon_q_repair_writes_file_but_not_manifest(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Amazon Q profiles are user-global and must NOT appear in the project manifest."""
+    fake_home = tmp_path / "home"
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: fake_home))
+
+    provider = _provider(tmp_path)
+    instance = provider.expand(agent_profile_definition(), "q", tmp_path)[0]
+    missing = provider.probe(instance)
+    assert missing.state == STATE_MISSING
+
+    result = provider.repair(tmp_path, [missing])
+    assert result.failed == ()
+    assert len(result.repaired) == 1
+    assert instance.path.exists()
+    # Check the user-global file was written.
+    content = instance.path.read_text(encoding="utf-8")
+    assert "name" in content  # JSON payload
+    # Verify the project manifest does NOT record an Amazon Q entry.
+    reloaded = ProfileManifest.load(tmp_path)
+    assert reloaded.get_hash(instance.path) is None, (
+        "Amazon Q (user-global) profiles must NOT be recorded in the project manifest"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Core existing probe tests
+# ---------------------------------------------------------------------------
 
 
 def test_probe_missing_is_error(tmp_path: Path) -> None:
@@ -133,11 +294,11 @@ def test_repair_dry_run_writes_nothing(tmp_path: Path) -> None:
     assert not instance.path.exists()
 
 
-def test_repair_research_gap_is_skipped(tmp_path: Path) -> None:
+def test_repair_not_applicable_is_skipped(tmp_path: Path) -> None:
     provider = _provider(tmp_path)
-    gap_instance = provider.expand(agent_profile_definition(), "codex", tmp_path)[0]
-    gap_status = provider.probe(gap_instance)
-    result = provider.repair(tmp_path, [gap_status])
+    na_instance = provider.expand(agent_profile_definition(), "windsurf", tmp_path)[0]
+    na_status = provider.probe(na_instance)
+    result = provider.repair(tmp_path, [na_status])
     assert result.repaired == ()
     assert len(result.skipped) == 1
 
@@ -145,10 +306,10 @@ def test_repair_research_gap_is_skipped(tmp_path: Path) -> None:
 def test_repair_unsupported_status_provider_marks_skip(tmp_path: Path) -> None:
     """A status whose instance has no projection is skipped, not repaired."""
     provider = _provider(tmp_path)
-    gap_instance = provider.expand(agent_profile_definition(), "codex", tmp_path)[0]
+    na_instance = provider.expand(agent_profile_definition(), "windsurf", tmp_path)[0]
     # Force a non-applicable status object through repair to exercise the skip
     # branch deterministically.
-    status = SurfaceStatus(instance=gap_instance, state=STATE_NOT_APPLICABLE)
+    status = SurfaceStatus(instance=na_instance, state=STATE_NOT_APPLICABLE)
     result = provider.repair(tmp_path, [status])
     assert result.repaired == ()
-    assert _surface_id(gap_instance) in result.skipped
+    assert _surface_id(na_instance) in result.skipped

@@ -1,0 +1,113 @@
+name: Plugin Validate
+
+on:
+  push:
+    branches:
+      - main
+      - "feat/**"
+    paths:
+      - "pyproject.toml"
+      - "uv.lock"
+      - "src/specify_cli/tool_surface/bundles/**"
+      - "src/specify_cli/tool_surface/profiles/**"
+      - "src/specify_cli/skills/**"
+      - "src/specify_cli/cli/**"
+      - "src/doctrine/agent_profiles/**"
+      - "src/doctrine/hooks/**"
+      - "src/doctrine/.mcp.json"
+      - ".github/workflows/plugin-validate.yml"
+  pull_request:
+    paths:
+      - "pyproject.toml"
+      - "uv.lock"
+      - "src/specify_cli/tool_surface/bundles/**"
+      - "src/specify_cli/tool_surface/profiles/**"
+      - "src/specify_cli/skills/**"
+      - "src/specify_cli/cli/**"
+      - "src/doctrine/agent_profiles/**"
+      - "src/doctrine/hooks/**"
+      - "src/doctrine/.mcp.json"
+      - ".github/workflows/plugin-validate.yml"
+
+jobs:
+  validate-claude-plugin:
+    name: Build and validate Claude Code plugin bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Claude CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install spec-kitty-cli
+        run: uv sync --frozen --all-extras
+
+      - name: Build Claude Code plugin bundle
+        run: uv run spec-kitty plugin build --target claude-code --output-dir dist/ci-plugin --skip-validate
+
+      - name: Validate plugin bundle (claude plugin validate --strict)
+        # NFR-004 requires the bundle to pass strict validation with zero
+        # errors AND zero warnings. ``--strict`` is asserted via the return
+        # code (errors-gate), but we do NOT rely on the CLI to exit non-zero on
+        # warnings — we capture the combined output and fail explicitly if any
+        # warning line is present, so the "zero strict warnings" half of FR-022
+        # is enforced regardless of the CLI's warning-exit behavior.
+        run: |
+          set -o pipefail
+          claude plugin validate --strict dist/ci-plugin/claude-code 2>&1 | tee validate.log
+          if grep -Eiq '(^|[[:space:]])(warn|warning)' validate.log; then
+            echo "::error::claude plugin validate --strict emitted warnings (NFR-004 requires zero)."
+            exit 1
+          fi
+
+  validate-codex-plugin:
+    name: Build and validate Codex plugin bundle
+    runs-on: ubuntu-latest
+    # Codex ships no ``codex plugin validate`` CLI, so the bundle's manifest
+    # correctness is enforced by the repo's own ``_validate_manifest`` path,
+    # which asserts the forbidden ``hooks``/``agents`` keys are absent and the
+    # required interface fields are present (FR-026, FR-028, C-003).
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install spec-kitty-cli
+        run: uv sync --frozen --all-extras
+
+      - name: Build Codex plugin bundle
+        run: uv run spec-kitty plugin build --target codex --output-dir dist/ci-plugin --skip-validate
+
+      - name: Validate Codex manifest (no hooks/agents; required fields present)
+        run: |
+          uv run python - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          manifest_path = Path("dist/ci-plugin/codex/.codex-plugin/plugin.json")
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+          forbidden = {"hooks", "agents"} & set(manifest)
+          if forbidden:
+              sys.exit(f"Codex plugin.json must not contain: {sorted(forbidden)}")
+
+          for key in ("name", "version", "description"):
+              if not manifest.get(key):
+                  sys.exit(f"Codex plugin.json missing required field: {key!r}")
+
+          iface = manifest.get("interface")
+          if not isinstance(iface, dict):
+              sys.exit("Codex plugin.json missing required field: 'interface'")
+          for sub in ("displayName", "shortDescription"):
+              if not iface.get(sub):
+                  sys.exit(f"Codex plugin.json missing required field: 'interface.{sub}'")
+
+          print("Codex manifest validated: no forbidden keys, required fields present.")
+          PY
