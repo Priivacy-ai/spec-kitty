@@ -326,6 +326,71 @@ def changelog_has_entry(changelog: str, version: str) -> bool:
     return any(fragment for fragment in content if fragment)
 
 
+def first_populated_changelog_entry_version(changelog: str) -> str | None:
+    """Return the first populated release heading version in changelog order."""
+    current_version: str | None = None
+    content: list[str] = []
+
+    def populated() -> bool:
+        return current_version is not None and any(fragment for fragment in content)
+
+    for line in changelog.splitlines():
+        heading = CHANGELOG_HEADING_RE.match(line)
+        if heading:
+            if populated():
+                return current_version
+            current_version = heading.group("version")
+            content = []
+            continue
+        if current_version is not None:
+            content.append(line.strip())
+
+    if populated():
+        return current_version
+    return None
+
+
+def validate_changelog_latest_version_sync(
+    pyproject_version: str,
+    changelog: str,
+) -> ValidationIssue | None:
+    """Assert the top populated changelog release entry matches pyproject.toml."""
+    changelog_version = first_populated_changelog_entry_version(changelog)
+    if changelog_version is None:
+        return None
+
+    if canonical_release_version(changelog_version) != canonical_release_version(
+        pyproject_version
+    ):
+        return ValidationIssue(
+            message=(
+                f"CHANGELOG.md latest release entry is {changelog_version!r}, "
+                f"but pyproject.toml declares {pyproject_version!r}."
+            ),
+            hint=(
+                "Move or update the current release notes so the first populated "
+                "CHANGELOG.md release section matches [project].version."
+            ),
+        )
+    return None
+
+
+def validate_version_source_consistency(
+    version: str,
+    repo_root: Path,
+    lockfile_path: Path,
+    changelog_text: str,
+) -> list[ValidationIssue]:
+    """Collect cross-file release-version consistency issues."""
+    checks = [
+        validate_metadata_yaml_version_sync(version, repo_root),
+        validate_uv_lock_version_sync(version, lockfile_path),
+        validate_release_covers_migration_targets(version, repo_root),
+        validate_changelog_latest_version_sync(version, changelog_text),
+    ]
+    return [issue for issue in checks if issue is not None]
+
+
 def git(*args: str, cwd: Path | None = None) -> str:
     result = subprocess.run(
         ["git", *args],
@@ -598,21 +663,14 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
             issues=issues,
         )
 
-    # FR-601, FR-602: verify .kittify/metadata.yaml is in sync with pyproject.toml
-    metadata_issue = validate_metadata_yaml_version_sync(version, repo_root)
-    if metadata_issue is not None:
-        issues.append(metadata_issue)
-
-    lockfile_issue = validate_uv_lock_version_sync(version, lockfile_path)
-    if lockfile_issue is not None:
-        issues.append(lockfile_issue)
-
-    migration_line_issue = validate_release_covers_migration_targets(
-        version,
-        repo_root,
+    issues.extend(
+        validate_version_source_consistency(
+            version,
+            repo_root,
+            lockfile_path,
+            changelog_text,
+        )
     )
-    if migration_line_issue is not None:
-        issues.append(migration_line_issue)
 
     if not changelog_has_entry(changelog_text, version):
         issues.append(
@@ -637,7 +695,9 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
                 issues.append(mismatch)
 
         existing_tags = discover_release_tags(
-            repo_root, tag_pattern=args.tag_pattern, exclude=tag
+            repo_root,
+            tag_pattern=args.tag_pattern,
+            exclude=tag,
         )
         progression_issue = validate_version_progression(version, existing_tags)
         if progression_issue:

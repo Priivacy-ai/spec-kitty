@@ -358,6 +358,28 @@ def test_consistency_only_skips_release_progression(tmp_path: Path) -> None:
     assert "All required checks passed." in result.stdout
 
 
+def test_consistency_only_rejects_stale_top_changelog_release(
+    tmp_path: Path,
+) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "1.2.3",
+        changelog_for_versions(
+            ("1.2.4", "- Drifted future entry"),
+            ("1.2.3", "- Historical matching entry"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap drifted changelog")
+    tag(tmp_path, "v1.2.3")
+
+    result = run_validator(tmp_path, "--mode", "branch", "--consistency-only")
+
+    assert result.returncode == 1
+    assert "CHANGELOG.md latest release entry is '1.2.4'" in result.stderr
+    assert "pyproject.toml declares '1.2.3'" in result.stderr
+
+
 @pytest.mark.parametrize(
     ("pyproject_version", "lockfile_version"),
     [
