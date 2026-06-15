@@ -99,7 +99,7 @@ is not supported and will be rejected at the implement gate.
 | ID | Description | Threshold | Status |
 |----|-------------|-----------|--------|
 | NFR-001 | `record-analysis` must succeed from any invocation context (primary checkout, lane worktree, or coord worktree) as long as a valid `--mission` handle is provided and the mission's main-checkout directory exists. | 100% of context combinations tested pass | Proposed |
-| NFR-002 | New and modified code paths must maintain the project's ≥90% test coverage requirement; regression tests must cover the coord-worktree resolution path and the carrier-format gate branch. | ≥90% line coverage on modified modules | Proposed |
+| NFR-002 | New and modified code paths must maintain the project's ≥90% test coverage requirement; regression tests must cover the coord-worktree resolution path and the carrier-format gate branch. Enforcement surface is the CI/Sonar new-code-coverage gate — no separate manual coverage step is required in a work package. | ≥90% line coverage on modified modules, enforced by the CI new-code-coverage gate | Proposed |
 | NFR-003 | The implement gate error messages must be actionable: an agent reading the message alone (without the source code) must be able to identify the exact command to run to recover. Measured by the error message including a complete runnable command. | 100% of new error branches include a runnable command | Proposed |
 
 ---
@@ -110,7 +110,7 @@ is not supported and will be rejected at the implement gate.
 |----|-------------|--------|
 | C-001 | The outer-wrapper format (`artifact_type: spec-kitty.analysis-report`) remains the sole accepted format at the implement gate. Silent dual-format acceptance — where the gate would pass carrier-format files without conversion — is explicitly prohibited, as it would mask the root cause and create format-drift risk. | Proposed |
 | C-002 | The fix to `record_analysis()` write-path resolution must not alter the read-path behavior of other commands that use the same mission-directory resolution primitive. Only the write destination of `record-analysis` changes. | Proposed |
-| C-003 | Updates to the `spec-kitty.analyze` skill source template must propagate to all supported agent directories only through the normal `spec-kitty upgrade` migration path. Direct edits to generated agent-directory copies are prohibited. | Proposed |
+| C-003 | In this (the spec-kitty source) repository, the only deliverable is the edit to the canonical source template (`src/doctrine/.../analyze/prompt.md`); direct edits to generated agent-directory copies are prohibited. Propagation to consumer-project agent directories happens **downstream**, when those projects run `spec-kitty upgrade` — it is not performed in this repo. (This source repo does not carry per-agent analyze copies, so no `spec-kitty upgrade` runs as part of this mission.) | Proposed |
 | C-004 | The new named error code for the carrier-format case must be a stable string constant defined in `analysis_report.py` alongside the existing reason strings, not an inline literal. Any existing code that matches on `invalid_analysis_report_artifact_type` must not silently break; the new code is additive. | Proposed |
 
 ---

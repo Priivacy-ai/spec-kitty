@@ -12,10 +12,18 @@ and Five-Whys outputs from the investigation.
 ## Decision 1: Write-Path Override Strategy
 
 **Decision**: After `_find_feature_directory()` resolves the mission handle
-(coord-aware), derive the write destination by calling
-`candidate_feature_dir_for_mission(main_repo_root, resolved_feature_dir.name)`
+(coord-aware), derive the write destination by calling the **topology-blind**
+`primary_feature_dir_for_mission(repo_root, resolved_feature_dir.name)`
 and pass it to `write_analysis_report()`. Do not change `_find_feature_directory()`
 itself.
+
+**Critical correction (from /spec-kitty.analyze finding A1)**: The originally-drafted
+approach used `candidate_feature_dir_for_mission`, but that primitive is **topology-aware**
+— it routes through `resolve_mission_read_path`, which returns the coordination worktree
+whenever one exists. Using it would reproduce the very bug under repair. The correct
+primitive is `primary_feature_dir_for_mission`, which is "deliberately topology-blind" and
+always returns the primary-checkout mission dir. It is already the sanctioned anchor used
+elsewhere in `mission.py` (lines ~811 and ~2754).
 
 **Rationale**: `_find_feature_directory()` is used for two purposes inside
 `record_analysis()`: (a) resolving the placement ref for the dirty-tree
@@ -28,7 +36,8 @@ minimal change that preserves both purposes.
 **Alternatives considered**:
 - Add a `prefer_main_checkout: bool` parameter to `_find_feature_directory()` — rejected because it conflates read-path resolution (which should be coord-aware) with write-destination selection (which should always be main-checkout). Mixing these concerns in the resolver violates DIRECTIVE_001.
 - Call `resolve_mission_read_path()` a second time with a `prefer_primary=True` flag — rejected because no such flag exists and adding it widens the resolver's scope beyond this fix's boundary.
-- Use `get_main_repo_root(repo_root) / "kitty-specs" / feature_dir.name` directly — rejected as fragile; `candidate_feature_dir_for_mission` encapsulates the correct path construction and is already used by the gate at line 1282.
+- Use `get_main_repo_root(repo_root) / "kitty-specs" / feature_dir.name` directly — rejected as fragile; `primary_feature_dir_for_mission` encapsulates the correct, topology-blind path construction and is already the sanctioned primary-anchor primitive in `mission.py`.
+- Use `candidate_feature_dir_for_mission` (the originally-drafted choice) — rejected because it is topology-aware and returns the coord worktree, reproducing the bug (see Critical correction above).
 
 ---
 
