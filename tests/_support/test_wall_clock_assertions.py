@@ -110,6 +110,13 @@ from tests._support.wall_clock_assertions import (
         (
             "from datetime import datetime\n\n"
             "def test_bad():\n"
+            "    assert False, datetime.now().isoformat()\n",
+            "datetime.now()",
+            4,
+        ),
+        (
+            "from datetime import datetime\n\n"
+            "def test_bad():\n"
             "    assert (dt := datetime).now().year == 2026\n",
             "dt.now()",
             4,
@@ -272,6 +279,44 @@ from tests._support.wall_clock_assertions import (
         (
             "import pytest\n"
             "from datetime import datetime\n\n"
+            "@pytest.fixture\n"
+            "def wall_now():\n"
+            "    yield datetime.now\n\n"
+            "def test_bad(wall_now):\n"
+            "    assert wall_now().year == 2026\n",
+            "wall_now()",
+            9,
+        ),
+        (
+            "import pytest\n"
+            "from datetime import datetime\n\n"
+            "class Holder:\n"
+            "    wall_now = datetime.now\n\n"
+            "@pytest.fixture\n"
+            "def holder():\n"
+            "    return Holder\n\n"
+            "def test_bad(holder):\n"
+            "    assert holder.wall_now().year == 2026\n",
+            "holder.wall_now()",
+            12,
+        ),
+        (
+            "import pytest\n"
+            "from datetime import datetime\n\n"
+            "@pytest.fixture(autouse=True)\n"
+            "def clock_fixture():\n"
+            "    global wall_now\n"
+            "    wall_now = datetime.now\n"
+            "    yield\n"
+            "    wall_now = lambda: 1\n\n"
+            "def test_bad():\n"
+            "    assert wall_now().year == 2026\n",
+            "wall_now()",
+            12,
+        ),
+        (
+            "import pytest\n"
+            "from datetime import datetime\n\n"
             "@pytest.fixture(name='clock_alias')\n"
             "def wall_now():\n"
             "    return datetime.now\n\n"
@@ -306,6 +351,19 @@ from tests._support.wall_clock_assertions import (
             "    assert wall_now().year == 2026\n",
             "wall_now()",
             11,
+        ),
+        (
+            "import pytest\n"
+            "from datetime import datetime\n\n"
+            "pytestmark = pytest.mark.usefixtures('clock_fixture')\n\n"
+            "@pytest.fixture\n"
+            "def clock_fixture():\n"
+            "    global wall_now\n"
+            "    wall_now = datetime.now\n\n"
+            "def test_bad():\n"
+            "    assert wall_now().year == 2026\n",
+            "wall_now()",
+            12,
         ),
         (
             "import pytest\n"
@@ -431,6 +489,18 @@ from tests._support.wall_clock_assertions import (
             "        assert self.wall_now().year == 2026\n",
             "self.wall_now()",
             11,
+        ),
+        (
+            "import pytest\n"
+            "from datetime import datetime\n\n"
+            "class TestClock:\n"
+            "    @pytest.fixture(autouse=True)\n"
+            "    def clock_fixture(self):\n"
+            "        self.wall_now = datetime.now\n\n"
+            "    def test_bad(self):\n"
+            "        assert self.wall_now().year == 2026\n",
+            "self.wall_now()",
+            10,
         ),
         (
             "from datetime import datetime\n\n"
@@ -606,6 +676,18 @@ def test_find_wall_clock_assertion_violations_allows_freshness_bounds(tmp_path: 
             "    def test_good(self):\n"
             "        self.wall_now = lambda: 1\n"
             "        assert self.wall_now() == 1\n"
+        ),
+        (
+            "import pytest\n"
+            "from datetime import datetime\n\n"
+            "wall_now = lambda: 1\n\n"
+            "@pytest.fixture(autouse=True)\n"
+            "def clock_fixture():\n"
+            "    yield\n"
+            "    global wall_now\n"
+            "    wall_now = datetime.now\n\n"
+            "def test_good():\n"
+            "    assert wall_now() == 1\n"
         ),
     ],
 )

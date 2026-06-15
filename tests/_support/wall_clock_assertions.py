@@ -150,6 +150,8 @@ def _wall_clock_calls(
 ) -> list[tuple[ast.Call, str]]:
     visitor = _AssertCallVisitor(scopes)
     visitor.visit(assert_node.test)
+    if assert_node.msg is not None:
+        visitor.visit(assert_node.msg)
     return visitor.calls
 
 
@@ -257,13 +259,12 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
         self.deferred_classes: list[tuple[str, list[ast.FunctionDef | ast.AsyncFunctionDef], set[str]]] = []
         self.autouse_fixtures: list[ast.FunctionDef | ast.AsyncFunctionDef] = []
         self.fixtures: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] = {}
+        self.module_usefixtures: set[str] = set()
 
     def fixture_return_aliases(self) -> _AliasMap:
         aliases: _AliasMap = {}
         for fixture_name in self.fixtures:
-            source = self._fixture_return_alias(fixture_name, set())
-            if source is not None:
-                aliases[(fixture_name,)] = source
+            aliases.update(self._fixture_return_aliases(fixture_name, set()))
         return aliases
 
     @property
@@ -369,6 +370,9 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
         )
 
     def visit_Assign(self, node: ast.Assign) -> None:
+        for target in node.targets:
+            if _attribute_path(target) == ("pytestmark",):
+                self.module_usefixtures.update(_pytestmark_usefixture_names(node.value, self.scopes))
         self._add_assignment_aliases(node.targets, node.value)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
@@ -488,13 +492,39 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
         for function in self.deferred_functions:
             self._scan_function_def(function)
         for class_name, methods, class_usefixtures in self.deferred_classes:
-            class_aliases = _module_class_aliases(self.scopes[0], class_name)
+            base_class_aliases = _module_class_aliases(self.scopes[0], class_name)
             for method in methods:
                 if method.name in _SETUP_METHOD_NAMES:
-                    class_aliases.update(_method_instance_aliases(method, self.scopes, class_aliases))
+                    base_class_aliases.update(_method_instance_aliases(method, self.scopes, base_class_aliases))
+            class_fixture_methods = _class_fixture_methods(methods, self.scopes)
+            autouse_fixture_methods = [
+                method for method in methods if _is_autouse_fixture(method, self.scopes)
+            ]
             for method in methods:
+                class_aliases = base_class_aliases.copy()
                 fixture_aliases: _AliasMap = {}
                 if _is_test_function(method):
+                    requested_fixtures = class_usefixtures | _usefixture_names(method.decorator_list, self.scopes)
+                    for fixture_method in autouse_fixture_methods:
+                        class_aliases.update(
+                            _method_instance_aliases(
+                                fixture_method,
+                                self.scopes,
+                                class_aliases,
+                                stop_at_yield=True,
+                            )
+                        )
+                    for fixture_name in requested_fixtures:
+                        requested_fixture_method = class_fixture_methods.get(fixture_name)
+                        if requested_fixture_method is not None:
+                            class_aliases.update(
+                                _method_instance_aliases(
+                                    requested_fixture_method,
+                                    self.scopes,
+                                    class_aliases,
+                                    stop_at_yield=True,
+                                )
+                            )
                     fixture_aliases = self._fixture_aliases_for_function(method, class_usefixtures)
                 self._visit_function_scope(
                     method,
@@ -549,15 +579,18 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
         extra_fixture_names: set[str],
     ) -> _AliasMap:
         fixture_argument_names = _argument_names(node.args)
-        fixture_names = fixture_argument_names | _usefixture_names(node.decorator_list, self.scopes) | extra_fixture_names
+        fixture_names = (
+            fixture_argument_names
+            | _usefixture_names(node.decorator_list, self.scopes)
+            | self.module_usefixtures
+            | extra_fixture_names
+        )
         for fixture_name in sorted(fixture_names):
             self._propagate_fixture_aliases(fixture_name, set())
 
         aliases: _AliasMap = {}
         for fixture_name in sorted(fixture_argument_names):
-            source = self._fixture_return_alias(fixture_name, set())
-            if source is not None:
-                aliases[(fixture_name,)] = source
+            aliases.update(self._fixture_return_aliases(fixture_name, set()))
         return aliases
 
     def _propagate_fixture_aliases(self, fixture_name: str, active_fixtures: set[int]) -> None:
@@ -576,7 +609,12 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
         active_fixtures.add(fixture_id)
         for dependency_name in _argument_names(fixture.args):
             self._propagate_fixture_aliases(dependency_name, active_fixtures)
-        _propagate_module_setup_aliases(fixture, self.scopes, self._fixture_argument_aliases(fixture, active_fixtures))
+        _propagate_module_setup_aliases(
+            fixture,
+            self.scopes,
+            self._fixture_argument_aliases(fixture, active_fixtures),
+            stop_at_yield=True,
+        )
         active_fixtures.remove(fixture_id)
 
     def _fixture_argument_aliases(
@@ -586,24 +624,26 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
     ) -> _AliasMap:
         aliases: _AliasMap = {}
         for dependency_name in _argument_names(fixture.args):
-            source = self._fixture_return_alias(dependency_name, active_fixtures)
-            if source is not None:
-                aliases[(dependency_name,)] = source
+            aliases.update(self._fixture_return_aliases(dependency_name, active_fixtures))
         return aliases
 
-    def _fixture_return_alias(self, fixture_name: str, active_fixtures: set[int]) -> tuple[str, ...] | None:
+    def _fixture_return_aliases(self, fixture_name: str, active_fixtures: set[int]) -> _AliasMap:
         fixture = self.fixtures.get(fixture_name)
         if fixture is None:
-            return self.external_fixture_aliases.get((fixture_name,))
+            return {
+                path: source
+                for path, source in self.external_fixture_aliases.items()
+                if path[:1] == (fixture_name,) and source is not None
+            }
         fixture_id = id(fixture)
         if fixture_id in active_fixtures:
-            return None
+            return {}
         active_fixtures.add(fixture_id)
         local_aliases = _function_default_aliases(fixture, self.scopes)
         local_aliases.update(self._fixture_argument_aliases(fixture, active_fixtures))
-        source = _function_return_alias(fixture, [*self.scopes, local_aliases])
+        aliases = _function_result_aliases(fixture, [*self.scopes, local_aliases], (fixture_name,), include_yields=True)
         active_fixtures.remove(fixture_id)
-        return source
+        return aliases
 
     def _shadow_targets(self, targets: list[ast.expr]) -> None:
         for target in targets:
@@ -656,6 +696,17 @@ def _module_class_aliases(
         for alias_path, source in module_scope.items()
         if len(alias_path) > 1 and alias_path[0] == class_name and source is not None
     }
+
+
+def _class_fixture_methods(
+    methods: list[ast.FunctionDef | ast.AsyncFunctionDef],
+    scopes: list[_AliasMap],
+) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
+    fixtures: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] = {}
+    for method in methods:
+        for fixture_name in _fixture_names(method, scopes):
+            fixtures[fixture_name] = method
+    return fixtures
 
 
 def _merge_clock_aliases(target: _AliasMap, source: _AliasMap) -> None:
@@ -712,15 +763,37 @@ def _usefixture_names(decorators: list[ast.expr], scopes: list[_AliasMap]) -> se
     return names
 
 
+def _pytestmark_usefixture_names(node: ast.expr, scopes: list[_AliasMap]) -> set[str]:
+    if isinstance(node, ast.Call):
+        return _usefixture_names([node], scopes)
+    if isinstance(node, ast.Tuple | ast.List):
+        names: set[str] = set()
+        for element in node.elts:
+            names.update(_pytestmark_usefixture_names(element, scopes))
+        return names
+    return set()
+
+
 def _propagate_module_setup_aliases(
     node: ast.FunctionDef | ast.AsyncFunctionDef,
     scopes: list[_AliasMap],
     local_aliases: _AliasMap | None = None,
+    *,
+    stop_at_yield: bool = False,
 ) -> None:
     global_names = _function_global_names(node)
     collector = _ModuleSetupAliasCollector(scopes, global_names, local_aliases)
-    for statement in node.body:
+    for statement in (_setup_phase_body(node.body) if stop_at_yield else node.body):
         collector.visit(statement)
+
+
+def _setup_phase_body(statements: list[ast.stmt]) -> list[ast.stmt]:
+    setup_statements: list[ast.stmt] = []
+    for statement in statements:
+        if any(isinstance(node, ast.Yield | ast.YieldFrom) for node in ast.walk(statement)):
+            break
+        setup_statements.append(statement)
+    return setup_statements
 
 
 class _ModuleSetupAliasCollector(ast.NodeVisitor):
@@ -949,17 +1022,48 @@ def _arguments_default_aliases(
 def _function_return_alias(
     node: ast.FunctionDef | ast.AsyncFunctionDef,
     scopes: list[_AliasMap],
+    *,
+    include_yields: bool = False,
 ) -> tuple[str, ...] | None:
-    visitor = _FunctionReturnAliasVisitor(scopes)
+    visitor = _FunctionReturnAliasVisitor(scopes, include_yields=include_yields)
     for statement in node.body:
         visitor.visit(statement)
     return visitor.source
 
 
+def _function_result_aliases(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    scopes: list[_AliasMap],
+    target_prefix: tuple[str, ...],
+    *,
+    include_yields: bool,
+) -> _AliasMap:
+    visitor = _FunctionReturnAliasVisitor(scopes, include_yields=include_yields)
+    for statement in node.body:
+        visitor.visit(statement)
+
+    aliases: _AliasMap = {}
+    if visitor.source in _ALIASABLE_CLOCK_PATHS or visitor.source in _BANNED_CALLS:
+        aliases[target_prefix] = visitor.source
+    if visitor.result_path:
+        for scope in scopes:
+            for alias_path, source in scope.items():
+                if (
+                    source is not None
+                    and (source in _ALIASABLE_CLOCK_PATHS or source in _BANNED_CALLS)
+                    and len(alias_path) > len(visitor.result_path)
+                    and alias_path[: len(visitor.result_path)] == visitor.result_path
+                ):
+                    aliases[(*target_prefix, *alias_path[len(visitor.result_path) :])] = source
+    return aliases
+
+
 class _FunctionReturnAliasVisitor(ast.NodeVisitor):
-    def __init__(self, scopes: list[_AliasMap]) -> None:
+    def __init__(self, scopes: list[_AliasMap], *, include_yields: bool) -> None:
         self.scopes = [*scopes, {}]
+        self.include_yields = include_yields
         self.source: tuple[str, ...] | None = None
+        self.result_path: tuple[str, ...] | None = None
 
     @property
     def scope(self) -> _AliasMap:
@@ -968,14 +1072,32 @@ class _FunctionReturnAliasVisitor(ast.NodeVisitor):
     def visit_Return(self, node: ast.Return) -> None:
         if node.value is None:
             return
-        if isinstance(node.value, ast.Call):
-            source = _normalize_alias(_attribute_path(node.value.func), self.scopes)
+        self._record_result(node.value)
+
+    def visit_Yield(self, node: ast.Yield) -> None:
+        if not self.include_yields or node.value is None:
+            return
+        self._record_result(node.value)
+
+    def visit_YieldFrom(self, node: ast.YieldFrom) -> None:
+        if self.include_yields:
+            self._record_result(node.value)
+
+    def _record_result(self, node: ast.expr) -> None:
+        if isinstance(node, ast.Call):
+            source = _normalize_alias(_attribute_path(node.func), self.scopes)
             if source in _BANNED_CALLS:
                 self.source = source
                 return
-        source = _alias_source(node.value, self.scopes)
+        source = _alias_source(node, self.scopes)
         if source in _ALIASABLE_CLOCK_PATHS:
             self.source = source
+        raw_path = _attribute_path(node)
+        path = _normalize_alias(raw_path, self.scopes)
+        if path and path != _SHADOWED_PATH:
+            self.result_path = path
+        elif raw_path:
+            self.result_path = raw_path
 
     def visit_Assign(self, node: ast.Assign) -> None:
         _add_assignment_aliases(self.scopes, lambda _: self.scope, node.targets, node.value)
@@ -1047,6 +1169,8 @@ def _method_instance_aliases(
     node: ast.FunctionDef | ast.AsyncFunctionDef,
     scopes: list[_AliasMap],
     class_aliases: dict[tuple[str, ...], tuple[str, ...]],
+    *,
+    stop_at_yield: bool = False,
 ) -> dict[tuple[str, ...], tuple[str, ...]]:
     self_names = _method_self_names(node)
     aliases: dict[tuple[str, ...], tuple[str, ...]] = {}
@@ -1054,7 +1178,7 @@ def _method_instance_aliases(
         return aliases
 
     collector = _MethodInstanceAliasCollector(scopes, class_aliases, self_names, node)
-    for statement in node.body:
+    for statement in (_setup_phase_body(node.body) if stop_at_yield else node.body):
         collector.visit(statement)
     return collector.aliases
 
