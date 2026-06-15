@@ -1,0 +1,56 @@
+{
+  "event_count": 45,
+  "last_event_id": "01KV50Z55KWAXEJ56XP9ZPFJA6",
+  "materialized_at": "2026-06-15T06:54:39.283299+00:00",
+  "mission_number": "137",
+  "mission_slug": "tool-surface-contract-residuals-01KV4S5B",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KV50Z3B1Z5SK5CH2TSEHFZV4",
+      "last_transition_at": "2026-06-15T06:54:37.409969+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KV50Z3V6GQD6EH5HYGNMRN71",
+      "last_transition_at": "2026-06-15T06:54:37.926194+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KV50Z49SEVAG6M0GP87CA32J",
+      "last_transition_at": "2026-06-15T06:54:38.393924+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KV50Z4QMHVVE88YGDPGAB60D",
+      "last_transition_at": "2026-06-15T06:54:38.836861+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KV50Z55KWAXEJ56XP9ZPFJA6",
+      "last_transition_at": "2026-06-15T06:54:39.283299+00:00"
+    }
+  }
+}

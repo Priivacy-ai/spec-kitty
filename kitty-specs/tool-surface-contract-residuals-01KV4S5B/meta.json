@@ -1,0 +1,30 @@
+{
+  "accept_commit": "2b00b7be9344c92778475fc61d43fed100c2f950",
+  "acceptance_history": [
+    {
+      "accept_commit": "2b00b7be9344c92778475fc61d43fed100c2f950",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-15T06:51:49.374728+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "501c315378b988045d09c8c550b3e2d78ae3ec74"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-15T06:51:49.374728+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "501c315378b988045d09c8c550b3e2d78ae3ec74",
+  "baseline_merge_commit": "a075bb36a3d0cf1b3a4e3b4a54a72584ae6eb17a",
+  "created_at": "2026-06-15T04:38:14.261240+00:00",
+  "friendly_name": "ToolSurfaceContract Residual Closeout",
+  "mission_id": "01KV4S5BZMQ3M7BSAS7XT4ATNC",
+  "mission_number": 137,
+  "mission_slug": "tool-surface-contract-residuals-01KV4S5B",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Epic #1945 (ToolSurfaceContract) was closed when PR #1948 merged, but a verification panel found four child issues whose acceptance criteria are not met by the shipped code. This mission finishes those four residuals -- missing native-profile-projection diagnostics and manifest provenance, registry-backed agent-config sets, an actually-enforced docs-contract lint CI gate, and the user-facing migration guide plus a flaky doctor-skills test fix -- so the reopened epic can close honestly.",
+  "purpose_tldr": "Close the verified spec-to-code gaps PR #1948 left in epic #1945 so the ToolSurfaceContract epic can close on substance.",
+  "slug": "tool-surface-contract-residuals-01KV4S5B",
+  "target_branch": "feat/tool-surface-contract-residuals",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-15T05:53:07.149421+00:00"
+}
