@@ -30,9 +30,9 @@
 
 **Included subtasks**:
 
-- [ ] T003 Regression test: coord worktree present → spec.md resolves from primary checkout (WP01) **[ATDD-first — commit before T001/T002]**
-- [ ] T001 Add `primary_feature_dir_for_mission` late import inside `map_requirements` (WP01)
-- [ ] T002 Replace `spec_md = feature_dir / SPEC_MD_FILENAME` with primary-checkout-anchored path (WP01)
+- [x] T003 Regression test: coord worktree present → spec.md resolves from primary checkout (WP01) **[ATDD-first — commit before T001/T002]**
+- [x] T001 Add `primary_feature_dir_for_mission` late import inside `map_requirements` (WP01)
+- [x] T002 Replace `spec_md = feature_dir / SPEC_MD_FILENAME` with primary-checkout-anchored path (WP01)
 
 **Implementation sketch**:
 1. Locate the `map_requirements` function in `src/specify_cli/cli/commands/agent/tasks.py`.
@@ -57,8 +57,8 @@
 
 **Included subtasks**:
 
-- [ ] T005 Regression test: literal zero-match error contains YAML `create_intent` snippet (WP02) **[ATDD-first — commit before T004; assert `"  create_intent:\n    -"` in error]**
-- [ ] T004 Replace `validate_glob_matches` error tail with ready-to-paste YAML fragment (WP02)
+- [x] T005 Regression test: literal zero-match error contains YAML `create_intent` snippet (WP02) **[ATDD-first — commit before T004; assert `"  create_intent:\n    -"` in error]**
+- [x] T004 Replace `validate_glob_matches` error tail with ready-to-paste YAML fragment (WP02)
 
 **Implementation sketch**:
 1. Locate the `else` branch in `validate_glob_matches` in `src/specify_cli/ownership/validation.py` (~line 370).

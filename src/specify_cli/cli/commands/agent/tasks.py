@@ -3530,15 +3530,19 @@ def map_requirements(
             if protected_error is not None:
                 _output_error(json_output, protected_error)
                 raise typer.Exit(1)
-        from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug
+        from specify_cli.missions.feature_dir_resolver import (
+            primary_feature_dir_for_mission,
+            resolve_feature_dir_for_slug,
+        )
 
         feature_dir = resolve_feature_dir_for_slug(main_repo_root, mission_slug)
+        primary_dir = primary_feature_dir_for_mission(main_repo_root, mission_slug)
 
         if not feature_dir.exists():
             _output_error(json_output, f"Mission directory not found: {feature_dir}")
             raise typer.Exit(1)
 
-        spec_md = feature_dir / SPEC_MD_FILENAME
+        spec_md = primary_dir / SPEC_MD_FILENAME
         if not spec_md.exists():
             _output_error(json_output, f"spec.md not found: {spec_md}")
             raise typer.Exit(1)

@@ -17,8 +17,8 @@ subtasks:
 - T003
 - T001
 - T002
-agent: claude
-shell_pid: '68236'
+agent: "claude:sonnet:reviewer-rachel:reviewer"
+shell_pid: "72340"
 history:
 - date: '2026-06-15'
   status: planned
@@ -288,3 +288,9 @@ spec_md = primary_dir / SPEC_MD_FILENAME
 The key invariant: `spec_md` must always point into `<repo_root>/kitty-specs/<slug>/spec.md`, never into `.worktrees/…`. Verify this is true by checking the `primary_dir` derivation and that `feature_dir` continues to be used (unchanged) for all non-spec-md path construction below the split.
 
 Check `test_no_raw_mission_spec_paths.py` green — any inline `/ "spec.md"` on an unrestricted `Path` would fail that gate.
+
+## Activity Log
+
+- 2026-06-15T19:41:01Z – claude – shell_pid=68236 – Ready for review: primary_feature_dir_for_mission used for spec_md in map_requirements; ATDD test green
+- 2026-06-15T19:41:54Z – claude:sonnet:reviewer-rachel:reviewer – shell_pid=72340 – Started review via action command
+- 2026-06-15T19:46:11Z – user – shell_pid=72340 – Review passed: spec_md correctly uses primary_dir from primary_feature_dir_for_mission (not feature_dir), late import is inside map_requirements, feature_dir unchanged for all WP file access, ATDD regression test committed first, all 3 tests green, ruff clean

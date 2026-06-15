@@ -312,6 +312,42 @@ class TestValidateGlobMatches:
         assert result.warnings[0].startswith("WP01")
         assert result.warnings[1].startswith("WP02")
 
+    def test_literal_zero_match_error_hints_create_intent(self, tmp_path: Path) -> None:
+        """Regression for issue #1982.
+
+        A literal owned_files path that matches zero files must produce an error
+        message containing a YAML-format create_intent snippet so agents can
+        self-recover without consulting documentation.
+
+        The assertion checks for the YAML-list syntax form which is absent in
+        the pre-fix message ("add it to 'create_intent' in the WP frontmatter")
+        and present only after the fix adds the inline YAML fragment.
+        """
+        absent_path = "src/specify_cli/new_planned_module.py"
+        manifests = {
+            "WP01": OwnershipManifest(
+                owned_files=(absent_path,),
+                authoritative_surface="src/specify_cli/",
+                execution_mode=ExecutionMode.CODE_CHANGE,
+            )
+        }
+
+        result = validate_glob_matches(manifests, tmp_path)
+
+        assert not result.passed, "Expected validation to fail for absent literal path"
+        assert result.errors, "Expected at least one error message"
+        error_text = result.errors[0]
+        # Assert YAML-list syntax — absent in pre-fix message, present only after the fix.
+        # Pre-fix: "add it to 'create_intent' in the WP frontmatter."
+        # Post-fix: "declare it in the WP frontmatter:\n  create_intent:\n    - <path>"
+        assert "  create_intent:\n    -" in error_text, (
+            f"Error must contain YAML snippet '  create_intent:\\n    -' (absent in pre-fix "
+            f"message). Got: {error_text!r}"
+        )
+        assert absent_path in error_text, (
+            f"Error message must include the offending path '{absent_path}'. Got: {error_text!r}"
+        )
+
 
 # ---------------------------------------------------------------------------
 # #1753 follow-up: ownership overlap decided logically from WPMetadata stubs.

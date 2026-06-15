@@ -9,14 +9,11 @@ tracker_refs: []
 planning_base_branch: fix/task-workflow-bug-fixes
 merge_target_branch: fix/task-workflow-bug-fixes
 branch_strategy: Planning artifacts for this mission were generated on fix/task-workflow-bug-fixes. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/task-workflow-bug-fixes unless the human explicitly redirects the landing branch.
-base_branch: kitty/mission-task-workflow-bug-fixes-01KV69BZ
-base_commit: 979a9210d3834ca549b1f6242b075d23e0972630
-created_at: '2026-06-15T19:36:13.464474+00:00'
 subtasks:
 - T005
 - T004
-agent: claude
-shell_pid: '68954'
+agent: "claude:sonnet:reviewer-rachel:reviewer"
+shell_pid: "72892"
 history:
 - date: '2026-06-15'
   status: planned
@@ -262,3 +259,10 @@ One-line diff in `validation.py` — verify:
 2. The YAML fragment uses `{pattern}` (the local variable), not a hardcoded string.
 3. Test asserts `"  create_intent:\n    -" in error_text` (YAML-list syntax, fails pre-fix) AND the absent path string — not just the field name substring.
 4. No change to the `create_intent` suppression path (the `elif pattern in wp_intent_paths:` branch above).
+
+## Activity Log
+
+- 2026-06-15T19:36:14Z – claude:sonnet:implementer-ivan:implementer – shell_pid=68954 – Assigned agent via action command
+- 2026-06-15T19:41:24Z – claude:sonnet:implementer-ivan:implementer – shell_pid=68954 – Ready for review: YAML create_intent hint in validate_glob_matches error; ATDD test red→green
+- 2026-06-15T19:42:05Z – claude:sonnet:reviewer-rachel:reviewer – shell_pid=72892 – Started review via action command
+- 2026-06-15T19:46:02Z – user – shell_pid=72892 – Review passed: ATDD-first confirmed (test commit b8c58a840 precedes impl 2c1f0a1c7); only final msg+= line changed; YAML fragment uses {pattern} local var; test asserts YAML-list syntax and absent path; create_intent suppression branch untouched; ruff+mypy zero issues; all 34 tests green
