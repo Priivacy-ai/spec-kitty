@@ -482,6 +482,115 @@ def _is_in_project(project_path: Path) -> bool:
     return (project_path / ".kittify").exists() or (project_path / ".specify").exists()
 
 
+def _repair_stale_command_manifest(project_path: Path, *, json_output: bool) -> None:
+    """Self-heal a stale command-skill manifest during upgrade.
+
+    FR-030: a manifest whose entry count is behind the canonical command set
+    (e.g. an rc44-era 11-entry manifest) is auto-repaired to the canonical
+    count without prompting. FR-032: unsafe symlink artifacts under
+    ``.agents/skills/`` are removed. Drifted (user-edited) generated files are
+    NOT touched here — they flow through the drift policy in
+    ``run_surface_repair``. Failures are non-fatal: upgrade must never abort
+    because of manifest repair.
+    """
+    manifest_path = project_path / ".kittify" / "command-skills-manifest.json"
+    if not manifest_path.exists():
+        return
+    try:
+        from specify_cli.skills.command_installer import CANONICAL_COMMANDS
+        from specify_cli.skills.manifest_store import (
+            remove_unsafe_symlinks,
+            repair_stale_manifest,
+        )
+
+        symlink_result = remove_unsafe_symlinks(project_path)
+        repair_result = repair_stale_manifest(
+            project_path,
+            canonical_commands=list(CANONICAL_COMMANDS),
+        )
+        if json_output:
+            return
+        if repair_result.added or repair_result.removed:
+            console.print(
+                f"[dim]Repaired command-skill manifest "
+                f"(+{len(repair_result.added)}/-{len(repair_result.removed)} entries)[/dim]"
+            )
+        if symlink_result.symlinks_removed:
+            console.print(
+                f"[dim]Removed {len(symlink_result.symlinks_removed)} unsafe symlink artifact(s)[/dim]"
+            )
+    except Exception as manifest_exc:  # noqa: BLE001
+        if not json_output:
+            console.print(
+                f"[dim]Note: Could not repair command-skill manifest: {manifest_exc}[/dim]"
+            )
+
+
+def _run_upgrade_surface_repair(
+    project_path: Path,
+    *,
+    confirm: bool,
+    dry_run: bool,
+    json_output: bool,
+) -> None:
+    """Run tool-surface repair after an upgrade and report the outcome.
+
+    FR-001/FR-002 wiring: this MUST run on every ``upgrade`` invocation —
+    including the "already up to date" path where no migrations are pending —
+    so that missing or stale generated surfaces (agent profiles, command-skill
+    manifests) are healed even when the project version is unchanged.
+
+    NFR-007: ``--yes``/``--force`` sets ``interactive=False``, which triggers
+    Rule 4 (report-only) for drifted files — NOT Rule 5 (overwrite). Overwrite
+    requires an explicit ``--repair-drift=overwrite`` flag (not yet exposed,
+    defaults False). FR-006: a non-interactive run exits non-zero when drift is
+    detected and was not explicitly overwritten.
+    """
+    if dry_run:
+        return
+    try:
+        _repair_stale_command_manifest(project_path, json_output=json_output)
+
+        from specify_cli.tool_surface.repair import run_surface_repair
+
+        summary = run_surface_repair(
+            project_path,
+            interactive=not confirm,
+            repair_drift=False,
+        )
+        if json_output:
+            return
+        if summary.created:
+            console.print(
+                f"[dim]Created {len(summary.created)} tool surface(s)[/dim]"
+            )
+        if summary.repaired:
+            console.print(
+                f"[dim]Repaired {len(summary.repaired)} stale tool surface(s)[/dim]"
+            )
+        if summary.drifted_overwritten:
+            console.print(
+                f"[dim]Overwrote {len(summary.drifted_overwritten)} drifted tool surface(s)[/dim]"
+            )
+        if summary.drifted_reported:
+            console.print(
+                f"[dim]Note: {len(summary.drifted_reported)} tool surface(s) have local edits "
+                f"— run 'spec-kitty doctor tool-surfaces' to review[/dim]"
+            )
+            if confirm:
+                raise typer.Exit(1)
+        if summary.skipped:
+            console.print(f"  {summary.skipped} surface(s) not applicable, skipped.")
+    except typer.Exit:
+        raise
+    except Exception as surf_exc:  # noqa: BLE001
+        # Never fail upgrade due to surface repair errors; report and continue.
+        if not json_output:
+            console.print(
+                f"[dim]Note: Could not run tool surface repair: {surf_exc}[/dim]"
+            )
+
+
 def _check_project_not_too_new(
     project_path: Path,
     *,
@@ -788,6 +897,16 @@ def upgrade(  # noqa: C901
                 assume_yes=confirm,
             )
 
+        # FR-001/FR-002: heal generated surfaces even when no migrations are
+        # pending. Missing agent profiles or stale manifests on an already
+        # up-to-date project would otherwise never be repaired.
+        _run_upgrade_surface_repair(
+            project_path,
+            confirm=confirm,
+            dry_run=dry_run,
+            json_output=json_output,
+        )
+
         if json_output:
             warnings = list(worktree_warnings)
             if auto_commit_warning:
@@ -886,6 +1005,15 @@ def upgrade(  # noqa: C901
             console=console,
             dry_run=dry_run,
             assume_yes=confirm,
+        )
+
+    # Run tool-surface repair after migrations have been applied.
+    if result.success:
+        _run_upgrade_surface_repair(
+            project_path,
+            confirm=confirm,
+            dry_run=dry_run,
+            json_output=json_output,
         )
 
     if json_output:

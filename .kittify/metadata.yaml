@@ -293,3 +293,7 @@ migrations:
     result: success
     notes: Wrote spec-kitty orientation to .claude/CLAUDE.md; Registered spec-kitty
       session-start SessionStart hook
+  - id: 0_9_3_surface_repair_wiring
+    applied_at: '2026-06-15T06:30:20.619977'
+    result: success
+    notes: 'surface_repair_wiring: probed 214 tool surface(s)'

@@ -13,7 +13,7 @@ AI_CHOICES = {
     "windsurf": "Windsurf",
     "kilocode": "Kilo Code",
     "auggie": "Auggie CLI",
-    "roo": "Roo Code",
+    # "roo" was removed — Roo Code shut down on 2026-05-15 (C-007)
     "q": "Amazon Q Developer CLI (legacy; use 'kiro')",
     "kiro": "Kiro CLI (formerly Amazon Q Developer CLI)",
     "antigravity": "Google Antigravity",
@@ -60,7 +60,7 @@ AGENT_COMMAND_CONFIG: dict[str, dict[str, str]] = {
     "windsurf": {"dir": ".windsurf/workflows", "ext": "md", "arg_format": "$ARGUMENTS"},
     "kilocode": {"dir": ".kilocode/workflows", "ext": "md", "arg_format": "$ARGUMENTS"},
     "auggie": {"dir": ".augment/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
-    "roo": {"dir": ".roo/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
+    # "roo" removed — Roo Code shut down on 2026-05-15 (C-007)
     "q": {"dir": ".amazonq/prompts", "ext": "md", "arg_format": "$ARGUMENTS"},
     "kiro": {"dir": ".kiro/prompts", "ext": "md", "arg_format": "$ARGUMENTS"},
     "antigravity": {"dir": ".agent/workflows", "ext": "md", "arg_format": "$ARGUMENTS"},
@@ -85,7 +85,7 @@ AGENT_SKILL_CONFIG: dict[str, dict[str, str | list[str] | None]] = {
     "letta":        {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/"]},
     "kilocode":     {"class": SKILL_CLASS_NATIVE,  "skill_roots": [".kilocode/skills/"]},
     "auggie":       {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".augment/skills/"]},
-    "roo":          {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".roo/skills/"]},
+    # "roo" removed — Roo Code shut down on 2026-05-15 (C-007)
     "q":            {"class": SKILL_CLASS_WRAPPER, "skill_roots": None},
     "kiro":         {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".kiro/skills/"]},
     "antigravity":  {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".agent/skills/"]},

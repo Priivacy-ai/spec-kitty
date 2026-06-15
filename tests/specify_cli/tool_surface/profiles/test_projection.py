@@ -35,9 +35,10 @@ def test_project_claude_returns_builtin_profiles() -> None:
 
 
 def test_project_unsupported_tool_returns_empty() -> None:
+    # "codex" now has a renderer (WP02), so use a truly unsupported tool key.
     projector = ProfileProjector(_builtin_repo())
-    assert projector.project("codex", Path("/project")) == []
-    assert projector.project("unknown_tool", Path("/project")) == []
+    assert projector.project("unknown_tool_xyz", Path("/project")) == []
+    assert projector.project("windsurf", Path("/project")) == []
 
 
 def test_project_excludes_sentinel_profiles() -> None:
@@ -83,8 +84,10 @@ def test_render_returns_body_for_known_profile() -> None:
 
 
 def test_render_returns_none_for_unsupported_tool() -> None:
+    # "codex" now has a renderer (WP02); use a tool with no native primitive.
     projector = ProfileProjector(_builtin_repo())
-    assert projector.render("codex", "agent_profile:architect-alphonso") is None
+    assert projector.render("unknown_tool_xyz", "agent_profile:architect-alphonso") is None
+    assert projector.render("windsurf", "agent_profile:architect-alphonso") is None
 
 
 def test_render_returns_none_for_unknown_profile() -> None:

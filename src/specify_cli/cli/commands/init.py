@@ -903,7 +903,7 @@ def init(  # noqa: C901
         "auggie": ".augment/",
         "copilot": ".github/",
         "antigravity": ".agent/",
-        "roo": ".roo/",
+        # "roo" removed — Roo Code shut down on 2026-05-15 (C-007)
         "q": ".amazonq/",
         "kiro": ".kiro/",
         "pi": ".agents/skills/",
@@ -1149,6 +1149,45 @@ def init(  # noqa: C901
         _emit_project_init_event(project_path)
     except Exception as e:
         _console.print(f"[dim]Note: Could not emit project-init event: {e}[/dim]")
+
+    # Run tool-surface repair after all agent config has been flushed to disk.
+    # NFR-007: --yes (non_interactive) does NOT imply --repair-drift; drifted
+    # files are only reported, never overwritten, unless the caller explicitly
+    # passes --repair-drift=overwrite (not yet exposed on init; defaults False).
+    try:
+        from specify_cli.tool_surface.repair import run_surface_repair
+
+        _surface_summary = run_surface_repair(
+            project_path,
+            interactive=not non_interactive,
+            repair_drift=False,
+        )
+        if _surface_summary.created:
+            _console.print(
+                f"[dim]Created {len(_surface_summary.created)} tool surface(s)[/dim]"
+            )
+        if _surface_summary.repaired:
+            _console.print(
+                f"[dim]Repaired {len(_surface_summary.repaired)} stale tool surface(s)[/dim]"
+            )
+        if _surface_summary.drifted_overwritten:
+            _console.print(
+                f"[dim]Overwrote {len(_surface_summary.drifted_overwritten)} drifted tool surface(s)[/dim]"
+            )
+        if _surface_summary.drifted_reported:
+            _console.print(
+                f"[dim]Note: {len(_surface_summary.drifted_reported)} tool surface(s) have local edits "
+                f"— run 'spec-kitty doctor tool-surfaces' to review[/dim]"
+            )
+            if non_interactive:
+                raise typer.Exit(1)
+        if _surface_summary.skipped:
+            _console.print(f"  {_surface_summary.skipped} surface(s) not applicable, skipped.")
+    except typer.Exit:
+        raise
+    except Exception as e:
+        # Never fail init due to surface repair errors.
+        _console.print(f"[dim]Note: Could not run tool surface repair: {e}[/dim]")
 
     # Clean up temporary directories used during init.
     # In full-copy mode: .kittify/templates/ holds the copied base templates.

@@ -1,0 +1,41 @@
+name: Plugin Validate
+
+on:
+  push:
+    branches:
+      - main
+      - "feat/**"
+    paths:
+      - "src/specify_cli/tool_surface/bundles/**"
+      - "src/specify_cli/cli/commands/plugin.py"
+      - ".github/workflows/plugin-validate.yml"
+  pull_request:
+    paths:
+      - "src/specify_cli/tool_surface/bundles/**"
+      - "src/specify_cli/cli/commands/plugin.py"
+      - ".github/workflows/plugin-validate.yml"
+
+jobs:
+  validate-claude-plugin:
+    name: Build and validate Claude Code plugin bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Claude CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install spec-kitty-cli
+        run: uv sync --frozen --all-extras
+
+      - name: Build Claude Code plugin bundle
+        run: uv run spec-kitty plugin build --target claude-code --output-dir dist/ci-plugin --skip-validate
+
+      - name: Validate plugin bundle (claude plugin validate --strict)
+        run: claude plugin validate --strict dist/ci-plugin/claude-code

@@ -21,8 +21,8 @@ subtasks:
 - T042
 - T043
 - T044
-agent: claude
-shell_pid: '72428'
+agent: "claude:sonnet:reviewer:reviewer"
+shell_pid: "28191"
 history:
 - at: '2026-06-14T00:00:00Z'
   event: created
@@ -462,3 +462,7 @@ To start work: `spec-kitty agent action implement WP09 --agent claude`
 - `spec-kitty upgrade` in tests requires a real or test-double migration framework — check if there is an existing test harness in `tests/specify_cli/` for triggering upgrade runs
 - `mypy --strict` on `tool_surface/` may surface pre-existing type issues not introduced by this mission — note and file issues for pre-existing errors; fix only this mission's new code
 - Coverage thresholds are measured on "new paths" not overall coverage — identify the new modules and check their individual coverage reports
+
+## Activity Log
+
+- 2026-06-15T04:50:26Z – claude:sonnet:reviewer:reviewer – shell_pid=28191 – Started review via action command
