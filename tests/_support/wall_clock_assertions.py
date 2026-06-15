@@ -291,8 +291,7 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
             self._set_shadow((node.name,))
             if node.name in _MODULE_SETUP_NAMES:
                 _propagate_module_setup_aliases(node, self.scopes)
-            if _is_fixture(node, self.scopes):
-                self.fixtures[node.name] = node
+            self._record_fixture(node)
             if _is_autouse_fixture(node, self.scopes):
                 self.autouse_fixtures.append(node)
             self.deferred_functions.append(node)
@@ -304,8 +303,7 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
             self._set_shadow((node.name,))
             if node.name in _MODULE_SETUP_NAMES:
                 _propagate_module_setup_aliases(node, self.scopes)
-            if _is_fixture(node, self.scopes):
-                self.fixtures[node.name] = node
+            self._record_fixture(node)
             if _is_autouse_fixture(node, self.scopes):
                 self.autouse_fixtures.append(node)
             self.deferred_functions.append(node)
@@ -315,9 +313,7 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
     def _scan_function_def(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         if _is_test_function(node):
             for fixture_name in _argument_names(node.args):
-                fixture = self.fixtures.get(fixture_name)
-                if fixture is not None:
-                    _propagate_module_setup_aliases(fixture, self.scopes)
+                self._propagate_fixture_aliases(fixture_name, set())
         self._visit_function_scope(node, bind_name=True)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
@@ -345,7 +341,7 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
     def _scan_deferred_functions(self) -> None:
         self.defer_function_scans = False
         for fixture in self.autouse_fixtures:
-            _propagate_module_setup_aliases(fixture, self.scopes)
+            self._propagate_fixture_node_aliases(fixture, set())
         for function in self.deferred_functions:
             self._scan_function_def(function)
         for class_name, methods in self.deferred_classes:
@@ -383,6 +379,29 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
 
     def _add_assignment_aliases(self, targets: list[ast.expr], value: ast.expr) -> None:
         _add_assignment_aliases(self.scopes, self._scope_for_target, targets, value)
+
+    def _record_fixture(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        for fixture_name in _fixture_names(node, self.scopes):
+            self.fixtures[fixture_name] = node
+
+    def _propagate_fixture_aliases(self, fixture_name: str, active_fixtures: set[int]) -> None:
+        fixture = self.fixtures.get(fixture_name)
+        if fixture is not None:
+            self._propagate_fixture_node_aliases(fixture, active_fixtures)
+
+    def _propagate_fixture_node_aliases(
+        self,
+        fixture: ast.FunctionDef | ast.AsyncFunctionDef,
+        active_fixtures: set[int],
+    ) -> None:
+        fixture_id = id(fixture)
+        if fixture_id in active_fixtures:
+            return
+        active_fixtures.add(fixture_id)
+        for dependency_name in _argument_names(fixture.args):
+            self._propagate_fixture_aliases(dependency_name, active_fixtures)
+        _propagate_module_setup_aliases(fixture, self.scopes)
+        active_fixtures.remove(fixture_id)
 
     def _shadow_targets(self, targets: list[ast.expr]) -> None:
         for target in targets:
@@ -443,8 +462,13 @@ def _merge_clock_aliases(target: _AliasMap, source: _AliasMap) -> None:
             _set_alias(target, path, alias_source)
 
 
-def _is_fixture(node: ast.FunctionDef | ast.AsyncFunctionDef, scopes: list[_AliasMap]) -> bool:
-    return any(_is_fixture_decorator(decorator, scopes) for decorator in node.decorator_list)
+def _fixture_names(node: ast.FunctionDef | ast.AsyncFunctionDef, scopes: list[_AliasMap]) -> set[str]:
+    names: set[str] = set()
+    for decorator in node.decorator_list:
+        if not _is_fixture_decorator(decorator, scopes):
+            continue
+        names.add(_fixture_decorator_name(decorator) or node.name)
+    return names
 
 
 def _is_autouse_fixture(node: ast.FunctionDef | ast.AsyncFunctionDef, scopes: list[_AliasMap]) -> bool:
@@ -462,6 +486,15 @@ def _is_autouse_fixture(node: ast.FunctionDef | ast.AsyncFunctionDef, scopes: li
 def _is_fixture_decorator(decorator: ast.expr, scopes: list[_AliasMap]) -> bool:
     path = _attribute_path(decorator.func) if isinstance(decorator, ast.Call) else _attribute_path(decorator)
     return _normalize_alias(path, scopes) in {("fixture",), ("pytest", "fixture")}
+
+
+def _fixture_decorator_name(decorator: ast.expr) -> str | None:
+    if not isinstance(decorator, ast.Call):
+        return None
+    for keyword in decorator.keywords:
+        if keyword.arg == "name" and isinstance(keyword.value, ast.Constant) and isinstance(keyword.value.value, str):
+            return keyword.value.value
+    return None
 
 
 def _propagate_module_setup_aliases(
@@ -526,16 +559,22 @@ class _ModuleSetupAliasCollector(ast.NodeVisitor):
             self.generic_visit(node)
             return
         helper = self.local_helpers[helper_name]
-        if node.args or any(keyword.arg is not None for keyword in node.keywords):
+        bindings = _call_argument_bindings(helper, node)
+        if bindings is None:
             self.generic_visit(node)
             return
+        call_scope = _function_call_scope(helper, bindings, self.scopes)
         self.active_helpers.add(helper_name)
         original_global_names = self.global_names
         self.global_names = self.global_names | _function_global_names(helper)
-        for statement in helper.body:
-            self.visit(statement)
-        self.global_names = original_global_names
-        self.active_helpers.remove(helper_name)
+        self.scopes.append(call_scope)
+        try:
+            for statement in helper.body:
+                self.visit(statement)
+        finally:
+            self.scopes.pop()
+            self.global_names = original_global_names
+            self.active_helpers.remove(helper_name)
 
     def _scope_for_target(self, target_path: tuple[str, ...]) -> _AliasMap:
         if len(target_path) == 1 and target_path[0] in self.global_names:
@@ -684,6 +723,39 @@ def _function_default_aliases(
     return aliases
 
 
+def _call_argument_bindings(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+    call: ast.Call,
+) -> dict[str, ast.expr] | None:
+    positional_params = (*function.args.posonlyargs, *function.args.args)
+    if len(call.args) > len(positional_params):
+        return None
+
+    bindings = {param.arg: arg for param, arg in zip(positional_params, call.args, strict=False)}
+    keyword_param_names = {param.arg for param in (*function.args.args, *function.args.kwonlyargs)}
+    for keyword in call.keywords:
+        if keyword.arg is None or keyword.arg not in keyword_param_names or keyword.arg in bindings:
+            return None
+        bindings[keyword.arg] = keyword.value
+    return bindings
+
+
+def _function_call_scope(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+    bindings: dict[str, ast.expr],
+    scopes: list[_AliasMap],
+) -> _AliasMap:
+    call_scope: _AliasMap = {(name,): None for name in _function_bound_names(function)}
+    call_scope.update(_function_default_aliases(function, scopes))
+    for name, value in bindings.items():
+        source = _alias_source(value, scopes)
+        if source in _ALIASABLE_CLOCK_PATHS:
+            _set_alias(call_scope, (name,), source)
+        else:
+            _set_shadow(call_scope, (name,))
+    return call_scope
+
+
 def _method_self_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
     names: set[str] = set()
     positional_args = (*node.args.posonlyargs, *node.args.args)
@@ -778,21 +850,24 @@ class _MethodInstanceAliasCollector(ast.NodeVisitor):
         if helper_name is None or helper_name not in self.local_helpers or helper_name in self.active_helpers:
             self.generic_visit(node)
             return
-        if any(keyword.arg is not None for keyword in node.keywords):
-            self.generic_visit(node)
-            return
         helper = self.local_helpers[helper_name]
-        helper_self_names = self._helper_self_names(helper, node.args)
-        if helper_self_names is None:
+        bindings = _call_argument_bindings(helper, node)
+        if bindings is None:
             self.generic_visit(node)
             return
+        call_scope = _function_call_scope(helper, bindings, self.scopes)
+        helper_self_names = self._helper_self_names(bindings)
         self.active_helpers.add(helper_name)
         original_self_names = self.self_names
         self.self_names = self.self_names | helper_self_names
-        for statement in helper.body:
-            self.visit(statement)
-        self.self_names = original_self_names
-        self.active_helpers.remove(helper_name)
+        self.scopes.append(call_scope)
+        try:
+            for statement in helper.body:
+                self.visit(statement)
+        finally:
+            self.scopes.pop()
+            self.self_names = original_self_names
+            self.active_helpers.remove(helper_name)
 
     def _record_instance_aliases(self, targets: list[ast.expr], value: ast.expr) -> None:
         if len(targets) == 1 and isinstance(targets[0], ast.Tuple | ast.List) and isinstance(value, ast.Tuple | ast.List):
@@ -842,20 +917,13 @@ class _MethodInstanceAliasCollector(ast.NodeVisitor):
 
     def _helper_self_names(
         self,
-        helper: ast.FunctionDef | ast.AsyncFunctionDef,
-        args: list[ast.expr],
-    ) -> set[str] | None:
-        if not args:
-            return set()
-        positional_args = (*helper.args.posonlyargs, *helper.args.args)
-        if len(args) > len(positional_args):
-            return None
+        bindings: dict[str, ast.expr],
+    ) -> set[str]:
         helper_self_names: set[str] = set()
-        for call_arg, helper_arg in zip(args, positional_args, strict=False):
-            if _attribute_path(call_arg) in {(name,) for name in self.self_names}:
-                helper_self_names.add(helper_arg.arg)
-        if len(helper_self_names) != len(args):
-            return None
+        self_paths = {(name,) for name in self.self_names}
+        for helper_arg, call_arg in bindings.items():
+            if _attribute_path(call_arg) in self_paths:
+                helper_self_names.add(helper_arg)
         return helper_self_names
 
 
