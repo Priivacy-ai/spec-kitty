@@ -86,7 +86,7 @@ _ALLOWED_SITES: frozenset[str] = frozenset(
         # ``git branch --list`` to ENUMERATE existing branches; it never names a
         # branch to create. Benign UX/listing glob (the carve-out class the WP
         # explicitly permits).
-        "src/specify_cli/lanes/recovery.py:136",
+        "src/specify_cli/lanes/recovery.py:135",
         # ── vcs/detection.py: string fed straight back into the seam PARSER ──
         # ``parse_mission_slug_from_branch(f"kitty/mission-{worktree_name}")``
         # round-trips a worktree dir name THROUGH the canonical seam parser to
