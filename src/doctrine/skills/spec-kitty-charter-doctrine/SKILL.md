@@ -108,16 +108,28 @@ requirements, quality gates, etc.
 
 The current synthesis scope is: `directive`, `tactic`, `styleguide`.
 
-Read shipped examples to understand the expected YAML shape:
+Read shipped examples to understand the expected YAML shape.
+There is no `doctrine list` or `doctrine show` CLI command — use the programmatic
+`DoctrineService` API (documented in the *Programmatic Doctrine Access* section below)
+or read the YAML files directly from `src/doctrine/<kind>/shipped/`:
+
+```python
+from doctrine.service import DoctrineService
+service = DoctrineService(shipped_root, project_root)
+
+# Read a directive
+directive = service.directives.get("<a-directive-id>")
+
+# Read a tactic
+tactic = service.tactics.get("<a-tactic-id>")
+
+# Read a styleguide
+styleguide = service.styleguides.get("<a-styleguide-id>")
+```
+
+To validate your project-layer doctrine artifacts run:
 ```bash
-spec-kitty doctrine list --kind directive
-spec-kitty doctrine show <a-directive-id>
-
-spec-kitty doctrine list --kind tactic
-spec-kitty doctrine show <a-tactic-id>
-
-spec-kitty doctrine list --kind styleguide
-spec-kitty doctrine show <a-styleguide-id>
+spec-kitty doctrine validate .kittify/
 ```
 
 ### Step 3 — Read the interview mapping to know what to generate
@@ -342,10 +354,7 @@ directive = service.directives.get("DIRECTIVE_034")
 # directive.title → "Test-First Development"
 # directive.severity → "warn"
 # directive.applies_to → ["implement", "review"]
-```
-
-```bash
-spec-kitty doctrine list --kind directive
+# All directives: service.directives.list_all() or read src/doctrine/directives/shipped/
 ```
 
 **Tactics** — Reusable implementation approaches that describe *how* to do
@@ -434,16 +443,33 @@ for step in contract.steps:
 
 ### Discovering Available Artifacts
 
+There is no `doctrine list` or `doctrine show` CLI command. Use the programmatic
+`DoctrineService` API or read artifact YAML files directly:
+
+```python
+from doctrine.service import DoctrineService
+service = DoctrineService(shipped_root, project_root)
+
+# List or inspect artifacts by kind
+directive = service.directives.get("DIRECTIVE_034")
+tactic = service.tactics.get("tdd-red-green-refactor")
+paradigm = service.paradigms.get("<paradigm-id>")
+# Shipped artifacts: src/doctrine/<kind>/shipped/
+# Project-local overrides: .kittify/<kind>/
+```
+
+To validate project-layer artifacts:
 ```bash
-# List all artifacts of a kind
-spec-kitty doctrine list --kind directive
-spec-kitty doctrine list --kind tactic
-spec-kitty doctrine list --kind paradigm
+spec-kitty doctrine validate .kittify/
+```
 
-# Show detail for one artifact
-spec-kitty doctrine show DIRECTIVE_034
+To list registered mission types:
+```bash
+spec-kitty doctrine mission-type list
+```
 
-# List agent profiles
+To list agent profiles:
+```bash
 spec-kitty agent profile list
 ```
 
