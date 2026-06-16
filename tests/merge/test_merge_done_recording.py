@@ -818,6 +818,30 @@ def test_project_status_bookkeeping_restores_primary_on_projection_failure(
     assert primary_status.read_text(encoding="utf-8") == '{"WP01": "approved"}\n'
 
 
+def test_project_status_bookkeeping_rejects_paths_outside_primary_surface(
+    tmp_path: Path,
+) -> None:
+    """Projected bookkeeping must stay under kitty-specs/<slug>/ in primary checkout."""
+    repo_root = tmp_path
+    mission_slug = "outside-surface"
+    escaped_coord_specs = (
+        tmp_path
+        / ".worktrees"
+        / "outside-surface-coord"
+        / "kitty-specs"
+        / ".."
+        / ".."
+        / ".."
+    )
+
+    with pytest.raises(ValueError, match="outside trusted repo roots"):
+        _project_status_bookkeeping_to_target(
+            main_repo=repo_root,
+            mission_slug=mission_slug,
+            status_feature_dir=escaped_coord_specs,
+        )
+
+
 def test_final_bookkeeping_rollback_restores_status_meta_and_state(tmp_path: Path) -> None:
     """Final bookkeeping rollback restores every mutable surface it snapshots."""
     coord_events = tmp_path / ".worktrees" / "m-coord" / "kitty-specs" / "m" / "status.events.jsonl"

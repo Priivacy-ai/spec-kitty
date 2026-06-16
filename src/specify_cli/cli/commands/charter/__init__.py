@@ -83,6 +83,7 @@ from specify_cli.cli.commands.charter._synthesis import (  # noqa: F401
     _list_resynthesis_topics,
     _load_written_artifacts_from_manifest,
     _materialize_fresh_doctrine,
+    _planned_fresh_doctrine_deletes,
     _planned_fresh_doctrine_paths,
     _provenance_to_planned_artifacts,
     _read_written_artifacts_from_manifest,
