@@ -25,7 +25,7 @@ from pathlib import Path
 from specify_cli.coordination import register_lane_sparse_checkout
 from specify_cli.core.errors import StructuredError
 from specify_cli.lanes._git import branch_exists as _branch_exists
-from specify_cli.lanes.branch_naming import lane_branch_name, mid8, worktree_path as _worktree_path
+from specify_cli.lanes.branch_naming import lane_branch_name, resolve_mid8, worktree_path as _worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 
 
@@ -165,10 +165,11 @@ def allocate_lane_worktree(
         # NOT contain status.events.jsonl / status.json. Only meaningful
         # when we have a mid8; new-topology missions always do because
         # WP03 mints the coord branch only when mission_id is present.
-        try:
-            short_id = mid8(lanes_manifest.mission_id)
-        except ValueError:
-            short_id = None
+        # Route through the authoritative resolver (WP03 / FR-009, F-1). The
+        # former raising ``mid8`` + try/except is replaced by resolve_mid8's
+        # decline-to-``""`` contract; ``or None`` preserves the prior ``None``
+        # behaviour so the downstream registration guard is unchanged.
+        short_id = resolve_mid8(mission_slug, mission_id=lanes_manifest.mission_id) or None
         if short_id is not None:
             register_lane_sparse_checkout(worktree_path, mission_slug, short_id)
     else:

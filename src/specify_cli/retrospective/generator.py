@@ -18,6 +18,7 @@ Design decision:
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.lanes.branch_naming import resolve_mid8
 import contextlib
 import datetime
 import json
@@ -109,7 +110,12 @@ def _resolve_mission_dir(mission_handle: str, repo_root: Path) -> Path | None:
                 meta = json.loads(meta_path.read_text(encoding="utf-8"))
                 mid = str(meta.get("mission_id", ""))
                 slug = str(meta.get("mission_slug", ""))
-                if mid == mission_handle or mid[:8] == mission_handle or slug == mission_handle:
+                # SELECTOR prefix-match, not a name compose: compute the canonical
+                # mid8 via the authoritative resolver and compare it to the handle
+                # (FR-001). resolve_mid8 returns "" for an empty/short mission_id,
+                # so an identity-less meta never spuriously matches a mid8 handle.
+                candidate_mid8 = resolve_mid8(slug, mission_id=mid)
+                if mid == mission_handle or candidate_mid8 == mission_handle or slug == mission_handle:
                     return child_path
             except (json.JSONDecodeError, OSError):
                 continue

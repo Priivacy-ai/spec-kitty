@@ -32,7 +32,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from specify_cli.lanes.branch_naming import strip_numeric_prefix
+from specify_cli.lanes.branch_naming import resolve_mid8, strip_numeric_prefix
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -160,7 +160,7 @@ def _build_index(repo_root: Path) -> list[ResolvedMission]:
                 mission_id=mission_id,
                 mission_slug=entry.name,
                 feature_dir=entry,
-                mid8=mission_id[:8],
+                mid8=resolve_mid8(entry.name, mission_id=mission_id),
             )
         )
     return missions

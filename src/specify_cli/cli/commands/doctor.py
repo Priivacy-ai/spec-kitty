@@ -3063,12 +3063,15 @@ def _check_coordination_worktree_health(
             error_code="COORDINATION_META_INCOMPLETE",
         )]
 
-    # Use the canonical mid8 helper.
-    from specify_cli.lanes.branch_naming import mid8 as _mid8
-    try:
-        short = _mid8(mission_id)
-    except ValueError:
-        short = mission_id[:8]
+    # Route through the authoritative resolver (WP03 / FR-009). resolve_mid8
+    # never raises (it declines to ``""``), so the former try/except around
+    # the raising ``mid8`` is dead and removed. The ``or mission_id[:8]``
+    # fallback consciously PRESERVES the prior short-id tolerance: a malformed
+    # short mission_id still yields a display value rather than an empty mid8
+    # in the diagnostic path.
+    from specify_cli.lanes.branch_naming import resolve_mid8
+
+    short = resolve_mid8(mission_slug, mission_id=mission_id) or mission_id[:8]
     worktree = CoordinationWorkspace.worktree_path(repo_root, mission_slug, short)
     findings: list[DoctorFinding] = []
 
@@ -3156,11 +3159,11 @@ def _check_lane_sparse_checkout_drift(
     if not isinstance(mission_slug, str) or not isinstance(mission_id, str):
         return []
 
-    from specify_cli.lanes.branch_naming import mid8 as _mid8
-    try:
-        short = _mid8(mission_id)
-    except ValueError:
-        short = mission_id[:8]
+    # Route through the authoritative resolver (WP03 / FR-009); dead try/except
+    # removed. ``or mission_id[:8]`` preserves the prior short-id tolerance.
+    from specify_cli.lanes.branch_naming import resolve_mid8
+
+    short = resolve_mid8(mission_slug, mission_id=mission_id) or mission_id[:8]
 
     expected = set(lane_sparse_checkout_patterns(mission_slug, short))
 

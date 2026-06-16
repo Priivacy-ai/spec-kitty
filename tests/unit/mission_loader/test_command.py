@@ -443,7 +443,7 @@ def test_render_envelope_human_format_success() -> None:
         "result": "success",
         "mission_key": "erp",
         "mission_slug": "slug",
-        "mission_id": "01KMID",
+        "mission_id": "01KV7SFD0123456789ABCDEFGH",
         "feature_dir": "/tmp/feature",
         "run_dir": "/tmp/run",
         "warnings": [{"code": "MISSION_KEY_SHADOWED", "message": "hi", "details": {}}],

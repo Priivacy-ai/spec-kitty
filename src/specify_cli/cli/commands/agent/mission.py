@@ -767,9 +767,11 @@ def _planning_commit_worktree(
     if placement.kind is not CommitTargetKind.COORDINATION:
         return repo_root, paths
 
+    from specify_cli.lanes.branch_naming import resolve_mid8
+
     meta = _safe_load_meta(repo_root, mission_slug)
     raw_mid = meta.get("mission_id") if meta else None
-    mid8 = raw_mid[:8] if isinstance(raw_mid, str) and len(raw_mid) >= 8 else None
+    mid8 = resolve_mid8(mission_slug, mission_id=raw_mid) if isinstance(raw_mid, str) and len(raw_mid) >= 8 else None
     if not mid8:
         return repo_root, paths
 

@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.dashboard.charter_path import resolve_project_charter_path
+from specify_cli.lanes.branch_naming import resolve_mid8
 from specify_cli.legacy_detector import is_legacy_format
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
@@ -434,8 +435,15 @@ def build_mission_registry(project_dir: Path) -> dict[str, dict[str, Any]]:
         key = _mission_record_key(feature_dir, mission_id, mission_number)
 
         # mid8 is meaningful only when key is an actual mission_id (ULID).
+        # Route through the authoritative resolver (WP03 / FR-009); ``or None``
+        # preserves the registry's ``mid8 is None`` contract for pseudo keys and
+        # missing identities (resolve_mid8 declines to ``""``, never ``None``).
         is_pseudo = key.startswith(("legacy:", "orphan:"))
-        mid8: str | None = None if is_pseudo else (mission_id[:8] if mission_id else None)
+        mid8: str | None = (
+            None
+            if is_pseudo
+            else (resolve_mid8(feature_dir.name, mission_id=mission_id) or None)
+        )
 
         registry[key] = {
             "mission_id": key,  # canonical key, may be pseudo
