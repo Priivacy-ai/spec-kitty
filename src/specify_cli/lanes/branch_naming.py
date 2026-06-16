@@ -119,8 +119,15 @@ def strip_numeric_prefix(slug: str) -> str:
     return slug
 
 
-def mid8(mission_id: str) -> str:
-    """Return the first 8 characters of a ULID (the ``mid8`` alias).
+def _mid8(mission_id: str) -> str:
+    """Return the first 8 characters of a ULID (internal mid8 primitive).
+
+    Private since mission 01KV7SFD (WP01): the failover-aware
+    :func:`resolve_mid8` is the sole public mid8 door — it derives the mid8 from
+    a *declared* ``mission_id`` and declines a coincidental slug tail when none
+    is available ("name proposes, authority disposes"). This bare primitive only
+    slices and so cannot decline; it is reserved for the internal branch/worktree
+    composers in this module that already hold a guaranteed-full ``mission_id``.
 
     Args:
         mission_id: A ULID string (26 characters, Crockford base32).
@@ -203,7 +210,7 @@ def resolve_mid8(mission_slug: str, *, mission_id: str | None) -> str:
 def _human_slug_for_mid8_branch(mission_slug: str, mission_id: str) -> str:
     """Strip the embedded mid8 only when it matches mission_id's mid8; mismatched mid8 is not stripped."""
     human_slug = strip_numeric_prefix(mission_slug)
-    suffix = f"-{mid8(mission_id)}"
+    suffix = f"-{_mid8(mission_id)}"
     if human_slug.endswith(suffix):
         return human_slug[: -len(suffix)]
     return human_slug
@@ -254,7 +261,7 @@ def mission_branch_name(mission_slug: str, *, mission_id: str | None = None) -> 
     """
     if mission_id is not None:
         human_slug = _human_slug_for_mid8_branch(mission_slug, mission_id)
-        return f"{_MISSION_PREFIX}{human_slug}-{mid8(mission_id)}"
+        return f"{_MISSION_PREFIX}{human_slug}-{_mid8(mission_id)}"
     # Legacy form: no mission_id supplied (pre-WP02 callers, must still work).
     # Idempotency-preserving (#1949): a slug embedding a mid8 dedups its stale
     # NNN- prefix so it composes the same resolvable branch as the mission_id path.
@@ -470,7 +477,7 @@ def lane_branch_name(
         return planning_base_branch if planning_base_branch is not None else "main"
     if mission_id is not None:
         human_slug = _human_slug_for_mid8_branch(mission_slug, mission_id)
-        return f"{_MISSION_PREFIX}{human_slug}-{mid8(mission_id)}-{lane_id}"
+        return f"{_MISSION_PREFIX}{human_slug}-{_mid8(mission_id)}-{lane_id}"
     # Legacy form. Idempotency-preserving (#1949): embedded-mid8 slugs dedup
     # their stale NNN- prefix; pure legacy NNN- slugs are preserved verbatim.
     return f"{_MISSION_PREFIX}{_idempotent_legacy_body(mission_slug)}-{lane_id}"

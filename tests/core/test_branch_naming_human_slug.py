@@ -15,9 +15,9 @@ from __future__ import annotations
 import pytest
 
 from specify_cli.lanes.branch_naming import (
+    _mid8,
     is_legacy_branch,
     lane_branch_name,
-    mid8,
     mission_branch_name,
     parse_mission_slug_from_branch,
     strip_numeric_prefix,
@@ -56,17 +56,17 @@ def test_strip_numeric_prefix(slug: str, expected: str) -> None:
 
 def test_mid8_returns_first_8_chars() -> None:
     ulid = "01KNXQS9ATWWFXS3K5ZJ9E5008"
-    assert mid8(ulid) == "01KNXQS9"
+    assert _mid8(ulid) == "01KNXQS9"
 
 
 def test_mid8_on_minimum_length() -> None:
     # ULID is 26 chars; mid8 needs at least 8
-    assert mid8("01234567ABCDEFGHIJKLMNOPQ") == "01234567"
+    assert _mid8("01234567ABCDEFGHIJKLMNOPQ") == "01234567"
 
 
 def test_mid8_raises_on_too_short() -> None:
     with pytest.raises(ValueError, match="mission_id must be at least 8 characters"):
-        mid8("short")
+        _mid8("short")
 
 
 # ---------------------------------------------------------------------------
@@ -140,10 +140,10 @@ def test_collision_different_ulids_produce_distinct_branches() -> None:
     branch_b = lane_branch_name(slug, "lane-a", mission_id=ulid_b)
 
     assert branch_a != branch_b
-    assert mid8(ulid_a) in branch_a
-    assert mid8(ulid_b) in branch_b
+    assert _mid8(ulid_a) in branch_a
+    assert _mid8(ulid_b) in branch_b
     # The mid8 tokens must differ
-    assert mid8(ulid_a) != mid8(ulid_b)
+    assert _mid8(ulid_a) != _mid8(ulid_b)
 
 
 # ---------------------------------------------------------------------------
