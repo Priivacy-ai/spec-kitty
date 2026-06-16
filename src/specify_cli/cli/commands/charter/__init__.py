@@ -187,7 +187,6 @@ __all__ = [
     "_list_resynthesis_topics",
     "_has_generated_artifacts",
     "_materialize_fresh_doctrine",
-    "_planned_fresh_doctrine_deletes",
     "_planned_fresh_doctrine_paths",
     "_MINIMAL_FRESH_DOCTRINE_PROVENANCE_TEMPLATE",
     # Widen helpers
