@@ -35,6 +35,8 @@ from .surface_presence import SurfacePresenceIndex
 LINT_HOOK_COMMAND = "spec-kitty lint --json"
 #: Claude PostToolUse matcher scoping the hook to file-editing tools.
 LINT_HOOK_MATCHER = "Edit|Write"
+_ENABLED_LABEL = "[green]enabled[/green]"
+_DISABLED_LABEL = "[yellow]disabled[/yellow]"
 
 app = typer.Typer(
     name="config",
@@ -335,7 +337,7 @@ def list_agents():
         console.print(f"  {status} {agent_key} ({location})")
 
     # Show auto-commit setting
-    auto_commit_label = "[green]enabled[/green]" if config.auto_commit else "[yellow]disabled[/yellow]"
+    auto_commit_label = _ENABLED_LABEL if config.auto_commit else _DISABLED_LABEL
     console.print(f"\n[cyan]Auto-commit:[/cyan] {auto_commit_label}")
     if not config.auto_commit:
         console.print("[dim]  Agents will stage changes but not create commits unless explicitly instructed.[/dim]")
@@ -760,7 +762,7 @@ def set_config(
         config.auto_commit = parsed
         save_agent_config(repo_root, config)
 
-        status_label = "[green]enabled[/green]" if config.auto_commit else "[yellow]disabled[/yellow]"
+        status_label = _ENABLED_LABEL if config.auto_commit else _DISABLED_LABEL
         console.print(f"[green]✓[/green] auto_commit set to {status_label}")
         if not config.auto_commit:
             console.print("[dim]Agents will stage changes but not create commits unless explicitly instructed.[/dim]")
@@ -773,7 +775,7 @@ def set_config(
         config.lint_on_edit = parsed
         save_agent_config(repo_root, config)
 
-        status_label = "[green]enabled[/green]" if config.lint_on_edit else "[yellow]disabled[/yellow]"
+        status_label = _ENABLED_LABEL if config.lint_on_edit else _DISABLED_LABEL
         console.print(f"[green]✓[/green] lint_on_edit set to {status_label}")
         if config.lint_on_edit:
             console.print("[cyan]Tip:[/cyan] Run 'spec-kitty agent config sync --sync-hooks' to update harness configurations.")

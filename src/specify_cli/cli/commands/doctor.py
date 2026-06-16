@@ -50,6 +50,7 @@ _CI_ENV_VARS = (
 #: Column header for the invocation/op start timestamp, reused across the
 #: orphan/open/closed invocation tables rendered by ``spec-kitty doctor``.
 _STARTED_AT_COLUMN = "Started At"
+_NOT_IN_PROJECT_MESSAGE = "Not in a spec-kitty project"
 
 
 def _is_interactive_environment() -> bool:
@@ -712,16 +713,16 @@ def skills(
         project_path = locate_project_root()
     except Exception as exc:
         if json_output:
-            console.print_json(json.dumps(_json_error("not_in_project", "Not in a spec-kitty project"), indent=2))
+            console.print_json(json.dumps(_json_error("not_in_project", _NOT_IN_PROJECT_MESSAGE), indent=2))
             raise typer.Exit(2) from exc
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        console.print(f"[red]Error:[/red] {_NOT_IN_PROJECT_MESSAGE}")
         raise typer.Exit(2) from exc
 
     if project_path is None:
         if json_output:
-            console.print_json(json.dumps(_json_error("not_in_project", "Not in a spec-kitty project"), indent=2))
+            console.print_json(json.dumps(_json_error("not_in_project", _NOT_IN_PROJECT_MESSAGE), indent=2))
             raise typer.Exit(2)
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        console.print(f"[red]Error:[/red] {_NOT_IN_PROJECT_MESSAGE}")
         raise typer.Exit(2)
 
     with _json_output_guard(json_output):
@@ -875,7 +876,7 @@ def tool_surfaces(
     except Exception as exc:
         project_path = None
         if not json_output:
-            console.print("[red]Error:[/red] Not in a spec-kitty project")
+            console.print(f"[red]Error:[/red] {_NOT_IN_PROJECT_MESSAGE}")
         else:
             console.print_json(
                 json.dumps(_json_error("not_in_project", str(exc)), indent=2)
@@ -885,12 +886,12 @@ def tool_surfaces(
         if json_output:
             console.print_json(
                 json.dumps(
-                    _json_error("not_in_project", "Not in a spec-kitty project"),
+                    _json_error("not_in_project", _NOT_IN_PROJECT_MESSAGE),
                     indent=2,
                 )
             )
         else:
-            console.print("[red]Error:[/red] Not in a spec-kitty project")
+            console.print(f"[red]Error:[/red] {_NOT_IN_PROJECT_MESSAGE}")
         raise typer.Exit(2)
 
     try:

@@ -56,6 +56,7 @@ __all__ = [
 ]
 
 _UV_LOCK_FILENAME = "uv.lock"
+_STATUS_JSON_FILENAME = "status.json"
 RULE_ID_STATUS_EVENTS = "R-STATUS-EVENTS-JSONL-UNION"
 RULE_ID_STATUS_JSON = "R-STATUS-JSON-REMATERIALIZE"
 RULE_ID_COORDINATION_ARTIFACT = "R-COORDINATION-ARTIFACT-THEIRS"
@@ -146,7 +147,7 @@ def _is_status_json_path(rel_path: str) -> bool:
     return (
         len(parts) >= 3
         and parts[0] == KITTY_SPECS_DIR
-        and parts[-1] == "status.json"
+        and parts[-1] == _STATUS_JSON_FILENAME
     )
 
 
@@ -359,7 +360,7 @@ def _resolve_managed_artifact_conflicts(
         classifications.append(classification)
 
     for feature_dir in sorted(status_refresh_dirs, key=lambda path: path.as_posix()):
-        file_path = status_json_paths_by_dir.get(feature_dir, feature_dir / "status.json")
+        file_path = status_json_paths_by_dir.get(feature_dir, feature_dir / _STATUS_JSON_FILENAME)
         classification, halt_reason = _resolve_status_json(file_path, worktree)
         if halt_reason is not None:
             return remaining, halt_reason
@@ -475,7 +476,7 @@ def _refresh_status_json_for_staged_artifacts(
         return f"{RULE_ID_STATUS_JSON}: could not inspect staged paths: {error}"
 
     for feature_dir in sorted(feature_dirs, key=lambda path: path.as_posix()):
-        file_path = feature_dir / "status.json"
+        file_path = feature_dir / _STATUS_JSON_FILENAME
         if _status_json_already_classified(file_path, classifications):
             continue
         classification, halt_reason = _resolve_status_json(file_path, worktree)

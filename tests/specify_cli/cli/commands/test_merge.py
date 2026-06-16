@@ -135,6 +135,16 @@ def test_target_bookkeeping_paths_keep_primary_surface(tmp_path: Path) -> None:
     assert status_path == primary_feature_dir / "status.json"
 
 
+def test_target_bookkeeping_paths_reject_path_traversal(tmp_path: Path) -> None:
+    """Mission slugs must not project bookkeeping writes outside the repo root."""
+    with pytest.raises(ValueError, match="Refusing to access path outside"):
+        _target_bookkeeping_status_paths(
+            main_repo=tmp_path,
+            mission_slug="../../escape",
+            status_feature_dir=tmp_path / "kitty-specs" / "../../escape",
+        )
+
+
 # ---------------------------------------------------------------------------
 # T015: Verify approved|done merge-ready check is EXPLICIT (not is_terminal)
 # ---------------------------------------------------------------------------
