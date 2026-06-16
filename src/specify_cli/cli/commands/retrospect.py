@@ -332,9 +332,12 @@ def create_cmd(
         raise typer.Exit(1) from exc
 
     # Determine write mode
-    write_mode: Literal["error", "overwrite", "update"] = (
-        "overwrite" if overwrite else ("update" if update else "error")
-    )
+    if overwrite:
+        write_mode: Literal["error", "overwrite", "update"] = "overwrite"
+    elif update:
+        write_mode = "update"
+    else:
+        write_mode = "error"
     provenance_kind: ProvenanceKind = "explicit_create"
 
     # Generate the record

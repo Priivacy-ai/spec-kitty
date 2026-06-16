@@ -19,7 +19,7 @@ Recovery semantics (WP01 / 067):
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
+from specify_cli.core.constants import KITTY_SPECS_DIR, KITTIFY_DIR, WORKTREES_DIR
 from specify_cli.coordination.surface_resolver import (
     is_under_worktrees_segment,
     resolve_status_surface,
@@ -49,6 +49,7 @@ from specify_cli.core.git_ops import has_remote, run_command
 from specify_cli.core.git_preflight import build_git_preflight_failure_payload, run_git_preflight
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root
+from specify_cli.core.utils import ensure_within_directory
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
 from specify_cli.git.ref_advance import advance_branch_ref
@@ -300,7 +301,7 @@ def _emit_remediation_hint(hint_console: Console) -> None:
     hint_console.print(
         "\n[yellow]Push rejected by linear-history protection.[/yellow]\n"
         "Try [cyan]spec-kitty merge --strategy squash[/cyan], or set "
-        "[cyan]merge.strategy: squash[/cyan] in [cyan].kittify/config.yaml[/cyan].\n"
+        f"[cyan]merge.strategy: squash[/cyan] in [cyan]{KITTIFY_DIR}/config.yaml[/cyan].\n"
     )
 
 
@@ -786,9 +787,10 @@ def _target_bookkeeping_status_paths(
         if is_under_worktrees_segment(status_feature_dir)
         else status_feature_dir
     )
+    safe_target_feature_dir = ensure_within_directory(target_feature_dir, main_repo)
     return (
-        target_feature_dir / _STATUS_EVENTS_FILENAME,
-        target_feature_dir / _STATUS_FILENAME,
+        safe_target_feature_dir / _STATUS_EVENTS_FILENAME,
+        safe_target_feature_dir / _STATUS_FILENAME,
     )
 
 
@@ -1441,7 +1443,7 @@ def _iter_merge_states_for_slug(
     repo_root: Path,
     mission_slug: str,
 ) -> list[tuple[str, MergeState]]:
-    runtime_merge_dir = repo_root / ".kittify" / "runtime" / "merge"
+    runtime_merge_dir = repo_root / KITTIFY_DIR / "runtime" / "merge"
     if not runtime_merge_dir.exists():
         return []
 
@@ -2284,7 +2286,10 @@ def _run_lane_based_merge(
     # would compute the same next number.
     _GLOBAL_MERGE_LOCK_ID = "__global_merge__"
     if not acquire_merge_lock(_GLOBAL_MERGE_LOCK_ID, main_repo):
-        raise MergeLockError(_GLOBAL_MERGE_LOCK_ID, main_repo / ".kittify" / "runtime" / "merge" / _GLOBAL_MERGE_LOCK_ID / "lock")
+        raise MergeLockError(
+            _GLOBAL_MERGE_LOCK_ID,
+            main_repo / KITTIFY_DIR / "runtime" / "merge" / _GLOBAL_MERGE_LOCK_ID / "lock",
+        )
 
     try:
         _run_lane_based_merge_locked(
@@ -3122,7 +3127,7 @@ def merge(
         # Pre-mission-scoped releases wrote state to .kittify/merge-state.json directly.
         # New writes go to .kittify/runtime/merge/<id>/state.json (handled by clear_state
         # above), but legacy files must also be cleaned up so the repo is fully unblocked.
-        _legacy_state_path = repo_root / ".kittify" / "merge-state.json"
+        _legacy_state_path = repo_root / KITTIFY_DIR / "merge-state.json"
         with suppress(FileNotFoundError):
             _legacy_state_path.unlink()
             console.print("[green]Removed legacy merge-state.[/green]")

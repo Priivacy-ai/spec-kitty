@@ -842,6 +842,18 @@ def test_project_status_bookkeeping_rejects_paths_outside_primary_surface(
         )
 
 
+def test_project_status_bookkeeping_rejects_wrong_primary_mission_surface(
+    tmp_path: Path,
+) -> None:
+    """Primary bookkeeping paths under kitty-specs must still match the mission slug."""
+    with pytest.raises(ValueError, match="outside mission status surface"):
+        _project_status_bookkeeping_to_target(
+            main_repo=tmp_path,
+            mission_slug="expected-mission",
+            status_feature_dir=tmp_path / "kitty-specs" / "other-mission",
+        )
+
+
 def test_final_bookkeeping_rollback_restores_status_meta_and_state(tmp_path: Path) -> None:
     """Final bookkeeping rollback restores every mutable surface it snapshots."""
     coord_events = tmp_path / ".worktrees" / "m-coord" / "kitty-specs" / "m" / "status.events.jsonl"
