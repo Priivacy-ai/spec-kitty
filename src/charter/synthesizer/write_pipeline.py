@@ -284,7 +284,7 @@ def _substantively_equal(
     """
     try:
         existing_text = existing_path.read_text(encoding="utf-8")
-    except (FileNotFoundError, OSError):
+    except OSError:
         return False
     return _substantively_equal_core(
         existing_text,
