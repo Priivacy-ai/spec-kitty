@@ -25,7 +25,7 @@ from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.git_ops import get_current_branch, is_git_repo
 from specify_cli.core.paths import is_worktree_context, locate_project_root
 from specify_cli.git import safe_commit
-from specify_cli.lanes.branch_naming import mid8, strip_numeric_prefix
+from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8
 from specify_cli.mission_metadata import validate_purpose_summary
 from specify_cli.sync.events import emit_mission_created
 
@@ -316,9 +316,14 @@ def create_mission_core(
     # until merge time (single-writer context on main).
     # ------------------------------------------------------------------
     # Mint the ULID first so we can derive mid8 for the directory name.
+    # resolve_mid8 derives the mid8 from the declared mission_id (authoritative,
+    # FR-004/NFR-003); mission_dir_name composes <human-slug>-<mid8> canonically,
+    # stripping any NNN- prefix (FR-032, FR-044).
     mission_id = str(ULID())
-    human_slug = strip_numeric_prefix(mission_slug)
-    mission_slug_formatted = f"{human_slug}-{mid8(mission_id)}"
+    mission_slug_formatted = mission_dir_name(
+        mission_slug,
+        mid8=resolve_mid8("", mission_id=mission_id),
+    )
 
     feature_dir = resolved_root / KITTY_SPECS_DIR / mission_slug_formatted
     feature_dir.mkdir(parents=True, exist_ok=True)

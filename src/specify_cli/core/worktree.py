@@ -361,10 +361,16 @@ def create_feature_worktree(
             "`spec-kitty migrate backfill-identity` first."
         )
 
-    from specify_cli.lanes.branch_naming import mid8, strip_numeric_prefix
+    from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8
 
-    human_slug = strip_numeric_prefix(mission_slug)
-    branch_name = f"{human_slug}-{mid8(mission_id)}"
+    # resolve_mid8 derives the mid8 from the declared mission_id (authoritative,
+    # FR-004/NFR-003); mission_dir_name composes <human-slug>-<mid8> canonically,
+    # stripping any NNN- prefix.  The mid8 derivation MOVES here — it is not
+    # removed — so the compose is byte-identical to the prior inline f-string.
+    branch_name = mission_dir_name(
+        mission_slug,
+        mid8=resolve_mid8("", mission_id=mission_id),
+    )
 
     # Create worktree at .worktrees/<human-slug>-<mid8>
     worktree_path = repo_root / WORKTREES_DIR / branch_name
