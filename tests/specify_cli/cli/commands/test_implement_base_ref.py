@@ -24,7 +24,7 @@ import pytest
 
 from specify_cli.cli.commands.implement import _validate_base_ref
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 # ---------------------------------------------------------------------------
 # Helpers

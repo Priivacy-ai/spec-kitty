@@ -72,7 +72,6 @@ def get_platform() -> str:
 __all__ = [
     "format_path",
     "ensure_directory",
-    "ensure_within_directory",
     "write_text_within_directory",
     "safe_remove",
     "get_platform",

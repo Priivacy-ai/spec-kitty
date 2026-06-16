@@ -808,7 +808,7 @@ def _assert_status_path_within_target_surface(
 ) -> Path:
     """Reject bookkeeping paths that escape the canonical mission status surface."""
     repo_resolved = get_main_repo_root(repo_root).resolve(strict=False)
-    surface_root = (repo_resolved / KITTY_SPECS_DIR / mission_slug).resolve(strict=False)
+    surface_root = primary_feature_dir_for_mission(repo_resolved, mission_slug).resolve(strict=False)
     resolved_candidate = candidate.resolve(strict=False)
     if not resolved_candidate.is_relative_to(surface_root):
         raise ValueError(
