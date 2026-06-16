@@ -58,7 +58,7 @@ canonical-producer-lint-01KS4XX4 · canonical-producer-refactor-01KS7PEK ·
 merge-done-surface-resolver-01KTDVHZ · merge-preflight-remote-state-boundary-separation-01KTBE5M ·
 merge-review-status-hardening-sprint-01KQFF35 · review-merge-gate-hardening-3-2-x-01KRC57C ·
 event-architecture-cli-git-truth-01KT119Y · backward-transition-cli-emit-01KRV8GC ·
-rename-ceremony-to-status-commit-01KSPN6C · sync-diagnose-canonical-allowlist-01KS4F8H ·
+status-commit-rename-01KSPN6C · sync-diagnose-canonical-allowlist-01KS4F8H ·
 runtime-mission-execution-extraction-01KPDYGW · locate-project-root-consolidation-01KV5SX1.
 
 **G1 — Doctrine/Charter/DRG (26):**
