@@ -12,6 +12,7 @@ principles:
   - "Timely: tests are written at the same time as (or before) the production code they validate."
   - "Thorough: the test suite covers edge cases, failure paths, and boundary conditions — not only the happy path."
   - "Truthful: a passing test proves the behavior it describes is actually present in production code."
+  - "Realistic: test data mirrors the shape and invariants of production data — real-format identifiers, valid lengths and ranges, plausible values. Fabricated placeholder values that violate production constraints test a world that cannot occur; they mask real behavior and mislead debugging."
   - "Inspiring: reading the test suite gives a new contributor a clear model of how the system behaves."
   - "Exemplary: tests are the best usage examples of the production code they exercise."
   - "Specific: a failing test clearly identifies which behavior is broken, not just that something is wrong."
@@ -105,6 +106,26 @@ anti_patterns:
       verify(repository, times(2)).save(any());  // brittle: couples test to save-call count
     good_example: |
       assertThat(repository.findAll()).hasSize(2); // observable outcome
+
+  - name: Fabricated / Unrealistic Test Data
+    description: >
+      Fixtures built from handcrafted placeholder values that violate production invariants
+      (truncated or fake identifiers, impossible lengths, sentinel strings) test a world that
+      cannot occur. They mask real behavior, manufacture phantom edge cases, and mislead
+      debugging — a fixture value that can never reach the code on the golden path is a silent
+      wrong-fixture bug. Prefer production-shaped data; if malformed input must be tested, do it
+      in a test whose name declares that intent, never as incidental setup.
+    bad_example: |
+      # A mission_id is ALWAYS a 26-char ULID in production. This fixture fakes a short one:
+      meta = {"mission_id": "01KMID"}   # 6 chars — impossible on any real path
+      # Short ids resolve down a different branch than real ones, so this fixture invents an
+      # "edge case" the system never produces — here it cost a full adversarial investigation
+      # to prove the "divergence" was a fixture artifact, not a code defect.
+    good_example: |
+      # Use a production-shaped value: a full 26-char ULID (mid8 -> "01KV7SFD").
+      meta = {"mission_id": "01KV7SFD0123456789ABCDEFGH"}
+      # Genuinely testing malformed input? Name the test for it and isolate it:
+      #   def test_rejects_short_mission_id(): ...   # the short id is the subject, not setup
 
 quality_test: "Can a new contributor read one test and understand what behavior it validates, what preconditions are required, and what a failure means — without reading the production code?"
 
