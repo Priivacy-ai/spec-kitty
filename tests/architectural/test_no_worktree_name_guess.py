@@ -102,19 +102,28 @@ _ALLOWED_SITES: frozenset[str] = frozenset(
         # never resolves an on-disk worktree (the path is reported, not opened).
         # Benign: not a name-guess of a real worktree.
         "src/specify_cli/lanes/lifecycle_sync.py:135",
-        # ── mission_creation.py / worktree.py: pre-existing <slug>-<mid8> compose ──
-        # Out-of-scope, pre-existing seam-duplicating composes that PRE-DATE this
-        # mission and were never in its NFR-001 routing scope (absent from
-        # spec.md/plan.md). The canonical seam (`branch_naming.py`) now exists, so
-        # routing these through ``mission_dir_name()`` / ``worktree_dir_name()`` is
-        # a clean follow-up — tracked separately by the orchestrator (a logged,
-        # non-silent exemption, NOT a silent work-around). Allow-listed here so the
-        # ratchet stays green for this mission while the follow-up is queued.
-        "src/specify_cli/core/mission_creation.py:321",
-        "src/specify_cli/core/worktree.py:367",
-        "src/specify_cli/core/worktree.py:370",
+        # NOTE: the previously-allow-listed pre-existing ``<slug>-<mid8>`` composes
+        # (``mission_creation.py:321`` / ``worktree.py:367`` / ``worktree.py:370``)
+        # have been ROUTED through ``mission_dir_name()`` / ``resolve_mid8()`` (the
+        # #2000 follow-up landed). The detector now flags ZERO offenders at those
+        # sites, so the carve-outs were dropped (a stale exemption is a
+        # false-negative window). The
+        # ``test_name_compose_offenders_match_pinned_baseline`` cross-check below
+        # pins the offender count so a re-grown stale allow-list entry is caught.
     }
 )
+
+# Pinned count of name-COMPOSE offenders the detector currently flags across the
+# scan roots (excluding the seam), pinned as a committed literal so the
+# allow-list cannot rot undetected. Mirrors the short-id ratchet's
+# ``_SHORTID_BASELINE_RAW_MATCHES``: a stale allow-list entry (one that no longer
+# points at a live offender) or an extra unjustified entry would drift this
+# count and trip the cross-check. Composition (verified at this baseline land):
+#   recovery.py:135            (branch-list glob — benign carve-out)
+#   vcs/detection.py:161       (seam-parser round-trip — benign carve-out)
+#   lifecycle_sync.py:135      (corrupt-lanes diagnostic placeholder — benign)
+# => 3 raw offenders, all accounted for by the allow-list => 0 un-accounted.
+_NAME_COMPOSE_BASELINE_RAW_MATCHES = 3
 
 # Helper text appended to every failure so the offender knows the fix.
 _SEAM_GUIDANCE = (
@@ -389,6 +398,59 @@ def test_allow_list_entries_are_real_and_benign() -> None:
     )
 
 
+def test_name_compose_offenders_match_pinned_baseline() -> None:
+    """The name-compose offender count is objectively pinned and fully accounted.
+
+    Mirrors ``test_shortid_consumer_class_is_empty_against_pinned_baseline`` for
+    the name-COMPOSE detector (whose only prior hygiene check,
+    ``test_allow_list_entries_are_real_and_benign``, verified merely that an
+    allow-listed line *exists* — not that it is still an offender). A stale
+    allow-list entry (one that no longer points at a live compose) leaves a
+    silent false-negative window; this cross-check catches it two ways:
+
+      1. the live raw offender count must equal the committed literal, and
+      2. every raw offender must be accounted for by the allow-list (zero
+         un-accounted), so an *extra* unjustified entry cannot hide either.
+    """
+    raw_offenders: list[str] = []
+    for path in _iter_source_files():
+        rel = _rel(path)
+        if rel == _SEAM_REL:
+            continue  # the seam is the legal home of these idioms
+        for lineno in sorted(_scan_file(path)):
+            raw_offenders.append(f"{rel}:{lineno}")
+
+    assert len(raw_offenders) == _NAME_COMPOSE_BASELINE_RAW_MATCHES, (
+        "Pinned name-compose baseline drifted. Expected "
+        f"{_NAME_COMPOSE_BASELINE_RAW_MATCHES} raw name-compose offenders across "
+        f"the scan roots, found {len(raw_offenders)}:\n  "
+        + "\n  ".join(sorted(raw_offenders))
+        + "\n\nIf a NEW offender appeared, route it through the canonical seam. "
+        "If an allow-listed offender was legitimately removed (routed through "
+        "the seam), drop its allow-list entry AND update "
+        "_NAME_COMPOSE_BASELINE_RAW_MATCHES (and the composition comment)."
+    )
+
+    unaccounted = [site for site in raw_offenders if site not in _ALLOWED_SITES]
+    assert unaccounted == [], (
+        "Name-compose offenders not covered by the allow-list (each is a REAL "
+        "name-guess outside the seam — route it through the canonical seam, do "
+        "NOT add an allow-list entry without a justification proving it is not a "
+        "compose):\n  " + "\n  ".join(sorted(unaccounted))
+    )
+
+    # Inverse guard: every allow-list entry must STILL be a live offender, so a
+    # stale exemption (the renata GAP) cannot survive. Combined with the count
+    # assertion above this makes the allow-list exactly the offender set.
+    stale_exemptions = sorted(set(_ALLOWED_SITES) - set(raw_offenders))
+    assert stale_exemptions == [], (
+        "Stale name-compose allow-list entries (the line is no longer an "
+        "offender the detector flags — the site was routed through the seam; "
+        "drop the exemption to close the false-negative window):\n  "
+        + "\n  ".join(stale_exemptions)
+    )
+
+
 # ---------------------------------------------------------------------------
 # NFR-001 diff-scan (T038a): the naming-seam consolidation must NOT bleed into
 # the status reducer/store internals or the task_utils internals.
@@ -460,4 +522,373 @@ def test_nfr001_consolidation_does_not_bleed_into_status_or_task_utils() -> None
         "internals. Only `status/aggregate.py` may change under `status/`, and "
         "`task_utils/` must be untouched.\n  "
         + "\n  ".join(sorted(violations))
+    )
+
+
+# ===========================================================================
+# WP02 (this mission) — AST short-id slice detector + failover-bypass rule.
+#
+# A SECOND ratchet, distinct from the name-COMPOSE idioms above: it forbids
+# hand-derived mission ``mid8`` SHORT-IDs (``mission_id[:8]`` and friends)
+# outside the single sanctioned derivation home. The recurring defect this
+# guards (FR-004 / FR-010) is a consumer that re-slices the mission_id to a
+# mid8 instead of routing through ``resolve_mid8`` — the failover-aware
+# entrypoint that reconciles a stale slug tail against the declared identity.
+# A bare ``mission_id[:8]`` skips that reconciliation and silently mis-routes
+# a colliding-tail mission (the #1899 / #1978 class).
+#
+# ⚠️ HONESTY NOTE — scope and known limits (binding; do NOT overclaim):
+#   * This is a **syntax-level tripwire**, not a completeness oracle. It is
+#     defeated by helper indirection: ``def _short(x): return x[:8]`` then
+#     ``_short(mission_id)`` carries no ``[:8]`` at the call site and escapes.
+#     The real correctness guarantee for this mission is
+#     verification-by-deletion: WP03/WP04/WP05 deleted every consumer slice and
+#     the suite stayed green. This ratchet only stops a *future* regrowth of
+#     the exact syntactic shape.
+#   * AST cannot structurally distinguish ``mission_id`` from ``invocation_id``
+#     or a content hash — detection rests on a NAME predicate (substring
+#     ``mission_id`` / ``mid``). The predicate is deliberately a SUBSTRING/glob,
+#     never exact-match, so ``str(raw_mission_id)[:8]`` and ``mission_id_meta``
+#     (the original blind spots Paula found) cannot escape via a wrapper or a
+#     suffix.
+#   * It explicitly does **NOT** cover the deferred ``feature_dir.parent.parent``
+#     repo-root-derivation class (~9 sites), which is owned by the read-path /
+#     error-fidelity follow-on focus (#2007), not this mission.
+# ===========================================================================
+
+# The short-id detector scans ALL of ``src/`` (FR-004 / FR-010 routing is
+# repo-wide), NOT just the ``specify_cli`` + ``runtime`` subset the name-COMPOSE
+# detector above uses — because one of the sanctioned homes
+# (``mission_runtime/context.py``) and potential consumers (``mission_runtime``,
+# ``charter``, ``glossary``, ...) live outside that subset. Benign content-hash
+# / state slices in those packages carry neither ``mission_id`` nor ``mid`` in
+# the operand name, so the name predicate spares them.
+_SHORTID_SCAN_ROOT = _REPO_ROOT / "src"
+
+
+def _iter_shortid_source_files() -> list[Path]:
+    """Every ``*.py`` under ``src/`` (the short-id detector's repo-wide scope)."""
+    files: list[Path] = []
+    if _SHORTID_SCAN_ROOT.exists():
+        for path in sorted(_SHORTID_SCAN_ROOT.rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            files.append(path)
+    return files
+
+
+# The two permanent sanctioned slice HOMES, skipped at FILE level (the
+# ``_SEAM_REL`` home-skip pattern). ``mission_id[:8]`` is legitimate ONLY here:
+#   * branch_naming.py — ``_mid8`` / ``resolve_mid8`` are THE single-derivation
+#     primitive + its failover-aware public door.
+#   * mission_runtime/context.py — ``IdentityFragment`` computes the mid8
+#     "here and nowhere else" (its own docstring) and self-checks the invariant.
+_SHORTID_HOME_FILES: frozenset[str] = frozenset(
+    {
+        "src/specify_cli/lanes/branch_naming.py",
+        "src/mission_runtime/context.py",
+    }
+)
+
+# The single canonical failover-aware short-id entrypoint every consumer must
+# route through instead of re-slicing.
+_SHORTID_SEAM = "resolve_mid8"
+
+# Substring tokens (case-insensitive) that mark a sliced operand as the
+# mission-identity shape. SUBSTRING, not exact-match — that is the whole point:
+#   ``mission_id`` catches ``mission_id`` / ``raw_mission_id`` / ``mission_id_meta``
+#                  / ``self.mission_id`` (attr) ;
+#   ``mid``        catches ``mid`` / ``mid8`` / ``raw_mid`` / ``_mid8``.
+# A pure ``invocation_id`` / content-hash operand contains NEITHER token, so it
+# is not flagged (and ``invocation_id[:8]`` is additionally named-out below).
+_MISSION_ID_NAME_TOKENS: tuple[str, ...] = ("mission_id", "mid")
+
+# Named exclusion: a DIFFERENT identity domain that legitimately slices its own
+# id. ``invocation/executor.py`` formats an invocation_id short-tag for a log
+# line; it is not a mission mid8 and the name predicate already excludes it, but
+# we pin it by name so the intent is explicit and self-documenting.
+_SHORTID_NAMED_EXCLUSIONS: frozenset[str] = frozenset(
+    {
+        "src/specify_cli/invocation/executor.py:469",
+    }
+)
+
+# Narrow, individually-justified short-id allow-list (file:line). The
+# mission-identity CONSUMER class is otherwise EMPTY after WP03/WP04/WP05
+# routed every site; only this deliberate diagnostic-tolerance fallback remains.
+_SHORTID_ALLOWED_SITES: frozenset[str] = frozenset(
+    {
+        # ── doctor.py: diagnostic short-id TOLERANCE, not a missed route ──
+        # ``short = resolve_mid8(slug, mission_id=mission_id) or mission_id[:8]``.
+        # WP03 routed the derivation through the failover-aware ``resolve_mid8``;
+        # the ``or mission_id[:8]`` tail is a CONSCIOUS fallback that keeps the
+        # doctor diagnostic emitting a display short-id even when resolve_mid8
+        # declines to ``""`` (e.g. a malformed/short mission_id). It is the
+        # ``or`` RHS of an already-routed call — a tolerance branch, NOT a
+        # consumer that bypassed the seam. Two emit sites, identical idiom.
+        "src/specify_cli/cli/commands/doctor.py:3073",
+        "src/specify_cli/cli/commands/doctor.py:3165",
+    }
+)
+
+# Pre-mission baseline of mission-identity ``[:8]`` slices across ``src/`` (the
+# raw count BEFORE home/allow-list filtering), pinned as a committed literal so
+# "the consumer class is empty" is an OBJECTIVE, diff-checkable claim rather
+# than a re-derivation of the live tree. Composition (verified at WP02 land):
+#   branch_naming.py:146/199/415  (3, HOME)
+#   mission_runtime/context.py:99/112  (2, HOME)
+#   cli/commands/doctor.py:3073/3165  (2, allow-listed tolerance)
+# => 7 raw matches; 5 in homes + 2 allow-listed => 0 un-accounted consumers.
+_SHORTID_BASELINE_RAW_MATCHES = 7
+
+
+def _unwrap_str_call(node: ast.expr) -> ast.expr:
+    """Unwrap a single ``str(<expr>)`` call to its inner argument.
+
+    ``str(raw_mission_id)[:8]`` slices the *call* node; the identity-bearing
+    name is the call argument. Unwrapping lets the substring predicate see
+    ``raw_mission_id`` instead of the opaque ``str(...)`` text — closing the
+    string-wrapped blind spot (M1).
+    """
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "str"
+        and len(node.args) == 1
+    ):
+        return node.args[0]
+    return node
+
+
+def _operand_is_mission_identity(node: ast.expr) -> bool:
+    """True if the sliced operand names the mission-identity shape.
+
+    Substring (not exact) match on the unparsed operand text — after unwrapping
+    a ``str(...)`` wrapper — against ``mission_id`` / ``mid``. Substring is
+    deliberate: an exact-match predicate would let ``str(raw_mission_id)`` and
+    ``mission_id_meta`` escape (the original recurrence blind spots).
+    """
+    text = ast.unparse(_unwrap_str_call(node)).lower()
+    return any(token in text for token in _MISSION_ID_NAME_TOKENS)
+
+
+def _is_eight_slice(node: ast.AST) -> bool:
+    """True for a subscript slice ``X[:8]`` / ``X[0:8]`` (no step)."""
+    if not isinstance(node, ast.Subscript):
+        return False
+    sl = node.slice
+    if not isinstance(sl, ast.Slice) or sl.step is not None:
+        return False
+    lower_ok = sl.lower is None or (
+        isinstance(sl.lower, ast.Constant) and sl.lower.value == 0
+    )
+    upper_ok = isinstance(sl.upper, ast.Constant) and sl.upper.value == 8
+    return lower_ok and upper_ok
+
+
+def _scan_shortid_file(path: Path) -> dict[int, str]:
+    """Return ``{lineno: label}`` for forbidden short-id idioms in ``path``.
+
+    Two idioms:
+      * **slice** — a mission-identity ``[:8]`` slice (incl. ``str(<id>)[:8]``).
+      * **bypass** — a bare ``_mid8(...)`` call to the now-private primitive
+        (the failover-bypass rule, T019): consumers must call ``resolve_mid8``,
+        not the unguarded private slice primitive.
+    """
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except SyntaxError:
+        return {}
+
+    violations: dict[int, str] = {}
+    for node in ast.walk(tree):
+        if _is_eight_slice(node):
+            assert isinstance(node, ast.Subscript)  # narrowed by _is_eight_slice
+            if _operand_is_mission_identity(node.value):
+                operand = ast.unparse(node.value)
+                violations[node.lineno] = (
+                    f"mission-identity short-id slice `{operand}[:8]` — route "
+                    f"through `{_SHORTID_SEAM}` (failover-aware), do not re-slice"
+                )
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_mid8"
+        ):
+            violations[node.lineno] = (
+                "bare `_mid8(...)` call bypasses the failover entrypoint — "
+                f"route through `{_SHORTID_SEAM}` instead of the private primitive"
+            )
+    return violations
+
+
+def _iter_shortid_offenders() -> list[str]:
+    """Collect ``file:line: label`` for every un-accounted short-id idiom."""
+    offenders: list[str] = []
+    for path in _iter_shortid_source_files():
+        rel = _rel(path)
+        if rel in _SHORTID_HOME_FILES:
+            # Sanctioned derivation homes — skipped at file level.
+            continue
+        for lineno, label in sorted(_scan_shortid_file(path).items()):
+            site = f"{rel}:{lineno}"
+            if site in _SHORTID_NAMED_EXCLUSIONS or site in _SHORTID_ALLOWED_SITES:
+                continue
+            offenders.append(f"  {site}: {label}")
+    return offenders
+
+
+def test_no_mission_shortid_slice_or_failover_bypass_outside_seam() -> None:
+    """No mission-identity ``mid8`` short-id may be hand-derived outside the seam.
+
+    The mission-identity CONSUMER class must be EMPTY: every consumer routes its
+    mid8 through ``resolve_mid8`` (FR-004 / FR-010). The two sanctioned
+    derivation homes (``branch_naming.py``, ``mission_runtime/context.py``) are
+    skipped at file level; ``invocation_id[:8]`` is a different identity domain
+    excluded by name; the doctor diagnostic-tolerance ``or mission_id[:8]`` is a
+    single justified allow-list entry. Anything else is a real missed route.
+    """
+    offenders = _iter_shortid_offenders()
+    if offenders:
+        pytest.fail(
+            "Forbidden mission-identity short-id derivation found outside the "
+            "sanctioned home — this reintroduces the colliding-tail mis-route "
+            "class (#1899 / #1978). A bare `mission_id[:8]` (or `_mid8(...)`) "
+            "skips the failover reconciliation in `resolve_mid8`.\n\n"
+            "Offending sites (each is a REAL missed route — do NOT allow-list "
+            "without a justification that proves it is not a consumer):\n"
+            + "\n".join(sorted(offenders))
+            + f"\n\nRoute the derivation through `{_SHORTID_SEAM}` "
+            "(`src/specify_cli/lanes/branch_naming.py`)."
+        )
+
+
+def test_shortid_consumer_class_is_empty_against_pinned_baseline() -> None:
+    """The un-accounted short-id consumer count is objectively zero.
+
+    Pins the pre-mission raw match count as a committed literal and asserts the
+    live tree's accounting (homes + named exclusions + allow-list) leaves zero
+    un-accounted consumers, so "the consumer class is empty" is diff-checkable
+    rather than a re-derivation of whatever the tree happens to contain.
+    """
+    raw_matches: list[str] = []
+    for path in _iter_shortid_source_files():
+        rel = _rel(path)
+        for lineno, label in sorted(_scan_shortid_file(path).items()):
+            if "short-id slice" not in label:
+                continue  # count slices only for the baseline, not _mid8 calls
+            raw_matches.append(f"{rel}:{lineno}")
+
+    assert len(raw_matches) == _SHORTID_BASELINE_RAW_MATCHES, (
+        "Pinned short-id baseline drifted. Expected "
+        f"{_SHORTID_BASELINE_RAW_MATCHES} raw mission-identity `[:8]` slices "
+        f"across src/, found {len(raw_matches)}:\n  "
+        + "\n  ".join(sorted(raw_matches))
+        + "\n\nIf a NEW slice appeared, it is almost certainly a missed route — "
+        "route it through `resolve_mid8`. If a home/allow-listed slice was "
+        "legitimately removed, update _SHORTID_BASELINE_RAW_MATCHES (and the "
+        "composition comment) to match."
+    )
+
+    # Every raw match must be accounted for by a home, a named exclusion, or the
+    # allow-list — leaving an EMPTY un-accounted consumer set.
+    unaccounted = [
+        site
+        for site in raw_matches
+        if site.rsplit(":", 1)[0] not in _SHORTID_HOME_FILES
+        and site not in _SHORTID_NAMED_EXCLUSIONS
+        and site not in _SHORTID_ALLOWED_SITES
+    ]
+    assert unaccounted == [], (
+        "The mission-identity short-id CONSUMER class is not empty — these "
+        "slices are neither in a sanctioned home nor justified in the "
+        "allow-list:\n  " + "\n  ".join(sorted(unaccounted))
+    )
+
+
+def test_shortid_detector_self_test_flags_all_five_shapes() -> None:
+    """The detector flags all 5 recurrence shapes and spares ``invocation_id``.
+
+    Plants each shape Paula found into an in-memory module and asserts the
+    scanner flags it; plants ``invocation_id[:8]`` (a different identity domain)
+    and asserts it is NOT flagged. Guards the substring predicate against
+    silently regressing to exact-match (which would let the wrapped/suffixed
+    shapes escape).
+    """
+    flagged_source = (
+        "mission_id[:8]\n"
+        "str(raw_mission_id)[:8]\n"
+        "mid[:8]\n"
+        "raw_mid[:8]\n"
+        "mission_id_meta[:8]\n"
+    )
+    not_flagged_source = "invocation_id[:8]\n"
+
+    flagged_tree = ast.parse(flagged_source)
+    flagged: list[str] = []
+    for node in ast.walk(flagged_tree):
+        if _is_eight_slice(node):
+            assert isinstance(node, ast.Subscript)
+            if _operand_is_mission_identity(node.value):
+                flagged.append(ast.unparse(node.value))
+
+    assert flagged == [
+        "mission_id",
+        "str(raw_mission_id)",
+        "mid",
+        "raw_mid",
+        "mission_id_meta",
+    ], f"detector missed a recurrence shape; flagged only: {flagged}"
+
+    not_flagged_tree = ast.parse(not_flagged_source)
+    for node in ast.walk(not_flagged_tree):
+        if _is_eight_slice(node):
+            assert isinstance(node, ast.Subscript)
+            assert not _operand_is_mission_identity(node.value), (
+                "invocation_id[:8] is a different identity domain and must NOT "
+                "be flagged by the mission-identity short-id detector"
+            )
+
+
+def test_shortid_failover_bypass_self_test() -> None:
+    """The failover-bypass rule flags a bare ``_mid8(...)`` call.
+
+    The now-private ``_mid8`` primitive slices without the failover
+    reconciliation; a consumer calling it directly bypasses ``resolve_mid8``.
+    Plants such a call (outside any home) and asserts it is flagged.
+    """
+    bypass_source = "x = _mid8(mission_id)\n"
+    tree = ast.parse(bypass_source)
+    flagged = False
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_mid8"
+        ):
+            flagged = True
+    assert flagged, "failover-bypass rule must flag a bare `_mid8(...)` call"
+
+
+def test_shortid_allow_list_entries_are_real() -> None:
+    """Every short-id allow-list / named-exclusion entry points at a live line.
+
+    Mirrors ``test_allow_list_entries_are_real_and_benign`` for the short-id
+    carve-outs: a stale exemption that outlives its line could silently mask a
+    future regression at the same path:line.
+    """
+    stale: list[str] = []
+    for site in sorted(_SHORTID_ALLOWED_SITES | _SHORTID_NAMED_EXCLUSIONS):
+        rel, _, lineno_text = site.rpartition(":")
+        abs_path = _REPO_ROOT / rel
+        if not abs_path.is_file():
+            stale.append(f"{site} (file missing)")
+            continue
+        line_count = len(abs_path.read_text(encoding="utf-8").splitlines())
+        if int(lineno_text) > line_count:
+            stale.append(f"{site} (line {lineno_text} > {line_count} lines)")
+    assert stale == [], (
+        "Stale short-id allow-list / named-exclusion entries (the carved-out "
+        "line no longer exists — re-verify the site and update or drop it):\n  "
+        + "\n  ".join(stale)
     )
