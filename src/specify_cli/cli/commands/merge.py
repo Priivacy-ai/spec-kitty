@@ -800,6 +800,43 @@ def _read_optional_bytes(path: Path) -> bytes | None:
     return path.read_bytes()
 
 
+def _assert_status_path_within_target_surface(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    candidate: Path,
+) -> Path:
+    """Reject bookkeeping paths that escape the canonical mission status surface."""
+    repo_resolved = get_main_repo_root(repo_root).resolve(strict=False)
+    surface_root = (repo_resolved / KITTY_SPECS_DIR / mission_slug).resolve(strict=False)
+    resolved_candidate = candidate.resolve(strict=False)
+    if not resolved_candidate.is_relative_to(surface_root):
+        raise ValueError(
+            f"Refusing bookkeeping path outside mission status surface: {candidate}"
+        )
+    return resolved_candidate
+
+
+def _assert_status_surface_path_is_trusted(
+    *,
+    repo_root: Path,
+    status_feature_dir: Path,
+) -> Path:
+    """Reject status surfaces that resolve outside the repo's trusted roots."""
+    repo_resolved = get_main_repo_root(repo_root).resolve(strict=False)
+    trusted_root = (
+        (repo_resolved / WORKTREES_DIR).resolve(strict=False)
+        if is_under_worktrees_segment(status_feature_dir)
+        else (repo_resolved / KITTY_SPECS_DIR).resolve(strict=False)
+    )
+    resolved_status_dir = status_feature_dir.resolve(strict=False)
+    if not resolved_status_dir.is_relative_to(trusted_root):
+        raise ValueError(
+            f"Refusing status surface outside trusted repo roots: {status_feature_dir}"
+        )
+    return resolved_status_dir
+
+
 def _restore_optional_bytes(path: Path, original: bytes | None) -> None:
     if original is None:
         path.unlink(missing_ok=True)
@@ -852,6 +889,20 @@ def _project_status_bookkeeping_to_target(
         main_repo=main_repo,
         mission_slug=mission_slug,
         status_feature_dir=status_feature_dir,
+    )
+    _assert_status_surface_path_is_trusted(
+        repo_root=main_repo,
+        status_feature_dir=status_feature_dir,
+    )
+    _assert_status_path_within_target_surface(
+        repo_root=main_repo,
+        mission_slug=mission_slug,
+        candidate=target_events_path,
+    )
+    _assert_status_path_within_target_surface(
+        repo_root=main_repo,
+        mission_slug=mission_slug,
+        candidate=target_status_path,
     )
     if not is_under_worktrees_segment(status_feature_dir):
         return target_events_path, target_status_path

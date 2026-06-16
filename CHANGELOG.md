@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.1] - 2026-06-16
+
+### 🐛 Fixed
+
+- **Security follow-up for SonarCloud + Dependabot:** re-exported the charter package helper named in `__all__`,
+  hardened merge bookkeeping projection so status-surface paths cannot resolve outside trusted repo roots, and
+  refreshed locked crypto/tooling dependencies to patched releases (`cryptography 49.0.0`, `pip 26.1.2`) so the
+  security gates stay clean.
+
 ## [3.2.0] - 2026-06-16
 
 ### ✨ Added / 🔧 Changed
