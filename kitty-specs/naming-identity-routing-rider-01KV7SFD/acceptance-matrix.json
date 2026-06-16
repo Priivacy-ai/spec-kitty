@@ -1,0 +1,139 @@
+{
+  "mission_slug": "naming-identity-routing-rider-01KV7SFD",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pending",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "FR-001 satisfied and reviewer-approved",
+      "proof_type": "automated_test",
+      "evidence": "WP03+WP04 route ~15 mid8 sites through resolve_mid8; HEAD-literal char. tests green; both reviewed/approved",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-16T13:30:00+00:00",
+      "notes": "Verified via the approved WP implementation + independent review."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "FR-002 satisfied and reviewer-approved",
+      "proof_type": "automated_test",
+      "evidence": "WP04 test_execution_context_carries_single_derived_mid8 (real ExecutionContext); zero fragment re-derivation; approved",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-16T13:30:00+00:00",
+      "notes": "Verified via the approved WP implementation + independent review."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "FR-003 satisfied and reviewer-approved",
+      "proof_type": "automated_test",
+      "evidence": "WP03 routes dashboard/scanner.py:438 via resolve_mid8(...) or None preserving None registry contract; approved",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-16T13:30:00+00:00",
+      "notes": "Verified via the approved WP implementation + independent review."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "FR-004 satisfied and reviewer-approved",
+      "proof_type": "automated_test",
+      "evidence": "WP02 AST short-id detector + failover-bypass rule; ratchet PASSES on routed tree (7 baseline=5 homes+2 doctor, 0 unaccounted); approved",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-16T13:30:00+00:00",
+      "notes": "Verified via the approved WP implementation + independent review."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "FR-005 satisfied and reviewer-approved",
+      "proof_type": "automated_test",
+      "evidence": "WP05 #2000 composes routed via mission_dir_name/resolve_mid8; 12 byte-parity frozen-literal tests; approved",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-16T13:30:00+00:00",
+      "notes": "Verified via the approved WP implementation + independent review."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "FR-006 satisfied and reviewer-approved",
+      "proof_type": "automated_test",
+      "evidence": "WP06 #1971-tail: 6 divergent-input convergence tests prove 3 entries converge on core/paths.py; approved",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-16T13:30:00+00:00",
+      "notes": "Verified via the approved WP implementation + independent review."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "FR-007 satisfied and reviewer-approved",
+      "proof_type": "automated_test",
+      "evidence": "WP06 #1888 verify-and-close: validate_glob_matches already covers it (991162c0a); 5 phantom-path tests pass on HEAD; approved",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-16T13:30:00+00:00",
+      "notes": "Verified via the approved WP implementation + independent review."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "FR-008 satisfied and reviewer-approved",
+      "proof_type": "automated_test",
+      "evidence": "WP03 per-site contract table; byte-parity preserved at the 5 landmines (mid8 raises vs resolve_mid8 declines); approved",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-16T13:30:00+00:00",
+      "notes": "Verified via the approved WP implementation + independent review."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "FR-009 satisfied and reviewer-approved",
+      "proof_type": "automated_test",
+      "evidence": "WP03+WP04 deleted inline shadow derivations incl. retrospective_terminus _mid8 shadow def; verification-by-deletion; approved",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-16T13:30:00+00:00",
+      "notes": "Verified via the approved WP implementation + independent review."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "FR-010 satisfied and reviewer-approved",
+      "proof_type": "automated_test",
+      "evidence": "WP01 demoted mid8->_mid8 (resolve_mid8 sole public door); zero external public-mid8 importers (AST-verified, F-1 closed); WP02 bypass rule enforces; approved",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-16T13:30:00+00:00",
+      "notes": "Verified via the approved WP implementation + independent review."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "FR-011 satisfied and reviewer-approved",
+      "proof_type": "manual_review",
+      "evidence": "WP07 repointed 15 SOURCE drift refs (doctrine list/show, plan-prompt --action/--mission); SOURCE-only; approved",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-16T13:30:00+00:00",
+      "notes": "Verified via the approved WP implementation + independent review."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "FR-012 satisfied and reviewer-approved",
+      "proof_type": "automated_test",
+      "evidence": "WP07 command-snippet CI guard in test_docs_cli_reference_parity.py (scans live Typer surface, empty-frozenset ratchet, self-tests); approved",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-16T13:30:00+00:00",
+      "notes": "Verified via the approved WP implementation + independent review."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "FR-013 satisfied and reviewer-approved",
+      "proof_type": "manual_review",
+      "evidence": "WP07 worktree-repair hint -> doctor workspaces --fix + CLI Surface Contract for implement/review JSON (#13/#16); approved",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-16T13:30:00+00:00",
+      "notes": "Verified via the approved WP implementation + independent review."
+    }
+  ],
+  "negative_invariants": []
+}
