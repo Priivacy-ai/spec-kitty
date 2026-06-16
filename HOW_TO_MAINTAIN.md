@@ -150,58 +150,44 @@ Keep area labels few and orthogonal; prefer native sub-issue parenting over inve
 
 ---
 
-## 5. Recommended additions
+## 5. Release scoping: emergent milestones + declarations of intent (IMPLEMENTED)
 
-> Two governance recommendations for the maintainer. Both are **proposals to execute, not yet done**
-> — no milestones were created and the tracker was not mutated by this op (Directive 003: rationale
-> recorded inline).
+Adopted 2026-06-16. Milestones were previously **abandoned** (2 historical, no due-dates, zero open
+issues; release scoping rode on version labels `3.2.0`/`3.3.0`). The model below is now live.
 
-### 5a. Adopt GitHub Milestones for release scoping
+### 5a. Emergent milestones (per minor cycle, not per patch)
 
-**As-found (confirmed):** Milestones are effectively **abandoned**. Only two historical milestones
-exist (`2.1 release`, `0.15.0 - 1.x Quality Bugfixes`), both with no due-date and no open issues, and
-**zero** open issues carry any milestone. Release scoping currently rides on **version labels**
-(`3.2.0`, `3.3.0`).
+Scope by **minor cycle**: milestones are `3.2.x`, `3.3.x` (+ a retroactive point-in-time `3.2.0` for
+what shipped). A minor cycle has **one goal**; multiple **emergent patches** (`3.2.1`, `3.2.2`, …) each
+advance that same goal, and the milestone stays **open until the goal is structurally met**. This lets
+us split a minor cycle into as many patches as the work needs without re-litigating scope.
 
-**Recommendation:** Adopt **one milestone per release** (`v3.2.1`, `v3.3.0`, …) as the *single*
-release-scoping surface, and retire the parallel version-label mechanism over time.
-
-- **What it buys:** a real "what's left for 3.2.1" burndown (open/closed counts, % done) for free in
-  the GitHub UI; a due-date for the release; a description field that can hold the release goal (§5b).
-  Version labels give a flat list with none of this.
-- **Cost:** every in-flight issue must be (re)assigned to a milestone; dual-running with version
-  labels during transition risks drift — pick milestones as canonical and treat labels as legacy.
-- **How (maintainer to execute — do NOT auto-create):**
-
+- **Current milestones:** `3.2.0` (#3, closed — 7 shipped issues) · `3.2.x` (#4, open — the active
+  stabilization cycle) · `3.3.x` (#5, open — next cycle, #1878 write-side + forward).
+- **What it buys:** a real "what's left this cycle" burndown for free; one stable target across patches.
+- **Gotcha (record this):** `gh issue edit --milestone "<title>"` only resolves **open** milestones by
+  title. To attach issues to a **closed** (retroactive) milestone, use the API by **number**:
   ```bash
   unset GITHUB_TOKEN
-  # create the milestone (UI: Issues → Milestones → New milestone, or:)
-  gh api repos/Priivacy-ai/spec-kitty/milestones -f title="v3.2.1" \
-    -f description="<release goal — see 5b>" -f due_on="2026-07-01T00:00:00Z"
-  # assign in-flight issues:
-  gh issue edit <num> --repo Priivacy-ai/spec-kitty --milestone "v3.2.1"
+  gh api repos/Priivacy-ai/spec-kitty/milestones -X POST -f title="3.2.x" -f state="open" -f description="<one-line goal + link to docs/release-goals/3.2.x.md>"
+  gh issue edit <num> --repo Priivacy-ai/spec-kitty --milestone "3.2.x"        # open milestone, by title
+  gh api repos/Priivacy-ai/spec-kitty/issues/<num> -X PATCH -F milestone=<N>   # any/closed milestone, by number
   ```
 
-### 5b. Formalize Release Goals (analogous to sprint goals)
+### 5b. Declarations of intent (the canonical goal home)
 
-**Recommendation:** State a single-sentence **release theme/intent** per release. Use the **milestone
-description field** (from §5a) as the *primary* home for the goal — it keeps intent next to the
-burndown and needs no extra file to drift. Mirror the same sentence into the matching mission's
-issue-matrix preamble so mission scope and release intent stay one click apart.
+The **release goal lives in a version-controlled doc**, not (only) the milestone description:
+**`docs/release-goals/<minor>.md`** — the durable, PR-reviewed declaration of intent (goal · rationale
+· scope · non-goals · success criteria · emergent-patch plan · links). The **milestone description is a
+short pointer** back to it (it is ephemeral, char-limited, unreviewable, and can't link to research).
 
-- Why milestone-description over a `RELEASE_GOALS.md` file or a pinned issue: it is zero-maintenance
-  (no separate file to keep in sync), visible exactly where the scoped issues live, and editable
-  without a commit. A `docs/release-goals/` file is the fallback only if milestones are *not* adopted.
-- **Connection to mission practice:** a release goal should map to **one driving mission** (or a small
-  named set). The mission's issue-matrix is the detailed breakdown; the release goal is its one-line
-  intent.
-
-**Filled-in example — v3.2.1:**
-
-> **v3.2.1 — "Strangle the split-brain naming surface."**
-> Land the naming/identity SSOT strangler so mission slug, branch, worktree, and dashboard identity
-> derive from one canonical source. Driver: mission `01KV6510` (mid8 naming seam) + merge-blocker
-> **#1978**. Done when the duplicated identity-derivation sites collapse to one seam and #1978 is closed.
+- Why a doc over the milestone description: a "declaration of intent" deserves git history + review and
+  must link to the research/missions; the milestone is the burndown surface, the doc is the intent.
+- **Connection to mission practice:** a cycle goal maps to a driving mission (or small named set); the
+  mission's `issue-matrix.md` is the per-patch closure ledger that rolls up into the milestone burndown.
+- See [`docs/release-goals/README.md`](docs/release-goals/README.md) for the convention and
+  [`docs/release-goals/3.2.x.md`](docs/release-goals/3.2.x.md) for the live example
+  (**3.2.x — "Strangle the naming/identity/read-path split-brain toward a consistent SSOT."**).
 
 ---
 
