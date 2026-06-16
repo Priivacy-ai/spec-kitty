@@ -247,7 +247,13 @@ class MissionStatus:
         #    read_dir itself comes from the canonical surface, not from any
         #    hand-rolled composition here (FR-005 / #1821).
         mission_id, coordination_branch, primary_candidate = cls._read_meta(repo_root, mission_slug)
-        mid8 = mission_id[:8] if mission_id else ""
+        # Route the mid8 through the authoritative failover resolver instead of
+        # an inline ``[:8]`` slice (WP03 / FR-009). ``resolve_mid8`` declines to
+        # ``""`` when no declared identity is available, preserving the legacy
+        # empty-string contract for missions without a mission_id.
+        from specify_cli.lanes.branch_naming import resolve_mid8
+
+        mid8 = resolve_mid8(mission_slug, mission_id=mission_id)
 
         # 2. Resolve the authoritative status directory through the single
         #    canonical surface. Consume a carried fragment when present; never

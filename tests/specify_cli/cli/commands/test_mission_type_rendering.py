@@ -20,7 +20,7 @@ def test_render_human_success_includes_warning(monkeypatch) -> None:
             "result": "success",
             "mission_key": "software-dev",
             "mission_slug": "123-demo",
-            "mission_id": "m-1",
+            "mission_id": "01KV7SFD0123456789ABCDEFGH",
             "feature_dir": "/tmp/feature",
             "run_dir": "/tmp/run",
             "warnings": [{"code": "W1", "message": "Heads up"}],

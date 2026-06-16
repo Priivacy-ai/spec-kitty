@@ -24,6 +24,7 @@ from pathlib import Path
 from runtime.next._internal_runtime.retrospective_hook import (
     before_mark_done,
 )
+from specify_cli.lanes.branch_naming import resolve_mid8
 from specify_cli.retrospective.events import (
     CompletedPayload,
     FailedPayload,
@@ -62,11 +63,6 @@ _TERMINUS_STEP_ID = "terminus"
 def _now_utc() -> str:
     """Return current UTC time as ISO 8601 string."""
     return datetime.now(UTC).isoformat()
-
-
-def _mid8(mission_id: str) -> str:
-    """Return first 8 characters of mission_id."""
-    return mission_id[:8]
 
 
 def _mission_slug_from_feature_dir(feature_dir: Path) -> str:
@@ -134,8 +130,10 @@ def run_terminus(
         cause retrospective.failed to be emitted and before_mark_done to be
         called (which will then raise MissionCompletionBlocked).
     """
-    mid = _mid8(mission_id)
     mission_slug = _mission_slug_from_feature_dir(feature_dir)
+    # Canonical mid8 resolver (FR-001): the terminus always holds a full ULID
+    # ``mission_id``, so this is byte-identical to the deleted ``_mid8`` shadow.
+    mid = resolve_mid8(mission_slug, mission_id=mission_id)
 
     # ------------------------------------------------------------------
     # 1. Resolve mode.

@@ -30,6 +30,7 @@ git configuration or sparse-checkout state; remediation lives in WP03.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.lanes.branch_naming import resolve_mid8
 import enum
 import json
 import logging
@@ -283,7 +284,10 @@ def _load_managed_lane_policies(repo_root: Path) -> tuple[_ManagedLanePolicy, ..
             and len(mission_id) >= 8
         ):
             continue
-        mid8 = mission_id[:8]
+        # Route through the canonical resolver (FR-001): the guard above
+        # guarantees a full str ``mission_id`` (>= 8) and a str ``mission_slug``,
+        # so this is byte-identical to the prior ``mission_id[:8]``.
+        mid8 = resolve_mid8(mission_slug, mission_id=mission_id)
         policies.append(
             _ManagedLanePolicy(
                 mission_slug=mission_slug,

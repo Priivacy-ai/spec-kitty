@@ -278,6 +278,7 @@ def _load_coord_branch_meta(feature_dir: Path) -> tuple[str | None, str | None, 
     Returns ``(None, None, None)`` for legacy missions or when meta.json
     is missing / unreadable. Never raises.
     """
+    from specify_cli.lanes.branch_naming import resolve_mid8
     from specify_cli.mission_metadata import load_meta
 
     try:
@@ -288,8 +289,12 @@ def _load_coord_branch_meta(feature_dir: Path) -> tuple[str | None, str | None, 
         return (None, None, None)
     coord = meta.get("coordination_branch") or None
     mid = meta.get("mission_id") or None
+    # Route the mission_id truncation through the canonical resolver (FR-001);
+    # the isinstance/>= 8 guard keeps the ``else None`` fallback byte-identical.
     mid8 = meta.get("mid8") or (
-        mid[:8] if isinstance(mid, str) and len(mid) >= 8 else None
+        resolve_mid8(feature_dir.name, mission_id=mid)
+        if isinstance(mid, str) and len(mid) >= 8
+        else None
     )
     return (coord, mid, mid8)
 

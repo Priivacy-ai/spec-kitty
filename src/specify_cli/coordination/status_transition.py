@@ -24,7 +24,6 @@ from specify_cli.coordination.transaction import BookkeepingTransaction
 from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import (
     coord_mission_dir_name as _seam_coord_mission_dir_name,
-    mid8 as _seam_mid8,
     resolve_transaction_mid8,
 )
 from specify_cli.mission_metadata import load_meta
@@ -265,10 +264,12 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
         coord_branch = str(raw_coord) if raw_coord else None
         mission_id = str(raw_mission_id) if raw_mission_id else None
         mid8 = str(raw_mid8) if raw_mid8 else None
-        if mid8 is None and mission_id and len(mission_id) >= 8:
-            # Single grammar (FR-010): derive the mid8 via the seam's
-            # authoritative first-8 primitive, not a local ``[:8]`` slice.
-            mid8 = _seam_mid8(mission_id)
+        # Single grammar (FR-010): when meta carries no explicit ``mid8`` we leave
+        # it ``None`` and let the canonical ``resolve_transaction_mid8`` derive it
+        # from the declared ``mission_id`` (its cascade does ``mission_id[:8]``).
+        # Pre-deriving here via the bare slicer was redundant (proven byte-equal)
+        # and is the last external caller of the demoted ``mid8`` primitive
+        # (mission 01KV7SFD / WP01).
 
     effective_mission_id = mission_id or f"legacy-{mission_slug}"
     # FR-007: the mid8 names the ON-DISK transaction dir. Route through the

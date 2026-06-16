@@ -152,6 +152,7 @@ def _mid8_from_primary_meta(repo_root: Path, mission_slug: str) -> str:
     handles, scaffolds, pre-identity legacy missions), preserving the
     literal-slug behaviour.
     """
+    from specify_cli.lanes.branch_naming import resolve_mid8
     from specify_cli.mission_metadata import load_meta
     from specify_cli.missions._read_path_resolver import (
         primary_feature_dir_for_mission,
@@ -168,7 +169,13 @@ def _mid8_from_primary_meta(repo_root: Path, mission_slug: str) -> str:
         return str(raw_mid8)
     raw_mission_id = meta.get("mission_id")
     if raw_mission_id and len(str(raw_mission_id)) >= 8:
-        return str(raw_mission_id)[:8]
+        # Route the truncation through the canonical resolver (FR-001). The
+        # >= 8 guard above means resolve_mid8 derives ``mission_id[:8]`` rather
+        # than declining, so the decline/empty contract below is preserved.
+        # (``follow_imports=skip`` on ``specify_cli.*`` erases the str return
+        # across the package boundary, so bind explicitly.)
+        resolved: str = resolve_mid8(mission_slug, mission_id=str(raw_mission_id))
+        return resolved
     return ""
 
 

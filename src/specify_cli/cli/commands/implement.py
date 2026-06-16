@@ -382,8 +382,18 @@ def _resolve_bookkeeping_transaction_identifiers(
     if isinstance(mission_meta, dict):
         coord_branch = mission_meta.get("coordination_branch") or None
         mission_id = mission_meta.get("mission_id") or None
+        # Preserve the stored ``meta["mid8"]`` preference, then route the
+        # fallback through the authoritative resolver (WP03 / FR-009).
+        # ``or None`` preserves the prior ``None`` contract (resolve_mid8
+        # declines to ``""``).
+        from specify_cli.lanes.branch_naming import resolve_mid8
+
         mid8 = mission_meta.get("mid8") or (
-            mission_id[:8] if isinstance(mission_id, str) and len(mission_id) >= 8 else None
+            resolve_mid8(
+                mission_slug,
+                mission_id=mission_id if isinstance(mission_id, str) else None,
+            )
+            or None
         )
 
     effective_mission_id = (

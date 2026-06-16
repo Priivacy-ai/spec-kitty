@@ -45,8 +45,8 @@ from specify_cli.context.mission_resolver import (
     resolve_mission,
 )
 from specify_cli.lanes.branch_naming import (
+    _mid8,
     lane_branch_name,
-    mid8,
     mission_branch_name,
 )
 from specify_cli.status.identity_audit import (
@@ -324,7 +324,7 @@ def test_lane_branches_are_distinct_per_mission(colliding_080_repo: Path) -> Non
         # .worktrees/<human-slug>-<mid8>-lane-a
         # We aren't actually creating worktrees in this test — just verifying
         # that the derived path differs for each mission.
-        worktree_paths.add(f"{resolved.mission_slug}-{mid8(ulid)}-lane-a")
+        worktree_paths.add(f"{resolved.mission_slug}-{_mid8(ulid)}-lane-a")
 
     assert len(branch_names) == 3, (
         f"Expected 3 distinct branch names, got {sorted(branch_names)}"
@@ -334,8 +334,8 @@ def test_lane_branches_are_distinct_per_mission(colliding_080_repo: Path) -> Non
     )
     # Every branch must include its own mid8 as disambiguator.
     for ulid in (ULID_FOO, ULID_BAR, ULID_BAZ):
-        assert any(mid8(ulid) in name for name in branch_names), (
-            f"mid8 {mid8(ulid)} missing from any lane branch name: {branch_names}"
+        assert any(_mid8(ulid) in name for name in branch_names), (
+            f"mid8 {_mid8(ulid)} missing from any lane branch name: {branch_names}"
         )
 
 

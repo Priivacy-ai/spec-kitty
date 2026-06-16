@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import get_main_repo_root
+from specify_cli.lanes.branch_naming import resolve_mid8
 from specify_cli.missions.feature_dir_resolver import (
     candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
@@ -640,7 +641,10 @@ def _read_mission_mid8(meta_path: Path) -> str:
     if mid8_value:
         return mid8_value
     mission_id_meta = str(meta.get("mission_id") or "").strip()
-    return mission_id_meta[:8] if len(mission_id_meta) >= 8 else ""
+    # No slug in scope here; the canonical resolver derives ``mission_id[:8]``
+    # from the declared id alone. The >= 8 guard preserves the ``else ""``
+    # contract (resolve_mid8 also declines to "" below 8 chars).
+    return resolve_mid8("", mission_id=mission_id_meta) if len(mission_id_meta) >= 8 else ""
 
 
 def _discard_mission(
