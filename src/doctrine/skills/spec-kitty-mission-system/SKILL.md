@@ -314,10 +314,12 @@ Procedures live in `src/doctrine/procedures/shipped/` (shipped) or
 procedure = service.procedures.get("refactoring")
 # procedure.steps → ordered list of actions
 # procedure.prerequisites → what must be true before starting
+# All procedures: read src/doctrine/procedures/shipped/ or .kittify/procedures/
 ```
 
+To validate project-layer doctrine artifacts:
 ```bash
-spec-kitty doctrine list --kind procedure
+spec-kitty doctrine validate .kittify/
 ```
 
 ### Agent Profiles (Role-Based WP Assignment)
@@ -475,6 +477,44 @@ On every CLI invocation, `ensure_runtime()` runs:
 This ensures `~/.kittify/` always matches the installed spec-kitty version.
 
 ---
+
+## CLI Surface Contract
+
+### `agent action implement` / `agent action review` — text-only output
+
+The canonical agent surfaces `spec-kitty agent action implement <wp_id>` and
+`spec-kitty agent action review <wp_id>` return **plain text** only. They do not
+accept a `--json` flag. Passing `--json` to either command produces a Typer exit-2
+error.
+
+The top-level command `spec-kitty implement` *does* accept `--json`, but it is the
+internal allocator used by the harness — not the surface intended for agent prompt
+steps. Do **not** invoke `spec-kitty implement --json` from prompt steps; that is
+an internal-only surface. Use `spec-kitty agent action implement <wp_id>` for
+work-package execution.
+
+Summary:
+
+| Command | `--json`? | Intended for |
+|---|---|---|
+| `spec-kitty agent action implement <wp_id>` | **no** | Agent prompt steps |
+| `spec-kitty agent action review <wp_id>` | **no** | Agent prompt steps |
+| `spec-kitty implement <wp_id>` | **yes** | Internal harness allocator only |
+
+If you need structured output from the implement action, use `spec-kitty agent tasks status --json`
+to query the resulting WP state after the action completes.
+
+### Workspace recovery
+
+If a worktree is missing or corrupted, do **not** use `agent worktree repair` — that
+command does not exist. The real recovery surface is:
+
+```bash
+spec-kitty doctor workspaces --fix
+```
+
+This removes husk directories (entries in `.worktrees/` that lack a `.git` entry)
+without touching registered live worktrees.
 
 ## References
 

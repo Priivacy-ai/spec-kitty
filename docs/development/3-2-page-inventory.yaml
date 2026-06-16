@@ -3640,3 +3640,269 @@
   current_target: true
   citation_refs: []
   notes: 3.2 lifecycle/support reference page.
+- path: docs/engineering_notes/3-2-0-training-bugs-2007/SYNTHESIS-2007.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for #2007 (3.2.0 training bugs) (SYNTHESIS 2007)"
+- path: docs/engineering_notes/3-2-0-training-bugs-2007/alphonso-systemic.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for #2007 (3.2.0 training bugs) (alphonso systemic)"
+- path: docs/engineering_notes/3-2-0-training-bugs-2007/debbie-missed-path-reinvestigation.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for #2007 (3.2.0 training bugs) (debbie missed path reinvestigation)"
+- path: docs/engineering_notes/3-2-0-training-bugs-2007/debbie-repro-triage.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for #2007 (3.2.0 training bugs) (debbie repro triage)"
+- path: docs/engineering_notes/3-2-0-training-bugs-2007/pedro-command-drift.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for #2007 (3.2.0 training bugs) (pedro command drift)"
+- path: docs/engineering_notes/3-2-0-training-bugs-2007/priti-ticket-mapping.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for #2007 (3.2.0 training bugs) (priti ticket mapping)"
+- path: docs/engineering_notes/3-2-0-training-bugs-2007/priti-tracker-hygiene-log.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for #2007 (3.2.0 training bugs) (priti tracker hygiene log)"
+- path: docs/engineering_notes/3-2-x-goal-corroboration/DIALECTIC-SYNTHESIS.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the 3.2.x goal corroboration dialectic (DIALECTIC SYNTHESIS)"
+- path: docs/engineering_notes/3-2-x-goal-corroboration/SCORING-SYNTHESIS.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the 3.2.x goal corroboration dialectic (SCORING SYNTHESIS)"
+- path: docs/engineering_notes/3-2-x-goal-corroboration/caacs-delta-robbie.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the 3.2.x goal corroboration dialectic (caacs delta robbie)"
+- path: docs/engineering_notes/3-2-x-goal-corroboration/corroboration-alphonso-architecture.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the 3.2.x goal corroboration dialectic (corroboration alphonso architecture)"
+- path: docs/engineering_notes/3-2-x-goal-corroboration/corroboration-paula-patterns.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the 3.2.x goal corroboration dialectic (corroboration paula patterns)"
+- path: docs/engineering_notes/3-2-x-goal-corroboration/corroboration-priti-planning.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the 3.2.x goal corroboration dialectic (corroboration priti planning)"
+- path: docs/engineering_notes/3-2-x-goal-corroboration/redteam-alphonso-architecture.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the 3.2.x goal corroboration dialectic (redteam alphonso architecture)"
+- path: docs/engineering_notes/3-2-x-goal-corroboration/redteam-debbie-benefits.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the 3.2.x goal corroboration dialectic (redteam debbie benefits)"
+- path: docs/engineering_notes/3-2-x-goal-corroboration/redteam-priti-strategy.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the 3.2.x goal corroboration dialectic (redteam priti strategy)"
+- path: docs/engineering_notes/3-2-x-goal-corroboration/redteam-randy-evidence.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the 3.2.x goal corroboration dialectic (redteam randy evidence)"
+- path: docs/engineering_notes/3-2-x-goal-corroboration/scoring-alphonso-architecture.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the 3.2.x goal corroboration dialectic (scoring alphonso architecture)"
+- path: docs/engineering_notes/3-2-x-goal-corroboration/scoring-debbie-severity.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the 3.2.x goal corroboration dialectic (scoring debbie severity)"
+- path: docs/engineering_notes/3-2-x-goal-corroboration/scoring-priti-tracker.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the 3.2.x goal corroboration dialectic (scoring priti tracker)"
+- path: docs/engineering_notes/naming-identity-ssot-strangler/00-OVERVIEW.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the naming/identity SSOT strangler investigation (00 OVERVIEW)"
+- path: docs/engineering_notes/naming-identity-ssot-strangler/architect-alphonso-intended-design.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the naming/identity SSOT strangler investigation (architect alphonso intended design)"
+- path: docs/engineering_notes/naming-identity-ssot-strangler/caacs-alphonso-forensic-synthesis.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the naming/identity SSOT strangler investigation (caacs alphonso forensic synthesis)"
+- path: docs/engineering_notes/naming-identity-ssot-strangler/caacs-paula-recurring-defects.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the naming/identity SSOT strangler investigation (caacs paula recurring defects)"
+- path: docs/engineering_notes/naming-identity-ssot-strangler/caacs-randy-forensic-split-brain.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the naming/identity SSOT strangler investigation (caacs randy forensic split brain)"
+- path: docs/engineering_notes/naming-identity-ssot-strangler/caacs-robbie-forensic-dataset.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the naming/identity SSOT strangler investigation (caacs robbie forensic dataset)"
+- path: docs/engineering_notes/naming-identity-ssot-strangler/context-threading-alphonso-design-verdict.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the naming/identity SSOT strangler investigation (context threading alphonso design verdict)"
+- path: docs/engineering_notes/naming-identity-ssot-strangler/context-threading-pedro-feasibility.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the naming/identity SSOT strangler investigation (context threading pedro feasibility)"
+- path: docs/engineering_notes/naming-identity-ssot-strangler/context-threading-randy-adoption-audit.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the naming/identity SSOT strangler investigation (context threading randy adoption audit)"
+- path: docs/engineering_notes/naming-identity-ssot-strangler/context-threading-robbie-archaeology.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the naming/identity SSOT strangler investigation (context threading robbie archaeology)"
+- path: docs/engineering_notes/naming-identity-ssot-strangler/paula-patterns-duplication-shapes.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the naming/identity SSOT strangler investigation (paula patterns duplication shapes)"
+- path: docs/engineering_notes/naming-identity-ssot-strangler/planner-priti-related-tickets-sweep.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the naming/identity SSOT strangler investigation (planner priti related tickets sweep)"
+- path: docs/engineering_notes/naming-identity-ssot-strangler/planner-priti-tracker-landscape.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the naming/identity SSOT strangler investigation (planner priti tracker landscape)"
+- path: docs/engineering_notes/naming-identity-ssot-strangler/python-pedro-implementation-feasibility.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the naming/identity SSOT strangler investigation (python pedro implementation feasibility)"
+- path: docs/engineering_notes/naming-identity-ssot-strangler/randy-reducer-split-brain-map.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Mission research note for the naming/identity SSOT strangler investigation (randy reducer split brain map)"
+- path: docs/release-goals/3.2.x.md
+  tag: internal
+  divio_type: explanation
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "3.2.x release-goals declaration (doctrine-runtime depth, core-domain strangling, DevEx)"
+- path: docs/release-goals/3.3.x.md
+  tag: internal
+  divio_type: explanation
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "3.3.x release-goals declaration (UX/dashboard/flows/SaaS + emergent-domain strangling)"
+- path: docs/release-goals/README.md
+  tag: internal
+  divio_type: explanation
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Release-goals convention: emergent-milestone model + declaration-of-intent"
