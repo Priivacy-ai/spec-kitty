@@ -193,7 +193,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.core.paths::resolve_with_context",
         "specify_cli.core.upgrade_probe::DEFAULT_TIMEOUT_S",
         "specify_cli.core.upgrade_probe::PYPI_JSON_URL",
-        "specify_cli.core.utils::ensure_within_directory",
         "specify_cli.core.worktree_topology::FeatureTopology",
         "specify_cli.core.worktree_topology::WPTopologyEntry",
         "specify_cli.core.worktree_topology::render_topology_text",
