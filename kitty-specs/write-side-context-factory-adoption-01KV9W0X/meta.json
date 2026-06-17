@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-06-17T04:04:26.224509+00:00",
+  "friendly_name": "Write-Side Context-Factory Adoption",
+  "mission_id": "01KV9W0XFF28B3FWVPJ2X6DN1G",
+  "mission_number": null,
+  "mission_slug": "write-side-context-factory-adoption-01KV9W0X",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Mission A (read-path-error-fidelity) adopted the read path onto the existing build_execution_context factory, froze it, and declared a write-projection boundary contract. The write path still runs a second parallel factory that re-derives root (feature_dir.parent.parent walks), identity, and write-surface by hand — leaving the context fragments that encode them unread. This mission routes the bounded write-side re-derivations to consume those factory-projected fragments (turning them load-bearing), proving read/write symmetry end-to-end and advancing the coordination-topology strangler (#1716/#1878/#1619). It builds no new authority (C-001) — it adopts the frozen seam.",
+  "purpose_tldr": "Adopt the write execution path onto the frozen single context-factory seam — root, identity, and write-surface come from factory-projected fragments, not hand-rolled re-derivations — completing the read/write symmetry.",
+  "slug": "write-side-context-factory-adoption-01KV9W0X",
+  "target_branch": "feat/write-side-context-factory-adoption",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-17T05:55:12.159390+00:00"
+}

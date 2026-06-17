@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-06-17T04:20:26.432806Z",
+      "decision_id": "01KV9WY760JEXVEQ4KXF7F2VSB",
+      "final_answer": "BOUNDED (Option A): adopt R1-R5 root walks \u2192 workspace.primary_root, P1 placement, S1 status-surface \u2192 status_surface.status_write_dir (coord authority), + FR-006 retirement. DEFER FR-004 write-target (destination_ref) \u2014 randy idempotency divergence: flattened-arm target_branch vs inline _current_branch=HEAD changes the on-disk write target, violating NFR-004; belongs with the #1716 slice + before/after verification. DEFER S2 write-surface-SELECTION ladder (the #1716 ~2094-LOC topology authority root \u2014 computes the same value the factory already does, cleanly deferrable). Reuses Mission A's #1716-defer decision 01KV8Q49WEG9RRKCEZ3XYN5DWP.",
+      "input_key": "write_side_cut",
+      "mission_id": "01KV9W0XFF28B3FWVPJ2X6DN1G",
+      "mission_slug": "write-side-context-factory-adoption-01KV9W0X",
+      "opened_by": "cli",
+      "options": [
+        "bounded-defer-target-and-S2",
+        "include-target",
+        "include-S2-selection"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "C-003: bounded root/placement/surface adoption only (defer write-target FR-004 + S2 selection to #1716), or include the write-target/selection slice?",
+      "rationale": null,
+      "resolved_at": "2026-06-17T04:20:27.211364Z",
+      "resolved_by": null,
+      "slot_key": "plan.scope.bounded-cut-vs-target-defer",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KV9W0XFF28B3FWVPJ2X6DN1G",
+  "version": 1
+}

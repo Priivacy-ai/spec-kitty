@@ -1,0 +1,84 @@
+{
+  "event_count": 55,
+  "last_event_id": "01KVA7EQSQR6TSA3Z9KAMABETP",
+  "materialized_at": "2026-06-17T07:24:13.495200+00:00",
+  "mission_number": "",
+  "mission_slug": "write-side-context-factory-adoption-01KV9W0X",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 9,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KVA3MHERW6C8EG6FFNJFNWZX",
+      "last_transition_at": "2026-06-17T06:17:29.304293+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KVA5BVFX10QMYQH86EEB4B1J",
+      "last_transition_at": "2026-06-17T06:47:41.821310+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KVA5726WW7CSKS0KPGFS1Q5Z",
+      "last_transition_at": "2026-06-17T06:45:04.860840+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KVA522HBX7MTJKD57QEX1MXM",
+      "last_transition_at": "2026-06-17T06:42:21.355662+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KVA5PH67VSSVK8ZCQ2RKED1Y",
+      "last_transition_at": "2026-06-17T06:53:31.719353+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KVA4HW2ZRKGYWBWT39ZY79RT",
+      "last_transition_at": "2026-06-17T06:33:30.463333+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KVA4RBAZT76FPFFQP3T8JB19",
+      "last_transition_at": "2026-06-17T06:37:02.687204+00:00"
+    },
+    "WP08": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KVA7EQSQR6TSA3Z9KAMABETP",
+      "last_transition_at": "2026-06-17T07:24:13.495200+00:00"
+    },
+    "WP09": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KVA4GA3PJ04BZHJEN63TJ9BK",
+      "last_transition_at": "2026-06-17T06:32:39.286744+00:00"
+    }
+  }
+}
