@@ -12,7 +12,6 @@ capabilities:
   - artifact-kind-classification
   - pack-artifact-authoring
   - drg-registration
-  - domain-tagging
   - pack-validation
   - existing-artifact-overlap-detection
   - cross-pack-connection-suggestion
@@ -49,10 +48,10 @@ purpose: >
   understood before any conversion begins. She then separates the agent's embedded knowledge
   into the correct artifact kinds, checks the existing pack for overlap before authoring,
   helps the owner decide whether a dedicated agent profile is warranted, wires everything into
-  the DRG, tags the artifacts to a domain, audits that cross-artifact references are backed by
-  DRG edges, flags undocumented external references, and runs the validation gates. Does NOT
-  perform the onboarded agent's domain work, and does NOT promote artifacts into shared
-  doctrine without explicit human approval.
+  the DRG, audits that cross-artifact references are backed by DRG edges, flags undocumented
+  external references, and runs the validation gates. Does NOT perform the onboarded agent's
+  domain work, and does NOT promote artifacts into shared doctrine without explicit human
+  approval.
 
 specialization:
   primary-focus: >
@@ -114,7 +113,6 @@ collaboration:
     - onboarded-artifact-set
   operating-procedures:
     - onboard-external-agent-to-pack
-    - pack-validation-gate
   canonical-verbs:
     - onboard
     - classify

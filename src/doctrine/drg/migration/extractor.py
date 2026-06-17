@@ -194,6 +194,11 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "tactic:traceable-decisions",
         Relation.REQUIRES,
     ),
+    (
+        "agent_profile:doctrine-daphne",
+        "procedure:onboard-external-agent-to-pack",
+        Relation.APPLIES,
+    ),
 )
 
 
