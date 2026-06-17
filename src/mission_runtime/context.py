@@ -181,7 +181,7 @@ class PromptSourceFragment:
     prompt_source_dir: Path
 
 
-@dataclass
+@dataclass(frozen=True)
 class ExecutionContext:
     """Fully-resolved context for a single action — a doc-09 op-composite.
 
@@ -190,14 +190,30 @@ class ExecutionContext:
     the mission-spec directory from ``main_repo_root`` + the specs dir name +
     ``mission_slug`` themselves (FR-009).
 
+    **Immutable post-build (C-IC01 / FR-009 / D-2).** The composite is a frozen
+    dataclass: it is constructed once — through the package-private factory
+    :func:`mission_runtime.resolution.build_execution_context` — and never
+    mutated afterwards. Assigning any field on a built context raises. This
+    forecloses the historical split-brain where the WP-bearing fields were
+    patched onto an already-emitted context (``resolution.py`` post-build
+    mutator); the factory now assembles every field in one shot.
+
     The flat fields below are the historical substrate (NFR-001 / C-004): they
     are preserved so every existing consumer continues to read the same
     attributes while the Strangler conversion proceeds. The doc-09 **fragments**
     (``identity`` / ``branch_ref`` / ``workspace`` / ``status_surface`` /
     ``artifact_placement`` / ``prompt_source``) are *attached* by the builder
-    (:func:`mission_runtime.resolution.resolve_action_context`); each operation
+    (:func:`mission_runtime.resolution.build_execution_context`); each operation
     assembles only the fragments it needs (op-composite). A fragment is ``None``
     only when the operation does not consume it.
+
+    **Write-projection boundary contract (D-6, declared here + on the factory).**
+    Write surfaces compose names/paths/identity from a factory-projected
+    :class:`IdentityFragment` + :class:`BranchRefFragment` (+ workspace/surface);
+    they **MUST NOT** re-derive ``mission_id`` / ``mid8`` / ``primary_root``
+    independently. ``branch_naming`` is the grammar collaborator; the factory is
+    the identity/topology authority that feeds it. The deferred write-side
+    (#1716 / #1878, Mission B) adopts against this frozen seam — not a rewrite.
     """
 
     action: str
