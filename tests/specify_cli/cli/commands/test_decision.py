@@ -47,6 +47,13 @@ runner = CliRunner()
 
 def _setup_mission(tmp_path: Path) -> Path:
     """Create kitty-specs/<slug>/meta.json so service can resolve mission_id."""
+    # Topology-true project root marker (WP04 / FR-003): ``decision``'s repo-root
+    # resolution now uses the canonical root authority (``locate_project_root``),
+    # which anchors on the ``.kittify/`` marker — not a bare ``kitty-specs/``
+    # walk. A real spec-kitty project always has ``.kittify/``; declaring it here
+    # makes the fixture resolve ``tmp_path`` as the root (instead of walking up to
+    # an ancestor) just like a real checkout.
+    (tmp_path / ".kittify").mkdir(parents=True, exist_ok=True)
     mission_dir = tmp_path / "kitty-specs" / MISSION_SLUG
     mission_dir.mkdir(parents=True, exist_ok=True)
     meta = {"mission_id": MISSION_ID, "mission_slug": MISSION_SLUG}
