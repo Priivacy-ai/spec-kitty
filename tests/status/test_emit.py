@@ -299,12 +299,6 @@ class TestLoadMissionId:
 class TestEmitStatusTransition:
     """Tests for the main emit orchestration function."""
 
-    def test_feature_status_lock_root_falls_back_to_feature_dir(self, tmp_path: Path) -> None:
-        """Non-standard feature dirs still get a deterministic local lock root."""
-        feature_dir = tmp_path / "standalone-feature"
-
-        assert emit_module._feature_status_lock_root(feature_dir, repo_root=None) == feature_dir
-
     def test_transition_request_rejects_mixed_legacy_args(self, feature_dir: Path):
         """TransitionRequest calls must not also pass legacy arguments."""
         request = TransitionRequest(

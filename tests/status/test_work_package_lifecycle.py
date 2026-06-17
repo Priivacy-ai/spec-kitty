@@ -16,7 +16,6 @@ from specify_cli.status.work_package_lifecycle import (
     WorkPackageStartRejected,
     _actor_key,
     _actors_compatible,
-    _repo_root_for_lock,
     start_implementation_status,
     start_review_status,
 )
@@ -458,10 +457,12 @@ def test_start_review_rejects_non_review_lane(tmp_path: Path) -> None:
 
 
 def test_lifecycle_helpers_normalize_lock_roots_and_actors(tmp_path: Path) -> None:
-    feature_dir = tmp_path / "kitty-specs" / "099-lifecycle-test"
+    from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
-    assert _repo_root_for_lock(feature_dir, None) == tmp_path
-    assert _repo_root_for_lock(tmp_path / "loose-feature", None) == tmp_path / "loose-feature"
+    # Explicit repo_root always wins — no resolution needed.
+    assert resolve_status_lock_root(tmp_path / "any" / "path", repo_root=tmp_path) == tmp_path
+    # Non-kitty-specs dir: returned as-is (no git resolution).
+    assert resolve_status_lock_root(tmp_path / "loose-feature", None) == tmp_path / "loose-feature"
     assert _actor_key(None) is None
     assert _actors_compatible(None, "claude") is True
 

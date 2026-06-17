@@ -3,12 +3,22 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from specify_cli.status.models import Lane, StatusEvent
+
+
+def _git_init(path: Path) -> None:
+    """Minimal git init for test fixtures that need a real git root."""
+    subprocess.run(
+        ["git", "init", "-q", "-b", "main", str(path)],
+        check=True,
+        capture_output=True,
+    )
 from specify_cli.status.store import (
     EVENTS_FILENAME,
     EventPersistenceError,
@@ -439,7 +449,14 @@ def test_blank_lines_skipped(tmp_path: Path) -> None:
 
 
 def test_slug_resolver_finds_kitty_specs_two_levels_up(tmp_path: Path) -> None:
-    """Nested feature dirs still resolve via a kitty-specs root two levels up."""
+    """Nested feature dirs still resolve via a kitty-specs root two levels up.
+
+    After the FR-001 adoption ``_find_mission_specs_root`` routes through
+    ``resolve_canonical_root`` which requires a real git repo.  We ``git init``
+    ``tmp_path`` so the resolver finds it as the canonical root and locates
+    ``kitty-specs`` there.
+    """
+    _git_init(tmp_path)
     mission_dir = tmp_path / "kitty-specs" / "034-feature-name"
     mission_dir.mkdir(parents=True)
     (mission_dir / "meta.json").write_text(

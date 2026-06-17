@@ -39,7 +39,6 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 from .lane_reader import LEGACY_UNINITIALIZED_SENTINEL as _LEGACY_UNINITIALIZED_SENTINEL
 
 if TYPE_CHECKING:
-    from mission_runtime import StatusSurfaceFragment
     from specify_cli.coordination.types import CommitReceipt
     from specify_cli.status import TransitionRequest
     from specify_cli.status.models import Lane, StatusEvent
@@ -195,8 +194,6 @@ class MissionStatus:
         cls,
         repo_root: Path,
         mission_slug: str,
-        *,
-        surface: StatusSurfaceFragment | None = None,
     ) -> MissionStatus:
         """Resolve topology once and return the authoritative status aggregate.
 
@@ -206,10 +203,7 @@ class MissionStatus:
         2. Resolve the authoritative status directory **once** through the
            canonical :func:`resolve_status_surface` helper — the single
            coord-aware surface authority that ``status_transition`` is also
-           built on. When a caller already holds a resolved
-           :class:`~mission_runtime.context.StatusSurfaceFragment`, its
-           ``status_read_dir`` is consumed directly so the surface is never
-           re-derived (FR-005 / #1821).
+           built on.
         3. If the coord worktree root exists but lacks the mission dir, the
            canonical helper fails closed; ``load`` surfaces this as
            ``CoordAuthorityUnavailable`` (preserving the historical contract).
@@ -219,13 +213,6 @@ class MissionStatus:
             repo_root: Absolute repository root (primary checkout).
             mission_slug: Mission slug; may be bare human form or
                 ``<human>-<mid8>`` (post-WP03).
-            surface: Optional carried :class:`StatusSurfaceFragment` from a
-                resolved :class:`~mission_runtime.context.MissionExecutionContext`.
-                When provided, ``status_read_dir`` is used as the authoritative
-                ``read_dir`` and the canonical surface is **not** re-resolved
-                (the carried fragment IS the source). The default (``None``)
-                resolves once through the canonical helper — the same path, not
-                a parallel one.
 
         Returns:
             Populated :class:`MissionStatus` aggregate.
@@ -263,7 +250,6 @@ class MissionStatus:
             repo_root=repo_root,
             mission_slug=mission_slug,
             primary_candidate=primary_candidate,
-            surface=surface,
         )
 
         topology: Literal["legacy", "coordination"] = (
@@ -306,15 +292,12 @@ class MissionStatus:
         repo_root: Path,
         mission_slug: str,
         primary_candidate: Path,
-        surface: StatusSurfaceFragment | None,
     ) -> Path:
         """Resolve the authoritative read dir via the single canonical surface.
 
-        Consumes the carried :class:`StatusSurfaceFragment` when present (the
-        fragment IS the source — FR-005 / #1821). Otherwise resolves exactly
-        once through :func:`resolve_status_surface`, the coord-aware authority
-        that ``status_transition`` is also built on, and never re-composes the
-        coord candidate by hand.
+        Resolves exactly once through :func:`resolve_status_surface`, the
+        coord-aware authority that ``status_transition`` is also built on, and
+        never re-composes the coord candidate by hand.
 
         The canonical helper fails closed (``StatusReadPathNotFound``) when a
         coord worktree is materialized without the mission dir; ``load``
@@ -326,11 +309,6 @@ class MissionStatus:
         primary checkout is likewise authoritative until the worktree exists —
         matching the historical ``coord_candidate.exists()`` gate.
         """
-        if surface is not None:
-            # The carried fragment already resolved the surface once on the
-            # context — consume it directly, do NOT resolve again.
-            return surface.status_read_dir
-
         from specify_cli.coordination.surface_resolver import resolve_status_surface
         from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 

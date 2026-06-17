@@ -277,7 +277,7 @@ def _coord_worktree_feature_dir(repo_root: Path) -> Path:
 def test_emit_lock_root_for_coord_worktree_is_canonical_primary(
     tmp_path: Path,
 ) -> None:
-    from specify_cli.status.emit import _feature_status_lock_root
+    from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
     repo_root = tmp_path / "repo"
     _init_repo(repo_root)
@@ -286,10 +286,10 @@ def test_emit_lock_root_for_coord_worktree_is_canonical_primary(
     primary_feature_dir = repo_root / "kitty-specs" / "my-mission-ABCD1234"
     primary_feature_dir.mkdir(parents=True)
 
-    worktree_lock_root = _feature_status_lock_root(
+    worktree_lock_root = resolve_status_lock_root(
         worktree_feature_dir, repo_root=None
     )
-    primary_lock_root = _feature_status_lock_root(
+    primary_lock_root = resolve_status_lock_root(
         primary_feature_dir, repo_root=None
     )
 
@@ -304,7 +304,7 @@ def test_emit_lock_root_for_coord_worktree_is_canonical_primary(
 def test_lifecycle_lock_root_for_coord_worktree_is_canonical_primary(
     tmp_path: Path,
 ) -> None:
-    from specify_cli.status.work_package_lifecycle import _repo_root_for_lock
+    from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
     repo_root = tmp_path / "repo"
     _init_repo(repo_root)
@@ -313,8 +313,8 @@ def test_lifecycle_lock_root_for_coord_worktree_is_canonical_primary(
     primary_feature_dir = repo_root / "kitty-specs" / "my-mission-ABCD1234"
     primary_feature_dir.mkdir(parents=True)
 
-    worktree_lock_root = _repo_root_for_lock(worktree_feature_dir, repo_root=None)
-    primary_lock_root = _repo_root_for_lock(primary_feature_dir, repo_root=None)
+    worktree_lock_root = resolve_status_lock_root(worktree_feature_dir, repo_root=None)
+    primary_lock_root = resolve_status_lock_root(primary_feature_dir, repo_root=None)
 
     assert worktree_lock_root == repo_root.resolve()
     assert worktree_lock_root != worktree_feature_dir.parent.parent
@@ -338,50 +338,36 @@ def _non_git_kitty_specs_feature_dir(tmp_path: Path) -> Path:
     return feature_dir
 
 
-def test_emit_lock_root_degrades_to_parent_parent_when_registry_unavailable(
-    tmp_path: Path,
+def test_lock_root_degrades_to_parent_parent_when_canonical_root_not_found(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """WP03 seam degradation (emit.py:412): when topology classification fails
-    closed with ``WorktreeRegistryUnavailable`` (feature dir under ``kitty-specs``
-    in a non-git tree), the lock-root resolver degrades to the documented
-    ``feature_dir.parent.parent`` fallback rather than crashing.
+    """``resolve_status_lock_root`` degrades to ``feature_dir.parent.parent`` when
+    ``resolve_canonical_root`` raises ``WorkspaceRootNotFound`` (no git repo
+    anywhere up the tree). This is the WP02-consolidated fallback path.
+
+    The topology-classifier-based ``WorktreeRegistryUnavailable`` path from the
+    pre-WP02 private helpers no longer applies; the new shared helper routes
+    directly through ``resolve_canonical_root`` (D-12 / SC-002). The degradation
+    trigger is therefore ``WorkspaceRootNotFound``, not ``WorktreeRegistryUnavailable``.
+
+    The monkeypatch is necessary because pytest's ``tmp_path`` ancestor may contain
+    a real ``.git`` directory (e.g. ``/tmp/.git``), which would prevent
+    ``WorkspaceRootNotFound`` from being raised in a bare walk. Injecting the
+    exception exercises the documented fallback unconditionally (C-008: fix, not
+    litigate the host-path dependency).
     """
-    from specify_cli.coordination.surface_resolver import (
-        WorktreeRegistryUnavailable,
-        classify_worktree_topology,
-    )
-    from specify_cli.status.emit import _feature_status_lock_root
+    from specify_cli.core.paths import WorkspaceRootNotFound
+    from specify_cli.workspace.root_resolver import resolve_status_lock_root
+    import specify_cli.workspace.root_resolver as rr_mod
 
     feature_dir = _non_git_kitty_specs_feature_dir(tmp_path)
 
-    # Prove the real trigger fires before asserting the degraded behaviour.
-    with pytest.raises(WorktreeRegistryUnavailable):
-        classify_worktree_topology(feature_dir)
+    def _raise_not_found(_: object) -> Path:
+        raise WorkspaceRootNotFound(feature_dir)
 
-    lock_root = _feature_status_lock_root(feature_dir, repo_root=None)
+    monkeypatch.setattr(rr_mod, "resolve_canonical_root", _raise_not_found)
 
-    assert lock_root == feature_dir.parent.parent
-
-
-def test_lifecycle_lock_root_degrades_to_parent_parent_when_registry_unavailable(
-    tmp_path: Path,
-) -> None:
-    """WP03 seam degradation (work_package_lifecycle.py:81): same fail-closed
-    degradation for the lifecycle lock-root helper — a non-git ``kitty-specs``
-    feature dir resolves to the ``feature_dir.parent.parent`` fallback.
-    """
-    from specify_cli.coordination.surface_resolver import (
-        WorktreeRegistryUnavailable,
-        classify_worktree_topology,
-    )
-    from specify_cli.status.work_package_lifecycle import _repo_root_for_lock
-
-    feature_dir = _non_git_kitty_specs_feature_dir(tmp_path)
-
-    with pytest.raises(WorktreeRegistryUnavailable):
-        classify_worktree_topology(feature_dir)
-
-    lock_root = _repo_root_for_lock(feature_dir, repo_root=None)
+    lock_root = resolve_status_lock_root(feature_dir, repo_root=None)
 
     assert lock_root == feature_dir.parent.parent
 

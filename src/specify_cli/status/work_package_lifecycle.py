@@ -7,7 +7,6 @@ creation stays with the caller; durable lane transitions live here.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -55,38 +54,13 @@ class WorkPackageStartResult:
 def _repo_root_for_lock(feature_dir: Path, repo_root: Path | None) -> Path:
     """Resolve the repo root used for per-feature status locking.
 
-    Same concurrency-correctness rationale as
-    :func:`specify_cli.status.emit._feature_status_lock_root`: a coord/lane
-    worktree feature dir must lock against the *canonical* main-repo root (the
-    seam's single worktree-pointer parser), not the worktree-local
-    ``parent.parent``, so processes anchored via different worktrees of one
-    mission share a lock. Primary / ad-hoc dirs keep the historical shape.
+    Thin shim — delegates to the single shared implementation in
+    :func:`specify_cli.workspace.root_resolver.resolve_status_lock_root`
+    (WP02 / SC-002 consolidation).
     """
-    from specify_cli.coordination.surface_resolver import (
-        WorktreeRegistryUnavailable,
-        WorktreeTopology,
-        classify_worktree_topology,
-    )
-    from specify_cli.workspace.root_resolver import (
-        WorkspaceRootNotFound,
-        resolve_canonical_root,
-    )
+    from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
-    if repo_root is not None:
-        return repo_root
-    if feature_dir.parent.name != KITTY_SPECS_DIR:
-        return feature_dir
-    try:
-        topology = classify_worktree_topology(feature_dir)
-    except WorktreeRegistryUnavailable:
-        return feature_dir.parent.parent
-    if topology in (WorktreeTopology.COORD_WORKTREE, WorktreeTopology.LANE_WORKTREE):
-        try:
-            canonical_root: Path = resolve_canonical_root(feature_dir)
-        except WorkspaceRootNotFound:
-            return feature_dir.parent.parent
-        return canonical_root
-    return feature_dir.parent.parent
+    return resolve_status_lock_root(feature_dir, repo_root)
 
 
 def _actor_key(actor: object | None) -> str | None:

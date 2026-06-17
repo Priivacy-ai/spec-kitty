@@ -33,7 +33,6 @@ from mission_runtime.context import (
     ExecutionContext,
     ExecutionMode,
     IdentityFragment,
-    PromptSourceFragment,
     StatusSurfaceFragment,
     WorkspaceFragment,
 )
@@ -60,7 +59,6 @@ __all__ = [
     "IdentityFragment",
     "MissionArtifactHome",
     "MissionArtifactKind",
-    "PromptSourceFragment",
     "StatusSurfaceFragment",
     "WorkspaceFragment",
     "artifact_home_for",

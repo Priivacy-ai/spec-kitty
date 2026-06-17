@@ -276,6 +276,7 @@ git checkout -b kitty/mission-my-feature-01J6XW9K-lane-a  # Create and switch to
 ## See Also
 
 - [Execution Lanes](execution-lanes.md) - How Spec Kitty uses worktrees
+- [Branch-Target Routing](branch-target-routing.md) - Where each diff type lands (planning, status, code, docs) and the simple-case flat collapse when no lanes are configured
 - [Spec-Driven Development](spec-driven-development.md) - The methodology that requires parallel work
 - [Kanban Workflow](kanban-workflow.md) - How work progresses through lanes
 

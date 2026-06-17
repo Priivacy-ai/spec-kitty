@@ -18,7 +18,6 @@ from mission_runtime import (
     CommitTargetKind,
     ExecutionContext,
     IdentityFragment,
-    PromptSourceFragment,
     StatusSurfaceFragment,
     WorkspaceFragment,
 )
@@ -115,7 +114,6 @@ def test_execution_context_default_fragments_are_none() -> None:
     assert ctx.workspace is None
     assert ctx.status_surface is None
     assert ctx.artifact_placement is None
-    assert ctx.prompt_source is None
 
 
 def test_to_dict_excludes_fragments_preserving_substrate_shape() -> None:
@@ -144,7 +142,6 @@ def test_to_dict_excludes_fragments_preserving_substrate_shape() -> None:
         "workspace",
         "status_surface",
         "artifact_placement",
-        "prompt_source",
         "_FRAGMENT_FIELDS",
     ):
         assert fragment_field not in data, f"{fragment_field} leaked into to_dict()"
@@ -157,7 +154,7 @@ def test_to_dict_excludes_fragments_preserving_substrate_shape() -> None:
 
 
 def test_optional_fragments_can_be_attached() -> None:
-    """Workspace/ArtifactPlacement/PromptSource fields exist for WP04/05/06/07."""
+    """Workspace/ArtifactPlacement fields exist for WP04/05/06."""
     ws = WorkspaceFragment(
         primary_root=Path("/repo"),
         current_cwd=Path("/repo/.worktrees/demo-lane-a"),
@@ -168,7 +165,6 @@ def test_optional_fragments_can_be_attached() -> None:
     placement = ArtifactPlacementFragment(
         placement_ref=CommitTarget(ref="main", kind=CommitTargetKind.PRIMARY)
     )
-    prompt = PromptSourceFragment(prompt_source_dir=Path("/repo/kitty-specs/demo/tasks"))
     ctx = ExecutionContext(
         action="implement",
         mission_slug="demo",
@@ -177,9 +173,7 @@ def test_optional_fragments_can_be_attached() -> None:
         detection_method="explicit",
         workspace=ws,
         artifact_placement=placement,
-        prompt_source=prompt,
     )
     assert ctx.workspace is ws
     assert ctx.artifact_placement is placement
-    assert ctx.prompt_source is prompt
     assert ctx.workspace.primary_root == Path("/repo")

@@ -23,7 +23,6 @@ Pipeline order (critical -- do not reorder):
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
 import logging
 import re
 from datetime import datetime, timedelta, UTC
@@ -388,40 +387,13 @@ def _legacy_alias_collapses_to_current_lane(
 def _feature_status_lock_root(feature_dir: Path, repo_root: Path | None) -> Path:
     """Resolve the repo root used for per-feature status locking.
 
-    Mis-routing a status *lock* root is a concurrency defect of the same class
-    the topology seam exists to kill: ``feature_dir.parent.parent`` lands on the
-    *worktree* root for a coord/lane path, so two processes anchored on the same
-    mission via different worktrees would acquire different locks (no mutual
-    exclusion). When the lock dir lives inside a registered worktree, resolve the
-    *canonical* main-repo root via the seam's single worktree-pointer parser so
-    every process locks against one root. Primary paths and ad-hoc/non-git dirs
-    keep the historical ``parent.parent`` shape.
+    Thin shim — delegates to the single shared implementation in
+    :func:`specify_cli.workspace.root_resolver.resolve_status_lock_root`
+    (WP02 / SC-002 consolidation).
     """
-    from specify_cli.coordination.surface_resolver import (
-        WorktreeRegistryUnavailable,
-        WorktreeTopology,
-        classify_worktree_topology,
-    )
-    from specify_cli.workspace.root_resolver import (
-        WorkspaceRootNotFound,
-        resolve_canonical_root,
-    )
+    from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
-    if repo_root is not None:
-        return repo_root
-    if feature_dir.parent.name != KITTY_SPECS_DIR:
-        return feature_dir
-    try:
-        topology = classify_worktree_topology(feature_dir)
-    except WorktreeRegistryUnavailable:
-        return feature_dir.parent.parent
-    if topology in (WorktreeTopology.COORD_WORKTREE, WorktreeTopology.LANE_WORKTREE):
-        try:
-            canonical_root: Path = resolve_canonical_root(feature_dir)
-        except WorkspaceRootNotFound:
-            return feature_dir.parent.parent
-        return canonical_root
-    return feature_dir.parent.parent
+    return resolve_status_lock_root(feature_dir, repo_root)
 
 
 def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 params are optional with stable defaults; refactor tracked separately

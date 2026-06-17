@@ -69,6 +69,14 @@ When neither criterion forces a merge, the pipeline keeps WPs in separate lanes 
 
 Each entry in `collapse_report` lists the WPs that were merged into a single lane and the reason (file overlap or explicit dependency). Inspect this field after `finalize-tasks` to understand why two WPs share a lane.
 
+## See Also
+
+- [Branch-Target Routing](branch-target-routing.md) — where each diff type lands:
+  planning artifacts, status events, and lane definitions go to the coordination branch;
+  code changes go to the lane branch; shared documentation and the merge target go to the
+  base branch. Also explains the simple-case flat-topology collapse when no coordination
+  branch or lane worktrees are configured.
+
 ## Lane-Specific Test Database Isolation (FR-006)
 
 Two parallel SaaS / Django lanes used to share a single test database when their per-lane test runners booted concurrently, which produced flaky failures. Each lane workspace now exposes a lane-suffixed identifier via `LaneWorkspaceResult.lane_test_env`, which sets `SPEC_KITTY_TEST_DB_NAME=test_<safe-mission>_<safe-lane>`. Test settings modules (Django and otherwise) should read that env var when constructing their per-lane test database name; the helpers `lane_test_db_name()` and `lane_test_env()` in `specify_cli.lanes.lane_env` are the canonical entry points and guarantee distinct DB names for distinct `(mission_slug, lane_id)` pairs.

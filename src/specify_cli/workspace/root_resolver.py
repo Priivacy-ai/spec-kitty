@@ -18,6 +18,7 @@ the single resolver.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import (
@@ -29,7 +30,47 @@ __all__ = [
     "WorkspaceRootNotFound",
     "canonicalize_feature_dir",
     "resolve_canonical_root",
+    "resolve_status_lock_root",
 ]
+
+
+def resolve_status_lock_root(feature_dir: Path, repo_root: Path | None = None) -> Path:
+    """Resolve the repo root used for per-feature status locking.
+
+    Single shared implementation for both write-side lock sites
+    (``status.emit`` and ``status.work_package_lifecycle``).
+
+    Mis-routing a status *lock* root is a concurrency defect: two processes
+    anchored on the same mission via different worktrees would acquire
+    different locks (no mutual exclusion). This helper routes every case
+    through the single :func:`specify_cli.core.paths.resolve_canonical_root`
+    parser so every process—regardless of CWD—locks against the same
+    canonical main-repo root (C-ROOT, SC-002).
+
+    Args:
+        feature_dir: Path to the ``kitty-specs/<slug>`` mission directory.
+        repo_root: Optional explicit repo root override. When provided the
+            caller already knows the root; skip resolution entirely.
+
+    Returns:
+        The resolved repo root path to use for acquiring the status lock.
+    """
+    if repo_root is not None:
+        return repo_root
+    if feature_dir.parent.name != KITTY_SPECS_DIR:
+        # Feature dir not under kitty-specs/ (ad-hoc / test dirs): use the
+        # feature_dir itself as the lock anchor — unchanged from the legacy
+        # behaviour for this case.
+        return feature_dir
+    try:
+        # cast: follow_imports=skip makes resolve_canonical_root return Any at the
+        # specify_cli.* boundary; the real signature returns Path (core/paths.py).
+        return cast(Path, resolve_canonical_root(feature_dir))
+    except WorkspaceRootNotFound:
+        # Non-git tree (e.g. ad-hoc test dirs that have a kitty-specs/ ancestor
+        # but no actual git repo): fall back to the historical parent.parent shape
+        # so the lock still lands in a deterministic location.
+        return feature_dir.parent.parent
 
 
 def _reset_cache() -> None:
@@ -92,11 +133,14 @@ def canonicalize_feature_dir(feature_dir: Path) -> Path:
                 return feature_dir
 
     try:
-        canonical_root = resolve_canonical_root(feature_dir)
+        # cast: follow_imports=skip makes resolve_canonical_root return Any at the
+        # specify_cli.* boundary; the real signature returns Path (core/paths.py).
+        canonical_root = cast(Path, resolve_canonical_root(feature_dir))
     except WorkspaceRootNotFound:
         return feature_dir
 
-    canonical_feature_dir = canonical_root / KITTY_SPECS_DIR / feature_dir.name
+    # cast: KITTY_SPECS_DIR is Any under follow_imports=skip; Path / Any = Any.
+    canonical_feature_dir = cast(Path, canonical_root / KITTY_SPECS_DIR / feature_dir.name)
     # Only redirect when the canonical path actually exists; this keeps
     # tests that build ad-hoc feature dirs outside a git repo working.
     if canonical_feature_dir.exists():

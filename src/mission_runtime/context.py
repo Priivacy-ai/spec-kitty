@@ -175,13 +175,6 @@ class ArtifactPlacementFragment:
 
 
 @dataclass(frozen=True)
-class PromptSourceFragment:
-    """Where implement/review prompt files are resolved (FR-012)."""
-
-    prompt_source_dir: Path
-
-
-@dataclass(frozen=True)
 class ExecutionContext:
     """Fully-resolved context for a single action — a doc-09 op-composite.
 
@@ -202,7 +195,7 @@ class ExecutionContext:
     are preserved so every existing consumer continues to read the same
     attributes while the Strangler conversion proceeds. The doc-09 **fragments**
     (``identity`` / ``branch_ref`` / ``workspace`` / ``status_surface`` /
-    ``artifact_placement`` / ``prompt_source``) are *attached* by the builder
+    ``artifact_placement``) are *attached* by the builder
     (:func:`mission_runtime.resolution.build_execution_context`); each operation
     assembles only the fragments it needs (op-composite). A fragment is ``None``
     only when the operation does not consume it.
@@ -243,7 +236,6 @@ class ExecutionContext:
     workspace: WorkspaceFragment | None = field(default=None)
     status_surface: StatusSurfaceFragment | None = field(default=None)
     artifact_placement: ArtifactPlacementFragment | None = field(default=None)
-    prompt_source: PromptSourceFragment | None = field(default=None)
 
     _FRAGMENT_FIELDS: ClassVar[tuple[str, ...]] = (
         "identity",
@@ -251,7 +243,6 @@ class ExecutionContext:
         "workspace",
         "status_surface",
         "artifact_placement",
-        "prompt_source",
     )
 
     def to_dict(self) -> dict[str, Any]:
@@ -285,7 +276,6 @@ __all__ = [
     "ExecutionContext",
     "ExecutionMode",
     "IdentityFragment",
-    "PromptSourceFragment",
     "StatusSurfaceFragment",
     "WorkspaceFragment",
 ]

@@ -9,11 +9,21 @@ gate added for #1069.
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
 
 pytestmark = [pytest.mark.unit]
+
+
+def _git_init(path: Path) -> None:
+    """Minimal git init for test fixtures that need a real git root."""
+    subprocess.run(
+        ["git", "init", "-q", "-b", "main", str(path)],
+        check=True,
+        capture_output=True,
+    )
 
 
 import specify_cli.status.lifecycle_events as lifecycle
@@ -41,6 +51,7 @@ from specify_cli.status.lifecycle_events import (
 
 @pytest.fixture()
 def repo(tmp_path: Path) -> Path:
+    _git_init(tmp_path)
     (tmp_path / ".kittify").mkdir()
     return tmp_path
 
@@ -611,14 +622,25 @@ def test_lifecycle_saas_outbox_skips_when_disabled(
 
 
 def test_lifecycle_repo_root_resolution_handles_supported_logs(repo: Path) -> None:
+    """FR-001 adoption: ``_repo_root_for_lifecycle_log`` routes to
+    ``resolve_canonical_root`` so it is CWD-invariant (D-12).
+
+    Any log path INSIDE a git repo resolves to the canonical root.  The old
+    structural path-name filter (project vs mission log pattern check) is
+    replaced by the public resolver, so ``unknown_log`` (a path inside the
+    same git repo) also resolves correctly.  A path not inside any git repo,
+    and ``None``, still returns ``None`` (fail-closed).
+    """
     project_log = project_event_log_path(repo)
     mission_log = repo / "kitty-specs" / "demo-mission" / "status.events.jsonl"
-    unknown_log = repo / "other" / "status.events.jsonl"
+    # Any path inside the same git repo resolves to the canonical root.
+    other_log = repo / "other" / "status.events.jsonl"
 
     assert lifecycle._repo_root_for_lifecycle_log(None) is None
     assert lifecycle._repo_root_for_lifecycle_log(project_log) == repo
     assert lifecycle._repo_root_for_lifecycle_log(mission_log) == repo
-    assert lifecycle._repo_root_for_lifecycle_log(unknown_log) is None
+    # After adoption: other paths inside the git repo also resolve (no path-name filter).
+    assert lifecycle._repo_root_for_lifecycle_log(other_log) == repo
 
 
 def test_lifecycle_saas_builder_skips_non_materializable_inputs(

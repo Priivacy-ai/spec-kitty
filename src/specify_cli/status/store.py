@@ -17,7 +17,6 @@ Back-compat reader (T024, FR-023):
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 import logging
 import os
@@ -25,6 +24,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.events import sanitize_event_for_log
 
 from .models import StatusEvent
@@ -117,16 +117,25 @@ class _SlugResolver:
         self._cache: dict[str, str | None] = {}
 
     def _find_mission_specs_root(self) -> Path | None:
-        """Walk up from feature_dir to find the kitty-specs root."""
+        """Resolve the kitty-specs root that owns this feature dir's siblings.
+
+        This is a **feature-dir-relative** lookup, NOT a canonical-repo-root
+        resolution: ``_SlugResolver`` reads *sibling* missions' ``meta.json`` from
+        the same ``kitty-specs/`` directory that contains ``self._feature_dir``.
+        Anchoring on ``feature_dir`` (rather than ``resolve_canonical_root``) is
+        both correct for that purpose and CWD-invariant (pure path arithmetic on
+        the given feature dir). It also stays robust when the feature dir is not
+        inside a git repo (offline repair, orphaned events, bare-dir fixtures) —
+        where the canonical-root resolver would jump to an unrelated repo root and
+        miss the co-located ``meta.json`` (post-merge regression fix; the genuine
+        lock-anchor sites — emit/wpl/lifecycle — remain on ``resolve_canonical_root``).
+        """
         candidate = self._feature_dir.parent
-        # feature_dir is typically kitty-specs/<slug>/ — so parent is kitty-specs/
         if candidate.name == KITTY_SPECS_DIR:
             return candidate
-        # In case we're already inside a deeper structure, try two levels up
         two_up = candidate.parent
         if two_up.name == KITTY_SPECS_DIR:
             return two_up
-        # Otherwise, fall back to the parent (best effort)
         return candidate
 
     def resolve(self, mission_slug: str) -> str | None:
