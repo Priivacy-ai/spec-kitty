@@ -47,11 +47,32 @@ class _TransactionIdentity:
 
 
 def _repo_root_for_feature(feature_dir: Path, repo_root: Path | None) -> Path:
+    """Resolve the canonical primary repo root for a status-transition feature dir.
+
+    R5 adoption (FR-001 / D-12): the prior ``feature_dir.parent.parent`` walk
+    keyed on ``kitty-specs`` resolved the *enclosing worktree* root (the coord
+    worktree under coord topology — the #2004/#2007 flatten hazard). It is now
+    routed to the single canonical worktree-pointer resolver
+    (``workspace.primary_root`` semantics), so a coord/lane worktree feature dir
+    follows its ``.git`` pointer back to the canonical MAIN checkout and a
+    submodule stops at the submodule root (#2011). The explicit ``repo_root``
+    short-circuit is preserved for callers that already carry one. When no
+    enclosing git repo can be resolved (ad-hoc test fixtures built outside a
+    worktree) we degrade to ``feature_dir`` — byte-identical to the prior
+    non-``kitty-specs`` fallback — so those callers keep working.
+    """
     if repo_root is not None:
         return repo_root
-    if feature_dir.parent.name == KITTY_SPECS_DIR:
-        return feature_dir.parent.parent
-    return feature_dir
+    from specify_cli.workspace.root_resolver import (  # noqa: PLC0415
+        WorkspaceRootNotFound,
+        resolve_canonical_root,
+    )
+
+    try:
+        canonical: Path = resolve_canonical_root(feature_dir)
+    except WorkspaceRootNotFound:
+        return feature_dir
+    return canonical
 
 
 def _current_branch(repo_root: Path) -> str:
@@ -231,6 +252,49 @@ def _canonical_primary_feature_dir(
     return resolved.primary_anchor
 
 
+def _resolve_write_target(
+    repo_root: Path, mission_slug: str, coord_branch: str | None
+) -> str:
+    """Resolve the status write-target ref via the canonical placement resolver.
+
+    FR-004 / D-2 adoption (the latent-bug fix): the prior inline selector was
+    ``coord_branch or _current_branch(repo_root)``. The flat arm
+    (``_current_branch`` = ``git rev-parse --abbrev-ref HEAD``) was **CWD-dependent**
+    — it routed status events to whatever branch happened to be checked out,
+    diverging from the CWD-invariant ``target_branch`` the read/placement path
+    resolves to (reduction-census §6). This routes the write-target through the
+    single public placement resolver
+    (:func:`mission_runtime.resolution.resolve_placement_only`), whose
+    ``CommitTarget`` is BYTE-IDENTICAL to the value the full execution context
+    builder computes:
+
+    * **Coord topology** (``meta.coordination_branch`` declared) →
+      ``CommitTarget(ref=coordination_branch)`` — identical to the prior
+      ``coord_branch`` short-circuit (idempotency-preserving, NFR-004).
+    * **Flat/base topology** (no coord branch) → ``CommitTarget(ref=target_branch)``
+      — the CWD-invariant fix that supersedes ``_current_branch``.
+
+    When the placement resolver cannot resolve the mission (no ``meta.json`` yet
+    — the create→first-write window, or an ad-hoc fixture outside a resolvable
+    mission), it degrades to the prior selector so those callers keep working
+    without churn.
+    """
+    from mission_runtime.resolution import (  # noqa: PLC0415
+        ActionContextError,
+        resolve_placement_only,
+    )
+    from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
+        StatusReadPathNotFound,
+    )
+
+    try:
+        return resolve_placement_only(repo_root, mission_slug).ref
+    except (ActionContextError, StatusReadPathNotFound, FileNotFoundError):
+        # Unresolvable mission (pre-meta create window / ad-hoc fixture): fall
+        # back to the prior selector so the bootstrap path stays functional.
+        return coord_branch or _current_branch(repo_root)
+
+
 def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
     raw_feature_dir = request.feature_dir or request.mission_dir
     if raw_feature_dir is None:
@@ -288,7 +352,7 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
         feature_dir=feature_dir,
         mission_id=effective_mission_id,
         mid8=effective_mid8,
-        destination_ref=coord_branch or _current_branch(repo_root),
+        destination_ref=_resolve_write_target(repo_root, mission_slug, coord_branch),
         meta_exists=meta_exists,
         coordination_branch=coord_branch,
         transaction_meta_exists=(feature_dir.parent / transaction_dir_name / "meta.json").exists(),

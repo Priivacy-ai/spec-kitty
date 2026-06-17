@@ -976,12 +976,6 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         # canonical primary dir so config is readable before topology is
         # resolved. (The coord surface stays authoritative for STATUS reads,
         # which route through the canonical surface authority, not this dir.)
-        # C-LANES-1 (#1991): lanes.json is committed to the COORDINATION branch
-        # by finalize-tasks (primary copy deleted after staging) — it lives in
-        # the coord worktree, not the primary checkout. Save the coord-aware dir
-        # BEFORE the primary fallback so require_lanes_json reads from the right
-        # surface. Mirrors the _status_feature_dir pattern (line below).
-        _lanes_feature_dir: Path = feature_dir
         if not (feature_dir / "meta.json").exists():
             from specify_cli.missions._read_path_resolver import (
                 primary_feature_dir_for_mission,
@@ -1026,6 +1020,13 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         # derives mid8 from meta and carries the fail-closed coord semantics
         # (StatusReadPathNotFound) — one authority, C-STAT-1.
         _status_feature_dir = _resolve_status_surface(repo_root, mission_slug).read_dir
+        # C-LANES-1 (#1991 / FR-008): lanes.json lives on the COORDINATION
+        # branch (committed by finalize-tasks; primary copy deleted after
+        # staging). Derive the lanes-dir from the same coord surface used for
+        # status reads — never from ``feature_dir`` (the primary fallback dir),
+        # which is the regression this assignment prevents. Pure routing: no new
+        # authority, no new resolver — the coord seam is ``_status_feature_dir``.
+        _lanes_feature_dir: Path = _status_feature_dir
 
         _wp_lanes = {
             _wp_id: _state.get("lane", Lane.GENESIS)

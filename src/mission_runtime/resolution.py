@@ -29,7 +29,6 @@ from mission_runtime.context import (
     CommitTargetKind,
     ExecutionContext,
     IdentityFragment,
-    PromptSourceFragment,
     StatusSurfaceFragment,
     WorkspaceFragment,
 )
@@ -758,26 +757,6 @@ def _assemble_artifact_placement_fragment(
     return ArtifactPlacementFragment(placement_ref=branch_ref.destination_ref)
 
 
-def _assemble_prompt_source_fragment(feature_dir: Path) -> PromptSourceFragment:
-    """Assemble the WP04-owned PromptSourceFragment (IC-03 / T014, FR-012).
-
-    ``prompt_source_dir`` is routed through the resolved read path
-    (``<feature_dir>/tasks``, where the per-WP prompt files live), so
-    implement/review prompt files are located via the context rather than an
-    independent derivation. ``feature_dir`` is the output of the single read
-    primitive (``_read_path_resolver.resolve_mission_read_path``), so the
-    prompt-source dir is CWD-invariant by construction (C-CTX-2).
-
-    The read-path *directory* itself is carried on
-    :class:`StatusSurfaceFragment.status_read_dir` (attached by the core
-    assembler): IC-03 folds the duplicate read-path resolver into the one read
-    surface, and that surface is the status read dir. WP04 does not attach a
-    :class:`WorkspaceFragment` — ``primary_root`` and the single worktree-pointer
-    parser land in WP05 (IC-04, C-004 strangler ordering).
-    """
-    return PromptSourceFragment(prompt_source_dir=feature_dir / "tasks")
-
-
 def resolve_placement_only(repo_root: Path, mission_slug: str) -> CommitTarget:
     """Resolve the planning-phase :class:`CommitTarget` for a mission (FR-003).
 
@@ -901,11 +880,6 @@ def resolve_action_context(
         target_branch=target_branch,
         cwd=cwd,
     )
-    # IC-03 (WP04 / T014): route the prompt-source dir through the single read
-    # primitive's resolved ``feature_dir`` so consumers never re-derive it
-    # (FR-012). The read-path *directory* is carried on
-    # ``status_surface.status_read_dir`` (the one read surface, C-005).
-    prompt_source = _assemble_prompt_source_fragment(feature_dir)
     # IC-05 (WP06 / T019): the artifact-placement ref is the SAME CommitTarget
     # status events resolve to (C-PLACE-1) — assembled from ``branch_ref`` so no
     # surface re-derives a parallel primary/coord placement (C-005).
@@ -926,7 +900,6 @@ def resolve_action_context(
         "status_surface": status_surface,
         "workspace": workspace,
         "artifact_placement": artifact_placement,
-        "prompt_source": prompt_source,
     }
 
     if action in _MISSION_LEVEL_ACTIONS:

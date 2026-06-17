@@ -318,6 +318,33 @@ def _create_workspace_with_fallback(
             raise RuntimeError(f"Failed to create workspace: {git_error.stderr}") from git_error
 
 
+def _compose_worktree_feature_dir(worktree_path: Path, branch_name: str) -> Path:
+    """Compose the feature-directory path inside a lane worktree (C-PLACEMENT / FR-002).
+
+    Single canonical seam for the ``worktree_path / kitty-specs / <dir>``
+    placement join.  ``branch_name`` MUST come from the ``mission_dir_name``
+    naming seam (``specify_cli.lanes.branch_naming.mission_dir_name``) —
+    **never** re-derived inline.  The on-disk placement path is therefore
+    determined once, here, and is byte-identical across the reuse arm and
+    the create arm (NFR-004 / idempotency).
+
+    This seam is aligned with the factory placement projection
+    (``mission_runtime.resolution.resolve_placement_only``) as the write-side
+    canonical authority (D-12): read and write both resolve placement from the
+    same naming seam rather than from ad-hoc inline joins.
+
+    Args:
+        worktree_path: The root of the lane worktree
+            (``repo_root / .worktrees / <branch_name>``).
+        branch_name: The worktree directory name produced by
+            ``mission_dir_name(mission_slug, mid8=...)``.
+
+    Returns:
+        The ``kitty-specs/<branch_name>`` directory path inside the worktree.
+    """
+    return worktree_path / str(KITTY_SPECS_DIR) / branch_name
+
+
 def create_feature_worktree(
     repo_root: Path,
     mission_slug: str,
@@ -381,7 +408,7 @@ def create_feature_worktree(
     # Check if worktree already exists
     if worktree_path.exists():
         if _existing_worktree_is_valid(worktree_path):
-            feature_dir = worktree_path / KITTY_SPECS_DIR / branch_name
+            feature_dir = _compose_worktree_feature_dir(worktree_path, branch_name)
             return (worktree_path, feature_dir)
         raise FileExistsError(f"Worktree path already exists: {worktree_path}")
 
@@ -392,8 +419,8 @@ def create_feature_worktree(
     # the lane worktree. Invoked once, immediately after the worktree exists.
     _ensure_spec_kitty_exclude(worktree_path)
 
-    # Create feature directory structure
-    feature_dir = worktree_path / KITTY_SPECS_DIR / branch_name
+    # Create feature directory structure (FR-002 / C-PLACEMENT)
+    feature_dir = _compose_worktree_feature_dir(worktree_path, branch_name)
     feature_dir.mkdir(parents=True, exist_ok=True)
 
     # Setup feature directory (symlinks, subdirectories, etc.)

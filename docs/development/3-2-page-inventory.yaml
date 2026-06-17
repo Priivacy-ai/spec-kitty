@@ -2427,6 +2427,15 @@
   current_target: true
   citation_refs: []
   notes: Explanation; provisional current — confirm in WP08 IA review.
+- path: docs/explanation/branch-target-routing.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: C
+  current_target: true
+  citation_refs:
+  - FR-009
+  - SC-009
+  notes: "Explanation of branch-target routing: where each diff type lands (planning+status+lanes=coordination, code=lane, docs+merge-target=base) + the simple-case flat-topology collapse; added by mission write-side-context-factory-adoption-01KV9W0X."
 - path: docs/explanation/charter-synthesis-drg.md
   tag: current
   divio_type: explanation

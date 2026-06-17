@@ -942,7 +942,31 @@ class TestSaveReturnType:
     def test_save_supports_identity_bearing_legacy_mission(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Legacy missions with mission_id but no coord branch commit on current branch."""
+        """Legacy mission (mission_id, no coord branch) commits on the legacy lane.
+
+        WP05 / FR-004 before→after rationale (the prompt flagged this as one of
+        the "two tests the write-target flip touches"). Live investigation while
+        implementing WP05 established that the ``destination_ref == "legacy-lane"``
+        here is NOT produced by the seam WP05 adopts. ``MissionStatus.save`` →
+        ``BookkeepingTransaction.acquire`` detects the legacy topology (no
+        ``coordination_branch``) and **overrides** the caller-supplied
+        ``destination_ref`` with ``_resolve_legacy_lane_destination`` — which
+        reads ``git symbolic-ref HEAD`` of the operator's current worktree
+        (``transaction.py``). That override is a ``BookkeepingTransaction``
+        internal, explicitly OUT of WP05's scope (C-004: "BookkeepingTransaction
+        internals are NOT changed"), and it dominates the receipt regardless of
+        what ``_identity_for_request`` computes.
+
+        The FR-004 write-target flip WP05 lands is in
+        ``coordination/status_transition.py::_identity_for_request`` (routed
+        through ``resolve_placement_only(...).ref``); its CWD-invariant
+        ``target_branch`` behaviour is proven directly in
+        ``tests/specify_cli/coordination/test_status_transition_adoption.py``
+        (``test_write_target_flat_arm_yields_target_branch_not_head``) and in the
+        WP01 net oracle. This legacy aggregate path therefore correctly STILL
+        commits to ``legacy-lane`` post-WP05 — the value is the transaction's
+        legacy-lane resolution, not the adopted ``_identity_for_request`` target.
+        """
         base_slug = "save-legacy"
         mission_id = "01LEGACY45678901234567890"
         mid8 = mission_id[:8]
@@ -964,6 +988,9 @@ class TestSaveReturnType:
         ms = MissionStatus.load(repo_root=repo, mission_slug=slug)
         receipt = ms.save(operation="test-save-legacy")
 
+        # Unchanged post-WP05: the legacy-topology BookkeepingTransaction override
+        # (C-004 internal, NOT the adopted _identity_for_request seam) resolves the
+        # destination to the operator's current lane branch.
         assert receipt.destination_ref == "legacy-lane"
         committed = _git(repo, "show", f"legacy-lane:kitty-specs/{slug}/status.events.jsonl")
         assert "WP02" in committed

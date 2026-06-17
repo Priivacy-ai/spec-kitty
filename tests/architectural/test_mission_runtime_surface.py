@@ -56,7 +56,6 @@ _PUBLIC_SURFACE = sorted(
         "IdentityFragment",
         "MissionArtifactHome",
         "MissionArtifactKind",
-        "PromptSourceFragment",
         "StatusSurfaceFragment",
         "WorkspaceFragment",
         "artifact_home_for",

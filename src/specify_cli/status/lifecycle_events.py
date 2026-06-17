@@ -35,7 +35,6 @@ with the typed contracts.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
 import contextlib
 import json
 import logging
@@ -44,6 +43,8 @@ from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 from collections.abc import Iterable, Mapping
+
+from specify_cli.workspace.root_resolver import WorkspaceRootNotFound, resolve_canonical_root
 
 from .models import Lane as _Lane
 
@@ -227,17 +228,19 @@ def _build_envelope(
 
 
 def _repo_root_for_lifecycle_log(log_path: Path | None) -> Path | None:
+    """Resolve the canonical repo root for *log_path* via ``resolve_canonical_root``.
+
+    Routes to the existing public pure resolver (D-12 / FR-001) — CWD-invariant
+    across primary checkout, coord worktree, and submodule topologies.  Returns
+    ``None`` when the log path is absent or not inside any git repo.
+    """
     if log_path is None:
         return None
-    resolved = log_path.resolve()
-    if resolved.name == PROJECT_EVENTS_FILENAME and resolved.parent.name == ".kittify":
-        return resolved.parent.parent
-    if (
-        resolved.name == MISSION_EVENTS_FILENAME
-        and resolved.parent.parent.name == KITTY_SPECS_DIR
-    ):
-        return resolved.parent.parent.parent
-    return None
+    try:
+        resolved_root: Path = resolve_canonical_root(log_path.parent)
+        return resolved_root
+    except WorkspaceRootNotFound:
+        return None
 
 
 def _validate_lifecycle_payload(event_type: str, payload: Mapping[str, Any]) -> None:

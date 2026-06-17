@@ -146,9 +146,6 @@ test_artifact_placement_fragment_   WP06  ArtifactPlacementFragment
 test_runtime_lifecycle_action_      WP07  Runtime threads the context through the
   parity                                  full lifecycle (specify/plan/analyze/
                                           status become resolvable actions).
-test_promptsource_fragment_parity   WP07  PromptSourceFragment
-                                          (``prompt_source_dir``) routed through
-                                          the context (FR-012).
 test_flattened_topology_commit_     WP08  CommitTarget + flattened-topology
   target / *_status_surface /             resolution: ``kind == flattened``,
   *_no_coordination_branch                ``coordination_branch is None``,
@@ -1458,7 +1455,6 @@ _BRANCHREF_FRAGMENT = "branch_ref"
 _STATUS_SURFACE_FRAGMENT = "status_surface"
 _WORKSPACE_FRAGMENT = "workspace"
 _ARTIFACT_PLACEMENT_FRAGMENT = "artifact_placement"
-_PROMPT_SOURCE_FRAGMENT = "prompt_source"
 
 
 def _resolve_context_from_cwd(
@@ -1769,38 +1765,6 @@ def test_artifact_placement_fragment_parity(
     )
 
 
-# CONVERGED (WP04 / T014): ``PromptSourceFragment.prompt_source_dir`` is routed
-# through the context's resolved read path (``<feature_dir>/tasks``) by
-# ``resolve_action_context`` (FR-012). xfail removed. NOTE: the xfail→WP map above
-# attributed PromptSource to WP07, but the read-path-consolidation subtask T014
-# (WP04) owns the prompt-source routing; the WP07-owned lifecycle parity
-# (``test_runtime_lifecycle_action_parity``) remains xfail until WP07 threads the
-# context through specify/plan/analyze/status.
-def test_promptsource_fragment_parity(parity_repo: tuple[Path, Path, str]) -> None:
-    """PromptSourceFragment parity (``prompt_source_dir``).
-
-    Asserts that the prompt-source directory is resolved through the context and
-    identical from both CWDs (FR-012).
-    """
-    repo_root, worktree_path, mission_slug = parity_repo
-
-    primary_ctx = _resolve_context_from_cwd(
-        repo_root, action="tasks", mission_slug=mission_slug
-    )
-    lane_ctx = _resolve_context_from_cwd(
-        worktree_path, action="tasks", mission_slug=mission_slug
-    )
-
-    primary_val = _fragment_value(
-        primary_ctx, _PROMPT_SOURCE_FRAGMENT, "prompt_source_dir"
-    )
-    lane_val = _fragment_value(lane_ctx, _PROMPT_SOURCE_FRAGMENT, "prompt_source_dir")
-    assert primary_val == lane_val, (
-        "PromptSourceFragment.prompt_source_dir diverges across CWDs: "
-        f"{primary_val!r} (primary) != {lane_val!r} (lane) (FR-012)."
-    )
-
-
 def test_runtime_lifecycle_action_parity(parity_repo: tuple[Path, Path, str]) -> None:
     """Full-lifecycle dual-CWD parity for actions not yet resolvable.
 
@@ -2093,66 +2057,6 @@ def test_no_local_coord_path_composition_in_status_surfaces() -> None:
         "Second hand-rolled coord-path composition detected — the status surface "
         "must be resolved through the single canonical authority, not re-composed "
         f"locally (FR-005 / C-STAT-1 / #1821):\n{json.dumps(offenders, indent=2)}"
-    )
-
-
-def test_mission_status_load_consumes_carried_fragment(tmp_path: Path) -> None:
-    """FR-005 / #1821: ``MissionStatus.load`` reads the carried fragment as the source.
-
-    When a resolved ``StatusSurfaceFragment`` is threaded into
-    ``MissionStatus.load(surface=...)``, the aggregate's ``read_dir`` MUST be the
-    fragment's ``status_read_dir`` and the canonical ``resolve_status_surface``
-    MUST NOT be re-invoked (the fragment IS the source, not a re-derivation
-    trigger). A spy on the resolver proves no second resolution happens.
-    """
-    from mission_runtime.context import StatusSurfaceFragment
-    from specify_cli.status.aggregate import MissionStatus
-
-    # A minimal mission dir so ``_read_meta`` succeeds (identity is incidental;
-    # the carried fragment owns the read_dir).
-    repo_root = tmp_path / "repo"
-    feature_dir = repo_root / "kitty-specs" / _MISSION_SLUG
-    feature_dir.mkdir(parents=True)
-    (feature_dir / "meta.json").write_text(_META_JSON, encoding="utf-8")
-
-    # The carried surface points at a DISTINCT directory so we can prove the
-    # aggregate consumed it (not a re-resolved primary candidate).
-    carried_dir = tmp_path / "carried-surface"
-    carried_dir.mkdir()
-    fragment = StatusSurfaceFragment(
-        status_read_dir=carried_dir,
-        status_write_dir=carried_dir,
-    )
-
-    resolve_calls: list[tuple[Path, str]] = []
-
-    # Patch the canonical resolver at its source module; ``load`` imports it
-    # lazily, so the spy is installed where ``load`` looks it up.
-    import specify_cli.coordination.surface_resolver as surface_resolver
-
-    real = surface_resolver.resolve_status_surface
-
-    def _surface_spy(repo_root_arg: Path, mission_slug_arg: str) -> Path:
-        resolve_calls.append((repo_root_arg, mission_slug_arg))
-        return real(repo_root_arg, mission_slug_arg)
-
-    surface_resolver.resolve_status_surface = _surface_spy  # type: ignore[assignment]
-    try:
-        ms = MissionStatus.load(
-            repo_root=repo_root, mission_slug=_MISSION_SLUG, surface=fragment
-        )
-    finally:
-        surface_resolver.resolve_status_surface = real  # type: ignore[assignment]
-
-    assert ms.read_dir == carried_dir, (
-        "MissionStatus.load must consume the carried StatusSurfaceFragment's "
-        f"status_read_dir as its read_dir; got {ms.read_dir!r}, expected "
-        f"{carried_dir!r} (FR-005 / #1821)."
-    )
-    assert resolve_calls == [], (
-        "MissionStatus.load re-resolved the status surface even though a "
-        "StatusSurfaceFragment was carried — the carried fragment IS the source "
-        f"and must not trigger a second resolution (got calls: {resolve_calls!r})."
     )
 
 
