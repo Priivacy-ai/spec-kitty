@@ -898,11 +898,37 @@ def test_final_bookkeeping_rollback_restores_status_meta_and_state(tmp_path: Pat
     assert state_path.read_bytes() == b'{"completed_wps": []}\n'
 
 
-def test_final_bookkeeping_rollback_rejects_paths_outside_trusted_roots(
+def test_final_bookkeeping_rollback_skips_untrusted_path_and_preserves_original_error(
     tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Rollback restore must never write outside merge bookkeeping roots."""
+    """Rollback restore must not mask the exception that triggered rollback."""
     escaped_path = tmp_path.parent / "escaped-status.json"
+    trailing_trusted_path = tmp_path / "kitty-specs" / "021-test" / "status.json"
+    trailing_trusted_path.parent.mkdir(parents=True)
+    trailing_trusted_path.write_text('{"WP01": "done"}\n', encoding="utf-8")
 
-    with pytest.raises(ValueError, match="outside trusted repo roots"):
-        _restore_final_bookkeeping_snapshots(tmp_path, {escaped_path: b"malicious\n"})
+    snapshots = {
+        escaped_path: b"malicious\n",
+        trailing_trusted_path: b'{"WP01": "approved"}\n',
+    }
+
+    with caplog.at_level("WARNING"), pytest.raises(RuntimeError, match="original failure"):
+        try:
+            raise RuntimeError("original failure")
+        except RuntimeError:
+            _restore_final_bookkeeping_snapshots(tmp_path, snapshots)
+            raise
+
+    assert not escaped_path.exists()
+    assert trailing_trusted_path.read_bytes() == b'{"WP01": "approved"}\n'
+    assert "Skipping untrusted bookkeeping rollback snapshot" in caplog.text
+
+
+def test_final_bookkeeping_rollback_trusts_legacy_merge_state_path(tmp_path: Path) -> None:
+    """Legacy merge state remains a trusted rollback snapshot target."""
+    legacy_state_path = tmp_path / ".kittify" / "merge-state.json"
+
+    _restore_final_bookkeeping_snapshots(tmp_path, {legacy_state_path: b'{"completed_wps": []}\n'})
+
+    assert legacy_state_path.read_bytes() == b'{"completed_wps": []}\n'
