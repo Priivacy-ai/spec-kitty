@@ -74,6 +74,9 @@ nodes:
 - urn: agent_profile:designer-dagmar
   kind: agent_profile
   label: Designer Dagmar
+- urn: agent_profile:doctrine-daphne
+  kind: agent_profile
+  label: Doctrine Daphne
 - urn: agent_profile:frontend-freddy
   kind: agent_profile
   label: Frontend Freddy
@@ -1186,6 +1189,15 @@ edges:
   reason: The structural-fix plan must be evaluated for intent (does this close the class?) and risk (what is the blast radius of the structural change?) before handoff
 - source: agent_profile:designer-dagmar
   target: directive:DIRECTIVE_031
+  relation: requires
+- source: agent_profile:doctrine-daphne
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:doctrine-daphne
+  target: directive:DIRECTIVE_018
+  relation: requires
+- source: agent_profile:doctrine-daphne
+  target: directive:DIRECTIVE_032
   relation: requires
 - source: agent_profile:frontend-freddy
   target: agent_profile:implementer-ivan
