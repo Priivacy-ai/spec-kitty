@@ -862,13 +862,46 @@ def _restore_optional_bytes(path: Path, original: bytes | None) -> None:
     path.write_bytes(original)
 
 
+def _assert_bookkeeping_snapshot_path_is_trusted(
+    *,
+    repo_root: Path,
+    candidate: Path,
+) -> Path:
+    """Reject rollback snapshot paths outside merge bookkeeping roots."""
+    repo_resolved = get_main_repo_root(repo_root).resolve(strict=False)
+    resolved_candidate = candidate.resolve(strict=False)
+    trusted_dirs = (
+        (repo_resolved / KITTY_SPECS_DIR).resolve(strict=False),
+        (repo_resolved / WORKTREES_DIR).resolve(strict=False),
+        (repo_resolved / KITTIFY_DIR / "runtime" / "merge").resolve(strict=False),
+    )
+    trusted_files = (repo_resolved / KITTIFY_DIR / "merge-state.json",)
+    if not (
+        any(resolved_candidate.is_relative_to(root) for root in trusted_dirs)
+        or resolved_candidate in trusted_files
+    ):
+        raise ValueError(
+            f"Refusing bookkeeping snapshot path outside trusted repo roots: {candidate}"
+        )
+    return resolved_candidate
+
+
 def _restore_final_bookkeeping_snapshots(
+    repo_root: Path,
     snapshots: dict[Path, bytes | None],
 ) -> None:
     """Best-effort restore for final merge bookkeeping rollback."""
     for path, original in snapshots.items():
-        with contextlib.suppress(OSError):
-            _restore_optional_bytes(path, original)
+        try:
+            trusted_path = _assert_bookkeeping_snapshot_path_is_trusted(
+                repo_root=repo_root,
+                candidate=path,
+            )
+            _restore_optional_bytes(trusted_path, original)
+        except ValueError as exc:
+            logger.warning("Skipping untrusted bookkeeping rollback snapshot: %s", exc)
+        except OSError:
+            continue
 
 
 def _target_branch_still_at_baseline(
@@ -2529,7 +2562,7 @@ def _run_lane_based_merge_locked(
                     all_wp_ids=all_wp_ids,
                 )
             except Exception:
-                _restore_final_bookkeeping_snapshots(pre_target_bookkeeping_snapshots)
+                _restore_final_bookkeeping_snapshots(main_repo, pre_target_bookkeeping_snapshots)
                 raise
 
         # -- Mission-to-target merge (T010: honor strategy for this step only) --
@@ -2558,7 +2591,7 @@ def _run_lane_based_merge_locked(
                 lanes_manifest.target_branch,
                 target_baseline_sha,
             ):
-                _restore_final_bookkeeping_snapshots(pre_target_bookkeeping_snapshots)
+                _restore_final_bookkeeping_snapshots(main_repo, pre_target_bookkeeping_snapshots)
             raise
         mission_already_applied = getattr(mission_result, "already_applied", False) is True
         # FR-037 fail-loud: a no-op result is only acceptable when the mission
@@ -2585,7 +2618,7 @@ def _run_lane_based_merge_locked(
                 lanes_manifest.target_branch,
                 target_baseline_sha,
             ):
-                _restore_final_bookkeeping_snapshots(pre_target_bookkeeping_snapshots)
+                _restore_final_bookkeeping_snapshots(main_repo, pre_target_bookkeeping_snapshots)
             raise typer.Exit(1)
         if not mission_result.success:
             # T005: tolerate already-merged on retry
@@ -2600,7 +2633,7 @@ def _run_lane_based_merge_locked(
                     lanes_manifest.target_branch,
                     target_baseline_sha,
                 ):
-                    _restore_final_bookkeeping_snapshots(pre_target_bookkeeping_snapshots)
+                    _restore_final_bookkeeping_snapshots(main_repo, pre_target_bookkeeping_snapshots)
                 raise typer.Exit(1)
         else:
             console.print(f"\n[green]✓[/green] {lanes_manifest.mission_branch} → {lanes_manifest.target_branch}")
@@ -2653,7 +2686,7 @@ def _run_lane_based_merge_locked(
         # Modern lane mission could not record its post-merge review baseline.
         # Fail loudly — an apparently successful merge that drops the baseline
         # produces MISSION_REVIEW_MODE_MISMATCH downstream.
-        _restore_final_bookkeeping_snapshots(final_bookkeeping_snapshots)
+        _restore_final_bookkeeping_snapshots(main_repo, final_bookkeeping_snapshots)
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
@@ -2681,7 +2714,7 @@ def _run_lane_based_merge_locked(
                 all_wp_ids=all_wp_ids,
             )
         except Exception:
-            _restore_final_bookkeeping_snapshots(final_bookkeeping_snapshots)
+            _restore_final_bookkeeping_snapshots(main_repo, final_bookkeeping_snapshots)
             raise
 
     try:
@@ -2691,7 +2724,7 @@ def _run_lane_based_merge_locked(
             status_feature_dir=feature_dir,
         )
     except Exception:
-        _restore_final_bookkeeping_snapshots(final_bookkeeping_snapshots)
+        _restore_final_bookkeeping_snapshots(main_repo, final_bookkeeping_snapshots)
         raise
 
     # -- WP05/T007 FR-014: Post-merge working-tree invariant --
@@ -2749,7 +2782,7 @@ def _run_lane_based_merge_locked(
                     "\nUnexpected working-tree state after merge. "
                     "Run `git status` to investigate before retrying."
                 )
-            _restore_final_bookkeeping_snapshots(final_bookkeeping_snapshots)
+            _restore_final_bookkeeping_snapshots(main_repo, final_bookkeeping_snapshots)
             raise typer.Exit(1)
     else:
         console.print(
@@ -2788,7 +2821,7 @@ def _run_lane_based_merge_locked(
             )
         except Exception as exc:
             if not (isinstance(exc, SafeCommitRecoveryFailed) and exc.commit_sha is not None):
-                _restore_final_bookkeeping_snapshots(final_bookkeeping_snapshots)
+                _restore_final_bookkeeping_snapshots(main_repo, final_bookkeeping_snapshots)
             raise
     else:
         console.print("  [dim]No post-merge bookkeeping changes to commit; continuing cleanup.[/dim]")
