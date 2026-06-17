@@ -55,7 +55,7 @@ from tests._support.git_template import clone_template
 _MISSION_ID = "01KV8NPC0000000000000WP07A"
 _MISSION_SLUG = "read-path-error-fidelity-adoption-01KV8NPC"
 
-pytestmark = [pytest.mark.fast]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------

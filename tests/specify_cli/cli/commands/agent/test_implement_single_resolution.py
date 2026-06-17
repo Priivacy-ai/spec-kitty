@@ -21,6 +21,8 @@ from pathlib import Path
 import pytest
 import typer
 
+pytestmark = [pytest.mark.fast]
+
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.cli.commands.agent.workflow import _ensure_workspace_materialized
 from specify_cli.workspace.context import ResolvedWorkspace

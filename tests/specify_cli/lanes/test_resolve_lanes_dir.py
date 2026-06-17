@@ -11,8 +11,12 @@ from __future__ import annotations
 import inspect
 from pathlib import Path
 
+import pytest
+
 from specify_cli.lanes import persistence as persistence_module
 from specify_cli.lanes.persistence import LANES_FILENAME, resolve_lanes_dir
+
+pytestmark = [pytest.mark.fast]
 
 
 def test_resolve_lanes_dir_composes_lanes_filename(tmp_path: Path) -> None:

@@ -30,7 +30,7 @@ from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 

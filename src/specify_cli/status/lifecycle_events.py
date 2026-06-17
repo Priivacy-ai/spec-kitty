@@ -231,27 +231,15 @@ def _repo_root_for_lifecycle_log(log_path: Path | None) -> Path | None:
     """Resolve the canonical repo root for *log_path* via ``resolve_canonical_root``.
 
     Routes to the existing public pure resolver (D-12 / FR-001) — CWD-invariant
-    across primary checkout, coord worktree, and submodule topologies.  Falls back
-    to filename-pattern inference when the path is not inside a real git repo (e.g.
-    unit-test tmp directories), so callers get a non-None root without requiring a
-    real checkout.  Returns ``None`` only when neither strategy can resolve a root.
+    across primary checkout, coord worktree, and submodule topologies.  Returns
+    ``None`` when the log path is absent or not inside any git repo.
     """
     if log_path is None:
         return None
     try:
         return resolve_canonical_root(log_path.parent)
     except WorkspaceRootNotFound:
-        pass
-    # Filename-pattern fallback for environments without a real git repo (unit tests).
-    resolved = log_path.resolve()
-    if resolved.name == PROJECT_EVENTS_FILENAME and resolved.parent.name == ".kittify":
-        return resolved.parent.parent
-    if (
-        resolved.name == MISSION_EVENTS_FILENAME
-        and resolved.parent.parent.name == "kitty-specs"
-    ):
-        return resolved.parent.parent.parent
-    return None
+        return None
 
 
 def _validate_lifecycle_payload(event_type: str, payload: Mapping[str, Any]) -> None:

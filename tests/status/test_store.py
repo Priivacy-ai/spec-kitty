@@ -33,7 +33,7 @@ from specify_cli.status.store import (
     verify_event_readback,
 )
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 def _make_event(
