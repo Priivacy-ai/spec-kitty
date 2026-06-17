@@ -790,12 +790,12 @@ def resolve_workspace_for_wp(
     feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.compute import PLANNING_LANE_ID, is_planning_lane
-    from specify_cli.lanes.persistence import require_lanes_json
+    from specify_cli.lanes.persistence import require_lanes_json, resolve_lanes_dir
 
     lanes_manifest = require_lanes_json(feature_dir)
     lane = lanes_manifest.lane_for_wp(wp_id)
     if lane is None:
-        raise ValueError(f"{wp_id} resolved to execution_mode={execution_mode.value!r} but is not assigned to any lane in {feature_dir / 'lanes.json'}")
+        raise ValueError(f"{wp_id} resolved to execution_mode={execution_mode.value!r} but is not assigned to any lane in {resolve_lanes_dir(feature_dir)}")
 
     # lane-planning resolves to the main repository checkout, not a .worktrees/ path.
     if is_planning_lane(lane):
