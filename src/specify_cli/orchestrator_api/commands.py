@@ -8,6 +8,8 @@ Error codes used:
   POLICY_METADATA_REQUIRED    -- --policy missing on a run-affecting command
   POLICY_VALIDATION_FAILED    -- policy JSON invalid or contains secrets
   MISSION_NOT_FOUND           -- mission slug does not resolve to a kitty-specs dir
+  STATUS_READ_PATH_NOT_FOUND  -- coord topology with a stale/unaddressable primary surface
+                                 (fail-closed read-path guard fired; carries coord/primary candidates)
   WP_NOT_FOUND                -- WP ID does not exist in the mission
   TRANSITION_REJECTED         -- transition not allowed by state machine
   WP_ALREADY_CLAIMED          -- WP claimed by a different actor
@@ -184,6 +186,8 @@ app = typer.Typer(
 
 # Boy Scout (DIRECTIVE_025): deduplicated CLI help strings.
 _HELP_MISSION_SLUG = "Mission slug"
+# Deduplicated genuine-not-found message (Sonar S1192: emitted by 8 endpoints).
+_MISSION_NOT_FOUND_MESSAGE = "Mission '{mission}' not found in kitty-specs/"
 _HELP_WP_ID = "Work package ID"
 _HELP_ACTOR = "Actor identity"
 _HELP_POLICY = "Policy metadata JSON (required)"
@@ -238,34 +242,133 @@ def _get_main_repo_root() -> Path:
     return root
 
 
+def _read_primary_meta(main_repo_root: Path, mission_slug: str) -> tuple[str | None, bool]:
+    """Return ``(mission_id, declares_coordination)`` from the primary mission meta.
+
+    The primitive pattern shared with ``cli/commands/decision.py`` and
+    ``agent/context.py``: ``meta.json`` lives on the **primary checkout** (the
+    coordination worktree's sparse policy excludes it), so the canonical
+    identity is read there before resolving the topology-aware read path. The
+    primary dir is constructed via the sanctioned
+    :func:`primary_feature_dir_for_mission` path primitive (it owns
+    ``KITTY_SPECS_DIR`` assembly — ``test_no_raw_mission_spec_paths``).
+
+    ``mission_id`` is ``None`` when no primary meta exists or it carries no
+    string ``mission_id`` (legacy mission, or a coord-only topology whose meta
+    is not on this surface). Callers MUST treat ``None`` as "identity unproven"
+    and fail closed rather than seeding an empty identity (FR-011 / M3).
+    """
+    from specify_cli.mission_metadata import load_meta
+    from specify_cli.missions._read_path_resolver import (
+        primary_feature_dir_for_mission,
+    )
+
+    primary_dir = primary_feature_dir_for_mission(main_repo_root, mission_slug)
+    meta = load_meta(primary_dir) or {}
+    raw_id = meta.get("mission_id")
+    mission_id = raw_id if isinstance(raw_id, str) and raw_id else None
+    branch = meta.get("coordination_branch")
+    declares_coordination = isinstance(branch, str) and bool(branch.strip())
+    return mission_id, declares_coordination
+
+
 def _resolve_mission_dir(main_repo_root: Path, mission_slug: str) -> Path | None:
     """Return the coord-aware mission status directory if it exists, else None.
 
     For modern missions (coord-branch topology), returns the coordination
     worktree path. For legacy missions, returns the primary checkout path.
-    Falls back to None when neither exists.
+    Falls back to ``None`` only when the mission genuinely does not exist.
+
+    Read-path SAFETY (FR-011 / M3): the real ``mission_id`` is read from primary
+    ``meta.json`` and threaded into :func:`resolve_mid8` so the coord-aware
+    ``bool(mid8)`` fail-closed guard in ``_read_path_resolver`` evaluates. A
+    *prior* version seeded ``resolve_mid8(slug, mission_id=None)`` → an empty
+    ``mid8``, which SUPPRESSED that guard: on a coord topology with a stale
+    primary surface the orchestrator silently returned the stale primary view.
+    That seed was rationalized in a now-deleted comment as "byte-identical /
+    safe" — it was NOT: the empty-mid8 gate (``and bool(mid8)``) never
+    re-derives mid8, it simply evaluates ``False`` and skips the guard, so
+    external automation read stale status. Reading the declared identity here is
+    what restores the fail-closed behaviour every other reader has.
+
+    Typed-error fidelity (FR-001 / M2): :class:`StatusReadPathNotFound` is NOT
+    caught here — it propagates so the calling endpoint surfaces the resolver's
+    typed ``error_code`` (+ ``coord_candidate`` / ``primary_candidate``) instead
+    of flattening every miss to ``MISSION_NOT_FOUND``.
     """
     from specify_cli.missions._read_path_resolver import (
-        resolve_mission_read_path,
         StatusReadPathNotFound,
+        primary_feature_dir_for_mission,
+        resolve_mission_read_path,
     )
     from specify_cli.lanes.branch_naming import resolve_mid8
 
-    # Authoritative resolve (#1918, FR-004): no declared mission_id is available
-    # at this read-path bootstrap (we are locating meta.json itself), so the seam
-    # DECLINES a coincidental 8-char tail rather than mis-routing to a coord
-    # worktree that never carried this identity. For a genuine ``<slug>-<mid8>``
-    # handle the empty mid8 is byte-identical here: the resolver's compose is
-    # idempotent on an embedded slug and its canonical-handle fallback re-derives
-    # the real mid8 when the literal path misses.
-    mid8 = resolve_mid8(mission_slug, mission_id=None)
+    # Authoritative resolve (#1918, FR-004 / FR-011): derive mid8 from the
+    # DECLARED identity, not an empty seed. A non-empty mid8 arms the coord-aware
+    # fail-closed guard; an empty one suppresses it (the M3 defect).
+    mission_id, declares_coordination = _read_primary_meta(main_repo_root, mission_slug)
+    mid8 = resolve_mid8(mission_slug, mission_id=mission_id)
+
+    # M5 caveat — fail closed, do NOT silently seed empty: a coord topology whose
+    # primary declares ``coordination_branch`` while we CANNOT prove identity
+    # (no ``mission_id`` on this surface / no provable embedded tail → empty
+    # mid8) cannot be addressed against the coord worktree. Reading primary would
+    # expose stale status — the very gap the empty-mid8 seed re-opened. Refuse
+    # with the typed read-path error rather than fall back to the suppressed
+    # guard. (Legacy missions never declare ``coordination_branch``, so they keep
+    # the primary-read path unchanged.)
+    if not mid8 and declares_coordination:
+        primary_candidate = primary_feature_dir_for_mission(main_repo_root, mission_slug)
+        raise StatusReadPathNotFound(
+            repo_root=main_repo_root,
+            mission_slug=mission_slug,
+            mid8="",
+            coord_candidate=primary_candidate,
+            primary_candidate=primary_candidate,
+        )
+
+    mission_dir = resolve_mission_read_path(main_repo_root, mission_slug, mid8)
+    return mission_dir if mission_dir.exists() else None
+
+
+def _resolve_mission_dir_or_fail(command: str, main_repo_root: Path, mission_slug: str) -> Path:
+    """Resolve the mission status dir, emitting the correct failure envelope on a miss.
+
+    Single seam consumed by all 8 read endpoints (avoids 8 divergent patches):
+
+    * a typed :class:`StatusReadPathNotFound` (coord topology + stale/unaddressable
+      primary) surfaces the resolver's real ``error_code`` plus the
+      ``coord_candidate`` / ``primary_candidate`` paths — the M2 fidelity fix; the
+      external envelope *shape* is unchanged, only the code/data fidelity is raised
+      (C-IC02 applied to the external surface).
+    * a genuine absence (no such mission, no coord topology) keeps the historical
+      ``MISSION_NOT_FOUND`` envelope.
+
+    ``_fail`` raises ``typer.Exit``; the trailing ``raise`` is unreachable but keeps
+    the return type ``Path`` (mypy) without a sentinel.
+    """
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
     try:
-        mission_dir = resolve_mission_read_path(main_repo_root, mission_slug, mid8)
-    except StatusReadPathNotFound:
-        return None
-
-    return mission_dir if mission_dir.exists() else None
+        mission_dir = _resolve_mission_dir(main_repo_root, mission_slug)
+    except StatusReadPathNotFound as exc:
+        _fail(
+            command,
+            exc.error_code,
+            str(exc),
+            data={
+                "message": str(exc),
+                "mission_slug": exc.mission_slug,
+                "mid8": exc.mid8,
+                "coord_candidate": str(exc.coord_candidate),
+                "primary_candidate": str(exc.primary_candidate),
+            },
+        )
+        raise  # unreachable: _fail exits
+    if mission_dir is None:
+        _fail(command, "MISSION_NOT_FOUND", _MISSION_NOT_FOUND_MESSAGE.format(mission=mission_slug))
+        raise  # unreachable: _fail exits
+    return mission_dir
 
 
 def _mission_identity_payload(mission_dir: Path) -> dict[str, str]:
@@ -584,14 +687,7 @@ def mission_state(
 ) -> None:
     """Return the full state of a mission (all WPs, lanes, dependencies)."""
     main_repo_root = _get_main_repo_root()
-    mission_dir = _resolve_mission_dir(main_repo_root, mission)
-    if mission_dir is None:
-        _fail(
-            "mission-state",
-            "MISSION_NOT_FOUND",
-            f"Mission '{mission}' not found in kitty-specs/",
-        )
-        return
+    mission_dir = _resolve_mission_dir_or_fail("mission-state", main_repo_root, mission)
 
     from specify_cli.status import reduce
     from specify_cli.status import read_events
@@ -649,14 +745,7 @@ def list_ready(
 ) -> None:
     """List WPs that are ready to start (planned and all deps approved or done)."""
     main_repo_root = _get_main_repo_root()
-    mission_dir = _resolve_mission_dir(main_repo_root, mission)
-    if mission_dir is None:
-        _fail(
-            "list-ready",
-            "MISSION_NOT_FOUND",
-            f"Mission '{mission}' not found in kitty-specs/",
-        )
-        return
+    mission_dir = _resolve_mission_dir_or_fail("list-ready", main_repo_root, mission)
 
     from specify_cli.status import reduce
     from specify_cli.status import read_events
@@ -732,10 +821,7 @@ def start_implementation(
     policy_dict = policy_to_dict(policy_obj)
 
     main_repo_root = _get_main_repo_root()
-    mission_dir = _resolve_mission_dir(main_repo_root, mission)
-    if mission_dir is None:
-        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission}' not found in kitty-specs/")
-        return
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
     wp_path = _resolve_wp_file(mission_dir / "tasks", wp)
     if wp_path is None:
@@ -867,10 +953,7 @@ def start_review(
     policy_dict = policy_to_dict(policy_obj)
 
     main_repo_root = _get_main_repo_root()
-    mission_dir = _resolve_mission_dir(main_repo_root, mission)
-    if mission_dir is None:
-        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission}' not found in kitty-specs/")
-        return
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
     wp_path = _resolve_wp_file(mission_dir / "tasks", wp)
     if wp_path is None:
@@ -994,10 +1077,7 @@ def transition(
         evidence = parsed_evidence
 
     main_repo_root = _get_main_repo_root()
-    mission_dir = _resolve_mission_dir(main_repo_root, mission)
-    if mission_dir is None:
-        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission}' not found in kitty-specs/")
-        return
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
     wp_path = _resolve_wp_file(mission_dir / "tasks", wp)
     if wp_path is None:
@@ -1063,10 +1143,7 @@ def append_history(
     cmd = "append-history"
 
     main_repo_root = _get_main_repo_root()
-    mission_dir = _resolve_mission_dir(main_repo_root, mission)
-    if mission_dir is None:
-        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission}' not found in kitty-specs/")
-        return
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
     wp_path = _resolve_wp_file(mission_dir / "tasks", wp)
     if wp_path is None:
@@ -1161,10 +1238,7 @@ def accept_mission(
     cmd = "accept-mission"
 
     main_repo_root = _get_main_repo_root()
-    mission_dir = _resolve_mission_dir(main_repo_root, mission)
-    if mission_dir is None:
-        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission}' not found in kitty-specs/")
-        return
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
     from specify_cli.status import materialize
     from specify_cli.core.dependency_graph import build_dependency_graph
@@ -1265,10 +1339,7 @@ def merge_mission(
         return
 
     main_repo_root = _get_main_repo_root()
-    mission_dir = _resolve_mission_dir(main_repo_root, mission)
-    if mission_dir is None:
-        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission}' not found in kitty-specs/")
-        return
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
     preflight = _build_merge_preflight(main_repo_root, mission_dir, mission, target)
     if preflight.errors:
