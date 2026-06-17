@@ -626,8 +626,8 @@ _SHORTID_ALLOWED_SITES: frozenset[str] = frozenset(
         # declines to ``""`` (e.g. a malformed/short mission_id). It is the
         # ``or`` RHS of an already-routed call — a tolerance branch, NOT a
         # consumer that bypassed the seam. Two emit sites, identical idiom.
-        "src/specify_cli/cli/commands/doctor.py:3073",
-        "src/specify_cli/cli/commands/doctor.py:3165",
+        "src/specify_cli/cli/commands/doctor.py:3074",
+        "src/specify_cli/cli/commands/doctor.py:3166",
     }
 )
 
@@ -637,7 +637,7 @@ _SHORTID_ALLOWED_SITES: frozenset[str] = frozenset(
 # than a re-derivation of the live tree. Composition (verified at WP02 land):
 #   branch_naming.py:146/199/415  (3, HOME)
 #   mission_runtime/context.py:99/112  (2, HOME)
-#   cli/commands/doctor.py:3073/3165  (2, allow-listed tolerance)
+#   cli/commands/doctor.py:3074/3166  (2, allow-listed tolerance)
 # => 7 raw matches; 5 in homes + 2 allow-listed => 0 un-accounted consumers.
 _SHORTID_BASELINE_RAW_MATCHES = 7
 
