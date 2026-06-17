@@ -108,9 +108,17 @@ def next_step(
     _run_charter_preflight_for_next(_Path(str(repo_root)), advancing=result is not None, json_output=json_output)
 
     from runtime.next.runtime_bridge import MissionNotFoundError as _MissionNotFoundError
+    from specify_cli.missions._read_path_resolver import (
+        StatusReadPathNotFound as _StatusReadPathNotFound,
+    )
 
     try:
         mission_slug = _resolve_mission_slug(mission, feature, repo_root)
+    except _StatusReadPathNotFound as _exc:
+        # FR-001 / C-IC02: preserve the typed read-path error (code + checked
+        # paths + read-path remediation) instead of collapsing to MISSION_NOT_FOUND.
+        _emit_read_path_error(_exc, json_output)
+        raise typer.Exit(1) from _exc
     except _MissionNotFoundError as _exc:
         _emit_mission_not_found_error(_exc.handle, json_output)
         raise typer.Exit(1) from _exc
@@ -352,13 +360,15 @@ def _resolve_mission_slug(mission: str | None, feature: str | None, repo_root: P
         candidate = candidate_feature_dir_for_mission(
             get_main_repo_root(repo_root), raw_handle
         )
-    except StatusReadPathNotFound as exc:
-        # Fail-closed: coord worktree root is materialised but the mission
-        # directory is absent — the handle is definitely bad (FR-004 / WP03).
-        # Do NOT fall through; raise so the caller can emit a structured error.
-        from runtime.next.runtime_bridge import MissionNotFoundError
-
-        raise MissionNotFoundError(raw_handle) from exc
+    except StatusReadPathNotFound:
+        # FR-001 / C-IC02: the read resolver produced a precise typed error
+        # (e.g. COORDINATION_BRANCH_DELETED / STATUS_READ_PATH_NOT_FOUND) with the
+        # real read-path remediation. Do NOT collapse it into a generic
+        # MISSION_NOT_FOUND ("run mission list") — that mis-routes the operator
+        # (the mission is not missing; its read path is broken). Re-raise the
+        # typed error so the command layer surfaces ``error_code`` + the checked
+        # candidate paths verbatim.
+        raise
     if candidate.exists():
         return candidate.name
     return raw_handle
@@ -408,6 +418,63 @@ def _emit_mission_not_found_error(
         print(f"  Next: {remediation}", file=sys.stderr)
 
 
+def _read_path_signal(exc: Exception) -> tuple[str, list[str], str | None]:
+    """Extract ``(code, checked_paths, next_step)`` from a typed read-path error.
+
+    FR-001 / C-IC02: both the ``StatusReadPathNotFound`` family (raised by the
+    read resolver / ``_resolve_mission_slug``) and the ``ActionContextError``
+    boundary type (raised by ``query_current_state`` /
+    ``answer_decision_via_runtime``) carry the same underlying signal. The
+    boundary ``ActionContextError`` flattens the candidate paths into its message,
+    so its ``__cause__`` (the original ``StatusReadPathNotFound``) is the
+    structured source of ``coord_candidate`` / ``primary_candidate`` /
+    ``next_step``. This reads whichever shape is present without inventing a new
+    error type (C-001).
+    """
+    # The structured carrier is either the exception itself (StatusReadPathNotFound
+    # family) or its cause (the boundary ActionContextError wraps it).
+    carrier = exc if hasattr(exc, "coord_candidate") else exc.__cause__
+    code = getattr(exc, "code", None) or getattr(exc, "error_code", None) or "STATUS_READ_PATH_NOT_FOUND"
+    checked: list[str] = []
+    for attr in ("coord_candidate", "primary_candidate"):
+        candidate = getattr(carrier, attr, None)
+        if candidate is not None:
+            checked.append(str(candidate))
+    next_step = getattr(carrier, "next_step", None) or str(exc)
+    return code, checked, next_step
+
+
+def _emit_read_path_error(exc: Exception, json_output: bool) -> None:
+    """Surface a typed read-path error verbatim (FR-001 / FR-002 / C-IC02).
+
+    Mirrors the ``QueryModeValidationError`` branch (a typed ``error_code`` +
+    actionable ``next_step`` reach the JSON envelope) instead of collapsing the
+    error into ``MISSION_NOT_FOUND`` / "run mission list". The remediation is the
+    real read-path repair the resolver produced, never a mission-list hint.
+    """
+    code, checked_paths, next_step = _read_path_signal(exc)
+    remediation = next_step or str(exc)
+    if json_output:
+        from specify_cli import __version__
+
+        payload: dict[str, object] = {
+            "result": "error",
+            "error_code": code,
+            "error": str(exc),
+            "checked_paths": checked_paths,
+            "next_step": remediation,
+            "remediation": remediation,
+            "spec_kitty_version": __version__,
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        print(f"Error: {exc}", file=sys.stderr)
+        if checked_paths:
+            print(f"  Checked: {', '.join(checked_paths)}", file=sys.stderr)
+        if remediation:
+            print(f"  Next: {remediation}", file=sys.stderr)
+
+
 def _validate_result_and_answer(result: str | None, answer: str | None, json_output: bool) -> None:
     if result is not None and result not in _VALID_RESULTS:
         print(f"Error: --result must be one of {_VALID_RESULTS}, got '{result}'", file=sys.stderr)
@@ -432,11 +499,19 @@ def _maybe_handle_answer(
         _print_error("Error: --agent is required when --answer is provided", json_output)
         raise typer.Exit(1)
 
+    from mission_runtime import ActionContextError
+
     stderr_buffer = io.StringIO() if json_output else None
     redirect = contextlib.redirect_stderr(stderr_buffer) if stderr_buffer is not None else contextlib.nullcontext()
     try:
         with redirect:
             return _handle_answer(agent, mission_slug, answer, decision_id, repo_root)
+    except ActionContextError as exc:
+        # FR-001 / C-IC02: the decision-answer path must preserve the typed
+        # read-path code IDENTICALLY to the query path — not flatten it into a
+        # generic ``error`` string. Surface code + checked paths + remediation.
+        _emit_read_path_error(exc, json_output)
+        raise typer.Exit(1) from exc
     except typer.Exit as exc:
         if json_output:
             message = (stderr_buffer.getvalue().strip() if stderr_buffer is not None else "") or str(exc) or "Answer handling failed"
@@ -462,10 +537,17 @@ def _run_query_mode(
     QueryModeValidationError = runtime_bridge.QueryModeValidationError
     # Import MissionNotFoundError from the canonical module so tests that
     # install a fake ``specify_cli.next.runtime_bridge`` shim still work.
+    from mission_runtime import ActionContextError
     from runtime.next.runtime_bridge import MissionNotFoundError
 
     try:
         decision = runtime_bridge.query_current_state(agent, mission_slug, repo_root)
+    except ActionContextError as exc:
+        # FR-001 / C-IC02: the resolver produced a precise typed read-path error
+        # (e.g. COORDINATION_BRANCH_DELETED). Surface its code + checked paths +
+        # read-path remediation verbatim — never collapse to MISSION_NOT_FOUND.
+        _emit_read_path_error(exc, json_output)
+        raise typer.Exit(1) from exc
     except MissionNotFoundError as exc:
         _emit_mission_not_found_error(
             exc.handle, json_output, next_step=getattr(exc, "next_step", None)
