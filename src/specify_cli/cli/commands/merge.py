@@ -858,9 +858,7 @@ def _assert_bookkeeping_snapshot_path_is_trusted(
         (repo_resolved / WORKTREES_DIR).resolve(strict=False),
         (repo_resolved / KITTIFY_DIR / "runtime" / "merge").resolve(strict=False),
     )
-    trusted_files = (
-        (repo_resolved / KITTIFY_DIR / "merge-state.json").resolve(strict=False),
-    )
+    trusted_files = (repo_resolved / KITTIFY_DIR / "merge-state.json",)
     if not (
         any(resolved_candidate.is_relative_to(root) for root in trusted_dirs)
         or resolved_candidate in trusted_files
