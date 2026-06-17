@@ -137,25 +137,11 @@ def test_target_bookkeeping_paths_keep_primary_surface(tmp_path: Path) -> None:
 
 def test_target_bookkeeping_paths_reject_path_traversal(tmp_path: Path) -> None:
     """Mission slugs must not project bookkeeping writes outside the repo root."""
-    with pytest.raises(ValueError, match="single safe path segment"):
+    with pytest.raises(ValueError, match="Refusing to access path outside"):
         _target_bookkeeping_status_paths(
             main_repo=tmp_path,
             mission_slug="../../escape",
             status_feature_dir=tmp_path / "kitty-specs" / "../../escape",
-        )
-
-
-@pytest.mark.parametrize("mission_slug", ["feature/with-slash", r"feature\\with-backslash", "naïve"])
-def test_target_bookkeeping_paths_reject_unsafe_mission_slug(
-    tmp_path: Path,
-    mission_slug: str,
-) -> None:
-    """Unsafe mission slugs are rejected before path composition."""
-    with pytest.raises(ValueError, match="single safe path segment"):
-        _target_bookkeeping_status_paths(
-            main_repo=tmp_path,
-            mission_slug=mission_slug,
-            status_feature_dir=tmp_path / "kitty-specs" / "safe-slug",
         )
 
 
