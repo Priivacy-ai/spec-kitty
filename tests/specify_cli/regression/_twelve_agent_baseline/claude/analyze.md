@@ -227,6 +227,19 @@ The report file you pass MUST start with the `analysis-findings/v1` carrier from
 
 Treat persistence failure as command failure. The command is not complete until the JSON response reports success and names `analysis-report.md`.
 
+> **⚠️ Caution — Do not write `analysis-report.md` directly**
+>
+> The `analysis-findings/v1` carrier (step 6) is the **input format** for `record-analysis`,
+> not the **persisted format**. `record-analysis` wraps the carrier in the outer-wrapper
+> format (`artifact_type: spec-kitty.analysis-report`) that the implement gate accepts.
+>
+> Writing `analysis-report.md` directly — without piping through `record-analysis` — leaves
+> the file in carrier format, which the implement gate rejects with `carrier_format_not_wrapped`.
+> If this happens, recover by running:
+> ```bash
+> spec-kitty agent mission record-analysis --mission <mission-slug> --input-file analysis-report.md --json
+> ```
+
 ### 8. Provide Next Actions
 
 At end of report, output a concise Next Actions block:

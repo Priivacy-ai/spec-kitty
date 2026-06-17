@@ -168,6 +168,19 @@ def _create_test_feature(
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
+    # The software-dev mission declares required path conventions
+    # (src/, tests/, contracts/, docs/). collect_feature_summary() validates
+    # them against the on-disk repo layout and, under the default strict mode,
+    # turns a missing convention path into a hard ``path_violations`` entry that
+    # forces ``summary.ok`` to False and makes perform_acceptance() raise
+    # AcceptanceError. Create the convention directories (with a committed
+    # ``.gitkeep`` so git tracks the otherwise-empty dirs and the repo stays
+    # clean) so acceptance reflects the WP/lane state under test rather than a
+    # fixture-layout artifact.
+    for convention_dir in ("src", "tests", "contracts", "docs"):
+        (repo_root / convention_dir).mkdir(parents=True, exist_ok=True)
+        (repo_root / convention_dir / ".gitkeep").write_text("")
+
     # meta.json
     meta = {
         "mission_number": "099",

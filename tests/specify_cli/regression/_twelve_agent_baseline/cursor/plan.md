@@ -101,7 +101,7 @@ required structural rows does **not** count as substantive (no byte-length
 escape hatch).
 
 To advance: populate the Technical Context with real values, then re-run
-`spec-kitty agent mission setup-plan --json`. The substantive plan will be
+`spec-kitty agent mission setup-plan --mission <mission-slug> --json`. The substantive plan will be
 auto-committed and `phase_complete` will report `true`.
 
 Reference: `kitty-specs/charter<!-- glossary:glossary:charter -->-e2e-827-followups-01KQAJA0/contracts/specify-plan-commit-boundary.md`.
@@ -262,9 +262,9 @@ If the mission is not a bulk edit<!-- glossary:glossary:bulk-edit -->, skip this
 
 2. **Resolve mission context deterministically** (CRITICAL - prevents wrong mission selection):
    - Prefer an explicit mission slug from user direction or from the current directory path (`kitty-specs/<mission-slug>/...`)
-   - If you do not yet have an explicit mission slug, run `spec-kitty agent mission setup-plan --json` once without `--mission`
-   - If that call succeeds, treat its JSON as the canonical setup payload and skip step 3
-   - If that call returns an ambiguity error with `available_missions`, stop and resolve one explicit mission slug before continuing
+   - The resolver requires `--mission` — always pass an explicit handle. Running `setup-plan` without `--mission` returns `PLAN_CONTEXT_UNRESOLVED` even when exactly one mission is present.
+   - Resolve the handle first: `spec-kitty agent context resolve --action plan --mission <handle> --json`, then pass the resolved slug to `setup-plan`
+   - If the context resolve call returns an ambiguity error with `available_missions`, stop and pick one explicit mission slug before continuing
 
 3. **Setup**: If step 2 did not already return a successful setup payload, run `spec-kitty agent mission setup-plan --mission <mission-slug> --json` from the repository root and parse JSON for:
    - `result`: "success" or error message
@@ -288,7 +288,8 @@ If the mission is not a bulk edit<!-- glossary:glossary:bulk-edit -->, skip this
    # Resolve the active mission handle, then pass it to setup-plan.
    # The --mission flag accepts mission_id (ULID), mid8 (first 8 chars), or mission_slug.
    # The resolver disambiguates by mission_id; ambiguous handles become structured errors.
-   spec-kitty agent context resolve --mission <handle> --json
+   # --action is required for context resolve; use the action matching this step.
+   spec-kitty agent context resolve --action plan --mission <handle> --json
    spec-kitty agent mission setup-plan --mission <handle> --json
    ```
 

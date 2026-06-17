@@ -162,13 +162,14 @@ def test_toml_command_output_is_parseable(agent: str, command: str) -> None:
 
 
 def test_non_migrated_agents_count() -> None:
-    """Exactly 13 agents are in AGENT_COMMAND_CONFIG.
+    """Exactly 12 agents are in AGENT_COMMAND_CONFIG.
 
-    Count rose from 12 to 13 when PR #626 registered Kiro as a first-class slash-command
-    agent alongside the 12 existing non-migrated agents. Command-skill agents remain
-    absent (they use the Agent Skills pipeline — see AGENT_SKILL_CONFIG).
+    Count rose to 13 when PR #626 registered Kiro as a first-class slash-command
+    agent, then fell back to 12 when Mission #136 deprecated Roo (Roo Code shut
+    down 2026-05-15, constraint C-007 — see ``specify_cli.core.config``). Command-skill
+    agents remain absent (they use the Agent Skills pipeline — see AGENT_SKILL_CONFIG).
     """
-    assert len(NON_MIGRATED_AGENTS) == 13, f"Expected 13 non-migrated agents, got {len(NON_MIGRATED_AGENTS)}: {NON_MIGRATED_AGENTS}"
+    assert len(NON_MIGRATED_AGENTS) == 12, f"Expected 12 non-migrated agents, got {len(NON_MIGRATED_AGENTS)}: {NON_MIGRATED_AGENTS}"
 
 
 def test_codex_not_in_agent_command_config() -> None:
