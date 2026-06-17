@@ -3647,6 +3647,13 @@
   current_target: false
   citation_refs: []
   notes: "Mission research note for #2007 (3.2.0 training bugs) (SYNTHESIS 2007)"
+- path: docs/engineering_notes/context-factory-readwrite-symmetry/00-SYNTHESIS.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: "Design synthesis for the read-path mission (01KV8NPC) — KEEP-AND-ADOPT verdict, single context-factory read/write-symmetry seam, multi-mission approach (read-side now, write-side #1716/#1878 follow-on)"
 - path: docs/engineering_notes/3-2-0-training-bugs-2007/alphonso-systemic.md
   tag: internal
   divio_type: none
