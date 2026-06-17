@@ -888,7 +888,7 @@ def test_final_bookkeeping_rollback_restores_status_meta_and_state(tmp_path: Pat
     target_meta.write_text('{"mission_slug": "m", "baseline_merge_commit": "HEAD~1"}\n', encoding="utf-8")
     state_path.write_text('{"completed_wps": ["WP01"]}\n', encoding="utf-8")
 
-    _restore_final_bookkeeping_snapshots(snapshots)
+    _restore_final_bookkeeping_snapshots(tmp_path, snapshots)
 
     assert coord_events.read_bytes() == b"approved-event\n"
     assert coord_status.read_bytes() == b'{"WP01": "approved"}\n'
@@ -896,3 +896,13 @@ def test_final_bookkeeping_rollback_restores_status_meta_and_state(tmp_path: Pat
     assert not target_status.exists()
     assert target_meta.read_bytes() == b'{"mission_slug": "m"}\n'
     assert state_path.read_bytes() == b'{"completed_wps": []}\n'
+
+
+def test_final_bookkeeping_rollback_rejects_paths_outside_trusted_roots(
+    tmp_path: Path,
+) -> None:
+    """Rollback restore must never write outside merge bookkeeping roots."""
+    escaped_path = tmp_path.parent / "escaped-status.json"
+
+    with pytest.raises(ValueError, match="outside trusted repo roots"):
+        _restore_final_bookkeeping_snapshots(tmp_path, {escaped_path: b"malicious\n"})
