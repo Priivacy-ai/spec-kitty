@@ -6,45 +6,35 @@ serialises to JSON or renders to the console. Kept in their own module so
 """
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from specify_cli.task_utils import TaskCliError
 
-from specify_cli.cli.commands.charter._app import METADATA_FILENAME, logger
+from specify_cli.cli.commands.charter._app import METADATA_FILENAME
 from specify_cli.cli.commands.charter._common import (
     _display_path,
     _resolve_charter_path,
 )
 from specify_cli.cli.commands.charter._synthesis import _collect_evidence_result
 
-# Patch shim: ``ensure_charter_bundle_fresh`` is looked up on the package at
-# call time so legacy ``patch("…charter.ensure_charter_bundle_fresh", …)``
-# fixtures still apply post-split.
-import specify_cli.cli.commands.charter as _charter_pkg
-
 
 def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
+    """Read charter sync status without writing to disk.
+
+    FR-010 / C-IC07: this is a read-only status collector. It MUST NOT call
+    ``ensure_charter_bundle_fresh`` (which writes the charter bundle) or
+    ``GlossaryEntityPageRenderer.generate_all()`` (which writes entity pages).
+    Staleness is determined read-only via ``is_stale``; the canonical root is
+    derived read-only as ``repo_root`` (no regeneration required to obtain it).
+    """
     try:
         from charter.hasher import is_stale
 
-        ensure_fresh = cast(
-            Callable[[Path], Any],
-            _charter_pkg.__dict__["ensure_charter_bundle_fresh"],
-        )
-        sync_result = ensure_fresh(repo_root)
-        # Generate glossary entity pages (non-blocking; silent on failure)
-        try:
-            from glossary.entity_pages import GlossaryEntityPageRenderer
-            GlossaryEntityPageRenderer(repo_root).generate_all()
-        except Exception as _ep_exc:  # noqa: BLE001 — entity-page generation is optional; failure is logged and ignored
-            logger.debug("entity page generation failed (non-fatal): %s", _ep_exc)
-        canonical_root = (
-            sync_result.canonical_root
-            if sync_result and sync_result.canonical_root
-            else repo_root
-        )
+        # Read-only root derivation: use repo_root directly (no write side-effect).
+        # The write commands (charter sync / charter generate) legitimately call
+        # ensure_charter_bundle_fresh; the status READ path does not.
+        canonical_root = repo_root
         charter_path = _resolve_charter_path(canonical_root)
         output_dir = charter_path.parent
         metadata_path = output_dir / METADATA_FILENAME
