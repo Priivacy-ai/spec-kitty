@@ -99,6 +99,7 @@ TARGET_BRANCH_NOT_SYNCHRONIZED = "TARGET_BRANCH_NOT_SYNCHRONIZED"
 TARGET_BRANCH_SYNC_INVARIANT = "local_target_branch_must_match_tracking_branch"
 _STATUS_EVENTS_FILENAME = "status.events.jsonl"
 _STATUS_FILENAME = "status.json"
+_MISSION_SLUG_PATH_SEGMENT_RE = re.compile(r"^[A-Za-z0-9_-]+$", re.ASCII)
 
 # T011 — FR-009: push-error parser tokens (locked tuple — do not reorder or extend without a spec change)
 LINEAR_HISTORY_REJECTION_TOKENS: tuple[str, ...] = (
@@ -770,6 +771,21 @@ def _paths_have_status_changes(repo_root: Path, paths: list[Path]) -> bool:
     return bool((out_status or "").strip())
 
 
+def _validate_mission_slug_path_segment(mission_slug: str) -> str:
+    """Reject mission slugs unsafe for direct path composition."""
+    candidate = mission_slug.strip()
+    if (
+        not candidate
+        or candidate in {".", ".."}
+        or "/" in candidate
+        or "\\" in candidate
+        or not candidate.isascii()
+        or _MISSION_SLUG_PATH_SEGMENT_RE.fullmatch(candidate) is None
+    ):
+        raise ValueError(f"Mission slug must be a single safe path segment: {mission_slug!r}")
+    return candidate
+
+
 def _target_bookkeeping_status_paths(
     *,
     main_repo: Path,
@@ -782,8 +798,9 @@ def _target_bookkeeping_status_paths(
     worktree. The final merge bookkeeping commit runs from ``main_repo`` onto
     the target branch, so it must stage primary-checkout paths only.
     """
+    safe_mission_slug = _validate_mission_slug_path_segment(mission_slug)
     target_feature_dir = (
-        primary_feature_dir_for_mission(main_repo, mission_slug)
+        primary_feature_dir_for_mission(main_repo, safe_mission_slug)
         if is_under_worktrees_segment(status_feature_dir)
         else status_feature_dir
     )
