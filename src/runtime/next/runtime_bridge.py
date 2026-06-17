@@ -236,6 +236,26 @@ def _wrap_with_decision_git_log(
         return emitter
 
 
+# FR-001 / C-IC02: the typed read-path codes whose fidelity MUST be preserved
+# across the next-family catch-sites. These are *read-path topology* failures
+# (the mission exists but its status read surface is broken / ambiguous), as
+# opposed to a genuinely-missing mission (``FEATURE_CONTEXT_UNRESOLVED`` and the
+# like), which legitimately stays ``MISSION_NOT_FOUND``. Collapsing a code in
+# this set into ``MISSION_NOT_FOUND`` mis-routes the operator (the disease #15).
+_READ_PATH_ERROR_CODES: frozenset[str] = frozenset(
+    {
+        "STATUS_READ_PATH_NOT_FOUND",
+        "COORDINATION_BRANCH_DELETED",
+        "MISSION_AMBIGUOUS_SELECTOR",
+    }
+)
+
+
+def _is_read_path_error(exc: object) -> bool:
+    """Return True when *exc* carries a typed read-path topology code (C-IC02)."""
+    return getattr(exc, "code", None) in _READ_PATH_ERROR_CODES
+
+
 class QueryModeValidationError(ValueError):
     """Raised when query mode cannot produce a truthful read-only preview."""
 
@@ -3100,7 +3120,7 @@ def _build_runtime_query_decision(
     )
 
 
-def query_current_state(  # noqa: C901
+def query_current_state(
     agent: str | None,
     mission_slug: str,
     repo_root: Path,
@@ -3126,11 +3146,29 @@ def query_current_state(  # noqa: C901
         )
         feature_dir = Path(_ctx.feature_dir)
     except ActionContextError as exc:
-        # Mission directory not found — raise fail-closed (FR-004 / WP03).
+        # FR-001 / C-IC02: pass a typed *read-path* error through VERBATIM. The
+        # resolver already produced the precise code (e.g.
+        # COORDINATION_BRANCH_DELETED / STATUS_READ_PATH_NOT_FOUND) plus the real
+        # read-path remediation; collapsing it into a generic MISSION_NOT_FOUND
+        # ("run mission list") points the operator the wrong way (the mission is
+        # not missing — its read path is broken; the disease #15). The command
+        # layer surfaces ``exc.code`` + checked paths from the typed error.
+        # (Earlier this raised ``MissionNotFoundError`` for ALL ActionContextError
+        # and mis-attributed the collapse to FR-004 / WP03; that attribution was
+        # stale — the next-family collapse is owned by THIS WP.)
+        if _is_read_path_error(exc):
+            raise
+        # A genuinely-missing mission (e.g. FEATURE_CONTEXT_UNRESOLVED — no mission
+        # directory at all) is legitimately MISSION_NOT_FOUND (FR-004 / WP03).
         raise MissionNotFoundError(mission_slug) from exc
 
     if not feature_dir.is_dir():
-        # Resolved path does not exist on disk — treat as not found (FR-004 / WP03).
+        # Conscious decision (C-IC02): reaching here means the resolver RESOLVED
+        # a directory and verified it ``exists()`` (see resolution.py), yet it is
+        # not a directory on disk — i.e. the canonical mission dir name resolved
+        # to a regular file. That is a genuinely malformed / missing mission, not
+        # a read-path topology miss, so ``MISSION_NOT_FOUND`` is the correct,
+        # deliberately-kept classification here (NOT a read-path collapse).
         raise MissionNotFoundError(mission_slug)
 
     mission_type = get_mission_type(feature_dir)
@@ -3263,15 +3301,21 @@ def answer_decision_via_runtime(
         )
         feature_dir = Path(_ctx.feature_dir)
     except ActionContextError as exc:
+        # FR-001 / C-IC02: preserve the typed read-path error IDENTICALLY on the
+        # decision-answer path (the same fidelity obligation as the query path).
+        # Collapsing it into a generic "not found" MissionRuntimeError would drop
+        # ``exc.code`` (e.g. COORDINATION_BRANCH_DELETED) and the read-path
+        # remediation, mis-routing the operator. Log the context, then re-raise
+        # the typed ActionContextError so the command layer surfaces its code.
         logger.warning(
-            "answer_decision_via_runtime: mission %r not found in repo %s — cannot answer decision %r",
+            "answer_decision_via_runtime: read-path error (%s) for mission %r in "
+            "repo %s — cannot answer decision %r",
+            exc.code,
             mission_slug,
             repo_root,
             decision_id,
         )
-        raise MissionRuntimeError(
-            f"Mission {mission_slug!r} not found; cannot answer decision {decision_id!r}"
-        ) from exc
+        raise
     if not feature_dir.is_dir():
         logger.warning(
             "answer_decision_via_runtime: mission %r resolved to missing dir %s — cannot answer decision %r",

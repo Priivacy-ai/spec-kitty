@@ -808,13 +808,21 @@ class TestAnswerDecision:
         assert "resolve_action_context" in inspect.getsource(runtime_bridge.answer_decision_via_runtime)
 
     def test_answer_missing_mission_raises(self, tmp_path: Path) -> None:
-        """Missing mission must fail, not log and report a successful no-op answer."""
+        """Missing mission must fail, not log and report a successful no-op answer.
+
+        WP02 / C-IC02: the decision-answer path no longer collapses the resolver's
+        typed ``ActionContextError`` into a generic ``MissionRuntimeError``; it
+        preserves the typed code IDENTICALLY to the query path (FR-001). An
+        unresolved handle still fails loudly — just with the typed error and its
+        ``code`` intact — so the no-op regression this test guards stays closed.
+        """
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.runtime_bridge import answer_decision_via_runtime
-        from specify_cli.next._internal_runtime.schema import MissionRuntimeError
+        from mission_runtime import ActionContextError
 
-        with pytest.raises(MissionRuntimeError, match="cannot answer decision"):
+        from specify_cli.next.runtime_bridge import answer_decision_via_runtime
+
+        with pytest.raises(ActionContextError) as excinfo:
             answer_decision_via_runtime(
                 "missing-feature",
                 "decision-001",
@@ -822,6 +830,9 @@ class TestAnswerDecision:
                 "test",
                 repo_root,
             )
+        # The typed code survives (no collapse to a generic "cannot answer
+        # decision" string).
+        assert excinfo.value.code
 
     def test_answer_without_pending_raises(self, tmp_path: Path) -> None:
         """Answering when no decisions pending raises error."""
@@ -1427,3 +1438,46 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
         assert _has_raw_dependencies_field(wp_file) is True
+
+
+class TestQueryCurrentStateTypedErrorPassthrough:
+    """FR-001 / C-IC02: ``query_current_state`` passes a *read-path* ActionContextError
+    through verbatim (the #15 fix), and only collapses a genuinely-missing mission to
+    ``MISSION_NOT_FOUND``. Covers the discriminator branch at runtime_bridge.py."""
+
+    def test_read_path_error_reraised_verbatim(self, monkeypatch, tmp_path: Path) -> None:
+        import mission_runtime
+        from mission_runtime import ActionContextError
+        from runtime.next.runtime_bridge import query_current_state
+
+        def _raise_read_path(*_a: object, **_k: object) -> None:
+            raise ActionContextError(
+                "COORDINATION_BRANCH_DELETED",
+                "coordination branch deleted; checked .worktrees/<slug>-coord and primary",
+            )
+
+        monkeypatch.setattr(mission_runtime, "resolve_action_context", _raise_read_path)
+
+        with pytest.raises(ActionContextError) as exc_info:
+            query_current_state(
+                agent="claude",
+                mission_slug="read-path-error-fidelity-adoption-01KV8NPC",
+                repo_root=tmp_path,
+            )
+        # The typed read-path code survives — NOT collapsed to MISSION_NOT_FOUND.
+        assert exc_info.value.code == "COORDINATION_BRANCH_DELETED"
+
+    def test_genuinely_missing_mission_collapses_to_mission_not_found(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        import mission_runtime
+        from mission_runtime import ActionContextError
+        from runtime.next.runtime_bridge import MissionNotFoundError, query_current_state
+
+        def _raise_unresolved(*_a: object, **_k: object) -> None:
+            raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", "no mission directory at all")
+
+        monkeypatch.setattr(mission_runtime, "resolve_action_context", _raise_unresolved)
+
+        with pytest.raises(MissionNotFoundError):
+            query_current_state(agent="claude", mission_slug="no-such-mission", repo_root=tmp_path)

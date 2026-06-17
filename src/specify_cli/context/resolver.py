@@ -162,9 +162,16 @@ def resolve_context(
     try:
         feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
     except ActionContextError as exc:
+        # FR-001 / M1 (T038): preserve the resolver's typed read-path signal
+        # instead of flattening it into "Check that the mission slug is correct."
+        # The resolver produces a precise code (e.g. COORDINATION_BRANCH_DELETED /
+        # STATUS_READ_PATH_NOT_FOUND) plus the real read-path remediation; a
+        # generic "check the slug" mis-routes the operator (the mission is not
+        # missing — its read path is broken). Mirror the agent/context.py
+        # translation: carry ``exc.code`` + the resolver message through verbatim.
         msg = (
-            f"Feature directory not found for '{mission_slug}'. "
-            "Check that the mission slug is correct."
+            f"[{exc.code}] Read path could not be resolved for mission "
+            f"'{mission_slug}'. {exc}"
         )
         raise FeatureNotFoundError(msg) from exc
     if not feature_dir.exists():
