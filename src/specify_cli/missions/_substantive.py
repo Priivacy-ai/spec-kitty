@@ -283,39 +283,92 @@ def _git_commit_check_context(file_path: Path, repo_root: Path) -> tuple[Path, s
     return repo_abs, str(rel)
 
 
+def _ref_carries_path(git_cwd: Path, ref: str, tree_path: str) -> bool:
+    """Return True iff ``ref:tree_path`` resolves (committed at that ref)."""
+    try:
+        subprocess.run(
+            ["git", "-C", str(git_cwd), "cat-file", "-e", f"{ref}:{tree_path}"],
+            check=True,
+            capture_output=True,
+        )
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+
+def _head_carries_path(git_cwd: Path, tree_path: str) -> bool:
+    """Return True iff ``tree_path`` is tracked AND present at ``HEAD``."""
+    try:
+        subprocess.run(
+            ["git", "-C", str(git_cwd), "ls-files", "--error-unmatch", tree_path],
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(git_cwd), "cat-file", "-e", f"HEAD:{tree_path}"],
+            check=True,
+            capture_output=True,
+        )
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+
 def is_committed(
     file_path: Path,
     repo_root: Path,
     placement: CommitTarget | None = None,
+    *,
+    target_branch: str | None = None,
+    primary_repo_root: Path | None = None,
+    diagnostics: list[str] | None = None,
 ) -> bool:
-    """Return True iff ``file_path`` is git-tracked AND present at HEAD.
+    """Return True iff ``file_path`` is committed on any checked git surface.
 
-    Both conditions must hold: a file freshly added to the index but not yet
-    committed will return False. A previously-committed file that has since
-    been deleted from the index also returns False.
+    Three legs are ORed together — committed on *any* of them counts as
+    committed:
+
+    1. **Coordination-branch leg** (when ``placement.kind`` is
+       ``COORDINATION``): ``git cat-file -e <coord_ref>:<rel>`` against the
+       worktree the file lives in.
+    2. **HEAD leg**: the file is git-tracked AND present at the worktree's
+       ``HEAD`` (``ls-files --error-unmatch`` + ``cat-file -e HEAD:<rel>``).
+    3. **Primary-target-branch leg** (FR-005, when ``target_branch`` is
+       supplied): ``git -C <primary_repo_root> cat-file -e
+       <target_branch>:<rel>``. This closes the #7 false-negative: a spec
+       committed only on the primary target branch (coord branch lacking it)
+       is found here even when legs 1 and 2 both miss because the read-path
+       handed us the coord surface.
 
     Args:
         file_path: The file to check for commit presence.
         repo_root: The repository root used for git operations.
-        placement: Optional :class:`~mission_runtime.CommitTarget` that
-            carries coordination-topology information.  When provided and
-            the target's ``kind`` is ``COORDINATION``, the coordination
-            branch ref is checked first (``git cat-file -e <ref>:<rel>``).
-            If the file is found there, ``True`` is returned immediately
-            without falling back to HEAD.  Flat-topology callers that pass
-            no ``placement`` receive the original HEAD-only behaviour.
+        placement: Optional :class:`~mission_runtime.CommitTarget` carrying
+            coordination-topology information.
+        target_branch: Primary target-branch ref (e.g. ``main``). When
+            supplied, the primary-target-branch leg is checked against
+            ``primary_repo_root`` (or ``repo_root`` when not given) with the
+            primary tree-path. Callers that omit it keep the prior two-leg
+            behaviour.
+        primary_repo_root: The PRIMARY repo root for the target-branch leg.
+            Defaults to ``repo_root``. The leg always runs against the primary
+            root with the primary tree-path (never the worktree-relative one).
+        diagnostics: Optional sink — when provided, one human-readable line per
+            ref/surface checked is appended (FR-005 "list every ref/surface
+            checked"), each annotated with hit/miss.
 
     Returns:
-        ``True`` iff the file is committed to the coordination branch (when
-        applicable) or to ``HEAD``.
+        ``True`` iff the file is committed on the coordination branch, ``HEAD``,
+        or the primary target branch.
     """
     check_context = _git_commit_check_context(file_path, repo_root)
     if check_context is None:
+        if diagnostics is not None:
+            diagnostics.append(f"file outside repo_root {repo_root}: not committed")
         return False
     git_cwd, tree_path = check_context
 
-    # Coord-topology fast path: check the coordination branch before HEAD.
-    # OR logic: committed to *either* branch counts as committed.
+    # Leg 1 — coordination-branch ref (only for COORDINATION placement).
     if placement is not None:
         # Avoid importing CommitTargetKind at module-level (circular-import
         # risk); the attribute read is safe because CommitTarget is a frozen
@@ -328,31 +381,35 @@ def is_committed(
             coord_ref = None
 
         if coord_ref is not None:
-            try:
-                subprocess.run(
-                    ["git", "-C", str(git_cwd), "cat-file", "-e", f"{coord_ref}:{tree_path}"],
-                    check=True,
-                    capture_output=True,
-                )
+            hit = _ref_carries_path(git_cwd, coord_ref, tree_path)
+            if diagnostics is not None:
+                diagnostics.append(f"coord-ref {coord_ref}:{tree_path} (cwd={git_cwd}): {'hit' if hit else 'miss'}")
+            if hit:
                 return True
-            except (subprocess.CalledProcessError, FileNotFoundError):
-                pass  # fall through to HEAD check
 
-    # Primary HEAD check (flat topology or coord-branch miss).
-    try:
-        subprocess.run(
-            ["git", "-C", str(git_cwd), "ls-files", "--error-unmatch", tree_path],
-            check=True,
-            capture_output=True,
-        )
-        subprocess.run(
-            ["git", "-C", str(git_cwd), "cat-file", "-e", f"HEAD:{tree_path}"],
-            check=True,
-            capture_output=True,
-        )
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return False
-    return True
+    # Leg 2 — HEAD of the file's worktree (flat topology or coord-branch miss).
+    head_hit = _head_carries_path(git_cwd, tree_path)
+    if diagnostics is not None:
+        diagnostics.append(f"HEAD:{tree_path} (cwd={git_cwd}): {'hit' if head_hit else 'miss'}")
+    if head_hit:
+        return True
+
+    # Leg 3 — primary-target-branch ref against the PRIMARY repo root + primary
+    # tree-path (FR-005 / #7). The tree-path is already worktree-relative (the
+    # primary checkout mirrors the same layout), so it doubles as the primary
+    # tree-path. The leg runs against the primary root, never the worktree root.
+    if target_branch:
+        primary_root = primary_repo_root or repo_root
+        primary_hit = _ref_carries_path(primary_root, target_branch, tree_path)
+        if diagnostics is not None:
+            diagnostics.append(
+                f"target-branch {target_branch}:{tree_path} (primary_root={primary_root}): "
+                f"{'hit' if primary_hit else 'miss'}"
+            )
+        if primary_hit:
+            return True
+
+    return False
 
 
 __all__ = ["Kind", "describe_technical_context_gap", "is_committed", "is_substantive"]
