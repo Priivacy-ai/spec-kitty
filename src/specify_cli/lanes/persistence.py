@@ -20,6 +20,17 @@ from specify_cli.lanes.models import LanesManifest
 LANES_FILENAME = "lanes.json"
 
 
+def resolve_lanes_dir(feature_dir: Path) -> Path:
+    """Return the canonical ``lanes.json`` path for a feature directory.
+
+    Single pure seam (#1993): the one place that knows how the lanes file
+    path is composed from a feature dir. Pure path composition — no I/O, no
+    topology semantics. Route every ``feature_dir / lanes.json`` derivation
+    through here so the join is defined exactly once.
+    """
+    return feature_dir / LANES_FILENAME
+
+
 class CorruptLanesError(Exception):
     """Raised when lanes.json exists but cannot be parsed."""
 
@@ -40,7 +51,7 @@ def write_lanes_json(feature_dir: Path, manifest: LanesManifest) -> Path:
     Returns:
         Path to the written lanes.json file.
     """
-    lanes_path = feature_dir / LANES_FILENAME
+    lanes_path = resolve_lanes_dir(feature_dir)
     content = json.dumps(manifest.to_dict(), indent=2, sort_keys=False) + "\n"
 
     fd, tmp_path = tempfile.mkstemp(
@@ -75,7 +86,7 @@ def read_lanes_json(feature_dir: Path) -> LanesManifest | None:
     Raises:
         CorruptLanesError: If the file exists but cannot be parsed.
     """
-    lanes_path = feature_dir / LANES_FILENAME
+    lanes_path = resolve_lanes_dir(feature_dir)
     if not lanes_path.exists():
         return None
     try:

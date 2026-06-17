@@ -1141,6 +1141,65 @@ def _require_current_analysis_report(feature_dir: Path, repo_root: Path, mission
     raise typer.Exit(1)
 
 
+def _ensure_workspace_materialized(
+    workspace: ResolvedWorkspace,
+    wp_id: str,
+    create_workspace: Callable[[], None],
+) -> ResolvedWorkspace:
+    """Ensure the already-resolved *workspace* is materialized on disk.
+
+    FR-008/#1832 (C-IC05) — single resolution path. *workspace* is the
+    canonical resolution produced once by the caller. This helper consumes that
+    resolved context; it never re-runs ``resolve_workspace_for_wp``. A husk
+    (path present, no ``.git``) is absent-but-blocked (#1833). When the
+    workspace does not yet exist, *create_workspace* is invoked to materialize
+    the worktree at the already-resolved path; ``ResolvedWorkspace.exists`` then
+    re-stats disk, so the same contract reflects the freshly-created worktree.
+    A second resolution authority — which could independently report "no
+    workspace could be resolved" on a verified read-path — is exactly what this
+    function eliminates.
+
+    Returns the (unchanged) resolved workspace once materialized.
+
+    Raises:
+        typer.Exit: husk detected, creation attempted from a worktree, or the
+            path was not materialized after creation.
+    """
+    if workspace.is_husk:
+        print(f"Error: {husk_resolution_error(workspace.worktree_path)}")
+        raise typer.Exit(1)
+
+    if workspace.exists:
+        return workspace
+
+    cwd = Path.cwd().resolve()
+    if is_worktree_context(cwd):
+        print("Error: Workspace does not exist and cannot be created from a worktree.")
+        print("Run this command from the main repository:")
+        print(f"  spec-kitty agent action implement {wp_id} --agent <your-name>")
+        raise typer.Exit(1)
+
+    print(f"Creating workspace for {wp_id}...")
+    try:
+        create_workspace()
+    except typer.Exit:
+        # Worktree creation failed - propagate error
+        raise
+    except Exception as e:
+        print(f"Error creating worktree: {e}")
+        raise typer.Exit(1) from e
+
+    # Single resolution path: re-stat the already-resolved workspace; do NOT
+    # re-resolve via a second authority.
+    if not workspace.exists:
+        print(
+            f"Error: implement completed but the workspace at {workspace.worktree_path} "
+            f"for {wp_id} was not materialized."
+        )
+        raise typer.Exit(1)
+    return workspace
+
+
 @app.command(name="implement")
 def implement(
     wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
@@ -1338,47 +1397,29 @@ def implement(
             mission_slug,
         )
 
+        # FR-008/#1832 (C-IC05): SINGLE resolution path. Resolve the workspace
+        # exactly once here, then *consume* that resolved context for the rest
+        # of the implement flow (creation + verification) via
+        # ``_ensure_workspace_materialized`` — never re-resolve through a second
+        # authority that could independently report "no workspace could be
+        # resolved" on a verified read-path.
         workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
-        workspace_path = workspace.worktree_path
         status_execution_mode = "direct_repo" if workspace.resolution_kind == "repo_root" else "worktree"
 
-        # #1833: a husk (directory without .git) is absent-but-blocked — fail
-        # with a structured error instead of silently recreating on top.
-        if workspace.is_husk:
-            print(f"Error: {husk_resolution_error(workspace_path)}")
-            raise typer.Exit(1)
+        def _create_workspace() -> None:
+            top_level_implement(
+                wp_id=normalized_wp_id,
+                mission=mission_slug,
+                json_output=False,
+                recover=False,
+                acknowledge_not_bulk_edit=acknowledge_not_bulk_edit,
+                actor=agent,
+            )
 
-        # Ensure workspace exists (delegate to top-level implement for creation)
-        if not workspace.exists:
-            cwd = Path.cwd().resolve()
-            if is_worktree_context(cwd):
-                print("Error: Workspace does not exist and cannot be created from a worktree.")
-                print("Run this command from the main repository:")
-                print(f"  spec-kitty agent action implement {normalized_wp_id} --agent <your-name>")
-                raise typer.Exit(1)
-
-            print(f"Creating workspace for {normalized_wp_id}...")
-            try:
-                top_level_implement(
-                    wp_id=normalized_wp_id,
-                    mission=mission_slug,
-                    json_output=False,
-                    recover=False,
-                    acknowledge_not_bulk_edit=acknowledge_not_bulk_edit,
-                    actor=agent,
-                )
-            except typer.Exit:
-                # Worktree creation failed - propagate error
-                raise
-            except Exception as e:
-                print(f"Error creating worktree: {e}")
-                raise typer.Exit(1)
-
-            workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
-            workspace_path = workspace.worktree_path
-            if not workspace.exists:
-                print(f"Error: implement completed but no workspace could be resolved for {normalized_wp_id}.")
-                raise typer.Exit(1)
+        workspace = _ensure_workspace_materialized(
+            workspace, normalized_wp_id, _create_workspace
+        )
+        workspace_path = workspace.worktree_path
 
         subtask_ids = [str(item) for item in wp_meta.subtasks if isinstance(item, str)]
         subtask_cmd = " ".join(subtask_ids) if subtask_ids else "<subtask-ids>"
@@ -1422,8 +1463,11 @@ def implement(
             from datetime import datetime
             import os
 
-            review_workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
-            status_execution_mode = "direct_repo" if review_workspace.resolution_kind == "repo_root" else "worktree"
+            # FR-008/#1832 (C-IC05): single resolution path — ``status_execution_mode``
+            # was already derived from the resolved ``workspace`` above; consume that
+            # resolved context instead of re-resolving (the value is identical, and a
+            # second resolution authority is exactly what this WP eliminates).
+            status_execution_mode = "direct_repo" if workspace.resolution_kind == "repo_root" else "worktree"
 
             # Capture current shell PID
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
@@ -2037,6 +2081,19 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> str | None:
     Returns:
         WP ID of first for_review task, or None if not found
     """
+    # M4 / T044 (FR-011, IC-E) — CONSCIOUS DEFERRAL.
+    # The manual ``current``-walk below (a second feature-dir authority,
+    # distinct from the C14 implement re-resolution that WP05 removed) is
+    # intentionally left in place. Rationale: this is a review-mode discovery
+    # helper (locate the first ``for_review`` WP), not an operator-facing
+    # read-path fidelity surface, so the blast radius is low. It also encodes a
+    # deliberate "read the kitty-specs of the worktree I am standing in" intent
+    # — worktree-local first, then walk, then repo_root — which the coord-aware
+    # canonical resolver (anchored at repo_root) does not preserve. Routing it
+    # through the resolver would change the read anchor and reach into coord
+    # topology read semantics beyond #1832's fragment-adopt scope (D-1 minimal
+    # carry). Deferred deliberately; tracked alongside the broader read-side
+    # adoption work, not silently dropped.
     from specify_cli.core.paths import is_worktree_context
 
     cwd = Path.cwd().resolve()
