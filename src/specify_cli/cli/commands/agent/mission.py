@@ -15,6 +15,7 @@ from mission_runtime import (
     is_coordination_artifact_residue_path,
 )
 import contextlib
+from dataclasses import dataclass
 import json
 import logging
 import os
@@ -1031,6 +1032,25 @@ def _safe_commit_empty_changeset_error(exc: RuntimeError) -> bool:
     return str(exc).startswith("safe_commit: git commit failed")
 
 
+def _artifact_absent_at_placement(
+    worktree_root: Path, commit_paths: tuple[Path, ...], file_path: Path
+) -> bool:
+    """Return True iff the artifact is NOT present at the resolved placement.
+
+    FR-006 / D-5: a commit that would run against a worktree where the artifact
+    does not exist is a no-op-against-the-wrong-surface (vs. a genuine
+    benign-unchanged where the artifact IS present and already committed). When
+    ``_planning_commit_worktree`` produced committable paths, each must exist on
+    disk; when it produced none, the original ``file_path`` is checked against
+    the worktree. An empty changeset where the artifact IS present is a genuine
+    no-op (returns False here), handled by the caller.
+    """
+    if commit_paths:
+        return any(not path.exists() for path in commit_paths)
+    # No committable paths: check the artifact at the worktree-relative location.
+    return not _artifact_has_no_git_changes(worktree_root, file_path) and not file_path.exists()
+
+
 def _print_artifact_unchanged(artifact_type: str, json_output: bool) -> None:
     if not json_output:
         console.print(f"[dim]{artifact_type.capitalize()} unchanged, no commit needed[/dim]")
@@ -1117,6 +1137,31 @@ def _try_advance_primary_ref(
         logging.getLogger(__name__).debug("Unexpected error in _try_advance_primary_ref: %s", exc)
 
 
+@dataclass(frozen=True)
+class CommitToBranchResult:
+    """Typed outcome of :func:`_commit_to_branch` (FR-006 / D-5).
+
+    Replaces the old ``-> None`` contract so the planning caller can surface the
+    real commit hash on success and a typed diagnostic for a no-op against the
+    wrong surface, instead of an opaque silent ``commit_created: None``.
+
+    ``status`` is one of:
+
+    * ``"committed"`` — ``safe_commit`` landed a real commit; ``commit_hash`` is
+      the resolved SHA.
+    * ``"unchanged"`` — genuine benign no-op: the artifact IS present at the
+      resolved placement and already committed there (nothing to commit).
+    * ``"no_op_wrong_surface"`` — the artifact is NOT present at the resolved
+      placement (the commit would no-op against the wrong worktree/surface);
+      ``diagnostic`` names the missing artifact + placement.
+    """
+
+    status: Literal["committed", "unchanged", "no_op_wrong_surface"]
+    placement_ref: str
+    commit_hash: str | None = None
+    diagnostic: str | None = None
+
+
 def _commit_to_branch(
     file_path: Path,
     mission_slug: str,
@@ -1124,7 +1169,7 @@ def _commit_to_branch(
     repo_root: Path,
     _target_branch: str,
     json_output: bool = False,
-) -> None:
+) -> CommitToBranchResult:
     """Commit a planning artifact to its single resolved placement.
 
     WP05 / FR-003 / C-GUARD-3a (#1784 catch-22 fix): the commit destination is
@@ -1136,6 +1181,12 @@ def _commit_to_branch(
     NON-protected coordination ref (or the flattened target), so a
     ``GuardCapability.STANDARD`` commit lands cleanly with no relaxation.
 
+    WP03 / FR-006 / D-5: returns a typed :class:`CommitToBranchResult` so the
+    caller surfaces the real commit hash on success and a typed diagnostic for a
+    no-op-against-the-wrong-surface (artifact absent at the resolved placement),
+    rather than a silent ``None``. The already-fixed hard-failure swallow
+    (``_warn_commit_failed`` + ``raise``) is untouched.
+
     Args:
         file_path: Path to file being committed
         mission_slug: Feature slug (e.g., "001-my-feature")
@@ -1144,6 +1195,9 @@ def _commit_to_branch(
         _target_branch: Branch the mission targets (informational only; the
             commit destination is the resolved placement, not this value)
         json_output: If True, suppress Rich console output
+
+    Returns:
+        CommitToBranchResult: the typed commit outcome (see the class docstring).
 
     Raises:
         subprocess.CalledProcessError: If commit fails unexpectedly
@@ -1158,18 +1212,31 @@ def _commit_to_branch(
     # flattened/primary placement the main checkout is the worktree.
     worktree_root, commit_paths = _planning_commit_worktree(repo_root, mission_slug, placement, (file_path,))
 
-    # Defensive no-op: if path normalization/filtering produces no committable
-    # paths and the artifact is already clean in the target worktree, there is
-    # nothing left to commit. Dirty artifacts still fall through to safe_commit's
-    # empty-path error instead of being silently ignored.
-    if not commit_paths and _artifact_has_no_git_changes(worktree_root, file_path):
+    # FR-006 / D-5: distinguish a no-op against the WRONG surface from a genuine
+    # benign no-op. The artifact must actually be present at the resolved
+    # placement worktree; if it is absent there the commit would no-op against
+    # the wrong surface — surface a typed diagnostic instead of a silent skip.
+    if _artifact_absent_at_placement(worktree_root, commit_paths, file_path):
+        diagnostic = (
+            f"{artifact_type} artifact is not present at the resolved commit placement "
+            f"({placement.ref}, worktree={worktree_root}); the commit would no-op against "
+            f"the wrong surface and was not created."
+        )
+        if not json_output:
+            console.print(f"[yellow]Warning:[/yellow] {diagnostic}")
+        return CommitToBranchResult(
+            status="no_op_wrong_surface", placement_ref=placement.ref, diagnostic=diagnostic
+        )
+
+    # No committable paths but the artifact IS present + clean → genuine no-op.
+    if not commit_paths:
         _print_artifact_unchanged(artifact_type, json_output)
-        return
+        return CommitToBranchResult(status="unchanged", placement_ref=placement.ref)
 
     # Commit only this file (preserves staging area)
     commit_msg = f"Add {artifact_type} for feature {mission_slug}"
     try:
-        safe_commit(
+        commit_result = safe_commit(
             repo_root=repo_root,
             worktree_root=worktree_root,
             target=placement,
@@ -1183,7 +1250,7 @@ def _commit_to_branch(
         if "nothing to commit" in stderr or "nothing added to commit" in stderr:
             # Benign - file unchanged
             _print_artifact_unchanged(artifact_type, json_output)
-            return
+            return CommitToBranchResult(status="unchanged", placement_ref=placement.ref)
         else:
             # Actual error
             _warn_commit_failed(artifact_type, file_path, e, json_output)
@@ -1191,13 +1258,16 @@ def _commit_to_branch(
     except RuntimeError as e:
         if _safe_commit_empty_changeset_error(e) and _artifact_has_no_git_changes(worktree_root, commit_paths[0]):
             _print_artifact_unchanged(artifact_type, json_output)
-            return
+            return CommitToBranchResult(status="unchanged", placement_ref=placement.ref)
 
         _warn_commit_failed(artifact_type, file_path, e, json_output)
         raise
 
+    commit_hash = commit_result.sha if commit_result is not None else None
     if not json_output:
         console.print(f"[green]✓[/green] {artifact_type.capitalize()} committed to {placement.ref}")
+        if commit_hash:
+            console.print(f"[dim]Commit: {commit_hash[:7]}[/dim]")
 
     # WP09 / FR-010 (#1878): ff-merge treadmill elimination.  After a
     # coordination-branch write, auto-advance the primary branch ref so the
@@ -1209,6 +1279,10 @@ def _commit_to_branch(
             worktree_root,
             json_output=json_output,
         )
+
+    return CommitToBranchResult(
+        status="committed", placement_ref=placement.ref, commit_hash=commit_hash
+    )
 
 
 def _find_feature_directory(
@@ -1271,6 +1345,55 @@ def _find_feature_directory(
     return cast(Path, feature_dir)
 
 
+def _resolve_mission_dir_name_primary_anchored(
+    repo_root: Path, explicit_feature: str | None
+) -> str | None:
+    """Resolve a mission handle to its on-disk dir name WITHOUT requiring coord.
+
+    #11 / #1718 / #1692: ``finalize-tasks`` only needs the mission slug to anchor
+    its primary-surface reads (it already re-anchors via
+    ``primary_feature_dir_for_mission``). The coord-aware ``_find_feature_directory``
+    fail-closes when a materialized-but-empty coordination worktree exists,
+    pre-empting the primary read. This helper canonicalises the handle against
+    the PRIMARY checkout only (no coord-existence gate), returning the mission
+    dir name when the primary surface exists, or ``None`` so the caller falls
+    back to the structured detection error (no silent wrong-path).
+
+    Propagates :class:`MissionSelectorAmbiguous` (no silent fallback on an
+    ambiguous selector, C-CTX-4 / C-009).
+    """
+    raw_handle = explicit_feature.strip() if explicit_feature else None
+    if not raw_handle:
+        return None
+
+    from specify_cli.core.paths import get_main_repo_root
+    from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
+        _canonicalize_handle,
+    )
+
+    main_root = get_main_repo_root(repo_root)
+
+    # Literal directory name on the primary checkout.
+    if (main_root / KITTY_SPECS_DIR / raw_handle).is_dir():
+        return raw_handle
+
+    # Canonicalise the handle (mid8 / ULID / numeric / human slug) against the
+    # primary checkout. ``_canonicalize_handle`` raises MissionSelectorAmbiguous
+    # for an ambiguous selector (we let it propagate) and returns ``None`` for an
+    # unresolvable handle.
+    try:
+        canonical = _canonicalize_handle(main_root, raw_handle)
+    except MissionSelectorAmbiguous:
+        raise
+    if canonical is None:
+        return None
+    canonical_dir: Path = canonical[2]
+    if canonical_dir.is_dir():
+        return canonical_dir.name
+    return None
+
+
 def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
     """List candidate missions with absolute spec.md paths for remediation output."""
     main_repo_root = get_main_repo_root(repo_root)
@@ -1295,6 +1418,22 @@ def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
             }
         )
     return candidates
+
+
+def _sole_mission_slug_or_none(repo_root: Path) -> str | None:
+    """Return the sole substantive mission's slug, or ``None``.
+
+    FR-004 / #4: ``setup-plan`` auto-selects the only mission when exactly one is
+    resolvable, instead of hard-requiring ``--mission``. This lives in the
+    ``setup_plan`` caller (NOT the shared ``_find_feature_directory``, which
+    other callers rely on to require an explicit handle). Returns ``None`` for
+    zero or >1 candidates so the existing structured detection-error path fires
+    (no silent fallback when ambiguous).
+    """
+    candidates = _list_feature_spec_candidates(repo_root)
+    if len(candidates) != 1:
+        return None
+    return str(candidates[0]["mission_slug"])
 
 
 def _build_setup_plan_detection_error(
@@ -2051,11 +2190,20 @@ def setup_plan(
         # For planning bootstrap, disallow latest-incomplete fallback so the agent
         # cannot silently bind to the wrong feature in fresh sessions.
         cwd = Path.cwd().resolve()
+        # FR-004 / #4: when no --mission was given and exactly one substantive
+        # mission is resolvable, auto-select it BEFORE the shared
+        # ``_find_feature_directory`` call (the shared helper still hard-requires
+        # an explicit handle for every other caller). With zero or >1 missions
+        # this stays ``None`` so the structured detection error fires below —
+        # no silent fallback on ambiguity.
+        resolved_feature = feature
+        if resolved_feature is None:
+            resolved_feature = _sole_mission_slug_or_none(repo_root)
         try:
             feature_dir = _find_feature_directory(
                 repo_root,
                 cwd,
-                explicit_feature=feature,
+                explicit_feature=resolved_feature,
             )
         except (ValueError, ActionContextError) as detection_error:
             payload = _build_setup_plan_detection_error(repo_root, str(detection_error), feature)
@@ -2113,7 +2261,20 @@ def setup_plan(
         except Exception:  # noqa: BLE001 — broad catch intentional (C-004 strangler safety)
             _spec_placement = None
 
-        spec_is_committed = is_committed(spec_file, repo_root, placement=_spec_placement)
+        # FR-005 / #7: also consult the primary target-branch leg so a spec
+        # committed only on the primary target branch (with the coord worktree
+        # carrying the mission dir but not spec.md) satisfies the gate. The leg
+        # runs against the primary repo root with the primary tree-path; the
+        # diagnostics enumerate every ref/surface checked.
+        _commit_diagnostics: list[str] = []
+        spec_is_committed = is_committed(
+            spec_file,
+            repo_root,
+            placement=_spec_placement,
+            target_branch=target_branch,
+            primary_repo_root=get_main_repo_root(repo_root),
+            diagnostics=_commit_diagnostics,
+        )
         spec_is_substantive = is_substantive(spec_file, "spec")
         if not spec_is_committed or not spec_is_substantive:
             blocked_reason = (
@@ -2131,6 +2292,7 @@ def setup_plan(
                 "spec_file": str(spec_file.resolve()),
                 "spec_committed": spec_is_committed,
                 "spec_substantive": spec_is_substantive,
+                "spec_commit_surfaces_checked": _commit_diagnostics,
             }
             if json_output:
                 _emit_json(
@@ -2191,8 +2353,9 @@ def setup_plan(
         # falsely advertise the plan phase as complete.
         plan_is_substantive = is_substantive(plan_file, "plan")
         plan_blocked_reason: str | None = None
+        plan_commit_result: CommitToBranchResult | None = None
         if plan_is_substantive:
-            _commit_to_branch(plan_file, mission_slug, "plan", repo_root, target_branch, json_output)
+            plan_commit_result = _commit_to_branch(plan_file, mission_slug, "plan", repo_root, target_branch, json_output)
             try:
                 from specify_cli.status import (
                     emit_artifact_phase,
@@ -2374,6 +2537,14 @@ def setup_plan(
             }
             if plan_blocked_reason is not None:
                 result["blocked_reason"] = plan_blocked_reason
+            # FR-006 / D-5: surface the real commit hash and the typed no-op
+            # classification instead of an opaque ``commit_created: None``.
+            if plan_commit_result is not None:
+                result["commit_created"] = plan_commit_result.status == "committed"
+                result["commit_hash"] = plan_commit_result.commit_hash
+                result["commit_status"] = plan_commit_result.status
+                if plan_commit_result.diagnostic is not None:
+                    result["commit_diagnostic"] = plan_commit_result.diagnostic
             if gap_analysis_path:
                 result["gap_analysis"] = gap_analysis_path
             if generators_detected:
@@ -2748,34 +2919,64 @@ def finalize_tasks(
                     )
                 raise typer.Exit(2)
 
-        # Determine feature directory
+        # Determine feature directory.
+        #
+        # #11 / #1718 / #1692: finalize-tasks reads (and writes) the PRIMARY
+        # surface — it re-anchors via ``primary_feature_dir_for_mission`` below.
+        # The coord-aware ``_find_feature_directory`` (``require_exists=True``)
+        # fail-closes when a materialized-but-EMPTY coordination worktree exists,
+        # pre-empting the primary read before it ever runs. So resolve the slug
+        # PRIMARY-anchored first (no coord-existence gate); only when the primary
+        # surface also cannot resolve the handle do we surface the structured
+        # detection error. This does NOT fail-closed before the primary read.
         cwd = Path.cwd().resolve()
-        try:
-            feature_dir = _find_feature_directory(
-                repo_root,
-                cwd,
-                explicit_feature=feature,
-            )
-        except (ValueError, ActionContextError) as detection_error:
-            payload = _build_setup_plan_detection_error(
-                repo_root,
-                str(detection_error),
-                feature,
-                error_code="FEATURE_CONTEXT_UNRESOLVED",
-                command_name="finalize-tasks",
-                command_args=["--json"] if json_output else [],
-            )
-            if json_output:
-                _emit_json(payload)
-            else:
-                console.print(f"[red]Error:[/red] {payload['error']}")
-                for slug in cast(list[str], payload.get("available_missions", []))[:10]:
-                    console.print(f"  - {slug}")
-                if "example_command" in payload:
-                    console.print(f"  {payload['example_command']}")
-            raise typer.Exit(1) from None
+        from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 
-        mission_slug = feature_dir.name
+        try:
+            mission_dir_name = _resolve_mission_dir_name_primary_anchored(repo_root, feature)
+        except MissionSelectorAmbiguous as ambiguous_error:
+            mission_dir_name = None
+            _ambiguous_finalize_error: ActionContextError | None = ActionContextError(
+                ambiguous_error.error_code, str(ambiguous_error)
+            )
+        else:
+            _ambiguous_finalize_error = None
+
+        if mission_dir_name is not None:
+            mission_slug = mission_dir_name
+        else:
+            # Primary-anchored resolution failed (genuinely unknown handle or an
+            # ambiguous selector). Surface the structured detection error — the
+            # coord-aware resolver only runs to reproduce its diagnostic text.
+            try:
+                feature_dir = _find_feature_directory(
+                    repo_root,
+                    cwd,
+                    explicit_feature=feature,
+                )
+            except (ValueError, ActionContextError) as detection_error:
+                payload = _build_setup_plan_detection_error(
+                    repo_root,
+                    str(_ambiguous_finalize_error or detection_error),
+                    feature,
+                    error_code=(
+                        _ambiguous_finalize_error.code
+                        if _ambiguous_finalize_error is not None
+                        else "FEATURE_CONTEXT_UNRESOLVED"
+                    ),
+                    command_name="finalize-tasks",
+                    command_args=["--json"] if json_output else [],
+                )
+                if json_output:
+                    _emit_json(payload)
+                else:
+                    console.print(f"[red]Error:[/red] {payload['error']}")
+                    for slug in cast(list[str], payload.get("available_missions", []))[:10]:
+                        console.print(f"  - {slug}")
+                    if "example_command" in payload:
+                        console.print(f"  {payload['example_command']}")
+                raise typer.Exit(1) from None
+            mission_slug = feature_dir.name
         # WP07 / FR-012 / SC-04: read the canonical merge target from meta.json.
         # The current checkout is NEVER consulted, so running finalize-tasks
         # from a prep/ branch no longer leaks that branch into WP frontmatter.
