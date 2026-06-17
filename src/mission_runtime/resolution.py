@@ -71,6 +71,63 @@ class ActionContextError(RuntimeError):
         self.code = code
 
 
+# Mission-level lifecycle actions resolve the mission context without a work
+# package (FR-011 full-lifecycle parity).
+_MISSION_LEVEL_ACTIONS: frozenset[str] = frozenset(
+    {
+        "specify",
+        "plan",
+        "analyze",
+        "tasks",
+        "tasks_outline",
+        "tasks_packages",
+        "tasks_finalize",
+        "accept",
+        "status",
+    }
+)
+
+
+def build_execution_context(
+    **fields: Any,
+) -> ExecutionContext:
+    """Construct the ONE :class:`ExecutionContext` — the sole construction door.
+
+    This is the **package-private** single factory for the canonical context
+    composite (D-6 / IC-01 / C-001 — no new public symbol; it is not exported
+    from :mod:`mission_runtime`). :func:`resolve_action_context` delegates every
+    construction here; there is exactly one ``ExecutionContext(`` call in
+    production code (this body). The composite is frozen, so callers assemble all
+    fields up front and never patch a built context.
+
+    Build-time invariant (C-IC01 / FR-009 / D-2): when a ``branch_ref`` fragment
+    is supplied, ``target_branch`` MUST equal ``branch_ref.target_branch``; on
+    mismatch this raises ``ActionContextError("CONTEXT_INVARIANT_VIOLATION", …)``
+    naming both values. The invariant is **never** asserted against
+    ``branch_name`` — the WP lane branch legitimately differs from the mission
+    target branch (D-2 supersedes the spec's original FR-009 wording).
+
+    Write-projection boundary contract (D-6): write surfaces compose
+    names/paths/identity from the factory-projected :class:`IdentityFragment` +
+    :class:`BranchRefFragment` (+ workspace/surface); they **MUST NOT** re-derive
+    ``mission_id`` / ``mid8`` / ``primary_root`` independently. ``branch_naming``
+    is the grammar collaborator the resolver *calls*; the factory is the
+    identity/topology authority that feeds it. The deferred write-side
+    (#1716 / #1878, Mission B) adopts against this frozen seam — not a rewrite.
+    """
+    context = ExecutionContext(**fields)
+    branch_ref = context.branch_ref
+    if branch_ref is not None and context.target_branch != branch_ref.target_branch:
+        raise ActionContextError(
+            "CONTEXT_INVARIANT_VIOLATION",
+            "ExecutionContext.target_branch "
+            f"({context.target_branch!r}) must equal branch_ref.target_branch "
+            f"({branch_ref.target_branch!r}); the composite is internally "
+            "inconsistent (FR-009 / C-IC01).",
+        )
+    return context
+
+
 def _resolve_mission_slug(
     repo_root: Path,
     *,
@@ -183,6 +240,124 @@ def _tasks_commands(mission_slug: str) -> dict[str, str]:
     return {
         "check_prerequisites": (f"spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks --mission {mission_slug}"),
         "finalize_tasks": (f"spec-kitty agent mission finalize-tasks --mission {mission_slug} --json"),
+    }
+
+
+def _wp_workflow_commands(
+    *,
+    action: ActionName,
+    wp_id: str,
+    mission_slug: str,
+    agent: str | None,
+) -> dict[str, str]:
+    """Compute the action-specific ``commands`` for a WP-bearing context.
+
+    Built up-front (not patched onto a built context) so the single
+    construction door (``build_execution_context``) is fed the complete
+    ``commands`` mapping — the frozen composite forbids the historical
+    ``context.commands["workflow"] = …`` post-build dict-write (T005).
+    """
+    verb = "implement" if action == "implement" else "review"
+    workflow = f"spec-kitty agent action {verb} {wp_id}"
+    if agent:
+        workflow += f" --agent {agent}"
+    commands = {"workflow": workflow}
+    if action != "implement":
+        commands["approve"] = (
+            f"spec-kitty agent tasks move-task {wp_id} --to approved "
+            f'--mission {mission_slug} --note "Review passed: <summary>"'
+        )
+        commands["reject"] = (
+            f"spec-kitty agent tasks move-task {wp_id} --to planned "
+            f"--review-feedback-file <feedback-file> --mission {mission_slug}"
+        )
+    return commands
+
+
+def _resolve_wp_lane(
+    feature_dir: Path,
+    wp_id: str,
+    *,
+    resolve_lane_alias: Callable[[str], str],
+    planned_lane: str,
+) -> str:
+    """Resolve a WP's lane from the canonical event log (FR-011).
+
+    WPs without a canonical event yet (or with the ``uninitialized`` sentinel)
+    are treated as ``planned`` so legacy missions that have not emitted events
+    for every WP still resolve.
+    """
+    from specify_cli.status import CanonicalStatusNotFoundError
+    from specify_cli.status import get_wp_lane as _ec_get_wp_lane
+
+    try:
+        raw_lane = str(_ec_get_wp_lane(feature_dir, wp_id))
+    except CanonicalStatusNotFoundError:
+        raw_lane = planned_lane
+    except Exception as exc:
+        raise ActionContextError("CANONICAL_STATUS_UNREADABLE", str(exc)) from exc
+    if raw_lane == "uninitialized":
+        raw_lane = planned_lane
+    return resolve_lane_alias(raw_lane)
+
+
+def _resolve_wp_bearing_fields(
+    repo_root: Path,
+    *,
+    action: ActionName,
+    mission_slug: str,
+    feature_dir: Path,
+    wp_id: str | None,
+    agent: str | None,
+    locate_work_package: Callable[..., Any],
+    parse_wp_dependencies: Callable[[Path], list[str]],
+    resolve_workspace_for_wp: Callable[..., Any],
+    resolve_lane_alias: Callable[[str], str],
+    planned_lane: str,
+) -> dict[str, Any]:
+    """Assemble the WP-bearing fields (incl. ``commands``) for one build call.
+
+    Returns the field mapping the factory consumes; performs NO construction or
+    post-build mutation (T005 — verification-by-deletion of the ``:800-808``
+    mutator and the ``commands["workflow"] =`` dict-write).
+    """
+    normalized_wp_id = _resolve_wp_id(action, feature_dir, wp_id)
+    if normalized_wp_id is None:
+        raise ActionContextError(
+            "WORK_PACKAGE_UNRESOLVED",
+            f"No work package available for action '{action}' in feature {mission_slug}.",
+        )
+
+    try:
+        wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
+    except Exception as exc:
+        raise ActionContextError("WORK_PACKAGE_UNRESOLVED", str(exc)) from exc
+
+    dependencies = parse_wp_dependencies(wp.path)
+    lane = _resolve_wp_lane(
+        feature_dir,
+        normalized_wp_id,
+        resolve_lane_alias=resolve_lane_alias,
+        planned_lane=planned_lane,
+    )
+    wp_workspace = resolve_workspace_for_wp(repo_root, mission_slug, normalized_wp_id)
+
+    return {
+        "wp_id": normalized_wp_id,
+        "wp_file": str(wp.path),
+        "lane": lane,
+        "lane_id": wp_workspace.lane_id,
+        "branch_name": wp_workspace.branch_name,
+        "execution_mode": wp_workspace.execution_mode,
+        "resolution_kind": wp_workspace.resolution_kind,
+        "dependencies": dependencies,
+        "workspace_path": str(wp_workspace.worktree_path),
+        "commands": _wp_workflow_commands(
+            action=action,
+            wp_id=normalized_wp_id,
+            mission_slug=mission_slug,
+            agent=agent,
+        ),
     }
 
 
@@ -736,88 +911,40 @@ def resolve_action_context(
     # surface re-derives a parallel primary/coord placement (C-005).
     artifact_placement = _assemble_artifact_placement_fragment(branch_ref)
 
-    context = ExecutionContext(
-        action=action,
-        mission_slug=mission_slug,
-        feature_dir=str(feature_dir),
-        target_branch=target_branch,
-        detection_method="explicit",
-        commands=_tasks_commands(mission_slug),
-        identity=identity,
-        branch_ref=branch_ref,
-        status_surface=status_surface,
-        workspace=workspace,
-        artifact_placement=artifact_placement,
-        prompt_source=prompt_source,
-    )
+    # The factory (``build_execution_context``) is the SOLE construction door for
+    # ``ExecutionContext`` (D-6 / IC-01). Mission-level lifecycle actions need no
+    # work package; the WP-bearing actions assemble their fields BEFORE the single
+    # build call (no post-build mutation — the composite is frozen).
+    base_fields: dict[str, Any] = {
+        "action": action,
+        "mission_slug": mission_slug,
+        "feature_dir": str(feature_dir),
+        "target_branch": target_branch,
+        "detection_method": "explicit",
+        "identity": identity,
+        "branch_ref": branch_ref,
+        "status_surface": status_surface,
+        "workspace": workspace,
+        "artifact_placement": artifact_placement,
+        "prompt_source": prompt_source,
+    }
 
-    if action in {
-        "specify",
-        "plan",
-        "analyze",
-        "tasks",
-        "tasks_outline",
-        "tasks_packages",
-        "tasks_finalize",
-        "accept",
-        "status",
-    }:
+    if action in _MISSION_LEVEL_ACTIONS:
         # Mission-level lifecycle actions (planning/analysis/status) resolve the
         # mission context without a work package — FR-011 full-lifecycle parity.
-        return context
+        return build_execution_context(commands=_tasks_commands(mission_slug), **base_fields)
 
-    normalized_wp_id = _resolve_wp_id(action, feature_dir, wp_id)
-    if normalized_wp_id is None:
-        raise ActionContextError(
-            "WORK_PACKAGE_UNRESOLVED",
-            f"No work package available for action '{action}' in feature {mission_slug}.",
-        )
-
-    try:
-        wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
-    except Exception as exc:
-        raise ActionContextError("WORK_PACKAGE_UNRESOLVED", str(exc)) from exc
-
-    dependencies = parse_wp_dependencies(wp.path)
-    # Lane is event-log-only; read from canonical event log not frontmatter.
-    # WPs without a canonical event yet (or with the "uninitialized" sentinel)
-    # are treated as ``planned`` so legacy missions that have not emitted events
-    # for every WP still resolve.
-    try:
-        from specify_cli.status import CanonicalStatusNotFoundError
-        from specify_cli.status import get_wp_lane as _ec_get_wp_lane
-
-        _ec_raw_lane = str(_ec_get_wp_lane(feature_dir, normalized_wp_id))
-    except CanonicalStatusNotFoundError:
-        _ec_raw_lane = Lane.PLANNED
-    except Exception as exc:
-        raise ActionContextError("CANONICAL_STATUS_UNREADABLE", str(exc)) from exc
-    if _ec_raw_lane == "uninitialized":
-        _ec_raw_lane = Lane.PLANNED
-    lane = resolve_lane_alias(_ec_raw_lane)
-    wp_workspace = resolve_workspace_for_wp(repo_root, mission_slug, normalized_wp_id)
-
-    context.wp_id = normalized_wp_id
-    context.wp_file = str(wp.path)
-    context.lane = lane
-    context.lane_id = wp_workspace.lane_id
-    context.branch_name = wp_workspace.branch_name
-    context.execution_mode = wp_workspace.execution_mode
-    context.resolution_kind = wp_workspace.resolution_kind
-    context.dependencies = dependencies
-    context.workspace_path = str(wp_workspace.worktree_path)
-
-    if action == "implement":
-        command = f"spec-kitty agent action implement {normalized_wp_id}"
-        if agent:
-            command += f" --agent {agent}"
-        context.commands["workflow"] = command
-        return context
-
-    command = f"spec-kitty agent action review {normalized_wp_id}"
-    if agent:
-        command += f" --agent {agent}"
-    context.commands["workflow"] = command
-    context.commands["approve"] = f'spec-kitty agent tasks move-task {normalized_wp_id} --to approved --mission {mission_slug} --note "Review passed: <summary>"'
-    context.commands["reject"] = f"spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file <feedback-file> --mission {mission_slug}"
-    return context
+    wp_fields = _resolve_wp_bearing_fields(
+        repo_root,
+        action=action,
+        mission_slug=mission_slug,
+        feature_dir=feature_dir,
+        wp_id=wp_id,
+        agent=agent,
+        locate_work_package=locate_work_package,
+        parse_wp_dependencies=parse_wp_dependencies,
+        resolve_workspace_for_wp=resolve_workspace_for_wp,
+        resolve_lane_alias=resolve_lane_alias,
+        planned_lane=Lane.PLANNED,
+    )
+    return build_execution_context(**base_fields, **wp_fields)
