@@ -2,7 +2,7 @@
   "mission_slug": "write-side-context-factory-adoption-01KV9W0X",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "fail",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -101,40 +101,40 @@
       "description": "No adopted write op changes on-disk worktree/coord topology before/after (NFR-004 idempotency).",
       "verification_method": "custom_command",
       "verification_command": "pytest tests/specify_cli/coordination/test_simple_case_flat_topology.py tests/specify_cli/coordination/test_status_transition_adoption.py -q",
-      "result": "pending",
-      "evidence": "Verified by passing, independently-reviewed lane tests (`pytest tests/specify_cli/coordination/test_simple_case_flat_topology.py tests/specify_cli/coordination/test_status_transition_adoption.py -q`); auto-confirms post-merge once the test files land on the mission branch (pre-merge they live on lane branches, invisible to accept run from the primary checkout)."
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ................                                                         [100%]\n16 passed in 23.94s"
     },
     {
       "invariant_id": "NI-2",
       "description": "No coord write ever resolves its surface to primary_root (C-007; never flatten a coord write).",
       "verification_method": "custom_command",
       "verification_command": "pytest tests/specify_cli/coordination/test_status_transition_adoption.py tests/architectural/test_no_write_side_rederivation.py -q",
-      "result": "pending",
-      "evidence": "Verified by passing, independently-reviewed lane tests (`pytest tests/specify_cli/coordination/test_status_transition_adoption.py tests/architectural/test_no_write_side_rederivation.py -q`); auto-confirms post-merge once the test files land on the mission branch (pre-merge they live on lane branches, invisible to accept run from the primary checkout)."
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ...................                                                      [100%]\n19 passed in 24.14s"
     },
     {
       "invariant_id": "NI-3",
       "description": "In the all-base/flat case, ZERO .worktrees/ or coordination-surface paths are read or written (NFR-006/SC-007).",
       "verification_method": "custom_command",
       "verification_command": "pytest tests/specify_cli/coordination/test_simple_case_flat_topology.py -q",
-      "result": "pending",
-      "evidence": "Verified by passing, independently-reviewed lane tests (`pytest tests/specify_cli/coordination/test_simple_case_flat_topology.py -q`); auto-confirms post-merge once the test files land on the mission branch (pre-merge they live on lane branches, invisible to accept run from the primary checkout)."
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ....                                                                     [100%]\n4 passed in 23.31s"
     },
     {
       "invariant_id": "NI-4",
       "description": "No flattened write resolves destination_ref to git HEAD (the FR-004 latent bug); it is CWD-invariant target_branch.",
       "verification_method": "custom_command",
       "verification_command": "pytest tests/specify_cli/write_side/test_characterization_write_target.py tests/specify_cli/coordination/test_status_transition_adoption.py -q",
-      "result": "pending",
-      "evidence": "Verified by passing, independently-reviewed lane tests (`pytest tests/specify_cli/write_side/test_characterization_write_target.py tests/specify_cli/coordination/test_status_transition_adoption.py -q`); auto-confirms post-merge once the test files land on the mission branch (pre-merge they live on lane branches, invisible to accept run from the primary checkout)."
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ................                                                         [100%]\n16 passed in 23.60s"
     },
     {
       "invariant_id": "NI-5",
       "description": "No new authority/resolver/factory field is introduced; resolution.py is touched only by FR-006 deletion (C-001).",
       "verification_method": "custom_command",
       "verification_command": "pytest tests/architectural/test_no_write_side_rederivation.py -q",
-      "result": "pending",
-      "evidence": "Verified by passing, independently-reviewed lane tests (`pytest tests/architectural/test_no_write_side_rederivation.py -q`); auto-confirms post-merge once the test files land on the mission branch (pre-merge they live on lane branches, invisible to accept run from the primary checkout)."
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: .......                                                                  [100%]\n7 passed in 22.39s"
     }
   ]
 }

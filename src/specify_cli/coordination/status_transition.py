@@ -264,7 +264,7 @@ def _resolve_write_target(
     diverging from the CWD-invariant ``target_branch`` the read/placement path
     resolves to (reduction-census §6). This routes the write-target through the
     single public placement resolver
-    (:func:`mission_runtime.resolution.resolve_placement_only`), whose
+    (:func:`mission_runtime.resolve_placement_only`), whose
     ``CommitTarget`` is BYTE-IDENTICAL to the value the full execution context
     builder computes:
 
@@ -279,7 +279,7 @@ def _resolve_write_target(
     mission), it degrades to the prior selector so those callers keep working
     without churn.
     """
-    from mission_runtime.resolution import (  # noqa: PLC0415
+    from mission_runtime import (  # noqa: PLC0415
         ActionContextError,
         resolve_placement_only,
     )

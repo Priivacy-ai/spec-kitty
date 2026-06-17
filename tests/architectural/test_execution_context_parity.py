@@ -2001,9 +2001,11 @@ def test_flattened_topology_status_surface_collapses(
 #    (``CoordinationWorkspace.worktree_path`` composed with ``_compose_mission_dir``
 #    /``KITTY_SPECS_DIR``). If a future edit reintroduces a parallel composition,
 #    this fails (the C-STAT-1 "no local coord-path composition remains" gate).
-# 2. ``test_mission_status_load_consumes_carried_fragment`` — a behavioral spy:
-#    when ``MissionStatus.load`` is given a carried ``StatusSurfaceFragment`` it
-#    consumes ``status_read_dir`` directly and does NOT re-resolve the surface.
+# 2. (retired by Mission B write-side-context-factory-adoption-01KV9W0X):
+#    ``test_mission_status_load_consumes_carried_fragment`` was a behavioral spy
+#    that verified the ``surface=`` parameter on ``MissionStatus.load``. The
+#    ``surface=`` keyword was removed (dead fragment retirement; zero callers
+#    remained after D-12 adoption); the test was retired with it.
 # ---------------------------------------------------------------------------
 
 # Source files whose coord-path composition was folded into the canonical
