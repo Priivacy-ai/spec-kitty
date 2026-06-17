@@ -1,0 +1,30 @@
+{
+  "accept_commit": "f765e90335ca4236acc8cee63c6b5e1ef8f6b691",
+  "acceptance_history": [
+    {
+      "accept_commit": "f765e90335ca4236acc8cee63c6b5e1ef8f6b691",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-16T21:45:31.888469+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "afddd75068dcff3ef22e97b4e2020ea39383c444"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-16T21:45:31.888469+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "afddd75068dcff3ef22e97b4e2020ea39383c444",
+  "baseline_merge_commit": "780cd3d309a9b5f33fedab4ca48a2fb8a8f697e1",
+  "created_at": "2026-06-16T16:54:35.134398+00:00",
+  "friendly_name": "Read-Path / Error-Fidelity Adoption",
+  "mission_id": "01KV8NPCBX0CNAM3VBY50C1AGG",
+  "mission_number": 141,
+  "mission_slug": "read-path-error-fidelity-adoption-01KV8NPC",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Robert's 3.2.0 training run (#2007) surfaced a cluster of read-path failures — next reporting MISSION_NOT_FOUND when the truth is a read-path miss, decision-open rejecting valid coordination handles, setup-plan demanding a flag it shouldn't, spec-committed reading the wrong surface, and submodule checkouts resolving the wrong repo root. Three research squads established the fix is not new construction: the single typed resolver already exists (resolve_action_context/ExecutionContext); the failing commands bypass it or flatten its typed error. This mission finishes that adoption, makes the resolver behave equivalently across input classes, and preserves typed errors so operators see the real failure and its remediation.",
+  "purpose_tldr": "Adopt the existing single typed mission-context/read-path resolver across the commands that bypass it, and preserve its typed errors end-to-end — so the read-path stops lying and resolves consistently across primary, coord, and submodule surfaces.",
+  "slug": "read-path-error-fidelity-adoption-01KV8NPC",
+  "target_branch": "feat/read-path-error-fidelity",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-16T20:10:03.062361+00:00"
+}

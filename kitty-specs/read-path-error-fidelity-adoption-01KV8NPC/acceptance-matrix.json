@@ -1,0 +1,129 @@
+{
+  "mission_slug": "read-path-error-fidelity-adoption-01KV8NPC",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "FR-001 delivered by WP02+WP09 (reviewer-renata approved)",
+      "proof_type": "automated_test",
+      "evidence": "next-family typed-error pass-through (4 catch-sites) + orchestrator 8-endpoint seam; ground-truth captured-red asserts COORDINATION_BRANCH_DELETED surfaces",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-16T22:15:00+00:00",
+      "notes": "Approved WP02+WP09; behavioral test + captured-red where the bug reproduced on HEAD"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "FR-002 delivered by WP02 (reviewer-renata approved)",
+      "proof_type": "automated_test",
+      "evidence": "emitter surfaces error_code + non-empty checked_paths + read-path next_step (test_next_typed_error_passthrough.py)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-16T22:15:00+00:00",
+      "notes": "Approved WP02; behavioral test + captured-red where the bug reproduced on HEAD"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "FR-003 delivered by WP04 (reviewer-renata approved)",
+      "proof_type": "automated_test",
+      "evidence": "escape-walk deleted; structured typed error on cmd_open+cmd_verify; captured-red A/C/D (test_decision_single_authority.py)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-16T22:15:00+00:00",
+      "notes": "Approved WP04; behavioral test + captured-red where the bug reproduced on HEAD"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "FR-004 delivered by WP03 (reviewer-renata approved)",
+      "proof_type": "automated_test",
+      "evidence": "setup-plan exact-one auto-select in setup_plan; >1 structured error (test_mission_planning_entry.py)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-16T22:15:00+00:00",
+      "notes": "Approved WP03; behavioral test + captured-red where the bug reproduced on HEAD"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "FR-005 delivered by WP03 (reviewer-renata approved)",
+      "proof_type": "automated_test",
+      "evidence": "is_committed primary-target-branch leg ORed; non-vacuous coord+primary-only captured-red (False pre-fix \u2192 True)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-16T22:15:00+00:00",
+      "notes": "Approved WP03; behavioral test + captured-red where the bug reproduced on HEAD"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "FR-006 delivered by WP03 (reviewer-renata approved)",
+      "proof_type": "automated_test",
+      "evidence": "_commit_to_branch reports real hash; no-op-vs-wrong-surface typed diagnostic (CommitToBranchResult)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-16T22:15:00+00:00",
+      "notes": "Approved WP03; behavioral test + captured-red where the bug reproduced on HEAD"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "FR-007 delivered by WP06 (reviewer-renata approved)",
+      "proof_type": "automated_test",
+      "evidence": "resolve_canonical_root stops at submodule boundary; real-git-submodule captured-red; {primary,coord,submodule} equivalence; 165 core tests green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-16T22:15:00+00:00",
+      "notes": "Approved WP06; behavioral test + captured-red where the bug reproduced on HEAD"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "FR-008 delivered by WP05 (reviewer-renata approved)",
+      "proof_type": "automated_test",
+      "evidence": "agent action implement consumes claim's resolved context (single resolution path); captured-red on re-resolution removal",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-16T22:15:00+00:00",
+      "notes": "Approved WP05; behavioral test + captured-red where the bug reproduced on HEAD"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "FR-009 delivered by WP01 (reviewer-renata approved)",
+      "proof_type": "automated_test",
+      "evidence": "ExecutionContext frozen + build_execution_context sole factory + CONTEXT_INVARIANT_VIOLATION on target_branch mismatch; verification-by-deletion of :800-808 mutator",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-16T22:15:00+00:00",
+      "notes": "Approved WP01; behavioral test + captured-red where the bug reproduced on HEAD"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "FR-010 delivered by WP07 (reviewer-renata approved)",
+      "proof_type": "automated_test",
+      "evidence": "charter status side-effect-free (git tree unchanged) + JSON-safe normalized hash; non-vacuous captured-red",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-16T22:15:00+00:00",
+      "notes": "Approved WP07; behavioral test + captured-red where the bug reproduced on HEAD"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "FR-011 delivered by WP05+WP09 (reviewer-renata approved)",
+      "proof_type": "automated_test",
+      "evidence": "single-authority adoption verified by deletion; orchestrator fail-closed identity (M3) arms bool(mid8) guard",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-16T22:15:00+00:00",
+      "notes": "Approved WP05+WP09; behavioral test + captured-red where the bug reproduced on HEAD"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "FR-012 delivered by WP08 (reviewer-renata approved)",
+      "proof_type": "automated_test",
+      "evidence": "#1827 verified-already-fixed: full record\u2192commit\u2192assert+resume regression test + falsification guard (test-only, D-3)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-16T22:15:00+00:00",
+      "notes": "Approved WP08; behavioral test + captured-red where the bug reproduced on HEAD"
+    }
+  ],
+  "negative_invariants": []
+}

@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-06-16T17:19:39.918245Z",
+      "decision_id": "01KV8Q49WEG9RRKCEZ3XYN5DWP",
+      "final_answer": "DEFER #1716 entirely (~2094 LOC write-side surface; NO slice required for read-path behavioral-equivalence per call-site inventory \u00a78 \u2014 every FR achievable read-side; carrying violates C-001 + explodes NFR-005 conflict surface; stays on #1878). CARRY #1993 minimal (~20 LOC resolve_lanes_dir pure seam, owned by IC-E alongside #1832 to satisfy the must-not-land-alone co-dependency).",
+      "input_key": "write_side_scope",
+      "mission_id": "01KV8NPCBX0CNAM3VBY50C1AGG",
+      "mission_slug": "read-path-error-fidelity-adoption-01KV8NPC",
+      "opened_by": "cli",
+      "options": [
+        "defer-1716-carry-1993-minimal",
+        "carry-1716-slice",
+        "defer-both"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "C-005: does this mission carry a bounded write-side slice (#1716) and/or the #1993 lanes-dir seam, or defer?",
+      "rationale": null,
+      "resolved_at": "2026-06-16T17:19:40.702039Z",
+      "resolved_by": null,
+      "slot_key": "plan.scope.write-side-carry-vs-defer",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KV8NPCBX0CNAM3VBY50C1AGG",
+  "version": 1
+}
