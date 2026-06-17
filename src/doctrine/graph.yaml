@@ -250,6 +250,9 @@ nodes:
 - urn: procedure:migrate-project-guidance-to-spec-kitty-charter
   kind: procedure
   label: Migrate Project Guidance to Spec Kitty Charter
+- urn: procedure:onboard-external-agent-to-pack
+  kind: procedure
+  label: Onboard an External Agent into the Pack
 - urn: procedure:refactoring
   kind: procedure
   label: Refactoring
@@ -1768,6 +1771,15 @@ edges:
   relation: requires
 - source: procedure:migrate-project-guidance-to-spec-kitty-charter
   target: directive:DIRECTIVE_018
+  relation: requires
+- source: procedure:onboard-external-agent-to-pack
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: procedure:onboard-external-agent-to-pack
+  target: directive:DIRECTIVE_018
+  relation: requires
+- source: procedure:onboard-external-agent-to-pack
+  target: directive:DIRECTIVE_032
   relation: requires
 - source: procedure:refactoring
   target: tactic:change-apply-smallest-viable-diff
