@@ -259,8 +259,11 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
     2. ``.git`` is a *file* with a ``gitdir:`` pointer of the
        ``.git/worktrees/<name>`` topology: follow the pointer back to the
        main repo working tree (reusing :func:`get_main_repo_root`).
-    3. ``.git`` is a malformed/non-worktree pointer file: keep walking so an
-       enclosing repo is still found if one exists.
+    3. ``.git`` is a malformed/non-worktree pointer file (submodule /
+       separate-git-dir): stop at this ancestor when it carries the canonical
+       ``.kittify`` marker — mirroring :func:`locate_project_root`'s boundary
+       check so the two root authorities agree on the submodule case (FR-007).
+       Otherwise keep walking so an enclosing repo is still found if one exists.
     4. No git marker anywhere up the tree: raise :class:`WorkspaceRootNotFound`.
 
     Args:
@@ -283,8 +286,16 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
 
         if git_path.is_file():
             if _read_worktree_gitdir(git_path) is None:
-                # Malformed or non-worktree pointer (submodule / separate-git-dir):
-                # keep walking so an enclosing repo is still resolved.
+                # Malformed or non-worktree pointer (submodule / separate-git-dir).
+                # Mirror locate_project_root's boundary check: if this ancestor
+                # carries the canonical .kittify marker it is a self-contained
+                # spec-kitty project (e.g. a submodule with its own .kittify), so
+                # stop here rather than walking UP into an enclosing parent repo
+                # (FR-007). The two root authorities must agree on this case.
+                if (candidate / KITTIFY_DIR).is_dir():
+                    return candidate.resolve()
+                # No canonical marker — keep walking so an enclosing repo is still
+                # resolved.
                 continue
             # Real worktree pointer — follow it back to the main checkout.
             return get_main_repo_root(candidate)
