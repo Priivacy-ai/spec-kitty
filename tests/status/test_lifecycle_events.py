@@ -644,6 +644,24 @@ def test_lifecycle_repo_root_resolution_handles_supported_logs(repo: Path) -> No
     assert lifecycle._repo_root_for_lifecycle_log(other_log) == repo
 
 
+def test_lifecycle_repo_root_resolution_fails_closed_outside_git(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A path the resolver cannot anchor to a git root returns ``None``.
+
+    Fail-closed branch: when ``resolve_canonical_root`` raises
+    ``WorkspaceRootNotFound`` (path not inside any git repo), the helper
+    swallows it and returns ``None`` rather than guessing a root.
+    """
+    from specify_cli.workspace.root_resolver import WorkspaceRootNotFound
+
+    def _raise(_start: Path) -> Path:
+        raise WorkspaceRootNotFound("no git root")
+
+    monkeypatch.setattr(lifecycle, "resolve_canonical_root", _raise)
+    assert lifecycle._repo_root_for_lifecycle_log(repo / "anywhere.jsonl") is None
+
+
 def test_lifecycle_saas_builder_skips_non_materializable_inputs(
     repo: Path,
     monkeypatch: pytest.MonkeyPatch,
