@@ -59,10 +59,11 @@ steps:
         - Any embedded tool, API, or MCP configuration the agent depends on.
         - Example inputs and outputs (or transcripts) that show the agent's intended behaviour.
 
-      Produce a short source inventory / dossier before decomposing anything, and confirm your
-      understanding of the agent's purpose back to the owner before proceeding. If the owner only
-      has a vague description and no documentation, elicit concrete behaviour with examples — a
-      plausible-sounding description is not a specification.
+      Produce a short source inventory / dossier using the source-agent-dossier-template before
+      decomposing anything, and confirm your understanding of the agent's purpose back to the
+      owner before proceeding. If the owner only has a vague description and no documentation,
+      elicit concrete behaviour with examples — a plausible-sounding description is not a
+      specification.
   - title: Audit existing pack and built-in artifacts for overlap and connections
     actor: agent
     description: >
@@ -129,7 +130,8 @@ steps:
       to satisfy it, split it: a directive for the rule and a tactic or procedure for the steps,
       linked by a DRG edge.
 
-      Produce a decomposition table before writing any YAML:
+      Produce a decomposition table using the decomposition-table-template before writing any
+      YAML:
         | Source fragment | Artifact kind | Proposed id | Target path |
   - title: Author each artifact as typed YAML
     actor: agent
@@ -213,9 +215,10 @@ steps:
       spec-kitty doctor doctrine is unavailable, verify manually that there are no duplicate ids
       within a kind and that each new artifact has a DRG node and at least one edge.
 
-      Summarise in the work log: how many artifacts of each kind were created, whether a profile
-      was added, and the final validation counts. Hand the result back to the agent owner for
-      review before the change is proposed for promotion into shared doctrine.
+      Summarise the final artifact set using the onboarded-artifact-set-template: how many
+      artifacts of each kind were created, whether a profile was added, and the final validation
+      counts. Hand the result back to the agent owner for review before the change is proposed
+      for promotion into shared doctrine.
 anti_patterns:
   - name: Decomposing before understanding the agent
     description: >
@@ -280,3 +283,12 @@ references:
   - type: directive
     id: DIRECTIVE_032
     reason: Confirm shared understanding of artifact-kind terminology with the owner before decomposing.
+  - type: template
+    id: source-agent-dossier-template
+    reason: Provides the evidence record required before decomposing the external agent.
+  - type: template
+    id: decomposition-table-template
+    reason: Provides the repeatable classification and overlap-audit table used before YAML authoring.
+  - type: template
+    id: onboarded-artifact-set-template
+    reason: Provides the final handoff record for created artifacts, DRG changes, and validation evidence.

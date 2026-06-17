@@ -40,6 +40,7 @@ the same `profile-id`; project profiles have final precedence.
 | `curator-carla` | Curator Carla | curator |
 | `debugger-debbie` | Debugger Debbie | investigator |
 | `designer-dagmar` | Designer Dagmar | designer |
+| `doctrine-daphne` | Doctrine Daphne | curator / onboarding-guide |
 | `frontend-freddy` | Frontend Freddy | implementer |
 | `generic-agent` | Generic Agent | implementer |
 | `human-in-charge` | Human in Charge | human-in-charge |

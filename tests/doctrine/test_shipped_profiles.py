@@ -34,6 +34,7 @@ EXPECTED_PROFILE_IDS = {
     "curator-carla",
     "debugger-debbie",
     "designer-dagmar",
+    "doctrine-daphne",
     "generic-agent",
     "human-in-charge",
     "implementer-ivan",
@@ -192,6 +193,7 @@ class TestShippedProfilesRoles:
             ("randy-reducer", Role.IMPLEMENTER),
             ("researcher-robbie", Role.RESEARCHER),
             ("curator-carla", Role.CURATOR),
+            ("doctrine-daphne", Role.CURATOR),
         ],
     )
     def test_profile_has_correct_role(
@@ -277,6 +279,7 @@ class TestShippedProfilesContent:
             ("randy-reducer", 70),
             ("researcher-robbie", 40),
             ("curator-carla", 40),
+            ("doctrine-daphne", 48),
         ],
     )
     def test_routing_priority(
@@ -308,6 +311,7 @@ class TestShippedProfilesContent:
             ("randy-reducer", 2),
             ("researcher-robbie", 4),
             ("curator-carla", 6),
+            ("doctrine-daphne", 4),
         ],
     )
     def test_max_concurrent_tasks(

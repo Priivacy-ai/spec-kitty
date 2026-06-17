@@ -643,15 +643,21 @@ nodes:
   kind: template
 - urn: template:c4-context-mermaid-template
   kind: template
+- urn: template:decomposition-table-template
+  kind: template
 - urn: template:glossary-template
   kind: template
 - urn: template:lightweight-prestudy-template
+  kind: template
+- urn: template:onboarded-artifact-set-template
   kind: template
 - urn: template:out-of-scope-record-template
   kind: template
 - urn: template:quality-attribute-assessment-template
   kind: template
 - urn: template:risk-identification-assessment-template
+  kind: template
+- urn: template:source-agent-dossier-template
   kind: template
 - urn: template:stakeholder-persona-template
   kind: template
@@ -1202,6 +1208,9 @@ edges:
 - source: agent_profile:doctrine-daphne
   target: directive:DIRECTIVE_032
   relation: requires
+- source: agent_profile:doctrine-daphne
+  target: procedure:onboard-external-agent-to-pack
+  relation: applies
 - source: agent_profile:frontend-freddy
   target: agent_profile:implementer-ivan
   relation: specializes_from
@@ -1781,6 +1790,15 @@ edges:
 - source: procedure:onboard-external-agent-to-pack
   target: directive:DIRECTIVE_032
   relation: requires
+- source: procedure:onboard-external-agent-to-pack
+  target: template:decomposition-table-template
+  relation: suggests
+- source: procedure:onboard-external-agent-to-pack
+  target: template:onboarded-artifact-set-template
+  relation: suggests
+- source: procedure:onboard-external-agent-to-pack
+  target: template:source-agent-dossier-template
+  relation: suggests
 - source: procedure:refactoring
   target: tactic:change-apply-smallest-viable-diff
   relation: requires
