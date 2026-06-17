@@ -29,7 +29,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import app as agent_app
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 

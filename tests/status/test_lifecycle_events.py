@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 def _git_init(path: Path) -> None:
@@ -58,6 +58,7 @@ def repo(tmp_path: Path) -> Path:
 
 @pytest.fixture()
 def feature_dir(tmp_path: Path) -> Path:
+    _git_init(tmp_path)
     fd = tmp_path / "kitty-specs" / "demo-mission"
     fd.mkdir(parents=True)
     return fd

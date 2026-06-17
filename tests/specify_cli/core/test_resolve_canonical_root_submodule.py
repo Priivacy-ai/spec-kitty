@@ -34,7 +34,7 @@ from specify_cli.workspace.assert_initialized import (
     assert_initialized,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 # A real, full-length (26-char) ULID for the submodule's mission. NFR-002 forbids
 # fabricated short ids; this is the canonical machine-identity shape.

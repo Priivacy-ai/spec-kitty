@@ -39,7 +39,7 @@ from specify_cli.cli.commands.merge import (
     _record_baseline_merge_commit,
 )
 
-pytestmark = [pytest.mark.fast, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 # ---------------------------------------------------------------------------
 # Topology-true constants (Debbie's repro shape: full 26-char ULID mission_id)
