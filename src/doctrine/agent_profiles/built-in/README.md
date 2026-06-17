@@ -11,6 +11,7 @@ with the language name) extend the base `implementer-ivan` role for polyglot pro
 | `curator-carla.agent.yaml` | `curator-carla` | curator |
 | `debugger-debbie.agent.yaml` | `debugger-debbie` | investigator |
 | `designer-dagmar.agent.yaml` | `designer-dagmar` | designer |
+| `doctrine-daphne.agent.yaml` | `doctrine-daphne` | curator / onboarding-guide |
 | `frontend-freddy.agent.yaml` | `frontend-freddy` | implementer |
 | `generic-agent.agent.yaml` | `generic-agent` | implementer |
 | `human-in-charge.agent.yaml` | `human-in-charge` | human-in-charge |
