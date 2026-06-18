@@ -51,6 +51,14 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 
 
+# Py 3.12+ f-string delimiter token types (PEP 701). Absent on 3.11, where the
+# whole f-string is a single ``STRING`` token. Used to bracket — and therefore
+# uniformly drop — the f-string *interior* on 3.12 so the token-line is
+# interpreter-independent (see ``code_tokens_by_line`` docstring).
+_FSTRING_START = getattr(tokenize, "FSTRING_START", None)
+_FSTRING_END = getattr(tokenize, "FSTRING_END", None)
+
+
 def code_tokens_by_line(source: str) -> dict[int, str]:
     """Return ``{lineno: space-joined code tokens}`` with strings/comments dropped.
 
@@ -58,9 +66,19 @@ def code_tokens_by_line(source: str) -> dict[int, str]:
     that merely *quotes* a prior pattern (e.g. a docstring documenting the old
     ``coord_branch or _current_branch`` selector) never registers as code.
 
-    On Python 3.12+ the individual f-string constituent tokens (``FSTRING_START``
-    / ``FSTRING_MIDDLE`` / ``FSTRING_END``) are also dropped; on 3.11 the whole
-    f-string is a single ``STRING`` token and is dropped uniformly.
+    **Interpreter-independence (NFR-003).** On Python 3.11 an f-string is a single
+    ``STRING`` token, so the *entire* f-string — including any ``{...}``
+    interpolation — is dropped uniformly. PEP 701 (Python 3.12+) re-tokenizes
+    f-strings into ``FSTRING_START`` / ``FSTRING_MIDDLE`` / ``FSTRING_END`` plus
+    the interpolation's *ordinary* tokens (``{``, the expression names, ``}``),
+    which are NOT ``FSTRING_*`` and would otherwise leak into the token-line
+    (``pattern = { mission_slug }`` on 3.12 vs ``pattern =`` on 3.11). That makes
+    the composite key — and every pinned ratchet baseline keyed off it — drift
+    between local 3.11 and the CI 3.12 shard. To keep the key identical on both,
+    the whole f-string interior (everything between ``FSTRING_START`` and the
+    matching ``FSTRING_END``, inclusive of nesting) is dropped here, reproducing
+    the 3.11 single-``STRING`` behaviour. This is a key-normalization change only:
+    the set of flagged offenders and the allow-list semantics are unchanged.
     """
     skip: set[int] = {
         tokenize.STRING,
@@ -72,15 +90,26 @@ def code_tokens_by_line(source: str) -> dict[int, str]:
         tokenize.ENCODING,
         tokenize.ENDMARKER,
     }
-    # Py 3.12+ f-string tokens — absent on 3.11, silently ignored when missing.
-    for _name in ("FSTRING_START", "FSTRING_MIDDLE", "FSTRING_END"):
-        _tok_type = getattr(tokenize, _name, None)
-        if _tok_type is not None:
-            skip.add(_tok_type)
+    # Py 3.12+ f-string middle token — dropped like the 3.11 STRING body. The
+    # START/END delimiters are handled via the depth counter below.
+    _middle = getattr(tokenize, "FSTRING_MIDDLE", None)
+    if _middle is not None:
+        skip.add(_middle)
 
     buckets: dict[int, list[str]] = {}
+    fstring_depth = 0
     try:
         for tok in tokenize.generate_tokens(io.StringIO(source).readline):
+            if _FSTRING_START is not None and tok.type == _FSTRING_START:
+                fstring_depth += 1
+                continue
+            if _FSTRING_END is not None and tok.type == _FSTRING_END:
+                fstring_depth = max(0, fstring_depth - 1)
+                continue
+            if fstring_depth > 0:
+                # Inside an f-string: drop the interpolation tokens entirely so the
+                # 3.12 token-line matches the 3.11 single-STRING form.
+                continue
             if tok.type in skip:
                 continue
             buckets.setdefault(tok.start[0], []).append(tok.string)

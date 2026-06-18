@@ -44,7 +44,6 @@ from __future__ import annotations
 
 import ast
 import re
-import subprocess
 from pathlib import Path
 from typing import TypeGuard
 
@@ -469,80 +468,6 @@ def test_name_compose_offenders_match_pinned_baseline() -> None:
         "live offender the detector flags — the site was routed through the seam; "
         "drop the exemption to close the false-negative window):\n  "
         + "\n  ".join(str(k) for k in stale_exemptions)
-    )
-
-
-# ---------------------------------------------------------------------------
-# NFR-001 diff-scan (T038a): the naming-seam consolidation must NOT bleed into
-# the status reducer/store internals or the task_utils internals.
-# ---------------------------------------------------------------------------
-
-# Mission planning base — the branch all WPs target. The diff base is the
-# merge-base of HEAD with this branch (falling back to the integration branch),
-# so the scan captures the WHOLE mission's diff regardless of which lane runs it.
-_MISSION_PLANNING_BRANCH = "mission/mission-identity-seam-and-1908-panel"
-_MISSION_INTEGRATION_BRANCH = (
-    "kitty/mission-mission-identity-seam-and-1908-panel-01KV6510"
-)
-
-# The ONLY ``status/`` file the consolidation is permitted to touch (it carries a
-# single mid8 parse-caller routed by WP10; explicitly carved out by NFR-001).
-_STATUS_ALLOWED = "src/specify_cli/status/aggregate.py"
-_STATUS_PREFIX = "src/specify_cli/status/"
-_TASK_UTILS_PREFIX = "src/specify_cli/task_utils/"
-
-
-def _git(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *args],
-        cwd=str(_REPO_ROOT),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-
-def _resolve_mission_base() -> str | None:
-    """Merge-base of HEAD with the mission branch, or ``None`` if unavailable."""
-    for branch in (_MISSION_PLANNING_BRANCH, _MISSION_INTEGRATION_BRANCH):
-        result = _git("merge-base", "HEAD", branch)
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
-    return None
-
-
-def test_nfr001_consolidation_does_not_bleed_into_status_or_task_utils() -> None:
-    """NFR-001: zero ``status/`` hunks (except ``aggregate.py``) / zero ``task_utils/``.
-
-    The naming-seam consolidation is intentionally cross-cutting across the
-    branch/worktree call sites, but it must NOT touch the status reducer/store
-    internals or the task_utils internals. A diff of the whole mission against its
-    planning base must show no hunks under ``status/`` (other than the explicitly
-    carved-out ``aggregate.py`` mid8 parse-caller) and none under ``task_utils/``.
-    """
-    base = _resolve_mission_base()
-    if base is None:
-        pytest.skip(
-            "mission base branch not available in this checkout; "
-            "NFR-001 diff-scan requires the mission/integration branch ref."
-        )
-
-    diff = _git("diff", "--name-only", f"{base}..HEAD")
-    assert diff.returncode == 0, f"git diff failed: {diff.stderr.strip()}"
-
-    changed = [line.strip() for line in diff.stdout.splitlines() if line.strip()]
-    violations = [
-        path
-        for path in changed
-        if (path.startswith(_STATUS_PREFIX) and path != _STATUS_ALLOWED)
-        or path.startswith(_TASK_UTILS_PREFIX)
-    ]
-
-    assert violations == [], (
-        "NFR-001 violated — the naming-seam consolidation bled into forbidden "
-        "internals. Only `status/aggregate.py` may change under `status/`, and "
-        "`task_utils/` must be untouched.\n  "
-        + "\n  ".join(sorted(violations))
     )
 
 

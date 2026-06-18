@@ -27,7 +27,7 @@ from specify_cli.missions._read_path_resolver import (
     resolve_mission_read_path,
 )
 
-pytestmark = [pytest.mark.fast]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 # Production-shaped slugs (NFR-003: no fabricated short ids)
 _REAL_SLUG = "canonical-seams-path-trust-guard-capability-01KVBBT6"
