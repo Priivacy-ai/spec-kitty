@@ -1,0 +1,139 @@
+{
+  "mission_slug": "governed-state-surface-coherence-01KVCGQC",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 2d5428161 \u2014 shared resolve_declared_mid8 cascade; coord-only ULID fixture RED\u2192GREEN; 244 tests incl. #2016 regression GREEN",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-18T06:59:07.261858+00:00",
+      "notes": "Verified via per-WP implement+review (all 5 WPs approved by reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 2d5428161 \u2014 AST one-cascade assertion: no second resolve_mid8 path; reviewer-renata verified vs base",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-18T06:59:07.261858+00:00",
+      "notes": "Verified via per-WP implement+review (all 5 WPs approved by reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 2d5428161 \u2014 declares_coordination-gated fail-closed preserved; legacy 099-test-mission returns primary/None (4 contract tests GREEN)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-18T06:59:07.261858+00:00",
+      "notes": "Verified via per-WP implement+review (all 5 WPs approved by reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 2d5428161 \u2014 _fail retyped NoReturn; two unreachable raises deleted; mypy proves dead",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-18T06:59:07.261858+00:00",
+      "notes": "Verified via per-WP implement+review (all 5 WPs approved by reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 94454f77d \u2014 JSON-safe status via collector ISO normalization; timestamp_utc RED\u2192GREEN; last_sync string-typed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-18T06:59:07.261858+00:00",
+      "notes": "Verified via per-WP implement+review (all 5 WPs approved by reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 88520ccac \u2014 built_in_only\u2227graph residue downgrade (non-blocking diagnostic); T030 RED\u2192GREEN; genuine-invalid guard GREEN; _PASS_STATES not widened",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-18T06:59:07.261858+00:00",
+      "notes": "Verified via per-WP implement+review (all 5 WPs approved by reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 88520ccac \u2014 single unlink_stale_project_graph in src/charter/synthesizer/graph_residue.py; both callers; atomic ordering byte-unchanged",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-18T06:59:07.261858+00:00",
+      "notes": "Verified via per-WP implement+review (all 5 WPs approved by reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 (C2-a no-mutator pin) + WP04 (C2-d hash pin, real surfaces + mutate-diverge negative guard, non-tautological)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-18T06:59:07.261858+00:00",
+      "notes": "Verified via per-WP implement+review (all 5 WPs approved by reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 88520ccac \u2014 C2-e BOM/CRLF hash divergence live-reproduced + fixed in charter.hasher.hash_content; normal-content hashes unchanged (no mass-restale); regression test",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-18T06:59:07.261858+00:00",
+      "notes": "Verified via per-WP implement+review (all 5 WPs approved by reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 51e1aee86 \u2014 verbatim baseline extract to merge/baseline.py + back-compat private aliases; baseline suites (76+286) GREEN unchanged; verbatim-equivalence artifact verified",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-18T06:59:07.261858+00:00",
+      "notes": "Verified via per-WP implement+review (all 5 WPs approved by reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 01c9d3403 \u2014 test_read_path_resolver_validation markers integration+git_repo; marker-correctness tests GREEN",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-18T06:59:07.261858+00:00",
+      "notes": "Verified via per-WP implement+review (all 5 WPs approved by reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 01c9d3403 \u2014 mission-diff-scoped test_nfr001 removed; durable tests retained (collect-count 12\u219211)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-18T06:59:07.261858+00:00",
+      "notes": "Verified via per-WP implement+review (all 5 WPs approved by reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 01c9d3403 \u2014 interpreter-stable ratchet keys (py3.11/py3.12); local py3.12 architectural shard GREEN (461 pass); binding CI confirmation on mission PR",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-18T06:59:07.261858+00:00",
+      "notes": "Verified via per-WP implement+review (all 5 WPs approved by reviewer-renata)."
+    }
+  ],
+  "negative_invariants": []
+}
