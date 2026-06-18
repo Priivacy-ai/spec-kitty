@@ -38,6 +38,8 @@ from typing import Any, cast
 
 from kernel.atomic import substantively_equal as _substantively_equal_core
 
+from charter.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
+
 from .artifact_naming import artifact_filename, doctrine_kind_subdir
 from .errors import NeutralityGateViolation, StagingPromoteError
 from .evidence import EvidenceBundle
@@ -58,7 +60,6 @@ _KITTIFY_DIRNAME = ".kittify"
 _DOCTRINE_DIRNAME = "doctrine"
 _CHARTER_DIRNAME = "charter"
 _PROVENANCE_DIRNAME = "provenance"
-_GRAPH_FILENAME = "graph" + ".yaml"
 
 
 # ---------------------------------------------------------------------------

@@ -122,7 +122,6 @@ class CharterFreshness:
 _CHARTER_DIR = Path(".kittify") / "charter"
 _CHARTER_FILENAME = "charter.md"
 _METADATA_FILENAME = "metadata.yaml"
-_GRAPH_FILENAME = "graph.yaml"
 _BUNDLE_FILES = ("governance.yaml", "directives.yaml", "references.yaml", _METADATA_FILENAME)
 
 
@@ -134,8 +133,17 @@ def _synthesis_manifest_path(repo_root: Path) -> Path:
 
 
 def _doctrine_graph_path(repo_root: Path) -> Path:
-    """Return the canonical doctrine graph path via lazy chokepoint import."""
+    """Return the canonical doctrine graph path via lazy chokepoint imports.
+
+    Both the doctrine dir and the graph filename are resolved lazily to keep
+    this ``specify_cli`` module from eagerly importing the heavy
+    ``charter.synthesizer`` package at load time (LD-3 discipline). The graph
+    filename is single-sourced from the leaf ``charter.synthesizer._constants``.
+    """
     from charter.bundle import DOCTRINE_DIR  # noqa: PLC0415
+    from charter.synthesizer._constants import (  # noqa: PLC0415
+        GRAPH_FILENAME as _GRAPH_FILENAME,
+    )
 
     return repo_root / DOCTRINE_DIR / _GRAPH_FILENAME
 
