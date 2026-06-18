@@ -1,0 +1,89 @@
+{
+  "mission_slug": "canonical-seams-path-trust-guard-capability-01KVBBT6",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 3b6a6dbcd: assert_safe_path_segment in core/paths.py + wired into both read primitives (guard-before-composition spy); 53 tests",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-17T20:35:00+00:00",
+      "notes": "Verified via WP01 opus/reviewer-renata approval."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 (transaction/aggregate/review-cycle delegate, exact-type tests) + WP04 (merge.py validator delegate); dead constants removed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-17T20:35:00+00:00",
+      "notes": "Verified via WP02/WP04 opus/reviewer-renata approval."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 ea8ab33ad: FR-003 direct-sibling reject tests calling _assert_status_path_within_target_surface(:828) + :2382 path directly (not via _target_bookkeeping)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-17T20:35:00+00:00",
+      "notes": "Verified via WP04 opus/reviewer-renata approval."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01: regex reconciliation (interior-dot allowed, ..-substring/leading-dot rejected) + union-of-real-format-slugs test (ULID/<slug>-<mid8>/numeric/bare-mid8)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-17T20:35:00+00:00",
+      "notes": "Verified via WP01 opus/reviewer-renata approval."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03: ensure_within_any(path,*,roots,files) in core/utils.py; 15 tests incl. files-arm exact-equality + strict=False; ensure_within_directory byte-unchanged",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-17T20:35:00+00:00",
+      "notes": "Verified via WP03 opus/reviewer-renata approval."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04: 2 pure helpers delegate to ensure_within_any; XOR helper preserved as conditional caller (NOT union-widened, un-fakeable fixture); trusted set unchanged",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-17T20:35:00+00:00",
+      "notes": "Verified via WP04 opus/reviewer-renata approval."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 1d867635b: core_misc filter widened (status/**, coordination/**); meta-test asserts short-circuit cannot re-mask + lifecycle_events falsification; 5 tests",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-17T20:35:00+00:00",
+      "notes": "Verified via WP05 opus/reviewer-renata approval."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 3fed379eb: _ratchet_keys.py (net-new enclosing_qualname) + re-keyed allow-lists; 3 drift/non-vacuity tests; :295 untouched",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-17T20:35:00+00:00",
+      "notes": "Verified via WP06 opus/reviewer-renata approval."
+    }
+  ],
+  "negative_invariants": []
+}
