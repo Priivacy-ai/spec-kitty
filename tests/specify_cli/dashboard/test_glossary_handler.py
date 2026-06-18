@@ -556,6 +556,7 @@ class TestGlossaryPage:
         text = body.decode("utf-8")
         assert 'id="validation-banner"' in text
         assert "fetch('/api/glossary-health')" in text
+        assert '<label for="search" class="sr-only">Search glossary terms</label>' in text
 
     def test_glossary_page_uses_cached_bytes(self, tmp_path):
         """Module-level _GLOSSARY_HTML_BYTES is reused for each request."""
