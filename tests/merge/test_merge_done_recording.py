@@ -413,7 +413,7 @@ def test_assert_baseline_on_target_passes_when_committed_meta_matches(tmp_path: 
     committed_meta = json.dumps({"baseline_merge_commit": "base123"})
 
     with patch(
-        "specify_cli.cli.commands.merge.run_command",
+        "specify_cli.merge.baseline.run_command",
         return_value=(0, committed_meta, ""),
     ):
         # Must not raise.
@@ -433,7 +433,7 @@ def test_assert_baseline_on_target_raises_when_baseline_absent(tmp_path: Path) -
     committed_meta = json.dumps({"mission_slug": "021-test"})  # no baseline_merge_commit
 
     with patch(
-        "specify_cli.cli.commands.merge.run_command",
+        "specify_cli.merge.baseline.run_command",
         return_value=(0, committed_meta, ""),
     ), pytest.raises(BaselineMergeCommitError):
         _assert_baseline_merge_commit_on_target(
@@ -452,7 +452,7 @@ def test_assert_baseline_on_target_raises_when_baseline_mismatches(tmp_path: Pat
     committed_meta = json.dumps({"baseline_merge_commit": "other999"})
 
     with patch(
-        "specify_cli.cli.commands.merge.run_command",
+        "specify_cli.merge.baseline.run_command",
         return_value=(0, committed_meta, ""),
     ), pytest.raises(BaselineMergeCommitError):
         _assert_baseline_merge_commit_on_target(
@@ -470,7 +470,7 @@ def test_assert_baseline_on_target_raises_when_git_show_fails(tmp_path: Path) ->
     _write_meta(feature_dir, "021-test")
 
     with patch(
-        "specify_cli.cli.commands.merge.run_command",
+        "specify_cli.merge.baseline.run_command",
         return_value=(128, "", "fatal: path does not exist"),
     ), pytest.raises(BaselineMergeCommitError):
         _assert_baseline_merge_commit_on_target(
@@ -491,7 +491,7 @@ def test_assert_baseline_on_target_skips_legacy_mission(tmp_path: Path) -> None:
     def _boom(*_a: Any, **_kw: Any):
         raise AssertionError("run_command must not be called for legacy missions")
 
-    with patch("specify_cli.cli.commands.merge.run_command", side_effect=_boom):
+    with patch("specify_cli.merge.baseline.run_command", side_effect=_boom):
         _assert_baseline_merge_commit_on_target(
             tmp_path,
             "021-test",
@@ -523,7 +523,7 @@ def test_assert_baseline_on_target_resume_uses_recorded_baseline_not_live_head(
     committed_meta = json.dumps({"baseline_merge_commit": "original_sha_a"})
 
     with patch(
-        "specify_cli.cli.commands.merge.run_command",
+        "specify_cli.merge.baseline.run_command",
         return_value=(0, committed_meta, ""),
     ):
         # expected_baseline is the RE-DERIVED, now-advanced target HEAD on
@@ -548,7 +548,7 @@ def test_assert_baseline_on_target_raises_when_committed_differs_from_recorded(
     committed_meta = json.dumps({"baseline_merge_commit": "drifted_sha_c"})
 
     with patch(
-        "specify_cli.cli.commands.merge.run_command",
+        "specify_cli.merge.baseline.run_command",
         return_value=(0, committed_meta, ""),
     ), pytest.raises(BaselineMergeCommitError):
         _assert_baseline_merge_commit_on_target(

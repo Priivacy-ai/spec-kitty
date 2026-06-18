@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import MagicMock, patch, call
 
@@ -376,31 +377,41 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
         lane_result = MagicMock(success=True, errors=[])
         mission_result = MagicMock(success=True, commit="merged123", errors=[])
 
-        with (
-            patch("specify_cli.cli.commands.merge.require_lanes_json", return_value=manifest),
-            patch("specify_cli.cli.commands.merge.load_state", return_value=None),
-            patch("specify_cli.cli.commands.merge.save_state"),
-            patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.merge._enforce_target_branch_sync_preflight"),
-            patch("specify_cli.status.get_wp_lane", return_value="done"),
-            patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
-            patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
-            patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),
-            patch("specify_cli.cli.commands.merge.safe_commit", return_value=True) as mock_safe_commit,
-            patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
-            patch("specify_cli.policy.merge_gates.evaluate_merge_gates") as mock_gates,
-            patch("specify_cli.policy.config.load_policy_config") as mock_policy,
-            patch(
-                "specify_cli.cli.commands.merge.run_command",
-                side_effect=_baseline_run_command_side_effect(feature_dir, "base123"),
-            ),
-            patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
-            patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
-            patch("specify_cli.cli.commands.merge.clear_state"),
-            patch("specify_cli.cli.commands.merge.emit_mission_closed"),
-            patch("specify_cli.merge.state.MergeState"),
-            patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"),
-        ):
+        with ExitStack() as stack:
+            stack.enter_context(patch("specify_cli.cli.commands.merge.require_lanes_json", return_value=manifest))
+            stack.enter_context(patch("specify_cli.cli.commands.merge.load_state", return_value=None))
+            stack.enter_context(patch("specify_cli.cli.commands.merge.save_state"))
+            stack.enter_context(patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path))
+            stack.enter_context(patch("specify_cli.cli.commands.merge._enforce_target_branch_sync_preflight"))
+            stack.enter_context(patch("specify_cli.status.get_wp_lane", return_value="done"))
+            stack.enter_context(patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result))
+            stack.enter_context(patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result))
+            stack.enter_context(patch("specify_cli.cli.commands.merge._mark_wp_merged_done"))
+            mock_safe_commit = stack.enter_context(
+                patch("specify_cli.cli.commands.merge.safe_commit", return_value=True)
+            )
+            mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))
+            mock_gates = stack.enter_context(patch("specify_cli.policy.merge_gates.evaluate_merge_gates"))
+            mock_policy = stack.enter_context(patch("specify_cli.policy.config.load_policy_config"))
+            stack.enter_context(
+                patch(
+                    "specify_cli.cli.commands.merge.run_command",
+                    side_effect=_baseline_run_command_side_effect(feature_dir, "base123"),
+                )
+            )
+            stack.enter_context(
+                patch(
+                    "specify_cli.merge.baseline.run_command",
+                    side_effect=_baseline_run_command_side_effect(feature_dir, "base123"),
+                )
+            )
+            stack.enter_context(patch("specify_cli.cli.commands.merge.has_remote", return_value=False))
+            stack.enter_context(patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"))
+            stack.enter_context(patch("specify_cli.cli.commands.merge.clear_state"))
+            stack.enter_context(patch("specify_cli.cli.commands.merge.emit_mission_closed"))
+            stack.enter_context(patch("specify_cli.merge.state.MergeState"))
+            stack.enter_context(patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"))
+
             stale_report = MagicMock()
             stale_report.findings = []
             mock_run_check.return_value = stale_report
@@ -833,31 +844,41 @@ class TestDoneEventsCommittedToGit:
         lane_result = MagicMock(success=True, errors=[])
         mission_result = MagicMock(success=True, commit="abc1234", errors=[])
 
-        with (
-            patch("specify_cli.cli.commands.merge.require_lanes_json", return_value=manifest),
-            patch("specify_cli.cli.commands.merge.load_state", return_value=None),
-            patch("specify_cli.cli.commands.merge.save_state"),
-            patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.merge._enforce_target_branch_sync_preflight"),
-            patch("specify_cli.status.get_wp_lane", return_value="done"),
-            patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
-            patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
-            patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),
-            patch("specify_cli.cli.commands.merge.safe_commit", return_value=True),
-            patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
-            patch("specify_cli.policy.merge_gates.evaluate_merge_gates") as mock_gates,
-            patch("specify_cli.policy.config.load_policy_config") as mock_policy,
-            patch(
-                "specify_cli.cli.commands.merge.run_command",
-                side_effect=_baseline_run_command_side_effect(feature_dir, "abc123"),
-            ),
-            patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
-            patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
-            patch("specify_cli.cli.commands.merge.clear_state"),
-            patch("specify_cli.cli.commands.merge.emit_mission_closed") as mock_emit_mission_closed,
-            patch("specify_cli.merge.state.MergeState"),
-            patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"),
-        ):
+        with ExitStack() as stack:
+            stack.enter_context(patch("specify_cli.cli.commands.merge.require_lanes_json", return_value=manifest))
+            stack.enter_context(patch("specify_cli.cli.commands.merge.load_state", return_value=None))
+            stack.enter_context(patch("specify_cli.cli.commands.merge.save_state"))
+            stack.enter_context(patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path))
+            stack.enter_context(patch("specify_cli.cli.commands.merge._enforce_target_branch_sync_preflight"))
+            stack.enter_context(patch("specify_cli.status.get_wp_lane", return_value="done"))
+            stack.enter_context(patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result))
+            stack.enter_context(patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result))
+            stack.enter_context(patch("specify_cli.cli.commands.merge._mark_wp_merged_done"))
+            stack.enter_context(patch("specify_cli.cli.commands.merge.safe_commit", return_value=True))
+            mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))
+            mock_gates = stack.enter_context(patch("specify_cli.policy.merge_gates.evaluate_merge_gates"))
+            mock_policy = stack.enter_context(patch("specify_cli.policy.config.load_policy_config"))
+            stack.enter_context(
+                patch(
+                    "specify_cli.cli.commands.merge.run_command",
+                    side_effect=_baseline_run_command_side_effect(feature_dir, "abc123"),
+                )
+            )
+            stack.enter_context(
+                patch(
+                    "specify_cli.merge.baseline.run_command",
+                    side_effect=_baseline_run_command_side_effect(feature_dir, "abc123"),
+                )
+            )
+            stack.enter_context(patch("specify_cli.cli.commands.merge.has_remote", return_value=False))
+            stack.enter_context(patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"))
+            stack.enter_context(patch("specify_cli.cli.commands.merge.clear_state"))
+            mock_emit_mission_closed = stack.enter_context(
+                patch("specify_cli.cli.commands.merge.emit_mission_closed")
+            )
+            stack.enter_context(patch("specify_cli.merge.state.MergeState"))
+            stack.enter_context(patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"))
+
             stale_report = MagicMock()
             stale_report.findings = []
             mock_run_check.return_value = stale_report
