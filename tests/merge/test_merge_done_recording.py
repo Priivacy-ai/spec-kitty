@@ -834,7 +834,7 @@ def test_project_status_bookkeeping_rejects_paths_outside_primary_surface(
         / ".."
     )
 
-    with pytest.raises(ValueError, match="outside trusted repo roots"):
+    with pytest.raises(ValueError, match="outside trusted roots"):
         _project_status_bookkeeping_to_target(
             main_repo=repo_root,
             mission_slug=mission_slug,
@@ -846,7 +846,7 @@ def test_project_status_bookkeeping_rejects_wrong_primary_mission_surface(
     tmp_path: Path,
 ) -> None:
     """Primary bookkeeping paths under kitty-specs must still match the mission slug."""
-    with pytest.raises(ValueError, match="outside mission status surface"):
+    with pytest.raises(ValueError, match="outside trusted roots"):
         _project_status_bookkeeping_to_target(
             main_repo=tmp_path,
             mission_slug="expected-mission",

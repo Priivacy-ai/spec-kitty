@@ -48,8 +48,8 @@ from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.git_ops import has_remote, run_command
 from specify_cli.core.git_preflight import build_git_preflight_failure_payload, run_git_preflight
 from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root
-from specify_cli.core.utils import ensure_within_directory
+from specify_cli.core.paths import assert_safe_path_segment, get_feature_target_branch, get_main_repo_root
+from specify_cli.core.utils import ensure_within_any, ensure_within_directory
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
 from specify_cli.git.ref_advance import advance_branch_ref
@@ -99,7 +99,7 @@ TARGET_BRANCH_NOT_SYNCHRONIZED = "TARGET_BRANCH_NOT_SYNCHRONIZED"
 TARGET_BRANCH_SYNC_INVARIANT = "local_target_branch_must_match_tracking_branch"
 _STATUS_EVENTS_FILENAME = "status.events.jsonl"
 _STATUS_FILENAME = "status.json"
-_MISSION_SLUG_PATH_SEGMENT_RE = re.compile(r"^[A-Za-z0-9_-]+$", re.ASCII)
+_SAFE_PATH_SEGMENT_DIAGNOSTIC = "Mission slug is not a single safe path segment"
 
 # T011 — FR-009: push-error parser tokens (locked tuple — do not reorder or extend without a spec change)
 LINEAR_HISTORY_REJECTION_TOKENS: tuple[str, ...] = (
@@ -772,18 +772,12 @@ def _paths_have_status_changes(repo_root: Path, paths: list[Path]) -> bool:
 
 
 def _validate_mission_slug_path_segment(mission_slug: str) -> str:
-    """Reject mission slugs unsafe for direct path composition."""
-    candidate = mission_slug.strip()
-    if (
-        not candidate
-        or candidate in {".", ".."}
-        or "/" in candidate
-        or "\\" in candidate
-        or not candidate.isascii()
-        or _MISSION_SLUG_PATH_SEGMENT_RE.fullmatch(candidate) is None
-    ):
-        raise ValueError(f"Mission slug must be a single safe path segment: {mission_slug!r}")
-    return candidate
+    """Reject mission slugs unsafe for direct path composition.
+
+    Delegates to the canonical ``assert_safe_path_segment`` validator (FR-002 / WP04).
+    Raises ``ValueError`` on any traversal-unsafe value, preserving the existing contract.
+    """
+    return assert_safe_path_segment(mission_slug)
 
 
 def _target_bookkeeping_status_paths(
@@ -823,15 +817,16 @@ def _assert_status_path_within_target_surface(
     mission_slug: str,
     candidate: Path,
 ) -> Path:
-    """Reject bookkeeping paths that escape the canonical mission status surface."""
+    """Reject bookkeeping paths that escape the canonical mission status surface.
+
+    Validates ``mission_slug`` via ``assert_safe_path_segment`` (FR-003) before
+    composing the surface root, then delegates containment to ``ensure_within_any``
+    (FR-006 / T016).
+    """
+    assert_safe_path_segment(mission_slug)
     repo_resolved = get_main_repo_root(repo_root).resolve(strict=False)
     surface_root = primary_feature_dir_for_mission(repo_resolved, mission_slug).resolve(strict=False)
-    resolved_candidate = candidate.resolve(strict=False)
-    if not resolved_candidate.is_relative_to(surface_root):
-        raise ValueError(
-            f"Refusing bookkeeping path outside mission status surface: {candidate}"
-        )
-    return resolved_candidate
+    return ensure_within_any(candidate, roots=[surface_root])
 
 
 def _assert_status_surface_path_is_trusted(
@@ -839,19 +834,20 @@ def _assert_status_surface_path_is_trusted(
     repo_root: Path,
     status_feature_dir: Path,
 ) -> Path:
-    """Reject status surfaces that resolve outside the repo's trusted roots."""
+    """Reject status surfaces that resolve outside the repo's trusted roots.
+
+    Selects the single correct root via ``is_under_worktrees_segment`` XOR
+    (worktrees vs kitty-specs), then delegates containment to ``ensure_within_any``
+    (FR-006 / T018).  The XOR selection is intentionally preserved — widening to a
+    union of both roots would be a behavior change (research.md §(d)).
+    """
     repo_resolved = get_main_repo_root(repo_root).resolve(strict=False)
     trusted_root = (
         (repo_resolved / WORKTREES_DIR).resolve(strict=False)
         if is_under_worktrees_segment(status_feature_dir)
         else (repo_resolved / KITTY_SPECS_DIR).resolve(strict=False)
     )
-    resolved_status_dir = status_feature_dir.resolve(strict=False)
-    if not resolved_status_dir.is_relative_to(trusted_root):
-        raise ValueError(
-            f"Refusing status surface outside trusted repo roots: {status_feature_dir}"
-        )
-    return resolved_status_dir
+    return ensure_within_any(status_feature_dir, roots=[trusted_root])
 
 
 def _restore_optional_bytes(path: Path, original: bytes | None) -> None:
@@ -867,23 +863,22 @@ def _assert_bookkeeping_snapshot_path_is_trusted(
     repo_root: Path,
     candidate: Path,
 ) -> Path:
-    """Reject rollback snapshot paths outside merge bookkeeping roots."""
+    """Reject rollback snapshot paths outside merge bookkeeping roots.
+
+    Delegates multi-root containment + exact-file allowlist to ``ensure_within_any``
+    (FR-006 / T017).  The trusted set (3 dirs + the exact file) is preserved exactly —
+    no set change (NFR-001 / C-007).
+    """
     repo_resolved = get_main_repo_root(repo_root).resolve(strict=False)
-    resolved_candidate = candidate.resolve(strict=False)
-    trusted_dirs = (
-        (repo_resolved / KITTY_SPECS_DIR).resolve(strict=False),
-        (repo_resolved / WORKTREES_DIR).resolve(strict=False),
-        (repo_resolved / KITTIFY_DIR / "runtime" / "merge").resolve(strict=False),
+    return ensure_within_any(
+        candidate,
+        roots=[
+            (repo_resolved / KITTY_SPECS_DIR).resolve(strict=False),
+            (repo_resolved / WORKTREES_DIR).resolve(strict=False),
+            (repo_resolved / KITTIFY_DIR / "runtime" / "merge").resolve(strict=False),
+        ],
+        files=[repo_resolved / KITTIFY_DIR / "merge-state.json"],
     )
-    trusted_files = (repo_resolved / KITTIFY_DIR / "merge-state.json",)
-    if not (
-        any(resolved_candidate.is_relative_to(root) for root in trusted_dirs)
-        or resolved_candidate in trusted_files
-    ):
-        raise ValueError(
-            f"Refusing bookkeeping snapshot path outside trusted repo roots: {candidate}"
-        )
-    return resolved_candidate
 
 
 def _restore_final_bookkeeping_snapshots(
@@ -3097,7 +3092,13 @@ def merge(
         from contextlib import suppress
 
         mission_slug_raw = (mission or feature or "").strip() or None
-        resolved = _resolve_mission_slug(repo_root, mission_slug_raw)
+        try:
+            resolved = _resolve_mission_slug(repo_root, mission_slug_raw)
+        except ValueError as exc:
+            console.print(
+                f"[red]Error:[/red] {_SAFE_PATH_SEGMENT_DIAGNOSTIC}: {exc}"
+            )
+            raise typer.Exit(1) from exc
         state_entry = _load_merge_state_entry_for_mission(repo_root, resolved)
         if state_entry is None and resolved is None:
             state_entry = _load_merge_state_entry_for_mission(repo_root, None)
@@ -3191,7 +3192,13 @@ def merge(
     # -- T004: Handle --resume (loads existing state; the main flow will detect it) --
     if resume:
         mission_slug_raw = (mission or feature or "").strip() or None
-        resolved = _resolve_mission_slug(repo_root, mission_slug_raw)
+        try:
+            resolved = _resolve_mission_slug(repo_root, mission_slug_raw)
+        except ValueError as exc:
+            console.print(
+                f"[red]Error:[/red] {_SAFE_PATH_SEGMENT_DIAGNOSTIC}: {exc}"
+            )
+            raise typer.Exit(1) from exc
         existing_state = _load_merge_state_for_mission(repo_root, resolved)
         if existing_state is None:
             console.print("[red]Error:[/red] No interrupted merge to resume.")
@@ -3209,7 +3216,13 @@ def merge(
     resolved_strategy: MergeStrategy = strategy or load_merge_config(repo_root).strategy or MergeStrategy.SQUASH
 
     mission_slug = (mission or feature or "").strip() or None
-    resolved_feature = _resolve_mission_slug(repo_root, mission_slug)
+    try:
+        resolved_feature = _resolve_mission_slug(repo_root, mission_slug)
+    except ValueError as exc:
+        console.print(
+            f"[red]Error:[/red] {_SAFE_PATH_SEGMENT_DIAGNOSTIC}: {exc}"
+        )
+        raise typer.Exit(1) from exc
 
     # T004: Auto-detect existing state when running merge without --resume
     if not resume and resolved_feature:
