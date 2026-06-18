@@ -850,6 +850,29 @@ def _assert_status_surface_path_is_trusted(
     return ensure_within_any(status_feature_dir, roots=[trusted_root])
 
 
+def _assert_status_surface_file_path_is_trusted(
+    *,
+    repo_root: Path,
+    status_feature_dir: Path,
+    filename: str,
+) -> Path:
+    """Reject status-surface child paths outside the exact bookkeeping files."""
+    if filename not in {_STATUS_EVENTS_FILENAME, _STATUS_FILENAME}:
+        raise ValueError(f"Refusing untrusted status filename: {filename}")
+    trusted_surface = _assert_status_surface_path_is_trusted(
+        repo_root=repo_root,
+        status_feature_dir=status_feature_dir,
+    )
+    candidate = trusted_surface / filename
+    if candidate.is_symlink():
+        raise ValueError(f"Refusing symlinked status surface path: {candidate}")
+    return ensure_within_any(
+        candidate,
+        roots=[],
+        files=[trusted_surface / _STATUS_EVENTS_FILENAME, trusted_surface / _STATUS_FILENAME],
+    )
+
+
 def _restore_optional_bytes(path: Path, original: bytes | None) -> None:
     if original is None:
         path.unlink(missing_ok=True)
@@ -935,40 +958,48 @@ def _project_status_bookkeeping_to_target(
         mission_slug=mission_slug,
         status_feature_dir=status_feature_dir,
     )
-    _assert_status_surface_path_is_trusted(
+    trusted_status_feature_dir = _assert_status_surface_path_is_trusted(
         repo_root=main_repo,
         status_feature_dir=status_feature_dir,
     )
-    _assert_status_path_within_target_surface(
+    trusted_target_events_path = _assert_status_path_within_target_surface(
         repo_root=main_repo,
         mission_slug=mission_slug,
         candidate=target_events_path,
     )
-    _assert_status_path_within_target_surface(
+    trusted_target_status_path = _assert_status_path_within_target_surface(
         repo_root=main_repo,
         mission_slug=mission_slug,
         candidate=target_status_path,
     )
-    if not is_under_worktrees_segment(status_feature_dir):
-        return target_events_path, target_status_path
+    if not is_under_worktrees_segment(trusted_status_feature_dir):
+        return trusted_target_events_path, trusted_target_status_path
 
-    target_events_path.parent.mkdir(parents=True, exist_ok=True)
-    source_events_path = status_feature_dir / _STATUS_EVENTS_FILENAME
-    source_status_path = status_feature_dir / _STATUS_FILENAME
+    trusted_target_events_path.parent.mkdir(parents=True, exist_ok=True)
+    source_events_path = _assert_status_surface_file_path_is_trusted(
+        repo_root=main_repo,
+        status_feature_dir=trusted_status_feature_dir,
+        filename=_STATUS_EVENTS_FILENAME,
+    )
+    source_status_path = _assert_status_surface_file_path_is_trusted(
+        repo_root=main_repo,
+        status_feature_dir=trusted_status_feature_dir,
+        filename=_STATUS_FILENAME,
+    )
     source_events_bytes = _read_optional_bytes(source_events_path)
     source_status_bytes = _read_optional_bytes(source_status_path)
-    original_events_bytes = _read_optional_bytes(target_events_path)
-    original_status_bytes = _read_optional_bytes(target_status_path)
+    original_events_bytes = _read_optional_bytes(trusted_target_events_path)
+    original_status_bytes = _read_optional_bytes(trusted_target_status_path)
     try:
         if source_events_bytes is not None:
-            target_events_path.write_bytes(source_events_bytes)
+            trusted_target_events_path.write_bytes(source_events_bytes)
         if source_status_bytes is not None:
-            target_status_path.write_bytes(source_status_bytes)
+            trusted_target_status_path.write_bytes(source_status_bytes)
     except OSError:
-        _restore_optional_bytes(target_events_path, original_events_bytes)
-        _restore_optional_bytes(target_status_path, original_status_bytes)
+        _restore_optional_bytes(trusted_target_events_path, original_events_bytes)
+        _restore_optional_bytes(trusted_target_status_path, original_status_bytes)
         raise
-    return target_events_path, target_status_path
+    return trusted_target_events_path, trusted_target_status_path
 
 
 def _already_baked(merge_state: MergeState | None) -> bool:

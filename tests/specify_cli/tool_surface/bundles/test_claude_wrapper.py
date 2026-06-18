@@ -64,9 +64,8 @@ class TestWriteWrappers:
         mode = os.stat(bash_path).st_mode
         # Must be executable by owner (user bit).
         assert mode & stat.S_IXUSR, "bash wrapper must be owner-executable"
-        # Must be executable by group and others too (755).
-        assert mode & stat.S_IXGRP, "bash wrapper must be group-executable"
-        assert mode & stat.S_IXOTH, "bash wrapper must be world-executable"
+        assert not (mode & stat.S_IRWXG), "bash wrapper must not grant group permissions"
+        assert not (mode & stat.S_IRWXO), "bash wrapper must not grant other permissions"
 
     def test_raises_on_empty_version(self, tmp_path: Path) -> None:
         with pytest.raises(ValueError, match="non-empty"):

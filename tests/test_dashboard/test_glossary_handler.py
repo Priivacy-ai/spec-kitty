@@ -448,6 +448,7 @@ class TestGlossaryPage:
         assert 'class="sidebar-item active" href="/glossary"' in body
         assert 'id="validation-banner"' in body
         assert "fetch('/api/glossary-health')" in body
+        assert '<label for="search" class="sr-only">Search glossary terms</label>' in body
         assert "prefers-color-scheme: dark" not in body
 
 

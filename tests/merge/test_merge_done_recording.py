@@ -854,6 +854,29 @@ def test_project_status_bookkeeping_rejects_wrong_primary_mission_surface(
         )
 
 
+def test_project_status_bookkeeping_rejects_tainted_status_file_symlink(
+    coord_branch_mission: dict,
+) -> None:
+    """Coord status reads must stay pinned to the exact two trusted filenames."""
+    repo_root = coord_branch_mission["repo_root"]
+    coord_specs = coord_branch_mission["coord_specs"]
+
+    outside = repo_root / "outside.json"
+    outside.write_text('{"WP01": "stolen"}\n', encoding="utf-8")
+    (coord_specs / "status.events.jsonl").write_text("new-done-event\n", encoding="utf-8")
+    status_path = coord_specs / "status.json"
+    if status_path.exists() or status_path.is_symlink():
+        status_path.unlink()
+    status_path.symlink_to(outside)
+
+    with pytest.raises(ValueError, match="symlinked status surface path"):
+        _project_status_bookkeeping_to_target(
+            main_repo=repo_root,
+            mission_slug=_COORD_SLUG,
+            status_feature_dir=coord_specs,
+        )
+
+
 def test_final_bookkeeping_rollback_restores_status_meta_and_state(tmp_path: Path) -> None:
     """Final bookkeeping rollback restores every mutable surface it snapshots."""
     coord_events = tmp_path / ".worktrees" / "m-coord" / "kitty-specs" / "m" / "status.events.jsonl"
