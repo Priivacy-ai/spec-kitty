@@ -45,6 +45,7 @@ __all__ = [
     "is_registered_coord_worktree",
     "is_under_worktrees_segment",
     "read_worktree_registry",
+    "resolve_declared_mid8",
     "resolve_status_surface",
     "resolve_status_surface_with_anchor",
 ]
@@ -360,8 +361,15 @@ class ResolvedStatusSurface:
         return self.surface_path.parent
 
 
-def _coord_mid8(meta: dict[str, object], mission_slug: str, repo_root: Path) -> str:
-    """Derive the coord-worktree mid8 from declared authority, or fail closed.
+def resolve_declared_mid8(meta: dict[str, object], mission_slug: str) -> str:
+    """Run the ONE sanctioned mid8 cascade; return ``""`` on exhaustion (no raise).
+
+    This is the single canonical mid8-derivation seam (NFR-005, #1868): both
+    :func:`_coord_mid8` and the orchestrator's ``_resolve_mission_dir`` consume it
+    instead of re-deriving the tier logic. The *raise-on-exhaustion* decision is
+    intentionally NOT made here — it belongs to each caller's topology gate (a
+    coord-declared topology fails closed; a legacy non-coord mission keeps its
+    primary-read path), so this helper returns ``""`` rather than raising.
 
     Cascade of declared sources (post-083 ``meta.json`` is authoritative):
 
@@ -372,16 +380,12 @@ def _coord_mid8(meta: dict[str, object], mission_slug: str, repo_root: Path) -> 
        identity.
     3. :func:`mid8_from_slug` — the seam's sanctioned best-effort heuristic, used
        ONLY as the final fallback once every *declared* source is exhausted. This
-       layer fires for a mission that declares ``coordination_branch`` but never
-       persisted ``mid8`` / ``mission_id``: the canonical ``<slug>-<mid8>``
-       directory/branch name embeds the real disambiguator, so the tail is the
-       legitimate coord-topology mid8.
+       layer fires for a mission whose canonical ``<slug>-<mid8>`` name embeds the
+       real disambiguator but never persisted ``mid8`` / ``mission_id`` (e.g. a
+       coord-only-with-tail topology).
 
-    When all three are exhausted the disambiguator is genuinely lost, and
-    composing a coord path would mis-route to a wrong-but-plausible surface. Per
-    the 3.x execution invariant ("raises rather than silently falling back on
-    unresolvable context"; F-001), this raises :class:`StatusReadPathNotFound`
-    instead of fabricating a mid8.
+    Returns:
+        The 8-char mid8 when any tier resolves it, else ``""``.
     """
     raw_mid8 = meta.get("mid8")
     if raw_mid8:
@@ -398,8 +402,24 @@ def _coord_mid8(meta: dict[str, object], mission_slug: str, repo_root: Path) -> 
     # ``<slug>-<mid8>`` name — the legitimate coord-topology mid8 for a mission
     # that declared a coordination_branch but never persisted mid8/mission_id.
     slug_mid8: str = mid8_from_slug(mission_slug)
-    if slug_mid8:
-        return slug_mid8
+    return slug_mid8
+
+
+def _coord_mid8(meta: dict[str, object], mission_slug: str, repo_root: Path) -> str:
+    """Derive the coord-worktree mid8 from declared authority, or fail closed.
+
+    Runs the single sanctioned cascade (:func:`resolve_declared_mid8`) and applies
+    THIS surface's own fail-closed contract: when every tier is exhausted the
+    disambiguator is genuinely lost, and composing a coord path would mis-route to
+    a wrong-but-plausible surface. Per the 3.x execution invariant ("raises rather
+    than silently falling back on unresolvable context"; F-001), this raises
+    :class:`StatusReadPathNotFound` instead of fabricating a mid8. (The
+    orchestrator's read path makes its OWN topology-gated decision — see
+    ``_resolve_mission_dir`` — so the raise lives here, not in the shared helper.)
+    """
+    mid8 = resolve_declared_mid8(meta, mission_slug)
+    if mid8:
+        return mid8
     # Cascade exhausted: no declared source carries the disambiguator. Fail
     # closed rather than fabricate a wrong-but-plausible mid8 (FR-005 / F-001).
     raise StatusReadPathNotFound(
