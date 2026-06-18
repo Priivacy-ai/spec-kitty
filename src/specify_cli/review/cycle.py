@@ -9,6 +9,7 @@ ReviewResult derivation.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
 import re
 import subprocess
@@ -23,7 +24,6 @@ from specify_cli.status import ReviewResult
 UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim"})
 
-_SEGMENT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _REVIEW_CYCLE_FILE_RE = re.compile(r"^review-cycle-(?P<cycle>[1-9][0-9]*)\.md$")
 
 
@@ -73,14 +73,16 @@ class CreatedRejectedReviewCycle:
 
 
 def _validate_segment(name: str, value: str) -> str:
-    candidate = value.strip()
-    if not candidate:
-        raise ReviewCycleError(f"{name} cannot be empty")
-    if candidate in {".", ".."} or "/" in candidate or "\\" in candidate:
-        raise ReviewCycleError(f"{name} must be a single safe path segment")
-    if not _SEGMENT_RE.fullmatch(candidate):
-        raise ReviewCycleError(f"{name} contains unsupported characters: {candidate!r}")
-    return candidate
+    """Return a single safe path segment or raise ReviewCycleError.
+
+    Delegates to the canonical ``assert_safe_path_segment`` (FR-001 / WP01) and
+    re-raises any ``ValueError`` as ``ReviewCycleError`` to preserve the call-site
+    contract (C-001: migrate, don't wrap — no parallel mechanism).
+    """
+    try:
+        return assert_safe_path_segment(value)
+    except ValueError as exc:
+        raise ReviewCycleError(f"{name} is not a safe path segment: {exc}") from exc
 
 
 def _resolve_git_common_dir(repo_root: Path) -> Path | None:

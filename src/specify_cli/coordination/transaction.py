@@ -19,11 +19,11 @@ C-013, NFR-001, NFR-008, NFR-010.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
+from specify_cli.core.paths import assert_safe_path_segment
 import errno
 import json as _json
 import logging
 import os
-import re
 import subprocess
 import sys
 import threading
@@ -147,7 +147,6 @@ class BookkeepingLegacyResolutionFailed(BookkeepingError):
 
 _EVENTS_FILENAME = "status.events.jsonl"
 _SNAPSHOT_FILENAME = "status.json"
-_SAFE_PATH_SEGMENT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
 def _mission_specs_dir_name(mission_slug: str, mid8: str) -> str:
@@ -166,19 +165,16 @@ def _mission_specs_dir_name(mission_slug: str, mid8: str) -> str:
 
 
 def _validate_safe_segment(name: str, value: str) -> str:
-    """Return a single safe path segment or raise a bookkeeping error."""
-    if not value:
-        raise BookkeepingError(f"{name} cannot be empty")
-    if value != value.strip():
-        raise BookkeepingError(f"{name} must not contain leading or trailing whitespace")
-    candidate = value
-    if candidate in {".", ".."} or "/" in candidate or "\\" in candidate:
-        raise BookkeepingError(f"{name} must be a single safe path segment")
-    if _SAFE_PATH_SEGMENT_RE.fullmatch(candidate) is None:
-        raise BookkeepingError(
-            f"{name} contains unsupported characters: {candidate!r}"
-        )
-    return candidate
+    """Return a single safe path segment or raise a bookkeeping error.
+
+    Delegates to the canonical ``assert_safe_path_segment`` (FR-001 / WP01) and
+    re-raises any ``ValueError`` as a ``BookkeepingError`` to preserve the call-site
+    contract (C-001: migrate, don't wrap — no parallel mechanism).
+    """
+    try:
+        return assert_safe_path_segment(value)
+    except ValueError as exc:
+        raise BookkeepingError(f"{name} is not a safe path segment: {exc}") from exc
 
 
 def _generate_ulid() -> str:
