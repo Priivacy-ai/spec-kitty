@@ -79,15 +79,21 @@ These are one time installations required to be able to test your changes locall
 1. Install [Git](https://git-scm.com/downloads)
 1. Have an [AI coding agent available](README.md#-supported-ai-agents)
 
-### Private Dependencies
+### Shared Dependencies
 
-Spec-kitty depends on two private libraries:
-- **[spec-kitty-events](https://github.com/Priivacy-ai/spec-kitty-events)** v3.0.0 - Event system and mission-next integration
-- **[spec-kitty-runtime](https://github.com/Priivacy-ai/spec-kitty-runtime)** v0.4.3 - Runtime execution engine
+Spec-kitty's shared libraries are published to PyPI and resolved automatically by
+`uv sync` — **no SSH access or special repository permissions are required for
+local development**:
 
-For CI/CD setup, see [SSH Deploy Keys documentation](docs/development/ssh-deploy-keys.md).
+- **[spec-kitty-events](https://pypi.org/project/spec-kitty-events/)** — event system and mission-next integration.
+- **[spec-kitty-tracker](https://pypi.org/project/spec-kitty-tracker/)** — tracker consumer surface.
 
-For local development, ensure you have SSH access to the repository.
+Compatibility ranges are declared in `pyproject.toml`; exact pinned versions live
+in `uv.lock`.
+
+`spec-kitty-runtime` is no longer a dependency: the CLI's runtime surface is
+internalized under `src/runtime/next/`, and its absence is enforced by
+`tests/architectural/test_pyproject_shape.py`.
 
 ## Running Tests
 
