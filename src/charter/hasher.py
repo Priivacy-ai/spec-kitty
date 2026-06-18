@@ -20,9 +20,24 @@ def hash_content(content: str) -> str:
 
     Returns:
         Hash string in format "sha256:hexdigest"
+
+    Normalization (FR-009 / C2-e): a leading BOM is dropped and line endings
+    are canonicalised to ``\\n`` before hashing, so the staleness decision is
+    BOM- and newline-agnostic. The two charter read surfaces normalise content
+    DIFFERENTLY — ``charter sync`` reads via the encoding chokepoint
+    (``read_bytes().decode()``, which strips the BOM and preserves ``\\r\\n``)
+    while ``charter status`` / the freshness computer read via ``read_text``
+    (which keeps the BOM as ``\\ufeff`` but collapses ``\\r\\n`` to ``\\n`` via
+    universal-newline translation). Without this normalization a CRLF/BOM
+    charter produces divergent hashes, so ``sync`` reports ``noop`` while
+    ``status``/freshness report ``stale`` (the C2-e "noop-despite-stale"
+    drift). Canonicalising here is the single ``hash_content`` seam every
+    surface routes through, so they agree regardless of how they decoded.
     """
-    # Normalize whitespace (strip trailing newlines)
-    normalized = content.strip()
+    # Drop a leading BOM (``read_text`` keeps it, the chokepoint strips it),
+    # normalize line endings (CRLF/CR -> LF), then strip outer whitespace so the
+    # hash is stable across the two divergent decoding read surfaces.
+    normalized = content.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n").strip()
     digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
     return f"sha256:{digest}"
 

@@ -8,10 +8,13 @@ Covers each documented sub-state:
   bundle/DRG files are older than their upstream change.
 * ``missing`` — when the synthesized DRG file is absent and the manifest
   does not opt into ``built_in_only=true``.
-* ``built_in_only`` — when the manifest declares ``built_in_only: true``
-  and no live ``graph.yaml`` exists.
-* ``invalid`` — the architect-resolved conflict state: manifest declares
-  ``built_in_only=true`` AND ``graph.yaml`` is present.
+* ``built_in_only`` — when the manifest declares ``built_in_only: true``.
+  A residual ``graph.yaml`` the manifest disowns is *stale graph residue*
+  (FR-006 / C2-f): still ``built_in_only`` + a non-blocking diagnostic, never
+  the formerly-terminal ``invalid`` state.
+* ``invalid`` — a genuine inconsistency from ``_compute_charter_source``:
+  ``charter.md`` exists but cannot be hashed. (No ``synthesized_drg`` producer
+  returns ``invalid`` after FR-006.)
 """
 
 from __future__ import annotations
@@ -235,22 +238,27 @@ def test_synthesized_drg_built_in_only_for_legacy_fresh_seed(tmp_path: Path) -> 
     assert result.synthesized_drg.remediation is None
 
 
-def test_synthesized_drg_invalid_on_conflict_state(tmp_path: Path) -> None:
-    """T013 / data-model §6 conflict-resolution case."""
+def test_synthesized_drg_residue_reports_built_in_only(tmp_path: Path) -> None:
+    """FR-006 (C2-f): built_in_only=true ∧ graph.yaml present is read-time residue.
+
+    The manifest is the declared authority (#083): a graph.yaml it disowns is
+    residue, NOT a contradiction. The reader reports the authoritative
+    ``built_in_only`` state with a non-blocking diagnostic instead of the
+    formerly-terminal ``invalid`` state — making the blocking branch
+    unreachable for this condition (structural, not reactive).
+    """
     charter_path, metadata_path = _seed_charter(tmp_path)
     _write_metadata(metadata_path, charter_path)
     _seed_bundle_files(tmp_path)
     _seed_manifest(tmp_path, built_in_only=True)
-    _seed_graph(tmp_path)  # conflict: built_in_only=true AND graph.yaml exists
+    _seed_graph(tmp_path)  # residue: built_in_only=true AND graph.yaml present
     result = compute_freshness(tmp_path)
-    assert result.synthesized_drg.state == "invalid"
+    assert result.synthesized_drg.state == "built_in_only"
+    assert result.synthesized_drg.state != "invalid"
     assert result.synthesized_drg.detail is not None
-    assert "stale artifact" in result.synthesized_drg.detail
-    # #1717 Fix B: the remediation must be a real, runnable command. The prior
-    # `--force-overwrite` flag does not exist on `charter synthesize`; plain
-    # `charter synthesize` self-heals (Fix A unlinks the stale graph.yaml).
-    assert result.synthesized_drg.remediation == "spec-kitty charter synthesize"
-    assert "--force-overwrite" not in (result.synthesized_drg.remediation or "")
+    assert "stale graph residue" in result.synthesized_drg.detail
+    # Read-time normalization is NOT a reactive self-heal: no synthesize push.
+    assert result.synthesized_drg.remediation is None
 
 
 def test_synthesized_drg_fresh_when_graph_followed_bundle(tmp_path: Path) -> None:
@@ -307,11 +315,14 @@ def test_states_are_among_documented_vocabulary(scenario: str, tmp_path: Path) -
         assert result.synthesized_drg.state == "built_in_only"
         return
     if scenario == "invalid":
+        # FR-006 re-pointed this vocabulary smoke-entry: the only ``invalid``
+        # producer is now ``_compute_charter_source`` ("charter.md exists but
+        # cannot be hashed"), a genuine inconsistency — NOT the downgraded
+        # built_in_only ∧ graph residue case.
         _write_metadata(metadata_path, charter_path)
-        _seed_bundle_files(tmp_path)
-        _seed_manifest(tmp_path, built_in_only=True)
-        _seed_graph(tmp_path)
+        charter_path.unlink()
+        charter_path.mkdir()  # a directory where a file is expected → unhashable
         result = compute_freshness(tmp_path)
-        assert result.synthesized_drg.state == "invalid"
+        assert result.charter_source.state == "invalid"
         return
     pytest.fail(f"Unhandled scenario {scenario!r}")
