@@ -9,14 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.2.1] - 2026-06-16
+## [3.2.1] - 2026-06-18
+
+Patch release stabilizing the scaffolds around the functionality introduced in 3.2.0. Remediates
+blocking issues witnessed after 3.2.0; not every discovered issue is remediated here, and further
+patch releases are expected in quick succession.
 
 ### 🐛 Fixed
 
-- **Security follow-up for SonarCloud + Dependabot:** re-exported the charter package helper named in `__all__`,
-  hardened merge bookkeeping projection so status-surface paths cannot resolve outside trusted repo roots, and
-  refreshed locked crypto/tooling dependencies to patched releases (`cryptography 49.0.0`, `pip 26.1.2`) so the
-  security gates stay clean.
+- **Orchestrator coord-read of coord-only missions (#2016):** `orchestrator_api` now resolves a mission that
+  exists only as a coordination worktree (no primary `meta.json`) by adopting the canonical mid8 cascade
+  (`meta.mid8` → declared `mission_id` → `<slug>-<mid8>` tail) instead of a strict-only reimplementation that
+  returned `None`. Legacy non-coord missions keep their primary-read path; genuinely unresolvable handles still
+  fail closed.
+- **Charter status/sync/preflight coherence (#2009, epic #2007/C2):** `charter status --json` no longer crashes on
+  a non-JSON-safe `datetime` in the bundle metadata; the DRG "`built_in_only` + stale `graph.yaml` residue" state
+  is now a non-blocking read-time diagnostic instead of a preflight-blocking `invalid`; and a BOM/CRLF hash
+  divergence between `sync` and `status`/freshness (which produced a `noop`-despite-stale `charter sync`) is fixed
+  by canonicalizing line endings/BOM in the single `charter.hasher.hash_content` seam. Regression tests pin the
+  already-landed status side-effect-free and hash-unification fixes.
+- **Green the architectural CI gate (#2025):** corrected pytest markers on a subprocess/git test, removed a
+  mission-diff-scoped test that did not belong on `main`, and made the architectural ratchet composite keys
+  interpreter-stable (Python 3.11 ↔ 3.12 f-string tokenization), re-greening the `tests/architectural/**` shard
+  that went red when 3.2.0's gate-un-mask first ran on `main`.
+
+### 🔧 Changed
+
+- **merge.py decomposition, slice 1 (#2027, epic #2026):** extracted the `baseline_merge_commit` record/verify
+  cluster from the oversized `cli/commands/merge.py` into a dedicated `specify_cli/merge/baseline.py`,
+  behavior-preserving with back-compat re-exports (public + legacy private names).
+- **Charter constant single-sourced:** the `_GRAPH_FILENAME` value, previously duplicated across three modules,
+  now resolves from one leaf `charter.synthesizer._constants`.
+
+### 🐛 Fixed (security follow-up)
+
+- **SonarCloud + Dependabot:** re-exported the charter package helper named in `__all__`, hardened merge
+  bookkeeping projection so status-surface paths cannot resolve outside trusted repo roots, and refreshed locked
+  crypto/tooling dependencies to patched releases (`cryptography 49.0.0`, `pip 26.1.2`) so the security gates stay
+  clean.
 
 ## [3.2.0] - 2026-06-16
 
