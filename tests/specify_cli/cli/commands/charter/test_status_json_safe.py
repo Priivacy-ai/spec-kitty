@@ -120,6 +120,44 @@ def _invoke_status_json(repo_root: Path) -> object:
 
 
 # ---------------------------------------------------------------------------
+# _normalize_last_sync unit branches (diff-coverage gap closeout — #2028)
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizeLastSync:
+    """Direct unit coverage of ``_normalize_last_sync`` branches."""
+
+    def test_none_passes_through(self) -> None:
+        """``None`` returns ``None`` unchanged (the ``value is None`` branch)."""
+        from specify_cli.cli.commands.charter._status_collectors import (
+            _normalize_last_sync,
+        )
+
+        assert _normalize_last_sync(None) is None
+
+    def test_datetime_coerced_to_iso_string(self) -> None:
+        """A ``datetime`` is coerced to its ISO 8601 string form."""
+        from datetime import UTC, datetime
+
+        from specify_cli.cli.commands.charter._status_collectors import (
+            _normalize_last_sync,
+        )
+
+        value = datetime(2026, 6, 15, 12, 30, 45, tzinfo=UTC)
+        assert _normalize_last_sync(value) == value.isoformat()
+
+    def test_string_passes_through_as_str(self) -> None:
+        """An already-string timestamp passes through via ``str(value)``."""
+        from specify_cli.cli.commands.charter._status_collectors import (
+            _normalize_last_sync,
+        )
+
+        assert _normalize_last_sync("2026-06-15T12:30:45+00:00") == (
+            "2026-06-15T12:30:45+00:00"
+        )
+
+
+# ---------------------------------------------------------------------------
 # T020 + T021 — datetime serialization
 # ---------------------------------------------------------------------------
 

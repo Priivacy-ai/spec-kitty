@@ -10,7 +10,9 @@ it touches ONLY ``graph.yaml`` (never sibling artifacts).
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
+from textwrap import dedent
 
 import pytest
 
@@ -70,3 +72,74 @@ def test_reuses_canonical_graph_filename() -> None:
     Guards against a third copy of the ``graph.yaml`` literal being minted.
     """
     assert _GRAPH_FILENAME == "graph.yaml"
+
+
+# ---------------------------------------------------------------------------
+# apply_post_condition unlink path (diff-coverage gap closeout — #2028)
+#
+# Fast-suite coverage of the ``project_drg.apply_post_condition`` graph-residue
+# unlink branch (the ``if desired_built_in_only: unlink_stale_project_graph(...)``
+# sequence). The same path is exercised by the integration suite, but that suite
+# does not run in the diff-coverage gate; this topology-true fast test closes the
+# gap directly.
+# ---------------------------------------------------------------------------
+
+
+def _seed_manifest(repo: Path, *, built_in_only: bool) -> Path:
+    """Write a topology-true synthesis manifest with a valid self-hash."""
+    from charter.synthesizer.synthesize_pipeline import canonical_yaml
+
+    manifest_path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_data = {
+        "schema_version": "2",
+        "mission_id": None,
+        "created_at": "2099-01-01T00:00:00+00:00",
+        "run_id": "01JTESTRUNIDXXXXXXXXXXXXXX",
+        "adapter_id": "test",
+        "adapter_version": "0.0.0",
+        "synthesizer_version": "0.0.0",
+        "artifacts": [],
+        "built_in_only": built_in_only,
+    }
+    manifest_hash = hashlib.sha256(canonical_yaml(manifest_data)).hexdigest()  # noqa: TID251 — synthesizer manifest self-hash, not charter.hasher freshness
+    manifest_path.write_text(
+        dedent(
+            f"""\
+            schema_version: '2'
+            mission_id: null
+            created_at: '2099-01-01T00:00:00+00:00'
+            run_id: 01JTESTRUNIDXXXXXXXXXXXXXX
+            adapter_id: test
+            adapter_version: '0.0.0'
+            synthesizer_version: '0.0.0'
+            manifest_hash: {manifest_hash}
+            artifacts: []
+            built_in_only: {str(built_in_only).lower()}
+            """
+        ),
+        encoding="utf-8",
+    )
+    return manifest_path
+
+
+def test_apply_post_condition_unlinks_present_graph(tmp_path: Path) -> None:
+    """``apply_post_condition(has_project_graph=False)`` routes through the
+    shared unlink helper to remove a present ``graph.yaml`` and flips the
+    manifest to ``built_in_only=true``."""
+    from charter.synthesizer.project_drg import apply_post_condition
+
+    manifest_path = _seed_manifest(tmp_path, built_in_only=False)
+    graph_path = tmp_path / ".kittify" / "doctrine" / _GRAPH_FILENAME
+    graph_path.parent.mkdir(parents=True, exist_ok=True)
+    graph_path.write_text(
+        "schema_version: '1.0'\nnodes: []\nedges: []\n", encoding="utf-8"
+    )
+
+    apply_post_condition(tmp_path, has_project_graph=False)
+
+    assert not graph_path.exists(), "stale graph.yaml must be unlinked"
+    from ruamel.yaml import YAML
+
+    data = YAML(typ="safe").load(manifest_path.read_text(encoding="utf-8")) or {}
+    assert data["built_in_only"] is True
