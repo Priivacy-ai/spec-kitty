@@ -1,0 +1,30 @@
+{
+  "accept_commit": "7c0f9981dc9b44e0fc37301239a917c4591f14fb",
+  "acceptance_history": [
+    {
+      "accept_commit": "7c0f9981dc9b44e0fc37301239a917c4591f14fb",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-18T06:59:14.207872+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "24a6ff6d61b6d7be493ffbf52686ac6b03845519"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-18T06:59:14.207872+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "24a6ff6d61b6d7be493ffbf52686ac6b03845519",
+  "baseline_merge_commit": "fa091791cf4a7189057a5609a3b40a718436525f",
+  "created_at": "2026-06-18T04:44:43.221522+00:00",
+  "friendly_name": "Governed-State-Surface Coherence",
+  "mission_id": "01KVCGQCTNN5K5YD2YEZ8F2DA6",
+  "mission_number": null,
+  "mission_slug": "governed-state-surface-coherence-01KVCGQC",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Several subsystems re-implement 'resolve the mission identity' and 'is this state fresh' logic divergently, causing wrong-surface reads (coord-only missions resolve to nothing) and blocking false-positives (charter freshness flags recoverable residue as a hard error). This mission binds each surface to its existing canonical authority, extracts one cohesive merge-baseline unit out of an oversized command module, and repairs the architectural test gate that went red the moment a prior mission un-masked it.",
+  "purpose_tldr": "Make three governed-state surfaces (mission identity, charter freshness, merge baseline) read from one canonical seam instead of re-deriving by hand, and restore a green architectural CI gate.",
+  "slug": "governed-state-surface-coherence-01KVCGQC",
+  "target_branch": "feat/governed-state-surface-coherence",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-18T05:49:54.639551+00:00"
+}

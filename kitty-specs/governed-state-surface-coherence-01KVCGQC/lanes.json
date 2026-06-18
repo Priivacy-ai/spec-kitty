@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "mission_slug": "governed-state-surface-coherence-01KVCGQC",
+  "mission_id": "01KVCGQCTNN5K5YD2YEZ8F2DA6",
+  "mission_branch": "kitty/mission-governed-state-surface-coherence-01KVCGQC",
+  "target_branch": "feat/governed-state-surface-coherence",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/test_no_worktree_name_guess.py",
+        "tests/specify_cli/missions/test_read_path_resolver_validation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/surface_resolver.py",
+        "src/specify_cli/orchestrator_api/commands.py",
+        "tests/specify_cli/regression/test_issue_1615_1616_1617_1618.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/_status_collectors.py",
+        "src/specify_cli/cli/commands/charter/status.py",
+        "tests/specify_cli/cli/commands/charter/test_status_json_safe.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/charter/hasher.py",
+        "src/charter/synthesizer/graph_residue.py",
+        "src/charter/synthesizer/project_drg.py",
+        "src/specify_cli/charter_runtime/freshness/computer.py",
+        "src/specify_cli/cli/commands/charter/_fresh_doctrine.py",
+        "tests/specify_cli/charter/test_freshness_hash_unification.py",
+        "tests/specify_cli/charter/test_graph_unlink_helper.py",
+        "tests/specify_cli/charter_freshness/test_computer.py",
+        "tests/specify_cli/charter_runtime/test_freshness_residue.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/merge.py",
+        "src/specify_cli/merge/__init__.py",
+        "src/specify_cli/merge/baseline.py",
+        "tests/specify_cli/merge/test_baseline_module.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-06-18T05:35:42.700813+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

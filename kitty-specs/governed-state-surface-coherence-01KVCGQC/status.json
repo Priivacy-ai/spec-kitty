@@ -1,0 +1,56 @@
+{
+  "event_count": 35,
+  "last_event_id": "01KVCRGWGY421DW32BE7YZ9M8Y",
+  "materialized_at": "2026-06-18T07:00:58.526039+00:00",
+  "mission_number": "",
+  "mission_slug": "governed-state-surface-coherence-01KVCGQC",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KVCRGTKAPNN3KSANXT5GQM4X",
+      "last_transition_at": "2026-06-18T07:00:56.554539+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KVCRGV49MN7HHSJEV3BZX1GV",
+      "last_transition_at": "2026-06-18T07:00:57.097589+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KVCRGVK0851W5HXG64G7ANEH",
+      "last_transition_at": "2026-06-18T07:00:57.568294+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KVCRGW1J8WRG2KGQZ5GTPEJH",
+      "last_transition_at": "2026-06-18T07:00:58.034380+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KVCRGWGY421DW32BE7YZ9M8Y",
+      "last_transition_at": "2026-06-18T07:00:58.526039+00:00"
+    }
+  }
+}
