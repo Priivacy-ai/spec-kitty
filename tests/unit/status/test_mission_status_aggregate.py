@@ -1057,7 +1057,9 @@ class TestMissionSlugAllowlistGuard:
         [
             "feature/with-slash",
             "feature with space",
-            "feature.with.dot",
+            # "feature.with.dot" is intentionally accepted by the canonical
+            # assert_safe_path_segment (interior dots are allowed per WP01
+            # grammar decision — D-1 interior-dot reconciliation).
             "feature$injection",
             "..",
             "",

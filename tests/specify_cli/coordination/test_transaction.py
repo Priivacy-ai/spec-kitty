@@ -307,7 +307,7 @@ def test_destination_ref_refs_heads_prefix_refused(repo: Path) -> None:
 
 def test_mission_slug_path_traversal_is_rejected(repo: Path) -> None:
     """User-controlled mission selectors must not escape kitty-specs/."""
-    with pytest.raises(BookkeepingError, match="single safe path segment"):
+    with pytest.raises(BookkeepingError, match="safe path segment"):
         BookkeepingTransaction.acquire(
             repo_root=repo,
             mission_id=MISSION_ID,
@@ -332,7 +332,7 @@ def test_whitespace_bearing_selectors_are_rejected(
 ) -> None:
     with pytest.raises(
         BookkeepingError,
-        match=rf"{field_name} must not contain leading or trailing whitespace",
+        match=rf"{field_name} is not a safe path segment",
     ):
         BookkeepingTransaction.acquire(
             repo_root=repo,
@@ -345,7 +345,7 @@ def test_whitespace_bearing_selectors_are_rejected(
 
 
 def test_legacy_warning_marker_confines_mission_id(repo: Path) -> None:
-    with pytest.raises(BookkeepingError, match="mission_id must be a single safe path segment"):
+    with pytest.raises(BookkeepingError, match="mission_id is not a safe path segment"):
         transaction_module._legacy_warning_marker_path(repo, "../escape")
 
 

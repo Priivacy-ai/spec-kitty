@@ -25,12 +25,12 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.paths import assert_safe_path_segment
 
 # Legacy sentinel emitted by older transactional readers; not a Lane enum value.
 # Canonical definition lives in lane_reader (the canonical read surface); imported
@@ -45,13 +45,6 @@ if TYPE_CHECKING:
 
 _logger = logging.getLogger(__name__)
 
-# FR-007 / DIRECTIVE_010: mission slugs are ASCII identifier-safe handles used to
-# compose filesystem paths, git refs, and worktree names. Anything outside this
-# allowlist is rejected at the aggregate boundary before it can reach those
-# surfaces. ``re.ASCII`` keeps ``\w`` semantics ASCII-only, but the pattern is
-# already explicit, so the flag is belt-and-suspenders alongside the
-# ``.isascii()`` guard.
-_MISSION_SLUG_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$", re.ASCII)
 
 def _enrich_transition_request(
     request: TransitionRequest,  # noqa: F821
@@ -122,18 +115,22 @@ class MissionMetadataUnavailable(RuntimeError):
 
 
 class InvalidMissionSlug(ValueError):
-    """Raised when a ``mission_slug`` violates the ASCII identifier allowlist.
+    """Raised when a ``mission_slug`` is not a safe path segment.
 
     Mission slugs feed filesystem paths, git refs, and worktree names, so they
-    must match ``^[A-Za-z0-9_-]+$`` and be pure ASCII (FR-007, DIRECTIVE_010).
-    The offending slug is carried so callers can surface a precise diagnostic.
+    must be a single safe path segment per the canonical
+    :func:`specify_cli.core.paths.assert_safe_path_segment` grammar — pure ASCII,
+    no path separators, no ``..`` traversal, no leading dot (FR-007,
+    DIRECTIVE_010). The offending slug is carried so callers can surface a
+    precise diagnostic.
     """
 
     def __init__(self, mission_slug: str) -> None:
         self.mission_slug = mission_slug
         super().__init__(
-            f"Invalid mission slug {mission_slug!r}: mission slugs must match "
-            r"'^[A-Za-z0-9_-]+$' and contain ASCII characters only."
+            f"Invalid mission slug {mission_slug!r}: mission slugs must be a "
+            "single safe path segment (ASCII, no path separators, no '..', no "
+            "leading dot)."
         )
 
 
@@ -222,8 +219,9 @@ class MissionStatus:
                 lacks the mission directory.
             MissionMetadataUnavailable: When ``meta.json`` exists but cannot
                 be parsed as a trusted object.
-            InvalidMissionSlug: When ``mission_slug`` is empty, non-ASCII, or
-                contains characters outside ``^[A-Za-z0-9_-]+$`` (FR-007).
+            InvalidMissionSlug: When ``mission_slug`` is not a safe path segment
+                per ``assert_safe_path_segment`` (empty, non-ASCII, separators,
+                ``..`` traversal, or leading dot) (FR-007).
         """
         # 0. Guard the slug at the boundary (FR-007 / DIRECTIVE_010) before it
         #    is used to compose paths, git refs, or worktree names.
@@ -347,12 +345,18 @@ class MissionStatus:
     def _validate_mission_slug(mission_slug: str) -> None:
         """Reject mission slugs outside the ASCII identifier allowlist (FR-007).
 
+        Delegates to the canonical ``assert_safe_path_segment`` (FR-001 / WP01) and
+        re-raises any ``ValueError`` as ``InvalidMissionSlug`` to preserve the
+        call-site contract (C-001: migrate, don't wrap — no parallel mechanism).
+
         Raises:
-            InvalidMissionSlug: When the slug is non-ASCII or does not match
-                ``^[A-Za-z0-9_-]+$``.
+            InvalidMissionSlug: When the slug is empty, non-ASCII, or contains
+                characters outside the safe-segment grammar.
         """
-        if not mission_slug.isascii() or _MISSION_SLUG_PATTERN.match(mission_slug) is None:
-            raise InvalidMissionSlug(mission_slug)
+        try:
+            assert_safe_path_segment(mission_slug)
+        except ValueError as exc:
+            raise InvalidMissionSlug(mission_slug) from exc
 
     @staticmethod
     def _read_meta(
