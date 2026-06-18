@@ -6,6 +6,7 @@ serialises to JSON or renders to the console. Kept in their own module so
 """
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,26 @@ from specify_cli.cli.commands.charter._common import (
     _resolve_charter_path,
 )
 from specify_cli.cli.commands.charter._synthesis import _collect_evidence_result
+
+
+def _normalize_last_sync(value: Any) -> str | None:
+    """Coerce a metadata timestamp to a JSON-safe ISO string (FR-005).
+
+    ``YAML(typ="safe")`` parses an *unquoted* ISO timestamp in ``metadata.yaml``
+    to a ``datetime``/``date`` object, which is not JSON-serializable and
+    crashed ``charter status --json`` (``Object of type datetime is not JSON
+    serializable``). Normalize to an ISO 8601 string at the collector boundary
+    so the payload carries a stable string-typed ``last_sync`` contract.
+
+    ``datetime`` is a subclass of ``date``, so the single ``isinstance`` check
+    covers both. Already-string (quoted) timestamps and ``None`` pass through
+    unchanged.
+    """
+    if value is None:
+        return None
+    if isinstance(value, date):  # covers datetime (date subclass) and date
+        return value.isoformat()
+    return str(value)
 
 
 def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
@@ -73,8 +94,8 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
             yaml = YAML(typ="safe")
             metadata = yaml.load(metadata_path.read_text(encoding="utf-8")) or {}
             if isinstance(metadata, dict):
-                last_sync = metadata.get("timestamp_utc") or metadata.get(
-                    "extracted_at"
+                last_sync = _normalize_last_sync(
+                    metadata.get("timestamp_utc") or metadata.get("extracted_at")
                 )
 
         return {
