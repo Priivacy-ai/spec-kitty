@@ -32,6 +32,7 @@ from contextlib import suppress
 from datetime import datetime, UTC
 from pathlib import Path
 from dataclasses import dataclass
+from typing import NoReturn
 
 import typer
 
@@ -218,8 +219,13 @@ def _emit(envelope: dict) -> None:
     print(json.dumps(envelope))
 
 
-def _fail(command: str, error_code: str, message: str, data: dict | None = None) -> None:
-    """Print failure envelope and exit non-zero."""
+def _fail(command: str, error_code: str, message: str, data: dict | None = None) -> NoReturn:
+    """Print failure envelope and exit non-zero.
+
+    Typed ``NoReturn`` (FR-004 / S5747): this always raises ``typer.Exit``, so
+    mypy proves any code after a ``_fail(...)`` call is unreachable — callers
+    need no sentinel ``raise`` to satisfy their return type.
+    """
     envelope = make_envelope(
         command=command,
         success=False,
@@ -242,8 +248,10 @@ def _get_main_repo_root() -> Path:
     return root
 
 
-def _read_primary_meta(main_repo_root: Path, mission_slug: str) -> tuple[str | None, bool]:
-    """Return ``(mission_id, declares_coordination)`` from the primary mission meta.
+def _read_primary_meta(
+    main_repo_root: Path, mission_slug: str
+) -> tuple[dict[str, object], bool]:
+    """Return ``(primary_meta, declares_coordination)`` from the primary mission meta.
 
     The primitive pattern shared with ``cli/commands/decision.py`` and
     ``agent/context.py``: ``meta.json`` lives on the **primary checkout** (the
@@ -253,10 +261,14 @@ def _read_primary_meta(main_repo_root: Path, mission_slug: str) -> tuple[str | N
     :func:`primary_feature_dir_for_mission` path primitive (it owns
     ``KITTY_SPECS_DIR`` assembly — ``test_no_raw_mission_spec_paths``).
 
-    ``mission_id`` is ``None`` when no primary meta exists or it carries no
-    string ``mission_id`` (legacy mission, or a coord-only topology whose meta
-    is not on this surface). Callers MUST treat ``None`` as "identity unproven"
-    and fail closed rather than seeding an empty identity (FR-011 / M3).
+    The returned ``primary_meta`` is the raw meta dict (empty when no primary
+    meta exists — legacy mission, or a coord-only topology whose meta is not on
+    this surface). It is fed verbatim to the shared
+    :func:`resolve_declared_mid8` cascade, which treats an absent
+    ``mid8`` / ``mission_id`` as "identity unproven" and DECLINES (returns
+    ``""``) rather than seeding an empty identity (FR-011 / M3). The caller's
+    ``declares_coordination`` topology gate then decides fail-closed vs.
+    primary-read.
     """
     from specify_cli.mission_metadata import load_meta
     from specify_cli.missions._read_path_resolver import (
@@ -265,11 +277,9 @@ def _read_primary_meta(main_repo_root: Path, mission_slug: str) -> tuple[str | N
 
     primary_dir = primary_feature_dir_for_mission(main_repo_root, mission_slug)
     meta = load_meta(primary_dir) or {}
-    raw_id = meta.get("mission_id")
-    mission_id = raw_id if isinstance(raw_id, str) and raw_id else None
     branch = meta.get("coordination_branch")
     declares_coordination = isinstance(branch, str) and bool(branch.strip())
-    return mission_id, declares_coordination
+    return meta, declares_coordination
 
 
 def _resolve_mission_dir(main_repo_root: Path, mission_slug: str) -> Path | None:
@@ -279,44 +289,50 @@ def _resolve_mission_dir(main_repo_root: Path, mission_slug: str) -> Path | None
     worktree path. For legacy missions, returns the primary checkout path.
     Falls back to ``None`` only when the mission genuinely does not exist.
 
-    Read-path SAFETY (FR-011 / M3): the real ``mission_id`` is read from primary
-    ``meta.json`` and threaded into :func:`resolve_mid8` so the coord-aware
-    ``bool(mid8)`` fail-closed guard in ``_read_path_resolver`` evaluates. A
-    *prior* version seeded ``resolve_mid8(slug, mission_id=None)`` → an empty
-    ``mid8``, which SUPPRESSED that guard: on a coord topology with a stale
-    primary surface the orchestrator silently returned the stale primary view.
-    That seed was rationalized in a now-deleted comment as "byte-identical /
-    safe" — it was NOT: the empty-mid8 gate (``and bool(mid8)``) never
-    re-derives mid8, it simply evaluates ``False`` and skips the guard, so
-    external automation read stale status. Reading the declared identity here is
-    what restores the fail-closed behaviour every other reader has.
+    Read-path SAFETY (FR-011 / M3, #2016): mid8 is derived via the ONE sanctioned
+    cascade :func:`resolve_declared_mid8` (NFR-005) — ``meta.mid8`` →
+    ``resolve_mid8(meta.mission_id)`` → ``mid8_from_slug(slug)``. The prior version
+    reimplemented only the strict tier-2 ``resolve_mid8(slug, mission_id)`` keyed
+    on primary meta, which DECLINES (empty mid8) for a **coord-only-with-tail**
+    mission (``mission_id=None`` on this surface) → empty read-path → ``None``,
+    even though the canonical ``<slug>-<mid8>`` tail carries the real
+    disambiguator. The shared cascade's tier-3 ``mid8_from_slug`` recovers it, so
+    the coord path composes and returns. An *earlier* version before that seeded
+    ``resolve_mid8(slug, mission_id=None)`` → empty mid8, which SUPPRESSED the
+    coord-aware ``bool(mid8)`` guard and silently returned a stale primary view;
+    the ``declares_coordination``-gated raise below preserves that fail-closed
+    fix.
+
+    The shared helper returns ``""`` on exhaustion (it does NOT raise — the raise
+    decision is this caller's topology gate): a coord-declared topology with an
+    unresolvable mid8 fails closed (M5); a legacy non-coord mission (no tail, no
+    id) keeps its primary-read path unchanged.
 
     Typed-error fidelity (FR-001 / M2): :class:`StatusReadPathNotFound` is NOT
     caught here — it propagates so the calling endpoint surfaces the resolver's
     typed ``error_code`` (+ ``coord_candidate`` / ``primary_candidate``) instead
     of flattening every miss to ``MISSION_NOT_FOUND``.
     """
+    from specify_cli.coordination.surface_resolver import resolve_declared_mid8
     from specify_cli.missions._read_path_resolver import (
         StatusReadPathNotFound,
         primary_feature_dir_for_mission,
         resolve_mission_read_path,
     )
-    from specify_cli.lanes.branch_naming import resolve_mid8
 
-    # Authoritative resolve (#1918, FR-004 / FR-011): derive mid8 from the
-    # DECLARED identity, not an empty seed. A non-empty mid8 arms the coord-aware
-    # fail-closed guard; an empty one suppresses it (the M3 defect).
-    mission_id, declares_coordination = _read_primary_meta(main_repo_root, mission_slug)
-    mid8 = resolve_mid8(mission_slug, mission_id=mission_id)
+    # ONE sanctioned mid8 cascade (#2016, NFR-005): meta.mid8 →
+    # resolve_mid8(meta.mission_id) → mid8_from_slug(slug). Returns "" on
+    # exhaustion (no raise); the raise decision is this caller's topology gate.
+    primary_meta, declares_coordination = _read_primary_meta(main_repo_root, mission_slug)
+    mid8 = resolve_declared_mid8(primary_meta, mission_slug)
 
     # M5 caveat — fail closed, do NOT silently seed empty: a coord topology whose
     # primary declares ``coordination_branch`` while we CANNOT prove identity
-    # (no ``mission_id`` on this surface / no provable embedded tail → empty
+    # (no ``mid8`` / ``mission_id`` on this surface AND no canonical tail → empty
     # mid8) cannot be addressed against the coord worktree. Reading primary would
-    # expose stale status — the very gap the empty-mid8 seed re-opened. Refuse
-    # with the typed read-path error rather than fall back to the suppressed
-    # guard. (Legacy missions never declare ``coordination_branch``, so they keep
-    # the primary-read path unchanged.)
+    # expose stale status. Refuse with the typed read-path error rather than fall
+    # back to the suppressed guard. (Legacy missions never declare
+    # ``coordination_branch``, so they keep the primary-read path unchanged.)
     if not mid8 and declares_coordination:
         primary_candidate = primary_feature_dir_for_mission(main_repo_root, mission_slug)
         raise StatusReadPathNotFound(
@@ -344,8 +360,9 @@ def _resolve_mission_dir_or_fail(command: str, main_repo_root: Path, mission_slu
     * a genuine absence (no such mission, no coord topology) keeps the historical
       ``MISSION_NOT_FOUND`` envelope.
 
-    ``_fail`` raises ``typer.Exit``; the trailing ``raise`` is unreachable but keeps
-    the return type ``Path`` (mypy) without a sentinel.
+    ``_fail`` is typed ``NoReturn`` (always raises ``typer.Exit``), so mypy proves
+    the post-call paths unreachable — no sentinel ``raise`` is needed to satisfy
+    the ``Path`` return type.
     """
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
@@ -364,10 +381,8 @@ def _resolve_mission_dir_or_fail(command: str, main_repo_root: Path, mission_slu
                 "primary_candidate": str(exc.primary_candidate),
             },
         )
-        raise  # unreachable: _fail exits
     if mission_dir is None:
         _fail(command, "MISSION_NOT_FOUND", _MISSION_NOT_FOUND_MESSAGE.format(mission=mission_slug))
-        raise  # unreachable: _fail exits
     return mission_dir
 
 

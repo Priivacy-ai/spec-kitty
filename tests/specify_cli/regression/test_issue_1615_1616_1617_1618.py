@@ -16,6 +16,7 @@ Each test documents a specific bug and proves the fix:
 """
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 import pytest
@@ -148,24 +149,65 @@ class TestIssue1615ImplementCoordRead:
 # ---------------------------------------------------------------------------
 
 class TestIssue1616OrchestratorApiCoordRead:
-    """#1616: _resolve_mission_dir must return coord path, not always primary."""
+    """#1616 / #2016: _resolve_mission_dir must return coord path, not always primary."""
+
+    # A *real* full 26-char Crockford ULID — realistic test data (NFR-005). The
+    # mid8 is the first 8 chars; the canonical ``<slug>-<mid8>`` name embeds it.
+    FULL_ULID = "01KVCPCHMCA5GSGF6NBAEE5E17"
+    MID8 = FULL_ULID[:8]  # "01KVCPCH"
 
     def test_coord_path_returned_when_coord_exists(self, tmp_path: Path) -> None:
-        """_resolve_mission_dir returns coord mission dir when present."""
+        """#2016: coord-ONLY-with-tail mission resolves via the shared mid8 cascade.
+
+        Topology-true fixture: a mission present ONLY as a coordination worktree
+        (``<slug>-<mid8>-coord``), with **no primary meta.json** (so
+        ``mission_id`` is unproven). The defect: the orchestrator reimplemented
+        mid8 resolution with only the strict ``resolve_mid8(slug, mission_id)``
+        tier — keyed on primary meta — which DECLINES when ``mission_id`` is
+        ``None`` → empty mid8 → empty read-path → ``None``. The fix adopts the
+        shared 3-tier cascade whose tier-3 ``mid8_from_slug`` reads the real mid8
+        from the canonical tail, so the coord path composes and returns.
+        """
         from specify_cli.orchestrator_api.commands import _resolve_mission_dir
 
-        slug = "my-feature"
-        mid8 = "01KT3YBD"
+        slug = "governed-coord-only-mission"
+        handle = f"{slug}-{self.MID8}"
         coord_dir = (
-            tmp_path / ".worktrees" / f"{slug}-{mid8}-coord"
-            / "kitty-specs" / f"{slug}-{mid8}"
+            tmp_path / ".worktrees" / f"{handle}-coord"
+            / "kitty-specs" / handle
         )
         coord_dir.mkdir(parents=True)
+        # Intentionally NO primary meta.json — coord-only topology (C-001).
 
-        result = _resolve_mission_dir(tmp_path, f"{slug}-{mid8}")
+        result = _resolve_mission_dir(tmp_path, handle)
         assert result == coord_dir, (
             f"Expected coord path {coord_dir}, got {result}. "
-            "Regression: orchestrator_api was not checking coord topology."
+            "Regression (#2016): orchestrator did not adopt the shared mid8 "
+            "cascade, so the coord-only-with-tail topology resolved to an empty "
+            "mid8 and missed the coord worktree."
+        )
+
+    def test_red_cause_is_empty_mid8_without_shared_cascade(self, tmp_path: Path) -> None:
+        """Pin the RED *cause*: the strict primary-keyed tier alone yields ``""``.
+
+        This locks WHY the pre-fix path returned ``None`` — not some unrelated
+        change. With no declared ``mission_id`` (coord-only topology),
+        ``resolve_mid8`` declines (``""``), whereas the shared cascade's tier-3
+        ``mid8_from_slug`` recovers the real 8-char mid8 from the canonical tail.
+        After the fix, the coord path test above proves tier-3 actually fired.
+        """
+        from specify_cli.lanes.branch_naming import mid8_from_slug, resolve_mid8
+
+        handle = f"governed-coord-only-mission-{self.MID8}"
+        # Pre-fix derivation (primary meta absent → mission_id None):
+        assert resolve_mid8(handle, mission_id=None) == "", (
+            "Pre-fix cause: resolve_mid8 keyed on absent primary meta must "
+            "decline (empty mid8) for a coord-only mission."
+        )
+        # The shared cascade's tier-3 recovers the real mid8 from the tail:
+        assert mid8_from_slug(handle) == self.MID8, (
+            "tier-3 mid8_from_slug must recover the real mid8 from the "
+            "canonical <slug>-<mid8> tail."
         )
 
     def test_none_returned_when_mission_not_found(self, tmp_path: Path) -> None:
@@ -175,6 +217,69 @@ class TestIssue1616OrchestratorApiCoordRead:
         result = _resolve_mission_dir(tmp_path, "nonexistent-01KT3YBD")
         assert result is None, (
             "Regression: _resolve_mission_dir should return None when mission not found."
+        )
+
+    def test_legacy_no_tail_no_id_returns_primary_not_raise(self, tmp_path: Path) -> None:
+        """T012b: a legacy non-coord mission (no tail, no id) returns primary/None.
+
+        Debbie's binding legacy-safety case: the shared helper returns ``""`` on
+        exhaustion (does NOT raise), and the orchestrator's M5 raise is gated on
+        ``declares_coordination``. A no-tail/no-id mission (e.g.
+        ``099-test-mission``) has ``declares_coordination=False`` → the guard
+        does NOT fire → it falls through to the primary read path, returning the
+        primary dir (or ``None`` when absent), and MUST NOT raise.
+        """
+        import json
+
+        from specify_cli.orchestrator_api.commands import _resolve_mission_dir
+
+        slug = "099-test-mission"  # no Crockford tail, legacy NNN- form
+        # Primary meta with NO mission_id and NO coordination_branch (legacy).
+        primary_dir = tmp_path / "kitty-specs" / slug
+        primary_dir.mkdir(parents=True)
+        (primary_dir / "meta.json").write_text(
+            json.dumps({"mission_slug": slug}), encoding="utf-8"
+        )
+
+        # Must NOT raise; must return the primary dir (it exists on disk).
+        result = _resolve_mission_dir(tmp_path, slug)
+        assert result == primary_dir, (
+            "Legacy non-coord mission (no tail, no id) must keep the "
+            f"primary-read path; expected {primary_dir}, got {result}."
+        )
+
+    def test_legacy_no_tail_no_id_absent_returns_none(self, tmp_path: Path) -> None:
+        """T012b sibling: legacy no-tail/no-id, primary absent → None (not raise)."""
+        from specify_cli.orchestrator_api.commands import _resolve_mission_dir
+
+        # No meta, no dir at all — pure absence on a legacy-style handle.
+        result = _resolve_mission_dir(tmp_path, "099-absent-mission")
+        assert result is None, (
+            "Legacy non-coord absent mission must return None, not raise."
+        )
+
+    def test_exactly_one_mid8_cascade_in_orchestrator(self) -> None:
+        """#2016 / NFR-005 (binding, AST — not a skippable grep): the orchestrator
+        derives mid8 via exactly ONE cascade — the shared ``resolve_declared_mid8``
+        — and retains NO second ``resolve_mid8(...)`` derivation keyed on primary
+        meta. Re-introducing a parallel ``resolve_mid8`` path is a regression.
+        """
+        src = _read("src/specify_cli/orchestrator_api/commands.py")
+        tree = ast.parse(src)
+        called = {
+            node.func.id
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+        }
+        assert "resolve_declared_mid8" in called, (
+            "orchestrator must adopt the shared resolve_declared_mid8 cascade "
+            "(#2016 adoption gap)."
+        )
+        assert "resolve_mid8" not in called, (
+            "NFR-005: a second mid8-derivation path (direct resolve_mid8 keyed "
+            "on primary meta) must not remain in orchestrator_api/commands.py — "
+            "consolidate onto the single resolve_declared_mid8 cascade."
         )
 
 
