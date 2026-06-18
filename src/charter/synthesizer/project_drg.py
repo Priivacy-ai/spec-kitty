@@ -30,6 +30,8 @@ from ruamel.yaml import YAML
 
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
+from charter.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
+
 from .errors import ProjectDRGValidationError
 from .path_guard import PathGuard
 from .request import SynthesisTarget
@@ -44,7 +46,6 @@ _KIND_TO_NODE_KIND: dict[str, NodeKind] = {
     "tactic": NodeKind.TACTIC,
     "styleguide": NodeKind.STYLEGUIDE,
 }
-_GRAPH_FILENAME = "graph" + ".yaml"
 
 
 def _node_kind_for(kind: str) -> NodeKind:
