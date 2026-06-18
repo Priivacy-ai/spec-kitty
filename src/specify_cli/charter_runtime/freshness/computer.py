@@ -13,10 +13,15 @@ Detection rules (per ``contracts/charter-status-json.md``):
 * ``synthesized_drg.state = "missing"`` when ``.kittify/doctrine/graph.yaml``
   is absent AND the manifest does not declare ``built_in_only: true``.
 * ``synthesized_drg.state = "built_in_only"`` when the manifest declares
-  ``built_in_only: true`` (FR-009).
-* ``synthesized_drg.state = "invalid"`` when the manifest declares
-  ``built_in_only: true`` AND ``.kittify/doctrine/graph.yaml`` ALSO exists
-  (architect conflict-resolution per data-model.md §6).
+  ``built_in_only: true`` (FR-009). When a project ``graph.yaml`` is ALSO
+  present the manifest disowns it — it is *stale graph residue* (FR-006 /
+  C2-f), not a contradiction: the reader still reports the authoritative
+  ``built_in_only`` state and attaches a non-blocking residue diagnostic in
+  ``detail`` (the formerly-terminal ``invalid`` state is unreachable for this
+  condition, so preflight is no longer blocked).
+* ``synthesized_drg`` never returns ``invalid`` — the only ``invalid`` producer
+  is ``_compute_charter_source`` ("charter.md exists but cannot be hashed"),
+  a genuine inconsistency that legitimately blocks preflight.
 
 All sub-objects are always present in the result; ``state="missing"`` is the
 default when a file is absent.
@@ -340,23 +345,27 @@ def _compute_synthesized_drg(
 
     legacy_fresh_seed = repo_root / _doctrine_dir() / "PROVENANCE.md"
 
-    # Conflict resolution (data-model §6): built_in_only=true AND graph.yaml
-    # present is an inconsistent stale-residue state.
-    if built_in_only and graph_exists:
-        return FreshnessSubState(
-            state="invalid",
-            last_change=_mtime_iso(graph_path),
-            # #1717 Fix B: plain `charter synthesize` self-heals this state (the
-            # fresh-seed path unlinks the stale graph.yaml — Fix A). The prior
-            # `--force-overwrite` flag never existed on the command.
-            remediation="spec-kitty charter synthesize",
-            detail=(
-                "synthesis manifest declares built_in_only=true but "
-                "graph.yaml exists; this is a stale artifact"
-            ),
-        )
-
     if built_in_only:
+        # FR-006 (C2-f, structural): the synthesis manifest is the declared
+        # authority over graph.yaml presence (#083). A graph.yaml the manifest
+        # disowns is *residue*, not a contradiction — so the reader reports the
+        # authoritative ``built_in_only`` state regardless of graph presence and,
+        # when residue is present, attaches a NON-BLOCKING diagnostic. This is a
+        # read-time normalization, NOT a reactive self-heal: the reader does not
+        # run ``synthesize`` and emits no remediation for residue (C-003). The
+        # blocking ``invalid`` branch for this specific condition is now
+        # unreachable, so preflight (``built_in_only`` ∈ ``_PASS_STATES``) passes.
+        if graph_exists:
+            return FreshnessSubState(
+                state="built_in_only",
+                last_change=_mtime_iso(graph_path),
+                remediation=None,
+                detail=(
+                    "stale graph residue: graph.yaml present but the synthesis "
+                    "manifest declares built_in_only; the manifest is "
+                    "authoritative, the residual graph.yaml is ignored"
+                ),
+            )
         # Authoritative built-in-only state (FR-009).
         return FreshnessSubState(
             state="built_in_only",
