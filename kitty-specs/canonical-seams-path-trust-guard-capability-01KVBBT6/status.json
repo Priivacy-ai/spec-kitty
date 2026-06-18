@@ -1,0 +1,63 @@
+{
+  "event_count": 44,
+  "last_event_id": "01KVBPAK354WFJ48A2C5EAKFBV",
+  "materialized_at": "2026-06-17T21:03:20.677849+00:00",
+  "mission_number": "142",
+  "mission_slug": "canonical-seams-path-trust-guard-capability-01KVBBT6",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KVBPAGTR0EQ1ZDB16C649TJJ",
+      "last_transition_at": "2026-06-17T21:03:18.360593+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KVBPAJN6JQ4R7K6BGVYXZEPQ",
+      "last_transition_at": "2026-06-17T21:03:20.230822+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KVBPAHAPF6QXHVMNJ90KNG65",
+      "last_transition_at": "2026-06-17T21:03:18.870543+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KVBPAK354WFJ48A2C5EAKFBV",
+      "last_transition_at": "2026-06-17T21:03:20.677849+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KVBPAHRNJ5GDKCQYDASRJSXN",
+      "last_transition_at": "2026-06-17T21:03:19.317796+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KVBPAJ6KRDFBKN7YHR67D7M8",
+      "last_transition_at": "2026-06-17T21:03:19.763947+00:00"
+    }
+  }
+}

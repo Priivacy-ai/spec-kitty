@@ -1,0 +1,30 @@
+{
+  "accept_commit": "2c7cdc801742d83160e4619c4c44526eeffb15bb",
+  "acceptance_history": [
+    {
+      "accept_commit": "2c7cdc801742d83160e4619c4c44526eeffb15bb",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-17T21:02:13.241574+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "73341b9fa4257b1043cb3a58853384891254cc7f"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-17T21:02:13.241574+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "73341b9fa4257b1043cb3a58853384891254cc7f",
+  "baseline_merge_commit": "7a0434624fcd30d898e862c9a523c93893f297f5",
+  "created_at": "2026-06-17T17:59:37.711588+00:00",
+  "friendly_name": "Canonical Path-Trust & Guard-Capability Seams",
+  "mission_id": "01KVBBT6FEQ01NHNSQD7X8JTPE",
+  "mission_number": 142,
+  "mission_slug": "canonical-seams-path-trust-guard-capability-01KVBBT6",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Today the same 'is this slug a safe path segment' and 'is this path under a trusted root' decisions are re-implemented in several places while the canonical path-assembly seam validates nothing, and an architectural CI gate can be silently skipped on guarded-surface edits. This mission binds those decisions to single canonical seams (one validator, one containment utility) and closes the CI gap, so the next would-be bypass becomes a test failure rather than a silent regression.",
+  "purpose_tldr": "Bind path-trust validation into the Shared Kernel so every caller inherits it, and un-mask the architectural CI gate.",
+  "slug": "canonical-seams-path-trust-guard-capability-01KVBBT6",
+  "target_branch": "feat/canonical-seams-path-trust-guard-capability",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-17T20:15:43.126907+00:00"
+}
