@@ -32,6 +32,7 @@ from contextlib import suppress
 from datetime import datetime, UTC
 from pathlib import Path
 from dataclasses import dataclass
+from typing import NoReturn
 
 import typer
 
@@ -218,7 +219,7 @@ def _emit(envelope: dict) -> None:
     print(json.dumps(envelope))
 
 
-def _fail(command: str, error_code: str, message: str, data: dict | None = None) -> None:
+def _fail(command: str, error_code: str, message: str, data: dict | None = None) -> NoReturn:
     """Print failure envelope and exit non-zero."""
     envelope = make_envelope(
         command=command,
@@ -364,10 +365,8 @@ def _resolve_mission_dir_or_fail(command: str, main_repo_root: Path, mission_slu
                 "primary_candidate": str(exc.primary_candidate),
             },
         )
-        raise  # unreachable: _fail exits
     if mission_dir is None:
         _fail(command, "MISSION_NOT_FOUND", _MISSION_NOT_FOUND_MESSAGE.format(mission=mission_slug))
-        raise  # unreachable: _fail exits
     return mission_dir
 
 

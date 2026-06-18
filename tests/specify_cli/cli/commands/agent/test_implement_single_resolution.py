@@ -107,9 +107,9 @@ def test_already_materialized_workspace_is_consumed_without_re_resolution(
     def _create() -> None:  # pragma: no cover - must not be called
         raise AssertionError("create must not run when the workspace already exists")
 
-    result = _ensure_workspace_materialized(workspace, "WP05", _create)
+    _ensure_workspace_materialized(workspace, "WP05", _create)
 
-    assert result is workspace  # same resolved contract, consumed not rebuilt
+    assert workspace.exists  # same resolved contract, consumed not rebuilt
     assert resolve_calls == [], "single resolution path must not re-resolve"
 
 
@@ -145,10 +145,9 @@ def test_create_then_consume_resolved_context_no_no_workspace_error(
             "gitdir: /real/gitdir\n", encoding="utf-8"
         )
 
-    result = _ensure_workspace_materialized(workspace, "WP05", _create)
+    _ensure_workspace_materialized(workspace, "WP05", _create)
 
-    assert result is workspace
-    assert result.exists, "the materialized resolved workspace must report exists"
+    assert workspace.exists, "the materialized resolved workspace must report exists"
     assert re_resolution_calls == [], (
         "post-create verification must consume the resolved context, "
         "not re-resolve via a second authority"

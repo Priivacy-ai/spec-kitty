@@ -75,8 +75,8 @@ echo Install spec-kitty: pip install spec-kitty-cli
 EXIT /B 1
 """
 
-# Octal mode bits for an executable file: rwxr-xr-x (755).
-_EXECUTABLE_MODE = 0o755
+# Octal mode bits for a user-only executable file: rwx------ (700).
+_EXECUTABLE_MODE = 0o700
 
 
 def write_wrappers(bundle_dir: Path, version: str) -> None:
