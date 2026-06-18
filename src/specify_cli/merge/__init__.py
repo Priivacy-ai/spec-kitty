@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from specify_cli.merge.baseline import (
+    BaselineMergeCommitError,
+    assert_baseline_merge_commit_on_target,
+    record_baseline_merge_commit,
+)
 from specify_cli.merge.config import (
     ConfigError,
     MergeConfig,
@@ -39,6 +44,10 @@ from specify_cli.merge.workspace import (
 )
 
 __all__ = [
+    # Baseline merge commit
+    "BaselineMergeCommitError",
+    "record_baseline_merge_commit",
+    "assert_baseline_merge_commit_on_target",
     # Merge config
     "MergeStrategy",
     "MergeConfig",
