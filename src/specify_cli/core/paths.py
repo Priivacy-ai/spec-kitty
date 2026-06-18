@@ -5,11 +5,105 @@ from __future__ import annotations
 from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 import os
+import re
 from pathlib import Path
 
 from .constants import KITTIFY_DIR, WORKTREES_DIR
 
 _GITDIR_PREFIX = "gitdir:"
+
+# ---------------------------------------------------------------------------
+# Canonical safe-path-segment validator (FR-001 / D-1)
+#
+# Grammar decision (research.md D-1 / WP01 T001 dot-policy):
+#   - Reconciles three divergent validators:
+#       merge.py    ^[A-Za-z0-9_-]+$         (no dots)
+#       transaction ^[A-Za-z0-9][A-Za-z0-9._-]*$  (interior dots ok)
+#       aggregate   ^[A-Za-z0-9_-]+$         (no dots)
+#   - Adopts the INTERIOR-DOT-ALLOWED form so transaction.py's real accepts
+#     (mission_id/mid8) survive without change.
+#   - Rejects: empty/whitespace, ".", "..", any "/" or "\", non-ASCII, leading
+#     ".", and any value whose stripped form contains ".." as a substring.
+#   - This WIDENS merge.py's slug acceptance to allow interior dots; that is
+#     intentional — no caller relies on merge.py rejecting a dotted slug
+#     (WP01 verified: merge.py callers only receive CLI-created slugs that
+#     never emit interior dots; the widening is safe and non-breaking).
+# ---------------------------------------------------------------------------
+_SAFE_PATH_SEGMENT_RE: re.Pattern[str] = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._-]*$"
+)
+
+
+def assert_safe_path_segment(value: str) -> str:
+    """Return ``value`` if it is a single safe path segment; else raise ValueError.
+
+    Rejects empty/whitespace-only, ``"."``, ``".."``, any ``"/"`` or ``"\\"``
+    (path separators), non-ASCII input, values beginning with ``"."`` (hidden-file
+    style — leading-dot rejected as traversal risk), and any value whose stripped
+    form contains ``".."`` as a substring (dotted-traversal guard: ``"..foo"``,
+    ``"foo.."``, ``"a..b"`` — a grammar that only special-cases the two literal
+    tokens would wrongly accept these).
+
+    The grammar is the reconciled canonical form that admits every real-format
+    mission-slug value (full 26-char ULID, ``<slug>-<mid8>`` directory names,
+    numeric-prefix slugs, bare mid8) while preserving the traversal guard —
+    proven by the NFR-006 union test.
+
+    This is a **general safe-segment validator** (not slug-only): it is also used
+    by WP02 for ``mission_id`` and ``mid8`` values, which carry the same format
+    constraints.
+
+    Args:
+        value: The path segment to validate.
+
+    Returns:
+        ``value`` unchanged when valid.
+
+    Raises:
+        ValueError: When ``value`` is not a safe single path segment.
+    """
+    stripped = value.strip() if value else value
+
+    # Reject empty or whitespace-only
+    if not stripped:
+        raise ValueError(
+            f"Not a safe path segment: {value!r} — value must not be empty or whitespace-only."
+        )
+
+    # Reject leading or trailing whitespace — a value that differs from its
+    # stripped form is ambiguous and would silently produce wrong path segments.
+    if value != stripped:
+        raise ValueError(
+            f"Not a safe path segment: {value!r} — value must not contain leading or trailing whitespace."
+        )
+
+    # Reject any ".." substring (covers ..foo, foo.., a..b, and literal ..)
+    if ".." in stripped:
+        raise ValueError(
+            f"Not a safe path segment: {value!r} — value must not contain '..' (traversal guard)."
+        )
+
+    # Reject leading dot (covers .hidden, .dot-only, etc.)
+    if stripped.startswith("."):
+        raise ValueError(
+            f"Not a safe path segment: {value!r} — value must not begin with '.' (traversal guard)."
+        )
+
+    # Reject path separators (/ and \) — catches a/b, a\b, /absolute, trailing/
+    if "/" in stripped or "\\" in stripped:
+        raise ValueError(
+            f"Not a safe path segment: {value!r} — value must not contain path separators."
+        )
+
+    # Reject non-ASCII and enforce the segment grammar
+    if not _SAFE_PATH_SEGMENT_RE.fullmatch(stripped):
+        raise ValueError(
+            f"Not a safe path segment: {value!r} — value must match the canonical segment grammar "
+            f"(ASCII alphanumerics, hyphens, underscores, and interior dots only; "
+            f"must begin with an alphanumeric character)."
+        )
+
+    return value
 
 
 def _is_worktree_gitdir(gitdir: Path) -> bool:
@@ -566,6 +660,7 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
 
 
 __all__ = [
+    "assert_safe_path_segment",
     "locate_project_root",
     "is_worktree_context",
     "resolve_with_context",

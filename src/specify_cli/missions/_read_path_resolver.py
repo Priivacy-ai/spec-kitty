@@ -118,7 +118,9 @@ def _compose_mission_dir(mission_slug: str, mid8: str) -> str:
 
     if not mid8:
         return mission_slug
-    return coord_mission_dir_name(mission_slug, mid8=mid8)
+    # coord_mission_dir_name is typed -> str; mypy loses the annotation
+    # through the late import chain — the cast is correct (C-008 fix).
+    return str(coord_mission_dir_name(mission_slug, mid8=mid8))
 
 
 def compose_meta_json_path(base: Path, mission_slug: str) -> Path:
@@ -262,6 +264,8 @@ def resolve_mission_read_path(
         ``status.events.jsonl`` / ``status.json``.
 
     Raises:
+        ValueError: When ``mission_slug`` is not a safe path segment
+            (traversal guard — FR-001 / NFR-002).
         StatusReadPathNotFound: When ``require_exists`` is ``True`` and
             neither the coord worktree nor the primary checkout carries
             the mission directory.
@@ -269,6 +273,15 @@ def resolve_mission_read_path(
             numeric prefix / human slug) that matches more than one mission
             (C-CTX-4 / C-009 — structured error, never a silent wrong path).
     """
+    # Guard FIRST — before any path composition (NFR-002 / FR-001).
+    # Function-local import: ``core.paths`` → ``_read_path_resolver`` is safe
+    # (no cycle), but the existing ``get_main_repo_root`` import at ~:413 also
+    # uses a local import as a deliberate cycle-break pattern; matching that
+    # style keeps the two primitives consistent.
+    from specify_cli.core.paths import assert_safe_path_segment
+
+    assert_safe_path_segment(mission_slug)
+
     # First attempt: treat ``mission_slug`` as a literal directory name. This is
     # the pure-path happy path — when the canonical ``<slug>-<mid8>`` directory
     # exists we never touch the (heavier) handle resolver.
@@ -409,9 +422,19 @@ def primary_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:
     Lives here (a sanctioned path-constructor module) so the construction stays
     inside the blessed owners of ``KITTY_SPECS_DIR`` path assembly enforced by
     ``tests/architectural/test_no_raw_mission_spec_paths.py``.
-    """
-    from specify_cli.core.paths import get_main_repo_root
 
+    Raises:
+        ValueError: When ``mission_slug`` is not a safe path segment
+            (traversal guard — FR-001 / NFR-002).
+    """
+    # Function-local import: ``core.paths`` is a dependency of this module
+    # (already imported at module-top for ``get_main_repo_root`` in the
+    # ``get_feature_target_branch`` helper in paths.py). Using a local import
+    # here matches the existing ``get_main_repo_root`` local-import pattern
+    # at this call site, keeping both primitives consistent (T003).
+    from specify_cli.core.paths import assert_safe_path_segment, get_main_repo_root
+
+    assert_safe_path_segment(mission_slug)
     primary_dir: Path = get_main_repo_root(repo_root) / KITTY_SPECS_DIR / mission_slug
     return primary_dir
 
