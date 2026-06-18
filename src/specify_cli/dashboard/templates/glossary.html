@@ -192,6 +192,17 @@ body {
   border-radius: 4px;
   padding: 2px 5px;
 }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 .search-wrap {
   position: relative;
@@ -481,6 +492,7 @@ body {
 <div class="toolbar">
   <div class="search-wrap">
     <span class="search-icon">🔍</span>
+    <label for="search" class="sr-only">Search glossary terms</label>
     <input
       type="search"
       class="search-input"
