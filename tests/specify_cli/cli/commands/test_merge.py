@@ -42,6 +42,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.merge import (
     _assert_bookkeeping_snapshot_path_is_trusted,
+    _capture_bookkeeping_snapshots,
     _assert_merged_wps_reached_done,
     _assert_status_path_within_target_surface,
     _assert_status_surface_path_is_trusted,
@@ -801,6 +802,27 @@ def test_bookkeeping_snapshot_trusted_set_rejects_kittify_root_not_exact_file(
     candidate = tmp_path / KITTIFY_DIR / "config.yaml"
     with pytest.raises(ValueError):
         _assert_bookkeeping_snapshot_path_is_trusted(repo_root=tmp_path, candidate=candidate)
+
+
+def test_capture_bookkeeping_snapshots_resolves_only_trusted_paths(tmp_path: Path) -> None:
+    """T017: snapshot capture validates and resolves every candidate path up-front."""
+    from specify_cli.core.constants import KITTY_SPECS_DIR
+
+    candidate = tmp_path / KITTY_SPECS_DIR / "some-mission" / "file.json"
+    candidate.parent.mkdir(parents=True, exist_ok=True)
+    candidate.write_bytes(b"payload")
+
+    snapshots = _capture_bookkeeping_snapshots(tmp_path, candidate)
+
+    assert snapshots == {candidate.resolve(strict=False): b"payload"}
+
+
+def test_capture_bookkeeping_snapshots_rejects_untrusted_paths(tmp_path: Path) -> None:
+    """T017: snapshot capture fails closed for paths outside trusted bookkeeping roots."""
+    outside = tmp_path / "completely-outside" / "file.json"
+
+    with pytest.raises(ValueError):
+        _capture_bookkeeping_snapshots(tmp_path, outside)
 
 
 # ---------------------------------------------------------------------------
