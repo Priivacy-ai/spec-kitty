@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.core.paths import safe_mission_slug
 
 
 # ---------------------------------------------------------------------------
@@ -222,7 +223,17 @@ def resolve_mission_identity(feature_dir: Path) -> MissionIdentity:
     raw_number = meta.get("mission_number")
     mission_number: int | None = _coerce_mission_number(raw_number)
 
-    resolved_slug = str(meta.get("mission_slug") or meta.get("slug") or feature_dir.name)
+    # FR-009 chokepoint (IC-05): meta.json's ``mission_slug`` is UNTRUSTED and is
+    # consumed by ``status/views.py:_stale_check_slug`` and the ``status/lifecycle.py``
+    # empty-event-slug fallback, both of which join it into ``derived/<slug>/`` and
+    # ``mkdir``/write. A hostile ``"../../../../evil"`` slug would escape the derived
+    # root via this live write-path (the #2036 reducer seam covers only the event
+    # slug, not this meta read). Route through the canonical fail-closed seam (C-002):
+    # a valid slug passes through unchanged (display preserved); an unsafe slug
+    # downgrades to the trusted ``feature_dir.name``.
+    raw_slug = meta.get("mission_slug") or meta.get("slug")
+    raw_slug_str = str(raw_slug) if raw_slug is not None else None
+    resolved_slug = safe_mission_slug(raw_slug_str, feature_dir.name)
     resolved_type = str(meta.get("mission_type") or meta.get("mission") or "").strip() or "software-dev"
 
     return MissionIdentity(

@@ -580,3 +580,81 @@ def test_resolve_mission_id_from_dict_fail_closed_on_traversal_slug(
     result = _resolve_mission_id_from_dict({"mission_slug": "../escape"}, resolver)
 
     assert result is None
+
+
+# --- FR-002 / IC-01: resolve()-containment against symlink escape -------------
+
+
+def test_slug_resolver_rejects_symlinked_escape_dir(tmp_path: Path) -> None:
+    """A grammar-VALID slug naming a symlink dir that escapes the specs root → None.
+
+    This is the FR-002 hole the segment grammar CANNOT see: the slug
+    ``"034-evil-link"`` passes ``assert_safe_path_segment`` (no ``..``, no
+    separators), but it names a **symlink directory** under the specs root whose
+    target lives OUTSIDE the root. Without resolved-path containment, ``resolve()``
+    would follow the link and read the attacker's ``meta.json``. With
+    ``ensure_within_any`` on the composed path, it must return ``None`` and never
+    read the escaped file.
+
+    Mutation-verify: neutralising the containment (e.g. making ``_is_contained``
+    return ``True`` unconditionally) makes this test FAIL — the attacker
+    mission_id would be returned.
+    """
+    specs_root = tmp_path / "kitty-specs"
+    mission_dir = specs_root / "034-feature-name"
+    mission_dir.mkdir(parents=True)
+
+    # Attacker target OUTSIDE the specs root, with a real meta.json behind it.
+    outside_dir = tmp_path / "outside-target"
+    outside_dir.mkdir(parents=True)
+    attacker_meta = outside_dir / "meta.json"
+    attacker_meta.write_text(
+        json.dumps({"mission_id": "01ATTACKERSYMLNK5ZJ9E5008X"}),
+        encoding="utf-8",
+    )
+
+    # Symlink dir UNDER the specs root, grammar-valid name, target outside the root.
+    evil_link = specs_root / "034-evil-link"
+    evil_link.symlink_to(outside_dir, target_is_directory=True)
+    assert evil_link.is_symlink()  # no-op test guard: the link must exist
+
+    resolver = _SlugResolver(mission_dir)
+
+    # Containment rejects: None returned, attacker file NOT consumed.
+    assert resolver.resolve("034-evil-link") is None
+
+
+def test_slug_resolver_resolves_under_symlinked_root(tmp_path: Path) -> None:
+    """A legitimate slug RESOLVES even when the specs root is reached via a symlink.
+
+    NFR-003 (macOS false-reject guard): on macOS ``/tmp`` and ``$TMPDIR`` are
+    symlinks, so the *logical* specs root differs from its ``resolve()``d form. A
+    containment guard that pre-resolves the root but not the candidate (or vice
+    versa) would wrongly REJECT a perfectly legitimate slug. ``ensure_within_any``
+    resolves both sides consistently, so a legit slug under a symlinked root
+    validates.
+
+    Runs on ALL platforms (no ``skip``/``skipif``): the symlinked root is
+    constructed explicitly inside ``tmp_path`` so Linux CI exercises it too.
+    """
+    real_specs_parent = tmp_path / "real"
+    real_specs_root = real_specs_parent / "kitty-specs"
+    mission_dir = real_specs_root / "034-feature-name"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(
+        json.dumps({"mission_id": "01LEGITSYMROOTK5ZJ9E5008XY"}),
+        encoding="utf-8",
+    )
+
+    # Reach the SAME specs root through a symlinked parent directory.
+    link_parent = tmp_path / "linked"
+    link_parent.symlink_to(real_specs_parent, target_is_directory=True)
+    assert link_parent.is_symlink()  # no-op test guard: the link must exist
+
+    # Anchor the resolver on the feature dir as seen THROUGH the symlink, so its
+    # logical ``_mission_specs_root`` is the un-resolved (symlinked) path.
+    symlinked_mission_dir = link_parent / "kitty-specs" / "034-feature-name"
+    resolver = _SlugResolver(symlinked_mission_dir)
+
+    # No false reject: the legitimate slug resolves to its real mission_id.
+    assert resolver.resolve("034-feature-name") == "01LEGITSYMROOTK5ZJ9E5008XY"

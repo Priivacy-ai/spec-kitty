@@ -26,6 +26,7 @@ from typing import Any
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import assert_safe_path_segment
+from specify_cli.core.utils import ensure_within_any
 from specify_cli.events import sanitize_event_for_log
 
 from .models import StatusEvent
@@ -162,6 +163,43 @@ class _SlugResolver:
             return False
         return True
 
+    def _is_contained(self, mission_slug: str, meta_path: Path) -> bool:
+        """Return True when *meta_path* resolves inside the specs root.
+
+        The segment grammar (``_is_safe_slug``) rejects ``..`` and separators, but
+        a grammar-valid slug can still name a **symlink directory** under the specs
+        root whose target lives elsewhere — the composed ``meta_path`` would then
+        ``resolve()`` outside the root and read an attacker-controlled file. The
+        canonical ``ensure_within_any`` seam (C-002) catches this by validating the
+        *resolved* path against the trusted root.
+
+        ``roots`` is **keyword-only**: the positional form would raise ``TypeError``
+        and the containment would silently never run. The logical (un-resolved)
+        ``_mission_specs_root`` is passed deliberately — ``ensure_within_any``
+        resolves both sides with ``resolve(strict=False)``, so a legitimate slug
+        under a *symlinked* specs root still validates (NFR-003, no macOS false
+        reject) while a symlink escaping the root is rejected.
+
+        Fail-closed (C-004): on ``ValueError`` return False (the caller returns
+        ``None``), logging at most one WARNING per distinct slug — the caller caches
+        the result so a repeated bad slug is neither re-checked nor re-warned
+        (NFR-004).
+        """
+        root = self._mission_specs_root
+        if root is None:  # pragma: no cover - guarded by caller
+            return False
+        try:
+            ensure_within_any(meta_path, roots=[root])
+        except ValueError as exc:
+            logger.warning(
+                "Refusing to resolve mission_slug %r: composed meta path escapes the "
+                "specs root (symlink/containment guard); mission_id will be None: %s",
+                mission_slug,
+                exc,
+            )
+            return False
+        return True
+
     def resolve(self, mission_slug: str) -> str | None:
         """Return the mission_id for *mission_slug*, or None if unresolvable.
 
@@ -182,6 +220,15 @@ class _SlugResolver:
         mission_id: str | None = None
         if self._mission_specs_root is not None:
             meta_path = self._mission_specs_root / mission_slug / "meta.json"
+            if not self._is_contained(mission_slug, meta_path):
+                # Fail-closed: the slug passed the segment grammar but the composed
+                # path still escapes the specs root — e.g. ``mission_slug`` names a
+                # *symlink directory* under the root whose target lives elsewhere
+                # (FR-002, IC-01). The grammar gate cannot see this; resolved-path
+                # containment can. Cache None so the same bad slug is not re-checked
+                # nor re-warned (NFR-004).
+                self._cache[mission_slug] = None
+                return None
             if meta_path.exists():
                 try:
                     data = json.loads(meta_path.read_text(encoding="utf-8"))
