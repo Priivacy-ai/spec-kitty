@@ -132,3 +132,102 @@ def test_event_log_round_trips_through_read_with_hostile_slug(tmp_path: Path) ->
     feature_dir = _seed_hostile_feature_dir(tmp_path)
     raw = (feature_dir / EVENTS_FILENAME).read_text(encoding="utf-8")
     assert json.loads(raw.splitlines()[0])["mission_slug"] == _HOSTILE_SLUG
+
+
+# --- FR-009 / IC-05: meta.json write-path bypass (empty-event-slug fallback) ---
+#
+# The reduce seam above only sanitizes the EVENT slug. When the event slug is
+# empty, ``generate_lifecycle_json``/``materialize_if_stale`` fall back to
+# ``resolve_mission_identity`` which reads ``meta.json``'s ``mission_slug``. Before
+# the WP02 chokepoint that meta read was UNVALIDATED, so a hostile meta slug joined
+# ``derived/<slug>/`` and ``mkdir``'d outside the derived root — a LIVE write-path
+# traversal that #2036 did not close.
+
+# Escapes the derived_dir boundary (one level up) while staying inside the test
+# sandbox — same rationale as ``_HOSTILE_SLUG`` above. A deeper "../../../../"
+# slug resolves through the same unguarded ``mkdir`` but to a SHARED location
+# (e.g. ``/tmp/evil``) that pollutes across test runs and makes the absolute-path
+# assertion flaky; ``../evil`` exercises the identical security property
+# ("does not escape derived_dir") in a collision-free, sandbox-local way.
+_META_HOSTILE_SLUG = "../evil"
+
+
+def _seed_meta_only_hostile_feature_dir(tmp_path: Path) -> Path:
+    """Feature dir whose meta.json slug is hostile and whose event slug is empty.
+
+    The event log carries an EMPTY ``mission_slug`` so the snapshot slug reduces to
+    ``""`` and the sinks must fall back to ``resolve_mission_identity`` (the
+    meta.json read this WP guards).
+    """
+    feature_dir = tmp_path / "kitty-specs" / _FEATURE_NAME
+    feature_dir.mkdir(parents=True)
+    append_event(feature_dir, _hostile_event(slug=""))
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_slug": _META_HOSTILE_SLUG}),
+        encoding="utf-8",
+    )
+    return feature_dir
+
+
+def test_resolve_mission_identity_passes_through_legitimate_slug(tmp_path: Path) -> None:
+    """A LEGITIMATE meta.json slug is returned UNCHANGED (not downgraded). FR-009.
+
+    Un-fakeable pass-through guard: the chokepoint must not be a blanket downgrade
+    to ``feature_dir.name`` — that would corrupt the display slug for every real
+    mission. A valid slug survives ``safe_mission_slug`` verbatim.
+    """
+    from specify_cli.mission_metadata import resolve_mission_identity
+
+    feature_dir = tmp_path / "kitty-specs" / _FEATURE_NAME
+    feature_dir.mkdir(parents=True)
+    legit_slug = "034-real-mission-name"
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_slug": legit_slug}),
+        encoding="utf-8",
+    )
+
+    identity = resolve_mission_identity(feature_dir)
+
+    assert identity.mission_slug == legit_slug
+    # Explicitly NOT downgraded to the trusted directory name.
+    assert identity.mission_slug != feature_dir.name
+
+
+def test_generate_lifecycle_json_fail_closed_on_hostile_meta_slug(tmp_path: Path) -> None:
+    """Hostile meta.json slug + empty event slug must not escape derived_dir. FR-009.
+
+    Mutation-verify: reverting the ``safe_mission_slug`` chokepoint in
+    ``resolve_mission_identity`` makes this test FAIL — the escaped dir
+    (``derived/../../../../evil``) would be created and the trusted output absent.
+    """
+    feature_dir = _seed_meta_only_hostile_feature_dir(tmp_path)
+    derived_dir = tmp_path / "derived"
+    derived_dir.mkdir()
+
+    generate_lifecycle_json(feature_dir, derived_dir)
+
+    # No write escapes the derived root; output lands under the trusted name.
+    assert not (derived_dir / _META_HOSTILE_SLUG).resolve().exists()
+    assert (derived_dir / _FEATURE_NAME / "lifecycle.json").exists()
+
+
+def test_materialize_if_stale_fail_closed_on_hostile_meta_slug(tmp_path: Path) -> None:
+    """The staleness key (``_stale_check_slug`` → meta.json) must not escape. FR-009.
+
+    Drives ``materialize_if_stale`` whose derived-dir location is keyed on
+    ``_stale_check_slug(feature_dir)`` → ``resolve_mission_identity`` (the guarded
+    meta read). A hostile meta slug must resolve the derived location under the
+    trusted ``feature_dir.name``, not an escaped path.
+
+    Mutation-verify: reverting the chokepoint makes this FAIL (escaped dir created).
+    """
+    from specify_cli.status.views import materialize_if_stale
+
+    feature_dir = _seed_meta_only_hostile_feature_dir(tmp_path)
+    repo_root = tmp_path
+    derived_root = repo_root / ".kittify" / "derived"
+
+    materialize_if_stale(feature_dir, repo_root)
+
+    assert not (derived_root / _META_HOSTILE_SLUG).resolve().exists()
+    assert (derived_root / _FEATURE_NAME).is_dir()
