@@ -3,7 +3,7 @@
 Covers:
     - write_wrappers creates bin/spec-kitty-wrapper (bash) and .cmd (Windows)
     - Version placeholder is substituted with the real version
-    - bash wrapper is executable (mode 755)
+    - bash wrapper is executable (mode 700)
     - wrapper_bash_content / wrapper_cmd_content helper functions
     - Empty version raises ValueError
     - Wrappers are idempotent (second call overwrites cleanly)
@@ -64,9 +64,9 @@ class TestWriteWrappers:
         mode = os.stat(bash_path).st_mode
         # Must be executable by owner (user bit).
         assert mode & stat.S_IXUSR, "bash wrapper must be owner-executable"
-        # Must be executable by group and others too (755).
-        assert mode & stat.S_IXGRP, "bash wrapper must be group-executable"
-        assert mode & stat.S_IXOTH, "bash wrapper must be world-executable"
+        # Must not grant execute access outside the current user.
+        assert not (mode & stat.S_IXGRP), "bash wrapper must not be group-executable"
+        assert not (mode & stat.S_IXOTH), "bash wrapper must not be world-executable"
 
     def test_raises_on_empty_version(self, tmp_path: Path) -> None:
         with pytest.raises(ValueError, match="non-empty"):

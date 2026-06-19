@@ -75,8 +75,8 @@ echo Install spec-kitty: pip install spec-kitty-cli
 EXIT /B 1
 """
 
-# Octal mode bits for an executable file: rwxr-xr-x (755).
-_EXECUTABLE_MODE = 0o755
+# Octal mode bits for a local executable file: rwx------ (700).
+_EXECUTABLE_MODE = 0o700
 
 
 def write_wrappers(bundle_dir: Path, version: str) -> None:
@@ -84,7 +84,7 @@ def write_wrappers(bundle_dir: Path, version: str) -> None:
 
     Both files are generated under ``bundle_dir / "bin"`` with ``version``
     substituted for :data:`_VERSION_PLACEHOLDER`.  The bash script is made
-    executable (mode 755); Windows filesystem permissions are unchanged.
+    owner-executable (mode 700); Windows filesystem permissions are unchanged.
 
     Parameters
     ----------
