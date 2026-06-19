@@ -1,0 +1,13 @@
+{
+  "coordination_branch": "kitty/mission-untrusted-path-containment-hardening-01KVFTFV",
+  "created_at": "2026-06-19T11:33:05.389076+00:00",
+  "friendly_name": "Untrusted-Path Containment Hardening",
+  "mission_id": "01KVFTFVQCQS88M0S78M59APB0",
+  "mission_number": null,
+  "mission_slug": "untrusted-path-containment-hardening-01KVFTFV",
+  "mission_type": "software-dev",
+  "purpose_context": "spec-kitty consumes path segments (mission/feature slugs, WP ids) from untrusted on-disk content such as status.events.jsonl, meta.json, and frontmatter; without containment validation a crafted value can traverse outside the repo's derived and spec directories. This mission closes that vulnerability class through one canonical validation seam, building on the hardening already landed in PR #2036.",
+  "purpose_tldr": "Guarantee no externally-influenced path segment can read or write outside its trusted repo-derived root, across the whole CLI.",
+  "slug": "untrusted-path-containment-hardening-01KVFTFV",
+  "target_branch": "automation/sonar-security-20260619"
+}
