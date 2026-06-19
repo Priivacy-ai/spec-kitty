@@ -801,3 +801,63 @@ class TestComputeBaselineKey:
         assert key.target_branch == "2.x"
         assert key.mission_type == "software-dev"
         assert key.manifest_version == "1"
+
+
+# ---------------------------------------------------------------------------
+# FR-001 traversal guard — unsafe mission_slug rejected (WP03)
+# ---------------------------------------------------------------------------
+
+
+class TestDriftDetectorTraversalGuard:
+    """Negative tests: traversal slugs must raise ValueError before FS access.
+
+    Mutation check: removing assert_safe_path_segment from save_baseline or
+    load_baseline would cause these tests to fail (no ValueError raised, and
+    save_baseline would potentially write outside the trusted root).
+    """
+
+    @pytest.mark.parametrize("bad_slug", [
+        "../escaped",
+        "../../etc/passwd",
+        "foo/bar",
+        ".hidden",
+        "a..b",
+        "",
+    ])
+    def test_save_baseline_rejects_traversal_slug(
+        self, tmp_path: Path, bad_slug: str
+    ) -> None:
+        """save_baseline with a traversal slug must raise ValueError."""
+        snapshot = BaselineSnapshot(
+            baseline_key=BaselineKey(
+                project_uuid="00000000-0000-0000-0000-000000000001",
+                node_id="aaaaaa000001",
+                mission_slug="safe-slug",
+                target_branch="main",
+                mission_type="software-dev",
+                manifest_version="1",
+            ),
+            baseline_key_hash="x" * 64,
+            parity_hash_sha256="y" * 64,
+            captured_at=datetime(2026, 1, 1, 0, 0, 0),
+            captured_by="aaaaaa000001",
+        )
+        with pytest.raises(ValueError):
+            save_baseline(bad_slug, snapshot, tmp_path)
+        # Nothing should have been written
+        assert not any(tmp_path.rglob("parity-baseline.json"))
+
+    @pytest.mark.parametrize("bad_slug", [
+        "../escaped",
+        "../../etc/passwd",
+        "foo/bar",
+        ".hidden",
+        "a..b",
+        "",
+    ])
+    def test_load_baseline_rejects_traversal_slug(
+        self, tmp_path: Path, bad_slug: str
+    ) -> None:
+        """load_baseline with a traversal slug must raise ValueError."""
+        with pytest.raises(ValueError):
+            load_baseline(bad_slug, tmp_path)

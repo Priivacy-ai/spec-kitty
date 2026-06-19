@@ -480,3 +480,44 @@ class TestMissionIdInEnvelope:
         decisions_file = tmp_path / "kitty-specs" / slug / "decisions.events.jsonl"
         lines = _read_lines(decisions_file)
         assert lines[0]["mission_id"] == slug
+
+
+# ---------------------------------------------------------------------------
+# FR-001 traversal guard — unsafe mission_slug rejected at construction (WP03)
+# ---------------------------------------------------------------------------
+
+
+class TestMissionSlugTraversalGuard:
+    """Negative tests: untrusted traversal slugs must not reach the filesystem.
+
+    Each test asserts that constructing a DecisionGitLog with an unsafe
+    mission_slug raises ValueError (fail-closed) rather than silently writing
+    to an escaped path.  Mutation check: neutralising the guard in
+    decision_log.py (removing the assert_safe_path_segment call) would cause
+    these tests to fail because no ValueError would be raised.
+    """
+
+    @pytest.mark.parametrize("bad_slug", [
+        "../escaped",
+        "../../etc/passwd",
+        "foo/bar",
+        "foo\\bar",
+        ".hidden",
+        "a..b",
+        "",
+        "   ",
+    ])
+    def test_traversal_slug_rejected_at_construction(
+        self, tmp_path: Path, bad_slug: str
+    ) -> None:
+        """A traversal mission_slug must raise ValueError, no file created."""
+        with pytest.raises(ValueError):
+            DecisionGitLog(
+                repo_root=tmp_path,
+                worktree_root=tmp_path,
+                destination_ref="kitty/mission-safe",
+                mission_slug=bad_slug,
+                inner=NullEmitter(),
+            )
+        # No escaped path may have been created anywhere under tmp_path
+        assert not any(tmp_path.rglob("decisions.events.jsonl"))

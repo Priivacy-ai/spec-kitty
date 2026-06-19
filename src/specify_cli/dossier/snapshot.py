@@ -18,6 +18,7 @@ import json
 from datetime import datetime, UTC
 from pathlib import Path
 
+from specify_cli.core.paths import assert_safe_path_segment
 from .models import MissionDossier, MissionDossierSnapshot
 
 
@@ -139,7 +140,9 @@ def save_snapshot(snapshot: MissionDossierSnapshot, feature_dir: Path) -> None:
         snapshot: MissionDossierSnapshot to persist
         feature_dir: Root directory of feature (Path object)
     """
-    dossier_dir = feature_dir / ".kittify" / "dossiers" / snapshot.mission_slug
+    # FR-001: validate snapshot.mission_slug before joining into a FS path (traversal guard).
+    _safe_slug = assert_safe_path_segment(snapshot.mission_slug)
+    dossier_dir = feature_dir / ".kittify" / "dossiers" / _safe_slug
     dossier_dir.mkdir(parents=True, exist_ok=True)
 
     snapshot_file = dossier_dir / "snapshot-latest.json"
@@ -157,7 +160,9 @@ def load_snapshot(feature_dir: Path, mission_slug: str) -> MissionDossierSnapsho
     Returns:
         MissionDossierSnapshot or None if not found
     """
-    snapshot_file = feature_dir / ".kittify" / "dossiers" / mission_slug / "snapshot-latest.json"
+    # FR-001: validate mission_slug before joining into a FS path (traversal guard).
+    _safe_slug = assert_safe_path_segment(mission_slug)
+    snapshot_file = feature_dir / ".kittify" / "dossiers" / _safe_slug / "snapshot-latest.json"
     if not snapshot_file.exists():
         return None
 

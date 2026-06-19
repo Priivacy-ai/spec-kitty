@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from datetime import datetime, UTC
 from pathlib import Path
 
+from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.dossier.events import emit_parity_drift_detected
 from specify_cli.dossier.models import MissionDossierSnapshot
 from specify_cli.identity.project import ProjectIdentity
@@ -208,7 +209,9 @@ def save_baseline(mission_slug: str, baseline: BaselineSnapshot, repo_root: Path
         baseline: BaselineSnapshot to persist
         repo_root: Repository root path
     """
-    baseline_dir = repo_root / ".kittify" / "dossiers" / mission_slug
+    # FR-001: validate mission_slug before joining into a FS path (traversal guard).
+    _safe_slug = assert_safe_path_segment(mission_slug)
+    baseline_dir = repo_root / ".kittify" / "dossiers" / _safe_slug
     baseline_dir.mkdir(parents=True, exist_ok=True)
 
     baseline_file = baseline_dir / "parity-baseline.json"
@@ -230,7 +233,9 @@ def load_baseline(mission_slug: str, repo_root: Path) -> BaselineSnapshot | None
     Returns:
         BaselineSnapshot if file exists and is valid, None otherwise.
     """
-    baseline_file = repo_root / ".kittify" / "dossiers" / mission_slug / "parity-baseline.json"
+    # FR-001: validate mission_slug before joining into a FS path (traversal guard).
+    _safe_slug = assert_safe_path_segment(mission_slug)
+    baseline_file = repo_root / ".kittify" / "dossiers" / _safe_slug / "parity-baseline.json"
     if not baseline_file.exists():
         logger.debug(f"No baseline file found at {baseline_file}")
         return None
