@@ -68,23 +68,24 @@ access silently.
 
 | ID | Requirement | Status |
 |----|-------------|--------|
-| FR-001 | Every untrusted path segment consumed by the CLI MUST pass the canonical containment seam before it reaches any filesystem read, write, or `mkdir` sink. | Draft |
+| FR-001 | Every untrusted path segment in the FR-004 audit inventory whose disposition is `routed-through-seam` MUST pass the canonical seam before its filesystem read/write/`mkdir` sink, verified by a negative test per sink. "Close the class" = (every inventory sink dispositioned) + (FR-005 guard preventing new ad-hoc joins); it is NOT a claim of mathematical completeness over future code. | Draft |
 | FR-002 | `status/store.py` `_SlugResolver.resolve` MUST apply `resolve()`-containment (not segment-grammar alone), so a valid-label slug naming a symlink directory that escapes `kitty-specs/` is rejected. (Q1→A) | Draft |
-| FR-003 | `status/aggregate.py` resolver MUST receive the same `resolve()`-containment treatment as `store.py`, keeping the two sibling resolvers at parity. | Draft |
-| FR-004 | A codebase-wide audit MUST enumerate every untrusted-string→FS-path sink in `src/specify_cli`; confirmed-reachable sinks MUST be routed through the canonical seam, and any sink left unfixed MUST be explicitly documented with its reachability rationale. (Q2→C) | Draft |
-| FR-005 | A regression test MUST fail when a new untrusted-segment join bypasses the canonical seam (ban ad-hoc `root / <untrusted> ` joins for the audited surfaces). | Draft |
+| FR-003 | `status/aggregate.py`'s existing slug guard (`_validate_mission_slug`, which raises `InvalidMissionSlug`) MUST be documented as already covering the slug grammar; any aggregate composed-path read lacking `resolve()`-containment (e.g. `_find_meta_path` globs) MUST be recorded and dispositioned in the FR-004 audit, not assumed to need resolver-parity work. | Draft |
+| FR-004 | A reproducible audit (script/ruleset committed under the mission dir) MUST enumerate every `src/specify_cli` call site where a path built from a defined seed-set of untrusted sources (`mission_slug`, `feature_slug`, `wp_id`, and any segment read from `status.events.jsonl`/`meta.json`/frontmatter/CLI args) reaches a defined sink predicate (`open`/`read_text`/`read_bytes`/`write_text`/`write_bytes`/`mkdir`/`Path(...) / <segment>`). The seed-set and sink predicate MUST be recorded so a reviewer can re-run and reproduce the inventory. (Q2→C) | Draft |
+| FR-005 | A `tests/architectural/` regression guard MUST fail when a new unvalidated untrusted-segment join is introduced on an FR-004 audited surface. The guard MUST itself be load-bearing: a fixture introducing such a join MUST make the guard fail, and removing the guard MUST make that fixture test pass. The guard's matched-surface set is the FR-004 inventory, not a heuristic over all `Path /` joins. | Draft |
 | FR-006 | The loopback-only rationale for `core/loopback_http.py` MUST be documented in-code and its 127.0.0.1-binding regression tests retained; the open Sonar hotspots MUST be recorded for UI hotspot review (no code change). | Draft |
-| FR-007 | The mission MUST recognise PR #2036 as the landed first increment (merge.py capture-time snapshot validation, wrapper `0755→0700`, `store.py` segment guard, the `safe_mission_slug` helper, and the reducer-seam chokepoint protecting the three derived-view write sinks) and build on it without regressing it. | Draft |
-| FR-008 | Each containment guard added or extended MUST carry a mutation-killing negative test (a test that fails when the guard is removed), including a symlink-escape case for the surfaces using `resolve()`-containment. | Draft |
+| FR-007 | The mission MUST recognise PR #2036 as the landed first increment (merge.py capture-time snapshot validation, wrapper `0755→0700`, `store.py` segment guard, the `safe_mission_slug` helper, and the reducer-seam chokepoint). The chokepoint covers ONLY the event-log slug path; `progress.py` is fully covered, but the `meta.json`-derived slug fallback feeding `views.py`/`lifecycle.py` is NOT (see FR-009). The mission MUST build on #2036 without regressing it. | Draft |
+| FR-008 | Each containment guard added or extended MUST carry a mutation-killing negative test (fails when the guard is removed), including (a) a symlink-escape case for surfaces using `resolve()`-containment AND (b) a symlinked-root positive case proving a legitimate slug under a symlinked repo/specs/temp root is ACCEPTED (no false reject). | Draft |
+| FR-009 | The `meta.json`-derived mission slug (`resolve_mission_identity` in `mission_metadata.py`, consumed by `views.py:_stale_check_slug` and the `lifecycle.py` empty-slug fallback into `derived_dir / <slug>` `mkdir`) MUST pass the canonical seam, failing closed to `feature_dir.name`. This closes the write-path traversal still live after #2036 when the event slug is empty or downgraded. | Draft |
 
 ### Non-Functional Requirements
 
 | ID | Requirement | Threshold / Measure | Status |
 |----|-------------|---------------------|--------|
 | NFR-001 | New and touched code passes the quality gates with zero issues. | `ruff` and `mypy` report 0 errors/warnings on changed files; no new `# noqa`/`# type: ignore`. | Draft |
-| NFR-002 | Containment validation adds no meaningful runtime cost. | No measurable regression in `status materialize` wall-time on a 100-event log (validation is O(segment length)). | Draft |
-| NFR-003 | Backward compatibility for legitimate inputs. | 100% of pre-existing status/merge tests pass unchanged; no legitimate slug is rejected. | Draft |
-| NFR-004 | Fail-closed behaviour is observable. | Every rejection emits exactly one WARNING naming the offending segment; 0 unhandled exceptions on the read path. | Draft |
+| NFR-002 | Containment validation adds no meaningful runtime cost. | Validation is O(segment length) with no new disk reads/syscalls in the validation path; satisfied by code inspection (no `open`/`stat` beyond the single `resolve()` already required) — no benchmark gate. | Draft |
+| NFR-003 | Backward compatibility for legitimate inputs. | 100% of pre-existing status/merge tests pass unchanged; no legitimate slug is rejected, including under a symlinked repo/temp root (the macOS `/tmp`→`/private/tmp` case). | Draft |
+| NFR-004 | Fail-closed behaviour is observable. | Each distinct rejected segment emits at most one WARNING naming the segment (de-duplicated via the resolver cache); 0 unhandled exceptions on the read path. | Draft |
 
 ### Constraints
 
@@ -98,18 +99,28 @@ access silently.
 
 ## Success Criteria
 
-- **SC-001**: A crafted `status.events.jsonl` with a traversal `mission_slug`, run
-  through every audited command, produces **zero** filesystem reads or writes
-  outside the trusted roots (verified by negative tests per sink).
+- **SC-001**: A crafted `status.events.jsonl` (traversal `mission_slug`) AND a
+  crafted `meta.json` (traversal `mission_slug`, with empty event slug), run
+  through every audited command, produce **zero** filesystem reads or writes
+  outside the trusted roots (verified by negative tests per sink, covering the
+  `meta.json` fallback path of FR-009).
 - **SC-002**: The symlink-escape case is rejected on every surface that adopts
-  `resolve()`-containment (`store.py`, `aggregate.py`), proven by mutation-killing
-  tests.
-- **SC-003**: The audit output lists every untrusted-string→FS sink in the CLI
-  with a fixed/decided/documented disposition; none is left unaccounted for.
+  `resolve()`-containment (`store.py`), proven by mutation-killing tests; and a
+  legitimate slug under a symlinked root is ACCEPTED (no false reject).
+- **SC-003**: The audit inventory assigns every untrusted→FS sink exactly one
+  disposition — `routed-through-seam` (seam call cited), `unreachable`
+  (reachability rationale naming the call chain), or `trusted-source` (segment
+  proven to originate from `feature_dir.name` or another derived value). The
+  audit script's emitted count MUST equal the inventory row count (no manually
+  dropped rows); a row with no disposition fails this criterion.
 - **SC-004**: Removing any newly-added guard causes at least one test to fail
   (no fake guards).
-- **SC-005**: The two SonarCloud code-scanning alerts are resolved and the two
-  loopback hotspots have a recorded rationale for UI review.
+- **SC-005**: The SonarCloud code-scanning alerts resolved by PR #2036 are
+  confirmed closed and the two `core/loopback_http.py` hotspots have a recorded
+  rationale for UI review (cited by Sonar rule key + PR #2036 per C-005).
+- **SC-006**: The FR-005 architectural guard fails when a new ad-hoc unvalidated
+  untrusted-segment join is introduced on an audited surface (guard is
+  load-bearing, not vacuous).
 
 ## Key Entities
 
@@ -129,15 +140,26 @@ access silently.
 | SonarCloud code-scanning: `claude_wrapper.py` world-accessible chmod | Fixed in PR #2036 (`0755→0700`). |
 | SonarCloud hotspot ×2: `core/loopback_http.py` loopback HTTP | Document loopback-only rationale; retain regression tests; no code change (FR-006, C-001). |
 | Squad-found sibling: `status/store.py` resolver (read) | Segment guard landed in #2036; `resolve()`-containment to be added (FR-002). |
-| Squad-found siblings: `progress.py` / `lifecycle.py` / `views.py` write sinks | Closed in #2036 via reducer-seam chokepoint (FR-007). |
+| Squad-found sink: `progress.py` write sink | Fully closed in #2036 (uses only `snapshot.mission_slug or feature_dir.name`). |
+| Review-found (code-verified) bypass: `views.py` / `lifecycle.py` write sinks via `meta.json` slug | NOT closed by #2036 — the reducer seam covers only the event-log slug; `resolve_mission_identity` reads `meta.json mission_slug` unvalidated, reachable when the event slug is empty/downgraded. New work this mission (FR-009). |
 
 ## Assumptions
 
 - The threat model is a repository whose on-disk mission state is untrusted
   (same model as the merge.py rollback hardening already shipped); spec-kitty is
   run by a trusted operator against that repo.
-- `feature_dir.name` is a trusted segment (derived from the on-disk directory the
-  operator is acting on), suitable as the write-surface fallback.
+- `feature_dir.name` is a single path component (`Path.name` strips separators)
+  derived from the directory the operator is acting in; it is treated as trusted.
+  Defense-in-depth passing it through `assert_safe_path_segment` is optional, not
+  required.
+- Containment is evaluated against the **resolved** form of both the candidate
+  and the trusted root, so a symlinked trusted/temp root (e.g. macOS
+  `/tmp`→`/private/tmp`, repo under `/var`→`/private/var`) is handled — the
+  caller passes the un-resolved logical root and lets `ensure_within_any` resolve
+  both sides. Tests MUST include a symlinked-root positive case (FR-008b).
+- TOCTOU (a symlink swapped between `resolve()` and the subsequent read) is OUT
+  of scope under the threat model: on-disk state is authored before the run, not
+  mutated concurrently by an active adversary.
 - The codebase-wide audit is scoped to `src/specify_cli`; the shared runtime and
   external packages are out of scope unless the audit surfaces a reachable sink.
 

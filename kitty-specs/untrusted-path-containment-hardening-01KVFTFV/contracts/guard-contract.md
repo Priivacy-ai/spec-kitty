@@ -30,9 +30,10 @@ guarantees of the canonical seam at each sink. Each is a testable assertion.
 
 ## C-SINK-WRITE — derived-view write sinks (progress/lifecycle/views)
 
-- **Given** an untrusted `snapshot.mission_slug`, **when** building `derived_dir/<slug>`,
-- **then** the slug is sanitized at the reduce seam (C-GUARD-2) so an unsafe slug becomes empty and the sink uses its existing `or feature_dir.name` fallback;
-- **result**: no `mkdir`/write outside `derived/`; output lands under the trusted `feature_dir.name`.
+- **Given** an untrusted slug from EITHER source — `snapshot.mission_slug` (event log) OR the `meta.json` slug via `resolve_mission_identity` — **when** building `derived_dir/<slug>`,
+- **then** BOTH sources are sanitized: the reduce seam (C-GUARD-2) for the event slug (landed #2036) AND `mission_metadata.resolve_mission_identity` (C-GUARD-2, IC-05) for the `meta.json` slug, so an unsafe slug becomes the trusted `feature_dir.name`;
+- **result**: no `mkdir`/write outside `derived/`; output lands under `feature_dir.name`.
+- **Regression note**: `progress.py` was already safe post-#2036; `views.py`/`lifecycle.py` were NOT (the `meta.json` fallback bypassed the reduce seam) — IC-05 closes them. The negative test MUST cover the `meta.json`-slug + empty-event-slug combination.
 
 ## C-REGRESSION — architectural guard
 
