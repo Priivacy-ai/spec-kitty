@@ -83,6 +83,12 @@ WP that adds only audit tooling under `tests/architectural/untrusted_path_audit/
   with the ruleset documented in `untrusted_path_audit/RULESET.md`. The script must
   make the count machine-checkable (T004). Keep it dependency-light and ruff/mypy-clean.
   (Use a non-`test_` filename so pytest does not collect it as a test.)
+- The matcher MUST follow at least **one hop of local-variable aliasing**: a seed
+  segment assigned to a local then joined to a path (`slug = meta.get("mission_slug"); ... root / slug`)
+  counts as a sink — not only inline literal `Path(...) / mission_slug` joins.
+- `RULESET.md` MUST include a "known false-negative classes" section stating exactly
+  what the ruleset does NOT trace (e.g. cross-function flow), so the reviewer judges
+  residual risk rather than assuming zero.
 
 ### T002 — Run the audit; enumerate every sink
 - Execute the ruleset over `src/specify_cli`. Capture every matching call site as a
@@ -95,12 +101,14 @@ WP that adds only audit tooling under `tests/architectural/untrusted_path_audit/
   - `routed-through-seam` — already passes `assert_safe_path_segment`/`safe_mission_slug`/`ensure_within_any` (cite the seam call).
   - `unreachable` — the call chain cannot carry an untrusted segment (name the chain/why).
   - `trusted-source` — the segment provably originates from `feature_dir.name` or another derived/trusted value.
+- **Named-untrusted rule**: a segment that IS `mission_slug`, `feature_slug`, or `wp_id` (spec Domain Language) may **never** be classified `trusted-source` — it is untrusted by definition. Such a row is either `routed-through-seam` (cite the seam) or `unreachable` (cite the chain). Misclassifying one is an SC-003 failure.
 - Rows needing a NEW fix are those currently lacking a seam call but reachable with an untrusted segment → mark `routed-through-seam (TODO)` and route to WP02 (status/) or WP03 (other packages).
 
 ### T004 — Emit the audit record with a completeness check
-- Write `untrusted_path_audit/inventory.md` (the table) and have the script assert
-  **emitted row count == inventory row count** (no manually dropped rows). A row with
-  no disposition is a failure (SC-003).
+- Write `untrusted_path_audit/inventory.md` (the table). The script MUST assert BOTH:
+  1. **Count consistency**: emitted row count == inventory row count (no manually dropped rows); a row with no disposition fails (SC-003).
+  2. **Known-candidate presence (anti-undercount tripwire)**: the inventory MUST contain a row for every pre-named candidate — `events/decision_log.py`, `coordination/surface_resolver.py`, `missions/_read_path_resolver.py`, `dossier/drift_detector.py`, `migration/mission_state.py`, `review/cycle.py`, `review/arbiter.py`, `post_merge/review_artifact_consistency.py`, `status/store.py`, `status/views.py`, `status/lifecycle.py`, `aggregate.py:_find_meta_path`, AND a row for the FR-009 `mission_metadata.py` `meta.json` slug source tagged `routed-through-seam (TODO)`. The script self-test FAILS if any is absent. (Defeats a thin/circular audit.)
+- **Anti-overfit check**: adding one new untrusted source symbol to the seed-set and re-running MUST surface its sinks — prove the ruleset is general, not hard-coded to the known list.
 
 ### T005 — Document aggregate.py + hand off
 - Record that `status/aggregate.py._validate_mission_slug` already raises
@@ -119,8 +127,8 @@ worktrees are allocated per computed lane from `lanes.json` at implement time.
 ## Definition of Done
 
 - [ ] Ruleset + script committed under `tests/architectural/untrusted_path_audit/`; re-running reproduces the same inventory.
-- [ ] Every sink row carries exactly one disposition with rationale (SC-003).
-- [ ] Emitted count == inventory rows (machine-checked).
+- [ ] Every sink row carries exactly one disposition with rationale (SC-003); no named untrusted source (`mission_slug`/`feature_slug`/`wp_id`) is `trusted-source`.
+- [ ] Emitted count == inventory rows (machine-checked) AND every known candidate + the FR-009 `meta.json` row is present (machine-asserted).
 - [ ] aggregate.py raise-guard documented; composed-path reads dispositioned (FR-003).
 - [ ] Audited-surface inventory produced for WP04.
 - [ ] No `src/` production code modified (audit tooling only).
