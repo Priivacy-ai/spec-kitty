@@ -61,9 +61,11 @@ URLs (C-001 — repo policy). Independent of all other WPs (parallel). (FR-006)
   transport; cite the policy. Keep it factual and short.
 
 ### T022 — retain/strengthen binding regression tests
-- In `tests/core/test_loopback_http.py`, ensure there is an explicit assertion that
-  the helper binds to `127.0.0.1` (and rejects/does not bind a non-loopback host).
-  This locks the safe semantics so a later "HTTPS fix" or host-widening regresses a test.
+- In `tests/core/test_loopback_http.py`, assert BOTH: (a) the helper binds `127.0.0.1`,
+  AND (b) a non-loopback host (e.g. `0.0.0.0` or an external IP) is rejected/not bound.
+  **Mutation-verify**: widen the bind to `0.0.0.0` in the source → the test MUST fail
+  (record the result). A one-sided "binds 127.0.0.1" assertion is insufficient — it
+  wouldn't catch a host-widening regression.
 
 ### T023 — record the Sonar hotspots
 - Record the 2 hotspots by **Sonar rule key + location + PR #2036** (per C-005, cite
@@ -83,8 +85,8 @@ Planning/base + merge target: `automation/sonar-security-20260619` (rides PR #20
 
 ## Definition of Done
 
-- [ ] Loopback-only rationale documented in `core/loopback_http.py` (no behavioural change).
-- [ ] Binding regression test asserts 127.0.0.1 and is retained/strengthened.
+- [ ] Loopback-only rationale documented in `core/loopback_http.py`; **no behavioural change verified by diff-shape**: the `git diff` to `loopback_http.py` contains only comment/docstring additions (no executable line changed) — reviewer confirms.
+- [ ] Binding regression test asserts BOTH 127.0.0.1-binds AND non-loopback-rejected; mutation-verified (widen to 0.0.0.0 → test fails).
 - [ ] Both hotspots recorded by rule key + PR #2036 (in the PR body + module docstring) with the do-not-force-HTTPS rationale (C-001, C-005).
 - [ ] ruff + mypy clean; loopback tests green.
 

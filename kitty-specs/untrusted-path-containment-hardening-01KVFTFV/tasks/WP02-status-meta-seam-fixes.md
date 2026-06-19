@@ -33,7 +33,6 @@ owned_files:
 - src/specify_cli/status/store.py
 - src/specify_cli/status/views.py
 - src/specify_cli/status/lifecycle.py
-- src/specify_cli/status/progress.py
 - src/specify_cli/mission_metadata.py
 - tests/status/test_store.py
 - tests/status/test_derived_view_slug_traversal.py
@@ -75,17 +74,17 @@ closed (C-004).
 ## Subtasks
 
 ### T006 — store.py resolve()-containment (FR-002)
-- In `_SlugResolver.resolve`, after the existing segment-grammar gate and before/around the `read_text`, validate the composed `meta_path` with `ensure_within_any(meta_path, [self._mission_specs_root])`.
+- In `_SlugResolver.resolve`, after the existing segment-grammar gate and before/around the `read_text`, validate the composed `meta_path` with `ensure_within_any(meta_path, roots=[self._mission_specs_root])`. **`roots` is keyword-only** — the positional form `ensure_within_any(meta_path, [root])` raises `TypeError` and the containment silently never runs (a no-op disguised as a fix). Use the `roots=` keyword (matches `merge.py:823,844`).
 - **Fail closed (C-004)**: on `ValueError`, return `None` (skip), log at most one WARNING per distinct slug (reuse the existing cache so a repeated bad slug doesn't re-warn — NFR-004). Do NOT raise.
 - Keep cyclomatic complexity ≤ 15 (extract a small helper if needed).
 
 ### T007 — store.py symlink-escape + symlinked-root tests (FR-008)
 - **Negative (escape)**: plant a symlink dir under the specs root whose target is outside it, with a `meta.json` behind it; assert `resolve()` returns `None` and does not read the escaped file. Mutation-verify: neutralize the new containment → test FAILS.
-- **Positive (symlinked root — macOS hazard, research Decision 6)**: place the specs root itself under a symlinked path (mirror the macOS `/tmp`→`/private/tmp` case) and assert a LEGITIMATE slug RESOLVES (no false reject). This guards NFR-003. Pass the un-resolved logical root to `ensure_within_any`.
+- **Positive (symlinked root — macOS hazard, research Decision 6)**: place the specs root itself under a symlinked path and assert a LEGITIMATE slug RESOLVES (no false reject). This guards NFR-003. Pass the un-resolved logical root to `ensure_within_any`. **MUST run on ALL platforms (incl. Linux CI)** — construct the symlink explicitly inside `tmp_path` (a symlinked dir → real specs root); do NOT `@pytest.mark.skipif` on platform and do NOT `pytest.skip` in the body (a skipped test ships the false-reject regression undetected). Assert `path.is_symlink()` on the planted link so a no-op test that omits the symlink fails.
 
 ### T008 — mission_metadata safe_mission_slug chokepoint (FR-009)
 - In `resolve_mission_identity` (mission_metadata.py:225), route the resolved slug through `safe_mission_slug(meta.get("mission_slug") or meta.get("slug"), feature_dir.name)` so a hostile `meta.json` slug fails closed to the trusted `feature_dir.name`. This single change covers BOTH `views.py` and `lifecycle.py` consumers.
-- Confirm no legitimate display consumer breaks (downgrade to `feature_dir.name` is display-safe).
+- **Pass-through positive test (un-fakeable)**: assert that for a LEGITIMATE `meta.json mission_slug`, `resolve_mission_identity().mission_slug` returns the slug **unchanged** (proving `safe_mission_slug` is a pass-through for valid input, not a blanket downgrade that would corrupt display). Mutation: a valid slug must NOT be replaced by `feature_dir.name`.
 
 ### T009 — meta.json write-path negative test (FR-009)
 - In `tests/status/test_derived_view_slug_traversal.py`, add a case: hostile `meta.json` `mission_slug = "../../../../evil"` + empty event-log slug → drive `generate_lifecycle_json` and `materialize_if_stale`/`write_derived_views`; assert NO `mkdir`/write outside `derived_dir`, output under `feature_dir.name`. Mutation-verify: revert T008 → test FAILS (escaped dir created).

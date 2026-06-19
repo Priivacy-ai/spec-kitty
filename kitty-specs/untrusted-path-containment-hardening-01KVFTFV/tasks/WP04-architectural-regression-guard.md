@@ -48,9 +48,10 @@ Runs after WP02/WP03 fixes land so the guard is green on the fixed tree.
 
 ## Context
 
-- WP01 produced `audit/audited-surfaces.md` (the inventory of untrusted→FS sinks +
-  dispositions). This guard's matched-surface set is THAT inventory, not a heuristic
-  over every `Path /` join (which would be high-false-positive).
+- WP01 produced `tests/architectural/untrusted_path_audit/audited-surfaces.md` (the
+  inventory of untrusted→FS sinks + dispositions). This guard's matched-surface set is
+  THAT inventory, not a heuristic over every `Path /` join (which would be
+  high-false-positive).
 - Existing architectural guards live in `tests/architectural/` (e.g.
   `test_no_legacy_terminology.py`) and run in the `integration-tests-core-misc` CI job.
 
@@ -64,12 +65,19 @@ Runs after WP02/WP03 fixes land so the guard is green on the fixed tree.
   source symbols + sink predicate — NOT a blanket `Path /` matcher.
 - Keep it ruff/mypy-clean and reasonably fast (architectural tests run in CI core-misc).
 
-### T019 — guard self-test (load-bearing proof)
-- Add a self-test fixture: a synthetic snippet (in a tmp file or an inline AST sample)
-  that introduces an unvalidated untrusted-segment join on an audited surface MUST make
-  the guard report a violation; and the guard's logic removed/neutralized MUST make
-  that fixture assertion pass. This proves the guard fires (SC-006) and is not vacuous.
-  Document the mutation result in the WP history.
+### T019 — guard self-test (load-bearing proof, TWO mutations)
+- **(a) Real-code mutation**: temporarily introduce an unvalidated untrusted-segment
+  join into an ACTUAL audited source file from WP01's inventory (e.g. a throwaway line
+  in `status/store.py` joining `mission_slug` without the seam); the guard MUST flag it;
+  reverting MUST clear it. This proves the guard reads the REAL surfaces, not just a
+  synthetic sample.
+- **(b) Coverage assertion**: the test MUST assert the guard's matched-surface set is
+  **non-empty and equals the WP01 audited-surface inventory** — failing if the inventory
+  file is empty/missing or the guard inspects zero surfaces. A guard that matches nothing
+  fails its own test (defeats the vacuous-guard exploit).
+- Record both mutation results (with the exact diff used) in the WP history — not just "verified".
+- Note: WP04 depends on WP02/WP03 being GREEN; the guard cannot be the safety net for
+  upstream laziness — assertion (b) is what catches an empty/thin inventory.
 
 ### T020 — gate placement + full run
 - Confirm the guard is collected by the architectural suite and would run in CI's
@@ -83,8 +91,8 @@ Planning/base + merge target: `automation/sonar-security-20260619` (rides PR #20
 ## Definition of Done
 
 - [ ] Guard added, anchored on WP01's inventory (not a blanket `Path /` heuristic).
-- [ ] Self-test proves the guard FAILS on a new unvalidated join and PASSES only with the guard present (load-bearing, SC-006).
-- [ ] Guard is green on the post-WP02/WP03 tree; collected by the architectural suite.
+- [ ] Self-test proves load-bearing via BOTH a real-code mutation (unvalidated join in an actual audited file is flagged) AND a coverage assertion (matched set == non-empty WP01 inventory) (SC-006).
+- [ ] Guard is green on the post-WP02/WP03 tree AND inspects N>0 real audited surfaces; collected by the architectural suite.
 - [ ] ruff + mypy clean.
 
 ## Risks / Reviewer guidance

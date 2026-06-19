@@ -46,7 +46,6 @@
       "write_scope": [
         "src/specify_cli/mission_metadata.py",
         "src/specify_cli/status/lifecycle.py",
-        "src/specify_cli/status/progress.py",
         "src/specify_cli/status/store.py",
         "src/specify_cli/status/views.py",
         "tests/status/test_derived_view_slug_traversal.py",
@@ -73,7 +72,15 @@
         "src/specify_cli/missions/_read_path_resolver.py",
         "src/specify_cli/post_merge/review_artifact_consistency.py",
         "src/specify_cli/review/arbiter.py",
-        "src/specify_cli/review/cycle.py"
+        "src/specify_cli/review/cycle.py",
+        "tests/dossier/test_drift_detector.py",
+        "tests/migration/test_mission_state_repair.py",
+        "tests/post_merge/test_review_artifact_consistency.py",
+        "tests/review/test_arbiter.py",
+        "tests/review/test_cycle.py",
+        "tests/specify_cli/coordination/test_surface_resolver.py",
+        "tests/specify_cli/events/test_decision_log.py",
+        "tests/specify_cli/missions/test_read_path_resolver_validation.py"
       ],
       "predicted_surfaces": [
         "api",
@@ -105,7 +112,7 @@
       "parallel_group": 2
     }
   ],
-  "computed_at": "2026-06-19T12:35:02.814028+00:00",
+  "computed_at": "2026-06-19T12:48:56.124072+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": []
 }

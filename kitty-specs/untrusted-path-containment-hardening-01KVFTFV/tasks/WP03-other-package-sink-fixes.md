@@ -37,6 +37,14 @@ owned_files:
 - src/specify_cli/review/arbiter.py
 - src/specify_cli/review/cycle.py
 - src/specify_cli/post_merge/review_artifact_consistency.py
+- tests/specify_cli/events/test_decision_log.py
+- tests/specify_cli/coordination/test_surface_resolver.py
+- tests/specify_cli/missions/test_read_path_resolver_validation.py
+- tests/dossier/test_drift_detector.py
+- tests/migration/test_mission_state_repair.py
+- tests/review/test_arbiter.py
+- tests/review/test_cycle.py
+- tests/post_merge/test_review_artifact_consistency.py
 role: implementer
 tags: []
 ---
@@ -95,8 +103,9 @@ Planning/base + merge target: `automation/sonar-security-20260619` (rides PR #20
 ## Definition of Done
 
 - [ ] Every WP01 `routed-through-seam (TODO)` sink outside `status/` is routed through the seam, fail-closed.
-- [ ] Every `unreachable`/`trusted-source` candidate has a cited disposition (no speculative fix).
-- [ ] One mutation-verified negative test per confirmed-reachable fix (FR-008).
+- [ ] Each `unreachable` disposition cites the **specific call chain** (named caller → callee → sink line) proving no untrusted segment can arrive, AND names the trusted origin at the chain head. A bare "internal only" is rejected.
+- [ ] **Non-dismissable sinks**: the `wp_id` sinks (`review/arbiter.py:387,483,520`, `post_merge/review_artifact_consistency.py:59`) and the `mission_slug` write sinks (`events/decision_log.py:99`, `dossier/drift_detector.py:211,233`, `migration/mission_state.py:1053`) MUST be routed through the seam OR carry a reviewer-countersigned reachability proof. `wp_id`/`mission_slug` are named untrusted sources (spec FR-004) — defaulting them to `trusted-source` is a finding, not a disposition.
+- [ ] One mutation-verified negative test per confirmed-reachable fix (FR-008); for any named-candidate dispositioned `unreachable`, the WP history records the exact call-chain proof verbatim.
 - [ ] `wp_id` sinks (arbiter/post_merge) validated (FR-001).
 - [ ] aggregate.py composed-path disposition reconciled with WP01 (FR-003).
 - [ ] ruff + mypy clean; affected + full suite green.
