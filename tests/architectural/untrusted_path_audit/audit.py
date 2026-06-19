@@ -307,7 +307,7 @@ def _parse_inventory_rows(text: str) -> list[dict[str, str]]:
         if line.startswith("| file:line "):
             in_table = True
             continue
-        if in_table and line.startswith("|---"):
+        if in_table and line.replace(" ", "").startswith("|---"):
             continue
         if in_table:
             if not line.startswith("|"):

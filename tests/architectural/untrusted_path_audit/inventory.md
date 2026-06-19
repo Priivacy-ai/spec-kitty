@@ -18,13 +18,13 @@ added seam calls to `dossier/`, `events/`, `migration/`, and `review/arbiter`
 ## Sink table
 
 | file:line | untrusted source | sink op | disposition | rationale |
-|-----------|------------------|---------|-------------|-----------|
+| --- | --- | --- | --- | --- |
 | audit/engine.py:88 | resolved.mission_slug | Path-join (/) | unreachable | `scan_root / resolved.mission_slug` is consumed only by a `.is_dir()` existence filter that returns an empty `frozenset` on miss — no file is opened/written; a traversal slug simply fails `.is_dir()`. (Named-untrusted rule: a value that IS `mission_slug` is dispositioned `unreachable`, not `trusted-source`, even though `resolve_mission` resolves it against the on-disk index.) |
 | cli/commands/agent/mission.py:312 | mission_slug | Path-join (/) | routed-through-seam (TODO) | `--mission` slug joined to `.kittify/dossiers/<slug>/snapshot-latest.json` as a finalize commit candidate; no `assert_safe_path_segment` on this CLI path. Deferred (CLI-arg, read-only candidate list). |
 | cli/commands/agent/tasks.py:1911 | mission_slug | Path-join (/) | routed-through-seam (TODO) | `worktree_kitty / mission_slug / "tasks"` `.exists()` probe from a raw `--mission` slug; reachable, unguarded. Deferred (CLI-arg, .exists() probe only). |
 | cli/commands/agent/workflow.py:921 | wp_slug | Path-join (/) | trusted-source | `wp_slug` is the WP file stem (`wp.path.stem`) — a derived on-disk filename, not external input; `feature_dir / "tasks" / wp_slug` then `.exists()`/`.glob`. |
 | cli/commands/agent/workflow.py:1600 | wp_slug | Path-join (/) | trusted-source | Same `wp.path.stem` provenance; read-only `ReviewCycleArtifact.latest(...)`. |
-| cli/commands/agent/workflow.py:2642 | wp_slug | Path-join (/) | trusted-source | `wp_slug = wp.path.stem`; parent `feature_dir` from `resolve_feature_dir_for_mission` → `resolve_mission_read_path` (assert_safe_path_segment, _read_path_resolver.py:283). Segment derived, dir guarded. |
+| cli/commands/agent/workflow.py:2642 | wp_slug | Path-join (/) | trusted-source | `wp_slug = wp.path.stem`; parent `feature_dir` from `resolve_feature_dir_for_mission` → `resolve_mission_read_path` (assert_safe_path_segment,_read_path_resolver.py:283). Segment derived, dir guarded. |
 | cli/commands/decision.py:464 | mission_slug | Path-join (/) | routed-through-seam (TODO) | `repo_root / KITTY_SPECS_DIR / mission_slug` then `load_meta(...)` read; raw `--mission` slug, no seam at this site. Deferred (CLI-arg, load_meta read). |
 | cli/commands/merge.py:591 | mission_slug | Path-join (/) | unreachable | Builds a *relative* `kitty-specs/<slug>/status.events.jsonl` only to stringify into a `git show <ref>:<path>` argument; no local FS open — git resolves inside the tree object. |
 | cli/commands/merge.py:593 | mission_slug | Path-join (/) | unreachable | Same git-ref-argument path as :591 (worktree-rewrite branch); no FS sink. |
@@ -52,7 +52,7 @@ added seam calls to `dossier/`, `events/`, `migration/`, and `review/arbiter`
 ## Disposition summary
 
 | disposition | count | meaning |
-|-------------|-------|---------|
+| --- | --- | --- |
 | routed-through-seam | 10 | already safe (seam cited) |
 | routed-through-seam (TODO) | 6 | 2 RESOLVED-at-source by WP02 (FR-009; matcher-per-site artifact) + 4 deferred CLI-arg low-risk (follow-up #2037) |
 | trusted-source | 5 | derived directory-name / on-disk index / SHA-256 hex provenance |
