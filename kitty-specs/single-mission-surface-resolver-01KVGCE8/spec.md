@@ -73,8 +73,9 @@ all — where the primary checkout is the sole, authoritative, non-divergent sur
 | FR-004 | A **load-bearing architectural guard** (cloning `test_untrusted_path_containment.py`) MUST fail when a `raw-bypass` join is introduced outside the canonical resolver/delegator set; proven load-bearing by a real-code mutation + non-empty coverage assertion. | Draft |
 | FR-005 | **Typed-error pass-through (#2010 bug #15)**: `STATUS_READ_PATH_NOT_FOUND` and `MISSION_AMBIGUOUS_SELECTOR` MUST be preserved end-to-end through `next` / `mission_runtime` instead of being flattened to `MISSION_NOT_FOUND`. (No resolver change — the cheapest first behavioral slice.) | Draft |
 | FR-006 | **Coord-empty hard-fail policy (#1716)**: a materialized-but-empty coordination worktree MUST hard-fail with `STATUS_READ_PATH_NOT_FOUND` whose message instructs the operator to either collapse/flatten the mission OR recreate/populate the coordination branch — never a silent primary fallback. The decision MUST be recorded in an ADR and bound to the single resolver. | Draft |
-| FR-007 | **Collapse to one resolver**: `aggregate._resolve_read_dir` MUST become a thin adapter over the canonical resolver (dropping its duplicate re-gate); the C-004 `missions/feature_dir_resolver.py` re-export shim MUST be retired (callers migrated). No parallel selection logic remains. | Draft |
-| FR-008 | **Single mid8 disambiguation**: `aggregate._find_meta_path`'s silent-first-match `glob("{slug}-*/meta.json")` MUST be eliminated and routed through the one canonical handle resolver, so `--mission <mid8>` resolves identically everywhere (closes the S8 selection ambiguity). | Draft |
+| FR-007 | **Collapse to one resolver**: `aggregate._resolve_read_dir` MUST become a thin adapter over the canonical resolver (dropping its duplicate unmaterialized-coord re-gate, tidy T3); the C-004 `missions/feature_dir_resolver.py` re-export shim MUST be retired (callers migrated, tidy T6); and `coordination/status_transition.py`'s topology predicates (`_is_coordination_feature_dir`/`_is_coord_worktree_feature_dir` — a **5th** parallel selection site, #1900) MUST be migrated to the canonical resolver, draining its C-002 topology-ratchet allowlist entry. No parallel selection logic remains. | Draft |
+| FR-008 | **Single mid8 disambiguation**: `aggregate._find_meta_path`'s silent-first-match `glob("{slug}-*/meta.json")` MUST be eliminated and routed through the one canonical handle resolver, so `--mission <mid8>` resolves identically everywhere (closes the S8 selection ambiguity, tidy T2). | Draft |
+| FR-009 | **Unify the divergent `primary_feature_dir_for_mission`** (tidy T1, squad-found): two functions of that name with identical signatures return different dirs — `_read_path_resolver.py` uses the slug **raw**, `feature_dir_resolver.py` **composes the mid8 suffix** — split by import site. They MUST collapse to ONE definition over a single composition grammar (tidy T5) before the FR-002 equivalence test is written, with the canonical form chosen deliberately (a recorded behavior decision, not a blind merge). This is the mission's own root-cause bug hiding inside the "canonical" primitive. | Draft |
 
 ### Non-Functional Requirements
 
@@ -82,7 +83,7 @@ all — where the primary checkout is the sole, authoritative, non-divergent sur
 |----|-------------|---------------------|--------|
 | NFR-001 | New/changed code passes the quality gates. | `ruff` + `mypy --strict` 0 errors on changed files; no new `# noqa`/`# type: ignore`; complexity ≤ 15. | Draft |
 | NFR-002 | No regression for the non-divergent happy path. | 100% of pre-existing status/merge/next/agent suites pass unchanged. | Draft |
-| NFR-003 | Behavior-equivalence is provable, not asserted. | The FR-002 differential test covers ≥ the (no-coord, coord-fresh, coord-behind, coord-empty, ambiguous-mid8) input classes; each guard/fix carries a mutation-killing test. | Draft |
+| NFR-003 | Behavior-equivalence is provable, not asserted. | The FR-002 differential test covers ≥ the (no-coord, coord-fresh, coord-behind, coord-empty, ambiguous-mid8, **bare-slug-vs-`<slug>-<mid8>`-handle**) input classes; each guard/fix carries a mutation-killing test. (The mid8-handle class is the FR-009 divergence class — must be exercised or T1 hides a false-green.) | Draft |
 | NFR-004 | Errors are actionable. | The coord-empty hard-fail message names both recovery paths (collapse OR recreate/populate); 0 silent fallbacks on the divergent path. | Draft |
 
 ### Constraints
@@ -121,6 +122,7 @@ all — where the primary checkout is the sole, authoritative, non-divergent sur
 | #1716 | Coordination topology coherence / coord-empty fallback (FR-006) | in-mission |
 | #1868 | Canonical seams "exist in name only" (FR-001/FR-004 bind authority to a seam+guard) | in-mission |
 | #1993 | Extraction-without-adoption shadow-path risk (C-002 forbids) | in-mission |
+| #1900 | Drain the topology-ratchet C-002 allowlist (`status_transition.py` coord predicates = 5th selection site) — closed by FR-001/FR-007; allowlist deletion IS the SC-005 proof | in-mission |
 
 ## Assumptions
 
@@ -136,3 +138,22 @@ all — where the primary checkout is the sole, authoritative, non-divergent sur
 - The *validation* seam (slug→safe-segment) — already shipped by 01KVFTFV.
 - Any version/patch-number assignment (C-003).
 - Adding new topology states or a SaaS-side surface authority.
+- Out: the `WorktreeTopology`/`classify_worktree_topology`/`read_worktree_registry` machinery (correct git-registry authority, reused — not a selection duplicate); the `_mid8_from_primary_meta`/`resolve_declared_mid8` cascade (separate seam, #1918).
+
+## Tidy-First Inputs (for /plan — boy-scout squad)
+
+Behavior-preserving cleanups that de-risk the 4→1 collapse and the FR-002 equivalence test. The plan MUST sequence the tidy-BEFORE items ahead of writing the equivalence matrix (a clean surface to assert over), gate the collapse items on equivalence-green (C-004), and treat T7/T8 as opportunistic.
+
+**Tidy-BEFORE (clear the path):**
+- **T1 (FR-009)** — unify the two divergent `primary_feature_dir_for_mission` (raw-slug vs mid8-composed). Highest priority; the canonical-form pick is a recorded behavior decision. `_read_path_resolver.py:410` vs `feature_dir_resolver.py:23`.
+- **T2 (FR-008)** — eliminate `aggregate._find_meta_path` silent-first-match `glob` (`aggregate.py:473`) → canonical handle resolver. Carries a mutation-killing test (changes ambiguous-mid8 from silent-pick to typed error).
+- **T4** — extract ONE shared `resolve-dir-or-typed-error` delegator from the duplicated wrappers in `aggregate._resolve_read_dir` (`aggregate.py:313-338`) and `mission_runtime/resolution.py:602-615`; flag their differing fallback target + exception set as a plan decision. Turns the collapse into a re-point, not a rewrite.
+- **T5** — confirm `_compose_mission_dir` is the single mission-dir-name grammar (pairs with T1; `compose_meta_json_path` routes through it).
+
+**Tidy-DURING / the collapse (gate on FR-002 green):**
+- **T3 (FR-007)** — drop `aggregate._resolve_read_dir`'s redundant unmaterialized-coord re-gate (`aggregate.py:336`); stage early so the equivalence test is written against the thinned adapter.
+
+**Tidy-AFTER (the collapse enables):**
+- **T6 (FR-007)** — retire `missions/feature_dir_resolver.py` C-004 shim (30+ import sites → bulk-edit via the occurrence-classification guardrail); gated on T1+T5 + equivalence-green.
+- **T7** — retire `mission_read_path.py` re-export shim (only `runtime_bridge.py:2442` + 1 test import it). Opportunistic; skip if it costs a bulk-edit.
+- **T8** — when the canonical resolver owns typed errors (FR-005), relocate the `CoordinationBranchDeleted`/`MissionSelectorAmbiguous` hierarchy with it (may retire the `surface_resolver.py:109` mypy suppression). Note, don't force.
