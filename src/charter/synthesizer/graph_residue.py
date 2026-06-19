@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from charter.synthesizer.project_drg import _GRAPH_FILENAME
+from charter.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
 
 __all__ = ["unlink_stale_project_graph"]
 

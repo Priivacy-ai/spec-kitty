@@ -74,14 +74,11 @@ def _find_feature_directory(
     _raw_mission_id = _meta.get("mission_id")
     _mission_id = _raw_mission_id if isinstance(_raw_mission_id, str) else None
     try:
-        feature_dir: Path = cast(
-            Path,
-            resolve_mission_read_path(
-                repo_root,
-                raw_handle,
-                resolve_mid8(raw_handle, mission_id=_mission_id),
-                require_exists=True,
-            ),
+        feature_dir: Path = resolve_mission_read_path(
+            repo_root,
+            raw_handle,
+            resolve_mid8(raw_handle, mission_id=_mission_id),
+            require_exists=True,
         )
     except MissionSelectorAmbiguous as exc:
         raise ActionContextError(exc.error_code, str(exc)) from exc
