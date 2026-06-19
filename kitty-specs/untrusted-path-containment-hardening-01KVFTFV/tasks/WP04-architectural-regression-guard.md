@@ -15,7 +15,8 @@ subtasks:
 - T018
 - T019
 - T020
-agent: claude
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "1334234"
 history:
 - at: '2026-06-19T12:26:42Z'
   actor: claude
@@ -100,3 +101,13 @@ Planning/base + merge target: `automation/sonar-security-20260619` (rides PR #20
 - **Risk**: false positives if the matcher is too broad — anchor strictly on the inventory's source symbols/sinks.
 - **Risk**: false negatives if the matcher is too narrow — the self-test (T019) is the antidote; insist it actually fails without a real guard.
 - **Reviewer**: run the self-test mutation yourself; try adding a deliberate unvalidated join on an audited surface and confirm the guard catches it.
+
+## Activity Log
+
+- 2026-06-19T13:50:31Z – user – shell_pid=1297975 – Moved to planned
+- 2026-06-19T13:50:34Z – claude:sonnet:python-pedro:implementer – shell_pid=1301767 – Started implementation via action command
+- 2026-06-19T14:11:06Z – claude:sonnet:python-pedro:implementer – shell_pid=1301767 – Guard anchored on WP01 inventory; load-bearing proven (real-code mutation flags + non-empty coverage assertion); green on fixed tree; ruff/mypy clean. --force: flattened-mission kitty-specs guard false-positive (status files committed on lane branch due to flattened mission structure; known issue per WP04 prompt)
+- 2026-06-19T14:12:08Z – claude:sonnet:python-pedro:implementer – shell_pid=1301767 – Reconcile; WP04 guard complete lane-d (load-bearing mutation proven). NOTE: WP04 also edited WP01 audit files (inventory 35→29, dropped 2 candidates) claiming WP02/WP03 fixed those sinks — review must verify audit not weakened.
+- 2026-06-19T14:12:10Z – claude:opus:reviewer-renata:reviewer – shell_pid=1334234 – Started review via action command
+- 2026-06-19T14:21:01Z – user – shell_pid=1334234 – Review passed (cycle-2; --force for flattened-mission kitty-specs-on-lane guard #2036 in-mission, --skip-review-artifact-check for cycle-1 which was a #771 status-conflict reset NOT a quality rejection). AUDIT NOT WEAKENED: matcher seed-set/sink-predicate/one-hop-aliasing UNCHANGED; only KNOWN_CANDIDATE_FILES shrank by 2 (decision_log.py, drift_detector.py) - both verified seam-guarded (assert_safe_path_segment before join) with ZERO AST-discovered sinks; Check-2 undercount tripwire catches any residual. Guard LOAD-BEARING: independent mutation (derived_dir/snapshot.mission_slug+.mkdir in status/views.py) caught by audit + all-discovered-rows tests; reverted clean. Coverage non-vacuous (inspected==expected, len>0). store.py T019 probe fully reverted (byte-identical to lane-b). ruff+mypy --strict clean. tests/architectural/ green except pre-existing marker-convention failure (lane diff empty for that file).
+- 2026-06-19T14:21:38Z – user – shell_pid=1334234 – Reconcile lane→primary; reviewer-renata APPROVED WP04 (audit NOT weakened — matcher byte-identical, 2 dropped candidates verified seam-guarded; independent views.py mutation caught; mypy --strict 0)

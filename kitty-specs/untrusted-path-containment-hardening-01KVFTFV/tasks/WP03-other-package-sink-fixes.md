@@ -18,7 +18,8 @@ subtasks:
 - T015
 - T016
 - T017
-agent: claude
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "1292722"
 history:
 - at: '2026-06-19T12:26:42Z'
   actor: claude
@@ -115,3 +116,17 @@ Planning/base + merge target: `automation/sonar-security-20260619` (rides PR #20
 - **Risk**: over-fixing unreachable sinks adds churn — stay disciplined to WP01's dispositions.
 - **Risk**: some of these paths (migration, coordination) are exercised in narrow flows — ensure the fail-closed fallback doesn't break a legitimate migration/coordination path (test the happy path too).
 - **Reviewer**: cross-check each fixed sink against WP01's inventory row; confirm each negative test is mutation-killing; confirm no unreachable sink was needlessly changed.
+
+## Activity Log
+
+- 2026-06-19T13:15:05Z – claude:sonnet:python-pedro:implementer – shell_pid=1218199 – Assigned agent via action command
+- 2026-06-19T13:33:19Z – claude:sonnet:python-pedro:implementer – shell_pid=1218199 – 5 sinks routed through seam + tests (mutation-verified); 6 dispositioned unreachable/already-seamed with cited chains; deferred CLI-arg sinks: agent/mission.py:312 (trusted-source dir.name), agent/tasks.py:1911 (read-only probe), decision.py:464 (read-only), merge.py:1055 (read-only)
+- 2026-06-19T13:34:34Z – claude:sonnet:python-pedro:implementer – shell_pid=1218199 – Reconcile lane→primary; WP03 impl complete lane-c 5aa0f6bd0 (5 fixed, 5 dispositioned, 4 CLI-arg deferred)
+- 2026-06-19T13:34:36Z – claude:opus:reviewer-renata:reviewer – shell_pid=1278176 – Started review via action command
+- 2026-06-19T13:41:38Z – user – shell_pid=1278176 – Moved to planned
+- 2026-06-19T13:42:15Z – claude:sonnet:python-pedro:implementer – shell_pid=1288131 – Started implementation via action command
+- 2026-06-19T13:44:25Z – claude:sonnet:python-pedro:implementer – shell_pid=1288131 – cycle 2: ruff UP037 autofixed; ruff exit 0 on all WP03-touched files; 48 arbiter tests green; --force: kitty-specs-on-lane guard friction (status events on lane branch, known friction pattern)
+- 2026-06-19T13:44:51Z – claude:sonnet:python-pedro:implementer – shell_pid=1288131 – Reconcile; WP03 cycle-2 ruff UP037 fixed lane-c 687da2106 (ruff/mypy 0, 48 arbiter tests green)
+- 2026-06-19T13:44:52Z – claude:opus:reviewer-renata:reviewer – shell_pid=1292722 – Started review via action command
+- 2026-06-19T13:46:46Z – user – shell_pid=1292722 – Cycle 2 passed: ruff UP037 fixed (surgical one-line delta in 687da2106), ruff exit 0 on all 11 WP03 touched .py files, mypy clean, 48 arbiter tests green; cycle-1 substantive PASS stands. Overrides: --skip-review-artifact-check (prior review-cycle-2.md rejection remediated) + --force (kitty-specs-on-lane guard friction #2036, flattened mission - status events on lane branch, known friction pattern matching implementer cycle-2 note).
+- 2026-06-19T13:47:33Z – user – shell_pid=1292722 – Reconcile lane→primary; reviewer-renata APPROVED WP03 cycle 2 (ruff/mypy 0, 48 tests, one-line UP037 fix)
