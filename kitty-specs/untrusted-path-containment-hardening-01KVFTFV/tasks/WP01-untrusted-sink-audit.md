@@ -15,7 +15,8 @@ subtasks:
 - T003
 - T004
 - T005
-agent: claude
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "1204819"
 history:
 - at: '2026-06-19T12:26:42Z'
   actor: claude
@@ -140,3 +141,14 @@ worktrees are allocated per computed lane from `lanes.json` at implement time.
 - **Reviewer**: re-run the committed ruleset; confirm the count check; spot-check 3
   dispositions against the code; confirm the `meta.json` write-path bypass (WP02/FR-009)
   appears as a `routed-through-seam (TODO)` row.
+
+## Activity Log
+
+- 2026-06-19T12:53:53Z – claude:opus:python-pedro:implementer – shell_pid=1161318 – Assigned agent via action command
+- 2026-06-19T13:06:26Z – user – shell_pid=1161318 – WP01 audit tooling complete; advancing through valid lane chain
+- 2026-06-19T13:06:28Z – user – shell_pid=1161318 – WP01 audit tooling complete; advancing through valid lane chain
+- 2026-06-19T13:07:01Z – claude:opus:python-pedro:implementer – shell_pid=1161318 – Audit tooling complete (committed 102f98ec9); ruff/mypy/audit gates green. --force: lone blocker is an untracked WP05 artifact in the planning repo, not WP01-owned.
+- 2026-06-19T13:07:28Z – claude:opus:python-pedro:implementer – shell_pid=1161318 – Audit tooling complete (102f98ec9); ruff/mypy/audit gates green; lone blocker is foreign WP05 artifact
+- 2026-06-19T13:09:31Z – claude:opus:python-pedro:implementer – shell_pid=1161318 – Flattened mission: kitty-specs status lives on planning branch by design; kitty-specs-on-lane guard is a known false-positive here (#1716). WP01 impl complete on lane-a 102f98ec9.
+- 2026-06-19T13:09:33Z – claude:opus:reviewer-renata:reviewer – shell_pid=1204819 – Started review via action command
+- 2026-06-19T13:13:46Z – user – shell_pid=1204819 – Review passed (reviewer-renata). --force: flattened-mission kitty-specs-on-lane guard false-positive (#1716) -- only auto-committed status.events.jsonl/status.json flagged, not WP01 audit artifacts. Independent audit.py re-run: EXIT 0 'AUDIT OK: 35 inventory rows (34 AST-discovered); TODO(fix)=13 safe=10 trusted=4 unreachable=8'. Tripwire mutations all bite: del events/decision_log.py:99->EXIT1 undercount; del FR-009 mission_metadata.py:328->EXIT1; flip store.py:184->EXIT1 SC-003. Tree clean after revert. One-hop aliasing verified (synthetic + real migration/mission_state.py:1049). Spot-checked dispositions vs src/: FR-009 mission_metadata.py routed-through-seam(TODO); views.py:266 TODO + views.py:92 reducer-sanitized seam (precise 2-site discrimination); store.py:184 _is_safe_slug seam; surface_resolver.py:429/434 unreachable raise-payload. All 12 known candidates genuinely AST-discovered. ruff+mypy clean. Scope: 4 audit files only, no src/. Set issue-matrix #2036->in-mission (multi-WP; fixes land WP02-04; terminal verdict due at mission done).

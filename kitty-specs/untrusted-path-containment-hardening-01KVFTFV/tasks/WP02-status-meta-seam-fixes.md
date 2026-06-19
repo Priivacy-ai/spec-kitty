@@ -19,7 +19,8 @@ subtasks:
 - T009
 - T010
 - T011
-agent: claude
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "1254993"
 history:
 - at: '2026-06-19T12:26:42Z'
   actor: claude
@@ -113,3 +114,12 @@ Planning/base + merge target: `automation/sonar-security-20260619` (rides PR #20
 
 - **macOS false-reject risk** (the key one): the symlinked-root positive test MUST prove a legitimate slug is accepted under a symlinked root — verify the test would catch a guard that passes a pre-resolved root.
 - **Reviewer**: run the two mutation checks yourself (neutralize containment → escape test fails; revert the mission_metadata change → meta.json write test fails). Confirm `progress.py` is untouched and still safe.
+
+## Activity Log
+
+- 2026-06-19T13:15:01Z – claude:opus:python-pedro:implementer – shell_pid=1218199 – Assigned agent via action command
+- 2026-06-19T13:27:03Z – claude:opus:python-pedro:implementer – shell_pid=1218199 – store.py containment (roots= kw) + meta.json chokepoint; symlink-escape + symlinked-root + meta.json-bypass tests all mutation-verified; mypy --strict clean; #2036 baseline green; --force used: flattened-mission kitty-specs-on-lane guard false-positive (lane is based on automation/sonar-security-20260619 which carries kitty-specs)
+- 2026-06-19T13:27:42Z – claude:opus:python-pedro:implementer – shell_pid=1218199 – Reconcile lane→primary desync (flattened mission); WP02 impl complete lane-b b6e3fabd2 (mypy --strict 0, 730 tests, 3 mutations bit)
+- 2026-06-19T13:27:44Z – claude:opus:reviewer-renata:reviewer – shell_pid=1254993 – Started review via action command
+- 2026-06-19T13:32:38Z – user – shell_pid=1254993 – Review passed (reviewer-renata, independent mutation-verified). FR-002: store.py resolve() calls ensure_within_any(meta_path, roots=[root]) keyword roots= (kw-only confirmed), fail-closed None, cached. Mutation force _is_contained=True: symlink-escape test FAILED (attacker mission_id returned), symlinked-root positive still PASSED; reverted clean. FR-009: resolve_mission_identity routes meta slug via safe_mission_slug(raw, feature_dir.name). Mutation raw slug: both generate_lifecycle_json + materialize_if_stale hostile-meta tests FAILED with a REAL escaped 'evil' dir created outside derived_dir (asserts no-mkdir-outside), pass-through positive PASSED; reverted clean. NFR-003 symlinked-root test runs unconditionally (no skip), asserts is_symlink(). FR-007: progress.py/reducer.py untouched, 730 status+merge tests passed. Gates: mypy --strict exit 0, ruff+C901 clean, no new noqa/type-ignore. Scope: exactly 4 files; resolve <=15. --force: known flattened-mission kitty-specs-on-lane guard false-positive (lane based on automation/sonar-security-20260619 carrying kitty-specs; #2036 in-mission), same override the implementer used.
+- 2026-06-19T13:33:35Z – user – shell_pid=1254993 – Reconcile lane→primary desync; reviewer-renata APPROVED WP02 (FR-002+FR-009 mutations independently bit, mypy --strict 0, 730 tests). #2036 in-mission.
