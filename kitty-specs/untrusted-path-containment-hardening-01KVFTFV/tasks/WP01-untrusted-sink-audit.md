@@ -1,0 +1,134 @@
+---
+work_package_id: WP01
+title: Reproducible untrusted→FS sink audit (read-only inventory)
+dependencies: []
+requirement_refs:
+- FR-003
+- FR-004
+tracker_refs: []
+planning_base_branch: automation/sonar-security-20260619
+merge_target_branch: automation/sonar-security-20260619
+branch_strategy: Planning artifacts for this mission were generated on automation/sonar-security-20260619. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into automation/sonar-security-20260619 unless the human explicitly redirects the landing branch.
+subtasks:
+- T001
+- T002
+- T003
+- T004
+- T005
+agent: claude
+history:
+- at: '2026-06-19T12:26:42Z'
+  actor: claude
+  note: WP authored from plan IC-02 (FR-004/FR-003).
+agent_profile: python-pedro
+authoritative_surface: tests/architectural/untrusted_path_audit/
+create_intent:
+- tests/architectural/untrusted_path_audit/audit.py
+- tests/architectural/untrusted_path_audit/RULESET.md
+- tests/architectural/untrusted_path_audit/inventory.md
+- tests/architectural/untrusted_path_audit/audited-surfaces.md
+execution_mode: code_change
+model: claude-opus-4-8
+owned_files:
+- tests/architectural/untrusted_path_audit/audit.py
+- tests/architectural/untrusted_path_audit/RULESET.md
+- tests/architectural/untrusted_path_audit/inventory.md
+- tests/architectural/untrusted_path_audit/audited-surfaces.md
+role: implementer
+tags: []
+---
+
+## ⚡ Do This First: Load Agent Profile
+
+Before reading anything else, load your assigned agent profile so your identity,
+governance scope, and boundaries are active for this work package:
+
+- Run `/ad-hoc-profile-load python-pedro` (or read `src/doctrine/agent_profiles/built-in/python-pedro.agent.yaml` and adopt it).
+- Acknowledge the profile's initialization declaration before proceeding.
+
+## Objective
+
+Produce a **reproducible** audit that enumerates every untrusted-segment→filesystem
+sink in `src/specify_cli`, each tagged with exactly one disposition. This is a
+WP that adds only audit tooling under `tests/architectural/untrusted_path_audit/`
+(no changes to `src/`). Its inventory is the input to WP02, WP03, and WP04.
+(IC-02; FR-004, FR-003)
+
+## Context
+
+- Untrusted path segments (`mission_slug`, `feature_slug`, `wp_id`, and anything
+  read from `status.events.jsonl` / `meta.json` / frontmatter / CLI args) must
+  pass the canonical seam before any FS sink. PR #2036 closed several; the squad
+  review found more (e.g. the `meta.json` write-path bypass — see WP02).
+- Canonical seam: `assert_safe_path_segment` & `safe_mission_slug` in
+  `src/specify_cli/core/paths.py`; `ensure_within_any` in
+  `src/specify_cli/core/utils.py`.
+- Pre-identified candidates (from the plan; NOT exhaustive): `events/decision_log.py:99`,
+  `coordination/surface_resolver.py:433-434`, `missions/_read_path_resolver.py:438`,
+  `dossier/drift_detector.py:211,233`, `migration/mission_state.py:1053`,
+  `review/cycle.py:225`, `review/arbiter.py:387,483,520`,
+  `post_merge/review_artifact_consistency.py:59`, plus the already-known
+  `status/store.py`, `status/views.py`, `status/lifecycle.py`.
+
+## Subtasks
+
+### T001 — Define + commit the reproducible audit ruleset
+- Write, under `tests/architectural/untrusted_path_audit/`, an audit ruleset that a
+  reviewer can re-run. It must record:
+  - **Seed-set** of untrusted source symbols/fields (`mission_slug`, `feature_slug`,
+    `wp_id`, `snapshot.mission_slug`, `meta.get("mission_slug")`, event-record reads, CLI args).
+  - **Sink predicate**: `open`/`read_text`/`read_bytes`/`write_text`/`write_bytes`/
+    `mkdir`/`shutil.copy|move|rmtree`/`unlink` and `Path(...) / <segment>` joins.
+- Implement as a small committed script (`untrusted_path_audit/audit.py` using `ast`)
+  with the ruleset documented in `untrusted_path_audit/RULESET.md`. The script must
+  make the count machine-checkable (T004). Keep it dependency-light and ruff/mypy-clean.
+  (Use a non-`test_` filename so pytest does not collect it as a test.)
+
+### T002 — Run the audit; enumerate every sink
+- Execute the ruleset over `src/specify_cli`. Capture every matching call site as a
+  row: `file:line | untrusted source | sink op`.
+- Include the pre-identified candidates; do not assume the list is complete — let the
+  ruleset surface others.
+
+### T003 — Classify each sink with a disposition
+- For every row assign exactly one disposition:
+  - `routed-through-seam` — already passes `assert_safe_path_segment`/`safe_mission_slug`/`ensure_within_any` (cite the seam call).
+  - `unreachable` — the call chain cannot carry an untrusted segment (name the chain/why).
+  - `trusted-source` — the segment provably originates from `feature_dir.name` or another derived/trusted value.
+- Rows needing a NEW fix are those currently lacking a seam call but reachable with an untrusted segment → mark `routed-through-seam (TODO)` and route to WP02 (status/) or WP03 (other packages).
+
+### T004 — Emit the audit record with a completeness check
+- Write `untrusted_path_audit/inventory.md` (the table) and have the script assert
+  **emitted row count == inventory row count** (no manually dropped rows). A row with
+  no disposition is a failure (SC-003).
+
+### T005 — Document aggregate.py + hand off
+- Record that `status/aggregate.py._validate_mission_slug` already raises
+  `InvalidMissionSlug` (grammar guard), and disposition its composed-path reads
+  (`_find_meta_path` glob, etc.) — fix-needed vs trusted (FR-003).
+- Produce the **audited-surface inventory** (the list WP04's guard anchors on) as a
+  stable artifact (`untrusted_path_audit/audited-surfaces.md`, or a machine-readable
+  list the WP04 guard can import).
+
+## Branch Strategy
+
+Planning/base and merge target are both `automation/sonar-security-20260619` (this
+mission rides PR #2036; it is flattened — no coordination branch). Execution
+worktrees are allocated per computed lane from `lanes.json` at implement time.
+
+## Definition of Done
+
+- [ ] Ruleset + script committed under `tests/architectural/untrusted_path_audit/`; re-running reproduces the same inventory.
+- [ ] Every sink row carries exactly one disposition with rationale (SC-003).
+- [ ] Emitted count == inventory rows (machine-checked).
+- [ ] aggregate.py raise-guard documented; composed-path reads dispositioned (FR-003).
+- [ ] Audited-surface inventory produced for WP04.
+- [ ] No `src/` production code modified (audit tooling only).
+
+## Risks / Reviewer guidance
+
+- **Risk**: false positives (trusted `feature_dir.name` mistaken as untrusted) — the
+  disposition step must distinguish source provenance, not just pattern-match the sink.
+- **Reviewer**: re-run the committed ruleset; confirm the count check; spot-check 3
+  dispositions against the code; confirm the `meta.json` write-path bypass (WP02/FR-009)
+  appears as a `routed-through-seam (TODO)` row.
