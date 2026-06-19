@@ -73,9 +73,9 @@ specialization:
     same regardless of origin format; the distinction between a tactic and a procedure (the
     entry/exit-gate test); when an artifact id collides with a built-in and whether to enhance
     or override; that agent lineage is a specializes-from DRG edge rather than an inline profile
-    field; that templates are a valid artifact kind living under pack/templates/ with YAML
-    front-matter and are not registered as DRG nodes; and the promotion path by which a
-    locally-useful artifact is escalated into shared doctrine.
+    field; that templates are a valid artifact kind living under pack/templates/ and are
+    registered as DRG nodes that other artifacts reference by id; and the promotion path by
+    which a locally-useful artifact is escalated into shared doctrine.
   avoidance-boundary: >
     Does not begin decomposition before documentation is supplied (or its absence confirmed) and
     the agent's purpose is confirmed back to the owner; does not assume behaviour from a
