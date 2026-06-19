@@ -22,6 +22,7 @@ def _git_init(path: Path) -> None:
 from specify_cli.status.store import (
     EVENTS_FILENAME,
     EventPersistenceError,
+    _resolve_mission_id_from_dict,
     _SlugResolver,
     StoreError,
     append_event,
@@ -480,3 +481,102 @@ def test_slug_resolver_returns_none_for_malformed_meta(tmp_path: Path) -> None:
     resolver = _SlugResolver(mission_dir)
 
     assert resolver.resolve("034-feature-name") is None
+
+
+def test_slug_resolver_happy_path_resolves_from_meta(tmp_path: Path) -> None:
+    """A valid slug still resolves mission_id from <root>/<slug>/meta.json (guard preserved)."""
+    mission_dir = tmp_path / "kitty-specs" / "034-feature-name"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(
+        json.dumps({"mission_id": "01KNXQS9ATWWFXS3K5ZJ9E5008"}),
+        encoding="utf-8",
+    )
+
+    resolver = _SlugResolver(mission_dir)
+
+    assert resolver.resolve("034-feature-name") == "01KNXQS9ATWWFXS3K5ZJ9E5008"
+
+
+def test_slug_resolver_rejects_traversal_slug_without_reading_outside(
+    tmp_path: Path,
+) -> None:
+    """A traversal slug fails closed (None) and never reads a file outside the specs root.
+
+    Plants an attacker-controlled ``meta.json`` two levels above the specs root
+    that a ``../../`` slug would reach if the guard were absent.  The resolver
+    must return None and must NOT read that file (proving no traversal occurred).
+    """
+    specs_root = tmp_path / "kitty-specs"
+    mission_dir = specs_root / "034-feature-name"
+    mission_dir.mkdir(parents=True)
+
+    # Attacker-planted meta.json that a "../../escape" slug would resolve to:
+    # <specs_root>/../../escape/meta.json == tmp_path.parent/escape/meta.json
+    escape_dir = tmp_path.parent / "escape"
+    escape_dir.mkdir(parents=True, exist_ok=True)
+    (escape_dir / "meta.json").write_text(
+        json.dumps({"mission_id": "01ATTACKERWXS3K5ZJ9E5008XX"}),
+        encoding="utf-8",
+    )
+
+    resolver = _SlugResolver(mission_dir)
+
+    assert resolver.resolve("../../escape") is None
+
+
+def test_slug_resolver_rejects_absolute_style_traversal(tmp_path: Path) -> None:
+    """A deep traversal slug returns None AND never reads the attacker file.
+
+    Un-fakeable: plants a real attacker ``meta.json`` at the EXACT location the
+    ``../../../escape`` slug would resolve to (``<specs_root>/../../../escape``).
+    Without the guard, ``resolve()`` would read it and return the attacker
+    mission_id; with the guard it must return None and leave the file unread.
+    """
+    specs_root = tmp_path / "kitty-specs"
+    mission_dir = specs_root / "034-feature-name"
+    mission_dir.mkdir(parents=True)
+
+    traversal_slug = "../../../escape"
+    # _mission_specs_root resolves to <specs_root>; the slug would join to:
+    escape_dir = specs_root / traversal_slug
+    escape_dir.mkdir(parents=True, exist_ok=True)
+    attacker_meta = escape_dir / "meta.json"
+    attacker_meta.write_text(
+        json.dumps({"mission_id": "01ATTACKERDEEPK5ZJ9E5008XX"}),
+        encoding="utf-8",
+    )
+
+    resolver = _SlugResolver(mission_dir)
+
+    # Guard returns None (NOT the attacker mission_id) and never reads the file.
+    assert resolver.resolve(traversal_slug) is None
+    assert attacker_meta.read_text(encoding="utf-8") != ""  # file still intact/unread
+
+
+def test_resolve_mission_id_from_dict_fail_closed_on_traversal_slug(
+    tmp_path: Path,
+) -> None:
+    """End-to-end event path: a hostile mission_slug in an event record yields None.
+
+    Un-fakeable: plants a real attacker ``meta.json`` at the location the
+    ``../escape`` slug resolves to (``<specs_root>/../escape`` == ``tmp_path/escape``).
+    Without the guard, the resolver would read it and return the attacker
+    mission_id; with the guard the end-to-end resolution must return None.
+    """
+    specs_root = tmp_path / "kitty-specs"
+    mission_dir = specs_root / "034-feature-name"
+    mission_dir.mkdir(parents=True)
+
+    # _mission_specs_root == <specs_root>; slug "../escape" → <specs_root>/../escape
+    escape_dir = tmp_path / "escape"
+    escape_dir.mkdir(parents=True, exist_ok=True)
+    (escape_dir / "meta.json").write_text(
+        json.dumps({"mission_id": "01ATTACKERESCAPEZJ9E5008XX"}),
+        encoding="utf-8",
+    )
+
+    resolver = _SlugResolver(mission_dir)
+
+    result = _resolve_mission_id_from_dict({"mission_slug": "../escape"}, resolver)
+
+    assert result is None

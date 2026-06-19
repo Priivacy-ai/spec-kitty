@@ -4,11 +4,14 @@ from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
+import logging
 import os
 import re
 from pathlib import Path
 
 from .constants import KITTIFY_DIR, WORKTREES_DIR
+
+logger = logging.getLogger(__name__)
 
 _GITDIR_PREFIX = "gitdir:"
 
@@ -104,6 +107,43 @@ def assert_safe_path_segment(value: str) -> str:
         )
 
     return value
+
+
+def safe_mission_slug(slug: str | None, fallback: str) -> str:
+    """Return *slug* when it is a safe single path segment, else *fallback*.
+
+    The mission slug carried on a status snapshot originates from UNTRUSTED
+    event-record content (``StatusEvent.mission_slug``, copied verbatim from a
+    ``status.events.jsonl`` row). Any sink that joins that slug into a path and
+    creates/writes a directory (the ``derived/<slug>/`` view writers) must never
+    let a crafted ``"../../../../tmp/evil"`` slug escape the derived root.
+
+    This is the fail-closed chokepoint: an unsafe slug downgrades to *fallback*
+    (the trusted ``feature_dir.name``), logging a warning. The downgrade is
+    display-only — the slug is used solely as a path segment and a display label,
+    so substituting the trusted directory name has no correctness cost.
+
+    Args:
+        slug: The candidate slug (may be ``None`` or empty).
+        fallback: The trusted replacement (e.g. ``feature_dir.name``).
+
+    Returns:
+        ``slug`` when valid; otherwise ``fallback``.
+    """
+    if not slug:
+        return fallback
+    try:
+        assert_safe_path_segment(slug)
+    except ValueError as exc:
+        logger.warning(
+            "Refusing to use unsafe mission_slug %r as a path segment (traversal guard); "
+            "falling back to trusted %r: %s",
+            slug,
+            fallback,
+            exc,
+        )
+        return fallback
+    return slug
 
 
 def _is_worktree_gitdir(gitdir: Path) -> bool:
