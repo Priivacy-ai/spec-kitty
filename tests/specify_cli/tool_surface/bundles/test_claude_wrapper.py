@@ -154,7 +154,10 @@ class TestMarketplaceJson:
     def _run_build(self, tmp_path: Path) -> Path:
         from specify_cli.tool_surface.bundles.claude import ClaudeBundleProjector
 
-        return ClaudeBundleProjector(tmp_path / "dist").build(skip_validate=True)
+        bundle_dir: Path = ClaudeBundleProjector(tmp_path / "dist").build(
+            skip_validate=True
+        )
+        return bundle_dir
 
     def test_marketplace_json_exists(self, tmp_path: Path) -> None:
         self._run_build(tmp_path)
@@ -191,7 +194,10 @@ class TestBuildIncludesWrappers:
     def _run_build(self, tmp_path: Path) -> Path:
         from specify_cli.tool_surface.bundles.claude import ClaudeBundleProjector
 
-        return ClaudeBundleProjector(tmp_path / "dist").build(skip_validate=True)
+        bundle_dir: Path = ClaudeBundleProjector(tmp_path / "dist").build(
+            skip_validate=True
+        )
+        return bundle_dir
 
     def test_bash_wrapper_in_bundle(self, tmp_path: Path) -> None:
         bundle_dir = self._run_build(tmp_path)
