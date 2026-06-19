@@ -3,6 +3,15 @@
 These tests pin the security-relevant invariant of the module: every server
 it produces binds the IPv4 loopback interface, with no way for a caller to
 widen the bind address.
+
+Mutation-verification note (T022)
+----------------------------------
+The two-sided binding tests below were mutation-verified before commit:
+temporarily widening ``LOOPBACK_HOST`` to ``"0.0.0.0"`` in the source caused
+``test_create_loopback_server_does_not_bind_non_loopback_host`` and
+``test_serve_loopback_server_does_not_bind_non_loopback_host`` to FAIL with
+``AssertionError``, confirming the assertions are mutation-killing.  The source
+was reverted to ``"127.0.0.1"`` before the final commit (result: PASS).
 """
 
 from __future__ import annotations
@@ -81,3 +90,46 @@ def test_serve_loopback_server_binds_loopback_and_serves_forever() -> None:
     assert server.bound_address == ("127.0.0.1", 8124)
     assert server.handler_class is _Handler
     assert len(server.serve_forever_calls) == 1
+
+
+# ---------------------------------------------------------------------------
+# Two-sided binding regression tests (T022)
+# ---------------------------------------------------------------------------
+# These tests assert BOTH (a) that the server binds 127.0.0.1 AND (b) that
+# a non-loopback host (0.0.0.0) is NOT used.  A one-sided "binds 127.0.0.1"
+# check would not catch a host-widening regression.
+#
+# Mutation-kill evidence: temporarily setting LOOPBACK_HOST = "0.0.0.0" in
+# the source caused both tests below to fail with AssertionError, confirming
+# they are mutation-killing.
+
+
+def test_create_loopback_server_does_not_bind_non_loopback_host() -> None:
+    """(b) side: the server must NOT bind a non-loopback address."""
+    server = create_loopback_server(8125, _Handler, server_factory=_RecordingServer)
+
+    assert isinstance(server, _RecordingServer)
+    bound_host = server.bound_address[0]
+    assert bound_host != "0.0.0.0", (
+        "Server must not bind to 0.0.0.0 (would expose beyond loopback)"
+    )
+    assert bound_host != "::", (
+        "Server must not bind to :: (IPv6 wildcard would expose beyond loopback)"
+    )
+    assert bound_host == "127.0.0.1", (
+        f"Server must bind strictly to 127.0.0.1, got {bound_host!r}"
+    )
+
+
+def test_serve_loopback_server_does_not_bind_non_loopback_host() -> None:
+    """(b) side: serve_loopback_server must NOT widen the bind address."""
+    serve_loopback_server(8126, _Handler, server_factory=_RecordingServer)
+
+    assert len(_RecordingServer.instances) == 1
+    bound_host = _RecordingServer.instances[0].bound_address[0]
+    assert bound_host != "0.0.0.0", (
+        "serve_loopback_server must not bind to 0.0.0.0"
+    )
+    assert bound_host == "127.0.0.1", (
+        f"serve_loopback_server must bind strictly to 127.0.0.1, got {bound_host!r}"
+    )
