@@ -12,9 +12,9 @@ purpose: >
   tactic, procedure, paradigm, styleguide, toolguide, template, and optionally an agent
   profile), registers them in the DRG, and validates the result. Intended audience: anyone who
   has a working agent built outside the pack and wants it governed and shareable. This is
-  distinct from migrate-project-guidance-to-spec-kitty-charter, which converts an existing
-  guidance or charter document; this procedure starts from an agent that was authored from
-  scratch, not from a body of legacy doctrine.
+  distinct from the procedure that migrates an existing project-guidance or charter document
+  into a Spec Kitty charter; that path starts from a body of legacy doctrine, whereas this one
+  starts from an agent that was authored from scratch.
 entry_condition: >
   An agent exists outside the pack — in any format, for example Cursor rules, a prompt, a
   no-code bot, a framework script, a custom GPT, or a written description in a wiki or Markdown
