@@ -25,6 +25,7 @@ from urllib.parse import urlsplit
 from packaging.version import Version
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.mission_metadata import (
     load_meta,
     mission_number_from_slug,
@@ -1045,12 +1046,15 @@ def _repair_mission(
 
             if quarantine_lines:
                 quarantined_rows = len(quarantine_lines)
+                # FR-001: mission_slug may originate from untrusted meta.json content
+                # (meta.get("mission_slug")); validate before joining into the quarantine path.
+                _safe_mission_slug = assert_safe_path_segment(mission_slug)
                 quarantine_path = (
                     repo_root
                     / MANIFEST_ROOT
                     / "quarantine"
                     / run_id
-                    / mission_slug
+                    / _safe_mission_slug
                     / EVENTS_FILENAME
                 )
                 before_quarantine = _file_fingerprint(quarantine_path)

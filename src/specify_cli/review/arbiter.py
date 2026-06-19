@@ -19,6 +19,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.utils import write_text_within_directory
 
 if TYPE_CHECKING:
@@ -480,13 +481,15 @@ def _persist_standalone_json(
 ) -> Path:
     """Write decision to a standalone JSON file when no review-cycle artifact exists."""
     tasks_dir = feature_dir / "tasks"
-    wp_subdir = tasks_dir / wp_id
+    # FR-001: validate wp_id before joining into a FS path and calling mkdir (traversal guard).
+    _safe_wp_id = assert_safe_path_segment(wp_id)
+    wp_subdir = tasks_dir / _safe_wp_id
     wp_subdir.mkdir(parents=True, exist_ok=True)
 
     # Find next N
     existing = sorted(wp_subdir.glob("arbiter-override-*.json"))
     n = len(existing) + 1
-    path = wp_subdir / f"arbiter-override-{n}.json"
+    path: Path = wp_subdir / f"arbiter-override-{n}.json"
     write_text_within_directory(
         path,
         json.dumps(decision.to_dict(), indent=2, sort_keys=True),

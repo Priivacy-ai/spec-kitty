@@ -772,3 +772,61 @@ def test_prompt_arbiter_checklist_accepts_default_answers() -> None:
     # All defaults → CUSTOM
     assert decision.category == ArbiterCategory.CUSTOM
     assert decision.explanation == "follow-on required"
+
+
+# ---------------------------------------------------------------------------
+# FR-001 traversal guard — unsafe wp_id rejected in _persist_standalone_json (WP03)
+# ---------------------------------------------------------------------------
+
+
+class TestPersistStandaloneJsonTraversalGuard:
+    """Negative tests: traversal wp_id must raise ValueError before mkdir is called.
+
+    Mutation check: removing assert_safe_path_segment from _persist_standalone_json
+    would cause these tests to fail (no ValueError raised, mkdir would proceed
+    on the unsafe path).
+    """
+
+    def _make_decision(self) -> ArbiterDecision:
+        checklist = ArbiterChecklist(
+            is_pre_existing=True,
+            is_correct_context=True,
+            is_in_scope=True,
+            is_environmental=False,
+            should_follow_on=False,
+        )
+        return ArbiterDecision(
+            arbiter="operator",
+            category=ArbiterCategory.PRE_EXISTING_FAILURE,
+            explanation="Pre-existing.",
+            checklist=checklist,
+            decided_at="2026-06-19T00:00:00+00:00",
+        )
+
+    @pytest.mark.parametrize("bad_wp_id", [
+        "../escaped",
+        "../../etc/shadow",
+        "WP01/evil",
+        ".hidden",
+        "a..b",
+        "",
+    ])
+    def test_persist_standalone_json_rejects_traversal_wp_id(
+        self, tmp_path: Path, bad_wp_id: str
+    ) -> None:
+        """_persist_standalone_json with a traversal wp_id must raise ValueError."""
+        from specify_cli.review.arbiter import _persist_standalone_json
+
+        feature_dir = tmp_path / "kitty-specs" / "safe-mission"
+        feature_dir.mkdir(parents=True)
+        decision = self._make_decision()
+
+        with pytest.raises(ValueError):
+            _persist_standalone_json(feature_dir, bad_wp_id, decision)
+
+        # No escaped directory or file must exist under feature_dir
+        tasks_dir = feature_dir / "tasks"
+        if tasks_dir.exists():
+            for child in tasks_dir.iterdir():
+                # Only the parent tasks dir may exist; no traversal-named subdir
+                assert ".." not in str(child)

@@ -856,3 +856,92 @@ def test_manifest_top_level_keys_remain_sorted(tmp_path: Path) -> None:
     rendered = report.to_json()
     parsed = json.loads(rendered)
     assert list(parsed.keys()) == sorted(parsed.keys())
+
+
+# ---------------------------------------------------------------------------
+# FR-001 traversal guard — mission_slug from meta.json rejected in quarantine path (WP03)
+# ---------------------------------------------------------------------------
+
+
+def test_repair_rejects_traversal_mission_slug_from_meta(tmp_path: Path) -> None:
+    """A traversal mission_slug read from meta.json must raise ValueError before
+    writing the quarantine path.
+
+    Mutation check: removing assert_safe_path_segment from the quarantine-path
+    block in _repair_mission would cause this test to fail (no ValueError raised).
+
+    The test injects a traversal mission_slug via meta.json and ensures that
+    when quarantine rows are produced, repair_repo raises ValueError rather than
+    writing an escaped path.
+    """
+    repo = tmp_path
+    # Use a valid directory name so the mission dir is discovered
+    mission_dir = repo / "kitty-specs" / "safe-mission-slug"
+    mission_dir.mkdir(parents=True)
+
+    # Write meta.json with a traversal mission_slug (untrusted content from disk)
+    _write_json(
+        mission_dir / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "mission_slug": "../../escaped",  # traversal slug in untrusted meta content
+            "mission_type": "software-dev",
+            "friendly_name": "Test",
+            "target_branch": "main",
+        },
+    )
+
+    # Write a typed event row (event_type present) which the repair quarantines
+    # (see _rule_filter_typed_rows in mission_state.py).
+    # This ensures quarantine_lines is non-empty, triggering the slug validation
+    # in the quarantine path code.
+    status_row: dict[str, Any] = {
+        "actor": "test",
+        "at": "2026-01-01T00:00:00+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AAAA",
+        "execution_mode": "worktree",
+        "feature_slug": "safe-mission-slug",
+        "force": False,
+        "from_lane": "planned",
+        "to_lane": "claimed",
+        "wp_id": "WP01",
+    }
+    # A typed side-log row with event_type → quarantined by _rule_filter_typed_rows
+    typed_row: dict[str, Any] = {
+        "at": "2026-01-01T00:00:01+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52BBBB",
+        "event_type": "DecisionPointOpened",
+        "payload": {"decision_point_id": "DP01"},
+    }
+    (mission_dir / "status.events.jsonl").write_text(
+        json.dumps(status_row, sort_keys=True) + "\n" +
+        json.dumps(typed_row, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    _init_git_repo(repo)
+
+    # The traversal slug causes assert_safe_path_segment to raise ValueError inside
+    # _repair_mission.  Because _repair_mission catches all exceptions and returns
+    # a MissionRepairResult with status="error", repair_repo completes without
+    # propagating the exception.  Verify that:
+    #   (a) the mission result carries status="error" (guard fired)
+    #   (b) no file was written at an escaped path outside the repo root.
+    result = repair_repo(repo)
+
+    assert len(result.missions) == 1, "Expected exactly one mission result"
+    mission_result = result.missions[0]
+    assert mission_result.status == "error", (
+        f"Expected error status when traversal slug fires guard, got: {mission_result.status!r}"
+    )
+    # The validation_errors list must contain the slug-validation message
+    assert any("safe path segment" in e or "traversal" in e for e in mission_result.validation_errors), (
+        f"Expected traversal-guard error in validation_errors, got: {mission_result.validation_errors}"
+    )
+
+    # Verify nothing was written at an escaped path
+    quarantine_root = repo / ".kittify" / "migrations" / "mission-state" / "quarantine"
+    if quarantine_root.exists():
+        for path in quarantine_root.rglob("*"):
+            assert ".." not in str(path.relative_to(repo)), (
+                f"Escaped path found: {path}"
+            )

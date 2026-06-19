@@ -938,3 +938,66 @@ class TestLargeSnapshot:
         assert snapshot.completeness_status == "complete"
         assert len(snapshot.parity_hash_sha256) == 64
         assert len(snapshot.artifact_summaries) == 35
+
+
+# ---------------------------------------------------------------------------
+# FR-001 traversal guard — unsafe mission_slug rejected in snapshot I/O (WP03)
+# ---------------------------------------------------------------------------
+
+
+class TestSnapshotTraversalGuard:
+    """Negative tests: traversal slugs must raise ValueError before FS access.
+
+    Mutation check: removing assert_safe_path_segment from save_snapshot or
+    load_snapshot would cause these tests to fail (no ValueError raised).
+    """
+
+    def _make_snapshot(self, mission_slug: str) -> "MissionDossierSnapshot":
+        from specify_cli.dossier.snapshot import compute_snapshot
+        from specify_cli.dossier.models import MissionDossier
+
+        dossier = MissionDossier(
+            mission_type="software-dev",
+            mission_run_id="run-001",
+            mission_slug=mission_slug,
+            feature_dir="/tmp/safe",
+            artifacts=[],
+            manifest={},
+            latest_snapshot=None,
+        )
+        snap = compute_snapshot(dossier)
+        # Force the mission_slug field to the bad slug so it goes through the sink
+        return snap.model_copy(update={"mission_slug": mission_slug})
+
+    @pytest.mark.parametrize("bad_slug", [
+        "../escaped",
+        "../../etc/passwd",
+        "foo/bar",
+        ".hidden",
+        "a..b",
+        "",
+    ])
+    def test_save_snapshot_rejects_traversal_slug(
+        self, tmp_path: Path, bad_slug: str
+    ) -> None:
+        """save_snapshot with a traversal slug must raise ValueError."""
+        snapshot = self._make_snapshot(bad_slug)
+        with pytest.raises(ValueError):
+            save_snapshot(snapshot, tmp_path)
+        # Nothing may have been written under the feature_dir
+        assert not any(tmp_path.rglob("snapshot-latest.json"))
+
+    @pytest.mark.parametrize("bad_slug", [
+        "../escaped",
+        "../../etc/passwd",
+        "foo/bar",
+        ".hidden",
+        "a..b",
+        "",
+    ])
+    def test_load_snapshot_rejects_traversal_slug(
+        self, tmp_path: Path, bad_slug: str
+    ) -> None:
+        """load_snapshot with a traversal slug must raise ValueError."""
+        with pytest.raises(ValueError):
+            load_snapshot(tmp_path, bad_slug)

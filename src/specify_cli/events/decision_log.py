@@ -18,6 +18,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.paths import assert_safe_path_segment
+
 from mission_runtime import CommitTarget, CommitTargetKind
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.events.sanitizer import sanitize_event_for_log
@@ -95,8 +97,10 @@ class DecisionGitLog:
         # Prefer the canonical ULID; fall back to slug for legacy callers.
         self._mission_id = mission_id or mission_slug
         self._inner = inner
+        # FR-001: validate mission_slug before joining into a FS path (traversal guard).
+        _safe_slug = assert_safe_path_segment(mission_slug)
         self._decisions_file = (
-            worktree_root / KITTY_SPECS_DIR / mission_slug / "decisions.events.jsonl"
+            worktree_root / KITTY_SPECS_DIR / _safe_slug / "decisions.events.jsonl"
         )
 
     # ------------------------------------------------------------------
