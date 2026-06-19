@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-06-19
-**Feature**: [spec.md](../spec.md)
+**Mission**: [spec.md](../spec.md)
 
 ## Content Quality
 
@@ -26,16 +26,17 @@
 - [x] Scope is clearly bounded
 - [x] Dependencies and assumptions identified
 
-## Feature Readiness
+## Mission Readiness
 
 - [x] All functional requirements have clear acceptance criteria
 - [x] User scenarios cover primary flows
-- [x] Feature meets measurable outcomes defined in Success Criteria
+- [x] Mission meets measurable outcomes defined in Success Criteria
 - [x] No implementation details leak into specification
 
 ## Notes
 
-- Q1 (store.py symlink-dir residual) resolved → **fix now** with `resolve()`-containment + aggregate.py parity (FR-002 / FR-003).
-- Q2 (audit breadth) resolved → **full CLI audit, fix reachable sinks, document the rest** (FR-004).
+- Q1 (store.py symlink-dir residual) resolved → **fix now** with `resolve()`-containment (FR-002). aggregate.py re-scoped post-review: it already raise-guards the grammar; its composed-path containment is an IC-02 audit disposition (FR-003).
+- Q2 (audit breadth) resolved → **full CLI audit, fix reachable sinks, document the rest** (FR-004), via a reproducible recorded ruleset.
 - Spec rides PR #2036 (`automation/sonar-security-20260619`); #2036 is the landed first increment (FR-007).
-- Some requirement wording necessarily names module/function seams (store.py, safe_mission_slug) because the canonical-seam reuse is a binding constraint (C-002); this is intent, not implementation prescription.
+- **Review remediation applied** (2026-06-19 squad): added FR-009 + IC-05 for the code-verified `meta.json`-slug write-path bypass still live after #2036; tightened FR-001/FR-004/FR-005/SC-003 against fakeability; added macOS symlinked-root positive-case requirement (FR-008b / research Decision 6); reworded NFR-002 (inspection) and NFR-004 (per-distinct-slug warning); added SC-006.
+- Some requirement wording necessarily names module/function seams because the canonical-seam reuse is a binding constraint (C-002); this is intent, not implementation prescription.

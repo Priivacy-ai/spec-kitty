@@ -34,10 +34,23 @@ built path
 filesystem read / write / mkdir  (in-bounds, safe)
 ```
 
+> **Guard applies per sink type**: `ensure_within_any` (`resolve()`-containment)
+> applies to **read** resolvers (store.py). **Write** sinks (progress/lifecycle/
+> views) are protected by `safe_mission_slug` at their slug *sources* — the
+> reducer seam for the event slug AND `mission_metadata.resolve_mission_identity`
+> for the `meta.json` slug (IC-05) — after which an unsafe slug becomes the
+> trusted `feature_dir.name`. The fail branch above therefore has two shapes:
+> read → `None`; write → trusted-fallback.
+
+### Untrusted slug sources (both must be sanitized)
+- Event-log slug (`status.events.jsonl`) → reducer seam (`safe_mission_slug`), landed in #2036.
+- `meta.json mission_slug` via `resolve_mission_identity` → IC-05 (still open after #2036).
+
 ## Validation rules
 
 - VR-1 (FR-001): no FS sink consumes an untrusted segment that skipped the seam.
-- VR-2 (FR-002/003): resolvers apply BOTH grammar and `resolve()`-containment.
+- VR-2 (FR-002): the store.py read resolver applies BOTH grammar and `resolve()`-containment. (aggregate.py grammar-guard already raises; its composed-path containment is an IC-02 audit disposition — FR-003.)
+- VR-6 (FR-009): the `meta.json` slug source is sanitized via `safe_mission_slug`, fail-closed to `feature_dir.name`.
 - VR-3 (C-004): read sinks → `None`; write sinks → trusted fallback; exactly one WARNING each; no raise on hot path.
 - VR-4 (FR-008): each guard has a mutation-killing negative test, incl. symlink-escape.
 - VR-5 (FR-005): the architectural guard rejects new unvalidated joins on audited surfaces.

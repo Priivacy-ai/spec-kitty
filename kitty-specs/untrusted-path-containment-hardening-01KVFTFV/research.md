@@ -2,9 +2,22 @@
 
 ## Decision 1 — Close the store.py symlink-dir residual now (Q1→A)
 
-- **Decision**: Add `resolve()`-containment to `status/store.py._SlugResolver.resolve` and to the sibling `status/aggregate.py` resolver, reusing `core/utils.py.ensure_within_any`. Keep the existing `assert_safe_path_segment` grammar check as the first gate.
-- **Rationale**: The segment-grammar guard rejects `..`/separators/absolute paths, but `store.py` then does `.exists()`/`read_text()` with no `resolve()`-containment, so a *valid single label* that happens to be a **symlink directory** under `kitty-specs/` pointing outside still escapes (witnessed in the squad review). `ensure_within_any` resolves symlinks (`resolve(strict=False)`) and checks containment — the same mechanism merge.py already uses successfully. Fixing both resolvers keeps the two sibling code paths at parity (no third mechanism).
-- **Alternatives considered**: (a) accept as documented residual (matches aggregate precedent) — rejected: the mission's whole point is closing the *class*, and the bar (write access in specs dir) is plausible in shared checkouts; (b) lstat/no-follow checks — rejected: `resolve()`-containment is the established canonical approach already in the tree.
+- **Decision**: Add `resolve()`-containment to `status/store.py._SlugResolver.resolve`, reusing `core/utils.py.ensure_within_any`. Keep the existing `assert_safe_path_segment` grammar check as the first gate.
+- **Rationale**: The segment-grammar guard rejects `..`/separators/absolute paths, but `store.py` then does `.exists()`/`read_text()` with no `resolve()`-containment, so a *valid single label* that is a **symlink directory** under `kitty-specs/` pointing outside still escapes (witnessed in the squad review). `ensure_within_any` resolves symlinks (`resolve(strict=False)`) and checks containment — the same mechanism merge.py already uses.
+- **Aggregate scope correction (review, code-verified)**: there is NO `_SlugResolver` analog in `aggregate.py`. Its slug guard `_validate_mission_slug` (aggregate.py:344-359) already calls `assert_safe_path_segment` and **raises** `InvalidMissionSlug` (callers catch it). So FR-003 is not resolver-parity work; it is documenting that raise-guard and handing aggregate's composed-path reads (`_find_meta_path` glob) to the IC-02 audit for a containment disposition.
+- **Alternatives considered**: (a) accept as documented residual — rejected: the mission's point is closing the *class*, and the bar (write access in specs dir) is plausible in shared checkouts; (b) lstat/no-follow — rejected: `resolve()`-containment is the canonical approach already in the tree.
+
+## Decision 6 — macOS symlinked-root containment (avoid false rejects)
+
+- **Decision**: Compute containment resolved-to-resolved: callers pass the **un-resolved logical root** to `ensure_within_any`, which resolves both sides. Test fixtures MUST include a symlinked-root **positive** case proving a legitimate slug under a symlinked root is ACCEPTED, in addition to the symlink-escape negative case.
+- **Rationale**: `ensure_within_any` resolves both candidate and roots with `resolve(strict=False)`. On macOS/CI, `tmp_path` is commonly under `/var`→`/private/var` or `/tmp`→`/private/tmp`. A naive test that resolves only one side, or a guard wired to a pre-resolved root, would FALSE-REJECT a legitimate slug on macOS (NFR-003 regression) while passing on Linux. This is the standard `/var`→`/private/var` trap.
+- **TOCTOU**: out of scope (threat model: on-disk state authored before the run, not concurrently mutated).
+
+## Decision 7 — meta.json slug bypass of the reducer seam (Blocker, code-verified) → IC-05
+
+- **Finding**: PR #2036's reducer-seam chokepoint sanitizes only the event-log slug. `views.py:_stale_check_slug`→`resolve_mission_identity` (mission_metadata.py:225) and the `lifecycle.py:340-341` empty-slug fallback read `meta.json mission_slug` UNVALIDATED and join it into `derived_dir / <slug>` + `mkdir`. A hostile event slug downgraded to `""` by the reducer actively triggers this fallback — so the write-path traversal is still live. `progress.py` is unaffected (uses only `snapshot.mission_slug or feature_dir.name`).
+- **Decision**: Route `resolve_mission_identity().mission_slug` through `safe_mission_slug(..., feature_dir.name)` at the single source (`mission_metadata.py:225`), covering both consumers. Captured as IC-05 / FR-009.
+- **Note**: this is a still-open vulnerability on the #2036 branch; closing it is now in-scope for this mission rather than a #2036 follow-on.
 
 ## Decision 2 — Full CLI audit, fix reachable, document the rest (Q2→C)
 
