@@ -320,7 +320,7 @@ def test_verify_setup_passes_feature_dir_to_run_enhanced_verify(tmp_path: Path) 
     ):
         # Call with json_output to avoid console rendering issues, and skip tool checks
         verify_setup(
-            feature="099-research-feature",
+            mission="099-research-feature",
             json_output=True,
             check_files=False,
             check_tools=False,

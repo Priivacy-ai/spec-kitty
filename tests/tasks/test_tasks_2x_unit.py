@@ -51,7 +51,7 @@ class TestFindFeatureSlug:
         """
         from specify_cli.cli.commands.agent.tasks import _find_mission_slug
 
-        slug = _find_mission_slug(explicit_feature="008-test-feature")
+        slug = _find_mission_slug(explicit_mission="008-test-feature")
         assert slug == "008-test-feature"
 
     def test_find_raises_on_missing_slug(self):
@@ -60,7 +60,7 @@ class TestFindFeatureSlug:
         from typer import Exit
 
         with pytest.raises(Exit):
-            _find_mission_slug(explicit_feature=None)
+            _find_mission_slug(explicit_mission=None)
 
 
 class TestStatusInProgressLane:
