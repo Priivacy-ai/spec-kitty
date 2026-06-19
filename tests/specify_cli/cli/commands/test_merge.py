@@ -825,6 +825,64 @@ def test_capture_bookkeeping_snapshots_rejects_untrusted_paths(tmp_path: Path) -
         _capture_bookkeeping_snapshots(tmp_path, outside)
 
 
+def test_capture_bookkeeping_snapshots_rejects_dotdot_traversal(tmp_path: Path) -> None:
+    """A ``../``-style candidate that lexically escapes the trusted roots is rejected.
+
+    The candidate STARTS under a trusted root (kitty-specs) but uses ``..``
+    segments to climb back out to a sibling of the repo root. ``resolve(strict=False)``
+    collapses the ``..`` so the containment check fails → ValueError.
+    """
+    from specify_cli.core.constants import KITTY_SPECS_DIR
+
+    traversal = tmp_path / KITTY_SPECS_DIR / "mission" / ".." / ".." / ".." / "evil.json"
+    # Sanity: the collapsed form really does escape tmp_path.
+    assert not traversal.resolve(strict=False).is_relative_to(tmp_path.resolve(strict=False))
+
+    with pytest.raises(ValueError):
+        _assert_bookkeeping_snapshot_path_is_trusted(repo_root=tmp_path, candidate=traversal)
+
+    with pytest.raises(ValueError):
+        _capture_bookkeeping_snapshots(tmp_path, traversal)
+
+
+def test_capture_bookkeeping_snapshots_rejects_symlink_escape(tmp_path: Path) -> None:
+    """A symlink UNDER a trusted root whose target is OUTSIDE the roots is rejected.
+
+    Secure expected behavior: ``resolve(strict=False)`` follows the symlink to the
+    escaped target, so the containment check sees a path outside every trusted root
+    and raises ValueError. If this candidate were ACCEPTED it would be a real
+    containment bypass.
+    """
+    from specify_cli.core.constants import KITTY_SPECS_DIR
+
+    # Trusted root: <tmp>/kitty-specs/mission/
+    mission_dir = tmp_path / KITTY_SPECS_DIR / "mission"
+    mission_dir.mkdir(parents=True)
+
+    # Real target OUTSIDE every trusted root.
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+    secret = outside_dir / "secret.json"
+    secret.write_bytes(b"escaped-payload")
+
+    # Symlink planted UNDER the trusted root that points outside it.
+    evil_link = mission_dir / "evil"
+    evil_link.symlink_to(outside_dir)
+    candidate = evil_link / "secret.json"
+
+    # resolve(strict=False) follows the symlink → target is outside the roots.
+    assert candidate.resolve(strict=False) == secret.resolve(strict=False)
+    assert not candidate.resolve(strict=False).is_relative_to(
+        (tmp_path / KITTY_SPECS_DIR).resolve(strict=False)
+    )
+
+    with pytest.raises(ValueError):
+        _assert_bookkeeping_snapshot_path_is_trusted(repo_root=tmp_path, candidate=candidate)
+
+    with pytest.raises(ValueError):
+        _capture_bookkeeping_snapshots(tmp_path, candidate)
+
+
 # ---------------------------------------------------------------------------
 # WP04 / T018: _assert_status_surface_path_is_trusted XOR preserved (un-fakeable)
 # ---------------------------------------------------------------------------

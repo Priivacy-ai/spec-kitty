@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.events import sanitize_event_for_log
 
 from .models import StatusEvent
@@ -138,6 +139,29 @@ class _SlugResolver:
             return two_up
         return candidate
 
+    @staticmethod
+    def _is_safe_slug(mission_slug: str) -> bool:
+        """Return True when *mission_slug* is a safe single path segment.
+
+        The slug is UNTRUSTED — it flows straight out of a ``status.events.jsonl``
+        event record (``mission_slug`` / ``feature_slug``). Delegates to the
+        canonical ``assert_safe_path_segment`` guard (the same one the sibling
+        ``aggregate._validate_mission_slug`` uses) so a traversal slug such as
+        ``"../../../../tmp/evil"`` can never build a ``meta_path`` outside the
+        specs root. On rejection this logs a warning and returns False so the
+        caller can fail closed (return None) rather than raise.
+        """
+        try:
+            assert_safe_path_segment(mission_slug)
+        except ValueError as exc:
+            logger.warning(
+                "Refusing to resolve unsafe mission_slug %r (traversal guard); mission_id will be None: %s",
+                mission_slug,
+                exc,
+            )
+            return False
+        return True
+
     def resolve(self, mission_slug: str) -> str | None:
         """Return the mission_id for *mission_slug*, or None if unresolvable.
 
@@ -147,6 +171,13 @@ class _SlugResolver:
         """
         if mission_slug in self._cache:
             return self._cache[mission_slug]
+
+        if not self._is_safe_slug(mission_slug):
+            # Fail-closed: a hostile/corrupt slug (e.g. "../../etc") must never
+            # build a path that escapes the specs root. Cache the None result so
+            # the same bad slug is not re-validated on subsequent events.
+            self._cache[mission_slug] = None
+            return None
 
         mission_id: str | None = None
         if self._mission_specs_root is not None:

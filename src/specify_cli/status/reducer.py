@@ -17,6 +17,7 @@ from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any, Literal
 
+from specify_cli.core.paths import safe_mission_slug
 from specify_cli.mission_metadata import resolve_mission_identity
 
 from .models import Lane, RetrospectiveSnapshot, StatusEvent, StatusSnapshot
@@ -152,7 +153,13 @@ def reduce(events: list[StatusEvent]) -> StatusSnapshot:
 
     # Step 3 & 4: Iterate and apply events with rollback-aware precedence
     wp_states: dict[str, dict[str, Any]] = {}
-    mission_slug = sorted_events[0].mission_slug
+    # The event's mission_slug is UNTRUSTED (verbatim from a status.events.jsonl
+    # row). Sanitize it HERE — the single seam where the snapshot's slug is set —
+    # so a crafted traversal slug (e.g. "../../../../tmp/evil") is downgraded to
+    # "" at the source. Every derived-view writer already falls back to the
+    # trusted feature_dir.name when the slug is empty (`slug or feature_dir.name`),
+    # so this one chokepoint fail-closes all current and future path sinks.
+    mission_slug = safe_mission_slug(sorted_events[0].mission_slug, "")
 
     for event in sorted_events:
         current = wp_states.get(event.wp_id)
