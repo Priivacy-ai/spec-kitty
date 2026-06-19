@@ -154,9 +154,9 @@ No accepted item deletes a genuine assertion path or weakens a real regression g
 
 Rationale: quick coverage-neutral flat wins first (Wave 1), then the single fixture that unlocks all parallelism (Wave 2), then de-risk the collection/topology so xdist actually helps (Wave 3), then the high-leverage but contention-sensitive flips behind per-shard ratchets (Wave 4), structural last (Wave 5), and finally publish the local recipe once its preconditions are proven (Wave 6).
 
-**Key file references (all absolute):**
-- CI: `/Users/robert/spec-kitty-dev/spec-kitty-20260614-181143-WQFQqN/spec-kitty/.github/workflows/ci-quality.yml` — fast shards (charter ~1322, status ~891), proven xdist pattern (1181/1295/1307), slow-tests (~1895), specify-cli-heavy marker (~1305).
-- HOME hazard: `/Users/robert/spec-kitty-dev/spec-kitty-20260614-181143-WQFQqN/spec-kitty/tests/conftest.py:119` (`Path.home() / ".spec-kitty"`) + `/Users/robert/spec-kitty-dev/spec-kitty-20260614-181143-WQFQqN/spec-kitty/tests/agent/conftest.py:15-41` (autouse wipe).
-- FSM matrix: `/Users/robert/spec-kitty-dev/spec-kitty-20260614-181143-WQFQqN/spec-kitty/tests/status/test_transitions.py:510-541`.
-- Charter timing: `/Users/robert/spec-kitty-dev/spec-kitty-20260614-181143-WQFQqN/spec-kitty/tests/charter/test_integration.py:427,450`.
-- HOME-isolation template to copy: `/Users/robert/spec-kitty-dev/spec-kitty-20260614-181143-WQFQqN/spec-kitty/tests/sync/test_sync_boundary_preflight.py:66-79`.
+**Key file references (repo-relative):**
+- CI: `.github/workflows/ci-quality.yml` — fast shards (charter ~1322, status ~891), proven xdist pattern (1181/1295/1307), slow-tests (~1895), specify-cli-heavy marker (~1305).
+- HOME hazard: `tests/conftest.py:119` (`Path.home() / ".spec-kitty"`) + `tests/agent/conftest.py:15-41` (autouse wipe).
+- FSM matrix: `tests/status/test_transitions.py:510-541`.
+- Charter timing: `tests/charter/test_integration.py:427,450`.
+- HOME-isolation template to copy: `tests/sync/test_sync_boundary_preflight.py:66-79`.
