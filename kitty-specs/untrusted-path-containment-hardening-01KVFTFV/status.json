@@ -1,7 +1,7 @@
 {
-  "event_count": 3,
-  "last_event_id": "01KVFY18MXQVMSB43R02C4VDN3",
-  "materialized_at": "2026-06-19T12:35:01.405668+00:00",
+  "event_count": 4,
+  "last_event_id": "01KVFY193RDW6MDR1T9E4T7K00",
+  "materialized_at": "2026-06-19T12:35:01.880631+00:00",
   "mission_number": "",
   "mission_slug": "untrusted-path-containment-hardening-01KVFTFV",
   "mission_type": "software-dev",
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 3
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
@@ -37,6 +37,13 @@
       "lane": "planned",
       "last_event_id": "01KVFY18MXQVMSB43R02C4VDN3",
       "last_transition_at": "2026-06-19T12:35:01.405668+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01KVFY193RDW6MDR1T9E4T7K00",
+      "last_transition_at": "2026-06-19T12:35:01.880631+00:00"
     }
   }
 }
