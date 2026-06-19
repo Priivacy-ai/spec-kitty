@@ -284,7 +284,7 @@ def test_assert_merged_wps_reached_done_raises_when_wp_not_done(
 
 
 def test_assert_merged_wps_reached_done_includes_lane_value_in_error(
-    tmp_path: Path, capsys: pytest.CaptureFixture
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """Error message includes WP id and current lane value (not raw string)."""
     mission_slug = "080-test-feature"
@@ -450,7 +450,7 @@ _COORD_MISSION_ID_M = "01KTDVHZKGCHCW6HQ4V577PNES"
 
 
 @pytest.fixture
-def coord_branch_mission(tmp_path: Path) -> dict:
+def coord_branch_mission(tmp_path: Path) -> dict[str, Any]:
     """Minimal coord-branch fixture for test_merge.py.
 
     slug does NOT end in mid8, so resolver adds suffix:
@@ -505,7 +505,7 @@ def _seed_done_event_m(feature_dir: Path, wp_id: str) -> None:
 
 
 def test_planning_only_merge_with_coord_branch_reaches_done(
-    coord_branch_mission: dict,
+    coord_branch_mission: dict[str, Any],
 ) -> None:
     """Planning-only WP: done event on coord surface → assertion passes.
 
@@ -536,7 +536,7 @@ def test_planning_only_merge_with_coord_branch_reaches_done(
 
 
 def test_code_change_merge_with_coord_branch_reaches_done(
-    coord_branch_mission: dict,
+    coord_branch_mission: dict[str, Any],
 ) -> None:
     """Code-change WP variant: multi-WP done events on coord surface.
 
