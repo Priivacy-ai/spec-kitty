@@ -834,7 +834,10 @@ def test_project_status_bookkeeping_rejects_paths_outside_primary_surface(
         / ".."
     )
 
-    with pytest.raises(ValueError, match="outside trusted roots"):
+    # The claimed topology (``.worktrees`` segment) does not match the resolved
+    # location (escapes above the worktrees root), so the topology guard rejects
+    # it before containment delegation.
+    with pytest.raises(ValueError, match="Untrusted status surface path"):
         _project_status_bookkeeping_to_target(
             main_repo=repo_root,
             mission_slug=mission_slug,

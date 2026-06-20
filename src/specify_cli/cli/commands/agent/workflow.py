@@ -1145,7 +1145,7 @@ def _ensure_workspace_materialized(
     workspace: ResolvedWorkspace,
     wp_id: str,
     create_workspace: Callable[[], None],
-) -> ResolvedWorkspace:
+) -> None:
     """Ensure the already-resolved *workspace* is materialized on disk.
 
     FR-008/#1832 (C-IC05) — single resolution path. *workspace* is the
@@ -1159,7 +1159,9 @@ def _ensure_workspace_materialized(
     workspace could be resolved" on a verified read-path — is exactly what this
     function eliminates.
 
-    Returns the (unchanged) resolved workspace once materialized.
+    A pure side-effect seam: it mutates disk (and re-stats the resolved context
+    in place) but returns nothing — the caller already holds the canonical
+    ``ResolvedWorkspace`` and must not rebind it to a second value.
 
     Raises:
         typer.Exit: husk detected, creation attempted from a worktree, or the
@@ -1170,7 +1172,7 @@ def _ensure_workspace_materialized(
         raise typer.Exit(1)
 
     if workspace.exists:
-        return workspace
+        return
 
     cwd = Path.cwd().resolve()
     if is_worktree_context(cwd):
@@ -1197,7 +1199,7 @@ def _ensure_workspace_materialized(
             f"for {wp_id} was not materialized."
         )
         raise typer.Exit(1)
-    return workspace
+    return
 
 
 @app.command(name="implement")
@@ -1416,9 +1418,7 @@ def implement(
                 actor=agent,
             )
 
-        workspace = _ensure_workspace_materialized(
-            workspace, normalized_wp_id, _create_workspace
-        )
+        _ensure_workspace_materialized(workspace, normalized_wp_id, _create_workspace)
         workspace_path = workspace.worktree_path
 
         subtask_ids = [str(item) for item in wp_meta.subtasks if isinstance(item, str)]

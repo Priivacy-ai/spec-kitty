@@ -948,3 +948,20 @@ def test_status_surface_accepts_primary_checkout_kitty_specs(tmp_path: Path) -> 
         status_feature_dir=status_feature_dir,
     )
     assert result == status_feature_dir.resolve(strict=False)
+
+
+def test_status_surface_rejects_path_under_neither_trusted_root(tmp_path: Path) -> None:
+    """Topology-match: a non-worktrees path that resolves outside kitty-specs is rejected.
+
+    ``is_under_worktrees_segment`` is False (no ``.worktrees`` segment) and the
+    path resolves under neither the worktrees nor the kitty-specs root, so the
+    explicit topology guard rejects it before any containment delegation.
+    """
+    repo_resolved = tmp_path.resolve(strict=False)
+    stray_path = repo_resolved / "not-a-trusted-root" / "mission"
+
+    with pytest.raises(ValueError, match="Untrusted status surface path"):
+        _assert_status_surface_path_is_trusted(
+            repo_root=tmp_path,
+            status_feature_dir=stray_path,
+        )
