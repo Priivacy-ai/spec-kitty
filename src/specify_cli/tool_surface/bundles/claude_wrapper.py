@@ -79,6 +79,20 @@ EXIT /B 1
 _EXECUTABLE_MODE = 0o700
 
 
+def _write_owner_only_executable(path: Path, content: str) -> None:
+    """Write *content* to *path* via a fresh owner-only executable temp file."""
+    temp_path = path.parent / f".{path.name}.tmp"
+    temp_path.unlink(missing_ok=True)
+    fd = os.open(temp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, _EXECUTABLE_MODE)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+            handle.write(content)
+        temp_path.replace(path)
+    except Exception:
+        temp_path.unlink(missing_ok=True)
+        raise
+
+
 def write_wrappers(bundle_dir: Path, version: str) -> None:
     """Write ``bin/spec-kitty-wrapper`` and ``bin/spec-kitty-wrapper.cmd``.
 
@@ -106,11 +120,10 @@ def write_wrappers(bundle_dir: Path, version: str) -> None:
     bin_dir.mkdir(parents=True, exist_ok=True)
 
     bash_path = bin_dir / "spec-kitty-wrapper"
-    bash_path.write_text(
+    _write_owner_only_executable(
+        bash_path,
         _BASH_WRAPPER_TEMPLATE.format(version=version),
-        encoding="utf-8",
     )
-    os.chmod(bash_path, _EXECUTABLE_MODE)
 
     cmd_path = bin_dir / "spec-kitty-wrapper.cmd"
     cmd_path.write_text(

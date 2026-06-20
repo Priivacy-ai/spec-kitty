@@ -79,6 +79,18 @@ class TestWriteWrappers:
         second = (tmp_path / "bin" / "spec-kitty-wrapper").read_bytes()
         assert first == second
 
+    def test_second_write_replaces_broad_existing_permissions(self, tmp_path: Path) -> None:
+        write_wrappers(tmp_path, "3.2.0")
+        bash_path = tmp_path / "bin" / "spec-kitty-wrapper"
+        os.chmod(bash_path, 0o755)
+
+        write_wrappers(tmp_path, "3.2.0")
+
+        mode = os.stat(bash_path).st_mode
+        assert mode & stat.S_IXUSR
+        assert not (mode & stat.S_IXGRP)
+        assert not (mode & stat.S_IXOTH)
+
 
 # ---------------------------------------------------------------------------
 # wrapper content helpers (pure, no I/O)

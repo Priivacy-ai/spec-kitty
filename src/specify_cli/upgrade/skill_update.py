@@ -155,8 +155,11 @@ def apply_text_replacements(
         content = content.replace(old, new)
 
     if content != original:
-        file_path.write_text(content, encoding="utf-8")
-        return True
+        project_root = _project_root_for_skill_path(file_path)
+        if project_root is None:
+            return False
+        wrote, _warning = write_skill_text(file_path, content, project_root)
+        return wrote
     return False
 
 
@@ -233,6 +236,20 @@ def is_external_symlink(dest: Path, project_root: Path) -> bool:
         return False
     except OSError:
         return False
+
+
+def _project_root_for_skill_path(file_path: Path) -> Path | None:
+    """Infer the project root for a file living under a known skill root."""
+    resolved = file_path.resolve(strict=False)
+    for parent in resolved.parents:
+        for skill_root in SKILL_ROOTS:
+            candidate_root = (parent / skill_root).resolve(strict=False)
+            try:
+                resolved.relative_to(candidate_root)
+            except ValueError:
+                continue
+            return parent
+    return None
 
 
 def write_skill_text(

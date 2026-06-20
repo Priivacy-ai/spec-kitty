@@ -965,3 +965,14 @@ def test_status_surface_rejects_path_under_neither_trusted_root(tmp_path: Path) 
             repo_root=tmp_path,
             status_feature_dir=stray_path,
         )
+
+
+def test_status_surface_rejects_lexical_escape_before_resolve(tmp_path: Path) -> None:
+    """Paths claiming kitty-specs but escaping it lexically are rejected pre-resolve."""
+    escape_path = tmp_path / "kitty-specs" / ".." / "outside" / "mission"
+
+    with pytest.raises(ValueError, match="Untrusted status surface path"):
+        _assert_status_surface_path_is_trusted(
+            repo_root=tmp_path,
+            status_feature_dir=escape_path,
+        )
