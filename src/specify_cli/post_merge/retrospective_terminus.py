@@ -61,7 +61,7 @@ def run_retrospective_postcondition(
     """
     # Late import to keep module-level import graph clean and to avoid heavy
     # optional deps being pulled in unconditionally at CLI startup.
-    from specify_cli.missions.feature_dir_resolver import (  # noqa: PLC0415
+    from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
         resolve_feature_dir_for_slug,
     )
 

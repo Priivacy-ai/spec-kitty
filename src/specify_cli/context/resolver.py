@@ -28,7 +28,7 @@ from specify_cli.context.store import save_context
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.mission_metadata import mission_identity_fields
-from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 from specify_cli.status import WPMetadata, read_wp_frontmatter
 
 

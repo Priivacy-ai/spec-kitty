@@ -12,7 +12,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.cli.helpers import console, get_project_root_or_exit
-from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug
+from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_slug
 from specify_cli.task_metadata_validation import (
     repair_lane_mismatch,
     scan_all_tasks_for_mismatches,

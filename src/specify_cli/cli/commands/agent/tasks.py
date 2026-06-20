@@ -7,7 +7,7 @@ from specify_cli.core.constants import (
     MISSION_TYPE_RESEARCH,
     MISSION_TYPE_SOFTWARE_DEV,
 )
-from specify_cli.missions.feature_dir_resolver import (
+from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
@@ -3634,7 +3634,7 @@ def map_requirements(
             if protected_error is not None:
                 _output_error(json_output, protected_error)
                 raise typer.Exit(1)
-        from specify_cli.missions.feature_dir_resolver import (
+        from specify_cli.missions._read_path_resolver import (
             primary_feature_dir_for_mission,
             resolve_feature_dir_for_slug,
         )

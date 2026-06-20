@@ -29,7 +29,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import assert_safe_path_segment
 
 # Legacy sentinel emitted by older transactional readers; not a Lane enum value.
@@ -281,7 +280,11 @@ class MissionStatus:
             is_registered_coord_worktree,
         )
 
-        return is_registered_coord_worktree(read_dir, repo_root=repo_root)
+        # ``bool(...)`` re-narrows the value mypy widens to ``Any`` across the
+        # function-local import chain (the predicate is annotated ``-> bool`` at
+        # its source; the late import loses the annotation) — Boy Scout fix, no
+        # behaviour change.
+        return bool(is_registered_coord_worktree(read_dir, repo_root=repo_root))
 
     @classmethod
     def _resolve_read_dir(
@@ -291,48 +294,70 @@ class MissionStatus:
         mission_slug: str,
         primary_candidate: Path,
     ) -> Path:
-        """Resolve the authoritative read dir via the single canonical surface.
+        """Resolve the authoritative read dir as a thin adapter over the delegator.
 
-        Resolves exactly once through :func:`resolve_status_surface`, the
-        coord-aware authority that ``status_transition`` is also built on, and
-        never re-composes the coord candidate by hand.
+        Delegates the resolve-dir-or-typed-error body to the single WP03
+        delegator :func:`resolve_surface_dir_or_typed_error` (FR-009/T4): there
+        is now exactly ONE resolution body shared with
+        ``mission_runtime.resolution`` rather than a duplicate re-implementation
+        of the ``resolve_status_surface`` happy/error tail here. This call site
+        keeps only the two aggregate-specific concerns the delegator cannot own:
 
-        The canonical helper fails closed (``StatusReadPathNotFound``) when a
-        coord worktree is materialized without the mission dir; ``load``
-        re-raises that as :class:`CoordAuthorityUnavailable` to preserve the
-        historical aggregate contract. When the helper reports no ``meta.json``
-        (the create→first-write window), the primary checkout remains
-        authoritative. When the helper composes a coord path whose worktree is
-        **not yet materialized** (coord branch declared, pre-first-write), the
-        primary checkout is likewise authoritative until the worktree exists —
-        matching the historical ``coord_candidate.exists()`` gate.
+        * **on_missing_meta = primary_candidate** — the delegator catches
+          ``FileNotFoundError`` / ``ValueError`` (no ``meta.json`` yet: the
+          create→first-write window) and returns the caller-supplied primary
+          directory, so the primary checkout stays authoritative until first
+          write (mutation-guarded by ``test_create_first_write_window_*``).
+        * **StatusReadPathNotFound → CoordAuthorityUnavailable** — the delegator
+          propagates the surface's fail-closed signal unchanged (typed-error
+          convergence is WP06's job); the aggregate translates it to its own
+          historical boundary type here.
+        * **Unmaterialised-coord create-window gate** — when the canonical
+          :func:`resolve_status_surface` composes a coord path whose worktree is
+          declared but **not yet materialised** (coord branch in meta, pre-first
+          write), it returns that composed coord path *as-is* and explicitly
+          defers the authority decision to this call site (see the WP03
+          delegator docstring: this gate "stays at the aggregate call site"). The
+          aggregate keeps the primary checkout authoritative until the coord
+          worktree exists, matching the historical ``coord_candidate.exists()``
+          semantics — a shape-only check on a not-yet-materialised path, so it
+          consumes the blessed ``is_under_worktrees_segment`` shape predicate
+          rather than the (git-touching) registry authority.
+
+        The body that re-implemented ``resolve_status_surface``'s happy/error
+        tail inline (the ``FileNotFoundError`` → primary and the
+        ``StatusReadPathNotFound`` translation) is **consolidated** onto the one
+        WP03 delegator (FR-009/T4); only the two genuinely aggregate-specific
+        concerns above remain at this seam. C-004: the consolidation is gated on
+        WP02's equivalence matrix staying green/xfail-tracked for aggregate's
+        input classes.
         """
-        from specify_cli.coordination.surface_resolver import resolve_status_surface
-        from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+        from specify_cli.coordination.surface_resolver import (
+            is_under_worktrees_segment,
+        )
+        from specify_cli.missions._read_path_resolver import (
+            StatusReadPathNotFound,
+            resolve_surface_dir_or_typed_error,
+        )
 
         try:
-            events_path = resolve_status_surface(repo_root, mission_slug)
+            resolved_dir: Path = resolve_surface_dir_or_typed_error(
+                repo_root,
+                mission_slug,
+                on_missing_meta=primary_candidate,
+            )
         except StatusReadPathNotFound as exc:
             raise CoordAuthorityUnavailable(
                 mission_slug=mission_slug,
                 coord_candidate=exc.coord_candidate,
                 primary_candidate=exc.primary_candidate,
             ) from exc
-        except FileNotFoundError:
-            # No meta.json at the canonical location yet (create→first-write
-            # window): the primary checkout remains authoritative.
-            return primary_candidate
-        from specify_cli.coordination.surface_resolver import (
-            is_under_worktrees_segment,
-        )
-
-        resolved_dir: Path = Path(events_path.parent)
-        # A composed-but-unmaterialized coord dir is not yet authoritative; the
-        # primary checkout owns the create→first-write window (the historical
-        # ``coord_candidate.exists()`` semantics). This is a *shape* gate on a
-        # not-yet-existing path (the registry cannot dispose a path that is not
-        # materialized), so it consumes the blessed shape-proposal predicate
-        # ``is_under_worktrees_segment`` rather than the registry authority.
+        # Aggregate-specific create-window authority (see docstring): a composed
+        # coord dir whose worktree is not yet materialised is not authoritative;
+        # the primary checkout owns the create→first-write window until the coord
+        # worktree exists. The canonical surface deliberately defers this to the
+        # call site (WP03 delegator docstring), so it stays here, not in the
+        # shared delegator.
         if is_under_worktrees_segment(resolved_dir) and not resolved_dir.exists():
             return primary_candidate
         return resolved_dir
@@ -426,55 +451,72 @@ class MissionStatus:
 
     @staticmethod
     def _find_meta_path(repo_root: Path, mission_slug: str) -> tuple[Path, Path]:
-        """Return ``(meta_path, primary_dir)`` for raw or composed mission dirs."""
-        primary_dir = repo_root / KITTY_SPECS_DIR / mission_slug
-        raw_meta = primary_dir / "meta.json"
-        if raw_meta.exists():
-            return raw_meta, primary_dir
+        """Return ``(meta_path, primary_dir)`` via the canonical handle resolver.
 
-        # F-001: route handles (bare mid8, full ULID, numeric prefix) through
-        # the same canonical candidate resolution every other read surface
-        # uses, so ``MissionStatus.load(<mid8>)`` carries the real mission_id
-        # and primary dir. The candidate may land in a coord worktree (which
-        # carries no meta.json), so only its canonical NAME is consumed to
-        # re-anchor on the primary checkout. Ambiguous handles fall through to
-        # the historical silent-first-match glob below (S8 follow-up).
+        Routes EVERY handle form (full slug, bare mid8, full ULID, numeric
+        prefix, ``<slug>-<mid8>`` dir name) through the one canonical read
+        primitive :func:`candidate_feature_dir_for_mission` so identity is
+        derived exactly once — aggregate never self-composes the surface path or
+        does its own ``glob`` selection (FR-008). The resolved candidate may land
+        in a coord worktree (which carries no ``meta.json``), so only its
+        canonical NAME re-anchors the meta read on the primary checkout, where
+        ``meta.json`` always lives.
+
+        The historical silent-first-match glob
+        (``sorted(specs_dir.glob(f"{slug}-*/meta.json"))``) is **removed**: an
+        ambiguous handle now propagates :class:`MissionSelectorAmbiguous`
+        (``error_code == MISSION_AMBIGUOUS_SELECTOR``) instead of silently
+        picking the lexically-first candidate — the no-silent-fallback contract
+        (C-CTX-4 / C-009 / FR-008). The fail-closed coordination window
+        (``StatusReadPathNotFound``) is swallowed so the downstream
+        ``_resolve_read_dir`` is the single place that translates it to
+        ``CoordAuthorityUnavailable`` (one authority for the typed error).
+
+        Raises:
+            MissionSelectorAmbiguous: When ``mission_slug`` is a handle that
+                matches more than one mission (FR-008 — never a silent pick).
+        """
         from specify_cli.missions._read_path_resolver import (
-            MissionSelectorAmbiguous,
             StatusReadPathNotFound,
             candidate_feature_dir_for_mission,
+            primary_feature_dir_for_mission,
         )
 
+        # Compose the primary candidate through the blessed path-constructor
+        # (the sanctioned ``KITTY_SPECS_DIR`` owner that carries its own
+        # ``assert_safe_path_segment`` guard), so aggregate never self-composes a
+        # raw ``repo_root / KITTY_SPECS_DIR / <slug>`` surface path (WP01
+        # raw-bypass; FR-008). The slug is also grammar-checked one level up at
+        # the ``load`` boundary.
+        primary_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
+        raw_meta = primary_dir / "meta.json"
+        # Pure-path happy path: when the literal slug already names an existing
+        # primary mission dir with ``meta.json``, it IS the canonical directory
+        # — no handle disambiguation (and no git-registry read) is needed. This
+        # mirrors ``resolve_mission_read_path``'s own literal-first short-circuit
+        # and keeps the meta read off the heavier (git-touching) resolver on the
+        # common case.
+        if raw_meta.exists():
+            return raw_meta, primary_dir
         try:
             candidate_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
-        except MissionSelectorAmbiguous:
-            candidate_dir = None
         except StatusReadPathNotFound:
             # Fail-closed coordination window (coord worktree root
-            # materialized, mission dir absent): fall through to the
-            # historical resolution path so ``load`` surfaces the established
-            # CoordAuthorityUnavailable shape for EVERY handle form (full
-            # slug, mid8, ULID) instead of leaking the resolver's raw
-            # StatusReadPathNotFound out of ``MissionStatus.load``.
-            candidate_dir = None
-        if candidate_dir is not None and candidate_dir.name != mission_slug:
-            canonical_primary = repo_root / KITTY_SPECS_DIR / candidate_dir.name
-            canonical_meta = canonical_primary / "meta.json"
-            if canonical_meta.exists():
-                return canonical_meta, canonical_primary
-
-        from specify_cli.lanes.branch_naming import mid8_from_slug
-
-        if mid8_from_slug(mission_slug):
+            # materialized, mission dir absent): defer to the literal primary
+            # candidate so ``_resolve_read_dir`` surfaces the established
+            # CoordAuthorityUnavailable shape for EVERY handle form instead of
+            # leaking the resolver's raw StatusReadPathNotFound here.
             return raw_meta, primary_dir
-
-        specs_dir = repo_root / KITTY_SPECS_DIR
-        if specs_dir.exists():
-            for candidate in sorted(specs_dir.glob(f"{mission_slug}-*/meta.json")):
-                if mid8_from_slug(candidate.parent.name):
-                    return candidate, candidate.parent
-
-        return raw_meta, primary_dir
+        # ``candidate_feature_dir_for_mission`` resolved a canonical mission
+        # directory NAME; re-anchor the meta read on the primary checkout under
+        # that canonical name (the candidate itself may be a coord-worktree dir
+        # with no ``meta.json``), again via the blessed constructor. For a
+        # literal slug that already matched on disk the name is unchanged and
+        # this collapses to the same primary candidate.
+        canonical_primary = primary_feature_dir_for_mission(
+            repo_root, candidate_dir.name
+        )
+        return canonical_primary / "meta.json", canonical_primary
 
     # ------------------------------------------------------------------
     # Domain operations
@@ -663,10 +705,21 @@ class MissionStatus:
         from specify_cli.coordination.transaction import BookkeepingTransaction
 
         if self.mission_id is None or not self.mid8:
+            # Compose the diagnostic paths through the blessed path-constructor
+            # (the sanctioned ``KITTY_SPECS_DIR`` owner) so aggregate carries no
+            # raw ``repo_root / KITTY_SPECS_DIR / <slug>`` self-composition for
+            # any surface — even error-path diagnostics (WP01 raw-bypass).
+            from specify_cli.missions._read_path_resolver import (
+                primary_feature_dir_for_mission,
+            )
+
+            diag_primary = primary_feature_dir_for_mission(
+                self.repo_root, self.mission_slug
+            )
             raise MissionMetadataUnavailable(
                 mission_slug=self.mission_slug,
-                meta_path=self.repo_root / KITTY_SPECS_DIR / self.mission_slug / "meta.json",
-                primary_candidate=self.repo_root / KITTY_SPECS_DIR / self.mission_slug,
+                meta_path=diag_primary / "meta.json",
+                primary_candidate=diag_primary,
                 reason="mission_id is required to persist via BookkeepingTransaction",
             )
         # FR-006 fold-in (cluster-B): compose the destination ref through the

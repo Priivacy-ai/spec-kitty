@@ -25,6 +25,7 @@ Spec source: FR-030, SC-02.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from collections.abc import Mapping
 import json
 from pathlib import Path
 
@@ -380,14 +381,86 @@ def _resolve_not_found(
     return primary_candidate
 
 
+def resolve_surface_dir_or_typed_error(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    on_missing_meta: Path,
+) -> Path:
+    """Resolve the authoritative status-surface DIRECTORY, or raise the typed error.
+
+    The single **resolve-dir-or-typed-error delegator** (FR-009/T4): wraps the
+    canonical :func:`resolve_status_surface` so the two historically-duplicated
+    wrappers — ``status.aggregate.MissionStatus._resolve_read_dir`` (WP04) and
+    ``mission_runtime.resolution._resolve_status_surface_dir`` (WP05) — collapse
+    onto ONE resolution body. Both wrappers re-point here in their owning WPs.
+
+    Reconciled fallback / exception policy (the two old wrappers DIFFERED; this
+    is the chosen union, documented per the WP03 DoD):
+
+    * **Surface fail-closed** — ``resolve_status_surface`` raises
+      :class:`StatusReadPathNotFound` (coord worktree materialised but its
+      mission dir is absent, #1718/#1589): this is propagated UNCHANGED. Each
+      caller translates it to its own boundary type (aggregate →
+      ``CoordAuthorityUnavailable``; mission_runtime → ``ActionContextError``)
+      — the delegator does NOT pick one translation, because the typed-error
+      convergence is WP06's job (the equivalence matrix's ``coord-empty`` /
+      ``coord-deleted`` cells stay RED until then). Propagating the raw
+      ``StatusReadPathNotFound`` keeps the ``error_code`` intact for either
+      translation.
+    * **Meta absent / malformed** — ``resolve_status_surface`` raises
+      :class:`FileNotFoundError` (no ``meta.json`` yet: the create→first-write
+      window) or :class:`ValueError` (malformed slug/meta). The UNION of the two
+      old wrappers caught both; this delegator catches both and returns the
+      caller-supplied ``on_missing_meta`` directory. The two old wrappers
+      differed only in HOW they spelled that primary fallback (aggregate passed
+      a pre-computed ``primary_candidate``; mission_runtime recomputed
+      ``candidate_feature_dir_for_mission``) — the ``on_missing_meta`` parameter
+      lets each caller keep its own spelling while sharing this body.
+    * **Success** — returns ``surface.parent`` (the directory containing
+      ``status.events.jsonl``), the value both old wrappers returned.
+
+    The unmaterialised-coord gate that ``aggregate._resolve_read_dir`` applies
+    (``is_under_worktrees_segment(dir) and not dir.exists()`` →
+    ``primary_candidate``) is intentionally NOT folded in here: it is a second,
+    aggregate-specific authority decision layered ON TOP of resolution, so it
+    stays at the aggregate call site (WP04) where ``on_missing_meta`` already
+    carries the primary candidate.
+
+    Args:
+        repo_root: Absolute repository root (primary checkout).
+        mission_slug: Mission slug or handle (resolved by the surface authority).
+        on_missing_meta: Directory to return when no identity-bearing
+            ``meta.json`` exists yet (the primary checkout is authoritative in
+            the create→first-write window).
+
+    Returns:
+        Absolute path to the mission directory containing the status surface.
+
+    Raises:
+        StatusReadPathNotFound: When the surface authority fails closed (coord
+            worktree materialised without its mission dir). Propagated unchanged
+            so each caller applies its own typed-error translation.
+        MissionSelectorAmbiguous: When ``mission_slug`` is an ambiguous handle
+            (propagated unchanged — no silent first-match, C-CTX-4 / C-009).
+    """
+    from specify_cli.coordination.surface_resolver import resolve_status_surface
+
+    try:
+        surface: Path = resolve_status_surface(repo_root, mission_slug)
+    except (FileNotFoundError, ValueError):
+        return on_missing_meta
+    return surface.parent
+
+
 def candidate_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:
     """Return the topology-aware mission-dir candidate without requiring it exist.
 
     This is the **single read primitive** (C-005 / FR-002): it delegates to
     :func:`resolve_mission_read_path`, deriving ``mid8`` once from the slug. The
-    historical duplicate in :mod:`specify_cli.missions.feature_dir_resolver`
-    re-exports this function (C-004 strangler: the canonical logic moved here;
-    callers keep their import site until they are converted in later WPs).
+    historical ``missions.feature_dir_resolver`` shim that re-exported this
+    function was retired in WP07 (FR-007); every caller now imports it from this
+    canonical module directly.
 
     Because it routes through :func:`resolve_mission_read_path`, a bare ``mid8``
     handle (e.g. ``01KTPKST``) resolves to the same directory as the full slug
@@ -439,10 +512,60 @@ def primary_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:
     return primary_dir
 
 
+def resolve_feature_dir_for_slug(repo_root: Path, mission_slug: str) -> Path:
+    """Resolve a mission directory **without** asserting it exists.
+
+    This is the canonical, topology-aware, dir-only resolver for callers that
+    already hold a mission slug and only need the read-side directory path —
+    never raises on a missing directory (unlike
+    :func:`resolve_feature_dir_for_mission`). It delegates to the single
+    coord-aware path primitive (:func:`resolve_mission_read_path`), so
+    coordination topology is honoured exactly once.
+
+    Relocated here from the retired ``missions.feature_dir_resolver`` shim
+    (WP07/FR-007). The late imports keep importing this module from pulling in
+    heavier modules during cold ``spec-kitty next`` startup.
+    """
+    from specify_cli.lanes.branch_naming import mid8_from_slug
+
+    feature_dir: Path = resolve_mission_read_path(
+        repo_root, mission_slug, mid8_from_slug(mission_slug)
+    )
+    return feature_dir
+
+
+def resolve_feature_dir_for_mission(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    cwd: Path | None = None,
+    env: Mapping[str, str] | None = None,
+) -> Path:
+    """Resolve a mission directory through ``resolve_action_context``.
+
+    Relocated here from the retired ``missions.feature_dir_resolver`` shim
+    (WP07/FR-007). The late import of ``mission_runtime`` keeps the
+    ``spec-kitty next`` query startup path light.
+    """
+    from mission_runtime import resolve_action_context
+
+    context = resolve_action_context(
+        repo_root=repo_root,
+        action="tasks",
+        feature=mission_slug,
+        cwd=cwd,
+        env=env,
+    )
+    return Path(context.feature_dir)
+
+
 __all__ = [
     "MissionSelectorAmbiguous",
     "StatusReadPathNotFound",
     "candidate_feature_dir_for_mission",
     "primary_feature_dir_for_mission",
+    "resolve_feature_dir_for_mission",
+    "resolve_feature_dir_for_slug",
     "resolve_mission_read_path",
+    "resolve_surface_dir_or_typed_error",
 ]

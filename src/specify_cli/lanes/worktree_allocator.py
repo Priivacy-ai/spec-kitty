@@ -17,7 +17,7 @@ policy registered so it cannot see ``status.events.jsonl`` or
 
 from __future__ import annotations
 
-from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 import json
 import subprocess
 from pathlib import Path

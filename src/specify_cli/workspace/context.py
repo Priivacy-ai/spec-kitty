@@ -25,7 +25,7 @@ from typing import Any
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.lanes.branch_naming import worktree_dir_name, worktree_path as _seam_worktree_path
-from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug
+from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_slug
 from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals
 from specify_cli.ownership.models import ExecutionMode
 from specify_cli.ownership.workspace_strategy import create_planning_workspace

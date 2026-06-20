@@ -131,7 +131,7 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
     """Gather the full lane worktree topology for a feature."""
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.persistence import read_lanes_json
-    from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
+    from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 
     main_repo_root = get_main_repo_root(repo_root)
     target_branch = get_feature_target_branch(main_repo_root, mission_slug)

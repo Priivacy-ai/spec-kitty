@@ -176,6 +176,7 @@ def _resolve_mission_slug(
     # Late import to avoid a hard module-load dependency for legacy
     # consumers of the resolver that pre-date its introduction.
     from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
         StatusReadPathNotFound,
         resolve_mission_read_path,
     )
@@ -187,6 +188,12 @@ def _resolve_mission_slug(
         # refusal (coord worktree root materialized without the mission dir)
         # must surface as the single consumer-facing error type, preserving
         # the refusal message — never a raw specify_cli exception.
+        raise ActionContextError(exc.error_code, str(exc)) from exc
+    except MissionSelectorAmbiguous as exc:
+        # Boundary translation (WP05 / FR-005 / #2010 bug #15): an ambiguous
+        # handle propagates as a raw specify_cli exception if uncaught here.
+        # Translate to the single consumer-facing type preserving the stable
+        # error code (MISSION_AMBIGUOUS_SELECTOR) — never a silent fallback.
         raise ActionContextError(exc.error_code, str(exc)) from exc
     if not feature_dir.exists():
         raise ActionContextError(
@@ -595,7 +602,7 @@ def _resolve_status_surface_dir(primary_root: Path, mission_slug: str) -> Path:
     """
     from specify_cli.coordination.surface_resolver import resolve_status_surface
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
-    from specify_cli.missions.feature_dir_resolver import (
+    from specify_cli.missions._read_path_resolver import (
         candidate_feature_dir_for_mission,
     )
 
@@ -795,8 +802,11 @@ def resolve_placement_only(repo_root: Path, mission_slug: str) -> CommitTarget:
             fallback — mirrors :func:`resolve_action_context`).
     """
     from specify_cli.core.paths import get_feature_target_branch
-    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
-    from specify_cli.missions.feature_dir_resolver import (
+    from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
+        StatusReadPathNotFound,
+    )
+    from specify_cli.missions._read_path_resolver import (
         candidate_feature_dir_for_mission,
     )
 
@@ -819,6 +829,11 @@ def resolve_placement_only(repo_root: Path, mission_slug: str) -> CommitTarget:
         # Fail-closed surface refusal at entry canonicalization: translate to
         # the boundary's single error type, preserving the refusal message
         # (PR #1850 M6) — mirrors :func:`_resolve_mission_slug`.
+        raise ActionContextError(exc.error_code, str(exc)) from exc
+    except MissionSelectorAmbiguous as exc:
+        # Boundary translation (WP05 / FR-005 / #2010 bug #15): mirrors the
+        # _resolve_mission_slug arm — the ambiguous handle must not escape as a
+        # raw specify_cli exception from this entry point either.
         raise ActionContextError(exc.error_code, str(exc)) from exc
     if candidate_dir.exists():
         mission_slug = candidate_dir.name

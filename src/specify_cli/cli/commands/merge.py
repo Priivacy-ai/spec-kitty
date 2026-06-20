@@ -24,7 +24,7 @@ from specify_cli.coordination.surface_resolver import (
     is_under_worktrees_segment,
     resolve_status_surface,
 )
-from specify_cli.missions.feature_dir_resolver import (
+from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,

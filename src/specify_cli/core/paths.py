@@ -611,7 +611,7 @@ def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
         Target branch name (e.g., ``"main"`` or ``"2.x"``).
     """
     from specify_cli.core.git_ops import resolve_primary_branch
-    from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
+    from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 
     main_root = get_main_repo_root(repo_root)
     meta_file = candidate_feature_dir_for_mission(main_root, mission_slug) / "meta.json"

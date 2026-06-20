@@ -301,7 +301,7 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     New format: WP files in flat tasks/ directory with lane in frontmatter
     """
     from specify_cli.core.paths import get_main_repo_root
-    from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug
+    from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_slug
 
     # Always use main repo's kitty-specs - it's the source of truth
     # This fixes the bug where worktree's stale kitty-specs/ would be used

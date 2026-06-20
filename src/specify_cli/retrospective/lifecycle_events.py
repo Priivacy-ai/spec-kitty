@@ -24,7 +24,7 @@ FR-024 compliance:
 
 from __future__ import annotations
 
-from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 import json
 import logging
 from dataclasses import dataclass, field

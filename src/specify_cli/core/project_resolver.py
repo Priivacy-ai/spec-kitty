@@ -17,7 +17,7 @@ def locate_project_root(start: Path | None = None) -> Path | None:
     module-level import of ``paths`` here could trigger ``specify_cli`` package
     initialisation before it finishes loading. The deferred pattern fires only at
     call time, after the package is fully loaded. This is the same mechanism used
-    by ``paths.py`` itself for its ``git_ops`` and ``feature_dir_resolver``
+    by ``paths.py`` itself for its ``git_ops`` and ``_read_path_resolver``
     deferred imports. Reverting to a module-level import is a regression. (#1971)
     """
     from specify_cli.core.paths import locate_project_root as _authoritative

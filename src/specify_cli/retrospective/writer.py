@@ -43,7 +43,7 @@ def canonical_record_path(repo_root: Path, mission_slug: str) -> Path:
     primitive (``resolve_feature_dir_for_slug`` → ``resolve_mission_read_path``),
     so the record sits beside the same surface the status events use (C-005).
     """
-    from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug
+    from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_slug
 
     feature_dir: Path = resolve_feature_dir_for_slug(repo_root, mission_slug)
     return feature_dir / "retrospective.yaml"

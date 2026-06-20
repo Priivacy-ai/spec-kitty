@@ -14,7 +14,7 @@ Strategy note (FR-006, FR-007):
 
 from __future__ import annotations
 
-from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 import os
 import subprocess
 import sys
