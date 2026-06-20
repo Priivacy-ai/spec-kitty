@@ -1,0 +1,99 @@
+{
+  "mission_slug": "single-mission-surface-resolver-01KVGCE8",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 approved (independent reviewer-renata pass); single canonical resolver: resolve_status_surface_with_anchor sole surface-selection authority; status_transition.py 5th selector migrated",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-06-20T00:00:00Z",
+      "notes": "single canonical resolver: resolve_status_surface_with_anchor sole surface-selection authority; status_transition.py 5th selector migrated"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved (independent reviewer-renata pass); differential equivalence test (C-004 deletion gate): 7 pass/6 documented-xfail/0 XPASS over the (slug,mid8,topology) matrix",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-06-20T00:00:00Z",
+      "notes": "differential equivalence test (C-004 deletion gate): 7 pass/6 documented-xfail/0 XPASS over the (slug,mid8,topology) matrix"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved (independent reviewer-renata pass); reproducible AST audit: tests/architectural/surface_resolution_audit/ enumerates+classifies every surface-resolution callsite; known-candidate self-assert",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-06-20T00:00:00Z",
+      "notes": "reproducible AST audit: tests/architectural/surface_resolution_audit/ enumerates+classifies every surface-resolution callsite; known-candidate self-assert"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP08 approved (independent reviewer-renata pass); load-bearing guard test_single_mission_surface_resolver.py: zero functional raw-bypass on collapsed tree; >=2-site mutation self-test bites; coverage floor",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-06-20T00:00:00Z",
+      "notes": "load-bearing guard test_single_mission_surface_resolver.py: zero functional raw-bypass on collapsed tree; >=2-site mutation self-test bites; coverage floor"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved (independent reviewer-renata pass); MissionSelectorAmbiguous translated to ActionContextError(MISSION_AMBIGUOUS_SELECTOR) at 2 mission_runtime boundary sites; live red->green repro",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-06-20T00:00:00Z",
+      "notes": "MissionSelectorAmbiguous translated to ActionContextError(MISSION_AMBIGUOUS_SELECTOR) at 2 mission_runtime boundary sites; live red->green repro"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 approved (independent reviewer-renata pass); coord-empty hard-fail CoordinationWorktreeEmpty with two-path message (collapse OR recreate); no silent fallback; ADR 2026-06-19-1; mutation-verified",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-06-20T00:00:00Z",
+      "notes": "coord-empty hard-fail CoordinationWorktreeEmpty with two-path message (collapse OR recreate); no silent fallback; ADR 2026-06-19-1; mutation-verified"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06+WP07 approved (independent reviewer-renata pass); collapse: aggregate _resolve_read_dir thin-adapter, #1900 allowlist drained (SC-005), feature_dir_resolver shim retired (56 sites migrated)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-06-20T00:00:00Z",
+      "notes": "collapse: aggregate _resolve_read_dir thin-adapter, #1900 allowlist drained (SC-005), feature_dir_resolver shim retired (56 sites migrated)"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 approved (independent reviewer-renata pass); aggregate _find_meta_path silent-glob + ambiguity-suppression removed; mid8 ambiguity -> MISSION_AMBIGUOUS_SELECTOR; mutation-verified",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-06-20T00:00:00Z",
+      "notes": "aggregate _find_meta_path silent-glob + ambiguity-suppression removed; mid8 ambiguity -> MISSION_AMBIGUOUS_SELECTOR; mutation-verified"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved (independent reviewer-renata pass); primary_feature_dir_for_mission disambiguated: raw-slug topology-blind canonical (NOT mid8-merge); shim re-exports it; mutation-killing contract test",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-06-20T00:00:00Z",
+      "notes": "primary_feature_dir_for_mission disambiguated: raw-slug topology-blind canonical (NOT mid8-merge); shim re-exports it; mutation-killing contract test"
+    }
+  ],
+  "negative_invariants": []
+}
