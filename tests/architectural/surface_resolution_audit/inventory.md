@@ -33,7 +33,7 @@ blessed call.
 | mission_runtime/resolution.py:579 | primary_root | primary_feature_dir_for_mission | topology-blind-by-design | `_resolve_mission_id` reads `meta.json` from primary; same C-GUARD-3a rationale as :547. |
 | mission_runtime/resolution.py:609 | primary_root | resolve_status_surface | routed-through-resolver | `_resolve_status_surface_dir` -> `resolve_status_surface` (the single status-surface authority IC-01). |
 | mission_runtime/resolution.py:618 | primary_root | candidate_feature_dir_for_mission | routed-through-resolver | `_resolve_status_surface_dir` fallback when meta absent/malformed; routes through coord-aware resolver. |
-| mission_runtime/resolution.py:826 | repo_root | candidate_feature_dir_for_mission | routed-through-resolver | `resolve_placement_only` entry-point handle canonicalization (F-001); coord-aware resolver. |
+| mission_runtime/resolution.py:824 | repo_root | candidate_feature_dir_for_mission | routed-through-resolver | `resolve_placement_only` entry-point handle canonicalization (F-001); coord-aware resolver. |
 | specify_cli/coordination/status_transition.py:264 | repo_root | candidate_feature_dir_for_mission | routed-through-resolver | `_canonical_primary_feature_dir` `_fallback()`: routes through coord-aware resolver when lane `.worktrees` path detected. |
 | specify_cli/coordination/status_transition.py:273 | repo_root | resolve_status_surface_with_anchor | routed-through-resolver | `_canonical_primary_feature_dir` -> `resolve_status_surface_with_anchor` (single-pass #1737 fix). |
 | specify_cli/coordination/status_transition.py:281 | repo_root | candidate_feature_dir_for_mission | routed-through-resolver | `_canonical_primary_feature_dir` malformed-meta fallback; still routes through coord-aware resolver. |

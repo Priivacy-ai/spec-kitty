@@ -89,6 +89,20 @@ _RESOLVER_SOURCE_STEMS: frozenset[str] = frozenset(
     }
 )
 
+# The read-side SELECTION seam is the SINGLE ``resolve_handle_to_read_path``
+# home — only ``_read_path_resolver.py`` legitimately owns the coord-vs-primary
+# selection authority. The broader ``_RESOLVER_SOURCE_STEMS`` above stays for the
+# RAW-JOIN axis, where ``surface_resolver.py`` / ``status_transition.py`` /
+# ``aggregate.py`` / ``mission_runtime/resolution.py`` legitimately *define*
+# resolvers — but they are NOT the selection seam. A future direct
+# ``resolve_mission_read_path`` call in any of those four must be allowlisted
+# (honest) rather than auto-blessed as seam-internal.
+_SELECTION_SEAM_STEMS: frozenset[str] = frozenset(
+    {
+        "specify_cli/missions/_read_path_resolver.py",
+    }
+)
+
 # --------------------------------------------------------------------------- #
 # Seed-set: all blessed resolver function names.
 # --------------------------------------------------------------------------- #
@@ -340,7 +354,7 @@ class SelectionRow:
 
 def _find_selection_calls(tree: ast.AST, rel_path: str) -> list[SelectionRow]:
     """Return rows for every direct read-SELECTION call in *one* file."""
-    in_seam = rel_path in _RESOLVER_SOURCE_STEMS
+    in_seam = rel_path in _SELECTION_SEAM_STEMS
     rows: list[SelectionRow] = []
     seen: set[str] = set()
     for node in ast.walk(tree):
@@ -422,6 +436,15 @@ ALLOWLISTED_SELECTION_CALLSITES: dict[str, str] = {
         "derived through the ONE sanctioned ``resolve_declared_mid8`` cascade "
         "(NFR-005, not a bespoke parallel cascade), and the call routes through the "
         "existence-gated ``resolve_mission_read_path``. WP03/T013 design."
+    ),
+    "mission_runtime/resolution.py:185": (
+        "BLESSED — boundary-translated internal read in "
+        "``_resolve_status_surface_dir``: derives mid8 via the canonical "
+        "``resolve_declared_mid8`` cascade (not a bespoke parallel impl) and wraps "
+        "the call in StatusReadPathNotFound/MissionSelectorAmbiguous -> "
+        "ActionContextError boundary translation (PR #1850 M6 / #2010 bug #15). "
+        "Not the seam, but a sanctioned single consumer-facing read — allowlisted, "
+        "not auto-blessed."
     ),
 }
 

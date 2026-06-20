@@ -259,28 +259,29 @@ class TestCreateWindowMutationGuard:
 
         primary_dir, coord_mission_path = _build_declared_unmaterialised_coord(tmp_path)
 
-        # ``resolve_status_surface_with_anchor`` either raises (if meta read fails
-        # for the composed coord path) OR composes and returns the coord surface
-        # path (which is non-existent in the create-window).
-        wrong_result: Path | None = None
+        # The correct seam's create-window contract is BOTH ``== primary_dir`` AND
+        # ``.exists()``.  ``resolve_status_surface_with_anchor`` is the wrong path;
+        # it must DIVERGE from that contract in one of two observable ways:
+        #   (a) it RAISES (the correct seam is graceful — returns the primary), OR
+        #   (b) it RETURNS a result that is NOT ``(== primary_dir AND .exists())``.
+        # Both legs are POSITIVE divergence assertions — neither may pass vacuously.
         try:
             surface = resolve_status_surface_with_anchor(tmp_path, _BARE_SLUG)
-            wrong_result = surface.surface_path.parent
         except Exception:
-            # Raising is also wrong for the create-window — the correct seam is
-            # graceful (returns primary).  So any exception proves the wrong path.
-            wrong_result = None
-
-        if wrong_result is not None:
-            # The wrong path either (a) equals the non-existent coord mission path,
-            # (b) does not exist on disk, or (c) diverges from the primary dir.
-            # Any of these would cause the positive-contract test to FAIL.
-            different_from_primary = wrong_result != primary_dir
-            nonexistent = not wrong_result.exists()
-            assert different_from_primary or nonexistent, (
-                f"resolve_status_surface_with_anchor unexpectedly returned the "
-                f"correct primary dir — mutation guard compromised.  "
-                f"Got: {wrong_result!r}, primary: {primary_dir!r}"
+            # Leg (a): raising IS divergence from the graceful-primary contract.
+            # This affirmatively records the wrong path — not a silent vacuous pass.
+            pass
+        else:
+            # Leg (b): a returned result must FAIL the correct seam's contract.
+            wrong_result = surface.surface_path.parent
+            satisfies_correct_contract = (
+                wrong_result == primary_dir and wrong_result.exists()
+            )
+            assert not satisfies_correct_contract, (
+                f"resolve_status_surface_with_anchor unexpectedly satisfied the "
+                f"correct seam's create-window contract (== primary AND exists) — "
+                f"mutation guard compromised.  Got: {wrong_result!r}, "
+                f"primary: {primary_dir!r}"
             )
 
     def test_correct_seam_returns_existing_primary(self, tmp_path: Path) -> None:
