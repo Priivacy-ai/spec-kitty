@@ -1,0 +1,30 @@
+{
+  "accept_commit": "51cb730fde376c58bc58b0e42902c7ce8add13d6",
+  "acceptance_history": [
+    {
+      "accept_commit": "51cb730fde376c58bc58b0e42902c7ce8add13d6",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-20T12:41:43.234939+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "ace52f535ad1f367bf5cd32a2c4b5656827aff20"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-20T12:41:43.234939+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "ace52f535ad1f367bf5cd32a2c4b5656827aff20",
+  "baseline_merge_commit": "a0f9fb530f332661b77f5917bf1c5c6f416e604f",
+  "created_at": "2026-06-19T16:46:47.321621+00:00",
+  "friendly_name": "Single Mission-Surface Resolver",
+  "mission_id": "01KVGCE8GSJE3BPCG6K5WNCH9B",
+  "mission_number": 144,
+  "mission_slug": "single-mission-surface-resolver-01KVGCE8",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "When a mission's coordination worktree and primary checkout diverge, several commands resolve the wrong directory — the read/write desync that repeatedly disrupts operations. This mission strangles the duplicated resolvers down to a single authoritative seam, enforced by an architectural guard and a cross-resolver equivalence test, building on the audit+guard scaffolding from the untrusted-path-containment mission.",
+  "purpose_tldr": "Collapse the 4+ parallel coord/primary mission-surface resolvers into one canonical resolver so every command agrees which on-disk surface is authoritative.",
+  "slug": "single-mission-surface-resolver-01KVGCE8",
+  "target_branch": "feat/single-mission-surface-resolver",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-19T17:31:04.127088+00:00"
+}

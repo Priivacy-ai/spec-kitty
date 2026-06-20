@@ -1,0 +1,89 @@
+{
+    "mission_slug": "read-side-surface-resolver-adoption-01KVJPEQ",
+    "mission_number": "",
+    "mission_type": "software-dev",
+    "overall_verdict": "pass",
+    "criteria": [
+        {
+            "criterion_id": "FR-001",
+            "description": "Single guarded resolve_handle_to_read_path seam is the one read-side entry point",
+            "proof_type": "automated_test",
+            "evidence": "WP01 seam resolve_handle_to_read_path (lane 1e11738f7); tests/specify_cli/missions/test_resolve_handle_to_read_path.py 6 passed; orchestrator re-pointed, old cascade removed.",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata",
+            "verified_at": "2026-06-20T17:30:00+00:00",
+            "notes": "Verified via WP implement-review (reviewer-renata APPROVE) + gates."
+        },
+        {
+            "criterion_id": "FR-002",
+            "description": "Every read path that derives mid8 consumes the seam (8-caller enumeration)",
+            "proof_type": "automated_test",
+            "evidence": "WP02 (lane 7957a832c) + WP03 (lane b07c6c579): all 8 direct resolve_mission_read_path callers routed through the seam/resolve_declared_mid8; zero raw KITTY_SPECS_DIR/<handle> joins remain at the read CLIs.",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata",
+            "verified_at": "2026-06-20T17:30:00+00:00",
+            "notes": "Verified via WP implement-review (reviewer-renata APPROVE) + gates."
+        },
+        {
+            "criterion_id": "FR-003",
+            "description": "coord-fresh/bare + coord-behind/bare equivalence cells flip green via the seam re-point",
+            "proof_type": "automated_test",
+            "evidence": "WP04 (lane 9b212f138): matrix read_path leg re-pointed to seam; coord-fresh/bare + coord-behind/bare flipped GREEN; 0 XPASS / 0 unexpected; assertion logic frozen (mutation-confirmed re-point is load-bearing).",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata",
+            "verified_at": "2026-06-20T17:30:00+00:00",
+            "notes": "Verified via WP implement-review (reviewer-renata APPROVE) + gates."
+        },
+        {
+            "criterion_id": "FR-004",
+            "description": "Seam validates the handle (assert_safe_path_segment) before any path composition",
+            "proof_type": "automated_test",
+            "evidence": "WP01 seam guards handle via assert_safe_path_segment before any join; WP06 traversal test (../etc, a/b) raises pre-composition.",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata",
+            "verified_at": "2026-06-20T17:30:00+00:00",
+            "notes": "Verified via WP implement-review (reviewer-renata APPROVE) + gates."
+        },
+        {
+            "criterion_id": "FR-005",
+            "description": "Create-window invariant preserved (declared-unmaterialized coord -> PRIMARY); #1718 not regressed",
+            "proof_type": "automated_test",
+            "evidence": "WP01 unit test (c) declared-unmaterialized coord + bare slug -> PRIMARY; WP06 create-window invariant (lane 2b101b828) bites under the resolve_status_surface_with_anchor mutation; seam never calls the coord-composing surface.",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata",
+            "verified_at": "2026-06-20T17:30:00+00:00",
+            "notes": "Verified via WP implement-review (reviewer-renata APPROVE) + gates."
+        },
+        {
+            "criterion_id": "FR-006",
+            "description": "Selection-authority guard binds read SELECTION to the seam (AST ratchet + runtime gate)",
+            "proof_type": "automated_test",
+            "evidence": "WP05 (lane 397912771): NEW selection-callsite AST discriminator catches direct resolve_mission_read_path calls the raw-JOIN guard is blind to; two-axis mutation + pre/post-tree discrimination proven; seam empty-mid8 fail-closed gate test.",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata",
+            "verified_at": "2026-06-20T17:30:00+00:00",
+            "notes": "Verified via WP implement-review (reviewer-renata APPROVE) + gates."
+        },
+        {
+            "criterion_id": "FR-007",
+            "description": "Residual allowlist drains by re-derivation, not by blinding the net",
+            "proof_type": "automated_test",
+            "evidence": "WP05: 3 #2046 + 1 D-6 (decision.py:464) allowlist keys drained by re-derivation (discover_rows finds zero); SLUG_NAMES frozen {raw_handle,handle}; re-injection mutation fails the guard.",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata",
+            "verified_at": "2026-06-20T17:30:00+00:00",
+            "notes": "Verified via WP implement-review (reviewer-renata APPROVE) + gates."
+        },
+        {
+            "criterion_id": "FR-008",
+            "description": "Aggregate-seam cells stay out of scope; xfail reasons narrowed honestly",
+            "proof_type": "automated_test",
+            "evidence": "WP04: coord-empty/bare + coord-deleted/bare + the two */slug-mid8 aggregate cells NOT claimed green; their xfail reasons narrowed to the remaining CoordAuthorityUnavailable aggregate divergence (stay strict-xfail).",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata",
+            "verified_at": "2026-06-20T17:30:00+00:00",
+            "notes": "Verified via WP implement-review (reviewer-renata APPROVE) + gates."
+        }
+    ],
+    "negative_invariants": []
+}
