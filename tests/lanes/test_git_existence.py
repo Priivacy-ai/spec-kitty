@@ -11,7 +11,11 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.lanes._git import branch_exists, ref_exists
+from specify_cli.lanes._git import (
+    branch_exists,
+    lane_has_commit_beyond_base,
+    ref_exists,
+)
 
 pytestmark = pytest.mark.git_repo
 
@@ -103,3 +107,36 @@ def test_ref_exists_with_explicit_env(tmp_path: Path) -> None:
     env = os.environ.copy()
     assert ref_exists(tmp_path, "main", env=env) is True
     assert ref_exists(tmp_path, "missing", env=env) is False
+
+
+def _commit(path: Path, name: str) -> None:
+    (path / name).write_text("x\n")
+    subprocess.run(["git", "add", "."], cwd=str(path), capture_output=True, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", name], cwd=str(path), capture_output=True, check=True
+    )
+
+
+def test_lane_has_commit_beyond_base_false_when_at_base(tmp_path: Path) -> None:
+    """No commit beyond base (HEAD == base) -> False (the gate rejects)."""
+    _make_git_repo(tmp_path)
+    subprocess.run(
+        ["git", "branch", "base"], cwd=str(tmp_path), capture_output=True, check=True
+    )
+    assert lane_has_commit_beyond_base(tmp_path, "base") is False
+
+
+def test_lane_has_commit_beyond_base_true_with_a_commit(tmp_path: Path) -> None:
+    """A commit on HEAD beyond base -> True (the gate passes)."""
+    _make_git_repo(tmp_path)
+    subprocess.run(
+        ["git", "branch", "base"], cwd=str(tmp_path), capture_output=True, check=True
+    )
+    _commit(tmp_path, "impl.py")
+    assert lane_has_commit_beyond_base(tmp_path, "base") is True
+
+
+def test_lane_has_commit_beyond_base_false_for_unresolvable_base(tmp_path: Path) -> None:
+    """Fail-closed: an unresolvable base ref (rev-list errors) -> False."""
+    _make_git_repo(tmp_path)
+    assert lane_has_commit_beyond_base(tmp_path, "no-such-branch") is False

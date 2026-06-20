@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- **Coord-topology orchestration: WPs reached `done` with nothing committed or integrated.** Three fixes,
+  all on the external `orchestrator-api` path for coordination-topology missions:
+  - `start-implementation` no longer crashed with `TypeError: transactional status batch only supports one
+    feature/mission/wp` — the transactional batch guard now anchors the per-request consistency check on the
+    first request's canonicalized dir (matching the non-transactional sibling) instead of the resolved primary
+    anchor, which legitimately differs from the coord-worktree request surface.
+  - `append-history` now commits the WP prompt file from the coordination worktree (via the canonical
+    `resolve_placement_only` target) instead of the primary checkout, fixing a `SAFE_COMMIT_PATH_POLICY`
+    refusal that stalled the orchestrate loop.
+  - `start-implementation` now allocates the **real lane worktree** (lane branch on the coordination branch,
+    with dependency-lane tips merged) instead of returning a bare legacy path, so `merge-mission` has a lane
+    branch to integrate and dependent WPs see their dependencies' code. Its response now carries `lane_id`,
+    `lane_branch`, and `lane_base_ref`, and `workspace_path` now means that lane worktree. The `for_review`
+    transition is gated on a real commit existing beyond the lane base (shared with the native `move-task`
+    gate), so "done without a commit" is impossible via the API too.
+
+### ⚠️ Contract
+
+- `orchestrator-api` `CONTRACT_VERSION` bumped to **1.1.0**: additive `start-implementation` response fields
+  (`lane_id`, `lane_branch`, `lane_base_ref`) and a changed meaning for `workspace_path` (now the lane
+  worktree). New error code `LANE_ALLOCATION_FAILED`.
+
 ## [3.2.2] - 2026-06-21
 
 Patch release continuing the post-3.2.0 stabilization. Adopts a coherent test-flakiness handling

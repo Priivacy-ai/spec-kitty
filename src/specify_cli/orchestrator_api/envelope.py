@@ -15,7 +15,11 @@ from dataclasses import dataclass
 from datetime import datetime, UTC
 from typing import Any
 
-CONTRACT_VERSION = "1.0.0"
+# 1.1.0: start-implementation now allocates the real lane worktree and its
+# response carries lane_id / lane_branch / lane_base_ref; workspace_path now
+# means that lane worktree (previously a bare legacy path). Additive + a
+# bugfixed field meaning → minor bump.
+CONTRACT_VERSION = "1.1.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: defined here as validation constants (NOT invoked anywhere).
