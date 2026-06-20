@@ -42,7 +42,8 @@ IMPLEMENT_TEMPLATE_PATH = (
 @pytest.fixture()
 def sample_file(tmp_path: Path) -> Path:
     """Create a simple text file for replacement tests."""
-    p = tmp_path / "sample.txt"
+    p = tmp_path / ".claude" / "skills" / "demo-skill" / "sample.txt"
+    p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text("hello world\nfoo bar baz\n", encoding="utf-8")
     return p
 
@@ -89,7 +90,7 @@ class TestApplyTextReplacementsNoFilter:
         assert "qux bar baz" in content
 
     def test_handles_missing_file(self, tmp_path: Path) -> None:
-        missing = tmp_path / "does_not_exist.txt"
+        missing = tmp_path / ".claude" / "skills" / "demo-skill" / "does_not_exist.txt"
         result = apply_text_replacements(missing, [("a", "b")])
         assert result is False
 
@@ -130,7 +131,7 @@ class TestApplyTextReplacementsWithFilter:
 
     def test_filter_skips_before_reading(self, tmp_path: Path) -> None:
         """If the filter rejects, the file is never opened (even if missing)."""
-        missing = tmp_path / "no_such_file.txt"
+        missing = tmp_path / ".claude" / "skills" / "demo-skill" / "no_such_file.txt"
         result = apply_text_replacements(
             missing,
             [("a", "b")],

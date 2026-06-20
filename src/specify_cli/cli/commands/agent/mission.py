@@ -2377,7 +2377,7 @@ def setup_plan(
                 result["blocked_reason"] = plan_blocked_reason
             # FR-006 / D-5: surface the real commit hash and the typed no-op
             # classification instead of an opaque ``commit_created: None``.
-            if plan_commit_result is not None:
+            if isinstance(plan_commit_result, CommitToBranchResult):
                 result["commit_created"] = plan_commit_result.status == "committed"
                 result["commit_hash"] = plan_commit_result.commit_hash
                 result["commit_status"] = plan_commit_result.status

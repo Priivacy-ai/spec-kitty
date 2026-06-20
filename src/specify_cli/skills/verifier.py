@@ -21,6 +21,7 @@ from specify_cli.skills.paths import get_primary_global_skill_root
 from specify_cli.skills.registry import SkillRegistry
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
 from specify_cli.template import get_local_repo_root
+from specify_cli.upgrade.skill_update import is_external_symlink
 
 logger = logging.getLogger(__name__)
 
@@ -145,10 +146,22 @@ def repair_skills(
                 try:
                     dest.symlink_to(global_source)
                 except OSError:
-                    _copy_skill_file(source_path, dest, entry.skill_name, entry.source_file)
+                    _copy_skill_file(
+                        source_path,
+                        dest,
+                        project_path,
+                        entry.skill_name,
+                        entry.source_file,
+                    )
                     delivery_mode = "copy"
             else:
-                _copy_skill_file(source_path, dest, entry.skill_name, entry.source_file)
+                _copy_skill_file(
+                    source_path,
+                    dest,
+                    project_path,
+                    entry.skill_name,
+                    entry.source_file,
+                )
             new_hash = compute_content_hash(dest)
             # Update the manifest entry with the new hash
             manifest.add_entry(
@@ -259,8 +272,16 @@ def _project_managed_path(project_path: Path, installed_path: str) -> Path:
     return normalized
 
 
-def _copy_skill_file(source: Path, dest: Path, skill_name: str, source_file: str) -> None:
+def _copy_skill_file(
+    source: Path,
+    dest: Path,
+    project_root: Path,
+    skill_name: str,
+    source_file: str,
+) -> None:
     """Copy a managed skill file, normalizing SKILL.md frontmatter if needed."""
+    if is_external_symlink(dest, project_root):
+        raise OSError(f"Refusing to write managed skill outside project root via symlink: {dest}")
     if source_file == SKILL_MANIFEST_FILENAME:
         content = source.read_text(encoding="utf-8")
         dest.write_text(ensure_skill_frontmatter(content, skill_name), encoding="utf-8")
