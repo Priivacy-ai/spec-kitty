@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 from specify_cli.coordination.status_transition import (
+    emit_status_transition_batch_transactional,
     emit_status_transition_transactional,
     read_current_wp_state_transactional,
     read_events_transactional,
@@ -23,6 +24,7 @@ from specify_cli.coordination.status_service import (
     read_event_log,
 )
 from specify_cli.coordination.transaction import BookkeepingCommitFailed, BookkeepingWorktreeMissing
+from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 
 pytest_plugins = ("tests.conftest_saas_sink",)
@@ -326,6 +328,85 @@ def test_transactional_emit_fails_closed_on_malformed_meta(
 
     assert mock_saas_sink.call_count == 0
     assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
+
+
+def _seed_coord_branch_without_meta(repo: Path) -> StatusEvent:
+    """Set up the coordination branch the way a real mission has it.
+
+    On the coordination branch the mission folder holds the status log but no
+    ``meta.json`` — ``meta.json`` only lives in the normal checkout. We also
+    record WP01 as ``planned`` so the work-start batch has a valid starting
+    point. This is done in a temporary worktree that we delete before adding the
+    real one, because git won't let the same branch be checked out twice at once.
+    """
+    seed_event = StatusEvent(
+        event_id="01SEEDGENESIS0000000000001",
+        mission_slug=MISSION_SLUG,
+        mission_id=MISSION_ID,
+        wp_id="WP01",
+        from_lane=Lane.GENESIS,
+        to_lane=Lane.PLANNED,
+        at="2026-05-31T00:00:00+00:00",
+        actor="seed",
+        force=False,
+        reason="seed",
+        execution_mode="worktree",
+    )
+    worktree = repo / ".worktrees" / "seed-coord-nometa"
+    _git(repo, "worktree", "add", "-q", str(worktree), COORD_BRANCH)
+    coord_feature_dir = worktree / "kitty-specs" / MISSION_DIRNAME
+    (coord_feature_dir / "meta.json").unlink()
+    append_event_log(
+        EventLogWriteContract.coordination_transaction_append(coord_feature_dir),
+        seed_event,
+    )
+    _git(worktree, "add", "-A")
+    _git(worktree, "commit", "-q", "-m", "coord: status surface without meta")
+    _git(repo, "worktree", "remove", "-f", str(worktree))
+    return seed_event
+
+
+def test_transactional_batch_same_wp_under_coord_topology_does_not_misfire(
+    repo: Path,
+    mock_saas_sink: Any,
+) -> None:
+    """Starting a work package on a coordination-mode mission used to crash here.
+
+    Such a mission lives in two folders: the normal checkout and a separate
+    coordination worktree. The batch that starts a work package points at the
+    coordination folder, but the guard compared it against the normal-checkout
+    folder and rejected the batch as "more than one work package" — crashing
+    start-implementation. This builds that two-folder setup and checks the batch
+    now succeeds.
+    """
+    seed = _seed_coord_branch_without_meta(repo)
+
+    # Register the coordination worktree (in real life it already exists by the
+    # time work starts) and pass the full mission-folder name, the way the
+    # orchestrator does. This makes the requests point at the coordination folder
+    # while the mission's identity still resolves to the normal checkout — the
+    # mismatch that used to trip the guard.
+    coord_worktree = CoordinationWorkspace.worktree_path(repo, MISSION_DIRNAME, MID8)
+    _git(repo, "worktree", "add", "-q", str(coord_worktree), COORD_BRANCH)
+    coord_feature_dir = coord_worktree / "kitty-specs" / MISSION_DIRNAME
+
+    def _coord_request(to_lane: str) -> TransitionRequest:
+        return TransitionRequest(
+            feature_dir=coord_feature_dir,
+            mission_slug=MISSION_DIRNAME,
+            wp_id="WP01",
+            to_lane=to_lane,
+            actor="coord-batch-test",
+            repo_root=repo,
+        )
+
+    events = emit_status_transition_batch_transactional(
+        [_coord_request("claimed"), _coord_request("in_progress")],
+        sync_dossier=False,
+    )
+
+    assert [e.to_lane for e in events] == [Lane.CLAIMED, Lane.IN_PROGRESS]
+    assert events[0].from_lane == seed.to_lane  # planned -> claimed
 
 
 def _seed_planned_on_primary(repo: Path) -> StatusEvent:
