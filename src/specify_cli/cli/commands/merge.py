@@ -930,12 +930,15 @@ def _capture_bookkeeping_snapshots(
 def _restore_final_bookkeeping_snapshots(
     snapshots: dict[Path, bytes | None],
 ) -> None:
-    """Best-effort restore for final merge bookkeeping rollback."""
+    """Best-effort restore for final merge bookkeeping rollback.
+
+    Snapshot paths are validated at capture time (``_capture_bookkeeping_snapshots``
+    → ``_assert_bookkeeping_snapshot_path_is_trusted``), so restore trusts the dict
+    keys and only needs to tolerate transient I/O failures.
+    """
     for path, original in snapshots.items():
         try:
             _restore_optional_bytes(path, original)
-        except ValueError as exc:
-            logger.warning("Skipping untrusted bookkeeping rollback snapshot: %s", exc)
         except OSError:
             continue
 
