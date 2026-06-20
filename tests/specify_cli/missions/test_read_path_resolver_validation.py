@@ -177,3 +177,303 @@ def test_primary_full_ulid_returns_composed_path(real_git_repo: Path) -> None:
     result = primary_feature_dir_for_mission(real_git_repo, _REAL_MISSION_ID)
     assert result.name == _REAL_MISSION_ID
     assert "kitty-specs" in str(result)
+
+
+# ===========================================================================
+# WP03 / T012 — disambiguation + topology-blind contract + delegator policy
+# ===========================================================================
+#
+# FR-009/T1: the two same-named ``primary_feature_dir_for_mission`` defs are
+# disambiguated by making the shim RE-EXPORT the canonical raw-slug, topology-
+# blind primary anchor. These tests prove (a) the shim name now resolves to the
+# canonical object, (b) every primary-anchored caller still reads its primary
+# ``meta.json`` after the change, and (c) the mutation that injects mid8
+# composition into the primary anchor BREAKS those primary-anchored reads.
+
+
+# ---------------------------------------------------------------------------
+# (e) The single canonical raw-slug primary anchor (T009; shim retired in WP07)
+# ---------------------------------------------------------------------------
+def test_primary_anchor_has_single_canonical_definition() -> None:
+    """``primary_feature_dir_for_mission`` is one canonical, callable def.
+
+    Post-WP07 the ``feature_dir_resolver`` shim that historically re-exported a
+    second name for this function is retired — there is exactly ONE definition,
+    in ``_read_path_resolver``. Disambiguation, not a parallel implementation:
+    every import site now resolves the primary anchor identically.
+    """
+    from specify_cli.missions import _read_path_resolver
+    from specify_cli.missions._read_path_resolver import (
+        primary_feature_dir_for_mission as canonical,
+    )
+
+    assert _read_path_resolver.primary_feature_dir_for_mission is canonical
+    assert callable(canonical)
+
+
+def test_primary_anchor_is_topology_blind_raw_slug(real_git_repo: Path) -> None:
+    """The primary anchor returns the RAW slug dir, never a coord path.
+
+    The previous shadow implementation trusted ``repo_root`` verbatim and
+    composed via ``compose_meta_json_path``; the canonical form re-anchors to the
+    primary checkout and returns ``kitty-specs/<raw-slug>``.
+    """
+    from specify_cli.missions._read_path_resolver import (
+        primary_feature_dir_for_mission,
+    )
+
+    result = primary_feature_dir_for_mission(real_git_repo, _REAL_SLUG)
+    assert result.name == _REAL_SLUG
+    assert ".worktrees" not in str(result)
+    assert "kitty-specs" in str(result)
+
+
+def test_primary_anchor_applies_safe_segment_guard(real_git_repo: Path) -> None:
+    """The canonical anchor applies its traversal guard (NFR-002).
+
+    The old shim composed the path WITHOUT ``assert_safe_path_segment``; the
+    canonical anchor guards first. This is a strict safety improvement and proves
+    the guarded body is wired, not a guard-less twin.
+    """
+    from specify_cli.missions._read_path_resolver import (
+        primary_feature_dir_for_mission,
+    )
+
+    with pytest.raises(ValueError, match="safe path segment"):
+        primary_feature_dir_for_mission(real_git_repo, "../escape")
+
+
+# ---------------------------------------------------------------------------
+# (f) Primary-anchored callers still read the primary meta.json (T012)
+# ---------------------------------------------------------------------------
+def _write_primary_meta(repo_root: Path, slug: str, **fields: object) -> Path:
+    feature_dir = repo_root / "kitty-specs" / slug
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    import json
+
+    (feature_dir / "meta.json").write_text(json.dumps(fields), encoding="utf-8")
+    return feature_dir
+
+
+def test_mid8_from_primary_meta_reads_primary_anchor(real_git_repo: Path) -> None:
+    """``_mid8_from_primary_meta`` derives the mid8 from the PRIMARY meta.json.
+
+    This is the canonical caller the topology-blind contract protects: it reads
+    the primary ``meta.json`` to DERIVE the mid8 — so the primary anchor MUST be
+    raw-slug (composing the mid8 inside the anchor would be circular).
+    """
+    from mission_runtime.resolution import _mid8_from_primary_meta
+
+    _write_primary_meta(real_git_repo, _REAL_SLUG, mission_id=_REAL_MISSION_ID)
+    assert _mid8_from_primary_meta(real_git_repo, _REAL_SLUG) == _REAL_MID8
+
+
+def test_resolve_coordination_branch_reads_primary_anchor(
+    real_git_repo: Path,
+) -> None:
+    """``_resolve_coordination_branch`` reads the primary ``meta.json`` (FR-003)."""
+    from mission_runtime.resolution import _resolve_coordination_branch
+
+    branch = f"kitty/mission-{_REAL_SLUG}"
+    _write_primary_meta(
+        real_git_repo,
+        _REAL_SLUG,
+        mission_id=_REAL_MISSION_ID,
+        coordination_branch=branch,
+    )
+    assert _resolve_coordination_branch(real_git_repo, _REAL_SLUG) == branch
+
+
+def test_resolve_mission_id_reads_primary_anchor(real_git_repo: Path) -> None:
+    """``_resolve_mission_id`` reads the primary ``meta.json`` (FR-003)."""
+    from mission_runtime.resolution import _resolve_mission_id
+
+    _write_primary_meta(real_git_repo, _REAL_SLUG, mission_id=_REAL_MISSION_ID)
+    assert _resolve_mission_id(real_git_repo, _REAL_SLUG) == _REAL_MISSION_ID
+
+
+# ---------------------------------------------------------------------------
+# (g) Mutation: inject mid8 composition into the primary anchor → reads FAIL
+# ---------------------------------------------------------------------------
+def test_mutation_mid8_composition_breaks_primary_anchored_reads(
+    real_git_repo: Path,
+) -> None:
+    """Topology-blind contract is load-bearing (the mutation MUST bite).
+
+    Mutate ``primary_feature_dir_for_mission`` to compose ``<slug>-<mid8>`` (the
+    REVERSED-direction change the corrected premise forbids). The mission here
+    uses a BARE human slug (no embedded mid8) whose primary ``meta.json`` lives
+    at ``kitty-specs/<bare-slug>/`` — exactly the real layout where the mid8 is
+    declared in meta but NOT in the directory name. The mutated anchor composes
+    ``kitty-specs/<bare-slug>-<mid8>/`` (which does not exist), so
+    ``_mid8_from_primary_meta`` can no longer read the meta and the mid8 is LOST.
+    If this test does NOT fail under the mutation, the contract is not actually
+    load-bearing and the disambiguation is decorative.
+
+    (For an already-mid8-embedded slug the raw and composed dir names coincide,
+    so the mutation is silent — proving precisely why the anchor MUST stay
+    raw-slug for the bare-slug-with-declared-mid8 case.)
+    """
+    from unittest.mock import patch
+
+    from specify_cli.lanes.branch_naming import mid8_from_slug
+
+    # Bare human slug; mid8 declared in meta only (NOT in the dir name).
+    bare_slug = "canonical-seams-path-trust-guard-capability"
+    assert mid8_from_slug(bare_slug) == "", "bare slug must carry no parseable tail"
+    _write_primary_meta(real_git_repo, bare_slug, mission_id=_REAL_MISSION_ID)
+
+    # Baseline: with the real raw-slug anchor, the mid8 derives correctly.
+    from mission_runtime.resolution import _mid8_from_primary_meta
+
+    assert _mid8_from_primary_meta(real_git_repo, bare_slug) == _REAL_MID8
+
+    def _mid8_composing_anchor(repo_root: Path, slug: str) -> Path:
+        # The forbidden mutation: compose <slug>-<mid8> into the primary anchor.
+        derived = mid8_from_slug(slug) or _REAL_MID8
+        composed = slug if slug.endswith(f"-{derived}") else f"{slug}-{derived}"
+        return repo_root / "kitty-specs" / composed
+
+    # ``_mid8_from_primary_meta`` imports ``primary_feature_dir_for_mission``
+    # function-locally from ``_read_path_resolver``, so the mutation patches the
+    # canonical source module (where the late import resolves), proving the
+    # primary anchor — not a copy — is the load-bearing contract surface.
+    with patch(
+        "specify_cli.missions._read_path_resolver.primary_feature_dir_for_mission",
+        _mid8_composing_anchor,
+    ):
+        # The mutated anchor points at kitty-specs/<bare-slug>-<mid8>/ which has
+        # no meta.json → the derive silently returns "" (the mid8 is LOST).
+        mutated = _mid8_from_primary_meta(real_git_repo, bare_slug)
+    assert mutated != _REAL_MID8, (
+        "mutation injecting mid8 composition into the primary anchor did NOT "
+        "break the primary-anchored read — the topology-blind contract is not "
+        "load-bearing (regression: the reversed-direction change would pass)"
+    )
+
+
+# ---------------------------------------------------------------------------
+# (h) Shared resolve-dir-or-typed-error delegator policy (T011)
+# ---------------------------------------------------------------------------
+def test_delegator_returns_surface_parent_when_meta_present(
+    real_git_repo: Path,
+) -> None:
+    """The delegator returns the surface DIR (``surface.parent``) on the happy path.
+
+    No coord branch declared + primary meta present → the surface resolver yields
+    the primary status surface, and the delegator returns its containing dir.
+    """
+    from specify_cli.missions._read_path_resolver import (
+        resolve_surface_dir_or_typed_error,
+    )
+
+    feature_dir = _write_primary_meta(
+        real_git_repo, _REAL_SLUG, mission_id=_REAL_MISSION_ID
+    )
+    sentinel = real_git_repo / "kitty-specs" / "SENTINEL-NOT-USED"
+    result = resolve_surface_dir_or_typed_error(
+        real_git_repo, _REAL_SLUG, on_missing_meta=sentinel
+    )
+    assert result.resolve() == feature_dir.resolve()
+
+
+def test_delegator_returns_on_missing_meta_in_first_write_window(
+    real_git_repo: Path,
+) -> None:
+    """No ``meta.json`` yet → the delegator returns the caller's primary fallback.
+
+    Reconciled UNION policy: the create→first-write window (FileNotFoundError)
+    returns ``on_missing_meta``. The two old wrappers differed only in how they
+    spelled that fallback; the delegator delegates the spelling to the caller.
+    """
+    from specify_cli.missions._read_path_resolver import (
+        resolve_surface_dir_or_typed_error,
+    )
+
+    fallback = real_git_repo / "kitty-specs" / _REAL_SLUG
+    result = resolve_surface_dir_or_typed_error(
+        real_git_repo, _REAL_SLUG, on_missing_meta=fallback
+    )
+    assert result == fallback
+
+
+def test_delegator_returns_on_missing_meta_for_malformed_slug(
+    real_git_repo: Path,
+) -> None:
+    """Malformed slug (ValueError) is in the reconciled UNION → fallback returned.
+
+    ``aggregate._resolve_read_dir`` did NOT catch ValueError while
+    ``resolution._resolve_status_surface_dir`` did; the delegator's documented
+    union catches both FileNotFoundError and ValueError.
+    """
+    from specify_cli.missions._read_path_resolver import (
+        resolve_surface_dir_or_typed_error,
+    )
+
+    fallback = real_git_repo / "kitty-specs" / "fallback-marker"
+    result = resolve_surface_dir_or_typed_error(
+        real_git_repo, "../escape", on_missing_meta=fallback
+    )
+    assert result == fallback
+
+
+def test_delegator_propagates_status_read_path_not_found(
+    real_git_repo: Path,
+) -> None:
+    """Surface fail-closed propagates StatusReadPathNotFound UNCHANGED (no translation).
+
+    The delegator does NOT pick a boundary translation (aggregate →
+    CoordAuthorityUnavailable; mission_runtime → ActionContextError) — typed-error
+    convergence is WP06. It propagates the raw StatusReadPathNotFound so each
+    caller translates it (and the ``error_code`` survives).
+    """
+    from unittest.mock import patch
+
+    import specify_cli.missions._read_path_resolver as rpr
+    from specify_cli.missions._read_path_resolver import (
+        StatusReadPathNotFound,
+        resolve_surface_dir_or_typed_error,
+    )
+
+    exc = StatusReadPathNotFound(
+        repo_root=real_git_repo,
+        mission_slug=_REAL_SLUG,
+        mid8=_REAL_MID8,
+        coord_candidate=real_git_repo / "coord",
+        primary_candidate=real_git_repo / "primary",
+    )
+
+    def _raise(_repo: Path, _slug: str) -> Path:
+        raise exc
+
+    with patch(
+        "specify_cli.coordination.surface_resolver.resolve_status_surface",
+        _raise,
+    ), pytest.raises(StatusReadPathNotFound) as caught:
+        resolve_surface_dir_or_typed_error(
+            real_git_repo, _REAL_SLUG, on_missing_meta=real_git_repo
+        )
+    assert caught.value.error_code == rpr.STATUS_READ_PATH_NOT_FOUND_CODE
+
+
+def test_delegator_propagates_ambiguous_selector(real_git_repo: Path) -> None:
+    """Ambiguous handle propagates MissionSelectorAmbiguous (no silent first-match)."""
+    from unittest.mock import patch
+
+    from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
+        resolve_surface_dir_or_typed_error,
+    )
+
+    exc = MissionSelectorAmbiguous(handle="01KTAMBG", candidates=["a", "b"])
+
+    def _raise(_repo: Path, _slug: str) -> Path:
+        raise exc
+
+    with patch(
+        "specify_cli.coordination.surface_resolver.resolve_status_surface",
+        _raise,
+    ), pytest.raises(MissionSelectorAmbiguous):
+        resolve_surface_dir_or_typed_error(
+            real_git_repo, "01KTAMBG", on_missing_meta=real_git_repo
+        )

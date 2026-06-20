@@ -13,7 +13,7 @@ import pytest
 from typer.testing import CliRunner
 
 from mission_runtime import CommitTarget, CommitTargetKind
-from specify_cli.missions.feature_dir_resolver import primary_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
 
 pytestmark = [pytest.mark.fast]
 
@@ -116,11 +116,11 @@ def test_map_requirements_reads_spec_from_primary_when_coord_lacks_it(
 
     # The two resolvers are late-imported inside map_requirements from this module.
     monkeypatch.setattr(
-        "specify_cli.missions.feature_dir_resolver.resolve_feature_dir_for_slug",
+        "specify_cli.missions._read_path_resolver.resolve_feature_dir_for_slug",
         lambda _root, _slug: coord_mission_dir,
     )
     monkeypatch.setattr(
-        "specify_cli.missions.feature_dir_resolver.primary_feature_dir_for_mission",
+        "specify_cli.missions._read_path_resolver.primary_feature_dir_for_mission",
         lambda _root, _slug: primary_mission_dir,
     )
 
@@ -242,11 +242,11 @@ def test_map_requirements_auto_commit_uses_coord_placement_for_coord_files(
         fake_planning_commit_worktree,
     )
     monkeypatch.setattr(
-        "specify_cli.missions.feature_dir_resolver.resolve_feature_dir_for_slug",
+        "specify_cli.missions._read_path_resolver.resolve_feature_dir_for_slug",
         lambda _root, _slug: coord_mission_dir,
     )
     monkeypatch.setattr(
-        "specify_cli.missions.feature_dir_resolver.primary_feature_dir_for_mission",
+        "specify_cli.missions._read_path_resolver.primary_feature_dir_for_mission",
         lambda _root, _slug: primary_mission_dir,
     )
 

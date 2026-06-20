@@ -87,12 +87,15 @@ _BLESSED_COORD_PREDICATE_MODULE = "src/specify_cli/coordination/surface_resolver
 
 _ALLOWLISTED_COORD_PREDICATE_SITES: frozenset[str] = frozenset(
     {
-        # ---- coord-routing deferral reserved by mission scope (C-002) --------
-        # The status-write routing predicates (_is_coordination_feature_dir /
-        # _is_coord_worktree_feature_dir) sit in ranges reserved for the upstream
-        # coord-merge-stabilization mission; WP05 honored C-002 and touched ONLY
-        # the fabrication range here. Documented residual, not a re-grown predicate.
-        "src/specify_cli/coordination/status_transition.py",
+        # NOTE (#1900 / SC-005 — drained by single-mission-surface-resolver WP06):
+        # ``coordination/status_transition.py`` used to be allowlisted here for its
+        # ``_is_coordination_feature_dir`` / ``_is_coord_worktree_feature_dir``
+        # path-shape predicates (the 5th parallel topology-selection site, C-002
+        # deferral). WP06 (FR-001/FR-007) migrated them to the canonical seam
+        # (``is_under_worktrees_segment`` / ``is_registered_coord_worktree``), so the
+        # entry is REMOVED — its removal IS the SC-005 proof that zero parallel
+        # selectors remain in that module. Do NOT re-add it: a new raw predicate
+        # there is now an unconditional C-SEAM-1 regression.
         # root_resolver delegates to is_registered_coord_worktree; the raw suffix
         # test survives ONLY in the WorktreeRegistryUnavailable except-branch
         # (ad-hoc dirs outside a git repo cannot be canonicalized, so the shape

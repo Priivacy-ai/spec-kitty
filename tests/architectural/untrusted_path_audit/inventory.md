@@ -28,11 +28,11 @@ added seam calls to `dossier/`, `events/`, `migration/`, and `review/arbiter`
 | cli/commands/decision.py:464 | mission_slug | Path-join (/) | routed-through-seam (TODO) | `repo_root / KITTY_SPECS_DIR / mission_slug` then `load_meta(...)` read; raw `--mission` slug, no seam at this site. Deferred (CLI-arg, load_meta read). |
 | cli/commands/merge.py:591 | mission_slug | Path-join (/) | unreachable | Builds a *relative* `kitty-specs/<slug>/status.events.jsonl` only to stringify into a `git show <ref>:<path>` argument; no local FS open — git resolves inside the tree object. |
 | cli/commands/merge.py:593 | mission_slug | Path-join (/) | unreachable | Same git-ref-argument path as :591 (worktree-rewrite branch); no FS sink. |
-| cli/commands/merge.py:1055 | mission_slug | Path-join (/) | routed-through-seam (TODO) | `scan_specs / mission_slug / "meta.json"` then `read_text()` after `.exists()`; raw `--mission`/target slug, no seam. Deferred (CLI-arg, .exists()+read_text). |
-| coordination/surface_resolver.py:429 | mission_slug | Path-join (/) | unreachable | Path composed solely to populate `StatusReadPathNotFound(coord_candidate=…)` inside a `raise`; never opened/written — fail-closed diagnostic payload. |
-| coordination/surface_resolver.py:434 | mission_slug | Path-join (/) | unreachable | Same fail-closed `raise` payload (`primary_candidate=…`); diagnostic Path, no FS sink. |
+| cli/commands/merge.py:1103 | mission_slug | Path-join (/) | routed-through-seam (TODO) | `scan_specs / mission_slug / "meta.json"` then `read_text()` after `.exists()`; raw `--mission`/target slug, no seam. Deferred (CLI-arg, .exists()+read_text). |
+| coordination/surface_resolver.py:518 | mission_slug | Path-join (/) | unreachable | Path composed solely to populate `StatusReadPathNotFound(coord_candidate=…)` inside a `raise`; never opened/written — fail-closed diagnostic payload. (line shifted by mission 01KVGCE8 collapse) |
+| coordination/surface_resolver.py:523 | mission_slug | Path-join (/) | unreachable | Same fail-closed `raise` payload (`primary_candidate=…`); diagnostic Path, no FS sink. (line shifted by mission 01KVGCE8 collapse) |
 | migration/mission_state.py:1053 | run_id | Path-join (/) | trusted-source | `run_id = _compute_run_id(...)` is a SHA-256 hex digest (16 chars) derived deterministically from repo-local file content hashes — it is never a CLI argument or external input. The segment is safe by construction. |
-| missions/_read_path_resolver.py:438 | mission_slug | Path-join (/) | routed-through-seam | `primary_feature_dir_for_mission` calls `assert_safe_path_segment(mission_slug)` (line 437) immediately before `get_main_repo_root(repo_root) / KITTY_SPECS_DIR / mission_slug`. Seam present. |
+| missions/_read_path_resolver.py:511 | mission_slug | Path-join (/) | routed-through-seam | `primary_feature_dir_for_mission` calls `assert_safe_path_segment(mission_slug)` (line 510) immediately before `get_main_repo_root(repo_root) / KITTY_SPECS_DIR / mission_slug`. Seam present. (line shifted by mission 01KVGCE8 collapse) |
 | post_merge/review_artifact_consistency.py:59 | wp_id | Path-join (/) | unreachable | `_artifact_dirs_for_wp`: `tasks_dir / wp_id` used only for `.is_dir()` + an `iterdir()` name-prefix filter; no path is opened/written from the raw join, and a traversal `wp_id` fails the `.is_dir()` probe. Read-only existence guard. |
 | review/arbiter.py:388 | wp_id | Path-join (/) | unreachable | `_find_review_cycle_artifact`: `tasks_dir / wp_id` used for `.exists()` + `.glob("review-cycle-*.md")` only; returns a discovered child path, never opens the raw join. |
 | review/arbiter.py:523 | wp_id | Path-join (/) | unreachable | `get_arbiter_overrides_for_wp`: `tasks_dir / wp_id` used for `.exists()` + `.glob` reads only; no write, no open of the raw join. |
@@ -81,7 +81,7 @@ set by routing through the canonical seam (no longer discovered by `audit.py`):
   because the vulnerability is open. Verified by the WP02 mutation review.
 - **Deferred (CLI-arg, low-risk) → follow-up #2037:** `cli/commands/agent/mission.py:312`,
   `cli/commands/agent/tasks.py:1911`, `cli/commands/decision.py:464`,
-  `cli/commands/merge.py:1055` — CLI-sourced (`--mission`) slugs with only
+  `cli/commands/merge.py:1103` — CLI-sourced (`--mission`) slugs with only
   read-only / existence-probe sinks; lower-severity threat model than the
   server-side content paths. Tracked for hardening in #2037 (parent #1868).
 

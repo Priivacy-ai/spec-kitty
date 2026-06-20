@@ -481,11 +481,18 @@ _CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH: frozenset[str] = frozenset(
 #     transitive-consumption allowlist, not a temporary in-flight one. Both symbols
 #     still have zero cross-module by-name importers (WP09 verified by removal-probe:
 #     dropping either re-fails this gate), so both entries STAY.
+#   * ``CoordinationWorktreeEmpty`` (single-mission-surface-resolver WP06 / FR-006
+#     coord-empty hard-fail, #1716) is the SAME pattern: it subclasses
+#     ``StatusReadPathNotFound`` and carries the same ``error_code``, so the
+#     existing fail-closed handlers catch it transitively and only the enriched
+#     two-path message + distinct type differ. A redundant by-name ``except`` would
+#     be worse design; transitive consumption is the intended steady state.
 # Follow-up tracker: none — transitive consumption is the intended steady state.
 _CATEGORY_C_WP_IN_FLIGHT_TOPOLOGY_AUTHORITY: frozenset[str] = frozenset(
     {
         "specify_cli.coordination.surface_resolver::ResolvedStatusSurface",
         "specify_cli.coordination.surface_resolver::CoordinationBranchDeleted",
+        "specify_cli.coordination.surface_resolver::CoordinationWorktreeEmpty",
     }
 )
 
