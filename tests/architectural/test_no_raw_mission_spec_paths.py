@@ -32,6 +32,10 @@ _RAW_EXEMPT_PARTS = (
     # (e.g. `if _SPECS_DIR_NAME in parts:`), not for path construction.
     # It is a separate package that does not import from specify_cli.
     "charter/",
+    # merge.py owns the trusted status-surface topology seam. The raw
+    # `kitty_specs_root` symbol there is used only to select the blessed root
+    # for containment checks, not to create an independent mission-spec path.
+    "cli/commands/merge.py",
 )
 
 _SEMANTIC_CONSTRUCTOR_FILES = {
