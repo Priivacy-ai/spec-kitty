@@ -716,8 +716,11 @@ def emit_status_transition_batch_transactional(
 
     first = requests[0]
     mission_slug = first.mission_slug or first._legacy_mission_slug
-    if mission_slug is None or first.wp_id is None:
-        raise TypeError("transactional status batch requires mission_slug and wp_id")
+    first_feature_dir_raw = first.feature_dir or first.mission_dir
+    if mission_slug is None or first.wp_id is None or first_feature_dir_raw is None:
+        raise TypeError(
+            "transactional status batch requires feature_dir/mission_dir, mission_slug, and wp_id"
+        )
 
     identity = _identity_for_request(first)
     if not _transaction_topology_available(identity, mission_slug):
@@ -741,12 +744,27 @@ def emit_status_transition_batch_transactional(
         built: list[tuple[StatusEvent, TransitionRequest]] = []
         started_at = datetime.now(UTC)
 
+        # The loop below makes sure every transition in this batch is for the
+        # same work package, by checking they all sit in the same mission folder.
+        # We compare against the first request's folder.
+        #
+        # We must NOT compare against identity.feature_dir. In coordination mode a
+        # mission exists in two folders on disk: the normal checkout, and a
+        # separate "coordination" worktree. The requests point at the coordination
+        # folder, but identity.feature_dir points at the normal one — same work
+        # package, different folder. Comparing against it rejected valid batches.
+        #
+        # (We work this out here, not earlier, because the transaction above just
+        # registered the coordination worktree with git, and canonicalize_feature_dir
+        # only keeps the coordination folder once that registration exists.)
+        first_feature_dir = canonicalize_feature_dir(first_feature_dir_raw)
+
         for request in requests:
             request_feature_dir = request.feature_dir or request.mission_dir
             request_mission_slug = request.mission_slug or request._legacy_mission_slug
             if (
                 request_feature_dir is None
-                or canonicalize_feature_dir(request_feature_dir) != identity.feature_dir
+                or canonicalize_feature_dir(request_feature_dir) != first_feature_dir
                 or request_mission_slug != mission_slug
                 or request.wp_id != first.wp_id
             ):
