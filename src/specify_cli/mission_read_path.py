@@ -1,8 +1,10 @@
-"""Compatibility shim for canonical mission read-path resolution.
+"""Backward-compat shim — canonical home is specify_cli.missions._read_path_resolver.
 
-The implementation lives in :mod:`specify_cli.missions._read_path_resolver`.
 This module is retained for older lightweight ``spec-kitty next`` imports, but
-must not grow resolver logic of its own.
+must not grow resolver logic of its own. (Its last production importer was
+``runtime/next/runtime_bridge.py``, which mission 01KVJPEQ re-pointed to the
+canonical ``resolve_handle_to_read_path`` seam; the shim stays for external/
+back-compat consumers.)
 """
 
 from __future__ import annotations

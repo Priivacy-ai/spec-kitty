@@ -81,9 +81,22 @@ def _materialize_coord_root_without_mission_dir(repo: Path, dirname: str) -> Pat
 
 
 def _assert_fail_closed_refusal(excinfo: pytest.ExceptionInfo[ActionContextError]) -> None:
-    """The translation must keep the stable code AND the refusal message."""
+    """The translation must keep the stable code AND a fail-closed refusal message.
+
+    The refusal surfaces in one of two forms, both carrying the stable
+    ``STATUS_READ_PATH_NOT_FOUND`` code and neither silently falling back to the
+    primary checkout:
+    - the generic read-path-not-found message (canonical-dirname slug resolution), or
+    - the specific FR-006 coord-empty hard-fail (``CoordinationWorktreeEmpty``, a
+      ``StatusReadPathNotFound`` subclass introduced by mission 01KVGCE8) when the
+      coordination worktree is materialized but empty (the backfilled-dirname path).
+    """
     assert excinfo.value.code == "STATUS_READ_PATH_NOT_FOUND"
-    assert "Status read path not found" in str(excinfo.value)
+    message = str(excinfo.value)
+    assert (
+        "Status read path not found" in message
+        or "materialized but empty" in message
+    ), message
 
 
 def test_action_context_canonical_dirname_surfaces_action_context_error(

@@ -84,7 +84,7 @@ def _primary_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
     residual slug-derived path-builder that ignored coord topology and the
     ``-<mid8>`` suffix). One resolver, one path — FR-007/FR-009/FR-036.
     """
-    from specify_cli.missions.feature_dir_resolver import (
+    from specify_cli.missions._read_path_resolver import (
         candidate_feature_dir_for_mission,
     )
 
@@ -2431,23 +2431,29 @@ def _build_operational_context_for_decision(
 def _resolve_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
     """Resolve a mission dir for runtime reads without importing CLI context.
 
-    The mid8 disambiguator is derived authoritatively from the declared
-    ``mission_id`` via the WP01 seam (:func:`resolve_mid8`, FR-004) rather than
-    the heuristic ``mid8_from_slug`` — the heuristic trusts a coincidental 8-char
-    slug tail it cannot confirm against a declared identity (#1918). When no ULID
-    is declared (legacy mission), ``resolve_mid8`` declines and the read path
-    falls back exactly as the heuristic's empty-string did.
+    Routes through the single guarded read-side seam
+    (:func:`resolve_handle_to_read_path`, WP01/IC-01): it reads the PRIMARY
+    ``meta.json``, runs the ONE sanctioned mid8 cascade (``resolve_declared_mid8``)
+    and returns the existence-gated topology-aware dir — folding away the bespoke
+    ``_resolve_mission_ulid`` → ``resolve_mid8`` cascade here (FR-002, C-007).
+
+    Boundary-safe fold-in (C-007): ``runtime_bridge`` already imports
+    ``specify_cli.missions._read_path_resolver`` (see ``_primary_runtime_feature_dir``
+    at module top), so consuming ``resolve_handle_to_read_path`` from the same
+    module adds NO new package-boundary edge.
+
+    Subsumption note (T013): the retired body derived ``mid8`` as
+    ``resolve_mid8(slug, mission_id=<declared ULID or None>)`` — exactly tier 2 of
+    the seam's ``resolve_declared_mid8``. The seam additionally honours an explicit
+    declared ``meta.mid8`` (tier 1) before that and the ``mid8_from_slug`` heuristic
+    (tier 3) after, so it resolves the SAME dir for any meta the old body handled
+    while also covering the explicit-mid8 case the old body silently skipped.
     """
-    from specify_cli.lanes.branch_naming import resolve_mid8 as _resolve_mid8
-    from specify_cli.mission_read_path import (
-        resolve_mission_read_path as _resolve_read_path,
+    from specify_cli.missions._read_path_resolver import (
+        resolve_handle_to_read_path as _resolve_handle,
     )
 
-    mission_id = _resolve_mission_ulid(mission_slug, repo_root)
-    declared_id = mission_id if mission_id != mission_slug else None
-    return _resolve_read_path(
-        repo_root, mission_slug, _resolve_mid8(mission_slug, mission_id=declared_id)
-    )
+    return _resolve_handle(repo_root, mission_slug)
 
 
 def decide_next_via_runtime(  # noqa: C901

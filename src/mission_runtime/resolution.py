@@ -176,6 +176,7 @@ def _resolve_mission_slug(
     # Late import to avoid a hard module-load dependency for legacy
     # consumers of the resolver that pre-date its introduction.
     from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
         StatusReadPathNotFound,
         resolve_mission_read_path,
     )
@@ -187,6 +188,12 @@ def _resolve_mission_slug(
         # refusal (coord worktree root materialized without the mission dir)
         # must surface as the single consumer-facing error type, preserving
         # the refusal message — never a raw specify_cli exception.
+        raise ActionContextError(exc.error_code, str(exc)) from exc
+    except MissionSelectorAmbiguous as exc:
+        # Boundary translation (WP05 / FR-005 / #2010 bug #15): an ambiguous
+        # handle propagates as a raw specify_cli exception if uncaught here.
+        # Translate to the single consumer-facing type preserving the stable
+        # error code (MISSION_AMBIGUOUS_SELECTOR) — never a silent fallback.
         raise ActionContextError(exc.error_code, str(exc)) from exc
     if not feature_dir.exists():
         raise ActionContextError(
@@ -202,13 +209,21 @@ def _resolve_mission_slug(
 def _mid8_from_primary_meta(repo_root: Path, mission_slug: str) -> str:
     """Canonical mid8 for a slug whose name carries no parseable suffix.
 
-    Reads the primary-checkout ``meta.json`` (explicit ``mid8`` field, else
-    ``mission_id[:8]``) — mirroring the surface resolver's ``_coord_mid8``
-    derivation. Returns ``""`` when no identity-bearing meta exists (raw
-    handles, scaffolds, pre-identity legacy missions), preserving the
-    literal-slug behaviour.
+    Reads the primary-checkout ``meta.json`` and runs the ONE sanctioned mid8
+    cascade (:func:`resolve_declared_mid8`, NFR-005/#1868) instead of a
+    hand-rolled ``meta.mid8`` → ``mission_id[:8]`` parallel impl (FR-002, C-007).
+    Returns ``""`` when no identity-bearing meta exists (raw handles, scaffolds,
+    pre-identity legacy missions), preserving the literal-slug behaviour.
+
+    Subsumption note (T013): the retired body derived ``meta.mid8`` first, then
+    ``resolve_mid8(slug, mission_id)`` under a ``len >= 8`` guard, returning
+    ``""`` otherwise — exactly the first two tiers of ``resolve_declared_mid8``.
+    The canonical cascade's third tier (``mid8_from_slug(slug)``) is a no-op here
+    because this helper is only reached after the caller's own
+    ``mid8_from_slug(slug)`` (:166) already returned ``""`` for the SAME slug, so
+    the empty/decline contract is preserved byte-for-byte.
     """
-    from specify_cli.lanes.branch_naming import resolve_mid8
+    from specify_cli.coordination.surface_resolver import resolve_declared_mid8
     from specify_cli.mission_metadata import load_meta
     from specify_cli.missions._read_path_resolver import (
         primary_feature_dir_for_mission,
@@ -220,19 +235,10 @@ def _mid8_from_primary_meta(repo_root: Path, mission_slug: str) -> str:
         return ""
     if not meta:
         return ""
-    raw_mid8 = meta.get("mid8")
-    if raw_mid8:
-        return str(raw_mid8)
-    raw_mission_id = meta.get("mission_id")
-    if raw_mission_id and len(str(raw_mission_id)) >= 8:
-        # Route the truncation through the canonical resolver (FR-001). The
-        # >= 8 guard above means resolve_mid8 derives ``mission_id[:8]`` rather
-        # than declining, so the decline/empty contract below is preserved.
-        # (``follow_imports=skip`` on ``specify_cli.*`` erases the str return
-        # across the package boundary, so bind explicitly.)
-        resolved: str = resolve_mid8(mission_slug, mission_id=str(raw_mission_id))
-        return resolved
-    return ""
+    # ``follow_imports=skip`` on ``specify_cli.*`` erases the str return across
+    # the package boundary, so bind explicitly.
+    resolved: str = resolve_declared_mid8(meta, mission_slug)
+    return resolved
 
 
 def _tasks_commands(mission_slug: str) -> dict[str, str]:
@@ -595,7 +601,7 @@ def _resolve_status_surface_dir(primary_root: Path, mission_slug: str) -> Path:
     """
     from specify_cli.coordination.surface_resolver import resolve_status_surface
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
-    from specify_cli.missions.feature_dir_resolver import (
+    from specify_cli.missions._read_path_resolver import (
         candidate_feature_dir_for_mission,
     )
 
@@ -795,8 +801,11 @@ def resolve_placement_only(repo_root: Path, mission_slug: str) -> CommitTarget:
             fallback — mirrors :func:`resolve_action_context`).
     """
     from specify_cli.core.paths import get_feature_target_branch
-    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
-    from specify_cli.missions.feature_dir_resolver import (
+    from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
+        StatusReadPathNotFound,
+    )
+    from specify_cli.missions._read_path_resolver import (
         candidate_feature_dir_for_mission,
     )
 
@@ -819,6 +828,11 @@ def resolve_placement_only(repo_root: Path, mission_slug: str) -> CommitTarget:
         # Fail-closed surface refusal at entry canonicalization: translate to
         # the boundary's single error type, preserving the refusal message
         # (PR #1850 M6) — mirrors :func:`_resolve_mission_slug`.
+        raise ActionContextError(exc.error_code, str(exc)) from exc
+    except MissionSelectorAmbiguous as exc:
+        # Boundary translation (WP05 / FR-005 / #2010 bug #15): mirrors the
+        # _resolve_mission_slug arm — the ambiguous handle must not escape as a
+        # raw specify_cli exception from this entry point either.
         raise ActionContextError(exc.error_code, str(exc)) from exc
     if candidate_dir.exists():
         mission_slug = candidate_dir.name

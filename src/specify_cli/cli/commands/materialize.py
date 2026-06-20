@@ -66,7 +66,7 @@ def materialize(
     mission_slug = mission.strip() if mission else mission
 
     if mission_slug:
-        from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_slug
+        from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_slug
 
         feature_dirs = [resolve_feature_dir_for_slug(repo_root, mission_slug)]
         if not feature_dirs[0].exists():

@@ -366,7 +366,7 @@ def resolve_target_branch(
             raise RuntimeError("Could not determine current branch")
 
     # Read target branch from meta.json
-    from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
+    from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 
     meta_file = candidate_feature_dir_for_mission(repo_path, mission_slug) / "meta.json"
     fallback = resolve_primary_branch(repo_path)

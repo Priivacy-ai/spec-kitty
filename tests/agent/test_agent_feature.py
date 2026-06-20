@@ -11,7 +11,7 @@ import pytest
 from typer.testing import CliRunner
 from ulid import ULID
 
-from specify_cli.cli.commands.agent.mission import app
+from specify_cli.cli.commands.agent.mission import CommitToBranchResult, app
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -1089,11 +1089,22 @@ class TestSetupPlanCommand:
         mock_find: Mock,
         mock_locate: Mock,
         tmp_path: Path,
-    ):
+    ) -> None:
         """Should scaffold plan template and output JSON format."""
         # Setup
         mock_locate.return_value = tmp_path
         mock_show_branch.return_value = (tmp_path, "main")
+        # A SUBSTANTIVE plan template means setup-plan DOES commit plan.md, so
+        # ``_commit_to_branch`` is invoked and its typed result is serialized into
+        # the --json payload. A bare ``Mock`` return leaks an un-serializable
+        # MagicMock into the JSON ("Object of type MagicMock is not JSON
+        # serializable") → setup-plan exits 1. Return a real, JSON-clean
+        # ``CommitToBranchResult`` so the JSON emit succeeds.
+        mock_commit.return_value = CommitToBranchResult(
+            status="committed",
+            placement_ref="main",
+            commit_hash="0123456789abcdef0123456789abcdef01234567",
+        )
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
         _write_committed_substantive_spec(tmp_path, feature_dir)

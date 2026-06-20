@@ -16,7 +16,7 @@ infrastructure already used by charter.py and specify_interview.py.
 
 from __future__ import annotations
 
-from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 import contextlib
 import json
 from pathlib import Path

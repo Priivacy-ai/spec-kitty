@@ -132,25 +132,53 @@ def _transaction_topology_available(identity: _TransactionIdentity, mission_slug
     )
 
 
-_WORKTREES_DIR_NAME = ".worktrees"
+def _is_under_worktree(feature_dir: Path) -> bool:
+    """Return whether *feature_dir* lives under a ``.worktrees`` segment.
 
-
-def _is_coordination_feature_dir(feature_dir: Path) -> bool:
-    return _WORKTREES_DIR_NAME in feature_dir.parts
-
-
-def _is_coord_worktree_feature_dir(feature_dir: Path) -> bool:
-    """Return True only for paths inside a coordination (``-coord``) worktree.
-
-    Distinguishes a coordination worktree (authoritative status surface) from a
-    lane worktree (sparse-excluded, never a valid status anchor).
+    #1900 / FR-001: the raw ``".worktrees" in parts`` path-shape proposal is no
+    longer spelled here — it routes through the blessed seam authority
+    :func:`is_under_worktrees_segment` (``coordination/surface_resolver.py``), the
+    single home of that shape idiom (C-SEAM-1). This is a *shape* read (generic
+    worktree-context detection / re-anchor gate), NOT a coord-vs-lane routing
+    decision; coord routing uses :func:`_is_coord_worktree_status_surface` below,
+    which consults the git registry.
     """
-    return any(
-        part == _WORKTREES_DIR_NAME for part in feature_dir.parts
-    ) and any(
-        ancestor.parent.name == _WORKTREES_DIR_NAME and ancestor.name.endswith("-coord")
-        for ancestor in (feature_dir, *feature_dir.parents)
+    from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415
+        is_under_worktrees_segment,
     )
+
+    return bool(is_under_worktrees_segment(feature_dir))
+
+
+def _is_coord_worktree_status_surface(feature_dir: Path) -> bool:
+    """Return True only when *feature_dir* is a *registered* coord worktree.
+
+    #1900 / FR-001 / FR-007: the former hand-rolled ``-coord`` suffix + parts
+    predicate (a 5th parallel topology-selection site) is migrated to the single
+    canonical authority :func:`is_registered_coord_worktree`
+    (``coordination/surface_resolver.py``) — name proposes, the git worktree
+    registry disposes (C-SEAM-1). A lane worktree, the primary checkout, or an
+    unregistered husk therefore returns ``False``, killing the split-brain where
+    a lane/husk path silently received coord write-contract routing
+    (#1589/#1821).
+
+    Fails *open to non-coord* when the registry cannot be read
+    (:class:`WorktreeRegistryUnavailable`) — e.g. ad-hoc test fixtures or paths
+    outside a git repo. The historical predicate was pure-path and never raised;
+    treating an unreadable registry as "not a coord surface" preserves that
+    no-raise contract here while keeping the authoritative answer whenever git
+    *can* be consulted. (The genuine fail-closed posture for status reads lives
+    in the resolver itself, not in this routing convenience.)
+    """
+    from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415
+        WorktreeRegistryUnavailable,
+        is_registered_coord_worktree,
+    )
+
+    try:
+        return bool(is_registered_coord_worktree(feature_dir))
+    except WorktreeRegistryUnavailable:
+        return False
 
 
 def _canonical_repo_root(feature_dir: Path, repo_root: Path) -> Path:
@@ -159,12 +187,20 @@ def _canonical_repo_root(feature_dir: Path, repo_root: Path) -> Path:
     The CWD-invariant primary feature-dir anchor must be composed from the
     *main-checkout* repo root; deriving it from a lane-worktree root would
     anchor status on a lane-local (sparse-excluded) surface. We therefore
-    canonicalize the root via the single worktree-pointer resolver. Coordination
-    worktree roots are returned as-is (they already are the authoritative
-    surface for their mission). Falls back to the supplied root when no
-    enclosing git repo is found (ad-hoc test fixtures built outside a worktree).
+    canonicalize the root via the single worktree-pointer resolver. Worktree
+    roots (coordination or lane) are returned as-is here — the lane re-anchor to
+    the canonical primary surface happens one level up in
+    :func:`_canonical_primary_feature_dir`'s ``_fallback`` (which DOES split coord
+    from lane via the registry authority). Falls back to the supplied root when
+    no enclosing git repo is found (ad-hoc test fixtures built outside a
+    worktree).
+
+    #1900 / FR-001: the worktree-context read is the blessed seam shape predicate
+    (:func:`_is_under_worktree` → ``is_under_worktrees_segment``), not a raw
+    ``".worktrees" in parts`` test (C-SEAM-1). Byte-identical to the prior
+    ``_is_coordination_feature_dir`` membership it replaces.
     """
-    if _is_coordination_feature_dir(feature_dir):
+    if _is_under_worktree(feature_dir):
         return repo_root
 
     from specify_cli.workspace.root_resolver import (  # noqa: PLC0415
@@ -207,7 +243,7 @@ def _canonical_primary_feature_dir(
     from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
         StatusReadPathNotFound,
     )
-    from specify_cli.missions.feature_dir_resolver import (  # noqa: PLC0415
+    from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
         candidate_feature_dir_for_mission,
     )
 
@@ -217,9 +253,14 @@ def _canonical_primary_feature_dir(
         # path is a sparse-excluded surface that would both misread status and
         # trip the primary-checkout read contract, so anchor on the canonical
         # primary candidate instead (fail to the authority, never to the lane).
-        if _is_coord_worktree_feature_dir(fallback):
+        # #1900 / FR-001: coord-vs-lane is the git-registry authority's call
+        # (_is_coord_worktree_status_surface → is_registered_coord_worktree), and
+        # the generic "am I under a worktree" gate is the blessed shape predicate
+        # (_is_under_worktree → is_under_worktrees_segment) — neither spells a raw
+        # ``-coord``/``.worktrees`` path test here (C-SEAM-1).
+        if _is_coord_worktree_status_surface(fallback):
             return fallback
-        if _WORKTREES_DIR_NAME in fallback.parts:
+        if _is_under_worktree(fallback):
             anchor: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
             return anchor
         return fallback
@@ -506,7 +547,12 @@ def _read_contract_from_transaction_target(
 ) -> EventLogReadContract:
     """Resolve the read-only contract for the transaction write target."""
     if not _transaction_topology_available(identity, mission_slug):
-        if _is_coordination_feature_dir(identity.feature_dir):
+        # #1900 / FR-001: the worktree-context read is the blessed seam shape
+        # predicate (_is_under_worktree → is_under_worktrees_segment), not a raw
+        # ``.worktrees`` membership test (C-SEAM-1). Byte-identical to the prior
+        # ``_is_coordination_feature_dir`` membership it replaces — a feature dir
+        # already inside a worktree carries the coordination read contract.
+        if _is_under_worktree(identity.feature_dir):
             return EventLogReadContract.coordination_worktree(identity.feature_dir)
         return EventLogReadContract.primary_checkout(identity.feature_dir)
     if identity.coordination_branch is None:

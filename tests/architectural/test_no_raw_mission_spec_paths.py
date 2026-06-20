@@ -45,7 +45,9 @@ _SEMANTIC_CONSTRUCTOR_FILES = {
     Path("src/specify_cli/coordination/transaction.py"),
     Path("src/specify_cli/events/decision_log.py"),
     Path("src/specify_cli/mission_read_path.py"),
-    Path("src/specify_cli/missions/feature_dir_resolver.py"),
+    # missions/feature_dir_resolver.py retired in WP07 (FR-007); its raw-slug
+    # primary anchor relocated into missions/_read_path_resolver.py, which is
+    # already covered by _RAW_EXEMPT_PARTS above.
     Path("src/specify_cli/workspace/root_resolver.py"),
     # Mission-identity routing (WP10, #1918 fallout): these three CLI command
     # entrypoints construct a `KITTY_SPECS_DIR / <raw-handle>` primary dir for the

@@ -55,13 +55,10 @@ def _find_feature_directory(
         ActionContextError: If no handle is provided, the handle is ambiguous, or
             it resolves to no existing mission directory (structured error).
     """
-    from specify_cli.core.constants import KITTY_SPECS_DIR
-    from specify_cli.lanes.branch_naming import resolve_mid8
-    from specify_cli.mission_metadata import load_meta
     from specify_cli.missions._read_path_resolver import (
         MissionSelectorAmbiguous,
         StatusReadPathNotFound,
-        resolve_mission_read_path,
+        resolve_handle_to_read_path,
     )
 
     raw_handle = explicit_mission.strip() if explicit_mission else None
@@ -69,15 +66,15 @@ def _find_feature_directory(
         raise ActionContextError(
             "FEATURE_CONTEXT_UNRESOLVED", "--mission <slug> is required"
         )
-    _primary_dir = repo_root / KITTY_SPECS_DIR / raw_handle
-    _meta = load_meta(_primary_dir) or {}
-    _raw_mission_id = _meta.get("mission_id")
-    _mission_id = _raw_mission_id if isinstance(_raw_mission_id, str) else None
+    # WP02/FR-002: the single guarded read-side seam (IC-01) collapses the former
+    # raw-join → load_meta → resolve_mid8 bootstrap. It performs the primary-meta
+    # probe, the sanctioned mid8 cascade, the fail-closed coord gate, and the
+    # existence-gated topology routing internally — and adds the missing
+    # assert_safe_path_segment guard (FR-004) the hand-rolled block lacked.
     try:
-        feature_dir: Path = resolve_mission_read_path(
+        feature_dir: Path = resolve_handle_to_read_path(
             repo_root,
             raw_handle,
-            resolve_mid8(raw_handle, mission_id=_mission_id),
             require_exists=True,
         )
     except MissionSelectorAmbiguous as exc:

@@ -45,7 +45,7 @@ def _make_feature_dir(tmp_path: Path, *, mission_id: str = "01HXYZ00000000000000
 def _patch_resolver(feature_dir: Path) -> Any:
     """Patch resolve_feature_dir_for_slug at its source module to return feature_dir."""
     return patch(
-        "specify_cli.missions.feature_dir_resolver.resolve_feature_dir_for_slug",
+        "specify_cli.missions._read_path_resolver.resolve_feature_dir_for_slug",
         return_value=feature_dir,
     )
 

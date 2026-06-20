@@ -189,6 +189,55 @@ def test_materialize_command_single_feature(tmp_path):
     assert (tmp_path / ".kittify" / "derived" / "006-target" / "status.json").exists()
 
 
+@pytest.mark.fast
+def test_materialize_single_mission_resolves_via_read_path_resolver(
+    tmp_path: Path,
+) -> None:
+    """``--mission <slug>`` routes through the canonical ``_read_path_resolver``.
+
+    01KVGCE8 re-pointed the single-mission branch's function-local import from the
+    retired ``missions.feature_dir_resolver`` to the canonical
+    ``missions._read_path_resolver.resolve_feature_dir_for_slug``. This test
+    EXECUTES that branch (``materialize.py:69`` — the ``if mission_slug:`` arm's
+    import + ``resolve_feature_dir_for_slug`` call) for a production-shaped
+    ``<slug>-<mid8>`` mission and asserts derived views are written ONLY for the
+    selected mission, never the sibling.
+
+    Marked ``fast`` so it lands in the ``fast-tests-core-misc`` cli coverage shard
+    (``coverage-fast-cli.xml``); the module-level ``non_sandbox`` mark alone left
+    the single-mission branch out of every CI coverage run, so the changed import
+    line read as uncovered in diff-coverage. The test calls ``materialize()``
+    directly (no subprocess) with a patched project root, so it is genuinely a
+    fast unit test.
+    """
+    from specify_cli.cli.commands.materialize import materialize
+    import typer
+
+    # Production-shaped identity: a real 26-char ULID, mid8 = first 8 chars.
+    mission_id = "01KVGCE8R8QJ3K5ZJ9E5008XYZ"
+    mid8 = mission_id[:8]  # "01KVGCE8"
+    target_slug = f"single-mission-surface-{mid8}"
+    sibling_slug = f"unrelated-mission-{mission_id[:8]}other"[:30]
+
+    _setup_feature(tmp_path, target_slug, {"WP01": "done"})
+    _setup_feature(tmp_path, sibling_slug, {"WP01": "planned"})
+
+    with patch(
+        "specify_cli.cli.commands.materialize.locate_project_root",
+        return_value=tmp_path,
+    ):
+        with pytest.raises(typer.Exit) as exc_info:
+            materialize(mission=f"  {target_slug}  ", json_output=False)
+        assert exc_info.value.exit_code == 0
+
+    derived = tmp_path / ".kittify" / "derived"
+    # The selected mission's views are materialised...
+    assert (derived / target_slug / "status.json").exists()
+    assert (derived / target_slug / "progress.json").exists()
+    # ...and the sibling's are NOT (the resolver scoped to the single slug).
+    assert not (derived / sibling_slug).exists()
+
+
 def test_materialize_command_feature_not_found(tmp_path):
     """materialize exits 1 when --mission slug does not exist."""
     from specify_cli.cli.commands.materialize import materialize

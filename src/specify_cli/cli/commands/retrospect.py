@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR
-from specify_cli.missions.feature_dir_resolver import (
+from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
 )
 import contextlib

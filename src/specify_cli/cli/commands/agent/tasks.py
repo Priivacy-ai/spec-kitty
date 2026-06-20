@@ -7,7 +7,7 @@ from specify_cli.core.constants import (
     MISSION_TYPE_RESEARCH,
     MISSION_TYPE_SOFTWARE_DEV,
 )
-from specify_cli.missions.feature_dir_resolver import (
+from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
@@ -3634,7 +3634,7 @@ def map_requirements(
             if protected_error is not None:
                 _output_error(json_output, protected_error)
                 raise typer.Exit(1)
-        from specify_cli.missions.feature_dir_resolver import (
+        from specify_cli.missions._read_path_resolver import (
             primary_feature_dir_for_mission,
             resolve_feature_dir_for_slug,
         )
@@ -4035,23 +4035,19 @@ def status(
         # primary checkout, or from any unrelated CWD all return the
         # same data.
         from specify_cli.missions._read_path_resolver import (
-            resolve_mission_read_path,
+            resolve_handle_to_read_path,
         )
-        from specify_cli.lanes.branch_naming import resolve_mid8
 
-        # Authoritative resolve (#1918, FR-004): no declared mission_id at this
-        # read-path bootstrap, so the seam DECLINES a coincidental 8-char tail
-        # rather than mis-routing. A genuine ``<slug>-<mid8>`` handle is unchanged:
-        # resolve_mission_read_path composes idempotently and its canonical-handle
-        # fallback re-derives the real mid8 when the literal path misses.
-        _mid8 = resolve_mid8(mission_slug, mission_id=None)
-        # Legacy worktree-aware fallback for #984 (detached-worktree
-        # status reads): only used when neither the coord worktree nor
-        # the primary checkout view exists.  Kept for back-compat with
-        # pre-coord projects.
-        feature_dir = resolve_mission_read_path(
-            main_repo_root, mission_slug, _mid8,
-        )
+        # Route through the single guarded read-side seam (WP01/IC-01;
+        # FR-002, C-007). The seam reads the PRIMARY ``meta.json`` and runs the
+        # ONE sanctioned mid8 cascade (``resolve_declared_mid8``: ``meta.mid8`` →
+        # ``resolve_mid8(meta.mission_id)`` → ``mid8_from_slug``), so a bare slug
+        # whose primary meta declares ``mid8``/``mission_id`` resolves the real
+        # disambiguator instead of the prior mid8-BLIND
+        # ``resolve_mid8(slug, mission_id=None)`` (which always returned ""). The
+        # seam still composes idempotently for an explicit ``<slug>-<mid8>``/full
+        # ULID handle and routes through the existence-gated topology resolver.
+        feature_dir = resolve_handle_to_read_path(main_repo_root, mission_slug)
 
         if not feature_dir.exists():
             # Last-ditch fallback to the original worktree-aware path so

@@ -173,7 +173,7 @@ def test_1889_resolve_feature_dir_for_flattened_mission(
     flattened_mission: dict[str, object],
 ) -> None:
     """#1889 pin: the higher-level feature-dir resolver also returns primary."""
-    from specify_cli.missions.feature_dir_resolver import (
+    from specify_cli.missions._read_path_resolver import (
         resolve_feature_dir_for_mission,
     )
 
