@@ -985,10 +985,20 @@ def test_mission_close_unresolvable_handle_keeps_structured_error(
 def test_mission_close_ambiguous_handle_propagates_structured_error(
     repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """C-CTX-4: an ambiguous numeric-prefix handle raises the structured
-    MissionSelectorAmbiguous — never a silent pick of one candidate to
-    discard (deleting branches/worktrees of the WRONG mission)."""
+    """C-CTX-4: an ambiguous numeric-prefix handle raises a structured ambiguity
+    error carrying MISSION_AMBIGUOUS_SELECTOR — never a silent pick of one
+    candidate to discard (deleting branches/worktrees of the WRONG mission).
+
+    Mission 01KVGCE8 / FR-005: the ``mission close`` path resolves through the
+    ``mission_runtime`` boundary (``resolve_action_context``), which now
+    translates the raw ``MissionSelectorAmbiguous`` into an
+    ``ActionContextError`` carrying the same ``MISSION_AMBIGUOUS_SELECTOR``
+    code. Either form satisfies the no-silent-pick guarantee; assert on the
+    stable code rather than the exact exception class.
+    """
     from typer.testing import CliRunner
+
+    from mission_runtime import ActionContextError
 
     from specify_cli.cli.commands import mission_type
     from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
@@ -997,12 +1007,19 @@ def test_mission_close_ambiguous_handle_propagates_structured_error(
         repo, slug="083-rival-mission", mission_id="01KTZYXW0000000000000000GH"
     )
     monkeypatch.chdir(repo)
-    with pytest.raises(MissionSelectorAmbiguous):
+    with pytest.raises((MissionSelectorAmbiguous, ActionContextError)) as excinfo:
         CliRunner().invoke(
             mission_type.app,
             ["close", "--mission", "083", "--discard", "--force"],
             catch_exceptions=False,
         )
+    code = getattr(excinfo.value, "code", None) or getattr(
+        excinfo.value, "error_code", None
+    )
+    assert code == "MISSION_AMBIGUOUS_SELECTOR", (
+        f"ambiguous handle must surface MISSION_AMBIGUOUS_SELECTOR, got {code!r} "
+        f"from {type(excinfo.value).__name__}"
+    )
 
 
 # ---------------------------------------------------------------------------

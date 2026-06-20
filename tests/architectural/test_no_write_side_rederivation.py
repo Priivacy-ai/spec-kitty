@@ -67,7 +67,10 @@ class _Finding:
 #: Line-scoped allow-list (NOT file-scoped). Each entry is the EXACT
 #: (relative-path, lineno) of a genuinely-deferred S2 #1716 ladder line.
 #:
-#: The single seed is ``coordination/status_transition.py`` line ~295:
+#: The single seed is ``coordination/status_transition.py`` line ~336
+#: (re-grounded from ~295 by the single-mission-surface-resolver WP06 #1900
+#: predicate migration, which added the canonical-seam delegating helpers above
+#: this line — same deferred selector, shifted lineno, NOT a new offender):
 #: ``return coord_branch or _current_branch(repo_root)`` — the FALLBACK arm of
 #: ``_resolve_write_target``, reached only when ``resolve_placement_only`` cannot
 #: resolve the mission (pre-meta create window / ad-hoc fixture). It is the last
@@ -80,7 +83,7 @@ class _Finding:
 #: it must point at a specific deferred-by-spec line, with a one-line rationale.
 _ALLOW_LIST: frozenset[tuple[str, int]] = frozenset(
     {
-        ("src/specify_cli/coordination/status_transition.py", 295),
+        ("src/specify_cli/coordination/status_transition.py", 336),
     }
 )
 

@@ -14,14 +14,14 @@ pytestmark = [pytest.mark.integration]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_feature_dir_resolver_import_does_not_load_charter_or_doctrine() -> None:
+def test_read_path_resolver_import_does_not_load_charter_or_doctrine() -> None:
     """Keep ``spec-kitty next`` query startup from loading doctrine primitives."""
     code = textwrap.dedent(
         """
         import sys
 
         before = set(sys.modules)
-        import specify_cli.missions.feature_dir_resolver  # noqa: F401
+        import specify_cli.missions._read_path_resolver  # noqa: F401
         after = set(sys.modules)
 
         loaded = sorted(

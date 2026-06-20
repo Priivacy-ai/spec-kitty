@@ -248,40 +248,6 @@ def _get_main_repo_root() -> Path:
     return root
 
 
-def _read_primary_meta(
-    main_repo_root: Path, mission_slug: str
-) -> tuple[dict[str, object], bool]:
-    """Return ``(primary_meta, declares_coordination)`` from the primary mission meta.
-
-    The primitive pattern shared with ``cli/commands/decision.py`` and
-    ``agent/context.py``: ``meta.json`` lives on the **primary checkout** (the
-    coordination worktree's sparse policy excludes it), so the canonical
-    identity is read there before resolving the topology-aware read path. The
-    primary dir is constructed via the sanctioned
-    :func:`primary_feature_dir_for_mission` path primitive (it owns
-    ``KITTY_SPECS_DIR`` assembly — ``test_no_raw_mission_spec_paths``).
-
-    The returned ``primary_meta`` is the raw meta dict (empty when no primary
-    meta exists — legacy mission, or a coord-only topology whose meta is not on
-    this surface). It is fed verbatim to the shared
-    :func:`resolve_declared_mid8` cascade, which treats an absent
-    ``mid8`` / ``mission_id`` as "identity unproven" and DECLINES (returns
-    ``""``) rather than seeding an empty identity (FR-011 / M3). The caller's
-    ``declares_coordination`` topology gate then decides fail-closed vs.
-    primary-read.
-    """
-    from specify_cli.mission_metadata import load_meta
-    from specify_cli.missions._read_path_resolver import (
-        primary_feature_dir_for_mission,
-    )
-
-    primary_dir = primary_feature_dir_for_mission(main_repo_root, mission_slug)
-    meta = load_meta(primary_dir) or {}
-    branch = meta.get("coordination_branch")
-    declares_coordination = isinstance(branch, str) and bool(branch.strip())
-    return meta, declares_coordination
-
-
 def _resolve_mission_dir(main_repo_root: Path, mission_slug: str) -> Path | None:
     """Return the coord-aware mission status directory if it exists, else None.
 
@@ -289,61 +255,30 @@ def _resolve_mission_dir(main_repo_root: Path, mission_slug: str) -> Path | None
     worktree path. For legacy missions, returns the primary checkout path.
     Falls back to ``None`` only when the mission genuinely does not exist.
 
-    Read-path SAFETY (FR-011 / M3, #2016): mid8 is derived via the ONE sanctioned
-    cascade :func:`resolve_declared_mid8` (NFR-005) — ``meta.mid8`` →
-    ``resolve_mid8(meta.mission_id)`` → ``mid8_from_slug(slug)``. The prior version
-    reimplemented only the strict tier-2 ``resolve_mid8(slug, mission_id)`` keyed
-    on primary meta, which DECLINES (empty mid8) for a **coord-only-with-tail**
-    mission (``mission_id=None`` on this surface) → empty read-path → ``None``,
-    even though the canonical ``<slug>-<mid8>`` tail carries the real
-    disambiguator. The shared cascade's tier-3 ``mid8_from_slug`` recovers it, so
-    the coord path composes and returns. An *earlier* version before that seeded
-    ``resolve_mid8(slug, mission_id=None)`` → empty mid8, which SUPPRESSED the
-    coord-aware ``bool(mid8)`` guard and silently returned a stale primary view;
-    the ``declares_coordination``-gated raise below preserves that fail-closed
-    fix.
+    This is now a thin consumer of the ONE guarded read-side seam
+    :func:`resolve_handle_to_read_path` (WP01 / IC-01 / NFR-004): the seam owns
+    the prototype cascade this endpoint pioneered — ``assert_safe_path_segment``
+    → primary-``meta.json`` probe → the single sanctioned ``resolve_declared_mid8``
+    cascade (NFR-005) → fail-closed coord-declared gate → the existence-gated
+    :func:`resolve_mission_read_path`. The orchestrator's old inline duplicate of
+    that cascade is GONE; only this ``.exists() → None`` adapter (the endpoint's
+    own "absent ⇒ None, not a path" contract) remains here.
 
-    The shared helper returns ``""`` on exhaustion (it does NOT raise — the raise
-    decision is this caller's topology gate): a coord-declared topology with an
-    unresolvable mid8 fails closed (M5); a legacy non-coord mission (no tail, no
-    id) keeps its primary-read path unchanged.
+    Read-path SAFETY (FR-011 / M3, #2016) and the M5 fail-closed semantics are
+    UNCHANGED — they are exactly the seam's invariants (the seam was lifted from
+    this very prototype). ``require_exists`` is left at its default ``False`` so
+    the seam returns the best-known candidate; this adapter decides absence by a
+    single ``.exists()`` stat, preserving the historical ``Path | None`` contract.
 
-    Typed-error fidelity (FR-001 / M2): :class:`StatusReadPathNotFound` is NOT
-    caught here — it propagates so the calling endpoint surfaces the resolver's
-    typed ``error_code`` (+ ``coord_candidate`` / ``primary_candidate``) instead
-    of flattening every miss to ``MISSION_NOT_FOUND``.
+    Typed-error fidelity (FR-001 / M2): :class:`StatusReadPathNotFound` from the
+    seam's fail-closed gate is NOT caught here — it propagates so the calling
+    endpoint surfaces the resolver's typed ``error_code`` (+ ``coord_candidate`` /
+    ``primary_candidate``) instead of flattening every miss to
+    ``MISSION_NOT_FOUND``.
     """
-    from specify_cli.coordination.surface_resolver import resolve_declared_mid8
-    from specify_cli.missions._read_path_resolver import (
-        StatusReadPathNotFound,
-        primary_feature_dir_for_mission,
-        resolve_mission_read_path,
-    )
+    from specify_cli.missions._read_path_resolver import resolve_handle_to_read_path
 
-    # ONE sanctioned mid8 cascade (#2016, NFR-005): meta.mid8 →
-    # resolve_mid8(meta.mission_id) → mid8_from_slug(slug). Returns "" on
-    # exhaustion (no raise); the raise decision is this caller's topology gate.
-    primary_meta, declares_coordination = _read_primary_meta(main_repo_root, mission_slug)
-    mid8 = resolve_declared_mid8(primary_meta, mission_slug)
-
-    # M5 caveat — fail closed, do NOT silently seed empty: a coord topology whose
-    # primary declares ``coordination_branch`` while we CANNOT prove identity
-    # (no ``mid8`` / ``mission_id`` on this surface AND no canonical tail → empty
-    # mid8) cannot be addressed against the coord worktree. Reading primary would
-    # expose stale status. Refuse with the typed read-path error rather than fall
-    # back to the suppressed guard. (Legacy missions never declare
-    # ``coordination_branch``, so they keep the primary-read path unchanged.)
-    if not mid8 and declares_coordination:
-        primary_candidate = primary_feature_dir_for_mission(main_repo_root, mission_slug)
-        raise StatusReadPathNotFound(
-            repo_root=main_repo_root,
-            mission_slug=mission_slug,
-            mid8="",
-            coord_candidate=primary_candidate,
-            primary_candidate=primary_candidate,
-        )
-
-    mission_dir = resolve_mission_read_path(main_repo_root, mission_slug, mid8)
+    mission_dir = resolve_handle_to_read_path(main_repo_root, mission_slug)
     return mission_dir if mission_dir.exists() else None
 
 

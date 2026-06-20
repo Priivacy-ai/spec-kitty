@@ -30,7 +30,7 @@ process is in the picture.
 
 from __future__ import annotations
 
-from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 import contextlib
 import json
 from dataclasses import dataclass, field

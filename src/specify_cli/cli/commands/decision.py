@@ -13,9 +13,8 @@ All subcommands output JSON to stdout and exit 0 on success, 1 on structured err
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import locate_project_root
-from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 import json
 import re as _re
 from pathlib import Path
@@ -451,29 +450,24 @@ def cmd_verify(
     from specify_cli.missions._read_path_resolver import (
         MissionSelectorAmbiguous,
         StatusReadPathNotFound,
-        resolve_mission_read_path,
+        resolve_handle_to_read_path,
     )
-    from specify_cli.lanes.branch_naming import resolve_mid8
-    from specify_cli.mission_metadata import load_meta
 
-    # D-6 factory boundary contract (primitive pattern): read the REAL
-    # ``mission_id`` from meta and pass it to ``resolve_mid8`` — never seed an
-    # empty/None identity (which would suppress the coord-aware fail-closed
-    # guard). The bare-slug primary dir is the only place the canonical identity
-    # is recorded for missions whose on-disk dir name lacks the ``-<mid8>`` tail.
-    _primary_dir = repo_root / KITTY_SPECS_DIR / mission_slug
-    _meta = load_meta(_primary_dir) or {}
-    _raw_mission_id = _meta.get("mission_id")
-    _mission_id = _raw_mission_id if isinstance(_raw_mission_id, str) else None
-    _mid8 = resolve_mid8(mission_slug, mission_id=_mission_id)
-    # M5 (FR-003 / #8 class): ``cmd_verify`` owns its own read-path resolution
-    # seam. Its fail-closed refusals (``StatusReadPathNotFound`` and its
-    # ``CoordinationBranchDeleted`` subclass) and selector ambiguity
-    # (``MissionSelectorAmbiguous``) MUST surface as structured typed
-    # diagnostics carrying the resolver's real ``error_code`` — never an
-    # uncaught traceback (mirrors ``open`` / ``agent context resolve``).
+    # WP02/FR-002 (D-6 consolidation): the former D-6 factory-boundary bootstrap
+    # (raw ``KITTY_SPECS_DIR / mission_slug`` join → ``load_meta`` →
+    # ``resolve_mid8`` → ``resolve_mission_read_path``) collapses onto the single
+    # guarded read-side seam. ``resolve_handle_to_read_path`` performs the SAME
+    # primary-meta probe and the sanctioned mid8 cascade internally (reading the
+    # canonical ``mission_id`` from the primary meta, never seeding an empty
+    # identity), then routes through the existence-gated topology resolver — and
+    # adds the ``assert_safe_path_segment`` guard (FR-004) this bootstrap lacked.
+    # M5 (FR-003 / #8 class): ``cmd_verify`` still surfaces the resolver's
+    # fail-closed refusals (``StatusReadPathNotFound`` /
+    # ``CoordinationBranchDeleted``) and selector ambiguity
+    # (``MissionSelectorAmbiguous``) as structured typed diagnostics carrying the
+    # real ``error_code`` — never an uncaught traceback.
     try:
-        mission_dir = resolve_mission_read_path(repo_root, mission_slug, _mid8)
+        mission_dir = resolve_handle_to_read_path(repo_root, mission_slug)
     except (StatusReadPathNotFound, MissionSelectorAmbiguous) as exc:
         _handle_action_context_error(
             ActionContextError(exc.error_code, str(exc))

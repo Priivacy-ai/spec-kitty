@@ -20,7 +20,7 @@ opened directly from the next command.
 
 from __future__ import annotations
 
-from specify_cli.missions.feature_dir_resolver import (
+from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
 )

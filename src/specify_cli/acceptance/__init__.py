@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from specify_cli.missions.feature_dir_resolver import (
+from specify_cli.missions._read_path_resolver import (
     primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
 )
@@ -588,20 +588,33 @@ def _collect_snapshot_wps(feature: str, feature_dir: Path, activity_issues: list
 
 
 def _status_read_feature_dir(repo_root: Path, feature: str, feature_dir: Path) -> Path:
-    """Return canonical status read path for acceptance lane validation."""
-    mid8 = ""
+    """Return canonical status read path for acceptance lane validation.
+
+    The mid8 disambiguator is derived through the ONE sanctioned cascade
+    (:func:`resolve_declared_mid8`, NFR-005/#1868: ``meta.mid8`` →
+    ``resolve_mid8(meta.mission_id)`` → ``mid8_from_slug``) rather than the
+    bespoke ``meta.mid8`` → ``mid8_from_slug`` parallel selection path (FR-002,
+    C-007). The acceptance-specific ``status_dir if status_dir.exists() else
+    feature_dir`` fallback is preserved: acceptance validation must stay lenient
+    and degrade to the primary anchor dir rather than fail-close.
+
+    Subsumption note (T013): the retired body preferred ``meta.mid8`` first then
+    fell back to the blind ``mid8_from_slug(feature)`` — exactly tiers 1 and 3 of
+    the canonical cascade. Routing through ``resolve_declared_mid8`` additionally
+    inserts tier 2 (``resolve_mid8`` keyed on the declared ``meta.mission_id``,
+    #1918), so a mission whose meta carries ``mission_id`` but no explicit
+    ``mid8`` now derives the AUTHORITATIVE disambiguator instead of trusting a
+    coincidental slug tail.
+    """
     try:
         meta = load_meta(feature_dir) or {}
     except Exception:  # noqa: BLE001 — fall back to suffix detection
         meta = {}
-    raw_mid8 = meta.get("mid8")
-    if isinstance(raw_mid8, str) and raw_mid8:
-        mid8 = raw_mid8
-    else:
-        from specify_cli.lanes.branch_naming import mid8_from_slug
-        mid8 = mid8_from_slug(feature)
 
+    from specify_cli.coordination.surface_resolver import resolve_declared_mid8
     from specify_cli.missions._read_path_resolver import resolve_mission_read_path
+
+    mid8 = resolve_declared_mid8(meta, feature)
 
     status_dir = resolve_mission_read_path(repo_root, feature, mid8)
     return status_dir if status_dir.exists() else feature_dir

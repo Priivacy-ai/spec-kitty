@@ -25,6 +25,7 @@ Spec source: FR-030, SC-02.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from collections.abc import Mapping
 import json
 from pathlib import Path
 
@@ -380,14 +381,216 @@ def _resolve_not_found(
     return primary_candidate
 
 
+def read_primary_meta(
+    repo_root: Path, handle: str
+) -> tuple[dict[str, object], bool]:
+    """Return ``(primary_meta, declares_coordination)`` from the primary mission meta.
+
+    Shared read-side primitive (FR-001): ``meta.json`` lives on the **primary
+    checkout** (the coordination worktree's sparse policy excludes it), so the
+    canonical identity is read there before the topology-aware read path is
+    resolved. The primary dir is constructed via the sanctioned
+    :func:`primary_feature_dir_for_mission` path primitive (it owns
+    ``KITTY_SPECS_DIR`` assembly — ``test_no_raw_mission_spec_paths``).
+
+    The returned ``primary_meta`` is the raw meta dict (empty when no primary meta
+    exists — legacy mission, or a coord-only topology whose meta is not on this
+    surface). It is fed verbatim to the shared :func:`resolve_declared_mid8`
+    cascade, which treats an absent ``mid8`` / ``mission_id`` as "identity
+    unproven" and DECLINES (returns ``""``) rather than seeding an empty identity
+    (FR-011 / M3). The caller's ``declares_coordination`` topology gate then
+    decides fail-closed vs. primary-read.
+
+    Lifted from the orchestrator prototype ``orchestrator_api/commands.py``
+    (≈:251) so the seam and the orchestrator share ONE primitive (NFR-004) rather
+    than two parallel cascades.
+    """
+    from specify_cli.mission_metadata import load_meta
+
+    primary_dir = primary_feature_dir_for_mission(repo_root, handle)
+    meta = load_meta(primary_dir) or {}
+    branch = meta.get("coordination_branch")
+    declares_coordination = isinstance(branch, str) and bool(branch.strip())
+    return meta, declares_coordination
+
+
+def resolve_handle_to_read_path(
+    repo_root: Path,
+    handle: str,
+    *,
+    require_exists: bool = False,
+) -> Path:
+    """Resolve a mission *handle* to its topology-aware read-surface directory.
+
+    THE single guarded read-side seam (IC-01; FR-001, FR-004, FR-005-invariant),
+    lifted from the working orchestrator prototype
+    (``orchestrator_api/commands.py:_resolve_mission_dir`` + ``_read_primary_meta``).
+    Every read-side migration consumes this so exactly ONE definition exists
+    (NFR-004).
+
+    Body (the prototype pattern, in order):
+
+    1. ``assert_safe_path_segment(handle)`` — the traversal guard fires FIRST,
+       before any ``KITTY_SPECS_DIR`` join (FR-004 / NFR-002).
+    2. Read the primary ``meta.json`` (:func:`read_primary_meta`) to learn the
+       declared identity and whether the topology declares a coordination branch.
+    3. ``resolve_declared_mid8(meta, handle)`` — the ONE sanctioned mid8 cascade
+       (NFR-005): ``meta.mid8`` → ``resolve_mid8(meta.mission_id)`` →
+       ``mid8_from_slug(handle)``. Returns ``""`` on exhaustion (no raise).
+    4. Fail-closed coord-declared gate (M5): a coord topology whose primary
+       declares ``coordination_branch`` while identity CANNOT be proven (empty
+       ``mid8``) cannot be addressed against the coord worktree; reading primary
+       would expose stale status, so raise the typed read-path error rather than
+       silently fall back.
+    5. Return :func:`resolve_mission_read_path` — the **existence-gated** topology
+       resolver.
+
+    ROUTING INVARIANT (FR-005, #1718 trap — binding): step 5 routes through
+    :func:`resolve_mission_read_path`, which selects the coord surface ONLY when
+    the coord worktree directory EXISTS on disk. It MUST NOT route through
+    ``resolve_status_surface_with_anchor`` (or any composing surface): that
+    composes and returns the coord path for an *unmaterialised* coord, so a
+    declared-but-not-yet-created coord (the ``mission create`` → first
+    coord-materialisation window) would regress to a non-existent coord path
+    instead of the correct PRIMARY read. Deriving a non-empty ``mid8`` is
+    ORTHOGONAL to the create-window→primary contract — a declared-but-unmaterialised
+    coord with a perfectly good ``mid8`` still resolves PRIMARY because no worktree
+    dir is on disk.
+
+    ``require_exists`` is forwarded UNCHANGED to :func:`resolve_mission_read_path`
+    (load-bearing for WP04's equivalence-matrix re-point: with
+    ``require_exists=True`` the coord-empty / coord-deleted cells must still RAISE
+    :class:`StatusReadPathNotFound`).
+
+    Args:
+        repo_root: Absolute repository root (primary checkout).
+        handle: Mission handle — bare slug, ``<slug>-<mid8>``, full ``mission_id``,
+            bare ``mid8``, or numeric prefix.
+        require_exists: Forwarded to :func:`resolve_mission_read_path`; when
+            ``True``, a genuine absence raises :class:`StatusReadPathNotFound`.
+
+    Returns:
+        Absolute path to the mission directory containing the status read surface.
+
+    Raises:
+        ValueError: When ``handle`` is not a safe path segment (traversal guard).
+        StatusReadPathNotFound: Coord-declared topology with an unprovable
+            identity (fail-closed gate), or — when ``require_exists`` is ``True`` —
+            a genuine absence.
+        MissionSelectorAmbiguous: When ``handle`` matches more than one mission
+            (propagated unchanged — no silent first-match, C-CTX-4 / C-009).
+    """
+    from specify_cli.coordination.surface_resolver import resolve_declared_mid8
+    from specify_cli.core.paths import assert_safe_path_segment
+
+    # 1. Guard FIRST — before any KITTY_SPECS_DIR join / primary-meta probe.
+    assert_safe_path_segment(handle)
+
+    # 2-3. Primary-meta probe → the ONE sanctioned mid8 cascade (returns "" on
+    #      exhaustion; the raise decision is the topology gate below).
+    primary_meta, declares_coordination = read_primary_meta(repo_root, handle)
+    mid8 = resolve_declared_mid8(primary_meta, handle)
+
+    # 4. M5 fail-closed: a coord-declared topology with an unprovable identity
+    #    must not silently read a stale primary view.
+    if not mid8 and declares_coordination:
+        primary_candidate = primary_feature_dir_for_mission(repo_root, handle)
+        raise StatusReadPathNotFound(
+            repo_root=repo_root,
+            mission_slug=handle,
+            mid8="",
+            coord_candidate=primary_candidate,
+            primary_candidate=primary_candidate,
+        )
+
+    # 5. Existence-gated topology resolver — NEVER resolve_status_surface_with_anchor
+    #    (#1718: that composes the coord path for an unmaterialised coord). The
+    #    require_exists flag is forwarded unchanged (WP04 depends on it).
+    return resolve_mission_read_path(
+        repo_root, handle, mid8, require_exists=require_exists
+    )
+
+
+def resolve_surface_dir_or_typed_error(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    on_missing_meta: Path,
+) -> Path:
+    """Resolve the authoritative status-surface DIRECTORY, or raise the typed error.
+
+    The single **resolve-dir-or-typed-error delegator** (FR-009/T4): wraps the
+    canonical :func:`resolve_status_surface` so the two historically-duplicated
+    wrappers — ``status.aggregate.MissionStatus._resolve_read_dir`` (WP04) and
+    ``mission_runtime.resolution._resolve_status_surface_dir`` (WP05) — collapse
+    onto ONE resolution body. Both wrappers re-point here in their owning WPs.
+
+    Reconciled fallback / exception policy (the two old wrappers DIFFERED; this
+    is the chosen union, documented per the WP03 DoD):
+
+    * **Surface fail-closed** — ``resolve_status_surface`` raises
+      :class:`StatusReadPathNotFound` (coord worktree materialised but its
+      mission dir is absent, #1718/#1589): this is propagated UNCHANGED. Each
+      caller translates it to its own boundary type (aggregate →
+      ``CoordAuthorityUnavailable``; mission_runtime → ``ActionContextError``)
+      — the delegator does NOT pick one translation, because the typed-error
+      convergence is WP06's job (the equivalence matrix's ``coord-empty`` /
+      ``coord-deleted`` cells stay RED until then). Propagating the raw
+      ``StatusReadPathNotFound`` keeps the ``error_code`` intact for either
+      translation.
+    * **Meta absent / malformed** — ``resolve_status_surface`` raises
+      :class:`FileNotFoundError` (no ``meta.json`` yet: the create→first-write
+      window) or :class:`ValueError` (malformed slug/meta). The UNION of the two
+      old wrappers caught both; this delegator catches both and returns the
+      caller-supplied ``on_missing_meta`` directory. The two old wrappers
+      differed only in HOW they spelled that primary fallback (aggregate passed
+      a pre-computed ``primary_candidate``; mission_runtime recomputed
+      ``candidate_feature_dir_for_mission``) — the ``on_missing_meta`` parameter
+      lets each caller keep its own spelling while sharing this body.
+    * **Success** — returns ``surface.parent`` (the directory containing
+      ``status.events.jsonl``), the value both old wrappers returned.
+
+    The unmaterialised-coord gate that ``aggregate._resolve_read_dir`` applies
+    (``is_under_worktrees_segment(dir) and not dir.exists()`` →
+    ``primary_candidate``) is intentionally NOT folded in here: it is a second,
+    aggregate-specific authority decision layered ON TOP of resolution, so it
+    stays at the aggregate call site (WP04) where ``on_missing_meta`` already
+    carries the primary candidate.
+
+    Args:
+        repo_root: Absolute repository root (primary checkout).
+        mission_slug: Mission slug or handle (resolved by the surface authority).
+        on_missing_meta: Directory to return when no identity-bearing
+            ``meta.json`` exists yet (the primary checkout is authoritative in
+            the create→first-write window).
+
+    Returns:
+        Absolute path to the mission directory containing the status surface.
+
+    Raises:
+        StatusReadPathNotFound: When the surface authority fails closed (coord
+            worktree materialised without its mission dir). Propagated unchanged
+            so each caller applies its own typed-error translation.
+        MissionSelectorAmbiguous: When ``mission_slug`` is an ambiguous handle
+            (propagated unchanged — no silent first-match, C-CTX-4 / C-009).
+    """
+    from specify_cli.coordination.surface_resolver import resolve_status_surface
+
+    try:
+        surface: Path = resolve_status_surface(repo_root, mission_slug)
+    except (FileNotFoundError, ValueError):
+        return on_missing_meta
+    return surface.parent
+
+
 def candidate_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:
     """Return the topology-aware mission-dir candidate without requiring it exist.
 
     This is the **single read primitive** (C-005 / FR-002): it delegates to
     :func:`resolve_mission_read_path`, deriving ``mid8`` once from the slug. The
-    historical duplicate in :mod:`specify_cli.missions.feature_dir_resolver`
-    re-exports this function (C-004 strangler: the canonical logic moved here;
-    callers keep their import site until they are converted in later WPs).
+    historical ``missions.feature_dir_resolver`` shim that re-exported this
+    function was retired in WP07 (FR-007); every caller now imports it from this
+    canonical module directly.
 
     Because it routes through :func:`resolve_mission_read_path`, a bare ``mid8``
     handle (e.g. ``01KTPKST``) resolves to the same directory as the full slug
@@ -439,10 +642,61 @@ def primary_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:
     return primary_dir
 
 
+def resolve_feature_dir_for_slug(repo_root: Path, mission_slug: str) -> Path:
+    """Resolve a mission directory **without** asserting it exists.
+
+    This is the canonical, topology-aware, dir-only resolver for callers that
+    already hold a mission slug and only need the read-side directory path —
+    never raises on a missing directory (unlike
+    :func:`resolve_feature_dir_for_mission`). It delegates to the single
+    coord-aware path primitive (:func:`resolve_mission_read_path`), so
+    coordination topology is honoured exactly once.
+
+    Relocated here from the retired ``missions.feature_dir_resolver`` shim
+    (WP07/FR-007). The late imports keep importing this module from pulling in
+    heavier modules during cold ``spec-kitty next`` startup.
+    """
+    from specify_cli.lanes.branch_naming import mid8_from_slug
+
+    feature_dir: Path = resolve_mission_read_path(
+        repo_root, mission_slug, mid8_from_slug(mission_slug)
+    )
+    return feature_dir
+
+
+def resolve_feature_dir_for_mission(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    cwd: Path | None = None,
+    env: Mapping[str, str] | None = None,
+) -> Path:
+    """Resolve a mission directory through ``resolve_action_context``.
+
+    Relocated here from the retired ``missions.feature_dir_resolver`` shim
+    (WP07/FR-007). The late import of ``mission_runtime`` keeps the
+    ``spec-kitty next`` query startup path light.
+    """
+    from mission_runtime import resolve_action_context
+
+    context = resolve_action_context(
+        repo_root=repo_root,
+        action="tasks",
+        feature=mission_slug,
+        cwd=cwd,
+        env=env,
+    )
+    return Path(context.feature_dir)
+
+
 __all__ = [
     "MissionSelectorAmbiguous",
     "StatusReadPathNotFound",
     "candidate_feature_dir_for_mission",
     "primary_feature_dir_for_mission",
+    "resolve_feature_dir_for_mission",
+    "resolve_feature_dir_for_slug",
+    "resolve_handle_to_read_path",
     "resolve_mission_read_path",
+    "resolve_surface_dir_or_typed_error",
 ]

@@ -7,7 +7,7 @@ Provides CLI access to the status emit/materialize pipeline:
 
 from __future__ import annotations
 
-from specify_cli.missions.feature_dir_resolver import candidate_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 import json
 import logging
 from pathlib import Path
@@ -132,7 +132,7 @@ def _resolve_status_surface(
 
     This is the ``MissionStatus`` authority resolver (slug validation +
     fail-closed coord authority), **not** the dir-only feature-dir resolver
-    in :mod:`specify_cli.missions.feature_dir_resolver`. It uses
+    in :mod:`specify_cli.missions._read_path_resolver`. It uses
     ``MissionStatus.load()`` to resolve the coord-aware read path so that
     coordination-topology missions read from the coord worktree rather than
     the (potentially stale) primary checkout.

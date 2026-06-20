@@ -259,10 +259,14 @@ class TestIssue1616OrchestratorApiCoordRead:
         )
 
     def test_exactly_one_mid8_cascade_in_orchestrator(self) -> None:
-        """#2016 / NFR-005 (binding, AST — not a skippable grep): the orchestrator
-        derives mid8 via exactly ONE cascade — the shared ``resolve_declared_mid8``
-        — and retains NO second ``resolve_mid8(...)`` derivation keyed on primary
-        meta. Re-introducing a parallel ``resolve_mid8`` path is a regression.
+        """#2016 / NFR-005 / WP01 (binding, AST — not a skippable grep): the
+        orchestrator derives the read path via exactly ONE seam — the shared
+        ``resolve_handle_to_read_path`` (which owns the single
+        ``resolve_declared_mid8`` cascade) — and retains NO local mid8 cascade of
+        its own (neither a direct ``resolve_mid8`` keyed on primary meta NOR a
+        re-derived ``resolve_declared_mid8``). After the WP01 extraction the
+        cascade lives in the seam, not in ``commands.py``; re-introducing either
+        derivation here is a regression.
         """
         src = _read("src/specify_cli/orchestrator_api/commands.py")
         tree = ast.parse(src)
@@ -272,14 +276,19 @@ class TestIssue1616OrchestratorApiCoordRead:
             if isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
         }
-        assert "resolve_declared_mid8" in called, (
-            "orchestrator must adopt the shared resolve_declared_mid8 cascade "
-            "(#2016 adoption gap)."
+        assert "resolve_handle_to_read_path" in called, (
+            "WP01: the orchestrator must consume the shared "
+            "resolve_handle_to_read_path seam (the single guarded read-side path)."
+        )
+        assert "resolve_declared_mid8" not in called, (
+            "WP01 / NFR-004: the mid8 cascade was lifted into the seam — the "
+            "orchestrator must NOT re-derive resolve_declared_mid8 locally "
+            "(no parallel cascade)."
         )
         assert "resolve_mid8" not in called, (
             "NFR-005: a second mid8-derivation path (direct resolve_mid8 keyed "
             "on primary meta) must not remain in orchestrator_api/commands.py — "
-            "consolidate onto the single resolve_declared_mid8 cascade."
+            "consolidate onto the single seam cascade."
         )
 
 

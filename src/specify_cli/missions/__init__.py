@@ -20,7 +20,7 @@ __all__ = [
 def __getattr__(name: str) -> Any:
     """Lazily expose the historical primitive helpers.
 
-    Importing submodules such as ``specify_cli.missions.feature_dir_resolver``
+    Importing submodules such as ``specify_cli.missions._read_path_resolver``
     should not eagerly load the full charter/doctrine primitive stack. That
     startup path is latency-sensitive for ``spec-kitty next`` query mode.
     """

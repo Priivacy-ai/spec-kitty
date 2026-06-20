@@ -1313,26 +1313,24 @@ def _find_feature_directory(
         ActionContextError: If no handle is provided, the handle is ambiguous, or
             it resolves to no existing mission directory (structured error).
     """
-    from specify_cli.lanes.branch_naming import resolve_mid8
-    from specify_cli.mission_metadata import load_meta
     from specify_cli.missions._read_path_resolver import (
         MissionSelectorAmbiguous,
         StatusReadPathNotFound,
-        resolve_mission_read_path,
+        resolve_handle_to_read_path,
     )
 
     raw_handle = explicit_feature.strip() if explicit_feature else None
     if not raw_handle:
         raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", "--mission <slug> is required")
-    _primary_dir = repo_root / KITTY_SPECS_DIR / raw_handle
-    _meta = load_meta(_primary_dir) or {}
-    _raw_mission_id = _meta.get("mission_id")
-    _mission_id = _raw_mission_id if isinstance(_raw_mission_id, str) else None
+    # WP02/FR-002: the single guarded read-side seam (IC-01) collapses the former
+    # raw-join → load_meta → resolve_mid8 bootstrap. It performs the primary-meta
+    # probe, the sanctioned mid8 cascade, the fail-closed coord gate, and the
+    # existence-gated topology routing internally — and adds the missing
+    # assert_safe_path_segment guard (FR-004) the hand-rolled block lacked.
     try:
-        feature_dir = resolve_mission_read_path(
+        feature_dir: Path = resolve_handle_to_read_path(
             repo_root,
             raw_handle,
-            resolve_mid8(raw_handle, mission_id=_mission_id),
             require_exists=True,
         )
     except MissionSelectorAmbiguous as exc:
@@ -1370,12 +1368,21 @@ def _resolve_mission_dir_name_primary_anchored(
     from specify_cli.missions._read_path_resolver import (
         MissionSelectorAmbiguous,
         _canonicalize_handle,
+        primary_feature_dir_for_mission,
     )
 
     main_root = get_main_repo_root(repo_root)
 
-    # Literal directory name on the primary checkout.
-    if (main_root / KITTY_SPECS_DIR / raw_handle).is_dir():
+    # Literal directory name on the primary checkout. WP02/FR-002: derive the
+    # primary-checkout candidate through the topology-blind seam primitive
+    # (``primary_feature_dir_for_mission`` — it wraps ``get_main_repo_root`` and
+    # ``assert_safe_path_segment``, FR-004) instead of a raw ``KITTY_SPECS_DIR``
+    # join, then preserve this site's PRIMARY-ONLY ``.is_dir()`` existence intent.
+    # The coord-aware ``resolve_handle_to_read_path`` is deliberately NOT used
+    # here: ``finalize-tasks`` must read the primary surface even when a
+    # materialized-but-empty coordination worktree exists (#11 / #1718 / #1692),
+    # which the coord-aware seam would fail-close.
+    if primary_feature_dir_for_mission(repo_root, raw_handle).is_dir():
         return raw_handle
 
     # Canonicalise the handle (mid8 / ULID / numeric / human slug) against the

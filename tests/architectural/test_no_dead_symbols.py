@@ -481,11 +481,18 @@ _CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH: frozenset[str] = frozenset(
 #     transitive-consumption allowlist, not a temporary in-flight one. Both symbols
 #     still have zero cross-module by-name importers (WP09 verified by removal-probe:
 #     dropping either re-fails this gate), so both entries STAY.
+#   * ``CoordinationWorktreeEmpty`` (single-mission-surface-resolver WP06 / FR-006
+#     coord-empty hard-fail, #1716) is the SAME pattern: it subclasses
+#     ``StatusReadPathNotFound`` and carries the same ``error_code``, so the
+#     existing fail-closed handlers catch it transitively and only the enriched
+#     two-path message + distinct type differ. A redundant by-name ``except`` would
+#     be worse design; transitive consumption is the intended steady state.
 # Follow-up tracker: none — transitive consumption is the intended steady state.
 _CATEGORY_C_WP_IN_FLIGHT_TOPOLOGY_AUTHORITY: frozenset[str] = frozenset(
     {
         "specify_cli.coordination.surface_resolver::ResolvedStatusSurface",
         "specify_cli.coordination.surface_resolver::CoordinationBranchDeleted",
+        "specify_cli.coordination.surface_resolver::CoordinationWorktreeEmpty",
     }
 )
 
@@ -643,6 +650,24 @@ _CATEGORY_C_BRANCH_NAMING_FAILOVER_SEAM: frozenset[str] = frozenset(
 )
 
 
+# ---------- C. Backward-compat shim re-export (mission 01KVJPEQ) ----------
+_CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT: frozenset[str] = frozenset(
+    {
+        # resolve_mission_read_path re-exported by the canonical-home backward-
+        # compat shim ``specify_cli.mission_read_path`` (allowlisted as a
+        # category-4 dead-MODULE backcompat shim in test_no_dead_modules.py).
+        # Mission 01KVJPEQ re-pointed its last production importer
+        # (runtime/next/runtime_bridge.py) to the canonical
+        # ``resolve_handle_to_read_path`` seam, so the re-export now has no src/
+        # caller BY DESIGN — it stays for external/back-compat consumers. The
+        # ``from ... import`` + ``__all__`` re-export pattern is required so ruff
+        # treats it as an intentional re-export (not F401). Follow-up: retiring
+        # the shim entirely is a separate backcompat decision (FR-303).
+        "specify_cli.mission_read_path::resolve_mission_read_path",
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``).
@@ -660,6 +685,7 @@ _SYMBOL_ALLOWLIST: frozenset[str] = (
     | _CATEGORY_C_UPSTREAM_SESSION_PRESENCE
     | _CATEGORY_C_QUALITY_DEBT_1928
     | _CATEGORY_C_BRANCH_NAMING_FAILOVER_SEAM
+    | _CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT
 )
 
 

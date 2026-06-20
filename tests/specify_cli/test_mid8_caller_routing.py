@@ -11,7 +11,10 @@ For each routed caller this module verifies:
 Sites covered:
   - decision.py:419  _mid8_for_decision_verify   (value-use → resolve_mid8)
   - agent/mission.py:1229  _find_feature_directory  (value-use → resolve_mid8)
-  - agent/workflow.py:300  _mid8_for_mission_read_path  (value-use → resolve_mid8)
+  - agent/workflow.py  _canonical_status_feature_dir  (WP03: routed through the
+    read-side seam ``resolve_handle_to_read_path``; the retired
+    ``_mid8_for_mission_read_path`` helper now lives inside the seam's
+    ``resolve_declared_mid8`` cascade — these tests pin the seam contract it uses)
   - agent/context.py:76   _find_feature_directory  (value-use → resolve_mid8)
   - aggregate.py:480/486   _find_meta_path  (boolean-detector, kept — proven safe)
   - agent/status.py:41/51  _resolve_bare_modern_mission_slug (boolean-detector, kept)
@@ -178,7 +181,13 @@ class TestAgentMissionFindFeatureDirectory:
 
 
 class TestWorkflowMid8ForMissionReadPath:
-    """agent/workflow.py _mid8_for_mission_read_path routes the fallback via resolve_mid8."""
+    """agent/workflow.py mid8 derivation routes the fallback via resolve_mid8.
+
+    WP03 routed ``_canonical_status_feature_dir`` through the read-side seam
+    (``resolve_handle_to_read_path``), retiring the bespoke
+    ``_mid8_for_mission_read_path`` helper; the seam now runs the SAME
+    ``resolve_mid8``-based cascade these tests pin (``resolve_declared_mid8``).
+    """
 
     def _meta_mid8(self, mission_id: str | None) -> str | None:
         """Simulate what _load_coord_branch_meta returns for meta_mid8."""

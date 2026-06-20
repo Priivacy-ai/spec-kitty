@@ -38,7 +38,7 @@ from specify_cli.core.constants import (
     KITTY_SPECS_DIR,
     MISSION_TYPE_RESEARCH,
 )
-from specify_cli.missions.feature_dir_resolver import (
+from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
@@ -299,29 +299,27 @@ def _load_coord_branch_meta(feature_dir: Path) -> tuple[str | None, str | None, 
     return (coord, mid, mid8)
 
 
-def _mid8_for_mission_read_path(primary_feature_dir: Path, mission_slug: str) -> str:
-    """Return the mission mid8 token for topology-aware status reads."""
-    from specify_cli.lanes.branch_naming import resolve_mid8
-
-    _, mission_id_raw, meta_mid8 = _load_coord_branch_meta(primary_feature_dir)
-    if meta_mid8:
-        return str(meta_mid8)
-
-    # Authoritative fallback: derive from declared mission_id when available
-    # (#1918). When mission_id is absent (legacy mission), resolve_mid8 declines
-    # (returns "") rather than trusting a coincidental 8-char slug tail.
-    _mission_id = mission_id_raw if isinstance(mission_id_raw, str) else None
-    return resolve_mid8(mission_slug, mission_id=_mission_id)
-
-
 def _canonical_status_feature_dir(main_repo_root: Path, mission_slug: str) -> Path:
-    """Resolve the canonical read-side mission directory for status state."""
-    primary_feature_dir = candidate_feature_dir_for_mission(main_repo_root, mission_slug)
-    mid8 = _mid8_for_mission_read_path(primary_feature_dir, mission_slug)
+    """Resolve the canonical read-side mission directory for status state.
 
-    from specify_cli.missions._read_path_resolver import resolve_mission_read_path
+    Routes through the single guarded read-side seam
+    (:func:`resolve_handle_to_read_path`, WP01/IC-01): the seam reads the
+    PRIMARY ``meta.json`` to learn the declared identity, runs the ONE
+    sanctioned mid8 cascade (``resolve_declared_mid8``), and returns the
+    existence-gated topology-aware directory. This subsumes the prior bespoke
+    ``candidate_feature_dir_for_mission`` → ``_load_coord_branch_meta`` →
+    ``resolve_mid8`` → ``resolve_mission_read_path`` cascade. (FR-002, C-007)
 
-    return resolve_mission_read_path(main_repo_root, mission_slug, mid8)
+    Subsumption note: the retired ``_mid8_for_mission_read_path`` read the COORD
+    branch's meta via ``_load_coord_branch_meta`` to derive mid8, while the seam
+    anchors on PRIMARY meta. mid8 is mission *identity* (``mission_id`` / ``mid8``
+    are identical on both surfaces), so the primary anchor yields the same mid8;
+    no caller of ``_canonical_status_feature_dir`` consumed any coord-branch-only
+    meta field (all three read callers only need the resolved directory).
+    """
+    from specify_cli.missions._read_path_resolver import resolve_handle_to_read_path
+
+    return resolve_handle_to_read_path(main_repo_root, mission_slug)
 
 
 def _merge_event_log_bytes(existing: bytes, incoming: bytes) -> bytes:

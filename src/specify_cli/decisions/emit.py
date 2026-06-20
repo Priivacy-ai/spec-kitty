@@ -24,7 +24,7 @@ Public API:
 
 from __future__ import annotations
 
-from specify_cli.missions.feature_dir_resolver import resolve_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 import json
 from datetime import UTC, datetime
 from pathlib import Path
