@@ -81,7 +81,7 @@ the sole authority, migrated the #1900 status_transition predicates, and shipped
 the FR-006 coord-empty two-path hard-fail. It drained the cells that genuinely
 close at the collapse (the WP05 ``runtime-boundary`` XPASS — WP05 landed). The
 SIX remaining RED cells are **documented out-of-scope strict-xfails**, NOT a
-blanket drain — see ``_XFAIL_READPATH_MID8_OUT_OF_SCOPE`` (the four #1918 bare-slug
+blanket drain — see ``_XFAIL_READPATH_MID8_OUT_OF_SCOPE`` (the four #2046 bare-slug
 read_path mid8-blindness cells), ``_XFAIL_COORD_EMPTY_SEAM_OUT_OF_SCOPE`` (the
 coord-empty/slug-mid8 multi-seam split: a WP06-introduced surface/read_path
 subclass split at a stable error_code, plus the WP04 ``CoordAuthorityUnavailable``
@@ -333,10 +333,10 @@ def _observe_all(repo_root: Path, slug: str, mid8: str) -> dict[str, Outcome]:
 #
 # (1) ``resolve_mission_read_path`` is mid8-BLIND for a bare slug: it derives
 #     mid8 from the slug (empty for a bare slug), so it cannot reach the coord
-#     surface a bare ``--mission <slug>`` names. Closing this needs the #1918
+#     surface a bare ``--mission <slug>`` names. Closing this needs the #2046
 #     ``resolve_declared_mid8`` / ``_mid8_from_primary_meta`` cascade *inside
 #     read_path* (read primary meta → derive mid8). That is OUT OF SCOPE (spec
-#     #1918): the surface already derives mid8 via its own cascade, but read_path
+#     #2046): the surface already derives mid8 via its own cascade, but read_path
 #     CANNOT simply route through the surface — read_path's #1718 create-window
 #     contract (``test_read_path_resolver_transitional``: declared-but-
 #     unmaterialized coord → PRIMARY) differs from the surface's (composed coord
@@ -362,9 +362,9 @@ def _observe_all(repo_root: Path, slug: str, mid8: str) -> dict[str, Outcome]:
 # ``tests/coordination/test_surface_resolver_collapse.py`` — independent of this
 # matrix's type-identity gate.
 _XFAIL_READPATH_MID8_OUT_OF_SCOPE = (
-    "out-of-scope (#1918): resolve_mission_read_path is mid8-blind for a bare "
+    "out-of-scope (#2046): resolve_mission_read_path is mid8-blind for a bare "
     "slug → resolves primary while surface/aggregate derive mid8 from meta and "
-    "reach coord. Closing needs the #1918 resolve_declared_mid8 cascade inside "
+    "reach coord. Closing needs the #2046 resolve_declared_mid8 cascade inside "
     "read_path (a blind route-through would regress the #1718 create-window "
     "contract). Documented WP06 allowlist; NOT drained."
 )
@@ -391,7 +391,7 @@ _XFAIL_COORD_EMPTY_SEAM_OUT_OF_SCOPE = (
 _XFAIL_COORD_DELETED_SEAM_OUT_OF_SCOPE = (
     "out-of-scope multi-way divergence (coord-deleted/slug-mid8): read_path "
     "resolves to PRIMARY (a directory, NOT an error) — the coord-deleted "
-    "read_path gap needs the #1918 mid8 cascade / FR-005 typed-error convergence "
+    "read_path gap needs the #2046 mid8 cascade / FR-005 typed-error convergence "
     "(neither in WP06's requirement_refs; a blind route-through the surface would "
     "regress the #1718 create-window contract). surface raises "
     "CoordinationBranchDeleted (COORDINATION_BRANCH_DELETED); aggregate raises "
@@ -428,7 +428,7 @@ _MATRIX: list[tuple[str, str, str, str, str | None]] = [
         MISSION_SLUG,
         "",
         # Two independent out-of-scope divergences in this cell: read_path is
-        # mid8-blind for a bare slug (the #1918 cascade), AND the aggregate keeps
+        # mid8-blind for a bare slug (the #2046 cascade), AND the aggregate keeps
         # its CoordAuthorityUnavailable single-seam contract.
         _XFAIL_READPATH_MID8_OUT_OF_SCOPE,
     ),

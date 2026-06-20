@@ -79,7 +79,9 @@ INVENTORY_PATH = _THIS.parent / "inventory.md"
 _RESOLVER_SOURCE_STEMS: frozenset[str] = frozenset(
     {
         "specify_cli/missions/_read_path_resolver.py",
-        "specify_cli/missions/feature_dir_resolver.py",
+        # ``feature_dir_resolver.py`` retired in WP07/FR-007: the shim was
+        # collapsed into ``_read_path_resolver.py``; its resolvers
+        # (``resolve_feature_dir_for_slug`` etc.) now live in that module.
         "specify_cli/coordination/surface_resolver.py",
         "specify_cli/coordination/status_transition.py",
         "specify_cli/status/aggregate.py",
@@ -121,6 +123,14 @@ SLUG_NAMES: frozenset[str] = frozenset(
         "feature_slug",
         "slug",
         "mission_slug_formatted",
+        # ``raw_handle`` / ``handle`` carry the operator-supplied mission handle
+        # at the read-CLI primary-meta bootstrap sites (e.g. ``agent/context.py``,
+        # ``agent/mission.py``). Omitting them blinded ``discover_rows()`` to three
+        # real raw-bypass joins that probe the primary checkout BEFORE the canonical
+        # resolver — the same FS-touching shape as the allowlisted ``decision.py``
+        # bootstrap (read-side-desync residual; consolidation deferred).
+        "raw_handle",
+        "handle",
     }
 )
 
@@ -293,7 +303,8 @@ def discover_rows() -> list[ResolutionRow]:
 # --------------------------------------------------------------------------- #
 KNOWN_CANDIDATE_FILES: tuple[str, ...] = (
     "specify_cli/missions/_read_path_resolver.py",
-    "specify_cli/missions/feature_dir_resolver.py",
+    # ``feature_dir_resolver.py`` retired in WP07/FR-007 (shim collapsed into
+    # ``_read_path_resolver.py``) — no longer a tracked candidate file.
     "specify_cli/coordination/surface_resolver.py",
     "specify_cli/coordination/status_transition.py",
     "specify_cli/status/aggregate.py",

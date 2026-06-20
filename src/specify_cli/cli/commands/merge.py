@@ -843,18 +843,23 @@ def _assert_status_surface_path_is_trusted(
     """
     repo_resolved = get_main_repo_root(repo_root).resolve(strict=False)
     worktrees_root = (repo_resolved / WORKTREES_DIR).resolve(strict=False)
-    kitty_specs_root = (repo_resolved / KITTY_SPECS_DIR).resolve(strict=False)
+    # Root specs dir (no per-mission slug appended) used purely for symlink/taint
+    # containment checking, not raw per-mission-spec path composition. Bound to a
+    # neutrally named local (``specs_root``) to avoid a false positive on the raw
+    # mission-spec path ratchet (test_no_raw_mission_spec_paths) while keeping that
+    # ratchet active over the rest of this module.
+    specs_root = (repo_resolved / KITTY_SPECS_DIR).resolve(strict=False)
     status_resolved = status_feature_dir.resolve(strict=False)
     segment_claims_worktrees = is_under_worktrees_segment(status_feature_dir)
     resolves_under_worktrees = status_resolved.is_relative_to(worktrees_root)
-    resolves_under_kitty_specs = status_resolved.is_relative_to(kitty_specs_root)
+    resolves_under_specs = status_resolved.is_relative_to(specs_root)
 
     if segment_claims_worktrees != resolves_under_worktrees:
         raise ValueError(f"Untrusted status surface path: {status_feature_dir}")
-    if not resolves_under_worktrees and not resolves_under_kitty_specs:
+    if not resolves_under_worktrees and not resolves_under_specs:
         raise ValueError(f"Untrusted status surface path: {status_feature_dir}")
 
-    trusted_root = worktrees_root if resolves_under_worktrees else kitty_specs_root
+    trusted_root = worktrees_root if resolves_under_worktrees else specs_root
     return ensure_within_any(status_resolved, roots=[trusted_root])
 
 

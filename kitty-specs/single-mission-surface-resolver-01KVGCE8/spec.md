@@ -138,7 +138,7 @@ all — where the primary checkout is the sole, authoritative, non-divergent sur
 - The *validation* seam (slug→safe-segment) — already shipped by 01KVFTFV.
 - Any version/patch-number assignment (C-003).
 - Adding new topology states or a SaaS-side surface authority.
-- Out: the `WorktreeTopology`/`classify_worktree_topology`/`read_worktree_registry` machinery (correct git-registry authority, reused — not a selection duplicate); the `_mid8_from_primary_meta`/`resolve_declared_mid8` cascade (separate seam, #1918).
+- Out: the `WorktreeTopology`/`classify_worktree_topology`/`read_worktree_registry` machinery (correct git-registry authority, reused — not a selection duplicate); the `_mid8_from_primary_meta`/`resolve_declared_mid8` cascade for the bare-slug read-CLI path (separate seam — **tracked as #2046**; the earlier deferral to #1918 was incorrect, #1918 is a closed unrelated issue, found by the post-merge architecture review).
 
 ## Tidy-First Inputs (for /plan — boy-scout squad)
 

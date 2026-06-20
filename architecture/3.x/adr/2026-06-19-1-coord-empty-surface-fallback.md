@@ -103,6 +103,14 @@ decision is made, and no parallel resolver can contradict it.
   remain documented, allowlisted strict-xfails (see
   `tests/missions/test_surface_resolution_equivalence.py`). The user-facing
   FR-006 two-path message is delivered regardless, at the resolver seam.
+* **Read-CLI residual (#2046).** The operator read CLIs (`agent tasks status`,
+  `agent context`, `agent mission`) call the lower `resolve_mission_read_path`
+  primitive directly and are mid8-blind for a **bare slug**, so a bare-slug
+  handle against a coord-topology mission still resolves the primary checkout
+  rather than hard-failing here. Closing this needs the `resolve_declared_mid8`
+  cascade inside the read path; it is tracked in **#2046** (the earlier deferral
+  to the now-closed #1918 was incorrect, found by the post-merge architecture
+  review). The four `coord-*/bare` equivalence-matrix cells are its acceptance gate.
 
 ## Alternatives considered
 

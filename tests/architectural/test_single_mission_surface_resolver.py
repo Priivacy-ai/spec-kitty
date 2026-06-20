@@ -55,6 +55,18 @@ Guard result: FAIL — ``specify_cli/coordination/status_transition.py:<line>  r
 (unexpected bypass, not in allowlist).
 Revert: PASS — no unexpected bypass rows.
 
+Mutation C (raw_handle hole closure) — ``src/specify_cli/status/aggregate.py``:
+    _INJECTED = repo_root / KITTY_SPECS_DIR / raw_handle  # noqa: injected
+Guard result: FAIL — the join is detected via the ``raw_handle`` token now in the
+audit's ``SLUG_NAMES`` net (the previously open hole F-2 closed).
+Revert: PASS — no unexpected bypass rows.
+
+Note: the three read-CLI primary-meta bootstrap sites (``agent/context.py:72``,
+``agent/mission.py:1327``, ``agent/mission.py:1378``) surfaced as discovered rows
+once ``raw_handle`` joined the audit net; they are allowlisted in
+``_ALLOWLISTED_RAW_JOINS`` HONESTLY as an un-guarded read-side-desync residual
+(#2046 under epic #2007, consolidation deferred), not as clean topology-blind primitives.
+
 Coverage assertions (T031)
 ---------------------------
 1. ``discovered_rows`` is non-empty — a vacuous walk produces zero rows and
@@ -229,6 +241,53 @@ _ALLOWLISTED_RAW_JOINS: dict[str, str] = {
         "equivalent to primary_feature_dir_for_mission (primary-only meta read); "
         "topology-blind by design (meta.json lives only on the primary checkout). "
         "The actual surface selection is 100% through the canonical resolver."
+    ),
+    # ----- READ-SIDE-DESYNC RESIDUAL (#2046, under epic #2007): read-CLI primary-meta bootstrap -----
+    # The next three joins are the SAME FS-touching pre-resolver primary-meta probe
+    # as decision.py:464, but with the operator handle bound to ``raw_handle``.  They
+    # were INVISIBLE to discover_rows() until ``raw_handle`` was added to the audit's
+    # SLUG_NAMES net (the guard's prior "zero raw-bypass" claim had a raw_handle-shaped
+    # hole).  They are NOT clean topology-blind-by-design: unlike the blessed
+    # ``primary_feature_dir_for_mission`` primitive, NONE of them call
+    # ``assert_safe_path_segment`` before the join — the handle is only
+    # ``.strip()``-ed and non-empty-checked.  They are allowlisted HONESTLY as a known,
+    # documented read-CLI bootstrap that bypasses the canonical resolver, NOT as a
+    # clean primitive.  Consolidation onto the canonical resolver is deferred and
+    # tracked in the read-side-desync-residual follow-up; this guard documents the
+    # pattern and prevents it from getting WORSE (any NEW raw_handle/slug join in a
+    # non-allowlisted file FAILS the guard).
+    "specify_cli/cli/commands/agent/context.py:72": (
+        "BOOTSTRAP (un-guarded) — read-CLI primary-meta bootstrap: "
+        "``repo_root / KITTY_SPECS_DIR / raw_handle`` → load_meta(_primary_dir) at :73 "
+        "reads meta.json to derive mission_id BEFORE resolve_mission_read_path at :77. "
+        "FS-READING.  NOT pre-validated: raw_handle is only explicit_mission.strip() "
+        "(non-empty check at :68); no assert_safe_path_segment before the join, so this "
+        "is a genuinely un-guarded bypass, not a clean topology-blind primitive.  "
+        "Read-side-desync residual (#2046, under epic #2007); consolidation deferred — tracked in the "
+        "read-side-desync-residual follow-up.  Allowlisted to ratchet (no NEW such "
+        "join may appear); same shape as the allowlisted decision.py:464 bootstrap."
+    ),
+    "specify_cli/cli/commands/agent/mission.py:1327": (
+        "BOOTSTRAP (un-guarded) — read-CLI primary-meta bootstrap: "
+        "``repo_root / KITTY_SPECS_DIR / raw_handle`` → load_meta(_primary_dir) at :1328 "
+        "reads meta.json to derive mission_id BEFORE resolve_mission_read_path at :1332. "
+        "FS-READING.  NOT pre-validated: raw_handle is only explicit_feature.strip() "
+        "(non-empty check at :1326); no assert_safe_path_segment before the join, so this "
+        "is a genuinely un-guarded bypass, not a clean topology-blind primitive.  "
+        "Read-side-desync residual (#2046, under epic #2007); consolidation deferred — tracked in the "
+        "read-side-desync-residual follow-up.  Allowlisted to ratchet; same shape as "
+        "decision.py:464."
+    ),
+    "specify_cli/cli/commands/agent/mission.py:1378": (
+        "BOOTSTRAP (read-only existence probe) — "
+        "``(main_root / KITTY_SPECS_DIR / raw_handle).is_dir()`` in "
+        "_resolve_mission_dir_name_primary_anchored: a primary-checkout EXISTENCE probe "
+        "only (``.is_dir()``; no load_meta / open / read).  NOT pre-validated: raw_handle "
+        "is only explicit_feature.strip() (non-empty check at :1366); no "
+        "assert_safe_path_segment before the probe — an un-guarded raw join, but "
+        "lower-severity than :1327 because it never reads file CONTENT.  Read-side-desync "
+        "residual (#2046, under epic #2007); consolidation deferred — tracked in the read-side-desync-"
+        "residual follow-up.  Allowlisted to ratchet (no NEW such probe may appear)."
     ),
 }
 
