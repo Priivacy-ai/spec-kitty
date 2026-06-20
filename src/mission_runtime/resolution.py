@@ -600,8 +600,8 @@ def _resolve_status_surface_dir(primary_root: Path, mission_slug: str) -> Path:
     :class:`ActionContextError` (PR #1850 M6).
     """
     from specify_cli.coordination.surface_resolver import resolve_status_surface
-    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
     from specify_cli.missions._read_path_resolver import (
+        StatusReadPathNotFound,
         candidate_feature_dir_for_mission,
     )
 
@@ -804,8 +804,6 @@ def resolve_placement_only(repo_root: Path, mission_slug: str) -> CommitTarget:
     from specify_cli.missions._read_path_resolver import (
         MissionSelectorAmbiguous,
         StatusReadPathNotFound,
-    )
-    from specify_cli.missions._read_path_resolver import (
         candidate_feature_dir_for_mission,
     )
 

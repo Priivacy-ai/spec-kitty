@@ -10,7 +10,13 @@ are green — and the strict-xfail markers below turn any *premature* green
 
 Entry points compared (read each before asserting over it):
 
-* ``missions._read_path_resolver.resolve_mission_read_path`` (require_exists=True)
+* ``missions._read_path_resolver.resolve_handle_to_read_path`` (``require_exists=True``)
+  — the WP04 re-point: ``_entry_points`` calls ``resolve_handle_to_read_path``
+  (the mid8-deriving seam) under the ``"resolve_mission_read_path"`` cell label,
+  NOT the mid8-blind ``resolve_mission_read_path`` primitive.  The
+  ``require_exists=True`` contract makes a missing surface raise rather than
+  return a composed-but-absent path — do NOT "correct" this leg back to the
+  primitive, which would silently un-flip the matrix cells.
 * ``coordination.surface_resolver.resolve_status_surface_with_anchor`` (``.read_dir``)
 * ``status.aggregate.MissionStatus.load`` (``.read_dir`` / ``_resolve_read_dir``)
 * ``mission_runtime.resolution`` boundary (ambiguous-handle translation probe)

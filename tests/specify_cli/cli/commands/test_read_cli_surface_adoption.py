@@ -71,6 +71,13 @@ _BARE_SLUG: str = "e2e-coord-proof"
 _MISSION_DIR: str = f"{_BARE_SLUG}-{_MID8}"
 # The coordination branch name embedded in ``meta.json``.
 _COORD_BRANCH: str = f"kitty/mission-{_MISSION_DIR}"
+# Coord-distinguishing WP ids: the primary checkout carries ``_PRIMARY_ONLY_WP``
+# and the coord worktree carries ``_COORD_ONLY_WP``.  A CLI that reads the coord
+# surface surfaces the coord-only WP in its output; one that wrongly reads the
+# primary surfaces the primary-only WP.  This gives a positive coord-vs-primary
+# observable signal beyond the spy capture.
+_PRIMARY_ONLY_WP: str = "WP01"
+_COORD_ONLY_WP: str = "WP02"
 
 
 # ---------------------------------------------------------------------------
@@ -107,14 +114,14 @@ def _build_coord_fresh_mission(repo_root: Path) -> Path:
     (primary_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
     tasks_dir = primary_dir / "tasks"
     tasks_dir.mkdir()
-    (tasks_dir / "WP01-work.md").write_text(
-        textwrap.dedent("""\
+    (tasks_dir / f"{_PRIMARY_ONLY_WP}-work.md").write_text(
+        textwrap.dedent(f"""\
             ---
-            work_package_id: WP01
-            title: Coord-proof work package
+            work_package_id: {_PRIMARY_ONLY_WP}
+            title: Primary-only work package
             execution_mode: code_change
             ---
-            # WP01
+            # {_PRIMARY_ONLY_WP}
         """),
         encoding="utf-8",
     )
@@ -123,6 +130,23 @@ def _build_coord_fresh_mission(repo_root: Path) -> Path:
     coord_root = repo_root / ".worktrees" / f"{_MISSION_DIR}-coord"
     coord_mission_dir = coord_root / "kitty-specs" / _MISSION_DIR
     coord_mission_dir.mkdir(parents=True)
+    # The coord dir carries a DISTINCT WP (``_COORD_ONLY_WP``) absent from the
+    # primary checkout, so a CLI that consumes feature_dir surfaces the coord WP
+    # and a CLI that wrongly consumes the primary surfaces ``_PRIMARY_ONLY_WP``
+    # (or fails not-found).  This is the coord-distinguishing observable signal.
+    coord_tasks_dir = coord_mission_dir / "tasks"
+    coord_tasks_dir.mkdir()
+    (coord_tasks_dir / f"{_COORD_ONLY_WP}-coord.md").write_text(
+        textwrap.dedent(f"""\
+            ---
+            work_package_id: {_COORD_ONLY_WP}
+            title: Coord-only work package
+            execution_mode: code_change
+            ---
+            # {_COORD_ONLY_WP}
+        """),
+        encoding="utf-8",
+    )
     (coord_mission_dir / "status.events.jsonl").write_text("", encoding="utf-8")
 
     return coord_mission_dir
@@ -181,9 +205,9 @@ class TestAgentTasksStatusCoordResolution:
                 side_effect=_spy,
             ),
         ):
-            runner.invoke(
+            result = runner.invoke(
                 tasks_app,
-                ["status", "--mission", _BARE_SLUG],
+                ["status", "--mission", _BARE_SLUG, "--json"],
             )
 
         # The CLI must have called the seam and received the coord dir.
@@ -203,6 +227,29 @@ class TestAgentTasksStatusCoordResolution:
         )
         assert resolved_dir != primary_dir, (
             "Resolved dir equals the PRIMARY checkout — coord was not selected"
+        )
+
+        # Observable-behavior assertions (squad: born-green-framing). Proving the
+        # seam is CALLED is not enough — ``status()`` must actually CONSUME the
+        # coord dir.  (a) exit_code 0: a status() that ignores ``feature_dir`` and
+        # falls into the not-found ``Exit(1)`` branch is caught here.
+        assert result.exit_code == 0, (
+            "agent tasks status did NOT exit 0 — status() did not consume the "
+            f"coord feature_dir.\n  stdout: {result.stdout}\n"
+            f"  exc: {result.exception!r}"
+        )
+        # (b) coord-distinguishing signal: the coord dir carries ``_COORD_ONLY_WP``
+        # while the primary carries ``_PRIMARY_ONLY_WP``.  A status() that consumed
+        # the PRIMARY dir would surface the primary WP instead — so the output must
+        # name the coord WP and must NOT name the primary-only WP.
+        assert _COORD_ONLY_WP in result.stdout, (
+            f"Coord-only work package {_COORD_ONLY_WP!r} absent from status output — "
+            f"status() consumed the wrong surface.\n  stdout: {result.stdout}"
+        )
+        assert _PRIMARY_ONLY_WP not in result.stdout, (
+            f"Primary-only work package {_PRIMARY_ONLY_WP!r} present in status "
+            "output — status() consumed the PRIMARY dir, not the coord dir.\n"
+            f"  stdout: {result.stdout}"
         )
 
     def test_full_handle_resolves_same_coord_dir(self, tmp_path: Path) -> None:

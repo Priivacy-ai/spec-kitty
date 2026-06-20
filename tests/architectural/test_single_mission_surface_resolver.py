@@ -141,6 +141,7 @@ discover_selection_callsites = _audit_mod.discover_selection_callsites
 # changes to the walker are automatically reflected here).
 # ---------------------------------------------------------------------------
 _RESOLVER_SOURCE_STEMS: frozenset[str] = _audit_mod._RESOLVER_SOURCE_STEMS
+_SELECTION_SEAM_STEMS: frozenset[str] = _audit_mod._SELECTION_SEAM_STEMS
 _KITTY_SPECS_NAMES: frozenset[str] = _audit_mod.KITTY_SPECS_NAMES
 _SLUG_NAMES: frozenset[str] = _audit_mod.SLUG_NAMES
 _ALLOWLISTED_SELECTION_CALLSITES: dict[str, str] = (
@@ -604,6 +605,90 @@ def test_selection_discriminator_is_independent_of_raw_join_scanner() -> None:
         "The acceptance selection callsite must NOT appear as a raw-path-join "
         "row — that would mean it composes a KITTY_SPECS_DIR join, contradicting "
         "the premise that the raw-join scanner is blind to direct selection calls."
+    )
+
+
+# ---------------------------------------------------------------------------
+# FR-006a hardening — the SELECTION seam is the single
+# ``_read_path_resolver.py`` home, NOT the broader RAW-JOIN resolver-source set.
+#
+# Pins the guard blind-spot fix: ``_find_selection_calls`` discriminates on
+# ``_SELECTION_SEAM_STEMS`` (selection axis) rather than
+# ``_RESOLVER_SOURCE_STEMS`` (raw-join axis).  The three resolver-source files
+# below (``surface_resolver.py``, ``status_transition.py``, ``aggregate.py``)
+# define resolvers for the RAW-JOIN axis but are NOT the selection seam — a
+# hypothetical direct ``resolve_mission_read_path`` call there must be FLAGGED
+# (allowlist or refactor), never auto-blessed as seam-internal.  And the lone
+# real external consumer (``mission_runtime/resolution.py:185``) must ride an
+# HONEST allowlist entry, not auto-blessing.
+# ---------------------------------------------------------------------------
+
+_NON_SELECTION_RESOLVER_SOURCES: tuple[str, ...] = (
+    "specify_cli/coordination/surface_resolver.py",
+    "specify_cli/coordination/status_transition.py",
+    "specify_cli/status/aggregate.py",
+)
+
+
+def test_non_seam_resolver_sources_are_not_auto_blessed_for_selection() -> None:
+    """RAW-JOIN resolver-source files are NOT in the SELECTION seam set.
+
+    FR-006a guard hardening (paula): ``_SELECTION_SEAM_STEMS`` is the single
+    ``resolve_handle_to_read_path`` home (``_read_path_resolver.py``).  The
+    three broader resolver-source files legitimately define resolvers for the
+    RAW-JOIN axis but are NOT the selection seam — so a future direct
+    ``resolve_mission_read_path`` call in any of them would be FLAGGED (not
+    auto-blessed as seam-internal) and must be allowlisted or refactored.
+    """
+    assert frozenset(
+        {"specify_cli/missions/_read_path_resolver.py"}
+    ) == _SELECTION_SEAM_STEMS, (
+        "The SELECTION seam must be the single resolve_handle_to_read_path home. "
+        "Widening it re-introduces the guard blind-spot where a direct "
+        "resolve_mission_read_path call in a raw-join resolver-source file is "
+        "silently auto-blessed."
+    )
+    for src in _NON_SELECTION_RESOLVER_SOURCES:
+        assert src in _RESOLVER_SOURCE_STEMS, (
+            f"{src!r} should still be a RAW-JOIN resolver-source file "
+            "(_RESOLVER_SOURCE_STEMS) — its raw-join axis tracking is unchanged."
+        )
+        assert src not in _SELECTION_SEAM_STEMS, (
+            f"{src!r} is a RAW-JOIN resolver-source file but NOT the selection "
+            "seam; including it in _SELECTION_SEAM_STEMS would auto-bless a "
+            "hypothetical direct resolve_mission_read_path call there (FR-006a "
+            "guard blind-spot)."
+        )
+
+
+def test_resolution_internal_read_is_allowlisted_not_auto_blessed() -> None:
+    """``mission_runtime/resolution.py:185`` rides an HONEST selection allowlist entry.
+
+    FR-006a guard hardening (paula): ``resolution.py`` is a RAW-JOIN
+    resolver-source file but NOT the selection seam, so its single direct
+    ``resolve_mission_read_path`` call (the boundary-translated internal read in
+    ``_resolve_status_surface_dir``) is no longer auto-blessed.  It must be
+    covered by an explicit ``ALLOWLISTED_SELECTION_CALLSITES`` entry — honest,
+    sanctioned, single consumer-facing read.
+    """
+    key = "mission_runtime/resolution.py:185"
+    assert key in _ALLOWLISTED_SELECTION_CALLSITES, (
+        f"{key} must carry an explicit ALLOWLISTED_SELECTION_CALLSITES entry "
+        "(honest allowlist, not seam auto-blessing) now that resolution.py is "
+        "excluded from the SELECTION seam set."
+    )
+    assert _ALLOWLISTED_SELECTION_CALLSITES[key].strip(), (
+        f"The allowlist entry for {key} must carry a non-empty rationale."
+    )
+    # The call must actually be DISCOVERED as a non-seam external selection
+    # callsite (proving the allowlist entry is live, not stale).
+    external = {
+        s.key() for s in discover_selection_callsites() if not s.in_seam_file
+    }
+    assert key in external, (
+        f"{key} should be discovered as an EXTERNAL (non-seam) selection "
+        "callsite now that resolution.py is excluded from _SELECTION_SEAM_STEMS. "
+        f"Discovered external selection callsites: {sorted(external)}"
     )
 
 
