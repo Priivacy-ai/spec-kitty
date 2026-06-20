@@ -178,30 +178,15 @@ exclude = [
     "src/specify_cli/**/tests/**",
 ]
 
-[tool.pytest.ini_options]
-markers = [
-    "fast: Pure unit tests with no I/O or subprocess calls (CI fast gate)",
-    "integration: Integration tests using real filesystem or in-process I/O, no subprocess/git",
-    "slow: Tests taking >10 seconds or requiring heavy setup",
-    "git_repo: Tests that need a real git repository (integration gate)",
-    "adversarial: Adversarial/security tests for 0.13.0",
-    "doctrine: Doctrine package smoke and integration checks",
-    "distribution: Tests requiring wheel install (slow, no SPEC_KITTY_TEMPLATE_ROOT)",
-    "e2e: End-to-end tests exercising the full CLI workflow (may be slow)",
-    "platform_darwin: macOS-specific tests (case-insensitive FS)",
-    "platform_linux: Linux-specific tests",
-    "requires_symlinks: Tests that need symlink support",
-    "no_readiness_stub: Opt out of any autouse readiness-stub fixture so the test exercises its own readiness wiring (mission 082 tracker CLI tests)",
-    "architectural: Architectural enforcement tests (layer rules, import-graph invariants)",
-    "contract: Consumer-surface contract tests pinning external public APIs (e.g. spec-kitty-events / spec-kitty-tracker) the CLI depends on",
-    "windows_ci: Tests that require a native win32 environment — auto-skipped on non-Windows",
-    "live_adapter: tests that call the real Anthropic API (deselect with -m 'not live_adapter')",
-    "non_sandbox: test is structurally incompatible with mutmut's forked sandbox (subprocess CLI calls, whole-codebase AST walks, wheel builds, or repo-state fixtures outside also_copy). See ADR 2026-04-20-1",
-    "flaky: test passes in the main suite but is non-deterministic under mutmut or forking pipelines. Each entry is debt — root-cause and remove. See ADR 2026-04-20-1",
-    "stress: Concurrency/load stress tests — run separately from the fast suite (mission-coordination-branch-atomic-event-log WP09)",
-    "regression: Issue-pinned regression tests that exercise an exact reproduction sequence end-to-end (mission-coordination-branch-atomic-event-log WP09)",
-    "unit: Pure unit-level tests for a single module (legacy marker used by coordination tests)",
-]
+# NOTE: pytest configuration (markers, pythonpath, testpaths, addopts) lives in
+# `pytest.ini`, which is the single source of truth. pytest reads only one
+# config file and prefers `pytest.ini` over `[tool.pytest.ini_options]` when
+# both are present, so a markers list here would be dead config that silently
+# drifts from the live registry (this block had already drifted ~10 markers out
+# of sync — see Priivacy-ai/spec-kitty#2034). Do not reintroduce
+# `[tool.pytest.ini_options]` here; add markers to `pytest.ini` instead. This
+# invariant is guarded by
+# tests/architectural/test_marker_registry_single_source.py.
 
 [tool.ruff]
 target-version = "py311"
