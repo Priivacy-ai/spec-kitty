@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.utils import write_text_within_directory
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
     ManagedSkillManifest,
@@ -145,10 +146,22 @@ def repair_skills(
                 try:
                     dest.symlink_to(global_source)
                 except OSError:
-                    _copy_skill_file(source_path, dest, entry.skill_name, entry.source_file)
+                    _copy_skill_file(
+                        source_path,
+                        dest,
+                        entry.skill_name,
+                        entry.source_file,
+                        project_root=project_path,
+                    )
                     delivery_mode = "copy"
             else:
-                _copy_skill_file(source_path, dest, entry.skill_name, entry.source_file)
+                _copy_skill_file(
+                    source_path,
+                    dest,
+                    entry.skill_name,
+                    entry.source_file,
+                    project_root=project_path,
+                )
             new_hash = compute_content_hash(dest)
             # Update the manifest entry with the new hash
             manifest.add_entry(
@@ -164,7 +177,7 @@ def repair_skills(
                 )
             )
             repaired += 1
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             logger.warning("Failed to repair %s: %s", entry.installed_path, exc)
             failed += 1
 
@@ -259,11 +272,23 @@ def _project_managed_path(project_path: Path, installed_path: str) -> Path:
     return normalized
 
 
-def _copy_skill_file(source: Path, dest: Path, skill_name: str, source_file: str) -> None:
+def _copy_skill_file(
+    source: Path,
+    dest: Path,
+    skill_name: str,
+    source_file: str,
+    *,
+    project_root: Path,
+) -> None:
     """Copy a managed skill file, normalizing SKILL.md frontmatter if needed."""
     if source_file == SKILL_MANIFEST_FILENAME:
         content = source.read_text(encoding="utf-8")
-        dest.write_text(ensure_skill_frontmatter(content, skill_name), encoding="utf-8")
+        write_text_within_directory(
+            dest,
+            ensure_skill_frontmatter(content, skill_name),
+            root=project_root,
+            encoding="utf-8",
+        )
         return
     shutil.copy2(source, dest)
 

@@ -33,6 +33,8 @@ from dataclasses import dataclass
 from fnmatch import fnmatch
 from pathlib import Path
 
+from specify_cli.core.utils import write_text_within_directory
+
 logger = logging.getLogger(__name__)
 
 # All possible skill root directories from agent-path-matrix.md.
@@ -155,9 +157,31 @@ def apply_text_replacements(
         content = content.replace(old, new)
 
     if content != original:
-        file_path.write_text(content, encoding="utf-8")
+        trusted_root = _infer_project_root(file_path) or file_path.parent
+        try:
+            write_text_within_directory(
+                file_path,
+                content,
+                root=trusted_root,
+                encoding="utf-8",
+            )
+        except ValueError:
+            return False
         return True
     return False
+
+
+def _infer_project_root(file_path: Path) -> Path | None:
+    """Infer the repo root for a discovered skill file when possible."""
+    parts = file_path.parts
+    for skill_root in SKILL_ROOTS:
+        root_parts = tuple(Path(skill_root).parts)
+        for idx in range(len(parts) - len(root_parts) + 1):
+            if tuple(parts[idx : idx + len(root_parts)]) == root_parts:
+                if idx == 0:
+                    return None
+                return Path(*parts[:idx])
+    return None
 
 
 def exclude_paths(*patterns: str) -> Callable[[Path], bool]:

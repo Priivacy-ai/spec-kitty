@@ -24,6 +24,7 @@ registers, enables, or publishes the bundle.
 from __future__ import annotations
 
 import os
+import stat
 from pathlib import Path
 
 # Placeholder that is substituted at build time with the real package version.
@@ -75,8 +76,8 @@ echo Install spec-kitty: pip install spec-kitty-cli
 EXIT /B 1
 """
 
-# Octal mode bits for a local executable file: rwx------ (700).
-_EXECUTABLE_MODE = 0o700
+# Owner-only mode bits for a local executable file: rwx------.
+_OWNER_ONLY_EXECUTABLE_MODE = stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR
 
 
 def write_wrappers(bundle_dir: Path, version: str) -> None:
@@ -110,7 +111,7 @@ def write_wrappers(bundle_dir: Path, version: str) -> None:
         _BASH_WRAPPER_TEMPLATE.format(version=version),
         encoding="utf-8",
     )
-    os.chmod(bash_path, _EXECUTABLE_MODE)
+    os.chmod(bash_path, _OWNER_ONLY_EXECUTABLE_MODE)
 
     cmd_path = bin_dir / "spec-kitty-wrapper.cmd"
     cmd_path.write_text(

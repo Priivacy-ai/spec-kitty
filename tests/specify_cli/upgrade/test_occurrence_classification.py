@@ -138,6 +138,21 @@ class TestApplyTextReplacementsWithFilter:
         )
         assert result is False
 
+    def test_refuses_writing_through_external_symlink(self, tmp_path: Path) -> None:
+        external = tmp_path.parent / f"{tmp_path.name}-outside.txt"
+        external.write_text("hello world\n", encoding="utf-8")
+        linked = tmp_path / ".claude" / "skills" / "sample" / "SKILL.md"
+        linked.parent.mkdir(parents=True, exist_ok=True)
+        linked.symlink_to(external)
+
+        result = apply_text_replacements(
+            linked,
+            [("hello", "goodbye")],
+        )
+
+        assert result is False
+        assert external.read_text(encoding="utf-8") == "hello world\n"
+
 
 # ---------------------------------------------------------------------------
 # T025 — exclude_paths factory

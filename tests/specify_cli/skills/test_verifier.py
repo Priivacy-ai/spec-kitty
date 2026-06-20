@@ -338,3 +338,27 @@ def test_repair_rejects_path_traversal(tmp_path: Path) -> None:
     repaired, failed = repair_skills(tmp_path, verify_result, registry)
     assert repaired == 0
     assert failed == 1
+
+
+def test_repair_refuses_external_symlink_target_for_skill_manifest(tmp_path: Path) -> None:
+    """Repair must not follow a project-local symlink out to an external file."""
+    canonical = "# spec-kitty\n\nCanonical content.\n"
+    registry = _create_registry(tmp_path, "spec-kitty", {"SKILL.md": canonical})
+    external = tmp_path.parent / f"{tmp_path.name}-external-skill.md"
+    external.write_text("outside\n", encoding="utf-8")
+    dest = tmp_path / ".claude" / "skills" / "spec-kitty" / "SKILL.md"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.symlink_to(external)
+
+    entry = _make_entry(
+        skill_name="spec-kitty",
+        source_file="SKILL.md",
+        installed_path=".claude/skills/spec-kitty/SKILL.md",
+        content_hash="sha256:stale",
+    )
+    verify_result = VerifyResult(ok=False, missing=[entry])
+
+    repaired, failed = repair_skills(tmp_path, verify_result, registry)
+    assert repaired == 0
+    assert failed == 1
+    assert external.read_text(encoding="utf-8") == "outside\n"
