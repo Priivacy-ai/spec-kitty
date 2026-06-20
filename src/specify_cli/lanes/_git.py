@@ -54,3 +54,34 @@ def ref_exists(repo_root: Path, ref: str, *, env: dict[str, str] | None = None) 
     can resolve it to a real commit (via the ``<ref>^{commit}`` peel form).
     """
     return _verify(repo_root, f"{ref}^{{commit}}", env=env)
+
+
+def lane_has_commit_beyond_base(
+    worktree_path: Path, base_ref: str, *, env: dict[str, str] | None = None
+) -> bool:
+    """Return True iff the lane worktree has at least one commit beyond ``base_ref``.
+
+    Counts ``git rev-list --count <base_ref>..HEAD`` inside ``worktree_path``.
+    This is the shared "an implementation commit exists" check behind the
+    ``for_review`` commit gate — used by both ``agent tasks move-task`` and the
+    orchestrator-api ``transition`` so the two enforce identical semantics (an
+    external orchestrator could otherwise reach ``done`` with nothing committed).
+
+    Fail-closed: a non-resolvable base/HEAD (returncode != 0) or unparseable
+    count returns ``False``, so the gate rejects and asks for a commit rather
+    than waving through an unverifiable worktree.
+    """
+    result = subprocess.run(
+        ["git", "rev-list", "--count", f"{base_ref}..HEAD"],
+        cwd=str(worktree_path),
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    if result.returncode != 0:
+        return False
+    try:
+        return int(result.stdout.strip()) > 0
+    except ValueError:
+        return False

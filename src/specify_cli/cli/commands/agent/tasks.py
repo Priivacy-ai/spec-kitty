@@ -46,6 +46,7 @@ from specify_cli.status import SNAPSHOT_FILENAME
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.lanes.persistence import MissingLanesError
+from specify_cli.lanes._git import lane_has_commit_beyond_base
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.core.paths import get_status_read_root
@@ -1580,22 +1581,10 @@ def _validate_ready_for_review(
                 guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
                 return False, guidance
 
-            # Check if branch has commits beyond base (use actual base, not target)
-            result = subprocess.run(
-                ["git", "rev-list", "--count", f"{check_branch}..HEAD"],
-                cwd=worktree_path,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                check=False,
-            )
-            commit_count = 0
-            if result.returncode == 0 and result.stdout.strip():
-                with contextlib.suppress(ValueError):
-                    commit_count = int(result.stdout.strip())
-
-            if commit_count == 0:
+            # Check if branch has commits beyond base (use actual base, not target).
+            # Shared with the orchestrator-api for_review gate so both enforce the
+            # same "an implementation commit exists" rule.
+            if not lane_has_commit_beyond_base(worktree_path, check_branch):
                 guidance.append("No implementation commits on lane branch!")
                 guidance.append("")
                 guidance.append(f"The worktree exists but has no commits beyond {check_branch}.")

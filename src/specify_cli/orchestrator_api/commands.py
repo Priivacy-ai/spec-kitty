@@ -812,6 +812,106 @@ def list_ready(
 # ── Command 4: start-implementation ────────────────────────────────────────
 
 
+@dataclass(frozen=True)
+class _StartWorkspace:
+    """The workspace resolved for a WP at start-implementation.
+
+    For a lane WP (lanes.json present and the WP is assigned to a lane) the lane
+    fields are populated and ``workspace_path`` is a real lane worktree. For a
+    legacy / non-lane mission (no lanes.json, or a planning-artifact WP) the lane
+    fields stay ``None`` and ``workspace_path`` is the historical bare path —
+    preserving the prior contract for those missions.
+    """
+
+    workspace_path: str
+    lane_id: str | None = None
+    lane_branch: str | None = None
+    lane_base_ref: str | None = None
+
+
+def _lane_base_ref(main_repo_root: Path, mission: str, manifest: object) -> str:
+    """The ref the lane was parented on — the base for the commit gate.
+
+    Uses the canonical placement authority (the same one the native review gate
+    consults): the coordination branch under coord topology, else the mission's
+    target branch. Falls back to the manifest's mission_branch if placement
+    cannot be resolved.
+    """
+    from mission_runtime import ActionContextError, resolve_placement_only
+
+    try:
+        return str(resolve_placement_only(main_repo_root, mission).ref)
+    except ActionContextError:
+        return str(getattr(manifest, "mission_branch", "") or "")
+
+
+def _resolve_start_workspace(
+    cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str
+) -> _StartWorkspace:
+    """Resolve (allocating if needed) the workspace for ``wp``.
+
+    When the mission has a lanes manifest and ``wp`` is assigned to a lane, this
+    mirrors spec-kitty's native implement flow: it allocates (or reuses) the lane
+    worktree on its lane branch — parented on the coordination branch, with
+    approved dependency-lane tips merged into the base — so ``merge-mission`` has
+    a real lane branch to integrate and dependent WPs see their dependencies'
+    code. Idempotent: re-invoking reuses the existing lane worktree and re-merges
+    any newly-approved dependency tips.
+
+    When there is no lanes.json (legacy / non-lane missions) or ``wp`` is not in
+    any lane (planning-artifact WP), it falls back to the historical bare-path
+    behaviour so those missions keep working unchanged.
+
+    A genuine allocation failure for a lane WP (dirty reuse, dependency-merge
+    conflict) fails closed with ``LANE_ALLOCATION_FAILED``.
+    """
+    from specify_cli.lanes.branch_naming import worktree_path as _wt_path
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    manifest = read_lanes_json(mission_dir)
+    lane = manifest.lane_for_wp(wp) if manifest is not None else None
+    if manifest is None or lane is None:
+        # Legacy WP-based worktree form ({mission}-{wp}, no mid8): the seam's
+        # mission_id=None grammar reproduces the historical name byte-identically.
+        return _StartWorkspace(
+            workspace_path=str(_wt_path(main_repo_root, mission, mission_id=None, lane_id=wp))
+        )
+
+    from specify_cli.lanes.worktree_allocator import (
+        DependencyLaneMergeConflictError,
+        DirtyWorktreeError,
+        LaneNotFoundError,
+        allocate_lane_worktree,
+    )
+
+    try:
+        worktree_path, lane_branch = allocate_lane_worktree(
+            repo_root=main_repo_root,
+            mission_slug=mission,
+            wp_id=wp,
+            lanes_manifest=manifest,
+        )
+    except (
+        LaneNotFoundError,
+        DirtyWorktreeError,
+        DependencyLaneMergeConflictError,
+        RuntimeError,
+    ) as exc:
+        _fail(
+            cmd,
+            "LANE_ALLOCATION_FAILED",
+            str(exc),
+            {**_mission_identity_payload(mission_dir), "wp_id": wp},
+        )
+
+    return _StartWorkspace(
+        workspace_path=str(worktree_path),
+        lane_id=lane.lane_id,
+        lane_branch=lane_branch,
+        lane_base_ref=_lane_base_ref(main_repo_root, mission, manifest),
+    )
+
+
 @app.command(name="start-implementation")
 def start_implementation(
     mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
@@ -882,15 +982,12 @@ def start_implementation(
     from specify_cli.status import TransitionError
     from specify_cli.status import WorkPackageClaimConflict, start_implementation_status
 
-    from specify_cli.lanes.branch_naming import worktree_path as _wt_path
-
-    # Legacy WP-based worktree form ({mission}-{wp}, no mid8): the seam's
-    # mission_id=None grammar is ``{slug}-{lane_id}`` — pass the WP id in the
-    # lane_id slot so the historical ``f"{mission}-{wp}"`` name is reproduced
-    # byte-identically (FR-005), routing the COMPOSE rather than guessing inline.
-    workspace_path = str(
-        _wt_path(main_repo_root, mission, mission_id=None, lane_id=wp)
-    )
+    # Allocate the REAL lane worktree (lane branch + dependency-lane tips merged)
+    # when the mission has lanes, mirroring the native implement flow so
+    # merge-mission has a lane branch to integrate. Legacy / non-lane missions
+    # keep the historical bare path.
+    start_ws = _resolve_start_workspace(cmd, main_repo_root, mission, mission_dir, wp)
+    workspace_path = start_ws.workspace_path
     prompt_path = str(wp_path)
 
     try:
@@ -932,6 +1029,12 @@ def start_implementation(
         "policy_metadata_recorded": True,
         "no_op": start_result.no_op,
     }
+    if start_ws.lane_id is not None:
+        # Lane WP: carry the lane identity the orchestrator needs to commit and
+        # gate. Omitted for legacy / non-lane missions (unchanged contract).
+        data["lane_id"] = start_ws.lane_id
+        data["lane_branch"] = start_ws.lane_branch
+        data["lane_base_ref"] = start_ws.lane_base_ref
     validate_outbound_payload(data, "orchestrator_api")
     envelope = make_envelope(
         command=cmd,
@@ -1031,6 +1134,48 @@ def start_review(
 # ── Command 6: transition ──────────────────────────────────────────────────
 
 
+def _enforce_for_review_commit_gate(
+    cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str, force: bool
+) -> None:
+    """Reject an in_progress->for_review transition that has no commit on the lane.
+
+    Applies the SAME "commits beyond base" check the native ``move-task`` gate
+    uses (``lanes._git.lane_has_commit_beyond_base``) so "done without a commit"
+    is impossible through the orchestrator-api too. No-ops when bypassed
+    (``--force``) or when the gate does not apply (no lanes.json, or the WP is
+    not in any lane — e.g. planning-artifact WPs). Fails closed with
+    ``TRANSITION_REJECTED`` when a lane WP has no implementation commit.
+    """
+    if force:
+        return
+    from specify_cli.lanes._git import lane_has_commit_beyond_base
+    from specify_cli.lanes.branch_naming import lane_branch_name
+    from specify_cli.lanes.branch_naming import worktree_path as _wt_path
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    manifest = read_lanes_json(mission_dir)
+    if manifest is None:
+        return
+    lane = manifest.lane_for_wp(wp)
+    if lane is None:
+        return
+
+    worktree = _wt_path(main_repo_root, mission, mission_id=None, lane_id=lane.lane_id)
+    base_ref = _lane_base_ref(main_repo_root, mission, manifest)
+    if not worktree.exists() or not lane_has_commit_beyond_base(worktree, base_ref):
+        _fail(
+            cmd,
+            "TRANSITION_REJECTED",
+            (
+                f"{wp} cannot move to for_review: no implementation commit on lane "
+                f"{lane.lane_id} ({lane_branch_name(mission, lane.lane_id)}) beyond "
+                f"{base_ref}. Commit the work in the lane worktree first, or pass "
+                "--force if there is genuinely nothing to commit."
+            ),
+            {**_mission_identity_payload(mission_dir), "wp_id": wp, "lane_id": lane.lane_id},
+        )
+
+
 @app.command(name="transition")
 def transition(
     mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
@@ -1098,6 +1243,9 @@ def transition(
     if wp_path is None:
         _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
         return
+
+    if to_lane == Lane.FOR_REVIEW:
+        _enforce_for_review_commit_gate(cmd, main_repo_root, mission, mission_dir, wp, force)
 
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
     from specify_cli.status import TransitionError
