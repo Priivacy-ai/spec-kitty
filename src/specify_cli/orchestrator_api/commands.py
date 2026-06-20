@@ -1082,6 +1082,47 @@ def transition(
 # ── Command 7: append-history ──────────────────────────────────────────────
 
 
+def _resolve_history_commit_args(
+    main_repo_root: Path, mission: str, mission_dir: Path
+) -> tuple[Path, CommitTarget]:
+    """Resolve (worktree_root, target) for committing a WP prompt-file edit.
+
+    The WP prompt file is a planning artifact, so it commits to the same place
+    status events do — the canonical target from ``resolve_placement_only``.
+
+    Under coordination topology that target is the per-mission coordination
+    branch, and the file physically lives in the coordination worktree. It must
+    therefore be committed from that worktree: staging a
+    ``.worktrees/<mission>-coord/...`` path from the primary checkout is exactly
+    what trips ``SAFE_COMMIT_PATH_POLICY``. ``mission_dir`` already resolves to
+    ``<worktree_root>/kitty-specs/<mission>`` for whichever topology is active,
+    so its grandparent is the worktree the file lives in — the coordination
+    worktree under coord topology, the primary checkout otherwise.
+
+    For flat/flattened (or unresolvable) missions the prior behaviour is kept:
+    commit from the primary checkout on its current branch.
+    """
+    from mission_runtime import ActionContextError, resolve_placement_only
+
+    try:
+        placement = resolve_placement_only(main_repo_root, mission)
+    except ActionContextError:
+        placement = None
+
+    if placement is not None and placement.kind is CommitTargetKind.COORDINATION:
+        coord_worktree_root = mission_dir.parent.parent
+        return coord_worktree_root, placement
+
+    current_branch = subprocess.check_output(
+        ["git", "-C", str(main_repo_root), "branch", "--show-current"],
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        stderr=subprocess.PIPE,
+    ).strip()
+    return main_repo_root, CommitTarget(ref=current_branch, kind=CommitTargetKind.PRIMARY)
+
+
 @app.command(name="append-history")
 def append_history(
     mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
@@ -1116,17 +1157,13 @@ def append_history(
     try:
         wp_path.write_text(build_document(fm, new_body, padding), encoding="utf-8")
 
-        current_branch = subprocess.check_output(
-            ["git", "-C", str(main_repo_root), "branch", "--show-current"],
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            stderr=subprocess.PIPE,
-        ).strip()
+        commit_worktree_root, commit_target = _resolve_history_commit_args(
+            main_repo_root, mission, mission_dir
+        )
         safe_commit(
             repo_root=main_repo_root,
-            worktree_root=main_repo_root,
-            target=CommitTarget(ref=current_branch, kind=CommitTargetKind.PRIMARY),
+            worktree_root=commit_worktree_root,
+            target=commit_target,
             message=f"hist: append activity log entry for {mission}/{wp}",
             paths=(wp_path,),
         )
