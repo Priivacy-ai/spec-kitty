@@ -1,0 +1,16 @@
+{
+  "baseline_merge_commit": "8bc66481e5a2d268a94be46e4f82dccefaca96a5",
+  "created_at": "2026-06-20T14:20:17.403461+00:00",
+  "friendly_name": "Read-Side Surface-Resolver Adoption",
+  "mission_id": "01KVJPEQKTT1M5V6A5B74ZB92M",
+  "mission_number": 145,
+  "mission_slug": "read-side-surface-resolver-adoption-01KVJPEQ",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Mission 01KVGCE8 unified the surface-selection resolver, but the operator read CLIs still bypass it for bare-slug handles against coord-topology missions, leaving the read/write desync (#2007) open on the read path. This mission adopts the canonical resolver across all read commands behind one guarded seam and adds a selection-authority guard so the bypass class cannot recur.",
+  "purpose_tldr": "Route every operator read command through the one canonical surface resolver so a bare-slug handle never silently reads a stale split-brain surface.",
+  "slug": "read-side-surface-resolver-adoption-01KVJPEQ",
+  "target_branch": "feat/read-side-surface-resolver-adoption",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-20T16:21:57.049651+00:00"
+}
