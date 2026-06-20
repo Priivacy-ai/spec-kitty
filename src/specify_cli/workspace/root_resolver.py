@@ -18,7 +18,6 @@ the single resolver.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import (
@@ -63,9 +62,11 @@ def resolve_status_lock_root(feature_dir: Path, repo_root: Path | None = None) -
         # behaviour for this case.
         return feature_dir
     try:
-        # cast: follow_imports=skip makes resolve_canonical_root return Any at the
-        # specify_cli.* boundary; the real signature returns Path (core/paths.py).
-        return cast(Path, resolve_canonical_root(feature_dir))
+        # Annotated local: under follow_imports=skip resolve_canonical_root is Any
+        # (assigning Any to a Path target is allowed); under whole-tree --strict it
+        # is already Path (core/paths.py) — neither path is a redundant cast.
+        resolved_root: Path = resolve_canonical_root(feature_dir)
+        return resolved_root
     except WorkspaceRootNotFound:
         # Non-git tree (e.g. ad-hoc test dirs that have a kitty-specs/ ancestor
         # but no actual git repo): fall back to the historical parent.parent shape
@@ -133,14 +134,15 @@ def canonicalize_feature_dir(feature_dir: Path) -> Path:
                 return feature_dir
 
     try:
-        # cast: follow_imports=skip makes resolve_canonical_root return Any at the
-        # specify_cli.* boundary; the real signature returns Path (core/paths.py).
-        canonical_root = cast(Path, resolve_canonical_root(feature_dir))
+        # Annotated local: Any under follow_imports=skip, Path under whole-tree
+        # --strict; assigning either to a Path target is valid with no redundant cast.
+        canonical_root: Path = resolve_canonical_root(feature_dir)
     except WorkspaceRootNotFound:
         return feature_dir
 
-    # cast: KITTY_SPECS_DIR is Any under follow_imports=skip; Path / Any = Any.
-    canonical_feature_dir = cast(Path, canonical_root / KITTY_SPECS_DIR / feature_dir.name)
+    # Annotated local: KITTY_SPECS_DIR is Any under follow_imports=skip; the explicit
+    # Path annotation pins the result without a cast mypy flags as redundant whole-tree.
+    canonical_feature_dir: Path = canonical_root / KITTY_SPECS_DIR / feature_dir.name
     # Only redirect when the canonical path actually exists; this keeps
     # tests that build ad-hoc feature dirs outside a git repo working.
     if canonical_feature_dir.exists():

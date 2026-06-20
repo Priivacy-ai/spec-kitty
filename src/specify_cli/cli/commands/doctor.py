@@ -28,6 +28,7 @@ from specify_cli.runtime.home import get_kittify_home
 if TYPE_CHECKING:
     from specify_cli.audit import Severity
     from specify_cli.compat.doctor import ShimRegistryReport
+    from specify_cli.migration.mission_state import TeamspaceDryRunReport
     from specify_cli.skills.command_installer import VerifyReport
     from specify_cli.skills.manifest_store import SkillsManifest
 
@@ -2019,18 +2020,20 @@ def _run_teamspace_dry_run_mode(
 
     def _pretty_dry_run(r: object) -> None:
         # The runtime contract for pretty_renderer types the report as ``object`` so the
-        # same callable shape works for the repair and dry-run reports; attribute access
-        # below is structurally valid on the concrete TeamSpaceDryRunReport type.
-        if r.valid:  # type: ignore[attr-defined]
+        # same callable shape works for the repair and dry-run reports; narrow to the
+        # concrete dry-run report once so attribute access is statically valid (and free
+        # of per-line ignores that the override-free strict run would otherwise flag).
+        report = cast("TeamspaceDryRunReport", r)
+        if report.valid:
             console.print(
                 "[green]TeamSpace dry-run valid[/green] "
-                f"({r.envelope_count} envelopes, "  # type: ignore[attr-defined]
-                f"spec-kitty-events {r.events_package_version})."
+                f"({report.envelope_count} envelopes, "
+                f"spec-kitty-events {report.events_package_version})."
             )
         else:
             console.print(
                 "[red]TeamSpace dry-run failed[/red] "
-                f"({len(r.errors)} validation errors)."  # type: ignore[attr-defined]
+                f"({len(report.errors)} validation errors)."
             )
 
     _emit_mission_state(dry_run_report, json_output=json_output, pretty_renderer=_pretty_dry_run)
