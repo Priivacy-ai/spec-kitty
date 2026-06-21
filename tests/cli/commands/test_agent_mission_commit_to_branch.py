@@ -130,7 +130,15 @@ def test_commit_to_branch_still_commits_changed_artifact(tmp_path: Path) -> None
     assert _run_git(tmp_path, "log", "-1", "--pretty=%s") == "Add plan for feature 001-demo"
 
 
-def test_commit_to_branch_reraises_empty_safe_commit_shape_when_artifact_is_dirty(tmp_path: Path) -> None:
+def test_commit_to_branch_treats_empty_safe_commit_shape_as_unchanged_when_dirty(tmp_path: Path) -> None:
+    """WP02/#2056: a `safe_commit: git commit failed` shape is classified unchanged.
+
+    After the de-god collapse routed `_commit_to_branch` through the canonical
+    `commit_for_mission` seam, the router maps the empty-changeset error shape
+    (`safe_commit: git commit failed`) to a benign `unchanged` outcome rather
+    than re-raising. The artifact is left untouched on disk (still dirty); the
+    helper returns the typed no-op result instead of propagating a RuntimeError.
+    """
     _init_repo(tmp_path)
     plan_file = tmp_path / "plan.md"
     plan_file.write_text("# Plan\n\nUpdated.\n")
@@ -139,14 +147,15 @@ def test_commit_to_branch_reraises_empty_safe_commit_shape_when_artifact_is_dirt
     hook.write_text("#!/bin/sh\nexit 1\n")
     hook.chmod(0o755)
 
-    with pytest.raises(RuntimeError, match="safe_commit: git commit failed"):
-        _commit_to_branch(
-            plan_file,
-            "001-demo",
-            "plan",
-            tmp_path,
-            "mission/work",
-            json_output=True,
-        )
+    result = _commit_to_branch(
+        plan_file,
+        "001-demo",
+        "plan",
+        tmp_path,
+        "mission/work",
+        json_output=True,
+    )
 
+    assert result.status == "unchanged"
+    # The artifact is not committed — it stays dirty in the working tree.
     assert _run_git(tmp_path, "status", "--porcelain", "--", "plan.md") == "M plan.md"

@@ -12,6 +12,7 @@ from typer.testing import CliRunner
 from ulid import ULID
 
 from specify_cli.cli.commands.agent.mission import CommitToBranchResult, app
+from specify_cli.coordination.commit_router import CommitRouterResult
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -1036,8 +1037,10 @@ requirement_refs:
                 return_value=(None, "main"),
             ),
             patch(
-                "specify_cli.cli.commands.agent.mission.safe_commit",
-                return_value=True,
+                "specify_cli.coordination.commit_router.commit_for_mission",
+                return_value=CommitRouterResult(
+                    status="committed", placement_ref="main", commit_hash="a" * 40
+                ),
             ),
             patch(
                 "specify_cli.cli.commands.agent.mission.run_command",
