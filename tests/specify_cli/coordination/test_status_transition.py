@@ -366,6 +366,31 @@ def _seed_coord_branch_without_meta(repo: Path) -> StatusEvent:
     return seed_event
 
 
+def test_transactional_batch_rejects_request_without_any_feature_dir(repo: Path) -> None:
+    """A batch whose first request carries neither feature_dir nor mission_dir fails fast.
+
+    The transactional batch needs a folder to anchor identity + the same-WP
+    consistency check on. If the first request supplies neither ``feature_dir``
+    nor ``mission_dir`` (both default to ``None``) it must raise ``TypeError``
+    before touching git — alongside the existing missing-slug / missing-wp guard
+    — rather than crashing deeper in identity resolution.
+    """
+    request = TransitionRequest(
+        feature_dir=None,
+        mission_dir=None,
+        mission_slug=MISSION_SLUG,
+        wp_id="WP01",
+        to_lane="claimed",
+        actor="no-feature-dir-test",
+        repo_root=repo,
+    )
+
+    with pytest.raises(
+        TypeError, match="requires feature_dir/mission_dir, mission_slug, and wp_id"
+    ):
+        emit_status_transition_batch_transactional([request], sync_dossier=False)
+
+
 def test_transactional_batch_same_wp_under_coord_topology_does_not_misfire(
     repo: Path,
     mock_saas_sink: Any,
