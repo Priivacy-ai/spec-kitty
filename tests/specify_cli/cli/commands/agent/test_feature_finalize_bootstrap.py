@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
+from specify_cli.coordination.commit_router import CommitRouterResult
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.status.bootstrap import BootstrapResult
 
@@ -101,14 +102,33 @@ def _make_bootstrap_result(
 
 # Common set of patches needed to run finalize_tasks without real git/filesystem
 def _common_patches(tmp_path: Path, mission_slug: str = "060-test-feature"):
-    """Return a dict of patch targets -> mock values for finalize_tasks."""
+    """Return a dict of patch targets -> mock values for finalize_tasks.
+
+    WP02 (T027): finalize_tasks now routes git commits through
+    ``commit_for_mission`` rather than calling ``safe_commit`` directly.  The
+    old ``{MODULE}.safe_commit`` patch is kept for backward-compatibility (some
+    tests override it as a spy), but the canonical commit boundary is now
+    ``specify_cli.coordination.commit_router.commit_for_mission`` which must
+    also be patched here to prevent real git I/O in unit tests.
+    ``ProtectionPolicy.resolve`` is patched in the router so it does not attempt
+    real git operations against ``tmp_path``.
+    """
     feature_dir = tmp_path / "kitty-specs" / mission_slug
+    _fake_commit_result = CommitRouterResult(
+        status="committed",
+        placement_ref="main",
+        commit_hash="abc1234",
+    )
     return {
         f"{MODULE}.locate_project_root": MagicMock(return_value=tmp_path),
         f"{MODULE}._find_feature_directory": MagicMock(return_value=feature_dir),
         f"{MODULE}._resolve_planning_branch": MagicMock(return_value="main"),
         f"{MODULE}._ensure_branch_checked_out": MagicMock(),
         f"{MODULE}.safe_commit": MagicMock(return_value=True),
+        # WP02 / T027: commit_for_mission is the new canonical commit seam.
+        "specify_cli.coordination.commit_router.commit_for_mission": MagicMock(
+            return_value=_fake_commit_result
+        ),
         f"{MODULE}.run_command": MagicMock(return_value=(0, "abc1234", "")),
         f"{CORE_MODULE}.emit_mission_created": MagicMock(),
         f"{MODULE}.emit_wp_created": MagicMock(),
@@ -761,7 +781,12 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
         pytest.fail("No JSON error payload found for incomplete WP coverage")
 
     def test_finalize_commits_status_and_snapshot_artifacts(self, tmp_path: Path) -> None:
-        """Commit set must include bootstrap status artifacts and dossier snapshot."""
+        """Commit set must include bootstrap status artifacts and dossier snapshot.
+
+        WP02 (T027): commits now route through ``commit_for_mission``.  The spy
+        is attached to that boundary (capturing the ``files`` kwarg tuple) rather
+        than to the old ``safe_commit`` direct call.
+        """
         mission_slug = "060-test-feature"
         feature_dir = _setup_feature(tmp_path, mission_slug)
         captured_files: list[Path] = []
@@ -781,10 +806,15 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
             (feature_path / "status.json").write_text("{}", encoding="utf-8")
             return _make_bootstrap_result()
 
-        def _safe_commit_spy(**kwargs: object) -> bool:
+        def _commit_for_mission_spy(**kwargs: object) -> CommitRouterResult:
             nonlocal captured_files
-            captured_files = list(kwargs["paths"])  # type: ignore[index]
-            return True
+            # ``files`` is a tuple[Path, ...] keyword arg.
+            captured_files = list(kwargs.get("files", ()))  # type: ignore[arg-type]
+            return CommitRouterResult(
+                status="committed",
+                placement_ref="main",
+                commit_hash="abc1234",
+            )
 
         def _write_snapshot(feature_path: Path, slug: str, repo_root: Path) -> None:
             assert feature_path == feature_dir
@@ -796,7 +826,8 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
 
         patches = _common_patches(tmp_path, mission_slug)
         patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(side_effect=_bootstrap_side_effect)
-        patches[f"{MODULE}.safe_commit"] = _safe_commit_spy
+        # Override the common commit_for_mission mock with the spy.
+        patches["specify_cli.coordination.commit_router.commit_for_mission"] = _commit_for_mission_spy
 
         from specify_cli.cli.commands.agent.mission import finalize_tasks
 

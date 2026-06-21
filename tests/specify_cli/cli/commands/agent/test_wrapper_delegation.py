@@ -168,7 +168,9 @@ def test_agent_mission_merge_passes_explicit_wrapper_defaults(
 @patch("specify_cli.cli.commands.agent.workflow.get_main_repo_root")
 @patch("specify_cli.cli.commands.agent.workflow.locate_project_root")
 @patch("specify_cli.cli.commands.agent.workflow._find_mission_slug")
+@patch("specify_cli.cli.commands.agent.workflow.is_worktree_context", return_value=False)
 def test_agent_action_implement_passes_acknowledge_default_false(
+    mock_is_worktree_context: MagicMock,
     mock_find_mission_slug: MagicMock,
     mock_locate_project_root: MagicMock,
     mock_get_main_repo_root: MagicMock,
@@ -179,7 +181,12 @@ def test_agent_action_implement_passes_acknowledge_default_false(
     mock_top_level_implement: MagicMock,
     tmp_path: Path,
 ) -> None:
-    """Wrapper must forward the default acknowledgement value explicitly."""
+    """Wrapper must forward the default acknowledgement value explicitly.
+
+    ``is_worktree_context`` is patched to ``False`` so this test is invariant
+    to the CWD — it may run inside a worktree during development without the
+    workspace-creation guard firing before delegation.
+    """
 
     mock_find_mission_slug.return_value = "demo-mission"
     mock_locate_project_root.return_value = tmp_path
@@ -213,7 +220,9 @@ def test_agent_action_implement_passes_acknowledge_default_false(
 @patch("specify_cli.cli.commands.agent.workflow.get_main_repo_root")
 @patch("specify_cli.cli.commands.agent.workflow.locate_project_root")
 @patch("specify_cli.cli.commands.agent.workflow._find_mission_slug")
+@patch("specify_cli.cli.commands.agent.workflow.is_worktree_context", return_value=False)
 def test_agent_action_implement_passes_acknowledge_true_when_requested(
+    mock_is_worktree_context: MagicMock,
     mock_find_mission_slug: MagicMock,
     mock_locate_project_root: MagicMock,
     mock_get_main_repo_root: MagicMock,
@@ -224,7 +233,12 @@ def test_agent_action_implement_passes_acknowledge_true_when_requested(
     mock_top_level_implement: MagicMock,
     tmp_path: Path,
 ) -> None:
-    """Wrapper must forward the explicit acknowledgement override."""
+    """Wrapper must forward the explicit acknowledgement override.
+
+    ``is_worktree_context`` is patched to ``False`` so this test is invariant
+    to the CWD — it may run inside a worktree during development without the
+    workspace-creation guard firing before delegation.
+    """
 
     mock_find_mission_slug.return_value = "demo-mission"
     mock_locate_project_root.return_value = tmp_path
