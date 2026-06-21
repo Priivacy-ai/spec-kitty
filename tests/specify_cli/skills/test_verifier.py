@@ -370,3 +370,23 @@ def test_repair_rejects_path_traversal(tmp_path: Path) -> None:
     repaired, failed = repair_skills(tmp_path, verify_result, registry)
     assert repaired == 0
     assert failed == 1
+
+
+def test_repair_rejects_unsafe_skill_name_for_global_sync(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Repair refuses global-root sync when the manifest skill name is unsafe."""
+    registry = _create_registry(tmp_path, "..evil", {"SKILL.md": "# bad\n"})
+    entry = _make_entry(
+        skill_name="..evil",
+        installed_path=".claude/skills/..evil/SKILL.md",
+        delivery_mode="symlink",
+    )
+    verify_result = VerifyResult(ok=False, missing=[entry])
+    monkeypatch.setattr(
+        "specify_cli.skills.verifier.get_primary_global_skill_root",
+        lambda _agent_key: tmp_path / "_global",
+    )
+
+    repaired, failed = repair_skills(tmp_path, verify_result, registry)
+
+    assert repaired == 0
+    assert failed == 1

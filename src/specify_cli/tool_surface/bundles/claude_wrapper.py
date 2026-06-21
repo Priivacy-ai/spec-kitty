@@ -24,6 +24,7 @@ registers, enables, or publishes the bundle.
 from __future__ import annotations
 
 import os
+import stat
 from pathlib import Path
 
 from specify_cli.core.utils import ensure_within_directory
@@ -77,8 +78,8 @@ echo Install spec-kitty: pip install spec-kitty-cli
 EXIT /B 1
 """
 
-# Octal mode bits for a local executable file: rwx------ (700).
-_EXECUTABLE_MODE = 0o700
+# Owner-only rwx bits for a local executable file.
+_EXECUTABLE_MODE = stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR
 
 
 def _write_owner_only_executable(path: Path, content: str) -> None:

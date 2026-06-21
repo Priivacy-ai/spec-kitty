@@ -233,7 +233,7 @@ def _detect_persisted_drift(tm: Any, in_memory: Any) -> bool:
     """
     try:
         persisted = tm._storage.read()
-    except Exception:  # noqa: BLE001 — storage boundary: downgrade read errors to inconclusive (False) rather than fatal, so a transient backend hiccup never trips F-006
+    except Exception:  # noqa: BLE001 - storage boundary: downgrade read errors to inconclusive (False) rather than fatal, so a transient backend hiccup never trips F-006
         # Storage read failure makes drift check inconclusive rather than fatal.
         return False
     if persisted is None:
