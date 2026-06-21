@@ -61,3 +61,6 @@ Use the shared template at [`../../adr-template.md`](../../adr-template.md).
 | 2026-06-07 | [Session presence: multi-harness architecture](2026-06-07-1-session-presence-multi-harness-architecture.md) |
 | 2026-06-07 | [WP lane FSM, the `genesis` lane, and the finalize event-log clobber fix](2026-06-07-1-wp-lane-fsm-genesis-and-finalize-clobber.md) |
 | 2026-06-11 | [Op as a first-class execution artifact (Mission ⟷ Op ⟷ ad-hoc)](2026-06-11-1-op-as-first-class-execution-artifact.md) |
+| 2026-06-15 | [Marketplace descriptor vs publish](2026-06-15-1-marketplace-descriptor-vs-publish.md) |
+| 2026-06-19 | [A materialized-but-empty coordination worktree hard-fails — no silent primary fallback](2026-06-19-1-coord-empty-surface-fallback.md) |
+| 2026-06-21 | [Protected-branch configuration is a standalone boundary-resolved value, not a nested context sub-object](2026-06-21-1-protected-branch-config-boundary-resolved-value.md) |
