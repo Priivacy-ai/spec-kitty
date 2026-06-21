@@ -1,0 +1,30 @@
+{
+  "accept_commit": "3eff62b48f7bbdbb91dee59b0dc5bd3070a70de8",
+  "acceptance_history": [
+    {
+      "accept_commit": "3eff62b48f7bbdbb91dee59b0dc5bd3070a70de8",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-21T11:23:52.625138+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "563e75982da92f632296819951d5b03416a5ccdb"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-21T11:23:52.625138+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "563e75982da92f632296819951d5b03416a5ccdb",
+  "baseline_merge_commit": "7b92334292721ab0715af22b149c68ed5c4e8448",
+  "created_at": "2026-06-21T05:45:41.690696+00:00",
+  "friendly_name": "Specify on Protected Primary + Branch-Protection Config",
+  "mission_id": "01KVMBD6HTBP3A9Y5T4EQ80RA9",
+  "mission_number": 146,
+  "mission_slug": "specify-protected-primary-coherence-01KVMBD6",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "On a repository whose primary branch is named main or master, the sanctioned /spec-kitty.specify flow deadlocks: mission creation makes a coordination branch but no worktree, and the spec commit is refused on the protected primary with no materialized place to land. This mission makes the specify commit boundary work on any primary by (a) letting repository owners declare which branches are protected in .kittify config, resolved once at the system boundary and propagated inward via a configuration context object, and (b) materializing the coordination worktree on demand at the spec commit boundary for the protected case, so operators are never deadlocked and core logic stops re-reading git/filesystem state for the protection decision.",
+  "purpose_tldr": "Let operators complete /spec-kitty.specify on a main/master primary, with owner-configurable branch protection resolved once at the system boundary.",
+  "slug": "specify-protected-primary-coherence-01KVMBD6",
+  "target_branch": "fix/specify-protected-primary-coherence",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-21T07:43:21.588851+00:00"
+}
