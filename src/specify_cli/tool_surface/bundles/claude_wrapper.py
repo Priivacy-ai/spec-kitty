@@ -26,6 +26,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from specify_cli.core.utils import ensure_within_directory
+
 # Placeholder that is substituted at build time with the real package version.
 _VERSION_PLACEHOLDER = "__SPEC_KITTY_VERSION__"
 
@@ -119,13 +121,13 @@ def write_wrappers(bundle_dir: Path, version: str) -> None:
     bin_dir = bundle_dir / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
 
-    bash_path = bin_dir / "spec-kitty-wrapper"
+    bash_path = ensure_within_directory(bin_dir / "spec-kitty-wrapper", bundle_dir)
     _write_owner_only_executable(
         bash_path,
         _BASH_WRAPPER_TEMPLATE.format(version=version),
     )
 
-    cmd_path = bin_dir / "spec-kitty-wrapper.cmd"
+    cmd_path = ensure_within_directory(bin_dir / "spec-kitty-wrapper.cmd", bundle_dir)
     cmd_path.write_text(
         _CMD_WRAPPER_TEMPLATE.format(version=version),
         encoding="utf-8",
