@@ -222,9 +222,24 @@ def test_record_analysis_persists_outer_wrapper_format_under_coord(tmp_path, mon
     assert frontmatter.get("schema") != "analysis-findings/v1"
 
 
-def test_record_analysis_refuses_protected_primary_when_invoked_from_coord_worktree(tmp_path, monkeypatch):
-    """The #1989 primary write target must be branch-safe, not just the coord CWD."""
+def test_record_analysis_materialise_then_retry_when_invoked_from_coord_worktree(tmp_path, monkeypatch):
+    """T014 / WP02: protected primary + coord topology → materialize-then-retry (exit 0).
+
+    Previously (#1989 guard) the command refused with PROTECTED_BRANCH_REFUSED (exit 1).
+    After T014 the protected-branch check is removed from the preflight and the commit
+    is routed through commit_for_mission (materialise-then-retry). The report must be
+    written to the PRIMARY checkout; the subsequent commit attempt is best-effort and
+    may no-op in a test environment (no real coordination worktree wired to a branch).
+
+    Invariants:
+    - exit_code == 0 (no refusal on protected primary).
+    - Report written to primary checkout (not refused before write).
+    - commit_for_mission is called (the router was invoked).
+    - The old PROTECTED_BRANCH_REFUSED error_code is NOT emitted.
+    """
     from mission_runtime import CommitTarget, CommitTargetKind
+    from unittest.mock import patch
+    from specify_cli.coordination.commit_router import CommitRouterResult
 
     slug = "sample-01KS"
     repo_root = tmp_path / "repo"
@@ -284,11 +299,38 @@ def test_record_analysis_refuses_protected_primary_when_invoked_from_coord_workt
         lambda payload: emitted.update(payload),
     )
 
-    result = CliRunner().invoke(
-        mission_app,
-        ["record-analysis", "--mission", slug, "--input-file", str(input_file), "--json"],
-    )
+    # Stub commit_for_mission so it reports a successful commit without needing
+    # a real git environment. The stub proves the router was called (materialize-
+    # then-retry path) and returns a committed result.
+    # NOTE: commit_for_mission is imported locally inside the mission.py function,
+    # so we patch it at the canonical module level (specify_cli.coordination.commit_router)
+    # so that any `from specify_cli.coordination.commit_router import commit_for_mission`
+    # inside the record_analysis body picks up the stub.
+    commit_router_calls: list[dict] = []
 
-    assert result.exit_code == 1
-    assert emitted["error_code"] == "PROTECTED_BRANCH_REFUSED"
-    assert not (primary_feature_dir / ANALYSIS_REPORT_FILENAME).exists()
+    def _fake_commit_for_mission(**kwargs):
+        commit_router_calls.append(kwargs)
+        return CommitRouterResult(
+            status="committed",
+            placement_ref="kitty/sample-01KS",
+            commit_hash="abcdef1234567",
+        )
+
+    with patch(
+        "specify_cli.coordination.commit_router.commit_for_mission",
+        side_effect=_fake_commit_for_mission,
+    ):
+        result = CliRunner().invoke(
+            mission_app,
+            ["record-analysis", "--mission", slug, "--input-file", str(input_file), "--json"],
+        )
+
+    # T014 invariant: no refusal — the command succeeds.
+    assert result.exit_code == 0, f"Expected exit 0; got {result.exit_code}. Output: {result.output!r}; emitted: {emitted!r}"
+    assert emitted.get("success") is True
+    # The report must be written to the PRIMARY checkout.
+    assert (primary_feature_dir / ANALYSIS_REPORT_FILENAME).exists()
+    # The old refused-error must NOT appear.
+    assert emitted.get("error_code") != "PROTECTED_BRANCH_REFUSED"
+    # The commit router must have been called (materialize-then-retry path active).
+    assert len(commit_router_calls) >= 1, "commit_for_mission was not called — materialize-then-retry path not wired"

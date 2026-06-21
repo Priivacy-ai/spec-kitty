@@ -379,9 +379,14 @@ def test_commit_to_branch_no_op_wrong_surface_surfaces_typed_diagnostic(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """No-op against the WRONG surface (artifact NOT present at the resolved
-    placement) surfaces a typed diagnostic, not a silent ``commit_created: None``."""
-    from specify_cli.cli.commands.agent import mission as mission_mod
+    placement) surfaces a typed diagnostic, not a silent ``commit_created: None``.
+
+    WP02 / T027: _commit_to_branch now delegates to commit_for_mission.
+    Patched at the commit_for_mission boundary (the new canonical seam) to
+    return a no_op_wrong_surface result — the wrapper propagates it correctly.
+    """
     from specify_cli.cli.commands.agent.mission import _commit_to_branch
+    from specify_cli.coordination.commit_router import CommitRouterResult
 
     _init_repo(tmp_path)
     _git(tmp_path, "checkout", "-b", "feat/commit-wrongsurface")
@@ -390,12 +395,26 @@ def test_commit_to_branch_no_op_wrong_surface_surfaces_typed_diagnostic(
     plan_file = mission_dir / "plan.md"
     # Deliberately DO NOT create the file on disk → it is absent at the placement.
 
-    from mission_runtime import CommitTarget, CommitTargetKind
+    wrong_surface_result = CommitRouterResult(
+        status="no_op_wrong_surface",
+        placement_ref="feat/commit-wrongsurface",
+        diagnostic=(
+            "plan artifact is not present at the resolved commit placement "
+            "(feat/commit-wrongsurface, worktree=/tmp/...); the commit would no-op against "
+            "the wrong surface and was not created."
+        ),
+    )
 
     monkeypatch.setattr(
-        mission_mod,
-        "_resolve_planning_placement",
-        lambda _root, _slug: CommitTarget(ref="feat/commit-wrongsurface", kind=CommitTargetKind.FLATTENED),
+        "specify_cli.coordination.commit_router.commit_for_mission",
+        lambda **_kw: wrong_surface_result,
+    )
+    # ProtectionPolicy.resolve must not attempt real git I/O.
+    from specify_cli.git.protection_policy import ProtectionPolicy
+
+    monkeypatch.setattr(
+        "specify_cli.git.protection_policy.ProtectionPolicy.resolve",
+        classmethod(lambda cls, _root: ProtectionPolicy(frozenset(), False)),
     )
 
     result = _commit_to_branch(
