@@ -1,11 +1,84 @@
-# ADR: A Materialized-but-Empty Coordination Worktree Hard-Fails — No Silent Primary Fallback
+# ADR: Coordination-Worktree-Empty Surface Policy — Loud Primary Fallback (amended)
 
-**Date**: 2026-06-19
-**Status**: Accepted
-**Mission**: `single-mission-surface-resolver-01KVGCE8` (WP06)
+**Date**: 2026-06-19 (original) · **Amended**: 2026-06-21
+**Status**: Amended — the original *hard-fail* decision is **superseded** by the
+**loud primary fallback** decision in the Amendment section below.
+**Mission**: `single-mission-surface-resolver-01KVGCE8` (WP06, original) ·
+`mission-surface-resolver-safety-net-01KVN754` (amendment)
 **Requirement**: FR-006 (`#1716`), bound to FR-001/FR-007 (single resolver)
 **Module**: `src/specify_cli/coordination/surface_resolver.py`
 **Tracker**: [#1716](https://github.com/Priivacy-ai/spec-kitty/issues/1716)
+
+---
+
+## Amendment (2026-06-21 — mission `mission-surface-resolver-safety-net-01KVN754`)
+
+### Amended decision: coord-empty → **loud primary fallback** (not hard-fail)
+
+A **materialized-but-empty coordination worktree NO LONGER hard-fails.** The
+canonical resolver (`resolve_status_surface_with_anchor`) **falls back to the
+primary checkout surface and proceeds**, but emits a **clear, structured,
+operator-visible warning** at the fallback point. The read keeps working
+(liveness); the staleness risk is made **loud and observable** so a human
+operator or an orchestrating agent can intervene (flatten or repair) if desired.
+
+### Why the reversal
+
+The original decision (hard-fail, below) rejected primary fallback because it was
+**silent** — a silent stale read is the `#1589`/`#1821` split-brain bug. That
+rejection rationale is sound *for a silent fallback*. This amendment keeps the
+fallback but **removes the silence**: the operator-visible warning names the
+stale-surface risk and **both** recovery commands (collapse/flatten **or**
+`spec-kitty agent worktree repair --mission <slug>`). The split-brain hazard the
+original feared is a *silent* divergence; a *logged* divergence the operator can
+see and act on is a different, acceptable trade.
+
+Decisive field evidence: under the strict hard-fail, mission `01KVFTFV` was
+forced to **flatten** (drop `coordination_branch`) just to make progress — i.e.
+the ADR's own recovery path (a) became the routine workaround. A policy whose
+escape hatch is the normal path is too strict for the operational reality;
+liveness-with-observability is the better default.
+
+### Scope of the amendment (binding)
+
+- **Applies to the coord-empty state only**, at the canonical resolver seam.
+- **Unchanged — still resolve primary (benign):** the create→first-write window
+  and the no-coord topology (these were never hard-fails).
+- **Unchanged — still HARD-FAIL (do not soften):** the **coord-deleted** state
+  (`CoordinationBranchDeleted`, `#1848`). A declared-but-deleted coord branch
+  carrying unmerged status is **data loss**, categorically worse than staleness;
+  it must keep failing closed. Loud fallback is for *empty*, never for *deleted*.
+- The warning is **non-silent and load-bearing**: a test asserts it fires on the
+  coord-empty path (the fallback must be observable, not best-effort).
+
+### Consequence for the typed-error surface
+
+Coord-empty stops raising `CoordinationWorktreeEmpty`/`STATUS_READ_PATH_NOT_FOUND`
+and instead returns the primary dir + warning. Callers that previously caught the
+coord-empty hard-fail now receive a successful (warned) read. The genuinely
+unresolvable / ambiguous cases still raise their typed errors (this mission's
+typed-error-pass-through requirement is unaffected — coord-empty simply leaves
+the error class).
+
+> The original 2026-06-19 decision and its alternatives are retained below as
+> historical record. Where they say "hard-fail on coord-empty", read "superseded
+> by the loud primary fallback above".
+
+### Stale reference correction (2026-06-21)
+
+The original "Read-CLI residual (#2046)" consequence below is **stale**: #2046 is
+**closed and fixed**. The operator read CLIs (`agent tasks status`,
+`agent context`, `agent mission`, `decision`) now route through the unified
+`missions/_read_path_resolver.resolve_handle_to_read_path`, which consumes the
+`resolve_declared_mid8` cascade — so a bare-slug handle against a coord-topology
+mission resolves its mid8 instead of silently reading primary. (`acceptance`
+deliberately retains the lower `resolve_mission_read_path` with an explicit mid8
+— the lenient acceptance-lane carve-out, blessed by the FR-010 selection guard.)
+Mission `mission-surface-resolver-safety-net-01KVN754` does not re-do that work;
+its differential characterization test **verifies and regression-guards** the
+fix (the four `coord-*/bare` cells).
+
+---
 
 ## Context
 
