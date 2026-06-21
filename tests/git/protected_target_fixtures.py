@@ -1,6 +1,7 @@
 """Reusable real-git-repo fixtures for the commit-guard protection suite.
 
 Mission ``tooling-stability-guard-coherence-01KTRC04`` (WP01, ATDD-first).
+Updated WP01 of ``specify-protected-primary-coherence-01KVMBD6`` (T005 self-check).
 
 These fixtures build **real** git repositories under ``tmp_path`` — no mocks,
 following 01KTPKST's mutation-tested precedent. Two things matter for the
@@ -12,8 +13,17 @@ commit guard to actually engage (debugger-debby RISK-5):
    entirely*. The :class:`ProtectedTargetRepo` fixture asserts this precondition
    on itself so a future refactor cannot silently neuter the suite.
 2. The target branch must be in the guard's protected set. With no remote
-   configured, ``protected_branches()`` resolves to ``{"main", "master"}``, so a
+   configured, the resolved set is ``{"main", "master"}`` (NFR-004), so a
    repo whose HEAD is ``main`` is protected hermetically (no network).
+
+T005 verification (WP01 / NFR-004)
+-----------------------------------
+``assert_target_is_protected`` calls ``commit_helpers.protected_branches()``
+which is now a public delegate of
+``ProtectionPolicy.resolve(repo_path).protected_branches`` (T002).  The
+delegate is intentionally kept public so this fixture and the FR-010 allowlist
+continue to work unchanged.  A repo with no ``protection:`` config block yields
+``{main, master}`` — byte-identical to the pre-WP01 behaviour (NFR-004).
 
 The :class:`ProtectedTargetRepo` dataclass is exported for WP05's SC-6 e2e
 (``specify -> plan -> tasks -> finalize-tasks`` on a protected target). It is

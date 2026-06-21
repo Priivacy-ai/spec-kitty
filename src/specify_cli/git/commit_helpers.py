@@ -82,6 +82,7 @@ from typing import Any
 from mission_runtime import CommitTarget, CommitTargetKind
 from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, ProtectionState
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
+from specify_cli.git.protection_policy import ProtectionPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -483,11 +484,18 @@ def _remote_default_branch(repo_path: Path) -> str | None:
 
 
 def protected_branches(repo_path: Path) -> frozenset[str]:
-    """Return branch names that must not receive Spec Kitty status commits."""
-    branches = set(_DEFAULT_PROTECTED_BRANCHES)
-    if default_branch := _remote_default_branch(repo_path):
-        branches.add(default_branch)
-    return frozenset(branches)
+    """Return branch names that must not receive Spec Kitty status commits.
+
+    This function is a **public delegate** of :meth:`ProtectionPolicy.resolve`
+    (T002 / FR-010).  All resolution logic now lives in
+    :mod:`specify_cli.git.protection_policy`; this entry point is kept public
+    because :mod:`tests.git.protected_target_fixtures` and the FR-010 import
+    allowlist depend on it as the one sanctioned delegate.
+
+    For production code that needs the full policy (including the hatch state),
+    prefer :class:`ProtectionPolicy` directly.
+    """
+    return ProtectionPolicy.resolve(repo_path).protected_branches
 
 
 def _operator_protected_branch_hatch_active() -> bool:
@@ -511,24 +519,28 @@ def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -
     ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` set to a truthy value
     (``1``, ``true``, ``yes``) — opt-in for solo-fork operators who own ``main``.
 
+    The hatch and the protection set are resolved together via
+    :meth:`ProtectionPolicy.resolve` (SF-1 / T002 / FR-009).  WP04's
+    ``accept``/``acceptance`` callsites reach protected-branch provenance through
+    this function without touching ``commit_helpers`` directly.
+
     The former ``SPEC_KITTY_TEST_MODE`` privilege hatch was a deleted bypass
     channel (WP03 / FR-008): tests now assert ``GuardCapability.TEST_MODE`` at
     the call site instead of ambient env. Privilege is asserted-at-the-surface,
     never derived from environment.
     """
-    if _operator_protected_branch_hatch_active():
-        return
-
     repo_path = repo_path.resolve()
     if not _is_spec_kitty_project(repo_path):
         return
 
     branch = _current_branch(repo_path)
-    if branch and branch in protected_branches(repo_path):
-        raise ProtectedBranchCommitError(
-            f"Refusing to {operation} on protected branch '{branch}' in {repo_path}. "
-            "Run status commit operations from the mission lane branch/worktree."
-        )
+    if branch:
+        policy = ProtectionPolicy.resolve(repo_path)
+        if policy.is_protected(branch):
+            raise ProtectedBranchCommitError(
+                f"Refusing to {operation} on protected branch '{branch}' in {repo_path}. "
+                "Run status commit operations from the mission lane branch/worktree."
+            )
 
 
 def assert_staging_area_matches_expected(
@@ -1009,14 +1021,19 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
     #
     #    The ONE retained operator escape hatch
     #    (``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` — solo-fork operators
-    #    who own ``main``) acts on the ``ProtectionState`` INPUT, exactly as it
-    #    does in ``assert_not_protected_branch``: the operator declares the
-    #    branch unprotected for this repo. ``evaluate`` itself never reads the
-    #    environment — agent privilege stays capability-asserted (FR-008);
-    #    this is the documented operator-level declaration, not an agent channel.
-    is_protected = not _operator_protected_branch_hatch_active() and (
-        destination_ref in protected_branches(repo_root)
-        or destination_ref in protected_branches(worktree_root)
+    #    who own ``main``) is now folded into ``ProtectionPolicy.is_protected``
+    #    (WP01 / T002): the policy is resolved at this boundary (FR-007) and the
+    #    hatch + set membership are decided together.  ``evaluate`` itself never
+    #    reads the environment — agent privilege stays capability-asserted (FR-008).
+    #
+    #    Both repo_root and worktree_root are checked (the worktree may be on a
+    #    different branch when run from inside a lane worktree).  Each resolves
+    #    its own ProtectionPolicy so the correct config is read for each root.
+    _policy_repo = ProtectionPolicy.resolve(repo_root)
+    _policy_wt = ProtectionPolicy.resolve(worktree_root)
+    is_protected = (
+        _policy_repo.is_protected(destination_ref)
+        or _policy_wt.is_protected(destination_ref)
     )
     guard_verdict: GuardVerdict = evaluate_commit_guard(
         target,
