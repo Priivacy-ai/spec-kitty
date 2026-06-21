@@ -6,8 +6,13 @@ materializes the ``-coord`` worktree). A *read* in that window must resolve to
 the primary checkout — where the bootstrap status events live — rather than
 fail closed because the declared coord worktree does not exist yet.
 
-The fail-closed behaviour is still correct once the worktree IS materialized but
-its mission dir is empty/stale (the genuine hazard the original guard targeted).
+WP05 (coord-empty Option B / #1716 / FR-003): the materialized-but-empty coord
+worktree NO LONGER fails closed. The read-path leg adopts WP01's
+``probe_coord_state`` (the same discriminator the canonical surface uses) and
+returns the PRIMARY checkout for the EMPTY state — matching the surface's loud
+primary fallback — so every resolver leg converges. The genuine data-loss hazard
+(the declared coord branch DELETED from git) is the case that still hard-fails,
+now via the distinct ``CoordinationBranchDeleted`` type.
 """
 
 from __future__ import annotations
@@ -18,8 +23,7 @@ import pytest
 
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.missions._read_path_resolver import (
-    StatusReadPathNotFound,
-    resolve_mission_read_path,
+    _resolve_mission_read_path as resolve_mission_read_path,
 )
 
 pytestmark = [pytest.mark.fast]
@@ -55,13 +59,23 @@ def test_resolve_reads_primary_when_coord_declared_but_not_materialized(
     )
 
 
-def test_resolve_fails_closed_when_coord_worktree_materialized_but_empty(
+def test_resolve_reads_primary_when_coord_worktree_materialized_but_empty(
     tmp_path: Path,
 ) -> None:
-    """Guard preserved: a materialized coord worktree lacking the mission dir is
-    the genuine stale/empty hazard and must still fail closed."""
-    _seed_primary(tmp_path)
+    """WP05 Option B (inverted #1718 guard): a materialized coord worktree lacking
+    the mission dir (the EMPTY state) now resolves to PRIMARY, not fail-closed.
+
+    WP05 folds the read-path coord discriminator onto WP01's ``probe_coord_state``
+    so the read path agrees with the canonical surface, which returns PRIMARY (with
+    a loud warning) for coord-empty. The genuine data-loss hazard is the DELETED
+    branch (covered by the equivalence gate's coord-deleted cells), NOT the EMPTY
+    worktree — reading primary in the EMPTY window is the operator-decided Option B.
+    """
+    primary = _seed_primary(tmp_path)
     coord_root = CoordinationWorkspace.worktree_path(tmp_path, _SLUG, _MID8)
     coord_root.mkdir(parents=True)  # worktree materialized, but no mission dir inside
-    with pytest.raises(StatusReadPathNotFound):
-        resolve_mission_read_path(tmp_path, _SLUG, _MID8, require_exists=True)
+    resolved = resolve_mission_read_path(tmp_path, _SLUG, _MID8, require_exists=True)
+    assert resolved == primary, (
+        "a materialized-but-empty coord worktree must resolve to the PRIMARY "
+        "checkout (WP05 Option B / #1716), not fail closed"
+    )

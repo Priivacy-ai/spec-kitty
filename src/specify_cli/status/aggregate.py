@@ -44,6 +44,10 @@ if TYPE_CHECKING:
 
 _logger = logging.getLogger(__name__)
 
+# The mission ``meta.json`` filename (Sonar S1192 — the literal appears in several
+# path joins across the meta-resolution helpers; hoisted to a single constant).
+_META_JSON_FILENAME = "meta.json"
+
 
 def _enrich_transition_request(
     request: TransitionRequest,  # noqa: F821
@@ -333,6 +337,7 @@ class MissionStatus:
         input classes.
         """
         from specify_cli.coordination.surface_resolver import (
+            CoordinationBranchDeleted,
             is_under_worktrees_segment,
         )
         from specify_cli.missions._read_path_resolver import (
@@ -346,6 +351,15 @@ class MissionStatus:
                 mission_slug,
                 on_missing_meta=primary_candidate,
             )
+        except CoordinationBranchDeleted:
+            # ORDERING (WP05 / T023, FR-005): ``CoordinationBranchDeleted`` SUBCLASSES
+            # ``StatusReadPathNotFound``, so this more-specific handler MUST sit
+            # AHEAD of the re-wrap below — otherwise the subclass is swallowed and
+            # re-spelled ``CoordAuthorityUnavailable``, masking the data-loss
+            # verdict. A deleted coord branch carrying unmerged status is data loss,
+            # not a degraded read: propagate the loud, distinct error VERBATIM so
+            # every leg converges on ``COORDINATION_BRANCH_DELETED`` (#1848).
+            raise
         except StatusReadPathNotFound as exc:
             raise CoordAuthorityUnavailable(
                 mission_slug=mission_slug,
@@ -490,7 +504,7 @@ class MissionStatus:
         # raw-bypass; FR-008). The slug is also grammar-checked one level up at
         # the ``load`` boundary.
         primary_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
-        raw_meta = primary_dir / "meta.json"
+        raw_meta = primary_dir / _META_JSON_FILENAME
         # Pure-path happy path: when the literal slug already names an existing
         # primary mission dir with ``meta.json``, it IS the canonical directory
         # — no handle disambiguation (and no git-registry read) is needed. This
@@ -510,17 +524,19 @@ class MissionStatus:
         bare_dir_name = resolve_bare_modern_mission_dir_name(repo_root, mission_slug)
         if bare_dir_name is not None:
             composed_primary = primary_feature_dir_for_mission(repo_root, bare_dir_name)
-            composed_meta = composed_primary / "meta.json"
+            composed_meta = composed_primary / _META_JSON_FILENAME
             if composed_meta.exists():
                 return composed_meta, composed_primary
         try:
             candidate_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
         except StatusReadPathNotFound:
-            # Fail-closed coordination window (coord worktree root
-            # materialized, mission dir absent): defer to the literal primary
-            # candidate so ``_resolve_read_dir`` surfaces the established
-            # CoordAuthorityUnavailable shape for EVERY handle form instead of
-            # leaking the resolver's raw StatusReadPathNotFound here.
+            # Fail-closed coordination window (coord worktree root materialized,
+            # mission dir absent): defer to the literal primary candidate so the
+            # downstream ``_resolve_read_dir`` surfaces the converged fail-closed
+            # type for EVERY handle form — ``CoordinationBranchDeleted`` when the
+            # declared coord branch is gone (#1848, propagated verbatim), else
+            # ``CoordAuthorityUnavailable`` — instead of leaking the resolver's raw
+            # ``StatusReadPathNotFound`` here.
             return raw_meta, primary_dir
         # ``candidate_feature_dir_for_mission`` resolved a canonical mission
         # directory NAME; re-anchor the meta read on the primary checkout under
@@ -531,7 +547,7 @@ class MissionStatus:
         canonical_primary = primary_feature_dir_for_mission(
             repo_root, candidate_dir.name
         )
-        return canonical_primary / "meta.json", canonical_primary
+        return canonical_primary / _META_JSON_FILENAME, canonical_primary
 
     # ------------------------------------------------------------------
     # Domain operations
@@ -733,7 +749,7 @@ class MissionStatus:
             )
             raise MissionMetadataUnavailable(
                 mission_slug=self.mission_slug,
-                meta_path=diag_primary / "meta.json",
+                meta_path=diag_primary / _META_JSON_FILENAME,
                 primary_candidate=diag_primary,
                 reason="mission_id is required to persist via BookkeepingTransaction",
             )

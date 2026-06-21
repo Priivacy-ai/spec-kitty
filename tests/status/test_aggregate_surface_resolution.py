@@ -44,7 +44,7 @@ from specify_cli.status.aggregate import (
     MissionStatus,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]  # git_repo: the coord-deleted fixtures init a real repo
 
 # Production-shaped identity: a real 26-char ULID, mid8 = first 8 chars.
 MISSION_ID = "01KVGCE8R8QJ3K5ZJ9E5008ABC"
@@ -213,19 +213,22 @@ def test_missing_mission_dir_resolves_primary_via_on_missing_meta(
     assert ms.mid8 == ""
 
 
-def test_coord_empty_is_a_separate_hard_fail_cell(tmp_path: Path) -> None:
-    """coord-empty (materialised coord worktree, no mission dir) HARD-FAILS.
+def test_coord_empty_resolves_primary_with_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """coord-empty (materialised coord worktree, no mission dir) → PRIMARY (Option B).
 
-    This is the cell that MUST stay distinct from the create-window above:
-    ``coordination_branch`` is declared AND the coord worktree root is
-    materialised, but it carries no mission dir → reading the primary would
-    expose a stale, split-brain surface, so ``load`` raises
-    :class:`CoordAuthorityUnavailable` (FR-006, WP06 owns the cross-resolver
-    error-type convergence). Asserting this here proves the re-gate removal in
-    ``_resolve_read_dir`` did NOT collapse coord-empty into the primary fallback.
+    Inverted by mission 01KVN754 WP04 (out-of-map linearized edit: this file is
+    WP05-owned, but the coord-empty cell breaks at THIS boundary). Previously the
+    aggregate hard-failed with ``CoordAuthorityUnavailable``; under the operator-
+    decided Option B (#1716/FR-003) the canonical surface returns the PRIMARY
+    checkout + a loud warning, and the aggregate inherits PRIMARY with no aggregate
+    code change. (The coord-*deleted* cell stays a hard-fail — see
+    ``test_unmaterialized_coord_create_window_resolves_primary`` and WP05.)
     """
+    import logging
+
     from specify_cli.coordination.workspace import CoordinationWorkspace
-    from specify_cli.status.aggregate import CoordAuthorityUnavailable
 
     coord_branch = f"kitty/mission-{SLUG_WITH_MID8}"
     primary_dir = tmp_path / "kitty-specs" / SLUG_WITH_MID8
@@ -238,10 +241,17 @@ def test_coord_empty_is_a_separate_hard_fail_cell(tmp_path: Path) -> None:
     coord_root = CoordinationWorkspace.worktree_path(tmp_path, SLUG_WITH_MID8, MID8)
     coord_root.mkdir(parents=True)
 
-    with pytest.raises(CoordAuthorityUnavailable) as excinfo:
-        MissionStatus.load(repo_root=tmp_path, mission_slug=SLUG_WITH_MID8)
+    with caplog.at_level(
+        logging.WARNING, logger="specify_cli.coordination.surface_resolver"
+    ):
+        ms = MissionStatus.load(repo_root=tmp_path, mission_slug=SLUG_WITH_MID8)
 
-    assert excinfo.value.mission_slug == SLUG_WITH_MID8
+    assert ms.read_dir.resolve() == primary_dir.resolve()
+    assert any(
+        r.name == "specify_cli.coordination.surface_resolver"
+        and r.levelno == logging.WARNING
+        for r in caplog.records
+    ), "coord-empty Option B must emit a logging.WARNING (no silent fallback)"
 
 
 def test_unmaterialized_coord_create_window_resolves_primary(tmp_path: Path) -> None:
@@ -269,6 +279,59 @@ def test_unmaterialized_coord_create_window_resolves_primary(tmp_path: Path) -> 
         "declared-but-unmaterialised coord must keep the primary checkout "
         "authoritative until the worktree exists (create→first-write window)"
     )
+
+
+def _init_repo(repo_root: Path) -> None:
+    """Real git repo with one commit (``_coord_branch_exists`` needs a repo)."""
+    import subprocess
+
+    def _git(*args: str) -> None:
+        subprocess.run(
+            ["git", "-C", str(repo_root), *args],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+    _git("init", "-q")
+    _git("config", "user.email", "agg@example.test")
+    _git("config", "user.name", "Aggregate Coord Deleted")
+    _git("commit", "--allow-empty", "-qm", "init")
+
+
+@pytest.mark.git_repo
+def test_coord_deleted_hard_fails_with_coordination_branch_deleted(
+    tmp_path: Path,
+) -> None:
+    """coord-deleted (declared branch gone from git, no coord worktree) → hard-fail.
+
+    WP05 (T023, #1848/FR-005): a declared ``coordination_branch`` that has been
+    DELETED from git while the coord worktree is absent is DATA LOSS, not a degraded
+    read. ``MissionStatus.load`` now propagates ``CoordinationBranchDeleted``
+    (``error_code == COORDINATION_BRANCH_DELETED``) VERBATIM — the aggregate's
+    more-specific ``except CoordinationBranchDeleted: raise`` sits AHEAD of the
+    ``StatusReadPathNotFound`` → ``CoordAuthorityUnavailable`` re-wrap, so the loud
+    data-loss verdict is no longer masked. Mutation: removing that handler (or
+    placing it after the SRPNF re-wrap) re-spells the error
+    ``CoordAuthorityUnavailable`` and this test fails.
+    """
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+
+    _init_repo(tmp_path)
+    coord_branch = f"kitty/mission-{SLUG_WITH_MID8}"
+    primary_dir = tmp_path / "kitty-specs" / SLUG_WITH_MID8
+    _write_meta(
+        primary_dir,
+        mission_id=MISSION_ID,
+        coordination_branch=coord_branch,
+    )
+    # The branch is DECLARED in meta.json but never created in git, and no coord
+    # worktree exists → the DELETED topology state.
+
+    with pytest.raises(CoordinationBranchDeleted) as excinfo:
+        MissionStatus.load(repo_root=tmp_path, mission_slug=SLUG_WITH_MID8)
+    assert excinfo.value.error_code == "COORDINATION_BRANCH_DELETED"
+    assert excinfo.value.coordination_branch == coord_branch
 
 
 # ---------------------------------------------------------------------------

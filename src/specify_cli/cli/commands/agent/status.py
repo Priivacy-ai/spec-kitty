@@ -7,7 +7,6 @@ Provides CLI access to the status emit/materialize pipeline:
 
 from __future__ import annotations
 
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 import json
 import logging
 from pathlib import Path
@@ -18,9 +17,11 @@ from rich.console import Console
 from rich.table import Table
 
 from specify_cli.cli.selector_resolution import resolve_mission_handle
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
-from specify_cli.lanes.branch_naming import mid8_from_slug
+from specify_cli.missions._read_path_resolver import (
+    candidate_feature_dir_for_mission,
+    resolve_bare_modern_mission_dir_name,
+)
 from specify_cli.status import feature_status_lock
 from specify_cli.status import EVENTS_FILENAME, EventPersistenceError, StoreError
 
@@ -34,25 +35,6 @@ app = typer.Typer(
 
 console = Console()
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
-
-
-def _resolve_bare_modern_mission_slug(repo_root: Path, raw_handle: str) -> str | None:
-    """Resolve ``human-slug`` to ``human-slug-<mid8>`` when exactly one dir exists."""
-    if mid8_from_slug(raw_handle):
-        return None
-
-    specs_dir = repo_root / KITTY_SPECS_DIR
-    if not specs_dir.is_dir():
-        return None
-
-    matches = [
-        meta_path.parent.name
-        for meta_path in sorted(specs_dir.glob(f"{raw_handle}-*/meta.json"))
-        if mid8_from_slug(meta_path.parent.name)
-    ]
-    if len(matches) != 1:
-        return None
-    return matches[0]
 
 
 def _find_mission_slug(
@@ -94,7 +76,12 @@ def _find_mission_slug(
             # handles, so the resolved directory's NAME — not the raw operator
             # handle — is the canonical mission slug downstream consumers need.
             return legacy_dir.name
-        if resolved_bare := _resolve_bare_modern_mission_slug(get_main_repo_root(repo_root), raw_handle):
+        # C6 (WP05): the bare-modern-slug resolution is the ONE shared seam in
+        # ``missions._read_path_resolver`` — the CLI consumes it rather than keeping
+        # a byte-for-byte glob clone (NFR-004 single-definition).
+        if resolved_bare := resolve_bare_modern_mission_dir_name(
+            get_main_repo_root(repo_root), raw_handle
+        ):
             return resolved_bare
         try:
             resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
@@ -143,6 +130,7 @@ def _resolve_status_surface(
     Raises:
         typer.Exit: If resolution fails
     """
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
     from specify_cli.status import CoordAuthorityUnavailable, MissionMetadataUnavailable, MissionStatus
 
     cwd = Path.cwd().resolve()
@@ -162,7 +150,11 @@ def _resolve_status_surface(
     try:
         ms = MissionStatus.load(repo_root=main_repo_root, mission_slug=mission_slug)
         feature_dir = ms.read_dir
-    except (CoordAuthorityUnavailable, MissionMetadataUnavailable) as exc:
+    # ``CoordinationBranchDeleted`` (WP05 / T025) surfaces the converged coord-
+    # deleted hard-fail (#1848 data-loss) identically to the other fail-closed
+    # boundary types; it is listed explicitly because the aggregate now propagates
+    # it VERBATIM rather than re-wrapping to ``CoordAuthorityUnavailable``.
+    except (CoordinationBranchDeleted, CoordAuthorityUnavailable, MissionMetadataUnavailable) as exc:
         _output_error(json_output, str(exc))
         raise typer.Exit(1)
 
@@ -188,6 +180,7 @@ def _resolve_mission_status_for_repo(
         typer.Exit: If the slug is invalid or the coord authority is
             unavailable / metadata cannot be trusted (fail closed).
     """
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
     from specify_cli.status import (
         CoordAuthorityUnavailable,
         InvalidMissionSlug,
@@ -197,7 +190,10 @@ def _resolve_mission_status_for_repo(
 
     try:
         return MissionStatus.load(repo_root=main_repo_root, mission_slug=mission_slug)
-    except (CoordAuthorityUnavailable, MissionMetadataUnavailable, InvalidMissionSlug) as exc:
+    # ``CoordinationBranchDeleted`` (WP05 / T025): the aggregate now propagates the
+    # converged coord-deleted hard-fail VERBATIM, so the CLI surfaces it as a clean
+    # fail-closed error (#1848) rather than letting it escape uncaught.
+    except (CoordinationBranchDeleted, CoordAuthorityUnavailable, MissionMetadataUnavailable, InvalidMissionSlug) as exc:
         _output_error(json_output, str(exc))
         raise typer.Exit(1)
 

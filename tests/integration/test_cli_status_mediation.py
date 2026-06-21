@@ -35,7 +35,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 from specify_cli.missions._read_path_resolver import (
     STATUS_READ_PATH_NOT_FOUND_CODE,
     StatusReadPathNotFound,
-    resolve_mission_read_path,
+    _resolve_mission_read_path as resolve_mission_read_path,
 )
 from specify_cli.coordination.workspace import CoordinationWorkspace
 

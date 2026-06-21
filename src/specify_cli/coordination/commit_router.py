@@ -290,7 +290,7 @@ def _stage_artifacts_in_coord_worktree(
     - Skipping worktrees-nested paths (#FR-035).
     - Residue cleanup for ``primary_paths_created_this_invocation`` (R6 / #1814).
     """
-    from specify_cli.cli.commands.merge import path_is_under_worktrees
+    from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
     from specify_cli.status import COORD_OWNED_STATUS_FILES
 
     coord_files: list[Path] = []
@@ -300,12 +300,12 @@ def _stage_artifacts_in_coord_worktree(
         if src.name in COORD_OWNED_STATUS_FILES:
             continue
         rel = src.relative_to(repo_root)
-        if path_is_under_worktrees(rel):
+        if is_under_worktrees_segment(rel):
             try:
                 coord_rel = src.resolve().relative_to(coord_worktree.resolve())
             except ValueError:
                 continue
-            if path_is_under_worktrees(coord_rel):
+            if is_under_worktrees_segment(coord_rel):
                 continue
             coord_files.append(src)
             continue

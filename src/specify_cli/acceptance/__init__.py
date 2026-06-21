@@ -589,33 +589,22 @@ def _collect_snapshot_wps(feature: str, feature_dir: Path, activity_issues: list
 def _status_read_feature_dir(repo_root: Path, feature: str, feature_dir: Path) -> Path:
     """Return canonical status read path for acceptance lane validation.
 
-    The mid8 disambiguator is derived through the ONE sanctioned cascade
-    (:func:`resolve_declared_mid8`, NFR-005/#1868: ``meta.mid8`` →
-    ``resolve_mid8(meta.mission_id)`` → ``mid8_from_slug``) rather than the
-    bespoke ``meta.mid8`` → ``mid8_from_slug`` parallel selection path (FR-002,
-    C-007). The acceptance-specific ``status_dir if status_dir.exists() else
-    feature_dir`` fallback is preserved: acceptance validation must stay lenient
-    and degrade to the primary anchor dir rather than fail-close.
+    Routes through the SINGLE guarded read-side seam
+    (:func:`resolve_handle_to_read_path`, IC-01 / FR-001): the seam owns the
+    primary-meta probe and the ONE sanctioned mid8 cascade
+    (``meta.mid8`` → ``resolve_mid8(meta.mission_id)`` → ``mid8_from_slug``,
+    NFR-005/#1868) internally, so this caller no longer derives the mid8 in
+    parallel (WP01 reroute — byte-identical: the seam derives the same mid8 and
+    forwards it to the existence-gated topology resolver with
+    ``require_exists=False``).
 
-    Subsumption note (T013): the retired body preferred ``meta.mid8`` first then
-    fell back to the blind ``mid8_from_slug(feature)`` — exactly tiers 1 and 3 of
-    the canonical cascade. Routing through ``resolve_declared_mid8`` additionally
-    inserts tier 2 (``resolve_mid8`` keyed on the declared ``meta.mission_id``,
-    #1918), so a mission whose meta carries ``mission_id`` but no explicit
-    ``mid8`` now derives the AUTHORITATIVE disambiguator instead of trusting a
-    coincidental slug tail.
+    The acceptance-specific ``status_dir if status_dir.exists() else feature_dir``
+    fallback is preserved verbatim: acceptance validation must stay LENIENT and
+    degrade to the primary anchor dir rather than fail-close.
     """
-    try:
-        meta = load_meta(feature_dir) or {}
-    except Exception:  # noqa: BLE001 — fall back to suffix detection
-        meta = {}
+    from specify_cli.missions._read_path_resolver import resolve_handle_to_read_path
 
-    from specify_cli.coordination.surface_resolver import resolve_declared_mid8
-    from specify_cli.missions._read_path_resolver import resolve_mission_read_path
-
-    mid8 = resolve_declared_mid8(meta, feature)
-
-    status_dir = resolve_mission_read_path(repo_root, feature, mid8)
+    status_dir = resolve_handle_to_read_path(repo_root, feature)
     return status_dir if status_dir.exists() else feature_dir
 
 

@@ -27,7 +27,7 @@ from specify_cli.missions._read_path_resolver import (
     MISSION_AMBIGUOUS_SELECTOR_CODE,
     MissionSelectorAmbiguous,
     candidate_feature_dir_for_mission,
-    resolve_mission_read_path,
+    _resolve_mission_read_path as resolve_mission_read_path,
 )
 
 pytestmark = [pytest.mark.fast]

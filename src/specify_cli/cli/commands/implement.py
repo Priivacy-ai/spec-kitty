@@ -307,6 +307,32 @@ def _feature_dir_status_paths(repo_root: Path, feature_dir: Path) -> list[str]:
     ]
 
 
+def _resolve_lanes_dir(repo_root: Path, mission_slug: str) -> Path:
+    """Return the directory containing ``lanes.json`` for *mission_slug*.
+
+    Prefers the coordination-worktree surface (where ``finalize-tasks``
+    commits ``lanes.json``) and falls back to the primary checkout for
+    flat/legacy missions that carry no coordination worktree.  Pure path:
+    no git subprocess calls beyond filesystem stats when the coord worktree
+    is already materialised.
+
+    Distinct from :func:`lanes.persistence.resolve_lanes_dir`, which is a
+    path-join helper (``feature_dir / lanes.json``); this function resolves
+    the *feature_dir* itself from topology.
+
+    C-LANES-1 (#1991 / FR-008): ``lanes.json`` lives on the coordination
+    branch (committed by ``finalize-tasks``; primary copy deleted after
+    staging). This extraction makes the inline
+    ``_lanes_feature_dir = _status_feature_dir`` guard unit-testable
+    without infrastructure mocks (WP03 / #2052).
+    """
+    from specify_cli.coordination.surface_resolver import (
+        resolve_status_surface_with_anchor as _resolve_surface,
+    )
+
+    return _resolve_surface(repo_root, mission_slug).read_dir
+
+
 def _print_uncommitted_planning_artifacts(files_to_commit: list[str]) -> None:
     console.print("\n[cyan]Planning artifacts not committed:[/cyan]")
     for file_path in files_to_commit:
@@ -1021,9 +1047,10 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         # branch (committed by finalize-tasks; primary copy deleted after
         # staging). Derive the lanes-dir from the same coord surface used for
         # status reads — never from ``feature_dir`` (the primary fallback dir),
-        # which is the regression this assignment prevents. Pure routing: no new
-        # authority, no new resolver — the coord seam is ``_status_feature_dir``.
-        _lanes_feature_dir: Path = _status_feature_dir
+        # which is the regression this assignment prevents.
+        # WP03 / #2052: routed through the pure extraction seam so the topology
+        # logic is unit-testable without infrastructure mocks.
+        _lanes_feature_dir: Path = _resolve_lanes_dir(repo_root, mission_slug)
 
         _wp_lanes = {
             _wp_id: _state.get("lane", Lane.GENESIS)
