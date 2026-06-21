@@ -1,16 +1,21 @@
 """#1889 decision-table tests for the surface resolver (WP03, FR-008).
 
 Pins rows R1/R2/R2'/R3/R4 of the declared-but-not-materialized coord topology
-table (data-model.md §3). R3 (declared + worktree absent + branch DELETED) is
-the net-new row this WP adds: it must fail closed with a distinct, loud,
-structured error — never a silent fallback to the primary surface.
+table (data-model.md §3). R3 (declared + worktree absent + branch DELETED) must
+fail closed with a distinct, loud, structured error — never a fallback to the
+primary surface. R3 composes with the #1848 status-transition carve-out: a
+deleted coord branch carrying unmerged status is data loss, surfaced loudly.
 
-R3 composes with the #1848 status-transition carve-out: a deleted coord branch
-carrying unmerged status is data loss, surfaced loudly, not a degraded read.
+R2' (declared + coord root materialized-but-EMPTY) was updated by mission
+01KVN754 / WP04 to **Option B**: it no longer hard-fails — it resolves the
+PRIMARY checkout and emits a loud, actionable WARNING (ADR 2026-06-19-1 amended).
+coord-EMPTY = loud primary fallback; coord-DELETED = hard-fail. The two
+fail-closed states stay distinct.
 """
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 from pathlib import Path
 
@@ -20,7 +25,6 @@ from specify_cli.coordination.surface_resolver import (
     CoordinationBranchDeleted,
     resolve_status_surface,
 )
-from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -102,21 +106,35 @@ def test_r2_declared_branch_exists_worktree_absent_composes(tmp_path: Path) -> N
 
 
 # ---------------------------------------------------------------------------
-# R2' — declared + materialized root, mission dir absent → StatusReadPathNotFound
+# R2' — declared + materialized root, mission dir absent (coord-EMPTY) →
+# Option B: PRIMARY fallback + loud warning (mission 01KVN754 / WP04; ADR
+# 2026-06-19-1 amended). The historical hard-fail here was the routine-workaround
+# trap; coord-empty now resolves primary loudly so liveness is preserved and the
+# staleness risk is observable. (coord-DELETED stays hard-fail — R3 below.)
 # ---------------------------------------------------------------------------
 
 
-def test_r2prime_materialized_root_missing_dir_fails_closed(tmp_path: Path) -> None:
+def test_r2prime_materialized_root_missing_dir_falls_back_to_primary_loudly(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     repo_root = tmp_path / "repo"
     _init_repo(repo_root)
     _git(repo_root, "branch", _COORD_BRANCH)
-    _seed_primary_meta(repo_root, coordination_branch=_COORD_BRANCH)
+    feature_dir = _seed_primary_meta(repo_root, coordination_branch=_COORD_BRANCH)
     # Coord worktree root exists but lacks the mission dir.
     coord_root = repo_root / ".worktrees" / f"{_MISSION}-{_MID8}-coord"
     coord_root.mkdir(parents=True)
 
-    with pytest.raises(StatusReadPathNotFound):
-        resolve_status_surface(repo_root, _MISSION)
+    with caplog.at_level(logging.WARNING, logger="specify_cli.coordination.surface_resolver"):
+        result = resolve_status_surface(repo_root, _MISSION)
+
+    # Option B: resolve the PRIMARY surface, do not hard-fail.
+    assert result == feature_dir / "status.events.jsonl"
+    # Loud + actionable: a WARNING names both recovery commands (NFR-003).
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert warnings, "coord-empty fallback must emit a loud WARNING"
+    message = "\n".join(r.getMessage() for r in warnings)
+    assert "repair" in message or "coordination_branch" in message
 
 
 # ---------------------------------------------------------------------------
@@ -153,23 +171,25 @@ def test_r3_never_falls_back_to_primary(tmp_path: Path) -> None:
 
 
 def test_r3_distinct_from_r2prime(tmp_path: Path) -> None:
-    """R3 (branch gone) raises CoordinationBranchDeleted; R2' (branch exists,
-    dir missing) raises the plain StatusReadPathNotFound. The two are distinct."""
+    """R3 (branch DELETED) hard-fails CoordinationBranchDeleted — data loss; R2'
+    (branch exists, coord root materialized-but-empty) resolves PRIMARY loudly
+    (Option B, mission 01KVN754). The two coord fail-closed states are distinct:
+    deleted = hard-fail, empty = loud primary fallback."""
     repo_root = tmp_path / "repo"
     _init_repo(repo_root)
-    _seed_primary_meta(repo_root, coordination_branch=_COORD_BRANCH)
+    feature_dir = _seed_primary_meta(repo_root, coordination_branch=_COORD_BRANCH)
 
-    # R3: branch absent.
+    # R3: branch absent → hard-fail (never a silent OR loud primary fallback).
     with pytest.raises(CoordinationBranchDeleted):
         resolve_status_surface(repo_root, _MISSION)
 
-    # Now create the branch + materialized-but-empty root → R2'.
+    # Now create the branch + materialized-but-empty root → R2' (coord-empty).
     _git(repo_root, "branch", _COORD_BRANCH)
     coord_root = repo_root / ".worktrees" / f"{_MISSION}-{_MID8}-coord"
     coord_root.mkdir(parents=True)
-    with pytest.raises(StatusReadPathNotFound) as excinfo:
-        resolve_status_surface(repo_root, _MISSION)
-    assert not isinstance(excinfo.value, CoordinationBranchDeleted)
+    # R2' no longer raises — Option B resolves the primary surface.
+    result = resolve_status_surface(repo_root, _MISSION)
+    assert result == feature_dir / "status.events.jsonl"
 
 
 # ---------------------------------------------------------------------------
