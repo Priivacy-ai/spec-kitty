@@ -93,7 +93,12 @@ def test_cli_merge_explicit_target_wins(coord_repo: Path) -> None:
     assert (branch, source) == ("release/x", "flag")
 
 
-def test_shared_resolver_prefers_merge_target_branch(coord_repo: Path) -> None:
+def test_resolve_merge_target_branch_explicit_target_wins(coord_repo: Path) -> None:
+    branch, source = resolve_merge_target_branch(coord_repo, MISSION_DIRNAME, "release/x")
+    assert (branch, source) == ("release/x", "flag")
+
+
+def test_resolve_merge_target_branch_prefers_merge_target_branch(coord_repo: Path) -> None:
     primary_meta = coord_repo / "kitty-specs" / MISSION_DIRNAME / "meta.json"
     data = json.loads(primary_meta.read_text(encoding="utf-8"))
     data["merge_target_branch"] = "feat/explicit-merge-target"
@@ -104,7 +109,7 @@ def test_shared_resolver_prefers_merge_target_branch(coord_repo: Path) -> None:
     assert source == "meta.json"
 
 
-def test_shared_resolver_falls_back_to_primary_when_no_mission(coord_repo: Path) -> None:
+def test_resolve_merge_target_branch_falls_back_when_no_mission(coord_repo: Path) -> None:
     branch, source = resolve_merge_target_branch(coord_repo, None, None)
     assert branch == "main"
     assert source == "primary_branch"
