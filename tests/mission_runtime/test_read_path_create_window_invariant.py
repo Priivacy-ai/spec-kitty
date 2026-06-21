@@ -307,3 +307,140 @@ class TestCreateWindowMutationGuard:
         assert resolved != coord_path, (
             f"Seam returned the coord path {coord_path!r} — #1718 regression."
         )
+
+
+# ---------------------------------------------------------------------------
+# T025 (WP07 / NFR-001 / #1718) — Create→first-write boundary: reads resolve
+# to PRIMARY; materialisation triggers only at the COMMIT boundary.
+# ---------------------------------------------------------------------------
+
+
+class TestCreateWindowCommitBoundaryNFR001:
+    """T025: NFR-001 (#1718) — materialisation happens at the commit boundary only.
+
+    The create-to-first-write window is defined as:
+      - ``mission create`` writes initial artifacts to PRIMARY (kitty-specs/<slug>/).
+      - No coord worktree exists on disk yet.
+      - A read operation MUST resolve to the PRIMARY checkout.
+      - A commit operation IS the commit boundary — materialisation occurs HERE,
+        not at read time.
+
+    This extension of T023 (create-window invariant) adds:
+    1. **Read-resolves-primary** assertion (preserved from T023): during the create
+       window, ``resolve_handle_to_read_path`` returns the primary dir (not coord).
+    2. **Commit-boundary materialisation** assertion: the first commit AFTER the
+       create window materialises the coord worktree; a read BEFORE the commit does
+       not materialise it.
+
+    The mutation guard (``resolve_status_surface_with_anchor`` vs the correct seam)
+    is tested in ``TestCreateWindowMutationGuard`` above; the NFR-001 extension is
+    orthogonal — it tests WHEN materialisation occurs, not WHICH seam is used.
+    """
+
+    def test_read_resolves_primary_before_commit_boundary(
+        self, tmp_path: Path
+    ) -> None:
+        """NFR-001: in the create window, reads resolve to PRIMARY (materialisation not triggered).
+
+        Layout:
+          kitty-specs/<slug>/                  (exists - primary, create window)
+          .worktrees/<slug>-<mid8>-coord/      (ABSENT - not yet committed to)
+
+        The read seam must return the primary dir without creating the coord worktree.
+        """
+        from specify_cli.missions._read_path_resolver import resolve_handle_to_read_path
+
+        primary_dir, coord_path = _build_declared_unmaterialised_coord(tmp_path)
+
+        # Coord worktree must be absent BEFORE the read.
+        coord_root = tmp_path / ".worktrees" / f"{_MISSION_DIR}-coord"
+        assert not coord_root.exists(), "Precondition: coord worktree absent before read."
+
+        # Read during create window.
+        resolved = resolve_handle_to_read_path(tmp_path, _BARE_SLUG)
+
+        # NFR-001 assertion 1: read returns PRIMARY (not coord).
+        assert resolved == primary_dir, (
+            f"NFR-001 (#1718): read in create window returned {resolved!r} "
+            f"instead of primary {primary_dir!r}."
+        )
+
+        # NFR-001 assertion 2: coord worktree was NOT materialised by the read.
+        assert not coord_root.exists(), (
+            "NFR-001 (#1718): read operation materialised the coord worktree - "
+            "materialisation must only occur at the COMMIT boundary, not at read time."
+        )
+
+    def test_materialisation_occurs_at_commit_boundary_not_read_time(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """NFR-001: commit_for_mission IS the commit boundary - materialisation occurs here.
+
+        We use a spy on CoordinationWorkspace.resolve to confirm:
+        1. Reading (resolve_handle_to_read_path) does NOT call CoordinationWorkspace.resolve.
+        2. Committing (commit_for_mission) DOES call CoordinationWorkspace.resolve.
+        """
+        from specify_cli.missions._read_path_resolver import resolve_handle_to_read_path
+        from specify_cli.coordination import workspace as ws_module
+        from specify_cli.coordination.commit_router import commit_for_mission
+        from specify_cli.git.protection_policy import ProtectionPolicy
+        from mission_runtime import CommitTarget, CommitTargetKind
+        from unittest.mock import patch
+
+        primary_dir, coord_path = _build_declared_unmaterialised_coord(tmp_path)
+
+        # Spy on CoordinationWorkspace.resolve.
+        materialise_calls: list[tuple[str, ...]] = []
+        _real_resolve = ws_module.CoordinationWorkspace.resolve
+
+        def _spy_resolve(repo_root: object, slug: object, mid8: object) -> object:
+            materialise_calls.append((str(repo_root), str(slug), str(mid8)))
+            return _real_resolve(repo_root, slug, mid8)
+
+        monkeypatch.setattr(
+            ws_module.CoordinationWorkspace, "resolve", staticmethod(_spy_resolve)
+        )
+        monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
+
+        # Phase 1: READ in create window - must NOT materialise.
+        resolved = resolve_handle_to_read_path(tmp_path, _BARE_SLUG)
+        assert resolved == primary_dir, f"Read returned {resolved!r}, expected primary."
+        calls_after_read = len(materialise_calls)
+        assert calls_after_read == 0, (
+            f"NFR-001: CoordinationWorkspace.resolve called {calls_after_read} time(s) "
+            f"during a READ in the create window - materialisation must NOT happen at read time."
+        )
+
+        # Phase 2: CREATE a spec artifact in the primary dir.
+        spec_path = primary_dir / "spec.md"
+        spec_path.write_text("# Spec\n\nFirst write.\n", encoding="utf-8")
+
+        # Stub resolve_placement_only to return COORDINATION so commit_for_mission
+        # actually tries to materialise (normal path on a protected primary).
+        _coord_branch = f"kitty/mission-{_MISSION_DIR}"
+
+        with patch(
+            "specify_cli.coordination.commit_router.resolve_placement_only",
+            lambda _root, _slug: CommitTarget(
+                ref=_coord_branch,
+                kind=CommitTargetKind.COORDINATION,
+            ),
+        ), patch(
+            "specify_cli.coordination.commit_router._resolve_mid8",
+            lambda _root, _slug: _MID8,
+        ):
+            # Phase 2: COMMIT boundary - materialisation MUST occur here.
+            policy = ProtectionPolicy.resolve(tmp_path)
+            commit_for_mission(
+                repo_root=tmp_path,
+                mission_slug=_BARE_SLUG,
+                files=(spec_path,),
+                message="spec: first write",
+                policy=policy,
+            )
+
+        calls_after_commit = len(materialise_calls)
+        assert calls_after_commit > 0, (
+            "NFR-001: CoordinationWorkspace.resolve was NEVER called during commit_for_mission. "
+            "Materialisation must occur at the commit boundary (not at read time)."
+        )
