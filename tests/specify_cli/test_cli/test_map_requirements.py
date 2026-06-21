@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.mission import app as feature_app
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
+from specify_cli.coordination.commit_router import CommitRouterResult
 from specify_cli.frontmatter import read_frontmatter
 
 import pytest
@@ -521,7 +522,10 @@ class TestFinalizeTasksWithFrontmatterRefs:
         "specify_cli.cli.commands.agent.mission._show_branch_context",
         return_value=(None, "main"),
     )
-    @patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True)
+    @patch(
+        "specify_cli.coordination.commit_router.commit_for_mission",
+        return_value=CommitRouterResult(status="committed", placement_ref="main", commit_hash="a" * 40),
+    )
     @patch(
         "specify_cli.cli.commands.agent.mission.run_command",
         return_value=(0, "a" * 40, ""),
@@ -576,7 +580,10 @@ class TestFinalizeTasksWithFrontmatterRefs:
         "specify_cli.cli.commands.agent.mission._show_branch_context",
         return_value=(None, "main"),
     )
-    @patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True)
+    @patch(
+        "specify_cli.coordination.commit_router.commit_for_mission",
+        return_value=CommitRouterResult(status="committed", placement_ref="main", commit_hash="a" * 40),
+    )
     @patch(
         "specify_cli.cli.commands.agent.mission.run_command",
         return_value=(0, "a" * 40, ""),

@@ -13,12 +13,23 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.mission import app
+from specify_cli.coordination.commit_router import CommitRouterResult
 
 pytestmark = pytest.mark.fast
 
 runner = CliRunner()
 
 _FAKE_SHA = "b" * 40
+
+
+def _committed_router_result() -> CommitRouterResult:
+    """The committed CommitRouterResult the planning-commit seam returns.
+
+    WP02/#2056 de-god re-routed ``_commit_to_branch`` through the canonical
+    ``commit_for_mission`` seam, so tests mock that seam (not the retired
+    ``mission.safe_commit`` shim, which is no longer on the call path).
+    """
+    return CommitRouterResult(status="committed", placement_ref="main", commit_hash=_FAKE_SHA)
 
 
 def _make_run_command(git_status_out: str = "M tasks.md"):
@@ -120,8 +131,8 @@ def _invoke_finalize_tasks(
             return_value=(None, "main"),
         ),
         patch(
-            "specify_cli.cli.commands.agent.mission.safe_commit",
-            return_value=True,
+            "specify_cli.coordination.commit_router.commit_for_mission",
+            return_value=_committed_router_result(),
         ),
         patch(
             "specify_cli.cli.commands.agent.mission.run_command",
@@ -339,8 +350,8 @@ class TestFinalizTasksWithWpsYaml:
                 return_value=(None, "main"),
             ),
             patch(
-                "specify_cli.cli.commands.agent.mission.safe_commit",
-                return_value=True,
+                "specify_cli.coordination.commit_router.commit_for_mission",
+                return_value=_committed_router_result(),
             ),
             patch(
                 "specify_cli.cli.commands.agent.mission.run_command",
