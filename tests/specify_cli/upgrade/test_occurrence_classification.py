@@ -40,7 +40,7 @@ IMPLEMENT_TEMPLATE_PATH = (
 
 @pytest.fixture()
 def sample_file(tmp_path: Path) -> Path:
-    """Create a simple text file for replacement tests."""
+    """Create a simple skill-root text file for replacement tests."""
     p = tmp_path / ".claude" / "skills" / "demo-skill" / "sample.txt"
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text("hello world\nfoo bar baz\n", encoding="utf-8")
@@ -49,9 +49,9 @@ def sample_file(tmp_path: Path) -> Path:
 
 @pytest.fixture()
 def kittify_file(tmp_path: Path) -> Path:
-    """Create a file inside a .kittify directory."""
-    d = tmp_path / ".kittify"
-    d.mkdir()
+    """Create a skill-root file inside a .kittify directory."""
+    d = tmp_path / ".claude" / "skills" / "demo-skill" / ".kittify"
+    d.mkdir(parents=True)
     p = d / "config.yaml"
     p.write_text("old_term: value\n", encoding="utf-8")
     return p
@@ -92,6 +92,15 @@ class TestApplyTextReplacementsNoFilter:
         missing = tmp_path / ".claude" / "skills" / "demo-skill" / "does_not_exist.txt"
         result = apply_text_replacements(missing, [("a", "b")])
         assert result is False
+
+    def test_rejects_non_skill_root_path(self, tmp_path: Path) -> None:
+        other = tmp_path / "outside.txt"
+        other.write_text("hello world\n", encoding="utf-8")
+
+        result = apply_text_replacements(other, [("hello", "goodbye")])
+
+        assert result is False
+        assert other.read_text(encoding="utf-8") == "hello world\n"
 
 
 class TestApplyTextReplacementsWithFilter:

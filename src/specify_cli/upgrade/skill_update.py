@@ -151,6 +151,15 @@ def apply_text_replacements(
     if context_filter is not None and not context_filter(file_path):
         return False
 
+    project_root = (
+        trusted_root.resolve() if trusted_root is not None else _project_root_for_skill_path(file_path)
+    )
+    if project_root is None:
+        # Fail-closed: the file is not under a recognized skill root, so the
+        # HOME-managed-symlink write guard cannot anchor it. Refuse to read or
+        # write through an unverified path (PR #2043 review, alphonso).
+        return False
+
     safe_file_path = ensure_within_directory(file_path, trusted_root) if trusted_root else file_path
 
     try:
@@ -163,20 +172,7 @@ def apply_text_replacements(
         content = content.replace(old, new)
 
     if content != original:
-        project_root = _project_root_for_skill_path(file_path)
-        if project_root is None:
-            # Fail-closed: a replacement was computed but the file is not under a
-            # recognized skill root, so the HOME-managed-symlink write guard cannot
-            # anchor it. Drop the write rather than write through an unverified
-            # path, but log it — a silent drop is indistinguishable from
-            # "no replacement needed" to callers (PR #2043 review, alphonso).
-            logger.warning(
-                "Skipping text replacement for %s: not under a recognized skill "
-                "root, cannot anchor the managed-symlink write guard.",
-                file_path,
-            )
-            return False
-        wrote, _warning = write_skill_text(file_path, content, project_root)
+        wrote, _warning = write_skill_text(safe_file_path, content, project_root)
         return wrote
     return False
 

@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
     ManagedSkillManifest,
@@ -22,7 +23,6 @@ from specify_cli.skills.registry import SkillRegistry
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
 from specify_cli.template import get_local_repo_root
 from specify_cli.upgrade.skill_update import is_external_symlink
-from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.utils import ensure_within_directory
 
 logger = logging.getLogger(__name__)
