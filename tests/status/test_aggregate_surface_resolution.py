@@ -186,6 +186,27 @@ def test_create_window_bare_human_slug_resolves_primary(tmp_path: Path) -> None:
     assert ms.topology == "legacy"
 
 
+def test_bare_human_slug_resolves_composed_primary_meta(tmp_path: Path) -> None:
+    """#2050 read mirror: a BARE human slug whose on-disk primary dir carries the
+    composed ``<slug>-<mid8>`` name resolves that composed primary meta.
+
+    Covers the ``_find_meta_path`` bare-modern-slug bridge (aggregate.py:524-529):
+    the literal bare dir (``kitty-specs/single-mission-surface``) has no meta, so
+    the shared ``resolve_bare_modern_mission_dir_name`` primitive re-anchors the
+    meta read on the composed primary dir (``…-<mid8>``) — the same canonical
+    primitive the ``agent status`` CLI consumes (NFR-004). Without this bridge the
+    identity resolver (which keys on the dir NAME) cannot map a bare slug onto a
+    composed dir name.
+    """
+    composed_primary = tmp_path / "kitty-specs" / SLUG_WITH_MID8
+    _write_meta(composed_primary, mission_id=MISSION_ID, mission_slug=SLUG_WITH_MID8)
+
+    ms = MissionStatus.load(repo_root=tmp_path, mission_slug=MISSION_SLUG)
+
+    assert ms.read_dir.resolve() == composed_primary.resolve()
+    assert ms.mid8 == MID8
+
+
 def test_missing_mission_dir_resolves_primary_via_on_missing_meta(
     tmp_path: Path,
 ) -> None:
