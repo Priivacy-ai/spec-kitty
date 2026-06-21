@@ -18,6 +18,12 @@ from tests._support.wall_clock_assertions import (
     find_test_python_paths,
     format_wall_clock_assertion_violations,
 )
+from tests._support.quarantine import (
+    QUARANTINE_MARKER,
+    RUN_QUARANTINE_ENV_VAR,
+    quarantine_opted_in,
+    quarantine_skip_mark,
+)
 from tests.branch_contract import IS_2X_BRANCH
 from tests.mutmut_env import prepare_mutants_environment_from_cwd
 from tests.test_isolation_helpers import get_installed_version
@@ -184,13 +190,26 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "windows_ci: Tests that require a native win32 environment — auto-skipped on non-Windows",
     )
+    config.addinivalue_line(
+        "markers",
+        f"{QUARANTINE_MARKER}: irreducible environmental flake — env-gated, skipped "
+        f"unless {RUN_QUARANTINE_ENV_VAR}=1. See docs/development/testing-flakiness.md",
+    )
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     skip_windows = pytest.mark.skip(reason="windows_ci: requires sys.platform == 'win32'")
+    # Quarantine chokepoint (single, un-bypassable). Per the flakiness policy a
+    # quarantined test is held out of every normal/blocking run so it can never
+    # turn main red or block an unrelated PR; the non-blocking quarantine-
+    # visibility CI job sets SPEC_KITTY_RUN_QUARANTINE=1 to run it for real.
+    apply_quarantine_skip = not quarantine_opted_in(os.environ)
+    skip_quarantine = quarantine_skip_mark()
     for item in items:
         if item.get_closest_marker("windows_ci") and sys.platform != "win32":
             item.add_marker(skip_windows)
+        if apply_quarantine_skip and item.get_closest_marker(QUARANTINE_MARKER):
+            item.add_marker(skip_quarantine)
     _fail_on_wall_clock_assertions(items)
 
 

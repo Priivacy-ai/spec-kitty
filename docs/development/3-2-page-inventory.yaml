@@ -2157,6 +2157,13 @@
   current_target: false
   citation_refs: []
   notes: null
+- path: docs/development/testing-flakiness.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Test-flakiness handling policy (detection / tiers / tooling decision).
 - path: docs/development/testing-parallel.md
   tag: internal
   divio_type: none

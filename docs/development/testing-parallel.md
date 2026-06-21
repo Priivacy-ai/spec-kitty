@@ -5,6 +5,10 @@ at least 2× faster on a machine with four or more cores. This page explains the
 one correct local command, why it is shaped the way it is, and how to reproduce
 the coverage-neutrality gates CI uses.
 
+For what to do when a test goes red on CI *unrelated to your diff* — budget gates
+vs. correctness flakes vs. environmental flakes, and why we never retry-to-green —
+see the [test-flakiness handling policy](testing-flakiness.md).
+
 ## The local command
 
 ```bash

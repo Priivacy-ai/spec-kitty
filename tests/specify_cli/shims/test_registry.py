@@ -1,4 +1,13 @@
-"""Tests for shims/registry.py — skill allowlist."""
+"""Tests for shims/registry.py — skill allowlist.
+
+The registry sets (``CONSUMER_SKILLS`` etc.) are ``frozenset``s, whose iteration
+order is randomised per process by ``PYTHONHASHSEED``. Parametrising over a bare
+``list(<frozenset>)`` therefore produces a different case order in each
+``pytest-xdist`` worker process, which trips xdist's collection-equivalence guard
+("Different tests were collected between gw0 and gwN"). Always wrap the set in
+``sorted(...)`` so the parametrised case order is deterministic across workers.
+See docs/development/testing-flakiness.md (Tier: parallel-collection nondeterminism).
+"""
 
 from __future__ import annotations
 
@@ -73,11 +82,11 @@ class TestIsConsumerSkill:
     def test_returns_false_for_unknown(self) -> None:
         assert is_consumer_skill("nonexistent-skill-xyz") is False
 
-    @pytest.mark.parametrize("skill", list(CONSUMER_SKILLS))
+    @pytest.mark.parametrize("skill", sorted(CONSUMER_SKILLS))
     def test_all_consumer_skills_return_true(self, skill: str) -> None:
         assert is_consumer_skill(skill) is True
 
-    @pytest.mark.parametrize("skill", list(INTERNAL_SKILLS))
+    @pytest.mark.parametrize("skill", sorted(INTERNAL_SKILLS))
     def test_all_internal_skills_return_false(self, skill: str) -> None:
         assert is_consumer_skill(skill) is False
 
@@ -181,11 +190,11 @@ class TestCommandClassificationInvariant:
 
 
 class TestIsPromptDriven:
-    @pytest.mark.parametrize("skill", list(PROMPT_DRIVEN_COMMANDS))
+    @pytest.mark.parametrize("skill", sorted(PROMPT_DRIVEN_COMMANDS))
     def test_returns_true_for_prompt_driven(self, skill: str) -> None:
         assert is_prompt_driven(skill) is True
 
-    @pytest.mark.parametrize("skill", list(CLI_DRIVEN_COMMANDS))
+    @pytest.mark.parametrize("skill", sorted(CLI_DRIVEN_COMMANDS))
     def test_returns_false_for_cli_driven(self, skill: str) -> None:
         assert is_prompt_driven(skill) is False
 
@@ -197,11 +206,11 @@ class TestIsPromptDriven:
 
 
 class TestIsCliDriven:
-    @pytest.mark.parametrize("skill", list(CLI_DRIVEN_COMMANDS))
+    @pytest.mark.parametrize("skill", sorted(CLI_DRIVEN_COMMANDS))
     def test_returns_true_for_cli_driven(self, skill: str) -> None:
         assert is_cli_driven(skill) is True
 
-    @pytest.mark.parametrize("skill", list(PROMPT_DRIVEN_COMMANDS))
+    @pytest.mark.parametrize("skill", sorted(PROMPT_DRIVEN_COMMANDS))
     def test_returns_false_for_prompt_driven(self, skill: str) -> None:
         assert is_cli_driven(skill) is False
 
