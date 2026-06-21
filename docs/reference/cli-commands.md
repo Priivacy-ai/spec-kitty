@@ -3242,6 +3242,33 @@ _Cross-mission retrospective summary._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty spec-commit
+
+```
+ Usage: spec-kitty spec-commit [OPTIONS] FILES...
+
+ Commit spec artifacts to the mission's resolved placement.
+
+ On a protected primary the coordination worktree is materialised on demand
+ so the commit lands on the coordination branch (materialize-then-retry).
+ On an unprotected or flattened primary the commit is direct.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    files      FILES...  Spec artifacts to commit (absolute or relative     │
+│                           paths). Must belong to the mission resolved via    │
+│                           --mission or the kitty-specs/<slug>/ path.         │
+│                           [required]                                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --message    -m      TEXT  Commit message. [required]                     │
+│    --mission            TEXT  Mission slug (e.g. '001-my-mission'). When     │
+│                               omitted, the slug is derived from the first    │
+│                               file argument's kitty-specs/<slug>/ path.      │
+│    --json                     Output JSON                                    │
+│    --help                     Show this message and exit.                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty safe-commit
 
 ```
