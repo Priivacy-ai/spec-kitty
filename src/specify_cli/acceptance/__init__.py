@@ -20,7 +20,6 @@ from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.paths import require_explicit_feature as _require_explicit_feature
 from specify_cli.decisions.models import DecisionStatus
 from specify_cli.decisions.store import load_index
-from specify_cli.git.commit_helpers import assert_not_protected_branch
 from specify_cli.mission import MissionError, get_deliverables_path, get_mission_for_feature
 from specify_cli.mission_metadata import load_meta, record_acceptance, resolve_mission_identity, write_meta
 from specify_cli.status import CanonicalStatusNotFoundError
@@ -1198,32 +1197,64 @@ def _commit_acceptance_meta(
     actor_name: str,
     mode: AcceptanceMode,
 ) -> tuple[str | None, str | None, bool]:
-    """Record acceptance in meta.json and commit; return (parent_commit, accept_commit, commit_created)."""
-    assert_not_protected_branch(summary.repo_root, operation="record acceptance")
+    """Record acceptance in meta.json and commit; return (parent_commit, accept_commit, commit_created).
+
+    T016 / WP04 / FR-001 / FR-003 / FR-009: the former
+    ``assert_not_protected_branch → raise`` deadlock is removed.  Protection
+    provenance flows through ``ProtectionPolicy.resolve`` (FR-007 / SF-2).
+
+    When HEAD is on an UNPROTECTED branch (the normal mission-lane path):
+    commits go directly to that branch, preserving existing behaviour.
+
+    When HEAD is on a PROTECTED branch (e.g. ``main``, direct-repo solo-fork
+    operator): commits are routed through ``commit_for_mission`` which
+    materialises the coordination worktree on demand (C-001 / FR-003).
+    """
+    from specify_cli.core.git_ops import get_current_branch
+    from specify_cli.git.protection_policy import ProtectionPolicy
+
+    repo_root = summary.repo_root
+    mission_slug = summary.feature
+    policy = ProtectionPolicy.resolve(repo_root)
+    current_branch = get_current_branch(repo_root)
+    on_protected_primary = current_branch is not None and policy.is_protected(current_branch)
 
     try:
-        parent_commit: str | None = run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=False).stdout.strip() or None
+        parent_commit: str | None = run_git(["rev-parse", "HEAD"], cwd=repo_root, check=False).stdout.strip() or None
     except TaskCliError:
         parent_commit = None
 
     record_acceptance(summary.feature_dir, accepted_by=actor_name, mode=mode, from_commit=parent_commit, accept_commit=None)
 
     meta_path = summary.feature_dir / "meta.json"
-    meta_rel = str(meta_path.relative_to(summary.repo_root))
-    run_git(["add", meta_rel], cwd=summary.repo_root, check=True)
+    meta_rel = str(meta_path.relative_to(repo_root))
+
+    if on_protected_primary:
+        # Protected primary: route through commit_for_mission so the coord
+        # worktree is materialised on demand (C-001 / FR-003).
+        return _commit_acceptance_meta_via_router(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            meta_path=meta_path,
+            policy=policy,
+            parent_commit=parent_commit,
+        )
+
+    # Unprotected path (mission-lane branch): commit directly to current branch.
+    run_git(["add", meta_rel], cwd=repo_root, check=True)
 
     # Scope the staged-check and commit to meta.json. A bare ``git commit`` would
     # sweep in any unrelated files the operator had pre-staged before running
     # ``accept``; the explicit ``-- <meta>`` pathspec commits only the
     # acceptance metadata and leaves the operator's staged work untouched.
-    status = run_git(["diff", "--cached", "--name-only", "--", meta_rel], cwd=summary.repo_root, check=True)
+    status = run_git(["diff", "--cached", "--name-only", "--", meta_rel], cwd=repo_root, check=True)
     staged_files = [line.strip() for line in status.stdout.splitlines() if line.strip()]
     if not staged_files:
         return parent_commit, None, False
 
-    run_git(["commit", "-m", f"Accept {summary.feature}", "--", meta_rel], cwd=summary.repo_root, check=True)
+    run_git(["commit", "-m", f"Accept {mission_slug}", "--", meta_rel], cwd=repo_root, check=True)
     try:
-        accept_commit: str | None = run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=True).stdout.strip()
+        accept_commit: str | None = run_git(["rev-parse", "HEAD"], cwd=repo_root, check=True).stdout.strip()
     except TaskCliError:
         accept_commit = None
 
@@ -1235,15 +1266,74 @@ def _commit_acceptance_meta(
             if _history:
                 _history[-1]["accept_commit"] = accept_commit
             write_meta(summary.feature_dir, _meta)
-            run_git(["add", meta_rel], cwd=summary.repo_root, check=True)
-            commit_status = run_git(["diff", "--cached", "--name-only", "--", meta_rel], cwd=summary.repo_root, check=True)
+            run_git(["add", meta_rel], cwd=repo_root, check=True)
+            commit_status = run_git(["diff", "--cached", "--name-only", "--", meta_rel], cwd=repo_root, check=True)
             commit_staged_files = [line.strip() for line in commit_status.stdout.splitlines() if line.strip()]
             if commit_staged_files:
                 run_git(
-                    ["commit", "-m", f"Record acceptance commit for {summary.feature}", "--", meta_rel],
-                    cwd=summary.repo_root,
+                    ["commit", "-m", f"Record acceptance commit for {mission_slug}", "--", meta_rel],
+                    cwd=repo_root,
                     check=True,
                 )
+
+    return parent_commit, accept_commit, True
+
+
+def _commit_acceptance_meta_via_router(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    meta_path: Path,
+    policy: Any,
+    parent_commit: str | None,
+) -> tuple[str | None, str | None, bool]:
+    """Route acceptance commit through ``commit_for_mission`` on a protected primary.
+
+    Called by :func:`_commit_acceptance_meta` when HEAD is on a protected branch.
+    ``commit_for_mission`` handles coord-worktree materialisation (C-001).
+    Extracted to keep ``_commit_acceptance_meta`` complexity within the C901 ceiling.
+
+    ``policy`` accepts any object satisfying the ``_ProtectionPolicyProtocol``
+    structural protocol in ``commit_router`` (duck-typed; always a ``ProtectionPolicy``
+    instance at runtime — using ``Any`` avoids a cross-module Protocol import).
+    """
+    from specify_cli.coordination.commit_router import commit_for_mission
+
+    router_result = commit_for_mission(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        files=(meta_path,),
+        message=f"Accept {mission_slug}",
+        policy=policy,
+    )
+
+    if router_result.status == "unchanged":
+        return parent_commit, None, False
+
+    if router_result.status not in ("committed",):
+        raise AcceptanceError(
+            f"Acceptance commit failed ({router_result.status}): "
+            + (router_result.diagnostic or "no diagnostic available")
+        )
+
+    accept_commit: str | None = router_result.commit_hash
+
+    if accept_commit:
+        _meta = load_meta(meta_path.parent)
+        if _meta is not None:
+            _meta["accept_commit"] = accept_commit
+            _history = _meta.get("acceptance_history", [])
+            if _history:
+                _history[-1]["accept_commit"] = accept_commit
+            write_meta(meta_path.parent, _meta)
+            # Second commit: record the accept_commit SHA back into meta.json.
+            commit_for_mission(
+                repo_root=repo_root,
+                mission_slug=mission_slug,
+                files=(meta_path,),
+                message=f"Record acceptance commit for {mission_slug}",
+                policy=policy,
+            )
 
     return parent_commit, accept_commit, True
 
