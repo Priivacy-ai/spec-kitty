@@ -1,0 +1,30 @@
+{
+  "accept_commit": "c80913ec69905fe447ddec794796d297b71843c7",
+  "acceptance_history": [
+    {
+      "accept_commit": "c80913ec69905fe447ddec794796d297b71843c7",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-21T18:11:58.761837+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "becf738b0612c487edca4d479f10971ec50da3e6"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-21T18:11:58.761837+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "becf738b0612c487edca4d479f10971ec50da3e6",
+  "baseline_merge_commit": "5794d6270fa15bed16198c6645692ba787461c23",
+  "created_at": "2026-06-21T13:50:37.919501+00:00",
+  "friendly_name": "Mission-Surface Resolver Safety Net",
+  "mission_id": "01KVN754TY9CVJ8G10ERTMPVRH",
+  "mission_number": null,
+  "mission_slug": "mission-surface-resolver-safety-net-01KVN754",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Spec Kitty decides which on-disk surface (coordination worktree vs primary checkout) holds a mission's artifacts in several parallel resolvers that can disagree, producing the coord-vs-primary read/write desync that has repeatedly disrupted mission execution. This mission builds the safety net — a surface-resolution callsite inventory, a single-resolver CI guard, and a differential test that documents today's divergence — plus the cheapest behavioral fix (preserving precise mission-not-found/ambiguous error types end to end) and a small pure refactor, so the higher-risk collapse to a single resolver can land safely in a follow-up mission.",
+  "purpose_tldr": "Build the test safety net and lowest-risk fixes so the duplicated mission-surface resolvers can be collapsed safely in a follow-up.",
+  "slug": "mission-surface-resolver-safety-net-01KVN754",
+  "target_branch": "feat/mission-surface-resolver-safety-net",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-21T15:28:40.807080+00:00"
+}
