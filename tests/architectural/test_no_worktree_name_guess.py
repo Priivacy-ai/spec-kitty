@@ -1067,8 +1067,23 @@ def test_two_doctor_sites_produce_distinct_composite_keys() -> None:
     if not doctor_path.exists():
         pytest.skip("doctor.py not present in this checkout")
 
-    key_3074 = composite_key_from_file(doctor_path, 3074)
-    key_3166 = composite_key_from_file(doctor_path, 3166)
+    # Locate the two byte-identical tolerance sites by source content rather than
+    # by hardcoded line numbers — the literal-line pins drift whenever an edit
+    # above them shifts the file (e.g. the #2059 god-module tag comment), turning
+    # a pure line-shift into a spurious RED. The qualname-anchored composite key
+    # is itself drift-proof; the test fixture must be too.
+    site_marker = "short = resolve_mid8(mission_slug, mission_id=mission_id) or mission_id[:8]"
+    doctor_lines = doctor_path.read_text(encoding="utf-8").splitlines()
+    site_linenos = [
+        idx for idx, line in enumerate(doctor_lines, start=1) if site_marker in line
+    ]
+    assert len(site_linenos) == 2, (
+        "expected exactly two byte-identical `mission_id[:8]` tolerance sites in "
+        f"doctor.py, found {len(site_linenos)} at lines {site_linenos}"
+    )
+
+    key_3074 = composite_key_from_file(doctor_path, site_linenos[0])
+    key_3166 = composite_key_from_file(doctor_path, site_linenos[1])
 
     # The token-line component must be EQUAL (byte-identical source lines).
     assert key_3074[1] == key_3166[1], (

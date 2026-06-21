@@ -28,6 +28,7 @@ import typer
 from rich.console import Console
 
 from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.task_utils import find_repo_root
 
@@ -54,7 +55,7 @@ def _derive_mission_slug(path_arg: str | None, mission_opt: str | None) -> str |
         # If the path contains a ``kitty-specs`` component, take the part after it.
         parts = p.parts
         try:
-            idx = next(i for i, part in enumerate(parts) if part == "kitty-specs")
+            idx = next(i for i, part in enumerate(parts) if part == KITTY_SPECS_DIR)
             # slug is the component immediately after ``kitty-specs``
             if idx + 1 < len(parts):
                 return parts[idx + 1]
@@ -235,6 +236,3 @@ def _err(json_output: bool, message: str) -> None:
         print(json.dumps(_payload(success=False, error=message), indent=2))
     else:
         console.print(f"[red]Error:[/red] {message}")
-
-
-__all__ = ["spec_commit_command"]

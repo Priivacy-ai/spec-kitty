@@ -587,7 +587,7 @@ def test_selection_discriminator_is_independent_of_raw_join_scanner() -> None:
     """The selection discriminator sees calls the raw-join scanner is blind to.
 
     Anti-vacuous proof (squad-mandated): the blessed external selection
-    callsite (``acceptance/__init__.py:619``) is a direct
+    callsite (``acceptance/__init__.py:618``) is a direct
     ``resolve_mission_read_path`` call that does NOT appear as a
     ``raw-path-join`` row in ``discover_rows()`` (it composes no KITTY_SPECS_DIR
     join).  So the raw-join scanner alone would MISS it — the new
@@ -596,7 +596,7 @@ def test_selection_discriminator_is_independent_of_raw_join_scanner() -> None:
     selection_keys = {s.key() for s in discover_selection_callsites()}
     raw_join_keys = {r.key() for r in discover_rows() if r.call_name == "raw-path-join"}
 
-    blessed_external = "specify_cli/acceptance/__init__.py:619"
+    blessed_external = "specify_cli/acceptance/__init__.py:618"
     assert blessed_external in selection_keys, (
         "Expected the blessed acceptance selection callsite to be DISCOVERED by "
         "the selection scanner; the AST walker is misconfigured if it is absent."
