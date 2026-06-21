@@ -76,13 +76,19 @@ def _build_coord_deleted(repo_root: Path) -> None:
     )
 
 
-# Handle forms that name the on-disk composed primary dir (the canonical
-# ``<slug>-<mid8>`` literal, the bare mid8, and the full ULID — each canonicalizes
-# onto the same primary meta). The bare *human* slug is deliberately excluded: its
-# primary dir carries the composed ``<slug>-<mid8>`` name, so the #2050 bare→
-# composed resolution (read_path's ``read_primary_meta`` is intentionally NOT a
-# canonicalizing read) is a separate concern from the coord-deleted convergence.
-_RESOLVING_HANDLES = [SLUG_WITH_MID8]
+# Handle forms that resolve onto the on-disk composed primary dir and therefore
+# MUST converge on the coord-deleted hard-fail across all three legs: the canonical
+# ``<slug>-<mid8>`` literal, the bare ``mid8``, and the full ULID. The non-composed
+# forms (bare mid8 / full ULID) exercise the ``read_primary_meta`` canonicalize-on-
+# miss path: without it the raw handle finds no primary meta, ``coordination_branch``
+# is never learned, the DELETED gate is skipped, and the read-path leg leaks a STALE
+# PRIMARY dir while the surface leg hard-fails — the #1848 data-loss divergence this
+# contract guards (caught live by debugger-debbie on PR #2065).
+#
+# The bare *human* slug is deliberately excluded: its on-disk dir carries the
+# composed ``<slug>-<mid8>`` name, so bare→composed resolution is the separate #2050
+# concern, not the coord-deleted convergence.
+_RESOLVING_HANDLES = [SLUG_WITH_MID8, MID8, MISSION_ID]
 
 
 @pytest.mark.parametrize("handle", _RESOLVING_HANDLES)

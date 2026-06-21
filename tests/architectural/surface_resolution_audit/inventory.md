@@ -25,6 +25,14 @@ blessed call.
 
 ## Sink table
 
+> **Point-in-time snapshot — line numbers are NOT live-pinned.** This table is a
+> reviewer reference captured against one tree state. The convergence mission
+> (`01KVN754`) shifted every seam file's line numbers, so the `file:line`
+> locators below drift on each edit and are NOT reconciled by any CI gate. The
+> live authority is `discover_rows()`, re-run on the current tree by
+> `tests/architectural/test_single_mission_surface_resolver.py` (the wired guard).
+> Rows are kept for their **dispositions + rationale**, not their exact lines.
+
 | file:line | handle source | sink | disposition | rationale |
 | --- | --- | --- | --- | --- |
 | mission_runtime/resolution.py:185 | slug | resolve_mission_read_path | routed-through-resolver | `_resolve_mission_slug` -> `resolve_mission_read_path`; slug validated by `assert_safe_path_segment` inside the resolver (NFR-002). Single canonical runtime entry point (FR-030). |
@@ -39,8 +47,6 @@ blessed call.
 | specify_cli/coordination/status_transition.py:281 | repo_root | candidate_feature_dir_for_mission | routed-through-resolver | `_canonical_primary_feature_dir` malformed-meta fallback; still routes through coord-aware resolver. |
 | specify_cli/coordination/surface_resolver.py:518 | mission_slug | raw-path-join | raw-bypass | `_coord_mid8` fail-closed raise payload: `CoordinationWorkspace.worktree_path(...) / KITTY_SPECS_DIR / mission_slug` inside a `StatusReadPathNotFound` constructor. Diagnostic path in a `raise` — no FS open/write. Structural composition inside the resolver module. Tag as bypass to audit the composition; operationally safe (diagnostic only). |
 | specify_cli/coordination/surface_resolver.py:523 | mission_slug | raw-path-join | raw-bypass | Same `_coord_mid8` fail-closed raise: `repo_root / KITTY_SPECS_DIR / mission_slug` for `primary_candidate`. Diagnostic path in `raise` — no FS sink. Same rationale as :518. |
-| specify_cli/coordination/surface_resolver.py:541 | repo_root | primary_feature_dir_for_mission | topology-blind-by-design | `_is_coord_empty_condition` reads primary-checkout `meta.json` via the topology-blind primitive to confirm the coord-empty state; coord worktree carries no `meta.json` (FR-006). |
-| specify_cli/coordination/surface_resolver.py:571 | repo_root | candidate_feature_dir_for_mission | routed-through-resolver | `_canonicalize_or_enrich_coord_empty` -> `candidate_feature_dir_for_mission` (the single canonicalization point; FR-006 enrich wrapper). |
 | specify_cli/coordination/surface_resolver.py:600 | repo_root | resolve_status_surface_with_anchor | routed-through-resolver | `resolve_status_surface` -> `resolve_status_surface_with_anchor` (thin wrapper, single canonical surface path accessor). |
 | specify_cli/coordination/surface_resolver.py:670 | repo_root | primary_feature_dir_for_mission | topology-blind-by-design | `resolve_status_surface_with_anchor` re-anchors config read on canonical primary dir to avoid #1589/#1821 split-brain (FR-003 cascade layer 1). Documented: coord worktree has no `meta.json`. |
 | specify_cli/core/mission_creation.py:328 | mission_slug_formatted | raw-path-join | routed-through-resolver | `create_mission`: `mission_slug_formatted = mission_dir_name(mission_slug, mid8=…)` — output of the canonical `mission_dir_name` grammar seam (FR-032/FR-044). Not raw operator input; seam output feeds the join. |
@@ -61,10 +67,10 @@ blessed call.
 
 | disposition | count | meaning |
 | --- | --- | --- |
-| routed-through-resolver | 16 | goes through a canonical blessed resolver (cite it); includes review/cycle.py:185 (validated segments) and mission_creation.py:328 (seam grammar output) |
-| topology-blind-by-design | 11 | deliberately primary-only; coord surface carries no meta.json; rationale named in each row. (WP06 routed the aggregate.py primary lookups/diagnostics through `primary_feature_dir_for_mission`; the WP01 read-side seam added two topology-blind primary reads at `_read_path_resolver.py:410/497`.) |
-| raw-bypass | 2 | composes KITTY_SPECS_DIR/slug path inline without a resolver — the two `_coord_mid8` fail-closed diagnostic payloads (`surface_resolver.py:518,523`; no FS sink, operationally safe) |
-| **total** | **29** | 29 AST-discovered rows (seam-internal + raw-bypass scope) |
+| routed-through-resolver | 15 | goes through a canonical blessed resolver (cite it); includes review/cycle.py:185 (validated segments) and mission_creation.py:328 (seam grammar output) |
+| topology-blind-by-design | 10 | deliberately primary-only; coord surface carries no meta.json; rationale named in each row. (WP06 routed the aggregate.py primary lookups/diagnostics through `primary_feature_dir_for_mission`; the WP01 read-side seam added two topology-blind primary reads in `read_primary_meta` + the M5 fail-closed branch of `resolve_handle_to_read_path`.) |
+| raw-bypass | 2 | composes KITTY_SPECS_DIR/slug path inline without a resolver — the two `_coord_mid8` fail-closed diagnostic payloads (no FS sink, operationally safe) |
+| **total** | **27** | seam-internal + raw-bypass rows (point-in-time; the `01KVN754` convergence deleted the two coord-empty-apparatus rows — `_is_coord_empty_condition` + `_canonicalize_or_enrich_coord_empty` — and the live `discover_rows()` guard is the authority) |
 
 **Raw-bypass rows (disposition + status):**
 - `specify_cli/coordination/surface_resolver.py:518,523` — `_coord_mid8` fail-closed raise payloads (diagnostic, no FS sink; operationally safe).

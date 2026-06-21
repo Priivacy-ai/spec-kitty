@@ -29,7 +29,7 @@ analysis (in `research/`) shows it is a small *convergence*, not a large deletio
   hard-fail (data loss) but converges its *exception spelling* to `CoordinationBranchDeleted`.
 
 **This mission finishes the #2040 strangler:** it converges the three resolution legs (read-path, surface,
-aggregate) so the six documented strict-xfail equivalence cells drain to **31/0**, while preserving every
+aggregate) so the documented strict-xfail equivalence cells drain to **13/0**, while preserving every
 load-bearing invariant. The differential equivalence gate is the deletion-safety net and **must stay green
 at every step**.
 
@@ -42,7 +42,7 @@ of scope. This mission is only the *selection* seam (which divergent surface is 
 For the same `(slug, mid8, topology)` input, the read-path leg (`resolve_handle_to_read_path`), the surface
 leg (`resolve_status_surface_with_anchor`), and the aggregate leg (`status.aggregate`) return the
 **identical directory or the identical typed error (type AND error_code)**. The differential equivalence
-gate goes from 27/6 to **31/0** with no remaining divergence cell, and without weakening its
+gate goes from 9/4 to **13/0** with no remaining divergence cell, and without weakening its
 `type(a) is type(b)` assertion.
 
 ### Primary — coord-empty resolves primary, loudly
@@ -81,7 +81,7 @@ read-path leg learns the `_coord_branch_exists` discriminator instead of returni
 
 | ID | Requirement | Status |
 | --- | --- | --- |
-| NFR-001 | The differential equivalence gate is green at **every** WP boundary (deletion-safety): 27/6 → 29/4 → 31/0. No WP may leave a premature green (deleting before a cell legitimately drains) — the strict-xfail machinery turns that into a suite failure. | proposed |
+| NFR-001 | The differential equivalence gate is green at **every** WP boundary (deletion-safety): 9/4 → 10/3 → 13/0. No WP may leave a premature green (deleting before a cell legitimately drains) — the strict-xfail machinery turns that into a suite failure. | proposed |
 | NFR-002 | The gate's equality assertion (`type(a) is type(b)` AND `error_code` equality) is **not weakened**; only `_XFAIL_*` allowlist entries are retired as cells go green. | proposed |
 | NFR-003 | The coord-empty loud fallback warning is **non-silent and test-asserted to fire** (operator/agent-visible; names the stale-surface risk + both recovery commands). It is net-new infrastructure (the resolver emits zero logging today). | proposed |
 | NFR-004 | FR-002 reroutes and FR-007 are **byte-identical, zero-behavior-change** refactors, each covered by a focused test; FR-006 is unit-testable with a `tmp_path` and **no infrastructure mocks**. | proposed |
@@ -99,7 +99,7 @@ read-path leg learns the `_coord_branch_exists` discriminator instead of returni
 
 ## Success Criteria
 
-- **SC-001** The differential equivalence gate reads **31 passed / 0 xfail** with the `_XFAIL_*` constants
+- **SC-001** The differential equivalence gate reads **13 passed / 0 xfailed** with the `_XFAIL_*` constants
   retired and the `type`-AND-`error_code` assertion unchanged.
 - **SC-002** `resolve_mission_read_path` is privatized with zero external callers; the two rerouted callers
   are byte-identical (test-proven).
@@ -144,7 +144,7 @@ read-path leg learns the `_coord_branch_exists` discriminator instead of returni
 
 | Issue | Relationship |
 | --- | --- |
-| #2040 | Driver — this mission is its strangler-**finish** (converge the legs; drain all 6 xfails to 31/0). |
+| #2040 | Driver — this mission is its strangler-**finish** (converge the legs; drain all 4 xfails to 13/0). |
 | #2010 | Parent (closed) — its read/write desync is closed on the read path by this convergence; bug #15 typed-error pass-through already landed and is regression-guarded. |
 | #1716 | Coordination topology coherence — the coord-empty policy (Option B) is decided + applied (FR-003; ADR `2026-06-19-1` amended); coord-deleted converged (FR-004). |
 | #1848 | `CoordinationBranchDeleted` — preserved as the coord-deleted hard-fail and converged across legs (FR-004). |

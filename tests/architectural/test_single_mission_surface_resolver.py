@@ -89,8 +89,12 @@ for the orchestrator's pre-merge sweep:
 - ``test_untrusted_path_containment.py::test_audit_passes_on_fixed_tree`` and
   ``::test_all_discovered_rows_appear_in_inventory``: the SEPARATE
   untrusted-path-audit ``inventory.md`` is stale (line numbers shifted after the
-  WP01/WP03 read-side seam edits — same staleness class, different audit; this
-  module's own ``surface_resolution_audit`` inventory IS refreshed by WP05).
+  WP01/WP03 read-side seam edits). The companion ``surface_resolution_audit``
+  ``inventory.md`` carries the SAME point-in-time line-number staleness class
+  (the convergence edits shifted every seam file); THIS guard therefore does not
+  depend on either inventory — it re-runs ``discover_rows()`` live (see the
+  module docstring above). Neither inventory is a live-pinned CI gate; both are
+  reviewer reference snapshots.
 - ``test_pytest_marker_convention.py``: pre-existing ratchet drift.
 - ``test_no_dead_modules.py`` / ``test_no_dead_symbols.py``: dead-module /
   ``__all__`` symbol debt from the WP01 ``specify_cli.mission_read_path`` shim
@@ -212,11 +216,13 @@ _ALLOWLISTED_RAW_JOINS: dict[str, str] = {
     # ``resolve_handle_to_read_path`` (both above this definition).  The join is the
     # SAME blessed primitive definition — only its line drifted.  Re-keyed to the
     # current line so ``test_allowlist_entries_are_not_stale`` stays green.
-    "specify_cli/missions/_read_path_resolver.py:869": (
+    "specify_cli/missions/_read_path_resolver.py:885": (
         "TBYD — IS the primary_feature_dir_for_mission primitive definition; "
-        "assert_safe_path_segment called at :868 (NFR-002); "
+        "assert_safe_path_segment called just above (NFR-002); "
         "get_main_repo_root wraps the left operand; "
-        "this function is the canonical topology-blind entry point."
+        "this function is the canonical topology-blind entry point. "
+        "(Re-keyed :869 -> :885: the PR #2065 read_primary_meta "
+        "canonicalize-on-miss fix added lines above this definition.)"
     ),
     # ----- mission_creation.py: seam-grammar output -----
     # ``mission_slug_formatted = mission_dir_name(mission_slug, mid8=...)`` at :323.

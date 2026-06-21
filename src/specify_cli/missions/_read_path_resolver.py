@@ -583,6 +583,22 @@ def read_primary_meta(
 
     primary_dir = primary_feature_dir_for_mission(repo_root, handle)
     meta = load_meta(primary_dir) or {}
+    if not meta:
+        # Non-composed handle (bare ``mid8``, full ULID, numeric prefix): the raw
+        # handle does NOT name the on-disk ``<slug>-<mid8>`` directory, so the
+        # topology-blind compose above misses the primary meta. Canonicalize the
+        # handle to locate the real primary dir and re-read.  Without this, a
+        # coord-topology mission addressed by a non-composed ``--mission`` handle
+        # yields empty meta → ``coordination_branch`` is never learned → the
+        # caller's coord gates (the M5 fail-closed gate AND the DELETED hard-fail)
+        # are silently skipped and the leg leaks a STALE PRIMARY read of a mission
+        # whose coord branch is gone (#1848 data-loss DIVERGENCE from the surface
+        # leg, which canonicalizes first). Paid only on the raw-miss path, so the
+        # composed-handle happy path keeps its pure-path cost.
+        canonical = _canonicalize_handle(repo_root, handle)
+        if canonical is not None:
+            _, _, canonical_dir = canonical
+            meta = load_meta(canonical_dir) or {}
     branch = meta.get("coordination_branch")
     declares_coordination = isinstance(branch, str) and bool(branch.strip())
     return meta, declares_coordination
@@ -965,23 +981,23 @@ def resolve_feature_dir_for_mission(
     return Path(context.feature_dir)
 
 
+# ``coord_feature_dir``, ``probe_coord_state`` and ``CoordState`` are the WP01
+# shared compose/probe helpers (paula C1/C2). They are exported because the
+# coord-empty/coord-deleted convergence wired cross-module importers for them
+# (``coordination.surface_resolver`` imports all three) — the symbol-level
+# dead-code gate (``test_no_dead_symbols``) requires an ``__all__`` entry to have
+# a cross-module caller, which now holds.
 __all__ = [
+    "CoordState",
     "MissionSelectorAmbiguous",
     "StatusReadPathNotFound",
     "candidate_feature_dir_for_mission",
+    "coord_feature_dir",
     "primary_feature_dir_for_mission",
+    "probe_coord_state",
     "resolve_bare_modern_mission_dir_name",
     "resolve_feature_dir_for_mission",
     "resolve_feature_dir_for_slug",
     "resolve_handle_to_read_path",
     "resolve_surface_dir_or_typed_error",
 ]
-# NOTE: ``coord_feature_dir``, ``probe_coord_state`` and ``CoordState`` are the
-# WP01 shared helpers (paula C1/C2). They are public module-level symbols that
-# WP04 (coord-empty) and WP05 (coord-deleted) import DIRECTLY
-# (``from ..._read_path_resolver import coord_feature_dir``) when they adopt the
-# single compose/probe body. They are intentionally NOT in ``__all__`` until a
-# cross-module importer exists — the symbol-level dead-code gate
-# (``test_no_dead_symbols``) flags an ``__all__`` entry with no cross-module
-# caller, and WP01 only wires them from same-module read-path sites. WP04/WP05
-# add them to ``__all__`` when they adopt them.
