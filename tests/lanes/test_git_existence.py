@@ -140,3 +140,25 @@ def test_lane_has_commit_beyond_base_false_for_unresolvable_base(tmp_path: Path)
     """Fail-closed: an unresolvable base ref (rev-list errors) -> False."""
     _make_git_repo(tmp_path)
     assert lane_has_commit_beyond_base(tmp_path, "no-such-branch") is False
+
+
+def test_lane_has_commit_beyond_base_false_on_unparseable_count(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fail-closed: rev-list exits 0 but emits a non-integer count -> False.
+
+    Real ``git rev-list --count`` always prints an integer, so the defensive
+    ``ValueError`` branch (returncode 0, unparseable stdout) is unreachable with
+    real git. Simulate the pathological success-with-garbage-stdout to pin the
+    fail-closed contract: an unverifiable count must reject (False), never wave
+    the for_review commit gate through.
+    """
+    import specify_cli.lanes._git as git_mod
+
+    def _fake_run(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="not-a-number\n", stderr=""
+        )
+
+    monkeypatch.setattr(git_mod.subprocess, "run", _fake_run)
+    assert lane_has_commit_beyond_base(tmp_path, "base") is False
