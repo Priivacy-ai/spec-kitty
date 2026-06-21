@@ -98,7 +98,9 @@ class TestIssue1615ImplementCoordRead:
 
     def test_resolve_mission_read_path_prefers_coord_worktree(self, tmp_path: Path) -> None:
         """resolve_mission_read_path returns coord path when coord dir exists on disk."""
-        from specify_cli.missions._read_path_resolver import resolve_mission_read_path
+        from specify_cli.missions._read_path_resolver import (
+            _resolve_mission_read_path as resolve_mission_read_path,
+        )
 
         slug = "my-feature"
         mid8 = "01KT3YBD"
@@ -121,7 +123,9 @@ class TestIssue1615ImplementCoordRead:
 
     def test_primary_checkout_returned_when_coord_absent(self, tmp_path: Path) -> None:
         """When no coord worktree, resolver correctly falls back to primary checkout."""
-        from specify_cli.missions._read_path_resolver import resolve_mission_read_path
+        from specify_cli.missions._read_path_resolver import (
+            _resolve_mission_read_path as resolve_mission_read_path,
+        )
 
         slug = "my-feature"
         mid8 = "01KT3YBD"

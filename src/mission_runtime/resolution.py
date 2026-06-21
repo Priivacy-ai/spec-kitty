@@ -158,31 +158,24 @@ def _resolve_mission_slug(
     except ValueError as exc:
         raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", str(exc)) from exc
 
-    # Derive mid8 from the post-WP03 ``<slug>-<mid8>`` shape when present.
-    # Handle forms (bare mid8, numeric prefix, ULID) are canonicalized inside
-    # the read resolver itself — no heuristic fallback derivation here.
-    from specify_cli.lanes.branch_naming import mid8_from_slug
-
-    mid8 = mid8_from_slug(slug)
-    if not mid8:
-        # Canonical fallback (never a slug-tail shape guess): slugs without a
-        # parseable ``-<mid8>`` suffix (legacy / backfilled dir names) read the
-        # real mid8 from the primary meta.json — the canonical identity source —
-        # so a materialized coordination worktree is still located (FR-030).
-        # Raw handles have no primary meta and keep mid8 == "" — the read
-        # resolver canonicalizes the handle itself.
-        mid8 = _mid8_from_primary_meta(repo_root, slug)
-
-    # Late import to avoid a hard module-load dependency for legacy
-    # consumers of the resolver that pre-date its introduction.
+    # Route through the SINGLE guarded read-side seam (WP01 reroute, IC-01 /
+    # FR-001): ``resolve_handle_to_read_path`` owns the primary-meta probe AND
+    # the ONE sanctioned mid8 cascade internally, so this caller no longer
+    # pre-derives the mid8 (``mid8_from_slug`` → ``_mid8_from_primary_meta``).
+    # Byte-identical: the seam runs the same cascade and forwards the result to
+    # the existence-gated topology resolver. Handle forms (bare mid8, numeric
+    # prefix, ULID) are canonicalized inside the seam itself.
+    #
+    # Late import to avoid a hard module-load dependency for legacy consumers of
+    # the resolver that pre-date its introduction.
     from specify_cli.missions._read_path_resolver import (
         MissionSelectorAmbiguous,
         StatusReadPathNotFound,
-        resolve_mission_read_path,
+        resolve_handle_to_read_path,
     )
 
     try:
-        feature_dir = resolve_mission_read_path(repo_root, slug, mid8)
+        feature_dir = resolve_handle_to_read_path(repo_root, slug)
     except StatusReadPathNotFound as exc:
         # Boundary translation (PR #1850 M6): the read resolver's fail-closed
         # refusal (coord worktree root materialized without the mission dir)
@@ -218,10 +211,12 @@ def _mid8_from_primary_meta(repo_root: Path, mission_slug: str) -> str:
     Subsumption note (T013): the retired body derived ``meta.mid8`` first, then
     ``resolve_mid8(slug, mission_id)`` under a ``len >= 8`` guard, returning
     ``""`` otherwise — exactly the first two tiers of ``resolve_declared_mid8``.
-    The canonical cascade's third tier (``mid8_from_slug(slug)``) is a no-op here
-    because this helper is only reached after the caller's own
-    ``mid8_from_slug(slug)`` (:166) already returned ``""`` for the SAME slug, so
-    the empty/decline contract is preserved byte-for-byte.
+
+    WP01 reroute note: ``_resolve_mission_slug`` now routes through
+    ``resolve_handle_to_read_path`` (which runs the same cascade internally), so
+    this helper is no longer on that call path. It is retained as a directly
+    tested primitive (``test_mid8_direct_routing.py``,
+    ``test_read_path_resolver_validation.py``); collapsing it is a separate tidy.
     """
     from specify_cli.coordination.surface_resolver import resolve_declared_mid8
     from specify_cli.mission_metadata import load_meta

@@ -26,6 +26,7 @@ from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from collections.abc import Mapping
+import enum
 import json
 from pathlib import Path
 
@@ -124,6 +125,107 @@ def _compose_mission_dir(mission_slug: str, mid8: str) -> str:
     return str(coord_mission_dir_name(mission_slug, mid8=mid8))
 
 
+def coord_feature_dir(repo_root: Path, mission_slug: str, mid8: str) -> Path:
+    """Compose the coordination-worktree mission dir (paula C1, single grammar).
+
+    The ONE place that builds
+    ``CoordinationWorkspace.worktree_path / KITTY_SPECS_DIR / <slug>-<mid8>`` so the
+    coord-candidate compose is no longer hand-built across the read path (FR-001 /
+    NFR-004). Both read-path probe sites (:func:`_resolve_existing_for_slug`,
+    :func:`_resolve_not_found`) route through it; WP04 adopts it for the
+    ``surface_resolver.py`` sites that still hand-build the same join.
+
+    Pure-path: no filesystem touch, no git. ``mid8`` must be non-empty — a coord
+    topology is only addressable once the disambiguator is known (an empty
+    ``mid8`` has no coord worktree to compose); callers gate on ``mid8`` before
+    reaching here.
+    """
+    # Late import breaks the import cycle: ``coordination.__init__`` eagerly
+    # imports ``surface_resolver``, which imports ``_compose_mission_dir`` from
+    # this module. A module-level import would deadlock whenever this resolver is
+    # the first entry point into the coordination package.
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    # ``worktree_path`` is typed -> Path, but mypy widens it to ``Any`` through
+    # the late-import chain (``follow_imports=skip`` on ``specify_cli.*``); bind
+    # explicitly so the join's return narrows back to ``Path`` (the same pattern
+    # as ``_compose_mission_dir``'s cast in this module).
+    coord_root: Path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
+    feature_dir: Path = (
+        coord_root / KITTY_SPECS_DIR / _compose_mission_dir(mission_slug, mid8)
+    )
+    return feature_dir
+
+
+class CoordState(enum.Enum):
+    """The coordination-worktree topology state for a mission (paula C2).
+
+    Discriminates the four read-path coord conditions a single probe must
+    distinguish, so the read path stops re-deriving them inline (the probe was
+    duplicated 3×):
+
+    * ``MATERIALIZED`` — coord worktree root AND its mission dir both exist; the
+      coord surface is the authoritative read.
+    * ``EMPTY`` — coord worktree root exists but its mission dir is absent
+      (#1716 / FR-006): a fail-closed condition, never a silent primary fallback.
+    * ``UNMATERIALIZED`` — neither the coord root nor a *deleted* branch: the
+      declared-but-not-yet-created window (``mission create`` → first coord
+      materialization), where the primary checkout stays authoritative.
+    * ``DELETED`` — the coord root is absent AND the declared coordination branch
+      has been deleted from git (#1889 row R3 / #1848): data-loss, fail closed
+      LOUDLY.
+
+    ``NONE`` is reserved for the no-mid8 case (no coord topology to probe).
+    """
+
+    NONE = "none"
+    MATERIALIZED = "materialized"
+    EMPTY = "empty"
+    UNMATERIALIZED = "unmaterialized"
+    DELETED = "deleted"
+
+
+def probe_coord_state(
+    repo_root: Path,
+    mission_slug: str,
+    mid8: str,
+    *,
+    coordination_branch: str | None = None,
+) -> CoordState:
+    """Classify the coordination-worktree topology state (paula C2 shared probe).
+
+    The single probe body the read path uses instead of re-deriving the coord
+    root/mission-dir/branch checks inline. WP04 (coord-empty) and WP05
+    (coord-deleted) adopt THIS body rather than adding a 4th copy.
+
+    The git/``DELETED`` arm reuses the existing
+    :func:`surface_resolver._coord_branch_exists` (one ``git rev-parse``) VERBATIM
+    — it is the only signal that splits a not-yet-materialized coord (branch
+    still present) from a DELETED one (alphonso §3.3); it is NOT collapsed away.
+    The ``DELETED`` verdict is only reachable when a ``coordination_branch`` is
+    supplied (the read path supplies it from the primary ``meta.json``); without
+    it the absent-coord case stays ``UNMATERIALIZED`` (no branch to interrogate).
+
+    Pure-path except the single ``git rev-parse`` on the absent-coord +
+    branch-supplied path; ``MATERIALIZED`` / ``EMPTY`` / ``UNMATERIALIZED`` touch
+    only ``Path.exists()``.
+    """
+    if not mid8:
+        return CoordState.NONE
+    feature_dir = coord_feature_dir(repo_root, mission_slug, mid8)
+    coord_root = feature_dir.parent.parent
+    if coord_root.exists():
+        return CoordState.MATERIALIZED if feature_dir.exists() else CoordState.EMPTY
+    # Coord root absent. A supplied branch lets us split UNMATERIALIZED (branch
+    # still in git) from DELETED (branch gone) — the single git rev-parse arm.
+    if coordination_branch is not None:
+        from specify_cli.coordination.surface_resolver import _coord_branch_exists
+
+        if not _coord_branch_exists(repo_root, coordination_branch):
+            return CoordState.DELETED
+    return CoordState.UNMATERIALIZED
+
+
 def compose_meta_json_path(base: Path, mission_slug: str) -> Path:
     """Return ``base / KITTY_SPECS_DIR / <slug-mid8-dir> / meta.json``.
 
@@ -153,18 +255,20 @@ def _resolve_existing_for_slug(
     """
     mission_dir_name = _compose_mission_dir(mission_slug, mid8)
     coord_worktree_materialized = False
-    has_coord_candidate = False
+    has_coord_candidate = bool(mid8)
     if mid8:
-        from specify_cli.coordination.workspace import CoordinationWorkspace
-
-        coord_root: Path = CoordinationWorkspace.worktree_path(
-            repo_root, mission_slug, mid8
+        # Shared probe (paula C2): MATERIALIZED → the coord mission dir IS the
+        # read; EMPTY → coord root exists but the dir does not (defer to the
+        # caller's fail-closed path). No branch is supplied here, so the
+        # absent-coord case stays UNMATERIALIZED (no git rev-parse) — the DELETED
+        # arm lives at the surface_resolver layer (WP05).
+        coord_state = probe_coord_state(repo_root, mission_slug, mid8)
+        coord_worktree_materialized = coord_state in (
+            CoordState.MATERIALIZED,
+            CoordState.EMPTY,
         )
-        coord_worktree_materialized = coord_root.exists()
-        has_coord_candidate = True
-        coord_candidate: Path = coord_root / KITTY_SPECS_DIR / mission_dir_name
-        if coord_candidate.exists():
-            return coord_candidate
+        if coord_state is CoordState.MATERIALIZED:
+            return coord_feature_dir(repo_root, mission_slug, mid8)
     primary_candidate: Path = repo_root / KITTY_SPECS_DIR / mission_dir_name
     if primary_candidate.exists():
         if (
@@ -226,12 +330,13 @@ def _canonicalize_handle(
     return resolved.mission_slug, resolved.mid8, resolved.feature_dir
 
 
-def resolve_mission_read_path(
+def _resolve_mission_read_path(
     repo_root: Path,
     mission_slug: str,
     mid8: str,
     *,
     require_exists: bool = False,
+    coordination_branch: str | None = None,
 ) -> Path:
     """Return the directory containing this mission's status read surface.
 
@@ -321,9 +426,15 @@ def resolve_mission_read_path(
 
     # Neither the literal slug nor a canonical handle resolved to an existing
     # directory. Fall through to the diagnostic / not-found path below using the
-    # best-known (possibly canonicalised) slug + mid8.
+    # best-known (possibly canonicalised) slug + mid8. ``coordination_branch`` (when
+    # the caller read it from the primary ``meta.json``) lets the fail-closed tail
+    # split UNMATERIALIZED from DELETED (WP05 / T022).
     return _resolve_not_found(
-        repo_root, mission_slug, mid8, require_exists=require_exists
+        repo_root,
+        mission_slug,
+        mid8,
+        require_exists=require_exists,
+        coordination_branch=coordination_branch,
     )
 
 
@@ -333,38 +444,101 @@ def _resolve_not_found(
     mid8: str,
     *,
     require_exists: bool,
+    coordination_branch: str | None = None,
 ) -> Path:
     """Handle the not-found / fail-closed / diagnostic tail of resolution.
 
     ``_resolve_existing_for_slug`` has already returned any *safely-existing*
     directory; reaching here means either (a) nothing exists for the (possibly
-    canonicalised) slug, or (b) the fail-closed condition held (coord worktree
-    materialised + primary declares ``coordination_branch`` but the coord dir is
-    absent — #1718). Recompute the candidate paths for an actionable diagnostic.
+    canonicalised) slug, or (b) the coord worktree root is materialised but its
+    mission dir is absent (the EMPTY state) / the declared coord branch has been
+    DELETED from git. The read-path coord discriminator (WP05 / T022) folds those
+    last two conditions onto WP01's shared :func:`probe_coord_state` so the read
+    path converges with the canonical surface for the whole fail-closed family:
+
+    * ``DELETED`` (coord root absent AND the declared ``coordination_branch`` is
+      gone from git) — data loss; hard-fail :class:`CoordinationBranchDeleted`
+      (``COORDINATION_BRANCH_DELETED``), the same loud verdict the surface raises
+      (#1848 / FR-005). The branch signal is required, so ``DELETED`` is only
+      reachable when ``coordination_branch`` is supplied by
+      :func:`resolve_handle_to_read_path` (which read it from the primary
+      ``meta.json``).
+    * ``EMPTY`` (coord root materialised, mission dir absent — #1716) — adopt
+      WP04's Option B: the PRIMARY checkout is authoritative, so return the
+      primary candidate instead of failing closed. This inverts the historical
+      #1718 stale-surface guard for the materialised-but-empty case and drains
+      the read-path leg of the ``coord-empty`` equivalence cells. The surface
+      already returns PRIMARY here (with a loud warning); the read path now
+      agrees.
+    * ``UNMATERIALIZED`` / ``NONE`` — the declared-but-not-yet-created window
+      (#1718): the primary checkout stays authoritative, so a genuine absence
+      under ``require_exists`` still raises :class:`StatusReadPathNotFound`.
     """
     mission_dir_name = _compose_mission_dir(mission_slug, mid8)
     primary_candidate: Path = repo_root / KITTY_SPECS_DIR / mission_dir_name
     coord_candidate: Path = primary_candidate
-    coord_worktree_materialized = False
+    coord_state = CoordState.NONE
     if mid8:
-        # Lazy import breaks the import cycle: ``coordination.__init__`` eagerly
-        # imports ``surface_resolver``, which imports ``_compose_mission_dir``
-        # from this module. A module-level import here would deadlock whenever
-        # this resolver is the first entry point into the coordination package.
-        from specify_cli.coordination.workspace import CoordinationWorkspace
-
-        coord_root: Path = CoordinationWorkspace.worktree_path(
-            repo_root, mission_slug, mid8
+        # Shared compose + probe (paula C1/C2 + WP05 fold): build the coord
+        # candidate via the single grammar and classify the topology state. The
+        # branch (when supplied) splits UNMATERIALIZED from DELETED via the single
+        # ``git rev-parse`` arm inside the probe — no 4th copy of the check.
+        coord_candidate = coord_feature_dir(repo_root, mission_slug, mid8)
+        coord_state = probe_coord_state(
+            repo_root,
+            mission_slug,
+            mid8,
+            coordination_branch=coordination_branch,
         )
-        coord_worktree_materialized = coord_root.exists()
-        coord_candidate = coord_root / KITTY_SPECS_DIR / mission_dir_name
+
+    # #1848 / FR-005 (DELETED): a declared coord branch deleted from git carries
+    # unmerged status — data loss, never a silent primary fallback. Hard-fail with
+    # the SAME loud, distinct error the canonical surface raises so all legs
+    # converge on ``CoordinationBranchDeleted`` / ``COORDINATION_BRANCH_DELETED``.
+    # Only reachable when a ``coordination_branch`` was supplied (the git arm splits
+    # UNMATERIALIZED from DELETED), which only ``resolve_handle_to_read_path`` does —
+    # the lenient ``candidate_feature_dir_for_mission`` path supplies no branch, so
+    # its behaviour is unchanged.
+    if coord_state is CoordState.DELETED and coordination_branch is not None:
+        # Late import breaks the cycle: ``coordination.surface_resolver`` imports
+        # ``_compose_mission_dir`` / ``probe_coord_state`` from THIS module, so a
+        # module-level import would deadlock when this resolver is the first entry
+        # into the coordination package.
+        from specify_cli.coordination.surface_resolver import (
+            CoordinationBranchDeleted,
+        )
+
+        raise CoordinationBranchDeleted(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            mid8=mid8 or "",
+            coordination_branch=coordination_branch,
+            coord_candidate=coord_candidate,
+            primary_candidate=primary_candidate,
+        )
+
+    # WP05 Option B (EMPTY) under the EXISTENCE-gated read: a materialised coord
+    # root with no mission dir → PRIMARY is authoritative (the loud warning lives at
+    # the surface). This inverts the #1718 stale-surface guard for the
+    # materialised-but-empty case ONLY for ``require_exists=True`` — the contract the
+    # equivalence gate and ``resolve_handle_to_read_path`` exercise. The lenient,
+    # non-gated path keeps the historical fail-closed raise below so existing
+    # ``candidate_feature_dir_for_mission`` callers (e.g. the ``mission run``
+    # boundary's raw-passthrough on ``StatusReadPathNotFound``) are unchanged.
+    if (
+        require_exists
+        and coord_state is CoordState.EMPTY
+        and primary_candidate.exists()
+    ):
+        return primary_candidate
 
     # Fail-closed: primary exists but declares a coord branch whose materialised
     # worktree lacks the mission dir — reading primary would expose stale status.
+    # (Preserves the historical non-gated behaviour for ``require_exists=False``.)
     fail_closed = (
         primary_candidate.exists()
         and bool(mid8)
-        and coord_worktree_materialized
+        and coord_state is CoordState.EMPTY
         and _declares_coordination_branch(primary_candidate)
     )
     if fail_closed or require_exists:
@@ -442,11 +616,11 @@ def resolve_handle_to_read_path(
        ``mid8``) cannot be addressed against the coord worktree; reading primary
        would expose stale status, so raise the typed read-path error rather than
        silently fall back.
-    5. Return :func:`resolve_mission_read_path` — the **existence-gated** topology
+    5. Return :func:`_resolve_mission_read_path` — the **existence-gated** topology
        resolver.
 
     ROUTING INVARIANT (FR-005, #1718 trap — binding): step 5 routes through
-    :func:`resolve_mission_read_path`, which selects the coord surface ONLY when
+    :func:`_resolve_mission_read_path`, which selects the coord surface ONLY when
     the coord worktree directory EXISTS on disk. It MUST NOT route through
     ``resolve_status_surface_with_anchor`` (or any composing surface): that
     composes and returns the coord path for an *unmaterialised* coord, so a
@@ -457,16 +631,18 @@ def resolve_handle_to_read_path(
     coord with a perfectly good ``mid8`` still resolves PRIMARY because no worktree
     dir is on disk.
 
-    ``require_exists`` is forwarded UNCHANGED to :func:`resolve_mission_read_path`
-    (load-bearing for WP04's equivalence-matrix re-point: with
-    ``require_exists=True`` the coord-empty / coord-deleted cells must still RAISE
-    :class:`StatusReadPathNotFound`).
+    ``require_exists`` is forwarded UNCHANGED to :func:`_resolve_mission_read_path`.
+    Under ``require_exists=True`` the read-path leg adopts WP01's
+    :func:`probe_coord_state` discriminator for the whole coord fail-closed family
+    (WP05 / T022): ``DELETED`` hard-fails :class:`CoordinationBranchDeleted`
+    (converging with the surface), ``EMPTY`` returns PRIMARY (WP04 Option B), and
+    ``UNMATERIALIZED`` keeps the #1718 create-window primary read.
 
     Args:
         repo_root: Absolute repository root (primary checkout).
         handle: Mission handle — bare slug, ``<slug>-<mid8>``, full ``mission_id``,
             bare ``mid8``, or numeric prefix.
-        require_exists: Forwarded to :func:`resolve_mission_read_path`; when
+        require_exists: Forwarded to :func:`_resolve_mission_read_path`; when
             ``True``, a genuine absence raises :class:`StatusReadPathNotFound`.
 
     Returns:
@@ -477,6 +653,10 @@ def resolve_handle_to_read_path(
         StatusReadPathNotFound: Coord-declared topology with an unprovable
             identity (fail-closed gate), or — when ``require_exists`` is ``True`` —
             a genuine absence.
+        CoordinationBranchDeleted: When ``require_exists`` is ``True`` and the
+            declared ``coordination_branch`` has been DELETED from git while the
+            coord worktree is absent (#1848 data-loss — never a silent stale
+            primary read; converges with the canonical surface).
         MissionSelectorAmbiguous: When ``handle`` matches more than one mission
             (propagated unchanged — no silent first-match, C-CTX-4 / C-009).
     """
@@ -503,11 +683,59 @@ def resolve_handle_to_read_path(
             primary_candidate=primary_candidate,
         )
 
+    raw_coord_branch = primary_meta.get("coordination_branch")
+    coordination_branch = (
+        str(raw_coord_branch).strip()
+        if isinstance(raw_coord_branch, str) and raw_coord_branch.strip()
+        else None
+    )
+
+    # 4b. DELETED hard-fail (WP05 / T022, FR-005): the coord worktree is absent AND
+    #     the declared coordination branch has been DELETED from git. Probe the
+    #     shared discriminator BEFORE the existence-gated resolver — for a
+    #     coord-deleted topology the PRIMARY mission dir still exists on disk, so
+    #     :func:`_resolve_mission_read_path` would otherwise hand back that stale
+    #     primary view before the fail-closed tail runs. Hard-fail with the SAME
+    #     loud, distinct error the canonical surface raises so every leg converges
+    #     on ``CoordinationBranchDeleted`` / ``COORDINATION_BRANCH_DELETED`` — never
+    #     a silent stale-primary read of a mission whose coord branch (carrying
+    #     unmerged status) is gone (#1848 data-loss carve-out). Gated on
+    #     ``require_exists`` so the lenient ``candidate_feature_dir_for_mission``
+    #     diagnostic path keeps its primary-candidate return.
+    if require_exists and mid8 and coordination_branch is not None:
+        from specify_cli.coordination.surface_resolver import (
+            CoordinationBranchDeleted,
+        )
+
+        if (
+            probe_coord_state(
+                repo_root, handle, mid8, coordination_branch=coordination_branch
+            )
+            is CoordState.DELETED
+        ):
+            composed_coord = coord_feature_dir(repo_root, handle, mid8)
+            raise CoordinationBranchDeleted(
+                repo_root=repo_root,
+                mission_slug=handle,
+                mid8=mid8,
+                coordination_branch=coordination_branch,
+                coord_candidate=composed_coord,
+                primary_candidate=primary_feature_dir_for_mission(repo_root, handle),
+            )
+
     # 5. Existence-gated topology resolver — NEVER resolve_status_surface_with_anchor
     #    (#1718: that composes the coord path for an unmaterialised coord). The
-    #    require_exists flag is forwarded unchanged (WP04 depends on it).
-    return resolve_mission_read_path(
-        repo_root, handle, mid8, require_exists=require_exists
+    #    require_exists flag is forwarded unchanged (WP04 depends on it). The
+    #    declared ``coordination_branch`` is threaded down so the EMPTY fail-closed
+    #    tail can adopt Option B (PRIMARY) and the DELETED tail can hard-fail when a
+    #    direct ``_resolve_mission_read_path`` caller supplies the branch (WP05 /
+    #    T022 — converges with the surface).
+    return _resolve_mission_read_path(
+        repo_root,
+        handle,
+        mid8,
+        require_exists=require_exists,
+        coordination_branch=coordination_branch,
     )
 
 
@@ -587,12 +815,12 @@ def candidate_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Pat
     """Return the topology-aware mission-dir candidate without requiring it exist.
 
     This is the **single read primitive** (C-005 / FR-002): it delegates to
-    :func:`resolve_mission_read_path`, deriving ``mid8`` once from the slug. The
+    :func:`_resolve_mission_read_path`, deriving ``mid8`` once from the slug. The
     historical ``missions.feature_dir_resolver`` shim that re-exported this
     function was retired in WP07 (FR-007); every caller now imports it from this
     canonical module directly.
 
-    Because it routes through :func:`resolve_mission_read_path`, a bare ``mid8``
+    Because it routes through :func:`_resolve_mission_read_path`, a bare ``mid8``
     handle (e.g. ``01KTPKST``) resolves to the same directory as the full slug
     (F-001/F-003/F-004) for every one of the 30+ callers, not just the read-side
     CLI commands.
@@ -605,7 +833,7 @@ def candidate_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Pat
     """
     from specify_cli.lanes.branch_naming import mid8_from_slug
 
-    return resolve_mission_read_path(
+    return _resolve_mission_read_path(
         repo_root, mission_slug, mid8_from_slug(mission_slug)
     )
 
@@ -614,7 +842,7 @@ def primary_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:
     """Return the PRIMARY-checkout mission dir, deliberately topology-blind.
 
     The inverse companion of :func:`candidate_feature_dir_for_mission`: it does
-    **NOT** route through :func:`resolve_mission_read_path`, because the
+    **NOT** route through :func:`_resolve_mission_read_path`, because the
     topology-aware resolver selects the coordination worktree once one exists —
     which is exactly the surface that lacks ``meta.json`` (it lives on the
     primary checkout). Callers that must read primary-anchored metadata
@@ -697,7 +925,7 @@ def resolve_feature_dir_for_slug(repo_root: Path, mission_slug: str) -> Path:
     already hold a mission slug and only need the read-side directory path —
     never raises on a missing directory (unlike
     :func:`resolve_feature_dir_for_mission`). It delegates to the single
-    coord-aware path primitive (:func:`resolve_mission_read_path`), so
+    coord-aware path primitive (:func:`_resolve_mission_read_path`), so
     coordination topology is honoured exactly once.
 
     Relocated here from the retired ``missions.feature_dir_resolver`` shim
@@ -706,7 +934,7 @@ def resolve_feature_dir_for_slug(repo_root: Path, mission_slug: str) -> Path:
     """
     from specify_cli.lanes.branch_naming import mid8_from_slug
 
-    feature_dir: Path = resolve_mission_read_path(
+    feature_dir: Path = _resolve_mission_read_path(
         repo_root, mission_slug, mid8_from_slug(mission_slug)
     )
     return feature_dir
@@ -746,6 +974,14 @@ __all__ = [
     "resolve_feature_dir_for_mission",
     "resolve_feature_dir_for_slug",
     "resolve_handle_to_read_path",
-    "resolve_mission_read_path",
     "resolve_surface_dir_or_typed_error",
 ]
+# NOTE: ``coord_feature_dir``, ``probe_coord_state`` and ``CoordState`` are the
+# WP01 shared helpers (paula C1/C2). They are public module-level symbols that
+# WP04 (coord-empty) and WP05 (coord-deleted) import DIRECTLY
+# (``from ..._read_path_resolver import coord_feature_dir``) when they adopt the
+# single compose/probe body. They are intentionally NOT in ``__all__`` until a
+# cross-module importer exists — the symbol-level dead-code gate
+# (``test_no_dead_symbols``) flags an ``__all__`` entry with no cross-module
+# caller, and WP01 only wires them from same-module read-path sites. WP04/WP05
+# add them to ``__all__`` when they adopt them.

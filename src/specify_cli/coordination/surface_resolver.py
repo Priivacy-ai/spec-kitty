@@ -13,13 +13,19 @@ here; the C-002 topology-ratchet allowlist entry that reserved them is drained
 reaching for a parallel resolution path should treat this constraint as
 load-bearing (NFR-003 compliance boundary).
 
-The coord-empty case (a materialized-but-empty coordination worktree) is a
-decided **hard-fail** (FR-006 / #1716): :class:`CoordinationWorktreeEmpty`
-(a :class:`StatusReadPathNotFound` carve-out) is raised with a two-path
-recovery message — collapse/flatten OR recreate/populate — never a silent
-primary fallback. The decision is recorded in
+The coord-empty case (a materialized-but-empty coordination worktree) is now an
+operator-decided **loud primary fallback** (Option B; FR-001 / FR-003 / #1716):
+the resolver falls back to the primary checkout and proceeds, emitting a single
+``logging.WARNING`` (:data:`_COORD_EMPTY_FALLBACK_WARNING`) that names the
+stale-surface risk AND both operator recovery paths — flatten (drop
+``coordination_branch`` from ``meta.json``) OR ``spec-kitty agent worktree
+repair --mission <slug>``. It NEVER silently degrades: the warning makes the
+fallback observable so an operator or orchestrating agent can intervene. The
+decision is recorded in
 ``architecture/3.x/adr/2026-06-19-1-coord-empty-surface-fallback.md`` and bound
-to this single resolver.
+to this single resolver. (The sibling coord-*deleted* case stays a hard-fail —
+:class:`CoordinationBranchDeleted`, #1848 — because a deleted branch carrying
+unmerged status is data loss, not a degraded read.)
 
 Coord-topology resolution happens **exactly once** (FR-036). The coord-aware
 :func:`candidate_feature_dir_for_mission` resolver already returns the
@@ -36,6 +42,7 @@ bug); building the path directly avoids that.
 from __future__ import annotations
 
 import enum
+import logging
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -45,16 +52,16 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.lanes.branch_naming import mid8_from_slug, resolve_mid8
 from specify_cli.mission_metadata import load_meta
 from specify_cli.missions._read_path_resolver import (
-    STATUS_READ_PATH_NOT_FOUND_CODE,
+    CoordState,
     StatusReadPathNotFound,
-    _compose_mission_dir,
     candidate_feature_dir_for_mission,
+    coord_feature_dir,
     primary_feature_dir_for_mission,
+    probe_coord_state,
 )
 
 __all__ = [
     "CoordinationBranchDeleted",
-    "CoordinationWorktreeEmpty",
     "ResolvedStatusSurface",
     "WorktreeRegistryUnavailable",
     "WorktreeTopology",
@@ -67,9 +74,28 @@ __all__ = [
     "resolve_status_surface_with_anchor",
 ]
 
+logger = logging.getLogger(__name__)
+
 _WORKTREES_SEGMENT = ".worktrees"
 _COORD_SUFFIX = "-coord"
 _STATUS_EVENTS_FILENAME = "status.events.jsonl"
+
+# Option B loud primary fallback (FR-001 / FR-003 / #1716): when the coordination
+# worktree root is materialized but carries no mission dir, the resolver returns
+# the PRIMARY checkout and emits this single ``logging.WARNING`` so the fallback
+# is observable. The message names the stale-surface risk AND both operator
+# recovery paths (flatten OR `spec-kitty agent worktree repair`); it is built once
+# (paula C-warning-dup) and reuses the ADR recovery text. The ``{slug}`` /
+# ``{coord_root}`` fields are filled at emit time.
+_COORD_EMPTY_FALLBACK_WARNING = (
+    "Coordination worktree for mission %(slug)r is materialized but carries no "
+    "mission dir (coord root %(coord_root)s): falling back to the PRIMARY "
+    "checkout, which may expose a stale, split-brain status surface. Recover by "
+    "EITHER (a) flattening the mission — remove the `coordination_branch` key "
+    "from meta.json so the primary checkout becomes authoritative — OR "
+    "(b) recreating/populating the coordination worktree by running "
+    "`spec-kitty agent worktree repair --mission %(slug)s`."
+)
 
 
 class WorktreeTopology(enum.Enum):
@@ -170,78 +196,6 @@ class CoordinationBranchDeleted(StatusReadPathNotFound):  # type: ignore[misc, u
             f"Coordination branch {self.coordination_branch!r} for mission "
             f"{self.mission_slug!r} is declared in meta.json but deleted from "
             f"git. {self.next_step}"
-        )
-
-
-class CoordinationWorktreeEmpty(StatusReadPathNotFound):  # type: ignore[misc, unused-ignore]
-    """FR-006 (#1716): the coordination worktree is *materialized but empty* —
-    its root exists on disk but it carries no mission dir (no status surface
-    yet), while the primary checkout declares ``coordination_branch``.
-
-    This is the decided **hard-fail** policy: reading the primary checkout here
-    would expose a stale, split-brain status surface (#1589/#1821), so the
-    resolver refuses rather than silently falling back to primary (FR-006 /
-    NFR-004). The ``next_step`` message names BOTH operator recovery paths —
-    **collapse/flatten** the mission (drop ``coordination_branch`` from
-    meta.json) **or** **recreate/populate** the coordination branch — so the
-    diagnostic is actionable, not just a dead end.
-
-    Subclasses :class:`StatusReadPathNotFound` (carrying its
-    ``error_code = "STATUS_READ_PATH_NOT_FOUND"``) so every existing
-    ``except StatusReadPathNotFound`` fail-closed handler still catches it and
-    every caller that routes on the stable ``error_code`` keeps working; the
-    distinct *type* + two-path ``next_step`` only enrich the diagnostic. This
-    mirrors the :class:`CoordinationBranchDeleted` carve-out (the sibling
-    #1848/#1889 row R3 hard-fail).
-
-    The mypy ``[misc, unused-ignore]`` pairing is identical in cause and
-    rationale to :class:`CoordinationBranchDeleted` above — the
-    ``missions/`` mypy ``exclude`` makes the base resolve to ``Any`` under the
-    single-file run while the full-package CI run resolves it normally.
-    """
-
-    error_code: str = STATUS_READ_PATH_NOT_FOUND_CODE
-
-    def __init__(
-        self,
-        *,
-        repo_root: Path,
-        mission_slug: str,
-        mid8: str,
-        coordination_branch: str | None,
-        coord_candidate: Path,
-        primary_candidate: Path,
-    ) -> None:
-        self.coordination_branch = coordination_branch
-        branch_hint = (
-            f" (coordination_branch={coordination_branch!r})"
-            if coordination_branch
-            else ""
-        )
-        self.next_step = (
-            "The coordination worktree is materialized but carries no mission "
-            "dir, so the status surface is missing. Recover by EITHER "
-            f"(a) collapsing/flattening the mission{branch_hint} — remove the "
-            "`coordination_branch` key from meta.json so the primary checkout "
-            "becomes authoritative — OR (b) recreating/populating the "
-            "coordination worktree (run `spec-kitty agent worktree repair "
-            f"--mission {mission_slug}`) so it carries the mission status "
-            "surface. The resolver refuses to silently fall back to the "
-            "primary checkout because that would expose a stale, split-brain "
-            "status surface (FR-006)."
-        )
-        super().__init__(
-            repo_root=repo_root,
-            mission_slug=mission_slug,
-            mid8=mid8,
-            coord_candidate=coord_candidate,
-            primary_candidate=primary_candidate,
-        )
-
-    def __str__(self) -> str:  # pragma: no cover - trivial formatting
-        return (
-            f"Coordination worktree for mission {self.mission_slug!r} is "
-            f"materialized but empty (no status surface). {self.next_step}"
         )
 
 
@@ -524,67 +478,6 @@ def _coord_mid8(meta: dict[str, object], mission_slug: str, repo_root: Path) -> 
     )
 
 
-def _is_coord_empty_condition(
-    repo_root: Path, mission_slug: str, mid8: str
-) -> bool:
-    """Return True iff *mission_slug* is in the coord-empty topology state.
-
-    The coord-empty state (FR-006): the mission declares ``coordination_branch``
-    in its primary ``meta.json`` AND the coord worktree ROOT is materialized on
-    disk AND its mission dir is absent. Pure-path (one ``meta.json`` read + two
-    ``Path.exists()`` stats), no git — it only confirms the condition the
-    candidate resolver already fail-closed on, so the surface can re-raise the
-    enriched two-path error instead of a plain ``StatusReadPathNotFound``.
-    """
-    if not mid8:
-        return False
-    primary_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
-    meta = load_meta(primary_dir)
-    if not isinstance(meta, dict) or not meta.get("coordination_branch"):
-        return False
-    coord_root = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
-    if not coord_root.exists():
-        return False
-    coord_feature_dir = coord_root / KITTY_SPECS_DIR / _compose_mission_dir(
-        mission_slug, mid8
-    )
-    return not coord_feature_dir.exists()
-
-
-def _canonicalize_or_enrich_coord_empty(repo_root: Path, mission_slug: str) -> Path:
-    """Run the single canonicalization, enriching a coord-empty fail-closed.
-
-    Delegates to :func:`candidate_feature_dir_for_mission` (the single
-    canonicalization point). That resolver already fails closed with a *plain*
-    :class:`StatusReadPathNotFound` for the ``<slug>-<mid8>`` coord-empty handle
-    (it derives mid8 from the slug, which the slug-mid8 form carries). To deliver
-    the FR-006 two-path recovery message **consistently across both handle
-    forms**, this wrapper catches that plain fail-closed, confirms the coord-empty
-    condition, and re-raises :class:`CoordinationWorktreeEmpty` (the carve-out
-    carrying the same ``error_code`` + the actionable message). A coord-empty
-    that already arrives as the enriched subclass is left untouched (no
-    double-wrap); any other ``StatusReadPathNotFound`` (e.g. a genuinely missing
-    mission, or the bare-slug path that resolves to primary and reaches the
-    surface's own coord-empty branch downstream) propagates unchanged.
-    """
-    try:
-        return candidate_feature_dir_for_mission(repo_root, mission_slug)
-    except CoordinationWorktreeEmpty:
-        raise
-    except StatusReadPathNotFound as exc:
-        mid8 = exc.mid8 or ""
-        if _is_coord_empty_condition(repo_root, mission_slug, mid8):
-            raise CoordinationWorktreeEmpty(
-                repo_root=exc.repo_root,
-                mission_slug=exc.mission_slug,
-                mid8=mid8,
-                coordination_branch=None,
-                coord_candidate=exc.coord_candidate,
-                primary_candidate=exc.primary_candidate,
-            ) from exc
-        raise
-
-
 def resolve_status_surface(repo_root: Path, mission_slug: str) -> Path:
     """Return the canonical status.events.jsonl path for the given mission.
 
@@ -615,26 +508,38 @@ def resolve_status_surface_with_anchor(
        bug).
     2. Otherwise the resolver landed in the primary checkout. When that mission
        declares ``coordination_branch`` but the coord worktree is not yet
-       materialized, compose the coord path **directly** (one derivation). If the
-       coord worktree root *is* materialized but lacks the mission dir, fail
-       closed with :class:`StatusReadPathNotFound` rather than handing back a
-       primary surface — the silent fallback is the #1589/#1821 split-brain
-       class this resolver exists to kill (FR-005). The bare-slug path used to
-       lose this signal because :func:`candidate_feature_dir_for_mission`
-       derives mid8 from the *slug* (empty for a bare slug), so the
-       materialization check never fired; here mid8 comes from ``meta`` so the
-       check holds for both bare and ``<slug>-<mid8>`` handles.
+       materialized, compose the coord path **directly** (one derivation, via
+       WP01's :func:`coord_feature_dir`). When the coord worktree root *is*
+       materialized but lacks the mission dir (the coord-empty state), apply
+       Option B: return the PRIMARY checkout surface and emit a single loud
+       ``logging.WARNING`` (:data:`_COORD_EMPTY_FALLBACK_WARNING`) naming the
+       stale-surface risk and both recovery paths (#1716 / FR-001 / FR-003). The
+       coord-state decision routes through WP01's :func:`probe_coord_state`
+       (adopted, not re-derived); the ``CoordState.DELETED`` case still hard-fails
+       (:class:`CoordinationBranchDeleted`, #1848).
 
     Raises FileNotFoundError when meta.json is absent.
     Raises ValueError when meta.json is malformed.
-    Raises CoordinationWorktreeEmpty (a StatusReadPathNotFound carve-out with the
-        FR-006 two-path recovery message) when the coord worktree is materialized
-        but its mission dir is absent — for BOTH the bare-slug and the
-        ``<slug>-<mid8>`` handle forms.
+    Raises CoordinationBranchDeleted when the coord worktree is absent AND the
+        declared coordination branch has been deleted from git (#1848 data-loss
+        carve-out — never a silent fallback).
     Raises StatusReadPathNotFound when the coord-worktree mid8 cannot be derived
         from any declared source (fail closed — never fabricate a mid8).
     """
-    feature_dir: Path = _canonicalize_or_enrich_coord_empty(repo_root, mission_slug)
+    try:
+        feature_dir: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    except StatusReadPathNotFound as exc:
+        # Option B (#1716 / FR-001 / FR-003): for the ``<slug>-<mid8>`` handle the
+        # canonicalizer derives mid8 from the slug, so a coord-empty topology fails
+        # closed HERE (``_resolve_not_found``) before the topology branch below runs
+        # — unlike the bare-slug handle, which canonicalizes to primary and reaches
+        # the branch directly. Recover by re-anchoring on the fail-closed
+        # diagnostic's primary candidate (the primary checkout carries meta.json);
+        # the loud coord-empty fallback then fires uniformly for BOTH handle forms.
+        # Any non-coord-empty fail-closed (e.g. a genuinely missing mission) keeps
+        # propagating, so the not-found behaviour for unresolvable handles is
+        # unchanged.
+        feature_dir = exc.primary_candidate
     # F-001: the candidate resolution above is the single canonicalization
     # point — a mid8 / ULID / numeric-prefix handle lands on the real mission
     # directory, whose NAME is the canonical mission-dir name. Every downstream
@@ -698,50 +603,52 @@ def resolve_status_surface_with_anchor(
             primary_anchor=feature_dir,
         )
 
-    # Coord branch declared but the worktree is not materialized yet: compose
-    # the coord feature dir once, by hand, from the primary-checkout meta. The
-    # primary anchor stays the canonical primary candidate (the create→first-
-    # write window authority the transaction-identity logic expects).
+    # Coord branch declared: classify the coord-worktree topology state via WP01's
+    # shared probe (paula C2) — never re-derive the root/mission-dir/branch checks
+    # inline. The composed coord feature dir is built once via WP01's
+    # ``coord_feature_dir`` (paula C1, single grammar). The primary anchor stays
+    # the canonical primary candidate (the create→first-write window authority the
+    # transaction-identity logic expects).
     mid8: str = _coord_mid8(meta, mission_slug, repo_root)
-    dir_name: str = _compose_mission_dir(mission_slug, mid8)
-    coord_root: Path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
-    coord_feature_dir: Path = coord_root / KITTY_SPECS_DIR / dir_name
-    # #1889 row R3 (NEW): the coord worktree is absent AND the declared
-    # coordination branch has been DELETED from git. This is the #1848 carve-out
-    # — a deleted coord branch with unmerged status is data loss, not a degraded
-    # read. Fail closed LOUDLY with a distinct, actionable error rather than
-    # silently composing a coord path (R2) or falling back to primary (FR-005 /
-    # FR-008). One `git rev-parse --verify` disambiguates R2 (branch exists) from
-    # R3 (branch gone); skipped once the worktree is materialized (R1/R2′).
-    if not coord_root.exists() and not _coord_branch_exists(repo_root, coord_branch):
+    composed_coord_dir: Path = coord_feature_dir(repo_root, mission_slug, mid8)
+    coord_state = probe_coord_state(
+        repo_root, mission_slug, mid8, coordination_branch=coord_branch
+    )
+
+    # #1889 row R3 / #1848: the coord worktree is absent AND the declared
+    # coordination branch has been DELETED from git. A deleted coord branch with
+    # unmerged status is data loss, not a degraded read — fail closed LOUDLY with
+    # a distinct, actionable error rather than silently composing a coord path or
+    # falling back to primary (FR-005 / FR-008). This stays a hard-fail (WP05).
+    if coord_state is CoordState.DELETED:
         raise CoordinationBranchDeleted(
             repo_root=repo_root,
             mission_slug=mission_slug,
             mid8=mid8,
             coordination_branch=coord_branch,
-            coord_candidate=coord_feature_dir,
+            coord_candidate=composed_coord_dir,
             primary_candidate=feature_dir,
         )
-    # Fail closed (FR-006 coord-empty hard-fail, #1716): the coord worktree root
-    # is materialized but its mission dir is absent → reading the primary
-    # checkout would expose a stale, split-brain status surface (#1589/#1821).
-    # Raise the coord-empty carve-out whose message names BOTH operator recovery
-    # paths (collapse/flatten OR recreate/populate) — never a silent primary
-    # fallback (NFR-004). It subclasses StatusReadPathNotFound (same error_code),
-    # so every existing fail-closed handler keeps catching it. Before
-    # materialization the composed coord path is returned as-is; the
-    # create→first-write window keeps the primary checkout authoritative one
-    # level up (the aggregate's not-yet-materialized gate). FR-005 / FR-006.
-    if coord_root.exists() and not coord_feature_dir.exists():
-        raise CoordinationWorktreeEmpty(
-            repo_root=repo_root,
-            mission_slug=mission_slug,
-            mid8=mid8,
-            coordination_branch=coord_branch,
-            coord_candidate=coord_feature_dir,
-            primary_candidate=feature_dir,
+    # Option B loud primary fallback (FR-001 / FR-003 / #1716): the coord worktree
+    # root is materialized but its mission dir is absent (coord-empty). Reading the
+    # primary checkout may expose a stale, split-brain status surface (#1589/#1821),
+    # so emit a single loud ``logging.WARNING`` naming the risk AND both recovery
+    # paths (flatten OR `spec-kitty agent worktree repair`) — making the fallback
+    # observable so an operator/orchestrating agent can intervene — then return the
+    # PRIMARY surface and proceed. Before materialization (``UNMATERIALIZED``) the
+    # composed coord path is returned as-is; the create→first-write window keeps the
+    # primary checkout authoritative one level up (the aggregate's not-yet-
+    # materialized gate).
+    if coord_state is CoordState.EMPTY:
+        logger.warning(
+            _COORD_EMPTY_FALLBACK_WARNING,
+            {"slug": mission_slug, "coord_root": composed_coord_dir.parent.parent},
+        )
+        return ResolvedStatusSurface(
+            surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
+            primary_anchor=feature_dir,
         )
     return ResolvedStatusSurface(
-        surface_path=coord_feature_dir / _STATUS_EVENTS_FILENAME,
+        surface_path=composed_coord_dir / _STATUS_EVENTS_FILENAME,
         primary_anchor=feature_dir,
     )

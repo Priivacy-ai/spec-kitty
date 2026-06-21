@@ -10,6 +10,7 @@ Covers:
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 from pathlib import Path
 
@@ -245,32 +246,52 @@ class TestLoadCoordUnavailableFailsClosed:
         assert ms.read_dir == primary_mission_dir
         assert ms.mid8 == mid8
 
-    def test_fails_closed_when_coord_worktree_materialized_but_missing_mission_dir(self, tmp_path: Path) -> None:
-        """Materialized coord worktree without mission dir is stale/empty hazard."""
-        slug = "stale-feature"
+    def test_coord_worktree_materialized_but_missing_mission_dir_resolves_primary(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """WP04 Option B (#1716 / FR-003): coord-empty → aggregate inherits PRIMARY.
+
+        Previously this hard-failed with ``CoordAuthorityUnavailable``. Under the
+        operator-decided Option B the canonical surface returns the primary
+        checkout + emits a loud warning, and the aggregate inherits that PRIMARY
+        with NO aggregate code change (``_resolve_read_dir`` delegates to the
+        surface). The fallback is observable (the surface logs at
+        ``logging.WARNING``); the inverted assertion proves coord-empty no longer
+        reaches the aggregate's ``CoordAuthorityUnavailable`` seam.
+        """
         mission_id = "01STALEKITTY1234567890AB"
         mid8 = mission_id[:8]
+        # Canonical post-WP03 dir name carries the mid8 suffix; load by the same
+        # handle so the aggregate resolves the coord-empty topology (not legacy).
+        full_slug = f"stale-feature-{mid8}"
 
-        primary_dir = _make_mission_dir(tmp_path, slug)
+        primary_dir = _make_mission_dir(tmp_path, full_slug)
         _write_meta(
             primary_dir,
             mission_id=mission_id,
-            coordination_branch=f"kitty/mission-{slug}-{mid8}",
+            coordination_branch=f"kitty/mission-{full_slug}",
         )
         _write_events_file(primary_dir, [
-            _make_event(slug, "WP01", "planned", "claimed"),
+            _make_event(full_slug, "WP01", "planned", "claimed"),
         ])
-        # Root exists, but kitty-specs/<slug>-<mid8>/ is absent.
-        (tmp_path / ".worktrees" / f"{slug}-{mid8}-coord").mkdir(parents=True)
+        # Root exists, but kitty-specs/<slug>-<mid8>/ is absent (coord-empty).
+        (tmp_path / ".worktrees" / f"{full_slug}-coord").mkdir(parents=True)
 
-        from specify_cli.status.aggregate import CoordAuthorityUnavailable, MissionStatus
+        from specify_cli.status.aggregate import MissionStatus
 
-        with pytest.raises(CoordAuthorityUnavailable) as exc_info:
-            MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
+        with caplog.at_level(
+            logging.WARNING, logger="specify_cli.coordination.surface_resolver"
+        ):
+            ms = MissionStatus.load(repo_root=tmp_path, mission_slug=full_slug)
 
-        exc = exc_info.value
-        assert exc.mission_slug == slug
-        assert "coordination worktree unavailable" in str(exc).lower()
+        # Option B: the aggregate inherits the PRIMARY checkout (no hard-fail).
+        assert ms.read_dir.resolve() == primary_dir.resolve()
+        # The fallback is loud (NFR-003): the surface emitted a WARNING.
+        assert any(
+            r.name == "specify_cli.coordination.surface_resolver"
+            and r.levelno == logging.WARNING
+            for r in caplog.records
+        ), "coord-empty Option B must surface a logging.WARNING (no silent fallback)"
 
     def test_corrupt_meta_fails_closed_instead_of_legacy_fallback(self, tmp_path: Path) -> None:
         """Existing but corrupt meta.json cannot degrade to a primary-checkout read."""

@@ -154,7 +154,9 @@ def test_1889_flattened_mission_resolves_to_primary_no_crash(
     flattened_mission: dict[str, object],
 ) -> None:
     """#1889 pin: declared-but-unmaterialized coord resolves to primary dir."""
-    from specify_cli.missions._read_path_resolver import resolve_mission_read_path
+    from specify_cli.missions._read_path_resolver import (
+        _resolve_mission_read_path as resolve_mission_read_path,
+    )
 
     repo_root = flattened_mission["repo_root"]
     feature_dir = flattened_mission["feature_dir"]

@@ -33,7 +33,7 @@ import pytest
 from specify_cli.missions._read_path_resolver import (
     StatusReadPathNotFound,
     resolve_handle_to_read_path,
-    resolve_mission_read_path,
+    _resolve_mission_read_path as resolve_mission_read_path,
 )
 
 pytestmark = [pytest.mark.fast]

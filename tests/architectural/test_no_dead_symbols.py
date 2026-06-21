@@ -472,27 +472,24 @@ _CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH: frozenset[str] = frozenset(
 #     ``resolve_status_surface_with_anchor`` (callers consume the value, not the
 #     name); it predates this WP and was opted into the gate by adding ``__all__``
 #     per C-007.
-#   * ``CoordinationBranchDeleted`` subclasses ``StatusReadPathNotFound``, so the
-#     ~10 existing ``except StatusReadPathNotFound`` handlers already catch it and
-#     route on its distinct ``error_code``; a redundant by-name ``except`` would be
-#     worse design. WP05 (read-path migration, commit 77ba2b2d9) has now LANDED;
-#     per the adjudicated WP05 review it kept the transitive-via-superclass
-#     consumption rather than adding a by-name ``except``, so this is a *permanent*
-#     transitive-consumption allowlist, not a temporary in-flight one. Both symbols
-#     still have zero cross-module by-name importers (WP09 verified by removal-probe:
-#     dropping either re-fails this gate), so both entries STAY.
-#   * ``CoordinationWorktreeEmpty`` (single-mission-surface-resolver WP06 / FR-006
-#     coord-empty hard-fail, #1716) is the SAME pattern: it subclasses
-#     ``StatusReadPathNotFound`` and carries the same ``error_code``, so the
-#     existing fail-closed handlers catch it transitively and only the enriched
-#     two-path message + distinct type differ. A redundant by-name ``except`` would
-#     be worse design; transitive consumption is the intended steady state.
-# Follow-up tracker: none — transitive consumption is the intended steady state.
+#   * ``CoordinationBranchDeleted`` was previously allowlisted as a transitive-via-
+#     superclass consumer (the ``except StatusReadPathNotFound`` handlers catch it).
+#     Mission 01KVN754 WP05 (coord-deleted convergence / #1848 / FR-005) now imports
+#     it BY NAME into both ``status.aggregate._resolve_read_dir`` (a more-specific
+#     ``except CoordinationBranchDeleted: raise`` AHEAD of the superclass re-wrap, so
+#     the data-loss verdict is propagated, not masked) and
+#     ``missions._read_path_resolver`` (the read-path DELETED hard-fail). Those
+#     by-name importers make it a LIVE cross-module symbol, so its allowlist entry is
+#     removed (a removal-probe now PASSES the gate because the real callers exist).
+#   * ``CoordinationWorktreeEmpty`` was DELETED by mission 01KVN754 WP04 (coord-empty
+#     Option B / #1716 / FR-003): coord-empty no longer raises — the surface falls
+#     back to primary + emits a loud warning — so the carve-out is gone and its
+#     allowlist entry was removed.
+# Follow-up tracker: none — ``ResolvedStatusSurface`` is the lone remaining
+# transitive-consumption entry (callers consume the return value, not the name).
 _CATEGORY_C_WP_IN_FLIGHT_TOPOLOGY_AUTHORITY: frozenset[str] = frozenset(
     {
         "specify_cli.coordination.surface_resolver::ResolvedStatusSurface",
-        "specify_cli.coordination.surface_resolver::CoordinationBranchDeleted",
-        "specify_cli.coordination.surface_resolver::CoordinationWorktreeEmpty",
     }
 )
 

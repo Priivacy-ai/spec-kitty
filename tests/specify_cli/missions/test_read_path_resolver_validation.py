@@ -24,7 +24,7 @@ import pytest
 
 from specify_cli.missions._read_path_resolver import (
     primary_feature_dir_for_mission,
-    resolve_mission_read_path,
+    _resolve_mission_read_path as resolve_mission_read_path,
 )
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]

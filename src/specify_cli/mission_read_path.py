@@ -11,7 +11,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from specify_cli.missions._read_path_resolver import resolve_mission_read_path
+# WP01 privatized the canonical worker (``resolve_mission_read_path`` →
+# ``_resolve_mission_read_path``) and dropped it from the resolver's ``__all__``.
+# This shim deliberately re-exports it under the ORIGINAL public name so the
+# back-compat contract (and the architectural allowlists / importer test that
+# depend on ``specify_cli.mission_read_path.resolve_mission_read_path``) keep
+# resolving. (Deleting the shim entirely is tracked separately as #2048.)
+from specify_cli.missions._read_path_resolver import (
+    _resolve_mission_read_path as resolve_mission_read_path,
+)
 
 __all__ = [
     "resolve_mission_read_path",

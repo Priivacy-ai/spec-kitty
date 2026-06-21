@@ -181,12 +181,19 @@ _ALLOWLISTED_RAW_JOINS: dict[str, str] = {
     # ever happens — the exception is raised immediately.  Rationale: the
     # diagnostic paths document what the resolver searched; they are not used
     # to read any mission file.
-    "specify_cli/coordination/surface_resolver.py:518": (
+    # NOTE (WP04 re-key, 01KVN754): these two _coord_mid8 fail-closed raise
+    # payloads drifted 518→472 and 523→477 when WP04 deleted
+    # ``CoordinationWorktreeEmpty`` + ``_is_coord_empty_condition`` +
+    # ``_canonicalize_or_enrich_coord_empty`` (coord-empty Option B). Same
+    # diagnostic joins — only their line drifted. Re-keyed to the current lines so
+    # ``test_allowlist_entries_are_not_stale`` stays green (the parallel
+    # untrusted_path_audit/inventory.md rows were re-keyed in lockstep).
+    "specify_cli/coordination/surface_resolver.py:472": (
         "DIAG — _coord_mid8 fail-closed raise payload: "
         "CoordinationWorkspace.worktree_path(...) / KITTY_SPECS_DIR / mission_slug "
         "inside StatusReadPathNotFound constructor; no FS sink (raise is immediate)."
     ),
-    "specify_cli/coordination/surface_resolver.py:523": (
+    "specify_cli/coordination/surface_resolver.py:477": (
         "DIAG — _coord_mid8 fail-closed raise payload: "
         "repo_root / KITTY_SPECS_DIR / mission_slug for primary_candidate field; "
         "no FS sink (raise is immediate)."
@@ -197,15 +204,17 @@ _ALLOWLISTED_RAW_JOINS: dict[str, str] = {
     # join and wraps ``get_main_repo_root(repo_root)`` on the left.  The join is
     # the DEFINITION of the blessed seam, not a bypass of it.  All callers that
     # need topology-blind primary-dir access delegate through THIS function.
-    # NOTE (WP05 re-key): the ``primary_feature_dir_for_mission`` definition
-    # relocated from :511 to :641 when the WP01 read-side seam
-    # (``resolve_handle_to_read_path`` + ``read_primary_meta``) was inserted
-    # above it.  The join is the SAME blessed primitive definition — only its
-    # line drifted.  Re-keyed to the current line so
-    # ``test_allowlist_entries_are_not_stale`` stays green.
-    "specify_cli/missions/_read_path_resolver.py:641": (
+    # NOTE (WP01 → WP05 re-key, 01KVN754): the ``primary_feature_dir_for_mission``
+    # definition relocated from :511 → :641 → :737 → :744 as the read-side seam grew —
+    # WP01 inserted the shared ``coord_feature_dir`` + ``probe_coord_state`` helpers
+    # (paula C1/C2) above it, and WP05 added the read-path EMPTY/DELETED fold in
+    # ``_resolve_not_found`` + the DELETED hard-fail block in
+    # ``resolve_handle_to_read_path`` (both above this definition).  The join is the
+    # SAME blessed primitive definition — only its line drifted.  Re-keyed to the
+    # current line so ``test_allowlist_entries_are_not_stale`` stays green.
+    "specify_cli/missions/_read_path_resolver.py:869": (
         "TBYD — IS the primary_feature_dir_for_mission primitive definition; "
-        "assert_safe_path_segment called at :640 (NFR-002); "
+        "assert_safe_path_segment called at :868 (NFR-002); "
         "get_main_repo_root wraps the left operand; "
         "this function is the canonical topology-blind entry point."
     ),
@@ -586,26 +595,45 @@ def test_no_direct_selection_call_outside_seam() -> None:
 def test_selection_discriminator_is_independent_of_raw_join_scanner() -> None:
     """The selection discriminator sees calls the raw-join scanner is blind to.
 
-    Anti-vacuous proof (squad-mandated): the blessed external selection
-    callsite (``acceptance/__init__.py:618``) is a direct
-    ``resolve_mission_read_path`` call that does NOT appear as a
-    ``raw-path-join`` row in ``discover_rows()`` (it composes no KITTY_SPECS_DIR
-    join).  So the raw-join scanner alone would MISS it — the new
-    ``discover_selection_callsites()`` discriminator is strictly stronger.
+    Anti-vacuous proof (squad-mandated).  WP01 (01KVN754) DRAINED the last
+    permanent external selection callsite (``acceptance/__init__.py`` rerouted
+    onto the seam), so the independence proof now uses a LIVE mutation witness
+    instead of a standing callsite: inject a direct
+    ``resolve_mission_read_path`` call (composing NO ``KITTY_SPECS_DIR`` join)
+    into a real read CLI and assert the SELECTION scanner discovers it while the
+    RAW-JOIN scanner stays blind to it — proving the selection discriminator is
+    strictly stronger than (independent of) the raw-join scanner.
     """
-    selection_keys = {s.key() for s in discover_selection_callsites()}
-    raw_join_keys = {r.key() for r in discover_rows() if r.call_name == "raw-path-join"}
-
-    blessed_external = "specify_cli/acceptance/__init__.py:618"
-    assert blessed_external in selection_keys, (
-        "Expected the blessed acceptance selection callsite to be DISCOVERED by "
-        "the selection scanner; the AST walker is misconfigured if it is absent."
+    snippet = (
+        "\n\ndef _wp01_independence_witness(repo_root, slug, mid8):  # noqa\n"
+        "    from specify_cli.missions._read_path_resolver import (\n"
+        "        resolve_mission_read_path,\n"
+        "    )\n"
+        "    return resolve_mission_read_path(repo_root, slug, mid8)\n"
     )
-    assert blessed_external not in raw_join_keys, (
-        "The acceptance selection callsite must NOT appear as a raw-path-join "
-        "row — that would mean it composes a KITTY_SPECS_DIR join, contradicting "
-        "the premise that the raw-join scanner is blind to direct selection calls."
-    )
+    with _SourceMutation(_READ_CLI_FOR_MUTATION, snippet):
+        selection_keys = {s.key() for s in discover_selection_callsites()}
+        raw_join_keys = {
+            r.key() for r in discover_rows() if r.call_name == "raw-path-join"
+        }
+        witness = next(
+            (
+                k
+                for k in selection_keys
+                if k.startswith("specify_cli/cli/commands/agent/context.py:")
+            ),
+            None,
+        )
+        assert witness is not None, (
+            "The SELECTION scanner failed to discover the injected direct "
+            "resolve_mission_read_path call — the AST walker is misconfigured or "
+            "vacuous."
+        )
+        assert witness not in raw_join_keys, (
+            "The injected selection call must NOT appear as a raw-path-join row — "
+            "it composes no KITTY_SPECS_DIR join, so the raw-join scanner is blind "
+            "to it. Its presence there would contradict the independence premise."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -618,9 +646,10 @@ def test_selection_discriminator_is_independent_of_raw_join_scanner() -> None:
 # below (``surface_resolver.py``, ``status_transition.py``, ``aggregate.py``)
 # define resolvers for the RAW-JOIN axis but are NOT the selection seam — a
 # hypothetical direct ``resolve_mission_read_path`` call there must be FLAGGED
-# (allowlist or refactor), never auto-blessed as seam-internal.  And the lone
-# real external consumer (``mission_runtime/resolution.py:185``) must ride an
-# HONEST allowlist entry, not auto-blessing.
+# (allowlist or refactor), never auto-blessed as seam-internal.  (WP01 drained
+# the lone real external consumer, ``mission_runtime/resolution.py``, by routing
+# it onto the ``resolve_handle_to_read_path`` seam — there are now ZERO external
+# selection callsites and the allowlist is empty.)
 # ---------------------------------------------------------------------------
 
 _NON_SELECTION_RESOLVER_SOURCES: tuple[str, ...] = (
@@ -661,34 +690,31 @@ def test_non_seam_resolver_sources_are_not_auto_blessed_for_selection() -> None:
         )
 
 
-def test_resolution_internal_read_is_allowlisted_not_auto_blessed() -> None:
-    """``mission_runtime/resolution.py:185`` rides an HONEST selection allowlist entry.
+def test_resolution_internal_read_converged_onto_seam() -> None:
+    """``mission_runtime/resolution.py`` no longer holds a direct selection call.
 
-    FR-006a guard hardening (paula): ``resolution.py`` is a RAW-JOIN
-    resolver-source file but NOT the selection seam, so its single direct
-    ``resolve_mission_read_path`` call (the boundary-translated internal read in
-    ``_resolve_status_surface_dir``) is no longer auto-blessed.  It must be
-    covered by an explicit ``ALLOWLISTED_SELECTION_CALLSITES`` entry — honest,
-    sanctioned, single consumer-facing read.
+    WP01 (01KVN754) rerouted ``_resolve_mission_slug`` from a direct
+    ``resolve_mission_read_path`` call onto the single guarded seam
+    (``resolve_handle_to_read_path``), keeping the StatusReadPathNotFound /
+    MissionSelectorAmbiguous → ActionContextError boundary translation.  The
+    formerly-allowlisted callsite is therefore DRAINED: ``resolution.py`` must no
+    longer surface as an external selection callsite, and the seam-convergence is
+    proven by the absence of any discovered direct call in that file.
     """
-    key = "mission_runtime/resolution.py:185"
-    assert key in _ALLOWLISTED_SELECTION_CALLSITES, (
-        f"{key} must carry an explicit ALLOWLISTED_SELECTION_CALLSITES entry "
-        "(honest allowlist, not seam auto-blessing) now that resolution.py is "
-        "excluded from the SELECTION seam set."
+    resolution_selection_calls = [
+        s.key()
+        for s in discover_selection_callsites()
+        if s.rel_path == "mission_runtime/resolution.py"
+    ]
+    assert not resolution_selection_calls, (
+        "mission_runtime/resolution.py still holds a direct read-SELECTION call "
+        "after the WP01 reroute onto resolve_handle_to_read_path; the convergence "
+        f"is incomplete. Discovered: {resolution_selection_calls}"
     )
-    assert _ALLOWLISTED_SELECTION_CALLSITES[key].strip(), (
-        f"The allowlist entry for {key} must carry a non-empty rationale."
-    )
-    # The call must actually be DISCOVERED as a non-seam external selection
-    # callsite (proving the allowlist entry is live, not stale).
-    external = {
-        s.key() for s in discover_selection_callsites() if not s.in_seam_file
-    }
-    assert key in external, (
-        f"{key} should be discovered as an EXTERNAL (non-seam) selection "
-        "callsite now that resolution.py is excluded from _SELECTION_SEAM_STEMS. "
-        f"Discovered external selection callsites: {sorted(external)}"
+    # And it must carry NO stale allowlist entry (the reroute drained it).
+    assert "mission_runtime/resolution.py:185" not in _ALLOWLISTED_SELECTION_CALLSITES, (
+        "The mission_runtime/resolution.py:185 selection allowlist entry is stale "
+        "— WP01 rerouted that callsite onto the seam; remove the dead allowlist entry."
     )
 
 

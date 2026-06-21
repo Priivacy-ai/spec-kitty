@@ -1,18 +1,29 @@
-"""M6 error-contract regression: the fail-closed surface refusal must not leak.
+"""M6 error-contract regression + WP04 coord-empty Option B boundary split.
 
-When the coordination worktree root is materialized on disk but its mission dir
-is absent, the read resolvers raise the structured fail-closed refusal
-(``StatusReadPathNotFound``, #1589/#1821/FR-005). That refusal is a
-``specify_cli`` exception type; :mod:`mission_runtime` documents
-:class:`ActionContextError` as **the single error type consumers catch**
-(``resolution.py``), so the refusal must be translated at the boundary —
-preserving the fail-closed message — and never escape as a raw traceback
-through ``resolve_action_context`` / ``resolve_placement_only`` (PR #1850
-review item M6).
+Two coord-empty handle forms now travel DIFFERENT resolution legs, and WP04's
+Option B (loud primary fallback at the canonical surface, #1716/FR-003) makes
+them diverge by design:
+
+* **canonical ``<slug>-<mid8>`` dirname** → the mid8-aware read-path leg
+  (``resolve_handle_to_read_path``, ``require_exists=True``) STILL fails closed
+  with the structured ``StatusReadPathNotFound`` refusal (#1589/#1821; the
+  #1718 stale-surface guard, WP01-owned and intentionally preserved). That
+  refusal is a ``specify_cli`` exception type; :mod:`mission_runtime` documents
+  :class:`ActionContextError` as **the single error type consumers catch**, so
+  it must be translated at the boundary and never escape raw (PR #1850 item M6).
+* **backfilled bare dirname** → status-surface resolution, where WP04's Option B
+  returns the PRIMARY checkout + a loud ``logging.WARNING`` instead of raising.
+  So the boundary surfaces a resolved context (no ``ActionContextError``), and
+  the fallback is observable via the surface logger.
+
+(The slug-mid8 read-path leg closes onto primary in WP05's read-path fold; until
+then this file pins the WP04 boundary split: canonical → translated refusal,
+backfilled → primary + warning.)
 """
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 from pathlib import Path
 
@@ -23,6 +34,8 @@ from mission_runtime import (
     resolve_action_context,
     resolve_placement_only,
 )
+
+_SURFACE_LOGGER = "specify_cli.coordination.surface_resolver"
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -83,20 +96,16 @@ def _materialize_coord_root_without_mission_dir(repo: Path, dirname: str) -> Pat
 def _assert_fail_closed_refusal(excinfo: pytest.ExceptionInfo[ActionContextError]) -> None:
     """The translation must keep the stable code AND a fail-closed refusal message.
 
-    The refusal surfaces in one of two forms, both carrying the stable
-    ``STATUS_READ_PATH_NOT_FOUND`` code and neither silently falling back to the
-    primary checkout:
-    - the generic read-path-not-found message (canonical-dirname slug resolution), or
-    - the specific FR-006 coord-empty hard-fail (``CoordinationWorktreeEmpty``, a
-      ``StatusReadPathNotFound`` subclass introduced by mission 01KVGCE8) when the
-      coordination worktree is materialized but empty (the backfilled-dirname path).
+    The canonical ``<slug>-<mid8>`` handle travels the mid8-aware read-path leg
+    (``require_exists=True``), which still fails closed for coord-empty (the
+    #1718 stale-surface guard). The boundary translates that
+    ``StatusReadPathNotFound`` (code ``STATUS_READ_PATH_NOT_FOUND``) to
+    ``ActionContextError`` preserving the code and the generic read-path-not-found
+    message — never silently falling back to the primary checkout.
     """
     assert excinfo.value.code == "STATUS_READ_PATH_NOT_FOUND"
     message = str(excinfo.value)
-    assert (
-        "Status read path not found" in message
-        or "materialized but empty" in message
-    ), message
+    assert "Status read path not found" in message, message
 
 
 def test_action_context_canonical_dirname_surfaces_action_context_error(
@@ -113,18 +122,29 @@ def test_action_context_canonical_dirname_surfaces_action_context_error(
     assert _CANONICAL_DIRNAME in str(excinfo.value)
 
 
-def test_action_context_backfilled_dirname_surfaces_action_context_error(
-    repo: Path,
+def test_action_context_backfilled_dirname_resolves_primary_with_warning(
+    repo: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Bare-dir mission: the refusal fires in status-surface resolution."""
+    """WP04 Option B: bare-dir coord-empty resolves PRIMARY + loud warning.
+
+    The backfilled bare dirname travels status-surface resolution, where Option B
+    (#1716/FR-003) returns the primary checkout and emits a loud warning rather
+    than raising. The boundary therefore surfaces a resolved context (no
+    ``ActionContextError``), and the fallback is observable on the surface logger.
+    """
     _build_mission(repo, dirname=_BACKFILLED_DIRNAME)
     _materialize_coord_root_without_mission_dir(repo, _BACKFILLED_DIRNAME)
 
-    with pytest.raises(ActionContextError) as excinfo:
-        resolve_action_context(repo, action="status", feature=_BACKFILLED_DIRNAME)
+    with caplog.at_level(logging.WARNING, logger=_SURFACE_LOGGER):
+        context = resolve_action_context(
+            repo, action="status", feature=_BACKFILLED_DIRNAME
+        )
 
-    _assert_fail_closed_refusal(excinfo)
-    assert _BACKFILLED_DIRNAME in str(excinfo.value)
+    assert context.feature_dir == str(repo / "kitty-specs" / _BACKFILLED_DIRNAME)
+    assert any(
+        r.name == _SURFACE_LOGGER and r.levelno == logging.WARNING
+        for r in caplog.records
+    ), "coord-empty Option B must emit a logging.WARNING (no silent fallback)"
 
 
 def test_placement_only_canonical_dirname_surfaces_action_context_error(
@@ -140,14 +160,23 @@ def test_placement_only_canonical_dirname_surfaces_action_context_error(
     _assert_fail_closed_refusal(excinfo)
 
 
-def test_placement_only_backfilled_dirname_surfaces_action_context_error(
-    repo: Path,
+def test_placement_only_backfilled_dirname_resolves_with_warning(
+    repo: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Bare-dir mission: the refusal fires in the shared fragment builder."""
+    """WP04 Option B: bare-dir coord-empty placement resolves (no refusal) + warns.
+
+    The shared placement fragment builder travels the same status-surface
+    resolution; under Option B it no longer raises for the bare-dir coord-empty
+    handle — it returns a placement and the surface emits the loud warning.
+    """
     _build_mission(repo, dirname=_BACKFILLED_DIRNAME)
     _materialize_coord_root_without_mission_dir(repo, _BACKFILLED_DIRNAME)
 
-    with pytest.raises(ActionContextError) as excinfo:
-        resolve_placement_only(repo, _BACKFILLED_DIRNAME)
+    with caplog.at_level(logging.WARNING, logger=_SURFACE_LOGGER):
+        placement = resolve_placement_only(repo, _BACKFILLED_DIRNAME)
 
-    _assert_fail_closed_refusal(excinfo)
+    assert placement is not None
+    assert any(
+        r.name == _SURFACE_LOGGER and r.levelno == logging.WARNING
+        for r in caplog.records
+    ), "coord-empty Option B must emit a logging.WARNING (no silent fallback)"

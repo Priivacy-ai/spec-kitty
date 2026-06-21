@@ -54,13 +54,12 @@ coord-behind | bare-slug      RED  (folds into       WP03 / FR-009 (coord-behind
                               → coord)
 coord-behind | <slug>-<mid8>  GREEN (agree, coord —  — (folds into coord-fresh; already
                               folds into coord-fresh) equivalent — live-probed 2026-06-19)
-coord-empty | bare-slug       RED  (resolver →      WP06 / FR-006 (coord-empty hard-fail)
-                              primary; surface →
-                              SRPNF; agg → Coord-
-                              AuthorityUnavailable)
-coord-empty | <slug>-<mid8>   RED  (resolver+sur →  WP06 / FR-006 (+ aggregate error-type
-                              SRPNF; agg → Coord-    convergence)
-                              AuthorityUnavailable)
+coord-empty | bare-slug       GREEN (WP04 Option B:  — (drained by WP04 / FR-003; all legs
+                              all → primary +        agree on primary; read_path is mid8-
+                              loud warning)          blind for the bare slug → primary)
+coord-empty | <slug>-<mid8>   RED  (surface+agg →    WP05 / FR-004 (read-path fold under
+                              primary; read_path →   require_exists=True closes the last
+                              SRPNF fail-closed)      leg — see the xfail reason)
 coord-deleted | bare-slug     RED  (resolver →      WP06 / FR-006 + FR-005 (coord-deleted
                               primary; surface →     hard-fail; typed-error convergence)
                               CoordinationBranch-
@@ -75,29 +74,37 @@ boundary                      ActionContextError,    the WP06 collapse, 2026-06-
                               SELECTOR preserved)
 ============================  ====================  ======================================
 
-NOTE (WP06 drain, 2026-06-20): the "Closing WP / FR" column above records the
-ORIGINAL plan. The actual WP06 outcome for the six coord-empty/coord-deleted/
-coord-fresh-bare/coord-behind-bare RED cells is a **documented out-of-scope
-allowlist** (NOT a literal drain) — see the ``_XFAIL_*_OUT_OF_SCOPE`` constants
-and the "WP06 collapse gate (drain outcome)" paragraph below for the authoritative,
-per-class rationale.
+NOTE (2026-06-21): the "Closing WP / FR" column above records the ORIGINAL plan
+(prior-mission WP06 framing). The authoritative, current per-cell disposition is
+the ``_XFAIL_*_OUT_OF_SCOPE`` constants plus the "WP04 coord-empty Option B"
+paragraph below.
 
-WP06 collapse gate (drain outcome, 2026-06-20): WP06 collapsed the surface to
-the sole authority, migrated the #1900 status_transition predicates, and shipped
-the FR-006 coord-empty two-path hard-fail. It drained the cells that genuinely
-close at the collapse (the WP05 ``runtime-boundary`` XPASS — WP05 landed). The
-SIX remaining RED cells are **documented out-of-scope strict-xfails**, NOT a
-blanket drain — see ``_XFAIL_READPATH_MID8_OUT_OF_SCOPE`` (the four #2046 bare-slug
-read_path mid8-blindness cells), ``_XFAIL_COORD_EMPTY_SEAM_OUT_OF_SCOPE`` (the
-coord-empty/slug-mid8 multi-seam split: a WP06-introduced surface/read_path
-subclass split at a stable error_code, plus the WP04 ``CoordAuthorityUnavailable``
-no-error_code aggregate seam), and ``_XFAIL_COORD_DELETED_SEAM_OUT_OF_SCOPE`` (the
-coord-deleted/slug-mid8 multi-way divergence: read_path → primary directory, surface
-→ ``CoordinationBranchDeleted``, aggregate → ``CoordAuthorityUnavailable``). Each
-remaining
-``xfail`` therefore names exactly why the collapse does not close it and where it
-must close — the allowlist + rationale is the auditable record, replacing the
-``rg "xfail" → 0`` literal drain for these two genuinely-deferred classes.
+WP04 coord-empty Option B (01KVN754, 2026-06-21): WP04 applied the operator-
+decided Option B in the canonical surface — a materialized-but-empty coordination
+worktree no longer raises; ``resolve_status_surface_with_anchor`` returns the
+PRIMARY checkout and emits a loud ``logging.WARNING``. The aggregate inherits
+primary with no code change. This drains ``coord-empty/bare`` (all three legs
+agree on primary: the bare-slug read_path leg is mid8-blind, so it also resolves
+primary). ``coord-empty/slug-mid8`` does NOT fully drain in WP04: the read_path
+leg (``resolve_handle_to_read_path``, ``require_exists=True``) derives mid8,
+probes the EMPTY coord worktree, and STILL fails closed with
+``StatusReadPathNotFound`` (the #1718 stale-surface guard in WP01-owned
+``missions/_read_path_resolver.py`` — WP01 deliberately forwards
+``require_exists`` so that raise is load-bearing). That cell carries
+``_XFAIL_COORD_EMPTY_SEAM_OUT_OF_SCOPE`` and closes in WP05 when the read-path
+leg adopts the same ``probe_coord_state`` fold under ``require_exists=True``.
+
+The remaining RED cells are **documented out-of-scope strict-xfails**, NOT a
+blanket drain — see ``_XFAIL_COORD_EMPTY_SEAM_OUT_OF_SCOPE`` (the coord-empty/
+slug-mid8 read-path leg, above; closes in WP05) and
+``_XFAIL_COORD_DELETED_SEAM_OUT_OF_SCOPE`` (the coord-deleted/slug-mid8 multi-way
+divergence: read_path → primary directory, surface → ``CoordinationBranchDeleted``,
+aggregate → ``CoordAuthorityUnavailable``; closes in WP05). The
+``coord-*/bare`` aggregate cells carry
+``_XFAIL_BARE_AGGREGATE_COORD_AUTHORITY_OUT_OF_SCOPE`` (only ``coord-deleted/bare``
+still references it after WP04; WP05 deletes the shared constant last). Each
+remaining ``xfail`` names exactly why the collapse does not close it and where it
+must close — the allowlist + rationale is the auditable record.
 """
 
 from __future__ import annotations
@@ -367,60 +374,15 @@ def _observe_all(repo_root: Path, slug: str, mid8: str) -> dict[str, Outcome]:
 # (``CoordinationWorktreeEmpty``) and mutation-verified in
 # ``tests/coordination/test_surface_resolver_collapse.py`` — independent of this
 # matrix's type-identity gate.
-_XFAIL_READPATH_MID8_OUT_OF_SCOPE = (
-    "out-of-scope (#2046): resolve_mission_read_path is mid8-blind for a bare "
-    "slug → resolves primary while surface/aggregate derive mid8 from meta and "
-    "reach coord. Closing needs the #2046 resolve_declared_mid8 cascade inside "
-    "read_path (a blind route-through would regress the #1718 create-window "
-    "contract). Documented WP06 allowlist; NOT drained."
-)
-# coord-empty/slug-mid8 — observed (2026-06-20, all three entry points run live):
-#   resolve_mission_read_path          -> StatusReadPathNotFound    / STATUS_READ_PATH_NOT_FOUND
-#   resolve_status_surface_with_anchor -> CoordinationWorktreeEmpty / STATUS_READ_PATH_NOT_FOUND
-#   MissionStatus.load                 -> CoordAuthorityUnavailable / None
-_XFAIL_COORD_EMPTY_SEAM_OUT_OF_SCOPE = (
-    "out-of-scope multi-seam (coord-empty/slug-mid8): surface raises the WP06 "
-    "CoordinationWorktreeEmpty carve-out (code STATUS_READ_PATH_NOT_FOUND) while "
-    "read_path raises bare StatusReadPathNotFound — SAME error_code, DIFFERENT "
-    "class: a WP06-introduced subclass split that the type()-is gate flags, "
-    "trading exact type identity for a richer FR-006 two-path diagnostic at a "
-    "stable error_code. MissionStatus.load (aggregate) raises "
-    "CoordAuthorityUnavailable, which carries NO error_code — WP04's approved "
-    "public single-seam contract (CLI + 3 non-owned tests), un-editable here. "
-    "Class convergence (FR-005) is not in WP06's requirement_refs. See ADR "
-    "2026-06-19-1 §'Known scope boundary'. Documented WP06 allowlist; NOT drained."
-)
-# coord-deleted/slug-mid8 — observed (2026-06-20, all three entry points run live):
-#   resolve_mission_read_path          -> <PRIMARY DIRECTORY>       / (dir, no error)
-#   resolve_status_surface_with_anchor -> CoordinationBranchDeleted / COORDINATION_BRANCH_DELETED
-#   MissionStatus.load                 -> CoordAuthorityUnavailable / None
-_XFAIL_COORD_DELETED_SEAM_OUT_OF_SCOPE = (
-    "out-of-scope multi-way divergence (coord-deleted/slug-mid8): read_path "
-    "resolves to PRIMARY (a directory, NOT an error) — the coord-deleted "
-    "read_path gap needs the #2046 mid8 cascade / FR-005 typed-error convergence "
-    "(neither in WP06's requirement_refs; a blind route-through the surface would "
-    "regress the #1718 create-window contract). surface raises "
-    "CoordinationBranchDeleted (COORDINATION_BRANCH_DELETED); aggregate raises "
-    "CoordAuthorityUnavailable (no error_code, WP04's approved single-seam "
-    "contract, un-editable here). NOT an aggregate-only divergence. See ADR "
-    "2026-06-19-1 §'Known scope boundary'. Documented WP06 allowlist; NOT drained."
-)
-
-# coord-empty/bare + coord-deleted/bare — after WP04 re-pointed the read_path leg
-# to the seam, the read_path divergence is CLOSED for these cells (the seam derives
-# mid8 from primary meta and reaches coord). The SOLE remaining divergence is the
-# aggregate's CoordAuthorityUnavailable boundary contract: MissionStatus.load raises
-# CoordAuthorityUnavailable (no error_code), while resolve_status_surface_with_anchor
-# raises a surface-typed error — aggregate/surface type mismatch. This is WP04's
-# approved public single-seam boundary (FR-015–FR-023), OUT OF SCOPE here.
-_XFAIL_BARE_AGGREGATE_COORD_AUTHORITY_OUT_OF_SCOPE = (
-    "out-of-scope aggregate divergence (bare-slug coord-empty/coord-deleted): "
-    "read_path leg is now FIXED (seam derives mid8 → reaches coord). Remaining "
-    "divergence: MissionStatus.load (aggregate) raises CoordAuthorityUnavailable "
-    "(no error_code) while surface raises a typed coord error — WP04's approved "
-    "single-seam public boundary contract (FR-015–FR-023), un-editable here. "
-    "Tracked for a follow-on that owns the aggregate seam."
-)
+# WP05 (01KVN754, 2026-06-21) — the final convergence drains the last three RED
+# cells to 13/0 (terminal). The coord-empty/slug-mid8 read-path leg adopts WP01's
+# ``probe_coord_state`` under ``require_exists=True`` (returns PRIMARY for EMPTY,
+# matching the surface's Option B), and BOTH coord-deleted cells converge on
+# ``CoordinationBranchDeleted`` / ``COORDINATION_BRANCH_DELETED`` across read_path,
+# surface, AND aggregate (the aggregate now propagates the deleted-branch type
+# verbatim via a more-specific ``except`` ahead of the SRPNF re-wrap). The three
+# ``_XFAIL_*_OUT_OF_SCOPE`` constants that documented those divergences are deleted
+# with their cells — no RED cell remains, so no out-of-scope allowlist is needed.
 
 # (test_id, topology, slug, mid8, xfail_reason | None). ``xfail_reason is None``
 # means the cell is expected GREEN today (all entry points agree); a non-None
@@ -437,32 +399,43 @@ _MATRIX: list[tuple[str, str, str, str, str | None]] = [
         "coord-empty",
         MISSION_SLUG,
         "",
-        # read_path leg is now fixed (seam derives mid8). Remaining divergence:
-        # aggregate CoordAuthorityUnavailable boundary contract (out of scope).
-        _XFAIL_BARE_AGGREGATE_COORD_AUTHORITY_OUT_OF_SCOPE,
+        # WP04 (Option B, 01KVN754): coord-empty no longer hard-fails — the surface
+        # returns PRIMARY + a loud warning, the aggregate inherits PRIMARY (no code
+        # change), and the bare-slug read_path leg is mid8-blind so it ALSO resolves
+        # PRIMARY. All three legs now agree on the primary dir → the cell is GREEN.
+        None,
     ),
     (
         "coord-empty/slug-mid8",
         "coord-empty",
         SLUG_WITH_MID8,
         MID8,
-        _XFAIL_COORD_EMPTY_SEAM_OUT_OF_SCOPE,
+        # WP05 (T022): the read-path leg adopts WP01's ``probe_coord_state`` under
+        # ``require_exists=True`` and returns PRIMARY for the EMPTY state — matching
+        # the surface's Option B primary fallback and the aggregate's inherited
+        # primary. All three legs now agree on the primary dir → GREEN.
+        None,
     ),
     (
         "coord-deleted/bare",
         "coord-deleted",
         MISSION_SLUG,
         "",
-        # read_path leg is now fixed (seam derives mid8). Remaining divergence:
-        # aggregate CoordAuthorityUnavailable boundary contract (out of scope).
-        _XFAIL_BARE_AGGREGATE_COORD_AUTHORITY_OUT_OF_SCOPE,
+        # WP05 (T022/T023): the read-path leg derives mid8 from the primary meta and
+        # hard-fails ``CoordinationBranchDeleted``; the aggregate now propagates the
+        # same type verbatim (more-specific ``except`` ahead of the SRPNF re-wrap).
+        # All three legs converge on ``COORDINATION_BRANCH_DELETED`` → GREEN.
+        None,
     ),
     (
         "coord-deleted/slug-mid8",
         "coord-deleted",
         SLUG_WITH_MID8,
         MID8,
-        _XFAIL_COORD_DELETED_SEAM_OUT_OF_SCOPE,
+        # WP05 (T022/T023): same convergence as coord-deleted/bare — read_path,
+        # surface, and aggregate all raise ``CoordinationBranchDeleted`` /
+        # ``COORDINATION_BRANCH_DELETED``. GREEN.
+        None,
     ),
 ]
 

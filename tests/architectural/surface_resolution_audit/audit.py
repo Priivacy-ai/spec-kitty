@@ -142,7 +142,13 @@ TOPOLOGY_BLIND_CALLS: frozenset[str] = frozenset(
 # --------------------------------------------------------------------------- #
 SELECTION_READ_CALLS: frozenset[str] = frozenset(
     {
+        # WP01 (01KVN754) privatized the worker ``resolve_mission_read_path`` →
+        # ``_resolve_mission_read_path`` (dropped from ``__all__``; reachable
+        # publicly only via the ``mission_read_path`` back-compat shim alias).
+        # The discriminator tracks BOTH names so a direct selection call cannot
+        # slip the guard by importing the private worker OR the shim re-export.
         "resolve_mission_read_path",
+        "_resolve_mission_read_path",
     }
 )
 
@@ -427,26 +433,19 @@ KNOWN_CANDIDATE_FILES: tuple[str, ...] = (
 # ``<rel_path>:<line>``. Every external selection callsite not listed here is a
 # bypass of the ``resolve_handle_to_read_path`` seam (FR-006a regression).
 # --------------------------------------------------------------------------- #
-ALLOWLISTED_SELECTION_CALLSITES: dict[str, str] = {
-    "specify_cli/acceptance/__init__.py:618": (
-        "BLESSED — acceptance lane validation is deliberately LENIENT: it must "
-        "degrade to the primary anchor dir (``status_dir if status_dir.exists() "
-        "else feature_dir``) rather than fail-close, which the "
-        "``resolve_handle_to_read_path`` seam's M5 raise would break. The mid8 is "
-        "derived through the ONE sanctioned ``resolve_declared_mid8`` cascade "
-        "(NFR-005, not a bespoke parallel cascade), and the call routes through the "
-        "existence-gated ``resolve_mission_read_path``. WP03/T013 design."
-    ),
-    "mission_runtime/resolution.py:185": (
-        "BLESSED — boundary-translated internal read in "
-        "``_resolve_status_surface_dir``: derives mid8 via the canonical "
-        "``resolve_declared_mid8`` cascade (not a bespoke parallel impl) and wraps "
-        "the call in StatusReadPathNotFound/MissionSelectorAmbiguous -> "
-        "ActionContextError boundary translation (PR #1850 M6 / #2010 bug #15). "
-        "Not the seam, but a sanctioned single consumer-facing read — allowlisted, "
-        "not auto-blessed."
-    ),
-}
+# WP01 (01KVN754) DRAINED both formerly-blessed external selection callsites by
+# rerouting them onto the ``resolve_handle_to_read_path`` seam:
+#   * ``specify_cli/acceptance/__init__.py`` (``_status_read_feature_dir``) now
+#     calls ``resolve_handle_to_read_path`` directly; the lenient
+#     ``status_dir if status_dir.exists() else feature_dir`` fallback is
+#     preserved AROUND the seam call (the seam's ``require_exists=False`` default
+#     keeps the byte-identical not-found→primary-candidate behaviour).
+#   * ``mission_runtime/resolution.py`` (``_resolve_mission_slug``) now calls
+#     ``resolve_handle_to_read_path`` and keeps its StatusReadPathNotFound /
+#     MissionSelectorAmbiguous → ActionContextError boundary translation.
+# With both rerouted, there are ZERO external direct selection callsites — the
+# allowlist is intentionally empty (every direct call is now seam-internal).
+ALLOWLISTED_SELECTION_CALLSITES: dict[str, str] = {}
 
 
 # --------------------------------------------------------------------------- #

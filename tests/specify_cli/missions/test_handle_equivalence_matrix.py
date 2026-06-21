@@ -578,24 +578,69 @@ def test_next_resolve_mission_slug_propagates_ambiguity(repo: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Fail-closed coordination window parity — MissionStatus.load must surface the
-# established CoordAuthorityUnavailable shape for EVERY handle form, never the
-# resolver's raw StatusReadPathNotFound
+# coord-empty Option B parity — MissionStatus.load resolves PRIMARY + loud warning
+# for EVERY handle form (WP04 / 01KVN754 / #1716 / FR-003)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("handle", [_COORD_SLUG, _COORD_MID8, _COORD_MISSION_ID])
-def test_fail_closed_window_yields_coord_authority_unavailable_for_all_handles(
-    repo: Path, handle: str
+def test_coord_empty_window_resolves_primary_with_warning_for_all_handles(
+    repo: Path, handle: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    from specify_cli.status.aggregate import CoordAuthorityUnavailable
+    """Inverted by mission 01KVN754 WP04 (out-of-map linearized edit; WP05 owns
+    this file, but the coord-empty cell breaks at THIS boundary).
 
-    # The #1718 fail-closed window: coord worktree ROOT materialized, but the
-    # mission dir inside it is absent (primary declares coordination_branch).
+    The coord-empty window — coord worktree ROOT materialized, mission dir absent,
+    primary declares ``coordination_branch`` — previously hard-failed with
+    ``CoordAuthorityUnavailable`` for every handle form. Under Option B the
+    canonical surface returns the PRIMARY checkout + a loud warning and the
+    aggregate inherits PRIMARY, so every handle form resolves the same primary
+    mission dir.
+    """
+    import logging
+
+    # coord worktree ROOT materialized, but the mission dir inside it is absent.
     (repo / ".worktrees" / f"{_COORD_SLUG}-coord").mkdir(parents=True)
 
-    with pytest.raises(CoordAuthorityUnavailable):
+    expected_primary = (repo / "kitty-specs" / _COORD_SLUG).resolve()
+    with caplog.at_level(
+        logging.WARNING, logger="specify_cli.coordination.surface_resolver"
+    ):
+        ms = MissionStatus.load(repo_root=repo, mission_slug=handle)
+
+    assert ms.read_dir.resolve() == expected_primary
+    assert any(
+        r.name == "specify_cli.coordination.surface_resolver"
+        and r.levelno == logging.WARNING
+        for r in caplog.records
+    ), "coord-empty Option B must emit a logging.WARNING (no silent fallback)"
+
+
+# ---------------------------------------------------------------------------
+# coord-deleted convergence parity — MissionStatus.load hard-fails
+# CoordinationBranchDeleted for EVERY handle form (WP05 / 01KVN754 / #1848 / FR-005)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("handle", [_COORD_SLUG, _COORD_MID8, _COORD_MISSION_ID])
+def test_coord_deleted_hard_fails_for_all_handles(repo: Path, handle: str) -> None:
+    """coord-deleted (declared branch DELETED from git, no coord worktree) →
+    ``CoordinationBranchDeleted`` for every handle form (WP05 / T023 / T026).
+
+    The fixture declares ``coordination_branch`` AND creates it in git (the #1889
+    row R2 create-window contract). Delete the branch to model R3 (#1848): the
+    declared branch is gone and no coord worktree exists → data loss. The aggregate
+    must propagate ``CoordinationBranchDeleted`` (``COORDINATION_BRANCH_DELETED``)
+    VERBATIM for the slug, mid8, AND full-ULID handle forms — never a per-handle
+    divergence and never the masked ``CoordAuthorityUnavailable`` re-spelling.
+    """
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+
+    _git(repo, "branch", "-D", _COORD_BRANCH)  # R3: declared branch deleted from git
+
+    with pytest.raises(CoordinationBranchDeleted) as excinfo:
         MissionStatus.load(repo_root=repo, mission_slug=handle)
+    assert excinfo.value.error_code == "COORDINATION_BRANCH_DELETED"
 
 
 # ---------------------------------------------------------------------------
