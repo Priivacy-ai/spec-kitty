@@ -651,6 +651,9 @@ def resolve_merge_target_branch(
     if explicit_target is not None:
         return explicit_target, "flag"
 
+    # Deferred imports (as in get_feature_target_branch above): core.paths is
+    # imported very early, while these pull in the missions/git layers that import
+    # back into core — module-level imports here would form a circular import.
     from specify_cli.core.git_ops import resolve_primary_branch
     from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
 

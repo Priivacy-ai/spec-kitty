@@ -786,7 +786,14 @@ def _lane_base_ref(main_repo_root: Path, mission: str, manifest: object) -> str:
     try:
         return str(resolve_placement_only(main_repo_root, mission).ref)
     except ActionContextError:
-        return str(getattr(manifest, "mission_branch", "") or "")
+        # Never return an empty ref: the commit gate runs `git rev-list <base>..HEAD`,
+        # and an empty base silently degrades to an unreliable HEAD..HEAD. Fall back to
+        # the manifest's mission_branch, or the repo default branch as a last resort.
+        from specify_cli.core.git_ops import resolve_primary_branch
+
+        return str(
+            getattr(manifest, "mission_branch", "") or resolve_primary_branch(main_repo_root)
+        )
 
 
 def _resolve_start_workspace(
@@ -848,6 +855,8 @@ def _resolve_start_workspace(
             {**_mission_identity_payload(mission_dir), "wp_id": wp},
         )
 
+    # _fail is NoReturn (always raises typer.Exit), so this is reached only on the
+    # success path, where worktree_path / lane_branch are bound.
     return _StartWorkspace(
         workspace_path=str(worktree_path),
         lane_id=lane.lane_id,
