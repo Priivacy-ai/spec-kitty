@@ -70,7 +70,6 @@ from __future__ import annotations
 from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
 import contextlib
 import logging
-import os
 import subprocess
 import uuid
 from collections.abc import Sequence
@@ -415,13 +414,6 @@ class ProtectedBranchCommitError(RuntimeError):
 
 
 # ---------------------------------------------------------------------------
-# Protected-branch policy
-# ---------------------------------------------------------------------------
-
-_DEFAULT_PROTECTED_BRANCHES = frozenset({"main", "master"})
-
-
-# ---------------------------------------------------------------------------
 # Result type
 # ---------------------------------------------------------------------------
 
@@ -470,19 +462,6 @@ def _current_branch(repo_path: Path) -> str | None:
     return branch
 
 
-def _remote_default_branch(repo_path: Path) -> str | None:
-    symbolic_ref = _run_git_text(repo_path, ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"])
-    if symbolic_ref and "/" in symbolic_ref:
-        return symbolic_ref.rsplit("/", 1)[1]
-
-    remote_show = _run_git_text(repo_path, ["remote", "show", "origin"])
-    if remote_show:
-        for line in remote_show.splitlines():
-            if "HEAD branch:" in line:
-                return line.rsplit(":", 1)[1].strip() or None
-    return None
-
-
 def protected_branches(repo_path: Path) -> frozenset[str]:
     """Return branch names that must not receive Spec Kitty status commits.
 
@@ -496,20 +475,6 @@ def protected_branches(repo_path: Path) -> frozenset[str]:
     prefer :class:`ProtectionPolicy` directly.
     """
     return ProtectionPolicy.resolve(repo_path).protected_branches
-
-
-def _operator_protected_branch_hatch_active() -> bool:
-    """True when the ONE documented operator escape hatch is set.
-
-    ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` truthy (``1``/``true``/``yes``)
-    is the operator-level declaration "my protected branch is mine to commit to"
-    (solo-fork operators who own ``main``). Consumed by the legacy pre-check AND
-    by ``safe_commit``'s ``ProtectionState`` input computation — never by
-    ``commit_guard.evaluate`` itself (the policy stays environment-free).
-    """
-    return os.environ.get(
-        "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", ""
-    ).lower() in ("1", "true", "yes")
 
 
 def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -> None:
