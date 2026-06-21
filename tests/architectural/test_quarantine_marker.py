@@ -6,7 +6,8 @@ block an unrelated PR, while keeping it visible in a dedicated non-blocking CI
 job. This pins the three load-bearing facts of that wiring so it cannot silently
 rot:
 
-1. the ``quarantine`` marker is registered in ``pyproject.toml``;
+1. the ``quarantine`` marker is registered in ``pytest.ini`` (the single source
+   of truth for the marker registry — see #2034);
 2. the opt-in gate is strict (only ``"1"`` runs quarantined tests — fail-closed
    to *skip*); and
 3. CI runs ``-m quarantine`` in a job that is **non-blocking** (absent from the
@@ -17,7 +18,7 @@ See ``docs/development/testing-flakiness.md``.
 
 from __future__ import annotations
 
-import tomllib
+import configparser
 from pathlib import Path
 
 import pytest
@@ -35,15 +36,25 @@ _CI_WORKFLOW = _REPO_ROOT / ".github" / "workflows" / "ci-quality.yml"
 
 
 def _registered_markers() -> list[str]:
-    data = tomllib.loads((_REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    return data["tool"]["pytest"]["ini_options"]["markers"]
+    """Marker entries from ``pytest.ini`` — the single source of truth (#2034).
+
+    ``pytest.ini`` (not ``pyproject.toml``) is the live marker registry: pytest
+    reads one config file and prefers ``pytest.ini``, so a ``[tool.pytest.ini_options]``
+    markers list would be dead config (guarded by
+    ``test_marker_registry_single_source.py``).
+    """
+    parser = configparser.ConfigParser(interpolation=None)
+    parser.read(_REPO_ROOT / "pytest.ini", encoding="utf-8")
+    raw = parser.get("pytest", "markers", fallback="")
+    return [entry.strip() for entry in raw.splitlines() if entry.strip()]
 
 
 def test_quarantine_marker_is_registered() -> None:
     names = {entry.split(":", 1)[0] for entry in _registered_markers()}
     assert QUARANTINE_MARKER in names, (
-        "The `quarantine` marker must be registered in "
-        "[tool.pytest.ini_options].markers — see docs/development/testing-flakiness.md"
+        "The `quarantine` marker must be registered in pytest.ini's `markers` "
+        "block (the single source of truth, #2034) — see "
+        "docs/development/testing-flakiness.md"
     )
 
 
