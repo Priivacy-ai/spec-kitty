@@ -428,7 +428,7 @@ KNOWN_CANDIDATE_FILES: tuple[str, ...] = (
 # bypass of the ``resolve_handle_to_read_path`` seam (FR-006a regression).
 # --------------------------------------------------------------------------- #
 ALLOWLISTED_SELECTION_CALLSITES: dict[str, str] = {
-    "specify_cli/acceptance/__init__.py:619": (
+    "specify_cli/acceptance/__init__.py:618": (
         "BLESSED — acceptance lane validation is deliberately LENIENT: it must "
         "degrade to the primary anchor dir (``status_dir if status_dir.exists() "
         "else feature_dir``) rather than fail-close, which the "
