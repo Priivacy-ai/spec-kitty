@@ -776,10 +776,15 @@ class _StartWorkspace:
 def _lane_base_ref(main_repo_root: Path, mission: str, manifest: object) -> str:
     """The ref the lane was parented on — the base for the commit gate.
 
-    Uses the canonical placement authority (the same one the native review gate
-    consults): the coordination branch under coord topology, else the mission's
-    target branch. Falls back to the manifest's mission_branch if placement
-    cannot be resolved.
+    Uses the canonical placement authority (`resolve_placement_only`) — the same
+    one the native review gate consults — which resolves to the coordination
+    branch under coord topology. On the coord path this PR targets, both gates
+    therefore agree on the base. The fallback ordering differs for legacy
+    missions: this gate falls back to the manifest's mission_branch then the repo
+    default, whereas the native gate prefers the workspace context's base_branch;
+    the commit-existence check (`rev-list <base>..HEAD` count > 0) is robust to
+    that difference as long as the base is an ancestor of HEAD, which holds for
+    both.
     """
     from mission_runtime import ActionContextError, resolve_placement_only
 
