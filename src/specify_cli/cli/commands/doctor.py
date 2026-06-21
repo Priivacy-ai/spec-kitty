@@ -1,5 +1,11 @@
 """Top-level doctor command group for project health diagnostics."""
 
+# ⚠️ GOD-MODULE (tracked for decomposition — do NOT add new responsibilities here).
+# This file is an oversized "god module" (~3300 LOC). Extract cohesive seams into
+# dedicated modules instead of growing this one.
+# De-godding effort: https://github.com/Priivacy-ai/spec-kitty/issues/2059
+# (prior partial FR-012 extraction landed in closed #1623.)
+
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR

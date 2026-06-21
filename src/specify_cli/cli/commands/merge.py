@@ -17,6 +17,11 @@ Recovery semantics (WP01 / 067):
 - ``clear_state`` is called only after confirmed full completion.
 """
 
+# ⚠️ GOD-MODULE (tracked for decomposition — do NOT add new responsibilities here).
+# This file is an oversized "god module" (~3300 LOC, maxCC ~102). Extract cohesive
+# seams into dedicated modules instead of growing this one.
+# De-godding effort: https://github.com/Priivacy-ai/spec-kitty/issues/2057
+
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR, KITTIFY_DIR, WORKTREES_DIR
