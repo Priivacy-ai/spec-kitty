@@ -361,7 +361,18 @@ def test_record_analysis_refuses_dirty_worktree_before_write(tmp_path, monkeypat
     assert not (feature_dir / ANALYSIS_REPORT_FILENAME).exists()
 
 
-def test_record_analysis_refuses_protected_branch_before_write(tmp_path, monkeypatch):
+def test_record_analysis_succeeds_on_protected_branch_via_materialize(tmp_path, monkeypatch):
+    """record-analysis no longer REFUSES on a protected primary (01KVMBD6 / WP02).
+
+    The protected-branch hard-refusal was removed: the report is written to the
+    primary checkout (a plain file write, not a git op) and the commit is routed
+    best-effort through ``commit_for_mission`` (materialize-then-retry). So on a
+    protected ``main`` the command now SUCCEEDS (exit 0, report written) rather
+    than failing with ``PROTECTED_BRANCH_REFUSED``. (Was
+    ``test_record_analysis_refuses_protected_branch_before_write`` — renamed; the
+    old refuse contract is superseded by the materialize-then-retry contract that
+    ``test_accept_protected_branch_materialize_then_retry`` pins for accept.)
+    """
     repo_root = tmp_path
     feature_dir = repo_root / "kitty-specs" / "sample-01KS"
     _write_required_artifacts(feature_dir)
@@ -369,9 +380,6 @@ def test_record_analysis_refuses_protected_branch_before_write(tmp_path, monkeyp
     input_file = tmp_path.parent / f"{tmp_path.name}-analysis.md"
     input_file.write_text("# Analysis\n\nPASS\n", encoding="utf-8")
 
-    # _enforce_analysis_report_write_preflight uses subprocess git rev-parse --show-toplevel
-    # to get the CWD git root for the branch check. chdir into tmp_path so the subprocess
-    # sees the tmp repo (branch "main", protected) rather than the CI runner's checkout.
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
     monkeypatch.setattr("specify_cli.cli.commands.agent.mission.locate_project_root", lambda: repo_root)
@@ -384,9 +392,9 @@ def test_record_analysis_refuses_protected_branch_before_write(tmp_path, monkeyp
         ["record-analysis", "--mission", feature_dir.name, "--input-file", str(input_file), "--json"],
     )
 
-    assert result.exit_code == 1
-    assert emitted["error_code"] == "PROTECTED_BRANCH_REFUSED"
-    assert not (feature_dir / ANALYSIS_REPORT_FILENAME).exists()
+    assert result.exit_code == 0, result.output
+    assert emitted["success"] is True
+    assert (feature_dir / ANALYSIS_REPORT_FILENAME).exists()
 
 
 # --- analysis-findings/v1 structured carrier (FR-004 / #1819) ----------------

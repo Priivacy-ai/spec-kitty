@@ -472,6 +472,15 @@ def test_perform_acceptance_persists_accept_commit(tmp_path: Path) -> None:
     and the real SHA was never written back after the commit was created.
     """
     repo_root, feature_dir = _create_test_feature(tmp_path)
+    # perform_acceptance commits the acceptance meta through the protected-primary
+    # router (01KVMBD6). The flattened fixture mission commits to the current ref;
+    # 'main' is protected and would be refused, so run from the (never-protected)
+    # mission branch — the same pattern the sibling regression tests use.
+    subprocess.run(
+        ["git", "-C", str(repo_root), "checkout", "-b", f"kitty/mission-{_FEATURE_SLUG}"],
+        check=True,
+        capture_output=True,
+    )
 
     summary = collect_feature_summary(repo_root, _FEATURE_SLUG)
     result = perform_acceptance(summary, mode="local", actor="test-agent")
