@@ -21,7 +21,6 @@ from specify_cli.acceptance import (
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.cli.helpers import console, show_banner
-from specify_cli.git.commit_helpers import assert_not_protected_branch
 from specify_cli.task_utils import (
     LANES,
     TaskCliError,
@@ -361,16 +360,11 @@ def accept(
     acceptance_tests = list(test)
     actor_name = resolve_acceptance_actor(actor)
 
-    if commit_required:
-        try:
-            assert_not_protected_branch(repo_root, operation="record acceptance")
-        except Exception as exc:
-            _safe_emit_error_logged(str(exc))
-            if json_output:
-                print(json.dumps({"error": str(exc)}))
-            else:
-                console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(1)
+    # T015 / WP04 / FR-001: the protected-primary guard is no longer a hard
+    # reject here.  ``_commit_acceptance_meta`` routes every commit through
+    # ``commit_for_mission``, which materialises the coordination worktree on
+    # demand when the primary is protected (C-001 / FR-003).  A pre-flight
+    # raise-and-exit deadlock is therefore unnecessary and has been removed.
 
     result: AcceptanceResult | None = None
     _accept_exc: AcceptanceError | None = None

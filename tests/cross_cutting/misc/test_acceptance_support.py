@@ -516,43 +516,139 @@ def test_accept_does_not_require_done_evidence_for_approved_wp(
     assert summary.lanes["approved"] == ["WP01"]
 
 
-def test_accept_protected_branch_no_mutation(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Protected-branch guard must reject BEFORE any status mutation."""
-    import specify_cli.status.emit as status_emit
-    from specify_cli.git.commit_helpers import assert_not_protected_branch, ProtectedBranchCommitError
-    from specify_cli.status.store import read_events
+def test_accept_protected_branch_materialize_then_retry(
+    feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """T018 / WP04 / FR-001 / FR-003 / FR-009 — L2 rewrite.
+
+    On a protected primary, ``_commit_acceptance_meta`` (the internal commit
+    seam) must materialize-then-retry through ``commit_for_mission``, not
+    raise-and-exit.  Tested at the function level to isolate the seam from
+    pre-existing CLI resolver issues that affect the whole test class.
+
+    Assertions:
+    1. ``assert_not_protected_branch`` is NOT the decision gate in ``accept.py``
+       (FR-009 provenance: the decision flows through ``ProtectionPolicy.resolve``).
+    2. ``commit_for_mission`` is called from ``_commit_acceptance_meta`` when a
+       protected policy is active — the materialize-then-retry path is live.
+    3. The spy result is honoured: ``accept_commit`` is recorded from the
+       ``CommitRouterResult.commit_hash`` (no raise/exit from the protection guard).
+    4. Mutation-verification comment: reverting to the old raise-and-exit (re-adding
+       ``assert_not_protected_branch → raise`` in ``_commit_acceptance_meta``) would
+       make assertion 2 fail because the spy would never be reached.
+    """
+    from specify_cli.acceptance import AcceptanceSummary, _commit_acceptance_meta  # type: ignore[attr-defined]
+    from specify_cli.coordination.commit_router import CommitRouterResult
+    from specify_cli.git.protection_policy import ProtectionPolicy
+    from specify_cli.task_utils import LANES
     from tests.utils import run
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    # --- Setup: create meta.json and commit it so record_acceptance can write ---
     _write_acceptance_meta(feature_repo, mission_slug)
     run(["git", "add", "."], cwd=feature_repo)
-    run(["git", "commit", "-m", "Add meta"], cwd=feature_repo)
-
-    _approve_wp(feature_repo, mission_slug, "WP01")
-    run(["git", "add", "."], cwd=feature_repo)
-    run(["git", "commit", "-m", "Approve WP01"], cwd=feature_repo)
+    run(["git", "commit", "-m", "Add meta for acceptance unit test"], cwd=feature_repo)
 
     feature_dir = feature_repo / "kitty-specs" / mission_slug
-    before_events = len(read_events(feature_dir))
 
-    def _always_reject(repo_path, *, operation="commit"):
-        raise ProtectedBranchCommitError(
-            f"Refusing to {operation} on protected branch 'main'"
+    # Build an ok summary (no outstanding issues).
+    full_lanes = {lane: [] for lane in LANES}
+    full_lanes["approved"] = ["WP01"]
+    summary = AcceptanceSummary(
+        feature=mission_slug,
+        repo_root=feature_repo,
+        feature_dir=feature_dir,
+        tasks_dir=feature_dir / "tasks",
+        branch="main",
+        worktree_root=feature_repo,
+        primary_repo_root=feature_repo,
+        lanes=full_lanes,
+        work_packages=[],
+        metadata_issues=[],
+        activity_issues=[],
+        unchecked_tasks=[],
+        needs_clarification=[],
+        missing_artifacts=[],
+        optional_missing=[],
+        git_dirty=[],
+        path_violations=[],
+        warnings=[],
+    )
+
+    # --- FR-009 provenance assertion ---
+    # assert_not_protected_branch must NOT be the decision gate in accept.py.
+    import specify_cli.cli.commands.accept as _accept_mod
+    assert not hasattr(_accept_mod, "assert_not_protected_branch"), (
+        "assert_not_protected_branch must NOT be the decision gate in accept.py "
+        "(FR-009 provenance: protection flows through ProtectionPolicy, "
+        "not the old assert_not_protected_branch surface)"
+    )
+
+    # --- FR-009: protection decision flows through ProtectionPolicy.resolve ---
+    protected_policy = ProtectionPolicy(
+        protected_branches=frozenset({"main"}),
+        operator_hatch_active=False,
+    )
+    resolve_call_count: list[str] = []
+
+    def _spy_resolve(cls: type, repo_root: Path) -> ProtectionPolicy:  # type: ignore[misc]
+        resolve_call_count.append("called")
+        return protected_policy
+
+    monkeypatch.setattr(
+        ProtectionPolicy,
+        "resolve",
+        classmethod(_spy_resolve),
+    )
+
+    # --- Spy: track that commit_for_mission is called (materialize-then-retry) ---
+    commit_calls: list[dict[str, object]] = []
+
+    def _spy_commit_for_mission(  # type: ignore[no-untyped-def]
+        *,
+        repo_root: Path,
+        mission_slug: str,
+        files: tuple[Path, ...],
+        message: str,
+        policy: object,
+        **kwargs: object,
+    ) -> CommitRouterResult:
+        commit_calls.append({"message": message, "files": list(files)})
+        return CommitRouterResult(
+            status="committed",
+            placement_ref="kitty/coord-ref",
+            commit_hash="abc1234deadbeef0",
         )
 
     monkeypatch.setattr(
-        "specify_cli.cli.commands.accept.assert_not_protected_branch",
-        _always_reject,
-    )
-    monkeypatch.chdir(feature_repo)
-    result = runner.invoke(
-        cli_app,
-        ["accept", "--mission", mission_slug, "--mode", "local", "--actor", "tester", "--json"],
+        "specify_cli.coordination.commit_router.commit_for_mission",
+        _spy_commit_for_mission,
     )
 
-    assert result.exit_code == 1
-    assert "Refusing" in result.output or "protected branch" in result.output.lower()
-    assert len(read_events(feature_dir)) == before_events
+    # --- Execute: call the acceptance commit seam directly ---
+    parent_commit, accept_commit, commit_created = _commit_acceptance_meta(
+        summary, actor_name="tester", mode="local"
+    )
+
+    # 1. ProtectionPolicy.resolve was called — provenance is through the policy,
+    #    not a direct re-read (FR-009 / FR-007).
+    assert len(resolve_call_count) >= 1, (
+        "ProtectionPolicy.resolve must be called by _commit_acceptance_meta "
+        "for the protection decision (FR-009 provenance)"
+    )
+
+    # 2. commit_for_mission was invoked — materialize-then-retry path is live.
+    assert len(commit_calls) >= 1, (
+        "commit_for_mission must be called by _commit_acceptance_meta when the "
+        "primary is protected; the old raise-and-exit deadlock path is removed (T016). "
+        "Mutation-verify: re-adding assert_not_protected_branch→raise in "
+        "_commit_acceptance_meta would cause this assertion to fail."
+    )
+
+    # 3. The commit hash from the spy result is honoured as accept_commit.
+    assert accept_commit == "abc1234deadbeef0", (
+        f"accept_commit must come from CommitRouterResult.commit_hash, got {accept_commit!r}"
+    )
+    assert commit_created is True, "commit_created must be True on a successful commit"
 
 
 def test_collect_feature_summary_encoding_error(feature_repo: Path, mission_slug: str) -> None:
