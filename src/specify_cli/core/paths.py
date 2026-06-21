@@ -627,6 +627,51 @@ def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
         return fallback
 
 
+def resolve_merge_target_branch(
+    repo_root: Path, mission_slug: str | None, explicit_target: str | None
+) -> tuple[str, str]:
+    """Resolve the branch a mission merges into, with provenance.
+
+    The single source of truth shared by ``spec-kitty merge`` and
+    ``orchestrator-api merge-mission`` so the two never disagree.
+
+    Order: explicit ``--target`` > primary-meta ``merge_target_branch`` >
+    primary-meta ``target_branch`` > repo default.
+
+    The merge target lives in the PRIMARY-checkout meta.json (like
+    ``coordination_branch``), so it is read via ``primary_feature_dir_for_mission``
+    — NOT the topology-aware candidate. Under coordination topology that candidate
+    resolves to the coordination worktree, whose mission dir has no meta.json;
+    reading it found nothing and silently fell back to the repo default (main),
+    merging the mission into the wrong branch.
+
+    Returns ``(branch, source)`` where ``source`` is ``"flag"``, ``"meta.json"``,
+    or ``"primary_branch"``.
+    """
+    if explicit_target is not None:
+        return explicit_target, "flag"
+
+    from specify_cli.core.git_ops import resolve_primary_branch
+    from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+
+    main_root = get_main_repo_root(repo_root)
+    fallback = str(resolve_primary_branch(main_root))
+    if not mission_slug:
+        return fallback, "primary_branch"
+
+    meta_file = primary_feature_dir_for_mission(main_root, mission_slug) / "meta.json"
+    if meta_file.exists():
+        try:
+            data = json.loads(meta_file.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            data = {}
+        for key in ("merge_target_branch", "target_branch"):
+            value = data.get(key)
+            if value:  # non-null, non-empty
+                return str(value), "meta.json"
+    return fallback, "primary_branch"
+
+
 def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> str:
     """Require an explicit feature slug; raise if not provided.
 

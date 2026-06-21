@@ -567,7 +567,7 @@ def test_assert_baseline_on_target_raises_when_committed_differs_from_recorded(
 
 
 def test_assert_merged_wps_reads_coord_surface_when_coord_branch_set(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
 ) -> None:
     """ATDD anchor [RED]: _assert_merged_wps_reached_done must read from the
     coordination worktree when coordination_branch is set in meta.json.
@@ -621,16 +621,10 @@ def test_assert_merged_wps_reads_coord_surface_when_coord_branch_set(
         json.dumps(done_event) + "\n", encoding="utf-8"
     )
 
-    # Stub resolve_feature_dir_for_mission → primary checkout (no events).
-    # On unfixed code this causes get_wp_lane to raise CanonicalStatusNotFoundError.
-    # On fixed code _assert_merged_wps_reached_done calls resolve_status_surface
-    # instead, bypassing this stub entirely.
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge.resolve_feature_dir_for_mission",
-        lambda *_a, **_kw: primary_dir,
-    )
-
-    # Must NOT raise. Will fail (CanonicalStatusNotFoundError) until WP02 fix.
+    # The primary checkout has meta.json but NO status.events.jsonl, while the
+    # coordination worktree carries the done event. _assert_merged_wps_reached_done
+    # must read the coord surface (via resolve_status_surface): if it read the
+    # primary checkout instead, get_wp_lane would raise CanonicalStatusNotFoundError.
     _assert_merged_wps_reached_done(tmp_path, mission_slug, ["WP01"])
 
 

@@ -27,7 +27,6 @@ from specify_cli.coordination.surface_resolver import (
 from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
-    resolve_feature_dir_for_mission,
 )
 import contextlib
 import json
@@ -48,7 +47,7 @@ from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.git_ops import has_remote, run_command
 from specify_cli.core.git_preflight import build_git_preflight_failure_payload, run_git_preflight
 from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.core.paths import assert_safe_path_segment, get_feature_target_branch, get_main_repo_root
+from specify_cli.core.paths import assert_safe_path_segment, get_main_repo_root
 from specify_cli.core.utils import ensure_within_any, ensure_within_directory
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
@@ -1671,18 +1670,16 @@ def _resolve_target_branch(
     mission_slug: str | None,
     explicit_target: str | None,
 ) -> tuple[str, str | None]:
-    """Resolve target branch and its provenance."""
-    if explicit_target is not None:
-        return explicit_target, "flag"
+    """Resolve target branch and its provenance.
 
-    if mission_slug:
-        feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
-        if feature_dir.exists():
-            return get_feature_target_branch(repo_root, mission_slug), "meta.json"
+    Delegates to the shared :func:`resolve_merge_target_branch` so this command
+    and ``orchestrator-api merge-mission`` resolve the target identically (reading
+    the PRIMARY-checkout meta, never silently falling back to main when the
+    mission declares a target_branch).
+    """
+    from specify_cli.core.paths import resolve_merge_target_branch
 
-    from specify_cli.core.git_ops import resolve_primary_branch
-
-    return resolve_primary_branch(repo_root), "primary_branch"
+    return resolve_merge_target_branch(repo_root, mission_slug, explicit_target)
 
 
 def _emit_merge_diff_summary(
