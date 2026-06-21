@@ -7,7 +7,19 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased - 3.2.2]
+
+Patch release continuing the post-3.2.0 stabilization. Adopts a coherent test-flakiness handling
+policy and the supporting infrastructure, plus a root-cause fix for a collection-order flake, and
+fixes coord-topology orchestration so WPs can no longer reach `done` with nothing committed or merged
+into the wrong branch.
+
+### ✨ Added
+
+- **Test-flakiness handling policy (#2038):** a suite-wide policy (`docs/development/testing-flakiness.md`)
+  — never retry-to-green; three tiers (budget / correctness / environmental), each with one sanctioned
+  response — plus an env-gated, **non-blocking** `quarantine` pytest marker (held out of every normal/
+  blocking run unless `SPEC_KITTY_RUN_QUARANTINE=1`), distinct from the mutmut-deselection `flaky` marker.
 
 ### 🐛 Fixed
 
@@ -32,30 +44,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     coordination topology has no meta.json and made the resolver silently fall back to the repo default
     (`main`), merging the mission into the wrong branch (and tripping a downstream `SafeCommitHeadMismatch`).
     Explicit `--target` still wins; the repo default is only used when no mission target is set.
+- **Non-deterministic xdist collection in `tests/specify_cli/shims/test_registry.py` (#2038):** the
+  frozenset-derived parametrize sets are now `sorted()`, so workers collect an identical order
+  (root-cause fix — no retry).
 
 ### ⚠️ Contract
 
 - `orchestrator-api` `CONTRACT_VERSION` bumped to **1.1.0**: additive `start-implementation` response fields
   (`lane_id`, `lane_branch`, `lane_base_ref`) and a changed meaning for `workspace_path` (now the lane
   worktree). New error code `LANE_ALLOCATION_FAILED`.
-
-## [3.2.2] - 2026-06-21
-
-Patch release continuing the post-3.2.0 stabilization. Adopts a coherent test-flakiness handling
-policy and the supporting infrastructure, plus a root-cause fix for a collection-order flake.
-
-### ✨ Added
-
-- **Test-flakiness handling policy (#2038):** a suite-wide policy (`docs/development/testing-flakiness.md`)
-  — never retry-to-green; three tiers (budget / correctness / environmental), each with one sanctioned
-  response — plus an env-gated, **non-blocking** `quarantine` pytest marker (held out of every normal/
-  blocking run unless `SPEC_KITTY_RUN_QUARANTINE=1`), distinct from the mutmut-deselection `flaky` marker.
-
-### 🐛 Fixed
-
-- **Non-deterministic xdist collection in `tests/specify_cli/shims/test_registry.py` (#2038):** the
-  frozenset-derived parametrize sets are now `sorted()`, so workers collect an identical order
-  (root-cause fix — no retry).
 
 ## [3.2.1] - 2026-06-18
 
