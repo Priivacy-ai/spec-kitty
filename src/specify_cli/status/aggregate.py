@@ -480,6 +480,7 @@ class MissionStatus:
             StatusReadPathNotFound,
             candidate_feature_dir_for_mission,
             primary_feature_dir_for_mission,
+            resolve_bare_modern_mission_dir_name,
         )
 
         # Compose the primary candidate through the blessed path-constructor
@@ -498,6 +499,20 @@ class MissionStatus:
         # common case.
         if raw_meta.exists():
             return raw_meta, primary_dir
+        # Bare modern slug → composed ``<slug>-<mid8>`` primary dir (#2050 read
+        # mirror): the operator typed a bare human slug whose on-disk primary dir
+        # carries the canonical ``<slug>-<mid8>`` name (e.g. before the coord
+        # worktree is materialized, only the composed primary dir exists). The
+        # identity resolver below keys on the dir NAME and so cannot map a bare
+        # slug onto a composed dir name; the shared canonical primitive bridges
+        # that gap (NFR-004 — same definition the ``agent status`` CLI consumes).
+        # Re-anchor the meta read on the composed primary dir when it resolves.
+        bare_dir_name = resolve_bare_modern_mission_dir_name(repo_root, mission_slug)
+        if bare_dir_name is not None:
+            composed_primary = primary_feature_dir_for_mission(repo_root, bare_dir_name)
+            composed_meta = composed_primary / "meta.json"
+            if composed_meta.exists():
+                return composed_meta, composed_primary
         try:
             candidate_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
         except StatusReadPathNotFound:

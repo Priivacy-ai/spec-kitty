@@ -642,6 +642,54 @@ def primary_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:
     return primary_dir
 
 
+def resolve_bare_modern_mission_dir_name(
+    repo_root: Path, mission_slug: str
+) -> str | None:
+    """Resolve a *bare* modern slug to its on-disk ``<slug>-<mid8>`` dir NAME.
+
+    The canonical home for the "bare human slug names a composed primary dir"
+    resolution (#2050 read-side mirror). The operator may type a bare human slug
+    (``demo-feature``) for a mission whose on-disk primary directory carries the
+    canonical ``<slug>-<mid8>`` name (``demo-feature-01ABCDEF``) — e.g. before the
+    coord worktree is materialized, when only the composed primary dir exists.
+    The identity resolver (:func:`context.mission_resolver.resolve_mission`) keys
+    on the directory NAME and so cannot map a bare slug onto a composed dir name;
+    this primitive bridges that gap by scanning ``kitty-specs/<slug>-*/meta.json``
+    for the single directory whose name carries a valid mid8 tail.
+
+    Returns ``None`` when the handle already embeds a mid8 (not a bare slug), when
+    ``kitty-specs/`` is absent, or when zero / multiple composed dirs match (the
+    ambiguous case is deliberately declined here — a no-silent-pick contract; the
+    caller keeps its existing behaviour). Pure-path: no git, one ``glob``.
+
+    Shared seam (NFR-004): both ``status.aggregate.MissionStatus._find_meta_path``
+    and the ``agent status`` CLI helper consume this one definition rather than
+    re-implementing the glob.
+    """
+    from specify_cli.lanes.branch_naming import mid8_from_slug
+
+    # A handle that already embeds a mid8 is NOT a bare slug — decline so the
+    # caller's literal/canonical resolution stays authoritative.
+    if mid8_from_slug(mission_slug):
+        return None
+
+    specs_dir = repo_root / KITTY_SPECS_DIR
+    if not specs_dir.is_dir():
+        return None
+
+    matches: list[str] = [
+        meta_path.parent.name
+        for meta_path in sorted(specs_dir.glob(f"{mission_slug}-*/meta.json"))
+        if mid8_from_slug(meta_path.parent.name)
+    ]
+    if len(matches) != 1:
+        return None
+    # ``Path.name`` is typed ``str``; the annotation above re-narrows the value
+    # mypy widens to ``Any`` through the comprehension so this return is a plain
+    # ``str`` (matches the ``_compose_mission_dir`` cast pattern in this module).
+    return str(matches[0])
+
+
 def resolve_feature_dir_for_slug(repo_root: Path, mission_slug: str) -> Path:
     """Resolve a mission directory **without** asserting it exists.
 
@@ -694,6 +742,7 @@ __all__ = [
     "StatusReadPathNotFound",
     "candidate_feature_dir_for_mission",
     "primary_feature_dir_for_mission",
+    "resolve_bare_modern_mission_dir_name",
     "resolve_feature_dir_for_mission",
     "resolve_feature_dir_for_slug",
     "resolve_handle_to_read_path",
