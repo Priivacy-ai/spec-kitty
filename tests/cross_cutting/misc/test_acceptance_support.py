@@ -151,6 +151,13 @@ def test_accept_command_reports_approved_wps_without_closing(
     _approve_wp(feature_repo, mission_slug, "WP02")
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Approve WPs"], cwd=feature_repo)
+    # Accept commits the acceptance meta through the protected-primary router
+    # (01KVMBD6). A flattened mission (no coordination_branch) commits to the
+    # current ref; 'main' is protected and would be refused, so run accept from
+    # the mission branch (kitty/mission-<slug> is never protected) — mirrors the
+    # sibling diagnose tests and real usage. The local-only auth gate does not
+    # fire in CI (remote-less, SaaS-config-less fixture).
+    run(["git", "checkout", "-b", f"kitty/mission-{mission_slug}"], cwd=feature_repo)
 
     monkeypatch.chdir(feature_repo)
     result = runner.invoke(
@@ -497,6 +504,11 @@ def test_accept_does_not_require_done_evidence_for_approved_wp(
     )
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Force-approve WP01"], cwd=feature_repo)
+    # Run accept from the mission branch: a flattened mission's acceptance commit
+    # is refused on the protected primary 'main' (01KVMBD6). kitty/mission-<slug>
+    # is never protected. Mirrors the sibling tests; the auth gate does not fire
+    # in CI (remote-less fixture).
+    run(["git", "checkout", "-b", f"kitty/mission-{mission_slug}"], cwd=feature_repo)
 
     before_events = len(read_events(feature_dir))
     monkeypatch.chdir(feature_repo)
