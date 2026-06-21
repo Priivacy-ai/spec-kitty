@@ -320,3 +320,29 @@ def test_lane_base_ref_falls_back_to_mission_branch(
         tmp_path, "unresolvable", SimpleNamespace(mission_branch="kitty/mission-x")
     )
     assert base == "kitty/mission-x"
+
+
+def test_lane_base_ref_uses_primary_when_no_mission_branch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Unresolvable placement AND no mission_branch -> repo default, never empty.
+
+    An empty base ref would degrade the commit gate's `git rev-list <base>..HEAD`.
+    """
+    from types import SimpleNamespace
+
+    import mission_runtime
+
+    subprocess.run(
+        ["git", "init", "-q", "-b", "main", str(tmp_path)],
+        check=True,
+        capture_output=True,
+    )
+
+    def _raise(*_: object, **__: object) -> None:
+        raise mission_runtime.ActionContextError("UNRESOLVED", "no such mission")
+
+    monkeypatch.setattr(mission_runtime, "resolve_placement_only", _raise)
+    base = _lane_base_ref(tmp_path, "unresolvable", SimpleNamespace(mission_branch=""))
+    assert base == "main"
+    assert base != ""
