@@ -967,12 +967,38 @@ def test_status_surface_rejects_path_under_neither_trusted_root(tmp_path: Path) 
         )
 
 
-def test_status_surface_rejects_lexical_escape_before_resolve(tmp_path: Path) -> None:
-    """Paths claiming kitty-specs but escaping it lexically are rejected pre-resolve."""
-    escape_path = tmp_path / "kitty-specs" / ".." / "outside" / "mission"
+def test_status_surface_rejects_symlink_indirection_into_trusted_root(
+    tmp_path: Path,
+) -> None:
+    """A surface that LEXICALLY escapes the claimed root but RESOLVES into a
+    trusted root via a symlink is rejected by the pre-resolution guard (PR #2043).
+
+    This is the case ONLY the early ``relative_to(claimed_root)`` raise catches:
+    the resolved form IS under kitty-specs, so the post-resolution topology check
+    and the terminal ``ensure_within_any`` would ACCEPT it. The lexical-must-match
+    hardening is what rejects the symlink indirection — a status surface must be
+    addressed by its canonical path, not via an untrusted symlink redirection.
+
+    Mutation-verified: reverting the early ``relative_to`` raise makes this surface
+    pass (accepted), so this test genuinely guards that hardening — unlike a
+    ``kitty-specs/../outside`` vector, which the post-resolve "under neither root"
+    check already rejects on its own.
+    """
+    from specify_cli.core.constants import KITTY_SPECS_DIR
+
+    repo_resolved = tmp_path.resolve(strict=False)
+    (repo_resolved / KITTY_SPECS_DIR).mkdir()
+    # A neutrally-named symlink OUTSIDE kitty-specs that points INTO it.
+    decoy = repo_resolved / "decoy"
+    decoy.symlink_to(repo_resolved / KITTY_SPECS_DIR, target_is_directory=True)
+    surface = decoy / "mission"  # lexically under decoy; resolves under kitty-specs
+
+    # Only the lexical pre-resolution guard can reject this: the resolved form IS
+    # under the trusted kitty-specs root, and the segment claims neither root.
+    assert surface.resolve(strict=False).is_relative_to(repo_resolved / KITTY_SPECS_DIR)
 
     with pytest.raises(ValueError, match="Untrusted status surface path"):
         _assert_status_surface_path_is_trusted(
             repo_root=tmp_path,
-            status_feature_dir=escape_path,
+            status_feature_dir=surface,
         )
