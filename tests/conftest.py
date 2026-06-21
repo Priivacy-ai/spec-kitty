@@ -189,8 +189,8 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "windows_ci: Tests that require a native win32 environment — auto-skipped on non-Windows",
     )
-    # NOTE: the ``quarantine`` marker is registered canonically in pyproject.toml
-    # ([tool.pytest.ini_options] markers), which is sufficient for
+    # NOTE: the ``quarantine`` marker is registered canonically in pytest.ini
+    # (the single marker source of truth, #2034), which is sufficient for
     # ``--strict-markers``. The collection chokepoint below is the enforcement
     # mechanism (env-gated skip); it does not require a second registration here.
 

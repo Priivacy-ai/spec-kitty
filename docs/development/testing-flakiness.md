@@ -82,8 +82,9 @@ The sanctioned mechanism for an irreducible Tier-3 flake is a dedicated
 `quarantine` marker — **not** a retry, and **not** the existing `flaky` marker.
 It is implemented as a single, un-bypassable chokepoint:
 
-1. **Registered** canonically in `[tool.pytest.ini_options].markers` (sufficient
-   for `--strict-markers`).
+1. **Registered** canonically in `pytest.ini`'s `markers` block — the single
+   source of truth for the marker registry (#2034) — sufficient for
+   `--strict-markers`.
 2. **Held out of every normal run.** `tests/conftest.py`'s
    `pytest_collection_modifyitems` skips any `@pytest.mark.quarantine` test
    **unless `SPEC_KITTY_RUN_QUARANTINE=1`**. Because this is collection-time and
