@@ -31,10 +31,7 @@ from specify_cli.coordination.types import (
 )
 from specify_cli.core.commit_guard import ProtectionState
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
-from specify_cli.git.commit_helpers import (
-    _operator_protected_branch_hatch_active,
-    protected_branches,
-)
+from specify_cli.git.protection_policy import ProtectionPolicy
 
 
 def _normalize_ref(raw: str) -> str:
@@ -211,10 +208,9 @@ class WorkflowMutationPolicy:
         # INPUT (the operator declares the branch unprotected for this repo),
         # mirroring safe_commit's computation so the gate and the mechanism
         # cannot disagree; ``evaluate`` itself stays environment-free.
-        protected = protected_branches(repo_root)
-        is_protected = (
-            not _operator_protected_branch_hatch_active() and ref in protected
-        )
+        # ProtectionPolicy.resolve is the sole I/O boundary (FR-007/NFR-003):
+        # all config+hatch reads happen once here; is_protected() is I/O-free.
+        is_protected = ProtectionPolicy.resolve(repo_root).is_protected(ref)
         guard_verdict = evaluate_commit_guard(
             CommitTarget(ref=ref, kind=CommitTargetKind.COORDINATION),
             ProtectionState(is_protected=is_protected),

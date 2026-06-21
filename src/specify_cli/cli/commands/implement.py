@@ -28,9 +28,8 @@ from specify_cli.frontmatter import FrontmatterError, update_fields
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import (
     SafeCommitPathPolicyError,
-    _operator_protected_branch_hatch_active,
-    protected_branches,
 )
+from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.core.constants import WORKTREES_DIR
 from mission_runtime import CommitTarget, CommitTargetKind
 from specify_cli.lanes.implement_support import create_lane_workspace
@@ -52,11 +51,9 @@ _WP_ID_RE = re.compile(r"^WP\d{2}$", re.IGNORECASE)
 
 
 def _protected_branch_status_commit_error(branch: str, repo_root: Path) -> str | None:
-    # The ONE documented ambient waiver is the operator escape hatch
-    # (solo-fork operators who own ``main``) — never the test-mode env.
-    if _operator_protected_branch_hatch_active():
-        return None
-    if branch not in protected_branches(repo_root):
+    # ProtectionPolicy.resolve is the sole I/O boundary (FR-007/NFR-003):
+    # config+hatch reads happen once; is_protected() is I/O-free.
+    if not ProtectionPolicy.resolve(repo_root).is_protected(branch):
         return None
     return (
         f"Refusing to start implementation status on protected branch '{branch}' "

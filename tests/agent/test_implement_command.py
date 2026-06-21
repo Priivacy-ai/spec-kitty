@@ -410,6 +410,11 @@ class TestImplementCommand:
         )
         _seed_planned(feature_dir, "WP01")
 
+        # Stub the policy resolver so the protection decision is deterministic
+        # and the resolver is the ONLY read-I/O boundary (NFR-003).
+        mock_policy = MagicMock()
+        mock_policy.is_protected.return_value = False  # non-protected lane branch
+
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
             patch(
@@ -425,9 +430,9 @@ class TestImplementCommand:
                 return_value="kitty/mission-010-feature-01ABCDEF",
             ),
             patch(
-                "specify_cli.cli.commands.implement.protected_branches",
-                return_value=frozenset({"main"}),
-            ),
+                "specify_cli.cli.commands.implement.ProtectionPolicy.resolve",
+                return_value=mock_policy,
+            ) as mock_resolver,
             patch(
                 "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
             ) as mock_commit_planning,
@@ -473,6 +478,8 @@ class TestImplementCommand:
             implement("WP01", feature="010-feature", auto_commit=True, recover=False)
 
         mock_commit_planning.assert_called_once()
+        # NFR-003: the resolver must have been invoked (not vacuous)
+        assert mock_resolver.called, "ProtectionPolicy.resolve must be invoked for the protection decision"
 
     def test_implement_status_emit_uses_transport_execution_mode(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / "010-feature"
@@ -730,4 +737,93 @@ class TestImplementCoordTopologyLanesJson:
         # We reached the workspace-create step, which confirms lanes.json was found
         assert "__workspace_create_sentinel__" in error, (
             f"Expected to pass lanes.json validation and reach workspace creation. Got: {error!r}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# T013 — NFR-003 spy: ProtectionPolicy.resolve reads I/O once at the boundary;
+# is_protected() and commit_guard.evaluate() make ZERO further I/O reads.
+# ---------------------------------------------------------------------------
+
+
+class TestNFR003ProtectionPolicySingleBoundaryRead:
+    """NFR-003: the protection decision I/O boundary is ProtectionPolicy.resolve (T013).
+
+    Verifies that:
+    - ``_load_kittify_config`` is called exactly ONCE (the config read) inside ``resolve``
+    - ``_remote_default_branch`` is called at most ONCE inside ``resolve`` (only on absent key path)
+    - Neither ``is_protected`` nor ``commit_guard.evaluate`` trigger additional I/O reads
+    """
+
+    def test_protection_decision_io_confined_to_resolve_boundary(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Drive _protected_branch_status_commit_error and assert single-boundary I/O (T013)."""
+        from specify_cli.cli.commands.implement import _protected_branch_status_commit_error
+        from specify_cli.git import protection_policy as _pp_module
+
+        # The autouse fixture sets SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1.
+        # For this test we need the hatch OFF so we can observe the real protection decision.
+        monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
+
+        # Spy: track calls to the two internal I/O helpers inside ProtectionPolicy.resolve
+        kittify_read_count: list[int] = [0]
+        remote_read_count: list[int] = [0]
+
+        _real_load_kittify_config = _pp_module._load_kittify_config
+        _real_remote_default_branch = _pp_module._remote_default_branch
+
+        def _spy_load_kittify_config(repo_root: Path) -> dict:  # type: ignore[type-arg]
+            kittify_read_count[0] += 1
+            return _real_load_kittify_config(repo_root)
+
+        def _spy_remote_default_branch(repo_root: Path) -> str | None:
+            remote_read_count[0] += 1
+            return _real_remote_default_branch(repo_root)
+
+        with (
+            patch.object(_pp_module, "_load_kittify_config", _spy_load_kittify_config),
+            patch.object(_pp_module, "_remote_default_branch", _spy_remote_default_branch),
+        ):
+            # Call the decision function — "main" should be protected (no .kittify/config.yaml
+            # override, so the default set includes "main"; hatch is OFF).
+            result = _protected_branch_status_commit_error("main", tmp_path)
+
+        # Config read happens exactly ONCE at the resolve boundary — not per is_protected call
+        assert kittify_read_count[0] == 1, (
+            f"_load_kittify_config called {kittify_read_count[0]} times; "
+            "expected exactly 1 (boundary-resolved value, NFR-003)"
+        )
+        # Remote read happens at most ONCE (only on the absent-key path)
+        assert remote_read_count[0] <= 1, (
+            f"_remote_default_branch called {remote_read_count[0]} times; "
+            "expected at most 1 (boundary-resolved value, NFR-003)"
+        )
+        # The decision itself: "main" is in the default protected set, no hatch active
+        assert result is not None, "Expected a refusal message for protected branch 'main'"
+
+    def test_is_protected_makes_no_io_after_resolve(
+        self, tmp_path: Path
+    ) -> None:
+        """is_protected() is pure after resolve — zero filesystem/env reads (T013)."""
+        from specify_cli.git.protection_policy import ProtectionPolicy
+        from specify_cli.git import protection_policy as _pp_module
+
+        io_call_count: list[int] = [0]
+
+        def _counting_load(repo_root: Path) -> dict:  # type: ignore[type-arg]
+            io_call_count[0] += 1
+            return {}
+
+        with patch.object(_pp_module, "_load_kittify_config", _counting_load):
+            policy = ProtectionPolicy.resolve(tmp_path)
+            count_after_resolve = io_call_count[0]
+            # Call is_protected multiple times — must NOT trigger further I/O
+            policy.is_protected("main")
+            policy.is_protected("master")
+            policy.is_protected("some-branch")
+
+        assert io_call_count[0] == count_after_resolve, (
+            f"is_protected triggered {io_call_count[0] - count_after_resolve} additional I/O read(s); "
+            "expected zero (NFR-003: value object is I/O-free after resolve)"
         )
