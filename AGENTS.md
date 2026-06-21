@@ -210,6 +210,10 @@ Rules:
 Full rationale, the volume env gates, and the stability ratchet:
 [docs/development/testing-parallel.md](docs/development/testing-parallel.md).
 
+When a test goes red on CI unrelated to your diff, follow the flakiness policy —
+**tune budget gates, fix correctness flakes at the root, never retry-to-green:**
+[docs/development/testing-flakiness.md](docs/development/testing-flakiness.md).
+
 ## Code Style
 
 Python 3.11+. Follow standard conventions. Any changes to `__init__.py` require a version bump in `pyproject.toml` and a `CHANGELOG.md` entry.
