@@ -10,7 +10,7 @@ T026: guard condition: coord active but target NOT protected → commit proceeds
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -143,28 +143,25 @@ class TestMoveTaskGuardCondition:
         assert skip is False
 
     def test_coord_topology_active_integrates_with_guard(self, tmp_path: Path) -> None:
-        """End-to-end: coord worktree on disk → _coord_topology_active True → guard triggers."""
-        from specify_cli.cli.commands.agent.tasks import _coord_topology_active
+        """End-to-end: coord worktree on disk → _skip_target_branch_commit True."""
+        from specify_cli.cli.commands.agent.tasks import _skip_target_branch_commit
 
         slug = "my-feature-01KT3YBD"
         mid8 = "01KT3YBD"
         base_slug = "my-feature"
 
-        # Create coord worktree
+        # Create coord worktree so topology is active
         coord_path = tmp_path / ".worktrees" / f"{base_slug}-{mid8}-coord"
         coord_path.mkdir(parents=True)
 
-        coord_active = _coord_topology_active(tmp_path, slug)
-        assert coord_active is True
-
-        # Guard condition: coord_active AND target in protected_branches
-        # Mock protected_branches to return a known set
+        # Guard condition: coord_active AND target protected via ProtectionPolicy
+        mock_policy = MagicMock()
+        mock_policy.is_protected.return_value = True
         with patch(
-            "specify_cli.cli.commands.agent.tasks.protected_branches",
-            return_value=["main"],
+            "specify_cli.cli.commands.agent.tasks.ProtectionPolicy.resolve",
+            return_value=mock_policy,
         ):
-            from specify_cli.cli.commands.agent.tasks import protected_branches as pb
-            skip = coord_active and "main" in pb(tmp_path)
+            skip = _skip_target_branch_commit(tmp_path, slug, "main")
 
         assert skip is True
 
@@ -206,9 +203,11 @@ class TestMoveTaskGuardCondition:
         coord_path = tmp_path / ".worktrees" / "my-feature-01KT3YBD-coord"
         coord_path.mkdir(parents=True)
 
+        mock_policy = MagicMock()
+        mock_policy.is_protected.return_value = True
         with patch(
-            "specify_cli.cli.commands.agent.tasks.protected_branches",
-            return_value=["main"],
+            "specify_cli.cli.commands.agent.tasks.ProtectionPolicy.resolve",
+            return_value=mock_policy,
         ):
             assert _skip_target_branch_commit(tmp_path, slug, "main") is True
 
@@ -218,8 +217,10 @@ class TestMoveTaskGuardCondition:
         """Legacy missions still refuse auto-commit on protected branches."""
         from specify_cli.cli.commands.agent.tasks import _skip_target_branch_commit
 
+        mock_policy = MagicMock()
+        mock_policy.is_protected.return_value = True
         with patch(
-            "specify_cli.cli.commands.agent.tasks.protected_branches",
-            return_value=["main"],
+            "specify_cli.cli.commands.agent.tasks.ProtectionPolicy.resolve",
+            return_value=mock_policy,
         ):
             assert _skip_target_branch_commit(tmp_path, "legacy-feature", "main") is False

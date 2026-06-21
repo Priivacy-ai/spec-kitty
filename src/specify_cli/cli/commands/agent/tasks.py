@@ -1,5 +1,10 @@
 """Task workflow commands for AI agents."""
 
+# ⚠️ GOD-MODULE (tracked for decomposition — do NOT add new responsibilities here).
+# This file is an oversized "god module" (~4500 LOC, maxCC ~178). Extract cohesive
+# seams into dedicated modules instead of growing this one.
+# De-godding effort: https://github.com/Priivacy-ai/spec-kitty/issues/2058
+
 from __future__ import annotations
 
 from specify_cli.core.constants import (
@@ -55,10 +60,7 @@ from specify_cli.mission import get_mission_type
 from mission_runtime import CommitTarget, CommitTargetKind, resolve_placement_only
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
-from specify_cli.git.commit_helpers import (
-    _operator_protected_branch_hatch_active,
-    protected_branches,
-)
+from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.status import feature_status_lock
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.status import bootstrap_canonical_state
@@ -875,11 +877,9 @@ def _output_error(json_mode: bool, error_message: str, diagnostic: dict | None =
 
 
 def _protected_branch_status_commit_error(branch: str, repo_root: Path, command: str) -> str | None:
-    # The ONE documented ambient waiver is the operator escape hatch
-    # (solo-fork operators who own ``main``) — never the test-mode env.
-    if _operator_protected_branch_hatch_active():
-        return None
-    if branch not in protected_branches(repo_root):
+    # ProtectionPolicy.resolve is the sole I/O boundary (FR-007/NFR-003):
+    # config+hatch reads happen once; is_protected() is I/O-free.
+    if not ProtectionPolicy.resolve(repo_root).is_protected(branch):
         return None
     return (
         f"Refusing to run `{command}` with auto-commit on protected branch "
@@ -911,9 +911,11 @@ def _coord_topology_active(repo_root: Path, mission_slug: str) -> bool:
 
 def _skip_target_branch_commit(repo_root: Path, mission_slug: str, target_branch: str) -> bool:
     """Return True when coord topology makes protected target commits redundant."""
+    # ProtectionPolicy.resolve is the sole I/O boundary (FR-007/NFR-003):
+    # config+hatch reads happen once; is_protected() is I/O-free.
     return (
         _coord_topology_active(repo_root, mission_slug)
-        and target_branch in protected_branches(repo_root)
+        and ProtectionPolicy.resolve(repo_root).is_protected(target_branch)
     )
 
 
