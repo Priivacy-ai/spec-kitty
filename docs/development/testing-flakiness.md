@@ -53,10 +53,10 @@ above, **reproduce the nondeterminism**:
 - For ordering / hash-seed flakes, re-run under different `PYTHONHASHSEED`
   values and diff the collected node IDs.
 - For a confidence signal, use the existing **stability ratchet** — N consecutive
-  green parallel runs, the same gate CI uses for shard flips:
-  ```bash
-  python -m tests._support.coverage_safety.ratchet -n 3 -- <path> -m "not slow"
-  ```
+  green parallel runs, the same gate CI uses for shard flips. The authoritative
+  invocation lives in
+  [testing-parallel.md → Running the stability ratchet locally](testing-parallel.md#running-the-stability-ratchet-locally);
+  point it at the suspect `<path>` instead of fabricating a new command.
   (Full harness: `tests/_support/coverage_safety/README.md`.)
 
 A test that cannot be made to fail again under these probes is **not** confirmed
@@ -82,8 +82,8 @@ The sanctioned mechanism for an irreducible Tier-3 flake is a dedicated
 `quarantine` marker — **not** a retry, and **not** the existing `flaky` marker.
 It is implemented as a single, un-bypassable chokepoint:
 
-1. **Registered** in `[tool.pytest.ini_options].markers` and in
-   `tests/conftest.py` (`pytest_configure`).
+1. **Registered** canonically in `[tool.pytest.ini_options].markers` (sufficient
+   for `--strict-markers`).
 2. **Held out of every normal run.** `tests/conftest.py`'s
    `pytest_collection_modifyitems` skips any `@pytest.mark.quarantine` test
    **unless `SPEC_KITTY_RUN_QUARANTINE=1`**. Because this is collection-time and

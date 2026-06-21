@@ -13,16 +13,15 @@ import pytest
 import yaml
 from filelock import FileLock, Timeout
 
+from tests._support.quarantine import (
+    QUARANTINE_MARKER,
+    quarantine_opted_in,
+    quarantine_skip_mark,
+)
 from tests._support.wall_clock_assertions import (
     find_wall_clock_assertion_violations,
     find_test_python_paths,
     format_wall_clock_assertion_violations,
-)
-from tests._support.quarantine import (
-    QUARANTINE_MARKER,
-    RUN_QUARANTINE_ENV_VAR,
-    quarantine_opted_in,
-    quarantine_skip_mark,
 )
 from tests.branch_contract import IS_2X_BRANCH
 from tests.mutmut_env import prepare_mutants_environment_from_cwd
@@ -190,11 +189,10 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "windows_ci: Tests that require a native win32 environment — auto-skipped on non-Windows",
     )
-    config.addinivalue_line(
-        "markers",
-        f"{QUARANTINE_MARKER}: irreducible environmental flake — env-gated, skipped "
-        f"unless {RUN_QUARANTINE_ENV_VAR}=1. See docs/development/testing-flakiness.md",
-    )
+    # NOTE: the ``quarantine`` marker is registered canonically in pyproject.toml
+    # ([tool.pytest.ini_options] markers), which is sufficient for
+    # ``--strict-markers``. The collection chokepoint below is the enforcement
+    # mechanism (env-gated skip); it does not require a second registration here.
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
