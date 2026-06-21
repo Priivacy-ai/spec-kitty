@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.2] - 2026-06-21
+
+Patch release continuing the post-3.2.0 stabilization. Adopts a coherent test-flakiness handling
+policy and the supporting infrastructure, plus a root-cause fix for a collection-order flake.
+
+### ✨ Added
+
+- **Test-flakiness handling policy (#2038):** a suite-wide policy (`docs/development/testing-flakiness.md`)
+  — never retry-to-green; three tiers (budget / correctness / environmental), each with one sanctioned
+  response — plus an env-gated, **non-blocking** `quarantine` pytest marker (held out of every normal/
+  blocking run unless `SPEC_KITTY_RUN_QUARANTINE=1`), distinct from the mutmut-deselection `flaky` marker.
+
+### 🐛 Fixed
+
+- **Non-deterministic xdist collection in `tests/specify_cli/shims/test_registry.py` (#2038):** the
+  frozenset-derived parametrize sets are now `sorted()`, so workers collect an identical order
+  (root-cause fix — no retry).
+
 ## [3.2.1] - 2026-06-18
 
 Patch release stabilizing the scaffolds around the functionality introduced in 3.2.0. Remediates
