@@ -438,12 +438,21 @@ def _resolve_wp_file(tasks_dir: Path, wp_id: str) -> Path | None:
 
 
 def _resolve_merge_target_branch(main_repo_root: Path, mission_slug: str, target: str | None) -> str:
-    if target is not None:
-        return target
+    """Resolve the branch ``merge-mission`` integrates into.
 
-    from specify_cli.core.paths import get_feature_target_branch
+    Order: explicit ``--target`` > meta ``merge_target_branch`` > meta
+    ``target_branch`` > repo default.
 
-    return get_feature_target_branch(main_repo_root, mission_slug)
+    The mission target lives in the PRIMARY-checkout meta.json (like
+    ``coordination_branch``), so it is read via ``primary_feature_dir_for_mission``
+    — NOT the topology-aware candidate. Under coordination topology that candidate
+    resolves to the coordination worktree, whose mission dir has no meta.json; the
+    prior code read that surface, missed the mission's ``target_branch``, and
+    silently fell back to the repo default (main) — merging into the wrong branch.
+    """
+    from specify_cli.core.paths import resolve_merge_target_branch
+
+    return resolve_merge_target_branch(main_repo_root, mission_slug, target)[0]
 
 
 def _build_merge_preflight(

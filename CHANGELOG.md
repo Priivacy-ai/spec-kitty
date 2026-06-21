@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `lane_branch`, and `lane_base_ref`, and `workspace_path` now means that lane worktree. The `for_review`
     transition is gated on a real commit existing beyond the lane base (shared with the native `move-task`
     gate), so "done without a commit" is impossible via the API too.
+  - Both `spec-kitty merge` and `orchestrator-api merge-mission` now resolve the target branch from the
+    **primary-checkout** meta.json (`merge_target_branch` then `target_branch`) via one shared resolver
+    (`core.paths.resolve_merge_target_branch`), instead of the coord-aware read surface — which under
+    coordination topology has no meta.json and made the resolver silently fall back to the repo default
+    (`main`), merging the mission into the wrong branch (and tripping a downstream `SafeCommitHeadMismatch`).
+    Explicit `--target` still wins; the repo default is only used when no mission target is set.
 
 ### ⚠️ Contract
 
