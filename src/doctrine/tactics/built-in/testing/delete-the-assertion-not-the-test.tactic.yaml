@@ -105,10 +105,6 @@ references:
     type: tactic
     id: zombies-tdd
     when: enumerating the boundary and exceptional behaviors the original test encoded
-  - name: Acceptance Test Driven Development (ATDD)
-    type: tactic
-    id: acceptance-test-first
-    when: the replacement is a fresh, contract-pinned acceptance test
 notes: |
   By-class decision rule (the class decides the action):
 

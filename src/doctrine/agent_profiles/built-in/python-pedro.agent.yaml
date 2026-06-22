@@ -27,6 +27,7 @@ context-sources:
     - "024"
     - "025"
     - "030"
+    - "041"
   tactics:
     - test-scaffolding-as-design-smell
   additional:
@@ -167,6 +168,9 @@ directive-references:
   - code: "034"
     name: Test-First Development
     rationale: Tests define the contract before production code — TDD red-green-refactor is the default implementation rhythm
+  - code: "041"
+    name: Tests as Scaffold, Not Friction
+    rationale: Write tests that assert observable contracts and fail when the contract breaks; never mask a defect with xfail or pin a ratchet on a line number that benign edits will move
 
 tactic-references:
   - id: test-scaffolding-as-design-smell
