@@ -15,8 +15,8 @@ from specify_cli.core.commit_guard import GuardCapability
 from mission_runtime import (
     ActionContextError,
     CommitTarget,
-    CommitTargetKind,
     is_coordination_artifact_residue_path,
+    routes_through_coordination,
 )
 import contextlib
 from dataclasses import dataclass
@@ -764,16 +764,20 @@ def _planning_commit_worktree(
     """Resolve the worktree a planning commit lands in for ``placement``.
 
     WP05: ``safe_commit`` requires ``worktree_root`` HEAD to equal the
-    destination ref. For a :attr:`CommitTargetKind.COORDINATION` placement the
-    destination is the coordination branch, which is checked out in the
-    per-mission coordination worktree — so the commit must run there (and the
+    destination ref. When :func:`routes_through_coordination` holds for the
+    placement the destination is the coordination branch, which is checked out in
+    the per-mission coordination worktree — so the commit must run there (and the
     artifacts, written to the main checkout, are copied across for staging,
     skipping coord-owned status files, #1589). For a flattened/primary placement
     the destination is already HEAD of the main checkout, so it is used directly.
 
+    FR-005: the coord-vs-primary routing decision reads the WP01
+    :func:`routes_through_coordination` per-ref predicate, never a direct
+    ``.kind is COORDINATION`` comparison.
+
     Returns ``(worktree_root, paths_to_commit)``.
     """
-    if placement.kind is not CommitTargetKind.COORDINATION:
+    if not routes_through_coordination(placement):
         return repo_root, paths
 
     from specify_cli.lanes.branch_naming import resolve_mid8
@@ -855,7 +859,7 @@ def _enforce_analysis_report_write_preflight(
         return
 
     dirty_paths = _git_dirty_paths(repo_root)
-    if placement_ref is not None and placement_ref.kind is CommitTargetKind.COORDINATION:
+    if placement_ref is not None and routes_through_coordination(placement_ref):
         dirty_paths = [
             path
             for path in dirty_paths
