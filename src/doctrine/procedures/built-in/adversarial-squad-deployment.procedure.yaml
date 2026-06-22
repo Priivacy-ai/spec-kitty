@@ -1,0 +1,104 @@
+schema_version: "1.0"
+id: adversarial-squad-deployment
+name: Adversarial Squad Deployment
+purpose: >
+  Deploy a small, bounded set of profile-loaded subagents in parallel at high-leverage
+  review point-cuts so independent doctrine lenses converge on findings no single
+  reviewer would catch. Turns review from one perspective into a cheap adversarial
+  panel that resists laziness, accidental-pass, and single-lens blind spots. Optional
+  and charter- or memory-activated — it enriches the flow, it does not gate it.
+entry_condition: >
+  A work product has reached a review point-cut (post-spec, post-plan, post-tasks,
+  pre-merge, or an ad-hoc design / decision check) and an independent multi-lens
+  assessment would reduce the risk of a costly miss (split-brain design, fakeable
+  test, missed scope, security gap, duct-tape fix). The orchestrator opts in; nothing
+  forces the squad.
+exit_condition: >
+  Each delegate has returned a structured verdict; the orchestrator has synthesized
+  them (and, on a consequential divergence, taken a second opinion or adjudicated from
+  the source); the confirmed, convergent findings are recorded and the decision or
+  remediation is grounded in them.
+steps:
+  - title: Choose the point-cut and the question
+    description: >
+      Identify where in the flow the squad runs — pre-spec investigation, post-planning
+      brownfield check, post-tasks anti-laziness pass, pre-merge architectural sweep, or
+      an ad-hoc decision. State one sharp question the squad must answer.
+    actor: agent
+  - title: Select profiles by lens (bounded)
+    description: >
+      Pick 3-4 distinct profiles whose lenses are complementary (e.g. architect for
+      structure, debugger for live-evidence and coverage, reviewer for anti-laziness,
+      reducer for duplication, patterns for decomposition). Scale up only for an explicit
+      audit / comprehensive ask. More delegates is not better — distinct lenses are.
+    actor: agent
+  - title: Dispatch in parallel, profile-LOADED
+    description: >
+      Dispatch the delegates concurrently. Each delegate FIRST reads its
+      src/doctrine/agent_profiles/built-in/<id>.agent.yaml and adopts its directives and
+      tactics, then states which it applied. Loading the profile — not merely naming a
+      persona — is the point. Each delegate is read-only unless its task is an isolated
+      implementation in its own worktree.
+    actor: agent
+  - title: Require structured, non-fakeable output
+    description: >
+      Every delegate returns findings as "[SEVERITY] file:line - issue - recommendation"
+      ending in a verdict, grounded in concrete cited evidence, with honest concession of
+      where its lens does NOT apply. A steelman that over-claims is weak; an adversary
+      that concedes nothing is noise.
+    actor: agent
+  - title: Match model tier to task difficulty
+    description: >
+      Use the stronger model tier for analytical and adversarial lenses and the lighter
+      tier for mechanical or tracker work. Do not burn the top tier on bookkeeping, and
+      do not put the weakest tier on the hardest adversarial lens.
+    actor: agent
+  - title: Synthesize, and get a second opinion on divergence
+    description: >
+      Aggregate the verdicts. Where delegates disagree on a consequential point, do not
+      average — adjudicate from the source, or dispatch one more focused second-opinion
+      delegate. Be critical of any delegate with a known bias (e.g. a reducer that
+      prefers symptomatic consolidation over a structural fix).
+    actor: agent
+    on_failure: >
+      If verdicts remain irreconcilable, escalate the decision to the human with the
+      competing positions laid out; do not silently pick one.
+  - title: Record the convergent evidence and act
+    description: >
+      Capture the confirmed findings and the decision they ground — in the artifact, a
+      findings document, or a memory. The squad's value is convergent evidence that
+      survived independent scrutiny, not a single opinion.
+    actor: agent
+anti_patterns:
+  - name: Persona without profile
+    description: Naming a persona without loading its agent profile — a persona label is not a lens.
+  - name: Unbounded squad
+    description: Dozens of delegates for a question that 3-4 distinct lenses would answer; more delegates is not better.
+  - name: Averaging divergent verdicts
+    description: Averaging conflicting verdicts instead of adjudicating from the source or taking a focused second opinion.
+  - name: Trusting a biased delegate
+    description: Accepting a delegate's prescription despite a known bias (e.g. a duct-tape-prone reducer) without a critical pass.
+  - name: Model-tier mismatch
+    description: Top-tier model on mechanical or tracker delegates, or a weak tier on the hardest adversarial lens.
+  - name: Hard-wiring the squad as a gate
+    description: Turning the squad into a mission gate; it is an optional, charter- or memory-activated enrichment, never a guard or mission-type change.
+references:
+  - type: tactic
+    id: five-paradigm-parallel-debugging
+    reason: A squad is the review-side analogue of five-paradigm parallel debugging — independent lenses run concurrently and converge on findings one lens would miss.
+  - type: tactic
+    id: code-review-incremental
+    reason: Each delegate applies structured, observation-first review discipline within its assigned lens.
+notes: |
+  Point-cuts in the SDD flow (all OPTIONAL and charter- or memory-activated; none change
+  the mission type or its guards):
+  - after /spec-kitty.specify  -> pre-spec investigation squad (scope, prior art, live repros)
+  - after /spec-kitty.plan     -> post-planning brownfield squad (foldable issues, split-brain, deprecations)
+  - after /spec-kitty.tasks    -> post-tasks anti-laziness squad (fakeable DoDs, decomposition realism)
+  - before merge               -> architectural-gate / cross-base sweep
+  - ad-hoc decision            -> proponent + adversaries + synthesizer (e.g. delete-vs-migrate)
+
+  Invariants: bounded (3-4), profile-LOADED, structured output, model discipline,
+  live-evidence-grounded, second-opinion on divergence. The operational dispatch recipe
+  lives in the authored harness skill 'adversarial-squad' (invocable via its CLI alias);
+  this procedure is the doctrine of WHEN and WHY, the skill is the HOW.

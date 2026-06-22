@@ -28,6 +28,17 @@ summary: >
 directive_refs:
   - DIRECTIVE_001
   - DIRECTIVE_003
+  - DIRECTIVE_041
+
+references:
+  - type: tactic
+    id: forensic-repository-audit
+  - type: procedure
+    id: legacy-codebase-triage
+  - type: tactic
+    id: delete-the-assertion-not-the-test
+  - type: procedure
+    id: adversarial-squad-deployment
 
 opposed_by:
   - type: paradigm
