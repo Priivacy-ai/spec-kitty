@@ -31,7 +31,7 @@ from specify_cli.git.commit_helpers import (
 )
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.core.constants import WORKTREES_DIR
-from mission_runtime import CommitTarget, CommitTargetKind
+from mission_runtime import CommitTarget, CommitTargetKind, routes_through_coordination
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
 from specify_cli.coordination.status_transition import emit_status_transition_transactional
@@ -601,7 +601,7 @@ def _placement_coord_filter(placement_ref: CommitTarget | None) -> str | None:
     """
     if placement_ref is None:
         return None
-    if placement_ref.kind is CommitTargetKind.COORDINATION:
+    if routes_through_coordination(placement_ref):
         return placement_ref.ref
     return None
 

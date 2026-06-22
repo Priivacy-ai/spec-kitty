@@ -36,7 +36,7 @@ from typing import NoReturn
 
 import typer
 
-from mission_runtime import CommitTarget, CommitTargetKind
+from mission_runtime import CommitTarget, CommitTargetKind, routes_through_coordination
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.git.commit_helpers import (
     SafeCommitBackstopError,
@@ -1280,7 +1280,7 @@ def _resolve_history_commit_args(
     except ActionContextError:
         placement = None
 
-    if placement is not None and placement.kind is CommitTargetKind.COORDINATION:
+    if placement is not None and routes_through_coordination(placement):
         coord_worktree_root = mission_dir.parent.parent
         return coord_worktree_root, placement
 

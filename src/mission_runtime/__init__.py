@@ -33,8 +33,11 @@ from mission_runtime.context import (
     ExecutionContext,
     ExecutionMode,
     IdentityFragment,
+    MissionTopology,
     StatusSurfaceFragment,
     WorkspaceFragment,
+    classify_topology,
+    routes_through_coordination,
 )
 from mission_runtime.artifacts import (
     MissionArtifactHome,
@@ -59,12 +62,15 @@ __all__ = [
     "IdentityFragment",
     "MissionArtifactHome",
     "MissionArtifactKind",
+    "MissionTopology",
     "StatusSurfaceFragment",
     "WorkspaceFragment",
     "artifact_home_for",
+    "classify_topology",
     "is_coordination_artifact_residue_path",
     "resolve_action_context",
     "resolve_placement_only",
+    "routes_through_coordination",
 ]
 
 _COMPAT_ATTRS = frozenset(
