@@ -1273,6 +1273,107 @@ def identity(
     raise typer.Exit(1 if fail_on_triggered else 0)
 
 
+def _read_stored_topology(feature_dir: Path) -> dict[str, object | None]:
+    """Read the STORED topology + flattened flag for one mission (no re-inference).
+
+    Reports the value as persisted in ``meta.json``. A mission not yet backfilled
+    surfaces ``topology: null`` (so the audit drives the backfill); an unreadable
+    ``meta.json`` surfaces ``topology: null`` with an ``error`` reason.
+    """
+    meta_path = feature_dir / "meta.json"
+    if not meta_path.exists():
+        return {"slug": feature_dir.name, "topology": None, "flattened": None, "error": "meta.json not found"}
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        if not isinstance(meta, dict):
+            raise ValueError(f"expected JSON object, got {type(meta).__name__}")
+    except (json.JSONDecodeError, OSError, ValueError) as exc:
+        return {"slug": feature_dir.name, "topology": None, "flattened": None, "error": f"corrupt json: {exc}"}
+    return {
+        "slug": feature_dir.name,
+        "topology": meta.get("topology"),
+        "flattened": meta.get("flattened"),
+        "error": None,
+    }
+
+
+def _collect_topology_rows(repo_root: Path, mission: str | None) -> list[dict[str, object | None]]:
+    """Collect stored-topology rows for all missions (or one when scoped)."""
+    kitty_specs = repo_root / KITTY_SPECS_DIR
+    if not kitty_specs.is_dir():
+        return []
+    if mission is not None:
+        target = resolve_feature_dir_for_mission(repo_root, mission)
+        return [_read_stored_topology(target)] if target.is_dir() else []
+    return [
+        _read_stored_topology(entry)
+        for entry in sorted(kitty_specs.iterdir())
+        if entry.is_dir()
+    ]
+
+
+def _print_topology_human(rows: list[dict[str, object | None]]) -> None:
+    """Render a minimal stored-topology table to the console."""
+    console.print(f"\n[bold]Mission Topology Audit[/bold] — {len(rows)} mission(s)\n")
+    table = Table(box=None, padding=(0, 2), show_edge=False)
+    table.add_column("Mission", style="cyan")
+    table.add_column("Topology")
+    table.add_column("Flattened")
+    for row in rows:
+        topology = row["topology"]
+        rendered = str(topology) if topology is not None else "[red]null[/red]"
+        flattened = "" if row["flattened"] is None else str(row["flattened"])
+        table.add_row(str(row["slug"]), rendered, flattened)
+    console.print(table)
+
+
+@app.command(name="topology")
+def topology(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit structured JSON output (suitable for CI)"),
+    ] = False,
+    mission: Annotated[
+        str | None,
+        typer.Option("--mission", help="Scope report to a single mission slug"),
+    ] = None,
+) -> None:
+    """Report each mission's STORED topology across kitty-specs/.
+
+    Reads the authoritative ``topology`` value persisted in ``meta.json`` WITHOUT
+    re-inferring from disk/git. Missions not yet backfilled surface
+    ``topology: null`` — run ``spec-kitty migrate backfill-topology`` to persist
+    the computed value.
+
+    Examples:
+        spec-kitty doctor topology
+        spec-kitty doctor topology --json
+        spec-kitty doctor topology --mission 083-foo
+    """
+    try:
+        repo_root = locate_project_root()
+    except Exception as exc:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1) from exc
+    if repo_root is None:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1)
+
+    if mission is not None and not _collect_topology_rows(repo_root, mission):
+        console.print(f"[red]Error:[/red] Mission not found: {mission!r}")
+        raise typer.Exit(1)
+
+    rows = _collect_topology_rows(repo_root, mission)
+
+    if json_output:
+        report = {"missions": rows}
+        sys.stdout.write(json.dumps(report, indent=2) + "\n")
+        sys.stdout.flush()
+        return
+
+    _print_topology_human(rows)
+
+
 def _render_sparse_finding(report: object) -> None:
     """Render Quickstart Flow 1 finding output to the console.
 
