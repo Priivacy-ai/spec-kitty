@@ -203,6 +203,22 @@ def test_cascade_activation_is_transitive() -> None:
     assert result.activated == {"tactic": ["a", "b"]}
 
 
+def test_cascade_follows_refines_edges() -> None:
+    # #2079 behavioral guard (not just set membership): REFINES is a cascade
+    # reference relation, so activating an artifact cascades to what it REFINES.
+    # If REFINES were dropped from REFERENCE_RELATIONS / the traversal, tactic:refined
+    # would not appear — this proves the wiring behaviorally, not just by constant.
+    graph = _graph(
+        nodes=[
+            _node("tactic:base", NodeKind.TACTIC),
+            _node("tactic:refined", NodeKind.TACTIC),
+        ],
+        edges=[_edge("tactic:base", "tactic:refined", Relation.REFINES)],
+    )
+    result = cascade_activation_targets(graph, "tactic:base", CascadeScope.all())
+    assert result.activated == {"tactic": ["refined"]}
+
+
 def test_cascade_activation_no_references_is_empty() -> None:
     graph = _graph([_node("tactic:lonely", NodeKind.TACTIC)], [])
     result = cascade_activation_targets(graph, "tactic:lonely", CascadeScope.all())

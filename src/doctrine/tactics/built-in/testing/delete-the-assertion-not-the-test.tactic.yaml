@@ -35,7 +35,7 @@ steps:
       against the desired behavior - KEEPING the enumerated vectors. Do not migrate
       a lie.
     examples:
-      - "Replace `if is_valid: pytest.xfail('not blocked yet')` with a strict
+      - "Replace an `if is_valid: xfail('not blocked yet')` mask with a strict
          assertion that the traversal/symlink/null-byte vectors are rejected."
     references:
       - name: Acceptance Test Driven Development (ATDD)
