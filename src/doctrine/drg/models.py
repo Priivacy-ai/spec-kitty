@@ -63,6 +63,13 @@ class Relation(StrEnum):
       to declare a full replacement.
     - ``REPLACES`` is retained for backward compatibility with existing
       hand-authored fragments (R-2).
+    - ``REFINES`` (refinement, #2079): an artifact narrows or sharpens the
+      applicability or meaning of the target (a parent or built-in) without
+      replacing it. It is distinct from ``APPLIES`` (an action applies a
+      directive/tactic) and from ``SPECIALIZES_FROM`` (static profile/artifact
+      lineage): a refinement is a first-class, traversable relation, never a
+      synonym for ``APPLIES``. Previously the org→DRG bridge silently downgraded
+      ``refines`` to ``APPLIES`` (a dead sink); it is now preserved end-to-end.
     """
 
     REQUIRES = "requires"
@@ -76,6 +83,7 @@ class Relation(StrEnum):
     SPECIALIZES_FROM = "specializes_from"
     ENHANCES = "enhances"
     OVERRIDES = "overrides"
+    REFINES = "refines"
 
 
 # ---------------------------------------------------------------------------
