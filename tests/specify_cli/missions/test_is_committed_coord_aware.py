@@ -1,13 +1,26 @@
-"""Tests for the coordination-topology-aware ``is_committed()`` overload.
+"""Tests for the single read-surface ``is_committed()`` check (FR-011 collapse).
+
+WP01 (#1884) once made ``is_committed`` a 3-leg OR over (coordination-ref / HEAD /
+primary-target-branch) parameterised by a ``placement: CommitTarget``. WP07
+(FR-011) **collapsed** that OR to a single check: a file is committed iff it is
+tracked AND present at the ``HEAD`` of the git surface it physically lives on.
+The collapse is safe because the sole non-test caller (setup-plan) feeds the
+READ-resolved ``spec_file``: the coord worktree dir for a materialized
+coordination topology, the primary dir for the #1718 create-window, and the
+#1848 coord-deleted case never reaches the check (the read path raises
+``CoordinationBranchDeleted`` upstream).
 
 Covers:
-- Flat topology (no placement): original HEAD-only behaviour preserved.
-- Coord topology: file found on coord branch returns True even when absent on HEAD.
-- Coord topology: file absent on both coord branch and HEAD returns False.
-- Coord topology: coord branch lookup fails gracefully, falls back to HEAD.
-- Non-COORDINATION placement kind: HEAD-only check used (FLATTENED / PRIMARY).
+- Flat topology: file on HEAD → True, absent → False, outside repo → False.
+- The file's own surface decides: a spec on the coord-worktree HEAD reads
+  committed when checked at the coord-worktree path; the same spec uncommitted
+  on the primary checkout reads NOT committed when checked at the primary path.
+- The parametrized FR-011 envelope (``test_is_committed_fr011_parity``): for
+  every (topology × transient) cell it resolves the READ surface exactly as the
+  caller does, asserts the new single-surface verdict matches the retired 3-leg
+  OR verdict (parity), and pins the #1848 coord-deleted upstream short-circuit.
 
-Issue #1884 / FR-003 / WP01.
+Issue #1884 / #1954 / FR-003 (WP01) → FR-011 (WP07).
 """
 
 from __future__ import annotations
@@ -18,7 +31,11 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.missions._substantive import is_committed
+from specify_cli.missions._substantive import (
+    _git_commit_check_context,
+    _head_carries_path,
+    is_committed,
+)
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -31,7 +48,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 def _init_repo(tmp_path: Path) -> str:
     """Set up a minimal git repository with an initial commit.
 
-    Returns the default branch name (``main`` or ``master`` depending on git config).
+    Returns the default branch name (``main``).
     """
     subprocess.run(
         ["git", "init", "-b", "main", str(tmp_path)], check=True, capture_output=True
@@ -43,6 +60,11 @@ def _init_repo(tmp_path: Path) -> str:
     )
     subprocess.run(
         ["git", "-C", str(tmp_path), "config", "user.name", "Test"],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(tmp_path), "config", "commit.gpgsign", "false"],
         check=True,
         capture_output=True,
     )
@@ -69,20 +91,12 @@ def _commit_file(tmp_path: Path, file_path: Path, message: str) -> None:
     )
 
 
-def _make_commit_target(ref: str, kind_str: str) -> object:
-    """Construct a CommitTarget using the mission_runtime dataclass."""
-    from mission_runtime import CommitTarget, CommitTargetKind
-
-    kind = CommitTargetKind[kind_str]
-    return CommitTarget(ref=ref, kind=kind)
-
-
 # ---------------------------------------------------------------------------
-# Flat-topology (no placement): original HEAD-only behaviour
+# Flat-topology: the file's own HEAD decides
 # ---------------------------------------------------------------------------
 
 
-def test_no_placement_file_committed_on_head_returns_true(tmp_path: Path) -> None:
+def test_file_committed_on_head_returns_true(tmp_path: Path) -> None:
     _init_repo(tmp_path)
     spec = tmp_path / "spec.md"
     spec.write_text("# Spec\n", encoding="utf-8")
@@ -91,7 +105,7 @@ def test_no_placement_file_committed_on_head_returns_true(tmp_path: Path) -> Non
     assert is_committed(spec, tmp_path) is True
 
 
-def test_no_placement_file_not_committed_returns_false(tmp_path: Path) -> None:
+def test_file_not_committed_returns_false(tmp_path: Path) -> None:
     _init_repo(tmp_path)
     spec = tmp_path / "spec.md"
     spec.write_text("# Spec\n", encoding="utf-8")
@@ -100,9 +114,8 @@ def test_no_placement_file_not_committed_returns_false(tmp_path: Path) -> None:
     assert is_committed(spec, tmp_path) is False
 
 
-def test_no_placement_file_outside_repo_returns_false(tmp_path: Path) -> None:
+def test_file_outside_repo_returns_false(tmp_path: Path) -> None:
     _init_repo(tmp_path)
-    # Use a file that lives outside tmp_path entirely.
     outside = tmp_path.parent / f"outside_{tmp_path.name}.md"
     outside.write_text("x\n", encoding="utf-8")
     try:
@@ -112,44 +125,16 @@ def test_no_placement_file_outside_repo_returns_false(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Coord-topology: file on coord branch, absent from HEAD
+# The file's own surface decides (coord-worktree vs primary checkout)
 # ---------------------------------------------------------------------------
 
 
-def test_coord_placement_file_on_coord_branch_returns_true(tmp_path: Path) -> None:
-    """Spec committed only to the coordination branch satisfies the gate."""
-    _init_repo(tmp_path)
+def test_spec_committed_only_on_coord_worktree_surface(tmp_path: Path) -> None:
+    """A spec committed in the coord worktree reads committed at its worktree path.
 
-    # Create a coordination branch and commit spec.md there.
-    coord_ref = "kitty/mission-test-ABCD1234"
-    subprocess.run(
-        ["git", "-C", str(tmp_path), "checkout", "-b", coord_ref],
-        check=True,
-        capture_output=True,
-    )
-    spec = tmp_path / "spec.md"
-    spec.write_text("# Spec\n", encoding="utf-8")
-    _commit_file(tmp_path, spec, "add spec on coord")
-
-    # Switch back to main so spec.md is NOT on HEAD.
-    subprocess.run(
-        ["git", "-C", str(tmp_path), "checkout", "main"],
-        check=True,
-        capture_output=True,
-    )
-    # Confirm the file is absent from HEAD.
-    result = subprocess.run(
-        ["git", "-C", str(tmp_path), "cat-file", "-e", "HEAD:spec.md"],
-        capture_output=True,
-    )
-    assert result.returncode != 0, "Precondition: spec.md must NOT be on HEAD"
-
-    placement = _make_commit_target(coord_ref, "COORDINATION")
-    assert is_committed(spec, tmp_path, placement=placement) is True  # type: ignore[arg-type]
-
-
-def test_coord_placement_file_in_coord_worktree_returns_true(tmp_path: Path) -> None:
-    """A spec path under .worktrees resolves against the coord branch tree."""
+    This is the surface the read path resolves to for a materialized
+    coordination topology — the path the setup-plan caller actually feeds.
+    """
     _init_repo(tmp_path)
 
     coord_ref = "kitty/mission-test-WORKTREE"
@@ -180,142 +165,54 @@ def test_coord_placement_file_in_coord_worktree_returns_true(tmp_path: Path) -> 
         capture_output=True,
     )
 
-    placement = _make_commit_target(coord_ref, "COORDINATION")
-    assert is_committed(spec, tmp_path, placement=placement) is True  # type: ignore[arg-type]
+    # The coord-worktree surface carries the spec at HEAD.
+    assert is_committed(spec, tmp_path) is True
 
 
-def test_coord_placement_file_on_both_branches_returns_true(tmp_path: Path) -> None:
-    """File on HEAD AND coord branch: still True (OR logic)."""
+def test_spec_uncommitted_on_primary_surface_returns_false(tmp_path: Path) -> None:
+    """A spec on the coord branch but NOT on primary HEAD reads False at the primary path.
+
+    Pins the FR-011 boundary: the primary-checkout path is the surface the read
+    path never resolves to for a materialized coordination topology, so the
+    single-surface check on it correctly returns False (no false positive).
+    """
     _init_repo(tmp_path)
-    coord_ref = "kitty/mission-test-BBBB2222"
 
-    # Commit spec.md on main (HEAD).
-    spec = tmp_path / "spec.md"
-    spec.write_text("# Spec\n", encoding="utf-8")
-    _commit_file(tmp_path, spec, "add spec on main")
-
-    # Also commit a version on the coord branch.
+    coord_ref = "kitty/mission-test-ABCD1234"
     subprocess.run(
         ["git", "-C", str(tmp_path), "checkout", "-b", coord_ref],
         check=True,
         capture_output=True,
     )
-    spec.write_text("# Spec (coord version)\n", encoding="utf-8")
-    _commit_file(tmp_path, spec, "update spec on coord")
+    spec = tmp_path / "spec.md"
+    spec.write_text("# Spec\n", encoding="utf-8")
+    _commit_file(tmp_path, spec, "add spec on coord")
+    # Switch back to main so spec.md is NOT on the primary HEAD; leave it on disk.
     subprocess.run(
         ["git", "-C", str(tmp_path), "checkout", "main"],
         check=True,
         capture_output=True,
     )
+    spec.write_text("# Spec\n", encoding="utf-8")  # present on disk, not on primary HEAD
 
-    placement = _make_commit_target(coord_ref, "COORDINATION")
-    assert is_committed(spec, tmp_path, placement=placement) is True  # type: ignore[arg-type]
-
-
-def test_coord_placement_file_absent_from_both_branches_returns_false(tmp_path: Path) -> None:
-    """File absent from both coord branch and HEAD: False."""
-    _init_repo(tmp_path)
-    coord_ref = "kitty/mission-test-CCCC3333"
-
-    # Create the coord branch without spec.md.
-    subprocess.run(
-        ["git", "-C", str(tmp_path), "checkout", "-b", coord_ref],
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(
-        ["git", "-C", str(tmp_path), "checkout", "main"],
-        check=True,
-        capture_output=True,
-    )
-
-    spec = tmp_path / "spec.md"
-    spec.write_text("# Spec\n", encoding="utf-8")  # on disk but never committed
-
-    placement = _make_commit_target(coord_ref, "COORDINATION")
-    assert is_committed(spec, tmp_path, placement=placement) is False  # type: ignore[arg-type]
+    assert is_committed(spec, tmp_path) is False
 
 
 # ---------------------------------------------------------------------------
-# Coord-topology: invalid / non-existent coord branch falls back to HEAD
-# ---------------------------------------------------------------------------
-
-
-def test_coord_placement_nonexistent_branch_falls_back_to_head(tmp_path: Path) -> None:
-    """Non-existent coord branch: cat-file fails, falls back to HEAD check."""
-    _init_repo(tmp_path)
-
-    # Commit spec.md to HEAD (no coord branch exists at all).
-    spec = tmp_path / "spec.md"
-    spec.write_text("# Spec\n", encoding="utf-8")
-    _commit_file(tmp_path, spec, "add spec")
-
-    # Reference a branch that does not exist.
-    placement = _make_commit_target("kitty/nonexistent-DEADBEEF", "COORDINATION")
-    # Falls back to HEAD — spec IS on HEAD, so returns True.
-    assert is_committed(spec, tmp_path, placement=placement) is True  # type: ignore[arg-type]
-
-
-def test_coord_placement_nonexistent_branch_file_absent_from_head_returns_false(
-    tmp_path: Path,
-) -> None:
-    """Non-existent coord branch AND file absent from HEAD: False."""
-    _init_repo(tmp_path)
-    spec = tmp_path / "spec.md"
-    spec.write_text("# Spec\n", encoding="utf-8")  # on disk, not committed
-
-    placement = _make_commit_target("kitty/nonexistent-DEADBEEF", "COORDINATION")
-    assert is_committed(spec, tmp_path, placement=placement) is False  # type: ignore[arg-type]
-
-
-# ---------------------------------------------------------------------------
-# Non-COORDINATION placement kinds: HEAD-only check
-# ---------------------------------------------------------------------------
-
-
-def test_flattened_placement_uses_head_check(tmp_path: Path) -> None:
-    """FLATTENED placement: coord fast-path is skipped, falls back to HEAD."""
-    _init_repo(tmp_path)
-    spec = tmp_path / "spec.md"
-    spec.write_text("# Spec\n", encoding="utf-8")
-    _commit_file(tmp_path, spec, "add spec")
-
-    placement = _make_commit_target("main", "FLATTENED")
-    assert is_committed(spec, tmp_path, placement=placement) is True  # type: ignore[arg-type]
-
-
-def test_primary_placement_uses_head_check(tmp_path: Path) -> None:
-    """PRIMARY placement: coord fast-path is skipped, falls back to HEAD."""
-    _init_repo(tmp_path)
-    spec = tmp_path / "spec.md"
-    spec.write_text("# Spec\n", encoding="utf-8")
-    _commit_file(tmp_path, spec, "add spec")
-
-    placement = _make_commit_target("main", "PRIMARY")
-    assert is_committed(spec, tmp_path, placement=placement) is True  # type: ignore[arg-type]
-
-
-# ---------------------------------------------------------------------------
-# WP07 / T035 (FR-011) — protected behavioral envelope, parametrized.
+# WP07 / FR-011 — single-surface parity with the retired 3-leg OR.
 #
-# The randy-reducer equivalence-evidence base for the (deferred, gated) FR-011
-# collapse of the ``is_committed`` 3-leg OR. Each row builds a realistic on-disk
-# topology, resolves the ``placement`` THROUGH the live ``resolve_placement_only``
-# seam EXACTLY as the ``setup-plan`` caller does (including its broad-catch
-# fallback to ``placement=None`` when resolution hard-fails), and pins the
-# ``is_committed`` verdict for that (topology × transient). This is the envelope a
-# single-surface check would have to reproduce IDENTICALLY before the OR can be
-# collapsed.
+# Each row builds a realistic on-disk topology, then:
+#   1. resolves the READ surface exactly as the setup-plan caller does
+#      (``resolve_handle_to_read_path(require_exists=True)``), and
+#   2. asserts the NEW single-surface ``is_committed`` verdict on the
+#      read-resolved spec equals the RETIRED 3-leg OR verdict (reconstructed
+#      locally) — PROVING the collapse is behaviour-preserving on every
+#      reachable cell.
 #
-# Witnessed gate finding (2026-06-22, randy-reducer): the FR-011 collapse is NOT
-# yet safe. For the #1718 create-window the resolved placement is COORDINATION
-# (coord branch declared; materialisation deferred to the commit boundary) while
-# the artifact is committed on PRIMARY — so a single-surface check on the coord
-# ref returns ``False`` where the 3-leg OR (via the HEAD leg) returns ``True``.
-# The HEAD leg is therefore STILL load-bearing for the create-window: the surface
-# is not yet structurally single. These rows pin that envelope so a future
-# collapse that regresses any row goes red (and the create-window row in
-# particular guards the TOP mission risk).
+# The #1848 coord-deleted row is special: ``is_committed`` is NEVER REACHED at
+# the caller — the read path raises ``CoordinationBranchDeleted`` (a
+# ``StatusReadPathNotFound``) first. That row pins the UPSTREAM short-circuit,
+# not an ``is_committed`` verdict.
 # ---------------------------------------------------------------------------
 
 _ENVELOPE_MISSION_ID = "01KTDVHZKGCHCW6HQ4V577PNES"
@@ -350,46 +247,72 @@ def _git_q(root: Path, *args: str) -> None:
     subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
 
 
-def _resolve_placement_like_caller(repo_root: Path, handle: str) -> object | None:
-    """Mirror the ``setup-plan`` placement resolution + its broad-catch fallback.
-
-    The live caller (``cli/commands/agent/mission.py``) wraps
-    ``resolve_placement_only`` in ``except Exception: placement = None`` (C-004
-    strangler safety) — a coord-deleted mission therefore reaches ``is_committed``
-    with ``placement=None`` rather than a stale COORDINATION ref.
-    """
-    from mission_runtime import resolve_placement_only
-
+def _ref_carries_path(git_cwd: Path, ref: str, tree_path: str) -> bool:
+    """Reconstruct the retired coord/target-branch leg: ``ref:tree_path`` resolves."""
     try:
-        return resolve_placement_only(repo_root, handle)
-    except Exception:  # noqa: BLE001 — mirror the caller's deliberate broad catch
-        return None
+        subprocess.run(
+            ["git", "-C", str(git_cwd), "cat-file", "-e", f"{ref}:{tree_path}"],
+            check=True,
+            capture_output=True,
+        )
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
 
 
-def _build_single_branch_committed(repo_root: Path) -> tuple[Path, bool]:
+def _retired_or_verdict(
+    spec: Path,
+    repo_root: Path,
+    *,
+    placement_ref: str | None,
+    target_branch: str | None,
+    primary_repo_root: Path,
+) -> bool:
+    """Reconstruct the WP01 3-leg OR verdict for parity comparison.
+
+    Leg 1 (coord ref, when a COORDINATION placement ref is supplied) OR
+    Leg 2 (the file's own surface HEAD) OR
+    Leg 3 (primary-target-branch against the primary root + primary tree-path).
+    """
+    ctx = _git_commit_check_context(spec, repo_root)
+    if ctx is None:
+        return False
+    git_cwd, tree_path = ctx
+    if placement_ref is not None and _ref_carries_path(git_cwd, placement_ref, tree_path):
+        return True
+    if _head_carries_path(git_cwd, tree_path):
+        return True
+    if not target_branch:
+        return False
+    return _ref_carries_path(primary_repo_root, target_branch, tree_path)
+
+
+def _build_single_branch_committed(repo_root: Path) -> Path:
     fd = repo_root / "kitty-specs" / _ENVELOPE_SLUG_MID8
     _write_envelope_meta(fd, coordination_branch=None)
     spec = fd / "spec.md"
     spec.write_text("# Spec\n", encoding="utf-8")
     _git_q(repo_root, "add", "-A")
     _git_q(repo_root, "commit", "-m", "spec on primary")
-    return spec, True
+    return spec
 
 
-def _build_single_branch_uncommitted(repo_root: Path) -> tuple[Path, bool]:
+def _build_single_branch_uncommitted(repo_root: Path) -> Path:
     fd = repo_root / "kitty-specs" / _ENVELOPE_SLUG_MID8
     _write_envelope_meta(fd, coordination_branch=None)
+    _git_q(repo_root, "add", "-A")
+    _git_q(repo_root, "commit", "-m", "meta on primary")
     spec = fd / "spec.md"
     spec.write_text("# Spec\n", encoding="utf-8")  # on disk only, never committed
-    return spec, False
+    return spec
 
 
-def _build_lanes(repo_root: Path) -> tuple[Path, bool]:
+def _build_lanes(repo_root: Path) -> Path:
     # LANES flattens to a primary/FLATTENED placement; artifact on the target ref.
     return _build_single_branch_committed(repo_root)
 
 
-def _build_coord(repo_root: Path) -> tuple[Path, bool]:
+def _build_coord(repo_root: Path) -> Path:
     # Coord branch materialised; spec committed ONLY on the coord worktree.
     fd = repo_root / "kitty-specs" / _ENVELOPE_SLUG_MID8
     _write_envelope_meta(fd, coordination_branch=_ENVELOPE_COORD)
@@ -400,22 +323,22 @@ def _build_coord(repo_root: Path) -> tuple[Path, bool]:
     _git_q(repo_root, "branch", _ENVELOPE_COORD, "main")
     _git_q(repo_root, "worktree", "add", str(coord_root), _ENVELOPE_COORD)
     coord_fd = coord_root / "kitty-specs" / _ENVELOPE_SLUG_MID8
+    coord_fd.mkdir(parents=True, exist_ok=True)
     _write_envelope_meta(coord_fd, coordination_branch=_ENVELOPE_COORD)
     spec = coord_fd / "spec.md"
     spec.write_text("# Spec\n", encoding="utf-8")
     _git_q(coord_root, "add", "-A")
     _git_q(coord_root, "commit", "-m", "spec on coord")
-    return spec, True
+    return spec
 
 
-def _build_lanes_with_coord(repo_root: Path) -> tuple[Path, bool]:
+def _build_lanes_with_coord(repo_root: Path) -> Path:
     return _build_coord(repo_root)
 
 
-def _build_create_window(repo_root: Path) -> tuple[Path, bool]:
+def _build_create_window(repo_root: Path) -> Path:
     # #1718: coord branch DECLARED + exists, worktree NOT materialised; spec on
-    # PRIMARY HEAD. The resolved placement is COORDINATION (materialisation
-    # deferred to the commit boundary) — the HEAD leg is what carries the verdict.
+    # PRIMARY HEAD. The read path resolves to the PRIMARY dir.
     fd = repo_root / "kitty-specs" / _ENVELOPE_SLUG_MID8
     _write_envelope_meta(fd, coordination_branch=_ENVELOPE_COORD)
     spec = fd / "spec.md"
@@ -423,31 +346,52 @@ def _build_create_window(repo_root: Path) -> tuple[Path, bool]:
     _git_q(repo_root, "add", "-A")
     _git_q(repo_root, "commit", "-m", "spec on primary (create-window)")
     _git_q(repo_root, "branch", _ENVELOPE_COORD, "main")  # exists, no worktree
-    return spec, True
+    return spec
 
 
-def _build_coord_deleted(repo_root: Path) -> tuple[Path, bool]:
-    # #1848: coord branch declared but NEVER created → resolve_placement_only
-    # hard-fails COORDINATION_BRANCH_DELETED → caller falls to placement=None;
-    # spec is on PRIMARY HEAD so the verdict is True via the HEAD/primary surface.
+def _build_coord_deleted(repo_root: Path) -> Path:
+    # #1848: coord branch declared but NEVER created → the read path raises
+    # CoordinationBranchDeleted; is_committed is never reached.
     fd = repo_root / "kitty-specs" / _ENVELOPE_SLUG_MID8
     _write_envelope_meta(fd, coordination_branch=_ENVELOPE_COORD)
     spec = fd / "spec.md"
     spec.write_text("# Spec\n", encoding="utf-8")
     _git_q(repo_root, "add", "-A")
     _git_q(repo_root, "commit", "-m", "spec on primary (coord declared, branch gone)")
-    return spec, True
+    return spec
 
 
-_ENVELOPE_BUILDERS = {
+# Rows whose READ surface materialises a spec ``is_committed`` actually checks.
+_REACHABLE_BUILDERS = {
     "SINGLE_BRANCH-committed": _build_single_branch_committed,
     "SINGLE_BRANCH-uncommitted": _build_single_branch_uncommitted,
     "LANES": _build_lanes,
     "COORD": _build_coord,
     "LANES_WITH_COORD": _build_lanes_with_coord,
     "create-window-1718": _build_create_window,
-    "coord-deleted-1848": _build_coord_deleted,
 }
+
+
+def _resolve_read_surface_like_caller(repo_root: Path, handle: str) -> Path:
+    """Resolve the spec_file exactly as setup-plan does (read path, require_exists)."""
+    from specify_cli.missions._read_path_resolver import resolve_handle_to_read_path
+
+    feature_dir = resolve_handle_to_read_path(repo_root, handle, require_exists=True)
+    return feature_dir / "spec.md"
+
+
+def _retired_placement_ref(repo_root: Path, handle: str) -> str | None:
+    """The coord ref the retired OR would have used (via resolve_placement_only)."""
+    from mission_runtime import resolve_placement_only, routes_through_coordination
+
+    try:
+        placement = resolve_placement_only(repo_root, handle)
+    except Exception:  # noqa: BLE001 — mirror the retired caller's broad catch
+        return None
+    try:
+        return placement.ref if routes_through_coordination(placement) else None
+    except AttributeError:
+        return None
 
 
 @pytest.mark.parametrize(
@@ -459,39 +403,69 @@ _ENVELOPE_BUILDERS = {
         ("COORD", True),
         ("LANES_WITH_COORD", True),
         ("create-window-1718", True),
-        ("coord-deleted-1848", True),
     ],
 )
-def test_is_committed_protected_envelope(
+def test_is_committed_fr011_parity(
     tmp_path: Path, row: str, expected_verdict: bool
 ) -> None:
-    """T035 (FR-011): pin ``is_committed`` per (topology × transient) via the live seam.
+    """FR-011: single-surface verdict == retired 3-leg OR verdict, on the read surface.
 
-    Resolves ``placement`` through ``resolve_placement_only`` exactly as the
-    ``setup-plan`` caller does, then asserts the ``is_committed`` verdict. The
-    rows are the 4 ``MissionTopology`` cells plus the #1718 create-window and
-    #1848 coord-deleted transients. A single-surface reduction of the OR MUST
-    reproduce every verdict here — the create-window row in particular guards
-    against a collapse that drops the still-load-bearing HEAD leg.
+    For each reachable cell, resolve the READ surface like the caller, then
+    assert the NEW single-surface ``is_committed`` verdict equals BOTH the
+    expected verdict AND the reconstructed retired-OR verdict (parity). This is
+    the equivalence evidence the FR-011 collapse rests on.
     """
     _init_repo(tmp_path)
-    spec, _ = _ENVELOPE_BUILDERS[row](tmp_path)
+    _REACHABLE_BUILDERS[row](tmp_path)
 
-    placement = _resolve_placement_like_caller(tmp_path, _ENVELOPE_SLUG_MID8)
+    spec = _resolve_read_surface_like_caller(tmp_path, _ENVELOPE_SLUG_MID8)
+
     diagnostics: list[str] = []
-    verdict = is_committed(
+    single_surface = is_committed(spec, tmp_path, diagnostics=diagnostics)
+
+    # Parity: reconstruct the retired OR over the SAME read-resolved spec.
+    retired = _retired_or_verdict(
         spec,
         tmp_path,
-        placement=placement,  # type: ignore[arg-type]
+        placement_ref=_retired_placement_ref(tmp_path, _ENVELOPE_SLUG_MID8),
         target_branch=_ENVELOPE_TARGET,
         primary_repo_root=tmp_path,
-        diagnostics=diagnostics,
     )
 
-    assert verdict is expected_verdict, (
-        f"[{row}] is_committed returned {verdict}, expected {expected_verdict}; "
-        f"placement={placement}; diagnostics={diagnostics}"
+    assert single_surface is expected_verdict, (
+        f"[{row}] single-surface is_committed returned {single_surface}, "
+        f"expected {expected_verdict}; diagnostics={diagnostics}"
     )
-    # The diagnostics sink MUST stay populated (the setup-plan caller surfaces
-    # this as ``spec_commit_surfaces_checked``).
+    assert single_surface is retired, (
+        f"[{row}] PARITY FAILURE: single-surface={single_surface} but "
+        f"retired-OR={retired} on the read-resolved spec {spec}"
+    )
     assert diagnostics, f"[{row}] diagnostics sink must enumerate the checked surface(s)"
+
+
+def test_is_committed_never_reached_for_coord_deleted_1848(tmp_path: Path) -> None:
+    """#1848: the read path raises before ``is_committed`` for a deleted coord branch.
+
+    Pins the UPSTREAM short-circuit (not an ``is_committed`` verdict): a mission
+    declaring a coordination_branch whose ref was never created resolves through
+    ``resolve_handle_to_read_path(require_exists=True)`` to a
+    ``CoordinationBranchDeleted`` (a ``StatusReadPathNotFound`` subclass), so the
+    setup-plan caller exits BEFORE reaching the commit check. Switching
+    ``is_committed`` to the read surface therefore cannot regress coord-deleted.
+    """
+    from specify_cli.coordination.surface_resolver import (
+        CoordinationBranchDeleted,
+        StatusReadPathNotFound,
+    )
+    from specify_cli.missions._read_path_resolver import resolve_handle_to_read_path
+
+    _init_repo(tmp_path)
+    _build_coord_deleted(tmp_path)
+
+    with pytest.raises(StatusReadPathNotFound) as exc_info:
+        resolve_handle_to_read_path(tmp_path, _ENVELOPE_SLUG_MID8, require_exists=True)
+
+    # Specifically the data-loss-guarding subclass (#1848), confirming the
+    # caller's ``except StatusReadPathNotFound`` (→ ActionContextError → Exit(1))
+    # fires before ``is_committed``.
+    assert isinstance(exc_info.value, CoordinationBranchDeleted)

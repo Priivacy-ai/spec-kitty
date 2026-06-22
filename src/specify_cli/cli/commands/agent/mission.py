@@ -2113,31 +2113,23 @@ def setup_plan(
         # before plan.md can be scaffolded or committed. Section-presence only;
         # scaffold + arbitrary prose without an FR row is NOT substantive.
         #
-        # FR-003 / Issue #1884: use the coord-aware overload so that a spec
-        # committed only to the coordination branch (not yet on primary HEAD)
-        # satisfies the gate.  ``_resolve_planning_placement`` is CWD-invariant
-        # and topology-correct; if resolution fails (e.g. flat topology with no
-        # coord branch) we fall back to ``placement=None`` which preserves the
-        # original HEAD-only behaviour.
+        # FR-011: single read-surface commit check. ``spec_file`` is already the
+        # READ-resolved surface (``feature_dir`` comes from
+        # ``_find_feature_directory`` →
+        # ``resolve_handle_to_read_path(require_exists=True)``): the coord
+        # worktree dir for a materialized coordination topology, the primary dir
+        # for the #1718 create-window. ``is_committed`` therefore checks
+        # ``spec_file`` against ``HEAD`` of the git surface it physically lives
+        # on — converging with the retired 3-leg OR on every reachable cell. The
+        # #1848 coord-deleted case never reaches here: ``_find_feature_directory``
+        # raises ``CoordinationBranchDeleted`` (a ``StatusReadPathNotFound``)
+        # above, caught as ``ActionContextError`` → ``Exit(1)``.
         from specify_cli.missions._substantive import is_committed, is_substantive
 
-        try:
-            _spec_placement: CommitTarget | None = _resolve_planning_placement(repo_root, mission_slug)
-        except Exception:  # noqa: BLE001 — broad catch intentional (C-004 strangler safety)
-            _spec_placement = None
-
-        # FR-005 / #7: also consult the primary target-branch leg so a spec
-        # committed only on the primary target branch (with the coord worktree
-        # carrying the mission dir but not spec.md) satisfies the gate. The leg
-        # runs against the primary repo root with the primary tree-path; the
-        # diagnostics enumerate every ref/surface checked.
         _commit_diagnostics: list[str] = []
         spec_is_committed = is_committed(
             spec_file,
             repo_root,
-            placement=_spec_placement,
-            target_branch=target_branch,
-            primary_repo_root=get_main_repo_root(repo_root),
             diagnostics=_commit_diagnostics,
         )
         spec_is_substantive = is_substantive(spec_file, "spec")
