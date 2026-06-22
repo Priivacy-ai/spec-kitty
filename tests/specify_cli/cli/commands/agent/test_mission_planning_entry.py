@@ -6,9 +6,12 @@ Covers behavioral contract C-IC04 (FR-004/005/006 + #11):
   exactly one is resolvable (no ``--mission`` required); with >1 it still
   returns the structured ``MISSION_AMBIGUOUS_SELECTOR`` / detection error with
   no silent fallback.
-* **FR-005** — ``is_committed`` consults a primary-target-branch leg (ORed with
-  the existing coord/HEAD legs) so a spec committed only on the primary target
-  branch reports ``True``; the diagnostics list every ref/surface checked.
+* **FR-005 → FR-011** — WP01 added a primary-target-branch leg ORed with the
+  coord/HEAD legs; WP07 (FR-011) COLLAPSED that OR to a single read-surface
+  check once FR-001 holds. The #7 inversion (spec on primary ``main`` only,
+  coord worktree lacking spec.md) is no longer rescued by ``is_committed`` —
+  and the live caller short-circuits it at ``SPEC_FILE_MISSING`` because the
+  read-resolved ``spec_file`` is absent on disk (proven below).
 * **FR-006 (D-5)** — ``_commit_to_branch`` reports the real commit hash on
   success and surfaces a typed diagnostic for a no-op-against-the-wrong-surface
   (artifact absent at the resolved placement), while a genuine-unchanged commit
@@ -242,63 +245,50 @@ def _build_coord_with_mission_dir_spec_on_primary_only(
     return resolved_coord_spec, tmp_path
 
 
-def test_is_committed_true_on_primary_target_branch_only(tmp_path: Path) -> None:
-    """T015 (live-repro.md#7): spec committed on the primary target branch, the
-    coord worktree carries the mission dir but lacks spec.md.
+def test_fr011_primary_only_inversion_not_reached_at_caller(tmp_path: Path) -> None:
+    """FR-011 (supersedes the #7 primary-target-branch workaround leg).
 
-    Non-vacuity guard (BLOCKER): on HEAD (pre-fix) BOTH existing legs miss, so
-    ``is_committed`` returns ``False`` for THIS topology. The captured-red proves
-    the fixture triggers the bug. After the primary-target-branch leg lands it
-    flips to ``True``. A single-repo fixture would green vacuously (the resolver
-    falls back to the primary dir on HEAD) — this fixture forbids that.
+    The #7 topology (spec committed on primary ``main`` only; coord worktree
+    carries the mission dir but NOT spec.md) was the case the retired 3-leg OR
+    rescued via a primary-target-branch leg. FR-011 removes that workaround once
+    FR-001 holds (single write authority commits the spec where the read path
+    resolves it). This test proves the collapse does NOT regress reachable
+    behaviour: for this topology the read path (``require_exists=True``) does not
+    hand the caller a committed spec at all — it RAISES ``StatusReadPathNotFound``
+    (the coord worktree no longer carries the mission's spec dir, and the primary
+    mission dir is not addressable as the coord surface). The live ``setup-plan``
+    caller catches that in ``_find_feature_directory`` → re-raises
+    ``ActionContextError`` → ``Exit(1)``, BEFORE ever reaching ``is_committed``.
+    The OR's leg-3 was rescuing a ``spec_file`` the caller never reaches.
     """
-    from mission_runtime import CommitTarget, CommitTargetKind
-    from specify_cli.missions._substantive import is_committed
+    from specify_cli.missions._read_path_resolver import (
+        StatusReadPathNotFound,
+        resolve_handle_to_read_path,
+    )
 
     slug = "committed-primary-7b-01kv8npc"
     coord_ref = "kitty/mission-committed-primary-7b-01KV8NPC-coord"
-    resolved_coord_spec, primary_root = _build_coord_with_mission_dir_spec_on_primary_only(
+    handle = "committed-primary-7b-01KV8NPC"
+    _resolved_coord_spec, primary_root = _build_coord_with_mission_dir_spec_on_primary_only(
         tmp_path, slug, "01KV8NPCDEBBIECOMMIT7B0000", coord_ref
     )
 
-    # The resolved spec path MUST be under the coord worktree (proving the
-    # coord surface is what's being checked, not the primary dir).
-    assert ".worktrees" in resolved_coord_spec.parts
-    assert resolved_coord_spec.parts[-3] == ".worktrees" or any(
-        p == ".worktrees" for p in resolved_coord_spec.parts
-    )
-
-    placement = CommitTarget(ref=coord_ref, kind=CommitTargetKind.COORDINATION)
-    diagnostics: list[str] = []
-
-    committed = is_committed(
-        resolved_coord_spec,
-        primary_root,
-        placement=placement,
-        target_branch="main",
-        primary_repo_root=primary_root,
-        diagnostics=diagnostics,
-    )
-
-    assert committed is True, (
-        "is_committed must report True via the primary-target-branch leg "
-        f"(diagnostics={diagnostics})"
-    )
-    # The diagnostic must enumerate every ref/surface checked (FR-005).
-    joined = " ".join(diagnostics).lower()
-    assert "main" in joined, diagnostics  # primary target branch ref
-    assert coord_ref.lower() in joined, diagnostics  # coord ref
+    # The read path short-circuits BEFORE is_committed: no committed spec_file is
+    # handed to the caller for the #7 inversion.
+    with pytest.raises(StatusReadPathNotFound):
+        resolve_handle_to_read_path(primary_root, handle, require_exists=True)
 
 
-def test_is_committed_false_without_primary_leg_is_the_captured_red(tmp_path: Path) -> None:
-    """Non-vacuity proof: WITHOUT the primary-target-branch leg (target_branch
-    not threaded), this exact fixture reports False — the captured-red shape.
+def test_fr011_single_surface_does_not_rescue_primary_only_inversion(tmp_path: Path) -> None:
+    """FR-011: with the OR collapsed, the #7 inversion at the coord surface is False.
 
-    This guards the NFR-002 trap: if the fixture were vacuous (single-repo /
-    spec-on-both), this assertion would fail because is_committed would already
-    return True on the coord/HEAD legs alone.
+    Pins that the retired primary-target-branch leg is GONE: feeding the
+    read-resolved coord-worktree path (spec absent there, committed on primary
+    ``main``) to the collapsed ``is_committed`` returns ``False`` — there is no
+    multi-surface rescue. This is safe precisely because the caller never reaches
+    here for this topology (see
+    ``test_fr011_primary_only_inversion_not_reached_at_caller``).
     """
-    from mission_runtime import CommitTarget, CommitTargetKind
     from specify_cli.missions._substantive import is_committed
 
     slug = "committed-primary-redproof-01kv8npc"
@@ -307,12 +297,10 @@ def test_is_committed_false_without_primary_leg_is_the_captured_red(tmp_path: Pa
         tmp_path, slug, "01KV8NPCDEBBIEREDPROOF0000", coord_ref
     )
 
-    placement = CommitTarget(ref=coord_ref, kind=CommitTargetKind.COORDINATION)
-    # No target_branch / primary_repo_root → only the two existing legs run.
-    committed = is_committed(resolved_coord_spec, primary_root, placement=placement)
+    committed = is_committed(resolved_coord_spec, primary_root)
     assert committed is False, (
-        "Both existing legs (coord-ref + coord-worktree HEAD) MUST miss for this "
-        "topology — if this is True the fixture is vacuous (NFR-002 trap)."
+        "FR-011 collapsed the OR: the coord surface lacks spec.md, so the "
+        "single-surface check reports False (no primary-target-branch rescue)."
     )
 
 

@@ -1,25 +1,27 @@
-"""Architectural ratchet: no new 2-arg ``is_committed()`` call sites (WP01/FR-003).
+"""Architectural ratchet: ``is_committed()`` stays a single read-surface check (FR-011).
 
-``is_committed()`` in ``specify_cli.missions._substantive`` was upgraded in
-WP01 to accept a ``placement: CommitTarget | None`` parameter (Issue #1884).
-All call sites in ``src/`` MUST pass ``placement=`` so that coordination-branch
-topology is respected. Any call with exactly 2 positional args and no
-``placement`` keyword is a regression — it anchors the gate to the primary HEAD
-and silently fails for coord-topology missions.
+WP01 (Issue #1884) once upgraded ``is_committed()`` to a 3-leg OR taking a
+``placement: CommitTarget | None`` (plus ``target_branch`` / ``primary_repo_root``)
+so a spec committed only on the coordination branch still satisfied the gate.
+WP07 (FR-011) **collapsed** that OR: the sole non-test caller (setup-plan) already
+feeds the READ-resolved ``spec_file``, so ``is_committed`` now checks the file
+against ``HEAD`` of the git surface it physically lives on — no placement, no
+primary-target-branch leg. The read surface converges with the retired OR on
+every reachable cell (the #1848 coord-deleted case never reaches the check; the
+read path raises ``CoordinationBranchDeleted`` upstream).
 
-This ratchet:
-1. Walks every ``.py`` file under ``src/`` using ``ast.parse``.
-2. Finds every ``Call`` node where the callee is the bare name ``is_committed``.
-3. Asserts that the call either:
-   - has a ``placement`` keyword argument (correct), OR
-   - is in the grace-list (the wrapper itself, which defaults ``placement=None``
-     and exposes it as a keyword-only default — its own definition is NOT a
-     call site).
+This ratchet now pins the *post-collapse* contract — re-introducing the
+topology parameters (re-expanding the OR rather than trusting the read seam) is
+the regression:
 
-A new call that omits ``placement=`` will fail this test, forcing the author to
-make a deliberate, named decision about topology.
+1. The ``is_committed`` signature MUST NOT re-add ``placement`` /
+   ``target_branch`` / ``primary_repo_root`` parameters.
+2. No call site in ``src/`` may pass those keywords.
 
-WP01 / Issue #1884 / FR-003.
+A change that re-adds any of those parameters fails this test, forcing a
+deliberate decision to re-expand the collapsed surface.
+
+WP07 / FR-011 (supersedes the WP01 / #1884 ``placement=``-required ratchet).
 """
 
 from __future__ import annotations
@@ -33,15 +35,12 @@ pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC_ROOT = _REPO_ROOT / "src"
+_SUBSTANTIVE = _SRC_ROOT / "specify_cli" / "missions" / "_substantive.py"
 
-# The implementation module's own function definition is not a call site.
-# List any grace-listed call sites here as repo-relative POSIX paths.
-# Each entry must include a brief rationale in a comment below.
-_GRACE_LIST: frozenset[str] = frozenset(
-    {
-        # The _substantive.py module defines is_committed — not a call site.
-        "src/specify_cli/missions/_substantive.py",
-    }
+# Parameters retired by the FR-011 collapse. Their reappearance on the
+# ``is_committed`` signature (or at a call site) re-expands the OR.
+_RETIRED_PARAMS: frozenset[str] = frozenset(
+    {"placement", "target_branch", "primary_repo_root"}
 )
 
 
@@ -49,60 +48,73 @@ def _rel(path: Path) -> str:
     return path.relative_to(_REPO_ROOT).as_posix()
 
 
-def _find_bare_2arg_is_committed_calls(path: Path) -> list[int]:
-    """Return line numbers of 2-arg ``is_committed(...)`` calls without ``placement=``.
+def _is_committed_signature_params(path: Path) -> set[str]:
+    """Return the parameter names of the ``is_committed`` def in ``path``."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == "is_committed":
+            args = node.args
+            names: set[str] = set()
+            for arg in (*args.posonlyargs, *args.args, *args.kwonlyargs):
+                names.add(arg.arg)
+            if args.vararg:
+                names.add(args.vararg.arg)
+            if args.kwarg:
+                names.add(args.kwarg.arg)
+            return names
+    raise AssertionError(f"is_committed not found in {_rel(path)}")
 
-    A call is flagged when ALL of:
-    - The callee is the bare name ``is_committed`` (``ast.Name``).
-    - There is no ``placement`` keyword argument.
-    - There are 2 or more positional arguments (the original broken form).
-    """
+
+def _find_retired_kwarg_calls(path: Path) -> list[tuple[int, str]]:
+    """Return ``(lineno, kwarg)`` for ``is_committed(...)`` calls using a retired param."""
     try:
         tree = ast.parse(path.read_text(encoding="utf-8"))
     except SyntaxError:
         return []
 
-    violations: list[int] = []
+    violations: list[tuple[int, str]] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
-        # Match bare-name calls only (not method calls like obj.is_committed).
         if not (isinstance(node.func, ast.Name) and node.func.id == "is_committed"):
             continue
-        has_placement_kwarg = any(kw.arg == "placement" for kw in node.keywords)
-        if has_placement_kwarg:
-            continue
-        # Flagged: bare is_committed call with no placement= keyword.
-        violations.append(node.lineno)
+        for kw in node.keywords:
+            if kw.arg in _RETIRED_PARAMS:
+                violations.append((node.lineno, kw.arg or "<unknown>"))
     return violations
 
 
-def test_no_2arg_is_committed_calls_without_placement() -> None:
-    """Every ``is_committed(...)`` call in ``src/`` must pass ``placement=``.
+def test_is_committed_signature_has_no_retired_topology_params() -> None:
+    """The collapsed ``is_committed`` must not re-add the retired OR parameters."""
+    params = _is_committed_signature_params(_SUBSTANTIVE)
+    re_added = params & _RETIRED_PARAMS
+    assert not re_added, (
+        "is_committed re-added retired topology parameter(s) "
+        f"{sorted(re_added)} — FR-011 collapsed the 3-leg OR to a single "
+        "read-surface HEAD check. Feed the read-resolved spec_file instead of "
+        "re-expanding the surface."
+    )
 
-    Flat-topology callers can pass ``placement=None`` explicitly; the default
-    preserves backward compatibility but must not be relied upon silently for
-    new call sites.
-    """
-    violations: dict[str, list[int]] = {}
+
+def test_no_is_committed_call_passes_retired_topology_kwargs() -> None:
+    """No call site in ``src/`` may pass the retired topology keywords."""
+    violations: dict[str, list[tuple[int, str]]] = {}
 
     for py_file in sorted(_SRC_ROOT.rglob("*.py")):
         if "__pycache__" in py_file.parts:
             continue
-        rel = _rel(py_file)
-        if rel in _GRACE_LIST:
-            continue
-        lines = _find_bare_2arg_is_committed_calls(py_file)
+        lines = _find_retired_kwarg_calls(py_file)
         if lines:
-            violations[rel] = lines
+            violations[_rel(py_file)] = lines
 
     if violations:
         details = "\n".join(
-            f"  {path}: lines {lines}" for path, lines in sorted(violations.items())
+            f"  {path}: {entries}" for path, entries in sorted(violations.items())
         )
         pytest.fail(
-            "Found is_committed() calls without placement= keyword.\n"
-            "Pass placement=<CommitTarget> (or placement=None for flat topology) "
-            "to make topology explicit.\n\n"
+            "Found is_committed() calls passing a retired topology keyword "
+            "(placement / target_branch / primary_repo_root).\n"
+            "FR-011 collapsed the OR to a single read-surface check — pass only "
+            "the read-resolved file + repo_root.\n\n"
             f"Violations:\n{details}"
         )

@@ -18,10 +18,7 @@ from __future__ import annotations
 import re
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, Literal
-
-if TYPE_CHECKING:
-    from mission_runtime import CommitTarget
+from typing import Final, Literal
 
 Kind = Literal["spec", "plan"]
 
@@ -283,19 +280,6 @@ def _git_commit_check_context(file_path: Path, repo_root: Path) -> tuple[Path, s
     return repo_abs, str(rel)
 
 
-def _ref_carries_path(git_cwd: Path, ref: str, tree_path: str) -> bool:
-    """Return True iff ``ref:tree_path`` resolves (committed at that ref)."""
-    try:
-        subprocess.run(
-            ["git", "-C", str(git_cwd), "cat-file", "-e", f"{ref}:{tree_path}"],
-            check=True,
-            capture_output=True,
-        )
-        return True
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return False
-
-
 def _head_carries_path(git_cwd: Path, tree_path: str) -> bool:
     """Return True iff ``tree_path`` is tracked AND present at ``HEAD``."""
     try:
@@ -317,49 +301,43 @@ def _head_carries_path(git_cwd: Path, tree_path: str) -> bool:
 def is_committed(
     file_path: Path,
     repo_root: Path,
-    placement: CommitTarget | None = None,
     *,
-    target_branch: str | None = None,
-    primary_repo_root: Path | None = None,
     diagnostics: list[str] | None = None,
 ) -> bool:
-    """Return True iff ``file_path`` is committed on any checked git surface.
+    """Return True iff ``file_path`` is committed on the git surface it lives on.
 
-    Three legs are ORed together — committed on *any* of them counts as
-    committed:
+    Single-surface check (FR-011): a file is "committed" iff it is tracked AND
+    present at the ``HEAD`` of the git surface it physically resides on. The
+    surface is derived from ``file_path`` itself via
+    :func:`_git_commit_check_context` — a linked worktree (``.worktrees/<name>/``)
+    is checked against that worktree's branch tree, the primary checkout against
+    primary ``HEAD``.
 
-    1. **Coordination-branch leg** (when ``placement.kind`` is
-       ``COORDINATION``): ``git cat-file -e <coord_ref>:<rel>`` against the
-       worktree the file lives in.
-    2. **HEAD leg**: the file is git-tracked AND present at the worktree's
-       ``HEAD`` (``ls-files --error-unmatch`` + ``cat-file -e HEAD:<rel>``).
-    3. **Primary-target-branch leg** (FR-005, when ``target_branch`` is
-       supplied): ``git -C <primary_repo_root> cat-file -e
-       <target_branch>:<rel>``. This closes the #7 false-negative: a spec
-       committed only on the primary target branch (coord branch lacking it)
-       is found here even when legs 1 and 2 both miss because the read-path
-       handed us the coord surface.
+    This collapses the former 3-leg OR (coordination-ref / HEAD /
+    primary-target-branch). The OR was load-bearing only when a caller fed the
+    PRIMARY-checkout path while the spec lived solely on the coordination
+    branch — but the sole non-test caller (setup-plan) already feeds the
+    READ-resolved ``spec_file``: for a materialized coordination topology the
+    read path resolves to the coord worktree dir (whose ``HEAD`` carries the
+    spec), and for the #1718 create-window it resolves to the primary dir
+    (whose ``HEAD`` carries the spec). The #1848 coord-deleted case never
+    reaches this function — the read-path resolution upstream raises
+    ``CoordinationBranchDeleted`` (a ``StatusReadPathNotFound``) and the caller
+    exits before the commit check. So the read-resolved surface converges with
+    the retired OR on every reachable cell (proven via the parametrized
+    envelope + a live repro, NFR-003 behaviour-preserving).
 
     Args:
         file_path: The file to check for commit presence.
-        repo_root: The repository root used for git operations.
-        placement: Optional :class:`~mission_runtime.CommitTarget` carrying
-            coordination-topology information.
-        target_branch: Primary target-branch ref (e.g. ``main``). When
-            supplied, the primary-target-branch leg is checked against
-            ``primary_repo_root`` (or ``repo_root`` when not given) with the
-            primary tree-path. Callers that omit it keep the prior two-leg
-            behaviour.
-        primary_repo_root: The PRIMARY repo root for the target-branch leg.
-            Defaults to ``repo_root``. The leg always runs against the primary
-            root with the primary tree-path (never the worktree-relative one).
-        diagnostics: Optional sink — when provided, one human-readable line per
-            ref/surface checked is appended (FR-005 "list every ref/surface
-            checked"), each annotated with hit/miss.
+        repo_root: The repository root used to derive ``file_path``'s git
+            surface (worktree-vs-primary) for the ``HEAD`` check.
+        diagnostics: Optional sink — when provided, one human-readable line
+            describing the surface checked is appended, annotated with
+            hit/miss.
 
     Returns:
-        ``True`` iff the file is committed on the coordination branch, ``HEAD``,
-        or the primary target branch.
+        ``True`` iff ``file_path`` is tracked and present at ``HEAD`` of its own
+        git surface.
     """
     check_context = _git_commit_check_context(file_path, repo_root)
     if check_context is None:
@@ -368,50 +346,10 @@ def is_committed(
         return False
     git_cwd, tree_path = check_context
 
-    # Leg 1 — coordination-branch ref (only for a coordination placement).
-    if placement is not None:
-        # FR-005: route the coord-vs-other decision through WP01's per-ref
-        # predicate, never a direct ``.kind is COORDINATION`` comparison. Import
-        # at call-time to avoid the module-level circular-import risk; the
-        # attribute access is wrapped because a malformed duck-typed placement
-        # could lack the ``kind`` field the predicate reads.
-        from mission_runtime import routes_through_coordination
-
-        try:
-            coord_ref = placement.ref if routes_through_coordination(placement) else None
-        except AttributeError:
-            coord_ref = None
-
-        if coord_ref is not None:
-            hit = _ref_carries_path(git_cwd, coord_ref, tree_path)
-            if diagnostics is not None:
-                diagnostics.append(f"coord-ref {coord_ref}:{tree_path} (cwd={git_cwd}): {'hit' if hit else 'miss'}")
-            if hit:
-                return True
-
-    # Leg 2 — HEAD of the file's worktree (flat topology or coord-branch miss).
     head_hit = _head_carries_path(git_cwd, tree_path)
     if diagnostics is not None:
         diagnostics.append(f"HEAD:{tree_path} (cwd={git_cwd}): {'hit' if head_hit else 'miss'}")
-    if head_hit:
-        return True
-
-    # Leg 3 — primary-target-branch ref against the PRIMARY repo root + primary
-    # tree-path (FR-005 / #7). The tree-path is already worktree-relative (the
-    # primary checkout mirrors the same layout), so it doubles as the primary
-    # tree-path. The leg runs against the primary root, never the worktree root.
-    if target_branch:
-        primary_root = primary_repo_root or repo_root
-        primary_hit = _ref_carries_path(primary_root, target_branch, tree_path)
-        if diagnostics is not None:
-            diagnostics.append(
-                f"target-branch {target_branch}:{tree_path} (primary_root={primary_root}): "
-                f"{'hit' if primary_hit else 'miss'}"
-            )
-        if primary_hit:
-            return True
-
-    return False
+    return head_hit
 
 
 __all__ = ["Kind", "describe_technical_context_gap", "is_committed", "is_substantive"]

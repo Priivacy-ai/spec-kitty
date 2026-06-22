@@ -17,17 +17,21 @@ These tests pin the behaviour of four P0 defects against the current tree:
   mid8 handle returns the REAL mission type (``software-dev``), not the legacy
   ``unknown`` stub. Also fixed upstream; pinned here.
 
-* **#1884** (FR-001 / C-GATE-1) — ``is_committed`` verifies a spec against the
-  placement authority (the coordination ref the writer uses, threaded as a
-  ``placement: CommitTarget``) when the primary-HEAD check misses; a
-  coord-only-committed spec reads as committed.
+* **#1884** (FR-001 / C-GATE-1, FR-011 collapse) — ``is_committed`` verifies a
+  coord-only-committed spec against the surface it actually lives on. WP01
+  originally threaded a ``placement: CommitTarget`` to add a coordination-ref
+  leg; WP07 (FR-011) collapsed that OR — the setup-plan caller already feeds
+  the READ-resolved ``spec_file`` (the coord worktree path for a materialized
+  coordination topology), so the single-surface ``HEAD`` check on that path
+  reads it as committed. These pins now exercise the read-resolved coord-worktree
+  surface (where the spec lives), not the primary-checkout path.
 * **#1954** (FR-001 / C-GATE-1 sibling) — the same committedness check must
-  also pass when the caller's ``spec_file`` path already lives inside the
-  coordination worktree, where on-disk ``.worktrees/<name>/`` is not part of
-  the branch tree path.
+  pass when the caller's ``spec_file`` path lives inside the coordination
+  worktree, where on-disk ``.worktrees/<name>/`` is not part of the branch tree
+  path.
 
 Reconciled with PR #1910 (now on main), which independently fixed #1884 and the
-#1885 residual via ``is_committed(placement=…)`` and ``MissionNotFoundError``.
+#1885 residual via ``is_committed`` and ``MissionNotFoundError``.
 #1884/#1885's full structured-error verification now lives in #1910's own tests
 (``test_is_committed_coord_aware.py``, ``tests/contract/test_next_no_unknown_state.py``,
 ``tests/next/test_query_mode_unit.py``); this file retains the #1889 R3/flatten
@@ -301,59 +305,57 @@ def test_1884_is_committed_false_on_primary_head_alone(
     assert is_committed(spec, repo_root) is False
 
 
-def test_1884_is_committed_true_via_placement_authority(
+def test_1884_is_committed_true_via_read_resolved_coord_surface(
     coord_only_committed_spec: dict[str, object],
 ) -> None:
-    """FR-001 / C-GATE-1: with the placement ref threaded in, the gate passes.
+    """FR-001 / C-GATE-1 (FR-011): the read-resolved coord-worktree spec reads committed.
 
-    Reconciled with PR #1910 (now on main): the coord-aware overload takes a
-    ``placement: CommitTarget`` (not ``authority_ref: str``). Reverting
-    ``is_committed`` to ignore ``placement`` flips this red.
+    WP07 collapsed the 3-leg OR: the setup-plan caller feeds the READ-resolved
+    ``spec_file``, which for a materialized coordination topology is the spec
+    inside the coordination worktree (``spec_coord``). The single-surface
+    ``HEAD`` check on that path — the surface where the spec was actually
+    committed — therefore passes. The primary-checkout path (``spec_primary``,
+    where the spec is uncommitted) is the surface the caller never resolves to;
+    the false-negative below pins that the primary surface still reads False.
     """
-    from mission_runtime import resolve_placement_only
     from specify_cli.missions._substantive import is_committed
 
     repo_root = coord_only_committed_spec["repo_root"]
-    slug = coord_only_committed_spec["slug"]
-    spec = coord_only_committed_spec["spec_primary"]
-    assert isinstance(repo_root, Path) and isinstance(slug, str) and isinstance(spec, Path)
+    spec_coord = coord_only_committed_spec["spec_coord"]
+    assert isinstance(repo_root, Path) and isinstance(spec_coord, Path)
 
-    placement = resolve_placement_only(repo_root, slug)
-    # Sanity: the writer routes to the coordination ref, not primary HEAD.
-    assert placement.ref == coord_only_committed_spec["coord_branch"]
-
-    assert is_committed(spec, repo_root, placement=placement) is True
+    # The read-resolved coord-worktree surface carries the spec at HEAD.
+    assert is_committed(spec_coord, repo_root) is True
 
 
 def test_1954_is_committed_true_for_coord_worktree_path(
     coord_only_committed_spec: dict[str, object],
 ) -> None:
-    """The gate passes when setup-plan resolves spec_file inside the coord worktree."""
-    from mission_runtime import resolve_placement_only
+    """The gate passes when setup-plan resolves spec_file inside the coord worktree.
+
+    FR-011: the worktree-relative tree-path must be checked against the
+    worktree's branch ``HEAD`` (``.worktrees/<name>/`` is not part of the branch
+    tree path). This is the surface the read path resolves to for a materialized
+    coordination topology.
+    """
     from specify_cli.missions._substantive import is_committed
 
     repo_root = coord_only_committed_spec["repo_root"]
-    slug = coord_only_committed_spec["slug"]
     spec = coord_only_committed_spec["spec_coord"]
-    assert isinstance(repo_root, Path) and isinstance(slug, str) and isinstance(spec, Path)
+    assert isinstance(repo_root, Path) and isinstance(spec, Path)
 
-    placement = resolve_placement_only(repo_root, slug)
-    assert placement.ref == coord_only_committed_spec["coord_branch"]
-
-    assert is_committed(spec, repo_root, placement=placement) is True
+    assert is_committed(spec, repo_root) is True
 
 
 def test_1884_is_committed_no_false_positive_for_absent_spec(
     coord_only_committed_spec: dict[str, object],
 ) -> None:
-    """The authority fallback must NOT pass a spec absent on every ref."""
-    from mission_runtime import resolve_placement_only
+    """A spec absent on the resolved surface must NOT read as committed."""
     from specify_cli.missions._substantive import is_committed
 
     repo_root = coord_only_committed_spec["repo_root"]
     slug = coord_only_committed_spec["slug"]
     assert isinstance(repo_root, Path) and isinstance(slug, str)
 
-    placement = resolve_placement_only(repo_root, slug)
     ghost = repo_root / "kitty-specs" / slug / "does-not-exist.md"
-    assert is_committed(ghost, repo_root, placement=placement) is False
+    assert is_committed(ghost, repo_root) is False
