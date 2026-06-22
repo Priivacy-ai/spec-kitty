@@ -287,3 +287,114 @@ def test_coord_mid8_derived_from_slug_when_meta_lacks_id(tmp_path: Path) -> None
     )
     result = resolve_status_surface(tmp_path, slug)
     assert f"{slug}-coord" in str(result)
+
+
+# ---------------------------------------------------------------------------
+# WP09 — stored-topology adoption on the relocated read sites (randy #2 / #2062)
+# ---------------------------------------------------------------------------
+
+
+def test_husk_authoritative_false_for_flattened_stored_topology(tmp_path: Path) -> None:
+    """``_husk_is_authoritative_surface`` is False for a coord-less stored topology.
+
+    The now-WIRED FR-006 guard (WP08 left it dead behind a ``# MUTATION`` marker):
+    a FLATTENED mission (stored ``topology: single_branch``, NO
+    ``coordination_branch``) must NOT trust a lingering ``-coord`` husk — a stale
+    husk would otherwise re-leak #2062 on the surface read leg.
+    """
+    from specify_cli.coordination.surface_resolver import (
+        _husk_is_authoritative_surface,
+    )
+
+    _write_meta(
+        tmp_path / "kitty-specs" / "flat-mission-01KTDVHZ",
+        mission_id="01KTDVHZKGCHCW6HQ4V577PNES",
+        topology="single_branch",
+    )
+    assert (
+        _husk_is_authoritative_surface(tmp_path, "flat-mission-01KTDVHZ") is False
+    )
+
+
+def test_husk_authoritative_true_for_coord_stored_topology(tmp_path: Path) -> None:
+    """A coord-routing stored topology keeps the husk authoritative (C-006)."""
+    from specify_cli.coordination.surface_resolver import (
+        _husk_is_authoritative_surface,
+    )
+
+    _write_meta(
+        tmp_path / "kitty-specs" / "coord-mission-01KTDVHZ",
+        mission_id="01KTDVHZKGCHCW6HQ4V577PNES",
+        topology="coord",
+        coordination_branch="kitty/mission-coord-mission-01KTDVHZ-coord",
+    )
+    assert (
+        _husk_is_authoritative_surface(tmp_path, "coord-mission-01KTDVHZ") is True
+    )
+
+
+def test_husk_authoritative_true_for_unbackfilled_legacy(tmp_path: Path) -> None:
+    """No stored ``topology`` (un-backfilled legacy) → husk stays authoritative."""
+    from specify_cli.coordination.surface_resolver import (
+        _husk_is_authoritative_surface,
+    )
+
+    _write_meta(
+        tmp_path / "kitty-specs" / "legacy-mission-01KTDVHZ",
+        mission_id="01KTDVHZKGCHCW6HQ4V577PNES",
+        coordination_branch="kitty/mission-legacy-mission-01KTDVHZ-coord",
+    )
+    assert (
+        _husk_is_authoritative_surface(tmp_path, "legacy-mission-01KTDVHZ") is True
+    )
+
+
+def test_effective_surface_topology_prefers_stored_over_relay() -> None:
+    """``_effective_surface_topology`` READS the stored shape, not a coord relay.
+
+    randy #2: even when the value-read ``coord_branch`` is present (which the
+    retired ``classify_topology(coord_branch, …)`` relay would classify COORD),
+    the STORED ``single_branch`` topology disposes — proving the relocated read
+    site reads the stored value rather than relaying the coord-value inference.
+    """
+    from mission_runtime import MissionTopology
+
+    from specify_cli.coordination.surface_resolver import (
+        _effective_surface_topology,
+    )
+
+    meta = {"topology": "single_branch", "coordination_branch": "kitty/stale-coord"}
+    result = _effective_surface_topology(
+        None, meta, coord_branch="kitty/stale-coord"
+    )
+    assert result is MissionTopology.SINGLE_BRANCH
+
+
+def test_effective_surface_topology_relays_only_when_unbackfilled() -> None:
+    """No stored ``topology`` ⇒ derive ONCE from the coord-value (legacy fallback)."""
+    from mission_runtime import MissionTopology
+
+    from specify_cli.coordination.surface_resolver import (
+        _effective_surface_topology,
+    )
+
+    meta: dict[str, object] = {"coordination_branch": "kitty/real-coord"}
+    result = _effective_surface_topology(
+        None, meta, coord_branch="kitty/real-coord"
+    )
+    assert result is MissionTopology.COORD
+
+
+def test_effective_surface_topology_threaded_wins() -> None:
+    """A caller-threaded topology takes precedence over both stored and relay."""
+    from mission_runtime import MissionTopology
+
+    from specify_cli.coordination.surface_resolver import (
+        _effective_surface_topology,
+    )
+
+    meta = {"topology": "coord", "coordination_branch": "kitty/c"}
+    result = _effective_surface_topology(
+        MissionTopology.LANES, meta, coord_branch="kitty/c"
+    )
+    assert result is MissionTopology.LANES

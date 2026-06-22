@@ -694,10 +694,19 @@ def test_pure_stored_topology_projects_surface_placement(
         IdentityFragment,
         routes_through_coordination,
     )
-    from mission_runtime.resolution import (
-        destination_kind_for_topology,
-        resolve_context_for_mission,
-    )
+    from mission_runtime.resolution import resolve_context_for_mission
+
+    # renata SHOULD-FIX: pin the expected placement ``kind`` per cell to a HARDCODED
+    # literal, NOT ``destination_kind_for_topology(topology)`` (which asserts the
+    # resolver against the very helper it calls — a tautology that stays green if
+    # both drift together). The grid is small and stable, so the expectation is
+    # spelled out independently of the production mapping.
+    expected_kind_by_topology = {
+        MissionTopology.SINGLE_BRANCH: CommitTargetKind.FLATTENED,
+        MissionTopology.LANES: CommitTargetKind.FLATTENED,
+        MissionTopology.COORD: CommitTargetKind.COORDINATION,
+        MissionTopology.LANES_WITH_COORD: CommitTargetKind.COORDINATION,
+    }
 
     coordination_branch = (
         COORD_BRANCH
@@ -727,8 +736,10 @@ def test_pure_stored_topology_projects_surface_placement(
     )
 
     assert context.branch_ref is not None
-    expected_kind = destination_kind_for_topology(topology)
-    assert context.branch_ref.destination_ref.kind is expected_kind
+    assert (
+        context.branch_ref.destination_ref.kind
+        is expected_kind_by_topology[topology]
+    )
     # The per-ref routing authority agrees with the topology classification.
     coord_cells = (MissionTopology.COORD, MissionTopology.LANES_WITH_COORD)
     assert routes_through_coordination(context.branch_ref.destination_ref) is (

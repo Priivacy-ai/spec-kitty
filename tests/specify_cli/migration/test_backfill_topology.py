@@ -19,6 +19,7 @@ from specify_cli.migration.backfill_topology import (
     backfill_mission_topology,
     backfill_topology_repo,
     ensure_topology,
+    read_topology,
 )
 
 pytestmark = pytest.mark.unit
@@ -49,6 +50,76 @@ def _write_lanes(feature_dir: Path) -> None:
 def _bytes(path: Path) -> bytes:
     """Return raw file bytes — used to prove a call wrote nothing (no-write law)."""
     return path.read_bytes()
+
+
+# ---------------------------------------------------------------------------
+# WP09 — read_topology PURE reader (#1814 read-only contract)
+# ---------------------------------------------------------------------------
+
+
+def test_read_topology_present_field_no_write(tmp_path: Path) -> None:
+    """A valid stored topology is returned with NO write (byte-identical file)."""
+    feature_dir = tmp_path / "mission-present"
+    meta_path = _write_meta(
+        feature_dir, {"coordination_branch": "kitty/x", "topology": "coord"}
+    )
+    before = _bytes(meta_path)
+
+    result = read_topology(feature_dir)
+
+    assert result is MissionTopology.COORD
+    assert _bytes(meta_path) == before, "present field must not trigger a write"
+
+
+def test_read_topology_unbackfilled_derives_WITHOUT_persisting(tmp_path: Path) -> None:
+    """#1814: an un-backfilled mission is derived ONCE and NOT written back.
+
+    The defining read-only contract of the pure reader: ``read_topology`` returns
+    the derived shape for a mission whose ``meta.json`` carries no ``topology``
+    key, but leaves the file BYTE-IDENTICAL — unlike ``ensure_topology``, which
+    persists. A SEAM READ path wired to this reader therefore never mutates the
+    tree (the finalize ``--validate-only`` / accept-readiness regression close).
+    """
+    feature_dir = tmp_path / "mission-unbackfilled"
+    meta_path = _write_meta(
+        feature_dir, {"coordination_branch": None}
+    )  # NO topology key
+    before = _bytes(meta_path)
+
+    result = read_topology(feature_dir)
+
+    assert result is MissionTopology.SINGLE_BRANCH
+    assert _bytes(meta_path) == before, (
+        "read_topology MUST NOT persist a derived topology (the #1814 "
+        "read-only contract); only ensure_topology / backfill may write."
+    )
+    # And it really is absent — no incidental back-fill key sneaked in.
+    assert "topology" not in json.loads(meta_path.read_text(encoding="utf-8"))
+
+
+def test_read_topology_coord_branch_derives_coord_without_write(tmp_path: Path) -> None:
+    """An un-backfilled coord mission derives COORD purely (no write)."""
+    feature_dir = tmp_path / "mission-coord-legacy"
+    meta_path = _write_meta(feature_dir, {"coordination_branch": "kitty/x-coord"})
+    before = _bytes(meta_path)
+
+    assert read_topology(feature_dir) is MissionTopology.COORD
+    assert _bytes(meta_path) == before
+
+
+def test_read_topology_missing_meta_raises(tmp_path: Path) -> None:
+    """A missing ``meta.json`` raises FileNotFoundError (the bootstrap signal)."""
+    with pytest.raises(FileNotFoundError):
+        read_topology(tmp_path / "no-such-mission")
+
+
+def test_read_topology_non_object_meta_raises(tmp_path: Path) -> None:
+    """A non-object ``meta.json`` raises ValueError (malformed signal)."""
+    feature_dir = tmp_path / "mission-bad"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text("[]", encoding="utf-8")
+    with pytest.raises(ValueError):
+        read_topology(feature_dir)
 
 
 # ---------------------------------------------------------------------------

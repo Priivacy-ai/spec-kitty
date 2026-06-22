@@ -31,10 +31,7 @@ from mission_runtime import (
     MissionTopology,
     StatusSurfaceFragment,
 )
-from mission_runtime.resolution import (
-    destination_kind_for_topology,
-    resolve_context_for_mission,
-)
+from mission_runtime.resolution import resolve_context_for_mission
 
 # Production-shaped 26-char ULID (NFR-002): never a fabricated short id.
 _MISSION_ID = "01KVPR000000000000000000ZZ"
@@ -42,6 +39,17 @@ _MISSION_SLUG = "single-planning-surface-authority-01KVPR00"
 _TARGET_BRANCH = "feat/single-planning-surface-authority"
 _COORD_BRANCH = "kitty/mission-single-planning-surface-authority-01KVPR00-coord"
 _FEATURE_DIR = f"kitty-specs/{_MISSION_SLUG}"
+
+# renata SHOULD-FIX: pin the expected placement ``kind`` per cell to a HARDCODED
+# literal, NOT ``destination_kind_for_topology(topology)`` (asserting the resolver
+# against the helper it calls is a tautology that stays green if both drift). The
+# 2×2 grid is small and stable, so the expectation is spelled out independently.
+_EXPECTED_KIND_BY_TOPOLOGY = {
+    MissionTopology.SINGLE_BRANCH: CommitTargetKind.FLATTENED,
+    MissionTopology.LANES: CommitTargetKind.FLATTENED,
+    MissionTopology.COORD: CommitTargetKind.COORDINATION,
+    MissionTopology.LANES_WITH_COORD: CommitTargetKind.COORDINATION,
+}
 
 
 def _identity() -> IdentityFragment:
@@ -97,9 +105,11 @@ def test_projects_context_for_every_topology(topology: MissionTopology) -> None:
 
     assert context.branch_ref is not None
     assert context.artifact_placement is not None
-    expected_kind = destination_kind_for_topology(topology)
     # One CommitTarget shared by branch_ref + artifact_placement (C-PLACE-1).
-    assert context.branch_ref.destination_ref.kind is expected_kind
+    assert (
+        context.branch_ref.destination_ref.kind
+        is _EXPECTED_KIND_BY_TOPOLOGY[topology]
+    )
     assert (
         context.artifact_placement.placement_ref
         is context.branch_ref.destination_ref

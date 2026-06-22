@@ -565,19 +565,38 @@ def _read_contract_routes_through_coordination(
     coord-less default arm is used — identical to the surface resolver's
     historical two-arg call sites.
 
+    The shape is READ from the WP02 stored ``topology`` (the relocated read site
+    now READS the stored value rather than relaying a parallel
+    ``classify_topology(coord_branch, …)`` inference — randy #2 / SC-001): the
+    PURE :func:`read_topology` reader is anchored on the canonical primary
+    ``feature_dir`` the identity carries (where ``meta.json`` lives). An
+    un-backfilled legacy mission (or absent/malformed meta) degrades to deriving
+    the shape ONCE from the ``coordination_branch`` value via WP01's
+    :func:`classify_topology` SSOT — the same single authority, no parallel grid.
+
     The derivation is **pure** (no ``meta.json`` write), so a status READ never
-    persists a ``topology`` back-fill (the read-must-not-write contract). ``mid8``
-    materialization / branch-deletion stay the transient probe arms below (C-006).
+    persists a ``topology`` back-fill (the read-must-not-write contract, #1814).
+    ``mid8`` materialization / branch-deletion stay the transient probe arms below
+    (C-006).
     """
     from mission_runtime import (  # noqa: PLC0415
         MissionTopology,
         classify_topology,
     )
+    from specify_cli.migration.backfill_topology import (  # noqa: PLC0415
+        read_topology,
+    )
 
     coord_routing = frozenset(
         {MissionTopology.COORD, MissionTopology.LANES_WITH_COORD}
     )
-    topology = classify_topology(identity.coordination_branch, has_lanes=False)
+    try:
+        topology = read_topology(identity.feature_dir)
+    except (FileNotFoundError, ValueError, OSError):
+        # Un-backfilled legacy mission / absent / malformed primary meta: derive
+        # the shape ONCE from the coordination-branch value-read (the historical
+        # two-arg arm). Same single ``classify_topology`` authority, no re-inference.
+        topology = classify_topology(identity.coordination_branch, has_lanes=False)
     return topology in coord_routing
 
 

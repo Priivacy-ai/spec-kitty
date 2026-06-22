@@ -154,15 +154,17 @@ def _mission_routes_through_coordination(mission_slug: str, repo_root: Path) -> 
     """Return True when the mission's STORED topology routes through coordination.
 
     Reads the WP02 stored :class:`MissionTopology` (FR-004) from ``meta.json`` via
-    the compute-once-then-persist shim and disposes the coord-vs-flattened SHAPE
-    from it — replacing the retired ``meta.coordination_branch is not None``
+    the **pure** :func:`read_topology` reader and disposes the coord-vs-flattened
+    SHAPE from it — replacing the retired ``meta.coordination_branch is not None``
     derivation (the second #2069 inference, which keyed the decision on a value
-    presence rather than the stored shape, SC-001). A coord-routing topology
-    (``COORD`` / ``LANES_WITH_COORD``) returns ``True``; the coord-less cells
-    return ``False``. Missing/malformed meta degrades to non-coord (matching the
-    historical "no declared coord topology" arm).
+    presence rather than the stored shape, SC-001). The read is PURE: an
+    un-backfilled mission is classified once and NOT persisted, so this read path
+    never writes ``meta.json`` (the read-only contract, #1814). A coord-routing
+    topology (``COORD`` / ``LANES_WITH_COORD``) returns ``True``; the coord-less
+    cells return ``False``. Missing/malformed meta degrades to non-coord (matching
+    the historical "no declared coord topology" arm).
     """
-    from specify_cli.migration.backfill_topology import ensure_topology
+    from specify_cli.migration.backfill_topology import read_topology
     from specify_cli.missions._read_path_resolver import (
         primary_feature_dir_for_mission,
     )
@@ -173,7 +175,7 @@ def _mission_routes_through_coordination(mission_slug: str, repo_root: Path) -> 
     # so it must not gate this read.
     feature_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
     try:
-        topology = ensure_topology(feature_dir)
+        topology = read_topology(feature_dir)
     except (FileNotFoundError, ValueError, OSError):
         return False
     return topology in _COORD_ROUTING_TOPOLOGIES
