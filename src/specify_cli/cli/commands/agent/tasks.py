@@ -57,7 +57,12 @@ from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.core.paths import get_status_read_root
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.mission import get_mission_type
-from mission_runtime import CommitTarget, CommitTargetKind, resolve_placement_only
+from mission_runtime import (
+    CommitTarget,
+    CommitTargetKind,
+    resolve_placement_only,
+    routes_through_coordination,
+)
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
 from specify_cli.git.protection_policy import ProtectionPolicy
@@ -356,9 +361,35 @@ def _review_currency_check_branch(
         logger.debug("Could not resolve review currency placement: %s", exc)
         return target_branch
 
-    if placement.kind is CommitTargetKind.COORDINATION:
+    if routes_through_coordination(placement):
         return placement.ref
     return target_branch
+
+
+def _map_requirements_feature_dir(main_repo_root: Path, mission_slug: str) -> Path:
+    """Resolve the WP ``tasks/`` read surface for ``map-requirements`` (#2064).
+
+    Routes through the SAME seam-resolved entry point ``finalize_tasks`` (and the
+    rest of ``tasks.py``) use — :func:`resolve_feature_dir_for_mission` (the
+    ``resolve_action_context(action="tasks")`` seam) — so the WP-frontmatter read
+    cannot diverge from finalize on a coord/flattened topology. Previously this
+    command was the lone read path on ``resolve_feature_dir_for_slug``, whose
+    slug-only ``mid8_from_slug`` heuristic missed the coord worktree when the
+    operator handle carried no mid8 tail, while finalize resolved into it.
+
+    The unified resolver raises ``ActionContextError`` when the directory cannot
+    be located; ``map-requirements`` historically surfaced this as its own
+    ``Mission directory not found: …`` message via an existence guard on the
+    returned path. To preserve that user-facing contract (Risk #1) the typed
+    error is translated back into the non-existent candidate directory so the
+    caller's existing existence guard fires the unchanged message.
+    """
+    from mission_runtime import ActionContextError
+
+    try:
+        return resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+    except ActionContextError:
+        return candidate_feature_dir_for_mission(main_repo_root, mission_slug)
 
 
 def _self_review_fallback_option_error(
@@ -3627,10 +3658,12 @@ def map_requirements(
                 raise typer.Exit(1)
         from specify_cli.missions._read_path_resolver import (
             primary_feature_dir_for_mission,
-            resolve_feature_dir_for_slug,
         )
 
-        feature_dir = resolve_feature_dir_for_slug(main_repo_root, mission_slug)
+        # #2064: resolve the WP ``tasks/`` dir through the SAME seam finalize uses
+        # (one read surface), not the divergent ``resolve_feature_dir_for_slug``.
+        feature_dir = _map_requirements_feature_dir(main_repo_root, mission_slug)
+        # PRIMARY-input invariant: ``spec.md`` is authored on PRIMARY — unchanged.
         primary_dir = primary_feature_dir_for_mission(main_repo_root, mission_slug)
 
         if not feature_dir.exists():
