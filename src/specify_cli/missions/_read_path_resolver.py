@@ -1059,6 +1059,23 @@ def candidate_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Pat
     (F-001/F-003/F-004) for every one of the 30+ callers, not just the read-side
     CLI commands.
 
+    FR-006 (structural #2062 — the surface/aggregate read-leg close): this
+    primitive feeds the canonical surface resolver
+    (:func:`coordination.surface_resolver.resolve_status_surface_with_anchor`)
+    AND the aggregate's ``MissionStatus._find_meta_path``. Both legs are the ones
+    ``agent status`` / kanban / dep-gate / review-claim actually use. So this
+    primitive reads the WP02 **stored** ``topology`` from the primary ``meta.json``
+    ONCE (via the SAME :func:`read_primary_meta` / :func:`stored_topology_from_meta`
+    seam the guarded :func:`resolve_handle_to_read_path` leg uses — NOT a fresh
+    ``coordination_branch is None`` re-inference) and threads it into the
+    existence-gated resolver. A mission whose stored topology is coord-less
+    (``SINGLE_BRANCH`` / ``LANES``) therefore resolves PRIMARY **regardless** of a
+    stale, registered, meta-bearing ``-coord`` husk on disk — the husk is
+    structurally not consulted, so a prior flatten that left a husk cannot re-open
+    #2062 on these legs. A coord-routing stored topology (or an un-backfilled
+    legacy mission, ``topology is None``) keeps its historical husk-consulting
+    behaviour (C-006), so a genuine coord mission still reads the coord worktree.
+
     Like the historical implementation it never raises ``StatusReadPathNotFound``
     on a missing directory — it returns the best-known primary candidate so the
     caller can render its own diagnostic. It DOES propagate
@@ -1067,9 +1084,51 @@ def candidate_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Pat
     """
     from specify_cli.lanes.branch_naming import mid8_from_slug
 
+    # FR-006: read the WP02 stored topology ONCE from primary meta so a coord-less
+    # mission resolves PRIMARY before any on-disk husk probe can land on the
+    # registered ``-coord`` husk (the surface/aggregate read-leg #2062 close). This
+    # mirrors how :func:`resolve_handle_to_read_path` already reads it. The read is
+    # resilient (malformed/unreadable meta → ``None`` → the legacy probe fallback),
+    # preserving the historical contract that this primitive never raised on a bad
+    # ``meta.json`` (the diagnostic belongs to each caller, not to dir resolution).
+    stored_topology = _stored_topology_best_effort(repo_root, mission_slug)
+
     return _resolve_mission_read_path(
-        repo_root, mission_slug, mid8_from_slug(mission_slug)
+        repo_root,
+        mission_slug,
+        mid8_from_slug(mission_slug),
+        topology=stored_topology,
     )
+
+
+def _stored_topology_best_effort(
+    repo_root: Path, mission_slug: str
+) -> MissionTopology | None:
+    """Read the WP02 **stored** topology from primary meta, degrading on error.
+
+    The resilient topology read for :func:`candidate_feature_dir_for_mission` (the
+    surface/aggregate read primitive): it canonicalizes the handle through the SAME
+    bare-modern fold first (so the bare-human-slug whose on-disk primary dir carries
+    the composed ``<slug>-<mid8>`` name lands on the real dir for EVERY handle form,
+    rather than a bare-slug miss that would lose the stored topology and leak the
+    husk), then reads the stored ``topology`` via the canonical
+    :func:`read_primary_meta` / :func:`stored_topology_from_meta` seam.
+
+    A malformed / unreadable ``meta.json`` is mapped to ``None`` (the un-backfilled
+    legacy fallback — the historical probe-based husk derivation runs once), NOT a
+    raise: this primitive must preserve its historical contract of never raising on
+    a bad meta, leaving the malformed-meta diagnostic to each caller. ``ValueError``
+    is the malformed-JSON signal :func:`mission_metadata.load_meta` emits; ``OSError``
+    covers an unreadable file. :class:`MissionSelectorAmbiguous` is NOT caught — an
+    ambiguous handle must propagate as the structured no-silent-fallback error
+    (C-CTX-4 / C-009).
+    """
+    try:
+        canonical_handle = _canonicalize_bare_modern_handle(repo_root, mission_slug)
+        primary_meta, _ = read_primary_meta(repo_root, canonical_handle)
+    except (ValueError, OSError):
+        return None
+    return stored_topology_from_meta(primary_meta)
 
 
 def primary_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:

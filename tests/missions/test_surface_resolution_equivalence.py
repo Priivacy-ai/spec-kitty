@@ -331,11 +331,20 @@ def _build_topology(repo_root: Path, *, topology: str, slug: str) -> None:
         (composed_primary / "status.events.jsonl").write_text(
             '{"wp_id":"WP01","to_lane":"approved"}\n', encoding="utf-8"
         )
-        _git(repo_root, "branch", COORD_BRANCH)
-        # Stale husk: a materialized coord mission dir with a DIVERGENT status so a
-        # leg that wrongly reads it would observe the stale (planned) state.
-        husk = repo_root / ".worktrees" / f"{SLUG_WITH_MID8}-coord" / "kitty-specs" / SLUG_WITH_MID8
+        # Stale husk: a REAL registered ``-coord`` worktree carrying its OWN
+        # ``meta.json`` (EVERY ``git worktree add`` checkout has one) + a DIVERGENT
+        # (planned) status. The husk's meta is the detail that fires the surface
+        # resolver's ``.worktrees`` short-circuit; OMITTING it (the earlier fixture)
+        # silently masked the #2062 leak so the gate could never catch it (WP08
+        # debbie BLOCKER). A real ``git worktree add`` registers the worktree, so the
+        # registry-authority legs see it as a genuine coord worktree, not a husk
+        # ``UNREGISTERED`` shape — proving the STORED topology (not on-disk shape) is
+        # what re-anchors every leg to PRIMARY.
+        coord_root = repo_root / ".worktrees" / f"{SLUG_WITH_MID8}-coord"
+        _git(repo_root, "worktree", "add", "-q", "-b", COORD_BRANCH, str(coord_root))
+        husk = coord_root / "kitty-specs" / SLUG_WITH_MID8
         husk.mkdir(parents=True, exist_ok=True)
+        _write_meta(husk, mission_id=MISSION_ID)
         (husk / "status.events.jsonl").write_text(
             '{"wp_id":"WP01","to_lane":"planned"}\n', encoding="utf-8"
         )

@@ -59,6 +59,8 @@ from specify_cli.missions._read_path_resolver import (
     coord_feature_dir,
     primary_feature_dir_for_mission,
     probe_coord_state,
+    read_primary_meta,
+    stored_topology_from_meta,
 )
 
 __all__ = [
@@ -493,6 +495,42 @@ def _coord_mid8(meta: dict[str, object], mission_slug: str, repo_root: Path) -> 
     )
 
 
+def _husk_is_authoritative_surface(repo_root: Path, mission_slug: str) -> bool:
+    """True when a ``.worktrees`` husk MAY be the authoritative read surface.
+
+    Gates the ``.worktrees`` short-circuit in
+    :func:`resolve_status_surface_with_anchor` against the mission's STORED
+    topology (FR-006, the structural #2062 surface read-leg close). The husk's own
+    ``meta.json`` must NOT be trusted over the mission's stored shape:
+
+    * a coord-less stored topology (``SINGLE_BRANCH`` / ``LANES``) → ``False``: the
+      mission is flattened, so a lingering registered ``-coord`` husk is stale and
+      structurally not consulted (the surface re-anchors on PRIMARY);
+    * a coord-routing stored topology (``COORD`` / ``LANES_WITH_COORD``) → ``True``:
+      a real coord worktree IS the authoritative read (C-006 preservation);
+    * NO stored topology (un-backfilled legacy mission) → ``True``: preserve the
+      historical husk-consulting behaviour exactly once (FR-003 shell contract),
+      so legacy missions whose status genuinely lives on the coord worktree still
+      resolve there.
+
+    Reads the stored topology from the PRIMARY ``meta.json`` via the SAME
+    :func:`read_primary_meta` / :func:`stored_topology_from_meta` seam the guarded
+    read path uses (NFR-004 — one stored-topology authority, no re-inference). A
+    malformed / unreadable primary meta degrades to ``True`` (the historical
+    husk-consulting behaviour), since without a stored topology the husk short-
+    circuit cannot be safely overridden — the downstream primary re-anchor still
+    surfaces the malformed-meta diagnostic.
+    """
+    try:
+        primary_meta, _ = read_primary_meta(repo_root, mission_slug)
+    except (ValueError, OSError):
+        return True
+    stored = stored_topology_from_meta(primary_meta)
+    if stored is None:
+        return True
+    return _topology_uses_coord_surface(stored)
+
+
 def resolve_status_surface(
     repo_root: Path,
     mission_slug: str,
@@ -580,12 +618,24 @@ def resolve_status_surface_with_anchor(
     mission_slug = feature_dir.name
     meta = load_meta(feature_dir)
 
-    # If the single coord-aware resolution already landed inside a coord
-    # worktree that carries its own meta, it is final — never resolve again (the
-    # #1772 nesting bug).
-    if meta is not None and any(
+    # FR-006 (structural #2062 — the surface read-leg close): the husk
+    # short-circuit below trusts the worktree's OWN ``meta.json`` (which EVERY real
+    # ``git worktree add`` checkout carries) and returns the husk surface BEFORE the
+    # stored-topology shape decision further down ever runs. For a FLATTENED mission
+    # (stored ``topology: single_branch`` / ``lanes``, NO ``coordination_branch``) a
+    # lingering registered ``-coord`` husk would then leak its stale lane state and
+    # re-open #2062. Read the mission's STORED topology from the PRIMARY meta (the
+    # authoritative ``topology`` field, via the SAME ``stored_topology_from_meta``
+    # seam the read path uses — NOT a fresh ``coordination_branch is None``
+    # re-inference): when it is coord-less, the husk is structurally not the read
+    # surface, so DO NOT short-circuit on it. Fall through to the primary re-anchor.
+    # C-006: a genuine coord mission (stored topology COORD / LANES_WITH_COORD) OR an
+    # un-backfilled legacy mission (no stored topology) keeps the husk short-circuit
+    # — a real coord worktree is still the authoritative read.
+    feature_dir_is_husk = any(
         part == _WORKTREES_SEGMENT for part in feature_dir.parts
-    ):
+    )
+    if meta is not None and feature_dir_is_husk:  # MUTATION: force husk-trust
         return ResolvedStatusSurface(
             surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
             primary_anchor=feature_dir,
