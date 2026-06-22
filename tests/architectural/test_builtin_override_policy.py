@@ -26,7 +26,7 @@ import pytest
 
 from doctrine.drg.loader import load_graph_or_dir
 from doctrine.drg.merge import merge_three_layers
-from doctrine.drg.models import DRGGraph, NodeKind
+from doctrine.drg.models import DRGGraph, DRGNode, NodeKind
 from doctrine.drg.org_pack_loader import OrgDRGFragment
 from doctrine.drg.override_policy import (
     ReplaceableBuiltinsPolicy,
@@ -63,6 +63,11 @@ def find_overridden_builtin_urns(
     same-kind override (``org_override``). This is the authoritative override set
     — equivalent to the ``org_override`` conflict records, recovered purely from
     the merged graph.
+
+    Scope (intentional): only ``org:``-provenance overrides are adjudicated.
+    A *project*-tier override of a built-in URN (``project`` provenance) is
+    deliberately OUT of scope — project doctrine is the trusted operator tier
+    and is not gated by the consumer-facing replaceable-builtins allowlist.
     """
     return {
         node.urn: node.kind.value
@@ -160,6 +165,59 @@ def test_builtin_overrides_are_sanctioned() -> None:
         "directives) or remove the override from the org pack:\n"
         + "\n".join(f"  - {f.urn} ({f.kind}): {f.why}" for f in findings)
     )
+
+
+def _org_fragment(pack_name: str, nodes: list[dict[str, object]]) -> OrgDRGFragment:
+    return OrgDRGFragment.model_validate(
+        {
+            "pack_name": pack_name,
+            "source_kind": "local_path",
+            "source_ref": f"/tmp/{pack_name}",
+            "layer_index": 1,
+            "provenance_marker": "org",
+            "nodes": nodes,
+            "edges": [],
+        }
+    )
+
+
+def test_real_merge_override_is_detected_and_governed() -> None:
+    """Close the seam between the merge RECORDING an override and the gate
+    DETECTING it.
+
+    The live repo test (:func:`test_builtin_overrides_are_sanctioned`) is
+    vacuous — this repo authors no overrides, so it would stay green even if
+    :func:`find_overridden_builtin_urns` returned ``{}``. This test plants a
+    real same-kind org override, runs the *live* ``merge_three_layers``, and
+    asserts the detector recovers it AND the governance predicate flags it
+    when unlisted / clears it when allowlisted. A regression in the
+    provenance-prefix detection (``org:`` / ``in built_in_urns``) fails here.
+    """
+    built_in = DRGGraph(
+        schema_version="1.0",
+        generated_at="2026-06-01T00:00:00Z",
+        generated_by="unit-test",
+        nodes=[DRGNode(urn="tactic:shared", kind=NodeKind.TACTIC, label="Built-in")],
+        edges=[],
+    )
+    org = _org_fragment(
+        "rogue",
+        nodes=[{"id": "shared", "kind": "tactics", "title": "Override"}],
+    )
+
+    merged = merge_three_layers(built_in=built_in, org_fragments=[org], project=None)
+    built_in_urns = frozenset(n.urn for n in built_in.nodes)
+
+    # The detector recovers the planted override (not vacuous).
+    targets = find_overridden_builtin_urns(merged, built_in_urns)
+    assert targets == {"tactic:shared": "tactic"}
+
+    # Unlisted → flagged; allowlisted → cleared. Both directions load-bearing.
+    assert [f.urn for f in find_unsanctioned_overrides(targets, _policy())] == [
+        "tactic:shared"
+    ]
+    sanctioned = _policy(("tactic:shared", "org tightened this tactic"))
+    assert find_unsanctioned_overrides(targets, sanctioned) == []
 
 
 # ---------------------------------------------------------------------------
