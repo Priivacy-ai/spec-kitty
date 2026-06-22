@@ -215,16 +215,21 @@ _RAW_JOIN_SITES: tuple[tuple[str, int, str], ...] = (
     # ``_canonicalize_or_enrich_coord_empty`` (coord-empty Option B). Same
     # diagnostic joins — only their line drifted. The composite re-key below
     # makes the disposition survive future drift of these exact lines.
+    # NOTE (WP03 re-key, single-planning-surface-authority-01KVPR00): drifted
+    # 472→487 and 477→492 when WP03 added the ``_COORD_SURFACE_TOPOLOGIES`` constant
+    # + ``_topology_uses_coord_surface`` helper near the top of surface_resolver.py
+    # (the stored-topology surface-shape SSOT). Same diagnostic joins — only their
+    # line drifted; the composite re-key keeps the disposition stable.
     (
         "specify_cli/coordination/surface_resolver.py",
-        472,
+        487,
         "DIAG — _coord_mid8 fail-closed raise payload: "
         "CoordinationWorkspace.worktree_path(...) / KITTY_SPECS_DIR / mission_slug "
         "inside StatusReadPathNotFound constructor; no FS sink (raise is immediate).",
     ),
     (
         "specify_cli/coordination/surface_resolver.py",
-        477,
+        492,
         "DIAG — _coord_mid8 fail-closed raise payload: "
         "repo_root / KITTY_SPECS_DIR / mission_slug for primary_candidate field; "
         "no FS sink (raise is immediate).",

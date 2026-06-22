@@ -244,10 +244,12 @@ def test_identity_consumes_canonical_surface_resolver(
     real = surface_resolver.resolve_status_surface_with_anchor
 
     def _spy(
-        repo_root: Path, mission_slug: str
+        repo_root: Path,
+        mission_slug: str,
+        topology: surface_resolver.MissionTopology | None = None,
     ) -> surface_resolver.ResolvedStatusSurface:
         calls.append((repo_root, mission_slug))
-        return real(repo_root, mission_slug)
+        return real(repo_root, mission_slug, topology)
 
     monkeypatch.setattr(surface_resolver, "resolve_status_surface_with_anchor", _spy)
 

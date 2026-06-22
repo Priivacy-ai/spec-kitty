@@ -47,6 +47,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from mission_runtime import MissionTopology, classify_topology
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.lanes.branch_naming import mid8_from_slug, resolve_mid8
@@ -79,6 +80,20 @@ logger = logging.getLogger(__name__)
 _WORKTREES_SEGMENT = ".worktrees"
 _COORD_SUFFIX = "-coord"
 _STATUS_EVENTS_FILENAME = "status.events.jsonl"
+
+# The two mission shapes whose status surface lives on a coordination ref. The
+# coord-less cells (SINGLE_BRANCH / LANES) resolve to the PRIMARY checkout. This
+# is the surface-shape projection of the WP02 stored topology (FR-004 / SC-001):
+# the PRIMARY-vs-coord decision is READ from the topology, not re-inferred from
+# ``coordination_branch is None`` (the retired #2069 third derivation).
+_COORD_SURFACE_TOPOLOGIES: frozenset[MissionTopology] = frozenset(
+    {MissionTopology.COORD, MissionTopology.LANES_WITH_COORD}
+)
+
+
+def _topology_uses_coord_surface(topology: MissionTopology) -> bool:
+    """True when *topology* places the status surface on a coordination ref."""
+    return topology in _COORD_SURFACE_TOPOLOGIES
 
 # Option B loud primary fallback (FR-001 / FR-003 / #1716): when the coordination
 # worktree root is materialized but carries no mission dir, the resolver returns
@@ -478,7 +493,11 @@ def _coord_mid8(meta: dict[str, object], mission_slug: str, repo_root: Path) -> 
     )
 
 
-def resolve_status_surface(repo_root: Path, mission_slug: str) -> Path:
+def resolve_status_surface(
+    repo_root: Path,
+    mission_slug: str,
+    topology: MissionTopology | None = None,
+) -> Path:
     """Return the canonical status.events.jsonl path for the given mission.
 
     Thin wrapper over :func:`resolve_status_surface_with_anchor` that discards
@@ -487,14 +506,24 @@ def resolve_status_surface(repo_root: Path, mission_slug: str) -> Path:
     identity, #1737) should call :func:`resolve_status_surface_with_anchor`
     instead of re-deriving it.
 
+    ``topology`` (WP02 stored value) decides the PRIMARY-vs-coordination surface
+    SHAPE when supplied (FR-004 / SC-001). It is optional only so the historical
+    two-arg call sites keep resolving; when omitted the surface defaults to
+    coord-routing (matching the legacy ``coordination_branch is not None``
+    behaviour) and the per-state transient arms still discriminate via the probe.
+
     Raises FileNotFoundError when meta.json is absent.
     Raises ValueError when meta.json is malformed.
     """
-    return resolve_status_surface_with_anchor(repo_root, mission_slug).surface_path
+    return resolve_status_surface_with_anchor(
+        repo_root, mission_slug, topology
+    ).surface_path
 
 
 def resolve_status_surface_with_anchor(
-    repo_root: Path, mission_slug: str
+    repo_root: Path,
+    mission_slug: str,
+    topology: MissionTopology | None = None,
 ) -> ResolvedStatusSurface:
     """Resolve the canonical status surface and primary anchor in one pass.
 
@@ -595,20 +624,42 @@ def resolve_status_surface_with_anchor(
     # identity logic expects), not the coord-preferring candidate.
     feature_dir = primary_dir
 
+    # ``coordination_branch`` is read here ONLY as the ref VALUE the coord probe
+    # and the #1848 deleted-branch error need (it is never the surface-SHAPE
+    # decision — that is the retired #2069 third derivation, SC-001). The
+    # PRIMARY-vs-coordination SHAPE is decided from the WP02 stored ``topology``
+    # (FR-004): when the caller threads it in, ``_topology_uses_coord_surface``
+    # disposes; when it is omitted (the historical two-arg call sites WP04+ will
+    # convert), the shape is derived ONCE via WP01's ``classify_topology`` SSOT
+    # from the value-read — NOT via a parallel ``coordination_branch is None``
+    # inference. Either path lands on the same single topology authority.
     raw_coord = meta.get("coordination_branch")
     coord_branch: str | None = str(raw_coord) if raw_coord else None
-    if coord_branch is None:
+    effective_topology = (
+        topology
+        if topology is not None
+        else classify_topology(coord_branch, has_lanes=False)
+    )
+    if not _topology_uses_coord_surface(effective_topology) or coord_branch is None:
+        # Non-coord topology → PRIMARY. The ``coord_branch is None`` arm here is a
+        # VALUE guard, not a topology decision (the shape was already disposed by
+        # ``effective_topology``): a coord-routing topology with no recoverable
+        # branch ref cannot compose a coord path or the #1848 deleted-branch error,
+        # so it degrades to the primary surface exactly as the coord-less cells do.
         return ResolvedStatusSurface(
             surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
             primary_anchor=feature_dir,
         )
 
-    # Coord branch declared: classify the coord-worktree topology state via WP01's
+    # Coord-routing topology: classify the coord-worktree transient STATE via WP01's
     # shared probe (paula C2) — never re-derive the root/mission-dir/branch checks
-    # inline. The composed coord feature dir is built once via WP01's
-    # ``coord_feature_dir`` (paula C1, single grammar). The primary anchor stays
-    # the canonical primary candidate (the create→first-write window authority the
-    # transaction-identity logic expects).
+    # inline. The stored topology decides the coord-vs-primary SHAPE above; the
+    # probe still decides the orthogonal transient on-disk×git state (materialized
+    # / empty / deleted) — C-006: the transients are NOT subsumed into the enum.
+    # The composed coord feature dir is built once via WP01's ``coord_feature_dir``
+    # (paula C1, single grammar). The primary anchor stays the canonical primary
+    # candidate (the create→first-write window authority the transaction-identity
+    # logic expects).
     mid8: str = _coord_mid8(meta, mission_slug, repo_root)
     composed_coord_dir: Path = coord_feature_dir(repo_root, mission_slug, mid8)
     coord_state = probe_coord_state(

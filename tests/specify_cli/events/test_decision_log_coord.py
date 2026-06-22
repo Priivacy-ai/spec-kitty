@@ -24,6 +24,24 @@ pytestmark = [pytest.mark.unit]
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _write_coord_meta(repo_root: Path, slug: str) -> Path:
+    """Write a coord-topology ``meta.json`` so ``ensure_topology`` classifies COORD.
+
+    WP03 routes coord decisions by the STORED topology (FR-004), so a coord-routing
+    test must declare the topology in meta (via ``coordination_branch`` →
+    ``ensure_topology`` derives/persists ``topology: coord``) rather than relying on
+    a disk-stat. Anchored on the canonical PRIMARY mission dir.
+    """
+    mission_dir = repo_root / "kitty-specs" / slug
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    (mission_dir / "meta.json").write_text(
+        '{"coordination_branch":"kitty/mission-' + slug + '",'
+        '"mission_id":"01KT3YBDABCDEFGHIJKLMNOP"}',
+        encoding="utf-8",
+    )
+    return mission_dir
+
+
 def _make_log(
     repo_root: Path,
     worktree_root: Path,
@@ -91,14 +109,25 @@ class TestWrapWithDecisionGitLogCoordRouting:
     """_wrap_with_decision_git_log selects worktree_root based on coord existence (T018, T019)."""
 
     def test_coord_worktree_used_when_exists(self, tmp_path: Path) -> None:
-        """When coord worktree directory exists, it becomes worktree_root (T018)."""
+        """Coord-routing topology + materialized coord worktree ⇒ worktree_root (T018).
+
+        WP03 (single-planning-surface-authority): coord ROUTING is now decided by
+        the STORED MissionTopology (FR-004 / SC-001), not by ``_coord_path.exists()``
+        (the retired C-004 disk-stat). The on-disk materialization probe survives
+        ONLY to select the worktree_root for an already-coord-routing mission
+        (C-006). So this asserts: stored coord topology AND the coord worktree
+        materialized ⇒ the coord path is the worktree_root.
+        """
         from runtime.next.runtime_bridge import _wrap_with_decision_git_log
 
         slug = "my-feature-01KT3YBD"
         mid8 = "01KT3YBD"
         base_slug = "my-feature"
 
-        # Create coord worktree directory on disk
+        # Stored topology authority (WP02): declare coord-branch topology in meta
+        # so ``ensure_topology`` classifies/persists COORD — the routing signal.
+        _write_coord_meta(tmp_path, slug)
+        # Create coord worktree directory on disk (the C-006 materialization probe).
         coord_path = tmp_path / ".worktrees" / f"{base_slug}-{mid8}-coord"
         coord_path.mkdir(parents=True)
 
