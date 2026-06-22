@@ -117,6 +117,12 @@ class OrgDRGConflict:
     * ``hard_fail`` — the merge raises :class:`OrgDRGConflictError`.
     * ``built_in_wins`` — silent precedence (the built-in value is retained).
     * ``project_wins`` — silent precedence (the project value is retained).
+    * ``org_override`` — a SAME-KIND org node permissibly substitutes a built-in
+      node in place (the org value wins, with a WARNING for operator visibility).
+      Non-fatal: the merge does NOT raise. Whether a given repo *tolerates* this
+      override is a per-repo governance TEST (see
+      ``tests/architectural/test_builtin_override_policy.py``), not a merge-time
+      prohibition.
     """
 
     kind: Literal[
@@ -127,7 +133,9 @@ class OrgDRGConflict:
     built_in_value: Any | None
     org_value: Any
     project_value: Any | None
-    resolution_applied: Literal["hard_fail", "built_in_wins", "project_wins"]
+    resolution_applied: Literal[
+        "hard_fail", "built_in_wins", "project_wins", "org_override"
+    ]
 
 
 class OrgDRGConflictError(Exception):
@@ -236,13 +244,21 @@ def _violates_layer_rule(node: Any) -> bool:
 
 
 def _built_in_invariant_ids(built_in: DRGGraph) -> frozenset[str]:
-    """The set of URNs that org packs cannot override.
+    """The set of built-in URNs that an org node may collide with.
 
-    Mission policy (FR-005): every built-in node is treated as an invariant.
-    Org packs may only add new nodes or refine relations; they may not collide
-    with built-in node URNs. An operator who needs to override a built-in
-    invariant must escalate via a governance proposal rather than ship a
-    silently-overriding org pack.
+    Every built-in node URN is returned. A collision is no longer an automatic
+    hard-fail: an org node whose URN matches a built-in URN **and whose kind
+    matches** is permitted to override the built-in in place (permitted-but-
+    visible — a ``node_override`` conflict with ``resolution_applied =
+    "org_override"`` is recorded and a WARNING is emitted). A collision whose
+    kind DIFFERS (kind-drift) still hard-fails: an override may replace a
+    built-in's content, never its kind. Layer-rule violations also still
+    hard-fail.
+
+    Whether a given repo *tolerates* a built-in override is a per-repo
+    governance TEST (``tests/architectural/test_builtin_override_policy.py``
+    consults ``.kittify/doctrine/replaceable-builtins.yaml``), not a merge-time
+    prohibition.
     """
     return frozenset(n.urn for n in built_in.nodes)
 
@@ -312,6 +328,53 @@ def _bridge_org_edge_to_drg_edge(
     return _tag_source(drg_edge, source)
 
 
+def _resolve_builtin_collision(
+    urn: str,
+    org_node: Any,
+    drg_node: DRGNode,
+    merged_nodes: dict[str, DRGNode],
+    conflicts: list[OrgDRGConflict],
+    source_marker: str,
+) -> None:
+    """Resolve an org node whose URN collides with a built-in node.
+
+    Kind-drift (the org node's kind DIFFERS from the built-in node's kind) is a
+    ``hard_fail``: an override may replace a built-in's content, never its kind.
+    A SAME-KIND collision is PERMITTED — the org node substitutes the built-in
+    in place (``merged_nodes[urn] = drg_node``), a ``node_override`` conflict
+    with ``resolution_applied = "org_override"`` is recorded, and a WARNING is
+    emitted. In-place URN substitution preserves the built-in's inbound and
+    outbound edges (no rehoming), mirroring the project-layer override path.
+    """
+    built_in_node = merged_nodes[urn]
+    if drg_node.kind != built_in_node.kind:
+        conflicts.append(
+            OrgDRGConflict(
+                kind="node_override",
+                conflicting_layers=["built-in", source_marker],
+                target_id=urn,
+                built_in_value=built_in_node.model_dump(),
+                org_value=org_node.model_dump(),
+                project_value=None,
+                resolution_applied="hard_fail",
+            )
+        )
+        return
+    merged_nodes[urn] = drg_node
+    conflicts.append(
+        OrgDRGConflict(
+            kind="node_override",
+            conflicting_layers=["built-in", source_marker],
+            target_id=urn,
+            built_in_value=built_in_node.model_dump(),
+            org_value=org_node.model_dump(),
+            project_value=None,
+            resolution_applied="org_override",
+        )
+    )
+    _warn_builtin_override(urn, source_marker)
+
+
 def _merge_org_fragment(
     fragment: OrgDRGFragment,
     merged_nodes: dict[str, DRGNode],
@@ -323,6 +386,13 @@ def _merge_org_fragment(
 
     Extracted from :func:`merge_three_layers` to keep its cyclomatic
     complexity within the ruff C901 limit (15).
+
+    A built-in URN collision is delegated to :func:`_resolve_builtin_collision`:
+    a SAME-KIND org node permissibly overrides the built-in in place (a
+    ``node_override`` conflict with ``resolution_applied = "org_override"`` plus
+    a WARNING); a kind-drift collision still hard-fails. Whether the repo
+    tolerates a permitted override is a per-repo governance test, not a merge
+    prohibition.
     """
     source_marker = f"org:{fragment.pack_name}"
     surviving_nodes: list[Any] = []
@@ -347,16 +417,8 @@ def _merge_org_fragment(
         urn, drg_node = _bridge_org_node_to_drg_node(node, source_marker)
         node_id_to_urn[node.id] = urn
         if urn in invariant_urns:
-            conflicts.append(
-                OrgDRGConflict(
-                    kind="node_override",
-                    conflicting_layers=["built-in", source_marker],
-                    target_id=urn,
-                    built_in_value=merged_nodes[urn].model_dump(),
-                    org_value=node.model_dump(),
-                    project_value=None,
-                    resolution_applied="hard_fail",
-                )
+            _resolve_builtin_collision(
+                urn, node, drg_node, merged_nodes, conflicts, source_marker
             )
             continue
         if urn not in merged_nodes:
@@ -366,6 +428,23 @@ def _merge_org_fragment(
         drg_edge = _bridge_org_edge_to_drg_edge(edge, node_id_to_urn, source_marker)
         if drg_edge is not None:
             merged_edges.append(drg_edge)
+
+
+def _warn_builtin_override(urn: str, source_marker: str) -> None:
+    """Emit a WARNING when a same-kind org node overrides a built-in node.
+
+    Mirrors :func:`_warn_project_override`. The override is permitted by the
+    merge (kind matches), but is surfaced for operator visibility: a per-repo
+    governance test decides whether the override is allowed for this repo.
+    """
+    _logger.warning(
+        "Org doctrine %r overrides built-in node %r (same-kind override). "
+        "This is permitted by the merge but visible by design; a per-repo "
+        "governance test (replaceable-builtins allowlist) decides whether the "
+        "override is sanctioned.",
+        source_marker,
+        urn,
+    )
 
 
 def _warn_project_override(urn: str, existing_provenance: str) -> None:
@@ -403,11 +482,23 @@ def merge_three_layers(
     block the merge. Use :class:`OrgDRGConflict` records to query overrides
     programmatically.
 
-    Org-tier nodes that collide with a built-in node raise
-    :class:`OrgDRGConflictError` (``resolution_applied='hard_fail'``). Layer-rule
-    violations (org nodes reaching into ``src/specify_cli/``) always hard-fail.
-    An org/project fragment edge with an unrecognised relation label raises
-    :class:`UnknownRelationError` (FR-003 — no silent drop).
+    Org-tier nodes that collide with a built-in node are resolved by kind:
+
+    * **Same-kind** collision — PERMITTED. The org node substitutes the built-in
+      in place (preserving the built-in's inbound/outbound edges, mirroring the
+      project-layer override), a ``node_override`` conflict with
+      ``resolution_applied='org_override'`` is recorded, and a WARNING is
+      emitted. The merge does NOT raise. Whether a given repo *tolerates* this
+      override is a per-repo governance TEST
+      (``tests/architectural/test_builtin_override_policy.py`` consulting
+      ``.kittify/doctrine/replaceable-builtins.yaml``), not a merge prohibition.
+    * **Kind-drift** collision (org kind DIFFERS from built-in kind) — hard-fails
+      with :class:`OrgDRGConflictError` (``resolution_applied='hard_fail'``). An
+      override may replace a built-in's content, never its kind.
+
+    Layer-rule violations (org nodes reaching into ``src/specify_cli/``) always
+    hard-fail. An org/project fragment edge with an unrecognised relation label
+    raises :class:`UnknownRelationError` (FR-003 — no silent drop).
 
     Every node and edge in the returned graph carries a declared ``provenance``
     field readable via ``node.provenance``:
@@ -437,7 +528,9 @@ def merge_three_layers(
     Raises
     ------
     OrgDRGConflictError:
-        On layer-rule violation OR built-in invariant override. The error
+        On a layer-rule violation OR a kind-drift built-in collision (org kind
+        differs from the built-in kind). A SAME-KIND built-in override does NOT
+        raise (it is recorded as an ``org_override`` conflict). The error
         carries the full conflict list; the caller can inspect ``exc.conflicts``.
     UnknownRelationError:
         On an org/project fragment edge with an unrecognised relation label
