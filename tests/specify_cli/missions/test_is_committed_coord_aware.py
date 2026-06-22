@@ -12,6 +12,7 @@ Issue #1884 / FR-003 / WP01.
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -292,3 +293,205 @@ def test_primary_placement_uses_head_check(tmp_path: Path) -> None:
 
     placement = _make_commit_target("main", "PRIMARY")
     assert is_committed(spec, tmp_path, placement=placement) is True  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# WP07 / T035 (FR-011) — protected behavioral envelope, parametrized.
+#
+# The randy-reducer equivalence-evidence base for the (deferred, gated) FR-011
+# collapse of the ``is_committed`` 3-leg OR. Each row builds a realistic on-disk
+# topology, resolves the ``placement`` THROUGH the live ``resolve_placement_only``
+# seam EXACTLY as the ``setup-plan`` caller does (including its broad-catch
+# fallback to ``placement=None`` when resolution hard-fails), and pins the
+# ``is_committed`` verdict for that (topology × transient). This is the envelope a
+# single-surface check would have to reproduce IDENTICALLY before the OR can be
+# collapsed.
+#
+# Witnessed gate finding (2026-06-22, randy-reducer): the FR-011 collapse is NOT
+# yet safe. For the #1718 create-window the resolved placement is COORDINATION
+# (coord branch declared; materialisation deferred to the commit boundary) while
+# the artifact is committed on PRIMARY — so a single-surface check on the coord
+# ref returns ``False`` where the 3-leg OR (via the HEAD leg) returns ``True``.
+# The HEAD leg is therefore STILL load-bearing for the create-window: the surface
+# is not yet structurally single. These rows pin that envelope so a future
+# collapse that regresses any row goes red (and the create-window row in
+# particular guards the TOP mission risk).
+# ---------------------------------------------------------------------------
+
+_ENVELOPE_MISSION_ID = "01KTDVHZKGCHCW6HQ4V577PNES"
+_ENVELOPE_MID8 = _ENVELOPE_MISSION_ID[:8]
+_ENVELOPE_SLUG = "single-surface-resolver"
+_ENVELOPE_SLUG_MID8 = f"{_ENVELOPE_SLUG}-{_ENVELOPE_MID8}"
+_ENVELOPE_COORD = f"kitty/mission-{_ENVELOPE_SLUG_MID8}"
+_ENVELOPE_TARGET = "main"
+
+
+def _envelope_meta(coordination_branch: str | None) -> dict[str, object]:
+    meta: dict[str, object] = {
+        "mission_id": _ENVELOPE_MISSION_ID,
+        "mission_slug": _ENVELOPE_SLUG,
+        "mid8": _ENVELOPE_MID8,
+        "mission_type": "software-dev",
+        "target_branch": _ENVELOPE_TARGET,
+    }
+    if coordination_branch is not None:
+        meta["coordination_branch"] = coordination_branch
+    return meta
+
+
+def _write_envelope_meta(feature_dir: Path, coordination_branch: str | None) -> None:
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(_envelope_meta(coordination_branch)), encoding="utf-8"
+    )
+
+
+def _git_q(root: Path, *args: str) -> None:
+    subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
+
+
+def _resolve_placement_like_caller(repo_root: Path, handle: str) -> object | None:
+    """Mirror the ``setup-plan`` placement resolution + its broad-catch fallback.
+
+    The live caller (``cli/commands/agent/mission.py``) wraps
+    ``resolve_placement_only`` in ``except Exception: placement = None`` (C-004
+    strangler safety) — a coord-deleted mission therefore reaches ``is_committed``
+    with ``placement=None`` rather than a stale COORDINATION ref.
+    """
+    from mission_runtime import resolve_placement_only
+
+    try:
+        return resolve_placement_only(repo_root, handle)
+    except Exception:  # noqa: BLE001 — mirror the caller's deliberate broad catch
+        return None
+
+
+def _build_single_branch_committed(repo_root: Path) -> tuple[Path, bool]:
+    fd = repo_root / "kitty-specs" / _ENVELOPE_SLUG_MID8
+    _write_envelope_meta(fd, coordination_branch=None)
+    spec = fd / "spec.md"
+    spec.write_text("# Spec\n", encoding="utf-8")
+    _git_q(repo_root, "add", "-A")
+    _git_q(repo_root, "commit", "-m", "spec on primary")
+    return spec, True
+
+
+def _build_single_branch_uncommitted(repo_root: Path) -> tuple[Path, bool]:
+    fd = repo_root / "kitty-specs" / _ENVELOPE_SLUG_MID8
+    _write_envelope_meta(fd, coordination_branch=None)
+    spec = fd / "spec.md"
+    spec.write_text("# Spec\n", encoding="utf-8")  # on disk only, never committed
+    return spec, False
+
+
+def _build_lanes(repo_root: Path) -> tuple[Path, bool]:
+    # LANES flattens to a primary/FLATTENED placement; artifact on the target ref.
+    return _build_single_branch_committed(repo_root)
+
+
+def _build_coord(repo_root: Path) -> tuple[Path, bool]:
+    # Coord branch materialised; spec committed ONLY on the coord worktree.
+    fd = repo_root / "kitty-specs" / _ENVELOPE_SLUG_MID8
+    _write_envelope_meta(fd, coordination_branch=_ENVELOPE_COORD)
+    _git_q(repo_root, "add", "-A")
+    _git_q(repo_root, "commit", "-m", "meta on primary")
+    coord_root = repo_root / ".worktrees" / f"{_ENVELOPE_SLUG_MID8}-coord"
+    coord_root.parent.mkdir(parents=True, exist_ok=True)
+    _git_q(repo_root, "branch", _ENVELOPE_COORD, "main")
+    _git_q(repo_root, "worktree", "add", str(coord_root), _ENVELOPE_COORD)
+    coord_fd = coord_root / "kitty-specs" / _ENVELOPE_SLUG_MID8
+    _write_envelope_meta(coord_fd, coordination_branch=_ENVELOPE_COORD)
+    spec = coord_fd / "spec.md"
+    spec.write_text("# Spec\n", encoding="utf-8")
+    _git_q(coord_root, "add", "-A")
+    _git_q(coord_root, "commit", "-m", "spec on coord")
+    return spec, True
+
+
+def _build_lanes_with_coord(repo_root: Path) -> tuple[Path, bool]:
+    return _build_coord(repo_root)
+
+
+def _build_create_window(repo_root: Path) -> tuple[Path, bool]:
+    # #1718: coord branch DECLARED + exists, worktree NOT materialised; spec on
+    # PRIMARY HEAD. The resolved placement is COORDINATION (materialisation
+    # deferred to the commit boundary) — the HEAD leg is what carries the verdict.
+    fd = repo_root / "kitty-specs" / _ENVELOPE_SLUG_MID8
+    _write_envelope_meta(fd, coordination_branch=_ENVELOPE_COORD)
+    spec = fd / "spec.md"
+    spec.write_text("# Spec\n", encoding="utf-8")
+    _git_q(repo_root, "add", "-A")
+    _git_q(repo_root, "commit", "-m", "spec on primary (create-window)")
+    _git_q(repo_root, "branch", _ENVELOPE_COORD, "main")  # exists, no worktree
+    return spec, True
+
+
+def _build_coord_deleted(repo_root: Path) -> tuple[Path, bool]:
+    # #1848: coord branch declared but NEVER created → resolve_placement_only
+    # hard-fails COORDINATION_BRANCH_DELETED → caller falls to placement=None;
+    # spec is on PRIMARY HEAD so the verdict is True via the HEAD/primary surface.
+    fd = repo_root / "kitty-specs" / _ENVELOPE_SLUG_MID8
+    _write_envelope_meta(fd, coordination_branch=_ENVELOPE_COORD)
+    spec = fd / "spec.md"
+    spec.write_text("# Spec\n", encoding="utf-8")
+    _git_q(repo_root, "add", "-A")
+    _git_q(repo_root, "commit", "-m", "spec on primary (coord declared, branch gone)")
+    return spec, True
+
+
+_ENVELOPE_BUILDERS = {
+    "SINGLE_BRANCH-committed": _build_single_branch_committed,
+    "SINGLE_BRANCH-uncommitted": _build_single_branch_uncommitted,
+    "LANES": _build_lanes,
+    "COORD": _build_coord,
+    "LANES_WITH_COORD": _build_lanes_with_coord,
+    "create-window-1718": _build_create_window,
+    "coord-deleted-1848": _build_coord_deleted,
+}
+
+
+@pytest.mark.parametrize(
+    ("row", "expected_verdict"),
+    [
+        ("SINGLE_BRANCH-committed", True),
+        ("SINGLE_BRANCH-uncommitted", False),
+        ("LANES", True),
+        ("COORD", True),
+        ("LANES_WITH_COORD", True),
+        ("create-window-1718", True),
+        ("coord-deleted-1848", True),
+    ],
+)
+def test_is_committed_protected_envelope(
+    tmp_path: Path, row: str, expected_verdict: bool
+) -> None:
+    """T035 (FR-011): pin ``is_committed`` per (topology × transient) via the live seam.
+
+    Resolves ``placement`` through ``resolve_placement_only`` exactly as the
+    ``setup-plan`` caller does, then asserts the ``is_committed`` verdict. The
+    rows are the 4 ``MissionTopology`` cells plus the #1718 create-window and
+    #1848 coord-deleted transients. A single-surface reduction of the OR MUST
+    reproduce every verdict here — the create-window row in particular guards
+    against a collapse that drops the still-load-bearing HEAD leg.
+    """
+    _init_repo(tmp_path)
+    spec, _ = _ENVELOPE_BUILDERS[row](tmp_path)
+
+    placement = _resolve_placement_like_caller(tmp_path, _ENVELOPE_SLUG_MID8)
+    diagnostics: list[str] = []
+    verdict = is_committed(
+        spec,
+        tmp_path,
+        placement=placement,  # type: ignore[arg-type]
+        target_branch=_ENVELOPE_TARGET,
+        primary_repo_root=tmp_path,
+        diagnostics=diagnostics,
+    )
+
+    assert verdict is expected_verdict, (
+        f"[{row}] is_committed returned {verdict}, expected {expected_verdict}; "
+        f"placement={placement}; diagnostics={diagnostics}"
+    )
+    # The diagnostics sink MUST stay populated (the setup-plan caller surfaces
+    # this as ``spec_commit_surfaces_checked``).
+    assert diagnostics, f"[{row}] diagnostics sink must enumerate the checked surface(s)"
