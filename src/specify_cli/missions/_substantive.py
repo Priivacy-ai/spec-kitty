@@ -368,15 +368,17 @@ def is_committed(
         return False
     git_cwd, tree_path = check_context
 
-    # Leg 1 — coordination-branch ref (only for COORDINATION placement).
+    # Leg 1 — coordination-branch ref (only for a coordination placement).
     if placement is not None:
-        # Avoid importing CommitTargetKind at module-level (circular-import
-        # risk); the attribute read is safe because CommitTarget is a frozen
-        # dataclass with a guaranteed ``kind`` field.
-        from mission_runtime import CommitTargetKind
+        # FR-005: route the coord-vs-other decision through WP01's per-ref
+        # predicate, never a direct ``.kind is COORDINATION`` comparison. Import
+        # at call-time to avoid the module-level circular-import risk; the
+        # attribute access is wrapped because a malformed duck-typed placement
+        # could lack the ``kind`` field the predicate reads.
+        from mission_runtime import routes_through_coordination
 
         try:
-            coord_ref = placement.ref if placement.kind is CommitTargetKind.COORDINATION else None
+            coord_ref = placement.ref if routes_through_coordination(placement) else None
         except AttributeError:
             coord_ref = None
 
