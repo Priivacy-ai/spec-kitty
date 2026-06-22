@@ -117,10 +117,15 @@ from pathlib import Path
 
 import pytest
 
+from mission_runtime import MissionTopology, classify_topology
 from specify_cli.coordination.surface_resolver import (
     resolve_status_surface_with_anchor,
 )
-from specify_cli.missions._read_path_resolver import resolve_handle_to_read_path
+from specify_cli.missions._read_path_resolver import (
+    read_primary_meta,
+    resolve_handle_to_read_path,
+    stored_topology_from_meta,
+)
 from specify_cli.status.aggregate import MissionStatus
 
 pytestmark = pytest.mark.git_repo
@@ -255,6 +260,26 @@ def _write_meta(feature_dir: Path, **fields: object) -> None:
     (feature_dir / "meta.json").write_text(json.dumps(fields), encoding="utf-8")
 
 
+def _stored_topology(repo_root: Path, slug: str) -> MissionTopology:
+    """Read the WP02 **stored** topology the read-path boundary consumes.
+
+    The surface-resolver leg (WP03-owned) takes ``topology`` as an explicit
+    argument; the read-path leg reads it from ``primary_meta`` internally. To prove
+    cross-leg CONVERGENCE the test must feed the surface leg the SAME stored value
+    the read path uses — so it reads it here via the canonical extractor
+    (:func:`stored_topology_from_meta`) from the primary meta, mirroring the
+    boundary read (FR-010b).
+    """
+    primary_meta, _ = read_primary_meta(repo_root, slug)
+    stored = stored_topology_from_meta(primary_meta)
+    # Un-backfilled fixtures fall back to the value-classification the boundary uses.
+    if stored is not None:
+        return stored
+    raw_branch = primary_meta.get("coordination_branch")
+    branch = str(raw_branch) if isinstance(raw_branch, str) and raw_branch else None
+    return classify_topology(branch, has_lanes=False)
+
+
 def _coord_dir_slug(slug: str) -> str:
     """The on-disk coord dir slug: always carries the mid8 (post-WP03 grammar)."""
     return slug if slug.endswith(MID8) else SLUG_WITH_MID8
@@ -276,16 +301,51 @@ def _build_topology(repo_root: Path, *, topology: str, slug: str) -> None:
       EMPTY (no mission dir).
     * ``coord-deleted`` — primary declares ``coordination_branch`` but the branch was
       never created (deleted from git) and no coord worktree exists.
+    * ``flattened-stale-coord`` — the #2062 structural repro (quickstart R1 /
+      spec.md FR-005). The mission was flattened mid-flight: the primary
+      ``meta.json`` carries the WP02 **stored** ``topology: single_branch`` + a
+      ``flattened: true`` provenance flag and NO ``coordination_branch`` (per the
+      spec's R1 model), yet a MATERIALIZED-but-stale
+      ``.worktrees/<slug>-<mid8>-coord/`` mission dir lingers on disk with a
+      DIVERGENT (planned) status. The STORED topology drives every read leg to
+      PRIMARY — the husk is structurally not consulted, so a stale ``-coord`` dir
+      cannot re-open #2062. The on-disk primary dir always carries the composed
+      ``<slug>-<mid8>`` name so the bare-human-slug handle resolves through
+      :func:`resolve_bare_modern_mission_dir_name` (FR-004 bare-slug fold).
     """
     _init_repo(repo_root)
     primary_fields: dict[str, object] = {"mission_id": MISSION_ID}
-    if topology != "no-coord":
+    if topology not in ("no-coord", "flattened-stale-coord"):
         primary_fields["coordination_branch"] = COORD_BRANCH
-    _write_meta(repo_root / "kitty-specs" / slug, **primary_fields)
+
+    if topology == "flattened-stale-coord":
+        # The primary dir ALWAYS carries the composed name so every handle form
+        # (composed / bare-mid8 / ULID / bare-human-slug) resolves the same dir.
+        composed_primary = repo_root / "kitty-specs" / SLUG_WITH_MID8
+        _write_meta(
+            composed_primary,
+            mission_id=MISSION_ID,
+            topology=MissionTopology.SINGLE_BRANCH.value,
+            flattened=True,
+        )
+        (composed_primary / "status.events.jsonl").write_text(
+            '{"wp_id":"WP01","to_lane":"approved"}\n', encoding="utf-8"
+        )
+        _git(repo_root, "branch", COORD_BRANCH)
+        # Stale husk: a materialized coord mission dir with a DIVERGENT status so a
+        # leg that wrongly reads it would observe the stale (planned) state.
+        husk = repo_root / ".worktrees" / f"{SLUG_WITH_MID8}-coord" / "kitty-specs" / SLUG_WITH_MID8
+        husk.mkdir(parents=True, exist_ok=True)
+        (husk / "status.events.jsonl").write_text(
+            '{"wp_id":"WP01","to_lane":"planned"}\n', encoding="utf-8"
+        )
+        return
 
     coord_slug = _coord_dir_slug(slug)
     coord_root = repo_root / ".worktrees" / f"{coord_slug}-coord"
     coord_feature_dir = coord_root / "kitty-specs" / coord_slug
+
+    _write_meta(repo_root / "kitty-specs" / slug, **primary_fields)
 
     if topology == "coord-fresh":
         _git(repo_root, "branch", COORD_BRANCH)
@@ -312,13 +372,22 @@ def _build_topology(repo_root: Path, *, topology: str, slug: str) -> None:
 
 
 def _entry_points(repo_root: Path, slug: str, mid8: str) -> dict[str, Callable[[], Path]]:
-    """Return the named resolution entry points to compare for one cell."""
+    """Return the named resolution entry points to compare for one cell.
+
+    The ``resolve_status_surface_with_anchor`` leg is fed the SAME WP02 stored
+    topology the read-path leg reads internally (FR-010b cross-leg convergence):
+    the surface resolver (WP03-owned) decides the PRIMARY-vs-coordination shape
+    from the stored value, so threading it here proves both legs converge on
+    PRIMARY for a flattened-stale-coord mission rather than diverging on the husk.
+    """
     return {
         "resolve_mission_read_path": lambda: resolve_handle_to_read_path(
             repo_root, slug, require_exists=True
         ),
         "resolve_status_surface_with_anchor": lambda: (
-            resolve_status_surface_with_anchor(repo_root, slug).read_dir
+            resolve_status_surface_with_anchor(
+                repo_root, slug, _stored_topology(repo_root, slug)
+            ).read_dir
         ),
         "MissionStatus.load": lambda: MissionStatus.load(repo_root, slug).read_dir,
     }
@@ -437,6 +506,40 @@ _MATRIX: list[tuple[str, str, str, str, str | None]] = [
         # ``COORDINATION_BRANCH_DELETED``. GREEN.
         None,
     ),
+    # WP04 (T023, FR-005/#2062 read leg) — the flattened-stale-coord topology ×
+    # EVERY handle form. The mission was flattened mid-flight (stored
+    # ``topology: single_branch``, NO ``coordination_branch``) but a stale ``-coord``
+    # husk lingers on disk. The stored topology drives all three read legs
+    # (read_path, surface, aggregate) to the PRIMARY dir regardless of the husk —
+    # the structural #2062 read-leg close. GREEN (not xfail) once T020/T021 land.
+    (
+        "flattened-stale-coord/slug-mid8",
+        "flattened-stale-coord",
+        SLUG_WITH_MID8,
+        MID8,
+        None,
+    ),
+    (
+        "flattened-stale-coord/bare-mid8",
+        "flattened-stale-coord",
+        MID8,
+        MID8,
+        None,
+    ),
+    (
+        "flattened-stale-coord/full-ulid",
+        "flattened-stale-coord",
+        MISSION_ID,
+        MID8,
+        None,
+    ),
+    (
+        "flattened-stale-coord/bare-human-slug",
+        "flattened-stale-coord",
+        MISSION_SLUG,
+        "",
+        None,
+    ),
 ]
 
 
@@ -552,6 +655,83 @@ def test_create_first_write_window_resolves_primary(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # T007 — mission_runtime boundary: typed-error preservation (FR-005)
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# T022 — PURE stored-topology cell (FR-010a, NFR-005): zero FS/git fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("topology", list(MissionTopology))
+def test_pure_stored_topology_projects_surface_placement(
+    topology: MissionTopology,
+) -> None:
+    """T022: ``resolve_context_for_mission`` projects PRIMARY vs coordination by topology.
+
+    The ADDITIVE pure cell (FR-010a): it feeds WP03's pure resolver
+    ``resolve_context_for_mission`` for ALL FOUR ``MissionTopology`` values with a
+    production-shaped 26-char ULID and asserts the projected ``ExecutionContext``
+    surface placement — ``SINGLE_BRANCH`` / ``LANES`` → PRIMARY (``FLATTENED`` ref,
+    ``routes_through_coordination`` False); ``COORD`` / ``LANES_WITH_COORD`` →
+    coordination placement. ZERO FS/git fixtures (no ``tmp_path`` meta, no repo
+    init, no ``load_meta`` monkeypatch): the resolver is PURE (it mirrors quickstart
+    R0). This ADDS a proof; it does NOT replace the on-disk flattened-stale-coord
+    row (T023), whose canonical authority is the live surface resolver.
+    """
+    from mission_runtime import (
+        BranchRefFragment,
+        CommitTarget,
+        CommitTargetKind,
+        IdentityFragment,
+        routes_through_coordination,
+    )
+    from mission_runtime.resolution import (
+        destination_kind_for_topology,
+        resolve_context_for_mission,
+    )
+
+    coordination_branch = (
+        COORD_BRANCH
+        if topology in (MissionTopology.COORD, MissionTopology.LANES_WITH_COORD)
+        else None
+    )
+    identity = IdentityFragment.derive(
+        mission_id=MISSION_ID, mission_slug=MISSION_SLUG
+    )
+    branch_ref = BranchRefFragment(
+        target_branch="feat/single-surface",
+        coordination_branch=coordination_branch,
+        destination_ref=CommitTarget(
+            ref=coordination_branch or "feat/single-surface",
+            kind=CommitTargetKind.PRIMARY,
+        ),
+    )
+    context = resolve_context_for_mission(
+        MISSION_ID,
+        topology,
+        action="specify",
+        mission_slug=MISSION_SLUG,
+        feature_dir=f"kitty-specs/{SLUG_WITH_MID8}",
+        target_branch="feat/single-surface",
+        identity=identity,
+        branch_ref=branch_ref,
+    )
+
+    assert context.branch_ref is not None
+    expected_kind = destination_kind_for_topology(topology)
+    assert context.branch_ref.destination_ref.kind is expected_kind
+    # The per-ref routing authority agrees with the topology classification.
+    coord_cells = (MissionTopology.COORD, MissionTopology.LANES_WITH_COORD)
+    assert routes_through_coordination(context.branch_ref.destination_ref) is (
+        topology in coord_cells
+    )
+    # PRIMARY (flattened) cells share the target ref; coord cells route the coord ref.
+    if topology in coord_cells:
+        assert context.branch_ref.destination_ref.kind is CommitTargetKind.COORDINATION
+        assert context.branch_ref.destination_ref.ref == COORD_BRANCH
+    else:
+        assert context.branch_ref.destination_ref.kind is CommitTargetKind.FLATTENED
+        assert context.branch_ref.destination_ref.ref == "feat/single-surface"
 
 
 def test_runtime_boundary_translates_ambiguous_selector(tmp_path: Path) -> None:
