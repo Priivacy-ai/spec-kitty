@@ -61,6 +61,10 @@ test_no_dead_modules:
   # (the built-in-override allowlist is enforced by a per-repo TEST, not a
   # runtime path). Burns down when a runtime caller (doctor doctrine override
   # diagnostics) is wired. Stays within the C-006 cap of 7.
+  # burn-down ticket (FR-303): #2082 (wire override_policy into doctor doctrine
+  # -> consumer-facing enforcement, then lower 7 -> 6); sub-issue of #2080
+  # (daphne-led DRG/doctrine audit + remediate). NOTE: this bump re-consumes the
+  # headroom of the prior deliberate 7 -> 6 shrinkage; tracked under #2082.
   category_7_grandfathered_orphans: 7
 
 # tests/architectural/test_migration_chain_integrity.py
