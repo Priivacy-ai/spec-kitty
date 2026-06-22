@@ -5,12 +5,22 @@ underlying :func:`specify_cli.git.commit_helpers.safe_commit` helper resolves a
 single :class:`~mission_runtime.context.CommitTarget` — the ONE destination
 authority — and structurally enforces that the commit lands on it.
 
-This CLI surfaces that contract via the ``--to-branch`` flag. When omitted, the
-destination resolves from the current ``HEAD`` branch (with a one-line stderr
-deprecation: ``--to-branch`` becomes required in v3.3). There is exactly ONE
-destination resolution in this file, fed into ONE ``CommitTarget``; the WP02
-``safe_commit`` facade makes the sole protection decision (C-GUARD-1,
-C-GUARD-3a). No second derivation, and no env-var inference escape hatch.
+This CLI surfaces that contract via the ``--to-branch`` flag. There is exactly
+ONE destination resolution in this file (:func:`_resolve_commit_target`), fed
+into ONE ``CommitTarget``; the WP02 ``safe_commit`` facade makes the sole
+protection decision (C-GUARD-1, C-GUARD-3a). No env-var inference escape hatch.
+
+That single resolver discriminates TWO responsibilities (FR-007 / NFR-002):
+
+* **Mission-aware planning commit** — when ``--to-branch`` is omitted and a file
+  argument lives under ``kitty-specs/<slug>/`` for a resolvable mission, the
+  destination is resolved through the WP03 seam
+  (:func:`mission_runtime.resolve_placement_only`), never from the current
+  ``HEAD`` branch. This is the #2063 fix.
+* **Generic operator-file commit** — ``--to-branch X`` lands on ``X``; when
+  omitted (and not a mission planning commit), the destination resolves from the
+  current ``HEAD`` branch (with a one-line stderr deprecation: ``--to-branch``
+  becomes required in v3.3). This generic path is unchanged.
 
 Directory and bulk arguments expand to their contained changed / untracked
 files (validated against the CommitTarget's worktree) with an explicit
@@ -28,6 +38,7 @@ import typer
 from rich.console import Console
 
 from mission_runtime import CommitTarget, CommitTargetKind
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.git import ProtectedBranchCommitError, safe_commit
 from specify_cli.git.commit_helpers import (
@@ -156,18 +167,71 @@ def _payload(*, success: bool, committed: bool = False, files: list[str] | None 
     return payload
 
 
+def _mission_slug_from_paths(repo_root: Path, files: list[Path]) -> str | None:
+    """Return the mission slug iff a file argument lives under ``kitty-specs/<slug>/``.
+
+    The mission-aware DISCRIMINATOR (FR-007 / NFR-002): a planning artifact is
+    addressed by a path inside ``kitty-specs/<slug>/`` (e.g. ``spec.md`` /
+    ``plan.md`` / ``tasks.md``). When a file argument resolves under that prefix
+    the commit targets a mission's planning artifacts and routes through the WP03
+    seam. Everything else (operator files, config, generic worktree edits) stays
+    on the generic ``--to-branch`` / HEAD path. Returns the first slug found, or
+    ``None`` when no argument is a kitty-specs artifact.
+    """
+    for path in files:
+        try:
+            rel = path.resolve().relative_to(repo_root.resolve())
+        except ValueError:
+            continue
+        parts = rel.parts
+        if len(parts) >= 2 and parts[0] == KITTY_SPECS_DIR:
+            return parts[1]
+    return None
+
+
+def _resolve_mission_aware_target(repo_root: Path, mission_slug: str) -> CommitTarget | None:
+    """Resolve the mission-aware planning :class:`CommitTarget` via the WP03 seam.
+
+    FR-007 / #2063: the mission-aware planning commit resolves its destination
+    from :func:`mission_runtime.resolve_placement_only` (the WP03 placement
+    projection — the SAME authority status events resolve to), NOT from
+    ``get_current_branch``/HEAD. Returns ``None`` when the seam cannot resolve the
+    mission (no ``meta.json`` yet / not a real mission), so the caller falls back
+    to the generic path rather than failing a legitimate operator commit that
+    merely *looks* like it lives under ``kitty-specs/``.
+    """
+    from mission_runtime import ActionContextError, resolve_placement_only
+
+    try:
+        return resolve_placement_only(repo_root, mission_slug)
+    except (ActionContextError, FileNotFoundError, ValueError):
+        return None
+
+
 def _resolve_commit_target(
     *,
     explicit_to_branch: str | None,
     repo_root: Path,
+    files: list[Path],
 ) -> CommitTarget:
     """Resolve the single :class:`CommitTarget` the commit lands on.
 
     This is the ONLY destination resolution in this file (C-GUARD-3a — single
-    destination authority). ``--to-branch X`` resolves to ``X``; when omitted,
-    the destination is the current ``HEAD`` branch (with a stderr deprecation
-    notice). The resulting ``CommitTarget`` is the sole authority handed to
-    ``safe_commit``, whose embedded guard makes the protection decision.
+    destination authority), discriminating TWO responsibilities (FR-007 /
+    NFR-002):
+
+    * **Mission-aware planning commit** — when ``--to-branch`` is omitted and a
+      file argument lives under ``kitty-specs/<slug>/`` for a resolvable mission,
+      the destination is resolved through the WP03 seam
+      (:func:`mission_runtime.resolve_placement_only`), never from ``HEAD``. This
+      is the #2063 fix: the planning artifact lands on the seam-resolved surface.
+    * **Generic operator-file commit** — ``--to-branch X`` resolves to ``X``;
+      when omitted (and not a resolvable mission planning commit) the destination
+      is the current ``HEAD`` branch (with a stderr v3.3 deprecation notice). This
+      path is unchanged (NFR-002 preserved).
+
+    The resulting ``CommitTarget`` is the sole authority handed to ``safe_commit``,
+    whose embedded guard makes the protection decision.
     """
     if explicit_to_branch is not None and explicit_to_branch != "":
         # Normalize fully-qualified refs/heads/<name> → <name>. The helper
@@ -177,6 +241,12 @@ def _resolve_commit_target(
         if ref.startswith("refs/heads/"):
             ref = ref[len("refs/heads/"):]
         return CommitTarget(ref=ref, kind=CommitTargetKind.PRIMARY)
+
+    mission_slug = _mission_slug_from_paths(repo_root, files)
+    if mission_slug is not None:
+        seam_target = _resolve_mission_aware_target(repo_root, mission_slug)
+        if seam_target is not None:
+            return seam_target
 
     inferred = get_current_branch(repo_root)
     if inferred is None or inferred == "":
@@ -229,6 +299,7 @@ def safe_commit_command(
         target = _resolve_commit_target(
             explicit_to_branch=to_branch,
             repo_root=repo_root,
+            files=expanded_files,
         )
 
         if expansion_report and not json_output:

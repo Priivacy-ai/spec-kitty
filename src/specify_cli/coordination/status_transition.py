@@ -541,6 +541,46 @@ def read_current_wp_state_transactional(
     return wp_lane_actor_from_events(events, wp_id)
 
 
+def _read_contract_routes_through_coordination(
+    identity: _TransactionIdentity,
+) -> bool:
+    """Decide the coord-vs-primary read-contract SHAPE from the STORED topology.
+
+    FR-009 / SC-001: the read-contract coord-vs-primary SHAPE is decided by the
+    WP02 topology SSOT, never re-inferred from a bare ``coordination_branch is
+    None`` SURFACE test — the exact forbidden re-derivation SC-001 gates against.
+
+    This answers ONLY "is this a coord-SHAPED mission?". The transient on-disk
+    arms in the caller (worktree-exists / branch-deleted) keep PROBING the
+    materialized-yet/deleted-now state (C-006: #1718 create-window / #1848
+    coord-deleted) — the stored topology must NOT answer that transient question.
+
+    Mirrors the canonical WP03 surface-resolver pattern
+    (``surface_resolver._topology_uses_coord_surface``): the binary
+    coord-vs-primary SHAPE is disposed by the WP02 topology SSOT
+    (:func:`mission_runtime.classify_topology`) over the stored
+    ``coordination_branch`` VALUE, NOT by a bare ``coordination_branch is None``
+    re-inference. ``has_lanes`` is irrelevant to the binary coord-routing SHAPE
+    (both ``COORD`` and ``LANES_WITH_COORD`` route through coordination), so the
+    coord-less default arm is used — identical to the surface resolver's
+    historical two-arg call sites.
+
+    The derivation is **pure** (no ``meta.json`` write), so a status READ never
+    persists a ``topology`` back-fill (the read-must-not-write contract). ``mid8``
+    materialization / branch-deletion stay the transient probe arms below (C-006).
+    """
+    from mission_runtime import (  # noqa: PLC0415
+        MissionTopology,
+        classify_topology,
+    )
+
+    coord_routing = frozenset(
+        {MissionTopology.COORD, MissionTopology.LANES_WITH_COORD}
+    )
+    topology = classify_topology(identity.coordination_branch, has_lanes=False)
+    return topology in coord_routing
+
+
 def _read_contract_from_transaction_target(
     identity: _TransactionIdentity,
     mission_slug: str,
@@ -555,7 +595,10 @@ def _read_contract_from_transaction_target(
         if _is_under_worktree(identity.feature_dir):
             return EventLogReadContract.coordination_worktree(identity.feature_dir)
         return EventLogReadContract.primary_checkout(identity.feature_dir)
-    if identity.coordination_branch is None:
+    # FR-009 / SC-001: the coord-vs-primary SHAPE is read from the STORED topology
+    # (the WP03 seam), retiring the prior ``coordination_branch is None`` SURFACE
+    # re-inference. The transient on-disk arms below stay probe-discriminated.
+    if not _read_contract_routes_through_coordination(identity):
         return EventLogReadContract.primary_checkout(identity.feature_dir)
 
     from specify_cli.coordination.workspace import CoordinationWorkspace  # noqa: PLC0415
