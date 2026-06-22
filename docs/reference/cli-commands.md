@@ -1221,6 +1221,30 @@ _Project health diagnostics_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty doctor topology
+
+```
+ Usage: spec-kitty doctor topology [OPTIONS]
+
+ Report each mission's STORED topology across kitty-specs/.
+
+ Reads the authoritative ``topology`` value persisted in ``meta.json`` WITHOUT
+ re-inferring from disk/git. Missions not yet backfilled surface
+ ``topology: null`` — run ``spec-kitty migrate backfill-topology`` to persist
+ the computed value.
+
+ Examples:
+     spec-kitty doctor topology
+     spec-kitty doctor topology --json
+     spec-kitty doctor topology --mission 083-foo
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json                 Emit structured JSON output (suitable for CI)         │
+│ --mission        TEXT  Scope report to a single mission slug                 │
+│ --help                 Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty doctor workspaces
 
 ```
@@ -2040,6 +2064,37 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │                        The JSON shape is identical to a live run.            │
 │ --mission        SLUG  Scope to a single mission slug (e.g. 083-foo-bar).    │
 │                        Omit to process all.                                  │
+│ --help                 Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty migrate backfill-topology
+
+```
+ Usage: spec-kitty migrate backfill-topology [OPTIONS]
+
+ Persist each legacy mission's MissionTopology into its meta.json.
+
+ Computes every mission's topology (the coordination × lanes grid cell) from
+ its current on-disk signals via the single WP01 classifier and writes it to
+ ``meta.json`` as the authoritative ``topology`` value. This command is
+ **idempotent** — a mission that already has a valid ``topology`` is skipped
+ and its value is never overwritten.
+
+ Exit codes:
+
+ - ``0`` — all results are ``wrote`` or ``skip``
+ - ``1`` — one or more ``error`` results (corrupt / unreadable meta.json)
+
+ Examples:
+     spec-kitty migrate backfill-topology --dry-run --json
+     spec-kitty migrate backfill-topology --mission 083-foo-bar
+     spec-kitty migrate backfill-topology
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json                 Emit per-mission result list as structured JSON       │
+│ --dry-run              Report what would change without writing any files.   │
+│ --mission        SLUG  Scope to a single mission slug (e.g. 083-foo-bar).    │
 │ --help                 Show this message and exit.                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
