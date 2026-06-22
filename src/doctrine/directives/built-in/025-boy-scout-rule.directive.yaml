@@ -2,26 +2,37 @@ schema_version: "1.0"
 id: DIRECTIVE_025
 title: Boy Scout Rule
 intent: >
-  Engineers should leave touched areas in a slightly better state when safe and
-  local to the active task.
-enforcement: advisory
+  Leave touched areas in a better state by default. When an area already modified
+  for the current task carries a failing test, lint, or type issue, fixing it is the
+  default stance — not an optional nicety. Establishing whether a failure is
+  pre-existing routinely costs more effort than simply fixing it, and litigating
+  blame leaves the campground dirtier; so the default is to fix, and to defer only
+  with an explicit rationale.
+enforcement: lenient-adherence
 scope: >
-  Applies to small, low-risk improvements within files or modules already
-  modified for the current task.
+  Applies to the files and modules already modified for the current task, and to the
+  failing tests, lint findings, and type errors surfaced within them. It does not
+  license broad refactors or edits outside the touched area.
 procedures:
+  - When a touched area has a failing test, lint finding, or type error, fix it by default rather than deferring it or attributing it to pre-existing state.
   - Apply minor cleanup that improves readability, naming, or consistency in touched areas.
-  - Prioritize fixes that reduce maintenance burden without expanding task scope.
-  - Defer broad refactors that conflict with locality-of-change constraints.
+  - Keep the fix proportional and local; defer a genuinely broad refactor (which belongs to a dedicated task) with a one-line rationale and, where useful, a tracker reference.
 integrity_rules:
-  - Improvements should not introduce behavioral changes unless explicitly tested.
-  - Cleanup work must remain proportional to the task being delivered.
+  - Adjacent-breakage fixes stay within the touched area and do not expand into broad refactors.
+  - Behavioral changes beyond the failing-check fix require explicit tests.
+  - Time spent proving a failure is pre-existing, rather than fixing it, is the waste this directive exists to prevent.
 validation_criteria:
-  - Touched code is measurably clearer or more consistent after completion.
-  - Advisory improvements do not delay or derail required deliverables.
+  - No newly-visible failing test, lint finding, or type error in a touched area is left unaddressed without an explicit deferral rationale.
+  - Cleanup remains proportional and does not delay or derail required deliverables.
+explicit_allowances:
+  - Deferring an adjacent fix is allowed when it is genuinely large, risky, or out of scope — recorded with a one-line rationale and, where useful, a tracker reference.
+  - When a touched-area failure is a pre-existing flake unrelated to the change, it may be deferred with a note rather than fixed inline.
 opposed_by:
   - type: directive
     id: DIRECTIVE_024
     reason: >
-      Locality of Change constrains edits to the minimum required by the goal.
-      Opportunistic cleanup endorsed by the Boy Scout Rule expands the diff
-      beyond that minimum, increasing review complexity and regression risk.
+      Locality of Change constrains the SCOPE of new work to the minimum the goal
+      requires; it does NOT license leaving adjacent breakage in already-touched
+      code. Campsite cleaning of touched-area failures is within locality; broad
+      refactors are not. The two reconcile by fixing adjacent breakage by default
+      while deferring genuinely broad refactors with a rationale.
