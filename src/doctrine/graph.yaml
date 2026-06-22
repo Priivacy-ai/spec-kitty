@@ -223,6 +223,9 @@ nodes:
 - urn: paradigm:trunk-based
   kind: paradigm
   label: Trunk-Based Development
+- urn: procedure:adversarial-squad-deployment
+  kind: procedure
+  label: Adversarial Squad Deployment
 - urn: procedure:bdd-scenario-lifecycle
   kind: procedure
   label: BDD Scenario Lifecycle
@@ -1560,6 +1563,9 @@ edges:
   target: directive:DIRECTIVE_003
   relation: requires
 - source: paradigm:brownfield-onboarding
+  target: directive:DIRECTIVE_041
+  relation: requires
+- source: paradigm:brownfield-onboarding
   target: paradigm:big-ball-of-mud
   relation: replaces
   reason: A Big Ball of Mud is the failure mode brownfield onboarding is built to interrupt. Where Big Ball of Mud lets coupling and concepts leak without investigation, brownfield onboarding insists that the leaks be mapped and named before they are either preserved or removed.
@@ -1567,6 +1573,18 @@ edges:
   target: paradigm:big-upfront-design
   relation: replaces
   reason: 'Big Upfront Design assumes the right structure can be derived from first principles before contact with the existing system. Brownfield onboarding inverts the priority: the existing system is the primary evidence, and design proposals must be grounded in what the codebase, its history, and its SMEs already encode.'
+- source: paradigm:brownfield-onboarding
+  target: procedure:adversarial-squad-deployment
+  relation: requires
+- source: paradigm:brownfield-onboarding
+  target: procedure:legacy-codebase-triage
+  relation: requires
+- source: paradigm:brownfield-onboarding
+  target: tactic:delete-the-assertion-not-the-test
+  relation: requires
+- source: paradigm:brownfield-onboarding
+  target: tactic:forensic-repository-audit
+  relation: requires
 - source: paradigm:c4-incremental-detail-modeling
   target: directive:DIRECTIVE_001
   relation: requires
@@ -1686,6 +1704,12 @@ edges:
   relation: requires
 - source: paradigm:trunk-based
   target: directive:DIRECTIVE_033
+  relation: requires
+- source: procedure:adversarial-squad-deployment
+  target: tactic:code-review-incremental
+  relation: requires
+- source: procedure:adversarial-squad-deployment
+  target: tactic:five-paradigm-parallel-debugging
   relation: requires
 - source: procedure:bdd-scenario-lifecycle
   target: directive:DIRECTIVE_034

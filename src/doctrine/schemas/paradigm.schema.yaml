@@ -31,6 +31,30 @@ definitions:
       reason:
         type: string
         minLength: 1
+  reference:
+    type: object
+    additionalProperties: false
+    required:
+    - type
+    - id
+    properties:
+      type:
+        type: string
+        minLength: 1
+        enum:
+        - directive
+        - tactic
+        - styleguide
+        - toolguide
+        - paradigm
+        - procedure
+        - agent_profile
+        - mission_step_contract
+        - template
+        description: Doctrine artifact type being referenced.
+      id:
+        type: string
+        minLength: 1
 properties:
   schema_version:
     type: string
@@ -57,6 +81,10 @@ properties:
     items:
       type: string
       pattern: ^DIRECTIVE_\d{3}$
+  references:
+    type: array
+    items:
+      $ref: '#/definitions/reference'
   opposed_by:
     type: array
     items:

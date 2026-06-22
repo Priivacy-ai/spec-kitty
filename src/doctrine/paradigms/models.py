@@ -10,6 +10,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from doctrine.artifact_kinds import ArtifactKind
 from doctrine.shared.models import Contradiction
 
 _RETIRED_RELATIONSHIP_FIELDS = ("enhances", "overrides")
@@ -38,11 +39,30 @@ def _reject_retired_relationship_fields(kind: str, data: Any) -> Any:
     return data
 
 
+class ParadigmReference(BaseModel):
+    """Typed cross-artifact reference from a paradigm.
+
+    The sanctioned structured form (``{type, id}``) — distinct from the retired
+    legacy ``tactic_refs`` / ``paradigm_refs`` inline-name fields excised in
+    mission ``excise-doctrine-curation-and-inline-references-01KP54J6``. ``type``
+    accepts the full :class:`ArtifactKind` vocabulary, so a paradigm may reference
+    a tactic, procedure, agent profile, etc. The DRG extractor mints the
+    corresponding ``paradigm -> <ref>`` edge at graph-generation time.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    type: ArtifactKind
+    id: str
+
+
 class Paradigm(BaseModel):
     """A worldview-level framing that guides doctrine interpretation.
 
-    Relationships to tactics and directives are expressed as typed edges in
-    ``src/doctrine/graph.yaml`` rather than inline fields on this model.
+    Relationships to directives use the inline ``directive_refs`` list; richer
+    cross-artifact relationships (paradigm -> tactic / procedure / agent_profile)
+    use the structured ``references`` list. The retired legacy ``tactic_refs`` /
+    ``paradigm_refs`` inline-name fields remain rejected (FR-028).
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
@@ -52,6 +72,7 @@ class Paradigm(BaseModel):
     name: str
     summary: str
     directive_refs: list[str] = Field(default_factory=list)
+    references: list[ParadigmReference] = Field(default_factory=list)
     opposed_by: list[Contradiction] = Field(default_factory=list)
 
     @model_validator(mode="before")

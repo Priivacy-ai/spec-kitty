@@ -73,6 +73,7 @@ collaboration:
     - security-review-process
     - reverse-speccing
     - language-driven-design-review
+    - adversarial-squad-deployment
   canonical-verbs:
     - review
     - approve
