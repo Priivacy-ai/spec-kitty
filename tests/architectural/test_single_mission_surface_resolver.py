@@ -247,13 +247,16 @@ _RAW_JOIN_SITES: tuple[tuple[str, int, str], ...] = (
     # without flipping this ratchet RED (the whole point of the front-load).
     (
         "specify_cli/missions/_read_path_resolver.py",
-        885,
+        1103,
         "TBYD — IS the primary_feature_dir_for_mission primitive definition; "
         "assert_safe_path_segment called just above (NFR-002); "
         "get_main_repo_root wraps the left operand; "
         "this function is the canonical topology-blind entry point. "
-        "(Re-keyed :869 -> :885: the PR #2065 read_primary_meta "
-        "canonicalize-on-miss fix added lines above this definition.)",
+        "(Re-keyed :869 -> :885 -> :1078: WP04 added the stored-topology helpers "
+        "(stored_topology_from_meta / _topology_routes_through_coord / "
+        "_declares_coordination_branch / _canonicalize_bare_modern_handle) + the "
+        "topology threading above this definition. The composite key is anchored on "
+        "the qualname + join token line, so only the seed line drifted.)",
     ),
     # ----- mission_creation.py: seam-grammar output -----
     # ``mission_slug_formatted = mission_dir_name(mission_slug, mid8=...)`` at :323.
@@ -936,21 +939,29 @@ def test_seam_source_contains_fail_closed_gate() -> None:
     """The seam SOURCE still contains the empty-mid8 fail-closed gate (mutation tripwire).
 
     FR-006b mutation proof, static form: removing the gate
-    (``if not mid8 and declares_coordination:`` -> ``raise StatusReadPathNotFound``)
+    (``if not mid8 and declares_coordination ...:`` -> ``raise StatusReadPathNotFound``)
     from the seam would make ``test_seam_empty_mid8_fail_closed_gate_raises``
     FAIL (the seam would fall through to a stale primary read).  This companion
     assertion pins the gate's STRUCTURAL presence so a refactor that drops the
     branch is caught even if the runtime test fixture drifts.
+
+    NOTE (WP04 / FR-006, single-planning-surface-authority-01KVPR00): the gate
+    condition gained a trailing ``and consults_coord_husk`` term — a stored
+    coord-less topology resolves PRIMARY rather than failing closed on a residual
+    husk (the husk is structurally not consulted; #2062 cannot re-open). The
+    structural pin is anchored on the load-bearing ``not mid8 and
+    declares_coordination`` clause (without the trailing colon) so it survives that
+    narrowing while still catching a refactor that drops the empty-mid8 branch.
     """
     src = _SEAM_SOURCE.read_text(encoding="utf-8")
-    assert "if not mid8 and declares_coordination:" in src, (
+    assert "if not mid8 and declares_coordination" in src, (
         "The seam's empty-mid8 fail-closed gate "
-        "(`if not mid8 and declares_coordination:`) is MISSING from "
+        "(`if not mid8 and declares_coordination ...`) is MISSING from "
         f"{_SEAM_SOURCE} — removing it regresses FR-006b (silent stale-primary "
         "read on an unprovable coord-declared topology)."
     )
     # The gate must raise the typed read-path error, not fall through.
-    gate_idx = src.index("if not mid8 and declares_coordination:")
+    gate_idx = src.index("if not mid8 and declares_coordination")
     gate_block = src[gate_idx : gate_idx + 400]
     assert "raise StatusReadPathNotFound(" in gate_block, (
         "The empty-mid8 gate no longer RAISES StatusReadPathNotFound — a "
