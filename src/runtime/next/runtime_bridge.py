@@ -62,6 +62,7 @@ from runtime.next.decision import (
     _state_to_action,
 )
 from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
+from mission_runtime import MissionTopology
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,14 @@ KITTIFY_DIR = ".kittify"
 META_JSON = "meta.json"
 MISSION_RUNTIME_YAML = "mission-runtime.yaml"
 MISSION_YAML = "mission.yaml"
+
+# The mission shapes whose decision audit log lands on a coordination ref. The
+# coord-less cells (SINGLE_BRANCH / LANES) land on the primary checkout's current
+# branch (FLATTENED). This is the stored-topology projection of the retired
+# ``_coord_path.exists() ⇒ COORDINATION`` ladder (FR-004 / SC-001 / C-004).
+_COORD_ROUTING_TOPOLOGIES: frozenset[MissionTopology] = frozenset(
+    {MissionTopology.COORD, MissionTopology.LANES_WITH_COORD}
+)
 
 
 class DecisionGitLogUnavailable(RuntimeError):
@@ -141,17 +150,33 @@ def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str:
     return mission_slug
 
 
-def _mission_declares_coordination_branch(mission_slug: str, repo_root: Path) -> bool:
-    """Return True when meta.json explicitly declares coord-branch topology."""
-    meta_path = _primary_runtime_feature_dir(repo_root, mission_slug) / META_JSON
-    if not meta_path.exists():
-        return False
+def _mission_routes_through_coordination(mission_slug: str, repo_root: Path) -> bool:
+    """Return True when the mission's STORED topology routes through coordination.
+
+    Reads the WP02 stored :class:`MissionTopology` (FR-004) from ``meta.json`` via
+    the compute-once-then-persist shim and disposes the coord-vs-flattened SHAPE
+    from it — replacing the retired ``meta.coordination_branch is not None``
+    derivation (the second #2069 inference, which keyed the decision on a value
+    presence rather than the stored shape, SC-001). A coord-routing topology
+    (``COORD`` / ``LANES_WITH_COORD``) returns ``True``; the coord-less cells
+    return ``False``. Missing/malformed meta degrades to non-coord (matching the
+    historical "no declared coord topology" arm).
+    """
+    from specify_cli.migration.backfill_topology import ensure_topology
+    from specify_cli.missions._read_path_resolver import (
+        primary_feature_dir_for_mission,
+    )
+
+    # Anchor the stored-topology read on the topology-BLIND primary dir (where
+    # meta.json lives), mirroring ``resolution._resolve_coordination_branch`` — the
+    # coord-aware resolver fail-closes for a materialized-but-empty coord worktree,
+    # so it must not gate this read.
+    feature_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
     try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+        topology = ensure_topology(feature_dir)
+    except (FileNotFoundError, ValueError, OSError):
         return False
-    branch = meta.get("coordination_branch") if isinstance(meta, dict) else None
-    return isinstance(branch, str) and bool(branch.strip())
+    return topology in _COORD_ROUTING_TOPOLOGIES
 
 
 def _wrap_with_decision_git_log(
@@ -165,7 +190,7 @@ def _wrap_with_decision_git_log(
     the original emitter is returned unchanged so mission execution is not
     blocked.
     """
-    declared_coord_topology = _mission_declares_coordination_branch(
+    coord_routing_topology = _mission_routes_through_coordination(
         mission_slug, repo_root,
     )
     try:
@@ -182,30 +207,33 @@ def _wrap_with_decision_git_log(
         # 8-char tail with no identity to confirm against, so it must not sit on
         # this correctness path (#1918). resolve_mid8 returns mission_id[:8] when
         # a ULID is declared, and declines (``""``) on a bare slug with no id.
-        # Fall back to repo_root only for legacy missions or pre-init runs that
-        # do not yet declare coord-branch topology.  Modern missions with a
-        # missing coord worktree fail closed to avoid dirtying the primary
-        # checkout with coord-branch decision events.
         from specify_cli.lanes.branch_naming import resolve_mid8 as _resolve_mid8
         _declared_id = mission_id if mission_id != mission_slug else None
         _mid8 = _resolve_mid8(mission_slug, mission_id=_declared_id)
-        _coord_path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, _mid8)
-        if _coord_path.exists():
-            worktree_root = _coord_path
-            decision_target = CommitTarget(
-                ref=coordination_branch, kind=CommitTargetKind.COORDINATION
+
+        # The decision-target topology SHAPE is READ from the WP02 stored topology
+        # (FR-004 / SC-001) — never from ``_coord_path.exists()`` (the retired
+        # disk-``stat`` ladder, C-004). The on-disk worktree-materialization check
+        # (``_coord_path.exists()``) survives ONLY to choose the worktree_root for a
+        # coord-routing mission (C-006 transient discrimination: materialized →
+        # use it; not-yet-materialized → compose via ``CoordinationWorkspace.resolve``)
+        # — it is NOT the topology classifier.
+        if coord_routing_topology:
+            _coord_path = CoordinationWorkspace.worktree_path(
+                repo_root, mission_slug, _mid8
             )
-        elif declared_coord_topology:
-            worktree_root = CoordinationWorkspace.resolve(
-                repo_root, mission_slug, _mid8,
+            worktree_root = (
+                _coord_path
+                if _coord_path.exists()
+                else CoordinationWorkspace.resolve(repo_root, mission_slug, _mid8)
             )
             decision_target = CommitTarget(
                 ref=coordination_branch, kind=CommitTargetKind.COORDINATION
             )
         else:
-            # Legacy mission without coord topology: decisions land on the
-            # primary checkout's current branch (a lane/mission branch), so the
-            # target is FLATTENED — landing == coordination == target.
+            # Coord-less topology: decisions land on the primary checkout's
+            # current branch (a lane/mission branch), so the target is FLATTENED —
+            # landing == coordination == target.
             worktree_root = repo_root
             decision_target = CommitTarget(
                 ref=coordination_branch, kind=CommitTargetKind.FLATTENED
@@ -221,7 +249,7 @@ def _wrap_with_decision_git_log(
             target=decision_target,
         )
     except Exception as exc:
-        if declared_coord_topology:
+        if coord_routing_topology:
             raise DecisionGitLogUnavailable(
                 "DecisionGitLog construction failed for declared coordination "
                 f"topology mission {mission_slug!r}; refusing to continue "

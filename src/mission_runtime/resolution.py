@@ -29,6 +29,7 @@ from mission_runtime.context import (
     CommitTargetKind,
     ExecutionContext,
     IdentityFragment,
+    MissionTopology,
     StatusSurfaceFragment,
     WorkspaceFragment,
 )
@@ -54,6 +55,7 @@ __all__ = [
     "ActionContextError",
     "ActionName",
     "resolve_action_context",
+    "resolve_context_for_mission",
     "resolve_placement_only",
 ]
 
@@ -125,6 +127,183 @@ def build_execution_context(
             "inconsistent (FR-009 / C-IC01).",
         )
     return context
+
+
+# The four-cell topology grid (WP01) collapses to a binary placement decision:
+# COORD / LANES_WITH_COORD route through a distinct coordination ref; the two
+# coord-less cells (SINGLE_BRANCH / LANES) have no primary↔coordination split, so
+# their destination is FLATTENED (landing == coordination == target on one branch,
+# C-001). This is the SOLE topology→kind authority WP03 routes the retired
+# ``coordination_branch is None`` derivations through (FR-004 / SC-001).
+_COORD_ROUTING_TOPOLOGIES: frozenset[MissionTopology] = frozenset(
+    {MissionTopology.COORD, MissionTopology.LANES_WITH_COORD}
+)
+
+
+def destination_kind_for_topology(topology: MissionTopology) -> CommitTargetKind:
+    """Map a stored :class:`MissionTopology` to the ``CommitTarget`` ``kind``.
+
+    The ONE place the four-cell grid is projected onto the binary
+    coordination-vs-flattened placement (FR-004). A coord-routing topology
+    (``COORD`` / ``LANES_WITH_COORD``) classifies the destination ref as
+    ``COORDINATION``; the two coord-less cells classify it ``FLATTENED`` — there is
+    no primary↔coordination split to reconcile (C-001). This replaces the
+    retired ``coordination_branch is None ⇒ FLATTENED`` inference: the shape is
+    READ from the stored topology, never guessed from the branch value.
+    """
+    if topology in _COORD_ROUTING_TOPOLOGIES:
+        return CommitTargetKind.COORDINATION
+    return CommitTargetKind.FLATTENED
+
+
+def resolve_context_for_mission(
+    mission_id: str,
+    topology: MissionTopology,
+    *,
+    action: ActionName,
+    mission_slug: str,
+    feature_dir: str,
+    target_branch: str,
+    identity: IdentityFragment,
+    branch_ref: BranchRefFragment,
+    status_surface: StatusSurfaceFragment | None = None,
+    workspace: WorkspaceFragment | None = None,
+    coordination_branch_signal: str | None = None,
+    has_lanes_signal: bool | None = None,
+    **extra_fields: Any,
+) -> ExecutionContext:
+    """PURE projection of an :class:`ExecutionContext` from stored topology (FR-004).
+
+    The **functional core** of the single planning-surface authority. Given a
+    mission identity + the WP02 **stored** :class:`MissionTopology` (read from
+    ``meta.json`` by the imperative shell) and the shell-assembled fragments, it
+    projects exactly one :class:`ExecutionContext` through the PURE construction
+    door :func:`build_execution_context` (``resolution.py`` factory). It performs
+    **zero** filesystem or git I/O (NFR-005): there is no ``open`` / ``read_text``
+    / ``load_meta`` / ``subprocess`` / ``git`` / ``*.exists()`` / ``*.stat()`` /
+    ``_assemble_core_fragments`` call in this body — every such read happens in the
+    shell BEFORE the resolver and arrives as an argument.
+
+    Placement (C-001 / FR-004): the destination/placement ref ``kind`` is derived
+    from the stored ``topology`` via :func:`destination_kind_for_topology` — the
+    SSOT replacing the retired ``coordination_branch is None ⇒ FLATTENED``
+    inference. The supplied ``branch_ref`` is re-projected so its
+    ``destination_ref`` reflects the stored topology, and the matching
+    :class:`ArtifactPlacementFragment` shares that one ``CommitTarget`` (C-PLACE-1).
+
+    C-003 (binding): this is a **thin projection over the PURE door**, sharing
+    :func:`resolve_placement_only`'s narrow-projection *discipline* while sitting
+    one layer UP. ``resolve_placement_only`` is the imperative SHELL — it itself
+    calls :func:`_assemble_core_fragments` (FS/git) and projects the
+    ``destination_ref`` out of those fragments. This resolver does NOT call
+    ``_assemble_core_fragments`` or any reader: the shell assembles the fragments
+    + reads the stored ``topology`` and threads them in; the resolver projects
+    only :func:`build_execution_context`. That separation is what makes the
+    zero-fixture purity test possible (T018 / SC-002).
+
+    Optional input-assertion (T016 / C-003 spirit, fail-closed): when the shell
+    ALSO supplies the structured ``coordination_branch_signal`` /
+    ``has_lanes_signal`` it already read, and the **supplied** ``topology``
+    disagrees with what those signals would classify, this raises
+    ``ActionContextError("TOPOLOGY_INPUT_MISMATCH", …)`` naming BOTH topologies. It
+    is an assertion over shell-provided inputs, NOT a disk re-derivation — the
+    resolver stays pure. When the corroborating signals are not supplied the guard
+    is skipped cleanly, so pure callers passing only the topology are unaffected.
+
+    Args:
+        mission_id: The canonical mission identity (already resolved by the shell).
+        topology: The WP02 stored mission topology (authoritative input).
+        action: The action name the context is resolved for.
+        mission_slug: The mission directory name / slug.
+        feature_dir: The resolved mission feature directory (string substrate).
+        target_branch: The mission target branch (resolved once by the shell).
+        identity: Shell-assembled identity fragment.
+        branch_ref: Shell-assembled branch-ref fragment; its ``destination_ref``
+            is re-projected to the stored-topology ``kind``.
+        status_surface: Shell-assembled status-surface fragment (optional).
+        workspace: Shell-assembled workspace fragment (optional).
+        coordination_branch_signal: Raw coordination-branch value the shell read,
+            supplied ONLY to corroborate the topology (optional T016 guard).
+        has_lanes_signal: Whether the mission has lanes, supplied ONLY to
+            corroborate the topology (optional T016 guard).
+        **extra_fields: Additional flat-substrate fields forwarded to the factory.
+
+    Returns:
+        The single projected :class:`ExecutionContext`.
+
+    Raises:
+        ActionContextError: ``TOPOLOGY_INPUT_MISMATCH`` when the optional
+            corroborating signals contradict the supplied topology, or
+            ``CONTEXT_INVARIANT_VIOLATION`` from the door.
+    """
+    if mission_id != identity.mission_id:
+        raise ActionContextError(
+            "TOPOLOGY_INPUT_MISMATCH",
+            f"mission_id {mission_id!r} does not match identity fragment "
+            f"mission_id {identity.mission_id!r}; the shell threaded inconsistent "
+            "identity inputs.",
+        )
+    _assert_topology_corroborated(
+        topology,
+        coordination_branch_signal=coordination_branch_signal,
+        has_lanes_signal=has_lanes_signal,
+    )
+
+    destination_ref = CommitTarget(
+        ref=branch_ref.destination_ref.ref,
+        kind=destination_kind_for_topology(topology),
+    )
+    projected_branch_ref = BranchRefFragment(
+        target_branch=branch_ref.target_branch,
+        coordination_branch=branch_ref.coordination_branch,
+        destination_ref=destination_ref,
+    )
+    artifact_placement = ArtifactPlacementFragment(placement_ref=destination_ref)
+
+    return build_execution_context(
+        action=action,
+        mission_slug=mission_slug,
+        feature_dir=feature_dir,
+        target_branch=target_branch,
+        detection_method="explicit",
+        identity=identity,
+        branch_ref=projected_branch_ref,
+        status_surface=status_surface,
+        workspace=workspace,
+        artifact_placement=artifact_placement,
+        **extra_fields,
+    )
+
+
+def _assert_topology_corroborated(
+    topology: MissionTopology,
+    *,
+    coordination_branch_signal: str | None,
+    has_lanes_signal: bool | None,
+) -> None:
+    """Fail closed when supplied topology disagrees with corroborating signals.
+
+    The T016 optional input-assertion. Skipped cleanly when ``has_lanes_signal``
+    is ``None`` (the shell did not supply corroborating structured signals), so a
+    pure caller passing only ``(mission_id, topology)`` is unaffected. This is an
+    assertion over shell-provided inputs — it does NOT read disk (the resolver
+    stays pure); it imports the WP01 :func:`classify_topology` authority to
+    compute the signal-implied topology rather than re-implementing the 2×2 grid.
+    """
+    if has_lanes_signal is None:
+        return
+    from mission_runtime.context import classify_topology
+
+    implied = classify_topology(coordination_branch_signal, has_lanes_signal)
+    if implied is not topology:
+        raise ActionContextError(
+            "TOPOLOGY_INPUT_MISMATCH",
+            f"supplied topology {topology.value!r} disagrees with the topology "
+            f"{implied.value!r} implied by the corroborating signals "
+            f"(coordination_branch={coordination_branch_signal!r}, "
+            f"has_lanes={has_lanes_signal!r}); refusing to silently prefer one "
+            "(C-003 fail-closed).",
+        )
 
 
 def _resolve_mission_slug(
@@ -552,6 +731,37 @@ def _resolve_coordination_branch(primary_root: Path, mission_slug: str) -> str |
     return str(raw) if raw else None
 
 
+def _resolve_topology(primary_root: Path, mission_slug: str) -> MissionTopology:
+    """Read the WP02 **stored** :class:`MissionTopology` from meta (shell read).
+
+    The imperative-shell topology read: anchored on the canonical PRIMARY dir
+    (where ``meta.json`` lives, mirroring :func:`_resolve_coordination_branch`)
+    and delegated to WP02's :func:`ensure_topology` compute-once-then-persist
+    shim. ``ensure_topology`` returns the stored value with no write when present,
+    and back-fills it exactly once (via WP01's :func:`classify_topology`) for a
+    pre-WP02 mission — so this is the single, CWD-invariant topology source the
+    fragment assembly threads in. Falls back to the
+    ``(coordination_branch, has_lanes=False)`` classification when ``meta.json`` is
+    absent/malformed so bootstrap windows still resolve a stable shape.
+    """
+    from mission_runtime.context import classify_topology
+    from specify_cli.migration.backfill_topology import ensure_topology
+    from specify_cli.missions._read_path_resolver import (
+        primary_feature_dir_for_mission,
+    )
+
+    primary_dir = primary_feature_dir_for_mission(primary_root, mission_slug)
+    try:
+        stored: MissionTopology = ensure_topology(primary_dir)
+        return stored
+    except (FileNotFoundError, ValueError):
+        # No persisted meta yet (bootstrap window) or malformed: classify from the
+        # coordination-branch value-read with no lanes signal. This is the same
+        # degraded-but-stable shape the surface resolver reports for the window.
+        coordination_branch = _resolve_coordination_branch(primary_root, mission_slug)
+        return classify_topology(coordination_branch, has_lanes=False)
+
+
 def _resolve_mission_id(primary_root: Path, mission_slug: str) -> str:
     """Resolve the canonical ``mission_id`` for the mission.
 
@@ -583,7 +793,9 @@ def _resolve_mission_id(primary_root: Path, mission_slug: str) -> str:
     return f"legacy-{mission_slug}"
 
 
-def _resolve_status_surface_dir(primary_root: Path, mission_slug: str) -> Path:
+def _resolve_status_surface_dir(
+    primary_root: Path, mission_slug: str, topology: MissionTopology
+) -> Path:
     """Resolve the canonical status-surface DIRECTORY via WP02's resolver.
 
     Consumes :func:`resolve_status_surface` (IC-01) — the single status-surface
@@ -593,6 +805,11 @@ def _resolve_status_surface_dir(primary_root: Path, mission_slug: str) -> Path:
     bootstrap windows and ad-hoc fixtures keep resolving. The fail-closed
     surface refusal is NOT a fallback case: it translates to
     :class:`ActionContextError` (PR #1850 M6).
+
+    The stored ``topology`` is threaded through to
+    :func:`resolve_status_surface` so the PRIMARY-vs-coordination surface SHAPE is
+    decided from the WP02 stored value (FR-004 / SC-001), not from a parallel
+    ``coordination_branch is None`` re-inference inside the surface resolver.
     """
     from specify_cli.coordination.surface_resolver import resolve_status_surface
     from specify_cli.missions._read_path_resolver import (
@@ -601,7 +818,7 @@ def _resolve_status_surface_dir(primary_root: Path, mission_slug: str) -> Path:
     )
 
     try:
-        surface = resolve_status_surface(primary_root, mission_slug)
+        surface = resolve_status_surface(primary_root, mission_slug, topology)
     except StatusReadPathNotFound as exc:
         # Fail closed (FR-005 / #1589 / #1821): the coord worktree root is
         # materialized but its mission dir is absent. Degrading to the primary
@@ -666,6 +883,7 @@ def _assemble_core_fragments(
     *,
     mission_slug: str,
     target_branch: str,
+    topology: MissionTopology,
     cwd: Path | None,
 ) -> tuple[IdentityFragment, BranchRefFragment, StatusSurfaceFragment, WorkspaceFragment]:
     """Assemble the WP02/WP03/WP05-owned fragments of the op-composite (IC-02).
@@ -676,15 +894,14 @@ def _assemble_core_fragments(
 
     * ``IdentityFragment`` — ``mid8`` single-derived as ``mission_id[:8]``.
     * ``BranchRefFragment`` — ``target_branch`` carried (already resolved once by
-      the caller, FR-012); ``coordination_branch`` from meta (``None`` when
-      flattened, C-001); ``destination_ref`` a :class:`CommitTarget` whose
-      ``kind`` reflects coord-branch presence. The flattened-topology *kind*
-      collapse (``kind == FLATTENED``) is WP08's resolution (IC-12); WP03 only
-      stands up the CommitTarget value object with a coordination-vs-primary
-      kind.
+      the caller, FR-012); ``coordination_branch`` from meta (the value-read,
+      ``None`` when flattened, C-001); ``destination_ref`` a :class:`CommitTarget`
+      whose ``kind`` is classified from the **stored** ``topology`` via
+      :func:`destination_kind_for_topology` (WP03 / FR-004) — NOT from
+      ``coordination_branch is None``. The shape is READ, not guessed.
     * ``StatusSurfaceFragment`` — read/write dirs from WP02's
-      :func:`resolve_status_surface` (IC-01); collapse to one dir absent a coord
-      worktree.
+      :func:`resolve_status_surface` (IC-01), classified by the same stored
+      ``topology``; collapse to one dir absent a coord worktree.
     * ``WorkspaceFragment`` — ``primary_root`` via the single worktree-pointer
       parser (WP05 / IC-04 / C-005); CWD-invariant by construction.
 
@@ -692,6 +909,11 @@ def _assemble_core_fragments(
     so every fragment value is CWD-invariant (C-CTX-2 / WP02 carry-forward).
     ArtifactPlacement / PromptSource fragments are intentionally NOT assembled
     here — they land in WP04/06/07 (C-004 strangler ordering).
+
+    ``topology`` (WP02 stored field) is supplied by the caller — the shell reads
+    it once from ``meta.json`` (via :func:`_resolve_topology`) alongside the
+    existing ``target_branch`` read and threads it in. It is the SSOT for the
+    placement/surface ``kind`` classification.
     """
     from specify_cli.core.paths import get_main_repo_root
 
@@ -702,26 +924,27 @@ def _assemble_core_fragments(
         mission_id=mission_id, mission_slug=mission_slug
     )
 
+    # ``_resolve_coordination_branch`` stays as the VALUE reader for the ref
+    # string the BranchRefFragment carries (the shell still needs the ref). The
+    # retired ``is None ⇒ FLATTENED`` *decision* is replaced by reading the stored
+    # topology: the placement ``kind`` is now classified from ``topology`` (FR-004
+    # / SC-001), never inferred from the branch value's presence.
     coordination_branch = _resolve_coordination_branch(primary_root, mission_slug)
-    if coordination_branch is not None:
-        destination_ref = CommitTarget(
-            ref=coordination_branch, kind=CommitTargetKind.COORDINATION
-        )
-    else:
-        # WP08 / IC-12 directed out-of-map edit: no coordination branch ⇒ flattened
-        # topology (landing == coordination == target on the single branch, C-001 /
-        # C-PLACE-1). WP03 left this kind as PRIMARY pending the WP08 collapse; here
-        # we classify it FLATTENED so there is no primary↔coord split to reconcile.
-        destination_ref = CommitTarget(
-            ref=target_branch, kind=CommitTargetKind.FLATTENED
-        )
+    destination_kind = destination_kind_for_topology(topology)
+    coord_ref = (
+        coordination_branch
+        if destination_kind is CommitTargetKind.COORDINATION
+        and coordination_branch is not None
+        else target_branch
+    )
+    destination_ref = CommitTarget(ref=coord_ref, kind=destination_kind)
     branch_ref = BranchRefFragment(
         target_branch=target_branch,
         coordination_branch=coordination_branch,
         destination_ref=destination_ref,
     )
 
-    surface_dir = _resolve_status_surface_dir(primary_root, mission_slug)
+    surface_dir = _resolve_status_surface_dir(primary_root, mission_slug, topology)
     status_surface = StatusSurfaceFragment(
         status_read_dir=surface_dir,
         status_write_dir=surface_dir,
@@ -832,11 +1055,18 @@ def resolve_placement_only(repo_root: Path, mission_slug: str) -> CommitTarget:
 
     # FR-012 / C-CTX-3: ``target_branch`` is resolved exactly once here, exactly
     # as ``resolve_action_context`` does, and threaded into the shared builder.
+    # The WP02 stored ``topology`` is read once alongside it (the shell read) and
+    # threaded in so the placement ``kind`` is classified from the stored shape,
+    # never re-inferred from ``coordination_branch`` (FR-004).
+    from specify_cli.core.paths import get_main_repo_root
+
     target_branch = get_feature_target_branch(repo_root, mission_slug)
+    topology = _resolve_topology(get_main_repo_root(repo_root), mission_slug)
     _identity, branch_ref, _status_surface, _workspace = _assemble_core_fragments(
         repo_root,
         mission_slug=mission_slug,
         target_branch=target_branch,
+        topology=topology,
         cwd=None,
     )
     # The placement ref is the SAME CommitTarget the full resolver projects via
@@ -875,16 +1105,22 @@ def resolve_action_context(
     from specify_cli.task_utils import locate_work_package
     from specify_cli.workspace.context import resolve_workspace_for_wp
 
+    from specify_cli.core.paths import get_main_repo_root
+
     mission_slug, feature_dir = _resolve_mission_slug(repo_root, feature=feature, cwd=cwd, env=env)
     # FR-012 / C-CTX-3: ``target_branch`` is resolved exactly once here and
     # threaded onto both the flat substrate field and the BranchRefFragment; no
-    # downstream surface re-derives it.
+    # downstream surface re-derives it. The WP02 stored ``topology`` is read once
+    # alongside it (shell read) and threaded in so the placement/surface ``kind``
+    # is classified from the stored shape, never re-inferred (FR-004 / SC-001).
     target_branch = get_feature_target_branch(repo_root, mission_slug)
+    topology = _resolve_topology(get_main_repo_root(repo_root), mission_slug)
 
     identity, branch_ref, status_surface, workspace = _assemble_core_fragments(
         repo_root,
         mission_slug=mission_slug,
         target_branch=target_branch,
+        topology=topology,
         cwd=cwd,
     )
     # IC-05 (WP06 / T019): the artifact-placement ref is the SAME CommitTarget
