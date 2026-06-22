@@ -63,6 +63,44 @@ class CommitTargetKind(enum.Enum):
     FLATTENED = "flattened"
 
 
+class MissionTopology(enum.Enum):
+    """The four mission shapes of the orthogonal coordination × lanes grid.
+
+    Names the 2×2 cross-product as ONE stored value (#2069). FLATTENED is NOT a
+    member: it is a historical/metadata provenance flag, never a shape value — a
+    mission that was COORD and had its coordination_branch dropped is now
+    SINGLE_BRANCH/LANES + a `flattened` provenance mark (see spec Domain Language).
+    """
+
+    SINGLE_BRANCH = "single_branch"        # no coord, no lanes
+    LANES = "lanes"                        # no coord, lanes
+    COORD = "coord"                        # coord, no lanes
+    LANES_WITH_COORD = "lanes_with_coord"  # coord, lanes
+
+
+def classify_topology(
+    coordination_branch: str | None,
+    has_lanes: bool,
+) -> MissionTopology:
+    """Map the two orthogonal mission signals to one topology cell (FR-001).
+
+    The SINGLE authority that derives a :class:`MissionTopology` from
+    ``(coordination_branch, has_lanes)``. WP02/WP03/WP04 consume this — they do
+    not re-implement the 2×2 grid. ``FLATTENED`` is never returned: a flattened
+    mission classifies as SINGLE_BRANCH/LANES + a separate ``flattened``
+    provenance flag. This is distinct from
+    :func:`routes_through_coordination` (whole-mission shape vs per-ref routing).
+    """
+    has_coord = coordination_branch is not None
+    if has_coord and has_lanes:
+        return MissionTopology.LANES_WITH_COORD
+    if has_coord:
+        return MissionTopology.COORD
+    if has_lanes:
+        return MissionTopology.LANES
+    return MissionTopology.SINGLE_BRANCH
+
+
 @dataclass(frozen=True)
 class CommitTarget:
     """The ONE ref that artifacts + status events resolve to (ADR-2026-06-03-2).
@@ -79,6 +117,18 @@ class CommitTarget:
 
     ref: str
     kind: CommitTargetKind
+
+
+def routes_through_coordination(target: CommitTarget) -> bool:
+    """Per-ref routing authority: does THIS ref route through coordination?
+
+    The single replacement for direct ``.kind is COORDINATION`` decision reads
+    (FR-005). The ``CommitTargetKind`` type itself survives (vestigial) until
+    Mission B (#2070); this predicate is the ONE place ``.kind`` is read for a
+    routing decision. Distinct from :func:`classify_topology`, which names the
+    whole-mission shape from ``(coordination_branch, has_lanes)``.
+    """
+    return target.kind is CommitTargetKind.COORDINATION
 
 
 @dataclass(frozen=True)
@@ -276,6 +326,9 @@ __all__ = [
     "ExecutionContext",
     "ExecutionMode",
     "IdentityFragment",
+    "MissionTopology",
     "StatusSurfaceFragment",
     "WorkspaceFragment",
+    "classify_topology",
+    "routes_through_coordination",
 ]

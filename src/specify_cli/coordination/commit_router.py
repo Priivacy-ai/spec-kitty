@@ -30,7 +30,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol, runtime_checkable
 
-from mission_runtime import CommitTarget, CommitTargetKind, resolve_placement_only
+from mission_runtime import (
+    CommitTarget,
+    resolve_placement_only,
+    routes_through_coordination,
+)
 from specify_cli.git import safe_commit
 
 
@@ -115,7 +119,7 @@ def commit_for_mission(
     # protected — so COORDINATION kind always materialises the coord worktree
     # (C-001). The policy is checked to guard against committing directly to a
     # protected PRIMARY ref on a flattened/primary placement (FR-005).
-    use_coord = placement.kind is CommitTargetKind.COORDINATION
+    use_coord = routes_through_coordination(placement)
 
     if not use_coord and policy.is_protected(placement.ref):
         # Flattened or primary placement on a protected ref — surface a refusal
@@ -190,7 +194,7 @@ def commit_for_mission(
         commit_hash = commit_result.sha
 
     # WP09 / FR-010 (#1878): best-effort ff-advance after a coord write.
-    if placement.kind is CommitTargetKind.COORDINATION and target_branch:
+    if routes_through_coordination(placement) and target_branch:
         _try_advance_ref(repo_root, target_branch, worktree_root)
 
     return CommitRouterResult(

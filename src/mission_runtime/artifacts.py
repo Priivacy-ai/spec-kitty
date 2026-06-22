@@ -11,7 +11,11 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
-from mission_runtime.context import CommitTarget, CommitTargetKind
+from mission_runtime.context import (
+    CommitTarget,
+    CommitTargetKind,
+    routes_through_coordination,
+)
 from specify_cli.core.constants import KITTY_SPECS_DIR
 
 ArtifactSurface = Literal["primary", "placement"]
@@ -47,7 +51,7 @@ class MissionArtifactHome:
         return (
             self.ignores_primary_coord_residue
             and self.commit_target is not None
-            and self.commit_target.kind is CommitTargetKind.COORDINATION
+            and routes_through_coordination(self.commit_target)
         )
 
 
