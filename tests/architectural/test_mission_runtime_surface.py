@@ -56,12 +56,15 @@ _PUBLIC_SURFACE = sorted(
         "IdentityFragment",
         "MissionArtifactHome",
         "MissionArtifactKind",
+        "MissionTopology",
         "StatusSurfaceFragment",
         "WorkspaceFragment",
         "artifact_home_for",
+        "classify_topology",
         "is_coordination_artifact_residue_path",
         "resolve_action_context",
         "resolve_placement_only",
+        "routes_through_coordination",
     ]
 )
 
