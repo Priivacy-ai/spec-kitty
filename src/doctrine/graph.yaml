@@ -1175,6 +1175,9 @@ edges:
   target: directive:DIRECTIVE_032
   relation: requires
 - source: agent_profile:architect-alphonso
+  target: directive:DIRECTIVE_041
+  relation: requires
+- source: agent_profile:architect-alphonso
   target: tactic:development-bdd
   relation: requires
   reason: Use BDD behavioral contract definition during architecture design to express observable system boundaries in stakeholder-readable terms. Behavioral contracts precede implementation and shape system component boundaries.
@@ -1325,6 +1328,9 @@ edges:
   target: directive:DIRECTIVE_032
   relation: requires
 - source: agent_profile:paula-patterns
+  target: directive:DIRECTIVE_041
+  relation: requires
+- source: agent_profile:paula-patterns
   target: tactic:anti-corruption-layer
   relation: requires
   reason: Use when external system details leak into domain or application decisions
@@ -1376,10 +1382,16 @@ edges:
   target: directive:DIRECTIVE_024
   relation: requires
 - source: agent_profile:randy-reducer
+  target: directive:DIRECTIVE_025
+  relation: requires
+- source: agent_profile:randy-reducer
   target: directive:DIRECTIVE_030
   relation: requires
 - source: agent_profile:randy-reducer
   target: directive:DIRECTIVE_034
+  relation: requires
+- source: agent_profile:randy-reducer
+  target: directive:DIRECTIVE_041
   relation: requires
 - source: agent_profile:randy-reducer
   target: tactic:semantic-compression-abstraction-extraction

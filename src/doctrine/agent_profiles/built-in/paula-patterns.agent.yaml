@@ -26,6 +26,7 @@ context-sources:
     - "003"
     - "030"
     - "032"
+    - "041"
   tactics:
     - paula-patterns-architecture-scout-review
     - anti-corruption-layer
@@ -154,6 +155,9 @@ directive-references:
   - code: "032"
     name: Conceptual Alignment
     rationale: Ownership confusion and recurring field fixes often signal drift in concepts, names, or bounded-context language
+  - code: "041"
+    name: Tests as Scaffold, Not Friction
+    rationale: Decomposition reviews flag test scaffolding coupled to implementation; require observable-contract assertions and fixtures that delegate to the production seam
 
 tactic-references:
   - id: paula-patterns-architecture-scout-review

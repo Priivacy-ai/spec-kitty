@@ -26,6 +26,8 @@ context-sources:
     - "024"
     - "030"
     - "034"
+    - "025"
+    - "041"
   tactics:
     - semantic-compression-behavioral-boundary-mapping
     - semantic-compression-redundancy-discovery
@@ -141,6 +143,12 @@ directive-references:
   - code: "034"
     name: Test-First Development
     rationale: Characterization or regression tests define the behavior that compression must preserve
+  - code: "025"
+    name: Boy Scout Rule
+    rationale: Default to fixing adjacent debt in touched code, not minimizing the diff — proving a failure is pre-existing costs more than fixing it; leave the campground cleaner
+  - code: "041"
+    name: Tests as Scaffold, Not Friction
+    rationale: When reducing or consolidating tests, replace fakeable assertions with contract-pinned ones and re-key brittle ratchets onto content anchors — never merely shrink the surface
 
 tactic-references:
   - id: semantic-compression-behavioral-boundary-mapping
