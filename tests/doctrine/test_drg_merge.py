@@ -294,6 +294,18 @@ class TestSpecializesFromAndUnknownRelation:
             f"relation alias(es) map to the inert APPLIES sink: {offenders}"
         )
 
+    def test_refines_is_canonical_not_aliased(self) -> None:
+        """#2079 precedence pin: REFINES is a canonical ``Relation``, so an authored
+        ``refines`` edge resolves via the enum branch of ``_resolve_relation``, NEVER
+        the alias table. This is the load-bearing path: without this pin, the
+        refines-preservation guard above is shadowed by the enum (an alias-only
+        ``refines: APPLIES`` regression would resolve canonically and slip past it).
+        Paired with the dead-sink ban, this closes that gap."""
+        from doctrine.drg.merge import _RELATION_ALIASES
+
+        assert "refines" in {r.value for r in Relation}
+        assert "refines" not in _RELATION_ALIASES
+
 
 # ---------------------------------------------------------------------------
 # T012 — shipped / org / project parity

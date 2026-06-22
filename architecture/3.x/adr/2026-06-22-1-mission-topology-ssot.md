@@ -1,7 +1,7 @@
 # ADR: MissionTopology SSOT — Store the Mission Shape, Resolve It Once
 
 **Date**: 2026-06-22
-**Status**: Accepted
+**Status**: Accepted (design) — **implementation tracked under mission `single-planning-surface-authority-01KVPR00` (#2069)**; the `MissionTopology` type and `resolve_context_for_mission` do not yet exist in the source tree. This ADR records the agreed design ahead of that mission landing.
 **Mission**: `single-planning-surface-authority-01KVPR00`
 **Requirement**: FR-001..FR-011, NFR-001/NFR-005, C-003/C-004 (binding)
 **Module**: `src/mission_runtime/context.py`, `src/mission_runtime/resolution.py`,
