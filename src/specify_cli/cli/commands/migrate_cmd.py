@@ -296,6 +296,111 @@ def backfill_identity(
         raise typer.Exit(1)
 
 
+@app.command(name="backfill-topology")
+def backfill_topology(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit per-mission result list as structured JSON"),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help=(
+                "Report what would change without writing any files. "
+                "The JSON shape is identical to a live run."
+            ),
+        ),
+    ] = False,
+    mission: Annotated[
+        str | None,
+        typer.Option(
+            "--mission",
+            help="Scope to a single mission slug (e.g. 083-foo-bar). Omit to process all.",
+            metavar="SLUG",
+        ),
+    ] = None,
+) -> None:
+    """Persist each legacy mission's MissionTopology into its meta.json.
+
+    Computes every mission's topology (the coordination × lanes grid cell) from
+    its current on-disk signals via the single WP01 classifier and writes it to
+    ``meta.json`` as the authoritative ``topology`` value. This command is
+    **idempotent** — a mission that already has a valid ``topology`` is skipped
+    and its value is never overwritten.
+
+    Exit codes:
+
+    - ``0`` — all results are ``wrote`` or ``skip``
+    - ``1`` — one or more ``error`` results (corrupt / unreadable meta.json)
+
+    Examples:
+
+        spec-kitty migrate backfill-topology --dry-run --json
+
+        spec-kitty migrate backfill-topology --mission 083-foo-bar
+
+        spec-kitty migrate backfill-topology
+    """
+    from specify_cli.migration.backfill_topology import backfill_topology_repo
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        _error("Could not locate project root. No .kittify/ directory found in any parent directory.")
+        raise typer.Exit(1)
+
+    results = backfill_topology_repo(repo_root, dry_run=dry_run, mission_slug=mission)
+
+    wrote = [r for r in results if r.action == "wrote"]
+    skipped = [r for r in results if r.action == "skip"]
+    errored = [r for r in results if r.action == "error"]
+
+    if json_output:
+        payload = {
+            "dry_run": dry_run,
+            "summary": {
+                "total": len(results),
+                "wrote": len(wrote),
+                "skip": len(skipped),
+                "error": len(errored),
+            },
+            "results": [
+                {
+                    "slug": r.slug,
+                    "action": r.action,
+                    "topology": r.topology,
+                    "reason": r.reason,
+                }
+                for r in results
+            ],
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        prefix = "[dim](dry-run)[/dim] " if dry_run else ""
+        console.print(f"\n{prefix}[bold]backfill-topology summary[/bold]")
+        console.print(f"  Total missions scanned : {len(results)}")
+        console.print(f"  Written (topology)     : {len(wrote)}")
+        console.print(f"  Skipped (already set)  : {len(skipped)}")
+        console.print(f"  Errors                 : {len(errored)}")
+
+        if errored:
+            console.print("\n[red]Errors:[/red]")
+            for r in errored:
+                console.print(f"  [red]{r.slug}:[/red] {r.reason}")
+
+        if dry_run:
+            console.print("\n[dim]Dry run — no files were modified.[/dim]")
+        elif wrote:
+            console.print(
+                f"\n[green]Done.[/green] {len(wrote)} mission(s) received a ``topology``."
+            )
+        else:
+            console.print("\n[green]Done.[/green] All missions already have a ``topology``.")
+
+    if errored:
+        raise typer.Exit(1)
+
+
 @app.command(name="charter-encoding")
 def charter_encoding(
     dry_run: Annotated[

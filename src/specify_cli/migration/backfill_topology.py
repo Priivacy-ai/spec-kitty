@@ -1,0 +1,252 @@
+"""Store + backfill a mission's :class:`MissionTopology` in ``meta.json`` (#2069).
+
+The topology of a mission (the orthogonal coordination × lanes grid cell) used to
+be re-inferred from disk/git at every resolve. FR-002/FR-003 make it a **stored,
+authoritative** value:
+
+- :func:`ensure_topology` — the single *compute-once-then-persist* shim. Reads
+  ``meta.json``; if a valid ``topology`` is present it is returned with no write;
+  otherwise it is derived exactly once via WP01's :func:`classify_topology`
+  (the single authority for the 2×2 grid), persisted, and returned. A repeat call
+  reads the stored value and never re-derives or re-writes (compute-once law).
+- :class:`TopologyBackfillResult` / :func:`backfill_mission_topology` /
+  :func:`backfill_topology_repo` — mirror the ``backfill_identity`` precedent: an
+  idempotent, canonical-JSON, never-overwrite-an-existing-value migration that the
+  ``spec-kitty migrate backfill-topology`` command drives.
+
+``flattened`` is a separate boolean provenance flag (history mark), NOT a topology
+value: a mission that lost its ``coordination_branch`` is SINGLE_BRANCH/LANES *and*
+``flattened: true``. ``"FLATTENED"`` is never stored as a ``topology``.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Literal
+
+from mission_runtime import MissionTopology, classify_topology
+
+from specify_cli.lanes import CorruptLanesError, read_lanes_json
+
+logger = logging.getLogger(__name__)
+
+# Canonical meta.json keys (hoisted per Sonar S1192 — used in >=3 sites).
+_TOPOLOGY_KEY = "topology"
+_FLATTENED_KEY = "flattened"
+_COORDINATION_BRANCH_KEY = "coordination_branch"
+
+# Valid stored topology string values (the enum's stable .value forms).
+_VALID_TOPOLOGY_VALUES = frozenset(member.value for member in MissionTopology)
+
+
+def _has_lanes(feature_dir: Path) -> bool:
+    """Return whether the mission has a ``lanes.json`` (corrupt ⇒ treated absent)."""
+    try:
+        return read_lanes_json(feature_dir) is not None
+    except CorruptLanesError:
+        # A corrupt lanes.json is not a usable lanes signal; classify as no-lanes
+        # rather than crashing the migration. The corruption surfaces elsewhere.
+        logger.warning("Corrupt lanes.json in %s — treating as no lanes", feature_dir.name)
+        return False
+
+
+def _derive_topology(meta: dict[str, Any], feature_dir: Path) -> MissionTopology:
+    """Derive the topology from current signals via WP01's single authority."""
+    coordination_branch = meta.get(_COORDINATION_BRANCH_KEY) or None
+    return classify_topology(coordination_branch, _has_lanes(feature_dir))
+
+
+def _write_meta_canonical(meta_path: Path, meta: dict[str, Any]) -> None:
+    """Persist ``meta`` in the canonical sorted-key form (matches ``backfill_identity``)."""
+    content = json.dumps(meta, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+    meta_path.write_text(content, encoding="utf-8")
+
+
+def ensure_topology(feature_dir: Path) -> MissionTopology:
+    """Compute-once-then-persist shim: return the stored topology, persisting once.
+
+    If ``meta.json`` already carries a valid ``topology`` string, it is returned
+    with **no write**. Otherwise the topology is derived exactly once via WP01's
+    :func:`classify_topology` (from ``coordination_branch`` + lanes presence),
+    persisted to ``meta.json`` along with a default ``flattened: false`` (an
+    existing ``flattened`` flag is preserved), and returned.
+
+    A second call reads the now-stored value and does not re-derive or re-write —
+    this is the compute-once law (no perpetual re-inference arm, C-004).
+
+    Args:
+        feature_dir: Absolute path to a mission directory containing ``meta.json``.
+
+    Returns:
+        The :class:`MissionTopology` for the mission.
+
+    Raises:
+        FileNotFoundError: If ``meta.json`` does not exist.
+        ValueError: If ``meta.json`` is not a JSON object.
+    """
+    meta_path = feature_dir / "meta.json"
+    raw_text = meta_path.read_text(encoding="utf-8")
+    meta: dict[str, Any] = json.loads(raw_text)
+    if not isinstance(meta, dict):
+        raise ValueError(f"Expected JSON object in {meta_path}, got {type(meta).__name__}")
+
+    stored = meta.get(_TOPOLOGY_KEY)
+    if isinstance(stored, str) and stored in _VALID_TOPOLOGY_VALUES:
+        return MissionTopology(stored)
+
+    topology = _derive_topology(meta, feature_dir)
+    meta[_TOPOLOGY_KEY] = topology.value
+    meta.setdefault(_FLATTENED_KEY, False)
+    _write_meta_canonical(meta_path, meta)
+    return topology
+
+
+# ---------------------------------------------------------------------------
+# Backfill (mirrors backfill_identity.py)
+# ---------------------------------------------------------------------------
+
+TopologyBackfillAction = Literal["wrote", "skip", "error"]
+
+
+@dataclass
+class TopologyBackfillResult:
+    """Per-mission result from :func:`backfill_mission_topology`.
+
+    Attributes:
+        feature_dir: Absolute path to the mission directory.
+        slug: Directory name used as the mission slug.
+        action: ``"wrote"`` — topology derived and persisted; ``"skip"`` — a valid
+            ``topology`` was already present (or no ``meta.json``); ``"error"`` —
+            unreadable / corrupt ``meta.json``.
+        topology: The stored or newly-derived topology ``.value`` string, or
+            ``None`` on error / missing meta.
+        reason: Human-readable explanation (populated on ``"skip"``/``"error"``).
+    """
+
+    feature_dir: Path
+    slug: str
+    action: TopologyBackfillAction
+    topology: str | None = None
+    reason: str | None = None
+
+
+def backfill_mission_topology(
+    feature_dir: Path, *, dry_run: bool = False
+) -> TopologyBackfillResult:
+    """Idempotently persist ``topology`` into ``<feature_dir>/meta.json``.
+
+    A mission whose ``meta.json`` already carries a valid ``topology`` is a no-op
+    (``action="skip"``); an existing value is **never** overwritten. A mission
+    lacking the field has its topology derived once via WP01's
+    :func:`classify_topology` and written in the canonical sorted-key form, with a
+    default ``flattened: false`` provenance flag.
+
+    Args:
+        feature_dir: Absolute path to a single mission directory.
+        dry_run: When ``True``, report the would-write without touching disk.
+
+    Returns:
+        A :class:`TopologyBackfillResult` describing what happened.
+    """
+    slug = feature_dir.name
+    meta_path = feature_dir / "meta.json"
+
+    if not meta_path.exists():
+        return TopologyBackfillResult(
+            feature_dir=feature_dir,
+            slug=slug,
+            action="skip",
+            reason="meta.json not found",
+        )
+
+    try:
+        raw_text = meta_path.read_text(encoding="utf-8")
+        meta: dict[str, Any] = json.loads(raw_text)
+        if not isinstance(meta, dict):
+            raise ValueError(f"Expected JSON object, got {type(meta).__name__}")
+    except (json.JSONDecodeError, OSError, ValueError) as exc:
+        logger.warning("Corrupt meta.json in %s: %s", slug, exc)
+        return TopologyBackfillResult(
+            feature_dir=feature_dir,
+            slug=slug,
+            action="error",
+            reason=f"corrupt json: {exc}",
+        )
+
+    stored = meta.get(_TOPOLOGY_KEY)
+    if isinstance(stored, str) and stored in _VALID_TOPOLOGY_VALUES:
+        return TopologyBackfillResult(
+            feature_dir=feature_dir,
+            slug=slug,
+            action="skip",
+            topology=stored,
+            reason="topology already present",
+        )
+
+    topology = _derive_topology(meta, feature_dir)
+    if not dry_run:
+        meta[_TOPOLOGY_KEY] = topology.value
+        meta.setdefault(_FLATTENED_KEY, False)
+        _write_meta_canonical(meta_path, meta)
+
+    return TopologyBackfillResult(
+        feature_dir=feature_dir,
+        slug=slug,
+        action="wrote",
+        topology=topology.value,
+    )
+
+
+def backfill_topology_repo(
+    repo_root: Path,
+    *,
+    dry_run: bool = False,
+    mission_slug: str | None = None,
+) -> list[TopologyBackfillResult]:
+    """Walk ``kitty-specs/`` and idempotently backfill every mission's topology.
+
+    Args:
+        repo_root: Absolute path to the repository root.
+        dry_run: When ``True``, compute results without writing any files.
+        mission_slug: When provided, scope the walk to a single mission directory.
+
+    Returns:
+        List of :class:`TopologyBackfillResult`, one per mission directory visited.
+    """
+    kitty_specs = repo_root / "kitty-specs"
+    results: list[TopologyBackfillResult] = []
+
+    if not kitty_specs.is_dir():
+        logger.warning("kitty-specs/ not found at %s", repo_root)
+        return results
+
+    if mission_slug is not None:
+        candidates = [
+            entry
+            for entry in kitty_specs.iterdir()
+            if entry.is_dir() and entry.name == mission_slug
+        ]
+        if not candidates:
+            logger.warning("No mission directory found for slug %r", mission_slug)
+            return results
+    else:
+        candidates = sorted(
+            entry for entry in kitty_specs.iterdir() if entry.is_dir()
+        )
+
+    for feature_dir in candidates:
+        results.append(backfill_mission_topology(feature_dir, dry_run=dry_run))
+
+    return results
+
+
+__all__ = [
+    "TopologyBackfillAction",
+    "TopologyBackfillResult",
+    "backfill_mission_topology",
+    "backfill_topology_repo",
+    "ensure_topology",
+]

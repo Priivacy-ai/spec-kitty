@@ -415,6 +415,23 @@ def create_mission_core(
     )
     meta["coordination_branch"] = coordination_outcome.branch_name
 
+    # ------------------------------------------------------------------
+    # 6.6 Mission topology (FR-002 / #2069)
+    #
+    # Store the orthogonal coordination × lanes shape as an authoritative
+    # ``topology`` value so it is READ thereafter, never re-inferred from
+    # disk/git at resolve time. A freshly created mission has no ``lanes.json``
+    # yet (lanes arise only after finalize), so create-time classification only
+    # ever yields ``COORD`` (coord branch present) or ``SINGLE_BRANCH``. The
+    # 2×2 grid is computed by WP01's single authority — never re-derived here.
+    # ``flattened`` is a separate boolean provenance flag, NOT a topology value.
+    # ------------------------------------------------------------------
+    from mission_runtime import classify_topology
+
+    topology = classify_topology(meta.get("coordination_branch") or None, has_lanes=False)
+    meta["topology"] = topology.value
+    meta.setdefault("flattened", False)
+
     from specify_cli.mission_metadata import set_documentation_state, write_meta
 
     write_meta(feature_dir, meta)
