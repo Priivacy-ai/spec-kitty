@@ -22,6 +22,7 @@ context-sources:
     - "003"
     - "031"
     - "032"
+    - "041"
   additional:
     - architecture-decision-records
     - design-pattern-catalog
@@ -130,6 +131,9 @@ directive-references:
   - code: "032"
     name: Conceptual Alignment
     rationale: Domain terminology in any design task must be confirmed with the requester before proceeding to avoid misaligned implementations
+  - code: "041"
+    name: Tests as Scaffold, Not Friction
+    rationale: Architectural changes must not be blocked by file:line-pinned ratchets or defect-masking xfails; tests assert contracts so correct structural change stays green
 
 tactic-references:
   - id: development-bdd
