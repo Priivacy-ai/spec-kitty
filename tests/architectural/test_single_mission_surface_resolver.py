@@ -222,14 +222,14 @@ _RAW_JOIN_SITES: tuple[tuple[str, int, str], ...] = (
     # line drifted; the composite re-key keeps the disposition stable.
     (
         "specify_cli/coordination/surface_resolver.py",
-        487,
+        489,
         "DIAG — _coord_mid8 fail-closed raise payload: "
         "CoordinationWorkspace.worktree_path(...) / KITTY_SPECS_DIR / mission_slug "
         "inside StatusReadPathNotFound constructor; no FS sink (raise is immediate).",
     ),
     (
         "specify_cli/coordination/surface_resolver.py",
-        492,
+        494,
         "DIAG — _coord_mid8 fail-closed raise payload: "
         "repo_root / KITTY_SPECS_DIR / mission_slug for primary_candidate field; "
         "no FS sink (raise is immediate).",
@@ -247,7 +247,7 @@ _RAW_JOIN_SITES: tuple[tuple[str, int, str], ...] = (
     # without flipping this ratchet RED (the whole point of the front-load).
     (
         "specify_cli/missions/_read_path_resolver.py",
-        1103,
+        1162,
         "TBYD — IS the primary_feature_dir_for_mission primitive definition; "
         "assert_safe_path_segment called just above (NFR-002); "
         "get_main_repo_root wraps the left operand; "

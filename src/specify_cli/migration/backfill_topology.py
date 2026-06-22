@@ -287,6 +287,5 @@ def backfill_topology_repo(
 
 __all__ = [
     "backfill_topology_repo",
-    "ensure_topology",
     "read_topology",
 ]
