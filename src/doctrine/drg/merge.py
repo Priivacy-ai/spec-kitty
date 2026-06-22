@@ -80,13 +80,16 @@ _PLURAL_TO_SINGULAR: dict[str, str] = {
 }
 
 
-#: Default relation used when a fragment edge labels its relation with a
-#: refinement verb that is not (yet) in the canonical :class:`Relation`
-#: enum. ``refines`` is a common operator-friendly synonym for
-#: ``Relation.APPLIES`` in advisory contexts.
+#: Operator-friendly relation aliases mapping a fragment-authored verb to a
+#: canonical :class:`Relation`. ``refines`` is NO LONGER aliased — it is now a
+#: first-class ``Relation.REFINES`` (#2079) and resolves via the canonical
+#: branch in :func:`_resolve_relation`. ``extends`` is overlay-inheritance
+#: language and maps to ``Relation.SPECIALIZES_FROM`` (lineage), NOT to the inert
+#: ``Relation.APPLIES`` sink. INVARIANT: an alias MUST NOT map to
+#: ``Relation.APPLIES`` — no traversal reads ``APPLIES``, so aliasing an authored
+#: relation onto it silently turns the edge into a no-op (the #2079 defect class).
 _RELATION_ALIASES: dict[str, Relation] = {
-    "refines": Relation.APPLIES,
-    "extends": Relation.APPLIES,
+    "extends": Relation.SPECIALIZES_FROM,
 }
 
 

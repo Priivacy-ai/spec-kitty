@@ -150,8 +150,13 @@ def test_scope_rejects_empty_explicit_set() -> None:
         CascadeScope(is_all=False, kinds=frozenset())
 
 
-def test_reference_relations_are_requires_and_suggests() -> None:
-    assert frozenset({Relation.REQUIRES, Relation.SUGGESTS}) == REFERENCE_RELATIONS
+def test_reference_relations_are_requires_suggests_and_refines() -> None:
+    # REFINES joined the cascade reference set in #2079 so a refinement edge is
+    # traversed (not born inert like APPLIES); REQUIRES/SUGGESTS are the legacy set.
+    assert (
+        frozenset({Relation.REQUIRES, Relation.SUGGESTS, Relation.REFINES})
+        == REFERENCE_RELATIONS
+    )
 
 
 # ---------------------------------------------------------------------------

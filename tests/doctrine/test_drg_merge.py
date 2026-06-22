@@ -224,11 +224,12 @@ class TestSpecializesFromAndUnknownRelation:
         assert "specializes_from" in err.valid_relations
         assert "bogus" in str(err)
 
-    def test_org_known_alias_still_resolves(self) -> None:
-        """Behaviour preservation: a known alias (``refines`` → APPLIES) is
-        still translated, not raised."""
+    def test_org_refines_relation_is_preserved(self) -> None:
+        """#2079: a fragment edge authored ``refines`` survives bridging as
+        ``Relation.REFINES`` — it is no longer silently downgraded to the inert
+        ``APPLIES`` sink (this inverts the old, wrong contract)."""
         org = _fragment(
-            "alias-pack",
+            "refines-pack",
             nodes=[
                 {"id": "a", "kind": "directives", "title": "A"},
                 {"id": "b", "kind": "tactics", "title": "B"},
@@ -239,7 +240,59 @@ class TestSpecializesFromAndUnknownRelation:
             built_in=_graph(), org_fragments=[org], project=None
         )
         assert len(merged.edges) == 1
-        assert merged.edges[0].relation is Relation.APPLIES
+        assert merged.edges[0].relation is Relation.REFINES
+
+    def test_org_extends_relation_maps_to_lineage_not_applies(self) -> None:
+        """#2079: ``extends`` (overlay-inheritance language) resolves to the
+        lineage relation ``SPECIALIZES_FROM`` — never the inert ``APPLIES`` sink."""
+        org = _fragment(
+            "extends-pack",
+            nodes=[
+                {"id": "a", "kind": "directives", "title": "A"},
+                {"id": "b", "kind": "tactics", "title": "B"},
+            ],
+            edges=[{"source": "a", "target": "b", "relation": "extends"}],
+        )
+        merged = merge_three_layers(
+            built_in=_graph(), org_fragments=[org], project=None
+        )
+        assert len(merged.edges) == 1
+        assert merged.edges[0].relation is Relation.SPECIALIZES_FROM
+
+    @pytest.mark.parametrize("relation", [r.value for r in Relation])
+    def test_bridge_preserves_every_canonical_relation_verbatim(
+        self, relation: str
+    ) -> None:
+        """Relation-fidelity guard (#2079): every canonical ``Relation`` authored on
+        a fragment edge survives bridging with the SAME relation — no silent relabel.
+        Covers ``refines`` / ``overrides`` / ``replaces`` and the full vocabulary."""
+        org = _fragment(
+            f"fidelity-{relation}",
+            nodes=[
+                {"id": "a", "kind": "directives", "title": "A"},
+                {"id": "b", "kind": "tactics", "title": "B"},
+            ],
+            edges=[{"source": "a", "target": "b", "relation": relation}],
+        )
+        merged = merge_three_layers(
+            built_in=_graph(), org_fragments=[org], project=None
+        )
+        assert len(merged.edges) == 1
+        assert merged.edges[0].relation.value == relation
+
+    def test_no_relation_alias_maps_to_the_inert_applies_sink(self) -> None:
+        """Dead-sink ban (#2079): no relation alias may map an authored verb onto
+        ``Relation.APPLIES`` — no traversal reads ``APPLIES``, so such an alias
+        silently turns the authored edge into a no-op. Guards against re-introducing
+        the ``refines`` / ``extends`` downgrade."""
+        from doctrine.drg.merge import _RELATION_ALIASES
+
+        offenders = {
+            k: v for k, v in _RELATION_ALIASES.items() if v is Relation.APPLIES
+        }
+        assert not offenders, (
+            f"relation alias(es) map to the inert APPLIES sink: {offenders}"
+        )
 
 
 # ---------------------------------------------------------------------------

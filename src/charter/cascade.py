@@ -80,9 +80,12 @@ __all__ = [
 #: canonical reference model, so cascade traversal is opt-in by this relation set
 #: rather than per-kind logic. ``REQUIRES`` (hard dependency) and ``SUGGESTS``
 #: (soft recommendation) are the legacy charter-resolver reference set
-#: (see :func:`doctrine.drg.query.resolve_transitive_refs`).
+#: (see :func:`doctrine.drg.query.resolve_transitive_refs`). ``REFINES`` (#2079)
+#: is followed too: a refinement is a traversable reference at least as
+#: load-bearing as a suggestion, so activating an artifact cascades to what it
+#: refines — this is the wiring that keeps ``REFINES`` from being born inert.
 REFERENCE_RELATIONS: frozenset[Relation] = frozenset(
-    {Relation.REQUIRES, Relation.SUGGESTS}
+    {Relation.REQUIRES, Relation.SUGGESTS, Relation.REFINES}
 )
 
 #: Recovery hint surfaced with the no-cascade warning (FR-013, Contract C3.2).
