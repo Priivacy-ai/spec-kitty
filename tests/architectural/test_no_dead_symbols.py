@@ -665,6 +665,27 @@ _CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT: frozenset[str] = frozenset(
 )
 
 
+# ---------- C. Governance-as-test surface (built-in override policy) ----------
+_CATEGORY_C_BUILTIN_OVERRIDE_POLICY: frozenset[str] = frozenset(
+    {
+        # The replaceable-builtins allowlist loader + its public types are
+        # consumed ONLY by the per-repo governance test
+        # tests/architectural/test_builtin_override_policy.py. By design the
+        # three-layer merge PERMITS same-kind built-in overrides; a per-repo
+        # TEST (not a runtime path) decides whether a given override is
+        # sanctioned. The gate counts only cross-file src/ `__all__` importers,
+        # so a test-only governance surface is invisible to it (NOT dead).
+        # Manufacturing a fake src/ importer is the exact anti-pattern this gate
+        # warns against, so they are allow-listed instead. Burns down when a
+        # runtime caller (e.g. doctor doctrine override diagnostics) wires them.
+        "doctrine.drg.override_policy::POLICY_RELPATH",
+        "doctrine.drg.override_policy::ReplaceableBuiltin",
+        "doctrine.drg.override_policy::ReplaceableBuiltinsPolicy",
+        "doctrine.drg.override_policy::load_replaceable_builtins",
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``).
@@ -683,6 +704,7 @@ _SYMBOL_ALLOWLIST: frozenset[str] = (
     | _CATEGORY_C_QUALITY_DEBT_1928
     | _CATEGORY_C_BRANCH_NAMING_FAILOVER_SEAM
     | _CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT
+    | _CATEGORY_C_BUILTIN_OVERRIDE_POLICY
 )
 
 

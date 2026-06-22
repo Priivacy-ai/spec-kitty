@@ -25,6 +25,9 @@ Coverage:
 
 from __future__ import annotations
 
+import logging
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -61,8 +64,8 @@ def _graph(
 
 def _fragment(
     pack_name: str,
-    nodes: list[dict],
-    edges: list[dict],
+    nodes: list[dict[str, object]],
+    edges: list[dict[str, object]],
 ) -> OrgDRGFragment:
     return OrgDRGFragment.model_validate(
         {
@@ -431,18 +434,136 @@ class TestThreeSourceParity:
 
 
 class TestInvariantsPreserved:
-    def test_org_override_of_shipped_invariant_hard_fails(self) -> None:
+    def test_same_kind_org_override_of_shipped_node_succeeds(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A SAME-KIND org override now wins in place: the org node substitutes
+        the built-in, a ``node_override``/``org_override`` conflict is recorded,
+        a WARNING is emitted, and the merge does NOT raise. (Previously this
+        path hard-failed; the override semantics permit it — governance is a
+        per-repo TEST, not a merge prohibition.)"""
         built_in = _graph(
-            nodes=[DRGNode(urn="directive:locked", kind=NodeKind.DIRECTIVE)]
+            nodes=[
+                DRGNode(
+                    urn="directive:locked",
+                    kind=NodeKind.DIRECTIVE,
+                    label="Built-in",
+                )
+            ]
         )
         org = _fragment(
             "rogue",
             nodes=[{"id": "locked", "kind": "directives", "title": "Override"}],
             edges=[],
         )
-        with pytest.raises(OrgDRGConflictError) as exc_info:
-            merge_three_layers(built_in=built_in, org_fragments=[org], project=None)
-        assert any(c.kind == "node_override" for c in exc_info.value.conflicts)
+
+        with caplog.at_level(logging.WARNING, logger="doctrine.drg.merge"):
+            merged = merge_three_layers(
+                built_in=built_in, org_fragments=[org], project=None
+            )
+
+        # Org node wins in place (provenance + label substituted).
+        node = next(n for n in merged.nodes if n.urn == "directive:locked")
+        assert node.provenance == "org:rogue"
+        assert node.label == "Override"
+        # A WARNING is emitted for operator visibility.
+        assert any(
+            record.levelno == logging.WARNING
+            and "directive:locked" in record.getMessage()
+            for record in caplog.records
+        )
+
+    def test_same_kind_org_override_records_org_override_conflict(self) -> None:
+        """The permitted override is queryable as a non-fatal conflict record
+        with ``resolution_applied == 'org_override'``."""
+        from doctrine.drg.merge import (  # noqa: PLC0415 — local-only helper import
+            OrgDRGConflict,
+            _resolve_builtin_collision,
+        )
+        from doctrine.drg.merge import _tag_source  # noqa: PLC0415
+
+        built_in_node = _tag_source(
+            DRGNode(urn="tactic:shared", kind=NodeKind.TACTIC), "built-in"
+        )
+        merged_nodes = {"tactic:shared": built_in_node}
+        conflicts: list[OrgDRGConflict] = []
+        org_node_model = OrgDRGFragment.model_validate(
+            {
+                "pack_name": "p",
+                "source_kind": "local_path",
+                "source_ref": "/tmp/p",
+                "layer_index": 1,
+                "nodes": [{"id": "shared", "kind": "tactics", "title": "T"}],
+                "edges": [],
+            }
+        ).nodes[0]
+        org_drg = _tag_source(
+            DRGNode(urn="tactic:shared", kind=NodeKind.TACTIC, label="T"),
+            "org:p",
+        )
+
+        _resolve_builtin_collision(
+            "tactic:shared",
+            org_node_model,
+            org_drg,
+            merged_nodes,
+            conflicts,
+            "org:p",
+        )
+
+        assert len(conflicts) == 1
+        assert conflicts[0].kind == "node_override"
+        assert conflicts[0].resolution_applied == "org_override"
+        # Substitution happened in place.
+        assert merged_nodes["tactic:shared"].provenance == "org:p"
+
+    def test_kind_drift_org_override_hard_fails(self) -> None:
+        """A DIFFERENT-KIND collision (kind-drift) STILL hard-fails: an override
+        may replace a built-in's content, never its kind.
+
+        :class:`DRGNode` validates ``urn-prefix == kind``, so two *valid*
+        DRGNodes can never share a URN with differing kinds — kind-drift is a
+        defensive guard against an un-validated built-in node reaching the
+        merge. We exercise the guard directly via :func:`_resolve_builtin_collision`
+        with a built-in whose kind has been desynced from its URN, asserting the
+        merge refuses the substitution rather than corrupting the node's kind.
+        """
+        from doctrine.drg.merge import (  # noqa: PLC0415
+            OrgDRGConflict,
+            _resolve_builtin_collision,
+            _tag_source,
+        )
+
+        # A built-in node whose reported kind drifts from its URN prefix
+        # (model_construct bypasses the urn/kind validator to simulate the
+        # un-validated input the guard exists to catch).
+        drifted_builtin = DRGNode.model_construct(
+            urn="directive:locked", kind=NodeKind.TACTIC, label="built-in"
+        )
+        merged_nodes: dict[str, DRGNode] = {"directive:locked": drifted_builtin}
+        conflicts: list[OrgDRGConflict] = []
+        org_drg = _tag_source(
+            DRGNode(urn="directive:locked", kind=NodeKind.DIRECTIVE, label="org"),
+            "org:rogue",
+        )
+        org_model = _fragment(
+            "rogue",
+            nodes=[{"id": "locked", "kind": "directives", "title": "Drift"}],
+            edges=[],
+        ).nodes[0]
+
+        _resolve_builtin_collision(
+            "directive:locked",
+            org_model,
+            org_drg,
+            merged_nodes,
+            conflicts,
+            "org:rogue",
+        )
+
+        assert conflicts[0].resolution_applied == "hard_fail"
+        # Substitution did NOT happen — kind-drift is refused.
+        assert merged_nodes["directive:locked"] is drifted_builtin
 
     def test_layer_rule_violation_hard_fails(self) -> None:
         org = _fragment(
@@ -509,3 +630,107 @@ class TestProvenanceDeclaredField:
         )
         assert all(n.provenance == "built-in" for n in merged.nodes)
         assert all(e.provenance == "built-in" for e in merged.edges)
+
+
+# ---------------------------------------------------------------------------
+# Governance-as-test: the per-repo replaceable-builtins allowlist
+# ---------------------------------------------------------------------------
+
+
+class TestReplaceableBuiltinsPolicy:
+    """The merge PERMITS a same-kind override; a per-repo allowlist GOVERNS
+    whether the override is sanctioned. The loader fails closed."""
+
+    def _write_policy(self, root: Path, body: str) -> None:
+        policy_dir = root / ".kittify" / "doctrine"
+        policy_dir.mkdir(parents=True, exist_ok=True)
+        (policy_dir / "replaceable-builtins.yaml").write_text(
+            body, encoding="utf-8"
+        )
+
+    def test_absent_file_forbids_every_override(self, tmp_path: Path) -> None:
+        from doctrine.drg.override_policy import load_replaceable_builtins
+
+        policy = load_replaceable_builtins(tmp_path)
+        assert policy.entries == ()
+        assert policy.is_allowed("directive:anything") is False
+        assert policy.reason_for("directive:anything") is None
+
+    def test_unlisted_urn_forbidden_listed_allowed(self, tmp_path: Path) -> None:
+        from doctrine.drg.override_policy import load_replaceable_builtins
+
+        self._write_policy(
+            tmp_path,
+            "replaceable_builtins:\n"
+            "  - urn: directive:risk-appetite\n"
+            "    reason: Our org sets a different risk posture.\n",
+        )
+        policy = load_replaceable_builtins(tmp_path)
+        assert policy.is_allowed("directive:risk-appetite") is True
+        assert policy.reason_for("directive:risk-appetite") == (
+            "Our org sets a different risk posture."
+        )
+        # A non-listed URN is fail-closed forbidden.
+        assert policy.is_allowed("directive:mission-scope") is False
+
+    def test_directive_override_requires_reason(self, tmp_path: Path) -> None:
+        """A built-in *directive* override additionally requires a non-empty
+        reason — the governance predicate the architectural test enforces."""
+        from doctrine.drg.override_policy import load_replaceable_builtins
+
+        self._write_policy(
+            tmp_path,
+            "replaceable_builtins:\n  - urn: directive:no-reason\n",
+        )
+        policy = load_replaceable_builtins(tmp_path)
+        assert policy.is_allowed("directive:no-reason") is True
+        # The reason is empty -> a directive override would FAIL the per-repo
+        # governance test even though the URN is listed.
+        assert policy.reason_for("directive:no-reason") == ""
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            "replaceable_builtins: not-a-list\n",  # entries not a list
+            "- just-a-bare-list\n",  # top-level not a mapping
+            "replaceable_builtins:\n  - not-a-mapping\n",  # entry not a mapping
+            "replaceable_builtins:\n  - urn: ''\n",  # empty urn
+            "replaceable_builtins:\n  - {urn: directive:x, reason: 7}\n",  # reason
+            "key: [unclosed\n",  # YAML parse error
+        ],
+    )
+    def test_malformed_policy_fails_closed_loud(
+        self, tmp_path: Path, body: str
+    ) -> None:
+        from doctrine.drg.override_policy import (
+            OverridePolicyError,
+            load_replaceable_builtins,
+        )
+
+        self._write_policy(tmp_path, body)
+        with pytest.raises(OverridePolicyError):
+            load_replaceable_builtins(tmp_path)
+
+    def test_empty_file_is_empty_policy(self, tmp_path: Path) -> None:
+        from doctrine.drg.override_policy import load_replaceable_builtins
+
+        self._write_policy(tmp_path, "")
+        policy = load_replaceable_builtins(tmp_path)
+        assert policy.entries == ()
+
+    def test_null_entries_and_null_reason_normalise_to_empty(
+        self, tmp_path: Path
+    ) -> None:
+        """A ``null`` ``replaceable_builtins`` value and a ``null`` reason both
+        normalise to empty (fail-closed-friendly, not an error)."""
+        from doctrine.drg.override_policy import load_replaceable_builtins
+
+        self._write_policy(tmp_path, "replaceable_builtins:\n")
+        assert load_replaceable_builtins(tmp_path).entries == ()
+
+        self._write_policy(
+            tmp_path,
+            "replaceable_builtins:\n  - urn: tactic:x\n    reason: ~\n",
+        )
+        policy = load_replaceable_builtins(tmp_path)
+        assert policy.reason_for("tactic:x") == ""

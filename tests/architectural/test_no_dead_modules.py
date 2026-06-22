@@ -361,6 +361,16 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         # TODO(triage): documented stub awaiting the retrospective
         # lifecycle terminus runner (WP06 of a future mission).
         "specify_cli.retrospective.lifecycle",
+        # TODO(triage): governance-as-test surface. The built-in-override
+        # allowlist loader is consumed ONLY by the per-repo governance test
+        # tests/architectural/test_builtin_override_policy.py (by design — the
+        # three-layer merge PERMITS same-kind built-in overrides; a per-repo
+        # TEST, not a runtime path, GOVERNS whether they are sanctioned).
+        # Manufacturing a fake src/ caller is the exact anti-pattern this gate
+        # warns against; allowlisted instead. A future runtime caller (e.g.
+        # `spec-kitty doctor doctrine` surfacing override diagnostics) would
+        # wire it and let this entry burn down.
+        "doctrine.drg.override_policy",
     }
 )
 
