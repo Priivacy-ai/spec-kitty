@@ -166,3 +166,10 @@ tactic-references:
     rationale: >
       Treat heavy test setup or many infrastructure mocks in a diff as a design
       smell to flag, not accept — request a pure boundary/seam instead of more doubles.
+  - id: delete-the-assertion-not-the-test
+    rationale: >
+      When remediating a friction test (passes for the wrong reason, false-reds a
+      correct change, or asserts an implementation detail), replace the wrong
+      assertion with a contract-pinned red-first one while preserving the test's
+      setup and excavated edge-cases. Reserve outright deletion for provably
+      zero-coverage or superseded tests — delete the assertion, not the test.

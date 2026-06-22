@@ -395,6 +395,8 @@ nodes:
 - urn: tactic:deepening-opportunity-assessment
   kind: tactic
   label: Deepening Opportunity Assessment
+- urn: tactic:delete-the-assertion-not-the-test
+  kind: tactic
 - urn: tactic:dependency-hygiene
   kind: tactic
   label: Dependency Hygiene
@@ -1350,6 +1352,10 @@ edges:
   target: directive:DIRECTIVE_030
   relation: requires
 - source: agent_profile:python-pedro
+  target: tactic:delete-the-assertion-not-the-test
+  relation: requires
+  reason: When a touched test is friction (green for the wrong reason or false-red on a correct change), replace its assertion with a contract-pinned, red-first one and keep the setup/edge-cases — mine the non-obvious regressions first. Delete a whole test only when it is provably zero-coverage or superseded; never delete to dodge a red.
+- source: agent_profile:python-pedro
   target: tactic:test-scaffolding-as-design-smell
   relation: requires
   reason: Write code whose behavior is testable without infrastructure. If a unit test would need real files, git, or several mocks to run, invert the dependency and extract a pure seam before adding the test, rather than expanding the mock setup.
@@ -1425,6 +1431,10 @@ edges:
   target: tactic:code-review-incremental
   relation: requires
   reason: Structured review discipline — read intent first, identify risks by category, formulate observations not instructions
+- source: agent_profile:reviewer-renata
+  target: tactic:delete-the-assertion-not-the-test
+  relation: requires
+  reason: When remediating a friction test (passes for the wrong reason, false-reds a correct change, or asserts an implementation detail), replace the wrong assertion with a contract-pinned red-first one while preserving the test's setup and excavated edge-cases. Reserve outright deletion for provably zero-coverage or superseded tests — delete the assertion, not the test.
 - source: agent_profile:reviewer-renata
   target: tactic:language-driven-design
   relation: requires

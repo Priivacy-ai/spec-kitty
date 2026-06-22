@@ -174,3 +174,9 @@ tactic-references:
       Write code whose behavior is testable without infrastructure. If a unit test
       would need real files, git, or several mocks to run, invert the dependency and
       extract a pure seam before adding the test, rather than expanding the mock setup.
+  - id: delete-the-assertion-not-the-test
+    rationale: >
+      When a touched test is friction (green for the wrong reason or false-red on a
+      correct change), replace its assertion with a contract-pinned, red-first one and
+      keep the setup/edge-cases — mine the non-obvious regressions first. Delete a whole
+      test only when it is provably zero-coverage or superseded; never delete to dodge a red.
