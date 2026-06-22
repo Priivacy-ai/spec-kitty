@@ -21,6 +21,8 @@ from specify_cli.migration.backfill_topology import (
     ensure_topology,
 )
 
+pytestmark = pytest.mark.unit
+
 
 def _write_meta(feature_dir: Path, meta: dict[str, object]) -> Path:
     feature_dir.mkdir(parents=True, exist_ok=True)
