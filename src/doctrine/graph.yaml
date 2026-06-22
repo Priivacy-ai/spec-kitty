@@ -1489,7 +1489,7 @@ edges:
 - source: directive:DIRECTIVE_025
   target: directive:DIRECTIVE_024
   relation: replaces
-  reason: Locality of Change constrains edits to the minimum required by the goal. Opportunistic cleanup endorsed by the Boy Scout Rule expands the diff beyond that minimum, increasing review complexity and regression risk.
+  reason: Locality of Change constrains the SCOPE of new work to the minimum the goal requires; it does NOT license leaving adjacent breakage in already-touched code. Campsite cleaning of touched-area failures is within locality; broad refactors are not. The two reconcile by fixing adjacent breakage by default while deferring genuinely broad refactors with a rationale.
 - source: directive:DIRECTIVE_028
   target: toolguide:efficient-local-tooling
   relation: suggests
