@@ -531,6 +531,38 @@ def _husk_is_authoritative_surface(repo_root: Path, mission_slug: str) -> bool:
     return _topology_uses_coord_surface(stored)
 
 
+def _effective_surface_topology(
+    threaded: MissionTopology | None,
+    meta: dict[str, object],
+    coord_branch: str | None,
+) -> MissionTopology:
+    """Resolve the surface-SHAPE topology, preferring the STORED value (randy #2).
+
+    The single disposal of the PRIMARY-vs-coordination surface shape for
+    :func:`resolve_status_surface_with_anchor`. Precedence (FR-004 / SC-001):
+
+    1. the ``threaded`` topology the caller supplied (the WP02 stored value the
+       coord-aware read path already read) wins when present;
+    2. otherwise the stored ``topology`` is READ from the in-hand PRIMARY ``meta``
+       via the canonical :func:`stored_topology_from_meta` seam — so the relocated
+       two-arg call sites READ the stored shape rather than relaying a parallel
+       ``classify_topology(coord_branch, …)`` inference (the non-adoption randy
+       flagged: a value-derivation surviving as a second inference);
+    3. only an un-backfilled legacy mission (no stored ``topology``) derives the
+       shape ONCE via WP01's :func:`classify_topology` SSOT from the value-read.
+
+    Every arm lands on the same single topology authority; no arm re-implements
+    the 2×2 grid.
+    """
+    if threaded is not None:
+        return threaded
+    stored: MissionTopology | None = stored_topology_from_meta(meta)
+    if stored is not None:
+        return stored
+    derived: MissionTopology = classify_topology(coord_branch, has_lanes=False)
+    return derived
+
+
 def resolve_status_surface(
     repo_root: Path,
     mission_slug: str,
@@ -635,7 +667,11 @@ def resolve_status_surface_with_anchor(
     feature_dir_is_husk = any(
         part == _WORKTREES_SEGMENT for part in feature_dir.parts
     )
-    if meta is not None and feature_dir_is_husk:  # MUTATION: force husk-trust
+    if (
+        meta is not None
+        and feature_dir_is_husk
+        and _husk_is_authoritative_surface(repo_root, mission_slug)
+    ):
         return ResolvedStatusSurface(
             surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
             primary_anchor=feature_dir,
@@ -679,17 +715,16 @@ def resolve_status_surface_with_anchor(
     # decision — that is the retired #2069 third derivation, SC-001). The
     # PRIMARY-vs-coordination SHAPE is decided from the WP02 stored ``topology``
     # (FR-004): when the caller threads it in, ``_topology_uses_coord_surface``
-    # disposes; when it is omitted (the historical two-arg call sites WP04+ will
-    # convert), the shape is derived ONCE via WP01's ``classify_topology`` SSOT
-    # from the value-read — NOT via a parallel ``coordination_branch is None``
-    # inference. Either path lands on the same single topology authority.
+    # disposes; otherwise the stored ``topology`` is READ from the (already-in-hand
+    # primary) ``meta`` via the SAME ``stored_topology_from_meta`` seam the read
+    # path uses — the relocated read site now READS the stored shape rather than
+    # relaying a parallel ``classify_topology(coord_branch, …)`` inference (randy
+    # #2 / SC-001). Only an un-backfilled legacy mission (no stored ``topology``)
+    # falls back to deriving the shape ONCE via WP01's ``classify_topology`` SSOT
+    # from the value-read. Either path lands on the same single topology authority.
     raw_coord = meta.get("coordination_branch")
     coord_branch: str | None = str(raw_coord) if raw_coord else None
-    effective_topology = (
-        topology
-        if topology is not None
-        else classify_topology(coord_branch, has_lanes=False)
-    )
+    effective_topology = _effective_surface_topology(topology, meta, coord_branch)
     if not _topology_uses_coord_surface(effective_topology) or coord_branch is None:
         # Non-coord topology → PRIMARY. The ``coord_branch is None`` arm here is a
         # VALUE guard, not a topology decision (the shape was already disposed by

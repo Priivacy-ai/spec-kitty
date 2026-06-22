@@ -105,6 +105,52 @@ def test_single_branch_mission_classifies_primary_from_stored_topology(
     assert st._read_contract_routes_through_coordination(identity) is False
 
 
+def test_read_contract_reads_stored_topology_over_coord_value_relay(
+    tmp_path: Path,
+) -> None:
+    """randy #2: the STORED topology disposes the SHAPE, not a coord-value relay.
+
+    A mission carrying BOTH a ``coordination_branch`` value AND a stored
+    ``topology: single_branch`` (a flattened mission whose coord branch ref was not
+    yet stripped from meta) must route the read contract to PRIMARY (False) — the
+    STORED shape wins. Before WP09 the helper relayed
+    ``classify_topology(identity.coordination_branch, …)``, which would have
+    classified COORD (True) from the lingering value. Proving False here proves the
+    relocated read site READS the stored value rather than relaying the inference.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "t@example.invalid")
+    _git(repo, "config", "user.name", "Test")
+    _git(repo, "config", "commit.gpgsign", "false")
+    feature_dir = repo / "kitty-specs" / _DIRNAME
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": _SLUG,
+                "mission_id": _FULL_ULID,
+                "mid8": _MID8,
+                "coordination_branch": _COORD_BRANCH,  # lingering value …
+                "topology": "single_branch",  # … but stored shape is flattened
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", "kitty-specs")
+    _git(repo, "commit", "-q", "-m", "seed flattened-with-lingering-coord")
+    _git(repo, "branch", _COORD_BRANCH)
+
+    identity = _identity(repo)
+    assert st._read_contract_routes_through_coordination(identity) is False, (
+        "the stored single_branch topology must dispose the SHAPE to primary even "
+        "with a lingering coordination_branch value — the read site reads the "
+        "stored value, it does not relay classify_topology(coord_value, …)"
+    )
+
+
 def test_shape_helper_does_not_persist_a_topology_backfill(tmp_path: Path) -> None:
     """The SHAPE helper is PURE: it derives the topology via ``classify_topology``
     (no ``ensure_topology`` persist), so calling it never writes ``meta.json``.

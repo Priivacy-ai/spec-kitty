@@ -732,27 +732,30 @@ def _resolve_coordination_branch(primary_root: Path, mission_slug: str) -> str |
 
 
 def _resolve_topology(primary_root: Path, mission_slug: str) -> MissionTopology:
-    """Read the WP02 **stored** :class:`MissionTopology` from meta (shell read).
+    """Read the WP02 **stored** :class:`MissionTopology` from meta (PURE shell read).
 
     The imperative-shell topology read: anchored on the canonical PRIMARY dir
     (where ``meta.json`` lives, mirroring :func:`_resolve_coordination_branch`)
-    and delegated to WP02's :func:`ensure_topology` compute-once-then-persist
-    shim. ``ensure_topology`` returns the stored value with no write when present,
-    and back-fills it exactly once (via WP01's :func:`classify_topology`) for a
-    pre-WP02 mission — so this is the single, CWD-invariant topology source the
-    fragment assembly threads in. Falls back to the
+    and delegated to WP02's :func:`read_topology` — the **pure** stored-topology
+    reader. It returns the stored value when present and derives the shape ONCE
+    (via WP01's :func:`classify_topology`) for a pre-WP02 mission, **without ever
+    writing** — so a READ path (``resolve_action_context`` for finalize
+    ``--validate-only`` / accept-readiness / a transactional read) never mutates
+    ``meta.json`` (the read-only contract, #1814). Persisting the back-fill is the
+    job of the explicit ``ensure_topology`` mint / ``migrate backfill-topology``
+    command, never an incidental read side effect. Falls back to the
     ``(coordination_branch, has_lanes=False)`` classification when ``meta.json`` is
     absent/malformed so bootstrap windows still resolve a stable shape.
     """
     from mission_runtime.context import classify_topology
-    from specify_cli.migration.backfill_topology import ensure_topology
+    from specify_cli.migration.backfill_topology import read_topology
     from specify_cli.missions._read_path_resolver import (
         primary_feature_dir_for_mission,
     )
 
     primary_dir = primary_feature_dir_for_mission(primary_root, mission_slug)
     try:
-        stored: MissionTopology = ensure_topology(primary_dir)
+        stored: MissionTopology = read_topology(primary_dir)
         return stored
     except (FileNotFoundError, ValueError):
         # No persisted meta yet (bootstrap window) or malformed: classify from the
@@ -1128,10 +1131,40 @@ def resolve_action_context(
     # surface re-derives a parallel primary/coord placement (C-005).
     artifact_placement = _assemble_artifact_placement_fragment(branch_ref)
 
+    if action in _MISSION_LEVEL_ACTIONS:
+        # Mission-level lifecycle actions (planning/analysis/status) resolve the
+        # mission context without a work package — FR-011 full-lifecycle parity.
+        #
+        # FR-004 SSOT adoption (#2070): route the mission-level door through the
+        # PURE :func:`resolve_context_for_mission` projection so the "single
+        # planning-surface authority" is actually INVOKED, not dead-exported. It
+        # re-projects ``branch_ref.destination_ref`` + the artifact placement from
+        # the stored ``topology`` via :func:`destination_kind_for_topology` — the
+        # SAME kind ``_assemble_core_fragments`` already classified for the same
+        # mission, so this is behaviour-preserving (NFR-003): the destination ref
+        # value and kind are byte-identical to the prior direct-factory build. The
+        # WP-bearing path still composes its WP fields into the single factory door
+        # below; wiring those 13 call sites through the projection is the remaining
+        # #2070 increment (carved conservatively — they assemble WP-only fragments
+        # the projection does not yet accept).
+        return resolve_context_for_mission(
+            identity.mission_id,
+            topology,
+            action=action,
+            mission_slug=mission_slug,
+            feature_dir=str(feature_dir),
+            target_branch=target_branch,
+            identity=identity,
+            branch_ref=branch_ref,
+            status_surface=status_surface,
+            workspace=workspace,
+            commands=_tasks_commands(mission_slug),
+        )
+
     # The factory (``build_execution_context``) is the SOLE construction door for
-    # ``ExecutionContext`` (D-6 / IC-01). Mission-level lifecycle actions need no
-    # work package; the WP-bearing actions assemble their fields BEFORE the single
-    # build call (no post-build mutation — the composite is frozen).
+    # ``ExecutionContext`` (D-6 / IC-01). The WP-bearing actions assemble their
+    # fields BEFORE the single build call (no post-build mutation — the composite
+    # is frozen).
     base_fields: dict[str, Any] = {
         "action": action,
         "mission_slug": mission_slug,
@@ -1144,11 +1177,6 @@ def resolve_action_context(
         "workspace": workspace,
         "artifact_placement": artifact_placement,
     }
-
-    if action in _MISSION_LEVEL_ACTIONS:
-        # Mission-level lifecycle actions (planning/analysis/status) resolve the
-        # mission context without a work package — FR-011 full-lifecycle parity.
-        return build_execution_context(commands=_tasks_commands(mission_slug), **base_fields)
 
     wp_fields = _resolve_wp_bearing_fields(
         repo_root,

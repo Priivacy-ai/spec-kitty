@@ -65,6 +65,48 @@ def _write_meta_canonical(meta_path: Path, meta: dict[str, Any]) -> None:
     meta_path.write_text(content, encoding="utf-8")
 
 
+def read_topology(feature_dir: Path) -> MissionTopology:
+    """PURE read of a mission's :class:`MissionTopology` — never persists (#1814).
+
+    The read-path counterpart of :func:`ensure_topology`. Returns the stored
+    ``topology`` when ``meta.json`` carries a valid value; otherwise derives the
+    shape ONCE via WP01's :func:`classify_topology` (from ``coordination_branch``
+    + lanes presence) and returns it **without writing**. A read/validate/accept
+    path therefore never mutates ``meta.json`` — the read-only-contract that the
+    persisting :func:`ensure_topology` violated when wired into the SEAM read
+    paths (the finalize ``--validate-only`` / accept-readiness / transactional-read
+    regression, #1814).
+
+    Persisting the back-filled value is the explicit job of :func:`ensure_topology`
+    (mint, at ``mission create``) and the ``spec-kitty migrate backfill-topology``
+    command — NEVER an incidental side effect of a read.
+
+    Args:
+        feature_dir: Absolute path to a mission directory containing ``meta.json``.
+
+    Returns:
+        The :class:`MissionTopology` for the mission.
+
+    Raises:
+        FileNotFoundError: If ``meta.json`` does not exist.
+        ValueError: If ``meta.json`` is not a JSON object.
+    """
+    meta_path = feature_dir / "meta.json"
+    raw_text = meta_path.read_text(encoding="utf-8")
+    meta: dict[str, Any] = json.loads(raw_text)
+    if not isinstance(meta, dict):
+        raise ValueError(f"Expected JSON object in {meta_path}, got {type(meta).__name__}")
+
+    stored = meta.get(_TOPOLOGY_KEY)
+    if isinstance(stored, str) and stored in _VALID_TOPOLOGY_VALUES:
+        return MissionTopology(stored)
+
+    # Un-backfilled legacy mission: derive the shape ONCE from current signals and
+    # return it WITHOUT persisting (the read-only contract — #1814). The explicit
+    # backfill command / mint path is the only writer.
+    return _derive_topology(meta, feature_dir)
+
+
 def ensure_topology(feature_dir: Path) -> MissionTopology:
     """Compute-once-then-persist shim: return the stored topology, persisting once.
 
@@ -246,4 +288,5 @@ def backfill_topology_repo(
 __all__ = [
     "backfill_topology_repo",
     "ensure_topology",
+    "read_topology",
 ]
