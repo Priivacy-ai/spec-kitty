@@ -109,6 +109,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.architectural._ratchet_keys import composite_key_from_file
+
 pytestmark = pytest.mark.architectural
 
 # ---------------------------------------------------------------------------
@@ -164,10 +166,26 @@ _MIN_DISCOVERED_ROWS: int = 20
 # ---------------------------------------------------------------------------
 # Allowlisted raw-path-join rows (T030 — explicit disposition with rationale).
 #
-# Each entry is an exact ``<rel_path>:<line>`` locator matching the
-# ``ResolutionRow.key()`` output.  These are the ONLY raw-path-join rows
-# permitted on the final collapsed tree.  Any new raw-path-join row NOT in
-# this set is treated as a functional FS-bypass and the guard FAILS.
+# Each entry is keyed by the drift-proof ``(enclosing_qualname, token_line)``
+# composite key (FR-008 / WP06 re-key) — NOT a bare ``<rel_path>:<line>``
+# locator.  A composite key survives benign line drift: the seam WPs (WP02 edits
+# ``mission_creation.py:328``, WP04 rewrites ``_read_path_resolver.py:885``) may
+# move these exact lines without false-RED-ing the gate, because the key is
+# content-addressed (enclosing function + tokenized code line), not line-number
+# addressed.  A line re-key would just re-pin to a line the seam then moves
+# again; this front-loads a key that stays green through those edits.
+#
+# These are the ONLY raw-path-join rows permitted on the final collapsed tree.
+# Any new raw-path-join row whose composite key is NOT in this set is treated
+# as a functional FS-bypass and the guard FAILS.
+#
+# To keep the key honest (NFR-004: never hand-author a composite literal), the
+# composite keys are derived LIVE from the audit-discovered ``(rel_path, line)``
+# of each allowlisted site via ``composite_key_from_file`` at import time — the
+# ``_RAW_JOIN_SITES`` seed below maps each site to its verbatim rationale, and
+# ``_build_allowlisted_raw_joins`` resolves the composite key from the live
+# source.  ``test_allowlist_entries_are_not_stale`` re-derives the same way, so a
+# site that drifts off its function or whose code line changes is caught loudly.
 #
 # Classification:
 #   DIAG   — diagnostic-payload join: path composed only for a ``raise``
@@ -178,7 +196,13 @@ _MIN_DISCOVERED_ROWS: int = 20
 #             slug is pre-validated by ``_validate_segment`` /
 #             ``assert_safe_path_segment`` and the join feeds a blessed resolver.
 # ---------------------------------------------------------------------------
-_ALLOWLISTED_RAW_JOINS: dict[str, str] = {
+
+#: Seed mapping each allowlisted raw-join site to ``(rel_path-under-src, line,
+#: rationale)``.  ``rel_path`` matches ``ResolutionRow.rel_path`` (relative to
+#: ``src/``); ``line`` is the current discovered line used ONLY to derive the
+#: drift-proof composite key once at import.  The composite key — not this line —
+#: is what gates; once derived, the line may drift without flipping the ratchet.
+_RAW_JOIN_SITES: tuple[tuple[str, int, str], ...] = (
     # ----- surface_resolver.py: _coord_mid8 fail-closed raise payloads -----
     # Both joins compose paths ONLY inside a ``StatusReadPathNotFound(...)``
     # constructor call inside a ``raise`` statement.  No FS open/stat/write
@@ -189,18 +213,21 @@ _ALLOWLISTED_RAW_JOINS: dict[str, str] = {
     # payloads drifted 518→472 and 523→477 when WP04 deleted
     # ``CoordinationWorktreeEmpty`` + ``_is_coord_empty_condition`` +
     # ``_canonicalize_or_enrich_coord_empty`` (coord-empty Option B). Same
-    # diagnostic joins — only their line drifted. Re-keyed to the current lines so
-    # ``test_allowlist_entries_are_not_stale`` stays green (the parallel
-    # untrusted_path_audit/inventory.md rows were re-keyed in lockstep).
-    "specify_cli/coordination/surface_resolver.py:472": (
+    # diagnostic joins — only their line drifted. The composite re-key below
+    # makes the disposition survive future drift of these exact lines.
+    (
+        "specify_cli/coordination/surface_resolver.py",
+        472,
         "DIAG — _coord_mid8 fail-closed raise payload: "
         "CoordinationWorkspace.worktree_path(...) / KITTY_SPECS_DIR / mission_slug "
-        "inside StatusReadPathNotFound constructor; no FS sink (raise is immediate)."
+        "inside StatusReadPathNotFound constructor; no FS sink (raise is immediate).",
     ),
-    "specify_cli/coordination/surface_resolver.py:477": (
+    (
+        "specify_cli/coordination/surface_resolver.py",
+        477,
         "DIAG — _coord_mid8 fail-closed raise payload: "
         "repo_root / KITTY_SPECS_DIR / mission_slug for primary_candidate field; "
-        "no FS sink (raise is immediate)."
+        "no FS sink (raise is immediate).",
     ),
     # ----- _read_path_resolver.py: primary_feature_dir_for_mission definition -----
     # This IS the topology-blind primitive (``primary_feature_dir_for_mission``).
@@ -209,31 +236,34 @@ _ALLOWLISTED_RAW_JOINS: dict[str, str] = {
     # the DEFINITION of the blessed seam, not a bypass of it.  All callers that
     # need topology-blind primary-dir access delegate through THIS function.
     # NOTE (WP01 → WP05 re-key, 01KVN754): the ``primary_feature_dir_for_mission``
-    # definition relocated from :511 → :641 → :737 → :744 as the read-side seam grew —
-    # WP01 inserted the shared ``coord_feature_dir`` + ``probe_coord_state`` helpers
-    # (paula C1/C2) above it, and WP05 added the read-path EMPTY/DELETED fold in
-    # ``_resolve_not_found`` + the DELETED hard-fail block in
-    # ``resolve_handle_to_read_path`` (both above this definition).  The join is the
-    # SAME blessed primitive definition — only its line drifted.  Re-keyed to the
-    # current line so ``test_allowlist_entries_are_not_stale`` stays green.
-    "specify_cli/missions/_read_path_resolver.py:885": (
+    # definition relocated from :511 → :641 → :737 → :744 as the read-side seam grew.
+    # The composite key is anchored on the ``primary_feature_dir_for_mission``
+    # qualname + the join's token line, so WP04's rewrite may move it again
+    # without flipping this ratchet RED (the whole point of the front-load).
+    (
+        "specify_cli/missions/_read_path_resolver.py",
+        885,
         "TBYD — IS the primary_feature_dir_for_mission primitive definition; "
         "assert_safe_path_segment called just above (NFR-002); "
         "get_main_repo_root wraps the left operand; "
         "this function is the canonical topology-blind entry point. "
         "(Re-keyed :869 -> :885: the PR #2065 read_primary_meta "
-        "canonicalize-on-miss fix added lines above this definition.)"
+        "canonicalize-on-miss fix added lines above this definition.)",
     ),
     # ----- mission_creation.py: seam-grammar output -----
     # ``mission_slug_formatted = mission_dir_name(mission_slug, mid8=...)`` at :323.
     # The slug on the RHS of the join is NOT raw operator input: it is the OUTPUT
     # of the canonical ``mission_dir_name`` grammar seam (FR-032/FR-044), which
     # produces a validated ``<human-slug>-<mid8>`` dir name.  The join is therefore
-    # using a seam-produced, pre-composed name — not a raw slug bypass.
-    "specify_cli/core/mission_creation.py:328": (
+    # using a seam-produced, pre-composed name — not a raw slug bypass.  Composite
+    # re-key: WP02 (IC-02) edits this site; the ``create_mission_core`` qualname +
+    # join token line anchor survives that edit.
+    (
+        "specify_cli/core/mission_creation.py",
+        328,
         "TBYD — join uses ``mission_slug_formatted``, the OUTPUT of the canonical "
         "mission_dir_name(mission_slug, mid8=...) grammar seam (not raw operator input); "
-        "seam is defined in lanes/branch_naming.py (FR-032/FR-044)."
+        "seam is defined in lanes/branch_naming.py (FR-032/FR-044).",
     ),
     # ----- review/cycle.py: _validate_segment seam validates before join -----
     # ``validate_review_cycle_pointer(value)`` at :183 calls ``_validate_segment``
@@ -241,11 +271,13 @@ _ALLOWLISTED_RAW_JOINS: dict[str, str] = {
     # lines 140-141 BEFORE the join at :185.  The seam pre-validates; the join
     # then uses the validated ``parts.mission_slug``.  The resulting path is
     # existence-checked (``candidate.exists()``), not used as a surface selector.
-    "specify_cli/review/cycle.py:185": (
+    (
+        "specify_cli/review/cycle.py",
+        185,
         "TBYD — _validate_segment / assert_safe_path_segment validates "
         "parts.mission_slug at lines 140-141 (validate_review_cycle_pointer) "
         "BEFORE this join; the candidate path is existence-checked, not used "
-        "as a resolver-bypass surface selection."
+        "as a resolver-bypass surface selection.",
     ),
     # ----- DRAINED by WP02 (FR-002): the four read-CLI raw-join bootstraps that
     # formerly lived here (decision.py:464 D-6 factory boundary +
@@ -259,7 +291,26 @@ _ALLOWLISTED_RAW_JOINS: dict[str, str] = {
     # The seam adds the ``assert_safe_path_segment`` guard (FR-004) each bootstrap
     # previously lacked.  WP05 confirms the drain by re-derivation against the
     # equivalence matrix.
-}
+)
+
+
+def _build_allowlisted_raw_joins() -> dict[tuple[str, str], str]:
+    """Derive the composite-keyed allowlist live from ``_RAW_JOIN_SITES``.
+
+    Never hand-authors a ``(qualname, token_line)`` literal (NFR-004): each
+    composite key is computed from the live source via ``composite_key_from_file``
+    against the seed ``(rel_path, line)``.  The rationale string is carried
+    verbatim from the seed.  ``rel_path`` is relative to ``src/`` (matching
+    ``ResolutionRow.rel_path``), so the absolute path is ``_SRC_ROOT / rel_path``.
+    """
+    return {
+        composite_key_from_file(_SRC_ROOT / rel_path, line): rationale
+        for rel_path, line, rationale in _RAW_JOIN_SITES
+    }
+
+
+#: Composite-keyed allowlist: ``(enclosing_qualname, token_line) -> rationale``.
+_ALLOWLISTED_RAW_JOINS: dict[tuple[str, str], str] = _build_allowlisted_raw_joins()
 
 # ---------------------------------------------------------------------------
 # Named topology-blind seam files for the independent floor calculation (T031).
@@ -335,10 +386,11 @@ def test_zero_functional_raw_bypass_on_collapsed_tree() -> None:
     for row in rows:
         if row.call_name != "raw-path-join":
             continue
-        key = row.key()  # ``<rel_path>:<line>``
+        # Composite key (qualname, token_line) — content-addressed, drift-proof.
+        key = composite_key_from_file(_SRC_ROOT / row.rel_path, row.line)
         if key not in _ALLOWLISTED_RAW_JOINS:
             unexpected.append(
-                f"  {key}  handle={row.handle_source!r}  "
+                f"  {row.key()}  key={key!r}  handle={row.handle_source!r}  "
                 f"— functional raw-bypass not in allowlist (FR-004 regression)"
             )
 
@@ -368,7 +420,11 @@ def test_allowlist_entries_are_not_stale() -> None:
     that test rejects new bypasses; this test rejects stale exemptions.
     """
     rows = discover_rows()
-    live_raw_bypass_keys = {row.key() for row in rows if row.call_name == "raw-path-join"}
+    live_raw_bypass_keys = {
+        composite_key_from_file(_SRC_ROOT / row.rel_path, row.line)
+        for row in rows
+        if row.call_name == "raw-path-join"
+    }
 
     stale: list[str] = []
     for key in sorted(_ALLOWLISTED_RAW_JOINS):
@@ -945,10 +1001,14 @@ def test_drained_keys_are_not_in_allowlist() -> None:
     entry would be flagged by ``test_allowlist_entries_are_not_stale``, but this
     test asserts the specific drained-key invariant directly.
     """
+    # The composite-keyed allowlist no longer carries a file path in its KEY, so
+    # the drained-file check runs against the ``_RAW_JOIN_SITES`` seed (which holds
+    # the rel_path each composite key was derived from) — a lingering drained
+    # entry would still be seeded there.
     lingering = [
-        key
-        for key in _ALLOWLISTED_RAW_JOINS
-        if any(key.startswith(f) for f in _DRAINED_READ_CLI_FILES)
+        f"{rel_path}:{line}"
+        for rel_path, line, _rationale in _RAW_JOIN_SITES
+        if any(rel_path.startswith(f) for f in _DRAINED_READ_CLI_FILES)
     ]
     assert not lingering, (
         "Drained read-CLI keys still present in _ALLOWLISTED_RAW_JOINS "
