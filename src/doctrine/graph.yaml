@@ -173,6 +173,9 @@ nodes:
 - urn: directive:DIRECTIVE_040
   kind: directive
   label: Recurring-Bug Structural-Intervention Discipline
+- urn: directive:DIRECTIVE_041
+  kind: directive
+  label: Tests as Scaffold, Not Friction
 - urn: paradigm:anemic-domain-model
   kind: paradigm
 - urn: paradigm:atomic-design
@@ -397,6 +400,7 @@ nodes:
   label: Deepening Opportunity Assessment
 - urn: tactic:delete-the-assertion-not-the-test
   kind: tactic
+  label: Delete the Assertion, Not the Test
 - urn: tactic:dependency-hygiene
   kind: tactic
   label: Dependency Hygiene
@@ -1352,6 +1356,9 @@ edges:
   target: directive:DIRECTIVE_030
   relation: requires
 - source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_041
+  relation: requires
+- source: agent_profile:python-pedro
   target: tactic:delete-the-assertion-not-the-test
   relation: requires
   reason: When a touched test is friction (green for the wrong reason or false-red on a correct change), replace its assertion with a contract-pinned, red-first one and keep the setup/edge-cases — mine the non-obvious regressions first. Delete a whole test only when it is provably zero-coverage or superseded; never delete to dodge a red.
@@ -1422,6 +1429,9 @@ edges:
   relation: requires
 - source: agent_profile:reviewer-renata
   target: directive:DIRECTIVE_032
+  relation: requires
+- source: agent_profile:reviewer-renata
+  target: directive:DIRECTIVE_041
   relation: requires
 - source: agent_profile:reviewer-renata
   target: tactic:bdd-scenario-lifecycle
@@ -1528,6 +1538,15 @@ edges:
 - source: directive:DIRECTIVE_040
   target: tactic:five-paradigm-parallel-debugging
   relation: requires
+- source: directive:DIRECTIVE_041
+  target: tactic:acceptance-test-first
+  relation: suggests
+- source: directive:DIRECTIVE_041
+  target: tactic:delete-the-assertion-not-the-test
+  relation: suggests
+- source: directive:DIRECTIVE_041
+  target: tactic:tdd-red-green-refactor
+  relation: suggests
 - source: paradigm:behaviour-driven-development
   target: directive:DIRECTIVE_034
   relation: requires
@@ -2275,6 +2294,18 @@ edges:
   target: tactic:locality-of-change
   relation: suggests
   when: Use to require evidence that the added structure solves an observed locality problem.
+- source: tactic:delete-the-assertion-not-the-test
+  target: tactic:acceptance-test-first
+  relation: suggests
+  when: writing the replacement assertion against externally observable behavior
+- source: tactic:delete-the-assertion-not-the-test
+  target: tactic:tdd-red-green-refactor
+  relation: suggests
+  when: observing the replacement assertion RED before it is made GREEN
+- source: tactic:delete-the-assertion-not-the-test
+  target: tactic:zombies-tdd
+  relation: suggests
+  when: enumerating the boundary and exceptional behaviors the original test encoded
 - source: tactic:dependency-hygiene
   target: directive:DIRECTIVE_001
   relation: suggests
