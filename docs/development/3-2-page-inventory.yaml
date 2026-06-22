@@ -2157,6 +2157,13 @@
   current_target: false
   citation_refs: []
   notes: null
+- path: docs/development/test-suite-friction-audit.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Test-suite friction audit (epic #2071) — 4-lens findings + the delete-vs-migrate decision rule.
 - path: docs/development/testing-flakiness.md
   tag: internal
   divio_type: none
