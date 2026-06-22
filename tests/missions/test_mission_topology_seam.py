@@ -27,6 +27,8 @@ from mission_runtime import (
     routes_through_coordination,
 )
 
+pytestmark = pytest.mark.unit
+
 # Production-shaped coordination branch ref (kitty/mission-<slug>-<mid8>-coord),
 # so the "branch present" classifier signal is exercised with a real-format
 # value rather than a bare placeholder.

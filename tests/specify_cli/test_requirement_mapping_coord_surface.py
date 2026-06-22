@@ -47,7 +47,7 @@ from specify_cli.requirement_mapping import (
     read_all_wp_requirement_refs,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 # Production-shaped identity: a full 26-char Crockford-base32 ULID, NOT a
 # handcrafted short slug. The operator HANDLE is the bare slug (no mid8 tail) —

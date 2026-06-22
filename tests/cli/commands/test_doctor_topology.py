@@ -16,6 +16,8 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands import doctor as doctor_mod
 from specify_cli.cli.commands.doctor import app
 
+pytestmark = pytest.mark.unit
+
 runner = CliRunner()
 
 

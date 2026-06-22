@@ -1299,15 +1299,15 @@ def _read_stored_topology(feature_dir: Path) -> dict[str, object | None]:
 
 def _collect_topology_rows(repo_root: Path, mission: str | None) -> list[dict[str, object | None]]:
     """Collect stored-topology rows for all missions (or one when scoped)."""
-    kitty_specs = repo_root / KITTY_SPECS_DIR
-    if not kitty_specs.is_dir():
+    specs_dir = repo_root / KITTY_SPECS_DIR
+    if not specs_dir.is_dir():
         return []
     if mission is not None:
         target = resolve_feature_dir_for_mission(repo_root, mission)
         return [_read_stored_topology(target)] if target.is_dir() else []
     return [
         _read_stored_topology(entry)
-        for entry in sorted(kitty_specs.iterdir())
+        for entry in sorted(specs_dir.iterdir())
         if entry.is_dir()
     ]
 

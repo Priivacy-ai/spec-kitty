@@ -244,9 +244,6 @@ def backfill_topology_repo(
 
 
 __all__ = [
-    "TopologyBackfillAction",
-    "TopologyBackfillResult",
-    "backfill_mission_topology",
     "backfill_topology_repo",
     "ensure_topology",
 ]
