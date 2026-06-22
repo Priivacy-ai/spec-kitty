@@ -26,12 +26,12 @@ naive line/regex scan would false-flag those narrative lines.
 
 from __future__ import annotations
 
-import io
-import tokenize
 from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+
+from tests.architectural._ratchet_keys import code_tokens_by_line, composite_key
 
 pytestmark = pytest.mark.architectural
 
@@ -52,20 +52,29 @@ _ADOPTED_MODULES: tuple[Path, ...] = (
 
 @dataclass(frozen=True)
 class _Finding:
-    """A flagged write-side re-derivation: (path, line, kind, code)."""
+    """A flagged write-side re-derivation: (path, line, kind, code, source)."""
 
     path: Path
     lineno: int
     kind: str
     code: str
+    source: str
 
-    def as_allow_key(self) -> tuple[str, int]:
-        """The (relative-path, line) key used by the line-scoped allow-list."""
-        return (str(self.path.relative_to(_REPO_ROOT)), self.lineno)
+    def as_allow_key(self) -> tuple[str, str]:
+        """The drift-proof ``(qualname, token_line)`` composite allow-list key.
+
+        Content-addressed (enclosing function + tokenized code line), not
+        line-number addressed, so a benign blank/comment-line insertion above the
+        guarded site leaves the key unchanged (FR-008 / WP06).
+        """
+        return composite_key(self.source, self.lineno)
 
 
-#: Line-scoped allow-list (NOT file-scoped). Each entry is the EXACT
-#: (relative-path, lineno) of a genuinely-deferred S2 #1716 ladder line.
+#: Line-scoped allow-list, re-keyed onto the drift-proof
+#: ``(enclosing_qualname, token_line)`` composite key (FR-008 / WP06).  It is
+#: still line-SCOPED (a single specific deferred line, NOT a blanket file
+#: escape), but content-addressed rather than line-NUMBER addressed: a benign
+#: blank/comment insertion above the site no longer flips the ratchet RED.
 #:
 #: The single seed is ``coordination/status_transition.py`` line ~336
 #: (re-grounded from ~295 by the single-mission-surface-resolver WP06 #1900
@@ -81,41 +90,29 @@ class _Finding:
 #:
 #: Adding a NEW entry here is a deliberate scope decision, not a routine escape:
 #: it must point at a specific deferred-by-spec line, with a one-line rationale.
-_ALLOW_LIST: frozenset[tuple[str, int]] = frozenset(
-    {
-        ("src/specify_cli/coordination/status_transition.py", 336),
-    }
+
+#: Seed mapping each deferred line to ``(rel_path, line)``.  The composite key is
+#: derived LIVE from this seed via ``composite_key`` at import (NFR-004: never
+#: hand-author a ``(qualname, token_line)`` literal).  ``_ALLOW_LIST_SEED`` is
+#: also the staleness anchor — ``test_allow_listed_line_is_the_deferred_head_selector``
+#: re-reads the seed file to prove the composite key still holds the deferred
+#: HEAD selector.
+_ALLOW_LIST_SEED: tuple[tuple[str, int], ...] = (
+    ("src/specify_cli/coordination/status_transition.py", 336),
 )
 
 
-def _code_tokens_by_line(source: str) -> dict[int, str]:
-    """Return ``{lineno: space-joined code tokens}`` with strings/comments dropped.
+def _composite_key_for_seed(rel_path: str, lineno: int) -> tuple[str, str]:
+    """Derive the composite key for a seed entry from the live source file."""
+    source = (_REPO_ROOT / rel_path).read_text(encoding="utf-8")
+    return composite_key(source, lineno)
 
-    Docstrings (``STRING`` tokens) and ``COMMENT`` tokens are excluded, so prose
-    that merely *quotes* a prior walk (e.g. a docstring documenting the old
-    ``coord_branch or _current_branch`` selector) never registers as code.
-    """
-    skip = {
-        tokenize.STRING,
-        tokenize.COMMENT,
-        tokenize.NL,
-        tokenize.NEWLINE,
-        tokenize.INDENT,
-        tokenize.DEDENT,
-        tokenize.ENCODING,
-        tokenize.ENDMARKER,
-    }
-    # Py3.12 fstring tokens (absent on 3.11) are dropped too when present.
-    for name in ("FSTRING_START", "FSTRING_MIDDLE", "FSTRING_END"):
-        tok_type = getattr(tokenize, name, None)
-        if tok_type is not None:
-            skip.add(tok_type)
-    buckets: dict[int, list[str]] = {}
-    for tok in tokenize.generate_tokens(io.StringIO(source).readline):
-        if tok.type in skip:
-            continue
-        buckets.setdefault(tok.start[0], []).append(tok.string)
-    return {ln: " ".join(parts) for ln, parts in buckets.items()}
+
+#: Composite-keyed allow-list: ``frozenset[(qualname, token_line)]``.
+_ALLOW_LIST: frozenset[tuple[str, str]] = frozenset(
+    _composite_key_for_seed(rel_path, lineno)
+    for rel_path, lineno in _ALLOW_LIST_SEED
+)
 
 
 def _scan_source(source: str, path: Path) -> list[_Finding]:
@@ -131,13 +128,13 @@ def _scan_source(source: str, path: Path) -> list[_Finding]:
       git-HEAD write-target selectors.
     """
     findings: list[_Finding] = []
-    for lineno, code in _code_tokens_by_line(source).items():
+    for lineno, code in code_tokens_by_line(source).items():
         if "parent . parent" in code:
-            findings.append(_Finding(path, lineno, "root_walk", code))
+            findings.append(_Finding(path, lineno, "root_walk", code, source))
         if "mission_id [ : 8 ]" in code:
-            findings.append(_Finding(path, lineno, "mid8_recompute", code))
+            findings.append(_Finding(path, lineno, "mid8_recompute", code, source))
         if "coord_branch or _current_branch" in code or "coord_branch or current_branch" in code:
-            findings.append(_Finding(path, lineno, "write_target_head_selector", code))
+            findings.append(_Finding(path, lineno, "write_target_head_selector", code, source))
     return findings
 
 
@@ -231,21 +228,29 @@ def test_ratchet_ignores_prose_quoting_a_prior_walk() -> None:
 
 
 def test_allow_list_is_line_scoped_not_a_blanket_file_escape() -> None:
-    """The allow-list keys are (path, lineno) pairs — never bare file paths.
+    """The allow-list keys are ``(qualname, token_line)`` composites — never bare paths.
 
     A file-scoped allow-list would silently excuse any future re-derivation added
-    anywhere in that file (a blanket escape, rejected by paula SF-2). This pins
-    the allow-list shape so a later edit cannot widen it to file granularity
-    without tripping this test.
+    anywhere in that file (a blanket escape, rejected by paula SF-2). The
+    composite re-key (FR-008 / WP06) keeps the entry line-SCOPED — it pins a
+    specific enclosing function AND a specific tokenized code line, NOT a whole
+    file. This re-expresses the original anti-blanket-escape intent for the new
+    key shape: each entry must be a 2-tuple of non-empty ``str``s whose second
+    component (the token_line) is a real code line, never a whole-file wildcard.
     """
     assert _ALLOW_LIST, "the allow-list must seed the known deferred S2 #1716 line"
     for entry in _ALLOW_LIST:
         assert isinstance(entry, tuple) and len(entry) == 2, (
-            f"allow-list entry must be a (path, lineno) pair, got {entry!r}"
+            f"allow-list entry must be a (qualname, token_line) composite, got {entry!r}"
         )
-        rel_path, lineno = entry
-        assert isinstance(rel_path, str) and rel_path.endswith(".py")
-        assert isinstance(lineno, int) and lineno > 0
+        qualname, token_line = entry
+        assert isinstance(qualname, str) and qualname, (
+            f"qualname component must be a non-empty str, got {qualname!r}"
+        )
+        assert isinstance(token_line, str) and token_line, (
+            "token_line component must be a non-empty code line (a real line, "
+            f"not a whole-file wildcard), got {token_line!r}"
+        )
 
 
 def test_allow_listed_line_is_the_deferred_head_selector() -> None:
@@ -255,12 +260,24 @@ def test_allow_listed_line_is_the_deferred_head_selector() -> None:
     ``coord_branch or _current_branch`` fallback (e.g. the file is re-ordered or
     the deferred ladder is finally retired), this test fails loudly so the
     allow-list is re-grounded rather than silently masking a moved offender.
+
+    Resolves the composite key back to its live token_line (the second component
+    IS the tokenized source line) and asserts it still holds the selector. Also
+    cross-checks the seed file still produces that composite key, so a function
+    rename or code-line change is caught too.
     """
-    rel_path, lineno = next(iter(_ALLOW_LIST))
-    target = _REPO_ROOT / rel_path
-    code = _code_tokens_by_line(target.read_text(encoding="utf-8")).get(lineno, "")
-    assert "coord_branch or _current_branch" in code, (
+    rel_path, lineno = _ALLOW_LIST_SEED[0]
+    key = _composite_key_for_seed(rel_path, lineno)
+    _qualname, token_line = key
+    assert "coord_branch or _current_branch" in token_line, (
         f"allow-listed {rel_path}:{lineno} no longer holds the deferred HEAD "
-        f"selector (got {code!r}); re-ground the allow-list against the current "
-        "deferred S2 #1716 ladder line or remove the entry if it was retired."
+        f"selector (got token_line {token_line!r}); re-ground the allow-list "
+        "against the current deferred S2 #1716 ladder line or remove the entry "
+        "if it was retired."
+    )
+    # The seed must still resolve to an allow-listed composite key (no drift off
+    # the function / code line).
+    assert key in _ALLOW_LIST, (
+        f"the seed {rel_path}:{lineno} composite key {key!r} is not in _ALLOW_LIST "
+        "— the seed and the derived allow-list are out of sync."
     )
