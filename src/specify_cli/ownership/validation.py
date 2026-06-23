@@ -124,17 +124,62 @@ def _globs_overlap(pattern_a: str, pattern_b: str) -> bool:
     return False
 
 
-def validate_no_overlap(manifests: dict[str, OwnershipManifest]) -> list[str]:
-    """Check that no two WPs have overlapping owned_files glob patterns.
+def _dependency_reachability(
+    dependencies: Mapping[str, list[str]],
+) -> dict[str, set[str]]:
+    """Compute, for each WP, the set of WPs it transitively depends on.
 
-    Codebase-wide WPs are excluded from overlap checks because they are
-    expected to overlap with everything -- that is their purpose.
+    ``dependencies[wp]`` is the list of WP ids that ``wp`` directly depends on.
+    The returned mapping ``reach[wp]`` is the transitive closure of those edges
+    — every ancestor reachable by following ``depends-on`` edges from ``wp``.
+
+    Two WPs ``a`` and ``b`` are **sequential** (one runs strictly after the
+    other, never concurrently) iff ``b in reach[a]`` or ``a in reach[b]``; the
+    dependency DAG forces an execution order between them. WPs with no directed
+    path between them are **concurrent** (the lane allocator may place them on
+    parallel lanes), and only those must not share ``owned_files``.
+    """
+    reach: dict[str, set[str]] = {}
+
+    def _walk(node: str, seen: set[str]) -> set[str]:
+        if node in reach:
+            return reach[node]
+        acc: set[str] = set()
+        for dep in dependencies.get(node, ()):  # direct ancestors
+            if dep in seen:
+                continue  # defensive: ignore cycles (validated elsewhere)
+            acc.add(dep)
+            acc |= _walk(dep, seen | {dep})
+        reach[node] = acc
+        return acc
+
+    for wp_id in dependencies:
+        _walk(wp_id, {wp_id})
+    return reach
+
+
+def validate_no_overlap(
+    manifests: dict[str, OwnershipManifest],
+    dependencies: Mapping[str, list[str]] | None = None,
+) -> list[str]:
+    """Check that no two *concurrent* WPs have overlapping owned_files patterns.
+
+    Codebase-wide WPs are excluded (they are expected to overlap with
+    everything). When *dependencies* is supplied, **same-lane sequential** WPs —
+    those with a directed dependency path between them — are also exempt: a
+    linearized refactor chain shares one execution worktree and runs in
+    dependency order, so two such WPs legitimately own the same files. The
+    no-overlap guard exists to stop *parallel* (dependency-unordered) WPs from
+    colliding, so only concurrent pairs are flagged. When *dependencies* is
+    ``None`` the legacy all-pairs behaviour is preserved.
 
     Args:
         manifests: Mapping of WP ID (e.g. ``"WP01"``) to its OwnershipManifest.
+        dependencies: Optional mapping of WP ID to the WP ids it depends on.
+            Used to exempt sequential (same-lane) pairs from the overlap check.
 
     Returns:
-        List of error messages.  Empty list means no overlaps detected.
+        List of error messages.  Empty list means no disallowed overlaps.
     """
     errors: list[str] = []
 
@@ -146,9 +191,21 @@ def validate_no_overlap(manifests: dict[str, OwnershipManifest]) -> list[str]:
     for wp_id in sorted(skipped):
         logger.info("Skipping overlap check for %s (codebase-wide scope)", wp_id)
 
+    reach = _dependency_reachability(dependencies) if dependencies else {}
+
     wp_ids = list(narrow_manifests.keys())
 
     for wp_a, wp_b in combinations(wp_ids, 2):
+        # Same-lane sequential pair (a directed dependency path exists either
+        # way) → never concurrent → sharing owned_files is legitimate.
+        if reach and (wp_b in reach.get(wp_a, ()) or wp_a in reach.get(wp_b, ())):
+            logger.info(
+                "Skipping overlap check for sequential pair %s/%s (dependency-ordered)",
+                wp_a,
+                wp_b,
+            )
+            continue
+
         manifest_a = narrow_manifests[wp_a]
         manifest_b = narrow_manifests[wp_b]
 
@@ -241,19 +298,27 @@ def validate_execution_mode_consistency(manifest: OwnershipManifest) -> list[str
     return warnings
 
 
-def validate_all(manifests: dict[str, OwnershipManifest]) -> ValidationResult:
+def validate_all(
+    manifests: dict[str, OwnershipManifest],
+    dependencies: Mapping[str, list[str]] | None = None,
+) -> ValidationResult:
     """Run all ownership validations across every WP in a feature.
 
     Args:
         manifests: Mapping of WP ID to OwnershipManifest.
+        dependencies: Optional mapping of WP ID to the WP ids it depends on.
+            When supplied, same-lane sequential (dependency-ordered) WPs are
+            exempt from the owned_files overlap check — only concurrent
+            (parallel-lane) WPs must not share files.
 
     Returns:
         A ValidationResult with errors (hard) and warnings (soft).
     """
     result = ValidationResult()
 
-    # Cross-WP: overlap detection (hard error)
-    result.errors.extend(validate_no_overlap(manifests))
+    # Cross-WP: overlap detection (hard error) — concurrent pairs only when a
+    # dependency graph is supplied.
+    result.errors.extend(validate_no_overlap(manifests, dependencies))
 
     # Per-WP: authoritative_surface prefix (hard error)
     # Per-WP: execution_mode consistency (warning)
