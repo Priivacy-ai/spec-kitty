@@ -431,8 +431,15 @@ class TestMergeThreeLayers:
         )
         assert any(getattr(n, "provenance", None) == "project" for n in merged.nodes)
 
-    def test_shipped_invariant_override_hard_fails(self) -> None:
-        """FR-005: an org pack cannot shadow a shipped node URN."""
+    def test_shipped_invariant_override_is_permitted_with_warning(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """An org pack overriding a shipped node URN is PERMITTED by the merge
+        but surfaced as a WARNING (visible by design; a per-repo governance test
+        decides sanction). Retired the prior hard-fail ``OrgDRGConflictError``
+        expectation when the merge moved to warn-not-raise."""
+        import logging  # noqa: PLC0415
+
         built_in = _built_in_with_node("directive:caveman-comments")
         fragment = OrgDRGFragment.model_validate(
             {
@@ -451,16 +458,21 @@ class TestMergeThreeLayers:
                 "edges": [],
             }
         )
-        with pytest.raises(OrgDRGConflictError) as exc_info:
-            merge_three_layers(
+        with caplog.at_level(logging.WARNING, logger="doctrine.drg.merge"):
+            merged = merge_three_layers(
                 built_in=built_in, org_fragments=[fragment], project=None
             )
-        conflicts = exc_info.value.conflicts
-        assert any(
-            c.kind == "node_override"
-            and c.resolution_applied == "hard_fail"
-            and "caveman-comments" in c.target_id
-            for c in conflicts
+        assert merged is not None
+        override_warnings = [
+            rec.getMessage()
+            for rec in caplog.records
+            if rec.levelno == logging.WARNING
+            and "caveman-comments" in rec.getMessage()
+            and "override" in rec.getMessage().lower()
+        ]
+        assert override_warnings, (
+            "expected a same-kind-override WARNING naming 'caveman-comments', "
+            f"got {[r.getMessage() for r in caplog.records]}"
         )
 
     def test_layer_rule_violation_hard_fails(self) -> None:
