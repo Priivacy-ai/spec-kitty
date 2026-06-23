@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from mission_runtime import CommitTarget, CommitTargetKind
+from mission_runtime import CommitTarget
 from specify_cli.git.commit_helpers import CommitResult
 
 pytestmark = [pytest.mark.fast]
@@ -50,6 +50,16 @@ def _build_primary_and_coord(tmp_path: Path) -> tuple[Path, Path, Path]:
     primary_mission_dir = primary_root / "kitty-specs" / MISSION_SLUG
     primary_mission_dir.mkdir(parents=True)
     (primary_mission_dir / "spec.md").write_text(_SPEC_MD_TEXT, encoding="utf-8")
+    # Lay the WP task file on the primary read surface too: with no
+    # ``coordination_branch``/``topology`` in meta this mission classifies as
+    # ``single_branch`` (the single-authority read path resolves to the primary),
+    # so ``map-requirements`` must find WP01 here to reach the commit/serialize
+    # path under test (the commit itself is monkeypatched to the coord worktree).
+    primary_tasks_dir = primary_mission_dir / "tasks"
+    primary_tasks_dir.mkdir(parents=True)
+    (primary_tasks_dir / "WP01-example.md").write_text(
+        _WP01_FRONTMATTER, encoding="utf-8"
+    )
     (primary_mission_dir / "meta.json").write_text(
         json.dumps(
             {
@@ -98,16 +108,19 @@ def test_map_requirements_json_serializes_real_commit_result(
 
     placement = CommitTarget(
         ref=f"kitty/mission-{MISSION_SLUG}",
-        kind=CommitTargetKind.COORDINATION,
     )
 
     def fake_planning_commit_worktree(
         repo_root: Path,
         mission_slug: str,
-        placement_arg: CommitTarget,
         paths: tuple[Path, ...],
         **_kwargs: object,
     ) -> tuple[Path, tuple[Path, ...]]:
+        # Mirrors the real ``_planning_commit_worktree`` 3-positional signature
+        # ``(repo_root, mission_slug, paths, *, primary_paths_created_this_invocation)``.
+        # The single-authority cleanup removed the threaded ``placement`` arg that
+        # an earlier 4-positional fake carried; calling that stale fake from the
+        # 3-arg call site raised ``TypeError`` (swallowed → committed stayed False).
         return coord_root, paths
 
     def fake_safe_commit(

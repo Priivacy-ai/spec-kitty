@@ -104,33 +104,27 @@ def _accept_owned_dirty_paths(repo_root: Path, *feature_dirs: Path) -> set[str]:
 
 
 def _mission_routes_through_coordination(repo_root: Path, feature: str) -> bool:
-    """True when ``feature`` routes through coordination under stored topology.
+    """True when ``feature`` routes through coordination under its STORED topology.
 
-    FR-008: the accept dirty-tree gate is topology-aware via the SAME per-ref
-    pattern ``_enforce_analysis_report_write_preflight`` uses
-    (``cli/commands/agent/mission.py``): resolve the mission's single planning
-    placement :class:`CommitTarget` once and ask the canonical
-    :func:`routes_through_coordination` predicate. Under coordination topology
-    the recognized coordination residue on the primary checkout is dropped from
-    the dirty set; under a flat (``single_branch`` / ``lanes``) topology the
-    predicate is ``False``, so the residue filter never runs and a flat
-    mission's real primary artifacts STILL block.
+    FR-008 / FR-005: the accept dirty-tree gate is topology-aware. Read the WP02
+    **stored** :class:`MissionTopology` via :func:`resolve_topology` and ask the
+    ONE canonical :func:`routes_through_coordination` predicate — never the
+    retired per-ref ``.kind`` arm (the predicate takes a ``MissionTopology``, not
+    a ``CommitTarget``; passing a placement ref made it always-``False`` and
+    silently disabled the residue filter). Under coordination topology the
+    recognized coordination residue on the primary checkout is dropped from the
+    dirty set; under a flat (``single_branch`` / ``lanes``) topology the predicate
+    is ``False`` so the residue filter never runs and a flat mission's real
+    primary artifacts STILL block.
 
-    Resolution failure degrades to ``False`` (fail-closed / conservative): the
-    full dirty set is preserved exactly as before, never widening the gate on a
-    resolution edge case (NFR-003 / C-004).
+    An unresolvable handle degrades to a non-coordination shape (fail-closed /
+    conservative: the full dirty set is preserved, never widening the gate on a
+    resolution edge case — NFR-003 / C-004), exactly as the canonical
+    ``cli/commands/agent/mission.py`` routing site relies on.
     """
-    from mission_runtime import (
-        ActionContextError,
-        resolve_placement_only,
-        routes_through_coordination,
-    )
+    from mission_runtime import resolve_topology, routes_through_coordination
 
-    try:
-        placement_ref = resolve_placement_only(repo_root, feature)
-    except ActionContextError:
-        return False
-    return routes_through_coordination(placement_ref)
+    return routes_through_coordination(resolve_topology(repo_root, feature))
 
 
 def _accept_dirty_gate(
