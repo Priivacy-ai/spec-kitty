@@ -23,3 +23,6 @@ validation_criteria:
   - New code meets the repository coverage target or any accepted shortfall is called out explicitly.
   - Applicable static validation gates pass for the affected scope, or any pre-existing unrelated failures are identified explicitly.
   - Applicable CVE, dependency, and license checks pass when those gates are configured for the affected scope, or any pre-existing unrelated failures are identified explicitly.
+references:
+  - type: styleguide
+    id: tiered-standards
