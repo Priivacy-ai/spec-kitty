@@ -1,0 +1,18 @@
+{
+  "baseline_merge_commit": "d087ca93b28f79d20c0d892c9cabf66b9792f9cf",
+  "created_at": "2026-06-23T08:11:48.681477+00:00",
+  "flattened": true,
+  "friendly_name": "Org-Pack Subdir Source & Doctrine QoL",
+  "mission_id": "01KVSRJ628XHMZQTXPBC567R2X",
+  "mission_number": null,
+  "mission_slug": "org-pack-subdir-and-doctrine-qol-01KVSRJ6",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Teams that ship a doctrine pack inside a larger repository cannot currently consume it from its git source, forcing manual clone workarounds. This mission adds first-class subdirectory support for git-sourced org packs, and bundles two doctrine-stack quality improvements: clear guidance on when ruamel.yaml versus PyYAML applies, and a canonical doctrine home for tiered (DDD-based) coding-standard rigour.",
+  "purpose_tldr": "Let git-sourced doctrine packs live in a subdirectory, clarify YAML-library usage, and codify tiered coding standards in doctrine.",
+  "slug": "org-pack-subdir-and-doctrine-qol-01KVSRJ6",
+  "target_branch": "feat/doctrine-qol-2083",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-23T09:33:31.401388+00:00"
+}
