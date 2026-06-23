@@ -81,6 +81,65 @@ class TestValidateNoOverlap:
         assert errors == []
 
 
+class TestValidateNoOverlapSequential:
+    """Dependency-aware overlap: same-lane sequential WPs may share owned_files.
+
+    Captures the #2017-class guard bug — a linearized refactor chain (WPs with a
+    directed dependency path between them) runs in one worktree, in order, never
+    concurrently, so sharing owned_files is legitimate. The no-overlap guard must
+    bind only *concurrent* (dependency-unordered / parallel-lane) WPs.
+    """
+
+    def test_sequential_pair_with_dependency_allows_overlap(self) -> None:
+        # WP02 depends on WP01 → strictly sequential → identical owned_files is OK.
+        manifests = {
+            "WP01": _manifest(owned=("src/foo/**",), surface="src/foo/"),
+            "WP02": _manifest(owned=("src/foo/**",), surface="src/foo/"),
+        }
+        errors = validate_no_overlap(manifests, {"WP02": ["WP01"]})
+        assert errors == []
+
+    def test_transitive_sequential_allows_overlap(self) -> None:
+        # WP03→WP02→WP01: WP01 and WP03 share files but are transitively ordered.
+        manifests = {
+            "WP01": _manifest(owned=("src/foo/**",), surface="src/foo/"),
+            "WP02": _manifest(owned=("src/bar/**",), surface="src/bar/"),
+            "WP03": _manifest(owned=("src/foo/**",), surface="src/foo/"),
+        }
+        deps = {"WP02": ["WP01"], "WP03": ["WP02"]}
+        errors = validate_no_overlap(manifests, deps)
+        assert errors == []
+
+    def test_concurrent_pair_still_errors_with_deps(self) -> None:
+        # WP01 and WP02 overlap but have NO dependency path → concurrent → ERROR.
+        manifests = {
+            "WP01": _manifest(owned=("src/foo/**",), surface="src/foo/"),
+            "WP02": _manifest(owned=("src/foo/**",), surface="src/foo/"),
+            "WP03": _manifest(owned=("src/bar/**",), surface="src/bar/"),
+        }
+        # WP03 depends on both, but WP01/WP02 are siblings (no path between them).
+        deps = {"WP03": ["WP01", "WP02"]}
+        errors = validate_no_overlap(manifests, deps)
+        assert len(errors) == 1
+        assert "WP01" in errors[0] and "WP02" in errors[0]
+
+    def test_no_deps_preserves_legacy_all_pairs_behavior(self) -> None:
+        manifests = {
+            "WP01": _manifest(owned=("src/foo/**",), surface="src/foo/"),
+            "WP02": _manifest(owned=("src/foo/**",), surface="src/foo/"),
+        }
+        # dependencies=None → legacy all-pairs overlap detection.
+        assert len(validate_no_overlap(manifests, None)) == 1
+
+    def test_validate_all_threads_dependencies(self) -> None:
+        manifests = {
+            "WP01": _manifest(owned=("src/foo/**",), surface="src/foo/"),
+            "WP02": _manifest(owned=("src/foo/**",), surface="src/foo/"),
+        }
+        result = validate_all(manifests, {"WP02": ["WP01"]})
+        assert result.passed, result.errors
+
+
 # ---------------------------------------------------------------------------
 # validate_authoritative_surface
 # ---------------------------------------------------------------------------

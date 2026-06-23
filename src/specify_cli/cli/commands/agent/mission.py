@@ -1238,6 +1238,38 @@ def _resolve_mission_dir_name_primary_anchored(
     return None
 
 
+def _primary_anchored_feature_dir(
+    repo_root: Path, explicit_feature: str | None
+) -> Path | None:
+    """Resolve a mission handle to its PRIMARY-checkout feature dir, or ``None``.
+
+    The planning-authoring surface companion to finalize-tasks' input read: both
+    must anchor to the SAME primary surface (``primary_feature_dir_for_mission``)
+    so an agent authoring at the reported ``feature_dir`` writes where
+    finalize-tasks reads. Returns ``None`` (so the caller falls back to the
+    coord-aware resolver) when no explicit handle is given or the mission has no
+    primary-surface directory. Propagates :class:`MissionSelectorAmbiguous` — an
+    ambiguous handle is never silently resolved (C-CTX-4 / C-009).
+    """
+    if not explicit_feature or not explicit_feature.strip():
+        return None
+    from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
+        primary_feature_dir_for_mission,
+    )
+
+    try:
+        dir_name = _resolve_mission_dir_name_primary_anchored(repo_root, explicit_feature)
+    except MissionSelectorAmbiguous as exc:
+        # No silent fallback on an ambiguous selector — surface the structured
+        # error the same way the coord-aware resolver does (C-CTX-4 / C-009).
+        raise ActionContextError(exc.error_code, str(exc)) from exc
+    if not dir_name:
+        return None
+    candidate = primary_feature_dir_for_mission(repo_root, dir_name)
+    return candidate if candidate.is_dir() else None
+
+
 def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
     """List candidate missions with absolute spec.md paths for remediation output."""
     main_repo_root = get_main_repo_root(repo_root)
@@ -1723,14 +1755,31 @@ def check_prerequisites(
             command_name="spec-kitty agent mission check-prerequisites",
         )
 
-        # Determine feature directory (main repo or worktree)
+        # Determine feature directory (main repo or worktree).
+        #
+        # #2017-class surface-split fix: the planning-authoring surface this
+        # command reports MUST agree with where ``finalize-tasks`` reads its
+        # inputs. ``finalize-tasks`` deliberately anchors to the PRIMARY checkout
+        # (``primary_feature_dir_for_mission`` — CWD/topology-invariant, the same
+        # anchoring ``resolve_placement_only`` uses). The coord-aware read
+        # resolver, by contrast, returns the coordination worktree once it is
+        # materialized — so an agent authoring tasks at the reported ``feature_dir``
+        # would write to coord while finalize reads primary, and finalize parses an
+        # empty primary ``tasks/``. Delegate to the SAME primary anchor finalize
+        # uses so the two agree by construction; fall back to the coord-aware
+        # resolver only when the mission has no primary-surface directory (e.g. a
+        # coord-only legacy materialization). The full topology-aware unification
+        # of every planning command onto one surface authority is tracked by the
+        # single-authority-topology-cleanup mission (#1716 write-surface coherence).
         cwd = Path.cwd().resolve()
         try:
-            feature_dir = _find_feature_directory(
-                repo_root,
-                cwd,
-                explicit_feature=feature,
-            )
+            feature_dir = _primary_anchored_feature_dir(repo_root, feature)
+            if feature_dir is None:
+                feature_dir = _find_feature_directory(
+                    repo_root,
+                    cwd,
+                    explicit_feature=feature,
+                )
         except (ValueError, ActionContextError) as detection_error:
             _emit_check_prerequisites_detection_error(
                 repo_root=repo_root,
@@ -3363,7 +3412,17 @@ def finalize_tasks(
         wp_manifests = resolve_wp_manifests(ownership_source)
 
         if wp_manifests:
-            ownership_result = validate_ownership(wp_manifests)
+            # Same-lane sequential WPs (a linearized refactor chain that the lane
+            # allocator places on one worktree, run in dependency order) are
+            # never concurrent, so they may legitimately share owned_files. Pass
+            # the parsed dependency graph so the overlap guard binds only
+            # *parallel* (dependency-unordered) WPs — see validate_no_overlap.
+            _wp_dependencies = {
+                wp_id: list(fm.dependencies)
+                for wp_id, fm in wp_frontmatters.items()
+                if getattr(fm, "dependencies", None)
+            }
+            ownership_result = validate_ownership(wp_manifests, _wp_dependencies)
             for warning in ownership_result.warnings:
                 if not json_output:
                     console.print(f"[yellow]Ownership warning:[/yellow] {warning}")
