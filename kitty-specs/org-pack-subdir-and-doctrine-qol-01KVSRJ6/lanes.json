@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "mission_slug": "org-pack-subdir-and-doctrine-qol-01KVSRJ6",
+  "mission_id": "01KVSRJ628XHMZQTXPBC567R2X",
+  "mission_branch": "kitty/mission-org-pack-subdir-and-doctrine-qol-01KVSRJ6",
+  "target_branch": "feat/doctrine-qol-2083",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/doctrine/drg/org_pack_config.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/development/3-2-information-architecture.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/doctrine/graph.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/charter/_catalog_miss.py",
+        "src/doctrine/shared/scoping.py",
+        "src/specify_cli/cli/commands/doctrine.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/context.py",
+        "src/charter/drg.py",
+        "src/charter/pack_context.py",
+        "src/specify_cli/charter_runtime/lint/checks/org_layer.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/doctrine/config.py",
+        "src/specify_cli/doctrine/org_charter.py",
+        "src/specify_cli/doctrine/snapshot.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-06-23T09:30:53.470945+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
