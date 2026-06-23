@@ -19,15 +19,19 @@ procedures:
   - Build test fixtures by delegating to the production seam (a single schema authority), not a parallel hand-rolled copy that silently rots when the schema changes.
   - Use production-shaped test data (real identifier formats and lengths); do not embed handcrafted placeholders that mask real behavior.
   - When remediating a friction test, follow the delete-the-assertion-not-the-test tactic — replace the wrong assertion, preserve the setup and excavated edge-cases, and reserve outright deletion for provably zero-coverage or superseded tests.
+  - On a failing test, do NOT git-archaeology when the failure was introduced; classify the test and act on the verdict — (a) STALE / captures old intent → remediate the assertion to the current contract; (b) PATCHWORK / stub / fakeable → delete it or re-pin its assertion if the setup is worth keeping; (c) VALID + current (drives a real entry point, captures live intent) → it caught a real product break, so FIX THE PRODUCT, never weaken or delete the test.
+  - Establish causation by code-path coupling, not git blame — ask whether the suspect change actually touches the failing path (imports/calls on that code path). If it does not, the test surfaced a pre-existing product defect; fix or file it as a product finding rather than blaming the change.
 integrity_rules:
   - A green test that would stay green if the code under test regressed provides no coverage and must be fixed, not trusted.
   - A test that goes red on a correct, behavior-neutral change is friction; fix the test's coupling, do not revert the correct change.
   - Deleting a test deletes its coverage; never delete a test to dodge a failure — replace the assertion red-first with coverage preserved.
   - Duplicate test knowledge (the same contract asserted in many drifting places) has one source of truth, not N hand-synced copies.
+  - A valid, current test that goes red is never silenced, retried-to-green, or deleted to pass CI — its red is a real product finding to fix or file.
 validation_criteria:
   - New tests assert observable contracts and are shown to fail when those contracts are violated (anti-vacuity).
   - No new xfail or skip masks a known defect, and no new file.py:NNN-keyed ratchet entries are introduced.
   - Touched test fixtures resolve through the production creation seam rather than a parallel hand-roll.
+  - A remediated failing test carries an explicit verdict (stale-intent remediated / stub deleted / valid → product fixed), justified by code-path coupling rather than git-blame archaeology.
 references:
   - type: tactic
     id: delete-the-assertion-not-the-test
