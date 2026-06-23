@@ -567,7 +567,7 @@ def load_org_charter_policies(
     policies: list[OrgCharterPolicy] = []
     for pack in registry.packs:
         try:
-            policy = load_org_charter_policy(pack.local_path)
+            policy = load_org_charter_policy(pack.effective_root(repo_root))
         except Exception:  # noqa: BLE001, S112 — malformed pack policy is skipped
             continue
         if policy is None:

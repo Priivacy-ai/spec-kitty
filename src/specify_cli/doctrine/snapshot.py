@@ -263,11 +263,15 @@ def _build_source(pack: OrgPackConfig) -> OrgDoctrineSource:
     )
 
 
-def fetch_pack(pack: OrgPackConfig) -> FetchResult:
+def fetch_pack(pack: OrgPackConfig, repo_root: Path) -> FetchResult:
     """Fetch a single configured pack using its declared source type.
 
     Git sources manage their own working directory; all other sources go
     through :func:`write_snapshot` for atomic-replace semantics.
+
+    ``repo_root`` is needed to compute :meth:`OrgPackConfig.effective_root`
+    for post-fetch artifact counting (FR-007).  The clone target is always
+    ``pack.local_path`` (C-003).
     """
     try:
         source = _build_source(pack)
@@ -282,11 +286,21 @@ def fetch_pack(pack: OrgPackConfig) -> FetchResult:
     from .sources.git_source import GitSource
 
     if isinstance(source, GitSource):
-        return source.fetch(pack.local_path)
+        result = source.fetch(pack.local_path)
+    else:
+        result = write_snapshot(
+            source,
+            pack.local_path,
+            source_url=pack.url or "",
+            source_type=pack.source_type,
+        )
 
-    return write_snapshot(
-        source,
-        pack.local_path,
-        source_url=pack.url or "",
-        source_type=pack.source_type,
-    )
+    if result.ok:
+        effective = pack.effective_root(repo_root)
+        result = FetchResult(
+            ok=result.ok,
+            artifacts_written=sum(_count_artifacts(effective).values()),
+            pack_version=result.pack_version,
+            errors=result.errors,
+        )
+    return result

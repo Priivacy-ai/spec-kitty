@@ -10,7 +10,7 @@ parser so it cannot drift independently.
 from __future__ import annotations
 
 import warnings
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
@@ -18,6 +18,7 @@ from ruamel.yaml import YAML
 
 __all__ = [
     "OrgPackConfig",
+    "OrgPackSubdirEscapeError",
     "PackRegistry",
     "load_pack_registry",
     "resolve_org_roots",
@@ -28,6 +29,16 @@ SourceType = Literal["git", "https", "api"]
 
 _CONFIG_REL_PATH = Path(".kittify") / "config.yaml"
 _LEGACY_DEFAULT_PACK_NAME = "default"
+
+
+class OrgPackSubdirEscapeError(ValueError):
+    """Raised when ``subdir`` resolves to a path outside the pack's ``local_path``.
+
+    This is a structured error distinct from generic ``ValueError`` so that
+    call sites (and broad ``except Exception`` handlers such as
+    ``pack_context.py``) can catch and re-raise it rather than swallowing it
+    into a silent empty registry.
+    """
 
 
 def _yaml() -> YAML:
@@ -44,6 +55,7 @@ class OrgPackConfig(BaseModel):
 
     name: str
     local_path: Path
+    subdir: str | None = None
     source_type: SourceType | None = None
     url: str | None = None
     ref: str | None = None
@@ -60,6 +72,87 @@ class OrgPackConfig(BaseModel):
         if not value or not value.strip():
             raise ValueError("pack name must be a non-empty string")
         return value
+
+    @field_validator("subdir", mode="before")
+    @classmethod
+    def _validate_subdir(cls, value: str | None) -> str | None:
+        """Validate ``subdir`` at model-construction time (string-level only).
+
+        Rejects absolute paths (POSIX, Windows drive, UNC) and any ``..``
+        component.  Normalises ``.`` and empty string to ``None``.  Does NOT
+        touch the filesystem — the pack directory may not exist yet.
+        """
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            value = str(value)
+        # Normalize to None for "empty" values
+        stripped = value.strip()
+        if stripped in ("", "."):
+            return None
+        # Reject POSIX absolute paths
+        if PurePosixPath(stripped).is_absolute():
+            raise ValueError(
+                f"subdir must be a relative path, got absolute POSIX path: {stripped!r}"
+            )
+        # Reject Windows drive-letter absolute paths (C:\...) and UNC (\\...)
+        if PureWindowsPath(stripped).is_absolute():
+            raise ValueError(
+                f"subdir must be a relative path, got absolute Windows path: {stripped!r}"
+            )
+        # Reject any path containing .. components
+        parts = PurePosixPath(stripped).parts
+        if ".." in parts:
+            raise ValueError(
+                f"subdir must not contain '..' components, got: {stripped!r}"
+            )
+        # Also check Windows-style separators for ..
+        win_parts = PureWindowsPath(stripped).parts
+        if ".." in win_parts:
+            raise ValueError(
+                f"subdir must not contain '..' components, got: {stripped!r}"
+            )
+        return stripped
+
+    def effective_root(self, repo_root: Path) -> Path:
+        """Return the resolved pack root, joining ``subdir`` when set.
+
+        Resolution strategy
+        -------------------
+        1. Normalise ``local_path`` relative to ``repo_root`` when it is
+           relative (so relative config values work from any CWD).
+        2. Join ``subdir`` when present.
+        3. Apply a **resolution-time** containment check using
+           ``resolve(strict=False)`` so that a not-yet-fetched pack directory
+           does NOT raise ``FileNotFoundError``.
+
+        Raises
+        ------
+        OrgPackSubdirEscapeError
+            When the resolved effective path escapes outside ``local_path``
+            (symlink-escape detected at resolution time).
+        """
+        # Step 1 — normalise local_path vs repo_root
+        pack_root = self.local_path if self.local_path.is_absolute() else repo_root / self.local_path
+
+        if self.subdir is None:
+            return pack_root.resolve(strict=False)
+
+        # Step 2 — join subdir
+        candidate = pack_root / self.subdir
+
+        # Step 3 — containment check (strict=False so missing dirs don't crash)
+        resolved_pack_root = pack_root.resolve(strict=False)
+        resolved_candidate = candidate.resolve(strict=False)
+        try:
+            resolved_candidate.relative_to(resolved_pack_root)
+        except ValueError as exc:
+            raise OrgPackSubdirEscapeError(
+                f"subdir {self.subdir!r} resolves outside pack root "
+                f"{resolved_pack_root}: {resolved_candidate}"
+            ) from exc
+
+        return resolved_candidate
 
 
 class PackRegistry(BaseModel):
@@ -168,9 +261,14 @@ def save_pack_registry(repo_root: Path, registry: PackRegistry) -> None:
 
 
 def resolve_org_roots(repo_root: Path) -> list[Path]:
-    """Return configured org doctrine local roots in declaration order."""
+    """Return configured org doctrine local roots in declaration order.
 
-    return [pack.local_path for pack in load_pack_registry(repo_root).packs]
+    Each entry is the pack's ``effective_root`` — i.e. the ``local_path``
+    normalised relative to ``repo_root`` and joined with ``subdir`` (when
+    present).  The ~9 ``DoctrineService`` consumers that call this function
+    therefore inherit the ``subdir`` seam for free.
+    """
+    return [pack.effective_root(repo_root) for pack in load_pack_registry(repo_root).packs]
 
 
 def _config_path(repo_root: Path) -> Path:
@@ -205,6 +303,7 @@ def _build_legacy_single_pack(org_block: dict[str, Any]) -> OrgPackConfig:
     return OrgPackConfig(
         name=_LEGACY_DEFAULT_PACK_NAME,
         local_path=org_block["local_path"],
+        subdir=org_block.get("subdir"),
         source_type=org_block.get("source_type"),
         url=org_block.get("url"),
         ref=org_block.get("ref"),
@@ -245,6 +344,8 @@ def _pack_to_yaml_dict(pack: OrgPackConfig) -> dict[str, Any]:
         "name": pack.name,
         "local_path": str(pack.local_path),
     }
+    if pack.subdir is not None:
+        payload["subdir"] = pack.subdir
     if pack.source_type is not None:
         payload["source_type"] = pack.source_type
     if pack.url is not None:

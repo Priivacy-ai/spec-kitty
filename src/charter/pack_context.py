@@ -327,9 +327,11 @@ def _read_org_packs(repo_root: Path, _data: dict[str, Any]) -> tuple[tuple[str, 
         ``roots`` — resolved absolute pack root paths in the same order.
     """
     try:
-        from doctrine.drg.org_pack_config import load_pack_registry  # noqa: PLC0415
+        from doctrine.drg.org_pack_config import OrgPackSubdirEscapeError, load_pack_registry  # noqa: PLC0415
 
         registry = load_pack_registry(repo_root)
+    except OrgPackSubdirEscapeError:
+        raise
     except Exception as exc:  # pragma: no cover – defensive
         warnings.warn(
             f"Failed to load org pack registry; org packs disabled: {exc}",
@@ -341,9 +343,6 @@ def _read_org_packs(repo_root: Path, _data: dict[str, Any]) -> tuple[tuple[str, 
     roots: list[Path] = []
     for pack in registry.packs:
         names.append(pack.name)
-        configured_path = pack.local_path
-        if not configured_path.is_absolute():
-            configured_path = (repo_root / configured_path).resolve()
-        roots.append(configured_path)
+        roots.append(pack.effective_root(repo_root))
 
     return tuple(names), tuple(roots)

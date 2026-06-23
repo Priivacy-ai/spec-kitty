@@ -34,12 +34,6 @@ def assert_pack_local_paths_exist(repo_root: Path) -> None:
 
     registry = load_pack_registry(repo_root)
     for pack in registry.packs:
-        local_path = _resolve_pack_path(repo_root, pack.local_path)
-        if not local_path.exists():
-            raise MissingDoctrinePackError(pack.name, local_path)
-
-
-def _resolve_pack_path(repo_root: Path, local_path: Path) -> Path:
-    if local_path.is_absolute():
-        return local_path
-    return (repo_root / local_path).resolve()
+        effective = pack.effective_root(repo_root)
+        if not effective.exists():
+            raise MissingDoctrinePackError(pack.name, effective)
