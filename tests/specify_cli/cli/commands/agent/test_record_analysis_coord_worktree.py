@@ -237,7 +237,7 @@ def test_record_analysis_materialise_then_retry_when_invoked_from_coord_worktree
     - commit_for_mission is called (the router was invoked).
     - The old PROTECTED_BRANCH_REFUSED error_code is NOT emitted.
     """
-    from mission_runtime import CommitTarget, CommitTargetKind
+    from mission_runtime import CommitTarget
     from unittest.mock import patch
     from specify_cli.coordination.commit_router import CommitRouterResult
 
@@ -290,7 +290,6 @@ def test_record_analysis_materialise_then_retry_when_invoked_from_coord_worktree
         "specify_cli.cli.commands.agent.mission._resolve_record_analysis_placement_ref",
         lambda *_args, **_kwargs: CommitTarget(
             ref="kitty/sample-01KS",
-            kind=CommitTargetKind.COORDINATION,
         ),
     )
     emitted: dict[str, object] = {}

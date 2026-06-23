@@ -19,7 +19,6 @@ from mission_runtime import (
     ActionContextError,
     BranchRefFragment,
     CommitTarget,
-    CommitTargetKind,
     ExecutionContext,
     IdentityFragment,
 )
@@ -37,7 +36,7 @@ def _branch_ref(target_branch: str = _TARGET_BRANCH) -> BranchRefFragment:
     return BranchRefFragment(
         target_branch=target_branch,
         coordination_branch=None,
-        destination_ref=CommitTarget(ref=target_branch, kind=CommitTargetKind.FLATTENED),
+        destination_ref=CommitTarget(ref=target_branch),
     )
 
 

@@ -62,7 +62,7 @@ from runtime.next.decision import (
     _state_to_action,
 )
 from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
-from mission_runtime import MissionTopology
+from mission_runtime import routes_through_coordination
 
 logger = logging.getLogger(__name__)
 
@@ -70,15 +70,6 @@ KITTIFY_DIR = ".kittify"
 META_JSON = "meta.json"
 MISSION_RUNTIME_YAML = "mission-runtime.yaml"
 MISSION_YAML = "mission.yaml"
-
-# The mission shapes whose decision audit log lands on a coordination ref. The
-# coord-less cells (SINGLE_BRANCH / LANES) land on the primary checkout's current
-# branch (FLATTENED). This is the stored-topology projection of the retired
-# ``_coord_path.exists() ⇒ COORDINATION`` ladder (FR-004 / SC-001 / C-004).
-_COORD_ROUTING_TOPOLOGIES: frozenset[MissionTopology] = frozenset(
-    {MissionTopology.COORD, MissionTopology.LANES_WITH_COORD}
-)
-
 
 class DecisionGitLogUnavailable(RuntimeError):
     """Decision audit logging cannot be made durable for a modern mission."""
@@ -166,7 +157,10 @@ def _mission_routes_through_coordination(mission_slug: str, repo_root: Path) -> 
     derivation (the second #2069 inference, which keyed the decision on a value
     presence rather than the stored shape, SC-001). The read is PURE: an
     un-backfilled mission is classified once and NOT persisted, so this read path
-    never writes ``meta.json`` (the read-only contract, #1814). A coord-routing
+    never writes ``meta.json`` (the read-only contract, #1814). The coord-routing
+    membership is disposed by the ONE canonical predicate
+    (:func:`routes_through_coordination`) over the ONE canonical set — no second
+    ``{COORD, LANES_WITH_COORD}`` set is restated here (FR-005). A coord-routing
     topology (``COORD`` / ``LANES_WITH_COORD``) returns ``True``; the coord-less
     cells return ``False``. Missing/malformed meta degrades to non-coord (matching
     the historical "no declared coord topology" arm).
@@ -185,7 +179,7 @@ def _mission_routes_through_coordination(mission_slug: str, repo_root: Path) -> 
         topology = read_topology(feature_dir)
     except (FileNotFoundError, ValueError, OSError):
         return False
-    return topology in _COORD_ROUTING_TOPOLOGIES
+    return routes_through_coordination(topology)
 
 
 def _wrap_with_decision_git_log(
@@ -203,7 +197,7 @@ def _wrap_with_decision_git_log(
         mission_slug, repo_root,
     )
     try:
-        from mission_runtime import CommitTarget, CommitTargetKind
+        from mission_runtime import CommitTarget
         from specify_cli.coordination.workspace import CoordinationWorkspace
         from specify_cli.events.decision_log import DecisionGitLog
 
@@ -245,22 +239,24 @@ def _wrap_with_decision_git_log(
             _coord_path = CoordinationWorkspace.worktree_path(
                 repo_root, mission_slug, _mid8
             )
+            # C-011 risk site: the worktree_root selection is preserved EXACTLY —
+            # keyed off the stored-topology coord-routing decision and the C-006
+            # transient on-disk materialization check, never ``.kind``.
             worktree_root = (
                 _coord_path
                 if _coord_path.exists()
                 else CoordinationWorkspace.resolve(repo_root, mission_slug, _mid8)
             )
-            decision_target = CommitTarget(
-                ref=coordination_branch, kind=CommitTargetKind.COORDINATION
-            )
+            # The vestigial topology ``.kind`` carrier is dropped (WP04 drain):
+            # DecisionGitLog → safe_commit reads only ``target.ref``. The VO field
+            # defaults transitionally until WP16 removes it.
+            decision_target = CommitTarget(ref=coordination_branch)
         else:
             # Coord-less topology: decisions land on the primary checkout's
-            # current branch (a lane/mission branch), so the target is FLATTENED —
-            # landing == coordination == target.
+            # current branch (a lane/mission branch); landing == coordination ==
+            # target. worktree_root is the repo_root (preserved exactly).
             worktree_root = repo_root
-            decision_target = CommitTarget(
-                ref=coordination_branch, kind=CommitTargetKind.FLATTENED
-            )
+            decision_target = CommitTarget(ref=coordination_branch)
 
         return DecisionGitLog(
             repo_root=repo_root,

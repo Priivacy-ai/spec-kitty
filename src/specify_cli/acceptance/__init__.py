@@ -103,6 +103,111 @@ def _accept_owned_dirty_paths(repo_root: Path, *feature_dirs: Path) -> set[str]:
     return owned
 
 
+def _mission_routes_through_coordination(repo_root: Path, feature: str) -> bool:
+    """True when ``feature`` routes through coordination under stored topology.
+
+    FR-008: the accept dirty-tree gate is topology-aware via the SAME per-ref
+    pattern ``_enforce_analysis_report_write_preflight`` uses
+    (``cli/commands/agent/mission.py``): resolve the mission's single planning
+    placement :class:`CommitTarget` once and ask the canonical
+    :func:`routes_through_coordination` predicate. Under coordination topology
+    the recognized coordination residue on the primary checkout is dropped from
+    the dirty set; under a flat (``single_branch`` / ``lanes``) topology the
+    predicate is ``False``, so the residue filter never runs and a flat
+    mission's real primary artifacts STILL block.
+
+    Resolution failure degrades to ``False`` (fail-closed / conservative): the
+    full dirty set is preserved exactly as before, never widening the gate on a
+    resolution edge case (NFR-003 / C-004).
+    """
+    from mission_runtime import (
+        ActionContextError,
+        resolve_placement_only,
+        routes_through_coordination,
+    )
+
+    try:
+        placement_ref = resolve_placement_only(repo_root, feature)
+    except ActionContextError:
+        return False
+    return routes_through_coordination(placement_ref)
+
+
+def _accept_dirty_gate(
+    git_dirty_raw: list[str],
+    *,
+    repo_root: Path,
+    feature: str,
+    feature_dir: Path,
+    read_feature_dir: Path,
+    status_feature_dir: Path,
+) -> list[str]:
+    """Compute the accept dirty set: accept-owned exclusion + FR-008 coord residue.
+
+    Two filters compose:
+
+    1. **Accept-owned convergence (#1883):** the accept gate's own writes
+       (``acceptance-matrix.json`` + ``status.json``) are scoped to this
+       mission's primary anchor dir, the coord-aware read dir, and the canonical
+       status-read dir. Excluding all three absorbs accept-owned residue left
+       dirty by a prior ``--no-commit`` / diagnose run, so ``accept ∘ accept``
+       converges in every mode.
+    2. **FR-008 topology-aware residue:** under coordination topology the
+       recognized coordination residue (stale primary copies of artifacts owned
+       by the coordination branch) is excluded via the SAME per-ref pattern the
+       record-analysis preflight uses (:func:`routes_through_coordination` + the
+       WP04 :func:`is_coordination_artifact_residue_path` predicate). A flat
+       mission routes through PRIMARY, so its real primary artifacts STILL block.
+       ``ACCEPT_OWNED_PATHS`` is NOT widened.
+
+    Non-accept-owned, non-residue dirt is preserved verbatim (fail-closed,
+    NFR-003).
+    """
+    accept_owned_dirty_paths = _accept_owned_dirty_paths(
+        repo_root,
+        feature_dir,
+        read_feature_dir,
+        status_feature_dir,
+    )
+    git_dirty = [
+        line
+        for line in git_dirty_raw
+        if _porcelain_dirty_path(line) not in accept_owned_dirty_paths
+    ]
+    return _filter_coordination_residue(git_dirty, repo_root=repo_root, feature=feature)
+
+
+def _filter_coordination_residue(
+    dirty_lines: list[str],
+    *,
+    repo_root: Path,
+    feature: str,
+) -> list[str]:
+    """Drop coordination-residue dirty lines when the mission routes through coord.
+
+    FR-008 convergence on the ``mission.py`` reference pattern: only when
+    :func:`routes_through_coordination` holds does
+    :func:`is_coordination_artifact_residue_path` (the WP04 stored-topology
+    residue authority — flat→``False``) get to exclude a path. The predicate is
+    NOT a widening of ``ACCEPT_OWNED_PATHS``: it is the per-ref coordination gate
+    applied to recognized coordination-owned artifacts (spec / plan / tasks /
+    lanes / status / matrices / checklists) left stale on the primary checkout.
+    Real source edits, unknown mission scratch files, and another mission's
+    artifacts are not recognized residue, so they still block.
+    """
+    from mission_runtime import is_coordination_artifact_residue_path
+
+    if not _mission_routes_through_coordination(repo_root, feature):
+        return dirty_lines
+    return [
+        line
+        for line in dirty_lines
+        if not is_coordination_artifact_residue_path(
+            _porcelain_dirty_path(line), mission_slug=feature
+        )
+    ]
+
+
 class AcceptanceError(TaskCliError):
     """Raised when acceptance cannot complete due to outstanding issues."""
 
@@ -402,6 +507,49 @@ def _find_unchecked_tasks(tasks_file: Path) -> list[str]:
         if re.match(r"^\s*-\s*\[ \]", line):
             unchecked.append(line.strip())
     return unchecked
+
+
+def _normalized_unchecked_tasks(
+    unchecked_tasks: list[str],
+    lanes: Mapping[str, list[str]],
+) -> list[str]:
+    """Apply FR-009 + the ``tasks.md missing`` normalization to unchecked tasks.
+
+    FR-009 (#2085a): unchecked-tasks completion derives from WP terminal status.
+    When every tracked WP is approved/done, the work landed through the lane
+    lifecycle, so the redundant ``tasks.md`` checkbox bookkeeping is not
+    required — unticked checkboxes must not strand a finished mission. A mission
+    with a non-terminal WP (e.g. ``in_review`` / ``for_review``) still reports
+    its unchecked items. The ``[<tasks.md> missing]`` sentinel is also dropped
+    (it is surfaced separately via the missing-artifacts gate).
+
+    The acceptance-MATRIX gate (C-010) is untouched: it remains the genuine
+    verification surface — this normalization only governs the checkbox gate.
+    """
+    if unchecked_tasks == [f"{TASKS_FILE} missing"]:
+        return []
+    if _all_work_packages_terminal(lanes):
+        return []
+    return unchecked_tasks
+
+
+def _all_work_packages_terminal(lanes: Mapping[str, list[str]]) -> bool:
+    """True when every tracked WP is in a terminal-ready lane (approved/done).
+
+    FR-009: WP terminal status is the authority for completion, so an
+    orchestrated mission whose work landed through the lane lifecycle is
+    complete even if the ``tasks.md`` checkboxes were never hand-ticked. Mirrors
+    :attr:`AcceptanceSummary.all_done` but operates on the lane buckets directly
+    so the ``unchecked_tasks`` derivation does not depend on summary
+    construction order. Returns ``False`` when no WP is tracked at all (an empty
+    mission has nothing terminal to vouch for completion).
+    """
+    tracked = any(wp_ids for wp_ids in lanes.values())
+    if not tracked:
+        return False
+    return not any(
+        wp_ids for lane, wp_ids in lanes.items() if lane not in _ACCEPTED_READY_LANES
+    )
 
 
 def _check_needs_clarification(files: Sequence[Path]) -> list[str]:
@@ -969,30 +1117,15 @@ def collect_feature_summary(
 
     branch, worktree_root, primary_repo_root, git_dirty_raw = _resolve_git_context(repo_root)
 
-    # Exclude accept-owned derived paths from the dirty-tree gate so that
-    # repeated accept runs on unchanged mission state converge to the same
-    # verdict (idempotency / convergence guarantee — Issue #1883).  Paths
-    # such as acceptance-matrix.json and status.json are written by the
-    # accept pipeline itself and must not count as "unexpected" working-tree
-    # dirt on the second run.
-    # The accept gate's own writes (acceptance-matrix.json + status.json) are
-    # scoped to this mission's primary anchor dir, the coord-aware read dir, and
-    # the canonical status-read dir. Excluding all three absorbs accept-owned
-    # residue left dirty by a prior --no-commit/diagnose run, so accept ∘ accept
-    # converges in every mode. Non-accept-owned dirt is preserved verbatim
-    # (fail-closed, NFR-003).
     status_feature_dir = _status_read_feature_dir(repo_root, feature, feature_dir)
-    accept_owned_dirty_paths = _accept_owned_dirty_paths(
-        repo_root,
-        feature_dir,
-        read_feature_dir,
-        status_feature_dir,
+    git_dirty = _accept_dirty_gate(
+        git_dirty_raw,
+        repo_root=repo_root,
+        feature=feature,
+        feature_dir=feature_dir,
+        read_feature_dir=read_feature_dir,
+        status_feature_dir=status_feature_dir,
     )
-    git_dirty = [
-        line
-        for line in git_dirty_raw
-        if _porcelain_dirty_path(line) not in accept_owned_dirty_paths
-    ]
 
     lanes: dict[str, list[str]] = {lane: [] for lane in LANES}
     work_packages: list[WorkPackageState] = []
@@ -1113,7 +1246,7 @@ def collect_feature_summary(
     )
     _check_workflow_run_evidence(repo_root, read_feature_dir, branch, activity_issues)
 
-    normalized_unchecked_tasks = unchecked_tasks if unchecked_tasks != [f"{TASKS_FILE} missing"] else []
+    normalized_unchecked_tasks = _normalized_unchecked_tasks(unchecked_tasks, lanes)
     recommended_fix_order = _build_recommended_fix_order(
         lanes=lanes,
         metadata_issues=metadata_issues,

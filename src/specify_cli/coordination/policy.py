@@ -20,7 +20,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from mission_runtime import CommitTarget, CommitTargetKind
+from mission_runtime import CommitTarget
 from specify_cli.coordination.types import (
     Allowed,
     DESTINATION_REF_NOT_FOUND,
@@ -211,8 +211,12 @@ class WorkflowMutationPolicy:
         # ProtectionPolicy.resolve is the sole I/O boundary (FR-007/NFR-003):
         # all config+hatch reads happen once here; is_protected() is I/O-free.
         is_protected = ProtectionPolicy.resolve(repo_root).is_protected(ref)
+        # The guard decision reads only ``target.ref`` (commit_guard.evaluate is
+        # ref-only, C-GUARD-3a); the topology ``.kind`` was vestigial carrier here
+        # and is dropped (WP04 drain) — the VO field defaults transitionally until
+        # WP16 removes it.
         guard_verdict = evaluate_commit_guard(
-            CommitTarget(ref=ref, kind=CommitTargetKind.COORDINATION),
+            CommitTarget(ref=ref),
             ProtectionState(is_protected=is_protected),
             change_set.capability,
         )

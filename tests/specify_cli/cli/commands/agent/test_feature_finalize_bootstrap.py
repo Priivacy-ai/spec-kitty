@@ -105,13 +105,14 @@ def _common_patches(tmp_path: Path, mission_slug: str = "060-test-feature"):
     """Return a dict of patch targets -> mock values for finalize_tasks.
 
     WP02 (T027): finalize_tasks now routes git commits through
-    ``commit_for_mission`` rather than calling ``safe_commit`` directly.  The
-    old ``{MODULE}.safe_commit`` patch is kept for backward-compatibility (some
-    tests override it as a spy), but the canonical commit boundary is now
-    ``specify_cli.coordination.commit_router.commit_for_mission`` which must
-    also be patched here to prevent real git I/O in unit tests.
-    ``ProtectionPolicy.resolve`` is patched in the router so it does not attempt
-    real git operations against ``tmp_path``.
+    ``commit_for_mission`` rather than calling ``safe_commit`` directly.  WP05
+    (T014) removed the vestigial ``{MODULE}.safe_commit`` re-export shim, so the
+    old ``{MODULE}.safe_commit`` patch (never asserted as a spy) is dropped: the
+    canonical commit boundary is now
+    ``specify_cli.coordination.commit_router.commit_for_mission`` which is patched
+    here to prevent real git I/O in unit tests. ``ProtectionPolicy.resolve`` is
+    patched in the router so it does not attempt real git operations against
+    ``tmp_path``.
     """
     feature_dir = tmp_path / "kitty-specs" / mission_slug
     _fake_commit_result = CommitRouterResult(
@@ -124,8 +125,7 @@ def _common_patches(tmp_path: Path, mission_slug: str = "060-test-feature"):
         f"{MODULE}._find_feature_directory": MagicMock(return_value=feature_dir),
         f"{MODULE}._resolve_planning_branch": MagicMock(return_value="main"),
         f"{MODULE}._ensure_branch_checked_out": MagicMock(),
-        f"{MODULE}.safe_commit": MagicMock(return_value=True),
-        # WP02 / T027: commit_for_mission is the new canonical commit seam.
+        # WP02 / T027: commit_for_mission is the canonical commit seam.
         "specify_cli.coordination.commit_router.commit_for_mission": MagicMock(
             return_value=_fake_commit_result
         ),

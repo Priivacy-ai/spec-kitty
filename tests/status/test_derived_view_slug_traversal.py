@@ -26,6 +26,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.status.lifecycle import generate_lifecycle_json
+from specify_cli.status.lifecycle import _fallback_created_at, _last_merge_marker_at
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.progress import generate_progress_json
 from specify_cli.status.reducer import reduce
@@ -231,3 +232,71 @@ def test_materialize_if_stale_fail_closed_on_hostile_meta_slug(tmp_path: Path) -
 
     assert not (derived_root / _META_HOSTILE_SLUG).resolve().exists()
     assert (derived_root / _FEATURE_NAME).is_dir()
+
+
+# ── lifecycle.py load_meta contract tests (FR-006b, WP09) ──────────────────
+# _fallback_created_at and _last_merge_marker_at both use
+# load_meta(feature_dir, allow_missing=True, on_malformed="raise").
+# Observable contracts:
+#   missing meta  → None (allow_missing absorbs to None, then ``or {}`` yields
+#                   an empty dict, so the functions return None gracefully)
+#   malformed meta → raises ValueError (on_malformed="raise" propagates)
+
+
+class TestLifecycleMetaLoadContract:
+    """Contract tests for lifecycle.py's load_meta(on_malformed='raise') sites.
+
+    Observable return values per arm (CT4 — not call-graph assertions).
+    """
+
+    def test_fallback_created_at_missing_meta_returns_mtime(
+        self, tmp_path: Path
+    ) -> None:
+        """Missing meta.json: _fallback_created_at falls back to dir mtime (never raises).
+
+        With allow_missing=True, load_meta returns None; ``None or {}`` yields {}.
+        No ``created_at`` key in the empty dict, so the function falls through to
+        ``feature_dir.stat().st_mtime`` and returns a datetime.
+        """
+        from datetime import datetime
+
+        feature_dir = tmp_path / "kitty-specs" / "099-wp09-lifecycle-contract"
+        feature_dir.mkdir(parents=True)
+        assert not (feature_dir / "meta.json").exists()
+
+        # Falls back to mtime — always a datetime when the directory exists.
+        result = _fallback_created_at(feature_dir)
+        assert isinstance(result, datetime)
+
+    def test_fallback_created_at_malformed_meta_raises(self, tmp_path: Path) -> None:
+        """Malformed meta.json: _fallback_created_at raises ValueError (on_malformed='raise')."""
+        feature_dir = tmp_path / "kitty-specs" / "099-wp09-lifecycle-contract"
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text("{bad json", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="Malformed JSON"):
+            _fallback_created_at(feature_dir)
+
+    def test_last_merge_marker_at_missing_meta_returns_none(
+        self, tmp_path: Path
+    ) -> None:
+        """Missing meta.json: _last_merge_marker_at returns None without raising.
+
+        With allow_missing=True, load_meta returns None; ``None or {}`` yields {}.
+        No ``merged_at`` key in the empty dict so _parse_dt(None) returns None.
+        """
+        feature_dir = tmp_path / "kitty-specs" / "099-wp09-lifecycle-contract"
+        feature_dir.mkdir(parents=True)
+        assert not (feature_dir / "meta.json").exists()
+
+        result = _last_merge_marker_at(feature_dir)
+        assert result is None
+
+    def test_last_merge_marker_at_malformed_meta_raises(self, tmp_path: Path) -> None:
+        """Malformed meta.json: _last_merge_marker_at raises ValueError."""
+        feature_dir = tmp_path / "kitty-specs" / "099-wp09-lifecycle-contract"
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text("{bad json", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="Malformed JSON"):
+            _last_merge_marker_at(feature_dir)

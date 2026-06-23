@@ -20,7 +20,7 @@ from typing import Any
 
 from ulid import ULID
 
-from mission_runtime import CommitTarget, CommitTargetKind
+from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.git_ops import get_current_branch, is_git_repo
 from specify_cli.core.paths import is_worktree_context, locate_project_root
@@ -186,7 +186,7 @@ def _commit_feature_file(
     safe_commit(
         repo_root=repo_root,
         worktree_root=repo_root,
-        target=CommitTarget(ref=current_branch, kind=CommitTargetKind.PRIMARY),
+        target=CommitTarget(ref=current_branch),
         message=commit_msg,
         paths=(file_path,),
         capability=GuardCapability.STANDARD,

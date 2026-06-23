@@ -20,10 +20,22 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import safe_mission_slug
+
+# Hoisted S1192 literals (campsite #1970) -- the meta.json filename and the two
+# decode encodings appear across this module and the legacy contracts it absorbs.
+META_FILENAME: str = "meta.json"
+_UTF8: str = "utf-8"
+_UTF8_SIG: str = "utf-8-sig"  # BOM-tolerant decode preserved from contract (b).
+
+# Malformed-JSON policy for :func:`load_meta` (FR-006a). One of:
+#   "raise" -- raise ValueError (canonical contract (a)).
+#   "empty" -- swallow and return ``{}`` (silent contract (c)).
+#   "none"  -- swallow and return ``None``.
+OnMalformed = Literal["raise", "empty", "none"]
 
 
 # ---------------------------------------------------------------------------
@@ -249,23 +261,129 @@ def resolve_mission_identity(feature_dir: Path) -> MissionIdentity:
 # ---------------------------------------------------------------------------
 
 
-def load_meta(feature_dir: Path) -> dict[str, Any] | None:
-    """Load ``meta.json`` from *feature_dir*.  Returns ``None`` if missing.
+def _absorbed_missing(on_malformed: OnMalformed) -> dict[str, Any] | None:
+    """Return value for an *allowed* missing file, matched to *on_malformed*.
 
-    Raises :class:`ValueError` when the file exists but contains malformed
-    JSON.
+    The silent contract (c) absorbs both missing and malformed to ``{}``; the
+    canonical/none contracts absorb a missing file to ``None``.  Keeping the
+    missing-return shape aligned with the malformed policy lets one
+    ``allow_missing``/``on_malformed`` pair reproduce all three legacy contracts.
     """
-    meta_path = feature_dir / "meta.json"
+    return {} if on_malformed == "empty" else None
+
+
+def load_meta(
+    feature_dir: Path,
+    *,
+    allow_missing: bool = True,
+    on_malformed: OnMalformed = "raise",
+    encoding: str = _UTF8,
+) -> dict[str, Any] | None:
+    """Load ``meta.json`` from *feature_dir* -- the ONE canonical reader (FR-006a).
+
+    This polymorphic reader absorbs the three error contracts the codebase used
+    to spell ad-hoc.  Pick the contract via the keyword-only parameters:
+
+    - **Canonical (a)** ``allow_missing=True, on_malformed="raise"`` (defaults):
+      ``None`` on a missing file; raises :class:`ValueError` on malformed JSON
+      or a non-object top level.  This preserves the historical default.
+    - **Strict (b)** ``allow_missing=False`` (see :func:`load_meta_strict`):
+      raises :class:`FileNotFoundError` on a missing file.  Combine with
+      ``encoding="utf-8-sig"`` for the BOM-tolerant decode of the legacy
+      task-helper contract.
+    - **Silent (c)** ``on_malformed="empty"`` (see :func:`load_meta_or_empty`):
+      returns ``{}`` on a missing file *and* on any malformed/non-object
+      content -- never raises for content errors.
+
+    Args:
+        feature_dir: Directory containing ``meta.json``.
+        allow_missing: When ``True`` (default), a missing file yields ``None``
+            (or ``{}`` under ``on_malformed="empty"``).  When ``False``, a
+            missing file raises :class:`FileNotFoundError`.
+        on_malformed: Policy for malformed JSON / non-object top level --
+            ``"raise"`` (default), ``"empty"`` (``{}``), or ``"none"``
+            (``None``).
+        encoding: Decode encoding.  Use ``"utf-8-sig"`` to tolerate a UTF-8 BOM.
+
+    Returns:
+        The parsed ``meta.json`` mapping, or the absorbed sentinel
+        (``None`` / ``{}``) per the selected contract.
+
+    Raises:
+        FileNotFoundError: When the file is missing and ``allow_missing`` is
+            ``False``.
+        ValueError: When the file is malformed (or not a JSON object) and
+            ``on_malformed`` is ``"raise"``.
+    """
+    meta_path = feature_dir / META_FILENAME
     if not meta_path.exists():
-        return None
-    text = meta_path.read_text(encoding="utf-8")
+        if allow_missing:
+            return _absorbed_missing(on_malformed)
+        raise FileNotFoundError(f"No {META_FILENAME} in {feature_dir}")
+    return _parse_meta_text(meta_path, on_malformed=on_malformed, encoding=encoding)
+
+
+def _parse_meta_text(
+    meta_path: Path,
+    *,
+    on_malformed: OnMalformed,
+    encoding: str,
+) -> dict[str, Any] | None:
+    """Decode and parse an existing ``meta.json`` per *on_malformed*.
+
+    A read/decode error (``OSError``) or a JSON syntax error or a non-object top
+    level is "malformed".  Under ``"raise"`` it surfaces as :class:`ValueError`;
+    under ``"empty"``/``"none"`` it is absorbed to ``{}``/``None``.
+    """
     try:
+        text = meta_path.read_text(encoding=encoding)
         data = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"Malformed JSON in {meta_path}: {exc}") from exc
+    except (json.JSONDecodeError, OSError) as exc:
+        if on_malformed == "raise":
+            raise ValueError(f"Malformed JSON in {meta_path}: {exc}") from exc
+        return {} if on_malformed == "empty" else None
     if not isinstance(data, dict):
-        raise ValueError(f"Expected JSON object in {meta_path}, got {type(data).__name__}")
+        if on_malformed == "raise":
+            raise ValueError(
+                f"Expected JSON object in {meta_path}, got {type(data).__name__}"
+            )
+        return {} if on_malformed == "empty" else None
     return data
+
+
+def load_meta_strict(feature_dir: Path, *, bom_tolerant: bool = True) -> dict[str, Any]:
+    """Raise-on-missing adapter (legacy contract (b)).
+
+    Reproduces ``task_utils.support.load_meta`` / the old ``task_helpers``
+    loader: raises :class:`FileNotFoundError` when ``meta.json`` is absent, and
+    decodes BOM-tolerantly (``utf-8-sig``) by default.  A non-object top level
+    is coerced to ``{}`` (matching the legacy ``isinstance`` guard), never
+    raised.
+
+    Returns the parsed mapping (never ``None``).
+    """
+    result = load_meta(
+        feature_dir,
+        allow_missing=False,
+        on_malformed="empty",
+        encoding=_UTF8_SIG if bom_tolerant else _UTF8,
+    )
+    # allow_missing=False raises before returning; on_malformed="empty" never
+    # returns None -- so ``result`` is always a dict.  ``or {}`` narrows the
+    # ``| None`` for the type checker without an assert that ``-O`` would strip.
+    return result or {}
+
+
+def load_meta_or_empty(feature_dir: Path) -> dict[str, Any]:
+    """Silent empty-dict adapter (legacy contract (c)).
+
+    Reproduces ``retrospective.generator._load_meta`` / ``review._load_meta``:
+    returns ``{}`` when ``meta.json`` is missing *or* malformed -- never raises.
+    """
+    result = load_meta(feature_dir, allow_missing=True, on_malformed="empty")
+    # on_malformed="empty" never yields None; ``or {}`` narrows ``| None`` for
+    # the type checker (value-preserving: ``{} or {}`` is ``{}``).
+    return result or {}
 
 
 def validate_meta(meta: dict[str, Any]) -> list[str]:

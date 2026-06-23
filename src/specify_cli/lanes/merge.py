@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from specify_cli.git.ref_advance import advance_branch_ref
+from specify_cli.status import COORD_OWNED_STATUS_FILES
 from specify_cli.lanes._git import branch_exists as _shared_branch_exists
 from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path as _worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -455,7 +456,15 @@ def _merge_branch_into(
             ).stdout.strip()
             # Fast-forward the target branch to the rebased tip, resyncing any
             # worktree that has target_branch checked out (#1826 / AC-B2).
-            advance_branch_ref(repo_root, target_branch, rebased_sha, env=_env)
+            # Coordination status residue is excluded from the dirty gate via
+            # the single residue authority (FR-012 / #1878).
+            advance_branch_ref(
+                repo_root,
+                target_branch,
+                rebased_sha,
+                env=_env,
+                coord_owned_filenames=COORD_OWNED_STATUS_FILES,
+            )
             return True  # early return — ref already updated
         else:
             # MERGE strategy (default for lane→mission): no-ff merge commit.
@@ -482,7 +491,15 @@ def _merge_branch_into(
 
         # Update the target branch ref to point to the merge commit, resyncing
         # any worktree that has target_branch checked out (#1826 / AC-B2).
-        advance_branch_ref(repo_root, target_branch, merge_commit, env=_env)
+        # Coordination status residue is excluded from the dirty gate via the
+        # single residue authority (FR-012 / #1878).
+        advance_branch_ref(
+            repo_root,
+            target_branch,
+            merge_commit,
+            env=_env,
+            coord_owned_filenames=COORD_OWNED_STATUS_FILES,
+        )
         return True
     finally:
         subprocess.run(

@@ -23,6 +23,8 @@ import tomllib
 from pathlib import Path
 from typing import Annotated, Literal
 
+from specify_cli.mission_metadata import load_meta_or_empty
+
 import typer
 from rich.console import Console
 
@@ -379,17 +381,6 @@ def _require_mission_handle(mission: str, console: object) -> str:
     return handle
 
 
-def _load_meta(feature_dir: Path) -> dict[str, object]:
-    meta_path = feature_dir / "meta.json"
-    if not meta_path.exists():
-        return {}
-    try:
-        loaded = json.loads(meta_path.read_text(encoding="utf-8"))
-        return loaded if isinstance(loaded, dict) else {}
-    except (json.JSONDecodeError, OSError):
-        return {}
-
-
 def _resolve_mode_or_exit(
     *,
     console: object,
@@ -586,7 +577,7 @@ def review_mission(
     resolved = resolve_mission_handle(handle, repo_root)
     feature_dir = resolved.feature_dir
     mission_slug = resolved.mission_slug
-    meta = _load_meta(feature_dir)
+    meta = load_meta_or_empty(feature_dir)
     friendly_name: str = str(meta.get("friendly_name") or mission_slug)
     _bmc_raw = meta.get("baseline_merge_commit")
     baseline_merge_commit: str | None = str(_bmc_raw) if _bmc_raw else None

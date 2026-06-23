@@ -1613,13 +1613,18 @@ def test_branchref_fragment_parity(parity_repo: tuple[Path, Path, str]) -> None:
             f"{primary_val!r} (primary) != {lane_val!r} (lane)."
         )
 
-    # destination_ref is a CommitTarget value object: it must carry a ``kind``.
+    # destination_ref is a ref-only CommitTarget value object (C-007 / FR-001b):
+    # it carries a ``ref`` and NO retired ``kind`` field.
     destination_ref = _fragment_value(
         primary_ctx, _BRANCHREF_FRAGMENT, "destination_ref"
     )
-    assert getattr(destination_ref, "kind", None) is not None, (
+    assert getattr(destination_ref, "ref", None), (
         "BranchRefFragment.destination_ref must be a CommitTarget carrying a "
-        f"``kind``; got {destination_ref!r} (ADR-2026-06-03-2)."
+        f"``ref``; got {destination_ref!r} (ADR-2026-06-03-2 / C-007)."
+    )
+    assert not hasattr(destination_ref, "kind"), (
+        "CommitTarget is ref-only (FR-001b): the retired ``kind`` field must be "
+        f"gone; got {destination_ref!r}."
     )
 
 
@@ -1807,7 +1812,7 @@ def test_runtime_lifecycle_action_parity(parity_repo: tuple[Path, Path, str]) ->
 # ``.worktrees/<slug>-coord`` worktree) and the tests prove the flattened
 # invariants from data-model.md:
 #
-#   * CommitTarget.kind == "flattened"
+#   * routes_through_coordination(stored topology) is False (C-001, FR-001b)
 #   * coordination_branch is None
 #   * status_read_dir == status_write_dir
 #
@@ -1909,27 +1914,35 @@ def flattened_repo(tmp_path: Path) -> Generator[tuple[Path, str], None, None]:
     yield repo_root, mission_slug
 
 
-# CONVERGED (WP08 / IC-12): a mission with no coordination branch resolves a
-# CommitTarget whose ``kind == flattened`` (data-model.md / C-001 / C-PLACE-1) —
-# xfail removed.
-def test_flattened_topology_commit_target_kind(
+# CONVERGED (WP08 / IC-12; reworked WP16 / FR-001b): a mission with no
+# coordination branch does NOT route through coordination (data-model.md / C-001 /
+# C-PLACE-1). The retired ``CommitTarget.kind == 'flattened'`` pin is replaced by
+# the canonical stored-topology routing predicate — the per-ref enum is gone.
+def test_flattened_topology_does_not_route_through_coordination(
     flattened_repo: tuple[Path, str],
 ) -> None:
-    """Flattened C-001 proof: ``destination_ref.kind == 'flattened'``.
+    """Flattened C-001 proof: the mission does NOT route through coordination.
 
-    A mission with no separate coordination branch must resolve a CommitTarget
-    whose ``kind`` is ``flattened`` (data-model.md / C-PLACE-1).
+    A mission with no separate coordination branch resolves a coord-less stored
+    topology (SINGLE_BRANCH/LANES), so ``routes_through_coordination`` is ``False``
+    — the FR-001b replacement for the retired ``CommitTarget.kind == 'flattened'``
+    pin (data-model.md / C-PLACE-1). The destination ref is the ref-only target.
     """
+    from mission_runtime import resolve_topology, routes_through_coordination
+
     repo_root, mission_slug = flattened_repo
     ctx = _resolve_context_from_cwd(
         repo_root, action="tasks", mission_slug=mission_slug
     )
     destination_ref = _fragment_value(ctx, _BRANCHREF_FRAGMENT, "destination_ref")
-    kind = getattr(destination_ref, "kind", None)
-    kind_value = getattr(kind, "value", kind)
-    assert kind_value == "flattened", (
-        "Under flattened topology the CommitTarget.kind must be 'flattened'; "
-        f"got {kind_value!r} (C-001 proof)."
+    # Ref-only carrier (C-007): no retired ``kind`` field.
+    assert not hasattr(destination_ref, "kind")
+    assert getattr(destination_ref, "ref", None), (
+        f"flattened destination_ref must carry a ref; got {destination_ref!r}"
+    )
+    assert routes_through_coordination(resolve_topology(repo_root, mission_slug)) is False, (
+        "Under flattened topology the mission must NOT route through coordination "
+        "(C-001 proof) — the stored topology is coord-less."
     )
 
 

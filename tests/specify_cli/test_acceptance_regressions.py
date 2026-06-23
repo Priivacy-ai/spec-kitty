@@ -324,7 +324,14 @@ def test_collect_feature_summary_checks_required_artifacts_in_coord_worktree(tmp
 
     assert summary.feature_dir == feature_dir
     assert summary.missing_artifacts == []
-    assert summary.unchecked_tasks == ["- [ ] Coord-only unfinished task"]
+    # FR-009 (#2085a, WP12): unchecked-tasks completion now derives from WP
+    # terminal status. ``_create_test_feature`` forces WP01 to DONE, so the
+    # coord ``tasks.md``'s unticked checkbox no longer strands the mission — the
+    # checkbox gate is satisfied by the terminal WP. The load-bearing intent of
+    # this regression (the coord worktree IS the artifact-read surface) is still
+    # exercised by the ``needs_clarification`` assertion below, read from the
+    # coord ``spec.md``.
+    assert summary.unchecked_tasks == []
     assert summary.needs_clarification == [str(coord_feature_dir / "spec.md")]
 
 

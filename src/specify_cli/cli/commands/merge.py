@@ -24,6 +24,8 @@ Recovery semantics (WP01 / 067):
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from specify_cli.core.constants import KITTY_SPECS_DIR, KITTIFY_DIR, WORKTREES_DIR
 from specify_cli.coordination.surface_resolver import (
     is_under_worktrees_segment,
@@ -98,8 +100,13 @@ from specify_cli.post_merge.retrospective_terminus import run_retrospective_post
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
 from specify_cli.sync import emit_diff_summary_recorded, emit_mission_closed
 from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
-from specify_cli.status import REVIEWER_SELF_APPROVAL, read_wp_frontmatter
+from specify_cli.status import (
+    COORD_OWNED_STATUS_FILES,
+    REVIEWER_SELF_APPROVAL,
+    read_wp_frontmatter,
+)
 from specify_cli.task_utils import TaskCliError, find_repo_root
+from mission_runtime import is_coordination_artifact_residue_path
 
 if TYPE_CHECKING:
     from specify_cli.merge.push_preflight import TargetBranchSyncStatus
@@ -220,6 +227,8 @@ def _raw_porcelain_status(repo_root: Path) -> tuple[int, str]:
 def _classify_porcelain_lines(
     lines: list[str],
     expected_paths: set[str],
+    *,
+    residue_predicate: Callable[[str], bool] | None = None,
 ) -> tuple[list[str], int]:
     """Classify ``git status --porcelain`` lines into offending vs ignored.
 
@@ -230,9 +239,16 @@ def _classify_porcelain_lines(
     * ``skipped_untracked_count`` — number of ``??`` (untracked) lines that were
       silently dropped because untracked files cannot diverge from HEAD.
 
-    Lines whose path component is in *expected_paths* are also dropped because
-    the immediately-following safe_commit will persist those files and they are
+    Lines whose path component is in *expected_paths* are dropped because the
+    immediately-following safe_commit will persist those files and they are
     therefore expected to be dirty at this point in the flow.
+
+    Lines whose path is recognized by *residue_predicate* are also dropped:
+    these are coordination-owned planning/status artifacts whose stale primary
+    copies are legitimate residue after a coordination-topology merge (FR-012 /
+    #1878).  The predicate is the single residue authority
+    (:func:`mission_runtime.is_coordination_artifact_residue_path`) — no second
+    residue literal is carried here.
 
     Lines that do not match porcelain v1 shape (two status chars + space + path)
     are silently ignored to avoid false positives from mocked test output.
@@ -251,6 +267,8 @@ def _classify_porcelain_lines(
             continue  # untracked files cannot diverge from HEAD
         path_part = line[3:].strip()
         if path_part in expected_paths:
+            continue
+        if residue_predicate is not None and residue_predicate(path_part):
             continue
         offending.append(line)
     return offending, skipped_untracked
@@ -1281,7 +1299,15 @@ def _write_mission_number_to_branch(
         ).stdout.strip()
         # Fast-forward the mission branch ref, resyncing any worktree (e.g.
         # the coordination worktree) that has it checked out (#1826 / AC-B2).
-        advance_branch_ref(main_repo, mission_branch, new_sha)
+        # Coordination status residue on the primary checkout is legitimate
+        # after a coord-branch write, so exclude it from the dirty gate
+        # (#1878 / FR-012) rather than abort the post-write ff-advance.
+        advance_branch_ref(
+            main_repo,
+            mission_branch,
+            new_sha,
+            coord_owned_filenames=COORD_OWNED_STATUS_FILES,
+        )
         return True
     finally:
         _subprocess.run(
@@ -2622,10 +2648,13 @@ def _run_lane_based_merge_locked(
     # invariant must be blind to nothing, so we splitlines() the raw stdout.
     _ret_status, _out_status = _raw_porcelain_status(main_repo)
     if _ret_status == 0:
-        expected_paths = {
-            f"kitty-specs/{mission_slug}/{_STATUS_EVENTS_FILENAME}",
-            f"kitty-specs/{mission_slug}/{_STATUS_FILENAME}",
-        }
+        # Coordination status residue (status.events.jsonl / status.json and
+        # the rest of the planning artifact set) is recognized through the
+        # single residue authority — not a hardcoded literal copy (FR-012 /
+        # #1878). The immediately-following safe_commit persists the two status
+        # files; the wider residue set may legitimately diverge on the primary
+        # checkout after a coordination-topology merge.
+        expected_paths: set[str] = set()
         if baseline_meta_path is not None:
             expected_paths.add(str(baseline_meta_path.relative_to(main_repo)))
         # Planning-only closeout dirties meta.json to bake in mission_number.
@@ -2636,9 +2665,16 @@ def _run_lane_based_merge_locked(
         # merge. Mirrors the baseline_meta_path branch above.
         if mission_number_meta_path is not None:
             expected_paths.add(str(mission_number_meta_path.relative_to(main_repo)))
+
+        def _is_coord_residue(path_part: str) -> bool:
+            return is_coordination_artifact_residue_path(
+                path_part, mission_slug=mission_slug
+            )
+
         offending_lines, _skipped_untracked = _classify_porcelain_lines(
             (_out_status or "").splitlines(),
             expected_paths,
+            residue_predicate=_is_coord_residue,
         )
         if offending_lines:
             console.print(

@@ -113,8 +113,10 @@ def _finalize_tasks_context(
             "specify_cli.cli.commands.agent.mission._show_branch_context",
             return_value=(None, "main"),
         ),
+        # WP05 (T014): the ``mission.safe_commit`` re-export shim is gone; suppress
+        # git I/O at the canonical commit boundary (``commit_for_mission``) instead.
         patch(
-            "specify_cli.cli.commands.agent.mission.safe_commit",
+            "specify_cli.coordination.commit_router.commit_for_mission",
             return_value=True,
         ),
         patch(

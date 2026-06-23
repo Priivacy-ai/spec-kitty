@@ -13,7 +13,7 @@ from typing import Literal
 
 from mission_runtime.context import (
     CommitTarget,
-    CommitTargetKind,
+    MissionTopology,
     routes_through_coordination,
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
@@ -33,6 +33,14 @@ class MissionArtifactKind(enum.Enum):
     ISSUE_MATRIX = "issue_matrix"
     STATUS_STATE = "status_state"
     ANALYSIS_REPORT = "analysis_report"
+    # Planning SOURCE docs (/spec-kitty.specify + /spec-kitty.plan outputs).
+    # Under coordination topology these are committed to the coordination branch
+    # exactly like the finalized artifacts above, so a stale primary copy is
+    # coordination residue (not a dirty-tree blocker).
+    SPEC = "spec"
+    DATA_MODEL = "data_model"
+    RESEARCH = "research"
+    CHECKLIST = "checklist"
 
 
 @dataclass(frozen=True)
@@ -45,14 +53,26 @@ class MissionArtifactHome:
     commit_target: CommitTarget | None
     ignores_primary_coord_residue: bool
 
-    @property
-    def is_coordination_owned(self) -> bool:
-        """True when stale primary copies should not block coord-topology flows."""
-        return (
-            self.ignores_primary_coord_residue
-            and self.commit_target is not None
-            and routes_through_coordination(self.commit_target)
-        )
+
+def kind_is_coordination_residue(
+    kind: MissionArtifactKind,
+    topology: MissionTopology,
+) -> bool:
+    """Is ``kind`` coordination residue under ``topology`` (stored-topology projection)?
+
+    The #2090-clean residue authority: coord-routing is derived from the **stored**
+    :class:`MissionTopology` via the SINGLE :func:`routes_through_coordination`
+    predicate over ``COORD`` / ``LANES_WITH_COORD`` — NEVER from a fabricated
+    ``CommitTarget`` ``.kind`` shim. A placement-kind artifact whose home ignores
+    primary residue is residue iff the mission routes through coordination; the two
+    coord-less cells (``SINGLE_BRANCH`` / ``LANES``) have no primary↔coordination
+    split, so nothing is residue there (the flat→False cell). The placement ref the
+    home carries is irrelevant to the routing decision — only the kind's
+    ``ignores_primary_coord_residue`` classification and the stored topology matter.
+    """
+    if not routes_through_coordination(topology):
+        return False
+    return kind in _PLACEMENT_ARTIFACT_KINDS
 
 
 _PLACEMENT_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
@@ -65,6 +85,10 @@ _PLACEMENT_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
         MissionArtifactKind.ISSUE_MATRIX,
         MissionArtifactKind.STATUS_STATE,
         MissionArtifactKind.ANALYSIS_REPORT,
+        MissionArtifactKind.SPEC,
+        MissionArtifactKind.DATA_MODEL,
+        MissionArtifactKind.RESEARCH,
+        MissionArtifactKind.CHECKLIST,
     }
 )
 
@@ -77,10 +101,14 @@ _COORD_RESIDUE_FILENAMES: dict[str, MissionArtifactKind] = {
     "status.events.jsonl": MissionArtifactKind.STATUS_STATE,
     "status.json": MissionArtifactKind.STATUS_STATE,
     "analysis-report.md": MissionArtifactKind.ANALYSIS_REPORT,
+    "spec.md": MissionArtifactKind.SPEC,
+    "data-model.md": MissionArtifactKind.DATA_MODEL,
+    "research.md": MissionArtifactKind.RESEARCH,
 }
 
 _COORD_RESIDUE_DIRS: dict[str, MissionArtifactKind] = {
     "tasks": MissionArtifactKind.WORK_PACKAGE_TASK,
+    "checklists": MissionArtifactKind.CHECKLIST,
 }
 
 
@@ -117,15 +145,20 @@ def is_coordination_artifact_residue_path(
 ) -> bool:
     """Return True for primary-checkout residue owned by a coord placement.
 
-    The predicate is intentionally path-specific: finalized planning/status
-    artifacts are ignored under coordination topology, but ``spec.md`` and
-    unknown mission files still block dirty-tree gates.
+    The predicate is path-specific: planning SOURCE docs (``spec.md`` /
+    ``data-model.md`` / ``research.md`` / ``checklists/``) and finalized
+    planning/status artifacts are all committed to the coordination branch under
+    coordination topology, so their stale primary copies are ignored. Unknown
+    mission files and another mission's artifacts still block dirty-tree gates.
     """
     artifact_kind = _artifact_kind_for_path(path, mission_slug=mission_slug)
     if artifact_kind is None:
         return False
-    coord_ref = CommitTarget(ref="", kind=CommitTargetKind.COORDINATION)
-    return artifact_home_for(artifact_kind, coord_ref).is_coordination_owned
+    # #2090-clean: derive coord-routing from the STORED topology via the SINGLE
+    # routing predicate, NOT a fabricated ``CommitTarget(kind=COORDINATION)`` shim.
+    # This predicate is the coordination-residue question, so it projects the
+    # ``COORD`` topology cell; the coord-less cells return False (no residue).
+    return kind_is_coordination_residue(artifact_kind, MissionTopology.COORD)
 
 
 def _artifact_kind_for_path(

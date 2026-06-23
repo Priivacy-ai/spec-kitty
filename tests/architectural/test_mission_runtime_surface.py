@@ -50,7 +50,6 @@ _PUBLIC_SURFACE = sorted(
         "ArtifactPlacementFragment",
         "BranchRefFragment",
         "CommitTarget",
-        "CommitTargetKind",
         "ExecutionContext",
         "ExecutionMode",
         "IdentityFragment",
@@ -64,6 +63,7 @@ _PUBLIC_SURFACE = sorted(
         "is_coordination_artifact_residue_path",
         "resolve_action_context",
         "resolve_placement_only",
+        "resolve_topology",
         "routes_through_coordination",
     ]
 )

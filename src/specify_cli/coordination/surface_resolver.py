@@ -47,7 +47,11 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from mission_runtime import MissionTopology, classify_topology
+from mission_runtime import (
+    MissionTopology,
+    classify_topology,
+    routes_through_coordination,
+)
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.lanes.branch_naming import mid8_from_slug, resolve_mid8
@@ -83,19 +87,20 @@ _WORKTREES_SEGMENT = ".worktrees"
 _COORD_SUFFIX = "-coord"
 _STATUS_EVENTS_FILENAME = "status.events.jsonl"
 
-# The two mission shapes whose status surface lives on a coordination ref. The
-# coord-less cells (SINGLE_BRANCH / LANES) resolve to the PRIMARY checkout. This
-# is the surface-shape projection of the WP02 stored topology (FR-004 / SC-001):
-# the PRIMARY-vs-coord decision is READ from the topology, not re-inferred from
-# ``coordination_branch is None`` (the retired #2069 third derivation).
-_COORD_SURFACE_TOPOLOGIES: frozenset[MissionTopology] = frozenset(
-    {MissionTopology.COORD, MissionTopology.LANES_WITH_COORD}
-)
-
-
 def _topology_uses_coord_surface(topology: MissionTopology) -> bool:
-    """True when *topology* places the status surface on a coordination ref."""
-    return topology in _COORD_SURFACE_TOPOLOGIES
+    """True when *topology* places the status surface on a coordination ref.
+
+    Thin call-through to the ONE canonical routing predicate
+    (:func:`mission_runtime.routes_through_coordination`) over the ONE canonical
+    coord-routing set — no second ``{COORD, LANES_WITH_COORD}`` set is restated
+    here (FR-005 / SC-001). The surface-shape projection of the WP02 stored
+    topology (FR-004): the PRIMARY-vs-coord decision is READ from the topology,
+    not re-inferred from ``coordination_branch is None`` (the retired #2069 third
+    derivation). Retained as a thin shim so the cross-module
+    ``_read_path_resolver`` consumer keeps its import; WP17 collapses both onto
+    the canonical predicate directly.
+    """
+    return routes_through_coordination(topology)
 
 # Option B loud primary fallback (FR-001 / FR-003 / #1716): when the coordination
 # worktree root is materialized but carries no mission dir, the resolver returns
@@ -648,7 +653,10 @@ def resolve_status_surface_with_anchor(
     # must never hand back. (For unresolvable handles the candidate's name
     # equals the raw handle, so the not-found behaviour is unchanged.)
     mission_slug = feature_dir.name
-    meta = load_meta(feature_dir)
+    # FR-006: canonical reader contract (a) — None on missing, ValueError on
+    # malformed (defaults stated explicitly). A malformed worktree meta propagates
+    # the typed corrupt-meta error, exactly as before the canonical conversion.
+    meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise")
 
     # FR-006 (structural #2062 — the surface read-leg close): the husk
     # short-circuit below trusts the worktree's OWN ``meta.json`` (which EVERY real
@@ -689,7 +697,9 @@ def resolve_status_surface_with_anchor(
     # config-determined, never topology-determined-then-config-lost.
     primary_dir: Path = primary_feature_dir_for_mission(repo_root, mission_slug)
     if meta is None:
-        meta = load_meta(primary_dir)
+        # FR-006: canonical reader contract (a) — None on missing, ValueError on
+        # malformed (defaults stated explicitly).
+        meta = load_meta(primary_dir, allow_missing=True, on_malformed="raise")
     if meta is None:
         if primary_dir.exists():
             return ResolvedStatusSurface(

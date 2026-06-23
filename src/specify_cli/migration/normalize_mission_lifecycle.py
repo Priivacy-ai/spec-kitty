@@ -73,7 +73,7 @@ def _load_meta_for_normalization(
     result: NormalizeMissionLifecycleResult,
 ) -> dict[str, Any] | None:
     try:
-        meta = load_meta(feature_dir)
+        meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise")
     except Exception as exc:  # noqa: BLE001 - keep one broken mission from aborting the run
         result.status = "error"
         result.error = f"Could not read meta.json: {exc}"
@@ -115,7 +115,7 @@ def _apply_identity_normalization(
             )
         except Exception as exc:  # noqa: BLE001 - keep normalization best-effort
             result.warnings.append(f"dossier rehash failed: {exc}")
-        meta = load_meta(feature_dir) or meta
+        meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise") or meta
 
     return meta, refresh_derived
 

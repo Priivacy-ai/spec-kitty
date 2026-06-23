@@ -356,7 +356,10 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
     )
     repo_root = request.repo_root or canonical_repo_root
 
-    meta = load_meta(feature_dir)
+    # FR-006: canonical reader contract (a) — None on missing, ValueError on
+    # malformed (defaults stated explicitly). ``meta_exists`` below keys on the
+    # ``None`` (missing) arm; a malformed meta surfaces the typed corrupt-meta error.
+    meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise")
 
     coord_branch: str | None = None
     mission_id: str | None = None
@@ -580,24 +583,28 @@ def _read_contract_routes_through_coordination(
     (C-006).
     """
     from mission_runtime import (  # noqa: PLC0415
-        MissionTopology,
         classify_topology,
+        routes_through_coordination,
     )
     from specify_cli.migration.backfill_topology import (  # noqa: PLC0415
         read_topology,
     )
 
-    coord_routing = frozenset(
-        {MissionTopology.COORD, MissionTopology.LANES_WITH_COORD}
-    )
     try:
         topology = read_topology(identity.feature_dir)
     except (FileNotFoundError, ValueError, OSError):
         # Un-backfilled legacy mission / absent / malformed primary meta: derive
         # the shape ONCE from the coordination-branch value-read (the historical
         # two-arg arm). Same single ``classify_topology`` authority, no re-inference.
+        # This is the C-002 genuine-fallback RELAY — the exception arm reads the
+        # stored topology first and only relays via ``classify_topology`` here; it
+        # is NOT a routing predicate and stays distinct from the coord-routing
+        # disposal below (NFR-005).
         topology = classify_topology(identity.coordination_branch, has_lanes=False)
-    return topology in coord_routing
+    # The coord-routing membership is disposed by the ONE canonical predicate over
+    # the ONE canonical set — no inline ``{COORD, LANES_WITH_COORD}`` frozenset is
+    # restated here (FR-005 / S1192).
+    return routes_through_coordination(topology)
 
 
 def _read_contract_from_transaction_target(

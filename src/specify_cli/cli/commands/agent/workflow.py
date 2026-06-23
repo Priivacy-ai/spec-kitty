@@ -73,7 +73,7 @@ from specify_cli.core.dependency_graph import (
 )
 from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root, is_worktree_context, locate_project_root
 from specify_cli.core.utils import write_text_within_directory
-from mission_runtime import CommitTarget, CommitTargetKind
+from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
@@ -497,7 +497,7 @@ def _commit_via_legacy_safe_commit(
     result = safe_commit(
         repo_root=repo_root,
         worktree_root=repo_root,
-        target=CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY),
+        target=CommitTarget(ref=target_branch),
         message=message,
         paths=tuple(paths),
         capability=GuardCapability.STANDARD,
@@ -1660,7 +1660,7 @@ def implement(
                         safe_commit(
                             repo_root=main_repo_root,
                             worktree_root=main_repo_root,
-                            target=CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY),
+                            target=CommitTarget(ref=target_branch),
                             message=f"chore: Capture baseline tests for {normalized_wp_id}",
                             paths=(_baseline_artifact,),
                             capability=GuardCapability.STANDARD,

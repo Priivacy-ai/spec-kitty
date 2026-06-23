@@ -26,6 +26,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.retrospective.schema import (
     FindingsStatus,
     GenActor,
@@ -121,18 +122,6 @@ def _resolve_mission_dir(mission_handle: str, repo_root: Path) -> Path | None:
                 continue
 
     return None
-
-
-def _load_meta(feature_dir: Path) -> dict[str, Any]:
-    """Load meta.json; return empty dict if missing or malformed."""
-    meta_path = feature_dir / "meta.json"
-    if not meta_path.exists():
-        return {}
-    try:
-        result: dict[str, Any] = json.loads(meta_path.read_text(encoding="utf-8"))
-        return result
-    except (json.JSONDecodeError, OSError):
-        return {}
 
 
 def _read_optional_text(path: Path) -> str | None:
@@ -1019,7 +1008,7 @@ def generate_retrospective(
     # ------------------------------------------------------------------
     # Step 2: Read artifacts in canonical order
     # ------------------------------------------------------------------
-    meta = _load_meta(feature_dir)
+    meta = load_meta_or_empty(feature_dir)
 
     spec_text = _read_optional_text(feature_dir / "spec.md") or ""
     plan_text = _read_optional_text(feature_dir / "plan.md") or ""

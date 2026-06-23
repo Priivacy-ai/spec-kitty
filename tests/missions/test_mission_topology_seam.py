@@ -20,8 +20,6 @@ from __future__ import annotations
 import pytest
 
 from mission_runtime import (
-    CommitTarget,
-    CommitTargetKind,
     MissionTopology,
     classify_topology,
     routes_through_coordination,
@@ -68,19 +66,31 @@ def test_mission_topology_serialized_values_are_pinned(
 
 
 @pytest.mark.parametrize(
-    ("kind", "expected"),
+    ("topology", "expected"),
     [
-        (CommitTargetKind.COORDINATION, True),
-        (CommitTargetKind.PRIMARY, False),
-        (CommitTargetKind.FLATTENED, False),
+        (MissionTopology.COORD, True),
+        (MissionTopology.LANES_WITH_COORD, True),
+        (MissionTopology.SINGLE_BRANCH, False),
+        (MissionTopology.LANES, False),
     ],
 )
-def test_routes_through_coordination_per_ref_truth_table(
-    kind: CommitTargetKind, expected: bool
+def test_routes_through_coordination_topology_truth_table(
+    topology: MissionTopology, expected: bool
 ) -> None:
-    """FR-005: the per-ref predicate is True only for a COORDINATION target."""
-    target = CommitTarget(ref=COORD_BRANCH_REF, kind=kind)
-    assert routes_through_coordination(target) is expected
+    """FR-005 / FR-001b: the predicate routes from the STORED topology.
+
+    True only for the two coord-routing cells (COORD / LANES_WITH_COORD); the two
+    coord-less cells return False. The retired per-ref ``CommitTarget`` arm is gone
+    — there is no ref-local enum to consult. Exhaustive over the 2×2 grid so a
+    new member would force this table to stay complete.
+    """
+    assert set(MissionTopology) == {
+        MissionTopology.COORD,
+        MissionTopology.LANES_WITH_COORD,
+        MissionTopology.SINGLE_BRANCH,
+        MissionTopology.LANES,
+    }
+    assert routes_through_coordination(topology) is expected
 
 
 @pytest.mark.parametrize(

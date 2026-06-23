@@ -28,9 +28,9 @@ just the literal ``coordination_branch is None``:
 * ``_coord_path.exists()`` / ``.exists()`` / ``.stat()`` on any ``*coord*`` path.
 
 A test is flagged ONLY when such an inference test's enclosing branch **classifies
-topology** — i.e. the branch body assigns a :class:`CommitTargetKind` /
-:class:`MissionTopology` / a ``decision_target`` kind, or returns a status-surface
-keyed on it. Pure VALUE-reads (``coord_branch = str(raw) if raw else None``) and
+topology** — i.e. the branch body assigns a :class:`MissionTopology` / a
+``decision_target`` kind, or returns a status-surface keyed on it. Pure
+VALUE-reads (``coord_branch = str(raw) if raw else None``) and
 the C-006 transient probe arms (the ``CoordState.DELETED`` / ``CoordState.EMPTY``
 discrimination, the ``worktree_root`` materialization selection) are NOT
 classifications and are not flagged.
@@ -60,9 +60,10 @@ _COORD_VALUE_NAMES: frozenset[str] = frozenset(
 _COORD_PATH_TOKEN = "coord"
 
 # Tokens whose appearance in an inference branch body marks a TOPOLOGY/SURFACE
-# CLASSIFICATION (as opposed to a value-read or a transient-state arm).
+# CLASSIFICATION (as opposed to a value-read or a transient-state arm). The
+# retired per-ref topology enum token is gone (FR-001b — the enum was deleted),
+# so ``MissionTopology.`` is now the surviving classification target.
 _CLASSIFICATION_TOKENS: tuple[str, ...] = (
-    "CommitTargetKind.",
     "MissionTopology.",
     "decision_target",
 )
@@ -136,8 +137,8 @@ def _test_references_coord_inference(test: ast.expr) -> bool:
 def _branch_classifies_topology(body: list[ast.stmt]) -> bool:
     """True when a branch body classifies topology (vs a value-read / transient).
 
-    A classification assigns a ``CommitTargetKind`` / ``MissionTopology`` /
-    ``decision_target`` token. The C-006 transient arms (``CoordState.*``,
+    A classification assigns a ``MissionTopology`` / ``decision_target`` token.
+    The C-006 transient arms (``CoordState.*``,
     ``worktree_root`` Path selection) and value-reads do not, so they never trip.
     """
     for stmt in body:
@@ -376,13 +377,13 @@ def test_negative_control_gate_catches_reintroduced_classifier() -> None:
     """
     bad = textwrap.dedent(
         """
-        from mission_runtime import CommitTarget, CommitTargetKind
+        from mission_runtime import MissionTopology
 
-        def rogue(coord_branch, target_branch):
+        def rogue(coord_branch):
             if not coord_branch:
                 # ALIASED + NEGATED reintroduction of the retired derivation.
-                return CommitTarget(ref=target_branch, kind=CommitTargetKind.FLATTENED)
-            return CommitTarget(ref=coord_branch, kind=CommitTargetKind.COORDINATION)
+                return MissionTopology.SINGLE_BRANCH
+            return MissionTopology.COORD
         """
     )
     tmp = _REPO_ROOT / "src" / "__t019_negative_control__.py"
@@ -393,7 +394,7 @@ def test_negative_control_gate_catches_reintroduced_classifier() -> None:
         tmp.unlink()
     assert hits, (
         "The T019 gate failed to catch a reintroduced negated/aliased "
-        "(`not coord_branch` ⇒ CommitTargetKind) classifier — it is vacuous. A "
+        "(`not coord_branch` ⇒ MissionTopology) classifier — it is vacuous. A "
         "gate that cannot fail is not a gate (NFR-004 / SC-001)."
     )
 
@@ -402,15 +403,15 @@ def test_negative_control_ternary_classifier_is_caught() -> None:
     """The gate also catches a ternary (IfExp) inference classifier."""
     bad = textwrap.dedent(
         """
-        from mission_runtime import CommitTargetKind
+        from mission_runtime import MissionTopology
 
         def rogue(coordination_branch):
-            kind = (
-                CommitTargetKind.COORDINATION
+            shape = (
+                MissionTopology.COORD
                 if coordination_branch is not None
-                else CommitTargetKind.FLATTENED
+                else MissionTopology.SINGLE_BRANCH
             )
-            return kind
+            return shape
         """
     )
     tmp = _REPO_ROOT / "src" / "__t019_negative_control_ternary__.py"
@@ -433,7 +434,7 @@ def test_value_read_and_transient_arms_are_not_flagged() -> None:
         def transient_arm(_coord_path, feature_dir, resolved):
             # C-006 worktree-materialization selection (the surviving
             # runtime_bridge arm): a Path choice keyed on a *coord* disk stat,
-            # but it assigns a Path, NOT a CommitTargetKind — so it is a transient
+            # but it assigns a Path, NOT a MissionTopology — so it is a transient
             # arm, not a topology classifier, and must NOT be flagged.
             worktree_root = _coord_path if _coord_path.exists() else resolved
             return worktree_root

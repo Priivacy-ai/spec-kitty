@@ -28,10 +28,32 @@ from pathlib import Path
 import pytest
 import typer
 
-from mission_runtime import CommitTarget, CommitTargetKind
+from mission_runtime import CommitTarget, MissionTopology
 from specify_cli.status import COORD_OWNED_STATUS_FILES
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
+
+
+def _patch_mission_topology(
+    monkeypatch: pytest.MonkeyPatch, *, coord: bool
+) -> None:
+    """Stub the mission module's stored-topology read (FR-001b routing reads topology)."""
+    from specify_cli.cli.commands.agent import mission as _mission_mod
+
+    topology = MissionTopology.COORD if coord else MissionTopology.SINGLE_BRANCH
+    monkeypatch.setattr(_mission_mod, "resolve_topology", lambda _root, _slug: topology)
+
+
+def _patch_implement_topology(
+    monkeypatch: pytest.MonkeyPatch, *, coord: bool
+) -> None:
+    """Stub the implement module's stored-topology read (FR-001b routing reads topology)."""
+    from specify_cli.cli.commands import implement as _implement_mod
+
+    topology = MissionTopology.COORD if coord else MissionTopology.SINGLE_BRANCH
+    monkeypatch.setattr(
+        _implement_mod, "resolve_topology", lambda _root, _slug: topology
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -97,15 +119,17 @@ class TestRecordAnalysisCoordResidueNoDeadlock:
 
         repo = self._repo_with_coord_residue(tmp_path)
         monkeypatch.chdir(repo)
+        _patch_mission_topology(monkeypatch, coord=True)
 
-        coord_placement = CommitTarget(
-            ref="kitty/mission-residue-01ABCDEF",
-            kind=CommitTargetKind.COORDINATION,
-        )
+        coord_placement = CommitTarget(ref="kitty/mission-residue-01ABCDEF")
 
         # WP06 fix: coord-owned residue is filtered out — no DIRTY_WORKTREE deadlock.
+        # The coord-vs-primary decision reads the STORED topology (FR-001b).
         _enforce_analysis_report_write_preflight(
-            repo, json_output=True, placement_ref=coord_placement
+            repo,
+            json_output=True,
+            placement_ref=coord_placement,
+            mission_slug="residue-01ABCDEF",
         )
 
     def test_untracked_tasks_dir_residue_does_not_block_record_analysis(
@@ -139,14 +163,12 @@ class TestRecordAnalysisCoordResidueNoDeadlock:
         (mission_dir / "tasks" / "WP01.md").write_text("# WP01\n", encoding="utf-8")
         assert "?? kitty-specs/residue-01ABCDEF/tasks/" in git("status", "--porcelain")
         monkeypatch.chdir(repo)
+        _patch_mission_topology(monkeypatch, coord=True)
 
         _enforce_analysis_report_write_preflight(
             repo,
             json_output=True,
-            placement_ref=CommitTarget(
-                ref="kitty/mission-residue-01ABCDEF",
-                kind=CommitTargetKind.COORDINATION,
-            ),
+            placement_ref=CommitTarget(ref="kitty/mission-residue-01ABCDEF"),
             mission_slug="residue-01ABCDEF",
         )
 
@@ -177,18 +199,19 @@ class TestRecordAnalysisCoordResidueNoDeadlock:
         )
 
         repo = self._repo_with_coord_residue(tmp_path)
-        (repo / "kitty-specs" / "residue-01ABCDEF" / "spec.md").write_text(
-            "dirty spec edit\n", encoding="utf-8"
+        (repo / "kitty-specs" / "residue-01ABCDEF" / "src_real_edit.py").write_text(
+            "dirty source edit\n", encoding="utf-8"
         )
         monkeypatch.chdir(repo)
+        _patch_mission_topology(monkeypatch, coord=True)
 
-        coord_placement = CommitTarget(
-            ref="kitty/mission-residue-01ABCDEF",
-            kind=CommitTargetKind.COORDINATION,
-        )
+        coord_placement = CommitTarget(ref="kitty/mission-residue-01ABCDEF")
         with pytest.raises(typer.Exit):
             _enforce_analysis_report_write_preflight(
-                repo, json_output=True, placement_ref=coord_placement
+                repo,
+                json_output=True,
+                placement_ref=coord_placement,
+                mission_slug="residue-01ABCDEF",
             )
 
 
@@ -213,57 +236,63 @@ class TestImplementClaimNoPlanningArtifactSplit:
             _PorcelainEntry(xy=" M", path="kitty-specs/m/tasks.md", is_structural=False),
         ]
 
-    def test_flattened_placement_has_no_coord_split(self) -> None:
+    def test_flattened_placement_has_no_coord_split(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         from specify_cli.cli.commands.implement import (
             _placement_coord_filter,
             _status_paths_for_commit,
         )
 
-        flattened = CommitTarget(
-            ref="fixups/code-engine-stabilization", kind=CommitTargetKind.FLATTENED
-        )
+        # FR-001b: the coord-vs-primary decision reads the STORED topology, not a
+        # per-ref enum. A coord-less (flattened) topology → no coord split.
+        _patch_implement_topology(monkeypatch, coord=False)
+        flattened = CommitTarget(ref="fixups/code-engine-stabilization")
         # Flattened topology → no coord branch to reconcile (C-PLACE-1).
-        assert _placement_coord_filter(flattened) is None
+        coord_filter = _placement_coord_filter(tmp_path, "m", flattened)
+        assert coord_filter is None
 
         # Consequently the status files are committed on the single flattened ref
         # (not excluded as coord-owned) — there is no primary↔coord split.
-        paths = _status_paths_for_commit(
-            self._entries(), _placement_coord_filter(flattened)
-        )
+        paths = _status_paths_for_commit(self._entries(), coord_filter)
         assert "kitty-specs/m/status.events.jsonl" in paths
         assert "kitty-specs/m/status.json" in paths
         assert "kitty-specs/m/tasks.md" in paths
 
-    def test_coordination_placement_routes_to_coord_ref(self) -> None:
+    def test_coordination_placement_routes_to_coord_ref(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         from specify_cli.cli.commands.implement import (
             _placement_coord_filter,
             _status_paths_for_commit,
         )
 
-        coord = CommitTarget(
-            ref="kitty/mission-m-01ABCDEF", kind=CommitTargetKind.COORDINATION
-        )
+        _patch_implement_topology(monkeypatch, coord=True)
+        coord = CommitTarget(ref="kitty/mission-m-01ABCDEF")
         # Coordination topology → the coord ref owns the status files; the primary
         # checkout's copies are excluded so they don't clobber the seeded state.
-        assert _placement_coord_filter(coord) == "kitty/mission-m-01ABCDEF"
-        paths = _status_paths_for_commit(self._entries(), _placement_coord_filter(coord))
+        coord_filter = _placement_coord_filter(tmp_path, "m", coord)
+        assert coord_filter == "kitty/mission-m-01ABCDEF"
+        paths = _status_paths_for_commit(self._entries(), coord_filter)
         assert "kitty-specs/m/status.events.jsonl" not in paths
         assert "kitty-specs/m/status.json" not in paths
         assert "kitty-specs/m/tasks.md" in paths
 
-    def test_primary_placement_commits_status_files(self) -> None:
+    def test_primary_placement_commits_status_files(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         from specify_cli.cli.commands.implement import (
             _placement_coord_filter,
             _status_paths_for_commit,
         )
 
-        primary = CommitTarget(ref="main", kind=CommitTargetKind.PRIMARY)
+        _patch_implement_topology(monkeypatch, coord=False)
+        primary = CommitTarget(ref="main")
         # Primary/legacy topology → no coord owner; the primary status files are
         # canonical and must be committed.
-        assert _placement_coord_filter(primary) is None
-        paths = _status_paths_for_commit(
-            self._entries(), _placement_coord_filter(primary)
-        )
+        coord_filter = _placement_coord_filter(tmp_path, "m", primary)
+        assert coord_filter is None
+        paths = _status_paths_for_commit(self._entries(), coord_filter)
         assert "kitty-specs/m/status.events.jsonl" in paths
         assert "kitty-specs/m/status.json" in paths
 
@@ -459,7 +488,11 @@ class TestFinalizeLeavesNoPrimaryResidue:
     def test_record_analysis_not_blocked_after_finalize(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from mission_runtime import resolve_placement_only
+        from mission_runtime import (
+            resolve_placement_only,
+            resolve_topology,
+            routes_through_coordination,
+        )
 
         from specify_cli.cli.commands.agent.mission import (
             _enforce_analysis_report_write_preflight,
@@ -473,7 +506,10 @@ class TestFinalizeLeavesNoPrimaryResidue:
         assert result.exit_code == 0, f"finalize failed:\n{result.output}"
 
         placement = resolve_placement_only(repo, mission_slug)
-        assert placement.kind is CommitTargetKind.COORDINATION
+        # FR-001b: the post-finalize protected-target mission routes through
+        # coordination — read from the STORED topology, not a per-ref enum.
+        assert routes_through_coordination(resolve_topology(repo, mission_slug)) is True
+        assert placement.ref
 
         # Absorb fixture-environment noise OUTSIDE the mission tree (identity
         # regeneration may rewrite .kittify/config.yaml in this hermetic
@@ -499,8 +535,10 @@ class TestFinalizeLeavesNoPrimaryResidue:
             capture_output=True,
         )
         monkeypatch.chdir(repo)
+        # FR-001b: the coord-residue filter reads the STORED topology, so the
+        # mission_slug must be threaded for the coord-vs-primary decision.
         _enforce_analysis_report_write_preflight(
-            repo, json_output=True, placement_ref=placement
+            repo, json_output=True, placement_ref=placement, mission_slug=mission_slug
         )
 
     def test_operator_authored_untracked_file_survives(

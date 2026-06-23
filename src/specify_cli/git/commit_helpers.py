@@ -78,7 +78,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from mission_runtime import CommitTarget, CommitTargetKind
+from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, ProtectionState
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
 from specify_cli.git.protection_policy import ProtectionPolicy
@@ -425,6 +425,20 @@ class CommitResult:
     sha: str
     destination_ref: str
     worktree_root: Path
+
+    def to_dict(self) -> dict[str, str]:
+        """Render a JSON-serializable mapping (#1891 / FR-013).
+
+        ``worktree_root`` is a :class:`~pathlib.Path`, which ``json.dumps`` cannot
+        serialize directly; rendering it as a string lets callers emit a
+        ``CommitResult`` in a ``--json`` payload without raising
+        ``Object of type CommitResult is not JSON serializable``.
+        """
+        return {
+            "sha": self.sha,
+            "destination_ref": self.destination_ref,
+            "worktree_root": str(self.worktree_root),
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -920,7 +934,7 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
     if target is None:
         if destination_ref is None:
             raise SafeCommitEmptyChangeset(destination_ref="<none>")
-        target = CommitTarget(ref=destination_ref, kind=CommitTargetKind.PRIMARY)
+        target = CommitTarget(ref=destination_ref)
     destination_ref = target.ref
 
     # 1. Shape: short branch name only.

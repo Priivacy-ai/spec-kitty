@@ -284,11 +284,21 @@ class TestBuildDoneEvidence:
 
 
 class TestLoadMissionId:
-    """Tests for tolerant mission_id reads from meta.json."""
+    """Tests for tolerant mission_id reads from meta.json (on_malformed="none" contract).
+
+    Both missing and malformed meta.json must return None — the converted
+    site uses load_meta(allow_missing=True, on_malformed="none").
+    """
 
     def test_malformed_meta_returns_none(self, feature_dir: Path) -> None:
         """Malformed meta.json degrades to None instead of raising."""
         (feature_dir / "meta.json").write_text("{bad json", encoding="utf-8")
+
+        assert _load_mission_id(feature_dir) is None
+
+    def test_missing_meta_returns_none(self, feature_dir: Path) -> None:
+        """Missing meta.json degrades to None instead of raising FileNotFoundError."""
+        assert not (feature_dir / "meta.json").exists()
 
         assert _load_mission_id(feature_dir) is None
 
@@ -873,19 +883,25 @@ class TestPhase1CompatibilityBridge:
     def test_phase1_dual_write_disabled_on_invalid_meta(
         self,
         feature_dir: Path,
-        monkeypatch: pytest.MonkeyPatch,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        monkeypatch.setattr(
-            emit_module,
-            "load_meta",
-            lambda feature_dir: (_ for _ in ()).throw(ValueError("bad meta")),
-        )
+        # Write malformed JSON to meta.json — observable contract: returns False
+        # and logs a warning about the invalid file (not a call-graph assertion).
+        (feature_dir / "meta.json").write_text("{bad json", encoding="utf-8")
 
         with caplog.at_level("WARNING"):
             assert _phase1_dual_write_enabled(feature_dir) is False
 
         assert "Invalid meta.json" in caplog.text
+
+    def test_phase1_dual_write_disabled_on_missing_meta(
+        self,
+        feature_dir: Path,
+    ) -> None:
+        """Missing meta.json silently disables phase-1 mirroring (returns False)."""
+        assert not (feature_dir / "meta.json").exists()
+
+        assert _phase1_dual_write_enabled(feature_dir) is False
 
     def test_find_wp_file_handles_missing_tasks_and_multiple_matches(
         self,

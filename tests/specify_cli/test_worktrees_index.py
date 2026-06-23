@@ -22,7 +22,7 @@ import pytest
 
 from specify_cli.cli.commands.implement import _feature_dir_file_paths
 from specify_cli.git.commit_helpers import SafeCommitPathPolicyError, safe_commit
-from mission_runtime import CommitTarget, CommitTargetKind
+from mission_runtime import CommitTarget
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -111,7 +111,7 @@ def test_safe_commit_rejects_worktrees_path(tmp_path: Path) -> None:
     bad_file = worktrees_dir / "status.events.jsonl"
     bad_file.write_text("{}\n", encoding="utf-8")
 
-    target = CommitTarget(ref=branch, kind=CommitTargetKind.PRIMARY)
+    target = CommitTarget(ref=branch)
 
     with pytest.raises(SafeCommitPathPolicyError) as exc_info:
         safe_commit(
@@ -148,7 +148,7 @@ def test_safe_commit_allows_normal_path(tmp_path: Path) -> None:
     normal_file.parent.mkdir(parents=True)
     normal_file.write_text('{"mission_id": "01ABCDEF"}', encoding="utf-8")
 
-    target = CommitTarget(ref=branch, kind=CommitTargetKind.PRIMARY)
+    target = CommitTarget(ref=branch)
 
     result = safe_commit(
         repo_root=repo_root,

@@ -568,11 +568,13 @@ class TestLegacyPlanningOnlyMetaInvariant:
         classified_lines: list[str] = []
 
         def classify_without_meta_membership(
-            lines: list[str], expected_paths: set[str]
+            lines: list[str], expected_paths: set[str], **kwargs: object
         ) -> tuple[list[str], int]:
             # Drop the F2 membership to recreate the pre-fix expected_paths.
+            # Forward any keyword-only args (e.g. ``residue_predicate``) intact so
+            # this spy stays signature-agnostic to the production classifier.
             classified_lines.extend(lines)
-            return real_classify(lines, expected_paths - {meta_rel})
+            return real_classify(lines, expected_paths - {meta_rel}, **kwargs)
 
         with (
             _real_invariant_external_mocks(tmp_path),

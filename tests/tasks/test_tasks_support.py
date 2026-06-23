@@ -1,7 +1,10 @@
 """Tests for tasks_support module, particularly git worktree handling."""
 
+import json
 import pytest
-from specify_cli.tasks_support import find_repo_root, activity_entries, TaskCliError
+from pathlib import Path
+from specify_cli.task_utils.support import load_meta, TaskCliError
+from specify_cli.tasks_support import find_repo_root, activity_entries
 
 pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]
 
@@ -285,3 +288,61 @@ This is not an activity log.
         assert entries[1]['lane'] == 'doing'
         assert entries[2]['lane'] == 'for_review'
         assert entries[3]['lane'] == 'done'
+
+
+# ── support.load_meta contract tests (FR-006b, WP09) ──────────────────────────
+# Distinct contract: raise-on-missing (TaskCliError), BOM-tolerant utf-8-sig
+# read, malformed → raises ValueError (behavior-neutral: original raised
+# json.JSONDecodeError; canonical reader wraps it as ValueError).
+
+
+class TestSupportLoadMetaContract:
+    """Contract tests for task_utils.support.load_meta (FR-006b).
+
+    Observable behavior per arm — not call-graph assertions.
+    Missing arm: raises TaskCliError (not FileNotFoundError).
+    Valid arm: returns parsed dict (BOM-tolerant, utf-8-sig).
+    Malformed arm: raises ValueError (original contract: raises on bad JSON).
+    """
+
+    def test_missing_meta_raises_task_cli_error(self, tmp_path: Path) -> None:
+        """Missing meta.json raises TaskCliError, not FileNotFoundError."""
+        meta_path = tmp_path / "meta.json"
+        assert not meta_path.exists()
+
+        with pytest.raises(TaskCliError, match="Meta file not found"):
+            load_meta(meta_path)
+
+    def test_valid_meta_returns_dict(self, tmp_path: Path) -> None:
+        """Valid meta.json is parsed and returned as a dict."""
+        meta = {"mission_slug": "01KVRJ6P-cleanup", "mission_type": "software-dev"}
+        meta_path = tmp_path / "meta.json"
+        meta_path.write_text(json.dumps(meta), encoding="utf-8")
+
+        result = load_meta(meta_path)
+
+        assert result == meta
+
+    def test_bom_encoded_meta_returns_dict(self, tmp_path: Path) -> None:
+        """BOM-prefixed utf-8-sig encoded meta.json is decoded correctly."""
+        meta = {"mission_slug": "01KVRJ6P-cleanup", "mission_type": "software-dev"}
+        meta_path = tmp_path / "meta.json"
+        meta_path.write_bytes(b"\xef\xbb\xbf" + json.dumps(meta).encode("utf-8"))
+
+        result = load_meta(meta_path)
+
+        assert result == meta
+
+    def test_malformed_meta_raises(self, tmp_path: Path) -> None:
+        """Malformed meta.json raises (behavior-neutral: original raised json.JSONDecodeError).
+
+        The canonical reader wraps JSON parse errors as ValueError.  Either way,
+        the call raises — it does NOT silently return {}.  This test would have
+        been GREEN against the original implementation and RED against the
+        cycle-1 implementation that delegated to load_meta_strict (on_malformed="empty").
+        """
+        meta_path = tmp_path / "meta.json"
+        meta_path.write_bytes(b'{"a":')  # syntactically invalid JSON
+
+        with pytest.raises(ValueError):
+            load_meta(meta_path)

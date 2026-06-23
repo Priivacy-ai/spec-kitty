@@ -28,6 +28,7 @@ from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.mission_metadata import (
     load_meta,
+    load_meta_or_empty,
     mission_number_from_slug,
     validate_meta,
     write_meta,
@@ -1103,7 +1104,7 @@ def _canonicalize_meta(
     *,
     generated_ids: list[str] | None = None,
 ) -> tuple[dict[str, Any], tuple[str, ...]]:
-    loaded = load_meta(mission_dir)
+    loaded = load_meta(mission_dir, allow_missing=True, on_malformed="raise")
     meta = dict(loaded or {})
     actions: list[str] = []
     mission_slug = str(
@@ -1557,10 +1558,7 @@ def _mission_handle_matches(path: Path, handle: str) -> bool:
     stripped = path.name[4:] if prefix else path.name
     if stripped == handle:
         return True
-    try:
-        meta = load_meta(path) or {}
-    except Exception:
-        meta = {}
+    meta = load_meta_or_empty(path)
     mission_id = meta.get("mission_id")
     if isinstance(mission_id, str):
         if mission_id == handle:

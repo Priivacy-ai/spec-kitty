@@ -308,15 +308,13 @@ def test_auto_commit_upgrade_changes_calls_safe_commit(
         ".kittify/metadata.yaml",
         "kitty-specs/001-test/tasks/WP01.md",
     ]
-    from mission_runtime.context import CommitTargetKind
     from specify_cli.core.commit_guard import GuardCapability
 
     assert captured["repo_root"] == project_path
     assert captured["worktree_root"] == project_path
-    # T009: the upgrade flow now constructs a FLATTENED CommitTarget for the
+    # T009: the upgrade flow constructs a ref-only CommitTarget (C-007) for the
     # current branch and asserts UPGRADE_BOOKKEEPING (no message-prefix channel).
     assert captured["target"].ref == "main"
-    assert captured["target"].kind == CommitTargetKind.FLATTENED
     assert captured["capability"] is GuardCapability.UPGRADE_BOOKKEEPING
     assert captured["paths"] == (
         Path(".kittify/metadata.yaml"),

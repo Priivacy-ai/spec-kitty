@@ -54,7 +54,7 @@ if TYPE_CHECKING:
 from rich.panel import Panel
 from rich.table import Table
 
-from mission_runtime import CommitTarget, CommitTargetKind
+from mission_runtime import CommitTarget
 from specify_cli.cli.helpers import console, show_banner
 from specify_cli.cli.commands._teamspace_mission_state_gate import (
     offer_teamspace_mission_state_migration,
@@ -206,12 +206,12 @@ def _auto_commit_upgrade_changes(
 
     # The upgrade flow runs outside any mission, so there is no coordination
     # split to reconcile: the current branch is landing == coordination ==
-    # target. Construct a FLATTENED CommitTarget for it and assert the upgrade
-    # bookkeeping capability explicitly (T009 / FR-008). The old reliance on the
-    # "chore: apply spec-kitty upgrade changes" message-prefix exception is now
-    # irrelevant — the message is just a message; the capability carries the
+    # target. Construct a ref-only CommitTarget (C-007) for it and assert the
+    # upgrade bookkeeping capability explicitly (T009 / FR-008). The old reliance
+    # on the "chore: apply spec-kitty upgrade changes" message-prefix exception is
+    # now irrelevant — the message is just a message; the capability carries the
     # authorization to land on a protected branch (e.g. the operator's main).
-    upgrade_target = CommitTarget(ref=destination_ref, kind=CommitTargetKind.FLATTENED)
+    upgrade_target = CommitTarget(ref=destination_ref)
 
     try:
         safe_commit(

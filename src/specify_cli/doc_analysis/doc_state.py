@@ -38,7 +38,6 @@ Fields:
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal, TypedDict, cast
@@ -228,10 +227,11 @@ def read_documentation_state(meta_file: Path) -> DocumentationState | None:
 
     Raises:
         FileNotFoundError: If meta.json doesn't exist
-        json.JSONDecodeError: If meta.json is invalid JSON
+        ValueError: If meta.json is invalid JSON or not a JSON object
     """
-    with open(meta_file) as f:
-        meta = json.load(f)
+    meta = load_meta(meta_file.parent, allow_missing=False, on_malformed="raise")
+    if not isinstance(meta, dict):
+        return None
 
     # Check if this is a documentation mission
     if meta.get("mission_type") != "documentation":

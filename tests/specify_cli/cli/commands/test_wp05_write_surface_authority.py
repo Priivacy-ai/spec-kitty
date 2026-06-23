@@ -221,7 +221,7 @@ class TestSafeCommitTwoResponsibilities:
         consulted as the destination decision (the #2063 root) on this path.
         """
         import specify_cli.cli.commands.safe_commit_cmd as mod
-        from mission_runtime import CommitTarget, CommitTargetKind
+        from mission_runtime import CommitTarget
 
         spec = tmp_path / "kitty-specs" / "001-demo" / "spec.md"
         spec.parent.mkdir(parents=True)
@@ -237,7 +237,7 @@ class TestSafeCommitTwoResponsibilities:
         monkeypatch.setattr(mod, "get_current_branch", _spy_head)
         monkeypatch.setattr(
             "mission_runtime.resolve_placement_only",
-            lambda _root, _slug: CommitTarget(ref="kitty/mission-001-demo-AAAA1111", kind=CommitTargetKind.COORDINATION),
+            lambda _root, _slug: CommitTarget(ref="kitty/mission-001-demo-AAAA1111"),
         )
 
         target = mod._resolve_commit_target(
@@ -246,7 +246,6 @@ class TestSafeCommitTwoResponsibilities:
             files=[spec],
         )
         assert target.ref == "kitty/mission-001-demo-AAAA1111"
-        assert target.kind is CommitTargetKind.COORDINATION
         assert not head_consulted, (
             "mission-aware path consulted get_current_branch as the destination "
             "decision (the #2063 root); it must resolve via the WP03 seam instead."

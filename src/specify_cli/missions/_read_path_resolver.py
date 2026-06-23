@@ -27,7 +27,6 @@ from __future__ import annotations
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from collections.abc import Mapping
 import enum
-import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -102,14 +101,16 @@ def _declares_coordination_branch(path: Path) -> bool:
     (``topology is None``), where the read path still falls back to the historical
     declared-coord + materialized-husk fail-closed derivation exactly once
     (FR-003 shell contract).
+
+    Reads via the canonical :func:`mission_metadata.load_meta` seam (FR-006 /
+    NFR-004) with ``on_malformed="none"`` so a missing OR malformed/unreadable meta
+    both degrade to ``None`` → ``False`` (the historical silent-degrade contract this
+    band-aid always had — it must NEVER raise, since it is only the legacy-arm
+    declared-coord signal, not the corrupt-meta typed path).
     """
-    meta_path = path / "meta.json"
-    if not meta_path.exists():
-        return False
-    try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return False
+    from specify_cli.mission_metadata import load_meta
+
+    meta = load_meta(path, on_malformed="none")
     branch = meta.get("coordination_branch") if isinstance(meta, dict) else None
     return isinstance(branch, str) and bool(branch.strip())
 
@@ -135,30 +136,63 @@ def stored_topology_from_meta(meta: Mapping[str, object]) -> MissionTopology | N
         return None
 
 
-def _topology_routes_through_coord(topology: MissionTopology | None) -> bool:
-    """True when *topology* places the status surface on a coordination ref.
+def classify_from_meta(
+    meta: Mapping[str, object], feature_dir: Path
+) -> MissionTopology | None:
+    """Acquire a **concrete** :class:`MissionTopology` from an in-hand primary meta.
 
-    Reuses WP03's single coord-routing authority
-    (:func:`coordination.surface_resolver._topology_uses_coord_surface`) so the
-    read path classifies the PRIMARY-vs-coordination shape from the SAME stored set
-    the surface resolver does — there is no second coord-routing set to drift
-    (FR-006 / C-004). A ``None`` topology (un-backfilled legacy) is NOT a stored
-    coord-routing classification; the caller falls back to the probe once.
+    The read-path BOUNDARY **absorbing** API (FR-004 / T015): it converts the
+    optional :func:`stored_topology_from_meta` read into a concrete topology for any
+    **readable** primary meta, so the downstream resolver chain is threaded a
+    non-optional value and the ``topology is None`` husk-arms become structurally
+    dead for that case (WP17 removes them).
+
+    Precedence (the SAME single authority every leg uses — no parallel 2×2 grid):
+
+    1. the WP02 **stored** ``topology`` is authoritative when present (read via the
+       pure :func:`stored_topology_from_meta` seam);
+    2. otherwise — the **absent-field** case (un-backfilled legacy / flattened
+       mission with a *readable* meta) — the shape is classified ONCE via WP01's
+       :func:`mission_runtime.classify_topology` SSOT from the ``coordination_branch``
+       value already in the meta + the lanes signal on disk. The flattened mission
+       (no ``coordination_branch``) therefore classifies to ``SINGLE_BRANCH`` /
+       ``LANES`` → PRIMARY, NOT the stale-coord husk (the #2062 / NFR-002 close).
+
+    **BOUNDARY DISCIPLINE (C-004)**: this absorbs ONLY the absent-``topology``-FIELD
+    case. An **empty** ``meta`` (no readable primary ``meta.json`` at all — a genuine
+    legacy mission, or a coord-only topology whose meta is not on this surface)
+    returns ``None``: there is no ``coordination_branch`` signal to classify against,
+    so the caller keeps the historical one-time probe-based husk derivation (FR-003
+    shell contract). Absent-field-in-readable-meta ⇒ classify; absent/unreadable meta
+    ⇒ ``None`` (legacy probe). The two stay DISTINCT paths.
+
+    PURE except a single ``lanes.json`` ``Path.exists()``/read on the absent-field
+    arm (the lanes signal WP01's classifier needs); the stored-value happy path
+    touches no disk. The lanes axis never changes the coord-routing answer, so a
+    corrupt ``lanes.json`` degrades to "no lanes" rather than failing the read.
     """
-    if topology is None:
-        return False
-    # Late import breaks the cycle: ``coordination.surface_resolver`` imports
-    # ``_compose_mission_dir`` / ``probe_coord_state`` from THIS module, so a
-    # module-level import would deadlock when this resolver is the first entry into
-    # the coordination package.
-    from specify_cli.coordination.surface_resolver import _topology_uses_coord_surface
+    from specify_cli.migration.backfill_topology import _derive_topology
 
-    # ``_topology_uses_coord_surface`` is typed -> bool, but mypy widens it to
-    # ``Any`` through the late-import chain (``follow_imports=skip`` on
-    # ``specify_cli.*``); bind explicitly so the return narrows back to ``bool``
-    # (the same pattern as ``_compose_mission_dir``'s cast in this module).
-    routes: bool = _topology_uses_coord_surface(topology)
-    return routes
+    stored = stored_topology_from_meta(meta)
+    if stored is not None:
+        return stored
+    if not meta:
+        # No readable primary meta (legacy / coord-only): NOT the absent-FIELD case.
+        # Without a coordination_branch signal there is nothing to classify, so defer
+        # to the caller's historical probe-based husk derivation (C-004 / FR-003).
+        return None
+    # Absent ``topology`` field in a READABLE meta (un-backfilled legacy / flattened):
+    # classify ONCE via WP01's single authority from the in-hand meta + the disk lanes
+    # signal. ``_derive_topology`` reads ``coordination_branch`` from ``meta`` and
+    # probes ``lanes.json`` under ``feature_dir`` — the SAME derivation
+    # ``read_topology`` uses, kept pure (no write) here at the read boundary.
+    #
+    # ``_derive_topology`` is typed -> MissionTopology, but mypy widens it to ``Any``
+    # through the late-import chain (``follow_imports=skip`` on ``specify_cli.*``);
+    # bind explicitly so the return narrows back (the same pattern as
+    # ``_compose_mission_dir``'s cast in this module).
+    derived: MissionTopology = _derive_topology(dict(meta), feature_dir)
+    return derived
 
 
 def _compose_mission_dir(mission_slug: str, mid8: str) -> str:
@@ -320,9 +354,10 @@ def _resolve_existing_for_slug(
     The ``topology`` arrives as a PARAMETER (read ONCE from ``primary_meta`` at the
     :func:`resolve_handle_to_read_path` boundary); this helper stays **PURE-PATH**
     — it opens no ``meta.json`` / ``load_meta`` / disk read for topology (only
-    ``Path.exists()`` stats). When ``topology`` is ``None`` (un-backfilled legacy)
-    the helper falls back ONCE to the historical probe-based coord-existence
-    derivation (FR-003 shell contract).
+    ``Path.exists()`` stats). When ``topology`` is ``None`` — now reached ONLY for a
+    corrupt/unreadable primary meta (C-004), since every boundary absorbs the absent
+    ``topology`` FIELD into a concrete shape (WP06/WP17) — the helper falls back ONCE
+    to the historical probe-based coord-existence derivation (FR-003 shell contract).
 
     Returns ``None`` when neither candidate exists OR when the legacy fail-closed
     condition holds (no stored topology, coord worktree materialised + the
@@ -337,7 +372,12 @@ def _resolve_existing_for_slug(
     # PRIMARY before any on-disk husk probe can fire — the husk is not the
     # deciding signal. When the primary dir is absent the caller falls through to
     # the not-found / canonicalization path with the same stored-topology gate.
-    if topology is not None and not _topology_routes_through_coord(topology):
+    # FR-005: the coord-routing decision flows through the ONE canonical predicate
+    # (``routes_through_coordination``); ``topology`` is already non-``None`` here
+    # (a concrete value the boundary absorbed), so no second local predicate exists.
+    from mission_runtime import routes_through_coordination
+
+    if topology is not None and not routes_through_coordination(topology):
         return primary_candidate if primary_candidate.exists() else None
 
     # Coord-routing stored topology, OR an un-backfilled legacy mission (topology
@@ -363,9 +403,13 @@ def _resolve_existing_for_slug(
             and coord_worktree_materialized
             and _declares_coordination_branch(primary_candidate)
         ):
-            # Legacy fail-closed (no stored topology): defer to the caller's
-            # StatusReadPathNotFound path. With a stored topology the husk is never
-            # the deciding signal, so this band-aid is bypassed entirely.
+            # Corrupt-meta fail-closed (C-004): ``topology is None`` is now reached
+            # ONLY for a corrupt/unreadable primary meta (WP06/WP17 absorb the absent
+            # FIELD into a concrete shape at every boundary). Without a classifiable
+            # topology we cannot decide PRIMARY-vs-coord, so we defer to the caller's
+            # StatusReadPathNotFound path on the historical probe-derived signal. With
+            # a concrete stored topology the husk is never the deciding signal, so
+            # this arm is bypassed entirely.
             return None
         return primary_candidate
     return None
@@ -647,7 +691,11 @@ def _resolve_not_found(
 
     # FR-006 (structural #2062 read-leg): a stored coord-less topology never
     # consults the on-disk coord husk — the primary checkout is authoritative.
-    if topology is not None and not _topology_routes_through_coord(topology):
+    # FR-005: routed through the ONE canonical ``routes_through_coordination``
+    # predicate (the absorbed boundary topology is already concrete here).
+    from mission_runtime import routes_through_coordination
+
+    if topology is not None and not routes_through_coordination(topology):
         if require_exists and not primary_candidate.exists():
             raise StatusReadPathNotFound(
                 repo_root=repo_root,
@@ -717,9 +765,11 @@ def _resolve_not_found(
     # Fail-closed: primary exists but declares a coord branch whose materialised
     # worktree lacks the mission dir — reading primary would expose stale status.
     # (Preserves the historical non-gated behaviour for ``require_exists=False``.)
-    # FR-006: only the legacy (``topology is None``) path still consults the
-    # ``_declares_coordination_branch`` husk read; a stored coord-routing topology
-    # has ALREADY decided the shape, so the husk is not the deciding signal.
+    # FR-006 / C-004: ``topology is None`` is now reached ONLY for a corrupt/
+    # unreadable primary meta (every boundary absorbs the absent FIELD into a
+    # concrete shape — WP06/WP17), so only THAT corrupt-meta arm still consults the
+    # ``_declares_coordination_branch`` husk read; a concrete stored topology has
+    # ALREADY decided the shape, so the husk is not the deciding signal.
     fail_closed = (
         topology is None
         and primary_candidate.exists()
@@ -884,15 +934,32 @@ def resolve_handle_to_read_path(
     primary_meta, declares_coordination = read_primary_meta(repo_root, handle)
     mid8 = resolve_declared_mid8(primary_meta, handle)
 
-    # FR-006 (structural #2062 read-leg): read the WP02 **stored** topology ONCE
-    # from the SAME ``primary_meta`` dict already in hand (no second meta.json
-    # read; no disk touch — :func:`stored_topology_from_meta` is pure). It is the
-    # deciding signal for the PRIMARY-vs-coordination surface shape and is threaded
-    # down the read-path call chain. ``None`` for an un-backfilled legacy mission →
-    # the one-time probe-based fallback (FR-003 shell contract).
-    stored_topology = stored_topology_from_meta(primary_meta)
-    consults_coord_husk = _topology_routes_through_coord(stored_topology) or (
-        stored_topology is None
+    # FR-004 (T015 — the read-path BOUNDARY absorption): acquire a **concrete**,
+    # non-optional :class:`MissionTopology` from the SAME ``primary_meta`` dict
+    # already in hand (no second meta.json read). The stored ``topology`` is
+    # authoritative when present; the absent-field case (un-backfilled legacy /
+    # flattened mission) is ABSORBED — classified ONCE via WP01's single authority
+    # from ``coordination_branch`` + the lanes signal — so the downstream resolver
+    # chain is threaded a concrete value and the ``topology is None`` husk-arms are
+    # structurally dead (WP17 removes them). A flattened mission (no
+    # ``coordination_branch``) classifies to SINGLE_BRANCH/LANES → PRIMARY, NOT the
+    # stale-coord husk (the #2062 / NFR-002 close, extended to un-backfilled
+    # missions). C-004 boundary discipline: only the absent FIELD is absorbed here;
+    # the corrupt/unreadable-meta arm stays the callers' separate typed path.
+    stored_topology = classify_from_meta(
+        primary_meta, primary_feature_dir_for_mission(repo_root, handle)
+    )
+    # A concrete coord-routing topology consults the coord husk; an absorbed
+    # coord-less topology resolves PRIMARY (the #2062 close). ``None`` is the
+    # absent/unreadable-meta legacy arm — preserve the historical husk-consulting
+    # probe fallback (C-004 / FR-003). FR-005: the coord-routing decision flows
+    # through the ONE canonical ``routes_through_coordination`` predicate (None-
+    # guarded here, since the legacy ``None`` arm is the corrupt-meta fallback, not
+    # a stored coord-routing classification).
+    from mission_runtime import routes_through_coordination
+
+    consults_coord_husk = stored_topology is None or routes_through_coordination(
+        stored_topology
     )
 
     # 4. M5 fail-closed: a coord-declared topology with an unprovable identity
@@ -1087,10 +1154,13 @@ def candidate_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Pat
     # FR-006: read the WP02 stored topology ONCE from primary meta so a coord-less
     # mission resolves PRIMARY before any on-disk husk probe can land on the
     # registered ``-coord`` husk (the surface/aggregate read-leg #2062 close). This
-    # mirrors how :func:`resolve_handle_to_read_path` already reads it. The read is
-    # resilient (malformed/unreadable meta → ``None`` → the legacy probe fallback),
-    # preserving the historical contract that this primitive never raised on a bad
-    # ``meta.json`` (the diagnostic belongs to each caller, not to dir resolution).
+    # mirrors how :func:`resolve_handle_to_read_path` already reads it. T015 absorbs
+    # the absent ``topology`` FIELD into a concrete value at this boundary too, so a
+    # flattened mission resolves PRIMARY even un-backfilled (FR-004). The read stays
+    # resilient: a malformed/unreadable meta → ``None`` → the legacy probe fallback
+    # (the C-004 corrupt-meta path), preserving the historical contract that this
+    # primitive never raised on a bad ``meta.json`` (the diagnostic belongs to each
+    # caller, not to dir resolution).
     stored_topology = _stored_topology_best_effort(repo_root, mission_slug)
 
     return _resolve_mission_read_path(
@@ -1114,12 +1184,19 @@ def _stored_topology_best_effort(
     husk), then reads the stored ``topology`` via the canonical
     :func:`read_primary_meta` / :func:`stored_topology_from_meta` seam.
 
-    A malformed / unreadable ``meta.json`` is mapped to ``None`` (the un-backfilled
-    legacy fallback — the historical probe-based husk derivation runs once), NOT a
-    raise: this primitive must preserve its historical contract of never raising on
-    a bad meta, leaving the malformed-meta diagnostic to each caller. ``ValueError``
-    is the malformed-JSON signal :func:`mission_metadata.load_meta` emits; ``OSError``
-    covers an unreadable file. :class:`MissionSelectorAmbiguous` is NOT caught — an
+    T015 (FR-004): the **absent** ``topology`` field is ABSORBED into a concrete
+    topology here via :func:`classify_from_meta` (the read-path boundary discipline)
+    — a flattened mission classifies SINGLE_BRANCH/LANES → PRIMARY even un-backfilled,
+    so the surface/aggregate leg no longer leaks the husk on the legacy arm.
+
+    A malformed / unreadable ``meta.json`` (where the meta cannot be READ at all) is
+    mapped to ``None`` (the C-004 corrupt-meta path — the historical probe-based husk
+    derivation runs once), NOT a raise: this primitive must preserve its historical
+    contract of never raising on a bad meta, leaving the malformed-meta diagnostic to
+    each caller. ``ValueError`` is the malformed-JSON signal
+    :func:`mission_metadata.load_meta` emits; ``OSError`` covers an unreadable file.
+    The absent FIELD (classify) and the corrupt META (degrade to ``None``) stay
+    DISTINCT paths (C-004). :class:`MissionSelectorAmbiguous` is NOT caught — an
     ambiguous handle must propagate as the structured no-silent-fallback error
     (C-CTX-4 / C-009).
     """
@@ -1128,7 +1205,8 @@ def _stored_topology_best_effort(
         primary_meta, _ = read_primary_meta(repo_root, canonical_handle)
     except (ValueError, OSError):
         return None
-    return stored_topology_from_meta(primary_meta)
+    primary_dir = primary_feature_dir_for_mission(repo_root, canonical_handle)
+    return classify_from_meta(primary_meta, primary_dir)
 
 
 def primary_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:
@@ -1224,11 +1302,23 @@ def resolve_feature_dir_for_slug(repo_root: Path, mission_slug: str) -> Path:
     Relocated here from the retired ``missions.feature_dir_resolver`` shim
     (WP07/FR-007). The late imports keep importing this module from pulling in
     heavier modules during cold ``spec-kitty next`` startup.
+
+    FR-004 (T015 boundary absorption, WP17): like
+    :func:`candidate_feature_dir_for_mission`, this leg reads the WP02 stored
+    topology ONCE and threads it down so the absent-``topology``-field case is
+    ABSORBED to a concrete shape — a flattened mission resolves PRIMARY even
+    un-backfilled, and the resolver's ``topology is None`` arm is reached ONLY for a
+    corrupt/unreadable meta (the C-004 legacy probe fallback), never for a readable
+    no-topology meta. The read stays resilient (the best-effort reader degrades a
+    malformed meta to ``None``), preserving the never-raise contract.
     """
     from specify_cli.lanes.branch_naming import mid8_from_slug
 
     feature_dir: Path = _resolve_mission_read_path(
-        repo_root, mission_slug, mid8_from_slug(mission_slug)
+        repo_root,
+        mission_slug,
+        mid8_from_slug(mission_slug),
+        topology=_stored_topology_best_effort(repo_root, mission_slug),
     )
     return feature_dir
 

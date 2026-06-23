@@ -26,12 +26,12 @@ from mission_runtime.context import (
     ArtifactPlacementFragment,
     BranchRefFragment,
     CommitTarget,
-    CommitTargetKind,
     ExecutionContext,
     IdentityFragment,
     MissionTopology,
     StatusSurfaceFragment,
     WorkspaceFragment,
+    routes_through_coordination,
 )
 
 
@@ -129,33 +129,6 @@ def build_execution_context(
     return context
 
 
-# The four-cell topology grid (WP01) collapses to a binary placement decision:
-# COORD / LANES_WITH_COORD route through a distinct coordination ref; the two
-# coord-less cells (SINGLE_BRANCH / LANES) have no primary↔coordination split, so
-# their destination is FLATTENED (landing == coordination == target on one branch,
-# C-001). This is the SOLE topology→kind authority WP03 routes the retired
-# ``coordination_branch is None`` derivations through (FR-004 / SC-001).
-_COORD_ROUTING_TOPOLOGIES: frozenset[MissionTopology] = frozenset(
-    {MissionTopology.COORD, MissionTopology.LANES_WITH_COORD}
-)
-
-
-def destination_kind_for_topology(topology: MissionTopology) -> CommitTargetKind:
-    """Map a stored :class:`MissionTopology` to the ``CommitTarget`` ``kind``.
-
-    The ONE place the four-cell grid is projected onto the binary
-    coordination-vs-flattened placement (FR-004). A coord-routing topology
-    (``COORD`` / ``LANES_WITH_COORD``) classifies the destination ref as
-    ``COORDINATION``; the two coord-less cells classify it ``FLATTENED`` — there is
-    no primary↔coordination split to reconcile (C-001). This replaces the
-    retired ``coordination_branch is None ⇒ FLATTENED`` inference: the shape is
-    READ from the stored topology, never guessed from the branch value.
-    """
-    if topology in _COORD_ROUTING_TOPOLOGIES:
-        return CommitTargetKind.COORDINATION
-    return CommitTargetKind.FLATTENED
-
-
 def resolve_context_for_mission(
     mission_id: str,
     topology: MissionTopology,
@@ -184,11 +157,11 @@ def resolve_context_for_mission(
     ``_assemble_core_fragments`` call in this body — every such read happens in the
     shell BEFORE the resolver and arrives as an argument.
 
-    Placement (C-001 / FR-004): the destination/placement ref ``kind`` is derived
-    from the stored ``topology`` via :func:`destination_kind_for_topology` — the
-    SSOT replacing the retired ``coordination_branch is None ⇒ FLATTENED``
-    inference. The supplied ``branch_ref`` is re-projected so its
-    ``destination_ref`` reflects the stored topology, and the matching
+    Placement (C-001 / FR-004 / FR-001b): the destination/placement ref is a
+    ref-only :class:`CommitTarget` (C-007) — the coord-routing decision is read
+    from the stored ``topology`` via :func:`routes_through_coordination`, never
+    from a retired per-ref enum. The supplied ``branch_ref.destination_ref`` is
+    carried through unchanged, and the matching
     :class:`ArtifactPlacementFragment` shares that one ``CommitTarget`` (C-PLACE-1).
 
     C-003 (binding): this is a **thin projection over the PURE door**, sharing
@@ -218,8 +191,8 @@ def resolve_context_for_mission(
         feature_dir: The resolved mission feature directory (string substrate).
         target_branch: The mission target branch (resolved once by the shell).
         identity: Shell-assembled identity fragment.
-        branch_ref: Shell-assembled branch-ref fragment; its ``destination_ref``
-            is re-projected to the stored-topology ``kind``.
+        branch_ref: Shell-assembled branch-ref fragment; its ref-only
+            ``destination_ref`` is carried through unchanged (C-007).
         status_surface: Shell-assembled status-surface fragment (optional).
         workspace: Shell-assembled workspace fragment (optional).
         coordination_branch_signal: Raw coordination-branch value the shell read,
@@ -249,15 +222,13 @@ def resolve_context_for_mission(
         has_lanes_signal=has_lanes_signal,
     )
 
-    destination_ref = CommitTarget(
-        ref=branch_ref.destination_ref.ref,
-        kind=destination_kind_for_topology(topology),
-    )
-    projected_branch_ref = BranchRefFragment(
-        target_branch=branch_ref.target_branch,
-        coordination_branch=branch_ref.coordination_branch,
-        destination_ref=destination_ref,
-    )
+    # ``CommitTarget`` is a ref-only carrier (C-007 / FR-001b): the coord-routing
+    # decision is read from the stored ``topology`` via
+    # :func:`routes_through_coordination`, never from a ref-local enum, so the
+    # destination ref the shell already resolved is carried through unchanged and
+    # the artifact placement shares that one ``CommitTarget`` (C-PLACE-1).
+    destination_ref = branch_ref.destination_ref
+    projected_branch_ref = branch_ref
     artifact_placement = ArtifactPlacementFragment(placement_ref=destination_ref)
 
     return build_execution_context(
@@ -403,8 +374,15 @@ def _mid8_from_primary_meta(repo_root: Path, mission_slug: str) -> str:
         primary_feature_dir_for_mission,
     )
 
+    # FR-006: canonical reader contract (a) — None on a missing file, ValueError on
+    # malformed; the ``except ValueError`` below reproduces the historical
+    # malformed→"" degrade. Defaults are stated explicitly to document the chosen arm.
     try:
-        meta = load_meta(primary_feature_dir_for_mission(repo_root, mission_slug))
+        meta = load_meta(
+            primary_feature_dir_for_mission(repo_root, mission_slug),
+            allow_missing=True,
+            on_malformed="raise",
+        )
     except ValueError:
         return ""
     if not meta:
@@ -719,8 +697,10 @@ def _resolve_coordination_branch(primary_root: Path, mission_slug: str) -> str |
     )
 
     primary_dir = primary_feature_dir_for_mission(primary_root, mission_slug)
+    # FR-006: canonical reader contract (a) — None on missing, ValueError on
+    # malformed (defaults stated explicitly to document the chosen arm).
     try:
-        meta = load_meta(primary_dir)
+        meta = load_meta(primary_dir, allow_missing=True, on_malformed="raise")
     except ValueError:
         # Malformed meta: treat coordination topology as undeclared. Downstream
         # surface resolution reports the same condition consistently.
@@ -765,6 +745,46 @@ def _resolve_topology(primary_root: Path, mission_slug: str) -> MissionTopology:
         return classify_topology(coordination_branch, has_lanes=False)
 
 
+def resolve_topology(repo_root: Path, mission_handle: str) -> MissionTopology:
+    """Public seam: read the WP02 **stored** :class:`MissionTopology` for a mission.
+
+    The single public entry point a caller uses to obtain the stored topology so
+    it can route through the ONE canonical :func:`routes_through_coordination`
+    predicate (FR-005 / FR-001b) — replacing the retired per-ref ``.kind`` arm
+    that once let the predicate take a ``CommitTarget``.
+
+    The operator ``mission_handle`` is canonicalized FIRST (bare mid8 / numeric
+    prefix → the full ``<slug>-<mid8>`` dir name), EXACTLY as
+    :func:`resolve_placement_only` does, so a coord-topology mission addressed by a
+    bare handle is NOT mis-classified as a coord-less primary surface (the #1784
+    flip class). After canonicalization it delegates to the same pure
+    :func:`_resolve_topology` shell read the full resolver uses, so the value is
+    byte-identical to what ``resolve_placement_only`` / ``_assemble_core_fragments``
+    derive for the same mission (no second derivation). A pure READ — it never
+    writes ``meta.json`` (#1814). When the handle does not resolve, the raw handle
+    passes through and the topology degrades exactly as the full resolver does.
+    """
+    from specify_cli.core.paths import get_main_repo_root
+    from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
+        StatusReadPathNotFound,
+        candidate_feature_dir_for_mission,
+    )
+
+    primary_root = get_main_repo_root(repo_root)
+    mission_slug = mission_handle
+    try:
+        candidate_dir = candidate_feature_dir_for_mission(repo_root, mission_handle)
+    except (StatusReadPathNotFound, MissionSelectorAmbiguous):
+        # Unresolvable / ambiguous handle: pass the raw handle through so the
+        # topology degrades exactly as the full resolver does for a missing mission
+        # (the routing caller already tolerates a degraded shape).
+        candidate_dir = None
+    if candidate_dir is not None and candidate_dir.exists():
+        mission_slug = candidate_dir.name
+    return _resolve_topology(primary_root, mission_slug)
+
+
 def _resolve_mission_id(primary_root: Path, mission_slug: str) -> str:
     """Resolve the canonical ``mission_id`` for the mission.
 
@@ -785,8 +805,10 @@ def _resolve_mission_id(primary_root: Path, mission_slug: str) -> str:
     )
 
     primary_dir = primary_feature_dir_for_mission(primary_root, mission_slug)
+    # FR-006: canonical reader contract (a) — None on missing, ValueError on
+    # malformed; the malformed arm degrades to the ``legacy-`` sentinel below.
     try:
-        meta = load_meta(primary_dir)
+        meta = load_meta(primary_dir, allow_missing=True, on_malformed="raise")
     except ValueError:
         meta = None
     if meta:
@@ -898,9 +920,10 @@ def _assemble_core_fragments(
     * ``IdentityFragment`` — ``mid8`` single-derived as ``mission_id[:8]``.
     * ``BranchRefFragment`` — ``target_branch`` carried (already resolved once by
       the caller, FR-012); ``coordination_branch`` from meta (the value-read,
-      ``None`` when flattened, C-001); ``destination_ref`` a :class:`CommitTarget`
-      whose ``kind`` is classified from the **stored** ``topology`` via
-      :func:`destination_kind_for_topology` (WP03 / FR-004) — NOT from
+      ``None`` when flattened, C-001); ``destination_ref`` a ref-only
+      :class:`CommitTarget` (C-007) whose ref is the coord branch when the
+      **stored** ``topology`` routes through coordination
+      (:func:`routes_through_coordination`, WP03 / FR-004) — NOT inferred from
       ``coordination_branch is None``. The shape is READ, not guessed.
     * ``StatusSurfaceFragment`` — read/write dirs from WP02's
       :func:`resolve_status_surface` (IC-01), classified by the same stored
@@ -916,7 +939,7 @@ def _assemble_core_fragments(
     ``topology`` (WP02 stored field) is supplied by the caller — the shell reads
     it once from ``meta.json`` (via :func:`_resolve_topology`) alongside the
     existing ``target_branch`` read and threads it in. It is the SSOT for the
-    placement/surface ``kind`` classification.
+    placement/surface coord-routing classification.
     """
     from specify_cli.core.paths import get_main_repo_root
 
@@ -933,14 +956,17 @@ def _assemble_core_fragments(
     # topology: the placement ``kind`` is now classified from ``topology`` (FR-004
     # / SC-001), never inferred from the branch value's presence.
     coordination_branch = _resolve_coordination_branch(primary_root, mission_slug)
-    destination_kind = destination_kind_for_topology(topology)
+    # The coord-routing DECISION reads the STORED topology via the SINGLE predicate
+    # (FR-005 / WP04 drain) — never a re-derived per-ref enum. ``CommitTarget`` is a
+    # ref-only carrier (C-007 / FR-001b): the destination ref is the coord branch
+    # when the stored topology routes through coordination, else the target branch.
     coord_ref = (
         coordination_branch
-        if destination_kind is CommitTargetKind.COORDINATION
+        if routes_through_coordination(topology)
         and coordination_branch is not None
         else target_branch
     )
-    destination_ref = CommitTarget(ref=coord_ref, kind=destination_kind)
+    destination_ref = CommitTarget(ref=coord_ref)
     branch_ref = BranchRefFragment(
         target_branch=target_branch,
         coordination_branch=coordination_branch,
@@ -1138,11 +1164,11 @@ def resolve_action_context(
         # FR-004 SSOT adoption (#2070): route the mission-level door through the
         # PURE :func:`resolve_context_for_mission` projection so the "single
         # planning-surface authority" is actually INVOKED, not dead-exported. It
-        # re-projects ``branch_ref.destination_ref`` + the artifact placement from
-        # the stored ``topology`` via :func:`destination_kind_for_topology` — the
-        # SAME kind ``_assemble_core_fragments`` already classified for the same
-        # mission, so this is behaviour-preserving (NFR-003): the destination ref
-        # value and kind are byte-identical to the prior direct-factory build. The
+        # carries ``branch_ref.destination_ref`` (a ref-only ``CommitTarget``, C-007)
+        # + the artifact placement through unchanged — the SAME ref
+        # ``_assemble_core_fragments`` already resolved for the same mission from the
+        # stored ``topology``, so this is behaviour-preserving (NFR-003): the
+        # destination ref value is byte-identical to the prior direct-factory build. The
         # WP-bearing path still composes its WP fields into the single factory door
         # below; wiring those 13 call sites through the projection is the remaining
         # #2070 increment (carved conservatively — they assemble WP-only fragments

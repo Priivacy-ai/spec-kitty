@@ -328,6 +328,82 @@ class TestWrapWithDecisionGitLogCoordRouting:
 
 
 # ---------------------------------------------------------------------------
+# WP04 (T010, C-011) — worktree_root selection PRESERVED through the .kind drain.
+# Non-identity fixture: primary root != coord root, so an identity fixture (where
+# the two coincide) could NOT distinguish a broken selection from a correct one.
+# ---------------------------------------------------------------------------
+
+class TestWorktreeRootPreservedThroughKindDrain:
+    """C-011: dropping the vestigial ``.kind`` carrier must NOT alter worktree_root."""
+
+    def test_coord_root_selected_over_distinct_primary_root(self, tmp_path: Path) -> None:
+        """Coord-routed mission ⇒ selected worktree_root is the COORD root (non-identity).
+
+        The C-011 risk pin. ``repo_root`` (primary) and the materialized coord
+        worktree are DISTINCT directories (``primary_root != coord_root``); the
+        producer must select the COORD root, not the primary. An identity fixture
+        (coord == primary) would pass even if WP04's ``.kind`` drain had broken the
+        selection — this non-identity fixture would NOT. Also asserts the converted
+        ref-only ``decision_target`` still carries the coordination branch ref (the
+        carrier conversion changed only ``.kind``, never ``.ref``).
+        """
+        from runtime.next.runtime_bridge import _wrap_with_decision_git_log
+
+        slug = "my-feature-01KT3YBD"
+        mid8 = "01KT3YBD"
+        base_slug = "my-feature"
+        coord_branch = "kitty/mission-my-feature-01KT3YBD"
+
+        # primary (repo) root and coord root are DISTINCT (non-identity).
+        repo_root = tmp_path / "primary-checkout"
+        repo_root.mkdir()
+        _write_coord_meta(repo_root, slug)
+        coord_root = repo_root / ".worktrees" / f"{base_slug}-{mid8}-coord"
+        coord_root.mkdir(parents=True)
+        assert coord_root != repo_root
+
+        inner = MagicMock(spec=SyncRuntimeEventEmitter)
+        captured: dict[str, Any] = {}
+
+        def _fake_decision_git_log(
+            repo_root: Path,
+            worktree_root: Path,
+            destination_ref: str,
+            mission_slug: str,
+            *,
+            inner: Any,
+            mission_id: str = "",
+            target: Any = None,
+        ) -> Any:
+            captured["worktree_root"] = worktree_root
+            captured["target"] = target
+            return inner
+
+        with (
+            patch(
+                "specify_cli.events.decision_log.DecisionGitLog",
+                side_effect=_fake_decision_git_log,
+            ),
+            patch(
+                "runtime.next.runtime_bridge._resolve_coordination_branch",
+                return_value=coord_branch,
+            ),
+            patch(
+                "runtime.next.runtime_bridge._resolve_mission_ulid",
+                return_value="01KT3YBDABCDEFGHIJKLMNOP",
+            ),
+        ):
+            _wrap_with_decision_git_log(inner, slug, repo_root)
+
+        # The risk pin: COORD root selected, NOT the distinct primary root.
+        assert captured["worktree_root"] == coord_root
+        assert captured["worktree_root"] != repo_root
+        # The ref-only carrier still routes to the coordination branch ref.
+        assert captured["target"] is not None
+        assert captured["target"].ref == coord_branch
+
+
+# ---------------------------------------------------------------------------
 # T020: safe_commit called with correct worktree_root
 # ---------------------------------------------------------------------------
 

@@ -55,7 +55,7 @@ from specify_cli.coordination.types import (
 )
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.lanes.branch_naming import coord_mission_dir_name as _seam_coord_mission_dir_name
-from mission_runtime import CommitTarget, CommitTargetKind
+from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import (
     SafeCommitPathPolicyError,
@@ -1039,7 +1039,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             result = safe_commit(
                 repo_root=self.repo_root,
                 worktree_root=self.worktree_root,
-                target=CommitTarget(ref=self.destination_ref, kind=CommitTargetKind.PRIMARY),
+                target=CommitTarget(ref=self.destination_ref),
                 message=message,
                 paths=tuple(self._staged_paths),
                 capability=self._capability,

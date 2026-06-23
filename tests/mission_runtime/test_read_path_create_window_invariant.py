@@ -384,7 +384,7 @@ class TestCreateWindowCommitBoundaryNFR001:
         from specify_cli.coordination import workspace as ws_module
         from specify_cli.coordination.commit_router import commit_for_mission
         from specify_cli.git.protection_policy import ProtectionPolicy
-        from mission_runtime import CommitTarget, CommitTargetKind
+        from mission_runtime import CommitTarget
         from unittest.mock import patch
 
         primary_dir, coord_path = _build_declared_unmaterialised_coord(tmp_path)
@@ -423,7 +423,6 @@ class TestCreateWindowCommitBoundaryNFR001:
             "specify_cli.coordination.commit_router.resolve_placement_only",
             lambda _root, _slug: CommitTarget(
                 ref=_coord_branch,
-                kind=CommitTargetKind.COORDINATION,
             ),
         ), patch(
             "specify_cli.coordination.commit_router._resolve_mid8",

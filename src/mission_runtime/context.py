@@ -48,21 +48,6 @@ class ExecutionMode(enum.Enum):
     CODE_CHANGE = "code_change"
 
 
-class CommitTargetKind(enum.Enum):
-    """Topology classification of a :class:`CommitTarget` (ADR-2026-06-03-2).
-
-    ``PRIMARY`` — the ref is the primary-checkout branch (no coordination split).
-    ``COORDINATION`` — the ref is a separate coordination branch distinct from
-    the mission target branch.
-    ``FLATTENED`` — landing == coordination == target on a single branch; there
-    is no primary↔coordination split to reconcile (C-001).
-    """
-
-    PRIMARY = "primary"
-    COORDINATION = "coordination"
-    FLATTENED = "flattened"
-
-
 class MissionTopology(enum.Enum):
     """The four mission shapes of the orthogonal coordination × lanes grid.
 
@@ -105,30 +90,44 @@ def classify_topology(
 class CommitTarget:
     """The ONE ref that artifacts + status events resolve to (ADR-2026-06-03-2).
 
-    A self-validating value object that makes the FR-004 invariant
-    (planning artifacts AND status events resolve to the **same**
-    ``destination_ref``) a *type* rather than a runtime check: a caller that
-    holds a :class:`CommitTarget` cannot commit to a mismatched pair because the
-    pairing of ``ref`` and topology ``kind`` is captured here once.
-
-    Under flattened topology ``kind == FLATTENED`` and there is no
-    primary↔coordination split to reconcile.
+    A ref-only carrier (C-007): it names the single ``destination_ref`` that
+    planning artifacts AND status events resolve to (the FR-004 invariant). The
+    per-ref topology classification it once carried (a retired ``kind`` field) is
+    no longer here — the coord-routing decision is made from the stored
+    :class:`MissionTopology` via the single :func:`routes_through_coordination`
+    predicate, never re-derived from a ref-local enum (FR-001b / FR-005).
     """
 
     ref: str
-    kind: CommitTargetKind
 
 
-def routes_through_coordination(target: CommitTarget) -> bool:
-    """Per-ref routing authority: does THIS ref route through coordination?
+# The ONE coord-routing topology set (FR-005 / S1192). COORD and LANES_WITH_COORD
+# route through a distinct coordination ref; the two coord-less cells
+# (SINGLE_BRANCH / LANES) have no primary↔coordination split (C-001). This is the
+# SINGLE definition: ``resolution.py`` / ``surface_resolver.py`` /
+# ``runtime_bridge.py`` / ``status_transition.py`` import it rather than restating
+# the literal ``{COORD, LANES_WITH_COORD}`` set.
+_COORD_ROUTING_TOPOLOGIES: frozenset[MissionTopology] = frozenset(
+    {MissionTopology.COORD, MissionTopology.LANES_WITH_COORD}
+)
 
-    The single replacement for direct ``.kind is COORDINATION`` decision reads
-    (FR-005). The ``CommitTargetKind`` type itself survives (vestigial) until
-    Mission B (#2070); this predicate is the ONE place ``.kind`` is read for a
-    routing decision. Distinct from :func:`classify_topology`, which names the
-    whole-mission shape from ``(coordination_branch, has_lanes)``.
+
+def routes_through_coordination(topology: MissionTopology) -> bool:
+    """The SINGLE routing predicate: does this topology route through coordination? (FR-005).
+
+    The ONE predicate every coord-routing decision flows through, over the ONE
+    canonical :data:`_COORD_ROUTING_TOPOLOGIES` set: ``True`` iff the stored shape
+    is ``COORD`` / ``LANES_WITH_COORD``. Every owned call site
+    (``_topology_uses_coord_surface``, ``_mission_routes_through_coordination``,
+    ``_read_contract_routes_through_coordination``, the runtime-bridge audit site)
+    disposes against this predicate over the stored topology — no module restates
+    the 2×2 routing subset, and no per-ref enum is consulted (the retired
+    transitional arm, FR-001b).
+
+    Distinct from :func:`classify_topology`, which names the whole-mission shape
+    from ``(coordination_branch, has_lanes)``.
     """
-    return target.kind is CommitTargetKind.COORDINATION
+    return topology in _COORD_ROUTING_TOPOLOGIES
 
 
 @dataclass(frozen=True)
@@ -322,7 +321,6 @@ __all__ = [
     "ArtifactPlacementFragment",
     "BranchRefFragment",
     "CommitTarget",
-    "CommitTargetKind",
     "ExecutionContext",
     "ExecutionMode",
     "IdentityFragment",

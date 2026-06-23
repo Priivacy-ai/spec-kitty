@@ -17,6 +17,7 @@ from __future__ import annotations
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import get_main_repo_root
 from specify_cli.lanes.branch_naming import resolve_mid8
+from specify_cli.mission_metadata import load_meta
 from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
@@ -629,12 +630,7 @@ def close_cmd(
 
 
 def _read_mission_mid8(meta_path: Path) -> str:
-    if not meta_path.exists():
-        return ""
-    try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return ""
+    meta = load_meta(meta_path.parent, allow_missing=True, on_malformed="none")
     if not isinstance(meta, dict):
         return ""
     mid8_value = str(meta.get("mid8") or "").strip()
@@ -710,12 +706,7 @@ def _delete_lane_branches(repo_root: Path, mission_slug: str, lanes_manifest: An
 
 
 def _delete_legacy_coordination_branch(repo_root: Path, meta_path: Path) -> None:
-    if not meta_path.exists():
-        return
-    try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return
+    meta = load_meta(meta_path.parent, allow_missing=True, on_malformed="none")
     coord_branch = meta.get("coordination_branch") if isinstance(meta, dict) else None
     if coord_branch:
         _force_delete_branch_if_exists(repo_root, str(coord_branch))
@@ -886,8 +877,6 @@ def _resolve_mission_handle(repo_root: Path, handle: str) -> _ResolvedMissionHan
 
 def _safe_load_meta(feature_dir: Path) -> dict[str, Any] | None:
     """Load ``meta.json`` tolerating absence/corruption (returns ``None``)."""
-    from specify_cli.mission_metadata import load_meta  # noqa: PLC0415
-
     try:
         result: dict[str, Any] | None = load_meta(feature_dir)
         return result

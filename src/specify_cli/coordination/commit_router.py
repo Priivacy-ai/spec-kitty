@@ -33,6 +33,7 @@ from typing import Literal, Protocol, runtime_checkable
 from mission_runtime import (
     CommitTarget,
     resolve_placement_only,
+    resolve_topology,
     routes_through_coordination,
 )
 from specify_cli.git import safe_commit
@@ -114,12 +115,13 @@ def commit_for_mission(
     """
     placement: CommitTarget = resolve_placement_only(repo_root, mission_slug)
 
-    # Determine whether the placement needs coordination routing.
-    # resolve_placement_only already resolved COORDINATION when the primary is
-    # protected — so COORDINATION kind always materialises the coord worktree
-    # (C-001). The policy is checked to guard against committing directly to a
-    # protected PRIMARY ref on a flattened/primary placement (FR-005).
-    use_coord = routes_through_coordination(placement)
+    # Determine whether the placement needs coordination routing. The decision
+    # reads the WP02 STORED topology via the ONE canonical predicate (FR-005 /
+    # FR-001b) — never a per-ref ``.kind`` (the retired transitional arm). A
+    # coord-routing topology materialises the coord worktree (C-001); the policy
+    # is still checked to guard against committing directly to a protected PRIMARY
+    # ref on a flattened/primary placement (FR-005).
+    use_coord = routes_through_coordination(resolve_topology(repo_root, mission_slug))
 
     if not use_coord and policy.is_protected(placement.ref):
         # Flattened or primary placement on a protected ref — surface a refusal
@@ -194,7 +196,7 @@ def commit_for_mission(
         commit_hash = commit_result.sha
 
     # WP09 / FR-010 (#1878): best-effort ff-advance after a coord write.
-    if routes_through_coordination(placement) and target_branch:
+    if use_coord and target_branch:
         _try_advance_ref(repo_root, target_branch, worktree_root)
 
     return CommitRouterResult(
@@ -269,7 +271,7 @@ def _resolve_mid8(repo_root: Path, mission_slug: str) -> str | None:
         from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
 
         feature_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
-        meta = load_meta(feature_dir)
+        meta = load_meta(feature_dir, allow_missing=True, on_malformed="none")
         raw_mid = meta.get("mission_id") if meta else None
         if not isinstance(raw_mid, str) or len(raw_mid) < 8:
             return None
