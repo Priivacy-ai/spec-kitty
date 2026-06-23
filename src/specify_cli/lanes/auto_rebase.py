@@ -49,6 +49,7 @@ from specify_cli.merge.conflict_classifier import (
     validate_resolution,
 )
 from specify_cli.status import EventLogMergeError, materialize, merge_event_log_texts
+from mission_runtime import is_coordination_artifact_residue_path
 
 __all__ = [
     "AutoRebaseReport",
@@ -152,20 +153,17 @@ def _is_status_json_path(rel_path: str) -> bool:
 
 
 def _is_coordination_owned_artifact(rel_path: str) -> bool:
-    parts = _path_parts(rel_path)
-    if len(parts) < 3 or parts[0] != KITTY_SPECS_DIR:
-        return False
+    """True for a coordination-owned planning/status artifact in the conflict.
 
-    name = parts[-1]
-    if name in {"tasks.md", "lanes.json", "acceptance-matrix.json"}:
-        return True
-
-    return (
-        len(parts) >= 4
-        and parts[2] == "tasks"
-        and name.startswith("WP")
-        and name.endswith(".md")
-    )
+    Converged onto the single residue authority
+    (:func:`mission_runtime.is_coordination_artifact_residue_path`) — this site
+    no longer carries its own ``{tasks.md, lanes.json, acceptance-matrix.json}``
+    subset, which had drifted to omit ``plan.md`` / ``issue-matrix.md`` /
+    ``analysis-report.md`` (FR-012 / #1887). The "take theirs" arm now
+    recognizes the FULL residue set, including ``tasks/WP*.md`` files (handled
+    by the authority's ``tasks`` directory rule).
+    """
+    return is_coordination_artifact_residue_path(rel_path)
 
 
 def _git_show_stage(worktree: Path, rel_path: str, stage: int) -> str | None:

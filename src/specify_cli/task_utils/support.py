@@ -3,16 +3,16 @@
 
 from __future__ import annotations
 
-import json
 import re
 import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.legacy_detector import is_legacy_format
+from specify_cli.mission_metadata import load_meta as _load_meta_canonical
 
 # Canonical lane tuple — imported from the leaf module to avoid pulling in the
 # full status orchestration package during cold command imports.
@@ -361,10 +361,34 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
 
 
 def load_meta(meta_path: Path) -> dict[str, Any]:
-    if not meta_path.exists():
-        raise TaskCliError(f"Meta file not found at {meta_path}")
-    data = json.loads(meta_path.read_text(encoding="utf-8-sig"))
-    return cast(dict[str, Any], data) if isinstance(data, dict) else {}
+    """Load ``meta.json`` from *meta_path*.
+
+    Preserves the original contract: missing → :class:`TaskCliError`,
+    malformed JSON → :class:`ValueError` (behavior-neutral; original raised
+    ``json.JSONDecodeError``, which ``ValueError`` wraps via the canonical reader).
+    BOM-tolerant (``utf-8-sig`` encoding).
+
+    Args:
+        meta_path: Path to the ``meta.json`` file (not the parent directory).
+
+    Raises:
+        TaskCliError: When ``meta_path`` does not exist.
+        ValueError: When ``meta_path`` contains malformed JSON or a non-object
+            top level.
+    """
+    try:
+        result = _load_meta_canonical(
+            meta_path.parent,
+            allow_missing=False,
+            on_malformed="raise",
+            encoding="utf-8-sig",
+        )
+    except FileNotFoundError as exc:
+        raise TaskCliError(f"Meta file not found at {meta_path}") from exc
+    # allow_missing=False raises on missing; on_malformed="raise" raises on bad
+    # JSON — so result is always a dict here.  ``or {}`` narrows ``| None`` for
+    # the type checker without an assert that ``-O`` would strip.
+    return result or {}
 
 
 def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> str:  # noqa: ARG001

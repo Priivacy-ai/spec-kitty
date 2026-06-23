@@ -341,12 +341,12 @@ def test_commit_to_branch_reports_real_hash_on_success(
     plan_file.write_text("# Plan\n\nNew content.\n", encoding="utf-8")
 
     # Flat placement → commits against the checkout HEAD (feature branch).
-    from mission_runtime import CommitTarget, CommitTargetKind
+    from mission_runtime import CommitTarget
 
     monkeypatch.setattr(
         mission_mod,
         "_resolve_planning_placement",
-        lambda _root, _slug: CommitTarget(ref="feat/commit-success", kind=CommitTargetKind.FLATTENED),
+        lambda _root, _slug: CommitTarget(ref="feat/commit-success"),
     )
 
     result = _commit_to_branch(
@@ -436,12 +436,12 @@ def test_commit_to_branch_genuine_unchanged_stays_benign(
     _git(tmp_path, "add", "-A")
     _git(tmp_path, "commit", "-m", "commit plan")
 
-    from mission_runtime import CommitTarget, CommitTargetKind
+    from mission_runtime import CommitTarget
 
     monkeypatch.setattr(
         mission_mod,
         "_resolve_planning_placement",
-        lambda _root, _slug: CommitTarget(ref="feat/commit-unchanged", kind=CommitTargetKind.FLATTENED),
+        lambda _root, _slug: CommitTarget(ref="feat/commit-unchanged"),
     )
 
     result = _commit_to_branch(

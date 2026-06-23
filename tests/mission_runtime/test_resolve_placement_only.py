@@ -26,9 +26,10 @@ import pytest
 from mission_runtime import (
     ActionContextError,
     CommitTarget,
-    CommitTargetKind,
     resolve_action_context,
     resolve_placement_only,
+    resolve_topology,
+    routes_through_coordination,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -101,7 +102,9 @@ def test_flattened_topology_parity(repo: Path) -> None:
     placement = resolve_placement_only(repo, _MISSION_SLUG)
 
     assert placement == _full_resolver_placement(repo)
-    assert placement.kind is CommitTargetKind.FLATTENED
+    # FR-001b: routing is decided from the STORED topology, not a per-ref enum —
+    # a flattened mission does NOT route through coordination.
+    assert routes_through_coordination(resolve_topology(repo, _MISSION_SLUG)) is False
     assert placement.ref == "feat/some-non-protected-branch"
 
 
@@ -124,7 +127,9 @@ def test_coordination_topology_parity(repo: Path) -> None:
     placement = resolve_placement_only(repo, _MISSION_SLUG)
 
     assert placement == _full_resolver_placement(repo)
-    assert placement.kind is CommitTargetKind.COORDINATION
+    # A declared+materialized coordination branch routes through coordination
+    # (FR-001b: decision reads the stored topology, never a per-ref enum).
+    assert routes_through_coordination(resolve_topology(repo, _MISSION_SLUG)) is True
     assert placement.ref == coord
 
 
@@ -146,7 +151,7 @@ def test_protected_main_with_coordination_branch_parity(repo: Path) -> None:
     placement = resolve_placement_only(repo, _MISSION_SLUG)
 
     assert placement == _full_resolver_placement(repo)
-    assert placement.kind is CommitTargetKind.COORDINATION
+    assert routes_through_coordination(resolve_topology(repo, _MISSION_SLUG)) is True
     assert placement.ref == coord
     # The protected target is NEVER the resolved placement here.
     assert placement.ref != "main"
@@ -165,7 +170,7 @@ def test_protected_main_flattened_returns_protected_ref(repo: Path) -> None:
     placement = resolve_placement_only(repo, _MISSION_SLUG)
 
     assert placement == _full_resolver_placement(repo)
-    assert placement.kind is CommitTargetKind.FLATTENED
+    assert routes_through_coordination(resolve_topology(repo, _MISSION_SLUG)) is False
     assert placement.ref == "main"
 
 

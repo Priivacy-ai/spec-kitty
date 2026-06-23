@@ -20,7 +20,7 @@ from typing import Any
 
 from specify_cli.core.paths import assert_safe_path_segment
 
-from mission_runtime import CommitTarget, CommitTargetKind
+from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.events.sanitizer import sanitize_event_for_log
 from specify_cli.git.commit_helpers import SafeCommitError, safe_commit
@@ -89,11 +89,11 @@ class DecisionGitLog:
         # T010: the CommitTarget is resolved by the calling surface
         # (runtime_bridge) which knows the coordination topology — it is passed
         # in, not re-derived here. When a legacy caller supplies only the string
-        # destination_ref, fall back to a COORDINATION target on that ref: the
-        # decision log always lands on the per-mission coordination branch.
-        self._target = target or CommitTarget(
-            ref=destination_ref, kind=CommitTargetKind.COORDINATION
-        )
+        # destination_ref, fall back to a ref-only target on that ref: the decision
+        # log always lands on the per-mission coordination branch, and safe_commit
+        # reads only ``target.ref`` (the vestigial ``.kind`` carrier is dropped,
+        # WP04 drain; the VO field defaults transitionally until WP16 removes it).
+        self._target = target or CommitTarget(ref=destination_ref)
         # Prefer the canonical ULID; fall back to slug for legacy callers.
         self._mission_id = mission_id or mission_slug
         self._inner = inner

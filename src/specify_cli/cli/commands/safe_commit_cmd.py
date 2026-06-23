@@ -37,7 +37,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from mission_runtime import CommitTarget, CommitTargetKind
+from mission_runtime import CommitTarget
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.git import ProtectedBranchCommitError, safe_commit
@@ -240,7 +240,7 @@ def _resolve_commit_target(
         ref = explicit_to_branch
         if ref.startswith("refs/heads/"):
             ref = ref[len("refs/heads/"):]
-        return CommitTarget(ref=ref, kind=CommitTargetKind.PRIMARY)
+        return CommitTarget(ref=ref)
 
     mission_slug = _mission_slug_from_paths(repo_root, files)
     if mission_slug is not None:
@@ -260,7 +260,7 @@ def _resolve_commit_target(
         "warning: --to-branch will be required in v3.3; pass it explicitly",
         file=sys.stderr,
     )
-    return CommitTarget(ref=inferred, kind=CommitTargetKind.PRIMARY)
+    return CommitTarget(ref=inferred)
 
 
 def safe_commit_command(

@@ -183,11 +183,11 @@ class TestProtectedBranchesConfigHonoring:
                 commit_hash="aaa1111",
             )
 
-        from mission_runtime import CommitTarget, CommitTargetKind
+        from mission_runtime import CommitTarget
 
         with patch(
             "specify_cli.coordination.commit_router.resolve_placement_only",
-            return_value=CommitTarget(ref="main", kind=CommitTargetKind.PRIMARY),
+            return_value=CommitTarget(ref="main"),
         ):
             # commit_for_mission with PRIMARY kind and is_protected=False → direct commit.
             result = commit_for_mission(
@@ -242,11 +242,11 @@ class TestProtectedBranchesConfigHonoring:
             "Precondition: 'main' must be protected with explicit [main]."
         )
 
-        from mission_runtime import CommitTarget, CommitTargetKind
+        from mission_runtime import CommitTarget
 
         with patch(
             "specify_cli.coordination.commit_router.resolve_placement_only",
-            return_value=CommitTarget(ref=coord_branch, kind=CommitTargetKind.COORDINATION),
+            return_value=CommitTarget(ref=coord_branch),
         ), patch(
             "specify_cli.coordination.commit_router._resolve_mid8",
             return_value=mid8,
@@ -305,7 +305,7 @@ class TestFR006HatchEndToEnd:
             "FR-006: is_protected('main') must be False when hatch is active."
         )
 
-        from mission_runtime import CommitTarget, CommitTargetKind
+        from mission_runtime import CommitTarget
 
         # With a hatch-active policy, the commit must route through PRIMARY
         # (because is_protected=False).  Provide a FLATTENED / PRIMARY placement
@@ -314,7 +314,7 @@ class TestFR006HatchEndToEnd:
 
         with patch(
             "specify_cli.coordination.commit_router.resolve_placement_only",
-            return_value=CommitTarget(ref="main", kind=CommitTargetKind.PRIMARY),
+            return_value=CommitTarget(ref="main"),
         ):
             result = commit_for_mission(
                 repo_root=repo.repo_root,
@@ -356,11 +356,11 @@ class TestFR006HatchEndToEnd:
         assert not policy.operator_hatch_active, "Baseline: hatch must be OFF."
         assert policy.is_protected("main"), "Baseline: 'main' must be protected without hatch."
 
-        from mission_runtime import CommitTarget, CommitTargetKind
+        from mission_runtime import CommitTarget
 
         with patch(
             "specify_cli.coordination.commit_router.resolve_placement_only",
-            return_value=CommitTarget(ref=coord_branch, kind=CommitTargetKind.COORDINATION),
+            return_value=CommitTarget(ref=coord_branch),
         ), patch(
             "specify_cli.coordination.commit_router._resolve_mid8",
             return_value=mid8,

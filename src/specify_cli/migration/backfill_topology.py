@@ -4,11 +4,11 @@ The topology of a mission (the orthogonal coordination × lanes grid cell) used 
 be re-inferred from disk/git at every resolve. FR-002/FR-003 make it a **stored,
 authoritative** value:
 
-- :func:`ensure_topology` — the single *compute-once-then-persist* shim. Reads
-  ``meta.json``; if a valid ``topology`` is present it is returned with no write;
-  otherwise it is derived exactly once via WP01's :func:`classify_topology`
-  (the single authority for the 2×2 grid), persisted, and returned. A repeat call
-  reads the stored value and never re-derives or re-writes (compute-once law).
+- :func:`read_topology` — the PURE reader (#1814): returns the stored ``topology``
+  when present, otherwise derives the shape ONCE via WP01's
+  :func:`classify_topology` (the single authority for the 2×2 grid) and returns it
+  **without writing**. The read/validate/accept SEAM paths use this so a read never
+  mutates ``meta.json``.
 - :class:`TopologyBackfillResult` / :func:`backfill_mission_topology` /
   :func:`backfill_topology_repo` — mirror the ``backfill_identity`` precedent: an
   idempotent, canonical-JSON, never-overwrite-an-existing-value migration that the
@@ -68,17 +68,16 @@ def _write_meta_canonical(meta_path: Path, meta: dict[str, Any]) -> None:
 def read_topology(feature_dir: Path) -> MissionTopology:
     """PURE read of a mission's :class:`MissionTopology` — never persists (#1814).
 
-    The read-path counterpart of :func:`ensure_topology`. Returns the stored
-    ``topology`` when ``meta.json`` carries a valid value; otherwise derives the
-    shape ONCE via WP01's :func:`classify_topology` (from ``coordination_branch``
+    The read-path counterpart of :func:`backfill_mission_topology`. Returns the
+    stored ``topology`` when ``meta.json`` carries a valid value; otherwise derives
+    the shape ONCE via WP01's :func:`classify_topology` (from ``coordination_branch``
     + lanes presence) and returns it **without writing**. A read/validate/accept
-    path therefore never mutates ``meta.json`` — the read-only-contract that the
-    persisting :func:`ensure_topology` violated when wired into the SEAM read
-    paths (the finalize ``--validate-only`` / accept-readiness / transactional-read
-    regression, #1814).
+    path therefore never mutates ``meta.json`` — the read-only-contract that a
+    persisting read would violate when wired into the SEAM read paths (the finalize
+    ``--validate-only`` / accept-readiness / transactional-read regression, #1814).
 
-    Persisting the back-filled value is the explicit job of :func:`ensure_topology`
-    (mint, at ``mission create``) and the ``spec-kitty migrate backfill-topology``
+    Persisting the back-filled value is the explicit job of
+    :func:`backfill_mission_topology` and the ``spec-kitty migrate backfill-topology``
     command — NEVER an incidental side effect of a read.
 
     Args:
@@ -105,45 +104,6 @@ def read_topology(feature_dir: Path) -> MissionTopology:
     # return it WITHOUT persisting (the read-only contract — #1814). The explicit
     # backfill command / mint path is the only writer.
     return _derive_topology(meta, feature_dir)
-
-
-def ensure_topology(feature_dir: Path) -> MissionTopology:
-    """Compute-once-then-persist shim: return the stored topology, persisting once.
-
-    If ``meta.json`` already carries a valid ``topology`` string, it is returned
-    with **no write**. Otherwise the topology is derived exactly once via WP01's
-    :func:`classify_topology` (from ``coordination_branch`` + lanes presence),
-    persisted to ``meta.json`` along with a default ``flattened: false`` (an
-    existing ``flattened`` flag is preserved), and returned.
-
-    A second call reads the now-stored value and does not re-derive or re-write —
-    this is the compute-once law (no perpetual re-inference arm, C-004).
-
-    Args:
-        feature_dir: Absolute path to a mission directory containing ``meta.json``.
-
-    Returns:
-        The :class:`MissionTopology` for the mission.
-
-    Raises:
-        FileNotFoundError: If ``meta.json`` does not exist.
-        ValueError: If ``meta.json`` is not a JSON object.
-    """
-    meta_path = feature_dir / "meta.json"
-    raw_text = meta_path.read_text(encoding="utf-8")
-    meta: dict[str, Any] = json.loads(raw_text)
-    if not isinstance(meta, dict):
-        raise ValueError(f"Expected JSON object in {meta_path}, got {type(meta).__name__}")
-
-    stored = meta.get(_TOPOLOGY_KEY)
-    if isinstance(stored, str) and stored in _VALID_TOPOLOGY_VALUES:
-        return MissionTopology(stored)
-
-    topology = _derive_topology(meta, feature_dir)
-    meta[_TOPOLOGY_KEY] = topology.value
-    meta.setdefault(_FLATTENED_KEY, False)
-    _write_meta_canonical(meta_path, meta)
-    return topology
 
 
 # ---------------------------------------------------------------------------

@@ -59,8 +59,8 @@ from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.mission import get_mission_type
 from mission_runtime import (
     CommitTarget,
-    CommitTargetKind,
     resolve_placement_only,
+    resolve_topology,
     routes_through_coordination,
 )
 from specify_cli.core.commit_guard import GuardCapability
@@ -361,7 +361,9 @@ def _review_currency_check_branch(
         logger.debug("Could not resolve review currency placement: %s", exc)
         return target_branch
 
-    if routes_through_coordination(placement):
+    # FR-005 / FR-001b: the coord-vs-primary decision reads the WP02 STORED
+    # topology via the ONE canonical predicate, never a per-ref ``.kind``.
+    if routes_through_coordination(resolve_topology(main_repo_root, mission_slug)):
         return placement.ref
     return target_branch
 
@@ -2436,7 +2438,7 @@ def move_task(
                         commit_success = safe_commit(
                             repo_root=main_repo_root,
                             worktree_root=main_repo_root,
-                            target=CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY),
+                            target=CommitTarget(ref=target_branch),
                             message=commit_msg,
                             paths=tuple([actual_file_path] + status_artifacts),
                             capability=GuardCapability.STANDARD,
@@ -3074,7 +3076,7 @@ def mark_status(
                     commit_success = safe_commit(
                         repo_root=main_repo_root,
                         worktree_root=main_repo_root,
-                        target=CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY),
+                        target=CommitTarget(ref=target_branch),
                         message=commit_msg,
                         paths=(actual_tasks_path,),
                         capability=GuardCapability.STANDARD,
@@ -3642,7 +3644,7 @@ def map_requirements(
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         if auto_commit is None:
             auto_commit = get_auto_commit_default(main_repo_root)
-        commit_target = CommitTarget(ref=target_branch, kind=CommitTargetKind.PRIMARY)
+        commit_target = CommitTarget(ref=target_branch)
         if auto_commit:
             from specify_cli.cli.commands.agent.mission import _resolve_planning_placement
 
@@ -3852,6 +3854,7 @@ def map_requirements(
         # Auto-commit written WP files (consistent with move-task / update-subtasks)
         committed = False
         commit_sha: str | None = None
+        commit_result_payload: dict[str, str] | None = None
         if auto_commit:
             written_files: list[Path] = []
             for wp_id in new_mappings:
@@ -3867,12 +3870,13 @@ def map_requirements(
                     commit_worktree_root, commit_paths = _planning_commit_worktree(
                         main_repo_root,
                         mission_slug,
-                        commit_target,
                         tuple(written_files),
                     )
-                    # ``safe_commit`` returns a ``CommitResult`` (not a bool); keep
-                    # the JSON payload serializable by recording a bool plus the
-                    # resulting SHA rather than the raw object (issue #1891).
+                    # ``safe_commit`` returns a ``CommitResult`` whose
+                    # ``worktree_root`` is a ``Path``; serialize it via
+                    # ``to_dict`` so the ``--json`` payload stays a valid JSON
+                    # document instead of raising ``Object of type CommitResult
+                    # is not JSON serializable`` (issue #1891 / FR-013).
                     commit_result = safe_commit(
                         repo_root=main_repo_root,
                         worktree_root=commit_worktree_root,
@@ -3883,6 +3887,7 @@ def map_requirements(
                     )
                     committed = True
                     commit_sha = commit_result.sha
+                    commit_result_payload = commit_result.to_dict()
                 except Exception as exc_commit:
                     if not json_output:
                         console.print(f"[yellow]Warning:[/yellow] Auto-commit skipped: {exc_commit}")
@@ -3895,6 +3900,7 @@ def map_requirements(
             "coverage": coverage,
             "committed": committed,
             "commit_sha": commit_sha,
+            "commit_result": commit_result_payload,
         }
         if json_output:
             print(json.dumps(payload))

@@ -15,7 +15,6 @@ from mission_runtime import (
     ArtifactPlacementFragment,
     BranchRefFragment,
     CommitTarget,
-    CommitTargetKind,
     ExecutionContext,
     IdentityFragment,
     StatusSurfaceFragment,
@@ -57,15 +56,16 @@ def test_identity_fragment_is_frozen() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_commit_target_carries_ref_and_kind() -> None:
-    target = CommitTarget(ref="kitty/mission-demo-01KTPKST", kind=CommitTargetKind.COORDINATION)
+def test_commit_target_is_ref_only() -> None:
+    """``CommitTarget`` is a ref-only carrier (C-007 / FR-001b): no ``kind`` field.
+
+    The retired per-ref topology enum is gone — routing is decided from the stored
+    ``MissionTopology`` via ``routes_through_coordination``, never a ref-local enum.
+    This pins the ref-only shape so a reintroduced ``kind`` field fails here.
+    """
+    target = CommitTarget(ref="kitty/mission-demo-01KTPKST")
     assert target.ref == "kitty/mission-demo-01KTPKST"
-    assert target.kind is CommitTargetKind.COORDINATION
-    assert target.kind.value == "coordination"
-
-
-def test_commit_target_kinds_cover_topologies() -> None:
-    assert {k.value for k in CommitTargetKind} == {"primary", "coordination", "flattened"}
+    assert set(CommitTarget.__dataclass_fields__) == {"ref"}
 
 
 # ---------------------------------------------------------------------------
@@ -74,14 +74,14 @@ def test_commit_target_kinds_cover_topologies() -> None:
 
 
 def test_branchref_fragment_flattened_has_no_coordination_branch() -> None:
-    target = CommitTarget(ref="fixups/code-engine-stabilization", kind=CommitTargetKind.PRIMARY)
+    target = CommitTarget(ref="fixups/code-engine-stabilization")
     frag = BranchRefFragment(
         target_branch="fixups/code-engine-stabilization",
         coordination_branch=None,
         destination_ref=target,
     )
     assert frag.coordination_branch is None
-    assert frag.destination_ref.kind is CommitTargetKind.PRIMARY
+    assert frag.destination_ref.ref == "fixups/code-engine-stabilization"
 
 
 # ---------------------------------------------------------------------------
@@ -129,7 +129,7 @@ def test_to_dict_excludes_fragments_preserving_substrate_shape() -> None:
         branch_ref=BranchRefFragment(
             target_branch="main",
             coordination_branch=None,
-            destination_ref=CommitTarget(ref="main", kind=CommitTargetKind.PRIMARY),
+            destination_ref=CommitTarget(ref="main"),
         ),
         status_surface=StatusSurfaceFragment(
             status_read_dir=surface, status_write_dir=surface
@@ -163,7 +163,7 @@ def test_optional_fragments_can_be_attached() -> None:
         allowed_command_cwd=Path("/repo"),
     )
     placement = ArtifactPlacementFragment(
-        placement_ref=CommitTarget(ref="main", kind=CommitTargetKind.PRIMARY)
+        placement_ref=CommitTarget(ref="main")
     )
     ctx = ExecutionContext(
         action="implement",

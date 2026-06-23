@@ -1,10 +1,18 @@
-"""Unit tests for backfill_topology: the ensure_topology shim + backfill helpers.
+"""Unit tests for backfill_topology: the pure reader + backfill persist helpers.
 
 Covers:
-- T010 compute-once-then-persist shim (present no-write / absent derive-persist /
-  idempotent second read).
-- T012 backfill: idempotence, dry-run, corrupt-meta error arm, per-mission scoping,
-  and the full 4-cell coord × lanes classification.
+- WP09 read_topology PURE reader (#1814 read-only contract).
+- T012 backfill persist path (backfill_mission_topology): present no-write,
+  absent-field absorption (derive-and-persist, never None), idempotent second run,
+  flattened-flag preservation (C-006), dry-run, corrupt-meta error arm, per-mission
+  scoping, and the full 4-cell coord × lanes classification.
+
+The compute-once-then-persist ``ensure_topology`` shim was removed in WP05 (FR-003,
+zero production callers); its edge-cases — present-field no-write, absent-field
+absorption to a concrete topology (never None), idempotent re-run, and existing
+``flattened`` provenance-flag preservation — are preserved here re-pointed onto
+:func:`read_topology` (the pure read seam) and :func:`backfill_mission_topology`
+(the persist seam), per ``delete-the-assertion-not-the-test``.
 """
 
 from __future__ import annotations
@@ -18,7 +26,6 @@ from mission_runtime import MissionTopology
 from specify_cli.migration.backfill_topology import (
     backfill_mission_topology,
     backfill_topology_repo,
-    ensure_topology,
     read_topology,
 )
 
@@ -123,61 +130,114 @@ def test_read_topology_non_object_meta_raises(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T010 — ensure_topology shim
+# WP05 — retargeted ensure_topology edge-cases (FR-003 shim removal).
+# The removed compute-once-then-persist shim's contract is preserved here,
+# re-pointed onto read_topology (present-field no-write) and
+# backfill_mission_topology (absent-field absorption / idempotence /
+# flattened-flag preservation), per delete-the-assertion-not-the-test.
 # ---------------------------------------------------------------------------
 
 
-def test_ensure_topology_present_field_no_write(tmp_path: Path) -> None:
-    """A valid stored topology is returned with NO write (byte-identical file)."""
+def test_present_field_returns_stored_value_no_write_single_branch(tmp_path: Path) -> None:
+    """Present-field edge: a stored ``single_branch`` is returned with NO write.
+
+    Re-pointed from the removed ``ensure_topology`` present-no-write assertion onto
+    the pure reader: a valid stored topology is returned byte-identically, never
+    re-derived from the (disagreeing) coordination_branch signal.
+    """
     feature_dir = tmp_path / "mission-present"
     meta_path = _write_meta(
         feature_dir, {"coordination_branch": "kitty/x", "topology": "single_branch"}
     )
     before = _bytes(meta_path)
 
-    result = ensure_topology(feature_dir)
+    result = read_topology(feature_dir)
 
     assert result is MissionTopology.SINGLE_BRANCH
     assert _bytes(meta_path) == before, "present field must not trigger a write"
 
 
-def test_ensure_topology_absent_derives_and_persists(tmp_path: Path) -> None:
-    """An absent topology is derived once and persisted with flattened: false."""
+def test_absent_field_absorbed_to_concrete_topology_never_none(tmp_path: Path) -> None:
+    """Absent-field absorption (T013 DoD-b): no ``topology`` key → concrete topology.
+
+    The core edge the removed ``ensure_topology`` guarded: a ``meta.json`` carrying
+    no ``topology`` key must absorb into a CONCRETE derived :class:`MissionTopology`
+    (here COORD from a coordination_branch), **never** ``None``, and persist with the
+    default ``flattened: false`` provenance flag.
+    """
     feature_dir = tmp_path / "mission-absent"
     meta_path = _write_meta(feature_dir, {"coordination_branch": "kitty/x"})
+    assert "topology" not in json.loads(meta_path.read_text(encoding="utf-8"))
 
-    result = ensure_topology(feature_dir)
+    result = backfill_mission_topology(feature_dir)
 
-    assert result is MissionTopology.COORD
+    # Absorbed to a concrete topology, never None.
+    assert result.topology is not None, "absent topology must absorb to a concrete value"
+    assert result.topology == "coord"
+    assert result.action == "wrote"
     persisted = json.loads(meta_path.read_text(encoding="utf-8"))
     assert persisted["topology"] == "coord"
     assert persisted["flattened"] is False
+    # And the pure reader agrees with the persisted concrete value.
+    assert read_topology(feature_dir) is MissionTopology.COORD
 
 
-def test_ensure_topology_second_read_idempotent(tmp_path: Path) -> None:
-    """Compute-once law: the second read does not re-derive or re-write."""
+def test_absent_field_absorbed_concrete_single_branch_coordless(tmp_path: Path) -> None:
+    """Absent-field absorption for the coord-less cell → concrete SINGLE_BRANCH.
+
+    Preserves the removed shim's coord-less arm: a mission with
+    ``coordination_branch: null`` and no ``topology`` key absorbs to a concrete
+    SINGLE_BRANCH (never None), not just the COORD arm above.
+    """
+    feature_dir = tmp_path / "mission-absent-coordless"
+    meta_path = _write_meta(feature_dir, {"coordination_branch": None})
+
+    result = backfill_mission_topology(feature_dir)
+
+    assert result.topology is not None
+    assert result.topology == "single_branch"
+    assert read_topology(feature_dir) is MissionTopology.SINGLE_BRANCH
+    assert json.loads(meta_path.read_text(encoding="utf-8"))["topology"] == "single_branch"
+
+
+def test_second_persist_run_idempotent_no_rewrite(tmp_path: Path) -> None:
+    """Compute-once law: a second persist run skips and does not re-write.
+
+    Re-pointed from the removed ``ensure_topology`` second-read-idempotent edge onto
+    the persist seam: after the first backfill writes the derived value, the second
+    run is a no-op ``skip`` with a byte-identical file.
+    """
     feature_dir = tmp_path / "mission-once"
     meta_path = _write_meta(feature_dir, {"coordination_branch": None})
 
-    first = ensure_topology(feature_dir)
+    first = backfill_mission_topology(feature_dir)
     after_first = _bytes(meta_path)
-    second = ensure_topology(feature_dir)
+    second = backfill_mission_topology(feature_dir)
 
-    assert first is MissionTopology.SINGLE_BRANCH
-    assert second is first
-    assert _bytes(meta_path) == after_first, "second read must not re-write"
+    assert first.topology == "single_branch"
+    assert first.action == "wrote"
+    assert second.action == "skip"
+    assert second.topology == "single_branch"
+    assert _bytes(meta_path) == after_first, "second run must not re-write"
 
 
-def test_ensure_topology_preserves_existing_flattened_flag(tmp_path: Path) -> None:
-    """An existing flattened flag is preserved when deriving a missing topology."""
+def test_existing_flattened_flag_preserved_on_backfill(tmp_path: Path) -> None:
+    """C-006: an existing ``flattened: true`` provenance flag is preserved on backfill.
+
+    Re-pointed from the removed ``ensure_topology`` flag-preservation edge: deriving a
+    missing topology must NOT clobber a pre-existing ``flattened`` provenance flag —
+    the meta-flag survives the topology backfill (C-006). Negative control for the
+    ``flattened`` provenance flag's independence from the (retired) FLATTENED enum.
+    """
     feature_dir = tmp_path / "mission-flat"
     meta_path = _write_meta(feature_dir, {"coordination_branch": None, "flattened": True})
 
-    result = ensure_topology(feature_dir)
+    result = backfill_mission_topology(feature_dir)
 
-    assert result is MissionTopology.SINGLE_BRANCH
+    assert result.topology == "single_branch"
     persisted = json.loads(meta_path.read_text(encoding="utf-8"))
-    assert persisted["flattened"] is True
+    assert persisted["topology"] == "single_branch"
+    assert persisted["flattened"] is True, "existing flattened provenance flag must survive"
 
 
 # ---------------------------------------------------------------------------

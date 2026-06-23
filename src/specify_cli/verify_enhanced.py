@@ -8,12 +8,11 @@ import logging
 import subprocess
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Optional
 from rich.console import Console
 from rich.table import Table
 
 from .manifest import FileManifest, WorktreeStatus
-from .mission_metadata import resolve_mission_identity
+from .mission_metadata import load_meta_or_empty, resolve_mission_identity
 from .skills.manifest import load_manifest as load_skill_manifest
 from .skills.verifier import verify_installed_skills
 
@@ -23,20 +22,16 @@ logger = logging.getLogger(__name__)
 def _resolve_mission_from_feature(feature_dir: Path) -> str | None:
     """Resolve mission key from a feature's meta.json.
 
-    Returns the mission string or ``None`` when no meta.json exists.
+    Returns the mission string or ``None`` when no meta.json exists or is malformed.
     """
-    try:
-        from .mission_metadata import load_meta
-        meta = load_meta(feature_dir)
-        if meta:
-            mission_type = str(meta.get("mission_type", "")).strip()
-            if mission_type:
-                return mission_type
-            legacy_mission = str(meta.get("mission", "")).strip()
-            if legacy_mission:
-                return legacy_mission
-    except Exception:
-        pass
+    meta = load_meta_or_empty(feature_dir)
+    if meta:
+        mission_type = str(meta.get("mission_type", "")).strip()
+        if mission_type:
+            return mission_type
+        legacy_mission = str(meta.get("mission", "")).strip()
+        if legacy_mission:
+            return legacy_mission
     return None
 
 

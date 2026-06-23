@@ -34,17 +34,35 @@ def _make_policy(*, protected: bool) -> ProtectionPolicy:
 
 
 def _make_coord_target() -> object:
-    """Return a CommitTarget for a coordination placement."""
-    from mission_runtime import CommitTarget, CommitTargetKind
+    """Return a ref-only CommitTarget for a coordination placement."""
+    from mission_runtime import CommitTarget
 
-    return CommitTarget(ref="kitty/mission-my-slug-ABCD1234", kind=CommitTargetKind.COORDINATION)
+    return CommitTarget(ref="kitty/mission-my-slug-ABCD1234")
 
 
 def _make_primary_target() -> object:
-    """Return a CommitTarget for a primary placement."""
-    from mission_runtime import CommitTarget, CommitTargetKind
+    """Return a ref-only CommitTarget for a primary placement."""
+    from mission_runtime import CommitTarget
 
-    return CommitTarget(ref="main", kind=CommitTargetKind.PRIMARY)
+    return CommitTarget(ref="main")
+
+
+def _patch_topology(coord: bool) -> object:
+    """Patch the router's stored-topology read (FR-001b: routing reads topology).
+
+    ``commit_for_mission`` decides coord-vs-primary from the WP02 STORED topology
+    via ``routes_through_coordination(resolve_topology(...))`` — no longer from a
+    per-ref ``CommitTarget.kind``. The fixtures stub ``resolve_placement_only`` for
+    the ref; this stubs ``resolve_topology`` for the routing decision so the two
+    legs stay consistent (COORD ⇒ coord routing; SINGLE_BRANCH ⇒ primary).
+    """
+    from mission_runtime import MissionTopology
+
+    topology = MissionTopology.COORD if coord else MissionTopology.SINGLE_BRANCH
+    return patch(
+        "specify_cli.coordination.commit_router.resolve_topology",
+        return_value=topology,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -72,6 +90,7 @@ def test_unprotected_direct_commit(tmp_path: Path) -> None:
     materialise_calls: list[object] = []
 
     with (
+        _patch_topology(coord=False),
         patch(
             "specify_cli.coordination.commit_router.resolve_placement_only",
             return_value=primary_target,
@@ -120,6 +139,7 @@ def test_protected_coord_placement_materialises(tmp_path: Path) -> None:
         return coord_artifact.parent.parent.parent.parent, (coord_artifact,)
 
     with (
+        _patch_topology(coord=True),
         patch(
             "specify_cli.coordination.commit_router.resolve_placement_only",
             return_value=coord_target,
@@ -152,9 +172,9 @@ def test_protected_coord_placement_materialises(tmp_path: Path) -> None:
 def test_idempotent_unchanged(tmp_path: Path) -> None:
     """safe_commit raises 'nothing to commit' → status is 'unchanged'."""
     policy = _make_policy(protected=False)
-    from mission_runtime import CommitTarget, CommitTargetKind
+    from mission_runtime import CommitTarget
 
-    primary_target = CommitTarget(ref="main", kind=CommitTargetKind.PRIMARY)
+    primary_target = CommitTarget(ref="main")
     artifact = tmp_path / "spec.md"
     artifact.write_text("# Spec\n", encoding="utf-8")
 
@@ -162,6 +182,7 @@ def test_idempotent_unchanged(tmp_path: Path) -> None:
     exc.stderr = "nothing to commit, working tree clean"
 
     with (
+        _patch_topology(coord=False),
         patch(
             "specify_cli.coordination.commit_router.resolve_placement_only",
             return_value=primary_target,
@@ -191,9 +212,9 @@ def test_1718_no_materialisation_at_read_time(tmp_path: Path) -> None:
     materialise_calls: list[object] = []
     policy = _make_policy(protected=True)
 
-    from mission_runtime import CommitTarget, CommitTargetKind
+    from mission_runtime import CommitTarget
 
-    coord_target = CommitTarget(ref="kitty/mission-x-ABCD1234", kind=CommitTargetKind.COORDINATION)
+    coord_target = CommitTarget(ref="kitty/mission-x-ABCD1234")
     artifact = tmp_path / "spec.md"
     artifact.write_text("# Spec\n", encoding="utf-8")
     coord_artifact = tmp_path / "coord-spec.md"
@@ -216,7 +237,10 @@ def test_1718_no_materialisation_at_read_time(tmp_path: Path) -> None:
         assert len(materialise_calls) == 0, "Materialiser called at import/read time!"
 
         # Only called when commit_for_mission is explicitly invoked.
+        from mission_runtime import MissionTopology
+
         with (
+            patch.object(_mod, "resolve_topology", return_value=MissionTopology.COORD),
             patch.object(_mod, "resolve_placement_only", return_value=coord_target),
             patch.object(_mod, "_materialise_coord_worktree", side_effect=_fake_materialise),
             patch.object(_mod, "safe_commit", return_value=_FakeCommitResult()),
@@ -249,9 +273,9 @@ def test_negative_stubbed_materialiser_causes_wrong_result(tmp_path: Path) -> No
     goes RED because safe_commit would again receive ``worktree_root == tmp_path``.
     """
     policy = _make_policy(protected=True)
-    from mission_runtime import CommitTarget, CommitTargetKind
+    from mission_runtime import CommitTarget
 
-    coord_target = CommitTarget(ref="kitty/mission-x-ABCD1234", kind=CommitTargetKind.COORDINATION)
+    coord_target = CommitTarget(ref="kitty/mission-x-ABCD1234")
     artifact = tmp_path / "spec.md"
     artifact.write_text("# Spec\n", encoding="utf-8")
 
@@ -279,6 +303,7 @@ def test_negative_stubbed_materialiser_causes_wrong_result(tmp_path: Path) -> No
     # safe_commit receives worktree_root == tmp_path → wrong surface.
     safe_commit_calls.clear()
     with (
+        _patch_topology(coord=True),
         patch(
             "specify_cli.coordination.commit_router.resolve_placement_only",
             return_value=coord_target,
@@ -315,6 +340,7 @@ def test_negative_stubbed_materialiser_causes_wrong_result(tmp_path: Path) -> No
     # safe_commit must NOT receive tmp_path as worktree_root.
     safe_commit_calls.clear()
     with (
+        _patch_topology(coord=True),
         patch(
             "specify_cli.coordination.commit_router.resolve_placement_only",
             return_value=coord_target,

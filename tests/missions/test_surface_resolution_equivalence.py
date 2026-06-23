@@ -117,11 +117,25 @@ from pathlib import Path
 
 import pytest
 
-from mission_runtime import MissionTopology, classify_topology
+from mission_runtime import (
+    MissionTopology,
+    classify_topology,
+    routes_through_coordination,
+)
 from specify_cli.coordination.surface_resolver import (
     resolve_status_surface_with_anchor,
 )
+from specify_cli.lanes import (
+    ExecutionLane,
+    LanesManifest,
+    write_lanes_json,
+)
+from specify_cli.migration.backfill_topology import (
+    backfill_mission_topology,
+    read_topology,
+)
 from specify_cli.missions._read_path_resolver import (
+    StatusReadPathNotFound,
     read_primary_meta,
     resolve_handle_to_read_path,
     stored_topology_from_meta,
@@ -271,13 +285,17 @@ def _stored_topology(repo_root: Path, slug: str) -> MissionTopology:
     boundary read (FR-010b).
     """
     primary_meta, _ = read_primary_meta(repo_root, slug)
+    # ``stored_topology_from_meta`` is typed ``MissionTopology | None`` but mypy
+    # widens its return to ``Any`` (the source module re-imports the enum locally);
+    # the explicit ``isinstance`` narrows it back without a ``cast`` so this helper
+    # stays type-clean (campsite #1970).
     stored = stored_topology_from_meta(primary_meta)
-    # Un-backfilled fixtures fall back to the value-classification the boundary uses.
-    if stored is not None:
+    if isinstance(stored, MissionTopology):
         return stored
     raw_branch = primary_meta.get("coordination_branch")
     branch = str(raw_branch) if isinstance(raw_branch, str) and raw_branch else None
-    return classify_topology(branch, has_lanes=False)
+    derived: MissionTopology = classify_topology(branch, has_lanes=False)
+    return derived
 
 
 def _coord_dir_slug(slug: str) -> str:
@@ -690,22 +708,22 @@ def test_pure_stored_topology_projects_surface_placement(
     from mission_runtime import (
         BranchRefFragment,
         CommitTarget,
-        CommitTargetKind,
         IdentityFragment,
         routes_through_coordination,
     )
     from mission_runtime.resolution import resolve_context_for_mission
 
-    # renata SHOULD-FIX: pin the expected placement ``kind`` per cell to a HARDCODED
-    # literal, NOT ``destination_kind_for_topology(topology)`` (which asserts the
-    # resolver against the very helper it calls — a tautology that stays green if
-    # both drift together). The grid is small and stable, so the expectation is
-    # spelled out independently of the production mapping.
-    expected_kind_by_topology = {
-        MissionTopology.SINGLE_BRANCH: CommitTargetKind.FLATTENED,
-        MissionTopology.LANES: CommitTargetKind.FLATTENED,
-        MissionTopology.COORD: CommitTargetKind.COORDINATION,
-        MissionTopology.LANES_WITH_COORD: CommitTargetKind.COORDINATION,
+    # DoD-(a) THE WELD (FR-001b): pin the absolute per-topology surface placement to
+    # a HARDCODED literal table, NOT ``routes_through_coordination(topology)`` (which
+    # asserts the predicate against itself — a tautology). The grid is small and
+    # stable, so the expectation is spelled out independently of the production
+    # mapping. This is the over-collapse "everything→PRIMARY" mutant-killer that
+    # MUST ship with the enum deletion.
+    expected_routes_coord_by_topology = {
+        MissionTopology.SINGLE_BRANCH: False,
+        MissionTopology.LANES: False,
+        MissionTopology.COORD: True,
+        MissionTopology.LANES_WITH_COORD: True,
     }
 
     coordination_branch = (
@@ -719,10 +737,7 @@ def test_pure_stored_topology_projects_surface_placement(
     branch_ref = BranchRefFragment(
         target_branch="feat/single-surface",
         coordination_branch=coordination_branch,
-        destination_ref=CommitTarget(
-            ref=coordination_branch or "feat/single-surface",
-            kind=CommitTargetKind.PRIMARY,
-        ),
+        destination_ref=CommitTarget(ref=coordination_branch or "feat/single-surface"),
     )
     context = resolve_context_for_mission(
         MISSION_ID,
@@ -736,21 +751,20 @@ def test_pure_stored_topology_projects_surface_placement(
     )
 
     assert context.branch_ref is not None
-    assert (
-        context.branch_ref.destination_ref.kind
-        is expected_kind_by_topology[topology]
-    )
-    # The per-ref routing authority agrees with the topology classification.
+    # The absolute per-topology surface pin (the WELD): COORD/LANES_WITH_COORD →
+    # coordination, SINGLE_BRANCH/LANES → PRIMARY. Asserted via the topology
+    # predicate, NOT a deleted per-ref enum.
     coord_cells = (MissionTopology.COORD, MissionTopology.LANES_WITH_COORD)
-    assert routes_through_coordination(context.branch_ref.destination_ref) is (
-        topology in coord_cells
+    assert (
+        routes_through_coordination(topology)
+        is expected_routes_coord_by_topology[topology]
     )
     # PRIMARY (flattened) cells share the target ref; coord cells route the coord ref.
     if topology in coord_cells:
-        assert context.branch_ref.destination_ref.kind is CommitTargetKind.COORDINATION
+        assert routes_through_coordination(topology) is True
         assert context.branch_ref.destination_ref.ref == COORD_BRANCH
     else:
-        assert context.branch_ref.destination_ref.kind is CommitTargetKind.FLATTENED
+        assert routes_through_coordination(topology) is False
         assert context.branch_ref.destination_ref.ref == "feat/single-surface"
 
 
@@ -772,3 +786,296 @@ def test_runtime_boundary_translates_ambiguous_selector(tmp_path: Path) -> None:
         resolve_placement_only(tmp_path, _AMBIG_MID8)
     # The translated boundary error must preserve the routing code (FR-005).
     assert excinfo.value.code == "MISSION_AMBIGUOUS_SELECTOR"
+
+
+# ---------------------------------------------------------------------------
+# WP01 (01KVRJ6P) — verification safety net
+# ---------------------------------------------------------------------------
+#
+# Three additions gate every deletion/collapse downstream:
+#
+#   * T001 — differential cell: classify-on-read ≡ backfill-then-read, asserted
+#     GREEN over the (topology × transient) matrix. The single-authority cleanup
+#     mission deletes the perpetual re-inference arm; this cell proves the stored
+#     ``topology`` an un-backfilled mission *would* derive on read is byte-for-byte
+#     the SAME value a one-shot ``backfill_mission_topology`` persists. If the two
+#     ever diverge, deleting the classify-on-read arm changes observable behaviour.
+#
+#   * DoD-(a) — absolute per-topology surface placement cell: an explicit value
+#     table pinning SINGLE_BRANCH/LANES → PRIMARY (``routes_through_coordination``
+#     False) and COORD/LANES_WITH_COORD → coordination (True). This is the ONLY
+#     kill for the wrong-MAPPING mutant the leg-vs-leg differential gate cannot
+#     catch (both legs could agree on the *wrong* surface). Complementary to T001,
+#     never a replacement — keep BOTH.
+#
+#   * T002 — NFR-002 live RED repro: an un-backfilled flattened mission with a
+#     stale coord husk resolves PRIMARY. RED on current code (the husk leaks, the
+#     #2062 bug surviving on the ``topology is None`` legacy arm); xfail(strict)
+#     until WP06 drains the legacy consults-coord-husk arm.
+
+# T001 transient axis: the orthogonal provenance/declaration variations that MUST
+# NOT change the derived topology. Each entry is a meta-fields patch applied on top
+# of the per-topology base meta.
+_TRANSIENTS: tuple[tuple[str, dict[str, object]], ...] = (
+    ("no-provenance", {}),
+    ("flattened-true", {"flattened": True}),
+    ("flattened-false", {"flattened": False}),
+)
+
+
+def _write_lanes_manifest(feature_dir: Path, slug: str) -> None:
+    """Persist a real ``lanes.json`` via the production seam (``write_lanes_json``).
+
+    The topology classifier reads only *presence* of a parseable ``lanes.json``
+    (``_has_lanes``), so a single minimal-but-valid manifest built through the
+    canonical writer is the production-shaped lanes signal — not a hand-rolled file.
+    """
+    manifest = LanesManifest(
+        version=1,
+        mission_slug=slug,
+        mission_id=MISSION_ID,
+        mission_branch=COORD_BRANCH,
+        target_branch="feat/single-surface",
+        lanes=[
+            ExecutionLane(
+                lane_id="lane-a",
+                wp_ids=("WP01",),
+                write_scope=("src/foo.py",),
+                predicted_surfaces=("core",),
+                depends_on_lanes=(),
+                parallel_group=0,
+            )
+        ],
+        computed_at="2026-06-23T00:00:00+00:00",
+        computed_from="dependency_graph+ownership",
+    )
+    write_lanes_json(feature_dir, manifest)
+
+
+# (topology_enum, has_coord, has_lanes) — the four-cell topology axis built from
+# the two orthogonal production signals (coordination_branch presence × lanes.json
+# presence), the SAME pair ``classify_topology`` consumes.
+_TOPOLOGY_AXIS: tuple[tuple[MissionTopology, bool, bool], ...] = (
+    (MissionTopology.SINGLE_BRANCH, False, False),
+    (MissionTopology.LANES, False, True),
+    (MissionTopology.COORD, True, False),
+    (MissionTopology.LANES_WITH_COORD, True, True),
+)
+
+
+def _build_unbackfilled_mission(
+    feature_dir: Path,
+    *,
+    has_coord: bool,
+    has_lanes: bool,
+    transient: dict[str, object],
+) -> None:
+    """Materialise an UN-backfilled mission dir: NO ``topology`` key in meta.
+
+    The fixture carries production-shaped identity (``MISSION_ID`` — a real 26-char
+    ULID) and the orthogonal signals (``coordination_branch`` + ``lanes.json``) the
+    classifier consumes, plus the transient provenance patch — but deliberately NO
+    stored ``topology``, so ``read_topology`` exercises the classify-on-read arm.
+    """
+    fields: dict[str, object] = {"mission_id": MISSION_ID, **transient}
+    if has_coord:
+        fields["coordination_branch"] = COORD_BRANCH
+    _write_meta(feature_dir, **fields)
+    if has_lanes:
+        _write_lanes_manifest(feature_dir, feature_dir.name)
+
+
+@pytest.mark.parametrize(
+    ("topology", "has_coord", "has_lanes"),
+    [
+        pytest.param(t, c, lanes, id=t.value)
+        for (t, c, lanes) in _TOPOLOGY_AXIS
+    ],
+)
+@pytest.mark.parametrize(
+    "transient",
+    [pytest.param(patch, id=name) for name, patch in _TRANSIENTS],
+)
+def test_classify_on_read_equals_backfill_then_read(
+    tmp_path: Path,
+    topology: MissionTopology,
+    has_coord: bool,
+    has_lanes: bool,
+    transient: dict[str, object],
+) -> None:
+    """T001: classify-on-read ≡ backfill-then-read for every (topology × transient).
+
+    The deletion-safety differential for the single-authority cleanup: the value an
+    un-backfilled mission derives on read (``read_topology`` over a meta with NO
+    ``topology`` key — the classify-on-read arm) MUST equal the value
+    ``backfill_mission_topology`` persists and a subsequent read returns
+    (backfill-then-read). Asserted GREEN today across the full matrix; a divergence
+    here means deleting the classify-on-read arm downstream is NOT behaviour-neutral.
+
+    Distinct fixtures per leg (one is mutated by the backfill write, one is not) so
+    the persisting backfill cannot contaminate the pure-read leg.
+    """
+    # Leg A — classify-on-read: read the un-backfilled meta directly (no write).
+    classify_dir = tmp_path / "kitty-specs" / "classify"
+    _build_unbackfilled_mission(
+        classify_dir, has_coord=has_coord, has_lanes=has_lanes, transient=transient
+    )
+    classify_on_read = read_topology(classify_dir)
+
+    # Leg B — backfill-then-read: persist via the production migration, then read.
+    backfill_dir = tmp_path / "kitty-specs" / "backfill"
+    _build_unbackfilled_mission(
+        backfill_dir, has_coord=has_coord, has_lanes=has_lanes, transient=transient
+    )
+    result = backfill_mission_topology(backfill_dir)
+    backfill_then_read = read_topology(backfill_dir)
+
+    # The two legs converge (differential equivalence) ...
+    assert classify_on_read is backfill_then_read, (
+        f"classify-on-read derived {classify_on_read} but backfill-then-read "
+        f"derived {backfill_then_read} — the classify arm is NOT behaviour-neutral"
+    )
+    # ... AND both equal the expected cell (the absolute anchor, not pure leg-equality:
+    # leg-vs-leg equality alone would pass even if BOTH derived the wrong topology).
+    assert classify_on_read is topology
+    # The backfill actually persisted the same value (idempotent migration contract).
+    assert result.action == "wrote"
+    assert result.topology == topology.value
+
+
+def test_absolute_surface_placement_by_topology() -> None:
+    """DoD-(a): pin PRIMARY-vs-coordination surface per topology by explicit table.
+
+    The absolute companion to the leg-vs-leg differential gate: it spells out, with
+    a HARDCODED expectation (not ``destination_kind_for_topology`` — that would be a
+    tautology), which topology routes through coordination. This is the ONLY kill
+    for the wrong-mapping mutant the differential gate cannot catch (both legs could
+    agree on the same WRONG surface).
+
+    ``routes_through_coordination`` is the stored-topology routing authority
+    (FR-005 / FR-001b); a coord-less topology must return ``False`` and a
+    coord-routing topology ``True``. The mapping topology → routes-through-coord is
+    the contract:
+      * SINGLE_BRANCH / LANES   → PRIMARY surface  (routes_through_coordination False)
+      * COORD / LANES_WITH_COORD → coordination     (routes_through_coordination True)
+
+    Negative control built in: PRIMARY-mapped cells assert ``False`` and
+    coordination-mapped cells assert ``True`` — a single over-routing mutant
+    (mapping a coord-less topology to coordination) fails the table, and a single
+    under-routing mutant (mapping a coord topology to primary) fails it too.
+    """
+    expected_routes_through_coord: dict[MissionTopology, bool] = {
+        MissionTopology.SINGLE_BRANCH: False,
+        MissionTopology.LANES: False,
+        MissionTopology.COORD: True,
+        MissionTopology.LANES_WITH_COORD: True,
+    }
+    # Every topology member is pinned — a new enum member would KeyError here, an
+    # intentional tripwire forcing the table to stay exhaustive.
+    assert set(expected_routes_through_coord) == set(MissionTopology)
+
+    for topology, routes in expected_routes_through_coord.items():
+        assert routes_through_coordination(topology) is routes, (
+            f"{topology.value} expected routes_through_coordination={routes} "
+            "— surface-placement mapping mutant"
+        )
+
+
+# ---------------------------------------------------------------------------
+# T002 — NFR-002 live RED repro (xfail strict, drains in WP06)
+# ---------------------------------------------------------------------------
+
+
+def _build_unbackfilled_flattened_with_husk(repo_root: Path) -> tuple[Path, Path]:
+    """Materialise an UN-backfilled flattened mission + a stale coord husk on disk.
+
+    Mirrors ``_build_topology(..., topology="flattened-stale-coord")`` EXCEPT the
+    primary ``meta.json`` carries NO stored ``topology`` key — only the ``flattened``
+    provenance flag and ``mission_id``. This is the precise un-backfilled shape that
+    drives ``stored_topology_from_meta`` → ``None`` → the legacy probe-based
+    consults-coord-husk arm (the #2062 leak path WP06 drains). Returns
+    ``(primary_dir, husk_dir)``.
+    """
+    _init_repo(repo_root)
+    primary = repo_root / "kitty-specs" / SLUG_WITH_MID8
+    # NO ``topology`` key — the un-backfilled flattened shape (FR-005 / NFR-002).
+    _write_meta(primary, mission_id=MISSION_ID, flattened=True)
+    (primary / "status.events.jsonl").write_text(
+        '{"wp_id":"WP01","to_lane":"approved"}\n', encoding="utf-8"
+    )
+    coord_root = repo_root / ".worktrees" / f"{SLUG_WITH_MID8}-coord"
+    _git(repo_root, "worktree", "add", "-q", "-b", COORD_BRANCH, str(coord_root))
+    husk = coord_root / "kitty-specs" / SLUG_WITH_MID8
+    husk.mkdir(parents=True, exist_ok=True)
+    _write_meta(husk, mission_id=MISSION_ID)
+    (husk / "status.events.jsonl").write_text(
+        '{"wp_id":"WP01","to_lane":"planned"}\n', encoding="utf-8"
+    )
+    return primary, husk
+
+
+def test_unbackfilled_flattened_resolves_primary_not_husk(tmp_path: Path) -> None:
+    """T002 (NFR-002): an un-backfilled flattened mission MUST resolve PRIMARY.
+
+    Live RED→GREEN evidence — a static edit cannot satisfy it. Before WP06 the read
+    path read NO stored ``topology`` (``stored_topology_from_meta`` → ``None``), fell
+    into the legacy probe-based arm, found the materialized coord husk, and returned
+    the STALE husk (the #2062 leak surviving on the un-backfilled path).
+
+    WP06 (T015) drained that arm: the read-path BOUNDARY now ABSORBS the absent
+    ``topology`` field into a concrete topology (``classify_from_meta`` →
+    SINGLE_BRANCH for a flattened mission with no ``coordination_branch``), threading
+    PRIMARY routing downstream — so the husk is structurally not consulted and this
+    repro resolves PRIMARY (the strict-xfail was drained, not re-keyed). Asserts the
+    OBSERVABLE resolved surface (the returned dir), never the internal call graph.
+    """
+    primary, husk = _build_unbackfilled_flattened_with_husk(tmp_path)
+    resolved = resolve_handle_to_read_path(
+        tmp_path, SLUG_WITH_MID8, require_exists=True
+    ).resolve()
+
+    # Negative control: prove the husk is genuinely a DIFFERENT, present directory —
+    # otherwise "resolves primary" could pass vacuously if the husk never existed.
+    assert husk.resolve().exists()
+    assert husk.resolve() != primary.resolve()
+
+    assert resolved == primary.resolve(), (
+        f"un-backfilled flattened mission resolved {resolved} but must resolve the "
+        f"PRIMARY dir {primary.resolve()} — the stale coord husk "
+        f"{husk.resolve()} must NOT be consulted (#2062 / NFR-002)"
+    )
+
+
+def test_unbackfilled_flattened_repro_resolves_primary_after_wp06(
+    tmp_path: Path,
+) -> None:
+    """T002 companion: the un-backfilled flattened mission resolves PRIMARY (post-WP06).
+
+    The companion that moved as a PAIR with the strict-xfail drain above. Before WP06
+    this asserted the RED behaviour (the husk leaked) and kept the xfail honest; WP06
+    (T015) absorbs the absent ``topology`` field at the read boundary, so this now
+    asserts the GREEN contract directly — an executable, non-marker proof that the
+    flattened mission resolves the PRIMARY dir, NOT the stale coord husk. Negative
+    control: the husk is a genuinely distinct, present directory, so "resolves
+    primary" cannot pass vacuously.
+    """
+    primary, husk = _build_unbackfilled_flattened_with_husk(tmp_path)
+    try:
+        resolved = resolve_handle_to_read_path(
+            tmp_path, SLUG_WITH_MID8, require_exists=True
+        ).resolve()
+    except StatusReadPathNotFound:  # pragma: no cover — defensive: not the fixed arm
+        pytest.fail(
+            "expected the un-backfilled flattened repro to resolve PRIMARY after "
+            "WP06's boundary absorption, but it raised StatusReadPathNotFound"
+        )
+    # Negative control: the husk is a different, present dir (non-vacuous).
+    assert husk.resolve().exists()
+    assert husk.resolve() != primary.resolve()
+    # POST-WP06 (GREEN): the boundary absorption routes the flattened mission to
+    # PRIMARY; the stale coord husk is structurally not consulted (#2062 / NFR-002).
+    assert resolved == primary.resolve(), (
+        "post-WP06 the un-backfilled flattened mission must resolve the PRIMARY dir "
+        f"{primary.resolve()} (boundary absorption), NOT the stale coord husk "
+        f"{husk.resolve()} (#2062 / NFR-002)"
+    )

@@ -29,7 +29,6 @@ from mission_runtime.context import (
     ArtifactPlacementFragment,
     BranchRefFragment,
     CommitTarget,
-    CommitTargetKind,
     ExecutionContext,
     ExecutionMode,
     IdentityFragment,
@@ -49,6 +48,7 @@ from mission_runtime.resolution import (
     ActionContextError,
     resolve_action_context,
     resolve_placement_only,
+    resolve_topology,
 )
 
 __all__ = [
@@ -56,7 +56,6 @@ __all__ = [
     "ArtifactPlacementFragment",
     "BranchRefFragment",
     "CommitTarget",
-    "CommitTargetKind",
     "ExecutionContext",
     "ExecutionMode",
     "IdentityFragment",
@@ -70,6 +69,7 @@ __all__ = [
     "is_coordination_artifact_residue_path",
     "resolve_action_context",
     "resolve_placement_only",
+    "resolve_topology",
     "routes_through_coordination",
 ]
 

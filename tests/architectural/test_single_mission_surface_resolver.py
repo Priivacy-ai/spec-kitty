@@ -220,16 +220,25 @@ _RAW_JOIN_SITES: tuple[tuple[str, int, str], ...] = (
     # + ``_topology_uses_coord_surface`` helper near the top of surface_resolver.py
     # (the stored-topology surface-shape SSOT). Same diagnostic joins — only their
     # line drifted; the composite re-key keeps the disposition stable.
+    # NOTE (WP02 re-key, single-authority-topology-cleanup-01KVRJ6P): drifted
+    # 489→494 and 494→499 when WP02 (FR-005) collapsed the four coord-routing
+    # frozensets onto ONE canonical ``_COORD_ROUTING_TOPOLOGIES`` set — removing the
+    # ``_COORD_SURFACE_TOPOLOGIES`` constant + body near the top of
+    # surface_resolver.py and widening the ``from mission_runtime import`` block.
+    # Same two ``_coord_mid8`` fail-closed raise payloads — only their seed line
+    # drifted; the composite key (qualname ``_coord_mid8`` + join token line) is
+    # re-pointed at the identical joins, NOT a raw ``file.py:NNN`` line bump (CT1 /
+    # WP02 test-DoD (a)).
     (
         "specify_cli/coordination/surface_resolver.py",
-        489,
+        494,
         "DIAG — _coord_mid8 fail-closed raise payload: "
         "CoordinationWorkspace.worktree_path(...) / KITTY_SPECS_DIR / mission_slug "
         "inside StatusReadPathNotFound constructor; no FS sink (raise is immediate).",
     ),
     (
         "specify_cli/coordination/surface_resolver.py",
-        494,
+        499,
         "DIAG — _coord_mid8 fail-closed raise payload: "
         "repo_root / KITTY_SPECS_DIR / mission_slug for primary_candidate field; "
         "no FS sink (raise is immediate).",
@@ -247,16 +256,21 @@ _RAW_JOIN_SITES: tuple[tuple[str, int, str], ...] = (
     # without flipping this ratchet RED (the whole point of the front-load).
     (
         "specify_cli/missions/_read_path_resolver.py",
-        1162,
+        1240,
         "TBYD — IS the primary_feature_dir_for_mission primitive definition; "
         "assert_safe_path_segment called just above (NFR-002); "
         "get_main_repo_root wraps the left operand; "
         "this function is the canonical topology-blind entry point. "
-        "(Re-keyed :869 -> :885 -> :1078: WP04 added the stored-topology helpers "
-        "(stored_topology_from_meta / _topology_routes_through_coord / "
-        "_declares_coordination_branch / _canonicalize_bare_modern_handle) + the "
-        "topology threading above this definition. The composite key is anchored on "
-        "the qualname + join token line, so only the seed line drifted.)",
+        "(Re-keyed :869 -> :885 -> :1078 -> :1162 -> :1244 -> :1240: WP04 added the "
+        "stored-topology helpers (stored_topology_from_meta / "
+        "_declares_coordination_branch / _canonicalize_bare_modern_handle) + "
+        "topology threading above; 01KVRJ6P WP06 added classify_from_meta (read-path "
+        "boundary topology absorption) above this definition; then 01KVRJ6P WP17 "
+        "DELETED the 6th coord-routing predicate _topology_routes_through_coord + the "
+        "now-unused ``import json`` (the local meta-reader moved onto canonical "
+        "load_meta), shifting this definition UP by 4 lines (1244 -> 1240). The "
+        "composite key is anchored on the qualname + join token line, so only the "
+        "seed line drifted — NOT a raw file.py:NNN line bump (CT1 / WP17 test-DoD (e)).)",
     ),
     # ----- mission_creation.py: seam-grammar output -----
     # ``mission_slug_formatted = mission_dir_name(mission_slug, mid8=...)`` at :323.

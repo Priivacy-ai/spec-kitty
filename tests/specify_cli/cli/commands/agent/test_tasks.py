@@ -969,7 +969,7 @@ class TestLaneGuardErrorMessage:
         self, tmp_path: Path
     ) -> None:
         """Legacy workspace fixtures still use the coord branch as review base."""
-        from mission_runtime import CommitTarget, CommitTargetKind
+        from mission_runtime import CommitTarget, MissionTopology
         from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
 
         mission_slug = "test-review-base-003"
@@ -1016,8 +1016,11 @@ class TestLaneGuardErrorMessage:
                 "specify_cli.cli.commands.agent.tasks.resolve_placement_only",
                 return_value=CommitTarget(
                     ref=coord_branch,
-                    kind=CommitTargetKind.COORDINATION,
                 ),
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.tasks.resolve_topology",
+                return_value=MissionTopology.COORD,
             ),
             patch(
                 "specify_cli.cli.commands.agent.tasks.get_feature_target_branch",

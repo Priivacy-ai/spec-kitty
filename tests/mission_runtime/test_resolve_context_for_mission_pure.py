@@ -26,10 +26,10 @@ from mission_runtime import (
     ActionContextError,
     BranchRefFragment,
     CommitTarget,
-    CommitTargetKind,
     IdentityFragment,
     MissionTopology,
     StatusSurfaceFragment,
+    routes_through_coordination,
 )
 from mission_runtime.resolution import resolve_context_for_mission
 
@@ -40,15 +40,16 @@ _TARGET_BRANCH = "feat/single-planning-surface-authority"
 _COORD_BRANCH = "kitty/mission-single-planning-surface-authority-01KVPR00-coord"
 _FEATURE_DIR = f"kitty-specs/{_MISSION_SLUG}"
 
-# renata SHOULD-FIX: pin the expected placement ``kind`` per cell to a HARDCODED
-# literal, NOT ``destination_kind_for_topology(topology)`` (asserting the resolver
-# against the helper it calls is a tautology that stays green if both drift). The
-# 2×2 grid is small and stable, so the expectation is spelled out independently.
-_EXPECTED_KIND_BY_TOPOLOGY = {
-    MissionTopology.SINGLE_BRANCH: CommitTargetKind.FLATTENED,
-    MissionTopology.LANES: CommitTargetKind.FLATTENED,
-    MissionTopology.COORD: CommitTargetKind.COORDINATION,
-    MissionTopology.LANES_WITH_COORD: CommitTargetKind.COORDINATION,
+# DoD-(a) absolute per-topology surface pin (FR-001b): COORD/LANES_WITH_COORD route
+# through coordination, the two coord-less cells do NOT. A HARDCODED literal table,
+# NOT ``routes_through_coordination(topology)`` (asserting the predicate against
+# itself is a tautology). The 2×2 grid is small and stable, so the expectation is
+# spelled out independently — the over-collapse "everything→PRIMARY" mutant-killer.
+_EXPECTED_ROUTES_COORD = {
+    MissionTopology.SINGLE_BRANCH: False,
+    MissionTopology.LANES: False,
+    MissionTopology.COORD: True,
+    MissionTopology.LANES_WITH_COORD: True,
 }
 
 
@@ -57,15 +58,12 @@ def _identity() -> IdentityFragment:
 
 
 def _branch_ref(coordination_branch: str | None) -> BranchRefFragment:
-    # The shell pre-assembles this; the resolver re-projects destination_ref from
-    # the stored topology, so the kind supplied here is intentionally irrelevant.
+    # The shell pre-assembles this ref-only CommitTarget (C-007); the resolver
+    # carries destination_ref through unchanged and routes from the stored topology.
     return BranchRefFragment(
         target_branch=_TARGET_BRANCH,
         coordination_branch=coordination_branch,
-        destination_ref=CommitTarget(
-            ref=coordination_branch or _TARGET_BRANCH,
-            kind=CommitTargetKind.PRIMARY,
-        ),
+        destination_ref=CommitTarget(ref=coordination_branch or _TARGET_BRANCH),
     )
 
 
@@ -94,7 +92,7 @@ _FLAT_CELLS = (MissionTopology.SINGLE_BRANCH, MissionTopology.LANES)
 
 @pytest.mark.parametrize("topology", list(MissionTopology))
 def test_projects_context_for_every_topology(topology: MissionTopology) -> None:
-    """All four cells project a context with a topology-correct placement kind."""
+    """All four cells project a context with a topology-correct placement."""
     context = _resolve(topology)
 
     assert context.mission_slug == _MISSION_SLUG
@@ -105,11 +103,12 @@ def test_projects_context_for_every_topology(topology: MissionTopology) -> None:
 
     assert context.branch_ref is not None
     assert context.artifact_placement is not None
-    # One CommitTarget shared by branch_ref + artifact_placement (C-PLACE-1).
+    # DoD-(a): the absolute per-topology routing pin (FR-001b) — the over-collapse
+    # mutant-killer that a leg-vs-leg differential cannot catch.
     assert (
-        context.branch_ref.destination_ref.kind
-        is _EXPECTED_KIND_BY_TOPOLOGY[topology]
+        routes_through_coordination(topology) is _EXPECTED_ROUTES_COORD[topology]
     )
+    # One CommitTarget shared by branch_ref + artifact_placement (C-PLACE-1).
     assert (
         context.artifact_placement.placement_ref
         is context.branch_ref.destination_ref
@@ -118,19 +117,19 @@ def test_projects_context_for_every_topology(topology: MissionTopology) -> None:
 
 @pytest.mark.parametrize("topology", _COORD_CELLS)
 def test_coord_cells_route_through_coordination(topology: MissionTopology) -> None:
-    """COORD / LANES_WITH_COORD project a COORDINATION destination on the coord ref."""
+    """COORD / LANES_WITH_COORD route through coordination on the coord ref."""
     context = _resolve(topology)
     assert context.branch_ref is not None
-    assert context.branch_ref.destination_ref.kind is CommitTargetKind.COORDINATION
+    assert routes_through_coordination(topology) is True
     assert context.branch_ref.destination_ref.ref == _COORD_BRANCH
 
 
 @pytest.mark.parametrize("topology", _FLAT_CELLS)
 def test_flat_cells_project_flattened(topology: MissionTopology) -> None:
-    """SINGLE_BRANCH / LANES project a FLATTENED destination on the target ref."""
+    """SINGLE_BRANCH / LANES do NOT route through coordination — target ref."""
     context = _resolve(topology)
     assert context.branch_ref is not None
-    assert context.branch_ref.destination_ref.kind is CommitTargetKind.FLATTENED
+    assert routes_through_coordination(topology) is False
     assert context.branch_ref.destination_ref.ref == _TARGET_BRANCH
 
 
@@ -149,7 +148,7 @@ def test_input_assertion_skipped_without_signals() -> None:
     # COORD topology with NO has_lanes_signal: the guard is skipped, no raise.
     context = _resolve(MissionTopology.COORD)
     assert context.branch_ref is not None
-    assert context.branch_ref.destination_ref.kind is CommitTargetKind.COORDINATION
+    assert routes_through_coordination(MissionTopology.COORD) is True
 
 
 def test_input_assertion_passes_when_signals_corroborate() -> None:
@@ -160,7 +159,7 @@ def test_input_assertion_passes_when_signals_corroborate() -> None:
         has_lanes_signal=False,
     )
     assert context.branch_ref is not None
-    assert context.branch_ref.destination_ref.kind is CommitTargetKind.COORDINATION
+    assert routes_through_coordination(MissionTopology.COORD) is True
 
 
 def test_input_assertion_fails_closed_on_mismatch() -> None:

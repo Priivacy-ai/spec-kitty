@@ -30,7 +30,7 @@ from pathlib import Path
 
 import pytest
 
-from mission_runtime import CommitTarget, CommitTargetKind
+from mission_runtime import CommitTarget, MissionTopology
 
 from specify_cli.cli.commands.agent import tasks as tasks_mod
 from specify_cli.cli.commands.agent.tasks import (
@@ -169,24 +169,32 @@ def test_map_and_finalize_agree_on_coord_topology(tmp_path: Path) -> None:
 
 
 def _stub_placement(
-    monkeypatch: pytest.MonkeyPatch, kind: CommitTargetKind
+    monkeypatch: pytest.MonkeyPatch, *, coord: bool
 ) -> CommitTarget:
-    placement = CommitTarget(ref="kitty/mission-x-coord", kind=kind)
+    """Stub the ref-only placement + the STORED topology the routing decision reads.
+
+    FR-001b: ``_review_currency_check_branch`` decides coord-vs-primary from the
+    stored topology via ``routes_through_coordination(resolve_topology(...))``, not
+    a per-ref enum — so both seams are stubbed consistently.
+    """
+    placement = CommitTarget(ref="kitty/mission-x-coord")
+    topology = MissionTopology.COORD if coord else MissionTopology.SINGLE_BRANCH
     monkeypatch.setattr(
         tasks_mod, "resolve_placement_only", lambda _root, _slug: placement
     )
+    monkeypatch.setattr(tasks_mod, "resolve_topology", lambda _root, _slug: topology)
     return placement
 
 
 def test_review_currency_returns_placement_ref_for_coordination(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """FR-005: the COORDINATION branch is taken via ``routes_through_coordination``.
+    """FR-005: the coordination branch is taken via ``routes_through_coordination``.
 
-    Directly exercises the T032 site (not an integration path): when the
-    placement routes through coordination the placement ref is returned.
+    Directly exercises the T032 site (not an integration path): when the stored
+    topology routes through coordination the placement ref is returned.
     """
-    placement = _stub_placement(monkeypatch, CommitTargetKind.COORDINATION)
+    placement = _stub_placement(monkeypatch, coord=True)
     result = _review_currency_check_branch(
         main_repo_root=Path("/repo"),
         mission_slug="x",
@@ -196,18 +204,15 @@ def test_review_currency_returns_placement_ref_for_coordination(
     assert result == placement.ref
 
 
-@pytest.mark.parametrize(
-    "kind", [CommitTargetKind.PRIMARY, CommitTargetKind.FLATTENED]
-)
 def test_review_currency_returns_target_branch_for_non_coordination(
-    monkeypatch: pytest.MonkeyPatch, kind: CommitTargetKind
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """FR-005: non-coordination placements fall back to ``target_branch``.
+    """FR-005: a coord-less topology falls back to ``target_branch``.
 
-    ``routes_through_coordination`` is ``False`` for PRIMARY/FLATTENED, so the
+    ``routes_through_coordination`` is ``False`` for SINGLE_BRANCH/LANES, so the
     branch identical to the pre-refactor ``.kind is COORDINATION`` read is taken.
     """
-    _stub_placement(monkeypatch, kind)
+    _stub_placement(monkeypatch, coord=False)
     result = _review_currency_check_branch(
         main_repo_root=Path("/repo"),
         mission_slug="x",

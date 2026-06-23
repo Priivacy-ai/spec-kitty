@@ -36,7 +36,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from mission_runtime import CommitTarget, CommitTargetKind
+from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import (
     GuardCapability,
     ProtectionState,
@@ -143,7 +143,7 @@ def test_status_bookkeeping_call_sites_are_refused_on_protected_destination(
         "call-site change"
     )
 
-    target = CommitTarget(ref="main", kind=CommitTargetKind.PRIMARY)
+    target = CommitTarget(ref="main")
     protected = ProtectionState(is_protected=True)
     for capability in capabilities:
         verdict = evaluate(target, protected, capability)
@@ -405,7 +405,7 @@ def test_decision_log_refusal_preserves_event_and_lands_no_commit(
         destination_ref=repo.target_branch,
         mission_slug="001-guard-regression",
         inner=NullEmitter(),
-        target=CommitTarget(ref=repo.target_branch, kind=CommitTargetKind.COORDINATION),
+        target=CommitTarget(ref=repo.target_branch),
     )
     log.emit_decision_input_answered(
         DecisionInputAnsweredPayload(

@@ -36,7 +36,11 @@ from typing import NoReturn
 
 import typer
 
-from mission_runtime import CommitTarget, CommitTargetKind, routes_through_coordination
+from mission_runtime import (
+    CommitTarget,
+    resolve_topology,
+    routes_through_coordination,
+)
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.git.commit_helpers import (
     SafeCommitBackstopError,
@@ -1280,7 +1284,12 @@ def _resolve_history_commit_args(
     except ActionContextError:
         placement = None
 
-    if placement is not None and routes_through_coordination(placement):
+    # FR-005 / FR-001b: the coord-vs-primary routing decision reads the WP02
+    # STORED topology via the ONE canonical predicate, never a per-ref ``.kind``.
+    routes_coord = placement is not None and routes_through_coordination(
+        resolve_topology(main_repo_root, mission)
+    )
+    if placement is not None and routes_coord:
         coord_worktree_root = mission_dir.parent.parent
         return coord_worktree_root, placement
 
@@ -1291,7 +1300,7 @@ def _resolve_history_commit_args(
         errors="replace",
         stderr=subprocess.PIPE,
     ).strip()
-    return main_repo_root, CommitTarget(ref=current_branch, kind=CommitTargetKind.PRIMARY)
+    return main_repo_root, CommitTarget(ref=current_branch)
 
 
 @app.command(name="append-history")

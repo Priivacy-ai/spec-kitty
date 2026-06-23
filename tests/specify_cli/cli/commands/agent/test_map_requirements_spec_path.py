@@ -12,7 +12,7 @@ from types import SimpleNamespace
 import pytest
 from typer.testing import CliRunner
 
-from mission_runtime import CommitTarget, CommitTargetKind
+from mission_runtime import CommitTarget
 from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
 
 pytestmark = [pytest.mark.fast]
@@ -178,21 +178,18 @@ def test_map_requirements_auto_commit_uses_coord_placement_for_coord_files(
 
     placement = CommitTarget(
         ref=f"kitty/mission-{MISSION_SLUG}",
-        kind=CommitTargetKind.COORDINATION,
     )
     captured: dict[str, object] = {}
 
     def fake_planning_commit_worktree(
         repo_root: Path,
         mission_slug: str,
-        placement_arg: CommitTarget,
         paths: tuple[Path, ...],
         **_kwargs: object,
     ) -> tuple[Path, tuple[Path, ...]]:
         captured["planning_paths"] = paths
         assert repo_root == primary_root
         assert mission_slug == MISSION_SLUG
-        assert placement_arg == placement
         assert paths and all(coord_root in path.parents for path in paths)
         return coord_root, paths
 

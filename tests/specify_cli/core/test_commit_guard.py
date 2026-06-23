@@ -18,7 +18,7 @@ import pytest
 
 pytestmark = [pytest.mark.fast]
 
-from mission_runtime.context import CommitTarget, CommitTargetKind
+from mission_runtime.context import CommitTarget
 from specify_cli.core.commit_guard import (
     GuardCapability,
     GuardVerdict,
@@ -31,9 +31,8 @@ _PROTECTED = ProtectionState(is_protected=True)
 
 _LANE_TARGET = CommitTarget(
     ref="kitty/mission-foo-01ABCDEF-lane-b",
-    kind=CommitTargetKind.PRIMARY,
 )
-_MAIN_TARGET = CommitTarget(ref="main", kind=CommitTargetKind.PRIMARY)
+_MAIN_TARGET = CommitTarget(ref="main")
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +66,7 @@ def test_standard_commit_to_protected_ref_is_refused() -> None:
 
 
 def test_refusal_reason_names_the_resolved_destination() -> None:
-    target = CommitTarget(ref="master", kind=CommitTargetKind.PRIMARY)
+    target = CommitTarget(ref="master")
     verdict = evaluate(target, _PROTECTED)
     assert verdict.allowed is False
     assert "master" in verdict.reason
@@ -136,7 +135,7 @@ def test_verdict_has_no_push_affordance() -> None:
     ["main", "kitty/mission-x-01ABCDEF-coord", "develop", "feature/anything"],
 )
 def test_resolved_destination_echoes_commit_target_ref(ref: str) -> None:
-    target = CommitTarget(ref=ref, kind=CommitTargetKind.PRIMARY)
+    target = CommitTarget(ref=ref)
     # The verdict's destination is exactly the target's ref under both outcomes.
     assert evaluate(target, _UNPROTECTED).resolved_destination == ref
     assert evaluate(target, _PROTECTED).resolved_destination == ref

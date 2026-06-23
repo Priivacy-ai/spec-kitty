@@ -165,13 +165,12 @@ class TestSpecCommitE2EOnProtectedPrimary:
         )
 
         # Also patch resolve_placement_only to return COORDINATION for our mission.
-        from mission_runtime import CommitTarget, CommitTargetKind
+        from mission_runtime import CommitTarget
 
         monkeypatch.setattr(
             "specify_cli.coordination.commit_router.resolve_placement_only",
             lambda _root, _slug: CommitTarget(
                 ref=_COORD_BRANCH,
-                kind=CommitTargetKind.COORDINATION,
             ),
         )
 
@@ -241,7 +240,7 @@ class TestSpecCommitE2EOnProtectedPrimary:
         spec_path.write_text("# Spec\n\nFR-001 changed.\n", encoding="utf-8")
 
         import specify_cli.coordination.commit_router as commit_router_mod
-        from mission_runtime import CommitTarget, CommitTargetKind
+        from mission_runtime import CommitTarget
 
         # Stub _materialise_coord_worktree to route back to the PRIMARY checkout
         # (i.e., behave as if no materialisation occurred).
@@ -263,7 +262,6 @@ class TestSpecCommitE2EOnProtectedPrimary:
             "specify_cli.coordination.commit_router.resolve_placement_only",
             lambda _root, _slug: CommitTarget(
                 ref=_COORD_BRANCH,
-                kind=CommitTargetKind.COORDINATION,
             ),
         )
 
@@ -384,11 +382,11 @@ def test_sibling_site_commit_for_mission_called_on_protected_primary(
     ):
         if site in ("spec_commit",):
             # Run commit_for_mission directly through the router (T022 primary site).
-            from mission_runtime import CommitTarget, CommitTargetKind
+            from mission_runtime import CommitTarget
 
             with patch(
                 "specify_cli.coordination.commit_router.resolve_placement_only",
-                return_value=CommitTarget(ref=coord_branch, kind=CommitTargetKind.COORDINATION),
+                return_value=CommitTarget(ref=coord_branch),
             ):
                 policy = ProtectionPolicy.resolve(repo.repo_root)
                 result = commit_for_mission(
@@ -423,11 +421,11 @@ def test_sibling_site_commit_for_mission_called_on_protected_primary(
                 "specify_cli.cli.commands.agent.mission.get_main_repo_root",
                 lambda _path: repo.repo_root,
             )
-            from mission_runtime import CommitTarget, CommitTargetKind
+            from mission_runtime import CommitTarget
 
             monkeypatch.setattr(
                 "specify_cli.cli.commands.agent.mission._resolve_record_analysis_placement_ref",
-                lambda *_a, **_kw: CommitTarget(ref=coord_branch, kind=CommitTargetKind.COORDINATION),
+                lambda *_a, **_kw: CommitTarget(ref=coord_branch),
             )
 
             result = CliRunner().invoke(
@@ -506,7 +504,7 @@ def test_sibling_site_negative_no_op_materialiser_breaks_positive(
         if site == "spec_commit":
             # For the spec_commit (direct router) site, bypass _materialise_coord_worktree.
             import specify_cli.coordination.commit_router as commit_router_mod
-            from mission_runtime import CommitTarget, CommitTargetKind
+            from mission_runtime import CommitTarget
 
             def _bypass_materialiser(
                 repo_root: Path,
@@ -522,7 +520,7 @@ def test_sibling_site_negative_no_op_materialiser_breaks_positive(
 
             with patch(
                 "specify_cli.coordination.commit_router.resolve_placement_only",
-                return_value=CommitTarget(ref=coord_branch, kind=CommitTargetKind.COORDINATION),
+                return_value=CommitTarget(ref=coord_branch),
             ):
                 policy = ProtectionPolicy.resolve(repo.repo_root)
                 result = commit_for_mission(
@@ -546,7 +544,7 @@ def test_sibling_site_negative_no_op_materialiser_breaks_positive(
         elif site == "record_analysis":
             from specify_cli.cli.commands.agent.mission import app as mission_app
             from typer.testing import CliRunner
-            from mission_runtime import CommitTarget, CommitTargetKind
+            from mission_runtime import CommitTarget
 
             input_file = tmp_path / "neg-analysis.md"
             input_file.write_text(
@@ -565,7 +563,7 @@ def test_sibling_site_negative_no_op_materialiser_breaks_positive(
             )
             monkeypatch.setattr(
                 "specify_cli.cli.commands.agent.mission._resolve_record_analysis_placement_ref",
-                lambda *_a, **_kw: CommitTarget(ref=coord_branch, kind=CommitTargetKind.COORDINATION),
+                lambda *_a, **_kw: CommitTarget(ref=coord_branch),
             )
             result = CliRunner().invoke(
                 mission_app,

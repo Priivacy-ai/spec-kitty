@@ -16,6 +16,7 @@ from mission_runtime import (
     ActionContextError,
     CommitTarget,
     is_coordination_artifact_residue_path,
+    resolve_topology,
     routes_through_coordination,
 )
 import contextlib
@@ -51,11 +52,6 @@ from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.core.paths import (
     get_feature_target_branch,
 )
-# Re-export shim: safe_commit was formerly called directly in this module.
-# WP02 / T027 / IC-02: all calls are now routed through commit_for_mission.
-# The import is kept as a shim for any external callers that import safe_commit
-# from this module path (C-001 — no leftover duplicate, no leftover import noise).
-from specify_cli.git import safe_commit  # noqa: F401  # re-export shim
 from specify_cli.core.worktree import (
     validate_feature_structure,
 )
@@ -756,28 +752,27 @@ def _resolve_planning_placement(repo_root: Path, mission_slug: str) -> CommitTar
 def _planning_commit_worktree(
     repo_root: Path,
     mission_slug: str,
-    placement: CommitTarget,
     paths: tuple[Path, ...],
     *,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
 ) -> tuple[Path, tuple[Path, ...]]:
-    """Resolve the worktree a planning commit lands in for ``placement``.
+    """Resolve the worktree a planning commit lands in for ``mission_slug``.
 
     WP05: ``safe_commit`` requires ``worktree_root`` HEAD to equal the
     destination ref. When :func:`routes_through_coordination` holds for the
-    placement the destination is the coordination branch, which is checked out in
-    the per-mission coordination worktree — so the commit must run there (and the
-    artifacts, written to the main checkout, are copied across for staging,
-    skipping coord-owned status files, #1589). For a flattened/primary placement
+    STORED topology the destination is the coordination branch, which is checked
+    out in the per-mission coordination worktree — so the commit must run there
+    (and the artifacts, written to the main checkout, are copied across for
+    staging, skipping coord-owned status files, #1589). For a coord-less topology
     the destination is already HEAD of the main checkout, so it is used directly.
 
-    FR-005: the coord-vs-primary routing decision reads the WP01
-    :func:`routes_through_coordination` per-ref predicate, never a direct
-    ``.kind is COORDINATION`` comparison.
+    FR-005 / FR-001b: the coord-vs-primary routing decision reads the WP02 STORED
+    topology via the ONE canonical :func:`routes_through_coordination` predicate,
+    never a per-ref ``.kind is COORDINATION`` comparison (the retired arm).
 
     Returns ``(worktree_root, paths_to_commit)``.
     """
-    if not routes_through_coordination(placement):
+    if not routes_through_coordination(resolve_topology(repo_root, mission_slug)):
         return repo_root, paths
 
     from specify_cli.lanes.branch_naming import resolve_mid8
@@ -859,7 +854,16 @@ def _enforce_analysis_report_write_preflight(
         return
 
     dirty_paths = _git_dirty_paths(repo_root)
-    if placement_ref is not None and routes_through_coordination(placement_ref):
+    # FR-005 / FR-001b: drop coord-owned residue only under a coordination
+    # topology, read from the WP02 STORED topology via the ONE canonical predicate
+    # (never a per-ref ``.kind``). ``mission_slug`` is required to resolve the
+    # stored topology; absent it, the residue filter is skipped (no slug ⇒ no
+    # mission topology to route on) and the preflight gates on the full dirty set.
+    if (
+        placement_ref is not None
+        and mission_slug is not None
+        and routes_through_coordination(resolve_topology(repo_root, mission_slug))
+    ):
         dirty_paths = [
             path
             for path in dirty_paths

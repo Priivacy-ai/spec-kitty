@@ -87,14 +87,11 @@ def _load_mission_id(feature_dir: Path) -> str | None:
 
     Returns None when meta.json is absent or does not contain
     a ``mission_id`` key (legacy missions pre-dating 3.1.1).
-    Never raises — missing/corrupt meta is a silent degradation.
+    Never raises — missing/corrupt meta is a silent degradation
+    (on_malformed="none" absorbs both missing and malformed to None).
     """
-    try:
-        meta = load_meta(feature_dir)
-    except ValueError:
-        logger.debug("Malformed meta.json in %s; mission_id will be None", feature_dir)
-        return None
-    if not isinstance(meta, dict):
+    meta = load_meta(feature_dir, allow_missing=True, on_malformed="none")
+    if meta is None:
         return None
     raw_id = meta.get("mission_id")
     return str(raw_id) if raw_id else None
@@ -304,13 +301,16 @@ def _infer_implementation_evidence(feature_dir: Path, wp_id: str) -> bool:
 
 
 def _phase1_dual_write_enabled(feature_dir: Path) -> bool:
-    """Return True when this feature explicitly requests phase-1 mirroring."""
-    try:
-        meta = load_meta(feature_dir)
-    except ValueError:
-        logger.warning("Invalid meta.json in %s; skipping phase-1 lane mirror", feature_dir)
-        return False
-    if not isinstance(meta, dict):
+    """Return True when this feature explicitly requests phase-1 mirroring.
+
+    Uses on_malformed="none" so both missing and malformed meta.json degrade
+    to False (non-phase-1) without raising.  A missing-but-logged-warning
+    case for malformed files is preserved by checking the file existence first.
+    """
+    meta = load_meta(feature_dir, allow_missing=True, on_malformed="none")
+    if meta is None:
+        if (feature_dir / "meta.json").exists():
+            logger.warning("Invalid meta.json in %s; skipping phase-1 lane mirror", feature_dir)
         return False
     status_phase = meta.get("status_phase")
     return str(status_phase).strip() == "1"

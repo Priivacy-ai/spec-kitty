@@ -31,7 +31,11 @@ from specify_cli.git.commit_helpers import (
 )
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.core.constants import WORKTREES_DIR
-from mission_runtime import CommitTarget, CommitTargetKind, routes_through_coordination
+from mission_runtime import (
+    CommitTarget,
+    resolve_topology,
+    routes_through_coordination,
+)
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
 from specify_cli.coordination.status_transition import emit_status_transition_transactional
@@ -586,22 +590,25 @@ def _resolve_placement_ref(
     return placement.placement_ref if placement is not None else None
 
 
-def _placement_coord_filter(placement_ref: CommitTarget | None) -> str | None:
-    """Return the coord-owned-exclusion ref implied by the context placement.
+def _placement_coord_filter(
+    repo_root: Path, mission_slug: str, placement_ref: CommitTarget | None
+) -> str | None:
+    """Return the coord-owned-exclusion ref implied by the mission's topology.
 
-    WP06 / T019 / C-PLACE-1: the coord/flattened/primary decision is read from
-    the context's single ``placement_ref`` (the SAME CommitTarget status events
-    resolve to) instead of independent meta.json/git logic (C-005). Only a
-    genuine *coordination* topology owns the status files on a separate branch
-    and therefore excludes them from the primary-checkout commit; under
-    flattened topology (``kind == FLATTENED``) there is no primary↔coord split,
-    so the primary status files are NOT filtered out — fixing the #1816
-    implement-claim deadlock that arose from treating a flattened mission as
-    coord-split. Returns ``None`` for flattened/primary topologies.
+    WP06 / T019 / C-PLACE-1: the coord/flattened/primary decision reads the WP02
+    STORED topology via the ONE canonical :func:`routes_through_coordination`
+    predicate (FR-005 / FR-001b) — never a per-ref ``.kind`` (the retired arm) and
+    not independent meta.json/git logic (C-005). Only a genuine *coordination*
+    topology owns the status files on a separate branch and therefore excludes
+    them from the primary-checkout commit; a flattened/primary topology has no
+    primary↔coord split, so the primary status files are NOT filtered out —
+    preserving the #1816 implement-claim fix. The excluded ref is the context's
+    single ``placement_ref.ref`` (the SAME CommitTarget status events resolve to).
+    Returns ``None`` for flattened/primary topologies.
     """
     if placement_ref is None:
         return None
-    if routes_through_coordination(placement_ref):
+    if routes_through_coordination(resolve_topology(repo_root, mission_slug)):
         return placement_ref.ref
     return None
 
@@ -658,7 +665,9 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     # independent meta-derived coord logic (C-005). Otherwise fall back to the
     # legacy meta-derived coord branch (C-004 strangler).
     if placement_ref is not None:
-        coord_branch_for_filter = _placement_coord_filter(placement_ref)
+        coord_branch_for_filter = _placement_coord_filter(
+            repo_root, mission_slug, placement_ref
+        )
     else:
         coord_branch_for_filter = _resolve_bookkeeping_transaction_identifiers(
             feature_dir, mission_slug, repo_root
@@ -728,7 +737,7 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     # topology it is the coord ref. Identity (``mission_id`` / ``mid8``) is
     # unaffected — only the placement decision moves to the context (C-005).
     if placement_ref is not None:
-        coord_branch = _placement_coord_filter(placement_ref)
+        coord_branch = _placement_coord_filter(repo_root, mission_slug, placement_ref)
 
     # Route ALL planning-artifact commits through BookkeepingTransaction.
     # The transaction has a built-in legacy fallback (see
@@ -1301,7 +1310,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                     safe_commit(
                         repo_root=repo_root,
                         worktree_root=repo_root,
-                        target=CommitTarget(ref=_cur_branch, kind=CommitTargetKind.PRIMARY),
+                        target=CommitTarget(ref=_cur_branch),
                         message=commit_msg,
                         paths=tuple(files_to_commit),
                     )

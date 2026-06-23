@@ -67,8 +67,12 @@ def _invoke_finalize(tmp_path: Path, feature_dir: Path, extra_args: list[str] | 
     args = ["finalize-tasks", "--mission", feature_dir.name, "--json"]
     if extra_args:
         args.extend(extra_args)
-    safe_commit_patcher = patch(
-        "specify_cli.cli.commands.agent.mission.safe_commit",
+    # WP05 (T014): the ``mission.safe_commit`` re-export shim is gone; the canonical
+    # commit boundary is ``commit_router.commit_for_mission``. The spy is attached to
+    # THAT seam so the "rejected before any commit" contract is asserted at the real
+    # commit boundary, not a retired alias.
+    commit_patcher = patch(
+        "specify_cli.coordination.commit_router.commit_for_mission",
         return_value=True,
     )
     with (
@@ -77,9 +81,9 @@ def _invoke_finalize(tmp_path: Path, feature_dir: Path, extra_args: list[str] | 
         patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(tmp_path, "main")),
         patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_run_command),
         patch("specify_cli.cli.commands.agent.mission.get_emitter"),
-        safe_commit_patcher as safe_commit,
+        commit_patcher as commit_for_mission,
     ):
-        return runner.invoke(app, args), safe_commit
+        return runner.invoke(app, args), commit_for_mission
 
 
 def _json_payload(stdout: str) -> dict[str, object]:
@@ -94,10 +98,10 @@ def test_validate_only_rejects_kitty_specs_owned_files(tmp_path: Path) -> None:
         owned_file="kitty-specs/077-invalid-owned-files/occurrence_map.yaml",
     )
 
-    result, safe_commit = _invoke_finalize(tmp_path, feature_dir, ["--validate-only"])
+    result, commit_for_mission = _invoke_finalize(tmp_path, feature_dir, ["--validate-only"])
 
     assert result.exit_code == 1
-    safe_commit.assert_not_called()
+    commit_for_mission.assert_not_called()
     payload = _json_payload(result.stdout)
     assert payload["error_code"] == INVALID_WP_OWNED_FILES_KITTY_SPECS
     assert payload["invalid_owned_files"] == [
@@ -114,10 +118,10 @@ def test_full_finalize_rejects_before_commit(tmp_path: Path) -> None:
         owned_file="./kitty-specs/077-invalid-owned-files/plan.md",
     )
 
-    result, safe_commit = _invoke_finalize(tmp_path, feature_dir)
+    result, commit_for_mission = _invoke_finalize(tmp_path, feature_dir)
 
     assert result.exit_code == 1
-    safe_commit.assert_not_called()
+    commit_for_mission.assert_not_called()
     payload = _json_payload(result.stdout)
     assert payload["error_code"] == INVALID_WP_OWNED_FILES_KITTY_SPECS
     assert payload["invalid_owned_files"] == [

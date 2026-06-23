@@ -22,9 +22,10 @@ import pytest
 from click.testing import Result
 
 from mission_runtime import (
-    CommitTargetKind,
     resolve_action_context,
     resolve_placement_only,
+    resolve_topology,
+    routes_through_coordination,
 )
 from specify_cli.coordination.surface_resolver import (
     resolve_status_surface,
@@ -171,18 +172,20 @@ def test_flattened_placement_identical_across_handle_forms(
 ) -> None:
     baseline = resolve_placement_only(repo, _FULL_SLUG)
     placement = resolve_placement_only(repo, handle)
-    assert placement == baseline  # CommitTarget equality covers ref AND kind
-    assert placement.kind is CommitTargetKind.FLATTENED
+    assert placement == baseline  # ref-only CommitTarget equality (C-007)
+    # FR-001b: routing reads the STORED topology, handle-invariant — a flattened
+    # mission never routes through coordination, regardless of handle form.
+    assert routes_through_coordination(resolve_topology(repo, handle)) is False
     assert placement.ref == _TARGET_BRANCH
 
 
 @pytest.mark.parametrize("handle", [_COORD_SLUG, _COORD_MID8, "091"])
 def test_coord_placement_never_flips_to_flattened(repo: Path, handle: str) -> None:
     placement = resolve_placement_only(repo, handle)
-    assert placement.kind is CommitTargetKind.COORDINATION, (
-        f"handle {handle!r} flipped a coord-topology mission to "
-        f"{placement.kind} — planning commits would target {placement.ref!r} "
-        "instead of the coordination branch"
+    assert routes_through_coordination(resolve_topology(repo, handle)) is True, (
+        f"handle {handle!r} flipped a coord-topology mission to a coord-less "
+        f"surface — planning commits would target {placement.ref!r} instead of "
+        "the coordination branch (FR-001b: routing reads the stored topology)"
     )
     assert placement.ref == _COORD_BRANCH
 
@@ -442,16 +445,27 @@ def test_merge_resolve_mission_slug_preserves_unresolvable_handle(repo: Path) ->
 def test_merge_resolve_mission_slug_fail_closed_window_does_not_raise(
     repo: Path,
 ) -> None:
-    """In the fail-closed coordination window (coord worktree root materialized,
-    mission dir absent) the resolver must NOT leak StatusReadPathNotFound:
+    """In the coordination-empty window (coord worktree root materialized, mission
+    dir absent) the resolver must NOT leak StatusReadPathNotFound:
     ``merge --abort --mission <handle>`` relies on slug resolution staying
-    non-raising to clean up exactly that broken state."""
+    non-raising to clean up exactly that broken state.
+
+    WP06 (T015 boundary absorption) note: mission B declares a ``coordination_branch``
+    but stores NO ``topology`` field. The read boundary now ABSORBS that absent field
+    to a concrete COORD topology, so the coord-empty window resolves the existing
+    PRIMARY dir (WP04 Option B) rather than raising — the resolver still does NOT
+    raise (the load-bearing contract) AND now canonicalizes the bare-mid8 handle to
+    the real ``<slug>-<mid8>`` dir name (exactly what ``_resolve_mission_slug`` wants
+    downstream: never the raw operator handle). The old ``== _COORD_MID8`` pin was a
+    pre-Option-B artifact (the raise→raw-handle fallback) — re-pointed, not retried."""
     from specify_cli.cli.commands.merge import _resolve_mission_slug
 
     (repo / ".worktrees" / f"{_COORD_SLUG}-coord").mkdir(parents=True)
 
+    # The load-bearing contract: resolution stays non-raising in the coord-empty
+    # window (merge --abort cleanup), and canonicalizes to the real dir name.
     assert _resolve_mission_slug(repo, _COORD_SLUG) == _COORD_SLUG
-    assert _resolve_mission_slug(repo, _COORD_MID8) == _COORD_MID8
+    assert _resolve_mission_slug(repo, _COORD_MID8) == _COORD_SLUG
 
 
 @pytest.mark.parametrize("handle", [_FULL_SLUG, _MID8, "083"])
@@ -832,16 +846,23 @@ def test_mission_run_resolver_propagates_ambiguity(repo: Path) -> None:
 
 
 def test_mission_run_resolver_fail_closed_window_does_not_raise(repo: Path) -> None:
-    """In the fail-closed coordination window (coord worktree root
-    materialized, mission dir absent) the resolver must NOT leak
-    StatusReadPathNotFound — raw passthrough keeps run_cmd non-raising at the
-    boundary so the runtime surfaces its own diagnostic downstream."""
+    """In the coordination-empty window (coord worktree root materialized, mission
+    dir absent) the resolver must NOT leak StatusReadPathNotFound — non-raising at
+    the boundary so the runtime surfaces its own diagnostic downstream.
+
+    WP06 (T015 boundary absorption) note: mission B declares a ``coordination_branch``
+    with NO stored ``topology`` field; the read boundary now absorbs that absent field
+    to a concrete COORD topology, so the coord-empty window resolves the existing
+    PRIMARY dir (WP04 Option B) instead of raising. The resolver still does NOT raise
+    (the load-bearing contract) AND now canonicalizes the bare-mid8 handle to the real
+    ``<slug>-<mid8>`` dir name. The old ``== _COORD_MID8`` pin was a pre-Option-B
+    raise→raw-handle artifact — re-pointed, not retried."""
     from specify_cli.cli.commands.mission_type import _resolve_mission_slug
 
     (repo / ".worktrees" / f"{_COORD_SLUG}-coord").mkdir(parents=True)
 
     assert _resolve_mission_slug(repo, _COORD_SLUG) == _COORD_SLUG
-    assert _resolve_mission_slug(repo, _COORD_MID8) == _COORD_MID8
+    assert _resolve_mission_slug(repo, _COORD_MID8) == _COORD_SLUG
 
 
 # ---------------------------------------------------------------------------

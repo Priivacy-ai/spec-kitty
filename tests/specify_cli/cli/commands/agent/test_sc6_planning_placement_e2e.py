@@ -45,7 +45,11 @@ import pytest
 from click.testing import Result
 from typer.testing import CliRunner
 
-from mission_runtime import CommitTargetKind, resolve_placement_only
+from mission_runtime import (
+    resolve_placement_only,
+    resolve_topology,
+    routes_through_coordination,
+)
 from specify_cli.cli.commands.agent.mission import app
 
 from tests.git.protected_target_fixtures import (  # noqa: F401 — pytest fixture re-export
@@ -67,7 +71,7 @@ class _Topology:
     name: str
     target_branch: str
     coordination_branch: str | None
-    expected_kind: CommitTargetKind
+    expected_routes_coord: bool
 
 
 # The flattened (legacy, no-coordination-branch) topology is parametrized but
@@ -94,20 +98,20 @@ _TOPOLOGIES = [
         name="protected-main",
         target_branch="main",
         coordination_branch=f"kitty/mission-sc6-mission-{_MID8}",
-        expected_kind=CommitTargetKind.COORDINATION,
+        expected_routes_coord=True,
     ),
     _Topology(
         name="coordination",
         target_branch="feat/non-protected-target",
         coordination_branch=f"kitty/mission-sc6-mission-{_MID8}",
-        expected_kind=CommitTargetKind.COORDINATION,
+        expected_routes_coord=True,
     ),
     pytest.param(
         _Topology(
             name="flattened",
             target_branch="feat/non-protected-target",
             coordination_branch=None,
-            expected_kind=CommitTargetKind.FLATTENED,
+            expected_routes_coord=False,
         ),
         # WP06 (R9): this legacy-bootstrap CWD gap genuinely xfails today, so the
         # guard is strict — if the underlying fix lands and the test starts
@@ -216,9 +220,12 @@ def _scaffold_mission(repo: Path, topology: _Topology) -> tuple[str, Path, str]:
         _git(repo, "checkout", "-q", "-b", topology.target_branch)
 
     placement = resolve_placement_only(repo, mission_dirname)
-    assert placement.kind is topology.expected_kind, (
-        f"{topology.name}: expected placement kind {topology.expected_kind}, "
-        f"got {placement.kind}"
+    # FR-001b: the coord-vs-primary decision reads the STORED topology, not a
+    # per-ref enum on the placement.
+    routes_coord = routes_through_coordination(resolve_topology(repo, mission_dirname))
+    assert routes_coord is topology.expected_routes_coord, (
+        f"{topology.name}: expected routes_through_coordination="
+        f"{topology.expected_routes_coord}, got {routes_coord}"
     )
     return mission_dirname, feature_dir, placement.ref
 

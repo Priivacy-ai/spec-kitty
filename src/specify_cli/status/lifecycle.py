@@ -129,7 +129,7 @@ def _parse_dt(raw: object) -> datetime | None:
 
 
 def _fallback_created_at(feature_dir: Path) -> datetime | None:
-    meta = load_meta(feature_dir) or {}
+    meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise") or {}
     created_at = _parse_dt(meta.get("created_at"))
     if created_at is not None:
         return created_at
@@ -226,7 +226,7 @@ def _last_merge_marker_at(feature_dir: Path) -> datetime | None:
     typically ``None``. A subsequent re-merge re-stamps ``merged_at``; when that
     postdates the latest re-open the mission is no longer ``reopened``.
     """
-    meta = load_meta(feature_dir) or {}
+    meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise") or {}
     return _parse_dt(meta.get("merged_at"))
 
 
