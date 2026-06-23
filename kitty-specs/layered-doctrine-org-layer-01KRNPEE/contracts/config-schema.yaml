@@ -83,6 +83,18 @@ properties:
                       examples:
                         - "v2.1.0"
                         - "abc123def456"
+                    subdir:
+                      type: string
+                      description: >
+                        Optional relative path BENEATH local_path. When set, the
+                        effective pack root is local_path/subdir, so a pack that lives
+                        in a subdirectory of its git source can be consumed directly.
+                        The clone/fetch target stays local_path (the repo root); subdir
+                        only affects resolution. Rejected: absolute paths (incl.
+                        Windows/UNC) and any '..' component.
+                      examples:
+                        - "pack"
+                        - "doctrine/pack"
                   additionalProperties: false
                 minItems: 1
 
@@ -101,6 +113,11 @@ properties:
                 type: string
               ref:
                 type: string
+              subdir:
+                type: string
+                description: >
+                  Optional relative path beneath local_path; effective pack root =
+                  local_path/subdir. Rejected: absolute paths and any '..' component.
             additionalProperties: false
 
     additionalProperties: true  # other top-level doctrine keys may exist

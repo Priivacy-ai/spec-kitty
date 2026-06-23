@@ -326,10 +326,18 @@ def _read_org_packs(repo_root: Path, _data: dict[str, Any]) -> tuple[tuple[str, 
         ``names`` — org pack names in declaration order.
         ``roots`` — resolved absolute pack root paths in the same order.
     """
+    names: list[str] = []
+    roots: list[Path] = []
     try:
         from doctrine.drg.org_pack_config import OrgPackSubdirEscapeError, load_pack_registry  # noqa: PLC0415
 
         registry = load_pack_registry(repo_root)
+        # Resolve effective roots inside the try so a resolution-time subdir
+        # escape (raised by ``effective_root``) is re-raised below rather than
+        # swallowed by the broad ``except`` into a silent empty registry.
+        for pack in registry.packs:
+            names.append(pack.name)
+            roots.append(pack.effective_root(repo_root))
     except OrgPackSubdirEscapeError:
         raise
     except Exception as exc:  # pragma: no cover – defensive
@@ -338,11 +346,5 @@ def _read_org_packs(repo_root: Path, _data: dict[str, Any]) -> tuple[tuple[str, 
             stacklevel=4,
         )
         return (), ()
-
-    names: list[str] = []
-    roots: list[Path] = []
-    for pack in registry.packs:
-        names.append(pack.name)
-        roots.append(pack.effective_root(repo_root))
 
     return tuple(names), tuple(roots)

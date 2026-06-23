@@ -267,3 +267,37 @@ def test_fetch_pack_wrong_subdir_zero_count(
         f"FR-007/SC-003: wrong subdir → effective root missing → 0 artifacts, "
         f"got {result.artifacts_written!r}"
     )
+
+
+def test_config_schema_contract_documents_subdir() -> None:
+    """FR-008: the org-pack config-schema contract documents the ``subdir`` field.
+
+    The named contract file must keep ``additionalProperties: false`` (so an
+    unknown key is rejected) AND declare ``subdir`` on BOTH the canonical
+    multi-pack form (Form A) and the legacy single-pack form (Form B); otherwise
+    a consumer validating config against the documented schema would reject a
+    ``subdir`` that the runtime now accepts.
+    """
+    import yaml as _yaml  # local import; stdlib-safe
+
+    repo_root = Path(__file__).resolve().parents[2]
+    schema_path = (
+        repo_root
+        / "kitty-specs"
+        / "layered-doctrine-org-layer-01KRNPEE"
+        / "contracts"
+        / "config-schema.yaml"
+    )
+    assert schema_path.exists(), f"contract schema missing at {schema_path}"
+    doc = _yaml.safe_load(schema_path.read_text(encoding="utf-8"))
+
+    org = doc["properties"]["doctrine"]["properties"]["org"]
+    forms = org["oneOf"]
+    # Form A — items in the packs list.
+    form_a_item = forms[0]["properties"]["packs"]["items"]
+    assert "subdir" in form_a_item["properties"], "Form A must document subdir"
+    assert form_a_item["additionalProperties"] is False
+    # Form B — legacy single inline pack.
+    form_b = forms[1]
+    assert "subdir" in form_b["properties"], "Form B must document subdir"
+    assert form_b["additionalProperties"] is False
