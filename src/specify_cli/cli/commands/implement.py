@@ -731,8 +731,9 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
 
     # WP06 / T019 / C-PLACE-1: the placement destination is the context's single
     # ``placement_ref`` when threaded — one ref for planning artifacts AND status
-    # events. Under flattened topology its ``kind`` is FLATTENED (no coord
-    # branch), so ``coord_branch`` collapses to ``None`` and the commit lands on
+    # events. Under a flattened/primary topology there is no coord branch
+    # (``CommitTarget`` is ref-only; the retired ``.kind``/FLATTENED arm is gone),
+    # so ``coord_branch`` collapses to ``None`` and the commit lands on
     # ``planning_branch`` (== target == coordination); under coordination
     # topology it is the coord ref. Identity (``mission_id`` / ``mid8``) is
     # unaffected — only the placement decision moves to the context (C-005).
