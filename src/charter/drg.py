@@ -134,11 +134,7 @@ def load_org_drg(repo_root: Path) -> list[OrgDRGFragment]:
     registry = load_pack_registry(repo_root)
     fragments: list[OrgDRGFragment] = []
     for layer_index, pack in enumerate(registry.packs, start=1):
-        configured_path = pack.local_path
-        if not configured_path.is_absolute():
-            configured_path = (repo_root / configured_path).resolve()
-        # Delegate all per-pack schema parsing to the doctrine layer.
-        fragments.append(load_org_pack(pack.name, configured_path, layer_index))
+        fragments.append(load_org_pack(pack.name, pack.effective_root(repo_root), layer_index))
     return fragments
 
 

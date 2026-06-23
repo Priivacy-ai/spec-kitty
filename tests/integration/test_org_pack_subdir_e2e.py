@@ -1,0 +1,269 @@
+"""Integration tests: org pack subdir resolution e2e (WP02 SC-001/002/003).
+
+Covers:
+  SC-001 — a pack whose artifacts live under ``subdir`` loads healthy via
+            both ``_collect_org_layer_data`` (T007) and ``_build_pack_entries``
+            (T009).
+  SC-002 — a no-subdir pack is byte-identical in behavior (regression guard).
+  SC-003 — a wrong ``subdir`` → errors reported (effective root missing).
+
+FR-007 fetch_pack reporting (added cycle-2 fix):
+  fetch_pack_int_contract — ``artifacts_written`` is a scalar ``int`` (not dict).
+  fetch_pack_wrong_subdir_zero_count — wrong subdir → ``artifacts_written == 0``
+    (SC-003 on the fetch reporting leg).
+"""
+from __future__ import annotations
+
+from pathlib import Path
+from textwrap import dedent
+from unittest.mock import MagicMock
+
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
+
+# ---------------------------------------------------------------------------
+# Fixture helpers
+# ---------------------------------------------------------------------------
+
+_PACK_NAME = "acme-doctrine-pack"
+
+_DRG_FRAGMENT_YAML = dedent("""\
+    pack_name: acme-doctrine-pack
+    source_kind: local_path
+    source_ref: org-doctrine-store/pack
+    layer_index: 1
+    provenance_marker: org
+    nodes: []
+    edges: []
+""")
+
+_ORG_CHARTER_YAML = dedent("""\
+    schema_version: "1"
+    org_name: Acme Corp
+""")
+
+
+def _write_config(repo_root: Path, *, local_path: Path, subdir: str | None = None) -> None:
+    kittify = repo_root / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    subdir_line = f"\n                    subdir: {subdir}" if subdir else ""
+    (kittify / "config.yaml").write_text(
+        dedent(f"""\
+            doctrine:
+              org:
+                packs:
+                  - name: {_PACK_NAME}
+                    local_path: {local_path}{subdir_line}
+            """),
+        encoding="utf-8",
+    )
+
+
+def _build_pack_at(pack_root: Path) -> None:
+    """Write a minimal valid pack (org-charter.yaml + drg/fragment.yaml) at ``pack_root``."""
+    (pack_root / "drg").mkdir(parents=True, exist_ok=True)
+    (pack_root / "org-charter.yaml").write_text(_ORG_CHARTER_YAML, encoding="utf-8")
+    (pack_root / "drg" / "fragment.yaml").write_text(_DRG_FRAGMENT_YAML, encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# SC-001: subdir-rooted pack loads healthy
+# ---------------------------------------------------------------------------
+
+
+def test_sc001_subdir_pack_loads_healthy(tmp_path: Path) -> None:
+    """SC-001: a pack configured with ``subdir: pack`` resolves artifacts
+    under ``<local_path>/pack/`` and makes doctor doctrine report healthy
+    (both T007 load_org_drg path and T009 _build_pack_entries path).
+    """
+    from specify_cli.cli.commands.doctor import _build_pack_entries, _collect_org_layer_data  # noqa: PLC0415
+    from specify_cli.doctrine.config import load_pack_registry  # noqa: PLC0415
+
+    repo_root = tmp_path / "consumer"
+    repo_root.mkdir()
+
+    local_path = tmp_path / "org-doctrine-store"
+    pack_artifacts = local_path / "pack"
+    _build_pack_at(pack_artifacts)
+
+    _write_config(repo_root, local_path=local_path, subdir="pack")
+
+    # T007 coverage: _collect_org_layer_data calls load_org_drg → build_org_drg_fragments
+    result = _collect_org_layer_data(repo_root)
+    assert result["errors"] == [], (
+        f"SC-001: doctor doctrine must be healthy for a subdir pack. errors={result['errors']!r}"
+    )
+
+    # T009 coverage: _build_pack_entries must resolve the effective root
+    registry = load_pack_registry(repo_root)
+    entries = _build_pack_entries(registry, repo_root)
+    assert len(entries) == 1
+    assert entries[0]["snapshot_present"] is True, (
+        f"SC-001: _build_pack_entries must find the pack at its effective root. entry={entries[0]!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# SC-002: no-subdir pack (regression)
+# ---------------------------------------------------------------------------
+
+
+def test_sc002_no_subdir_pack_unchanged(tmp_path: Path) -> None:
+    """SC-002: a pack without ``subdir`` behaves identically to before WP02."""
+    from specify_cli.cli.commands.doctor import _build_pack_entries, _collect_org_layer_data  # noqa: PLC0415
+    from specify_cli.doctrine.config import load_pack_registry  # noqa: PLC0415
+
+    repo_root = tmp_path / "consumer"
+    repo_root.mkdir()
+
+    local_path = tmp_path / "org-doctrine-store"
+    _build_pack_at(local_path)
+
+    _write_config(repo_root, local_path=local_path)  # no subdir
+
+    result = _collect_org_layer_data(repo_root)
+    assert result["errors"] == [], (
+        f"SC-002: no-subdir pack must still load healthy. errors={result['errors']!r}"
+    )
+
+    registry = load_pack_registry(repo_root)
+    entries = _build_pack_entries(registry, repo_root)
+    assert len(entries) == 1
+    assert entries[0]["snapshot_present"] is True, (
+        f"SC-002: no-subdir pack must show snapshot_present=True. entry={entries[0]!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# SC-003: wrong subdir → errors reported
+# ---------------------------------------------------------------------------
+
+
+def test_sc003_wrong_subdir_reports_errors(tmp_path: Path) -> None:
+    """SC-003: a pack with ``subdir: nonexistent`` → effective root doesn't
+    exist → doctor doctrine reports errors; _build_pack_entries shows
+    snapshot_present=False.
+    """
+    from specify_cli.cli.commands.doctor import _build_pack_entries, _collect_org_layer_data  # noqa: PLC0415
+    from specify_cli.doctrine.config import load_pack_registry  # noqa: PLC0415
+
+    repo_root = tmp_path / "consumer"
+    repo_root.mkdir()
+
+    local_path = tmp_path / "org-doctrine-store"
+    local_path.mkdir()  # pack root exists, but "wrong-subdir" subdirectory does not
+
+    _write_config(repo_root, local_path=local_path, subdir="wrong-subdir")
+
+    result = _collect_org_layer_data(repo_root)
+    assert result["errors"] != [], (
+        f"SC-003: wrong subdir must produce errors. result={result!r}"
+    )
+
+    registry = load_pack_registry(repo_root)
+    entries = _build_pack_entries(registry, repo_root)
+    assert len(entries) == 1
+    assert entries[0]["snapshot_present"] is False, (
+        f"SC-003: wrong subdir → effective root doesn't exist → snapshot_present=False. entry={entries[0]!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# FR-007: fetch_pack artifacts_written int contract
+# ---------------------------------------------------------------------------
+
+
+def _make_fake_source(local_path: Path) -> MagicMock:
+    """Return a MagicMock OrgDoctrineSource whose fetch() writes minimal YAML artifacts.
+
+    The source writes a single directive YAML into the target directory so that
+    ``_count_artifacts`` returns a non-empty dict for no-subdir packs.
+    Used to drive ``fetch_pack`` without a real git/https/api remote.
+    """
+    from specify_cli.doctrine.sources.protocol import FetchResult  # noqa: PLC0415
+
+    def _fake_fetch(target_dir: Path) -> FetchResult:
+        (target_dir / "directives").mkdir(parents=True, exist_ok=True)
+        (target_dir / "directives" / "sample.yaml").write_text(
+            "id: test\n", encoding="utf-8"
+        )
+        return FetchResult(ok=True, artifacts_written=1, pack_version="v0.0.1")
+
+    fake = MagicMock()
+    fake.fetch.side_effect = _fake_fetch
+    return fake
+
+
+def test_fetch_pack_int_contract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-007: fetch_pack must return artifacts_written as a scalar int, not a dict."""
+    from specify_cli.doctrine.config import load_pack_registry  # noqa: PLC0415
+    from specify_cli.doctrine.snapshot import fetch_pack  # noqa: PLC0415
+
+    local_path = tmp_path / "pack-store"
+    repo_root = tmp_path / "consumer"
+    repo_root.mkdir()
+
+    _write_config(repo_root, local_path=local_path, subdir=None)
+
+    registry = load_pack_registry(repo_root)
+    assert len(registry.packs) == 1
+    pack = registry.packs[0]
+
+    monkeypatch.setattr(
+        "specify_cli.doctrine.snapshot._build_source",
+        lambda p: _make_fake_source(local_path),
+    )
+
+    result = fetch_pack(pack, repo_root)
+
+    assert result.ok, f"Expected fetch to succeed, got errors={result.errors!r}"
+    assert isinstance(result.artifacts_written, int), (
+        f"FR-007: artifacts_written must be int, got {type(result.artifacts_written)!r}: "
+        f"{result.artifacts_written!r}"
+    )
+    assert result.artifacts_written > 0, (
+        f"FR-007: artifacts_written must be > 0 when artifacts were written, "
+        f"got {result.artifacts_written!r}"
+    )
+
+
+def test_fetch_pack_wrong_subdir_zero_count(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-007 / SC-003: fetch_pack with a wrong subdir reports artifacts_written == 0.
+
+    The source fetch succeeds (writes to local_path), but the effective root
+    (local_path / "nonexistent-subdir") doesn't exist → _count_artifacts returns
+    {} → sum({}.values()) == 0.  artifacts_written must still be int, not a dict.
+    """
+    from specify_cli.doctrine.config import load_pack_registry  # noqa: PLC0415
+    from specify_cli.doctrine.snapshot import fetch_pack  # noqa: PLC0415
+
+    local_path = tmp_path / "pack-store"
+    repo_root = tmp_path / "consumer"
+    repo_root.mkdir()
+
+    _write_config(repo_root, local_path=local_path, subdir="nonexistent-subdir")
+
+    registry = load_pack_registry(repo_root)
+    assert len(registry.packs) == 1
+    pack = registry.packs[0]
+
+    monkeypatch.setattr(
+        "specify_cli.doctrine.snapshot._build_source",
+        lambda p: _make_fake_source(local_path),
+    )
+
+    result = fetch_pack(pack, repo_root)
+
+    assert result.ok, f"Expected fetch to succeed, got errors={result.errors!r}"
+    assert isinstance(result.artifacts_written, int), (
+        f"FR-007/SC-003: artifacts_written must be int even for wrong subdir, "
+        f"got {type(result.artifacts_written)!r}: {result.artifacts_written!r}"
+    )
+    assert result.artifacts_written == 0, (
+        f"FR-007/SC-003: wrong subdir → effective root missing → 0 artifacts, "
+        f"got {result.artifacts_written!r}"
+    )

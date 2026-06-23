@@ -233,7 +233,11 @@ def _build_service_with_org_layer(
 
     doctrine_root = resolve_doctrine_root()
     project_root = resolve_project_root(repo_root)
-    org_roots = [p.local_path for p in registry.packs if p.local_path.exists()]
+    org_roots = []
+    for p in registry.packs:
+        eff = p.effective_root(repo_root)
+        if eff.exists():
+            org_roots.append(eff)
     if not org_roots:
         return None
     inner = DoctrineService(

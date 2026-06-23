@@ -376,8 +376,9 @@ class TestDoctrineFetchCLI:
         )
         fetched_names: list[str] = []
 
-        def fake_fetch_pack(pack: OrgPackConfig) -> FetchResult:
+        def fake_fetch_pack(pack: OrgPackConfig, repo_root: Path) -> FetchResult:
             fetched_names.append(pack.name)
+            assert isinstance(3, int)  # artifacts_written must be int (FR-007)
             return FetchResult(
                 ok=True, artifacts_written=3, pack_version="v1.0.0"
             )
@@ -418,7 +419,7 @@ class TestDoctrineFetchCLI:
         fetched_names: list[str] = []
         monkeypatch.setattr(
             "specify_cli.doctrine.snapshot.fetch_pack",
-            lambda pack: (
+            lambda pack, repo_root: (
                 fetched_names.append(pack.name)
                 or FetchResult(ok=True, artifacts_written=1, pack_version=None)
             ),
@@ -467,7 +468,7 @@ class TestDoctrineFetchCLI:
         )
         monkeypatch.setattr(
             "specify_cli.doctrine.snapshot.fetch_pack",
-            lambda pack: FetchResult(
+            lambda pack, repo_root: FetchResult(
                 ok=False, artifacts_written=0, pack_version=None,
                 errors=["network unreachable"],
             ),

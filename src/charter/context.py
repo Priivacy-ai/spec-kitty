@@ -22,7 +22,9 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from charter._catalog_miss import (
+    CatalogMissDiagnosis,
     classify_catalog_miss,
+    classify_scope_filtered_miss,
     emit_catalog_miss_warning,
     format_catalog_miss_stanza,
 )
@@ -692,7 +694,7 @@ def _enumerate_org_pack_paths(repo_root: Path) -> list[tuple[str, Path]]:
         registry = load_pack_registry(repo_root)
     except Exception:  # noqa: BLE001 - context rendering stays best-effort
         return []
-    return [(pack.name, pack.local_path) for pack in registry.packs]
+    return [(pack.name, pack.effective_root(repo_root)) for pack in registry.packs]
 
 
 def _missing_pack_diagnostic(repo_root: Path) -> str | None:
@@ -1785,9 +1787,10 @@ def _render_profile_directives(
         if directive is None:
             # RISK-3 (Mission B post-merge): structured catalog-miss
             # stanza + warning instead of the generic placeholder.
-            diagnosis = classify_catalog_miss(
-                code, _available_catalog_ids(repo)
-            )
+            # FR-013: _diagnose_catalog_miss checks scope_filtered_ids
+            # first so a scope-filtered directive surfaces SCOPE_FILTERED
+            # rather than MISSING_ARTIFACT.
+            diagnosis = _diagnose_catalog_miss(code, repo)
             lines.extend(
                 format_catalog_miss_stanza(
                     selector_kind="directive",
@@ -1855,9 +1858,10 @@ def _render_profile_tactics(
         if tactic is None:
             # RISK-3 (Mission B post-merge): structured catalog-miss
             # stanza + warning instead of the generic placeholder.
-            diagnosis = classify_catalog_miss(
-                tactic_id, _available_catalog_ids(repo)
-            )
+            # FR-013: _diagnose_catalog_miss checks scope_filtered_ids
+            # first so a scope-filtered tactic surfaces SCOPE_FILTERED
+            # rather than MISSING_ARTIFACT.
+            diagnosis = _diagnose_catalog_miss(tactic_id, repo)
             lines.extend(
                 format_catalog_miss_stanza(
                     selector_kind="tactic",
@@ -2069,6 +2073,36 @@ def _format_inline_step_contract_body(contract: object) -> list[str]:
     return body_lines
 
 
+def _diagnose_catalog_miss(
+    missing_id: str,
+    repository: object | None,
+) -> CatalogMissDiagnosis:
+    """Return the best-fit :class:`CatalogMissDiagnosis` for *missing_id*.
+
+    Checks whether the repository recorded *missing_id* as scope-filtered
+    (present on disk but excluded by the active language scope) before
+    falling back to the fuzzy-match :func:`classify_catalog_miss`.  This
+    is the single gate that implements FR-013 end-to-end: any call site
+    that previously called ``classify_catalog_miss`` directly now calls
+    this helper instead, so scope-filtered misses are never surfaced as
+    ``MISSING_ARTIFACT``.
+
+    Active-language context is read directly from the repository's own
+    ``_active_languages`` attribute (the value already stored at
+    construction time), avoiding the need to thread ``repo_root`` through
+    every renderer.
+    """
+    scope_filtered: frozenset[str] | set[str] = getattr(
+        repository, "scope_filtered_ids", frozenset()
+    )
+    if isinstance(scope_filtered, (set, frozenset)) and missing_id in scope_filtered:
+        active_languages: list[str] | None = getattr(
+            repository, "_active_languages", None
+        )
+        return classify_scope_filtered_miss(missing_id, active_languages)
+    return classify_catalog_miss(missing_id, _available_catalog_ids(repository))
+
+
 def _available_catalog_ids(repository: object | None) -> list[str]:
     """Return the IDs the repository carries, for fuzzy-match suggestions.
 
@@ -2156,9 +2190,10 @@ def _render_selected_artifacts(
             # miss (typo vs. missing vs. schema-validation drop) and
             # routes a warning through both ``warnings.warn`` and the
             # module logger so the failure is never silent.
-            diagnosis = classify_catalog_miss(
-                artifact_id, _available_catalog_ids(repository)
-            )
+            # FR-013: _diagnose_catalog_miss checks scope_filtered_ids
+            # first so a scope-filtered artifact surfaces SCOPE_FILTERED
+            # rather than MISSING_ARTIFACT.
+            diagnosis = _diagnose_catalog_miss(artifact_id, repository)
             lines.extend(
                 format_catalog_miss_stanza(
                     selector_kind=selector_kind,

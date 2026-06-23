@@ -2601,11 +2601,11 @@ def _attach_pack_health(
             entry["pack_health"] = health_dict
 
 
-def _build_pack_entries(registry: object) -> list[dict[str, object]]:
+def _build_pack_entries(registry: object, repo_root: Path) -> list[dict[str, object]]:
     """Build per-pack registry entries (name/version/counts/charter) for rendering."""
     pack_entries: list[dict[str, object]] = []
     for pack in registry.packs:  # type: ignore[attr-defined]
-        snapshot_path = pack.local_path
+        snapshot_path = pack.effective_root(repo_root)
         entry: dict[str, object] = {
             "name": pack.name,
             "local_path": str(snapshot_path),
@@ -2676,7 +2676,7 @@ def doctrine_check(
         _emit_doctrine_no_packs(report, selection_block, json_output=json_output)
         raise typer.Exit(exit_code)
 
-    pack_entries = _build_pack_entries(registry)
+    pack_entries = _build_pack_entries(registry, repo_root)
 
     # FR-010: annotate present packs with derived profile health so the human
     # renderer greens/yellows from health, not snapshot presence.
