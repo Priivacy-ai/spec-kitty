@@ -10,6 +10,7 @@ import pytest
 from rich.console import Console
 
 import specify_cli.cli.commands.agent.mission as mission_module
+import specify_cli.coordination.commit_router as commit_router_module
 from specify_cli.cli.commands.agent.mission import _commit_to_branch
 
 pytestmark = pytest.mark.git_repo
@@ -92,7 +93,12 @@ def test_commit_to_branch_legacy_called_process_empty_commit_does_not_print_succ
             stderr="nothing to commit, working tree clean",
         )
 
-    monkeypatch.setattr(mission_module, "safe_commit", fake_safe_commit)
+    # WP06 (#2056): the ``mission.safe_commit`` re-export shim is gone. The
+    # commit path now runs ``_commit_to_branch`` → ``commit_for_mission`` →
+    # ``commit_router.safe_commit``. The empty-commit ``CalledProcessError`` is
+    # caught inside ``commit_for_mission`` (mapped to ``status="unchanged"``), so
+    # the canonical interception point is the router's ``safe_commit`` symbol.
+    monkeypatch.setattr(commit_router_module, "safe_commit", fake_safe_commit)
     monkeypatch.setattr(
         mission_module,
         "console",
