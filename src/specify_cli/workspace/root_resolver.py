@@ -18,7 +18,6 @@ the single resolver.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import (
@@ -63,9 +62,7 @@ def resolve_status_lock_root(feature_dir: Path, repo_root: Path | None = None) -
         # behaviour for this case.
         return feature_dir
     try:
-        # cast: follow_imports=skip makes resolve_canonical_root return Any at the
-        # specify_cli.* boundary; the real signature returns Path (core/paths.py).
-        return cast(Path, resolve_canonical_root(feature_dir))
+        return resolve_canonical_root(feature_dir)
     except WorkspaceRootNotFound:
         # Non-git tree (e.g. ad-hoc test dirs that have a kitty-specs/ ancestor
         # but no actual git repo): fall back to the historical parent.parent shape
@@ -133,14 +130,11 @@ def canonicalize_feature_dir(feature_dir: Path) -> Path:
                 return feature_dir
 
     try:
-        # cast: follow_imports=skip makes resolve_canonical_root return Any at the
-        # specify_cli.* boundary; the real signature returns Path (core/paths.py).
-        canonical_root = cast(Path, resolve_canonical_root(feature_dir))
+        canonical_root = resolve_canonical_root(feature_dir)
     except WorkspaceRootNotFound:
         return feature_dir
 
-    # cast: KITTY_SPECS_DIR is Any under follow_imports=skip; Path / Any = Any.
-    canonical_feature_dir = cast(Path, canonical_root / KITTY_SPECS_DIR / feature_dir.name)
+    canonical_feature_dir = canonical_root / KITTY_SPECS_DIR / feature_dir.name
     # Only redirect when the canonical path actually exists; this keeps
     # tests that build ad-hoc feature dirs outside a git repo working.
     if canonical_feature_dir.exists():

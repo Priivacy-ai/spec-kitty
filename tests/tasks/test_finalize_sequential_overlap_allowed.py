@@ -105,7 +105,11 @@ def test_sequential_overlap_passes_finalize_validation(tmp_path: Path) -> None:
         ),
         patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_run_command),
         patch("specify_cli.cli.commands.agent.mission.get_emitter"),
-        patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True),
+        # The mission's commit tail routes through commit_for_mission, which is the
+        # module that imports and calls safe_commit (the old mission.py re-export was
+        # removed by the single-authority topology cleanup, #2070). Patch it at the
+        # canonical use site.
+        patch("specify_cli.coordination.commit_router.safe_commit", return_value=True),
     ):
         result = runner.invoke(
             app,

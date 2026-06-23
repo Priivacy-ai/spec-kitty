@@ -74,11 +74,18 @@ def test_map_requirements_reads_spec_from_primary_when_coord_lacks_it(
 
     from specify_cli.cli.commands.agent import tasks as tasks_mod
 
-    # Primary checkout: holds spec.md (and nothing else for this mission).
+    # Primary checkout: holds spec.md and the WP task file. With no
+    # ``coordination_branch``/``topology`` in meta this mission classifies as
+    # ``single_branch``, so the single-authority read path resolves WP files from
+    # the PRIMARY tasks surface — map-requirements must find WP01 here to reach
+    # the spec.md resolution under test (#2070 single-authority topology cleanup).
     primary_root = tmp_path / "primary"
     primary_mission_dir = primary_root / "kitty-specs" / MISSION_SLUG
     primary_mission_dir.mkdir(parents=True)
     (primary_mission_dir / "spec.md").write_text(_SPEC_MD_TEXT, encoding="utf-8")
+    primary_tasks_dir = primary_mission_dir / "tasks"
+    primary_tasks_dir.mkdir(parents=True)
+    (primary_tasks_dir / "WP01-example.md").write_text(_WP01_FRONTMATTER, encoding="utf-8")
     (primary_mission_dir / "meta.json").write_text(
         json.dumps(
             {
@@ -158,6 +165,16 @@ def test_map_requirements_auto_commit_uses_coord_placement_for_coord_files(
     primary_mission_dir = primary_root / "kitty-specs" / MISSION_SLUG
     primary_mission_dir.mkdir(parents=True)
     (primary_mission_dir / "spec.md").write_text(_SPEC_MD_TEXT, encoding="utf-8")
+    # With no ``coordination_branch``/``topology`` in meta this mission classifies
+    # as ``single_branch``: the single-authority read path resolves WP files from
+    # the PRIMARY tasks surface, so ``map-requirements`` collects ``written_files``
+    # from here. The real ``_planning_commit_worktree`` is what relocates those
+    # primary paths into the coord worktree (faked below) — the commit still lands
+    # on the coord placement (#2070 single-authority topology cleanup).
+    primary_tasks_dir = primary_mission_dir / "tasks"
+    primary_tasks_dir.mkdir(parents=True)
+    primary_wp_file = primary_tasks_dir / "WP01-example.md"
+    primary_wp_file.write_text(_WP01_FRONTMATTER, encoding="utf-8")
     (primary_mission_dir / "meta.json").write_text(
         json.dumps(
             {
@@ -187,11 +204,14 @@ def test_map_requirements_auto_commit_uses_coord_placement_for_coord_files(
         paths: tuple[Path, ...],
         **_kwargs: object,
     ) -> tuple[Path, tuple[Path, ...]]:
+        # Stands in for the real relocation: incoming paths come from the
+        # single-authority-resolved PRIMARY tasks surface; the helper returns the
+        # coord-worktree placement those files are staged into for the commit.
         captured["planning_paths"] = paths
         assert repo_root == primary_root
         assert mission_slug == MISSION_SLUG
-        assert paths and all(coord_root in path.parents for path in paths)
-        return coord_root, paths
+        assert paths and all(primary_tasks_dir in path.parents for path in paths)
+        return coord_root, (wp_file.resolve(),)
 
     def fake_safe_commit(
         *,
