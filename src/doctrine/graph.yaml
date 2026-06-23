@@ -301,6 +301,9 @@ nodes:
 - urn: styleguide:testing-principles
   kind: styleguide
   label: Testing Principles Styleguide
+- urn: styleguide:tiered-standards
+  kind: styleguide
+  label: Tiered Coding Standards
 - urn: tactic:acceptance-test-first
   kind: tactic
   label: Acceptance Test Driven Development (ATDD)
@@ -1496,6 +1499,9 @@ edges:
 - source: directive:DIRECTIVE_029
   target: toolguide:git-agent-commit-signing
   relation: suggests
+- source: directive:DIRECTIVE_030
+  target: styleguide:tiered-standards
+  relation: suggests
 - source: directive:DIRECTIVE_031
   target: directive:DIRECTIVE_001
   relation: requires
@@ -2025,6 +2031,15 @@ edges:
   relation: suggests
 - source: styleguide:testing-principles
   target: tactic:test-pyramid-progression
+  relation: suggests
+- source: styleguide:tiered-standards
+  target: directive:DIRECTIVE_001
+  relation: suggests
+- source: styleguide:tiered-standards
+  target: directive:DIRECTIVE_025
+  relation: suggests
+- source: styleguide:tiered-standards
+  target: directive:DIRECTIVE_030
   relation: suggests
 - source: tactic:acceptance-test-first
   target: tactic:tdd-red-green-refactor
