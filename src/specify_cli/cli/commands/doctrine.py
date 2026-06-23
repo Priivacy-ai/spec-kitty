@@ -141,7 +141,7 @@ def fetch(
 
     any_failed = False
     for pack in target_packs:
-        result = fetch_pack(pack)
+        result = fetch_pack(pack, repo_root)
         if result.ok:
             console.print(
                 f"[green]Pack '{pack.name}': {result.artifacts_written} "
@@ -648,6 +648,38 @@ def _detect_artifact_kind(path: Path) -> tuple[str, str] | None:
     return None
 
 
+#: Sentinel strings that authors mistakenly put in ``applies_to_languages``
+#: to mean "applies to all languages".  These are NOT valid language tokens;
+#: omitting the field entirely is the correct way to express always-applicable.
+_APPLIES_TO_LANGUAGES_SENTINELS: frozenset[str] = frozenset({"any", "all"})
+
+
+def _check_applies_to_languages(data: dict[str, object]) -> str | None:
+    """Return an error message if ``applies_to_languages`` contains a sentinel.
+
+    Checks the raw YAML dict (before Pydantic) so the guard fires regardless
+    of artifact kind and gives authors an actionable message instead of a
+    generic schema error.
+    """
+    raw = data.get("applies_to_languages")
+    if not isinstance(raw, list):
+        return None
+    bad = [
+        str(token)
+        for token in raw
+        if isinstance(token, str)
+        and token.strip().lower() in _APPLIES_TO_LANGUAGES_SENTINELS
+    ]
+    if not bad:
+        return None
+    quoted = ", ".join(f"'{t}'" for t in bad)
+    return (
+        f"`any`/`all` are not language tokens — "
+        f"omit `applies_to_languages` to mean always-applicable "
+        f"(found: {quoted})"
+    )
+
+
 def _validate_single_artifact(
     path: Path,
 ) -> tuple[bool, str | None]:
@@ -676,6 +708,9 @@ def _validate_single_artifact(
         return False, "empty YAML document"
     if not isinstance(data, dict):
         return False, "expected a YAML mapping at top level"
+    lang_err = _check_applies_to_languages(data)
+    if lang_err is not None:
+        return False, lang_err
     schema_cls = _artifact_schema_registry()[plural][1]
     try:
         schema_cls.model_validate(data)
