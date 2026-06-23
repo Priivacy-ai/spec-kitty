@@ -14,9 +14,12 @@ procedures:
   - Select the appropriate test-first tactic based on scope — acceptance-test-first for feature boundaries, tdd-red-green-refactor for unit-level iteration, zombies-tdd for incremental case discovery.
   - Keep the red-green-refactor cycle short — each cycle should take minutes, not hours.
   - When fixing a bug, write a reproduction test first that fails, then apply the fix.
+  - Reproduce the bug through the PRE-EXISTING (stable) entry point — the command, public function, or seam that exists on the unfixed code — never through the fix's not-yet-written API. A reproduction test must go red BECAUSE THE BUG MANIFESTS in the assertion (the wrong value/status/path/state), not because a new symbol or parameter the fix introduces is missing (ImportError/TypeError at collection).
+  - Prove red-first — run the reproduction test against the unfixed code and confirm it fails for the right reason, then apply the fix and confirm green. New-API unit tests are fine as contract coverage, but they are not the bug-capture.
 integrity_rules:
   - Production code must not be written ahead of a failing test that motivates it.
   - Skipping the test-first cycle requires explicit justification in the commit or PR.
+  - A bug-reproduction test that can only run AFTER the fix exists (it imports the fix's new symbol or passes its new parameter) captures the fix's shape, not the bug — it is invalid; rewrite it to drive the stable entry point, and move any new-API import to lazy/in-test scope so the reproduction still collects and fails red on the unfixed code.
 validation_criteria:
   - Each new behavior has a corresponding test that was written before the production code.
-  - Bug fixes include a regression test that fails without the fix.
+  - Bug fixes include a regression test that fails without the fix — and that failure is the bug's observable symptom (verified by running against the unfixed code), not a missing-new-symbol collection error.
