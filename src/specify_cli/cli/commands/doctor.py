@@ -2107,7 +2107,10 @@ def _run_teamspace_dry_run_mode(
     json_output: bool,
 ) -> None:
     """Execute the --teamspace-dry-run dispatch arm: synthesize and validate envelopes."""
-    from specify_cli.migration.mission_state import MissionStateDryRunError
+    from specify_cli.migration.mission_state import (
+        MissionStateDryRunError,
+        TeamspaceDryRunReport,
+    )
     from specify_cli.migration.mission_state import teamspace_dry_run as run_teamspace_dry_run
 
     try:
@@ -2125,19 +2128,20 @@ def _run_teamspace_dry_run_mode(
         raise typer.Exit(1) from exc
 
     def _pretty_dry_run(r: object) -> None:
-        # The runtime contract for pretty_renderer types the report as ``object`` so the
-        # same callable shape works for the repair and dry-run reports; attribute access
-        # below is structurally valid on the concrete TeamSpaceDryRunReport type.
-        if r.valid:  # type: ignore[attr-defined]
+        # pretty_renderer is typed Callable[[object], None] so one shape serves both
+        # the repair and dry-run reports; narrow to the concrete dry-run report here
+        # so attribute access type-checks without per-line suppressions.
+        report = cast(TeamspaceDryRunReport, r)
+        if report.valid:
             console.print(
                 "[green]TeamSpace dry-run valid[/green] "
-                f"({r.envelope_count} envelopes, "  # type: ignore[attr-defined]
-                f"spec-kitty-events {r.events_package_version})."
+                f"({report.envelope_count} envelopes, "
+                f"spec-kitty-events {report.events_package_version})."
             )
         else:
             console.print(
                 "[red]TeamSpace dry-run failed[/red] "
-                f"({len(r.errors)} validation errors)."  # type: ignore[attr-defined]
+                f"({len(report.errors)} validation errors)."
             )
 
     _emit_mission_state(dry_run_report, json_output=json_output, pretty_renderer=_pretty_dry_run)

@@ -360,16 +360,31 @@ def _try_advance_ref(
     primary_branch: str,
     coord_worktree: Path,
 ) -> None:
-    """Best-effort fast-forward of *primary_branch* to the coord HEAD (#1878)."""
+    """Best-effort fast-forward of *primary_branch* to the coord HEAD (#1878).
+
+    ``advance_branch_ref`` advances the ref to a *SHA* (it does not accept a
+    worktree path), so resolve the coordination worktree's HEAD here first.
+    Coordination status residue on the primary checkout is legitimate after a
+    coord-branch write, so exclude it from the dirty gate
+    (#1878 / FR-012) — mirrors the merge-pipeline call sites.
+    """
     try:
-        from specify_cli.git.ref_advance import (
-            advance_branch_ref,
-        )
+        from specify_cli.git.ref_advance import advance_branch_ref
+        from specify_cli.status import COORD_OWNED_STATUS_FILES
+
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(coord_worktree),
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
 
         advance_branch_ref(
-            repo_root=repo_root,
-            branch=primary_branch,
-            new_sha_worktree=coord_worktree,
+            repo_root,
+            primary_branch,
+            head,
+            coord_owned_filenames=COORD_OWNED_STATUS_FILES,
         )
     except Exception:  # noqa: BLE001  # best-effort only
         logger.debug(

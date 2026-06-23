@@ -1,28 +1,25 @@
-"""WP09 (M2 + M3): orchestrator-api typed-error pass-through + fail-closed identity.
+"""orchestrator-api read-path resolution on an EMPTY coord topology.
 
-These two defects live on the **external automation** surface
-(``specify_cli.orchestrator_api.commands``), both rooted in the
-``_resolve_mission_dir`` read-path seam:
+REMEDIATED for the single-authority topology cleanup (#2070, FR-004 / WP04
+Option B). These tests live on the **external automation** surface
+(``specify_cli.orchestrator_api.commands``) and exercise the
+``_resolve_mission_dir`` read-path seam for a coord-declared mission whose
+coordination worktree is materialized-but-empty.
 
-* **M2 (FR-001, typed-error fidelity).** The seam used to catch
-  :class:`StatusReadPathNotFound` and return ``None``; the 8 endpoints then
-  emitted the unconditional ``MISSION_NOT_FOUND`` envelope — dropping the real
-  ``error_code`` + ``coord_candidate`` / ``primary_candidate``. The fix surfaces
-  the resolver's typed read-path code while preserving the external envelope
-  *shape*.
-* **M3 (FR-011, read-path SAFETY).** The seam seeded
-  ``resolve_mid8(slug, mission_id=None)`` → empty ``mid8`` (``''``), which
-  **suppresses** the coord-aware fail-closed branch
-  (``_read_path_resolver.py`` gates the guard on ``bool(mid8)``). External
-  automation could therefore read **stale primary** status on a coord topology.
-  The fix reads the **real** ``mission_id`` from meta and passes it to
-  ``resolve_mid8`` so the ``bool(mid8)`` guard fires.
+Earlier (pre-mission) these tests pinned a ``topology is None`` fail-closed
+band-aid: the seam was expected to raise ``StatusReadPathNotFound`` for this
+fixture. The single-authority cleanup **absorbs** ``topology`` at the read-path
+boundary (``classify_from_meta``) — a readable coord-declared meta classifies to
+a CONCRETE ``MissionTopology``, and the EMPTY coord state then resolves to the
+authoritative PRIMARY checkout (the loud warning lives at the surface) rather
+than failing closed. The genuine fail-closed guarantees survive elsewhere
+(corrupt/unreadable meta, a genuine absence under ``require_exists=True``, and
+the #1848 ``CoordinationBranchDeleted`` data-loss carve-out) — they are simply
+no longer reached for this readable EMPTY-coord case.
 
-Both fixtures are **topology-true** (NFR-002): a real 26-char ULID
+The fixtures stay **topology-true** (NFR-002): a real 26-char ULID
 ``mission_id``, a primary checkout declaring ``coordination_branch``, and a
-materialized ``-coord`` worktree whose mission dir is empty (the stale-primary
-window). A single-repo / fabricated-short-id fixture cannot exercise the
-coord-vs-primary defect.
+materialized ``-coord`` worktree whose mission dir is empty.
 """
 
 from __future__ import annotations
@@ -35,10 +32,6 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.coordination.workspace import CoordinationWorkspace
-from specify_cli.missions._read_path_resolver import (
-    STATUS_READ_PATH_NOT_FOUND_CODE,
-    StatusReadPathNotFound,
-)
 from specify_cli.orchestrator_api import commands as orch
 from specify_cli.orchestrator_api.commands import app
 
@@ -97,47 +90,60 @@ def _seed_coord_topology(tmp_path: Path) -> tuple[Path, Path]:
     return repo_root, primary
 
 
-def test_resolve_seam_fails_closed_on_coord_topology(tmp_path: Path) -> None:
-    """T041 (M3) — the coord-aware fail-closed guard fires through the seam.
+def test_resolve_seam_resolves_primary_on_empty_coord_topology(tmp_path: Path) -> None:
+    """Single-authority topology cleanup (FR-004 / WP04 Option B): an EMPTY coord
+    worktree resolves PRIMARY, not a fail-closed raise.
 
-    Captured-red (pinned to the GATE, not merely "stale read succeeds"):
-    on HEAD ``_resolve_mission_dir`` seeds ``resolve_mid8(slug, mission_id=None)``
-    → ``mid8 == ''`` → ``fail_closed`` evaluates ``False`` → the resolver returns
-    the **stale primary** mission dir and ``_resolve_mission_dir`` hands it back
-    (no raise). HEAD red therefore looks like::
-
-        assert _resolve_mission_dir(repo_root, slug) is primary   # PASSES on HEAD
-        # i.e. the guard NEVER fired; stale primary was returned.
-
-    After the fix the real ``mission_id`` is read from meta, ``mid8`` is
-    non-empty, the ``bool(mid8)`` guard fires, and the seam raises
-    :class:`StatusReadPathNotFound` rather than returning the stale primary.
+    REMEDIATED from the retired ``topology is None`` husk-arm contract. This
+    fixture declares ``coordination_branch`` with a real ULID ``mission_id`` but
+    its ``topology`` field is absent, so the read-path BOUNDARY now classifies it
+    on-read (``classify_from_meta``) into a CONCRETE ``MissionTopology`` (FR-004).
+    The coord worktree root exists but its mission dir does not — the EMPTY
+    transient state (C-005). Under the single-authority model the PRIMARY checkout
+    is authoritative for the EMPTY state (WP04 Option B; the loud warning lives at
+    the surface), so the resolver returns the primary mission dir instead of the
+    pre-mission ``topology is None`` band-aid raise. The genuine fail-closed
+    guarantees are preserved elsewhere — corrupt/unreadable meta
+    (``topology is None``), a genuine absence under ``require_exists=True``, and
+    the #1848 ``CoordinationBranchDeleted`` data-loss carve-out — they are simply
+    no longer triggered for a readable, classified coord-declared mission whose
+    coord surface is merely empty.
     """
     repo_root, primary = _seed_coord_topology(tmp_path)
 
-    with pytest.raises(StatusReadPathNotFound) as excinfo:
-        orch._resolve_mission_dir(repo_root, _MISSION_SLUG)
+    resolved = orch._resolve_mission_dir(repo_root, _MISSION_SLUG)
 
-    exc = excinfo.value
-    # The guard must have evaluated against the REAL identity (non-empty mid8),
-    # not the suppressed empty seed.
-    assert exc.mid8 == _MID8, (
-        "fail-closed must fire on the REAL mid8 derived from meta mission_id; "
-        "an empty mid8 here means the guard was suppressed (M3 unfixed)"
+    # Single-authority: the PRIMARY checkout is the authoritative surface for the
+    # EMPTY coord state — no fail-closed raise, no stale-coord husk.
+    assert resolved == primary, (
+        "EMPTY coord topology must resolve to the PRIMARY checkout under the "
+        f"single-authority model (FR-004 / WP04 Option B); got {resolved}"
     )
-    # It must NOT have silently returned the stale primary.
+    assert ".worktrees" not in str(resolved), (
+        "must not route into the empty coord worktree"
+    )
     assert primary.exists()
 
 
-def test_mission_state_endpoint_emits_typed_code_not_mission_not_found(
+def test_mission_state_endpoint_reads_primary_on_empty_coord_topology(
     tmp_path: Path,
 ) -> None:
-    """T039 (M2) — endpoint surfaces the typed read-path code, not MISSION_NOT_FOUND.
+    """Single-authority topology cleanup (FR-004 / WP04 Option B): the endpoint
+    reads PRIMARY status for an EMPTY coord topology rather than failing closed.
 
-    On HEAD the seam flattens ``StatusReadPathNotFound`` → ``None`` and the
-    endpoint emits ``MISSION_NOT_FOUND`` (dropping the typed code + candidates).
-    After the fix the endpoint surfaces ``STATUS_READ_PATH_NOT_FOUND`` with the
-    coord / primary candidate paths, preserving the external envelope *shape*.
+    REMEDIATED from the retired pre-mission contract (which expected the endpoint
+    to surface ``STATUS_READ_PATH_NOT_FOUND`` for this fixture). Under the
+    single-authority model a readable coord-declared mission is classified on-read
+    into a CONCRETE topology and the EMPTY coord state resolves to the PRIMARY
+    checkout (the authoritative surface). The endpoint therefore succeeds, reading
+    the primary status surface (here: the seeded WP01 in ``planned``), instead of
+    consulting the now-dead ``topology is None`` fail-closed husk-arm.
+
+    The M2 typed-error pass-through machinery (``StatusReadPathNotFound`` →
+    ``error_code`` + candidates, never flattened to ``MISSION_NOT_FOUND``) remains
+    in ``_resolve_mission_dir_or_fail`` and is still load-bearing for the paths
+    that DO raise (corrupt/unreadable meta, ``CoordinationBranchDeleted``); it is
+    simply not triggered by a readable EMPTY-coord fixture anymore.
     """
     repo_root, _ = _seed_coord_topology(tmp_path)
 
@@ -149,16 +155,16 @@ def test_mission_state_endpoint_emits_typed_code_not_mission_not_found(
         )
 
     envelope = json.loads(result.output.strip().split("\n")[0])
-    assert envelope["success"] is False
-    assert envelope["error_code"] == STATUS_READ_PATH_NOT_FOUND_CODE, (
-        "endpoint must surface the resolver's typed read-path code, not the "
-        "flattened MISSION_NOT_FOUND"
+    assert envelope["success"] is True, (
+        "single-authority: EMPTY coord topology reads PRIMARY and succeeds; "
+        f"envelope={envelope}"
     )
-    assert envelope["error_code"] != "MISSION_NOT_FOUND"
-    # Envelope SHAPE preserved + candidate fidelity surfaced.
+    assert envelope["error_code"] is None
+    # The status came from the PRIMARY surface (the seeded WP01).
     data = envelope["data"]
-    assert "coord_candidate" in data
-    assert "primary_candidate" in data
+    assert data["mission_slug"] == _MISSION_SLUG
+    wp_ids = {wp["wp_id"] for wp in data["work_packages"]}
+    assert "WP01" in wp_ids
 
 
 def test_genuine_not_found_still_emits_mission_not_found(tmp_path: Path) -> None:
