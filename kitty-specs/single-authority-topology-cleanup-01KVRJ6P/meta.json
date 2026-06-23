@@ -1,0 +1,32 @@
+{
+  "accept_commit": "4319784dc87043217166771de19e1b55e9be5d1a",
+  "acceptance_history": [
+    {
+      "accept_commit": "4319784dc87043217166771de19e1b55e9be5d1a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-23T13:46:15.696028+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "25b3890b555abdaffa88cc4fefe450d0da76eed8"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-23T13:46:15.696028+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "25b3890b555abdaffa88cc4fefe450d0da76eed8",
+  "baseline_merge_commit": "691d512195bd57df84005491a84dfee1fbbd0c85",
+  "created_at": "2026-06-22T21:01:26.278642+00:00",
+  "flattened": true,
+  "friendly_name": "Single-Authority Topology Cleanup & Dedup",
+  "mission_id": "01KVRJ6PC66DWS32M30YVPAE28",
+  "mission_number": 147,
+  "mission_slug": "single-authority-topology-cleanup-01KVRJ6P",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "After the MissionTopology SSOT seam closed the coordination/primary planning-surface desync, several now-vestigial constructs remain: a three-valued type encoding a two-valued decision, a dead persistence shim, scattered legacy band-aids, and roughly 750-1000 lines of duplicated meta-reading and routing logic. This mission removes that debt behavior-neutrally, folds two accept-gate bugs that stall finished missions, and turns one band-aid removal into a correctness win that protects un-migrated missions from the stale-coordination data-loss path.",
+  "purpose_tldr": "Remove now-dead type/shim debt and consolidate duplicated mission-shape logic into one authority, while extending a recent data-loss fix to un-migrated missions.",
+  "slug": "single-authority-topology-cleanup-01KVRJ6P",
+  "target_branch": "feat/single-authority-topology-cleanup",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-23T07:07:41.309276+00:00"
+}
