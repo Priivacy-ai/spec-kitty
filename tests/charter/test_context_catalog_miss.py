@@ -25,9 +25,11 @@ from __future__ import annotations
 
 import logging
 import warnings
+from pathlib import Path
 from typing import Any
 
 import pytest
+from ruamel.yaml import YAML
 
 from charter._catalog_miss import (
     CatalogMissCause,
@@ -35,6 +37,7 @@ from charter._catalog_miss import (
     CharterCatalogMissError,
     CharterCatalogMissWarning,
     classify_catalog_miss,
+    classify_scope_filtered_miss,
     emit_catalog_miss_warning,
     format_catalog_miss_stanza,
 )
@@ -43,6 +46,7 @@ from charter.context import (
     _render_selected_styleguides,
 )
 from doctrine.agent_profiles import AgentProfile
+from doctrine.styleguides.repository import StyleguideRepository
 
 
 pytestmark = pytest.mark.fast
@@ -119,6 +123,54 @@ class TestClassifyCatalogMiss:
             ["caveman-comments", 42, None],  # type: ignore[list-item]
         )
         assert diagnosis.cause is CatalogMissCause.TYPO_SUSPECTED
+
+
+# ---------------------------------------------------------------------------
+# T022 — SCOPE_FILTERED classification (FR-013)
+# ---------------------------------------------------------------------------
+
+
+class TestClassifyScopeFilteredMiss:
+    """classify_scope_filtered_miss returns SCOPE_FILTERED for a present-but-filtered artifact."""
+
+    def test_returns_scope_filtered_cause(self) -> None:
+        """FR-013: cause must be SCOPE_FILTERED, not MISSING_ARTIFACT."""
+        diagnosis = classify_scope_filtered_miss("python-style", ["python"])
+        assert diagnosis.cause is CatalogMissCause.SCOPE_FILTERED
+
+    def test_suggestion_names_the_active_language(self) -> None:
+        """The suggestion should mention the active language set."""
+        diagnosis = classify_scope_filtered_miss("python-style", ["python"])
+        assert diagnosis.suggestion is not None
+        assert "python" in diagnosis.suggestion
+
+    def test_no_active_languages_still_scope_filtered(self) -> None:
+        """Even with no active language context, cause is SCOPE_FILTERED."""
+        diagnosis = classify_scope_filtered_miss("python-style")
+        assert diagnosis.cause is CatalogMissCause.SCOPE_FILTERED
+        assert diagnosis.suggestion is not None
+
+    def test_suggestion_mentions_applies_to_languages_field(self) -> None:
+        """The suggestion must point at the scope cause (applies_to_languages)."""
+        diagnosis = classify_scope_filtered_miss("python-style", ["rust"])
+        assert diagnosis.suggestion is not None
+        assert "applies_to_languages" in diagnosis.suggestion or "scope" in diagnosis.suggestion
+
+    def test_scope_filtered_is_distinct_from_missing_artifact(self) -> None:
+        """SCOPE_FILTERED must not be equal to MISSING_ARTIFACT."""
+        assert CatalogMissCause.SCOPE_FILTERED != CatalogMissCause.MISSING_ARTIFACT
+
+    def test_format_stanza_includes_scope_cause(self) -> None:
+        """format_catalog_miss_stanza renders a SCOPE_FILTERED cause correctly."""
+        diagnosis = classify_scope_filtered_miss("python-style", ["python"])
+        lines = format_catalog_miss_stanza(
+            selector_kind="styleguide",
+            artifact_id="python-style",
+            diagnosis=diagnosis,
+        )
+        joined = "\n".join(lines)
+        assert "scope_filtered" in joined
+        assert "styleguide:python-style" in joined
 
 
 # ---------------------------------------------------------------------------
@@ -391,3 +443,115 @@ class TestProfileRendererIntegration:
         ]
         assert len(miss) == 1
         assert "profile:ghost-cite" in str(miss[0].message)
+
+
+# ---------------------------------------------------------------------------
+# FR-013 — scope-filtered miss wiring (live render path)
+# ---------------------------------------------------------------------------
+
+
+def _write_styleguide_yaml(directory: Path, filename: str, data: dict) -> None:
+    """Write a styleguide YAML fixture into *directory*."""
+    directory.mkdir(parents=True, exist_ok=True)
+    y = YAML()
+    y.default_flow_style = False
+    with (directory / filename).open("w") as fh:
+        y.dump(data, fh)
+
+
+class TestScopeFilteredRendererIntegration:
+    """FR-013: scope-filtered artifacts surface SCOPE_FILTERED, not MISSING_ARTIFACT.
+
+    Uses a real StyleguideRepository to exercise the full live render path
+    (base.py → scope_filtered_ids → context.py → _diagnose_catalog_miss).
+    The artifact exists on disk and passes schema validation, but its
+    applies_to_languages scope does not include the active language set.
+    """
+
+    def test_scope_filtered_styleguide_renders_scope_filtered_cause(
+        self, tmp_path: Path
+    ) -> None:
+        """Artifact present but scope-filtered must emit SCOPE_FILTERED stanza."""
+        built_in_dir = tmp_path / "built-in"
+        _write_styleguide_yaml(
+            built_in_dir,
+            "python-style.styleguide.yaml",
+            {
+                "schema_version": "1.0",
+                "id": "python-style",
+                "title": "Python Style Guide",
+                "scope": "code",
+                "principles": ["Follow PEP 8"],
+                "applies_to_languages": ["python"],
+            },
+        )
+
+        # Active language set does NOT include "python" — artifact is scope-filtered.
+        repo = StyleguideRepository(
+            built_in_dir=built_in_dir, active_languages=["java"]
+        )
+
+        # The artifact must be scope-filtered, not in the loaded catalog.
+        assert repo.get("python-style") is None
+        assert "python-style" in repo.scope_filtered_ids
+
+        class _ServiceWithRealRepo:
+            styleguides = repo
+
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            lines = _render_selected_styleguides(["python-style"], _ServiceWithRealRepo())
+
+        joined = "\n".join(lines)
+
+        # FR-013 contract: stanza must classify as SCOPE_FILTERED, not MISSING_ARTIFACT.
+        assert "Cause: scope_filtered" in joined, (
+            f"Expected 'Cause: scope_filtered' but got:\n{joined}"
+        )
+        assert "styleguide:python-style" in joined
+
+        # The suggestion must mention the applies_to_languages scope cause.
+        assert "applies_to_languages" in joined or "scope" in joined
+
+        # Warning must also carry scope_filtered.
+        miss = [
+            w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
+        ]
+        assert len(miss) == 1
+        assert "scope_filtered" in str(miss[0].message)
+
+    def test_genuinely_absent_artifact_still_emits_missing_artifact(
+        self, tmp_path: Path
+    ) -> None:
+        """Unrelated artifact IDs still yield MISSING_ARTIFACT (no regression)."""
+        built_in_dir = tmp_path / "built-in"
+        _write_styleguide_yaml(
+            built_in_dir,
+            "alpha-style.styleguide.yaml",
+            {
+                "schema_version": "1.0",
+                "id": "alpha-style",
+                "title": "Alpha Style",
+                "scope": "code",
+                "principles": ["Keep it simple"],
+            },
+        )
+
+        repo = StyleguideRepository(
+            built_in_dir=built_in_dir, active_languages=["python"]
+        )
+
+        class _ServiceWithRealRepo:
+            styleguides = repo
+
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            lines = _render_selected_styleguides(
+                ["completely-absent-id"], _ServiceWithRealRepo()
+            )
+
+        joined = "\n".join(lines)
+
+        # Regression guard: genuinely absent artifact must still be MISSING_ARTIFACT.
+        assert "Cause: missing_artifact" in joined
+        assert "Cause: scope_filtered" not in joined

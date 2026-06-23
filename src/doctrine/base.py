@@ -104,6 +104,7 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         self._active_languages = None if active_languages is None else normalize_languages(active_languages)
         self._items: dict[str, T] = {}
         self._provenance: dict[str, str] = {}
+        self._scope_filtered_ids: set[str] = set()
         self._load()
 
     # ------------------------------------------------------------------ #
@@ -173,6 +174,7 @@ class BaseDoctrineRepository(ABC, Generic[T]):
                 self._pre_validate(data, yaml_file)
                 obj = self._schema.model_validate(data)
                 if not self._include_item(obj):
+                    self._scope_filtered_ids.add(self._key(obj))
                     continue
                 built_in[self._key(obj)] = obj
             except (YAMLError, ValidationError, OSError) as exc:
@@ -262,6 +264,8 @@ class BaseDoctrineRepository(ABC, Generic[T]):
                             )
                             self._items[item_id] = merged
                             self._provenance[item_id] = layer_name
+                        else:
+                            self._scope_filtered_ids.add(item_id)
                     else:
                         obj = self._schema.model_validate(data)
                         if self._include_item(obj):
@@ -273,6 +277,8 @@ class BaseDoctrineRepository(ABC, Generic[T]):
                             )
                             self._items[key] = obj
                             self._provenance[key] = layer_name
+                        else:
+                            self._scope_filtered_ids.add(self._key(obj))
                 except (YAMLError, ValidationError, OSError) as exc:
                     warnings.warn(
                         f"Skipping invalid {layer_name} {self._kind} {yaml_file.name}: {exc}",
@@ -327,6 +333,20 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         ``None`` if the artifact is not loaded.
         """
         return self._provenance.get(item_id)
+
+    @property
+    def scope_filtered_ids(self) -> frozenset[str]:
+        """IDs of artifacts that were excluded by the active language scope filter.
+
+        An artifact appears here when it exists on disk and passed schema
+        validation, but its ``applies_to_languages`` field did not overlap
+        with the active language set configured at construction time.  The
+        set is populated during :meth:`_load` and is read-only after that.
+        Callers should use this to distinguish a scope-filtered miss
+        (``SCOPE_FILTERED``) from a genuinely absent artifact
+        (``MISSING_ARTIFACT``).
+        """
+        return frozenset(self._scope_filtered_ids)
 
 
 __all__ = ["BaseDoctrineRepository"]

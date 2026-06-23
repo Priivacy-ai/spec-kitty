@@ -69,6 +69,7 @@ __all__ = [
     "CharterCatalogMissError",
     "CharterCatalogMissWarning",
     "classify_catalog_miss",
+    "classify_scope_filtered_miss",
     "emit_catalog_miss_warning",
     "format_catalog_miss_stanza",
 ]
@@ -102,11 +103,20 @@ class CatalogMissCause(str, Enum):  # noqa: UP042 — keep str mixin for Py3.10 
             (e.g. a validation report).  The renderer never uses this
             value directly because it cannot inspect the loader's drop
             history.
+        SCOPE_FILTERED: The artifact exists on disk and passed schema
+            validation but was excluded from the loaded catalog because
+            its ``applies_to_languages`` scope does not overlap with the
+            active language set.  Distinct from ``MISSING_ARTIFACT`` —
+            the artifact is present but intentionally filtered.  The
+            diagnosis message points the operator at the scope cause so
+            they can either add the active language to the artifact or
+            remove the scope restriction.
     """
 
     TYPO_SUSPECTED = "typo_suspected"
     MISSING_ARTIFACT = "missing_artifact"
     SCHEMA_VALIDATION_SUSPECTED = "schema_validation_suspected"
+    SCOPE_FILTERED = "scope_filtered"
 
 
 @dataclass(frozen=True)
@@ -206,6 +216,53 @@ def classify_catalog_miss(
     return CatalogMissDiagnosis(cause=CatalogMissCause.MISSING_ARTIFACT)
 
 
+def classify_scope_filtered_miss(
+    artifact_id: str,
+    active_languages: Iterable[str] | None = None,
+) -> CatalogMissDiagnosis:
+    """Return a ``SCOPE_FILTERED`` diagnosis for a present-but-filtered artifact.
+
+    Use this when the caller already knows the artifact *exists* on disk (it
+    passed schema validation and was loaded) but was excluded from the active
+    catalog because its ``applies_to_languages`` scope does not overlap with
+    the active language set.
+
+    This is a distinct code path from :func:`classify_catalog_miss`, which
+    handles the case where the artifact is not in the catalog at all.
+
+    Args:
+        artifact_id: The ID of the artifact that was scope-filtered out.
+        active_languages: The active language set at the time of filtering,
+            used to build an actionable suggestion string.  Pass ``None``
+            or an empty iterable when the active language set is unknown.
+
+    Returns:
+        A :class:`CatalogMissDiagnosis` with ``cause=SCOPE_FILTERED`` and
+        a ``suggestion`` string that names the active language set.
+    """
+    active = list(active_languages) if active_languages is not None else []
+    if active:
+        lang_list = ", ".join(repr(lang) for lang in active)
+        suggestion = (
+            f"artifact '{artifact_id}' is present but its "
+            f"applies_to_languages scope does not include the active "
+            f"language set ({lang_list}). Add the active language to the "
+            f"artifact's applies_to_languages field, or remove the field "
+            f"to make it always-applicable."
+        )
+    else:
+        suggestion = (
+            f"artifact '{artifact_id}' is present but its "
+            f"applies_to_languages scope was filtered out. Check the "
+            f"artifact's applies_to_languages field, or remove it to make "
+            f"the artifact always-applicable."
+        )
+    return CatalogMissDiagnosis(
+        cause=CatalogMissCause.SCOPE_FILTERED,
+        suggestion=suggestion,
+    )
+
+
 def format_catalog_miss_stanza(
     *,
     selector_kind: str,
@@ -249,6 +306,13 @@ def format_catalog_miss_stanza(
             "validation and was dropped by the loader. Run "
             "`spec-kitty doctrine validate` to surface the schema error."
         )
+    elif diagnosis.cause is CatalogMissCause.SCOPE_FILTERED:
+        hint = diagnosis.suggestion or (
+            f"the artifact '{artifact_id}' exists but was excluded by "
+            "its applies_to_languages scope filter. Remove the field to "
+            "make it always-applicable, or add the active language to it."
+        )
+        lines.append(f"{indent}  Suggestion: {hint}")
     else:
         # MISSING_ARTIFACT — either never existed or schema-dropped; we
         # can't distinguish from the renderer, so we offer both hints.

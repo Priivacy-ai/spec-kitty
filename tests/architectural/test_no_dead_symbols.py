@@ -76,7 +76,6 @@ _SRC_ROOT = _REPO_ROOT / "src"
 _CATEGORY_A_SLICE_F_DEFERRED: frozenset[str] = frozenset(
     {
         "charter._catalog_miss::CatalogMissCause",
-        "charter._catalog_miss::CatalogMissDiagnosis",
         "charter._catalog_miss::CharterCatalogMissError",
         "charter._catalog_miss::CharterCatalogMissWarning",
         "charter.activations::ALLOWED_MISSION_TYPES",
