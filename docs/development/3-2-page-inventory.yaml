@@ -1961,6 +1961,13 @@
   current_target: false
   citation_refs: []
   notes: Mission 01KTNWFC doctrine dogfood record for issue #391.
+- path: docs/development/yaml-libraries.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Developer guide on ruamel.yaml vs PyYAML library choice (#707, mission 01KVSRJ6).
 - path: docs/development/charter-path-resolution-gaps.md
   tag: internal
   divio_type: none

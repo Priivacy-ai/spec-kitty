@@ -57,33 +57,42 @@ def _fragment_overriding(urn_id: str):
     )
 
 
-def test_org_pack_overriding_shipped_invariant_hard_fails() -> None:
-    """FR-005 — overriding a shipped invariant node raises
-    ``OrgDRGConflictError`` with ``resolution_applied='hard_fail'``."""
-    from charter.drg import (  # noqa: PLC0415
-        OrgDRGConflictError,
-        merge_three_layers,
-    )
+def test_org_pack_overriding_shipped_invariant_is_permitted_with_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A same-kind org override of a shipped (built-in) node is PERMITTED by the
+    merge and surfaced as a WARNING for operator visibility; a per-repo
+    replaceable-builtins governance test decides whether the override is
+    sanctioned (``doctrine.drg.merge._warn_builtin_override``). Retired the prior
+    hard-fail ``OrgDRGConflictError`` expectation when the merge moved to
+    warn-not-raise."""
+    import logging  # noqa: PLC0415
+
+    from charter.drg import merge_three_layers  # noqa: PLC0415
 
     built_in = _built_in_graph_with_node("directive:caveman-comments")
     org_fragment = _fragment_overriding("caveman-comments")
 
-    with pytest.raises(OrgDRGConflictError) as exc_info:
-        merge_three_layers(
+    with caplog.at_level(logging.WARNING, logger="doctrine.drg.merge"):
+        merged = merge_three_layers(
             built_in=built_in,
             org_fragments=[org_fragment],
             project=None,
         )
 
-    conflicts = exc_info.value.conflicts
-    assert any(
-        c.kind == "node_override"
-        and c.resolution_applied == "hard_fail"
-        and "caveman-comments" in c.target_id
-        for c in conflicts
-    ), (
-        f"expected node_override hard_fail on 'caveman-comments', "
-        f"got {[(c.kind, c.resolution_applied, c.target_id) for c in conflicts]}"
+    # Permitted: the merge returns a graph rather than raising.
+    assert merged is not None
+    # Visible by design: a same-kind-override WARNING names the overridden node.
+    override_warnings = [
+        rec.getMessage()
+        for rec in caplog.records
+        if rec.levelno == logging.WARNING
+        and "caveman-comments" in rec.getMessage()
+        and "override" in rec.getMessage().lower()
+    ]
+    assert override_warnings, (
+        "expected a same-kind-override WARNING naming 'caveman-comments', "
+        f"got {[r.getMessage() for r in caplog.records]}"
     )
 
 
