@@ -2,7 +2,7 @@
   "mission_slug": "single-authority-topology-cleanup-01KVRJ6P",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -80,9 +80,9 @@
       "proof_type": "automated_test",
       "evidence": "WP12 approved; tests/specify_cli/test_acceptance.py coord-passes/flat-blocks both-sided cells.",
       "pass_fail": "pass",
-      "verified_by": "reviewer-renata (per-WP review, profile-loaded)",
-      "verified_at": "2026-06-23T13:46:04.304958+00:00",
-      "notes": "Verified via the approved WP review(s) + cited automated test; FR mapped 1:1 to WP(s) in finalize requirement_refs."
+      "verified_by": "pre-merge adversarial squad (alphonso/debbie/renata/priti) + operator-delegated finalizer",
+      "verified_at": "2026-06-23T18:00:00+00:00",
+      "notes": "Verified via the approved WP review(s) + cited automated test; FR mapped 1:1 to WP(s) in finalize requirement_refs. | PRE-MERGE SQUAD CATCH: the per-WP pass was premature \u2014 the gate called routes_through_coordination(CommitTarget) (always-False -> inert). REMEDIATED (commit 691a5391e): routes_through_coordination(resolve_topology(repo_root, feature)); the mission's own RED residue-allowance test now passes. Genuinely topology-aware."
     },
     {
       "criterion_id": "FR-009",
@@ -130,10 +130,13 @@
       "proof_type": "automated_test",
       "evidence": "WP07 approved; test_map_requirements_commit_result_json.py (CLI --json parses).",
       "pass_fail": "pass",
-      "verified_by": "reviewer-renata (per-WP review, profile-loaded)",
-      "verified_at": "2026-06-23T13:46:04.304958+00:00",
-      "notes": "Verified via the approved WP review(s) + cited automated test; FR mapped 1:1 to WP(s) in finalize requirement_refs."
+      "verified_by": "pre-merge adversarial squad (alphonso/debbie/renata/priti) + operator-delegated finalizer",
+      "verified_at": "2026-06-23T18:00:00+00:00",
+      "notes": "Verified via the approved WP review(s) + cited automated test; FR mapped 1:1 to WP(s) in finalize requirement_refs. | PRE-MERGE SQUAD CATCH: the regression test was DOA (imported the deleted CommitTargetKind -> aborted suite collection) and had a drifted fake signature. REMEDIATED (commit 691a5391e): ref-only CommitTarget + 3-arg fake; non-vacuous CommitResult.to_dict() serialization proof confirmed."
     }
   ],
-  "negative_invariants": []
+  "negative_invariants": [],
+  "overall_verdict_verified_by": "pre-merge adversarial squad (alphonso/debbie/renata/priti) + operator-delegated finalizer",
+  "overall_verdict_verified_at": "2026-06-23T18:00:00+00:00",
+  "overall_verdict_rationale": "All 13 FR criteria pass. The pre-merge adversarial squad (2026-06-23) confirmed the mission sound: CommitTargetKind eradication complete (AST-guarded, zero src/ refs), topology=None read-path absorption live and RED-first proven, C1/C6 dedup real (not abstraction-over-dupes), residue authority single-sourced, and the KEEP-set C-001..C-007 transients preserved. Two squad-caught BLOCKERs were remediated before this verdict (commit 691a5391e): FR-008's dead accept-gate and a DOA FR-013 test that aborted suite collection. Honesty caveats accepted: FR-006 C2 inline-read sweep is partial (~62 reads remain; burn-down #2100 \u2014 the load_meta authority itself is complete and correct); the #2085 acceptance-matrix-gate half is intentionally out of scope (C-010). Operator delegated this C-010 verdict to the agent reviewers (2026-06-23)."
 }
